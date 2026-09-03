@@ -960,23 +960,33 @@ _TENNIS_LENGTH_DEPENDENT_MARKETS = frozenset(
 _BO5_MIN_SETS = 4.0
 
 
-def _sample_is_best_of_five(
+def _market_has_a_best_of_five_sample(
     dossier: EventDossierV1,
+    canonical: str,
     *,
     surface: str | None = None,
     match_format: str | None = None,
 ) -> bool:
-    """Whether this fixture has any best-of-five sample left to price from.
+    """Whether *this market* has any best-of-five observation left to price.
 
-    Now a question about the *draw*, answered from ``ProviderValue.match_level``
-    by ``scope_values``, and no longer a guess from match length. What it
-    replaced was a share threshold on "four sets or longer", and that quantity
-    cannot answer the question asked of it: a best-of-five won 3-0 and a
-    best-of-three won 2-1 are both three sets. On the 2026-09-03 ATP slate 225
-    of 474 ``total_sets`` observations were exactly three and therefore mute,
-    every one of the 15 fixtures scored under the threshold, and ATP came off
-    the sheet in its entirety -- Taylor Fritz included, whose six 2026 Grand
-    Slam wins all came in straight sets and scored zero.
+    Asked per market, from that market's own sample. It used to be asked once
+    per fixture off ``total_sets`` alone, and that is a defect once the draw
+    rule exists rather than the old length heuristic: ``total_sets`` reaches
+    the dossier from both tennis providers while aces and double faults come
+    from tennis-abstract only, so a fixture whose ``total_sets`` sample is all
+    tour tennis suppressed genuine Grand Slam aces observations for no reason
+    connected to them. Constructed and confirmed on 2026-09-03: three slam
+    aces observations, deleted by a different metric's emptiness.
+
+    The draw is read from ``ProviderValue.match_level`` by ``scope_values`` and
+    no longer guessed from match length. What that replaced was a share
+    threshold on "four sets or longer", which cannot answer the question asked
+    of it: a best-of-five won 3-0 and a best-of-three won 2-1 are both three
+    sets. On the 2026-09-03 ATP slate 225 of 474 ``total_sets`` observations
+    were exactly three and therefore mute, every one of the 15 fixtures scored
+    under the threshold, and ATP came off the sheet in its entirety -- Taylor
+    Fritz included, whose six 2026 Grand Slam wins all came in straight sets
+    and scored zero.
 
     Measured on the sample as ``scope_values`` admits it -- same surface, same
     competition pins, same season rule, same draw rule -- because that is the
@@ -986,15 +996,13 @@ def _sample_is_best_of_five(
     sample meets the best-of-five ladder unguarded: the 2026-09-02 artefact
     reintroduced.
 
-    ``total_sets`` is still the metric read, because it is the one that states
-    match length directly and every tennis dossier carries it. An empty
-    survivor list answers False and the length-dependent markets stay
-    suppressed -- the safe direction, and the one this pipeline has taken on
-    every unprovable tennis claim since 2026-09-01.
+    A market the dossier does not carry answers True. There is nothing to
+    suppress and nothing to price; answering False would be a claim about a
+    sample that does not exist.
     """
-    obs = dossier.metrics.get("total_sets")
+    obs = dossier.metrics.get(canonical)
     if obs is None:
-        return False
+        return True
     kept, _ = scope_values(
         [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h],
         surface=surface,
@@ -1886,25 +1894,44 @@ def suppressed_markets_for(
     What changed on 2026-09-03 is *when* it fires, not what it does. The
     best-of-three observations are now removed from the sample by
     ``scope_values``, so this function no longer asks "is the sample mostly
-    best-of-five" -- a question the data could not answer -- but "is there any
-    best-of-five sample left". Fixtures whose Grand Slam history is empty or
-    unfetched still suppress, and that is the honest answer for them; the
-    fifteen ATP ties that suppressed on a full nine-metric dossier were not.
+    best-of-five" -- a question the data could not answer -- but, market by
+    market, "is there any best-of-five sample left". Fixtures whose Grand Slam
+    history is empty or unfetched still suppress, and that is the honest answer
+    for them; the fifteen ATP ties that suppressed on a full nine-metric
+    dossier were not.
+
+    Market by market, and not once per fixture, because the two tennis
+    providers do not cover the same markets: ``total_sets`` and ``total_games``
+    arrive from both, aces and double faults from tennis-abstract alone. Asked
+    off ``total_sets`` for the whole fixture -- which is what it did until this
+    was constructed and confirmed -- a fixture whose set-count sample happened
+    to be all tour tennis deleted three genuine Grand Slam aces observations
+    for a reason that had nothing to do with aces.
 
     Both halves must still be known for the gate to fire. An unpinned
     competition (``tennis_match_format`` returns None) suppresses nothing and
     scopes nothing.
+
+    Belt on top of braces, since the scoping does the real work: an empty
+    scoped sample already emits no rows, so this suppresses nothing that would
+    otherwise appear. It stays because the contract above -- a tautology is not
+    weak evidence, it is not evidence -- should be stated where it can be
+    tested, rather than left to emerge from ``_rows_for_sample`` declining to
+    iterate an empty list.
     """
     if dossier.sport != "tennis":
         return frozenset()
     match_format = tennis_match_format(competition)
     if match_format != "BO5":
         return frozenset()
-    if _sample_is_best_of_five(
-        dossier, surface=tennis_surface(competition), match_format=match_format
-    ):
-        return frozenset()
-    return _TENNIS_LENGTH_DEPENDENT_MARKETS
+    surface = tennis_surface(competition)
+    return frozenset(
+        market
+        for market in _TENNIS_LENGTH_DEPENDENT_MARKETS
+        if not _market_has_a_best_of_five_sample(
+            dossier, market, surface=surface, match_format=match_format
+        )
+    )
 
 
 def analyze_dossier(

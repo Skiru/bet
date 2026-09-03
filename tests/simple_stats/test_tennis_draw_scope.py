@@ -32,10 +32,16 @@ from bet.api_clients.tennis_abstract import TennisAbstractClient
 from bet.simple_stats.analyze import (
     _TENNIS_LENGTH_DEPENDENT_MARKETS,
     _format_scope_for,
+    analyze_dossier,
     scope_values,
+    suppressed_markets_for,
     tennis_match_format,
 )
-from bet.simple_stats.contracts import ProviderValue
+from bet.simple_stats.contracts import (
+    EventDossierV1,
+    MetricObservation,
+    ProviderValue,
+)
 from bet.simple_stats.providers import (
     _draw_filter_kwargs,
     _match_level_or_none,
@@ -364,6 +370,79 @@ class TestQualifyingIsItsOwnDraw:
         that spells a round oddly keeps its own class."""
         row = {"level": "A", "round": "Q1"}
         assert _row_match_level("tennis-abstract", row, None) == "A"
+
+
+class TestTheGateIsAskedPerMarket:
+    """The two tennis providers do not cover the same markets.
+
+    ``total_sets`` and ``total_games`` arrive from both, aces and double faults
+    from tennis-abstract alone. Asked once per fixture off ``total_sets`` --
+    which is what it did until this was constructed -- a fixture whose
+    set-count sample happened to be all tour tennis deleted genuine Grand Slam
+    aces observations for a reason that had nothing to do with aces.
+    """
+
+    @staticmethod
+    def _dossier() -> EventDossierV1:
+        def pv_(v, mid, level):
+            return _pv(v, match_level=level, match_id=mid, surface="Hard", opponent=mid)
+
+        return EventDossierV1(
+            event_id="e", sport="tennis", readiness="READY", data_gaps=[],
+            team_a_name="A", team_b_name="B",
+            metrics={
+                "total_sets": MetricObservation(
+                    canonical_name="total_sets",
+                    team_a_l10=[pv_(2.0, "s1", TOUR), pv_(3.0, "s2", TOUR)],
+                ),
+                "aces_total": MetricObservation(
+                    canonical_name="aces_total",
+                    team_a_l10=[
+                        pv_(9.0, "a1", SLAM),
+                        pv_(14.0, "a2", SLAM),
+                        pv_(11.0, "a3", SLAM),
+                    ],
+                ),
+            },
+        )
+
+    def test_a_market_with_a_slam_sample_survives_a_neighbour_with_none(self) -> None:
+        assert suppressed_markets_for(self._dossier(), "ATP US Open") == frozenset(
+            {"total_sets"}
+        )
+
+    def test_and_its_rows_reach_the_sheet(self) -> None:
+        rows = analyze_dossier(self._dossier(), competition="ATP US Open")
+        assert {r.market for r in rows} == {"aces_total"}
+        assert {r.sample_size for r in rows} == {3}
+
+    def test_a_market_the_dossier_does_not_carry_is_not_suppressed(self) -> None:
+        """There is nothing to suppress and nothing to price; answering
+        otherwise would be a claim about a sample that does not exist."""
+        suppressed = suppressed_markets_for(self._dossier(), "ATP US Open")
+        assert "breaks_total" not in suppressed
+
+
+class TestEveryLengthDependentTennisMarketIsCovered:
+    def test_no_tennis_market_escapes_the_rule(self) -> None:
+        """The list is by canonical name and the market catalogue is by the
+        older market-stat taxonomy, so a market added to one and not mapped in
+        the other would be scoped by nobody. This is where that says so."""
+        from bet.simple_stats.analyze import _MARKET_STAT_TO_CANONICAL
+        from bet.stats.market_ranking import standard_market_lines
+
+        canonical = set()
+        for market_def in standard_market_lines().get("tennis", []):
+            mapped = _MARKET_STAT_TO_CANONICAL.get(market_def["stat"])
+            if mapped:
+                canonical.add(mapped)
+        # Every tennis market the catalogue offers scales with match length --
+        # games, sets, aces, double faults. If a rate market is ever added
+        # (first-serve %, hold %), this assertion is the place to record that
+        # it is deliberately outside the rule.
+        assert canonical <= _TENNIS_LENGTH_DEPENDENT_MARKETS, sorted(
+            canonical - _TENNIS_LENGTH_DEPENDENT_MARKETS
+        )
 
 
 class TestTheFormatTableIsReadOnce:
