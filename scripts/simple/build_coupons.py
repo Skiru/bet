@@ -219,6 +219,40 @@ def _render_funnel(a, funnel: dict) -> None:
     a("")
 
 
+def _render_alternative_rungs(a, coupons: CouponSet) -> None:
+    """The rung the scorer ranked second, per single.
+
+    Printed because the choice between two rungs of one ladder is the part of
+    this file an operator is most likely to disagree with, and before 2026-09-03
+    he could not see that a choice had been made -- the other rung was counted
+    as ``duplicate_market_for_event`` and vanished. On the Grenal that dropped
+    ``cards`` 8.5 UNDER (20/20 with the sample's own maximum below the line) in
+    favour of 7.5, which sat on the sample's mode.
+    """
+    rows = [s for s in coupons.singles if s.alternative_line is not None]
+    if not rows:
+        return
+    a("Alternatywny szczebel (drugi w punktacji tej samej drabinki):")
+    a("")
+    for single in rows:
+        price = (
+            f"{single.alternative_price:.2f}"
+            if single.alternative_price is not None else "brak ceny"
+        )
+        minimum = (
+            f"{single.alternative_min_acceptable_odds:.2f}"
+            if single.alternative_min_acceptable_odds is not None else "—"
+        )
+        a(
+            f"- **#{single.rank} {single.match}** — {single.market_label} "
+            f"{single.alternative_line} {single.alternative_direction}: "
+            f"Superbet {price}, próg {minimum} "
+            f"(punktacja {single.alternative_rung_score:+.3f} "
+            f"vs {single.rung_score:+.3f} dla wybranego szczebla)"
+        )
+    a("")
+
+
 def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
     """The operator's file. Polish, because that is who reads it."""
     out: list[str] = []
@@ -316,6 +350,8 @@ def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
             )
             a("")
             _render_singles(below)
+
+        _render_alternative_rungs(a, coupons)
 
         a("Zastrzeżenia do poszczególnych typów:")
         a("")
