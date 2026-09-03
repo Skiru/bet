@@ -40,9 +40,12 @@ from bet.simple_stats.superbet_offer import (
     fold,
     lookup_line,
     build_event_offer,
+    is_banned_market,
     match_offer_events,
     normalize_lines,
+    normalize_result_lines,
     parse_outcome,
+    RESULT_MARKET_NAMES,
 )
 
 # --- fixtures ---------------------------------------------------------------
@@ -1115,3 +1118,220 @@ def test_real_payload_prices_are_verbatim_decimals():
     assert corners[(7.5, "OVER")] == 1.23
     assert corners[(7.5, "UNDER")] == 3.6
     assert all(price > 1.0 for price in corners.values())
+
+
+# --- the result family ------------------------------------------------------
+#
+# Markets Superbet offers, this pipeline does not price, and which were dropped
+# without trace until 2026-09-03. Every market name below is verified against a
+# live 4,279-outcome fixture (Raków-Górnik, eventId 13573272).
+
+
+def test_result_markets_were_invisible_to_the_totals_parser():
+    """The regression these lines exist for.
+
+    ``parse_outcome`` recognises "powyżej"/"poniżej" and nothing else, so every
+    result-family outcome returned None and hit the bare ``continue`` before
+    any diagnostic ran -- not mapped, not banned, not even unmapped. Five of the
+    fourteen legs on the 2026-09-03 SUPERBETS board were these, and the sheet's
+    silence about the six fixtures they sat on was indistinguishable from
+    "priced it, not worth it".
+    """
+    raw = {
+        "odds": [
+            raw_odds("Mecz", "1", 2.47),
+            raw_odds("Podwójna szansa", "X2", 1.55),
+            raw_odds("Obie drużyny strzelą", "tak", 1.61),
+        ]
+    }
+    teams = ("Raków Częstochowa", "Górnik Zabrze")
+    lines, unmapped = normalize_lines(raw, team_names=teams)
+    assert lines == []
+    assert unmapped == []
+
+    result_lines = normalize_result_lines(raw, team_names=teams)
+    assert {(line.family, line.outcome) for line in result_lines} == {
+        ("1x2", "HOME"),
+        ("double_chance", "X2"),
+        ("btts", "YES"),
+    }
+
+
+def test_every_leg_of_the_2026_09_03_superbets_board_is_now_visible():
+    """The six slips used four result markets between them: a match result, a
+    double chance, both-teams-to-score, and a double chance on a single half.
+    All four, or the fix does not answer the question that prompted it."""
+    raw = {
+        "odds": [
+            raw_odds("Mecz", "1", 1.94),
+            raw_odds("Podwójna szansa", "X2", 1.55),
+            raw_odds("Obie drużyny strzelą", "tak", 1.61),
+            raw_odds("1.połowa - podwójna szansa", "X2", 1.35),
+            raw_odds("2.połowa - podwójna szansa", "X2", 1.40),
+        ]
+    }
+    lines = normalize_result_lines(raw, team_names=("Śląsk", "Pogoń"))
+    assert {line.family for line in lines} == {
+        "1x2", "double_chance", "btts", "double_chance_1h", "double_chance_2h",
+    }
+
+
+def test_a_half_market_survives_the_ban_the_way_the_half_goal_totals_do():
+    """"1.polowa -" is in BANNED_SUBSTRINGS, and the two mapped half-goal
+    totals already survive it by being looked up in an exact table first. The
+    half double chance is the market slip 3 of the board was built from, and it
+    has to survive the same way."""
+    assert is_banned_market(fold("1.połowa - podwójna szansa"))
+    raw = {"odds": [raw_odds("1.połowa - podwójna szansa", "1X", 1.29)]}
+    assert [line.family for line in normalize_result_lines(raw)] == ["double_chance_1h"]
+
+
+def test_a_market_shaped_like_a_result_but_settling_on_cards_is_not_one():
+    """On the live fixture "Najwięcej kartek" -- most *cards* -- is quoted 1/X/2,
+    exactly like the match result, and "Wynik dowolnej połowy meczu" is quoted
+    with the two club names, exactly like a half 1X2. A rule that read outcome
+    shape instead of the market name would file both as the result. That is the
+    woodwork bug in the module docstring, one family over."""
+    raw = {
+        "odds": [
+            raw_odds("Najwięcej kartek", "1", 2.57),
+            raw_odds("Najwięcej kartek", "X", 4.0),
+            raw_odds("Najwięcej kartek", "2", 2.12),
+            raw_odds("Wynik dowolnej połowy meczu", "Raków Częstochowa", 1.5),
+        ]
+    }
+    teams = ("Raków Częstochowa", "Górnik Zabrze")
+    assert normalize_result_lines(raw, team_names=teams) == []
+
+
+def test_a_half_result_names_the_clubs_and_is_read_through_our_spelling():
+    """Superbet writes the half 1X2 with club names rather than 1/X/2, and
+    "remis" for the draw."""
+    raw = {
+        "odds": [
+            raw_odds("1.połowa - 1X2", "Raków Częstochowa", 2.95),
+            raw_odds("1.połowa - 1X2", "remis", 2.30),
+            raw_odds("1.połowa - 1X2", "Górnik Zabrze", 3.30),
+        ]
+    }
+    teams = ("Raków Częstochowa", "Górnik Zabrze")
+    got = {
+        line.outcome: line.price
+        for line in normalize_result_lines(raw, team_names=teams)
+    }
+    assert got == {"HOME": 2.95, "DRAW": 2.30, "AWAY": 3.30}
+
+
+def test_an_outcome_naming_a_team_we_cannot_place_is_dropped_not_guessed():
+    """Same rule the per-team totals follow. A price the operator cannot
+    attribute to a side is worse than no price: it looks usable."""
+    raw = {"odds": [raw_odds("Zakład bez remisu", "Palmeiras", 1.75)]}
+    assert normalize_result_lines(raw, team_names=("Remo", "Coritiba")) == []
+
+
+def test_result_lines_take_the_best_active_price_like_every_other_line():
+    raw = {
+        "odds": [
+            raw_odds("Mecz", "1", 2.40),
+            raw_odds("Mecz", "1", 2.47),
+            raw_odds("Mecz", "X", 9.99, status="block"),
+            raw_odds("Mecz", "X", 3.40, status="active"),
+        ]
+    }
+    prices = {
+        (line.outcome, line.status): line.price
+        for line in normalize_result_lines(raw)
+    }
+    assert prices[("HOME", "active")] == 2.47
+    assert prices[("DRAW", "active")] == 3.40
+
+
+def test_a_result_price_never_becomes_a_priced_total():
+    """These must not reach ``lines``. Everything there has a line and a
+    direction and is read downstream as a total the sheet can be compared
+    against; a 1X2 has neither and would be compared against a corners row."""
+    raw = {
+        "odds": [
+            raw_odds("Mecz", "1", 2.47),
+            raw_odds("Liczba goli", "powyżej 2.5", 1.80),
+        ]
+    }
+    lines, _ = normalize_lines(raw, team_names=("Remo", "Coritiba"))
+    assert [(line.market, line.line, line.direction) for line in lines] == [
+        ("goals_total", 2.5, "OVER")
+    ]
+
+
+def test_a_shut_result_market_is_not_a_price():
+    """1.0 or below is how Superbet renders a market it has closed, and the
+    totals path has refused it since the beginning. A result line at 1.0 would
+    put an untakeable quote next to takeable ones with nothing to tell them
+    apart -- and this block exists precisely so the operator can compare what he
+    is being offered against the consensus."""
+    raw = {
+        "odds": [
+            raw_odds("Mecz", "1", 1.0),
+            raw_odds("Podwójna szansa", "1X", 0.95),
+            raw_odds("Obie drużyny strzelą", "tak", 1.61),
+        ]
+    }
+    lines = normalize_result_lines(raw)
+    assert [(line.family, line.outcome) for line in lines] == [("btts", "YES")]
+
+
+def test_the_consensus_block_reports_how_many_books_stand_behind_it():
+    """"De-vigged" is a claim about one bookmaker's market; the count is how
+    much of the board agreed with it. Reported together or neither is
+    interpretable."""
+    raw = {"odds": [raw_odds("Mecz", "1", 2.47), raw_odds("Mecz", "X", 3.40)]}
+    lines = normalize_result_lines(raw)
+    assert {line.outcome for line in lines} == {"HOME", "DRAW"}
+    # Superbet's own status travels with the price, as it does on every total.
+    assert all(line.status == "active" for line in lines)
+
+
+def test_a_result_line_keeps_superbets_own_strings_for_audit():
+    """The mapping from Polish prose to a family code is the part most likely to
+    be wrong, and it cannot be checked once the source string is gone. Same
+    reason ``SuperbetLine`` keeps them."""
+    raw = {"odds": [raw_odds("1.połowa - podwójna szansa", "X2", 1.35)]}
+    (line,) = normalize_result_lines(raw)
+    assert line.source_market_name == "1.połowa - podwójna szansa"
+    assert line.source_outcome_name == "X2"
+
+
+def test_no_market_in_the_result_table_can_ever_appear_as_a_priced_total():
+    """The two lists must stay disjoint. Everything in ``lines`` has a line and
+    a direction and is read downstream as a total to compare the sheet against;
+    a result market has neither, and one leaking across would be compared to a
+    corners row. Asserted over the whole table rather than one example, so a
+    future entry cannot quietly land on the wrong side."""
+    raw = {
+        "odds": [
+            # Every result market, alongside a genuine total.
+            *[
+                raw_odds(name, outcome, 1.9)
+                for name, outcome in (
+                    ("Mecz", "1"),
+                    ("Podwójna szansa", "1X"),
+                    ("Obie drużyny strzelą", "tak"),
+                    ("1.połowa - podwójna szansa", "X2"),
+                    ("2.połowa - podwójna szansa", "X2"),
+                    ("1.połowa - obie drużyny strzelą", "tak"),
+                    ("2.połowa - obie drużyny strzelą", "nie"),
+                    ("Zakład bez remisu", "Remo"),
+                    ("1.połowa - 1X2", "remis"),
+                    ("2.połowa - 1X2", "Remo"),
+                )
+            ],
+            raw_odds("Liczba goli", "powyżej 2.5", 1.80),
+        ]
+    }
+    lines, _ = normalize_lines(raw, team_names=("Remo", "Coritiba"))
+    result_lines = normalize_result_lines(raw, team_names=("Remo", "Coritiba"))
+
+    priced_names = {fold(line.source_market_name) for line in lines}
+    assert priced_names.isdisjoint(RESULT_MARKET_NAMES)
+    assert priced_names == {"liczba goli"}
+    # And the result family did come through, or the assertion above is vacuous.
+    assert len(result_lines) >= 10

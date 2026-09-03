@@ -63,10 +63,12 @@ from bet.simple_stats.contracts import (
     MarketOddsLine,
     MarketSignalColumn,
     ModelPrediction,
+    ResultMarketConsensus,
     StatsSheetRow,
     StatsSheetV1,
 )
 from bet.simple_stats.providers import RunBudget
+from bet.simple_stats.slip_audit import remove_vig
 
 PROVIDER = "bzzoiro"
 
@@ -699,8 +701,135 @@ def market_signal_for_row(
     )
 
 
+# --- the result family -----------------------------------------------------
+#
+# The 1X2/BTTS block, which is a *different market* from every row on the sheet
+# and is carried beside them rather than joined to them. See
+# ``ResultMarketConsensus`` for why it exists and what it must never be used
+# for.
+
+# Outcome triples per market, in the order the de-vigged probabilities come
+# back. A market is de-vigged whole or not at all.
+_RESULT_OUTCOMES: tuple[str, ...] = ("HOME", "DRAW", "AWAY")
+_BTTS_OUTCOMES: tuple[str, ...] = ("yes", "no")
+
+
+def _devig_one_bookmaker(
+    quotes: list[MarketOddsLine], market: str, outcomes: tuple[str, ...]
+) -> tuple[dict[str, float] | None, str | None, str]:
+    """De-vigged probabilities for a whole market, from a single bookmaker.
+
+    Returns ``(probabilities_by_outcome, bookmaker, reason)``. The rule is
+    ``_same_bookmaker_probability``'s, generalised past two-way over/under
+    markets to the three-way 1X2: one book must price *every* outcome, and
+    Pinnacle is preferred when it does. Mixing books produces an overround near
+    1.00 -- or below it -- and a probability read off that is a claim about the
+    spread between bookmakers, not about the match.
+    """
+    by_book: dict[str | None, dict[str, MarketOddsLine]] = {}
+    book_order: list[str | None] = []
+    for quote in quotes:
+        if quote.market != market or quote.outcome not in outcomes:
+            continue
+        book = quote.bookmaker_slug
+        if book not in by_book:
+            by_book[book] = {}
+            book_order.append(book)
+        existing = by_book[book].get(quote.outcome)
+        # Best price per outcome *within* one book: the grid can carry several
+        # timestamps for the same book and outcome.
+        if existing is None or quote.price > existing.price:
+            by_book[book][quote.outcome] = quote
+
+    ordered: list[str | None] = book_order
+    if PREFERRED_DEVIG_BOOKMAKER in by_book:
+        ordered = [PREFERRED_DEVIG_BOOKMAKER, *(
+            b for b in book_order if b != PREFERRED_DEVIG_BOOKMAKER
+        )]
+
+    for book in ordered:
+        sides = by_book.get(book, {})
+        if len(sides) != len(outcomes):
+            continue
+        prices = [sides[outcome].price for outcome in outcomes]
+        if any(price <= 1.0 for price in prices):
+            continue
+        devigged = remove_vig(*prices)
+        return (dict(zip(outcomes, devigged)), book, "")
+
+    return (None, None, f"no single bookmaker prices the whole {market} market")
+
+
+def result_market_consensus(
+    event: EventMarketContext,
+    *,
+    home_team: str = "",
+    away_team: str = "",
+) -> ResultMarketConsensus:
+    """The result-family read for one fixture: what the books and the model say.
+
+    Always returns a block, never None. A fixture whose 1X2 nobody quoted is a
+    fact worth recording with its reason attached -- exactly the distinction
+    that was missing on 2026-09-03, when "no result quotes" and "nobody looked"
+    were the same silence.
+    """
+    quotes = [*event.odds, *event.bookmaker_comparison]
+    reasons: list[str] = []
+
+    result, result_book, result_reason = _devig_one_bookmaker(
+        quotes, "1x2", _RESULT_OUTCOMES
+    )
+    if result is None and result_reason:
+        reasons.append(result_reason)
+    btts, btts_book, btts_reason = _devig_one_bookmaker(quotes, "btts", _BTTS_OUTCOMES)
+    if btts is None and btts_reason:
+        reasons.append(btts_reason)
+
+    # Read out of ``result`` once, so the six fields below are visibly the same
+    # three numbers rather than three lookups and three correlated None checks.
+    p_home = p_draw = p_away = None
+    p_1x = p_12 = p_x2 = None
+    if result is not None:
+        p_home, p_draw, p_away = result["HOME"], result["DRAW"], result["AWAY"]
+        # Addition on the de-vigged triple, so the three double chances and the
+        # three single results are one coherent distribution. Reading the
+        # feed's own double_chance quotes instead would import a second
+        # overround -- see the contract note.
+        p_1x, p_12, p_x2 = p_home + p_draw, p_home + p_away, p_draw + p_away
+
+    predictions = event.predictions
+    if predictions is None:
+        reasons.append("model published no forecast for this fixture")
+
+    return ResultMarketConsensus(
+        event_id=event.event_id,
+        home_team=home_team,
+        away_team=away_team,
+        p_home=p_home,
+        p_draw=p_draw,
+        p_away=p_away,
+        p_1x=p_1x,
+        p_12=p_12,
+        p_x2=p_x2,
+        p_btts_yes=btts["yes"] if btts else None,
+        p_btts_no=btts["no"] if btts else None,
+        result_bookmaker=result_book,
+        btts_bookmaker=btts_book,
+        bookmakers_count=event.bookmakers_count,
+        model_p_home=predictions.prob_home if predictions else None,
+        model_p_draw=predictions.prob_draw if predictions else None,
+        model_p_away=predictions.prob_away if predictions else None,
+        model_p_btts_yes=predictions.prob_btts_yes if predictions else None,
+        model_version=predictions.model_version if predictions else None,
+        reasons=reasons,
+    )
+
+
 def attach_market_context_column(
-    stats_sheet: StatsSheetV1, context: MarketContextV1
+    stats_sheet: StatsSheetV1,
+    context: MarketContextV1,
+    *,
+    sides: dict[str, tuple[str, str]] | None = None,
 ) -> StatsSheetV1:
     """Return a copy of the sheet with ``row.market_signal`` populated.
 
@@ -708,6 +837,11 @@ def attach_market_context_column(
     sheet's ranking is a statistical ranking, and neither a bookmaker nor a model
     gets a vote in it -- a reader who wants to sort by market agreement does it
     on screen, where the reordering is visible.
+
+    Also populates ``result_markets``, the fixture-level 1X2/BTTS block. It is a
+    sibling of the rows and touches none of them: see ``ResultMarketConsensus``.
+    ``sides`` maps event_id to (home, away) and only supplies names -- a caller
+    without an event list gets the same probabilities under empty names.
     """
     by_event = {event.event_id: event for event in context.events}
     rows = [
@@ -716,7 +850,24 @@ def attach_market_context_column(
         )
         for row in stats_sheet.rows
     ]
-    return stats_sheet.model_copy(update={"rows": rows})
+    # Only fixtures the sheet actually carries rows for. MARKET_CONTEXT is
+    # sized by its own event loop and can hold fixtures ANALYZE dropped; a
+    # result block for a fixture with no rows would read as coverage the sheet
+    # does not have.
+    on_sheet = {row.event_id for row in stats_sheet.rows}
+    names = sides or {}
+    result_markets = [
+        result_market_consensus(
+            event,
+            home_team=names.get(event.event_id, ("", ""))[0],
+            away_team=names.get(event.event_id, ("", ""))[1],
+        )
+        for event in context.events
+        if event.event_id in on_sheet
+    ]
+    return stats_sheet.model_copy(
+        update={"rows": rows, "result_markets": result_markets}
+    )
 
 
 def summarize(context: MarketContextV1) -> dict[str, object]:

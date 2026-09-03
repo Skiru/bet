@@ -78,6 +78,7 @@ from bet.simple_stats.contracts import (
     SuperbetEventOffer,
     SuperbetLine,
     SuperbetOfferV1,
+    SuperbetResultLine,
 )
 from bet.simple_stats.offered_lines import resolve_player_names
 from bet.utils import normalize_team_name
@@ -220,6 +221,56 @@ TEAM_MARKET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^(?P<team>.+?) liczba podwojnych bledow$"), "double_faults_for"),
     (re.compile(r"^(?P<team>.+?) liczba gemow$"), "games_won"),
 ]
+
+# --- the result family -----------------------------------------------------
+#
+# Markets this pipeline does not price and will not start pricing here, mapped
+# so that "offered and not modelled" is a thing the artifact can say. Every name
+# is verified against a live 4,279-outcome fixture (Raków-Górnik, eventId
+# 13573272, fetched 2026-09-03).
+#
+# Exact-name matching, and for a sharper reason than the totals tables have. The
+# outcome shape is not enough to identify these: on that same fixture
+# "Najwięcej kartek" -- most *cards*, not the result -- is quoted as 1/X/2, and
+# "Wynik dowolnej połowy meczu" is quoted with the two club names exactly as a
+# half 1X2 is. A rule that read the outcomes and inferred the market would file
+# both as a match result. That is the woodwork trap in the module docstring,
+# one market family over.
+#
+# The halves are listed here even though ``BANNED_SUBSTRINGS`` catches
+# "1.polowa -": like the two mapped half-goal totals, this table is consulted
+# *before* the ban, and for the same reason. Slip 3 of the 2026-09-03 SUPERBETS
+# board was two legs of "1.połowa - podwójna szansa" and nothing else.
+RESULT_MARKET_NAMES: dict[str, str] = {
+    "mecz": "1x2",
+    "1.polowa - 1x2": "1x2_1h",
+    "2.polowa - 1x2": "1x2_2h",
+    "podwojna szansa": "double_chance",
+    "1.polowa - podwojna szansa": "double_chance_1h",
+    "2.polowa - podwojna szansa": "double_chance_2h",
+    "obie druzyny strzela": "btts",
+    "1.polowa - obie druzyny strzela": "btts_1h",
+    "2.polowa - obie druzyny strzela": "btts_2h",
+    "zaklad bez remisu": "draw_no_bet",
+    "1.polowa - zaklad bez remisu": "draw_no_bet_1h",
+    "2.polowa - zaklad bez remisu": "draw_no_bet_2h",
+}
+
+# The outcome vocabularies, folded. Superbet writes the same three results four
+# ways depending on the market, so the spelling is normalised once here rather
+# than compared downstream.
+RESULT_OUTCOME_CODES: dict[str, str] = {
+    "1": "HOME",
+    "x": "DRAW",
+    "2": "AWAY",
+    "remis": "DRAW",
+    "1x": "1X",
+    "x2": "X2",
+    "12": "12",
+    "tak": "YES",
+    "nie": "NO",
+}
+
 
 # A name containing any of these is never a plain match or team total, whatever
 # else it looks like. Each entry earned its place against live data.
@@ -475,6 +526,86 @@ def _team_resolver(ours: dict[str, str]):
         return None
 
     return resolve
+
+
+def normalize_result_lines(
+    raw_event: dict[str, Any],
+    *,
+    team_names: Iterable[str] = (),
+) -> list[SuperbetResultLine]:
+    """Every offered outcome in the result family on one Superbet event.
+
+    Deliberately a second pass rather than a branch inside ``normalize_lines``.
+    That function's whole contract is "every mapped over/under outcome", and
+    everything it returns has a line and a direction; a 1X2 has neither, and
+    widening ``SuperbetLine`` to hold one would put a market with no line into
+    the same list every consumer already reads as priced totals.
+
+    ``team_names`` are our spellings of the two sides, used only to read the
+    half-1X2 and draw-no-bet outcomes -- Superbet writes those with the clubs'
+    own names rather than 1/X/2. When neither side resolves, the outcome is
+    skipped: an unattributable price is worse than a missing one, because the
+    operator cannot tell which team he is being quoted.
+
+    Best active price wins per (family, outcome), matching ``normalize_lines``:
+    Superbet quotes the same result under several market groupings and the last
+    one seen is an artefact of feed ordering.
+    """
+    ours = {
+        normalize_team_name(resolve_team_alias(name)): name
+        for name in team_names
+        if name
+    }
+    resolve_team = _team_resolver(ours)
+    home_name, away_name = (list(team_names) + ["", ""])[:2]
+    best: dict[tuple[str, str], SuperbetResultLine] = {}
+
+    for raw in raw_event.get("odds") or []:
+        if not isinstance(raw, dict):
+            continue
+        family = RESULT_MARKET_NAMES.get(fold(raw.get("marketName")))
+        if family is None:
+            continue
+        try:
+            price = float(raw.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if price <= 1.0:
+            continue
+
+        folded_outcome = fold(raw.get("name"))
+        outcome = RESULT_OUTCOME_CODES.get(folded_outcome)
+        if outcome is None:
+            # A half 1X2 and a draw-no-bet name the clubs instead of using
+            # 1/X/2. Resolved through the same matcher the team totals use, so
+            # a spelling this pipeline cannot place is dropped rather than
+            # guessed at.
+            resolved = resolve_team(raw.get("name") or "")
+            if resolved and home_name and resolved == home_name:
+                outcome = "HOME"
+            elif resolved and away_name and resolved == away_name:
+                outcome = "AWAY"
+        if outcome is None:
+            continue
+
+        candidate = SuperbetResultLine(
+            family=family,
+            outcome=outcome,
+            price=price,
+            status=str(raw.get("status") or "active"),
+            source_market_name=str(raw.get("marketName") or ""),
+            source_outcome_name=str(raw.get("name") or ""),
+        )
+        slot = (family, outcome)
+        current = best.get(slot)
+        if current is None:
+            best[slot] = candidate
+        elif current.status != "active" and candidate.status == "active":
+            best[slot] = candidate
+        elif current.status == candidate.status and candidate.price > current.price:
+            best[slot] = candidate
+
+    return list(best.values())
 
 
 def normalize_lines(
@@ -868,6 +999,7 @@ def build_event_offer(
     sport = sport_of(raw_event) or (event.sport if event else "football")
     team_names = _sides(event) if event is not None else split_match_name(raw_event.get("matchName"))
     lines, unmapped = normalize_lines(raw_event, team_names=team_names)
+    result_lines = normalize_result_lines(raw_event, team_names=team_names)
     quality = "UNMATCHED"
     if event is not None:
         if matched_by == "betradar_id":
@@ -893,6 +1025,7 @@ def build_event_offer(
         status=(raw_event.get("metadata") or {}).get("status") if isinstance(raw_event.get("metadata"), dict) else None,
         lines=lines,
         unmapped_markets=unmapped,
+        result_market_lines=result_lines,
     )
 
 
@@ -1127,8 +1260,19 @@ def summarize_offer(offer: SuperbetOfferV1) -> dict[str, Any]:
     """AGENT_SUMMARY metrics for the SUPERBET step."""
     lines = sum(len(event.lines) for event in offer.events)
     unmapped: set[str] = set()
+    # Counted per fixture, not per outcome: "on how many of today's fixtures is
+    # the market the operator actually bets on being offered and not priced by
+    # us" is the number that answers the question, and it is 1 per fixture
+    # rather than the ~30 outcomes the family spans.
+    result_family_events = 0
+    result_family_lines = 0
+    result_families: set[str] = set()
     for event in offer.events:
         unmapped.update(event.unmapped_markets)
+        if event.result_market_lines:
+            result_family_events += 1
+            result_family_lines += len(event.result_market_lines)
+            result_families.update(line.family for line in event.result_market_lines)
     fuzzy = [e for e in offer.events if e.match_quality == "FUZZY"]
     return {
         "events_on_offer": offer.events_on_offer,
@@ -1143,6 +1287,13 @@ def summarize_offer(offer: SuperbetOfferV1) -> dict[str, Any]:
         ),
         "priced_lines": lines,
         "unmapped_market_names": sorted(unmapped)[:20],
+        # Offered, understood, deliberately unpriced. Reported next to
+        # ``priced_lines`` so a day whose sheet has no VALUE rows cannot be
+        # read as a day with nothing on it: on 2026-09-03 every leg of the
+        # SUPERBETS board that was not a total lived here and was invisible.
+        "result_family_events": result_family_events,
+        "result_family_lines": result_family_lines,
+        "result_families": sorted(result_families),
         "requests_made": offer.requests_made,
     }
 

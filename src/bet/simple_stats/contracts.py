@@ -745,6 +745,77 @@ class StatsSheetRow(StrictBaseModel):
     sample_excluded: dict[str, int] = Field(default_factory=dict)
 
 
+class ResultMarketConsensus(StrictBaseModel):
+    """What ~26 bookmakers and one model think about a fixture's *result*.
+
+    A different market from every row on this sheet, carried next to them for
+    the same reason ``TipsterEventSignal.public_lean`` is carried next to the
+    tipster column: it is real information about the fixture, it is information
+    about a bet this pipeline does not price, and the two must never be summed.
+    Nothing here has a ``p_low``, because nothing here has a sample -- these are
+    a snapshot of prices and a model's forecast, and MARKET_CONTEXT's whole
+    docstring is about why a price may not become an observation.
+
+    Why it is on the sheet at all. MARKET_CONTEXT has been downloading this
+    block since 2026-08-28 and paying for it -- 26 bookmakers on most fixtures
+    -- and until 2026-09-03 not one number in it reached any artifact a reader
+    opens. ``market_signal_for_row`` is per-row and per-market, and its
+    ``SIGNAL_MARKETS`` gate covers exactly ``corners_total`` and
+    ``goals_total``, so the 1X2, double chance and BTTS quotes were fetched,
+    parsed, validated and dropped. The cost was measured on the 2026-09-03
+    SUPERBETS board: five of fourteen legs across six slips were result-family
+    bets, the sheet had no VALUE rows on any of those six fixtures, and there
+    was no way to tell "we priced this and it was not worth it" from "we have
+    never looked at this market".
+
+    **De-vigged, and from one bookmaker's own complete market.** The same rule
+    ``_same_bookmaker_probability`` applies to totals, for the same reason: the
+    best price on each outcome taken from a different book is a synthetic
+    market with an overround near zero, and normalising that reports a
+    confidence no bookmaker actually holds. Pinnacle first when it prices the
+    whole market, otherwise the first book that does.
+    """
+
+    event_id: str
+    # Copied from the event list so the block reads standalone. Empty when
+    # ANALYZE ran without --event-list; the probabilities are still correct,
+    # because the quotes carry HOME/DRAW/AWAY themselves and never need a name
+    # to be computed -- only to be read.
+    home_team: str = ""
+    away_team: str = ""
+    # De-vigged 1X2. All three or none: two thirds of a market cannot be
+    # normalised, and reporting the raw 1/odds instead would hand the reader
+    # the bookmaker's margin as if it were probability.
+    p_home: float | None = None
+    p_draw: float | None = None
+    p_away: float | None = None
+    # Derived from the de-vigged 1X2 above by addition, never read from the
+    # feed's own double_chance quotes. Those carry a second, independent
+    # overround, so a 1X taken from them and a p_home taken from the 1X2 would
+    # not be two views of one market -- they would disagree by the difference
+    # between two margins and look like a signal.
+    p_1x: float | None = None
+    p_12: float | None = None
+    p_x2: float | None = None
+    p_btts_yes: float | None = None
+    p_btts_no: float | None = None
+    # Which book each de-vig came from, because "de-vigged" is only meaningful
+    # with the source attached.
+    result_bookmaker: str | None = None
+    btts_bookmaker: str | None = None
+    bookmakers_count: int = 0
+    # The CatBoost model's own read, for the same three outcomes. Kept beside
+    # the market rather than blended into it: two numbers that disagree are the
+    # useful output, and an average of them hides exactly the case worth seeing.
+    model_p_home: float | None = None
+    model_p_draw: float | None = None
+    model_p_away: float | None = None
+    model_p_btts_yes: float | None = None
+    model_version: str | None = None
+    # Why a field above is None, when it is. Empty when everything resolved.
+    reasons: list[str] = Field(default_factory=list)
+
+
 class StatsSheetV1(StrictBaseModel):
     """ANALYZE artifact: all stats-sheet rows for a dossier collection."""
 
@@ -752,6 +823,12 @@ class StatsSheetV1(StrictBaseModel):
     date: str = ""
     generated_at: str
     rows: list[StatsSheetRow] = Field(default_factory=list)
+    # One entry per fixture MARKET_CONTEXT could read a result market for.
+    # Deliberately a sibling of ``rows`` and not a column on them: it is
+    # per-fixture, not per-(market, line, direction), and putting it on a row
+    # would invite exactly the arithmetic it must never take part in -- a
+    # corners row's p_low multiplied by a 1X2 price.
+    result_markets: list[ResultMarketConsensus] = Field(default_factory=list)
 
 
 class TipsterPickRef(StrictBaseModel):
@@ -1081,6 +1158,70 @@ class SuperbetLine(StrictBaseModel):
     source_outcome_name: str
 
 
+# The result family: markets Superbet offers, this pipeline does not price, and
+# which are nonetheless most of what a SUPERBETS slip is built from.
+#
+# Named for the quantity they settle on rather than for Superbet's Polish, so a
+# reader can tell at a glance which of them a totals row could ever have spoken
+# to. None of them can: a total counts events inside a match, and every code
+# here settles on who was ahead when a whistle went.
+RESULT_MARKET_FAMILIES = Literal[
+    "1x2",
+    "1x2_1h",
+    "1x2_2h",
+    "double_chance",
+    "double_chance_1h",
+    "double_chance_2h",
+    "btts",
+    "btts_1h",
+    "btts_2h",
+    "draw_no_bet",
+    "draw_no_bet_1h",
+    "draw_no_bet_2h",
+]
+
+
+class SuperbetResultLine(StrictBaseModel):
+    """One offered outcome in a market this pipeline deliberately does not price.
+
+    This exists because "no VALUE rows on this fixture" and "nobody looked at
+    the market this fixture is actually bet on" were indistinguishable in the
+    artifact, and on 2026-09-03 they were the same six fixtures: every leg of
+    the day's six SUPERBETS slips that was not a total -- match result, double
+    chance, both-teams-to-score, a double chance on a single half -- was dropped
+    by ``normalize_lines`` before it could even be counted as unmapped, because
+    ``parse_outcome`` only recognises "powyżej"/"poniżej" and returns None for
+    "1X". Five of the fourteen legs on the operator's screen were invisible to
+    the whole pipeline, and the sheet said nothing at all rather than saying so.
+
+    **A price and never a probability, and never a row.** These carry no
+    ``p_low``, no sample and no tier, because nothing in this pipeline measures
+    what they settle on: ENRICH's samples are counts of corners, cards, fouls,
+    shots and goals, and no arithmetic over those produces P(the home side is
+    ahead at full time). They are recorded so the operator can see what he is
+    being offered and compare it himself against
+    ``ResultMarketConsensus`` -- the 1X2/BTTS read from bzzoiro's ~26-bookmaker
+    grid, which reaches the sheet for exactly this purpose. Wiring either into
+    a row, a tier or a coupon leg would be inventing the estimate this field
+    exists to admit is missing.
+    """
+
+    family: RESULT_MARKET_FAMILIES
+    # HOME/DRAW/AWAY for a 1X2 and a draw-no-bet, 1X/X2/12 for a double chance,
+    # YES/NO for both-teams-to-score. Superbet writes the same three outcomes
+    # four different ways -- "1"/"X"/"2" on the match, the club's own name on a
+    # half, "remis" for the draw -- and the code here is the normalised form so
+    # a reader is not comparing spellings.
+    outcome: Literal["HOME", "DRAW", "AWAY", "1X", "X2", "12", "YES", "NO"]
+    price: float
+    status: str = "active"
+    # Superbet's own strings, verbatim, for the same reason ``SuperbetLine``
+    # keeps them: the mapping from Polish prose to a family code is the part
+    # most likely to be wrong and cannot be audited once the source is gone.
+    source_market_name: str
+    source_outcome_name: str
+
+
 class SuperbetEventOffer(StrictBaseModel):
     """One Superbet fixture, matched to one of our events (or to none)."""
 
@@ -1107,6 +1248,12 @@ class SuperbetEventOffer(StrictBaseModel):
     # Present so Superbet adding a market surfaces as a diagnostic rather than
     # vanishing -- and so the reverse, a mapping that stops matching, does too.
     unmapped_markets: list[str] = Field(default_factory=list)
+    # Offered, understood, and deliberately not priced. Distinct from
+    # ``unmapped_markets`` in the way that matters to a reader: that list means
+    # "Superbet published something we could not identify", this one means "we
+    # identified it exactly and this pipeline has no sample that speaks to it".
+    # Only the first reading is a mapping bug.
+    result_market_lines: list[SuperbetResultLine] = Field(default_factory=list)
 
 
 class SuperbetOfferV1(StrictBaseModel):

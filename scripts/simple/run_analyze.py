@@ -179,6 +179,10 @@ def main() -> None:
     # or unreadable event list leaves them empty, which suppresses no market --
     # never a crash, and never a guessed format.
     competitions: dict[str, str] = {}
+    # (home, away) per event, for labelling the result-market block only. It
+    # never selects, filters or prices anything, so an absent event list costs
+    # two names and no numbers.
+    sides: dict[str, tuple[str, str]] = {}
     if args.event_list:
         try:
             event_list = EventListV1.model_validate_json(
@@ -188,6 +192,10 @@ def main() -> None:
                 event.event_id: event.competition
                 for event in event_list.events
                 if event.competition
+            }
+            sides = {
+                event.event_id: (event.home_team or "", event.away_team or "")
+                for event in event_list.events
             }
             out.event("event_list_loaded", competitions=len(competitions))
         except (OSError, ValueError) as exc:
@@ -259,7 +267,9 @@ def main() -> None:
             context = None
 
         if context is not None:
-            stats_sheet = attach_market_context_column(stats_sheet, context)
+            stats_sheet = attach_market_context_column(
+                stats_sheet, context, sides=sides
+            )
             signalled = [r for r in stats_sheet.rows if r.market_signal]
             with_verdict = [r for r in signalled if r.market_signal.verdict != "NO_MARKET_DATA"]
             market_metrics = {
@@ -270,6 +280,20 @@ def main() -> None:
                 "market_contradicts": sum(1 for r in with_verdict if r.market_signal.verdict == "CONTRADICTS"),
                 "market_split": sum(1 for r in with_verdict if r.market_signal.verdict == "SPLIT"),
                 "football_unlimited_entitled": context.football_unlimited_entitled,
+                # The result family reaches the sheet as its own block. Counted
+                # here so a day where nobody quoted a 1X2 is distinguishable
+                # from a day where the block was never built.
+                "result_market_fixtures": len(stats_sheet.result_markets),
+                "result_market_with_1x2": sum(
+                    1
+                    for block in stats_sheet.result_markets
+                    if block.p_home is not None
+                ),
+                "result_market_with_btts": sum(
+                    1
+                    for block in stats_sheet.result_markets
+                    if block.p_btts_yes is not None
+                ),
             }
             out.event(
                 "market_signal_column_attached",
@@ -367,6 +391,13 @@ def main() -> None:
         date=stats_sheet.date,
         generated_at=stats_sheet.generated_at,
         rows=top_rows,
+        # Carried whole, and deliberately not filtered alongside the rows.
+        # There is no p_low to filter it by, and the fixtures it matters most
+        # on are precisely the ones with no surviving row: "this fixture has no
+        # total worth its price" and "nobody here has ever looked at the market
+        # this fixture is bet on" are different sentences, and the analyst reads
+        # this file rather than the full sheet.
+        result_markets=stats_sheet.result_markets,
     )
     top_path = Path(args.output_dir) / f"{dossier_path.stem}_stats_sheet_top.json"
     write_json_atomic(top_path, top_sheet.model_dump(mode="json"))

@@ -713,3 +713,70 @@ def test_limit_rows_per_event_keeps_the_strongest_rows_seen_first():
 def test_limit_rows_per_event_unlimited_by_default():
     rows = [_row("evt-a", 0.90), _row("evt-a", 0.80), _row("evt-a", 0.70)]
     assert limit_rows_per_event(rows, max_per_event=None) == rows
+
+
+# --- the result family reaches the file the analyst actually opens ----------
+
+
+def _market_context_artifact(tmp_path, date="2026-08-25"):
+    """A minimal MARKET_CONTEXT with one fixture's full 1X2 and BTTS grid."""
+    import json
+
+    context = {
+        "run_id": "RID-1",
+        "date": date,
+        "generated_at": "2026-08-25T09:30:00Z",
+        "football_unlimited_entitled": True,
+        "events": [
+            {
+                "event_id": "EV1",
+                "provider_event_id": "1",
+                "bookmakers_count": 26,
+                "comparison_entitlement": "ENTITLED",
+                "bookmaker_comparison": [
+                    {
+                        "market": market,
+                        "outcome": outcome,
+                        "price": price,
+                        "bookmaker_slug": "pinnacle",
+                    }
+                    for market, outcome, price in (
+                        ("1x2", "HOME", 2.21),
+                        ("1x2", "DRAW", 3.51),
+                        ("1x2", "AWAY", 3.26),
+                        ("btts", "yes", 1.63),
+                        ("btts", "no", 2.15),
+                    )
+                ],
+            }
+        ],
+    }
+    path = tmp_path / "market_context.json"
+    path.write_text(json.dumps(context), encoding="utf-8")
+    return path
+
+
+def test_the_result_block_reaches_the_top_sheet_not_only_the_full_one(tmp_path):
+    """The analyst reads ``*_stats_sheet_top.json``, which is rebuilt from
+    ``rows`` alone. A result block written only to the full sheet is a fix
+    nobody ever sees -- and the fixtures it matters most on are exactly the
+    ones whose rows all fall below the coupon's p_low floor, so it must be
+    carried whole rather than filtered alongside them."""
+    dossier_path, _ = _minimal_artifacts(tmp_path, signal_date="2026-08-25")
+    context_path = _market_context_artifact(tmp_path)
+    summary = _run_analyze(
+        tmp_path, dossier_path, "--market-context", str(context_path)
+    )
+    assert summary["metrics"]["result_market_fixtures"] == 1
+    assert summary["metrics"]["result_market_with_1x2"] == 1
+
+    import json
+
+    top_path = tmp_path / "2026-08-25_event_dossiers_stats_sheet_top.json"
+    top = json.loads(top_path.read_text(encoding="utf-8"))
+    blocks = top["result_markets"]
+    assert [b["event_id"] for b in blocks] == ["EV1"]
+    total = blocks[0]["p_home"] + blocks[0]["p_draw"] + blocks[0]["p_away"]
+    assert abs(total - 1.0) < 1e-9
+    assert blocks[0]["p_btts_yes"] is not None
+    assert blocks[0]["result_bookmaker"] == "pinnacle"

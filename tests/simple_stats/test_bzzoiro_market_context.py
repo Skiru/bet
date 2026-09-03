@@ -1098,3 +1098,226 @@ def test_market_context_is_football_only_and_says_so_for_tennis():
     )
     assert market_context.market_signal_for_row(row, None) is None
 
+
+
+# --- the result family ------------------------------------------------------
+#
+# The 1X2/BTTS consensus MARKET_CONTEXT has been downloading since 2026-08-28
+# and dropping on the floor ever since: market_signal_for_row is per-row and
+# gated to corners_total/goals_total, so these quotes never reached an artifact
+# anyone opens.
+
+
+def _grid(market, outcomes, book="pinnacle"):
+    return [
+        MarketOddsLine(market=market, outcome=outcome, price=price, bookmaker_slug=book)
+        for outcome, price in outcomes.items()
+    ]
+
+
+def test_the_result_consensus_reaches_the_sheet_instead_of_being_dropped():
+    """The regression. On 2026-09-03 six fixtures carried a full 26-bookmaker
+    1X2 and BTTS grid, the sheet said nothing about any of them, and five of
+    the fourteen legs on that day's SUPERBETS board were bets in exactly those
+    markets. "No VALUE rows here" has to be distinguishable from "this market
+    was never looked at"."""
+    event = _context_for_tests(
+        bookmaker_comparison=[
+            *_grid("1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}),
+            *_grid("btts", {"yes": 1.63, "no": 2.15}),
+        ],
+        bookmakers_count=26,
+    )
+    block = market_context.result_market_consensus(
+        event, home_team="Raków", away_team="Górnik"
+    )
+    assert block.home_team == "Raków" and block.away_team == "Górnik"
+    assert block.p_home is not None and block.p_btts_yes is not None
+    assert block.bookmakers_count == 26
+    assert block.reasons == []
+
+
+def test_the_result_probabilities_have_the_overround_removed():
+    """1/2.21 + 1/3.51 + 1/3.26 is 1.041, and that 4.1% is the bookmaker's
+    margin. Reported raw it would read as a market more confident than any
+    bookmaker actually is."""
+    event = _context_for_tests(
+        bookmaker_comparison=_grid("1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26})
+    )
+    block = market_context.result_market_consensus(event)
+    assert block.p_home + block.p_draw + block.p_away == pytest.approx(1.0)
+    assert block.p_home < 1 / 2.21
+
+
+def test_the_double_chances_are_derived_from_the_devigged_1x2():
+    """Not read from the feed's own double_chance quotes, which carry a second
+    independent overround. Taken from there, 1X and p_home would differ by the
+    gap between two margins and that gap would read as information."""
+    event = _context_for_tests(
+        bookmaker_comparison=[
+            *_grid("1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}),
+            # A deliberately absurd double_chance grid. If any of it is read,
+            # the assertions below cannot hold.
+            *_grid("double_chance", {"1X": 1.01, "X2": 1.01, "12": 1.01}),
+        ]
+    )
+    block = market_context.result_market_consensus(event)
+    assert block.p_1x == pytest.approx(block.p_home + block.p_draw)
+    assert block.p_x2 == pytest.approx(block.p_draw + block.p_away)
+    assert block.p_12 == pytest.approx(block.p_home + block.p_away)
+    # The three double chances each count two of three outcomes, so they sum to
+    # exactly 2 when they come from one coherent distribution.
+    assert block.p_1x + block.p_x2 + block.p_12 == pytest.approx(2.0)
+
+
+def test_two_thirds_of_a_1x2_is_not_a_market_and_yields_nothing():
+    """Lech-Jagiellonia on 2026-09-03: fifteen books, a full BTTS market, and
+    not one book pricing all three results. The block must refuse the 1X2 and
+    still report the BTTS, with the reason attached."""
+    event = _context_for_tests(
+        bookmaker_comparison=[
+            *_grid("1x2", {"HOME": 1.60, "DRAW": 4.00}),
+            *_grid("btts", {"yes": 1.48, "no": 2.47}, book="10bet"),
+        ]
+    )
+    block = market_context.result_market_consensus(event)
+    assert block.p_home is None and block.p_1x is None
+    assert block.p_btts_yes is not None
+    assert "no single bookmaker prices the whole 1x2 market" in block.reasons
+
+
+def test_the_devig_never_mixes_bookmakers():
+    """Two books, each pricing part of the market, and the best price on each
+    outcome taken across them sums to an overround near or below 1.00 -- a
+    synthetic market no bookmaker offers. Same rule the totals de-vig follows."""
+    event = _context_for_tests(
+        bookmaker_comparison=[
+            *_grid("1x2", {"HOME": 2.21, "DRAW": 3.51}, book="book-a"),
+            *_grid("1x2", {"AWAY": 3.26}, book="book-b"),
+        ]
+    )
+    assert market_context.result_market_consensus(event).p_home is None
+
+
+def test_pinnacle_is_preferred_when_it_prices_the_whole_result_market():
+    event = _context_for_tests(
+        bookmaker_comparison=[
+            *_grid("1x2", {"HOME": 2.50, "DRAW": 3.20, "AWAY": 3.00}, book="softbook"),
+            *_grid("1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}, book="pinnacle"),
+        ]
+    )
+    block = market_context.result_market_consensus(event)
+    assert block.result_bookmaker == "pinnacle"
+
+
+def test_the_model_read_sits_beside_the_market_and_is_never_blended_into_it():
+    """Two numbers that disagree are the useful output. An average of them
+    hides the one case worth seeing."""
+    event = _context_for_tests(
+        bookmaker_comparison=_grid(
+            "1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}
+        ),
+        predictions=ModelPrediction(
+            prob_home=0.30, prob_draw=0.30, prob_away=0.40, model_version="dc-blend-v1"
+        ),
+    )
+    block = market_context.result_market_consensus(event)
+    assert block.model_p_home == 0.30
+    assert block.p_home == pytest.approx(1 / 2.21 / (1 / 2.21 + 1 / 3.51 + 1 / 3.26))
+    assert block.model_p_home != block.p_home
+
+
+def test_a_fixture_nobody_quoted_a_result_for_is_a_reason_not_a_silence():
+    event = _context_for_tests(bookmaker_comparison=[], odds=[])
+    block = market_context.result_market_consensus(event)
+    assert block.p_home is None and block.p_btts_yes is None
+    assert block.reasons
+
+
+def test_the_result_block_never_touches_a_single_row():
+    """It is a sibling of the rows, not a column on them. A corners row's p_low
+    multiplied by a 1X2 price is the exact arithmetic this must not enable."""
+    sheet = StatsSheetV1(generated_at="2026-09-03T00:00:00Z", rows=[_row()])
+    context = MarketContextV1(
+        generated_at="2026-09-03T00:00:00Z",
+        events=[
+            _context_for_tests(
+                bookmaker_comparison=_grid(
+                    "1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}
+                )
+            )
+        ],
+    )
+    attached = market_context.attach_market_context_column(sheet, context)
+    assert len(attached.result_markets) == 1
+    assert attached.result_markets[0].p_home is not None
+    # The row carries its totals signal and nothing from the result family.
+    assert not hasattr(attached.rows[0], "p_home")
+    assert attached.rows[0].market_signal is not None
+
+
+def test_a_result_block_is_only_built_for_fixtures_the_sheet_has_rows_for():
+    """MARKET_CONTEXT is sized by its own loop and holds fixtures ANALYZE
+    dropped. A block for one of those reads as coverage the sheet does not
+    have."""
+    sheet = StatsSheetV1(
+        generated_at="2026-09-03T00:00:00Z", rows=[_row(event_id="evt-1")]
+    )
+    context = MarketContextV1(
+        generated_at="2026-09-03T00:00:00Z",
+        events=[
+            _context_for_tests(event_id="evt-1"),
+            _context_for_tests(event_id="evt-not-on-the-sheet"),
+        ],
+    )
+    attached = market_context.attach_market_context_column(sheet, context)
+    assert [b.event_id for b in attached.result_markets] == ["evt-1"]
+
+
+def test_the_attach_carries_the_team_names_through_to_the_block():
+    """The probabilities are computed without ever needing a name -- the quotes
+    carry HOME/DRAW/AWAY themselves. The names are what make the block readable,
+    and "HOME 0.496" on a fixture the operator cannot identify is not a fact he
+    can act on."""
+    sheet = StatsSheetV1(
+        generated_at="2026-09-03T00:00:00Z", rows=[_row(event_id="evt-1")]
+    )
+    context = MarketContextV1(
+        generated_at="2026-09-03T00:00:00Z",
+        events=[
+            _context_for_tests(
+                event_id="evt-1",
+                bookmaker_comparison=_grid(
+                    "1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}
+                ),
+            )
+        ],
+    )
+    attached = market_context.attach_market_context_column(
+        sheet, context, sides={"evt-1": ("Raków Częstochowa", "Górnik Zabrze")}
+    )
+    assert attached.result_markets[0].home_team == "Raków Częstochowa"
+    assert attached.result_markets[0].away_team == "Górnik Zabrze"
+
+
+def test_a_run_without_an_event_list_still_gets_the_probabilities():
+    """``sides`` supplies names and nothing else, so ANALYZE run without
+    --event-list loses two strings and no numbers."""
+    sheet = StatsSheetV1(
+        generated_at="2026-09-03T00:00:00Z", rows=[_row(event_id="evt-1")]
+    )
+    context = MarketContextV1(
+        generated_at="2026-09-03T00:00:00Z",
+        events=[
+            _context_for_tests(
+                event_id="evt-1",
+                bookmaker_comparison=_grid(
+                    "1x2", {"HOME": 2.21, "DRAW": 3.51, "AWAY": 3.26}
+                ),
+            )
+        ],
+    )
+    attached = market_context.attach_market_context_column(sheet, context)
+    block = attached.result_markets[0]
+    assert block.home_team == "" and block.away_team == ""
+    assert block.p_home is not None
