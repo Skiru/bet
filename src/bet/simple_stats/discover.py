@@ -596,10 +596,27 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
         return events
 
 
+# `.get(sport, ())`, not `[sport]`: --sports is free text with no argparse
+# choices, and OddsAPIEventsAdapter also declares basketball and hockey.
+#
+# football: SlateGate rejects any event without a bzzoiro row regardless (297
+# of 342 on 2026-09-04), so discovering it elsewhere first is pure noise in
+# the artifact -- an event that cannot be enriched should not be discovered.
+# tennis: odds-api is the only schedule source left after bzzoiro-tennis was
+# removed (see discover_events' docstring) and highlightly's tennis discovery
+# never carried a native id anything downstream could use.
+DISCOVERY_SOURCES_BY_SPORT: dict[str, tuple[str, ...]] = {
+    "football": ("bzzoiro",),
+    "tennis": ("odds-api",),
+}
+
+
 def _fetch_source_events(source: AbstractSourceAdapter, date: str, sports: list[str]) -> list[DiscoveredEvent]:
     events: list[DiscoveredEvent] = []
     for sport in sports:
         if sport not in source.supported_sports:
+            continue
+        if source.name not in DISCOVERY_SOURCES_BY_SPORT.get(sport, ()):
             continue
         events.extend(source.fetch_events(date, sport))
     return events
@@ -772,16 +789,22 @@ def discover_events(
     rate_limiter: RateLimiter | None = None,
     run_id: str = "",
 ) -> EventListV1:
-    """Discover football/tennis events for ``date`` from The Odds API,
-    Highlightly and Bzzoiro, dedup them, and classify each merged fixture's
-    identity confidence.
+    """Discover football/tennis events for ``date``, dedup them, and classify
+    each merged fixture's identity confidence.
 
-    Tennis is discovered by The Odds API and Highlightly. The bzzoiro tennis
-    adapter was removed on 2026-09-02 with the rest of that provider: it had
-    been the only source handing over native tennis ids, and it stopped
-    answering (HTTP 402, paid addon) before that ever paid for itself -- on its
-    last slate it discovered nothing at all. ESPN and tennis-abstract both
-    resolve a player from a name, so nothing downstream depended on those ids.
+    All three source adapters (The Odds API, Highlightly, Bzzoiro) are always
+    constructed -- ``source_errors`` reads the full list -- but
+    ``DISCOVERY_SOURCES_BY_SPORT`` narrows which of them are actually queried
+    per sport. Football discovers from bzzoiro only: SlateGate rejects every
+    event without a bzzoiro identity regardless (section 4.1), so discovering
+    one nowhere else can enrich is pure noise in the artifact. Tennis
+    discovers from odds-api only, the sole schedule source left after the
+    bzzoiro tennis adapter was removed on 2026-09-02 (it had been the only one
+    handing over native tennis ids, and stopped answering -- HTTP 402, paid
+    addon -- before that ever paid for itself); Highlightly's tennis
+    discovery never carried a native id anything downstream could use either.
+    ESPN and tennis-abstract both resolve a player from a name, so nothing
+    downstream depends on a tennis discovery source's ids.
 
     SportDB is not a discovery source: its only schedule-shaped method,
     ``get_competition_results_with_evidence``, returns rows

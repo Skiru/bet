@@ -7,10 +7,12 @@ from bet.discovery.dedup import DeduplicationEngine
 from bet.discovery.models import DiscoveredEvent
 
 from bet.simple_stats.discover import (
+    DISCOVERY_SOURCES_BY_SPORT,
     _canonicalize_competition_names,
     _competition_canonical_map,
     _detect_ambiguous,
     _event_id,
+    _fetch_source_events,
     _to_event_record,
     reset_competition_canonical_cache,
 )
@@ -29,6 +31,55 @@ def _event(source, external_id, sport="football", home="Norway", away="Senegal",
         kickoff=kickoff,
         status="scheduled",
     )
+
+
+class _FakeAdapter:
+    def __init__(self, name, supported_sports):
+        self.name = name
+        self.supported_sports = supported_sports
+        self.calls: list[str] = []
+
+    def fetch_events(self, date, sport):
+        self.calls.append(sport)
+        return [_event(self.name, f"{self.name}-{sport}", sport=sport)]
+
+
+def test_football_discovery_is_gated_to_bzzoiro_only():
+    """Step 1 of the source-consolidation plan: an adapter that supports a
+    sport is only actually queried for it if it is also rostered in
+    DISCOVERY_SOURCES_BY_SPORT. A fixture no other source can enrich (every
+    football event lacking a bzzoiro row is dropped by SlateGate) should
+    never have been discovered in the first place."""
+    highlightly = _FakeAdapter("highlightly", ["football"])
+    bzzoiro = _FakeAdapter("bzzoiro", ["football"])
+
+    assert _fetch_source_events(highlightly, "2026-09-04", ["football"]) == []
+    assert highlightly.calls == []
+
+    events = _fetch_source_events(bzzoiro, "2026-09-04", ["football"])
+    assert len(events) == 1
+    assert bzzoiro.calls == ["football"]
+
+
+def test_tennis_discovery_is_gated_to_odds_api_only():
+    odds_api = _FakeAdapter("odds-api", ["tennis"])
+    highlightly = _FakeAdapter("highlightly", ["tennis"])  # hypothetical: never true today
+
+    events = _fetch_source_events(odds_api, "2026-09-04", ["tennis"])
+    assert len(events) == 1
+    assert odds_api.calls == ["tennis"]
+
+    assert _fetch_source_events(highlightly, "2026-09-04", ["tennis"]) == []
+    assert highlightly.calls == []
+
+
+def test_discovery_sources_by_sport_uses_get_not_indexing():
+    """--sports is free text with no argparse choices, and OddsAPIEventsAdapter
+    declares basketball and hockey too -- a sport with no entry in the roster
+    must fall back to "nothing", not raise a KeyError."""
+    basketball = _FakeAdapter("odds-api", ["basketball"])
+    assert "basketball" not in DISCOVERY_SOURCES_BY_SPORT
+    assert _fetch_source_events(basketball, "2026-09-04", ["basketball"]) == []
 
 
 def test_merges_two_sources_into_one_event():
