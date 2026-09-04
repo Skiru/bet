@@ -318,8 +318,25 @@ _UNDERSTAT_ALIASES = {
 # pairs every football client uses, so they need their own combiner
 # (_flat_from_dict_stats) rather than _combined_from_dict_stats.
 _TENNIS_MATCH_STAT_ALIASES = {
-    "first_serve_pct": "first_serve_pct",
-    "break_points_faced": "break_points_faced",
+    # first_serve_pct and break_points_faced were deliberately dropped here
+    # 2026-09-04 (source-consolidation plan, step 4): neither is an offered
+    # market -- no line, no COUNT_METRICS entry, no market_priors entry a row
+    # could ever be built from -- so aliasing them into ProviderValue
+    # observations only ever produced dossier metrics that scope_values,
+    # cross_provider_agreement and every downstream stage computed and then
+    # discarded. The client's raw row still carries both; an analyst reading
+    # the tennis-abstract page directly still has them as qualitative input,
+    # they simply no longer make the trip through this canonical-metrics
+    # pipeline to nowhere.
+    #
+    # Everything else in this table stays, on purpose, even where it looks
+    # like it belongs to the same cleanup: total_games is tennis's only
+    # transcription check (the two providers must read the same score), and
+    # games_won is the second provider espn-tennis's own coverage gaps still
+    # need (config/tennis_tournament_map.json closes most of them, not all).
+    # Narrowing this table further is exactly the change step 4's "Czego nie
+    # wolno" refuses.
+    #
     # Read, not derived. Both are computed by the client from the published set
     # score (``api_clients/tennis_score.py``), which is the quantity the Total
     # Games and Total Sets markets settle on. They used to be derived here from

@@ -108,6 +108,33 @@ def test_tennis_flat_stats_carry_match_totals():
     assert combined["games_won"] == 13
 
 
+def test_first_serve_pct_and_break_points_faced_are_not_aliased():
+    """Step 4 of the source-consolidation plan: neither is an offered market
+    (no line, no COUNT_METRICS entry, no market_priors row could ever be
+    built from), so aliasing them only ever produced a dossier metric that
+    every downstream stage computed and then discarded. total_games,
+    total_sets, games_won and the two _for markets must all survive this
+    narrowing -- that is the plan's explicit "Czego nie wolno"."""
+    aliases = _ALIASES_BY_PROVIDER["tennis-abstract"]
+    assert "first_serve_pct" not in aliases
+    assert "break_points_faced" not in aliases
+    stats = {
+        "first_serve_pct": 61.0,
+        "break_points_faced": 4.0,
+        "aces": 4, "opponent_aces": 7,
+        "double_faults": 3, "opponent_double_faults": 2,
+        "total_games": 19.0, "total_sets": 2.0, "games_won": 13.0,
+    }
+    combined = _combine_stats("tennis-abstract", stats, aliases)
+    assert "first_serve_pct" not in combined
+    assert "break_points_faced" not in combined
+    assert combined["total_games"] == 19
+    assert combined["total_sets"] == 2
+    assert combined["games_won"] == 13
+    assert combined["aces_for"] == 4
+    assert combined["double_faults_for"] == 3
+
+
 def test_tennis_total_games_is_never_rebuilt_from_service_games():
     """The defect this replaced, guarded so it cannot come back.
 
