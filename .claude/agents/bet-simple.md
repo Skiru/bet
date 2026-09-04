@@ -294,7 +294,10 @@ helps:
   rolling median from `runs/` -- zero provider calls -- and fires when a sport
   collapses relative to its own history, regardless of which source would have
   caused it. Report the sport and both numbers from the message; this is the
-  one to lead with now, not a specific provider's counter.
+  one to lead with now, not a specific provider's counter. The median counts
+  only prior fixtures *today's* discovery roster found, so a roster change does
+  not fire it forever: unscoped, 2026-09-04's bzzoiro-only 45 football
+  fixtures read as a collapse against a highlightly-era median of 179.
 - `upstream_unavailable` -- `understat` (build failure). Known, permanent.
   Report and continue.
 

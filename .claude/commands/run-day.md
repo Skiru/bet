@@ -94,6 +94,10 @@ tennis). `SPORT_EMPTY: <sport>` means that sport discovered zero `ACTIVE`
 events outright. `SLATE_BELOW_FLOOR: <sport>: N ACTIVE vs median M over W
 prior runs` means today's count collapsed relative to that sport's own recent
 history, whatever the cause — read `metrics.events_by_sport` for the numbers.
+The median is built only from prior fixtures today's roster could have found,
+so a roster change does not make it fire forever (unscoped, the first
+bzzoiro-only football slate read 45 against a highlightly-era median of 179);
+a prior day the roster contributed nothing to is skipped, not counted as zero.
 Either one demotes DISCOVER's verdict from `OK` to `PARTIAL` on its own; say so
 before quoting `active_events` as if the day were normal.
 
@@ -698,6 +702,17 @@ python3 scripts/simple/build_coupons.py --date <resolved> \
   --tipster-signal runs/<date>/<date>_tipster_signal.json \
   --tipster-claims runs/<date>/<date>_tipster_claims.json
 ```
+
+**Then read the `NIEZASTOSOWANE WETO` lines the build prints in the file's
+notes.** A veto is matched by `(event_id, market, line, direction)` and
+`event_id` hashes the competition name, so a rebuild after anything that renames
+a competition carries vetoes addressed to ids that no longer exist. Since
+2026-09-04 `build_coupons` names those entries rather than dropping them
+(measured that day: 3 of 4 vetoes on disk silently no-oped and the coupon still
+read as reviewed). Each line is a row the analyst struck and the coupon kept --
+say so in the report, or re-run that sport's analyst against the current sheet.
+On a same-session run (analysts read the sheet this pipeline just wrote) the
+list should be empty.
 
 `--tipster-signal` and `--tipster-claims` add the closing *Zdanie typerów*
 appendix: which fixtures two or more tipsters picked the same way, and every

@@ -34,7 +34,11 @@ if scripts_path not in sys.path:
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.discover import coverage_floor_reasons, discover_events  # noqa: E402
+from bet.simple_stats.discover import (  # noqa: E402
+    DISCOVERY_SOURCES_BY_SPORT,
+    coverage_floor_reasons,
+    discover_events,
+)
 from bet.simple_stats.persistence import default_db_path, persist_pipeline_run  # noqa: E402
 from bet.simple_stats.run_context import new_run_id, record_run  # noqa: E402
 
@@ -196,7 +200,11 @@ def main() -> None:
 
 
 def _history_active_counts(
-    runs_root: Path, before_date: str, sports: list[str], window: int = _HISTORY_WINDOW
+    runs_root: Path,
+    before_date: str,
+    sports: list[str],
+    window: int = _HISTORY_WINDOW,
+    sources_by_sport: dict[str, tuple[str, ...]] | None = None,
 ) -> dict[str, list[int]]:
     """ACTIVE-event counts per sport from the ``window`` most recent prior
     days' ``event_list.json`` artifacts already under ``runs_root``. Zero
@@ -204,9 +212,33 @@ def _history_active_counts(
 
     Only directories named ``YYYY-MM-DD`` are read, so ad-hoc harness/scratch
     dirs (e.g. ``2026-09-04_step5_merged``) never enter the history.
+
+    **Counted per sport under today's discovery roster, not as the prior day's
+    raw total.** The roster changed on 2026-09-04
+    (``DISCOVERY_SOURCES_BY_SPORT``: football bzzoiro-only, tennis
+    odds-api-only), and a floor that compares the new roster's output with the
+    old one's is measuring the change of roster, not the shape of the day.
+    Measured on the first live run after the change: football discovered 45
+    fixtures against a raw median of 179 -- a 7-days-running ``PARTIAL`` that
+    said nothing, exactly the "always fires" mirror of the permanently-dead
+    ``SLATE_CRITICAL_SOURCES`` check this floor replaced. Counting only the
+    prior day's events that *bzzoiro itself* found puts the same median at 50,
+    and 45 is a normal day.
+
+    An event carries one ``source_ids`` key per source that returned it (the
+    dedup engine unions them), so "was this fixture discovered by a source
+    still on today's roster" is answerable straight off the artifact.
+
+    A day contributing zero for a sport is **skipped rather than recorded as a
+    zero**: with the sport's sources absent from that day's roster, zero is
+    the absence of evidence, and feeding those zeros in would only drag the
+    median down and blind the floor. A genuine zero *today* is
+    ``SPORT_EMPTY``'s job, not the floor's.
     """
     if not runs_root.is_dir():
         return {}
+    if sources_by_sport is None:
+        sources_by_sport = DISCOVERY_SOURCES_BY_SPORT
     day_dirs = sorted(
         (p for p in runs_root.iterdir() if p.is_dir() and _RUN_DATE_DIR.match(p.name) and p.name < before_date),
         key=lambda p: p.name,
@@ -222,11 +254,20 @@ def _history_active_counts(
             payload = json.loads(event_list_path.read_text())
         except (OSError, json.JSONDecodeError):
             continue
-        by_sport = Counter(
-            e.get("sport") for e in payload.get("events", []) if e.get("status") == "ACTIVE"
-        )
+        by_sport: Counter[str] = Counter()
+        for event in payload.get("events", []):
+            if event.get("status") != "ACTIVE":
+                continue
+            sport = event.get("sport")
+            roster = sources_by_sport.get(sport)
+            if roster and not set(event.get("source_ids") or ()) & set(roster):
+                # Discovered only by a source no longer on this sport's
+                # roster. Not a fixture today's run could have found.
+                continue
+            by_sport[sport] += 1
         for sport in sports:
-            counts[sport].append(by_sport.get(sport, 0))
+            if by_sport.get(sport, 0):
+                counts[sport].append(by_sport[sport])
     return counts
 
 

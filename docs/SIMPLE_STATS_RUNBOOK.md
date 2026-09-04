@@ -864,6 +864,14 @@ before it starts, for the same reason the table above still shows the row.
   provider calls, and the live replacement for watching `highlightly`'s
   quota above. Either way, read `metrics.events_by_sport` and do not read the
   sheet as a survey of what was available.
+  **The history counts only the prior fixtures today's discovery roster could
+  have found** (`source_ids` ∩ `DISCOVERY_SOURCES_BY_SPORT`), and a prior day
+  the roster contributed nothing to is skipped rather than recorded as a zero.
+  Without that, the 2026-09-04 narrowing to bzzoiro-only football compared 45
+  fixtures against a highlightly-era median of 179 and reported `PARTIAL`
+  every day for a fortnight — the "always fires" mirror of the
+  permanently-dead check it replaced. Roster-scoped, the same day's football
+  median is 50 and only tennis (14 vs 34) is really down.
 - `SINGLE_SOURCE` — only one provider covered those matches. Common and not an
   error, but nothing corroborates it.
 - `sample_size` counts matches, not observations. Both sides' last-10 and the
