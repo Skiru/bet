@@ -89,7 +89,15 @@ PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
 # is wired in and cannot answer is indistinguishable, in an artifact, from one
 # that answered nothing.
 NATIVE_ID_PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
-    "football": ("highlightly", "bzzoiro"),
+    # highlightly left this roster 2026-09-04 (source-consolidation plan, step
+    # 6): the one metric it carries beyond bzzoiro, expected_goals_total, has
+    # zero rows on the sheet and is excluded outright in
+    # analyze._COUNT_MARKETS_EXCLUDED, so on the day measured it touched 6
+    # dossiers while spending its entire 100/100 daily quota. Its client and
+    # alias tables are kept, unused, exactly as sportdb's and api-football's
+    # are above -- restoring it is one word in this tuple. Discovery already
+    # stopped using it in step 1; this is the ENRICH side of the same move.
+    "football": ("bzzoiro",),
 }
 
 # The provider a sport's numbers are *from*, as against the ones that check it.

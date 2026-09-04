@@ -197,16 +197,25 @@ def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
 
 
 def test_thin_quota_is_warned_about_before_the_run(tmp_path):
-    limiter = _limiter(tmp_path, {"espn-football": 10_000, "highlightly": 70, "api-football": 10_000})
+    limiter = _limiter(tmp_path, {"espn-football": 10_000, "bzzoiro": 70, "api-football": 10_000})
     result = enrich_preflight(_list(_event()), limiter, planned_events=40)
     thin = {t["provider"]: t for t in result["thin"]}
-    assert "highlightly" in thin
-    assert thin["highlightly"]["covers_events"] < 40
+    assert "bzzoiro" in thin
+    assert thin["bzzoiro"]["covers_events"] < 40
 
 
-@pytest.mark.parametrize("sport,expected", [("football", "highlightly"), ("tennis", "tennis-abstract")])
+@pytest.mark.parametrize("sport,expected", [("football", "bzzoiro"), ("tennis", "tennis-abstract")])
 def test_providers_for_covers_both_name_and_native_id_families(sport, expected):
     assert expected in providers_for([sport])
+
+
+def test_highlightly_left_the_football_native_id_roster():
+    """Step 6 of the source-consolidation plan: highlightly's client and alias
+    tables stay in the codebase, unused, exactly like sportdb's and
+    api-football's -- but preflight must never query its quota or report it
+    usable/blocked again, since ENRICH no longer schedules it at all
+    (providers.NATIVE_ID_PROVIDERS_BY_SPORT["football"])."""
+    assert "highlightly" not in providers_for(["football"])
 
 
 # ── Credentials ──────────────────────────────────────────────────────────
@@ -248,7 +257,6 @@ def test_preflight_reports_missing_credentials_separately_from_exhausted_quota(t
     result = enrich_preflight(_list(_event()), limiter)
 
     kinds = {b["provider"]: b["kind"] for b in result["blocked"]}
-    assert kinds.get("highlightly") == "missing_credentials"
     assert kinds.get("bzzoiro") == "missing_credentials"
     # espn-football rather than api-football: the latter left the football
     # roster on 2026-09-02 (suspended account, 672 gaps and zero observations in
@@ -262,14 +270,14 @@ def test_preflight_reports_missing_credentials_separately_from_exhausted_quota(t
 def test_quota_exhausted_message_says_how_to_clear_it(tmp_path, monkeypatch):
     """After rotating a key the stale local counter still reads exhausted, so
     the message has to name the reset command and the .env override."""
-    _blank_env(tmp_path, monkeypatch, "HIGHLIGHTLY_API_KEY=k\nSPORTDB_API_KEY=k\nAPI_FOOTBALL_KEY=k\n")
-    limiter = _limiter(tmp_path, {"highlightly": 1})
-    limiter.record_request("highlightly", "/x", 1)
+    _blank_env(tmp_path, monkeypatch, "BZZORIO_KEY=k\nSPORTDB_API_KEY=k\nAPI_FOOTBALL_KEY=k\n")
+    limiter = _limiter(tmp_path, {"bzzoiro": 1})
+    limiter.record_request("bzzoiro", "/x", 1)
 
     result = enrich_preflight(_list(_event()), limiter)
-    reason = next(b["reason"] for b in result["blocked"] if b["provider"] == "highlightly")
+    reason = next(b["reason"] for b in result["blocked"] if b["provider"] == "bzzoiro")
     assert "reset_provider_quota.py" in reason
-    assert "BET_LIMIT_HIGHLIGHTLY" in reason
+    assert "BET_LIMIT_BZZOIRO" in reason
 
 
 # ── Reset ────────────────────────────────────────────────────────────────
