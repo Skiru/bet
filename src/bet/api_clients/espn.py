@@ -3158,6 +3158,33 @@ class ESPNClient(BaseAPIClient):
         return {}
 
 
+# Latin letters Unicode gives no NFKD decomposition, mapped to the ASCII form
+# ESPN's own feeds use. Keyed on the casefolded character, since the fold
+# casefolds first -- ``ß`` and ``İ`` are already handled there (``ß`` casefolds
+# to ``ss``, ``İ`` to ``i`` plus a combining dot the fold strips) and are listed
+# only so a reader does not have to rediscover why they are missing.
+_NO_NFKD_DECOMPOSITION = str.maketrans(
+    {
+        # Nordic. ESPN writes Bodo/Glimt, Brondby, Tromso.
+        "ø": "o",
+        "æ": "ae",
+        # Icelandic/Faroese.
+        "þ": "th",
+        "ð": "d",
+        # Polish. ESPN has no pol.1 team directory today, but the same names
+        # reach the tennis routes, which this fold also serves.
+        "ł": "l",
+        # Croatian, Serbian-Latin, Vietnamese.
+        "đ": "d",
+        # Turkish dotless i: Sivasspor, Karagümrük, Basaksehir all carry it in
+        # the endonym and none of them in ESPN's spelling.
+        "ı": "i",
+        # French/Latin ligature.
+        "œ": "oe",
+    }
+)
+
+
 def _fold_espn_participant_name(name: str) -> str:
     """Case-, accent- and separator-insensitive form of a team or player name.
 
@@ -3178,8 +3205,25 @@ def _fold_espn_participant_name(name: str) -> str:
     Every one of those surfaced as "could not resolve team identity for
     '<name>'", i.e. as a fuzzy-matching problem with the name, which is the
     same misdirection a wrong league pin produces.
+
+    ``_NO_NFKD_DECOMPOSITION`` is applied before the normalisation because NFKD
+    does not touch those letters and the strip below then turned each one into
+    a **space**. That is worse than leaving an accent on: it splits one token
+    into two, so the name stops matching even a correct spelling of itself.
+    Measured on the 2026-09-04 slate, ``Bodø/Glimt`` folded to ``bod glimt``
+    while ESPN's own directory spells it ``Bodo/Glimt`` -> ``bodo glimt``, and
+    Fredrikstad - Bodø/Glimt came back "could not resolve team identity" with
+    12 metrics on one side and 0 on the other. ESPN's spelling *is* what a
+    correct fold produces, which is what makes this a fold bug rather than an
+    alias question.
+
+    These are letters, not accented vowels -- Unicode defines no decomposition
+    for them on purpose -- so each needs the transliteration its own language
+    uses. ``å``, ``ö``, ``ü``, ``ş``, ``ğ``, ``ç`` and the Polish acutes are
+    absent from the table because they *do* decompose and already fold
+    correctly; adding them would be a second, disagreeing copy of NFKD.
     """
-    folded = unicodedata.normalize("NFKD", name.casefold())
+    folded = unicodedata.normalize("NFKD", name.casefold().translate(_NO_NFKD_DECOMPOSITION))
     folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
     return re.sub(r"[^a-z0-9]+", " ", folded).strip()
 

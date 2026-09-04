@@ -20,6 +20,9 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import re
+import unicodedata
+
 import pytest
 
 from bet.api_clients.espn import (
@@ -1000,6 +1003,80 @@ def test_accents_and_separators_do_not_break_a_name_match(feed_name, espn_name):
     assert _fold_espn_participant_name(feed_name) == _fold_espn_participant_name(
         espn_name
     )
+
+
+@pytest.mark.parametrize(
+    "feed_name,espn_name",
+    [
+        # Letters Unicode gives no NFKD decomposition. Before 2026-09-04 the
+        # fold turned each into a *space*, which is worse than leaving an
+        # accent on: it splits one token into two, so the name stops matching
+        # even a correct spelling of itself. Measured on that day's slate,
+        # "Bodø/Glimt" folded to "bod glimt" against ESPN's own "Bodo/Glimt",
+        # and Fredrikstad - Bodø/Glimt came back "could not resolve team
+        # identity" with 12 metrics on one side and 0 on the other.
+        ("Bodø/Glimt", "Bodo/Glimt"),
+        ("Tromsø IL", "Tromso IL"),
+        ("Brøndby IF", "Brondby IF"),
+        ("Łódź", "Lodz"),
+        ("Dinamo Zagreb Đakovo", "Dinamo Zagreb Dakovo"),
+        ("Sıvasspor", "Sivasspor"),
+    ],
+)
+def test_letters_without_a_decomposition_do_not_split_a_name(feed_name, espn_name):
+    assert _fold_espn_participant_name(feed_name) == _fold_espn_participant_name(
+        espn_name
+    )
+
+
+def test_every_transliteration_entry_is_load_bearing():
+    """A letter in the table that NFKD already handles is a second, disagreeing
+    copy of NFKD. Each entry has to be one the normalisation leaves behind --
+    otherwise it is an invitation to "fix" å or ü here as well and have two
+    rules answer one question."""
+    from bet.api_clients.espn import _NO_NFKD_DECOMPOSITION
+
+    for code_point in _NO_NFKD_DECOMPOSITION:
+        letter = chr(code_point)
+        stripped = "".join(
+            ch
+            for ch in unicodedata.normalize("NFKD", letter.casefold())
+            if not unicodedata.combining(ch)
+        )
+        # The strip in the fold keeps ``[a-z0-9]`` only, so "already handled"
+        # means "NFKD left ASCII behind" -- not ``str.isalnum``, which is True
+        # for 'ø' itself and would pass every entry for the wrong reason.
+        assert not re.fullmatch(r"[a-z0-9]+", stripped), (
+            f"{letter!r} already folds to {stripped!r} without the table; "
+            "remove it rather than keeping two rules for one letter"
+        )
+        assert re.fullmatch(
+            r"x[a-z0-9]+y", _fold_espn_participant_name(f"x{letter}y")
+        ), f"{letter!r} still leaves a gap in the middle of a token"
+
+
+def test_letters_that_already_decompose_are_untouched_by_the_table():
+    """The regression guard for the entry above: these worked before the
+    transliteration table existed and must still fold identically."""
+    fold = _fold_espn_participant_name
+    for feed_name, espn_name in (
+        ("VfL Osnabrück", "VfL Osnabruck"),
+        ("Gençlerbirliği", "Genclerbirligi"),
+        ("Anna Bondár", "Anna Bondar"),
+        ("Aalesunds FK", "Aalesunds FK"),
+        ("Fatih Karagümrük", "Fatih Karagumruk"),
+    ):
+        assert fold(feed_name) == fold(espn_name)
+
+
+def test_transliteration_does_not_merge_clubs_that_share_a_city():
+    """Romania's rou.1 directory carries both CFR Cluj-Napoca and Universitatea
+    Cluj, so anything that reaches for a city name picks a coin flip. The fold
+    must keep them apart -- the resolver's own fail-closed bucket rule is the
+    second line of defence, not the first."""
+    fold = _fold_espn_participant_name
+    assert fold("CFR Cluj-Napoca") != fold("Universitatea Cluj")
+    assert fold("Bodø/Glimt") != fold("Bodø Glimt II")
 
 
 def test_folding_does_not_merge_genuinely_different_names():

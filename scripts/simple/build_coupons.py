@@ -572,11 +572,40 @@ def _refresh_offer(previous, event_list, path: Path):
     Written back to disk deliberately. The next reader of this day -- a
     backtest, a slip audit, an operator asking why a price moved -- must see
     the prices the coupon was built from, not the ones it replaced.
+
+    **The OddsPapi identity bridge has to be rebuilt here too**, and forgetting
+    it was not a small omission. Superbet spells its fixtures for a Polish
+    audience -- ``Betis·Real Madryt``, ``PSG·Monaco`` -- and no amount of name
+    tolerance turns "PSG" into "Paris Saint-Germain" without guessing, which
+    this matcher refuses to do. The betradarId join is the only thing that
+    identifies them. On 2026-09-04 the morning offer matched 57 fixtures, 52 of
+    them ``ID_MATCHED``; this function re-collected without a bridge, name
+    matching recovered 55 by itself, and the two it structurally cannot do were
+    Real Betis - Real Madrid and Paris Saint-Germain - AS Monaco: the two
+    richest boards of the day at 1,120 and 1,260 priced lines. A refresh whose
+    whole purpose is fresher prices had deleted the prices that mattered most,
+    and reported success -- ``events_matched: 55`` reads like a healthy number
+    next to 57.
+
+    Cheap enough not to weigh: the bridge spent 3 requests that morning against
+    148 remaining. ``build_identity_bridge`` never raises and returns an
+    ``enabled=False`` bridge for every reason a run might not happen -- no
+    credential, no quota, provider error -- and ``collect_superbet_offer``
+    treats such a bridge exactly as it treats None, so the failure mode is the
+    behaviour this function already had rather than a dead refresh.
     """
+    from bet.simple_stats.superbet_identity import build_identity_bridge, disabled
     from bet.simple_stats.superbet_offer import collect_superbet_offer
 
     try:
-        fresh = collect_superbet_offer(event_list)
+        bridge = build_identity_bridge(event_list)
+    except Exception as exc:  # noqa: BLE001 - defence in depth; it promises not to raise
+        bridge = disabled(f"identity bridge crashed: {exc}")
+    for note in bridge.notes:
+        print(json.dumps({"oddspapi_bridge": note}), file=sys.stderr)
+
+    try:
+        fresh = collect_superbet_offer(event_list, identity_bridge=bridge)
     except Exception as exc:  # noqa: BLE001 - a dead offer host is not a dead coupon
         print(
             json.dumps({"warning": f"offer refresh failed, keeping {path}: {exc}"}),
@@ -589,17 +618,41 @@ def _refresh_offer(previous, event_list, path: Path):
             file=sys.stderr,
         )
         return previous
+    # A refresh that matches fewer fixtures than the offer it replaces is the
+    # one outcome worth refusing, and it used to be invisible: the old report
+    # printed `events_matched` alone, so 55 against the previous 57 read as a
+    # healthy number rather than as two deleted boards. Name the fixtures --
+    # the count alone does not say whether the day lost a CAF qualifier or the
+    # two marquee matches on it.
+    was = {e.event_id for e in previous.events}
+    now = {e.event_id for e in fresh.events}
+    lost = was - now
+    payload = {
+        "offer_refreshed": str(path),
+        "events_matched": fresh.events_matched,
+        "events_matched_previously": len(was),
+        "requests_made": fresh.requests_made,
+        "previous_generated_at": previous.generated_at,
+        "generated_at": fresh.generated_at,
+        **bridge.as_metrics(),
+    }
+    if lost:
+        by_id = {e.event_id: e for e in previous.events}
+        payload["warning"] = (
+            f"refresh matched {len(now)} where the previous offer matched {len(was)}: "
+            f"{len(lost)} fixture(s) lost their price"
+        )
+        payload["lost_fixtures"] = [
+            {
+                "event_id": event_id,
+                "superbet_match_name": by_id[event_id].superbet_match_name,
+                "match_quality": by_id[event_id].match_quality,
+                "priced_lines": len(by_id[event_id].lines or []),
+            }
+            for event_id in sorted(lost)
+        ]
     write_json_atomic(path, fresh.model_dump(mode="json"))
-    print(
-        json.dumps({
-            "offer_refreshed": str(path),
-            "events_matched": fresh.events_matched,
-            "requests_made": fresh.requests_made,
-            "previous_generated_at": previous.generated_at,
-            "generated_at": fresh.generated_at,
-        }),
-        file=sys.stderr,
-    )
+    print(json.dumps(payload), file=sys.stderr)
     return fresh
 
 
