@@ -89,10 +89,32 @@ def _wilson_interval(won: int, decided: int) -> tuple[float, float]:
 
 
 class _Value(NamedTuple):
-    """The two fields ``_compute_readiness`` reads off a ProviderValue."""
+    """The fields ``_compute_readiness`` reads off a ProviderValue.
+
+    It was two -- provider and match_id -- until 2026-09-04, when readiness
+    started measuring itself on the sample ANALYZE will actually read and so
+    began consulting ``scope_values``. That filter needs the competition and
+    season an observation belongs to (it cannot pin out a friendly or age out
+    last season from a match_id), the date that decides which season is
+    current, and the opponent it groups by. Omitting them did not silently
+    change the count -- the run died with ``AttributeError: '_Value' object
+    has no attribute 'surface'`` -- which is the failure mode to prefer.
+
+    ``surface`` and ``match_level`` are carried as None throughout, which is
+    correct rather than lazy: ``_scoped_side`` passes neither ``surface`` nor
+    ``match_format`` to ``scope_values``, so neither rule can fire, and a
+    field stated by no row at all takes ``_share_within_a_match``'s early
+    return instead of its pydantic ``model_copy`` path.
+    """
 
     provider: str
     match_id: str
+    competition_id: str | None = None
+    season_id: str | None = None
+    match_date: str = ""
+    opponent: str = ""
+    surface: str | None = None
+    match_level: str | None = None
 
 
 class _Observation(NamedTuple):
@@ -119,8 +141,8 @@ def readiness_by_event(date: str) -> dict[str, str]:
     Read as raw JSON rather than through EventDossierListV1: a frozen artifact
     is a record of what a past run wrote, and a contract that has legitimately
     narrowed since (``bzzoiro-tennis`` left PROVIDER_NAMES) must not make the
-    day unreadable. Only the two fields the readiness rule actually consults
-    are reconstructed.
+    day unreadable. Only the fields the readiness rule actually consults are
+    reconstructed -- see ``_Value``, which grew on 2026-09-04.
     """
     path = ROOT / "runs" / date / f"{date}_event_dossiers.json"
     if not path.exists():
@@ -137,7 +159,14 @@ def readiness_by_event(date: str) -> dict[str, str]:
             for bucket in ("team_a_l10", "team_b_l10", "h2h"):
                 buckets.append(
                     [
-                        _Value(pv.get("provider", ""), pv.get("match_id", ""))
+                        _Value(
+                            pv.get("provider", ""),
+                            pv.get("match_id", ""),
+                            pv.get("competition_id"),
+                            pv.get("season_id"),
+                            pv.get("match_date") or "",
+                            pv.get("opponent") or "",
+                        )
                         for pv in (obs.get(bucket) or [])
                         if pv.get("provider") in _LIVE_TENNIS_PROVIDERS
                     ]
