@@ -298,9 +298,10 @@ fixture's final score, not off `/stats/`, so their `n` on a given event is
 usually larger than every other market's and does not depend on whether that
 match published a box score at all (docs/PLAN_BOGATE_STATYSTYKI.md Faza 1).
 `goals_for` is also the one per-team market not exclusive to bzzoiro:
-`espn-football` and `highlightly` can both tell which side of a historical
-match scored, so it can be `AGREE`-corroborated like a match total, unlike the
-rest of the per-team row.
+`espn-football` reads its own fixture score into `goals_for`/`goals_against`
+(added 2026-09-04), so it can be `AGREE`-corroborated like a match total,
+unlike the rest of the per-team row. `highlightly` served this too before it
+left ENRICH's football roster on 2026-09-04.
 
 A per-team row is **one** team's own contribution, and the two sides of a fixture
 produce two rows of the same market and line that differ only in `team_name` and
@@ -560,9 +561,10 @@ slips that were read by hand.
 Actuals come from bzzoiro only (`/events/{id}/stats/` plus the score) and are
 cached in `runs/_backtest_actuals.json`, so re-running after a code change
 costs no requests. **That caps coverage at bzzoiro's own ~50 fixtures a day**,
-which is roughly 45% of emitted rows; highlightly could settle more and is
-deliberately not used, because its quota is the binding constraint on the *live*
-run. Tennis is not settled at all.
+which is roughly 45% of emitted rows. `highlightly` is not an alternative any
+more: it left ENRICH's football roster on 2026-09-04
+(`NATIVE_ID_PROVIDERS_BY_SPORT`), so it never has data to settle against.
+Tennis is not settled at all.
 
 Result as of 2026-09-02, over 683/750 settled candidate rows on five slates:
 hit rate 82.1% → 85.9%, and every calibration bucket passes `realised >=
@@ -781,6 +783,10 @@ highlightly               130     100      0  BET_LIMIT_HIGHLIGHTLY
 bzzoiro                  1204     inf    inf  BET_LIMIT_BZZOIRO
 ```
 
+(`highlightly` can still show a count here -- the client and quota bookkeeping
+are untouched -- but it left ENRICH's football roster on 2026-09-04, so
+whatever this row says no longer affects a run either way.)
+
 **After rotating a key**, the counter in `betting/data/.api_usage/` is stale: it
 recorded what the *old* key spent, so preflight keeps reporting the provider as
 exhausted while the new key is untouched. Clear it:
@@ -802,11 +808,16 @@ the only one with per-player history (`/players/{id}/stats/`, box scores inline,
 one call). Rows from those markets are therefore always `SINGLE_SOURCE`, which is
 a property of the roster and not a defect in the day.
 
-`highlightly` is the other daily-capped provider (one `/statistics` call per
-historical match) and its counter rolls over daily. At `remaining=0` the provider answers
-`HTTP 429` and every Highlightly observation becomes a `data_gap` — the run
-still completes, with fewer providers corroborating each metric. ENRICH's
-preflight reports the same numbers as `provider_quota` events before it starts.
+`highlightly` was the other daily-capped provider (one `/statistics` call per
+historical match) until it left `NATIVE_ID_PROVIDERS_BY_SPORT["football"]` on
+2026-09-04: its one metric beyond bzzoiro, `expected_goals_total`, has zero
+rows on the sheet, so the whole roster slot was spending its entire 100/100
+quota for six dossiers a day. Its client, alias tables and quota bookkeeping
+are kept, unused -- restoring it is one word in that tuple -- but ENRICH no
+longer schedules a task for it at all, so there is no `HTTP 429` or
+Highlightly `data_gap` to watch for on a football run any more. ENRICH's
+preflight still reports whatever `provider_quota` events the client emits
+before it starts, for the same reason the table above still shows the row.
 
 ## Reading the result
 
@@ -841,12 +852,18 @@ preflight reports the same numbers as `provider_quota` events before it starts.
   what separates the two is the fitted distribution and not an observation).
   They cap; they do not stack.
 - `DISCOVER` verdict `PARTIAL` with `SLATE_DEGRADED` in its issues means a
-  slate-critical source ran out of quota mid-slate. Today that is `highlightly`,
-  which drives discovery *breadth* rather than corroboration, so its exhaustion
-  removes about 77% of the day's fixtures. Wait for the quota to reset, or
-  accept `espn-football` as the only corroborator for the day and read the
-  slate as a fraction of it — but do not read the sheet as a survey of what was
-  available.
+  slate-critical source ran out of quota mid-slate. This was `highlightly`
+  (it drove discovery *breadth* rather than corroboration, so its exhaustion
+  removed about 77% of the day's fixtures) until it stopped being fetched at
+  DISCOVER at all on 2026-09-04 (`DISCOVERY_SOURCES_BY_SPORT`) — the check
+  is kept (a regression test pins its history) but can no longer fire.
+- `DISCOVER` verdict `PARTIAL` with `SPORT_EMPTY: <sport>` (added 2026-09-04)
+  means that sport discovered zero `ACTIVE` events. `SLATE_BELOW_FLOOR:
+  <sport>: N ACTIVE vs median M over W prior runs` means today's count
+  collapsed against that sport's own recent history in `runs/` — zero
+  provider calls, and the live replacement for watching `highlightly`'s
+  quota above. Either way, read `metrics.events_by_sport` and do not read the
+  sheet as a survey of what was available.
 - `SINGLE_SOURCE` — only one provider covered those matches. Common and not an
   error, but nothing corroborates it.
 - `sample_size` counts matches, not observations. Both sides' last-10 and the

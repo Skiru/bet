@@ -773,7 +773,10 @@ def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, s
     """Order events best-corroborated-first, so a capped run spends its
     provider budget on the events most likely to reach READY: identity
     CONFIRMED by two sources beats a single-source FUZZY_MATCHED one, and an
-    event whose Highlightly native ids were captured beats one without.
+    event whose native ids were captured beats one without. Football's are
+    bzzoiro's since 2026-09-04 (highlightly no longer discovers football at
+    all -- ``DISCOVERY_SOURCES_BY_SPORT``); this reads ``provider_team_ids``
+    generically and does not care which source populated it.
 
     Kickoff outranks corroboration. When no event is CONFIRMED and none carries
     native ids -- the normal case, every event FUZZY_MATCHED -- the

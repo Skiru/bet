@@ -88,7 +88,7 @@ KILL CASE: <…>
 | Finding | Verdict | Veto entry |
 |---|---|---|
 | match not on today's order of play at that time (two domains) / walkover / withdrawal | NO BET | `VETO`, line null, direction null, `OTHER` |
-| total's split shows one side with 0 scoped observations; `total_sets` pooled centre leading the sheet | NO BET | `DOWNGRADE`, line null, `ESTIMAND_WRONG` |
+| total's split shows one side with 0 scoped observations; `total_games` pooled centre leading the sheet | NO BET | `DOWNGRADE`, line null, `ESTIMAND_WRONG` |
 | sample opposition class ≠ tonight's opponent (games_won, aces_for) | NO BET / WATCH | `DOWNGRADE`, line null, `ESTIMAND_WRONG` (or `SAMPLE_NOT_REPRESENTATIVE` when the issue is level/surface mix) |
 | competition unpinned and the sample is mixed-surface; ≤3 retained on surface for a side | WATCH | `DOWNGRADE`, line null, `SAMPLE_NOT_REPRESENTATIVE` |
 | format gate evidently inert (BO3 tautology under BO5 prices) | NO BET | `VETO`, line null, direction null, `OTHER`, and report the gate failure |

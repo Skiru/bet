@@ -15,17 +15,23 @@ python3 scripts/simple/run_pipeline.py --preflight
 provider                 left   limit  status
 ----------------------------------------------------------------
 espn-football           10000   10000  usable
+bzzoiro                    inf     inf  usable
 api-football                0     100  quota_exhausted
-highlightly                 0     100  quota_exhausted
-sportdb                   210     300  usable
 tennis-abstract           inf     inf  usable
 espn-tennis             10000   10000  usable
 
-  football   two-provider coverage: 7 events
-  tennis     two-provider coverage: 400 events
+  football   two-provider coverage: 42 events
+  tennis     two-provider coverage: 12 events
 
-GO with --max-events 7 (quota corroborates 7, not the 40 planned).
+GO: quota corroborates all 45 football, 12 tennis planned.
 ```
+
+(`highlightly` and `sportdb` used to appear in this table -- both left the
+active roster in 2026, `highlightly` from football's ENRICH on 2026-09-04
+and `sportdb` on 2026-08-31 -- so a real preflight run no longer lists either
+one for these sports. `api-football` stays as the example of a blocked
+provider: it has been `SUSPENDED` since 2026-09-03 and answers a `200` with an
+empty body, which preflight still reads as `quota_exhausted`.)
 
 Ostatnia linia to Twoja decyzja. Trzy możliwe:
 
@@ -64,6 +70,11 @@ python3 scripts/simple/reset_provider_quota.py --provider highlightly
 Reset **niczego nie zmienia u providera** — kasuje wyłącznie naszą księgowość.
 Jeśli klucz jest ten sam, a limit realnie wyczerpany, reset tylko sprawi, że
 dostaniesz `HTTP 429` zamiast czystej odmowy przed wydaniem.
+
+(Przykład używa `highlightly` jako nazwy providera — składnia jest ogólna,
+ale samo `highlightly` od 2026-09-04 nie jest już odpytywane przy piłce, więc
+jego limit nic dziś nie blokuje. Podnoszenie/resetowanie ma dziś sens dla
+`api-football` czy `bzzoiro`, nie dla `highlightly`.)
 
 ### `missing_credentials`
 Komunikat podaje nazwę zmiennej. Wpisz ją do `.env` — to **jedyne** miejsce,

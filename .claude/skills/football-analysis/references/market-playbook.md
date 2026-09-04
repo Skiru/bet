@@ -83,7 +83,11 @@ ten leagues; 7,516 for goals) unless stated.
 - **Measures:** read off the score, so `n` runs ahead of every other market
   (every finished match has a score, ~2 of 10 have `/stats/`). Halves from
   the half-time score. `goals_for` is the exception per-team market that can
-  be corroborated (ESPN/highlightly know the side).
+  be corroborated: espn-football reads its own fixture's score into
+  `goals_for`/`goals_against` (added 2026-09-04, alongside `goals_total`),
+  so this is now bzzoiro-vs-ESPN agreement, not a single-source read.
+  Highlightly served this too before it left ENRICH's football roster on
+  2026-09-04.
 - **This is a priced market with a consensus.** Devig it
   (`audit_slip.py --market team_to_score …`, or the 1X2 + O/U 2.5 block in
   `market_context`) and compare; the sample's 12-straight is not an edge.
@@ -125,7 +129,9 @@ ten leagues; 7,516 for goals) unless stated.
 ## Per-team markets in general (`*_for`)
 
 - Single-source by construction (only bzzoiro keeps the side); `LEAN`
-  ceiling except `goals_for`. Tonight's `venue` selects the prior; check the
+  ceiling except `goals_for`, which espn-football corroborates from its own
+  fixture score (2026-09-04) and can therefore clear `LEAN` on agreement.
+  Tonight's `venue` selects the prior; check the
   sample's own venue mix (eight away matches for a home fixture is a thinner
   sample than `n=8` suggests).
 - `both_teams_over` ("każda z drużyn") has **no** row and never will:
