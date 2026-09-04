@@ -156,6 +156,29 @@ def test_a_broken_tennis_format_file_leaves_the_gate_inert(corrupt, document):
     assert analyze.tennis_match_format(None) is None
 
 
+# --- tennis tournamentId table (step 2, source consolidation) ---------------
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "{ not json",
+        '{"tournaments": "nope"}',
+        '{"tournaments": ["189"]}',
+        '{"tournaments": {"189": "Hard"}}',
+        '{"tournaments": {"189": {"surface": "hardcourt", "level": "SLAM"}}}',
+        "{}",
+    ],
+)
+def test_a_broken_tennis_tournament_file_leaves_the_lookup_inert(corrupt, document):
+    """Same contract as the name-keyed tables: a corrupted or unrecognised
+    entry must read as unknown, never as a guessed surface or draw class that
+    could silently delete real observations."""
+    corrupt("_TENNIS_TOURNAMENT_MAP_PATH", document)
+    assert providers.tennis_tournament_by_id("189") is None
+    assert providers.tennis_tournament_by_id(None) is None
+
+
 def test_the_real_configs_on_disk_load(tmp_path):
     """A guard against shipping a config the loaders silently reject. Both
     files are pinned data this pipeline prices from, and "degrades quietly" is
@@ -172,5 +195,9 @@ def test_the_real_configs_on_disk_load(tmp_path):
         for market, _venue in by_venue:
             assert market in priors
         assert analyze.tennis_match_format("ATP US Open") == "BO5"
+        assert pathlib.Path(providers._TENNIS_TOURNAMENT_MAP_PATH).exists()
+        assert providers.tennis_tournament_by_id("189") == {
+            "surface": "Hard", "level": "GRAND_SLAM",
+        }
     finally:
         analyze.reset_scope_caches()

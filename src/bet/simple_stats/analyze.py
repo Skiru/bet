@@ -20,6 +20,7 @@ from bet.simple_stats.providers import (
     _team_matches,
     reset_tennis_match_format_cache,
     reset_tennis_surface_cache,
+    reset_tennis_tournament_map_cache,
     tennis_match_format_for_competition,
     tennis_surface_for_competition,
 )
@@ -303,6 +304,7 @@ def reset_scope_caches() -> None:
         _MARKET_PRIORS_CACHE = None
     reset_tennis_surface_cache()
     reset_tennis_match_format_cache()
+    reset_tennis_tournament_map_cache()
 
 # STANDARD_MARKET_LINES' "stat" field uses the pre-existing (non-"_total")
 # taxonomy; MetricObservation keys use our canonical names (section 5). Two

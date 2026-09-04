@@ -27,9 +27,12 @@ from bet.simple_stats.providers import (
     _ALIASES_BY_PROVIDER,
     _combine_stats,
     _make_values,
+    _row_match_level,
     _row_surface,
     _tennis_match_unfinished,
+    reset_tennis_tournament_map_cache,
     tennis_surface_for_competition,
+    tennis_tournament_by_id,
 )
 
 # --- the score, which is now the definition ---------------------------------
@@ -212,6 +215,18 @@ def test_a_scoreboard_row_arrives_with_everything_needed_to_scope_it():
     assert tennis_surface_for_competition(row["competition_name"]) == "Hard"
 
 
+def test_a_missing_tournament_id_is_a_data_gap_not_the_event_id():
+    """Step 2 of the source-consolidation plan: ``tournamentId`` used to fall
+    back to ``event.get("id")``, which numbers one *match* (per round, per
+    year), not a tournament. A row that never states its tournamentId must
+    read as unknown so config/tennis_tournament_map.json is never asked to
+    pin a number that was never really a tournament id."""
+    comp = _competition()
+    del comp["tournamentId"]
+    row = _parse_tennis_competition(_EVENT, _GROUPING, comp)
+    assert row["competition_provider_id"] == ""
+
+
 def test_the_sides_are_ordered_by_what_espn_calls_them_not_by_position():
     """Across all 6,546 finished singles matches in a year of ATP scoreboards,
     ``homeAway`` read ("away", "home") -- every single row. Indexing by list
@@ -333,6 +348,59 @@ def test_both_sides_of_the_surface_rule_read_one_table():
     assert tennis_surface("ATP Rolex Monte-Carlo Masters") is None
     unpinned = {"competition_name": "ATP Winston-Salem Open"}
     assert _row_surface("espn-tennis", {}, unpinned) is None
+
+
+def test_tournament_id_covers_events_the_name_table_never_did():
+    """Step 2: config/tennis_surface_map.json pins ten Grand Slam names and
+    nothing else, so before this table, an espn-tennis row from any of the
+    other ~18 tournaments a real slate touches (Cincinnati, Halle, Monte-Carlo
+    ...) carried no surface at all. Keyed by ESPN's own tournamentId instead
+    of by name, so "Ostrava" vs "Ostrava CH" style collisions cannot happen."""
+    reset_tennis_tournament_map_cache()
+    cincinnati = {"competition_provider_id": "718", "competition_name": "ATP Cincinnati Open"}
+    assert _row_surface("espn-tennis", {}, cincinnati) == "Hard"
+    monte_carlo = {"competition_provider_id": "42", "competition_name": "ATP Rolex Monte-Carlo Masters"}
+    assert _row_surface("espn-tennis", {}, monte_carlo) == "Clay"
+    # tennis-abstract never states a tournamentId, so it is untouched by this
+    # table and keeps resolving through its own stated ``surface`` field.
+    assert _row_surface("tennis-abstract", {}, {"competition_provider_id": "718"}) is None
+
+
+def test_tournament_id_takes_priority_but_falls_back_to_the_name_table():
+    """The id table is tried first, but a row with no id (or an unpinned one)
+    still resolves through the name table exactly as it did before this table
+    existed -- nothing that worked before this change stops working."""
+    reset_tennis_tournament_map_cache()
+    us_open_by_name_only = {"competition_name": "ATP US Open"}
+    assert _row_surface("espn-tennis", {}, us_open_by_name_only) == "Hard"
+    unlisted_id = {"competition_provider_id": "999999", "competition_name": "ATP US Open"}
+    assert _row_surface("espn-tennis", {}, unlisted_id) == "Hard"
+
+
+def test_tournament_id_gives_a_tour_match_its_own_draw_class():
+    """A men's tour event (not a Grand Slam) must read as best-of-three, not
+    as unknown -- unknown and best-of-three are not the same claim, even
+    though both currently drop a best-of-five sample's observation. Getting
+    this right on espn-tennis's own row matters once tennis-abstract stops
+    being the only source ``_share_within_a_match`` can recover it from (step
+    4 narrows tennis-abstract to aces/double-faults only)."""
+    reset_tennis_tournament_map_cache()
+    cincinnati = {"competition_provider_id": "718", "round": "Round 1"}
+    assert _row_match_level("espn-tennis", {}, cincinnati) == "A"
+    us_open = {"competition_provider_id": "189", "round": "Round 1"}
+    assert _row_match_level("espn-tennis", {}, us_open) == "G"
+    us_open_qualifying = {"competition_provider_id": "189", "round": "Q1"}
+    assert _row_match_level("espn-tennis", {}, us_open_qualifying) == "GQ"
+
+
+def test_tennis_tournament_by_id_is_unknown_not_a_guess():
+    reset_tennis_tournament_map_cache()
+    assert tennis_tournament_by_id(None) is None
+    assert tennis_tournament_by_id("") is None
+    assert tennis_tournament_by_id("0") is None
+    assert tennis_tournament_by_id("999999") is None
+    assert tennis_tournament_by_id("718") == {"surface": "Hard", "level": "TOUR"}
+    assert tennis_tournament_by_id("189") == {"surface": "Hard", "level": "GRAND_SLAM"}
 
 
 # --- what the two providers now have in common -------------------------------

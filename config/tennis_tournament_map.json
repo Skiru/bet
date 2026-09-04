@@ -1,0 +1,34 @@
+{
+  "_purpose": "Surface and draw class (GRAND_SLAM vs TOUR) for a tennis tournament, keyed by ESPN's own numeric tournamentId rather than by name. Read by src/bet/simple_stats/providers.py::tennis_tournament_by_id, which _row_surface and _row_match_level call for espn-tennis observations specifically -- the same two fields config/tennis_surface_map.json and config/tennis_match_format.json resolve by name for tennis-abstract, which never states a tournamentId at all.",
+  "_why": "config/tennis_surface_map.json pins ten Grand Slam names and nothing else. ESPN spells its tournaments 'ATP Rolex Monte-Carlo Masters' and 'ATP National Bank Open presented by Rogers' -- pinning those by name would mean fuzzy matching, and tennis-abstract's own cache contains 'Ostrava' (Hard, n=36) beside 'Ostrava CH' (Clay, n=120), which is exactly the collision a name join cannot survive. tournamentId has no such problem: it is a stable, unambiguous identifier ESPN itself assigns, present on essentially every cached tennis fixture (536/536 on the 2026-09-04 slate; only a rare row where the provider's own tournamentId field was blank falls back to unknown, never to a guess). Before this file, ESPN's own historical rows carried a surface on only 3 of 22 distinct tournamentIds seen in one day's dossiers -- the Boulter-Muchova failure (see tennis_surface_map.json._why) was about exactly this gap on the observation side.",
+  "_rule": "Exact tournamentId pin, matching ESPN's own ``competition_provider_id`` (== ``comp.get('tournamentId')`` in api_clients/espn.py, never the event id fallback -- see that function's docstring for why the fallback was removed). An unlisted tournamentId is unknown and filters nothing, the same 'unknown is not degraded' rule the name-keyed tables already follow. This table is deliberately NOT joined to the name-keyed tables by name: ESPN's tournamentId and DISCOVER's competition name (from odds-api) are never reconciled here, so the *fixture currently being priced* still resolves its surface from config/tennis_surface_map.json by name, unchanged by this file. That is an explicit scope decision (docs/PLAN_FOOTBALL_BZZOIRO_ONLY_2026-09-04.md, step 2, point 2): this file only repairs the historical-observation side of the surface/draw comparison in scope_values, because building a name<->tournamentId bridge would reintroduce the fuzzy-match risk this file exists to avoid. The fixture side keeps whatever coverage the exact-name table already has.",
+  "_scope": "``level`` is only ever \"GRAND_SLAM\" or \"TOUR\" here -- the same two classes config/tennis_match_format.json's Grand-Slam-only pin implies (everything not a Grand Slam main draw is best-of-three in the professional game today). Grand Slam *qualifying* is handled at read time in providers.py::_row_match_level exactly as it is for the name-keyed path (round name matched against ``_QUALIFYING_ROUND``), not encoded in this file, so a single GRAND_SLAM entry covers both the main draw and qualifying.",
+  "_how_to_extend": "Read the surface and draw class off the tournament itself (ATP/WTA tour calendar, ITF), not off a provider's guess, and cite the source next to the entry. tournamentId -> name is recoverable from any cached ESPN athlete_fixtures_v3 file (``competition_provider_id`` beside ``competition_name``) if the id needs identifying. A tournament that changes surface or is not being tracked confidently must stay unlisted rather than be pinned speculatively -- a wrong pin silently deletes real observations, which is worse than the leak this file closes.",
+  "tournaments": {
+    "154": {"name": "Australian Open", "surface": "Hard", "level": "GRAND_SLAM"},
+    "172": {"name": "Roland Garros", "surface": "Clay", "level": "GRAND_SLAM"},
+    "188": {"name": "Wimbledon", "surface": "Grass", "level": "GRAND_SLAM"},
+    "189": {"name": "US Open", "surface": "Hard", "level": "GRAND_SLAM"},
+
+    "7": {"name": "EFG Swiss Open Gstaad", "surface": "Clay", "level": "TOUR"},
+    "22": {"name": "Plava Laguna Croatia Open Umag", "surface": "Clay", "level": "TOUR"},
+    "25": {"name": "Dubai Duty Free Tennis Championships", "surface": "Hard", "level": "TOUR"},
+    "27": {"name": "Terra Wortmann Open (Halle)", "surface": "Grass", "level": "TOUR"},
+    "42": {"name": "Rolex Monte-Carlo Masters", "surface": "Clay", "level": "TOUR"},
+    "304": {"name": "Generali Open (Kitzbühel)", "surface": "Clay", "level": "TOUR"},
+    "338": {"name": "Barcelona Open Banc Sabadell", "surface": "Clay", "level": "TOUR"},
+    "341": {"name": "Abierto GNP Seguros", "surface": "Hard", "level": "TOUR"},
+    "363": {"name": "Winston-Salem Open", "surface": "Hard", "level": "TOUR"},
+    "413": {"name": "Mutua Madrid Open", "surface": "Clay", "level": "TOUR"},
+    "415": {"name": "Libéma Open ('s-Hertogenbosch)", "surface": "Grass", "level": "TOUR"},
+    "421": {"name": "National Bank Open (Canada)", "surface": "Hard", "level": "TOUR"},
+    "424": {"name": "Mifel Tennis Open (Los Cabos)", "surface": "Hard", "level": "TOUR"},
+    "444": {"name": "Lexus Eastbourne Open", "surface": "Grass", "level": "TOUR"},
+    "636": {"name": "Bad Homburg Open", "surface": "Grass", "level": "TOUR"},
+    "713": {"name": "Miami Open", "surface": "Hard", "level": "TOUR"},
+    "718": {"name": "Cincinnati Open", "surface": "Hard", "level": "TOUR"},
+    "888": {"name": "Mubadala DC Open (Washington)", "surface": "Hard", "level": "TOUR"},
+    "997": {"name": "The HSBC Championships (WTA, grass swing)", "surface": "Grass", "level": "TOUR"}
+  },
+  "_verified": "2026-09-04 -- the four Grand Slam ids cross-checked against config/tennis_surface_map.json's name pins on the same cached rows (189/188/172 all agree with their US Open/Wimbledon/Roland Garros name entries). The 18 tour entries were identified from tournamentId -> name -> tournamentId <-> competition_name pairs mined from betting/data/stats_cache/espn/tennis/{atp,wta}/athlete_fixtures_v3 against the 22 distinct tournamentIds actually present in runs/2026-09-04's dossiers, then surfaced from each tournament's known tour-calendar surface. id 997 (dated 2026-06-08..13, squarely between Roland Garros and Wimbledon) is the lowest-confidence entry -- its ESPN name reuses ATP Queen's Club's 'HSBC Championships' branding for a WTA grass-swing event; surfaced Grass on the seasonal placement rather than on a verified programme."
+}

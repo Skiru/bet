@@ -921,6 +921,71 @@ def reset_tennis_surface_cache() -> None:
         _TENNIS_SURFACE_MAP_CACHE = None
 
 
+# Providers whose historical rows name the tournament by ESPN's own numeric
+# tournamentId rather than (or in addition to) a name -- see
+# config/tennis_tournament_map.json for why this is a separate table from the
+# name-keyed one above rather than a replacement for it. Only espn-tennis
+# states a tournamentId today; tennis-abstract never does, so it keeps
+# resolving through the name table.
+_TOURNAMENT_ID_BEARING_PROVIDERS = frozenset({"espn-tennis"})
+
+_TENNIS_TOURNAMENT_MAP_PATH = (
+    Path(__file__).resolve().parents[3] / "config" / "tennis_tournament_map.json"
+)
+_TENNIS_TOURNAMENT_MAP_CACHE: dict[str, dict[str, str]] | None = None
+_TENNIS_TOURNAMENT_MAP_LOCK = threading.Lock()
+
+
+def tennis_tournament_by_id(tournament_id: str | None) -> dict[str, str] | None:
+    """``{"surface": ..., "level": ...}`` for one ESPN tournamentId, or None.
+
+    ``surface`` is one of ``_KNOWN_SURFACES``' canonical spellings; ``level``
+    is ``"GRAND_SLAM"`` or ``"TOUR"``. Both come from one table because both
+    are properties of the tournament and both were governed by the same
+    ten-name pin until this file: see config/tennis_tournament_map.json for
+    the fuzzy-name-matching risk that keeps this keyed by id instead.
+
+    None for an unlisted id, and for a blank one -- never a guess. A row
+    whose provider never states a tournamentId (or states an empty one)
+    resolves through the name table exactly as it did before this table
+    existed.
+    """
+    global _TENNIS_TOURNAMENT_MAP_CACHE
+    with _TENNIS_TOURNAMENT_MAP_LOCK:
+        cache = _TENNIS_TOURNAMENT_MAP_CACHE
+    if cache is None:
+        try:
+            document = json.loads(_TENNIS_TOURNAMENT_MAP_PATH.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            document = {}
+        tournaments = document.get("tournaments") if isinstance(document, dict) else {}
+        if not isinstance(tournaments, dict):
+            tournaments = {}
+        cache = {}
+        for tid, entry in tournaments.items():
+            if not isinstance(entry, dict):
+                continue
+            surface = _KNOWN_SURFACES.get(str(entry.get("surface", "")).strip().lower())
+            level = str(entry.get("level", "")).strip().upper()
+            if level not in ("GRAND_SLAM", "TOUR"):
+                level = None
+            if surface is None and level is None:
+                continue
+            cache[str(tid)] = {"surface": surface, "level": level}
+        with _TENNIS_TOURNAMENT_MAP_LOCK:
+            if _TENNIS_TOURNAMENT_MAP_CACHE is None:
+                _TENNIS_TOURNAMENT_MAP_CACHE = cache
+            cache = _TENNIS_TOURNAMENT_MAP_CACHE
+    return cache.get(str(tournament_id)) if tournament_id else None
+
+
+def reset_tennis_tournament_map_cache() -> None:
+    """Forget the cached tournamentId table. For tests only."""
+    global _TENNIS_TOURNAMENT_MAP_CACHE
+    with _TENNIS_TOURNAMENT_MAP_LOCK:
+        _TENNIS_TOURNAMENT_MAP_CACHE = None
+
+
 # Providers whose historical rows say which draw a match belonged to, and how.
 #
 # ``tennis-abstract`` states it per match (``level``, "G" for Grand Slam) on
@@ -1078,6 +1143,18 @@ def _row_match_level(provider: str, stats: dict, fixture: Any) -> Any:
         if str(stated).strip().upper() == "G" and qualifying:
             return "GQ"
         return stated
+    # tournamentId first: it is unambiguous where a tournament name is not
+    # (see config/tennis_tournament_map.json), and it is what makes
+    # espn-tennis state its own draw rather than depend on
+    # ``_share_within_a_match`` recovering it from tennis-abstract for the
+    # same match. Falls through to the name table when the id is missing or
+    # unpinned, so every name this table already resolved keeps resolving.
+    if provider in _TOURNAMENT_ID_BEARING_PROVIDERS:
+        entry = tennis_tournament_by_id(_field(fixture, "competition_provider_id", default=""))
+        if entry and entry.get("level"):
+            if entry["level"] == "GRAND_SLAM":
+                return "GQ" if qualifying else "G"
+            return "A"  # TOUR, canonicalised by _match_level_or_none via _KNOWN_MATCH_LEVELS["a"]
     if provider not in _COMPETITION_LEVELLED_PROVIDERS:
         return None
     name = _field(fixture, "competition_name", default="")
@@ -1106,12 +1183,17 @@ def _row_surface(provider: str, stats: dict, fixture: Any) -> Any:
 
     Two spellings of the same fact, kept in one place so a caller never has to
     know which provider it is holding: the row's own ``surface`` field where
-    there is one, and otherwise the tournament the row names, looked up in the
-    surface table.
+    there is one, otherwise its tournamentId looked up in
+    ``config/tennis_tournament_map.json``, and otherwise the tournament name
+    it states, looked up in the name-keyed surface table.
     """
     stated = stats.get("surface") if isinstance(stats, dict) else None
     if stated:
         return stated
+    if provider in _TOURNAMENT_ID_BEARING_PROVIDERS:
+        entry = tennis_tournament_by_id(_field(fixture, "competition_provider_id", default=""))
+        if entry and entry.get("surface"):
+            return entry["surface"]
     if provider not in _COMPETITION_SURFACED_PROVIDERS:
         return None
     return tennis_surface_for_competition(_field(fixture, "competition_name", default=""))

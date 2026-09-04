@@ -1135,7 +1135,12 @@ def _parse_tennis_competition(event: dict, grouping: dict, comp: dict) -> dict |
     tour = _tennis_tour_of(grouping, comp)
     event_name = str(event.get("name", "")).strip()
     season = event.get("season", {})
-    tournament_id = comp.get("tournamentId") or event.get("id")
+    # Never falls back to ``event.get("id")``: that is the id of this one
+    # match, not of the tournament, so it is a different number per round and
+    # per year -- a fixture whose provider omitted ``tournamentId`` must read
+    # as "tournament unknown", not silently acquire a fake, unstable one that
+    # config/tennis_tournament_map.json could never sensibly pin.
+    tournament_id = comp.get("tournamentId")
 
     # ``format.regulation.periods`` is deliberately NOT read as the match
     # format, though it is the obvious candidate and the name invites it. It is
