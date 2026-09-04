@@ -1079,6 +1079,38 @@ def test_transliteration_does_not_merge_clubs_that_share_a_city():
     assert fold("Bodø/Glimt") != fold("Bodø Glimt II")
 
 
+def test_every_team_pin_is_keyed_on_what_the_feed_actually_folds_to():
+    """A pin whose key is not the fold of the feed name is dead code that reads
+    as coverage. These three were the entire residue on the 2026-09-04 slate
+    once the transliteration table landed, and each cost one side's
+    corroboration plus the h2h."""
+    from bet.api_clients.espn import _ESPN_TEAM_NAME_PINS
+
+    for feed_name, league, espn_name in (
+        ("1. FC Köln", "ger.1", "FC Cologne"),
+        ("Başakşehir FK", "tur.1", "Istanbul Basaksehir"),
+        ("CFR 1907 Cluj", "rou.1", "CFR Cluj-Napoca"),
+    ):
+        key = _fold_espn_participant_name(feed_name)
+        assert _ESPN_TEAM_NAME_PINS[league].get(key) == espn_name
+
+
+def test_a_team_pin_cannot_reach_across_leagues():
+    """Keyed by league code on purpose. rou.1 carries both CFR Cluj-Napoca and
+    Universitatea Cluj, so a global alias list reaching for the city name is a
+    coin flip -- and a German pin must not answer for a Turkish club."""
+    from bet.api_clients.espn import _ESPN_TEAM_NAME_PINS
+
+    assert "1 fc koln" not in _ESPN_TEAM_NAME_PINS.get("tur.1", {})
+    assert "cfr 1907 cluj" not in _ESPN_TEAM_NAME_PINS.get("ger.1", {})
+    for league, pins in _ESPN_TEAM_NAME_PINS.items():
+        for key, target in pins.items():
+            assert key == _fold_espn_participant_name(key), (
+                f"{league}/{key!r} is not stored in folded form and can never match"
+            )
+            assert "cluj" not in _fold_espn_participant_name(target) or league == "rou.1"
+
+
 def test_folding_does_not_merge_genuinely_different_names():
     fold = _fold_espn_participant_name
     assert fold("Al Hilal") != fold("Al Ahli")

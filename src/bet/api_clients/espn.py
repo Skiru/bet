@@ -2167,6 +2167,22 @@ class ESPNClient(BaseAPIClient):
         name_lower = _fold_espn_participant_name(team_name)
         if not name_lower:
             return None
+
+        # A verified pin outranks the buckets below, because the thing it fixes
+        # is not a spelling the buckets could reach: "1. FC Köln" shares no
+        # token with "FC Cologne". It still has to *find* the club in this
+        # league's own directory -- a pin naming a team ESPN does not list here
+        # resolves to nothing rather than to a guess.
+        pinned = _ESPN_TEAM_NAME_PINS.get(self.league, {}).get(name_lower)
+        if pinned:
+            wanted = _fold_espn_participant_name(pinned)
+            for t in teams_list:
+                if _fold_espn_participant_name(t.get("displayName", "")) == wanted:
+                    tid = str(t.get("id", "")).strip()
+                    if tid:
+                        self._save_cache(cache_key, {"team_id": tid})
+                        return tid
+
         exact_matches = []
         abbreviation_matches = []
         contains_matches = []
@@ -3183,6 +3199,31 @@ _NO_NFKD_DECOMPOSITION = str.maketrans(
         "œ": "oe",
     }
 )
+
+
+# Clubs whose feed name and ESPN name are different *names*, not different
+# spellings of one -- an exonym, an added city, a founding year. No fold can
+# bridge those, and no fuzzy rule should try: on the 2026-09-04 slate the three
+# below were the entire residue after the transliteration table above, and each
+# cost one side's corroboration plus the h2h.
+#
+# Keyed by league code so a pin cannot reach across competitions, and the value
+# is ESPN's exact ``displayName`` -- verified against the live ``/teams``
+# directory on 2026-09-04, not guessed from a search hit. The pin is consulted
+# *before* the fuzzy buckets and only ever names one club, so it can add a match
+# and can never turn a refusal into the wrong club.
+#
+# rou.1 is why this is keyed and exact rather than a global alias list: its
+# directory carries both `CFR Cluj-Napoca` and `Universitatea Cluj`, so anything
+# reaching for the city picks a coin flip.
+_ESPN_TEAM_NAME_PINS: dict[str, dict[str, str]] = {
+    # bzzoiro writes the German endonym, ESPN the English exonym.
+    "ger.1": {"1 fc koln": "FC Cologne"},
+    # bzzoiro writes the club, ESPN prefixes the city and drops "FK".
+    "tur.1": {"basaksehir fk": "Istanbul Basaksehir"},
+    # bzzoiro writes the founding year, ESPN the full city name.
+    "rou.1": {"cfr 1907 cluj": "CFR Cluj-Napoca"},
+}
 
 
 def _fold_espn_participant_name(name: str) -> str:

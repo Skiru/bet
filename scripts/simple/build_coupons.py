@@ -624,9 +624,36 @@ def _refresh_offer(previous, event_list, path: Path):
     # healthy number rather than as two deleted boards. Name the fixtures --
     # the count alone does not say whether the day lost a CAF qualifier or the
     # two marquee matches on it.
+    # Split the losses, because the two mean opposite things. Superbet takes a
+    # fixture off the pre-match board the moment it starts, so a refresh run at
+    # 16:10 legitimately "loses" every 15:00 kickoff -- and a warning that
+    # cannot tell that from a real matching failure is one the operator learns
+    # to scroll past. On 2026-09-04 the 16:10 refresh dropped five: four WTA
+    # matches that began at 15:00-15:30 and Abha - Al Ettifaq at 16:00. Nothing
+    # was wrong, and the previous version of this warning said there was.
+    def _moment(stamp: str | None) -> datetime | None:
+        """An aware datetime, or None -- a stamp we cannot read is not evidence
+        that a match has started, so it must not be treated as one."""
+        if not stamp:
+            return None
+        try:
+            parsed = datetime.fromisoformat(stamp)
+        except ValueError:
+            return None
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+    kicked_off: set[str] = set()
+    cutoff = _moment(fresh.generated_at) or _moment(previous.generated_at)
+    if cutoff is not None:
+        for event in event_list.events:
+            moment = _moment(event.start_time)
+            if moment is not None and moment <= cutoff:
+                kicked_off.add(event.event_id)
+
     was = {e.event_id for e in previous.events}
     now = {e.event_id for e in fresh.events}
-    lost = was - now
+    lost = (was - now) - kicked_off
+    lost_to_kickoff = (was - now) & kicked_off
     payload = {
         "offer_refreshed": str(path),
         "events_matched": fresh.events_matched,
