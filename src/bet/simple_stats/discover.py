@@ -227,16 +227,29 @@ _GENERIC_COMPETITION_NAMES = frozenset({
 })
 
 
-def _highlightly_competition_name(league: dict, country: dict) -> str:
-    """``league.name``, qualified by country when the name alone names nothing.
+def _qualified_competition_name(name: str, country_name: str) -> str:
+    """A competition name, qualified by its country when the name alone names
+    nothing (``_GENERIC_COMPETITION_NAMES``).
 
     Returns the bare name unchanged for everything else, so the exact-name pin
     maps keep matching the keys they already hold.
+
+    Shared by every discovery adapter whose provider reports a country beside
+    the league name, because the pin maps are keyed on the *name* and do not
+    know which provider produced it. Measured on the first live run after
+    football discovery narrowed to bzzoiro alone (2026-09-04): bzzoiro was the
+    one adapter not applying this, so PSG-Monaco arrived as bare "Ligue 1" and
+    Genoa-Como as bare "Serie A", where the same fixtures had arrived as
+    "Ligue 1 - France" and "Serie A - Italy" from highlightly the run before.
+    Both are deliberately absent from the ESPN table (Algeria and Tunisia also
+    play a "Ligue 1"; Brazil also plays a "Serie A"), so 14 of 45 football
+    fixtures silently lost their only corroborating provider -- and after step
+    5 of the consolidation, espn-football is where a *goal* comes from.
     """
-    name = str(league.get("name") or "").strip()
+    name = (name or "").strip()
     if not name:
         return ""
-    country_name = str((country or {}).get("name") or "").strip()
+    country_name = (country_name or "").strip()
     if not country_name:
         return name
     if name.casefold() not in _GENERIC_COMPETITION_NAMES:
@@ -244,6 +257,13 @@ def _highlightly_competition_name(league: dict, country: dict) -> str:
     if country_name.casefold() in name.casefold():
         return name
     return f"{country_name} {name}"
+
+
+def _highlightly_competition_name(league: dict, country: dict) -> str:
+    """``league.name``, qualified by country. See ``_qualified_competition_name``."""
+    return _qualified_competition_name(
+        str(league.get("name") or ""), str((country or {}).get("name") or "")
+    )
 
 
 class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
@@ -423,8 +443,14 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
             self._league_names = {}
             result = self._client.get_leagues_result()
             if result.status is SourceResultStatus.SUCCESS and result.value:
+                # ``country_name`` is on every catalogue row and was being
+                # dropped here. It is what makes bzzoiro's bare "Ligue 1" /
+                # "Serie A" / "Pro League" / "Superliga" resolvable at all --
+                # see ``_qualified_competition_name``.
                 self._league_names = {
-                    row["provider_league_id"]: row["league_name"]
+                    row["provider_league_id"]: _qualified_competition_name(
+                        row["league_name"], str(row.get("country_name") or "")
+                    )
                     for row in result.value.get("leagues", [])
                 }
             else:

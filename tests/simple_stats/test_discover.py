@@ -296,6 +296,68 @@ def test_bzzoiro_competition_stays_unique_when_the_catalogue_is_unavailable(monk
     assert adapter.last_errors
 
 
+def test_bzzoiro_qualifies_a_generic_league_name_with_its_country(monkeypatch):
+    """bzzoiro's catalogue calls the French top flight plain "Ligue 1", and the
+    ESPN table refuses that key on purpose (Algeria and Tunisia play one too).
+    Football discovery is bzzoiro-only since 2026-09-04, so unqualified here
+    means unresolvable everywhere: measured on that day's live run, 14 of 45
+    fixtures -- PSG-Monaco and Genoa-Como among them -- lost espn-football,
+    which is where a goal comes from after step 5 of the consolidation."""
+    from bet.api_clients.espn import get_espn_league_for_competition
+
+    leagues = {"count": 1, "results": [{"id": 7, "name": "Ligue 1", "country": "France"}]}
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), leagues)
+
+    events = adapter._fetch_events_impl("2026-08-26", "football")
+    assert events[0].competition == "France Ligue 1"
+    assert get_espn_league_for_competition(events[0].competition) == "fra.1"
+
+
+def test_bzzoiro_leaves_a_specific_league_name_alone(monkeypatch):
+    """The qualification is a closed list of generic names, not a blanket
+    prefix: the pin maps hold "Eredivisie" and "LaLiga" bare, so prefixing
+    every name would break resolutions that work today."""
+    leagues = {"count": 1, "results": [{"id": 7, "name": "Eredivisie", "country": "Netherlands"}]}
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), leagues)
+
+    events = adapter._fetch_events_impl("2026-08-26", "football")
+    assert events[0].competition == "Eredivisie"
+
+
+def test_bzzoiro_a_league_with_no_country_keeps_its_bare_name(monkeypatch):
+    """A catalogue row missing ``country`` must not produce " Superliga"."""
+    leagues = {"count": 1, "results": [{"id": 7, "name": "Superliga", "country": None}]}
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), leagues)
+
+    events = adapter._fetch_events_impl("2026-08-26", "football")
+    assert events[0].competition == "Superliga"
+
+
+def test_bzzoiro_does_not_repeat_a_country_already_in_the_name(monkeypatch):
+    leagues = {
+        "count": 1,
+        "results": [{"id": 7, "name": "Denmark Superliga", "country": "Denmark"}],
+    }
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), leagues)
+
+    events = adapter._fetch_events_impl("2026-08-26", "football")
+    assert events[0].competition == "Denmark Superliga"
+
+
+def test_the_generic_name_qualification_is_one_rule_for_every_adapter(monkeypatch):
+    """Highlightly and bzzoiro must not drift: the pin maps are keyed on the
+    name and cannot tell which provider produced it."""
+    from bet.simple_stats.discover import (
+        _highlightly_competition_name,
+        _qualified_competition_name,
+    )
+
+    for name, country in (("Serie A", "Italy"), ("Pro League", "Belgium"), ("Cup", "Poland")):
+        assert _highlightly_competition_name(
+            {"name": name}, {"name": country}
+        ) == _qualified_competition_name(name, country)
+
+
 def test_bzzoiro_native_ids_reach_the_event_record(monkeypatch):
     """Same generic lift as Highlightly's, with no provider-specific code in
     ``_to_event_record``: without these ids ENRICH builds no bzzoiro task."""

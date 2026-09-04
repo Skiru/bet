@@ -1070,3 +1070,25 @@ def test_the_codes_probed_on_2026_09_02_are_pinned():
     # is the failure the division-marker gate exists for.
     assert resolve("USL Championship") == "usa.usl.1"
 
+
+
+# --- the country-qualified spellings a discovery adapter can produce --------
+
+
+def test_every_country_qualified_bzzoiro_league_name_resolves():
+    """``discover._qualified_competition_name`` rewrites a generic league name
+    to "<Country> <Name>" before this table sees it, and football discovery has
+    been bzzoiro-only since 2026-09-04. Swept live against all 83 rows of
+    bzzoiro's league catalogue that day: six names gained a code this way and
+    exactly one -- "FA Cup" -> "England FA Cup" -- would have *lost* one, which
+    is the five-fixture regression this asserts against."""
+    assert resolve("England FA Cup") == resolve("FA Cup") == "eng.fa"
+    assert resolve("England Premier League") == resolve("Premier League") == "eng.1"
+    assert resolve("England Championship") == resolve("Championship") == "eng.2"
+    # Gained: bare forms are absent on purpose (another country plays one too).
+    assert resolve("France Ligue 1") == "fra.1" and resolve("Ligue 1") is None
+    assert resolve("France Ligue 2") == "fra.2" and resolve("Ligue 2") is None
+    assert resolve("Italy Serie A") == "ita.1" and resolve("Serie A") is None
+    assert resolve("Belgium Pro League") == "bel.1" and resolve("Pro League") is None
+    assert resolve("Romania Superliga") == "rou.1" and resolve("Superliga") is None
+    assert resolve("Switzerland Super League") == "sui.1" and resolve("Super League") is None

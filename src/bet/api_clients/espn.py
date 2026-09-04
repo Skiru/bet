@@ -418,7 +418,13 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     # eng.5 serves a 24-team directory.
     "National League": "eng.5",
     "England National League": "eng.5", "Vanarama National League": "eng.5",
-    "FA Cup": "eng.fa",
+    # Both spellings, because "fa cup" is on discover.py's generic-name list:
+    # a provider that reports a country beside the league name (bzzoiro does,
+    # and it is the only football discovery source since 2026-09-04) qualifies
+    # it to "England FA Cup" before this table ever sees it. Same code, proved
+    # once -- the alternative is a rename that resolves six leagues and
+    # silently unresolves the five FA Cup fixtures on the 2026-09-04 slate.
+    "FA Cup": "eng.fa", "England FA Cup": "eng.fa",
     "EFL Cup": "eng.league_cup", "Carabao Cup": "eng.league_cup",
     # 64 teams, probed 2026-09-02. The cup for the third and fourth tiers plus
     # Premier League under-21 sides, and it is not the FA Trophy (fifth tier
