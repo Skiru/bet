@@ -440,6 +440,23 @@ def _merge_dossiers(prior, fresh) -> tuple[EventDossierListV1, int]:
     Every event of the original artifact survives, in its original order: this
     file is the complete account of the day's slate, and an event that a
     backfill could not improve must still be in it.
+
+    The third key is **why** the data is missing, and it is there because the
+    first two cannot see an improvement that is purely an explanation. On
+    2026-09-04 the 13:26 pass recorded Lehecka - Tsitsipas as
+    ``team_a: tennis-abstract: no recent matches for 'Jiri Lehecka'`` and said
+    nothing at all about Tsitsipas, whose own sample had been discarded in
+    silence. A re-run under current code says
+    ``team_b: tennis-abstract: all 10 matches for 'Stefanos Tsitsipas' fall
+    outside the 1000-day window (newest 2018-08-27); sample discarded as
+    stale`` -- the same zero observations and the same PARTIAL, so the old
+    rule scored the two passes equal and kept the version that hid the reason.
+    A backfill could never repair a bad explanation, which is exactly what a
+    backfill run after a reporting fix exists to do.
+
+    Counting gaps rather than comparing their text keeps this a tie-break and
+    not a preference for verbosity: it only ever chooses between two dossiers
+    the first two keys already called equal.
     """
     fresh_by_id = {dossier.event_id: dossier for dossier in fresh.dossiers}
     merged = []
@@ -449,8 +466,16 @@ def _merge_dossiers(prior, fresh) -> tuple[EventDossierListV1, int]:
         if new is None:
             merged.append(old)
             continue
-        old_key = (_READINESS_RANK.get(old.readiness, 0), _observation_count(old))
-        new_key = (_READINESS_RANK.get(new.readiness, 0), _observation_count(new))
+        old_key = (
+            _READINESS_RANK.get(old.readiness, 0),
+            _observation_count(old),
+            len(old.data_gaps),
+        )
+        new_key = (
+            _READINESS_RANK.get(new.readiness, 0),
+            _observation_count(new),
+            len(new.data_gaps),
+        )
         if new_key > old_key:
             merged.append(new)
             improved += 1

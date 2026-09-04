@@ -42,7 +42,7 @@ def _pv(value, match_id):
     )
 
 
-def _dossier(event_id, readiness, observations=0):
+def _dossier(event_id, readiness, observations=0, gaps=()):
     metrics = {}
     if observations:
         metrics["corners_total"] = MetricObservation(
@@ -50,7 +50,8 @@ def _dossier(event_id, readiness, observations=0):
             team_a_l10=[_pv(9.0, f"m{i}") for i in range(observations)],
         )
     return EventDossierV1(
-        event_id=event_id, sport="football", metrics=metrics, readiness=readiness
+        event_id=event_id, sport="football", metrics=metrics, readiness=readiness,
+        data_gaps=list(gaps),
     )
 
 
@@ -206,3 +207,51 @@ def test_a_backfill_does_not_retry_what_the_slate_gate_refused(tmp_path, monkeyp
     assert "gate_refused_not_retried=1" in scope
     # "capped" and "thin" remain retryable; only the gate refusal is dropped.
     assert "incomplete_before=2" in scope
+
+
+def test_a_backfill_can_repair_an_explanation_it_cannot_improve_on(run_enrich):
+    """Same readiness, same observations, a better reason for having neither.
+
+    The 2026-09-04 case. The 13:26 pass recorded Lehecka - Tsitsipas as
+    ``team_a: tennis-abstract: no recent matches for 'Jiri Lehecka'`` and said
+    nothing about Tsitsipas at all, whose own sample had been discarded in
+    silence. A re-run under current code adds ``team_b: ... all 10 matches fall
+    outside the 1000-day window (newest 2018-08-27); sample discarded as
+    stale``. Zero observations either way and PARTIAL either way, so the
+    two-key rule scored them equal and kept the version that hid the reason --
+    which made a backfill run *after* a reporting fix unable to deliver it.
+    """
+    prior = _list(_dossier("a", "PARTIAL", gaps=["team_a: no recent matches"]))
+    fresh = _list(
+        _dossier("a", "PARTIAL", gaps=[
+            "team_a: no recent matches",
+            "team_b: all 10 matches fall outside the 1000-day window",
+        ]),
+        run_id="run-2",
+    )
+
+    merged, improved = run_enrich._merge_dossiers(prior, fresh)
+    assert improved == 1
+    assert len(merged.dossiers[0].data_gaps) == 2
+
+
+def test_more_reasons_cannot_buy_a_pass_that_returned_less_data(run_enrich):
+    """The tie-break must stay a tie-break. A retry that lost observations
+    cannot win by listing more reasons for having lost them."""
+    prior = _list(_dossier("a", "PARTIAL", observations=8))
+    fresh = _list(_dossier("a", "PARTIAL", gaps=["x", "y", "z", "w"]), run_id="run-2")
+
+    merged, improved = run_enrich._merge_dossiers(prior, fresh)
+    assert improved == 0
+    assert len(merged.dossiers[0].metrics["corners_total"].team_a_l10) == 8
+
+
+def test_more_reasons_cannot_buy_a_pass_that_lost_readiness(run_enrich):
+    prior = _list(_dossier("a", "READY", observations=5))
+    fresh = _list(
+        _dossier("a", "BLOCKED", observations=5, gaps=["x", "y"]), run_id="run-2"
+    )
+
+    merged, improved = run_enrich._merge_dossiers(prior, fresh)
+    assert improved == 0
+    assert merged.dossiers[0].readiness == "READY"
