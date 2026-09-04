@@ -196,20 +196,26 @@ class _FakeEspnFootballClient:
         return self._stats_by_fixture[fixture_id]
 
 
-def test_espn_football_goals_ride_on_the_fixture_score_no_extra_call(monkeypatch):
-    """espn.py's own fixture-listing row already carries the final score
-    (verified live), so goals cost zero extra requests: they are read from
-    the same ``fx`` the corners combiner already has in hand."""
+def test_espn_football_goals_ride_on_the_fixture_stats_no_extra_call(monkeypatch):
+    """Step 5 of the source-consolidation plan: goals cost zero extra
+    requests because they are read from ``stats["goals"]``, the same payload
+    ``get_fixture_stats`` already returns for corners -- not from the
+    fixture-listing ``score`` string, which api_clients/espn.py's
+    ``get_team_last_fixtures_result`` never emits as the clean
+    "{home}-{away}" the old ``_parse_espn_score`` assumed (verified live:
+    ESPN's real value there is two stringified dicts joined by a hyphen)."""
     fixtures = [{
         "id": "400001",
         "date": "2026-08-18T19:00:00Z",
         "home_team": "Team A",
         "away_team": "Team B",
-        "score": "2-1",
         "home_participant_id": "10",
         "away_participant_id": "20",
     }]
-    stats = {"400001": _FakeFixtureStats({"corners": {"home": 5, "away": 4}})}
+    stats = {"400001": _FakeFixtureStats({
+        "corners": {"home": 5, "away": 4},
+        "goals": {"home": 2, "away": 1},
+    })}
     client = _FakeEspnFootballClient("10", fixtures, stats)
     monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: client)
 
@@ -221,15 +227,15 @@ def test_espn_football_goals_ride_on_the_fixture_score_no_extra_call(monkeypatch
     assert outcome.metrics["goals_against"][0].value == 1
 
 
-def test_espn_football_missing_score_yields_no_goals_but_keeps_the_rest(monkeypatch):
-    """A fixture with no reported score (score == "") must not block the other
-    metrics the same row already produces."""
+def test_espn_football_missing_goals_yields_no_goals_but_keeps_the_rest(monkeypatch):
+    """A fixture stats payload with no ``goals`` key (not yet published, or a
+    sport/endpoint that never carries one) must not block the other metrics
+    the same row already produces."""
     fixtures = [{
         "id": "400002",
         "date": "2026-08-18T19:00:00Z",
         "home_team": "Team A",
         "away_team": "Team B",
-        "score": "",
         "home_participant_id": "10",
         "away_participant_id": "20",
     }]
@@ -241,6 +247,34 @@ def test_espn_football_missing_score_yields_no_goals_but_keeps_the_rest(monkeypa
 
     assert "corners_total" in outcome.metrics
     assert "goals_total" not in outcome.metrics
+    assert "goals_for" not in outcome.metrics
+    assert "goals_against" not in outcome.metrics
+
+
+def test_espn_football_goals_is_a_real_zero_not_absence(monkeypatch):
+    """Unlike fouls/corners, a 0-0 scoreline is a legitimate football result --
+    goals must never be treated as "a zero that means unknown" (contracts the
+    other counted-play metrics carry)."""
+    fixtures = [{
+        "id": "400003",
+        "date": "2026-08-18T19:00:00Z",
+        "home_team": "Team A",
+        "away_team": "Team B",
+        "home_participant_id": "10",
+        "away_participant_id": "20",
+    }]
+    stats = {"400003": _FakeFixtureStats({
+        "corners": {"home": 5, "away": 4},
+        "goals": {"home": 0, "away": 0},
+    })}
+    client = _FakeEspnFootballClient("10", fixtures, stats)
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: client)
+
+    outcome = providers._fetch_l10_generic("espn-football", "Team A", rate_limiter=None)
+
+    assert outcome.metrics["goals_total"][0].value == 0
+    assert outcome.metrics["goals_for"][0].value == 0
+    assert outcome.metrics["goals_against"][0].value == 0
 
 
 class _FakeHighlightlyClient:

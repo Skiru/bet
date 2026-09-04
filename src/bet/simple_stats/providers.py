@@ -184,6 +184,14 @@ _ESPN_FOOTBALL_ALIASES = {
     "blocked_shots": "blocked_shots_total",
     "fouls": "fouls_total",
     "offsides": "offsides_total",
+    # get_fixture_stats_result (api_clients/espn.py) already writes
+    # {"home": x, "away": y} here from the header's own numeric ``score``
+    # field -- a clean read, unrelated to the fixture-listing ``score``
+    # string _parse_espn_score used to (and failed to) parse. Zero goals is a
+    # real, common result here (a-zero-that-means-unknown does not apply),
+    # which is exactly why this family -- unlike corners/fouls -- is in scope
+    # for the per-side split below.
+    "goals": "goals_total",
 }
 _API_FOOTBALL_ALIASES = {
     "corners": "corners_total",
@@ -644,20 +652,6 @@ def _side_of(fixture: Any, team_id: str) -> str | None:
     if away_id not in (None, "") and str(away_id) == wanted:
         return "away"
     return None
-
-
-def _parse_espn_score(score: Any) -> tuple[float, float] | tuple[None, None]:
-    """espn.py's ``get_team_last_fixtures_result`` emits ``score`` as the
-    literal string ``"{home_score}-{away_score}"`` (or ``""`` if neither side
-    reported), never as two separate fields -- so this splits rather than
-    reads a shape that does not exist."""
-    if not isinstance(score, str) or "-" not in score:
-        return None, None
-    home_str, _, away_str = score.partition("-")
-    try:
-        return float(home_str), float(away_str)
-    except ValueError:
-        return None, None
 
 
 def _combined_from_dict_stats(stats: dict, aliases: dict[str, str]) -> dict[str, float]:
@@ -2161,21 +2155,26 @@ def _fetch_l10_generic(
         # 0-0 draw's goals are a correct observation, but merging them into
         # `combined` earlier would let a goals row rescue a payload that
         # should have been rejected as absent (a-zero-that-means-unknown).
-        # espn-football is the only provider in this generic path whose
-        # fixture row carries a final score at all -- api-football's does
-        # not, and the two tennis providers' "score" means games/sets, not
-        # goals.
-        # Hoisted out of the espn-football branch below, which is where this
-        # lookup used to live: which side the team played on is what splits
-        # that match's goals *and* what ``ProviderValue.venue`` records, and
-        # the second use is not football-score-specific. ``_venue_or_none``
-        # discards it for the tennis providers that share this function.
+        # Which side the team played on is what splits that match's goals
+        # *and* what ``ProviderValue.venue`` records, so it is resolved once
+        # here rather than twice. ``_venue_or_none`` discards it for the
+        # tennis providers that share this function.
         side = _side_of(fx, team_id)
         if provider_key == "espn-football":
-            home_goals, away_goals = _parse_espn_score(_field(fx, "score"))
-            if home_goals is not None and away_goals is not None:
-                combined["goals_total"] = home_goals + away_goals
-                if side is not None:
+            # ``combined["goals_total"]`` already comes from the alias table
+            # above (_ESPN_FOOTBALL_ALIASES["goals"]), summed like every other
+            # {"home", "away"} stat. goals_for/goals_against need the raw pair
+            # directly because a sum cannot be un-summed: read the same
+            # ``stats_dict["goals"]`` the alias table read, not re-derive it.
+            goals = stats_dict.get("goals") if isinstance(stats_dict, dict) else None
+            home_goals = (goals or {}).get("home")
+            away_goals = (goals or {}).get("away")
+            if home_goals is not None and away_goals is not None and side is not None:
+                try:
+                    home_goals, away_goals = float(home_goals), float(away_goals)
+                except (TypeError, ValueError):
+                    home_goals = away_goals = None
+                if home_goals is not None:
                     combined["goals_for"] = home_goals if side == "home" else away_goals
                     combined["goals_against"] = away_goals if side == "home" else home_goals
         # espn-tennis's per-player games_won, added alongside the summed
