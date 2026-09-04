@@ -128,6 +128,13 @@ NATIVE_ID_PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
 # The one thing they overlap on is total games, and there they now compute the
 # same quantity the same way (``api_clients/tennis_score.py``), which is what
 # makes their agreement mean something.
+#
+# The consequence for readiness is easy to miss and was missed for two days:
+# "the one thing they overlap on is total games" means the other two priority
+# metrics have a one-provider ceiling *permanently*, so a readiness rule
+# counting metrics-with-2+-providers can never reach 3 for tennis. See
+# ``metric_capable_providers`` below and ``enrich._compute_readiness``, which
+# now asks the depth question instead on exactly those metrics.
 PRIMARY_PROVIDER_BY_SPORT: dict[str, str] = {
     "football": "bzzoiro",
 }
@@ -451,6 +458,50 @@ _ALIASES_BY_PROVIDER: dict[str, dict[str, str]] = {
     "tennis-abstract": _TENNIS_MATCH_STAT_ALIASES,
     "sackmann": _TENNIS_MATCH_STAT_ALIASES,
 }
+
+
+def _provider_can_serve(provider: str, metric: str) -> bool:
+    """Whether ``provider``'s tables can ever produce canonical ``metric``.
+
+    Capability, not coverage: this answers "could this provider report it on a
+    match it holds", never "did it". Read off the same three tables the
+    combiners read, so a provider that gains or loses a metric cannot leave a
+    stale second copy of its capabilities behind.
+
+    A provider with no entry in ``_ALIASES_BY_PROVIDER`` is assumed capable of
+    everything. That is the conservative answer rather than the accurate one:
+    the native-id providers (bzzoiro) map their metrics inside their own fetch
+    functions, and over-stating a ceiling only ever keeps the *stricter*
+    two-provider bar in place -- under-stating one would quietly relax it.
+    """
+    aliases = _ALIASES_BY_PROVIDER.get(provider)
+    if aliases is None:
+        return True
+    if metric in aliases.values():
+        return True
+    if provider in _FLAT_STAT_PROVIDERS and metric in _TENNIS_PAIRED_STAT_KEYS:
+        return True
+    return metric in _SIDE_SPLIT_AS.get(provider, {}).values()
+
+
+def metric_capable_providers(sport: str, metric: str) -> tuple[str, ...]:
+    """The rostered providers of ``sport`` that could ever serve ``metric``.
+
+    The ceiling a readiness rule has to measure itself against. Tennis is the
+    reason it exists: its priority metrics are ``total_games``, ``aces_total``
+    and ``double_faults_total``, and only the first has two providers that can
+    serve it -- espn-tennis reads the published set score and nothing else, so
+    the other two are single-sourced by construction, not by a coverage gap
+    that some later slate might close. A rule asking for "3 metrics with 2+
+    providers" therefore asked tennis for something arithmetically impossible,
+    and every tennis dossier ever written has been PARTIAL or worse because of
+    it (measured: ceiling 1 against a threshold of 3).
+    """
+    roster = (
+        *PROVIDERS_BY_SPORT.get(sport, ()),
+        *NATIVE_ID_PROVIDERS_BY_SPORT.get(sport, ()),
+    )
+    return tuple(p for p in dict.fromkeys(roster) if _provider_can_serve(p, metric))
 
 # Providers whose get_team_last_fixtures needs the *_result variant unwrapped
 # from a SourceOperationResult (the plain method is a bare id-only stub).
@@ -2211,7 +2262,59 @@ def _fetch_l10_generic(
             quality_flags={CARDS_POINTS_TOTAL: card_flag} if card_flag else None,
         ).items():
             outcome.add(name, value)
+    _note_if_silently_empty(
+        outcome, provider_key, team_name, fixtures, max_age_days
+    )
     return outcome
+
+
+def _note_if_silently_empty(
+    outcome: FetchOutcome,
+    provider_key: str,
+    subject: str,
+    fixtures: list,
+    max_age_days: int | None,
+) -> None:
+    """Name the reason when rows came back and none of them survived.
+
+    Every *early* return in the fetch above states why it gave up. The row loop
+    did not: a payload whose every match is discarded -- too old, no parsable
+    stats, no fixture id -- left an outcome with no observations **and no
+    data_gap**, which reads in the artifact exactly like a provider that was
+    never asked.
+
+    Measured on the 2026-09-04 slate: Medvedev, Tsitsipas and Tommy Paul each
+    produced zero tennis-abstract observations and zero gaps. All three have a
+    cached scrape that stops in 2018 (the jsmatches-vintage fallback: 65 of 349
+    cached players end in 2018 or earlier), so ``_is_recent`` correctly dropped
+    every row -- and said nothing. Their dossiers read PARTIAL with no stated
+    cause, and no amount of reading the artifact could distinguish "this
+    player's sample is eight years old" from "this provider does not cover
+    him". The age guard doing its job silently is what made an eight-year-old
+    sample look like a coverage gap.
+
+    Only fires when the provider actually returned rows: the empty-payload and
+    identity cases are already named above, and saying it twice would be worse
+    than not saying it.
+    """
+    if outcome.metrics or not fixtures:
+        return
+    dates = [
+        str(_field(fx, "date", "kickoff", default="") or "")[:10] for fx in fixtures
+    ]
+    newest = max((d for d in dates if d), default="")
+    window = max_age_days or _MAX_OBSERVATION_AGE_DAYS
+    if newest and not _is_recent(newest, max_age_days):
+        outcome.data_gaps.append(
+            f"{provider_key}: all {len(fixtures)} matches for '{subject}' fall "
+            f"outside the {window}-day window (newest {newest}); sample "
+            f"discarded as stale, not missing"
+        )
+    else:
+        outcome.data_gaps.append(
+            f"{provider_key}: {len(fixtures)} matches for '{subject}' yielded "
+            f"no usable stats"
+        )
 
 
 def _fetch_h2h_generic(
@@ -2287,6 +2390,12 @@ def _fetch_h2h_generic(
             quality_flags={CARDS_POINTS_TOTAL: card_flag} if card_flag else None,
         ).items():
             outcome.add(name, value)
+    # Same silence, same repair: h2h has no draw filter and so no
+    # ``max_age_days``, but a meeting list whose every row is older than the
+    # default window discards just as quietly.
+    _note_if_silently_empty(
+        outcome, provider_key, f"{team_one} vs {team_two}", meetings, None
+    )
     return outcome
 
 

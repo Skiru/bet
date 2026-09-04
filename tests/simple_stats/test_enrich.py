@@ -11,9 +11,15 @@ from pathlib import Path
 import bet.simple_stats.enrich as enrich_module
 from bet.simple_stats import providers
 from bet.simple_stats.analyze import _cross_provider_agreement, corroborated_matches
-from bet.simple_stats.contracts import EventListV1, EventRecord, ProviderValue
+from bet.simple_stats.contracts import (
+    EventListV1,
+    EventRecord,
+    MetricObservation,
+    ProviderValue,
+)
 from bet.simple_stats.enrich import _compute_readiness, enrich_events
-from bet.simple_stats.providers import FetchOutcome
+from bet.api_clients.rate_limiter import RateLimiter
+from bet.simple_stats.providers import FetchOutcome, metric_capable_providers
 
 FIXTURE_ROOT = (
     Path(__file__).parent.parent
@@ -78,6 +84,118 @@ def test_disagreement_not_silently_averaged():
 
 def test_zero_enrichable_data_yields_blocked():
     assert _compute_readiness("football", {}) == "BLOCKED"
+
+
+def _obs(canonical_name, pairs, h2h=()):
+    """A MetricObservation from (provider, match_id, side) triples."""
+    def pv(provider, match_id):
+        return ProviderValue(
+            provider=provider, match_id=match_id, match_date="2026-08-31",
+            opponent="X", value=1.0, observed_at="2026-08-31T00:00:00+00:00",
+        )
+    return MetricObservation(
+        canonical_name=canonical_name,
+        team_a_l10=[pv(p, m) for p, m, side in pairs if side == "a"],
+        team_b_l10=[pv(p, m) for p, m, side in pairs if side == "b"],
+        h2h=[pv(p, m) for p, m in h2h],
+    )
+
+
+def _tennis_metrics(providers_per_metric, depth=5):
+    """One dossier's three tennis priority metrics, each with a given roster."""
+    return {
+        name: _obs(
+            name,
+            [(prov, f"{name}-{prov}-{side}-{i}", side)
+             for prov in roster for side in ("a", "b") for i in range(depth)],
+        )
+        for name, roster in providers_per_metric.items()
+    }
+
+
+def test_tennis_ready_is_reachable_at_all():
+    """The bar tennis could never clear: aces/double faults have one provider.
+
+    espn-tennis serves total games and total sets and nothing else, so a rule
+    demanding 2+ providers on all three priority metrics asked for 3 where the
+    ceiling is 1. Every tennis dossier was PARTIAL by construction.
+    """
+    assert len(metric_capable_providers("tennis", "aces_total")) == 1
+    assert len(metric_capable_providers("tennis", "double_faults_total")) == 1
+    assert len(metric_capable_providers("tennis", "total_games")) == 2
+
+    metrics = _tennis_metrics({
+        "total_games": ("tennis-abstract", "espn-tennis"),
+        "aces_total": ("tennis-abstract",),
+        "double_faults_total": ("tennis-abstract",),
+    })
+    assert _compute_readiness("tennis", metrics) == "READY"
+
+
+def test_tennis_single_source_metric_still_needs_depth():
+    """Depth replaces the impossible second opinion; it does not waive it.
+
+    Four matches a side on the single-sourced metrics is below the same floor
+    the primary branch asks of bzzoiro, so this stays PARTIAL.
+    """
+    metrics = _tennis_metrics({
+        "total_games": ("tennis-abstract", "espn-tennis"),
+        "aces_total": ("tennis-abstract",),
+        "double_faults_total": ("tennis-abstract",),
+    }, depth=4)
+    assert _compute_readiness("tennis", metrics) == "PARTIAL"
+
+
+def test_tennis_one_sided_sample_is_not_ready():
+    """A metric covering only one of the two players is not a readable fixture.
+
+    This is the 2026-08-31 dossier whose first player had no aces sample at
+    all -- the depth floor is per side precisely so it cannot pass.
+    """
+    metrics = _tennis_metrics({
+        "total_games": ("tennis-abstract", "espn-tennis"),
+        "aces_total": ("tennis-abstract",),
+        "double_faults_total": ("tennis-abstract",),
+    })
+    metrics["aces_total"] = _obs(
+        "aces_total", [("tennis-abstract", f"m{i}", "b") for i in range(10)]
+    )
+    assert _compute_readiness("tennis", metrics) == "PARTIAL"
+
+
+def test_tennis_corroboratable_metric_still_needs_two_providers():
+    """total_games *can* have a second opinion, so one provider is not enough."""
+    metrics = _tennis_metrics({
+        "total_games": ("tennis-abstract",),
+        "aces_total": ("tennis-abstract",),
+        "double_faults_total": ("tennis-abstract",),
+    })
+    assert _compute_readiness("tennis", metrics) == "PARTIAL"
+
+
+def test_football_readiness_unchanged_by_the_tennis_repair():
+    """Football has a primary, so it never reaches the capability branch."""
+    deep = {
+        name: _obs(name, [("bzzoiro", f"{name}-{side}-{i}", side)
+                          for side in ("a", "b") for i in range(5)])
+        for name in ("corners_total", "cards_total", "shots_total")
+    }
+    assert _compute_readiness("football", deep) == "READY"
+    thin = {
+        name: _obs(name, [("bzzoiro", f"{name}-{side}-{i}", side)
+                          for side in ("a", "b") for i in range(4)])
+        for name in ("corners_total", "cards_total", "shots_total")
+    }
+    assert _compute_readiness("football", thin) == "PARTIAL"
+    # Two corroborators on every metric cannot buy READY without the primary's
+    # own sample: the primary branch is not a fallback.
+    corroborated = {
+        name: _obs(name, [(prov, f"{name}-{prov}-{side}-{i}", side)
+                          for prov in ("espn-football", "highlightly")
+                          for side in ("a", "b") for i in range(10)])
+        for name in ("corners_total", "cards_total", "shots_total")
+    }
+    assert _compute_readiness("football", corroborated) == "PARTIAL"
 
 
 def test_one_provider_failure_does_not_abort_run(monkeypatch):
@@ -500,3 +618,204 @@ def test_gated_events_are_reported_as_blocked_with_the_reason(monkeypatch):
     assert by_id["refused"].readiness == "BLOCKED"
     assert any(g.startswith("not enriched: ") for g in by_id["refused"].data_gaps)
     assert not any(g.startswith("not enriched: ") for g in by_id["kept"].data_gaps)
+
+class _StaleCacheClient:
+    """A tennis-abstract stand-in whose whole scrape stopped in 2018.
+
+    The real shape of the 2026-09-04 failure: 65 of 349 cached players end in
+    2018 or earlier, and for Medvedev, Tsitsipas and Tommy Paul every row the
+    provider returned was discarded by the age guard.
+    """
+
+    def __init__(self, dates):
+        self._dates = dates
+
+    def resolve_team_id(self, team_name, **kwargs):
+        # tennis-abstract addresses players by name, so the id *is* the name --
+        # which is also what lets _opponent_of attribute each row to a side.
+        return team_name
+
+    def get_team_last_fixtures(self, team_id, last_n=10, **kwargs):
+        return [
+            {"id": f"m{i}", "date": d, "home_team": "Daniil Medvedev", "away_team": "X"}
+            for i, d in enumerate(self._dates)
+        ]
+
+    def get_fixture_stats(self, fixture_id):
+        return type("S", (), {"stats": {"aces": 5, "opponent_aces": 3,
+                                        "double_faults": 2, "opponent_double_faults": 1,
+                                        "total_games": 22, "total_sets": 3,
+                                        "score": "6-4 6-3"}})()
+
+
+def test_stale_sample_is_named_not_silent(monkeypatch):
+    """A sample discarded as too old must say so, not vanish.
+
+    Before this, the age guard dropped every row and the outcome carried no
+    observations *and* no data_gap -- indistinguishable in the artifact from a
+    provider that was never asked. Medvedev's dossier read PARTIAL with no
+    stated cause.
+    """
+    client = _StaleCacheClient(["2018-08-27", "2018-10-29", "2017-01-16"])
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: client)
+
+    outcome = providers._fetch_l10_generic(
+        "tennis-abstract", "Daniil Medvedev", RateLimiter(), competition="ATP US Open"
+    )
+
+    assert outcome.metrics == {}
+    assert len(outcome.data_gaps) == 1
+    gap = outcome.data_gaps[0]
+    assert "stale, not missing" in gap
+    assert "2018-10-29" in gap  # the newest row, so the reader can judge it
+    assert "Daniil Medvedev" in gap
+
+
+def test_fresh_sample_adds_no_spurious_gap(monkeypatch):
+    """The new gap must not fire on a provider that actually delivered."""
+    recent = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    client = _StaleCacheClient([recent])
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: client)
+
+    outcome = providers._fetch_l10_generic(
+        "tennis-abstract", "Daniil Medvedev", RateLimiter(), competition="ATP US Open"
+    )
+
+    assert outcome.metrics
+    assert not [g for g in outcome.data_gaps if "stale, not missing" in g]
+
+
+# --- readiness is measured on the sample ANALYZE will actually read ----------
+#
+# Until 2026-09-04 ENRICH counted every observation a provider returned while
+# ANALYZE put each per-team bucket through ``scope_values`` and discarded the
+# pre-season friendlies and the previous season's matches. READY was therefore
+# a promise about a sample that never reached the sheet, and it was wrong in
+# one direction only. On the 2026-09-04 slate ``PRE_SEASON_FRIENDLY`` fired 532
+# times on ``corners_total`` across the 22 READY football dossiers, and the
+# honest count moved 10 of them to PARTIAL.
+
+_FRIENDLY_COMPETITION = "79"  # bzzoiro club friendlies, per config/observation_scope.json
+
+
+def _football_obs(canonical_name, per_side):
+    """A football metric where each side's matches carry a competition/season.
+
+    ``per_side`` is ``{"a": [(competition_id, season_id, count)], ...}``, which
+    is the shape the scope filter actually discriminates on -- a match_id alone
+    cannot be pinned out or aged out.
+    """
+    def bucket(spec):
+        out = []
+        for competition_id, season_id, count in spec:
+            for i in range(count):
+                out.append(ProviderValue(
+                    provider="bzzoiro",
+                    match_id=f"{canonical_name}-{competition_id}-{season_id}-{i}",
+                    match_date=f"2026-08-{10 + i:02d}",
+                    opponent="X", value=1.0,
+                    observed_at="2026-09-04T00:00:00+00:00",
+                    competition_id=competition_id, season_id=season_id,
+                ))
+        return out
+    return MetricObservation(
+        canonical_name=canonical_name,
+        team_a_l10=bucket(per_side.get("a", ())),
+        team_b_l10=bucket(per_side.get("b", ())),
+    )
+
+
+def _football_metrics(per_side):
+    return {
+        name: _football_obs(name, per_side)
+        for name in ("corners_total", "cards_total", "shots_total")
+    }
+
+
+def test_friendlies_no_longer_count_toward_the_readiness_floor():
+    """Stade Lavallois - Red Star, 2026-09-04: 6 matches a side, 4 admissible.
+
+    Ligue 2 had played four rounds. bzzoiro publishes corners and cards for
+    July friendlies (US Granville, Stade Malherbe Caen) but no shots, so the
+    raw counts read corners 6/6 and shots 4/6 and the fixture was READY on
+    corners it would never be priced off.
+    """
+    metrics = _football_metrics({
+        "a": [("182", "1600", 4), (_FRIENDLY_COMPETITION, "1552", 2)],
+        "b": [("182", "1600", 4), (_FRIENDLY_COMPETITION, "1552", 2)],
+    })
+    assert _compute_readiness("football", metrics) == "PARTIAL"
+
+
+def test_the_previous_season_does_not_count_toward_the_floor_either():
+    """Al-Shabab - Al-Hilal: four current matches and two from 25/26."""
+    metrics = _football_metrics({
+        "a": [("307", "1601", 4), ("307", "1499", 2)],
+        "b": [("307", "1601", 4), ("307", "1499", 2)],
+    })
+    assert _compute_readiness("football", metrics) == "PARTIAL"
+
+
+def test_a_full_league_sample_is_still_ready():
+    """The floor itself did not move: five admissible matches a side pass.
+
+    Without this the change is indistinguishable from having broken READY, and
+    the drop from 22 to 12 on 2026-09-04 would not be evidence of anything.
+    """
+    metrics = _football_metrics({
+        "a": [("182", "1600", 5), (_FRIENDLY_COMPETITION, "1552", 3)],
+        "b": [("182", "1600", 5), ("182", "1499", 3)],
+    })
+    assert _compute_readiness("football", metrics) == "READY"
+
+
+def test_scoping_the_sample_cannot_manufacture_blocked():
+    """A dossier whose every match is a friendly is PARTIAL, never BLOCKED.
+
+    BLOCKED is the one verdict ANALYZE acts on destructively -- it drops the
+    dossier whole -- so it has to keep meaning "no provider returned any data"
+    and not "the data does not survive the scope filter". Those observations
+    are still worth the analyst's eyes, and the run has already paid for them.
+    """
+    metrics = _football_metrics({
+        "a": [(_FRIENDLY_COMPETITION, "1552", 8)],
+        "b": [(_FRIENDLY_COMPETITION, "1552", 8)],
+    })
+    assert _compute_readiness("football", metrics) == "PARTIAL"
+
+
+def test_a_corroborator_seen_only_in_friendlies_is_not_a_second_opinion():
+    """The provider set is counted after scoping, not before.
+
+    Tennis's ``total_games`` branch asks for two providers rather than for
+    depth. If the scope filter applied to the depth counts but not to the
+    roster, the same overstatement would simply move from one branch to the
+    other: a provider whose only rows were friendlies would still certify a
+    fixture it contributed nothing readable to.
+    """
+    def pv(provider, match_id, competition_id):
+        return ProviderValue(
+            provider=provider, match_id=match_id, match_date="2026-07-20",
+            opponent="X", value=1.0, observed_at="2026-09-04T00:00:00+00:00",
+            competition_id=competition_id, season_id="1552",
+        )
+    metrics = _tennis_metrics({
+        "total_games": ("tennis-abstract",),
+        "aces_total": ("tennis-abstract",),
+        "double_faults_total": ("tennis-abstract",),
+    })
+    # espn-tennis is a genuine second opinion on total_games, so on the raw
+    # roster this metric would be complete -- but every row it brought is a
+    # pinned-out competition.
+    metrics["total_games"] = MetricObservation(
+        canonical_name="total_games",
+        team_a_l10=[
+            *metrics["total_games"].team_a_l10,
+            *[pv("bzzoiro", f"friendly-a-{i}", _FRIENDLY_COMPETITION) for i in range(6)],
+        ],
+        team_b_l10=[
+            *metrics["total_games"].team_b_l10,
+            *[pv("bzzoiro", f"friendly-b-{i}", _FRIENDLY_COMPETITION) for i in range(6)],
+        ],
+    )
+    assert _compute_readiness("tennis", metrics) == "PARTIAL"

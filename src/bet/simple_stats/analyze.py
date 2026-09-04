@@ -1545,10 +1545,11 @@ def _independent_match_sample(
 # Al-Fayha-Al-Kholood both carry 4 observations a side on ``cards_points_total``
 # -- the note's own "4+4 reads as settled" -- and ``min(4, 4) >= 3`` reads HIGH.
 # Five is not a number chosen to catch them either: it is the number ENRICH
-# already uses for the same question. ``data_quality == "READY"`` means the
-# primary provider served **at least five matches a side** on all three
-# priority metrics (``enrich._compute_readiness``), and that is the condition
-# ``tier_for_row`` hands CALL out on. A sheet whose word for "settled" and
+# already uses for the same question. ``data_quality == "READY"`` means
+# **at least five matches a side** on all three priority metrics -- from the
+# primary provider where the sport has one, and from the sole capable provider
+# on the metrics where no second one can exist (``enrich._compute_readiness``)
+# -- and that is the condition ``tier_for_row`` hands CALL out on. A sheet whose word for "settled" and
 # whose tier for "settled" disagreed about how many matches a side that takes
 # would be two rules wearing one name.
 #

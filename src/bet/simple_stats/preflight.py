@@ -168,6 +168,59 @@ def affordable_events(quota: dict) -> int | None:
     return quota["remaining"] // per_event if per_event else None
 
 
+def sports_within_quota(
+    event_list: "EventListV1", rate_limiter: "RateLimiter"
+) -> frozenset[str]:
+    """Sports whose providers can afford their entire slate today.
+
+    Handed to ``enrich._apportion_cap`` so the run cap is spent only where a
+    quota is actually scarce. A sport every one of whose providers is unlimited
+    -- or has enough left to cover every fixture of that sport on the board --
+    is not competing for the budget and must not be trimmed to fund a sport
+    that is.
+
+    Tennis is the whole reason: ``tennis-abstract`` is a keyless scrape with no
+    daily cap and ``espn-tennis`` allows about 3,300 events a day, against a
+    tennis slate that has never exceeded 46. It was still being cut, because
+    the split was proportional to slate size and blind to cost -- 9 of 38
+    fixtures on the 2026-09-02 board.
+
+    Measured per sport rather than hardcoded, so this stays true if a tennis
+    provider gains a limit or a football provider loses one. A sport with no
+    usable provider is *not* returned: it has no coverage to protect, and
+    exempting it would hand it slots it cannot spend.
+    """
+    counts: dict[str, int] = {}
+    for event in event_list.events:
+        if event.status == "ACTIVE":
+            counts[event.sport] = counts.get(event.sport, 0) + 1
+
+    out: set[str] = set()
+    for sport, needed in counts.items():
+        providers = [
+            *PROVIDERS_BY_SPORT.get(sport, ()),
+            *NATIVE_ID_PROVIDERS_BY_SPORT.get(sport, ()),
+        ]
+        if not providers:
+            continue
+        affordable = True
+        usable = 0
+        for provider in providers:
+            quota = provider_quota(rate_limiter, provider)
+            if not quota.get("available"):
+                # An unusable provider cannot make the sport unaffordable --
+                # it simply will not be called. Judge on the ones that can run.
+                continue
+            usable += 1
+            covers = affordable_events(quota)
+            if covers is not None and covers < needed:
+                affordable = False
+                break
+        if usable and affordable:
+            out.add(sport)
+    return frozenset(out)
+
+
 def enrich_preflight(
     event_list: EventListV1, rate_limiter: RateLimiter, planned_events: int | None = None
 ) -> dict:

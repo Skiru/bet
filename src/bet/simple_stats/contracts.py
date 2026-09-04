@@ -35,9 +35,22 @@ PROVIDER_NAMES = Literal[
     "google-sports",
 ]
 
-# The threshold for readiness=READY is identical across sports: at least 3
-# priority metrics with 2+ independent providers. Each sport's priority list
-# must therefore have exactly 3 entries or the threshold is unreachable.
+# The three metrics whose coverage decides readiness=READY for a sport. What
+# counts as covered is *not* uniform and is decided in enrich._compute_readiness:
+# a sport with a primary provider (football) asks that the source of record
+# served a deep enough sample; a sport without one (tennis) asks for two
+# providers on the metrics where a second one can exist and for sample depth on
+# the ones where it cannot.
+#
+# That last clause is load-bearing and was missing until 2026-09-04. The rule
+# really was "3 metrics with 2+ providers" for every sport, and for tennis that
+# is unsatisfiable arithmetic rather than a high bar: espn-tennis serves only
+# total games and total sets, so aces_total and double_faults_total have a
+# one-provider ceiling and the count could never exceed 1 of the 3 required.
+# Every tennis dossier was PARTIAL by construction. Before editing either list,
+# check the new entry against providers.metric_capable_providers -- a priority
+# metric no two providers can serve is legitimate now, but only because the
+# readiness rule knows to ask it a different question.
 PRIORITY_METRICS: dict[str, tuple[str, str, str]] = {
     "football": ("corners_total", "cards_total", "shots_total"),
     "tennis": ("total_games", "aces_total", "double_faults_total"),

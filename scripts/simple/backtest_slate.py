@@ -22,10 +22,13 @@ day -- not a reconstruction, not today's code with a flag flipped -- so nothing
 about the comparison depends on faithfully un-fixing the fixes. REBUILT is
 today's code over the same frozen dossier, same offer, same analyst vetoes.
 
-Actuals come from bzzoiro (``/events/{id}/stats/`` for counts, ``/events/{id}/``
-for the score) and are cached to disk, so re-running after a code change costs
-no requests at all. Football only: the tennis markets on these slates settle
-from a different endpoint and are reported as uncovered rather than guessed.
+Football actuals come from bzzoiro (``/events/{id}/stats/`` for counts,
+``/events/{id}/`` for the score) and are cached to disk, so re-running after a
+code change costs no requests at all. Tennis settles from ESPN's per-date
+tennis scoreboard instead -- tennis fixtures carry no bzzoiro id at all -- and
+covers the length markets only (total games, total sets, a player's games).
+Aces and double faults stay uncovered rather than guessed: ESPN answers
+``statsSource: none`` for tennis.
 
 Exit codes: 0 = report written, 2 = bad input or nothing to settle.
 """
@@ -231,7 +234,7 @@ def fetch_actuals(
             continue
         bzz_id = (event.source_ids or {}).get("bzzoiro")
         if not bzz_id:
-            gaps.append(f"{event.home_team} v {event.away_team}: no bzzoiro id")
+            gaps.append("{} v {}: no bzzoiro id".format(*_sides_of(event)))
             continue
         cached = cache.get(str(bzz_id))
         if cached is not None and _cache_entry_is_current(cached):
@@ -253,6 +256,132 @@ def fetch_actuals(
                 if actuals:
                     cache[str(bzz_id)] = actuals
                     resolved[event_id] = actuals
+    return resolved, gaps
+
+
+def _sides_of(event) -> tuple[str, str]:
+    """The two competitors' names, whichever pair of fields the sport uses.
+
+    EVENT_LIST_V1 stores a football fixture as ``home_team``/``away_team`` and
+    a tennis match as ``player_one``/``player_two``, and every settlement site
+    here read only the first pair. For tennis that made ``settle.team_side``
+    resolve against ``None``/``None``, so it returned None and **every
+    per-player row settled NO_DATA** -- a player's games, aces and double
+    faults, 702 of the 2,824 tennis rows on the four slates on disk -- no
+    matter what actuals were fetched. It read as missing coverage and was a
+    field name.
+    """
+    return (
+        event.home_team or event.player_one or "",
+        event.away_team or event.player_two or "",
+    )
+
+
+def _tennis_actuals_from_row(row: dict) -> dict[str, dict[str, float]]:
+    """One parsed ESPN competition as the shape ``settle`` reads.
+
+    Only what the published result actually states: the two players' games, the
+    match total and the number of sets. Aces and double faults are **not**
+    invented from it -- ESPN answers ``statsSource: none`` for tennis and its
+    ``/summary`` route 400s, so those rows stay uncovered rather than guessed,
+    the same rule ``fetch_actuals`` follows for football.
+
+    Side attribution comes from ``stats["games_won"]``, which espn.py builds
+    from each competitor's own ``linescores`` after ordering them by
+    ``homeAway`` -- not from the published score line, which is written from
+    the winner's perspective and would silently transpose the two players on
+    every match the favourite lost. The client already refuses any competition
+    where those two transcriptions disagree.
+    """
+    stats = row.get("stats") or {}
+    games = stats.get("games_won") or {}
+    home, away = games.get("home"), games.get("away")
+    if home is None or away is None:
+        return {}
+    sets = (stats.get("total_sets") or {}).get("home")
+    total: dict[str, float] = {"total_games": float(home) + float(away)}
+    if sets is not None:
+        total["total_sets"] = float(sets)
+    return {
+        "home": {"games_won": float(home)},
+        "away": {"games_won": float(away)},
+        "total": total,
+    }
+
+
+def fetch_tennis_actuals(
+    events: EventListV1, date: str, cache: dict
+) -> tuple[dict[str, dict], list[str]]:
+    """``{event_id: actuals}`` for the slate's tennis fixtures, off one scoreboard.
+
+    A tennis event carries no bzzoiro id -- discovery gets the whole tennis
+    slate from odds-api -- so the football path cannot settle any of it, and
+    until now the backtest reported every tennis row as uncovered. That is what
+    left ``tier_for_row``'s READY-to-CALL promotion measured on football only.
+
+    ESPN's tennis scoreboard is per *date* and returns the whole draw of every
+    tournament running, so a slate costs one request rather than one per
+    fixture, and the client caches it. Matching is by both players' names
+    against both sides of the competition, in either order; a fixture that
+    matches two competitions is refused rather than settled against a guess.
+    """
+    gaps: list[str] = []
+    tennis = [e for e in events.events if e.sport == "tennis"]
+    if not tennis:
+        return {}, gaps
+
+    from bet.api_clients.espn import _iter_tennis_competitions, _parse_tennis_competition
+    from bet.simple_stats.providers import _normalize_team_name, _team_matches
+
+    client = get_client("espn-tennis", rate_limiter=RateLimiter())
+    payload = client._scoreboard_for_date(date.replace("-", ""))
+    if payload is None:
+        return {}, [f"espn-tennis: no scoreboard for {date}"]
+
+    parsed: list[dict] = []
+    for event, grouping, comp in _iter_tennis_competitions(payload):
+        row = _parse_tennis_competition(event, grouping, comp)
+        if row is not None:
+            parsed.append(row)
+
+    resolved: dict[str, dict] = {}
+    for event in tennis:
+        name_a, name_b = _sides_of(event)
+        want_a = _normalize_team_name(name_a)
+        want_b = _normalize_team_name(name_b)
+        hits = []
+        for row in parsed:
+            got_a = _normalize_team_name(row.get("home_team", ""))
+            got_b = _normalize_team_name(row.get("away_team", ""))
+            straight = _team_matches(want_a, got_a) and _team_matches(want_b, got_b)
+            crossed = _team_matches(want_a, got_b) and _team_matches(want_b, got_a)
+            if straight or crossed:
+                hits.append((row, crossed))
+        if not hits:
+            gaps.append(f"{name_a} v {name_b}: not on the ESPN scoreboard")
+            continue
+        if len(hits) > 1:
+            gaps.append(
+                f"{name_a} v {name_b}: {len(hits)} scoreboard "
+                "matches; refusing to guess which"
+            )
+            continue
+        row, crossed = hits[0]
+        if not row.get("completed", True):
+            gaps.append(f"{name_a} v {name_b}: did not finish")
+            continue
+        actuals = _tennis_actuals_from_row(row)
+        if not actuals:
+            gaps.append(f"{name_a} v {name_b}: scoreboard states no games")
+            continue
+        if crossed:
+            # The slate and the scoreboard list the two players in opposite
+            # order, so the per-side figures have to follow the slate's order
+            # -- ``settle.team_side`` resolves a row's subject against the
+            # *event's* home/away, not the scoreboard's.
+            actuals["home"], actuals["away"] = actuals["away"], actuals["home"]
+        resolved[event.event_id] = actuals
+        cache[f"tennis:{event.event_id}"] = actuals
     return resolved, gaps
 
 
@@ -486,7 +615,7 @@ def settle_singles(
         outcome, actual = settle_row(
             market=single.market, line=single.line, direction=single.direction,
             actuals=actuals, team_name=_team_subject(single),
-            home_team=event.home_team, away_team=event.away_team,
+            home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
         )
         out.append(
             {
@@ -497,7 +626,7 @@ def settle_singles(
                 # Every clustered interval quoted in ``tier_for_row`` is built
                 # this way; until now this artifact could not reproduce one.
                 "event_id": single.event_id,
-                "match": f"{event.home_team} v {event.away_team}",
+                "match": "{} v {}".format(*_sides_of(event)),
                 "market": single.market, "line": single.line,
                 "direction": single.direction, "subject": single.subject,
                 "p_low": single.p_low, "tier": single.tier,
@@ -555,9 +684,9 @@ def settle_slip_legs(
             outcome, actual = settle_row(
                 market=leg.market, line=leg.line, direction=leg.direction,
                 actuals=actuals, team_name=leg.team_name,
-                home_team=event.home_team, away_team=event.away_team,
+                home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
             )
-            out.append({**base, "match": f"{event.home_team} v {event.away_team}",
+            out.append({**base, "match": "{} v {}".format(*_sides_of(event)),
                         "outcome": outcome, "actual": actual})
     return out
 
@@ -706,6 +835,9 @@ def main() -> int:
             continue
         events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
         actuals, gaps = fetch_actuals(events, cache)
+        tennis_actuals, tennis_gaps = fetch_tennis_actuals(events, date, cache)
+        actuals.update(tennis_actuals)
+        gaps.extend(tennis_gaps)
         all_gaps.extend(gaps)
         # Called out on its own line, not left to be found among a few hundred
         # "no bzzoiro id" gaps: a slate that is still being played reads as a

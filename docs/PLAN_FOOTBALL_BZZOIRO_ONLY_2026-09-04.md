@@ -257,7 +257,7 @@ wierszy.** Dla 2, 3, 5: nazwana, przejrzana lista.
 | obserwacje espn-tennis z `surface` | 200/536 | ≥95%, braki nazwane |
 | `games_won` z `match_level is None` pod męskim Szlemem | — | nie rośnie |
 | wiersze goli z korelatorem | 159 (highlightly) | ≥159 (ESPN) |
-| tier tenisa `CALL` | 0 | **0** |
+| tier tenisa `CALL` | 0 | ~~**0**~~ zamrożone przez nieosiagalny prog READY, nie przez slate - patrz nota nizej |
 | duplikat Athletic Club / Vila Nova | 2 `event_id` | 1 |
 
 **Testy uruchamiać po ścieżce** (`pytest tests/simple_stats/`), nie `pytest` bez
@@ -334,6 +334,20 @@ tenis: 1939 obserwacji (tennis-abstract 1403, espn-tennis 536), `surface`
 13/15 · arkusz tenisa 452 wiersze, wszystkie z ceną, 0 w kuponie · READY tenisa 0
 (sufit `with_two_or_more` = 1 przy progu 3) · ESPN tenis: `statsSource: none`,
 `/summary` 400 — asów i podwójnych błędów nie będzie nigdy.
+
+> **Poprawione 2026-09-04, po zamknięciu planu.** „READY tenisa 0" nie było
+> pomiarem slate'u, tylko sprzecznością arytmetyczną: próg żądał 3 metryk z 2+
+> dostawcami, a sufit dla `aces_total`/`double_faults_total` wynosi 1 i wynosić
+> więcej nie może, bo espn-tennis czyta wyłącznie wynik setowy. Żaden dossier
+> tenisowy nie mógł być READY na żadnym slate'cie, przy w pełni zdrowych
+> dostawcach — więc „0 → 0" w tabeli regresji wyżej zamroziło defekt jako
+> oczekiwany wynik. `enrich._compute_readiness` pyta teraz o 2 dostawców tylko
+> tam, gdzie drugi może istnieć (`providers.metric_capable_providers`), a tam
+> gdzie nie może, żąda w zamian głębi próbki — 5 meczów po **obu** stronach,
+> ten sam próg, który gałąź primary stawia bzzoiro. Zmierzone na dossierach
+> 2026-08-31: tenis 0 → 2 READY z 3 wzbogaconych, trzeci zostaje PARTIAL, bo
+> Tsitsipas nie ma próbki asów. Piłka bez zmian (zweryfikowane przez
+> porównanie starej i nowej reguły na tym samym pliku).
 
 ### Komendy
 

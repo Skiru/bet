@@ -9,12 +9,14 @@ subclasses) becomes a data_gaps entry, never an aborted run.
 """
 from __future__ import annotations
 
+from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from bet.api_clients.rate_limiter import RateLimiter
 
+from bet.simple_stats.analyze import scope_values
 from bet.simple_stats.contracts import (
     PRIORITY_METRICS,
     EventDossierListV1,
@@ -23,6 +25,7 @@ from bet.simple_stats.contracts import (
     EventRecord,
     MetricObservation,
     PlayerMetricObservation,
+    ProviderValue,
     RefereeProfile,
     Sport,
     SquadAvailability,
@@ -48,6 +51,7 @@ from bet.simple_stats.providers import (
     fetch_provider_h2h_metrics,
     fetch_provider_team_metrics,
     fetch_sportdb_history,
+    metric_capable_providers,
 )
 
 MAX_WORKERS = 4
@@ -213,18 +217,66 @@ def _build_tasks(event: EventRecord) -> list[_Task]:
 _READY_MIN_PRIMARY_MATCHES = 5
 
 
-def _primary_side_counts(
-    primary: str, obs: MetricObservation
+def _scoped_side(bucket: list[ProviderValue]) -> list[ProviderValue]:
+    """One side's observations, minus the ones ANALYZE will refuse to count.
+
+    ``readiness`` is a promise about the sample the operator is going to read,
+    and until 2026-09-04 it was made about a different sample than the one that
+    reaches the sheet. ENRICH counted every observation a provider returned;
+    ANALYZE then put each per-team bucket through ``scope_values`` and threw out
+    the pre-season friendlies and the previous season's matches. So the two
+    disagreed about how much evidence a fixture had, and always in the same
+    direction -- READY was measured on a sample that included matches nobody
+    would price off.
+
+    On the 2026-09-04 slate that gap was not academic. Stade Lavallois - Red
+    Star reported ``corners_total`` 6/6 and cleared the floor, but two of
+    Lavallois's six were July friendlies (US Granville, Stade Malherbe Caen);
+    Ligue 2 had played four rounds, so the honest count was 4. Across the 22
+    READY football dossiers ``PRE_SEASON_FRIENDLY`` fired 532 times on
+    ``corners_total`` alone. The fixtures were not mislabelled by accident --
+    they were labelled off evidence that had already been ruled inadmissible
+    one step downstream.
+
+    Scoped **per bucket**, never pooled, which is the rule
+    ``analyze._rows_for_market`` states and for the same reason: a per-team
+    sample is one bucket, so this team's own newest season is the right target
+    for it, and pooling would let one side's cup run decide what counts as
+    current for the other.
+
+    ``surface`` and ``match_format`` are deliberately not passed. Both need the
+    fixture's own pin, which is resolved from the competition name that only
+    ANALYZE is given (``--event-list``), and both are tennis-only. Leaving them
+    out means this filter applies exactly the two sport-neutral rules -- the
+    competition pin and the stale season -- and a tennis dossier is never
+    scored against a surface this function cannot see. It therefore removes at
+    most what ANALYZE removes, never more.
+    """
+    kept, _ = scope_values(bucket)
+    return kept
+
+
+def _side_match_counts(
+    providers: Collection[str],
+    side_a: list[ProviderValue],
+    side_b: list[ProviderValue],
 ) -> tuple[int, int]:
-    """Distinct matches the primary served for each team, for one metric.
+    """Distinct matches ``providers`` served for each team, for one metric.
 
     Distinct *matches*, not observations: bzzoiro reports a full-match total, a
     per-team total and both half-splits off the same fixture, so counting rows
-    would report one match as four.
+    would report one match as four. Where ``providers`` holds more than one
+    name the union is counted, for the same reason -- two providers reading the
+    same fixture are one match of evidence, not two.
+
+    Takes the two sides already scoped rather than the ``MetricObservation``,
+    so the caller cannot count a bucket it forgot to put through
+    ``_scoped_side`` -- the omission this signature exists to make impossible.
     """
+    wanted = frozenset(providers)
     return tuple(  # type: ignore[return-value]
-        len({pv.match_id for pv in bucket if pv.provider == primary and pv.match_id})
-        for bucket in (obs.team_a_l10, obs.team_b_l10)
+        len({pv.match_id for pv in bucket if pv.provider in wanted and pv.match_id})
+        for bucket in (side_a, side_b)
     )
 
 
@@ -250,9 +302,27 @@ def _compute_readiness(
     which is where a second opinion belongs -- and still raises the tier
     ceiling. It is no longer what makes a fixture readable.
 
-    Sports with no primary (tennis: bzzoiro-tennis answers 402) keep the old
-    two-provider rule, because there the second provider genuinely is the only
-    check there is.
+    Sports with no primary (tennis: bzzoiro-tennis answers 402) keep the
+    two-provider rule *for the metrics where a second provider can exist*, and
+    substitute a sample-depth floor for the ones where it cannot.
+
+    That exception is not a relaxation, it is the repair of an unreachable
+    bar. Tennis's two providers are complementary rather than ranked, and only
+    ``total_games`` is served by both -- espn-tennis reads the published set
+    score and holds no aces or double faults at any price. So "3 priority
+    metrics with 2+ providers" asked for 3 where the ceiling
+    (``metric_capable_providers``) is 1, and **no tennis dossier could ever be
+    READY**, on any slate, with every provider healthy. It was recorded as an
+    accepted 0 in the source-consolidation plan rather than as the arithmetic
+    contradiction it is.
+
+    Where corroboration is impossible the second opinion is replaced, not
+    waived: the sole provider must have served ``_READY_MIN_PRIMARY_MATCHES``
+    distinct matches on *both* sides, the same floor the primary branch asks
+    of bzzoiro. A metric one provider covers thinly is still not READY -- on
+    the 2026-08-31 tennis dossiers this promotes the two fixtures with 7-10
+    matches a side and leaves PARTIAL the one whose first player has no aces
+    sample at all.
     """
     if not metrics:
         # Props alone are PARTIAL, not BLOCKED. BLOCKED means "no provider
@@ -263,26 +333,39 @@ def _compute_readiness(
         return "PARTIAL" if has_player_metrics else "BLOCKED"
     priority = PRIORITY_METRICS[sport]
     primary = PRIMARY_PROVIDER_BY_SPORT.get(sport)
-    with_two_or_more = 0
     with_one_or_more = 0
-    complete_for_primary = 0
+    complete = 0
     for name in priority:
         obs = metrics.get(name)
         if obs is None:
             continue
-        providers = {pv.provider for pv in (*obs.team_a_l10, *obs.team_b_l10, *obs.h2h)}
-        if len(providers) >= 2:
-            with_two_or_more += 1
+        # Every count below is taken after the scope filter, including the
+        # provider set: a provider whose only contribution to this metric was a
+        # friendly has not corroborated anything the sheet will read, and
+        # counting it as a second opinion would move the same overstatement
+        # from the depth branch into the corroboration branch.
+        scoped_a = _scoped_side(obs.team_a_l10)
+        scoped_b = _scoped_side(obs.team_b_l10)
+        providers = {
+            pv.provider for pv in (*scoped_a, *scoped_b, *_scoped_side(obs.h2h))
+        }
         if len(providers) >= 1:
             with_one_or_more += 1
         if primary:
-            side_a, side_b = _primary_side_counts(primary, obs)
+            side_a, side_b = _side_match_counts((primary,), scoped_a, scoped_b)
             if min(side_a, side_b) >= _READY_MIN_PRIMARY_MATCHES:
-                complete_for_primary += 1
-    if primary:
-        if complete_for_primary >= len(priority):
-            return "READY"
-    elif with_two_or_more >= 3:
+                complete += 1
+            continue
+        if len(metric_capable_providers(sport, name)) >= 2:
+            # A second opinion is available on this metric, so its absence is a
+            # real gap and depth cannot stand in for it.
+            if len(providers) >= 2:
+                complete += 1
+        elif providers:
+            side_a, side_b = _side_match_counts(providers, scoped_a, scoped_b)
+            if min(side_a, side_b) >= _READY_MIN_PRIMARY_MATCHES:
+                complete += 1
+    if complete >= len(priority):
         return "READY"
     if with_one_or_more >= 1:
         return "PARTIAL"
@@ -800,7 +883,10 @@ def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, s
 
 
 def _apportion_cap(
-    active_events: list[EventRecord], max_events: int, now: datetime
+    active_events: list[EventRecord],
+    max_events: int,
+    now: datetime,
+    unconstrained_sports: frozenset[str] = frozenset(),
 ) -> tuple[list[EventRecord], list[EventRecord]]:
     """Split the cap between sports before ranking inside each one.
 
@@ -815,11 +901,55 @@ def _apportion_cap(
     the events came back BLOCKED with "run capped at 40 events", which reads
     like a quota problem rather than like a whole sport being sorted last.
 
-    Each sport therefore gets a share of the cap proportional to how much of the
-    slate it is, with at least one event whenever the cap has room, and ranks
-    its own fixtures inside that share. A sport that cannot fill its share hands
+    ``unconstrained_sports`` are exempt: they keep their whole slate and the
+    cap is apportioned among the rest. The cap exists to ration a scarce daily
+    quota, and a sport whose providers are not scarce has nothing to ration.
+    Tennis is the case that forced this -- both its providers are effectively
+    unlimited (tennis-abstract is a keyless scrape with no daily cap,
+    espn-tennis allows 10,000 calls a day, about 3,300 events), yet the
+    proportional split charged it for football's constraint: replayed against
+    the 2026-09-02 slate (325 active events, cap 250) it dropped **9 of the 38
+    tennis fixtures**, each of which could have been enriched at no quota cost
+    whatsoever. Exempting them is not a widening of the run, it is declining to
+    spend a budget on a sport that was never drawing on it.
+
+    Every other sport therefore gets a share of the cap proportional to how much
+    of the *constrained* slate it is, with at least one event whenever the cap
+    has room, and ranks its own fixtures inside that share. A sport that cannot
+    fill its share hands
     the remainder back, so a thin tennis day still spends its slots on football.
     """
+    # Whole slates first, smallest sport first, for as long as they fit.
+    #
+    # Ascending order and a running budget, not a blanket exemption: bzzoiro is
+    # uncapped too, so exempting every unconstrained sport outright would
+    # delete the cap rather than aim it, and ``max_events`` has to keep meaning
+    # something. Taking the smallest first is what makes the guarantee land
+    # where it is needed -- tennis has never put more than 46 fixtures on a
+    # board against a cap of 250, so it is always satisfied in full, while
+    # football keeps whatever the cap has left and goes on being ranked inside
+    # it exactly as before.
+    exempt: list[EventRecord] = []
+    if unconstrained_sports:
+        sizes: dict[str, int] = {}
+        for event in active_events:
+            if event.sport in unconstrained_sports:
+                sizes[event.sport] = sizes.get(event.sport, 0) + 1
+        budget = max_events
+        granted: set[str] = set()
+        for sport in sorted(sizes, key=lambda s: (sizes[s], s)):
+            if sizes[sport] <= budget:
+                granted.add(sport)
+                budget -= sizes[sport]
+        if granted:
+            exempt = [e for e in active_events if e.sport in granted]
+            active_events = [e for e in active_events if e.sport not in granted]
+            max_events = budget
+    if not active_events:
+        exempt.sort(key=lambda e: _enrichment_priority(e, now))
+        return exempt, []
+    max_events = max(max_events, 0)
+
     by_sport: dict[str, list[EventRecord]] = {}
     for event in active_events:
         by_sport.setdefault(event.sport, []).append(event)
@@ -856,7 +986,7 @@ def _apportion_cap(
             break
         shares[sport] -= 1
 
-    kept: list[EventRecord] = []
+    kept: list[EventRecord] = list(exempt)
     skipped: list[EventRecord] = []
     for sport, events in by_sport.items():
         share = shares[sport]
@@ -927,7 +1057,19 @@ def enrich_events(
 
     skipped: list[EventRecord] = []
     if max_events is not None and len(active_events) > max_events:
-        active_events, skipped = _apportion_cap(active_events, max_events, now)
+        # Which sports are actually drawing on a scarce quota is a question for
+        # the rate limiter, not a constant here -- see
+        # ``preflight.sports_within_quota``. Resolved at the call site so a
+        # replay that hands in a fake limiter gets the same answer its limiter
+        # implies, rather than today's live quota.
+        from bet.simple_stats.preflight import sports_within_quota
+
+        active_events, skipped = _apportion_cap(
+            active_events,
+            max_events,
+            now,
+            unconstrained_sports=sports_within_quota(event_list, rate_limiter),
+        )
 
     per_event: dict[str, dict[str, FetchOutcome]] = {
         e.event_id: {"team_a": FetchOutcome(), "team_b": FetchOutcome(), "h2h": FetchOutcome()}

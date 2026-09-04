@@ -507,3 +507,51 @@ def test_an_unfinished_match_is_refused_by_both_providers(provider):
 
 def test_football_is_never_subject_to_the_tennis_completion_rule():
     assert not _tennis_match_unfinished("espn-football", {"completed": False})
+
+
+@pytest.mark.parametrize(
+    "score",
+    [
+        "(9) Jiri Lehecka (CZE) bt Matteo Berrettini (ITA) 6-4 6-7 (3-7) 6-3",
+        "Elisabetta Cocciaretto bt A B (USA) 6-1 6-2",
+        "Cezar Cretu bt A B (ROU) 6-3 6-4",
+    ],
+)
+def test_a_surname_is_not_a_retirement(score):
+    """"ret" is a substring of Berrettini, and that used to end the match.
+
+    ESPN states the score as a sentence including both names, and the
+    unfinished-marker test was a plain substring scan over the whole of it. So
+    every ESPN match against Berrettini, Cocciaretto or Cretu -- 3 of the 349
+    players in the local cache -- was recorded as "did not finish" and dropped
+    from the sample. Found on Lehecka's 2026-09-04 dossier, whose espn-tennis
+    total_games came back one match short with the gap message naming a score
+    line that plainly reads "bt".
+    """
+    parsed = parse_tennis_score(score)
+    assert parsed is not None
+    assert parsed.completed is True
+    assert not _tennis_match_unfinished(
+        "espn-tennis", {"completed": parsed.completed, "score": score}
+    )
+
+
+@pytest.mark.parametrize(
+    "score",
+    [
+        "A B bt C D 6-4 2-1 ret.",
+        "A B bt C D 6-4 2-1 ret",
+        "A B bt C D 6-4 2-1 RET",
+        "A B def. C D 6-0 1-0",
+        "6-4 2-1 ret",
+    ],
+)
+def test_a_real_retirement_is_still_caught(score):
+    """The narrowing must not cost the thing the marker exists for."""
+    parsed = parse_tennis_score(score)
+    assert parsed is not None
+    assert parsed.completed is False
+    assert _tennis_match_unfinished(
+        "espn-tennis", {"completed": parsed.completed, "score": score}
+    )
+

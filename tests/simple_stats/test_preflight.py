@@ -10,6 +10,7 @@ from bet.simple_stats.preflight import (
     enrich_preflight,
     provider_quota,
     providers_for,
+    sports_within_quota,
 )
 
 
@@ -362,3 +363,51 @@ def test_empty_sport_list_is_precondition_failed(tmp_path):
     result = preflight_for_sports([], limiter)
     assert result["verdict"] == "PRECONDITION_FAILED"
     assert result["recommended_max_events"] == 0
+
+
+def test_tennis_is_within_quota_for_any_realistic_slate():
+    """Both tennis providers are effectively unlimited, so the run cap has
+    nothing to ration there -- which is what lets ``_apportion_cap`` grant it
+    its whole slate instead of a proportional share of football's constraint."""
+    events = _list(*[_event("tennis", event_id=f"t{i}") for i in range(46)])
+
+    assert "tennis" in sports_within_quota(events, RateLimiter())
+
+
+def test_a_sport_whose_provider_cannot_cover_the_slate_is_not_exempt(monkeypatch):
+    """The exemption is measured, not hardcoded: give espn-tennis a limit that
+    does not reach the board and tennis has to compete for the cap again."""
+    import bet.simple_stats.preflight as preflight
+
+    real = preflight.provider_quota
+
+    def thin(rate_limiter, provider):
+        quota = dict(real(rate_limiter, provider))
+        if provider == "espn-tennis":
+            quota.update(unlimited=False, limit=9, remaining=9, available=True)
+        return quota
+
+    monkeypatch.setattr(preflight, "provider_quota", thin)
+    events = _list(*[_event("tennis", event_id=f"t{i}") for i in range(46)])
+
+    assert "tennis" not in preflight.sports_within_quota(events, RateLimiter())
+
+
+def test_a_sport_with_no_usable_provider_is_not_exempt(monkeypatch):
+    """Exempting it would hand it slots it cannot spend."""
+    import bet.simple_stats.preflight as preflight
+
+    real = preflight.provider_quota
+
+    def unusable(rate_limiter, provider):
+        quota = dict(real(rate_limiter, provider))
+        if provider in ("tennis-abstract", "espn-tennis"):
+            quota["available"] = False
+        return quota
+
+    monkeypatch.setattr(preflight, "provider_quota", unusable)
+    events = _list(*[_event("tennis", event_id=f"t{i}") for i in range(10)])
+
+    # Every provider unusable -- nothing to protect, so no exemption.
+    assert preflight.sports_within_quota(events, RateLimiter()) == frozenset()
+

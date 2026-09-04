@@ -458,6 +458,75 @@ def test_every_sport_present_gets_at_least_one_slot():
     assert len(kept) == 5
 
 
+def test_a_sport_that_costs_no_quota_keeps_its_whole_slate():
+    """The 2026-09-02 shape: 287 football, 38 tennis, cap 250.
+
+    Both tennis providers are effectively unlimited -- tennis-abstract is a
+    keyless scrape with no daily cap, espn-tennis allows about 3,300 events a
+    day -- so the proportional split was charging tennis for football's
+    constraint and dropping 9 of its 38 fixtures at no saving whatsoever.
+    """
+    now = datetime(2026, 9, 2, 6, 0, tzinfo=timezone.utc)
+    active = [_event(f"f{i}", "football", confirmed=True) for i in range(287)]
+    active += [_event(f"t{i}", "tennis") for i in range(38)]
+
+    kept, skipped = _apportion_cap(
+        active, 250, now, unconstrained_sports=frozenset({"tennis"})
+    )
+
+    assert sum(1 for e in kept if e.sport == "tennis") == 38
+    assert sum(1 for e in skipped if e.sport == "tennis") == 0
+    # The cap still binds, and football still absorbs it.
+    assert len(kept) == 250
+    assert sum(1 for e in kept if e.sport == "football") == 212
+
+
+def test_an_unconstrained_sport_too_big_for_the_cap_is_still_apportioned():
+    """The exemption must not become a way around ``max_events``.
+
+    A whole slate is granted only while it fits. bzzoiro is uncapped as well,
+    so a blanket exemption would delete the cap rather than aim it.
+    """
+    now = datetime(2026, 9, 2, 6, 0, tzinfo=timezone.utc)
+    active = [_event(f"f{i}", "football") for i in range(400)]
+
+    kept, skipped = _apportion_cap(
+        active, 50, now, unconstrained_sports=frozenset({"football"})
+    )
+
+    assert len(kept) == 50
+    assert len(skipped) == 350
+
+
+def test_the_smallest_unconstrained_sport_is_satisfied_first():
+    """Ascending order is what puts the guarantee where it is needed."""
+    now = datetime(2026, 9, 2, 6, 0, tzinfo=timezone.utc)
+    active = [_event(f"f{i}", "football") for i in range(200)]
+    active += [_event(f"t{i}", "tennis") for i in range(30)]
+
+    kept, _ = _apportion_cap(
+        active, 100, now, unconstrained_sports=frozenset({"tennis", "football"})
+    )
+
+    # Tennis fits in 100 and is taken whole; football cannot and is ranked
+    # inside what is left rather than being granted or zeroed.
+    assert sum(1 for e in kept if e.sport == "tennis") == 30
+    assert sum(1 for e in kept if e.sport == "football") == 70
+    assert len(kept) == 100
+
+
+def test_default_behaviour_is_unchanged_without_the_exemption():
+    """Every existing caller passes no ``unconstrained_sports``."""
+    now = datetime(2026, 9, 2, 6, 0, tzinfo=timezone.utc)
+    active = [_event(f"f{i}", "football") for i in range(287)]
+    active += [_event(f"t{i}", "tennis") for i in range(38)]
+
+    kept, _ = _apportion_cap(active, 250, now)
+
+    assert sum(1 for e in kept if e.sport == "tennis") == 29
+    assert len(kept) == 250
+
+
 def test_the_cap_still_ranks_within_a_sport():
     """Apportionment decides how many, _enrichment_priority still decides which:
     a started fixture is not bettable pre-match and goes last."""

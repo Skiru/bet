@@ -69,17 +69,32 @@ def team_side(
     return None
 
 
+# Markets that belong to one side even though their name carries no ``_for``.
+#
+# Only tennis's per-player games. The canonical name really is ``games_won``
+# -- that is what tennis-abstract emits and what ``_SIDE_SPLIT_AS`` maps
+# espn-tennis's per-side figure onto, and ``total_games_for`` does not exist in
+# the vocabulary -- so the suffix rule alone reads it as a match total. That
+# would settle "Lilli Tagger games_won OVER 6.5" against the *match's* 22
+# games instead of her 9, scoring a straight-sets defeat as a win, on all 438
+# such rows in the four slates on disk.
+_PER_SIDE_MARKETS = frozenset({"games_won"})
+
+
 def actual_value(
     actuals: Actuals, market: str, side: str | None
 ) -> float | None:
     """The figure this row settles against, or None when it was not reported.
 
-    A ``*_for`` market needs the side; a ``*_total`` market must **not** use one
+    A per-side market needs the side; a ``*_total`` market must **not** use one
     (every match has one home and one away side, so the total is neither), and
     asking for a total under a side key is the mistake that would silently
     settle "corners_total OVER 9.5" against one team's five corners.
+
+    Per-side means ``*_for`` *or* one of ``_PER_SIDE_MARKETS`` -- see there for
+    why the suffix is not sufficient.
     """
-    if market.endswith("_for"):
+    if market.endswith("_for") or market in _PER_SIDE_MARKETS:
         if side is None:
             return None
         value = actuals.get(side, {}).get(market)

@@ -52,7 +52,19 @@ _ESPN_RESULT_MARKER = re.compile(r"\bbt\b", re.IGNORECASE)
 # What each feed writes when the match did not go the distance. tennis-abstract
 # uses "ret" and "W/O" (and, on seven rows of a 78,750-row cache, the literal
 # word "Walkover"); ESPN uses "ret" and "def".
-_UNFINISHED_MARKERS = ("ret", "w/o", "walkover", "def.", "def ", "abn", "disq")
+#
+# A regex with letter boundaries rather than a substring test, because the
+# substring test read player names as retirements. ESPN states the score as a
+# sentence -- "(9) Jiri Lehecka (CZE) bt Matteo Berrettini (ITA) 6-4 6-7 (3-7)
+# 6-3" -- and ``"ret" in "berrettini"`` is True, so **every ESPN match against
+# Berrettini was dropped as unfinished**, along with Cocciaretto's and Cretu's
+# (3 of the 349 players in the local cache; Lehecka's 2026-09-04 dossier is
+# where it surfaced). Boundaries are letter-based rather than ``\b`` so that
+# "w/o" still matches -- the slash is not a word character, and ``\b`` around
+# it behaves differently than around a letter.
+_UNFINISHED_RE = re.compile(
+    r"(?<![a-z])(?:ret|w/o|walkover|def|abn|disq)\.?(?![a-z])", re.IGNORECASE
+)
 
 # No professional set is won with fewer than six games, and no tie-break set
 # passes 7-6, but sets *do* run long where no final-set tie-break is played --
@@ -97,12 +109,15 @@ def parse_tennis_score(raw: str | None) -> TennisScore | None:
     if not text:
         return None
 
-    lowered = text.lower()
-    completed = not any(marker in lowered for marker in _UNFINISHED_MARKERS)
-
+    # Names off first, *then* look for a retirement. Both halves of the fix
+    # matter: the marker scan used to run on the whole sentence, so a surname
+    # could be read as a result, and the boundaries in _UNFINISHED_RE keep that
+    # from happening again on the feeds that state no " bt " at all.
     marker = _ESPN_RESULT_MARKER.search(text)
     if marker:
         text = text[marker.end():]
+
+    completed = _UNFINISHED_RE.search(text) is None
 
     pairs: list[tuple[int, int]] = []
     for own, other in _SET_PAIR.findall(_BRACKETED.sub(" ", text)):

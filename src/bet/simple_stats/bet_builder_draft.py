@@ -969,10 +969,27 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     incomplete primary sample -- win 81.1%, so the discrimination runs the
     right way round.
 
-    Restricted to sports with a primary provider, because that is where it was
-    measured: the backtest settles football only (tennis markets settle from an
-    endpoint it does not read), and for tennis READY still means "two providers
-    agreed", which is the old condition under a different name.
+    Restricted to sports with a primary provider, and since 2026-09-04 that is
+    a measured decision rather than an inherited one.
+
+    Tennis READY became reachable that day, so the exclusion was no longer a
+    no-op and had to be settled rather than assumed.
+    ``scripts/simple/backtest_tennis_readiness.py`` settles the tennis sheet
+    against ESPN's per-date scoreboard -- the length markets, 1,918 of 3,318
+    rows over seven slates -- and READY does **not** earn the promotion:
+
+        p_low >= 0.50, READY      81 settled, 77.8%, 95% CI [67.6, 85.5]
+        p_low >= 0.50, PARTIAL    18 settled, 94.4%, 95% CI [74.2, 99.0]
+        n >= 8, READY             68 settled, 80.9%
+        n >= 8, PARTIAL           11 settled, 90.9%
+
+    The point estimate runs the *wrong* way and the intervals overlap, so this
+    proves nothing in either direction -- which is exactly why the gate stays
+    shut. Football's promotion was granted on a measured equivalence (+0.1pp
+    over the AGREE rule it replaced); tennis has no such warrant, and 18
+    PARTIAL rows is too thin to grant one on. Re-run the script when more
+    slates have accumulated. Aces and double faults are unsettled throughout:
+    ESPN answers ``statsSource: none`` for tennis.
 
     Ceilings, both structural rather than about the numbers: a row two providers
     actively contradict can never be CALL, and a player prop drawn from a
@@ -1017,9 +1034,17 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
         return "WEAK"
 
     corroborated = row.cross_provider_agreement == "AGREE"
-    # The primary provider served a complete sample for this fixture. Only
-    # meaningful where there *is* a primary: for tennis, READY is still the old
-    # two-provider condition and this reduces to ``corroborated``.
+    # The primary provider served a complete sample for this fixture.
+    #
+    # Still restricted to sports with a primary, but no longer for the reason
+    # this comment used to give. It said tennis READY "reduces to
+    # ``corroborated``", which was true only because tennis READY was
+    # unreachable (see enrich._compute_readiness); since 2026-09-04 tennis can
+    # be READY, and on the 2026-09-04 slate 8 of its 14 fixtures are.
+    #
+    # The restriction stays because tennis READY was measured and did not earn
+    # the promotion -- 77.8% against PARTIAL's 94.4%, see the docstring. It is
+    # no longer "unmeasured", it is "measured and refused".
     complete = row.data_quality == "READY" and row.sport in PRIMARY_PROVIDER_BY_SPORT
     if row.sample_size >= 8 and (complete or corroborated):
         tier: Tier = "CALL"
