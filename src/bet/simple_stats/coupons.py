@@ -1213,6 +1213,41 @@ def build_coupons(
             f"({ignored.event_id[:12]}) — {why}; {ignored.reason}"
         )
 
+    # A veto naming a row this sheet does not have applies to nothing, and
+    # until 2026-09-04 it said so to nobody: ``VetoIndex`` reports the entries
+    # it *refuses* (``ignored``) precisely because a written-down decision must
+    # never be dropped in silence, and a decision addressed to an event_id the
+    # sheet has never heard of was the one way through that rule.
+    #
+    # It is not hypothetical. ``event_id`` is a hash over the fixture's
+    # competition name among other things, so anything that renames a
+    # competition -- a canonical-map entry, the country qualification bzzoiro's
+    # league names gained on 2026-09-04 -- re-mints every id on the day. Rebuild
+    # the coupon after that with the morning's vetoes file and the file reads as
+    # reviewed while every one of the analyst's kills quietly no-ops. Measured
+    # on the 2026-09-04 rebuild: 3 of 4 vetoes on disk addressed ids from the
+    # earlier run, and the build reported 15 singles without a word.
+    #
+    # Reported, not repaired: matching such an entry to "the same fixture under
+    # a new id" would be a guess at which row the analyst meant, and a veto
+    # applied to the wrong row is worse than one applied to none.
+    sheet_event_ids = {row.event_id for row in stats_sheet.rows}
+    sheet_event_markets = {(row.event_id, row.market) for row in stats_sheet.rows}
+    for veto in vetoes or ():
+        if veto.event_id not in sheet_event_ids:
+            applied_vetoes.append(
+                f"NIEZASTOSOWANE WETO: {_veto_scope(veto)} "
+                f"({veto.event_id[:12]}) — arkusz nie zawiera tego event_id "
+                "(weto z innego przebiegu? event_id zmienia się przy zmianie "
+                f"nazwy rozgrywek); {veto.reason}"
+            )
+        elif (veto.event_id, veto.market) not in sheet_event_markets:
+            applied_vetoes.append(
+                f"NIEZASTOSOWANE WETO: {_veto_scope(veto)} "
+                f"({veto.event_id[:12]}) — arkusz nie ma rynku "
+                f"'{veto.market}' dla tego meczu; {veto.reason}"
+            )
+
     def bar_for(row: StatsSheetRow, tier: str) -> tuple[float, BarComponents]:
         """``(min_acceptable_odds, the parts it was built from)`` for one row.
 

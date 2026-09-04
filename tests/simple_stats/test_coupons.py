@@ -322,6 +322,50 @@ def test_a_veto_removes_the_row_and_reports_why():
     assert any("suspended fixture" in n for n in coupons.notes)
 
 
+def test_a_veto_naming_an_event_the_sheet_does_not_have_is_reported_not_dropped():
+    """``event_id`` hashes the competition name, so a canonical-map entry or
+    bzzoiro's country qualification re-mints every id on the day. Rebuilding
+    with the morning's vetoes then produced a file that read as reviewed while
+    every kill silently no-oped: 3 of the 4 vetoes on disk for 2026-09-04 were
+    addressed to ids from the earlier run and the build said nothing."""
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        vetoes=[_veto(event_id="evt-from-an-earlier-run", reason="line sits on the mode")],
+    )
+    assert len(coupons.singles) == 1  # nothing was removed, and that is the point
+    note = next(n for n in coupons.notes if "NIEZASTOSOWANE WETO" in n)
+    assert "corners_total 9.5 UNDER" in note
+    assert "event_id" in note and "line sits on the mode" in note
+
+
+def test_a_veto_naming_a_market_the_sheet_does_not_have_says_which_market():
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        vetoes=[_veto(market="cards_points_total", line=None, reason="no referee named")],
+    )
+    note = next(n for n in coupons.notes if "NIEZASTOSOWANE WETO" in n)
+    assert "cards_points_total" in note and "no referee named" in note
+
+
+def test_a_veto_that_lands_on_a_row_is_not_reported_as_unapplied():
+    """The false-alarm side: the note must not fire on a veto that worked."""
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()), vetoes=[_veto()],
+    )
+    assert coupons.excluded.get("analyst_veto") == 1
+    assert not any("NIEZASTOSOWANE WETO" in n for n in coupons.notes)
+
+
+def test_a_market_wide_veto_on_a_present_event_is_not_reported_as_unapplied():
+    """``line=None``/``direction=None`` is how a market-wide veto is written;
+    the (event, market) test must not read that as addressing nothing."""
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        vetoes=[_veto(line=None, direction=None)],
+    )
+    assert not any("NIEZASTOSOWANE WETO" in n for n in coupons.notes)
+
+
 def test_a_downgrade_steps_the_tier_down_once_without_touching_p_low():
     row = _row(p_low=0.90, cross_provider_agreement="AGREE", sample_size=12)
     assert build_coupons(_sheet(row), _events(_event())).singles[0].tier == "CALL"

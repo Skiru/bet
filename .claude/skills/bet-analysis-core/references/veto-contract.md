@@ -54,6 +54,16 @@ Resolution order per row: `(line, direction)` → `(null, direction)` →
 - A market-wide DOWNGRADE plus a per-rung VETO on the same market is legal and
   resolves as intended.
 
+## Copy the `event_id` off the sheet you are reading, never from an older file
+
+`event_id` is a hash that includes the fixture's competition name, so any run
+that renames a competition re-mints every id for the day. An entry carrying a
+stale id validates, matches nothing and removes nothing. Since 2026-09-04
+`build_coupons` prints it as `NIEZASTOSOWANE WETO` in the coupon's notes rather
+than dropping it in silence -- which is how it was found: 3 of 4 vetoes on disk
+that day addressed ids from an earlier run and the coupon still read as
+reviewed. Take every id from the stats sheet handed to *this* pass.
+
 ## Player props: what cannot be expressed
 
 There is no `player_name` / `team_name` key. A prop veto for one player

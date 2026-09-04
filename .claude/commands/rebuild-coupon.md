@@ -195,6 +195,19 @@ exactly as `/run-day` Step 5 does, save it over the old file, and say in the
 report which entries changed. Do not re-run an analyst just to make the file
 fuller; its job is to remove rows, not to add them.
 
+**Read `NIEZASTOSOWANE WETO` in the built file before reading the singles.**
+`event_id` is a hash that includes the competition name, so anything that
+renames a competition -- a `competition_name_canonical_map.json` entry, the
+country qualification bzzoiro's league names gained on 2026-09-04 -- re-mints
+every id on the day and the vetoes file then addresses fixtures that no longer
+exist. `build_coupons` now names each such entry instead of dropping it (added
+2026-09-04, after a rebuild in which 3 of 4 vetoes on disk silently no-oped and
+the file still read as reviewed). One of those lines means the analyst's kill
+did *not* apply: re-run that sport's analyst against the current sheet, or say
+in the report that the row stands unreviewed. Never "fix" it by editing an
+`event_id` by hand -- matching a decision to a re-minted id is a guess at which
+row was meant, and a veto on the wrong row is worse than a veto on none.
+
 ## Step 4 — Build
 
 ```bash
