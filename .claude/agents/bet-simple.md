@@ -72,9 +72,11 @@ Two limits to state rather than report as failures:
   `tennis_model_unavailable` in the `AGENT_SUMMARY`; do not report it as thin
   coverage.
 - **Only fixtures bzzoiro itself discovered.** The stage is keyed by bzzoiro's
-  own event id, so an event only `highlightly` or `odds-api` found is skipped.
-  Compare `market_context_metrics.events_considered` against DISCOVER's
-  `events_by_source.bzzoiro` before calling coverage thin.
+  own event id. Since 2026-09-04 this is no longer a caveat worth measuring --
+  football DISCOVER is bzzoiro-only (`DISCOVERY_SOURCES_BY_SPORT`), so every
+  football event already is one of bzzoiro's own. Compare
+  `market_context_metrics.events_considered` against DISCOVER's
+  `events_by_source.bzzoiro` only if you see a gap; it should not exist.
 
 ### What SUPERBET costs, and the one thing only it can tell you
 
@@ -166,8 +168,9 @@ ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json
 ```
 
 This is worth doing now and was not before: the `bzzoiro` football product is
-uncapped on the PRO plan against `highlightly`'s 100 a day, so a second pass has
-budget left to actually add something. Tennis costs nothing to backfill: both
+uncapped on the PRO plan, so a second pass has budget left to actually add
+something (highlightly, capped at 100/day, left the football ENRICH roster on
+2026-09-04 -- see `NATIVE_ID_PROVIDERS_BY_SPORT`). Tennis costs nothing to backfill: both
 its providers are keyless, and `espn-tennis` reads one memoised scoreboard per
 date for the whole slate rather than a quota-metered call per fixture.
 **Once only.** A third pass on the same day spends quota to re-learn
@@ -226,6 +229,14 @@ The run's verdict is the worst any step reached.
 `metrics.<step>_metrics.persisted` tells you whether the DB write succeeded.
 Never infer persistence from stderr.
 
+**`SPORT_EMPTY` in DISCOVER's issues (added 2026-09-04) demotes `OK` to
+`PARTIAL` on its own.** A sport with zero `ACTIVE` events is a silent gap, not
+a quiet day, so it counts toward the verdict the same way a blocked provider
+does -- read `metrics.events_by_sport` to see which sport and report it by
+name. This is not theoretical for tennis: DISCOVER now runs from a single
+schedule source (`odds-api`, 44 tournament keys), and there are weeks with
+zero active ones.
+
 **Always report discovered vs enriched.** A capped run marks the rest BLOCKED
 with `"not enriched: run capped at N events"`. "84 rows over 3 matches" reads
 like a full day until you add "out of 40 discovered". The cap sorts by identity
@@ -266,17 +277,24 @@ helps:
   call -- suspect a billing refusal and say so rather than repeating the reset
   advice.
 
-  **`highlightly` exhaustion shrinks the *slate*, not just the corroboration** --
-  this is the one quota failure that is easy to misread. It is the dominant
-  *discovery* source, so running dry cuts how many fixtures exist to analyse at
-  all. Measured on 2026-08-28: the same date discovered **348 events** with
-  highlightly available (`{highlightly: 310, bzzoiro: 54, odds-api: 43}`) and
-  **80 events** an hour later at `highlightly: 0`
-  (`{bzzoiro: 54, odds-api: 43}`) -- a 77% smaller day from one exhausted
-  counter. So when preflight reports it at 0, say up front that today's slate is
-  a fraction of the real fixture list, and that the missing events are absent
-  from DISCOVER rather than capped out of ENRICH. Do not report the shrunken
-  count as the day's coverage without that sentence.
+  **`highlightly` no longer drives discovery breadth.** Before 2026-09-04 it
+  was the dominant discovery source and its exhaustion shrank the whole slate
+  (348 events with it available on 2026-08-28 vs 80 an hour later at
+  `highlightly: 0`) -- but football DISCOVER has been bzzoiro-only since step 1
+  of that day's consolidation, and highlightly left the ENRICH roster too
+  (`NATIVE_ID_PROVIDERS_BY_SPORT`). Its quota can still show `quota_exhausted`
+  in preflight -- the client and alias tables are still wired for a possible
+  future re-add -- but it costs the day nothing today: bzzoiro is uncapped on
+  PRO and is the only football source that matters. Do not repeat the
+  "shrunken slate" advice for highlightly; it is stale.
+
+  **The live version of this failure is `SLATE_BELOW_FLOOR` in DISCOVER's
+  issues (added 2026-09-04, replaces the highlightly-specific check above).**
+  It compares today's `ACTIVE` count per sport against that sport's own
+  rolling median from `runs/` -- zero provider calls -- and fires when a sport
+  collapses relative to its own history, regardless of which source would have
+  caused it. Report the sport and both numbers from the message; this is the
+  one to lead with now, not a specific provider's counter.
 - `upstream_unavailable` -- `understat` (build failure). Known, permanent.
   Report and continue.
 

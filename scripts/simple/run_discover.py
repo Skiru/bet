@@ -13,8 +13,11 @@ agent sees progress during the run, not only at the end.
 Exit codes: 0 = OK, 1 = PARTIAL, 2 = FAILED.
 """
 import argparse
+import json
+import re
 import sys
 import traceback
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,9 +34,12 @@ if scripts_path not in sys.path:
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.discover import discover_events  # noqa: E402
+from bet.simple_stats.discover import coverage_floor_reasons, discover_events  # noqa: E402
 from bet.simple_stats.persistence import default_db_path, persist_pipeline_run  # noqa: E402
 from bet.simple_stats.run_context import new_run_id, record_run  # noqa: E402
+
+_RUN_DATE_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_HISTORY_WINDOW = 14
 
 STEP = "simple_stats:DISCOVER"
 
@@ -78,6 +84,10 @@ def main() -> None:
         for source in event.source_ids:
             by_source[source] = by_source.get(source, 0) + 1
 
+    by_sport = Counter(e.sport for e in active)
+    target_sports = sports or ["football", "tennis"]
+    empty_sports = [s for s in target_sports if not by_sport.get(s)]
+
     for event in blocked:
         out.warning(
             "event blocked at discovery: ambiguous identity",
@@ -97,6 +107,7 @@ def main() -> None:
         "confirmed_identity_events": sum(1 for e in active if e.identity_confidence == "CONFIRMED"),
         "multi_source_events": sum(1 for e in active if len(e.source_ids) > 1),
         "events_by_source": by_source,
+        "events_by_sport": dict(by_sport),
         "output_path": str(output_path),
         "output_sha256": digest,
     }
@@ -110,6 +121,19 @@ def main() -> None:
         _record(args, run_id, "FAILED", metrics, started_at, "BLOCK_NO_EVENTS")
         out.summary(verdict="FAILED", metrics=metrics)
         sys.exit(2)
+
+    # A sport with zero ACTIVE events is a silent gap, not a healthy slate
+    # that simply had nothing on: out.error() alone only appends to _issues
+    # (agent_output.py), so without this the verdict computation below would
+    # still see "OK". This is not theoretical -- the tennis universe is 44
+    # OddsAPI tournament keys (22 ATP on 60+ events a season), and there are
+    # weeks with zero active ones.
+    for sport in empty_sports:
+        out.error(
+            f"SPORT_EMPTY: {sport}: discovery returned no ACTIVE events",
+            recoverable=True,
+            date=args.date,
+        )
 
     persisted, persist_error = _persist(out, args, result)
     metrics["persisted"] = persisted
@@ -140,14 +164,70 @@ def main() -> None:
             date=args.date,
         )
 
+    # ``SLATE_CRITICAL_SOURCES`` (contracts.py) is a "quota exhausted" string
+    # match on highlightly, which DISCOVER no longer even fetches for either
+    # sport (DISCOVERY_SOURCES_BY_SPORT) -- it can never fire again. This is
+    # today's live floor: today's ACTIVE count per sport against that sport's
+    # own recent-run median, read straight off runs/ already on disk.
+    history_by_sport = _history_active_counts(Path(args.output_dir).parent, args.date, target_sports)
+    floor_reasons = coverage_floor_reasons(dict(by_sport), history_by_sport)
+    metrics["coverage_floor_reasons"] = floor_reasons
+    for reason in floor_reasons:
+        out.error(
+            f"SLATE_BELOW_FLOOR: {reason}",
+            recoverable=True,
+            date=args.date,
+        )
+
     verdict = (
         "OK"
-        if (persisted and not blocked and not result.degraded_reasons)
+        if (
+            persisted
+            and not blocked
+            and not result.degraded_reasons
+            and not empty_sports
+            and not floor_reasons
+        )
         else "PARTIAL"
     )
     _record(args, run_id, verdict, metrics, started_at, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)
+
+
+def _history_active_counts(
+    runs_root: Path, before_date: str, sports: list[str], window: int = _HISTORY_WINDOW
+) -> dict[str, list[int]]:
+    """ACTIVE-event counts per sport from the ``window`` most recent prior
+    days' ``event_list.json`` artifacts already under ``runs_root``. Zero
+    provider calls -- this is the coverage floor's only input.
+
+    Only directories named ``YYYY-MM-DD`` are read, so ad-hoc harness/scratch
+    dirs (e.g. ``2026-09-04_step5_merged``) never enter the history.
+    """
+    if not runs_root.is_dir():
+        return {}
+    day_dirs = sorted(
+        (p for p in runs_root.iterdir() if p.is_dir() and _RUN_DATE_DIR.match(p.name) and p.name < before_date),
+        key=lambda p: p.name,
+        reverse=True,
+    )[:window]
+
+    counts: dict[str, list[int]] = {sport: [] for sport in sports}
+    for day_dir in day_dirs:
+        event_list_path = day_dir / f"{day_dir.name}_event_list.json"
+        if not event_list_path.is_file():
+            continue
+        try:
+            payload = json.loads(event_list_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        by_sport = Counter(
+            e.get("sport") for e in payload.get("events", []) if e.get("status") == "ACTIVE"
+        )
+        for sport in sports:
+            counts[sport].append(by_sport.get(sport, 0))
+    return counts
 
 
 def _persist(out: AgentOutput, args, result) -> tuple[bool, str | None]:

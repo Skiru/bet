@@ -303,11 +303,20 @@ class EventRecord(StrictBaseModel):
 # Sources whose exhaustion shrinks the *slate* rather than only costing
 # corroboration.
 #
-# ``highlightly`` is the one that matters: it drives discovery breadth, so
-# running out of quota removes about 77% of the day's fixtures (memory note
+# ``highlightly`` is the one that matters: it drove discovery breadth, so
+# running out of quota removed about 77% of the day's fixtures (memory note
 # ``highlightly-drives-discovery``). On 2026-09-03 it was 101/100 before the
 # run started, 20,961 of 21,925 rows came out SINGLE_SOURCE, and DISCOVER
 # reported OK.
+#
+# Kept for the historical regression test, but dead code since 2026-09-04:
+# ``DISCOVERY_SOURCES_BY_SPORT`` (discover.py) stopped fetching highlightly
+# for either sport, so ``source_errors["highlightly"]`` is now always empty
+# and this set can never again produce a "quota exhausted" match. Do not
+# "fix" this by adding bzzoiro/odds-api here -- neither has a quota to
+# exhaust, so the substring match would just as permanently never fire.
+# ``discover.coverage_floor_reasons`` is the live replacement: today's
+# ACTIVE count per sport against that sport's own recent-run median.
 SLATE_CRITICAL_SOURCES = frozenset({"highlightly"})
 
 

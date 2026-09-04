@@ -858,3 +858,56 @@ def _degraded_reasons(source_errors: dict[str, list[str]]) -> list[str]:
             if "quota exhausted" in message:
                 reasons.append(f"{name}: {message}")
     return reasons
+
+
+def coverage_floor_reasons(
+    active_by_sport: dict[str, int],
+    history_by_sport: dict[str, list[int]],
+    *,
+    min_samples: int = 3,
+    floor_ratio: float = 0.5,
+) -> list[str]:
+    """Flag a sport whose ACTIVE count today is far below its own recent
+    history -- the replacement for ``_degraded_reasons``/``SLATE_CRITICAL_SOURCES``
+    (section 7 of the 2026-09-04 consolidation plan).
+
+    ``DISCOVERY_SOURCES_BY_SPORT`` narrowed discovery to bzzoiro (football)
+    and odds-api (tennis); neither has a daily quota to exhaust, and
+    highlightly -- the one source ``SLATE_CRITICAL_SOURCES`` names -- is no
+    longer fetched for either sport (``_fetch_source_events`` skips it
+    unconditionally), so that check's "quota exhausted" substring can never
+    match again. Adding bzzoiro or odds-api to ``SLATE_CRITICAL_SOURCES``
+    would not fix this: it is a string match on a specific error message, and
+    neither source ever produces one shaped like a quota error.
+
+    This reads the day's own shape instead: today's ACTIVE count per sport
+    against the median of that sport's own recent runs, both already on disk
+    in ``runs/`` -- zero provider calls. ``history_by_sport`` is supplied by
+    the caller (``run_discover.py`` scans ``runs/*/​<date>_event_list.json``)
+    so this function stays a pure, unit-testable comparison.
+
+    A sport with fewer than ``min_samples`` prior runs is skipped: a floor
+    computed from one or two days is noise, not a floor. The tennis universe
+    is genuinely spiky (44 OddsAPI tournament keys, 2 active on a quiet week)
+    so ``floor_ratio`` is deliberately loose -- this catches a slate that
+    collapsed, not one that is merely a below-average day.
+    """
+    reasons: list[str] = []
+    for sport, today_count in sorted(active_by_sport.items()):
+        history = history_by_sport.get(sport) or []
+        if len(history) < min_samples:
+            continue
+        ordered = sorted(history)
+        mid = len(ordered) // 2
+        median = (
+            ordered[mid]
+            if len(ordered) % 2
+            else (ordered[mid - 1] + ordered[mid]) / 2
+        )
+        floor = median * floor_ratio
+        if median > 0 and today_count < floor:
+            reasons.append(
+                f"{sport}: {today_count} ACTIVE vs median {median:g} over "
+                f"{len(ordered)} prior runs (floor {floor:g})"
+            )
+    return reasons

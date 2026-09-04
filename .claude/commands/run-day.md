@@ -53,9 +53,11 @@ left` while highlightly's own dashboard showed **30% used**, and it said
 `api-football 0 left` when that account was in fact `SUSPENDED` with **0
 requests used** — failed calls had been counted as usage.
 
-This matters because highlightly is the dominant discovery source, so a
-pessimistic counter hands you a smaller `--max-events` and a smaller day for no
-reason.
+Historically this mattered most for `highlightly` as the dominant discovery
+source; since 2026-09-04 football DISCOVER runs from `bzzoiro` only
+(uncapped on PRO) and highlightly is out of the ENRICH roster entirely, so a
+stale highlightly counter no longer shrinks the day. A pessimistic counter on
+`bzzoiro` or `espn-football` is now the one worth catching.
 
 ```bash
 python3 scripts/simple/reset_provider_quota.py --status          # spends nothing
@@ -82,12 +84,18 @@ have spent it, suspect billing rather than repeating the reset advice.
 repositories 404) and should not appear at all; if it does, that is a repo
 regression, not a provider outage.
 
-**If `highlightly` shows `quota_exhausted`, say so before quoting any coverage
-number.** It is the dominant *discovery* source, so exhausting it shrinks the
-slate itself rather than just the corroboration: measured 2026-08-28, the same
-date gave 348 events with it available and 80 without — a 77% smaller day. Those
-fixtures are missing from DISCOVER, not capped out of ENRICH, so they appear
-nowhere in `by_readiness` and look like they were never scheduled.
+**Check DISCOVER's own issues for `SPORT_EMPTY` and `SLATE_BELOW_FLOOR`
+(added 2026-09-04) before quoting any coverage number.** These are the live
+replacements for watching `highlightly`'s quota, which drove discovery breadth
+until 2026-09-04 (measured 2026-08-28: 348 events with it available vs 80
+without — a 77% smaller day) but no longer runs at DISCOVER at all
+(`DISCOVERY_SOURCES_BY_SPORT` is bzzoiro-only for football, odds-api-only for
+tennis). `SPORT_EMPTY: <sport>` means that sport discovered zero `ACTIVE`
+events outright. `SLATE_BELOW_FLOOR: <sport>: N ACTIVE vs median M over W
+prior runs` means today's count collapsed relative to that sport's own recent
+history, whatever the cause — read `metrics.events_by_sport` for the numbers.
+Either one demotes DISCOVER's verdict from `OK` to `PARTIAL` on its own; say so
+before quoting `active_events` as if the day were normal.
 
 ### If the slate has tennis on it
 
@@ -166,10 +174,12 @@ apportionment a cap of 40 gives tennis 4 slots and football 36; a sport that
 cannot fill its share hands the slots back.
 
 `--provider-call-budget` is **not** what throttled football, despite reading that
-way. Only the native-id providers are metered by it, `bzzoiro` is already
-overridden to 20000 in `RUN_BUDGET_OVERRIDES`, and the one provider it binds --
-`highlightly` -- has a real daily ceiling of exactly 100. Raising the flag buys
-nothing there; the daily quota binds first. Leave it alone.
+way. Only the native-id providers are metered by it. At the time this was
+measured that was `bzzoiro` (overridden to 20000 in `RUN_BUDGET_OVERRIDES`) and
+`highlightly` (a real daily ceiling of exactly 100); highlightly left football's
+native-id roster on 2026-09-04 (`NATIVE_ID_PROVIDERS_BY_SPORT`), so the flag now
+binds nothing at all for either sport -- bzzoiro has no ceiling to hit and no
+other provider is metered by it. Leave it alone.
 
 DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE, one `run_id`.
 
