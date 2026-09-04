@@ -933,7 +933,7 @@ def builder_score(
 
 
 def tier_for_row(row: StatsSheetRow) -> Tier:
-    """The evidence tier from ``bet-analyst.md``'s table, plus its two ceilings.
+    """The evidence tier from the analysts' table (``.claude/skills/bet-analysis-core/SKILL.md``), plus its two ceilings.
 
     | CALL | n>=8, and either the primary's sample is complete or a second provider agrees |
     | LEAN | n>=8 incomplete and uncorroborated, or n>=5 AGREE, or n 5-7 uncorroborated |

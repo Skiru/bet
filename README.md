@@ -59,7 +59,10 @@ The deliverable is `runs/<date>/<date>_event_dossiers_stats_sheet.json` — hit
 rates with sample sizes and cross-provider agreement, sorted by confidence. There
 is no price, no EV and no coupon: you pick lines by hand in Superbet.
 
-The default primary agent is `bet-simple`; `/run-day` runs the whole thing.
+The default primary agent is `bet-simple`; `/run-day` runs the whole thing,
+then hands the sheet to two analysts — `bet-analyst-football` and
+`bet-analyst-tennis` (`.claude/agents/`, methods in `.claude/skills/`) — whose
+vetoes feed the coupon build.
 Configuration is `.env` only (see `.env.example`). Operations, resume, quota
 resets and known limitations: **[docs/SIMPLE_STATS_RUNBOOK.md](docs/SIMPLE_STATS_RUNBOOK.md)**.
 

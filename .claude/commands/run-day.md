@@ -393,108 +393,107 @@ and `<date>_event_dossiers_stats_sheet_top.json` (the same rows filtered to
 `p_low >= 0.50`, the coupon's own floor). Hand the analyst the **top** file —
 the full one is for audit and for chasing a row that never reached the floor.
 
-## Step 4 — Analysis — agent `bet-analyst`
+## Step 4 — Analysis — two agents, one per sport
 
-**Before this step, the analyst reads `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`.**
-That is the operator's written methodology for analysing statistics and
-building coupons -- distribution over mean (§15), tail-risk (§16), expected
-minutes gating player props (§21), the four game-script scenarios (§24), line
-sensitivity (§37), the critical gates and the HIGH/MEDIUM/VALUE/WATCH/REJECT
-grading (§32), and for builders the correlation, contradiction and
-common-outcome tests (§39-§42) plus the builder score (§44). The agent
-definition carries a section-by-section index; it does not restate the rules,
-so the document is the single source and must actually be opened.
+Two analysts, run **in parallel**, each on its own half of the slate:
 
-Two of those have **no code behind them** and are the analyst's to do by hand:
-the §40 contradiction test (find a concrete scoreline satisfying every leg at
-once, downgrade the builder if the common region is thin) and the §44 builder
-score. `bet_builder_draft.py` only refuses to multiply leg prices and flags
-`correlation_risk`. If the run report does not say these were applied, they
-were not.
+| Agent | Covers | Source of record | Skills preloaded |
+|---|---|---|---|
+| `bet-analyst-football` | every `sport == "football"` event | bzzoiro MCP, by `source_ids.bzzoiro` | `bet-analysis-core`, `football-analysis` |
+| `bet-analyst-tennis` | every `sport == "tennis"` event | none (`bzzoiro-tennis` is `402 addon_required`); WebFetch, two domains | `bet-analysis-core`, `tennis-analysis` |
+
+Skip an agent whose sport has no event on the day's `event_list` and say so.
+The split exists because the two sports share nothing but the row schema: the
+football analyst reasons about a referee, a second leg and a derby the code's
+flags missed; the tennis analyst reasons about surface, best-of-five, the
+opposition class of a ten-match sample and a previous match's length. One
+agent carrying both methods carried neither (the 2026-09-03 tennis section was
+right about one estimand and silent about opponent quality until the operator
+asked).
 
 **Runs before the coupon exists** (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5e,
-Wariant A). This used to be Step 5, after the coupon was already built, which
-meant the analyst's read — a suspended fixture, six injured players, a
-worthless three-match referee sample — never reached the file a human actually
-bets from. Now it runs against the stats-sheet **top** file from Step 3 and
-its output feeds the coupon build in the next step.
+Wariant A), against the stats-sheet **top** file from Step 3; its output feeds
+the coupon build in Step 6.
 
-Hand it the date and ask for the per-match read. Its standing obligations:
-cross-check the DB for other `run_id`s on that date, print the per-side
-`a/b/h2h` split for every row, probe before claiming DB depth, and verify each
-fixture is still on.
+### What to put in each prompt
 
-**Say in the prompt that bzzoiro MCP is the source of record and that every
-fixture on the stats sheet must be checked through it.** The servers were
-re-verified live on 2026-08-30 and answer normally; football is uncapped on the
-PRO plan, so there is no budget reason to skip a call. WebFetch is for the
-residue only — what bzzoiro genuinely does not carry. An analysis that leans on
-the open web for something `get_match_detail` or `list_referees` would have
-answered is a defect, not a style choice.
+Hand each agent the resolved date and one paragraph of run facts: verdict,
+whether a backfill ran, `--player-props` on/off, providers that failed
+(`highlightly quota_exhausted`, …), whether `verify_tennis_providers.py`
+passed, the offer's `generated_at`, and `verdict_counts`/`value_rows` from the
+pipeline's `AGENT_SUMMARY`. Then ask for **the per-match read of its sport and
+the veto block**. Say explicitly:
 
-The tools it now holds, and what they are for:
+* *football:* bzzoiro MCP is the source of record; every fixture on the sheet
+  must be checked through `get_match_detail` by id (football is uncapped);
+  read `round_name` and `previous_leg_event_id` there because the dossiers
+  carry them as null; WebFetch is for what bzzoiro does not carry.
+* *tennis:* there is no MCP; verify time and round against the tournament's
+  order of play plus one independent domain; confirm the best-of-five gate
+  ran (men's slam events must show no `total_sets 2.5` rows).
+* *both:* the method document is `docs/SUPERBET_BET_BUILDER_METHOD_v3.md` and
+  the agent must open the sections it cites. `bet_builder_draft.py`
+  **implements** §44's builder score; what remains manual is §40 as a
+  *scenario* test (a concrete scoreline satisfying every leg), the tail-risk
+  penalty and the source-conflict penalty. Do not tell the analyst §44 is
+  unimplemented — it will either duplicate the code's number or present a
+  hand figure the artifact disagrees with.
 
-| Purpose | Tools |
-|---|---|
-| Fixture still on, at that time | `get_match_detail`, `search_matches` |
-| Who plays | `get_match_lineups`, `get_team_squad`, `get_player_stats` |
-| Card context | `list_referees` |
-| Table / form context | `get_standings`, `get_team_fixtures`, `get_match_h2h` |
-| Venue, manager | `get_venue`, `get_manager_detail` |
-| Live prices + model | `compare_odds`, `get_best_odds`, `get_predictions` |
-| Tennis | `list_matches`, `get_match`, `get_match_h2h`, `get_rankings` |
+Both agents already know the standing obligations from their skills: the
+a/b/h2h split per row, DB depth probed not assumed, distribution over mean,
+`FACT → CALCULATION → IMPLICATION → RISK`, buy case / kill case, price last,
+`KEEP / WATCH / NO BET`.
 
-Two things about those MCP tools, both learned the hard way on 2026-08-28:
+### What comes back
 
-* **A refreshed token does not reach a running session.** The MCP client binds
-  its credential at session start, so a `${BZZORIO_KEY}` updated mid-session
-  keeps returning `requires re-authorization (token expired)` while
-  `run_pipeline.py` works fine off the same `.env`. The session must be
-  restarted. This is no longer the expected state — if the analyst reports it
-  now, treat it as a new fault and put it in the run report rather than
-  presenting the thinner verification as a judgement it made.
-* **Do not verify a fixture by team name.** `search_matches`' `team` filter is
-  ignored server-side — a query for "Bayern" comes back with unrelated fixtures,
-  and matching on the returned names then silently finds nothing. Every event in
-  `EVENT_LIST` already carries `source_ids.bzzoiro`; pass that to
-  `get_match_detail` and read `status` and `event_date`. That is exact, and it
-  catches a postponement or a moved kickoff, which a clock filter cannot.
+From each agent: a Polish markdown body for its sport, then a fenced JSON
+array of vetoes — `[{event_id, market, line, direction, action, reason_class,
+reason}]`, contract in `.claude/skills/bet-analysis-core/references/
+veto-contract.md`. `[]` is the common case. A `VETO` removes the row from the
+coupon; a `DOWNGRADE` steps its tier down once, except that `reason_class`
+`SAMPLE_NOT_REPRESENTATIVE` / `ESTIMAND_WRONG` zero the sample's weight and
+`MISSING_REFEREE` doubles `k` (`coupons.py`). Nothing touches `p_low`.
 
-**The odds tools are granted as of 2026-08-30** (operator's decision; they were
-withheld before so that prices reached the analyst only through the
-quota-tracked artifact). Consequences to hold onto:
+Two things learned the hard way about the MCP tools, still true:
 
-* A price from `compare_odds` is still **not Superbet's price** — no `superbet`
-  exists among bzzoiro's ~88 bookmakers. It is a reference point, always
-  labelled as one.
-* Their best use is **catching a stale artifact**: MARKET_CONTEXT is fetched
-  once, early, and a line can move afterwards.
-* A `LEAN → CALL` promotion resting on a live call rather than on
-  `row.market_signal` must be written
-  `[CALL, promoted by live MCP signal — not in this run's artifact]`, so you can
-  tell at a glance which promotions are reproducible from `runs/<date>/`.
-* Verification still may veto or downgrade freely, and still never enters
-  `p_low`.
-
-**Also ask it for the structured veto list** (Faza 5e). Alongside its usual
-markdown report, the analyst returns a fenced JSON block:
-`[{event_id, market, line, direction, action: "VETO"|"DOWNGRADE", reason}]` —
-see `.claude/agents/bet-analyst.md`'s Output section for the exact contract.
-Only rows it actually disagrees with belong in it; `[]` is the common case, not
-an omission to chase. A `VETO` removes the row from the coupon outright; a
-`DOWNGRADE` steps its tier down once, the same one-step ceiling
-`context_flags` already applies, and never touches `p_low` either way.
+* **A refreshed token does not reach a running session.** If the football
+  analyst reports `requires re-authorization (token expired)`, that is a new
+  fault for the run report, not a judgement it made; restart the session.
+* **Never verify a fixture by team name.** `search_matches`' `team` filter is
+  ignored server-side; `get_match_detail` by `source_ids.bzzoiro` is exact.
 
 ## Step 5 — Write `runs/<date>/<date>_analiza.md` and `<date>_analyst_vetoes.json`
 
-**You write these files, not the analyst.** `bet-analyst` has no Write tool by
+**You write these files, not the analysts.** Neither agent has a Write tool by
 construction — an agent that can rewrite the artifacts it is judging can quietly
-launder a bad day into a good one. It returns the markdown body and the vetoes
-JSON as text; you save both.
+launder a bad day into a good one. Each returns a markdown body and a vetoes
+JSON as text; you merge and save.
 
-`<date>_analyst_vetoes.json` is a bare JSON array — write `[]` if the analyst
-returned no vetoes, not a missing file, so the next step can tell "checked,
-nothing to veto" apart from "the file never got written".
+**Merging.** `<date>_analiza.md` = one day header (run, verdict, coverage for
+both sports, providers, offer time, `verdict_counts`, the applied vetoes count)
+followed by the football body under `## Piłka nożna` and the tennis body under
+`## Tenis`, each verbatim. `<date>_analyst_vetoes.json` = the two arrays
+concatenated into one bare array. Before saving it:
+
+```bash
+python3 - <<'PY2'
+import json, pathlib, sys
+sys.path.insert(0, "src")
+from bet.simple_stats.bet_builder_draft import AnalystVeto
+raw = json.loads(pathlib.Path("/tmp/vetoes_merged.json").read_text())   # your merge
+ok = [AnalystVeto.model_validate(v).model_dump() for v in raw]           # extra keys fail here, on purpose
+pathlib.Path("runs/<date>/<date>_analyst_vetoes.json").write_text(json.dumps(ok, ensure_ascii=False, indent=2))
+print(len(ok), "vetoes")
+PY2
+```
+
+An entry that fails validation (a `player_name` key, a bad `reason_class`) is
+dropped and reported in the analysis as an unapplied WATCH — never repaired by
+stripping keys, because a prop veto widened to `(event, market, line,
+direction)` hits every player on the fixture (memory:
+`analyst-veto-cannot-name-a-player`). Write `[]` if both agents returned
+nothing, not a missing file, so the next step can tell "checked, nothing to
+veto" apart from "the file never got written".
 
 Polish, because the operator reads it. Overwrite if it exists; the artifacts it
 describes were overwritten too.
@@ -796,7 +795,7 @@ Short. The operator opens the file, not the chat:
 KUPONY:  runs/<date>/<date>_kupony.md  — <n> singli, <n> kuponów BB
 ANALIZA: runs/<date>/<date>_analiza.md
 RUN:     <run_id> · <verdict> · <n> odkrytych → <n> wzbogaconych
-WETA:    <n> vetoed, <n> downgraded (0/0 if the analyst found nothing to flag)
+WETA:    <n> vetoed, <n> downgraded (0/0 if neither analyst found anything to flag) · piłka <n> / tenis <n>
 SUPERBET: <n> z <n> singli osiąga minimalny kurs · <n> bez linii na ekranie
 UWAGA:   <the single biggest weakness of the day, one line>
 ```

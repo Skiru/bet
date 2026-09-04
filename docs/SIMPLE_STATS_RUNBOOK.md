@@ -519,7 +519,7 @@ fair odds pass 2.00 and the required price exceeds what these markets
 realistically pay, so the row is unplaceable rather than merely weak.
 
 **`n` of 5–7 with nothing corroborating it is `LEAN`, on evidence.**
-`bet-analyst.md`'s tier table has no row for that combination — above `WEAK`'s
+the analysts' tier table (`.claude/skills/bet-analysis-core/SKILL.md`) has no row for that combination — above `WEAK`'s
 stated "n 3-4", below both of `LEAN`'s conditions. It was tightened to `WEAK`
 on 2026-09-02, because the three largest losses of 2026-09-01 were all `n=5`
 `SINGLE_SOURCE`, and **reverted the same day after backtesting it**: settled
@@ -623,8 +623,9 @@ An unmapped competition is left alone — never guessed at from a name pattern �
 the same discipline `config/espn_competition_map_verification.json` already
 follows for provider resolution.
 
-**`--vetoes <path>` applies bet-analyst's read** (Faza 5e): a JSON array of
-`{event_id, market, line, direction, action: VETO|DOWNGRADE, reason}`, matched
+**`--vetoes <path>` applies the analysts' read** (Faza 5e; `bet-analyst-football` and
+`bet-analyst-tennis`, merged by `/run-day` Step 5): a JSON array of
+`{event_id, market, line, direction, action: VETO|DOWNGRADE, reason_class, reason}`, matched
 by exact `(event_id, market, line, direction)`. `VETO` excludes the row
 (`excluded.analyst_veto`); `DOWNGRADE` steps its tier down one level, using the
 same ceiling `context_flags` uses. Neither ever touches `p_low`. Every applied

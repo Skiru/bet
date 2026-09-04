@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-09-03",
+  "last_run": "2026-09-04",
   "probe": "resolve the player through the production client, fetch his last matches, and require every returned row to be named for him by the provider's own name field",
   "refuted": {},
   "tours": {

@@ -240,7 +240,7 @@ three.
 `data_gaps` lines like `"team_a: espn-football: could not resolve team identity
 for 'FC Seoul'"` are the single most common reason a day comes back all
 `SINGLE_SOURCE`: the provider that would have corroborated never matched the
-club. Count them, name the clubs, name the providers. `bet-analyst` can then look
+club. Count them, name the clubs, name the providers. The sport analysts (`bet-analyst-football`, `bet-analyst-tennis`) can then look
 up the provider's canonical name and hand back an alias a human can add.
 
 Each blocked provider carries a `kind`, and only the `kind` says whether waiting

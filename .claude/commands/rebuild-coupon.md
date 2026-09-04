@@ -183,6 +183,18 @@ matches kicked off, and read
 `docs/SIMPLE_STATS_RUNBOOK.md` first. Hand that decision back to the operator
 rather than starting it inside this command.
 
+### 3d — Fresh analyst vetoes? (optional, only when the read may have changed)
+
+A rebuild reuses `<date>_analyst_vetoes.json` as it stands. When the reason for
+the rebuild is that the *read* changed — a referee named since the morning, a
+lineup out, a second-leg aggregate the morning pass never saw, a tennis time
+moved — re-run the analyst for the affected sport before building:
+`bet-analyst-football` for football events, `bet-analyst-tennis` for tennis
+(both read `runs/<date>/`, neither writes). Merge and validate their JSON
+exactly as `/run-day` Step 5 does, save it over the old file, and say in the
+report which entries changed. Do not re-run an analyst just to make the file
+fuller; its job is to remove rows, not to add them.
+
 ## Step 4 — Build
 
 ```bash
@@ -256,7 +268,7 @@ Short. The operator opens the file, not the chat:
 ```
 KUPONY:   runs/<date>/<date>_kupony.md — <n> singli (<n> warte ceny), <n> BB
 POPRZEDNI: runs/<date>/_pre_rebuild_<HHMM>/
-POWÓD:    <what made the rebuild necessary: code / vetoes / stale offer>
+POWÓD:    <what made the rebuild necessary: code / vetoes (piłka|tenis) / stale offer>
 ZMIANY:   <n> zniknęło, <n> nowych, <n> przesunięć — <the one that matters most, one line>
 OFERTA:   <refreshed at <time> | reused from <generated_at> | <n> lines re-filed>
 SPRAWDZONE: <n> meczów przez bzzoiro, <n> wykreślonych
