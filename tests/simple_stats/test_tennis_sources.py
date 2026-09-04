@@ -29,6 +29,7 @@ from bet.simple_stats.providers import (
     _make_values,
     _row_match_level,
     _row_surface,
+    _side_split_values,
     _tennis_match_unfinished,
     reset_tennis_tournament_map_cache,
     tennis_surface_for_competition,
@@ -401,6 +402,67 @@ def test_tennis_tournament_by_id_is_unknown_not_a_guess():
     assert tennis_tournament_by_id("999999") is None
     assert tennis_tournament_by_id("718") == {"surface": "Hard", "level": "TOUR"}
     assert tennis_tournament_by_id("189") == {"surface": "Hard", "level": "GRAND_SLAM"}
+
+
+# --- games_won: espn-tennis's per-player figure (step 3) --------------------
+
+
+def test_games_won_is_added_alongside_total_games_not_instead_of_it():
+    """Step 3 of the source-consolidation plan: espn-tennis's raw games_won is
+    {'home': x, 'away': y}, and _combined_from_dict_stats sums it into
+    total_games -- correctly, for the match market -- discarding the
+    per-player figure the player market (190 of 452 rows on a real day) needs.
+    _side_split_values must add it, not replace anything."""
+    espn = _parse_tennis_competition(_EVENT, _GROUPING, _competition())
+    aliases = _ALIASES_BY_PROVIDER["espn-tennis"]
+    combined = _combine_stats("espn-tennis", espn["stats"], aliases)
+    assert combined["total_games"] == 13.0 + 9.0  # A Player + B Player, from _competition()
+
+    home_extra = _side_split_values("espn-tennis", espn["stats"], aliases, "home")
+    assert home_extra == {"games_won": 13.0}
+    away_extra = _side_split_values("espn-tennis", espn["stats"], aliases, "away")
+    assert away_extra == {"games_won": 9.0}
+
+    merged = dict(combined)
+    merged.update(home_extra)
+    assert merged["total_games"] == 22.0  # unchanged: still the match total
+    assert merged["games_won"] == 13.0  # added: the queried player's own
+
+
+def test_side_split_emits_nothing_without_a_known_side():
+    """``side is None`` means the fixture never said which side the queried
+    player played -- the same case ``ProviderValue.venue`` refuses to guess
+    for. A guessed side here would misattribute one player's games to the
+    other."""
+    espn = _parse_tennis_competition(_EVENT, _GROUPING, _competition())
+    aliases = _ALIASES_BY_PROVIDER["espn-tennis"]
+    assert _side_split_values("espn-tennis", espn["stats"], aliases, None) == {}
+
+
+def test_side_split_is_espn_tennis_only():
+    """tennis-abstract already states games_won directly (it is the queried
+    player's own row already), and a football provider has no such market at
+    all -- neither should be touched by this table."""
+    assert _side_split_values(
+        "tennis-abstract", {"games_won": {"home": 1.0, "away": 2.0}},
+        _ALIASES_BY_PROVIDER["tennis-abstract"], "home",
+    ) == {}
+    assert _side_split_values(
+        "espn-football", {"games_won": {"home": 1.0, "away": 2.0}},
+        _ALIASES_BY_PROVIDER["espn-football"], "home",
+    ) == {}
+
+
+def test_games_won_reaches_a_provider_value_through_make_values():
+    espn = _parse_tennis_competition(_EVENT, _GROUPING, _competition())
+    aliases = _ALIASES_BY_PROVIDER["espn-tennis"]
+    combined = _combine_stats("espn-tennis", espn["stats"], aliases)
+    combined.update(_side_split_values("espn-tennis", espn["stats"], aliases, "home"))
+    values = _make_values(
+        "espn-tennis", "1", "2026-08-26", "B Player", combined, side="home",
+    )
+    assert values["total_games"].value == 22.0
+    assert values["games_won"].value == 13.0
 
 
 # --- what the two providers now have in common -------------------------------

@@ -360,6 +360,57 @@ _TENNIS_ESPN_ALIASES = {
 }
 _FLAT_STAT_PROVIDERS = frozenset({"tennis-abstract", "sackmann"})
 
+# Providers whose {"home": x, "away": y}-shaped stats hold a per-player market
+# that ``_combined_from_dict_stats`` sums away. espn-tennis's raw ``games_won``
+# is exactly the queried player's own games (api_clients/espn.py's
+# ``_parse_tennis_competition``), so the side the fetch already resolved for
+# venue/goals purposes is enough to read it off directly -- no new fetch, no
+# new field, just not discarding a number already in hand.
+_SIDE_SPLIT_PROVIDERS = frozenset({"espn-tennis"})
+
+# {provider: {summed canonical: per-side canonical}}. Named explicitly, not by
+# a "_for" suffix: the canonical metric is already called ``games_won`` (what
+# tennis-abstract emits it as). ``total_games_for`` does not exist in the
+# vocabulary. ``sets_won`` is not made canonical here either -- it is absent
+# from COUNT_METRICS, from _TEAM_MARKET_STAT_TO_CANONICAL and from the offer,
+# so there is no market it could ever reach, and espn.py's own total_sets is
+# identical on both sides regardless (see its docstring) -- extending this
+# table to it would silently double-count a shared total as a per-player one.
+_SIDE_SPLIT_AS = {"espn-tennis": {"total_games": "games_won"}}
+
+
+def _side_split_values(
+    provider: str, stats: dict, aliases: dict[str, str], side: str | None
+) -> dict[str, float]:
+    """Extra canonical values for the side of a match the fetch already knows.
+
+    Additive, never a replacement: the summed canonical (``total_games``)
+    keeps coming from ``_combine_stats`` untouched, and this hands the same
+    raw pair's per-side figure a second, differently-named canonical slot
+    alongside it. ``side is None`` -- the fixture did not say which side the
+    queried player played -- emits nothing, on the same rule ``_venue_or_none``
+    already follows: a value attributed to the wrong side is worse than one
+    left out.
+    """
+    mapping = _SIDE_SPLIT_AS.get(provider)
+    if not mapping or side is None or not isinstance(stats, dict):
+        return {}
+    raw_key_for_canonical = {canonical: raw for raw, canonical in aliases.items()}
+    out: dict[str, float] = {}
+    for source_canonical, target_canonical in mapping.items():
+        raw_key = raw_key_for_canonical.get(source_canonical)
+        sides = stats.get(raw_key) if raw_key else None
+        if not isinstance(sides, dict):
+            continue
+        value = sides.get(side)
+        if value is None:
+            continue
+        try:
+            out[target_canonical] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return out
+
 _ALIASES_BY_PROVIDER: dict[str, dict[str, str]] = {
     "espn-football": _ESPN_FOOTBALL_ALIASES,
     "espn-tennis": _TENNIS_ESPN_ALIASES,
@@ -2110,6 +2161,12 @@ def _fetch_l10_generic(
                 if side is not None:
                     combined["goals_for"] = home_goals if side == "home" else away_goals
                     combined["goals_against"] = away_goals if side == "home" else home_goals
+        # espn-tennis's per-player games_won, added alongside the summed
+        # total_games _combine_stats already put in ``combined`` -- see
+        # _side_split_values. After the unfinished/absent checks above, same
+        # as the goals split: a retirement or a walkover must not enter this
+        # market either.
+        combined.update(_side_split_values(provider_key, stats_dict, aliases, side))
         card_flag = _add_untyped_card_points(combined)
         for name, value in _make_values(
             provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined,
