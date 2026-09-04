@@ -65,8 +65,10 @@ people, and no read is safe.
    sample integrity per side (retained on surface, dates, `match_level`,
    `opponent` names → opposition class via web rankings) → framed centre
    (`centre_note`) → distribution and scoreline arithmetic → serve/return
-   profile (dossier `aces_for`, `double_faults_for`, `first_serve_pct`,
-   `break_points_faced` + web hold/return/TB on surface) → fatigue and
+   profile (dossier `aces_for`, `double_faults_for` + web first-serve %,
+   break points faced, hold/return/TB on surface -- neither reaches the
+   dossier any more, both were dropped 2026-09-04 for never having a market)
+   → fatigue and
    previous match → H2H with decay → scenario A–D weighted by the book's
    match odds → ladder → price → buy/kill → verdict. `FACT → CALCULATION →
    IMPLICATION → RISK` on every argument. State `NO_REFERENCE_SOURCE` once.

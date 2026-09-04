@@ -1,17 +1,25 @@
 # Tennis data inventory — what is measured, by whom, at which rungs, and what is missing
 
 Read from `src/bet/simple_stats/{providers,analyze,enrich,contracts}.py`,
-`src/bet/api_clients/{tennis_abstract,tennis_score}.py`,
+`src/bet/api_clients/{tennis_abstract,tennis_score,espn}.py`,
 `config/tennis_match_format.json`, `config/tennis_surface_map.json`,
-`config/market_priors.json` and the 2026-09-03 artifacts.
+`config/tennis_tournament_map.json`, `config/market_priors.json` and the
+2026-09-04 artifacts.
 
 ## Providers (both keyless and unmetered since 2026-09-02)
 
 | Provider | Serves | Per observation | Does not serve |
 |---|---|---|---|
-| `tennis-abstract` | `aces_for/total`, `double_faults_for/total`, `first_serve_pct`, `break_points_faced`, `games_won`; **surface per match** (`surf`), draw level (`level`: G = slam incl. qualifying, separated by round pattern), the opponent's line for the same match; a whole career per page, no season/competition id | `surface`, `match_level` (`GRAND_SLAM / GRAND_SLAM_QUALIFYING / TOUR`), `opponent`, `match_date` | rankings (the client parses `orank` and it is **dropped before the dossier**), round (parsed, dropped), the score string (parsed, dropped), hold %, return %, tie-break counts, duration |
-| `espn-tennis` | `total_games`, `total_sets` read off the published set score; tournament id + season; a rolling year of the daily scoreboard (~41 matches a player) | `competition_id`, `season_id`, surface via the competition pin only | serve statistics, opponent rank, round |
+| `tennis-abstract` | `aces_for/total`, `double_faults_for/total`, `games_won`; **surface per match** (`surf`), draw level (`level`: G = slam incl. qualifying, separated by round pattern), the opponent's line for the same match; a whole career per page, no season/competition id | `surface`, `match_level` (`GRAND_SLAM / GRAND_SLAM_QUALIFYING / TOUR`), `opponent`, `match_date` | rankings (the client parses `orank` and it is **dropped before the dossier**), round (parsed, dropped), the score string (parsed, dropped), hold %, return %, tie-break counts, duration, `first_serve_pct`/`break_points_faced` (dropped from the alias table 2026-09-04: neither is an offered market, so both had reached zero rows on the sheet regardless) |
+| `espn-tennis` | `total_games`, `total_sets`, and (since 2026-09-04) the queried player's own `games_won` read off the published set score; tournament id + season; a rolling year of the daily scoreboard (~41 matches a player) | `competition_id`, `season_id`, `surface`/`match_level` via `config/tennis_tournament_map.json` keyed by ESPN's own tournamentId (~100% of espn-tennis rows, up from 37% when it only had the 4-slam name table) | serve statistics, opponent rank, round |
 | `bzzoiro-tennis` | **nothing** — `402 addon_required` (Sports Addon $5/mo), withdrawn 2026-09-02, re-confirmed 2026-09-04 | — | everything (rankings, h2h, predictions, odds) |
+
+Only the fixture currently being priced (the "left side" of the surface/format
+comparison in `scope_values`) still resolves by name from
+`config/tennis_surface_map.json` / `tennis_match_format.json` — still just the
+four Slams, unchanged by the tournamentId table above. That table only fixed
+espn-tennis's *historical* rows (the "right side"); an unpinned tonight's
+competition still filters nothing, on both sides, exactly as before.
 
 Both compute games and sets from the published score, so an `AGREE` on
 `total_games` means the two read the same match (before 2026-09-02
@@ -24,12 +32,15 @@ hence `NO_REFERENCE_SOURCE` on every row and a `LEAN` ceiling always.
 
 ```
 total_games, total_sets           # both sides pooled in the buckets; PRICED as own + own (framed centre)
-games_won                         # per player (team_name = player)
+games_won                         # per player (team_name = player); tennis-abstract + espn-tennis since 2026-09-04
 aces_for, aces_total              # per player / framed total
 double_faults_for, double_faults_total
-break_points_faced                # per player, dossier-only (no market)
-first_serve_pct                   # per player, dossier-only (no market)
 ```
+
+`first_serve_pct` and `break_points_faced` no longer reach the dossier at
+all (dropped from `_TENNIS_MATCH_STAT_ALIASES` 2026-09-04): neither was ever
+an offered market, so removing them changed zero stats-sheet rows. If you
+need either for qualitative context, read tennis-abstract's page directly.
 
 `h2h` buckets exist for totals (meetings from both providers); per-player
 rows use the player's own bucket only. There is **no** `breaks_total` any
@@ -58,7 +69,7 @@ whole-match form).
 
 | Key | Rule | Config |
 |---|---|---|
-| `SURFACE_MISMATCH` | observation's surface ≠ tonight's pinned surface | `config/tennis_surface_map.json` — the four slams (ATP/WTA separately); unlisted competition = unknown = **no filter** |
+| `SURFACE_MISMATCH` | observation's surface ≠ tonight's pinned surface | tonight's fixture: `config/tennis_surface_map.json` by name, four slams only, unpinned = **no filter**. An espn-tennis observation's own surface: `config/tennis_tournament_map.json` by tournamentId, ~22 tournaments (the four slams plus the tour/Masters events a real slate touches) |
 | `MATCH_FORMAT_MISMATCH` | BO3 observation in a BO5 fixture's sample (length markets only) | `config/tennis_match_format.json` — men's slam main draws are BO5; slam qualifying is BO3 |
 | `MATCH_FORMAT_UNKNOWN` | observation states no draw, fixture is BO5 | same |
 | `STALE_H2H` | meeting older than 12 months | — |
@@ -94,9 +105,11 @@ tops the sheet.
 
 ## Priors (`config/market_priors.json`)
 
-`aces_total` 8.07 (1,262 obs), `break_points_faced` 7.52, others per market;
-no venue split (tennis has no venue). Shrinkage `n/(n+10)` toward these.
-`shrunk_mean` beside `mean` shows how much of a row is prior.
+`aces_total` 8.07 (1,262 obs), others per market; no venue split (tennis has
+no venue). Shrinkage `n/(n+10)` toward these. `shrunk_mean` beside `mean`
+shows how much of a row is prior. The config still carries a
+`break_points_faced` entry -- dead since 2026-09-04, no provider emits that
+metric any more, ignore it.
 
 ## Context available and not
 
@@ -108,7 +121,7 @@ no venue split (tennis has no venue). Shrinkage `n/(n+10)` toward these.
 | ranking, opponent rank (§67) | **no** | WebFetch (atptour.com / wtatennis.com / tennisabstract.com player pages) |
 | previous match length, rest, duration (§73) | **no** | WebFetch (tournament results, flashscore-type pages — two domains) |
 | retirement / injury / MTO (§22) | partial: `RET` matches dropped with a `data_gap` | WebFetch |
-| hold %, return %, BP conversion, TB record (§18, §81) | **no** (only `break_points_faced`, `first_serve_pct`, aces, DFs) | WebFetch (tennisabstract.com serve/return tables by surface) |
+| hold %, return %, BP conversion, TB record (§18, §81) | **no** (only aces, DFs -- `first_serve_pct`/`break_points_faced` never reached a market and were dropped from the pipeline 2026-09-04) | WebFetch (tennisabstract.com serve/return tables by surface) |
 | tie-break frequency (§86) | **no** | infer from scores you fetch; never from ace counts |
 | match odds / favourite strength (§24 weights) | Superbet's own match odds in `superbet_offer.events[].result_market_lines` | label as the book's opinion; no consensus, no devig target for totals |
 | h2h (§65) | yes: `h2h` buckets on totals, `STALE_H2H` >12 months | decay by hand: 1.0/0.75/0.50/0.25 |
