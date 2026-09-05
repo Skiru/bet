@@ -309,6 +309,89 @@ def test_unmapped_totals_are_reported_but_exotica_is_not():
     assert unmapped == ["Liczba odbiorów"]
 
 
+# --- markets that were not even unmapped ------------------------------------
+#
+# Found 2026-09-05. ``parse_outcome`` returned None and hit a bare ``continue``
+# *before* the unmapped diagnostic, so a market whose name reads as a total but
+# whose outcome does not was missing from ``lines`` and from ``unmapped_markets``
+# alike -- not declined, just gone. On the seven fixture screens captured that
+# day this branch surfaces 46 distinct market families that no artifact had ever
+# recorded.
+
+
+def test_a_total_whose_outcome_is_not_an_over_under_is_still_reported():
+    """"powyżej 8.5 - tak" is a real Superbet outcome shape and no over/under
+    regex matches it. The market must still be nameable in the diagnostic."""
+    raw = {"odds": [raw_odds("Mecz & liczba goli (2.5)", "1 & powyżej 2.5", 3.4)]}
+    lines, unmapped = normalize_lines(raw, team_names=("Remo", "Coritiba"))
+    assert lines == []
+    assert unmapped == ["Mecz & liczba goli (2.5)"]
+
+
+def test_the_two_per_team_renderings_of_one_family_collapse():
+    """Measured on 2026-09-05: 92 of the 118 names this branch surfaces are the
+    same six families written once per club. Across a 184-event slate that is
+    some eight hundred entries saying twenty-six things."""
+    raw = {
+        "odds": [
+            raw_odds("Remo wygra lub powyżej X goli w meczu", "powyżej 2.5 - tak", 1.8),
+            raw_odds(
+                "Coritiba wygra lub powyżej X goli w meczu", "powyżej 2.5 - tak", 1.9
+            ),
+        ]
+    }
+    _, unmapped = normalize_lines(
+        {"matchName": "Remo·Coritiba", **raw}, team_names=("Remo", "Coritiba")
+    )
+    assert unmapped == ["{team} wygra lub powyżej X goli w meczu"]
+
+
+def test_a_club_whose_name_contains_another_is_replaced_whole():
+    """Longest-first, or "Manchester United ..." leaves "United ..." behind and
+    the two clubs get two entries again."""
+    raw = {
+        "matchName": "Manchester United·Manchester City",
+        "odds": [
+            raw_odds("Manchester United - liczba rzutów z autu", "tak", 1.8),
+            raw_odds("Manchester City - liczba rzutów z autu", "tak", 1.9),
+        ],
+    }
+    _, unmapped = normalize_lines(
+        raw, team_names=("Manchester United", "Manchester City")
+    )
+    assert unmapped == ["{team} - liczba rzutów z autu"]
+
+
+def test_a_declined_family_is_not_reported_as_unparsed():
+    """``BANNED_SUBSTRINGS`` refuses "kazda z druzyn", "najwiecej", "handicap"
+    and "h2h" on purpose. Those are decisions, and listing them as parse
+    failures would report a decision as a fault -- see derived_markets.py, which
+    already prices three of them."""
+    raw = {
+        "odds": [
+            raw_odds("Każda z drużyn powyżej X strzałów", "powyżej 8.5 - tak", 1.29),
+            raw_odds("Najwięcej rzutów rożnych", "Remo", 1.92),
+            raw_odds("Liczba rzutów rożnych - H2H", "Remo", 1.51),
+        ]
+    }
+    _, unmapped = normalize_lines(raw, team_names=("Remo", "Coritiba"))
+    assert unmapped == []
+
+
+def test_the_diagnostic_still_ignores_names_that_count_nothing():
+    """A big fixture carries ~900 exotic outcomes. A diagnostic that fires on
+    all of them names nothing."""
+    raw = {
+        "odds": [
+            raw_odds("Dokładny wynik", "2:1", 9.0),
+            raw_odds("Kto wykona pierwszy rzut z autu", "Remo", 1.9),
+            raw_odds("Mecz", "1", 2.47),
+        ]
+    }
+    _, unmapped = normalize_lines(raw, team_names=("Remo", "Coritiba"))
+    assert unmapped == []
+
+
 # --- fixture matching -------------------------------------------------------
 
 

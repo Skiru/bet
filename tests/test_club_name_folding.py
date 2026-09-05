@@ -100,3 +100,52 @@ def test_two_different_clubs_do_not_collide_through_the_transliteration():
     """The point is to recover letters, not to blur clubs together."""
     assert key("Wisła Kraków") != key("Wisła Płock")
     assert key("Zagłębie Lubin") != key("Zagłębie Sosnowiec")
+
+
+# --- the 2026-09-05 batch ---------------------------------------------------
+#
+# Superbet is a Polish book and renders several clubs in Polish. Each pair below
+# was found by replaying that day's own ``unmatched_events`` against the events
+# that got no offer and keeping only pairs sharing a kickoff *to the minute*
+# where the board had exactly one candidate at that minute. Adding them
+# recovered six fixtures on the day's slate and lost none.
+
+
+@pytest.mark.parametrize(
+    ("ours", "theirs"),
+    [
+        ("Athletic Club", "Athletic Bilbao"),
+        ("Atlético Madrid", "Atletico Madryt"),
+        ("FC Bayern München", "Bayern Monachium"),
+        ("Borussia M'gladbach", "Borussia Monchengladbach"),
+        ("Real Racing Club", "Racing Santander"),
+        ("Asteras Aktor", "Asteras Tripolis"),
+        ("Royale Union Saint-Gilloise", "Royale Union SG"),
+    ],
+)
+def test_the_2026_09_05_renames_resolve_to_one_club(ours, theirs):
+    assert key(ours) == key(theirs)
+
+
+def test_athletic_and_atletico_stay_two_clubs():
+    """They were the two sides of one fixture, so a pin that merged them would
+    have been worse than the miss it fixed: La Liga's biggest match of the day
+    had 206 rows on the sheet and no price on any of them because *neither*
+    side joined -- normalization leaves the bare town "bilbao" against our
+    "athletic club", and "Madryt" is simply Polish for Madrid."""
+    assert key("Athletic Club") != key("Atlético Madrid")
+    assert key("Athletic Bilbao") != key("Atletico Madryt")
+
+
+def test_the_two_borussias_stay_two_clubs():
+    """After folding, "Borussia M'gladbach" and "Borussia Monchengladbach"
+    share only the token "borussia" -- which Dortmund carries too. That is why
+    the pin is the only safe route and the overlap rule must not be loosened."""
+    assert key("Borussia Dortmund") != key("Borussia Monchengladbach")
+    assert key("Borussia Dortmund") != key("Borussia M'gladbach")
+
+
+def test_the_new_pins_do_not_blur_neighbouring_clubs():
+    assert key("Atlético Madrid") != key("Real Madrid")
+    assert key("FC Bayern München") != key("Bayer Leverkusen")
+    assert key("Racing Santander") != key("Racing Club")

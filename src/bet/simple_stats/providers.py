@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from bet.api_clients import get_client
 from bet.api_clients.bzzoiro import FINISHED_STATUSES as BZZOIRO_FINISHED_STATUSES
@@ -3310,20 +3310,44 @@ def fetch_bzzoiro_history(
     return outcome
 
 
+class MatchContext(NamedTuple):
+    """What the team's fixture listing knows about one historical match.
+
+    ``competition_id`` and ``season_id`` are carried for the same reason the
+    team path carries them (see ``_make_values``): ``analyze.scope_values``
+    drops a pre-season friendly or a last-season match by *provider id*, and an
+    observation that reaches it with no ids is structurally unfilterable.
+
+    Until 2026-09-05 this was a bare ``(date, opponent)`` pair and the player
+    path passed neither id, so the friendly pin and ``STALE_SEASON`` could not
+    fire on a single prop row: 0 of 143,790 ``player_*`` rows on the
+    2026-09-05 sheet carried any ``sample_excluded`` against 61.1% of the
+    34,692 team rows. Guirassy's shots-on-target sample was five appearances
+    from a July tour of Japan and last May, and the resulting ``p_central``
+    priced a Bet Builder leg.
+    """
+
+    date: str
+    opponent: str
+    competition_id: Any = None
+    season_id: Any = None
+
+
 def fetch_bzzoiro_match_context(
     team_id: str,
     rate_limiter: RateLimiter,
     run_budget: RunBudget | None = None,
     last_n: int = 10,
     as_of_date: str = "",
-) -> tuple[dict[str, tuple[str, str]], list[str]]:
-    """``({provider_event_id: (match_date, opponent_name)}, data_gaps)`` for one
-    team's recent fixtures.
+) -> tuple[dict[str, MatchContext], list[str]]:
+    """``({provider_event_id: MatchContext}, data_gaps)`` for one team's recent
+    fixtures.
 
     Exists because ``/players/{id}/stats/`` identifies each appearance only by
-    ``event_id``: no date, no opponent. Resolving those per appearance would
-    cost a request each; the team's fixture listing has all of them and is
-    already cached from the ``*_for`` pass, so in a normal run this is free.
+    ``event_id``: no date, no opponent, no competition. Resolving those per
+    appearance would cost a request each; the team's fixture listing has all of
+    them and is already cached from the ``*_for`` pass, so in a normal run this
+    is free.
     """
     gaps: list[str] = []
     if not team_id:
@@ -3337,7 +3361,7 @@ def fetch_bzzoiro_match_context(
     except Exception as exc:  # noqa: BLE001
         return {}, [f"bzzoiro: match context error for team {team_id}: {exc}"]
 
-    context: dict[str, tuple[str, str]] = {}
+    context: dict[str, MatchContext] = {}
     for match in matches:
         match_id = str(match.get("provider_match_id") or "")
         if not match_id:
@@ -3349,9 +3373,13 @@ def fetch_bzzoiro_match_context(
             if str(home.get("provider_team_id") or "") == str(team_id)
             else home.get("team_name")
         )
-        context[match_id] = (
+        context[match_id] = MatchContext(
             str(match.get("date") or ""),
             str(opponent or "unknown"),
+            # The same two fields the team path reads off this very listing --
+            # see the ``_make_values`` calls in ``_fetch_bzzoiro_history``.
+            match.get("competition_provider_id"),
+            match.get("season"),
         )
     return context, gaps
 
@@ -3363,7 +3391,7 @@ def fetch_bzzoiro_player_history(
     last_n: int = 10,
     as_of_date: str = "",
     exclude_event_id: str = "",
-    match_context: dict[str, tuple[str, str]] | None = None,
+    match_context: dict[str, MatchContext] | None = None,
 ) -> FetchOutcome:
     """One player's per-match prop history, in a single provider call.
 
@@ -3372,13 +3400,13 @@ def fetch_bzzoiro_player_history(
     -order offset dance: ``limit=last_n`` is the last ``last_n`` appearances.
     This is the cheapest data in the whole pipeline per row it produces.
 
-    ``match_context`` maps this provider's event id to ``(match_date,
-    opponent)``. The box-score rows carry neither -- only ``event_id`` -- and
-    resolving each one would cost a request per appearance, so the caller passes
-    the map it already built from the team's fixture history. An appearance
-    outside that map is still kept, with an empty date: a prop's whole value is
-    its sample, and the observation is real whether or not we can name the
-    opponent.
+    ``match_context`` maps this provider's event id to a ``MatchContext``. The
+    box-score rows carry none of it -- only ``event_id`` -- and resolving each
+    one would cost a request per appearance, so the caller passes the map it
+    already built from the team's fixture history. An appearance outside that
+    map is still kept, with an empty date; ``analyze.scope_values`` is what
+    decides whether an observation nobody can place belongs in a sample, and it
+    needs to see the row to make that call.
 
     Appearances with no minutes are dropped. A substitute who did not come on
     has a box score of zeroes, and counting those would make every UNDER prop
@@ -3420,7 +3448,8 @@ def fetch_bzzoiro_player_history(
         if not (appearance.get("minutes_played") or 0):
             continue
         played += 1
-        match_date, opponent = context.get(match_id, ("", "unknown"))
+        appearance_context = context.get(match_id) or MatchContext("", "unknown")
+        match_date, opponent = appearance_context.date, appearance_context.opponent
         raw_metrics = appearance.get("metrics") or {}
         metrics = {
             _BZZOIRO_PLAYER_ALIASES[name]: value
@@ -3439,7 +3468,11 @@ def fetch_bzzoiro_player_history(
         # (``context_flags._venue_flag``), which reads team buckets and never
         # this one.
         for name, value in _make_values(
-            "bzzoiro", match_id, match_date, opponent or "unknown", metrics
+            "bzzoiro", match_id, match_date, opponent or "unknown", metrics,
+            # Without these two ``scope_values`` cannot drop a July friendly or
+            # a last-season appearance from a prop sample -- see ``MatchContext``.
+            competition_id=appearance_context.competition_id,
+            season_id=appearance_context.season_id,
         ).items():
             outcome.add(name, value)
 

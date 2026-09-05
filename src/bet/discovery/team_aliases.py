@@ -84,7 +84,44 @@ TEAM_ALIASES: dict[str, set[str]] = {
     "Wolverhampton Wanderers": {"Wolves"},
     "Olympique Lyonnais": {"Lyon"},
     "Stade Brestois": {"Brest"},
+    # Added 2026-09-05, all found the same way: replay the day's own
+    # ``unmatched_events`` against the events that got no offer, keep only
+    # pairs sharing a kickoff *to the minute* where the board offers exactly
+    # one candidate at that minute. Superbet is a Polish book and renders
+    # several clubs in Polish, which is the "Sporting Lisbon" case in this
+    # table's opening list and not a qualifier.
+    #
+    # Athletic/Atletico is why this batch exists. It was the only fixture on
+    # the board at 14:15 and *neither* side joined: normalization strips the
+    # club word from "Athletic Bilbao" and leaves the bare town "bilbao"
+    # against our "athletic club", while "Madryt" is simply the Polish for
+    # Madrid. La Liga's biggest fixture of the day reached the sheet with 206
+    # rows and no price on any of them.
+    #
+    # Monchengladbach earns its place for the opposite reason to most: after
+    # folding, "Borussia M'gladbach" and "Borussia Monchengladbach" share only
+    # the token "borussia" -- which Dortmund also carries -- so the overlap
+    # rule must never be loosened to join them and a pin is the only safe way.
+    "Athletic Club": {"Athletic Bilbao"},
+    "Atletico Madrid": {"Atletico Madryt"},
+    "FC Bayern Munchen": {"Bayern Monachium", "Bayern Munich"},
+    "Borussia Monchengladbach": {"Borussia M'gladbach"},
+    "Racing Santander": {"Real Racing Club"},
+    "Asteras Tripolis": {"Asteras Aktor"},
+    "Royale Union Saint-Gilloise": {"Royale Union SG"},
 }
+# Deliberately *not* added from the same sweep, and the reasons are the rule:
+#
+#   "USC Paredes" / "Uniao SC Paredes"      qualifier -- containment's job
+#   "Kansas City Current" / "Kansas City"   qualifier
+#   "PS Sakiet Eddaier" / "A Sakiet Edayer" a transliteration, not a rename
+#   "SC Jacksonville" / "Sporting Jax"      could not confirm one club
+#
+# And the sweep's own noise, worth recording so the next person does not
+# rediscover it as signal: 194 FA Cup ties kick off at 14:00, so a
+# one-side-joins heuristic pairs them arbitrarily. It offered "Whitby Town vs
+# Ashton United" against "Ashton Adesoro vs Mateo Martinez" -- two tennis
+# players. Uniqueness at the kickoff minute is what makes the evidence real.
 
 # Reverse index, built once. A rendering listed under two canonical clubs is a
 # table bug -- it would make the alias step itself ambiguous -- so it raises at

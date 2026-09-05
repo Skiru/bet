@@ -30,8 +30,10 @@ from bet.simple_stats.enrich import _build_tasks, _dossier_for_event
 from bet.simple_stats.providers import (
     RUN_BUDGET_OVERRIDES,
     FetchOutcome,
+    MatchContext,
     RunBudget,
     fetch_bzzoiro_history,
+    fetch_bzzoiro_match_context,
     fetch_bzzoiro_player_history,
 )
 
@@ -585,7 +587,9 @@ def test_dates_and_opponents_come_from_the_match_context(monkeypatch, tmp_path):
     outcome = fetch_bzzoiro_player_history(
         "2190", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500),
         as_of_date="2026-08-26",
-        match_context={"587701": ("2026-08-18T19:00:00+00:00", "Fenerbahçe")},
+        match_context={
+            "587701": MatchContext("2026-08-18T19:00:00+00:00", "Fenerbahçe"),
+        },
     )
     by_match = {pv.match_id: pv for pv in outcome.metrics["player_total_shots"]}
     assert by_match["587701"].opponent == "Fenerbahçe"
@@ -910,3 +914,78 @@ def test_props_alone_are_partial_so_they_are_not_discarded_at_analyze():
 
     # Without props the same empty dossier is still BLOCKED.
     assert _dossier_for_event(_event(), buckets).readiness == "BLOCKED"
+
+
+# --- competition and season reach the prop sample ---------------------------
+#
+# Found 2026-09-05, and it is the reason ``analyze.scope_values`` could not drop
+# a single pre-season friendly from a player prop: 0 of 143,790 ``player_*``
+# rows on that day's sheet carried any ``sample_excluded`` against 61.1% of the
+# 34,692 team rows. Both filters that would have fired -- the friendly pin and
+# ``STALE_SEASON`` -- key on ``competition_id``/``season_id``, and the player
+# path passed neither, so every prop sample was structurally unfilterable.
+#
+# Serhou Guirassy's shots-on-target row was nine appearances including FC Tokyo
+# and Cerezo Osaka on a July tour of Japan, and it priced a Bet Builder leg.
+
+def _fixture_with_competition(event_id, date, league_id, season_id, away_name):
+    row = _fixture_row(event_id, date, 2100, 2101, home="Beşiktaş", away=away_name)
+    row["league_id"] = league_id
+    row["season_id"] = season_id
+    return row
+
+
+def test_match_context_carries_the_competition_and_season(monkeypatch, tmp_path):
+    """Both ids are already on the very listing this reads. Not passing them on
+    was the whole defect -- nothing new has to be fetched to fix it."""
+    rows = [
+        _fixture_with_competition("587701", "2026-08-18T19:00:00+00:00", 12, 2222,
+                                  "Fenerbahçe"),
+        _fixture_with_competition("587702", "2026-07-19T15:00:00+00:00", 79, 1552,
+                                  "Some Friendly XI"),
+    ]
+    client, _ = _client(
+        monkeypatch, tmp_path,
+        {"/teams/2100/fixtures/": lambda p: {"count": 2, "results": rows}},
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    context, _gaps = fetch_bzzoiro_match_context(
+        "2100", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500),
+        as_of_date="2026-08-26",
+    )
+    assert context["587701"].competition_id == "12"
+    assert context["587701"].season_id == 2222
+    assert context["587702"].competition_id == "79"
+    assert context["587702"].opponent == "Some Friendly XI"
+
+
+def test_player_observations_are_stamped_with_the_competition(monkeypatch, tmp_path):
+    client, _ = _client(monkeypatch, tmp_path, {"/players/2190/stats/": PLAYER_HISTORY})
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    outcome = fetch_bzzoiro_player_history(
+        "2190", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500),
+        as_of_date="2026-08-26",
+        match_context={
+            "587701": MatchContext(
+                "2026-08-18T19:00:00+00:00", "Fenerbahçe", "12", "2222"
+            ),
+        },
+    )
+    by_match = {pv.match_id: pv for pv in outcome.metrics["player_total_shots"]}
+    assert by_match["587701"].competition_id == "12"
+    assert by_match["587701"].season_id == "2222"
+    # An appearance the context cannot place still carries no ids, and must not
+    # be handed one invented from a sibling. ``scope_values`` decides what to do
+    # with it; see ``SCOPE_UNKNOWN`` in test_analyze_sample_scope.py.
+    assert by_match["220447"].competition_id is None
+    assert by_match["220447"].season_id is None
+
+
+def test_a_context_entry_without_ids_still_works():
+    """The two-field form is what a caller with no listing can build, and it
+    must stay constructible: the ids default to None rather than being
+    required, so an unstamped observation is the fallback and not a crash."""
+    entry = MatchContext("2026-08-18T19:00:00+00:00", "Fenerbahçe")
+    assert entry.competition_id is None and entry.season_id is None

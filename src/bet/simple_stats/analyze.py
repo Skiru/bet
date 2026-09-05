@@ -820,6 +820,11 @@ def scope_values(
     belonged to is not evidence that it belonged to the wrong one, and dropping
     it would quietly delete every provider that does not publish league ids.
 
+    A missing *date* is the one exception, and only in a sample where other
+    rows have one -- ``SCOPE_UNKNOWN`` below. There the absence is evidence
+    rather than ignorance, and it is the only signal that separates an
+    observation the rest of this function can examine from one it cannot.
+
     Returns ``(kept, {reason: count})``. Order is preserved, so every caller
     downstream -- ``_dedup``, ``_one_per_day``, ``_cross_provider_agreement`` --
     sees the sample it would have seen had the removed matches never been
@@ -833,6 +838,32 @@ def scope_values(
 
     def drop(reason: str) -> None:
         dropped[reason] = dropped.get(reason, 0) + 1
+
+    # An observation nobody can place in time, in a sample where the others can
+    # be. Every rule below keys on a competition, a season, a surface or a draw,
+    # and a row carrying none of them is immune to all of them -- it enters
+    # ``hits``/``sample_size`` unexamined however old it is.
+    #
+    # The condition is deliberately relative, not absolute. A dateless row is
+    # dropped only when the sample *also* holds dated ones, because that is the
+    # only case in which its absence is evidence: the caller did build a
+    # context, and this appearance fell outside the window it covers. When no
+    # row has a date the context fetch itself failed, and deleting the whole
+    # sample on a provider hiccup would be far worse than scoping none of it.
+    #
+    # Measured on the 2026-09-05 dossiers before this existed: all 155,291 team
+    # and tennis observations are dated and are untouched by this, while 55,976
+    # of 197,176 ``player_*`` observations (28.4%) carried no date at all --
+    # Fullkrug's fouls sample was 8 appearances of which 6 were dateless, and
+    # those 6 supplied every zero behind its median of 0.
+    if any(pv.match_date for pv in values):
+        placeable: list[ProviderValue] = []
+        for pv in values:
+            if not pv.match_date:
+                drop("SCOPE_UNKNOWN")
+                continue
+            placeable.append(pv)
+        values = placeable
 
     after_pin: list[ProviderValue] = []
     for pv in values:

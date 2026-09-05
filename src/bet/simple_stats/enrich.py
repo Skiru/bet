@@ -37,6 +37,7 @@ from bet.simple_stats.providers import (
     PRIMARY_PROVIDER_BY_SPORT,
     PROVIDERS_BY_SPORT,
     FetchOutcome,
+    MatchContext,
     RunBudget,
     corroborators_for,
     fetch_bzzoiro_history,
@@ -621,7 +622,7 @@ def _player_props_for_event(
         return props
 
     as_of = event.start_time[:10]
-    context: dict[str, tuple[str, str]] = {}
+    context: dict[str, MatchContext] = {}
     for side in ("home", "away"):
         team_id = ids.get(side, "")
         if not team_id:

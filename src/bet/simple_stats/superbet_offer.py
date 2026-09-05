@@ -381,6 +381,58 @@ def is_banned_market(folded_name: str) -> bool:
     return ";" in folded_name or any(bad in folded_name for bad in BANNED_SUBSTRINGS)
 
 
+# Words that make a market name worth reporting as unparsed. ``liczba`` alone
+# was the whole test until 2026-09-05, which misses the markets that name the
+# thing counted without ever saying "liczba". Kept a closed vocabulary rather
+# than "report everything": a big fixture carries ~900 exotic outcomes and a
+# diagnostic nobody can read is the same as no diagnostic.
+#
+# Only the market *name* is consulted, never the outcome text. "powyzej" would
+# make the test vacuous -- it appears on every total ever posted -- and a
+# diagnostic that fires on everything names nothing.
+#
+# Note what is deliberately *not* reachable here: ``is_banned_market`` runs
+# first, and ``BANNED_SUBSTRINGS`` refuses "kazda z druzyn", "najwiecej",
+# "handicap" and "h2h" on purpose. Those families are declined, not missed, and
+# listing them as unparsed would report a decision as a failure. Reporting
+# declined families is a separate job with a separate name; see
+# ``derived_markets.py``, which already prices three of them.
+_TOTAL_ISH_WORDS = (
+    "liczba", "rozn", "strzal", "kartek", "fauli", "spalonych", "goli",
+)
+
+
+def _record_unmapped(
+    unmapped: dict[str, None], raw: dict, team_names: Iterable[str] = ()
+) -> None:
+    """Note a market this parser could not read, if it looks like a total.
+
+    Keyed on the market name, so one fixture's twenty rungs collapse to one
+    entry, and with either side's club name replaced by ``{team}`` so the two
+    per-team renderings of one family collapse to one entry as well.
+
+    That last step is what keeps the diagnostic legible. Measured on the seven
+    fixture screens captured 2026-09-05, this branch surfaces 118 market names
+    of which 92 -- 78% -- are the same six families written once per club
+    ("Antwerp wygra lub poniżej X goli", then Standard Liège, then the other
+    twelve clubs of the day). Across a 184-event slate that is some eight
+    hundred entries saying twenty-six things.
+    """
+    name = raw.get("marketName") or ""
+    folded = fold(name)
+    if not folded or is_banned_market(folded):
+        return
+    if not any(word in folded for word in _TOTAL_ISH_WORDS):
+        return
+    # Longest first: a club whose name contains another's must not leave the
+    # shorter one behind ("Manchester United" before "Manchester City").
+    for team in sorted((t for t in team_names if t), key=len, reverse=True):
+        if team in name:
+            name = name.replace(team, "{team}")
+            break
+    unmapped.setdefault(name, None)
+
+
 def parse_outcome(name: str | None) -> tuple[str, float] | None:
     """``"powyżej 8.5"`` -> ``("OVER", 8.5)``. None for anything else."""
     match = _OUTCOME_RE.match(fold(name))
@@ -637,6 +689,12 @@ def normalize_lines(
     resolve_team = _team_resolver(ours)
     best: dict[tuple[str, float, str, str | None, str | None], SuperbetLine] = {}
     unmapped: dict[str, None] = {}
+    # Superbet's *own* spellings, not ours: the market names being collapsed in
+    # ``_record_unmapped`` are strings Superbet wrote, so "Antwerp" is what
+    # appears in them and "Royal Antwerp FC" is what we call the same club.
+    from bet.api_clients.superbet import split_match_name
+
+    board_sides = split_match_name(raw_event.get("matchName"))
 
     def offer(
         *,
@@ -699,14 +757,16 @@ def normalize_lines(
 
         outcome = parse_outcome(raw.get("name"))
         if outcome is None:
+            # A market whose *name* reads as a total but whose outcome does not
+            # -- "powyżej 8.5 - tak" is one shape no over/under regex matches.
+            # Until 2026-09-05 this branch returned before the diagnostic below
+            # could see the name, so such a market was missing from ``lines``
+            # and from ``unmapped_markets`` alike: not declined, just gone.
+            _record_unmapped(unmapped, raw, board_sides)
             continue
         classified = classify_market(raw.get("marketName"))
         if classified is None:
-            folded = fold(raw.get("marketName"))
-            # Only surface names that at least *look* like a total, or the
-            # diagnostic drowns in the 900 exotic markets a big fixture carries.
-            if folded and not is_banned_market(folded) and "liczba" in folded:
-                unmapped.setdefault(raw.get("marketName") or "", None)
+            _record_unmapped(unmapped, raw, board_sides)
             continue
         market, superbet_team = classified
         team_name: str | None = None

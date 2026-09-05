@@ -493,3 +493,83 @@ class TestTennisOpponentIdentity:
             _obs("espn-tennis", "Catherine McNally"),
         ])
         assert len(set(keys)) == 1, keys
+
+
+# --- observations nothing can place in time ---------------------------------
+#
+# Found 2026-09-05. Every rule above keys on a competition, a season, a surface
+# or a draw. A row carrying none of them is immune to all of them and enters
+# ``hits``/``sample_size`` unexamined however old it is -- and the player-prop
+# path produced exactly such rows in bulk, because an appearance outside the
+# team's fixture window reaches ``_make_values`` with no date and no ids.
+#
+# Measured on the 2026-09-05 dossiers: all 155,291 team and tennis observations
+# carry a date and are untouched by this rule, against 55,976 of 197,176
+# ``player_*`` observations (28.4%) that carry none. Niclas Füllkrug's fouls
+# sample was eight appearances of which six were undateable, and those six
+# supplied every zero behind its median of 0 -- the row read 3/8 with a mean of
+# 0.75 against a Superbet price of 1.21 asking for 0.826.
+
+
+def test_an_undateable_observation_is_dropped_when_the_sample_has_dates():
+    kept, dropped = scope_values([
+        _pv(4.0, "2026-08-30", match_id="league"),
+        _pv(1.0, "2026-08-22", match_id="cup"),
+        _pv(0.0, "", match_id="nowhere", competition_id=None, season_id=None),
+        _pv(0.0, "", match_id="nowhere2", competition_id=None, season_id=None),
+    ])
+    assert [pv.match_id for pv in kept] == ["league", "cup"]
+    assert dropped == {"SCOPE_UNKNOWN": 2}
+
+
+def test_a_sample_with_no_dates_at_all_is_kept_whole():
+    """The context fetch failed, not the observations.
+
+    The condition is relative on purpose: a missing date is evidence only when
+    the sample also holds dated rows, because that is the only case in which we
+    know a context was built and this row fell outside it. Deleting an entire
+    sample because one provider call failed would be far worse than scoping
+    none of it.
+    """
+    kept, dropped = scope_values([
+        _pv(4.0, "", match_id="a", competition_id=None, season_id=None),
+        _pv(1.0, "", match_id="b", competition_id=None, season_id=None),
+    ])
+    assert [pv.match_id for pv in kept] == ["a", "b"]
+    assert "SCOPE_UNKNOWN" not in dropped
+
+
+def test_undateable_rows_are_dropped_before_the_season_target_is_chosen():
+    """Order matters: an undateable row must not vote on what season is current.
+
+    It carries no season either, so it cannot vote directly -- but it must also
+    not survive into ``kept`` by being invisible to every later rule, which is
+    what this asserts.
+    """
+    kept, dropped = scope_values([
+        _pv(2.0, "2026-08-29", match_id="this", season_id="2222"),
+        _pv(9.0, "2026-05-16", match_id="last", season_id="1111"),
+        _pv(0.0, "", match_id="unplaceable", competition_id=None, season_id=None),
+    ])
+    assert [pv.match_id for pv in kept] == ["this"]
+    assert dropped == {"STALE_SEASON": 1, "SCOPE_UNKNOWN": 1}
+
+
+def test_the_friendly_pin_still_fires_on_a_dated_player_appearance():
+    """The other half of the 2026-09-05 fix, from the consumer's side.
+
+    Serhou Guirassy's shots-on-target sample was nine appearances, five of them
+    July friendlies on a tour of Japan and last May's Bundesliga. All nine were
+    dated, so ``SCOPE_UNKNOWN`` does not touch them; they survived because the
+    player path passed no ``competition_id`` at all. Once ``MatchContext``
+    carries the id the existing pin does the work with no new rule.
+    """
+    kept, dropped = scope_values([
+        _pv(2.0, "2026-08-29", match_id="hsv", season_id="2222"),
+        _pv(0.0, "2026-08-01", match_id="tokyo",
+            competition_id=CLUB_FRIENDLIES, season_id="1552"),
+        _pv(0.0, "2026-07-29", match_id="cerezo",
+            competition_id=CLUB_FRIENDLIES, season_id="1552"),
+    ])
+    assert [pv.match_id for pv in kept] == ["hsv"]
+    assert dropped == {"PRE_SEASON_FRIENDLY": 2}
