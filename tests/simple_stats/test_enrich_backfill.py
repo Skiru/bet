@@ -255,3 +255,70 @@ def test_more_reasons_cannot_buy_a_pass_that_lost_readiness(run_enrich):
     merged, improved = run_enrich._merge_dossiers(prior, fresh)
     assert improved == 0
     assert merged.dossiers[0].readiness == "READY"
+
+
+def test_a_backfill_retries_a_ready_dossier_that_lost_calls_upstream(
+    tmp_path, monkeypatch
+):
+    """READY is not the same as complete.
+
+    Measured 2026-09-05: Bucheon - Daejeon came back READY while three bzzoiro
+    calls had failed with UPSTREAM_ERROR. Selecting the backfill scope on
+    readiness alone skipped it, so those observations stayed lost. Re-running
+    took ``corners_for`` from 8+9 to 10+10 observations and ``p_low`` to 0.6874
+    on a 10/10 sweep -- top of the coupon at 1.49. A transient upstream failure
+    had hidden a real bet behind a dossier that called itself ready.
+    """
+    import json
+    import subprocess
+    import sys
+
+    from bet.simple_stats.contracts import EventDossierV1
+
+    prior = {
+        "run_id": "RID-2",
+        "date": "2026-09-03",
+        "generated_at": "2026-09-03T06:00:00+00:00",
+        "dossiers": [
+            EventDossierV1(
+                event_id="ready-but-lossy", sport="football", metrics={},
+                readiness="READY",
+                data_gaps=["team_a: bzzoiro: UPSTREAM_ERROR for event 205103"],
+            ).model_dump(mode="json"),
+            EventDossierV1(
+                event_id="ready-and-whole", sport="football", metrics={},
+                readiness="READY", data_gaps=[],
+            ).model_dump(mode="json"),
+        ],
+    }
+    prior_path = tmp_path / "2026-09-03_event_dossiers.json"
+    prior_path.write_text(json.dumps(prior), encoding="utf-8")
+
+    events = [
+        {
+            "event_id": event_id, "sport": "football", "competition": "Serie A",
+            "home_team": "A", "away_team": "B",
+            "start_time": "2999-01-01T18:00:00+00:00",
+            "identity_confidence": "CONFIRMED", "status": "ACTIVE",
+        }
+        for event_id in ("ready-but-lossy", "ready-and-whole")
+    ]
+    list_path = tmp_path / "2026-09-03_event_list.json"
+    list_path.write_text(json.dumps({
+        "run_id": "RID-2", "generated_at": "x", "date": "2026-09-03",
+        "sports": ["football"], "events": events,
+    }), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/simple/run_enrich.py",
+         "--event-list", str(list_path), "--output-dir", str(tmp_path),
+         "--backfill-from", str(prior_path), "--max-events", "10",
+         "--skip-preflight", "--db-path", str(tmp_path / "x.db")],
+        capture_output=True, text=True,
+    )
+    scope = next(
+        line for line in result.stdout.splitlines() if "backfill_scope" in line
+    )
+    # The lossy one is retried and counted; the whole one is left alone.
+    assert "retried_for_upstream_error=1" in scope
+    assert "retryable_events=1" in scope

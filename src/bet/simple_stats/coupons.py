@@ -52,6 +52,7 @@ from typing import Literal
 from pydantic import Field
 
 from bet.simple_stats.bet_builder_draft import (
+    scope_sibling,
     required_odds,
     TIER_MARGIN,
     AnalystVeto,
@@ -244,6 +245,64 @@ MIN_SINGLE_P_LOW = 0.50
 # the day's one real row (WTA aces_total 5.5 OVER at 2.07 vs a 1.8146 floor)
 # off the end. The *centre* disagreement -- MAX_LADDER_SIGMA below -- is the
 # one with settled evidence behind it and the one that still demotes.
+# Whether a player prop may be offered to the operator as a bet.
+#
+# **Off by default since 2026-09-06, on the first measurement the family has
+# ever had against a price.** Every prop row on the five slates with an offer
+# artifact, joined to its own posted Superbet price and settled against the
+# fixture box scores: 19,154 priced rows over 85 fixtures.
+#
+#     in the band the coupon bets (p_central 0.50-0.80)
+#     ROI -30.5%, clustered CI [-34.0%, -27.1%], n=3056
+#
+# against -6% to -14% for the team and match markets on the same slates. All
+# seven prop markets are negative with a CI clear of zero.
+#
+# It is not a calibration fault, and that is why no threshold fixes it:
+#
+#     p_central bucket    ALL props          PRICED props
+#     [0.50,0.60)         n=15178  -0.010    n=1421  -0.125
+#     [0.60,0.70)         n=12852  -0.004    n=1012  -0.133
+#     [0.70,0.80)         n=10867  -0.006    n= 623  -0.132
+#     [0.80,0.90)         n=10369  -0.005    n= 270  -0.132
+#
+# Props in general are calibrated to within a point. Props *the book chooses to
+# post* run 12-13 points under their claim at every level of confidence. The
+# book is selecting, and it is selecting on the one thing this pipeline does
+# not model: playing time. The gap is -0.36 for players who saw under 30
+# minutes, -0.18 for 30-70 and -0.08 for 70+.
+#
+# Three ways out were measured and none of them work:
+#
+# * **Wait for the teamsheet.** Rows on a *confirmed* lineup measured worse
+#   (-0.254, n=280) than rows on a predicted one (-0.117, n=2776).
+# * **Raise the bar.** ``PLAYER_PROP_BIAS`` cuts the props clearing a LEAN bar
+#   from 596 to 284 and the survivors return -36.7% against the original
+#   -36.2%. The bias is flat across the range, so cutting harder removes rows
+#   at random with respect to outcome.
+# * **Shrink toward the price.** Props are posted OVER-only, so there is no
+#   second side to devig and ``bar_components`` returns before the market prior
+#   -- 0 of the 12 props ever shipped carried a market probability. The raw
+#   ``1/price`` is 0.610 in band against a realised 0.488, so pulling toward it
+#   moves the bar the wrong way.
+#
+# Breaking even in band needs a price near 2.05; the mean posted price is 1.64.
+# The arithmetic does not close, so the family does not ship. What would change
+# it is an availability model -- P(prop) = P(plays enough) x P(hits | plays) --
+# and the second factor is the only one this sheet estimates.
+#
+# Kept as a flag rather than deleted because the measurement is five slates
+# old, the fix is a model this repo could acquire, and a constant that can be
+# flipped back is how the next measurement gets made. Props still reach the
+# stats sheet in full; this gate is about the coupon.
+ALLOW_PLAYER_PROPS = False
+
+
+def is_player_prop(row: StatsSheetRow) -> bool:
+    """Whether this row's subject is one footballer rather than a team or a match."""
+    return row.market.startswith("player_")
+
+
 MAX_MARKET_DISAGREEMENT = 0.25
 
 # How far the sample's own centre may sit from the centre the book's ladder
@@ -690,13 +749,40 @@ def _edge(row: StatsSheetRow) -> float:
     disagreement look like a small one -- which is the reading that gets a
     broken sample staked.
 
-    Ranking by it descending is legitimate *because* it is now comparable and
-    bounded: ``over_disagreement`` removes everything past
-    ``MAX_MARKET_DISAGREEMENT`` first, and inside that band the run-wide median
-    gap between ``p_central`` and the devigged price is -0.000, so the sheet is
-    not systematically on either side of the market. Ranking an *unbounded*
-    disagreement descending is what put six losers at the top of that day's
-    file.
+    Ranking by it descending is legitimate because it is *comparable*: the
+    run-wide median gap between ``p_central`` and the devigged price is -0.000,
+    so the sheet is not systematically on either side of the market.
+
+    It is **not** bounded, and this docstring used to claim it was -- that
+    ``over_disagreement`` "removes everything past ``MAX_MARKET_DISAGREEMENT``
+    first". It does not, and never did: that predicate is computed for every
+    row and then used for exactly two things, the row's ``needs_review`` flag
+    and a caveat line. Nothing has ever been removed or demoted by it, so the
+    stated justification for this sort rested on a safety property no code
+    implemented.
+
+    The claim is corrected rather than the code, because the measurement says
+    the bound would cost money. Over 16,352 settled sides of 8,176 two-sided
+    Superbet rungs on the six slates with an offer artifact, bucketed by how
+    far ``p_central`` sits above the *devigged* price:
+
+        gap [+0.05,+0.15)   n=2957   ROI  -1.4%   [ -7.7%,  +5.1%]
+        gap [+0.15,+0.25)   n= 675   ROI  -9.3%   [-24.2%,  +6.1%]
+        gap [+0.25,+0.40)   n= 229   ROI +29.6%   [ -6.0%, +71.3%]
+
+    The widest disagreements are the *only* bucket on the board with a positive
+    point estimate. The interval is wide and contains zero, so this is not
+    evidence that they are good -- it is evidence that they are not reliably
+    bad, which is all a demotion needs to be wrong. ``MAX_LADDER_SIGMA`` is the
+    gate with settled evidence behind it and it already removes the broken
+    samples; see its comment, and the ``MAX_MARKET_DISAGREEMENT`` comment above
+    for the day a demotion on this gap took the file's one real row off the
+    end.
+
+    Ranking an unbounded disagreement descending *is* what put six losers at
+    the top of 2026-09-01's file -- but what they had in common was a sample
+    whose centre was two standard deviations off the book's, which is the
+    ladder gate's business, not this one's.
 
     Falls back to ``p_low`` on a row written before ``p_central`` existed,
     which reproduces the old number rather than inventing one. Never called on
@@ -704,6 +790,49 @@ def _edge(row: StatsSheetRow) -> float:
     """
     ours = row.p_central if row.p_central is not None else row.p_low
     return ours - row.market_signal.market_implied_probability
+
+
+def unreviewed_sibling_note(
+    row: StatsSheetRow, veto_index, vetoes: list[AnalystVeto] | None
+) -> str | None:
+    """Say so when the analyst struck this metric at the *other* scope.
+
+    A per-team row and a match-total row are the same quantity read twice: if
+    a team's own shots on target are understated, so is the match's. The
+    analyst writes vetoes per market, so an objection to the estimand lands on
+    whichever scope he happened to be reading, and the sibling ships unmarked.
+
+    Live on 2026-09-06: Corinthians-Chapecoense had ``shots_on_target_for``,
+    ``shots_for``, ``goals_for`` and ``cards_points_for`` all downgraded --
+    "the sample measures Corinthians in any match, the market settles
+    Corinthians at home against the worst defence in the league" -- while
+    ``shots_on_target_total`` 9.5 UNDER, the only *bettable* row on that
+    fixture, carried no mark at all. On the analyst's own revised centre it
+    still cleared its price (0.666 against a 0.592 break-even), so nothing was
+    lost that day; nothing had noticed either.
+
+    **This reports and never widens.** Extending a veto by rule is how the
+    analyst's own picks were once inverted -- see the note on stripping a
+    player key from a prop veto -- and a per-team objection genuinely does not
+    always carry: the opponent's half of a match total is untouched by it. The
+    operator gets told the asymmetry exists and decides.
+    """
+    if not vetoes:
+        return None
+    sibling = scope_sibling(row.market)
+    if sibling is None or veto_index.for_row(row) is not None:
+        return None
+    struck = {
+        veto.market for veto in vetoes
+        if veto.event_id == row.event_id and veto.market == sibling
+    }
+    if not struck:
+        return None
+    return (
+        f"analityk obniżył `{sibling}` na tym meczu, a tego wiersza nie objął "
+        "— to ta sama wielkość czytana w innym zakresie, więc jego zastrzeżenie "
+        "może się przenosić; sprawdź jego uzasadnienie, zanim weźmiesz ten kurs"
+    )
 
 
 def _caveats(row: StatsSheetRow) -> list[str]:
@@ -926,6 +1055,7 @@ def build_coupons(
     require_superbet_value: bool = False,
     bar_basis: str = "p_central",
     shrink_k: float | None = None,
+    allow_player_props: bool = ALLOW_PLAYER_PROPS,
 ) -> CouponSet:
     """Turn a finished stats sheet into the day's singles and slips.
 
@@ -1337,10 +1467,19 @@ def build_coupons(
     # from breaking -- thirty legs went out that day past gates the singles
     # loop applied and the leg path did not.
     buildable = stats_sheet
+    if not allow_player_props:
+        # The invariant this file is built on: every gate a single passes, a
+        # leg passes too. It was broken once already -- thirty legs went out on
+        # 2026-09-01 past gates the singles loop applied and the leg path did
+        # not -- and a prop leg is the same row, priced the same way, off the
+        # same unanchored sample as a prop single.
+        buildable = buildable.model_copy(update={
+            "rows": [r for r in buildable.rows if not is_player_prop(r)]
+        })
     if ambiguous_players:
-        buildable = stats_sheet.model_copy(update={
+        buildable = buildable.model_copy(update={
             "rows": [
-                row for row in stats_sheet.rows
+                row for row in buildable.rows
                 if not (
                     row.player_name
                     and (row.event_id, row.player_name) in ambiguous_players
@@ -1381,6 +1520,9 @@ def build_coupons(
                 f"WETO analityka [{veto.reason_class}]: {_veto_scope(veto)} "
                 f"({row.event_id[:12]}) — {veto.reason}",
             )
+            continue
+        if not allow_player_props and is_player_prop(row):
+            exclude("player_prop_unpriceable")
             continue
         if row.p_low < min_p_low:
             exclude("p_low_below_threshold")
@@ -1547,6 +1689,10 @@ def build_coupons(
                             "sprawdź próbkę, potem kurs"
                         ] if over_disagreement(row) and not off_ladder(row) else []
                     ) + (
+                        [note] if (
+                            note := unreviewed_sibling_note(row, veto_index, vetoes)
+                        ) else []
+                    ) + (
                         [
                             "próbka opisuje inny środek rozkładu niż cała "
                             f"drabinka Superbetu (średnia {row.mean:.2f} vs "
@@ -1582,9 +1728,73 @@ def build_coupons(
     # however high the second row's own p_low climbs. max_singles is one shared
     # budget, spent in this order.
     def _superbet_surplus(pair: tuple[StatsSheetRow, str]) -> float | None:
+        """Whether this row is takeable at Superbet's price -- membership only.
+
+        Returns the artifact's own ``superbet_surplus`` so a caller can test it
+        for None, and it is deliberately **not** what orders the group; see
+        ``_value_rank_key``.
+        """
         row, tier = pair
         info = superbet_for(row, bar_for(row, tier)[0])
         return info.get("superbet_surplus") if info.get("superbet_verdict") == "VALUE" else None
+
+    def _value_rank_key(pair: tuple[StatsSheetRow, str]) -> float:
+        """How far above the book this row is, in probability, capped.
+
+        Two things were wrong with ranking the group on ``superbet_surplus``,
+        and it is the group that outranks every other row in the file.
+
+        **It was in odds units.** ``superbet_surplus`` is ``price - minimum``,
+        a difference of two odds, and the odds scale stretches as the price
+        lengthens: the same 5-point probability disagreement is worth 0.06 at
+        1.30 and 0.30 at 2.70. Over the 33 VALUE rows ever shipped,
+        ``corr(price, surplus)`` is **+0.78** -- the key was three-quarters a
+        proxy for "how long is this price", so group one was in practice sorted
+        longest-price-first. Those rows went 1 for 6 at prices of 2.00 and up,
+        for -65.5%, against 74.3% for the rows that reached ranks 8-15.
+
+        It also reordered rows outright rather than merely stretching them.
+        Carrasco's shots-on-target OVER 0.5 at 1.72 carried the third largest
+        odds surplus in the whole history (+0.333) with a probability gap of
+        **-0.052**: ``p_low`` below even the vigged implied price. It led the
+        2026-09-04 file.
+
+        **It was unbounded.** ``_edge`` -- the key for group *two* -- says in
+        its own docstring that ranking a disagreement descending is only
+        legitimate because it is bounded first, and names the day six unbounded
+        ones led the file and lost. That reasoning applies with more force
+        here, where a wider gap is more likely to be our error than the book's:
+        our estimate carries the larger variance, so sorting on the difference
+        sorts on our own noise. The measured shape is exactly that -- past
+        +0.40 in odds, 0 for 2; every VALUE bucket at or below 57%.
+
+        So: measured in probability, against the devigged price where the book
+        posts both sides and the raw implied price where it posts one (props
+        are OVER-only, which is why the devigged number is missing on all nine
+        props ever shipped and on every ``cards_total`` row -- 75 of 130).
+
+        **Not capped**, though the first version of this function was. The 33
+        shipped VALUE rows read as though the widest disagreements were the
+        worst -- 0 for 2 past +0.40 in odds -- and 33 rows is not enough to act
+        on. Measured instead over 16,352 settled sides of 8,176 two-sided rungs,
+        the +0.25 to +0.40 bucket is the only one on the board with a positive
+        point estimate (+29.6%, n=229). That does not make those rows good; it
+        makes a cap unjustified. See ``_edge`` for the full table and
+        ``MAX_MARKET_DISAGREEMENT`` for the day a demotion on this gap cost the
+        file its one real row.
+
+        Ties fall through to ``p_low`` in the sort below, as before.
+        """
+        row, tier = pair
+        info = superbet_for(row, bar_for(row, tier)[0])
+        price = info.get("superbet_price")
+        if not isinstance(price, (int, float)) or price <= 0:
+            return 0.0
+        implied = superbet_implied(row)
+        if implied is None:
+            implied = 1.0 / price
+        ours = row.p_central if row.p_central is not None else row.p_low
+        return ours - implied
 
     # The ladder gate, and it is a *demotion*, not an exclusion.
     #
@@ -1624,7 +1834,7 @@ def build_coupons(
     _append_singles(
         sorted(
             superbet_value,
-            key=lambda pair: (-(_superbet_surplus(pair) or 0.0), -pair[0].p_low, pair[0].event_id),
+            key=lambda pair: (-_value_rank_key(pair), -pair[0].p_low, pair[0].event_id),
         )
     )
     _append_singles(
@@ -1766,10 +1976,17 @@ def build_coupons(
     if entitlement_note is not None:
         notes.append(entitlement_note)
     notes += [
-        "Kurs łączny NIE jest liczony i nie może być — nogi w jednym meczu są "
-        "skorelowane dodatnio, więc iloczyn zaniża prawdopodobieństwo kuponu. "
-        "Kurs łączny odczytujesz z ekranu Superbetu.",
-        "Pewność to dolna granica Wilsona 95% (p_low), nie surowy hit rate. "
+        "Kurs łączny Bet Buildera (nogi z JEDNEGO meczu) nie jest liczony i nie "
+        "może być — marża bukmachera za połączenie jest nieobserwowalna; "
+        "liczony jest tylko próg, który ten kurs musi pobić. Kupon z RÓŻNYCH "
+        "meczów to inna sprawa: bukmacher mnoży kursy nóg, więc my też — patrz "
+        "sekcja „Gdy złożysz je w kupon”.",
+        "Pewność w tabeli to dolna granica Wilsona 95% (p_low) — celowo "
+        "ostrożna i zmierzona jako zaniżona o ok. 22pp wobec tego, co się "
+        "faktycznie dzieje. Progi cenowe i arytmetyka kuponu NIE są z niej "
+        "liczone: te biorą prawdopodobieństwo po korekcie o rynek (kolumna "
+        "„Min. kurs”). Nie mnóż p_low z tej tabeli między sobą — zaniżysz "
+        "kupon dwukrotnie. "
         "sample_size liczy mecze, nie obserwacje: drużyna gra najwyżej jeden "
         "mecz dziennie, więc powtórzenia między obiema drużynami, h2h i "
         "dostawcami są zwijane do jednego meczu. Potwierdzenie przez drugiego "

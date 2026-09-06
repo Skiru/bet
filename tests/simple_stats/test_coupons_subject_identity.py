@@ -75,7 +75,14 @@ def _events() -> EventListV1:
 def _coupons(*rows):
     reset_competition_tier_cache()
     try:
-        return build_coupons(_sheet(*rows), _events(), not_before=None)
+        # Every test in this module is about *player identity* plumbing --
+        # which name resolves to which row -- and none about whether a prop is
+        # worth betting. ``ALLOW_PLAYER_PROPS`` is off by default since
+        # 2026-09-06 (see its comment), so the machinery under test has to be
+        # switched on explicitly or these assert on an empty file.
+        return build_coupons(
+            _sheet(*rows), _events(), not_before=None, allow_player_props=True
+        )
     finally:
         reset_competition_tier_cache()
 

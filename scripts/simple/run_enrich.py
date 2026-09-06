@@ -147,6 +147,11 @@ def main() -> None:
         # is not in force, so a fixture dropped for having no price would be
         # enriched after all. A fixture the *cap* skipped is a different matter
         # and is exactly what a backfill is for, so "capped" is retried.
+        #
+        # This holds even under ``--no-slate-gate``: that flag turns the gate
+        # off for *this* pass's own decisions, it does not re-open fixtures a
+        # previous pass already excluded. To re-enrich those, run without
+        # ``--backfill-from`` over an event list containing them.
         gate_refused = {
             dossier.event_id
             for dossier in prior.dossiers
@@ -155,10 +160,27 @@ def main() -> None:
                 for gap in dossier.data_gaps
             )
         }
+        # Readiness alone is the wrong test. A dossier can be READY and still
+        # be missing observations, because a provider call failed upstream and
+        # the gap was reported rather than retried -- and ``sample_size`` is
+        # what ``p_low`` is computed from, so those missing observations move
+        # the price bar. Measured 2026-09-05: Bucheon-Daejeon was READY with
+        # three bzzoiro UPSTREAM_ERRORs; re-running took corners_for from 8+9
+        # to 10+10 observations, p_low to 0.6874 on a 10/10 sweep, and put the
+        # row at the top of the coupon. Selecting on readiness alone had hidden
+        # a real bet behind a transient failure.
+        recoverable = {
+            dossier.event_id
+            for dossier in prior.dossiers
+            if any("UPSTREAM_ERROR" in str(gap) for gap in dossier.data_gaps)
+        }
         incomplete = {
             dossier.event_id
             for dossier in prior.dossiers
-            if dossier.readiness in ("BLOCKED", "PARTIAL")
+            if (
+                dossier.readiness in ("BLOCKED", "PARTIAL")
+                or dossier.event_id in recoverable
+            )
             and dossier.event_id not in gate_refused
         }
         # BLOCKED_IDENTITY events are dropped rather than retried: their problem
@@ -183,6 +205,7 @@ def main() -> None:
             prior_artifact=str(args.backfill_from),
             incomplete_before=len(incomplete),
             gate_refused_not_retried=len(gate_refused),
+            retried_for_upstream_error=len(recoverable),
             retryable_events=len(event_list.events),
         )
 

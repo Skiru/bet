@@ -548,7 +548,14 @@ def test_a_trivial_low_line_under_never_leads_the_file():
         team_name="Valencia",
     )
     real = _row(market="corners_total", p_low=0.61)
-    coupons = build_coupons(_sheet(trivial, real), _events(_event()))
+    # ``allow_player_props`` because this test is about the *trivial-under*
+    # demotion, which is a ranking rule, and the only trivial low-line UNDER in
+    # the vocabulary happens to be a prop. The prop gate is a separate policy
+    # (ALLOW_PLAYER_PROPS) with its own tests; switching it on here keeps this
+    # one measuring the thing it names.
+    coupons = build_coupons(
+        _sheet(trivial, real), _events(_event()), allow_player_props=True
+    )
     assert [s.market for s in coupons.singles] == ["corners_total", "player_cards"]
     assert any("niska linia" in c.lower() for c in coupons.singles[1].caveats)
     assert any("UNDER" in n for n in coupons.notes)

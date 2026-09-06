@@ -511,6 +511,87 @@ def _sample_dispersion(values: list[float]) -> float:
     return max(observed, mean)
 
 
+# How certain a count sample is ever allowed to make us.
+#
+# ``count_model_central`` is Phi applied to a normal approximation of a count.
+# Phi's tail decays like exp(-z^2/2); a real count's does not, and neither does
+# the error in the mean and variance the z was built from. So the far tail is
+# arithmetic, not evidence.
+#
+# Measured over the 42,857 settled sheet rows on the eight slates in ``runs/``
+# that claimed 0.95 or better: claimed 0.994, realised **0.950**. The gap is
+# monotone in how little the sample knows -- -0.052 at n<6, -0.000 at n>=20 --
+# and 19,770 of those rows are the degenerate case, a player with no recorded
+# offside/assist/tackle in n matches, for which the ``spread <= 0`` branch
+# returned a literal 1.0. Those realised 0.941, and flatly so: 0.903 at n=1 and
+# 0.967 at n=10. A sample of zeroes says the event is rare, which is true and
+# was already true before we looked; it does not say it cannot happen.
+#
+# So this is an empirical ceiling on a tail approximation, not a bound derived
+# from anything. It is set at what the rows past it actually realised, and the
+# floor is its mirror so the OVER and the UNDER at one rung still sum to 1.
+#
+# Applied to ``count_model_bound`` as well. There it is nearly a no-op on the
+# number that ships -- ``p_low`` is ``min(wilson, bound)`` and reached 0.95 on
+# **none** of those 283,147 rows -- but it keeps ``bound <= central`` true by
+# construction rather than by luck, which is what
+# ``test_computation_invariants`` asserts. The bound alone does cross 0.95: it
+# moves 15 of the frozen 2026-08-31 fixture's rows.
+MAX_COUNT_MODEL_PROBABILITY = 0.95
+
+
+def _clamp_count_probability(p: float) -> float:
+    """Keep a count-model probability inside what a count sample can support."""
+    return min(max(p, 1.0 - MAX_COUNT_MODEL_PROBABILITY), MAX_COUNT_MODEL_PROBABILITY)
+
+
+def _predictive_dispersion(values: list[float]) -> float:
+    """Variance of the *next* observation, not of the sample already seen.
+
+    ``_sample_dispersion`` answers "how spread out were these n matches". The
+    question a row actually asks is "how far from my estimate will match n+1
+    land", and that is a strictly larger number, because the centre being
+    measured from is itself estimated off the same n observations:
+
+        Var(X_new - mean_hat) = Var(X_new) + Var(mean_hat) = sigma^2 (1 + 1/n)
+
+    ``count_model_central`` used the first for the second for its whole
+    existence, so every ``p_central`` was computed as though the sample mean
+    were the true mean. That is overconfidence in **both** directions -- the
+    OVER and the UNDER at a given rung are each pushed away from 0.5 -- which
+    is why it hid: the two still summed to 1 and every invariant test passed.
+
+    Measured over 2,900 settled sheet rows on the eight slates in ``runs/``,
+    by comparing each row's realised count against its own sample mean:
+
+        market            median n   claimed sd   realised sd   ratio
+        goals_total             12         1.80          1.82   1.01
+        cards_points_total      12         2.24          2.25   1.00
+        fouls_total             12         5.58          5.47   0.98
+        corners_for              5         2.78          3.26   1.17
+        shots_for                5         5.22          5.87   1.12
+        games_won                5         4.39          5.16   1.18
+
+    The understatement appears exactly where n is small and vanishes where it
+    is not, and sqrt(1 + 1/5) = 1.095 accounts for most of the gap at n=5 --
+    the rest is the sample standard deviation's own downward bias at small n,
+    which this correction leaves alone. The 12-observation football totals need
+    no correction and barely get one; the 5-observation per-team and per-player
+    samples, which are where the coupon's losses concentrated, get 10%.
+
+    ``count_model_bound`` deliberately does **not** use this. It handles the
+    same estimation error a different and cruder way -- it shifts the centre
+    1.96 standard errors against the bet -- and applying both would charge for
+    the same uncertainty twice. ``p_low`` already realises 24-35 points above
+    its own claim; it does not need more conservatism, and ``p_central`` was
+    never meant to carry any.
+    """
+    n = len(values)
+    if n < 2:
+        return _sample_dispersion(values)
+    return _sample_dispersion(values) * (1.0 + 1.0 / n)
+
+
 def _winning_boundary(line: float, direction: str) -> float:
     """The half-integer a count must clear for this bet to settle as a win.
 
@@ -560,15 +641,15 @@ def count_model_central(
     if not values:
         return 0.0
     mean = statistics.fmean(values) if centre is None else centre
-    spread = _sample_dispersion(values) ** 0.5
+    spread = _predictive_dispersion(values) ** 0.5
     boundary = _winning_boundary(line, direction)
     if spread <= 0:
         inside = boundary > mean if direction == "UNDER" else boundary < mean
-        return 1.0 if inside else 0.0
+        return _clamp_count_probability(1.0 if inside else 0.0)
     z = (boundary - mean) / spread
     if direction == "OVER":
         z = -z
-    return _standard_normal_cdf(z)
+    return _clamp_count_probability(_standard_normal_cdf(z))
 
 
 def count_model_bound(
@@ -626,11 +707,11 @@ def count_model_bound(
     boundary = _winning_boundary(line, direction)
     if spread <= 0:
         inside = boundary > centre if direction == "UNDER" else boundary < centre
-        return 1.0 if inside else 0.0
+        return _clamp_count_probability(1.0 if inside else 0.0)
     z = (boundary - centre) / spread
     if direction == "OVER":
         z = -z
-    return _standard_normal_cdf(z)
+    return _clamp_count_probability(_standard_normal_cdf(z))
 
 
 def _standard_normal_cdf(z: float) -> float:

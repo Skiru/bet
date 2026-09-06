@@ -644,6 +644,41 @@ offer alone. MARKET_CONTEXT now says so
 — read `tennis_model_unavailable` off its `AGENT_SUMMARY` and quote it under
 *Czego zabrakło*. An empty list means the column was genuinely consulted.
 
+## Step 4bis — what can be bet, and what is worth it — agent `superbet-market-matcher`
+
+Not on the unattended path — nothing in Step 6 reads its output — but run it
+on any day you intend to actually place from, and always before answering the
+operator's question "co dziś warto".
+
+It answers two questions the rest of the pipeline answers only implicitly, and
+keeps them apart: **co można postawić** (is the fixture on the board, the
+market on that fixture, the direction posted, the scope expressible, both
+sides quoted) and **co warto postawić** (the bar as `coupons.bar_for` computed
+it, the surplus, and the six structural discounts a surplus does not show).
+
+Hand it the date, and either the whole day or the specific rows you care
+about. Three things it will tell you that no artifact states on its own:
+
+* **We read about a tenth of Superbet's screen** (median football fixture posts
+  161 markets; we retain a name for about 10). It will never write "Superbet
+  nie wystawia" — only "nie ma tego w naszym odczycie oferty".
+* **Which promoted families the settled record does not cover at all** —
+  `settle.py` has no player-prop path, and `runs/_backtest_actuals.json` is 392
+  football fixtures with no tennis actuals ever fetched, so the +23.5pp `p_low`
+  calibration speaks only for football team counting markets. It also reads the
+  *scope* of each method rule: §8 is a Bet Builder final-leg rule, **not** a ban
+  on singles, and it says so rather than flagging every `goals_total` single as
+  a violation.
+* **The player-prop dead end, correctly diagnosed**: Superbet posts props
+  OVER-only, our generator emits *more OVER than UNDER*, but only 1.5% of OVER
+  prop rows clear the `p_low ≥ 0.50` floor against 51.7% of UNDER rows — so the
+  direction we can price is the one the book will not post, and 0.7–1.4% of prop
+  rows ever reach a price. A tension with our own floor, not a generator defect.
+
+It computes no `p_low`, emits no veto, prices no parlay and sizes no stake. A
+row it grades `NIE WARTE` or `NA GRANICY` is an argument for the relevant
+sport analyst to re-read, not a licence to edit the coupon by hand.
+
 ## Step 5bis — Read the tipsters — agent `tipster-reader`
 
 Free, no quota, one agent call. Skip it and the coupon's *Typerzy* column keeps

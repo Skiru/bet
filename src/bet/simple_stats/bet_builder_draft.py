@@ -156,6 +156,19 @@ class AnalystVeto(StrictBaseModel):
     ] = "OTHER"
 
 
+def scope_sibling(market: str) -> str | None:
+    """The same metric read at the other scope: ``X_for`` <-> ``X_total``.
+
+    Used only to *report*, never to widen a veto. See
+    ``coupons.unreviewed_sibling_note``.
+    """
+    if market.endswith("_for"):
+        return market[: -len("_for")] + "_total"
+    if market.endswith("_total"):
+        return market[: -len("_total")] + "_for"
+    return None
+
+
 class VetoIndex:
     """The analyst's vetoes, resolved per row, most specific first.
 
@@ -290,7 +303,69 @@ TIER_MARGIN: dict[str, float] = {"CALL": 1.05, "LEAN": 1.10}
 # ``p_low`` remains selectable and remains the honest thing to compare against;
 # ``scripts/simple/backtest_slate.py`` still defaults to it so its baseline
 # keeps meaning what it meant.
-BAR_BASES: tuple[str, ...] = ("p_central", "p_low")
+BAR_BASES: tuple[str, ...] = ("p_central", "p_low", "p_interval_mid")
+
+
+# The basis is per *family*, and the reason is that the two families are not
+# equally anchored.
+#
+# ``p_central`` is exact on team and match markets and badly wrong on player
+# props. Measured 2026-09-06 by settling every priced candidate row on the six
+# slates that have a Superbet offer, with player props settled for the first
+# time (``/events/{id}/player-stats/``, see ``settle.player_value``):
+#
+#     family              n     claimed   realised   error
+#     team / match       434    0.899     0.896      +0.3pp
+#     player props        78    0.840     0.718     +12.2pp
+#
+# and the props returned -15.9% at flat stakes while everything else returned
+# +0.4%. The overstatement grows as the sample shrinks -- +17pp at n<10 against
+# +7pp at n>=10 -- which is the signature of estimator error, not of a bad
+# model.
+#
+# Why only props. Every correction this pipeline has for estimator error runs
+# through the *market*: ``bar_components`` shrinks toward the devigged price,
+# ``off_ladder`` demotes a sample whose centre is nowhere near the book's,
+# ``MAX_MARKET_DISAGREEMENT`` annotates. All three need both sides of a line to
+# be posted. **Superbet posts no player prop two-sided** -- 21,340 of the
+# 29,212 lines on the 2026-09-05 board are props and not one of them has an
+# UNDER, against 87-100% two-sided for every team market -- so a prop arrives
+# at the bar with ``market_probability`` None, ``sample_weight`` None,
+# ``ladder_sigma`` None and ``market_disagreement`` None. It is the one family
+# that bypasses every gate the pipeline owns, and it is the one family whose
+# probability is measurably wrong.
+#
+# With no market to shrink toward, the sample's own interval has to do the job.
+# ``p_low`` is the Wilson bound at z=1.96, so the midpoint of ``p_central`` and
+# ``p_low`` is the point estimate less about one standard error -- the same
+# haircut the market prior applies elsewhere, taken from the sample instead.
+# On the same 78 rows it lands at 0.719 claimed against 0.718 realised.
+#
+#     basis on props          claimed   realised   error
+#     p_central (shipped)     0.840     0.718     +12.2pp
+#     interval midpoint       0.719     0.718      +0.1pp
+#     p_low                   0.598     0.718     -12.0pp
+#
+# The claim being made here is about **calibration**, which is what the bar is
+# derived from and which rests on all 78 rows. It is not a claim about return:
+# the midpoint cuts the bettable props from 20 to 5 and those 5 returned 0.0%,
+# which is far too thin to argue from either way.
+BAR_BASIS_BY_FAMILY: dict[str, str] = {"player": "p_interval_mid"}
+
+
+def bar_basis_for_row(row, basis: str) -> str:
+    """The basis this row is actually priced on.
+
+    ``basis`` is the run-wide choice (the ``--bar-basis`` arm); a family with an
+    entry above overrides it. ``p_low`` is never overridden -- it is the
+    tighter bar and an arm that asked for it must get it, or the comparison it
+    exists to make stops meaning anything.
+    """
+    if basis == "p_low":
+        return basis
+    if getattr(row, "player_id", None) or getattr(row, "player_name", None):
+        return BAR_BASIS_BY_FAMILY.get("player", basis)
+    return basis
 
 
 # The two caps on the bar's *input*, and why the bar needed them at all.
@@ -332,6 +407,10 @@ BAR_ZERO_MISS_N = 8
 
 BAR_REASON_LAPLACE = "ZERO_MISS_LAPLACE_CAP"
 BAR_REASON_SMALL_SAMPLE = "SMALL_SAMPLE_P_LOW"
+# Printed on every player-prop row so the operator can see that its bar was
+# built from a different basis than the team rows above it, rather than
+# wondering why an 88% sample is being asked to pay 1.55.
+BAR_REASON_INTERVAL_MID = "PROP_INTERVAL_MIDPOINT"
 
 
 def laplace_rate(hits: int, sample_size: int) -> float | None:
@@ -351,7 +430,13 @@ def bar_input(row: StatsSheetRow, basis: str = "p_low") -> tuple[float, str | No
     This is the sample's own claim after the two caps and before the market
     prior; ``bar_components`` is what actually feeds ``required_odds``.
     """
-    if basis == "p_central" and row.p_central is not None:
+    basis = bar_basis_for_row(row, basis)
+    if basis == "p_interval_mid" and row.p_central is not None:
+        # Halfway between the point estimate and its own Wilson bound. Both
+        # caps below still apply: a sample with no miss is still Laplace-capped
+        # and a thin one still cannot claim more than ``p_low``.
+        chosen, reason = (row.p_central + row.p_low) / 2.0, BAR_REASON_INTERVAL_MID
+    elif basis == "p_central" and row.p_central is not None:
         chosen, reason = row.p_central, None
     else:
         # ``p_low`` is already the tighter bar and already the honest statement
@@ -416,6 +501,87 @@ _LENGTH_DEPENDENT_TENNIS_MARKETS = frozenset(
 )
 
 
+# What the sheet's own opinion of a player prop is measured to be worth once
+# the book has decided to post that prop.
+#
+# Player props are the one family with **no market anchor at all**. Superbet
+# posts props OVER-only, so ``devigged_probability`` returns None, so
+# ``bar_components`` returns before the shrink and the market prior never
+# applies. Measured over every prop the pipeline has ever shipped as a single:
+# 0 of 12 carried a readable market probability and ``sample_weight`` is None
+# on all 12. The defence that exists precisely for a sample that is wrong about
+# a fixture has never once run on this family.
+#
+# What that costs, measured 2026-09-06 by joining every prop row on the five
+# slates with an offer artifact to its own posted price and settling it against
+# the box scores -- 19,154 priced rows over 85 fixtures, the family's first
+# price measurement of any kind:
+#
+#     p_central bucket    ALL props            PRICED props
+#     [0.50,0.60)         n=15178  -0.010      n=1421  -0.125
+#     [0.60,0.70)         n=12852  -0.004      n=1012  -0.133
+#     [0.70,0.80)         n=10867  -0.006      n= 623  -0.132
+#     [0.80,0.90)         n=10369  -0.005      n= 270  -0.132
+#
+# Props in general are calibrated to within a point. Props **the book chooses
+# to post** run 12-13 points under their claim, at every level of confidence,
+# in all seven prop markets. In the band the coupon actually bets
+# (p_central 0.50-0.80) that is a realised ROI of **-30.5%**, clustered CI
+# [-34.0%, -27.1%], against -6% to -14% for the team and match markets on the
+# same slates.
+#
+# The mechanism is playing time, which this pipeline does not model: the gap is
+# -0.36 for players who saw under 30 minutes, -0.18 for 30-70, and -0.08 for
+# 70+. There is no pre-match filter that recovers it -- rows on a *confirmed*
+# lineup measured worse (-0.254, n=280) than rows on a predicted one (-0.117,
+# n=2776), so "wait for the teamsheet" is not the answer either.
+#
+# Subtracted from the probability rather than multiplied into the margin
+# because that is the shape of the thing measured: a constant offset in
+# probability across four buckets, not a proportional one. Shrinking toward
+# ``1/price`` instead would not work and is worth saying why -- on a one-way
+# market the posted price carries the whole margin, so ``1/price`` (0.610 in
+# band) is *itself* above the realised 0.488, and pulling toward it would move
+# the bar the wrong way.
+#
+# This is a fitted constant and the only one in this file. It is set at the
+# bottom of the four measured buckets rather than their mean, so it corrects
+# less than the measurement says it should.
+#
+# **What it does and does not do, measured rather than assumed.** Replaying the
+# 3,494 priced prop rows that cleared a LEAN bar without it: 596 of them are in
+# the coupon's band at -36.2%. With it, 284 remain -- and those 284 return
+# **-36.7%**. The penalty halves the exposure and does not improve the rows it
+# keeps, because the 12-13 point bias is flat across the range rather than
+# concentrated near the bar, so cutting the bar harder removes rows roughly at
+# random with respect to outcome.
+#
+# That is worth having -- half the stake on a family measured at -30% is half
+# the loss -- and it is not a fix. The honest reading of the measurement is
+# that **no player prop clears a bar at Superbet's posted prices**: breaking
+# even in band needs a price of about 2.05 and the mean posted price is 1.64.
+# What would change that is a playing-time model, which is the mechanism the
+# split by minutes points at, and this repo does not have one. Until then a
+# prop on the file is a row to look at, not a row to take, and the operator
+# should be told so in those words rather than shown a corrected bar that
+# implies the survivors are sound.
+PLAYER_PROP_BIAS = 0.125
+
+
+def unanchored_prop_penalty(row: StatsSheetRow, market_probability: float | None) -> float:
+    """How far to mark down a prop the book has posted and we cannot devig.
+
+    Zero for everything else, and zero for a prop that somehow *does* carry a
+    devigged market probability -- there the ordinary shrink applies and this
+    correction would charge for the same defect twice.
+    """
+    if not row.market.startswith("player_"):
+        return 0.0
+    if market_probability is not None and 0.0 < market_probability < 1.0:
+        return 0.0
+    return PLAYER_PROP_BIAS
+
+
 def shrink_k_for_market(market: str) -> float:
     """How many observations this market's own price is worth."""
     if market in _LENGTH_DEPENDENT_TENNIS_MARKETS:
@@ -465,6 +631,15 @@ def bar_components(
     """
     p_bar, reason = bar_input(row, basis)
     if market_probability is None or not 0.0 < market_probability < 1.0:
+        penalty = unanchored_prop_penalty(row, market_probability)
+        if penalty:
+            # Floored well above zero: the bar is 1/p, so a probability allowed
+            # near zero becomes an infinite price and the row silently leaves
+            # the file. It should be *hard* to clear, not impossible to show.
+            corrected = max(p_bar - penalty, 0.05)
+            return BarComponents(
+                corrected, p_bar, reason or "PLAYER_PROP_UNANCHORED", None, None
+            )
         return BarComponents(p_bar, p_bar, reason, None, None)
 
     if force_weight is not None:
@@ -717,6 +892,71 @@ def _is_nested(market_a: str, market_b: str) -> bool:
     return whole_a is not None and whole_a == whole_b
 
 
+class Accumulator(NamedTuple):
+    """One cross-match accumulator, priced.
+
+    ``legs`` is how many singles were combined, ``probability`` the chance all
+    of them land, ``required_odds`` the price the screen must show to make it
+    worth taking, and ``offered_odds`` the product of the legs' own Superbet
+    prices -- which is what the screen will in fact show, because a book prices
+    a cross-match parlay as exactly that product.
+    """
+
+    legs: int
+    probability: float
+    required_odds: float
+    offered_odds: float | None
+    surplus: float | None
+
+
+def accumulator(
+    probabilities: list[float], prices: list[float | None], margin: float
+) -> Accumulator | None:
+    """The arithmetic for combining singles **from different fixtures**.
+
+    Why this exists, and why it is not the thing the module refuses to do.
+    ``BetBuilderDraft.combined_price`` stays None because a *same-fixture* Bet
+    Builder is priced by Superbet with an unobservable combination margin. A
+    cross-match accumulator has no such margin: the book multiplies the leg
+    prices, and so can we.
+
+    The independence assumption is the measured one, taken conservatively.
+    Legs in *one* match land together 1.009x as often as independence implies
+    (12,555 pairs, 95% CI [1.005, 1.013]); legs in *different* matches share
+    less still -- no referee, no pitch, no game state -- so lambda is taken as
+    exactly 1.0. If the true figure is above 1.0 the accumulator is slightly
+    better than stated, which is the safe direction for a bar.
+
+    The operator was combining these rows long before anything computed this.
+    On 2026-09-05 five singles off that day's file went on one slip at 8.61:
+    each leg was worth its price, the slip's own probability was 0.195, and the
+    file it came from printed neither that number nor anything from which it
+    could be read -- only ``p_low`` per leg, which understates by ~22pp and
+    would have implied 0.072. Losing a one-in-five is not evidence of a broken
+    sheet, and the file has to be able to say so.
+    """
+    if len(probabilities) < 2:
+        return None
+    joint = 1.0
+    for value in probabilities:
+        if not 0.0 < value <= 1.0:
+            return None
+        joint *= value
+    required = margin / joint
+    offered: float | None = None
+    if prices and len(prices) == len(probabilities) and all(p for p in prices):
+        offered = 1.0
+        for price in prices:
+            offered *= float(price)  # type: ignore[arg-type]
+    return Accumulator(
+        legs=len(probabilities),
+        probability=round(joint, 6),
+        required_odds=round(required, 4),
+        offered_odds=round(offered, 4) if offered is not None else None,
+        surplus=round(offered - required, 4) if offered is not None else None,
+    )
+
+
 def correlation_lambda(legs: list["BetBuilderLeg"]) -> float:
     """The measured joint-hit uplift for this particular set of legs.
 
@@ -783,6 +1023,13 @@ class BetBuilderLeg(StrictBaseModel):
     direction: Literal["OVER", "UNDER"]
     team_name: str | None = None
     player_name: str | None = None
+    # The provider's own player id, carried so a prop leg can be settled.
+    # Without it a leg could only be resolved against a box score by surname,
+    # which is the ambiguity ``coupons._ambiguous_player_names`` already
+    # refuses on the singles -- so before this field existed every prop leg of
+    # every Bet Builder was permanently NO_DATA. None on sheets recorded
+    # before 2026-09-06 and on any leg whose subject is a team.
+    player_id: str | None = None
     tier: Tier
     p_low: float
     # The sheet's own centre, carried so a slip's joint probability can be
@@ -1355,6 +1602,7 @@ def draft_legs(
                 direction=row.direction,
                 team_name=row.team_name,
                 player_name=row.player_name,
+                player_id=row.player_id,
                 tier=tier,
                 p_low=row.p_low,
                 p_central=row.p_central,

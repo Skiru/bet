@@ -94,3 +94,82 @@ def load_market_context(path: Path) -> tuple["MarketContextV1", list[str]]:
     # Still strict about everything else: this widens the door for fields the
     # schema *used* to have, not for an artifact that is simply wrong.
     return MarketContextV1.model_validate(raw), sorted(dropped)
+
+
+def load_event_dossiers(path: Path) -> tuple["EventDossierListV1", list[str]]:
+    """Read an EVENT_DOSSIER_LIST_V1 artifact whose provider vocabulary has moved on.
+
+    Returns the dossiers and the names of any retired providers whose
+    observations were dropped to make the file readable.
+
+    Same failure as ``load_market_context``, same removal, one artifact further
+    down -- and it went unnoticed for four days because only the ``--rebuilt``
+    arm of ``backtest_slate.py`` reads a dossier back. Taking bzzoiro-tennis out
+    of ``PROVIDER_NAMES`` on 2026-09-02 made ``runs/2026-08-29``'s dossiers
+    unparseable (824 validation errors), so *that slate could not be replayed at
+    all*: any measurement of a code change against it silently ran on seven days
+    instead of eight, and the run printed "unavailable" to stderr among the
+    coverage gaps.
+
+    Dropping the observations rather than the metric is what keeps the replay
+    honest. A retired provider's readings are exactly what a rebuild must not
+    reuse -- the whole reason the provider was retired -- while the matches the
+    surviving providers reported are still evidence, so a metric left with a
+    smaller sample is the correct answer and a metric deleted outright is not.
+    A metric emptied of every observation is removed, because an empty sample is
+    not a sample.
+
+    Widening ``PROVIDER_NAMES`` instead would have been the smaller diff and the
+    wrong one: it is the same list a *live* ENRICH validates against, so a name
+    re-added for the benefit of a two-week-old artifact is a name a live run can
+    write again.
+    """
+    from bet.simple_stats.contracts import EventDossierListV1, PROVIDER_NAMES
+    from typing import get_args
+
+    raw_text = Path(path).read_text(encoding="utf-8")
+    try:
+        return EventDossierListV1.model_validate_json(raw_text), []
+    except ValueError:
+        pass
+
+    known = set(get_args(PROVIDER_NAMES))
+    raw = json.loads(raw_text)
+    dropped: set[str] = set()
+    for dossier in raw.get("dossiers") or []:
+        for container_key in ("metrics", "player_metrics"):
+            container = dossier.get(container_key)
+            entries = (
+                container.values()
+                if isinstance(container, dict)
+                else container if isinstance(container, list) else []
+            )
+            empty: list[object] = []
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                seen_any = False
+                for bucket_key, bucket in list(entry.items()):
+                    if not isinstance(bucket, list):
+                        continue
+                    kept = []
+                    for observation in bucket:
+                        provider = (
+                            observation.get("provider")
+                            if isinstance(observation, dict)
+                            else None
+                        )
+                        if provider is not None and provider not in known:
+                            dropped.add(str(provider))
+                            continue
+                        kept.append(observation)
+                    entry[bucket_key] = kept
+                    seen_any = seen_any or bool(kept)
+                if not seen_any:
+                    empty.append(entry)
+            if isinstance(container, dict) and empty:
+                for name in [k for k, v in container.items() if v in empty]:
+                    del container[name]
+            elif isinstance(container, list) and empty:
+                dossier[container_key] = [e for e in container if e not in empty]
+    return EventDossierListV1.model_validate(raw), sorted(dropped)

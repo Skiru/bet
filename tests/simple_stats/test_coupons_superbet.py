@@ -419,6 +419,7 @@ def test_a_prop_whose_player_the_book_does_not_price_is_labelled_as_ours():
             source_market_name="Zawodnik - liczba strzałów",
             source_outcome_name="poniżej 1.5",
         )),
+        allow_player_props=True,
     )
     assert coupons.singles[0].superbet_availability == "PLAYER_NOT_MATCHED"
 
@@ -432,6 +433,7 @@ def test_a_prop_market_the_book_prices_for_nobody_is_the_books_gap():
                     lineup_status="predicted")),
         _events(_event()),
         superbet_offer=_offer(_line()),
+        allow_player_props=True,
     )
     assert coupons.singles[0].superbet_availability == "MARKET_NOT_OFFERED"
 
@@ -451,6 +453,7 @@ def test_a_prop_the_book_prices_reaches_the_coupon_with_that_price():
                     lineup_status="confirmed")),
         _events(_event()),
         superbet_offer=_offer(prop_line),
+        allow_player_props=True,
     )
     assert coupons.singles[0].superbet_availability == "OFFERED"
     assert coupons.singles[0].superbet_price == 2.10

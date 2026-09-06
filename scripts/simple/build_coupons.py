@@ -39,8 +39,10 @@ from bet.simple_stats.contracts import (  # noqa: E402
     TipsterSignalV1,
 )
 from bet.simple_stats.bet_builder_draft import (  # noqa: E402
+    TIER_MARGIN,
     _CORRELATED_FOOTBALL_FAMILY,
     _CORRELATED_TENNIS_FAMILY,
+    accumulator,
 )
 from bet.simple_stats.coupons import (  # noqa: E402
     AnalystVeto,
@@ -146,6 +148,19 @@ _NEW_GATE_LABELS: dict[str, str] = {
     "competition_youth_or_friendly": "rozgrywki młodzieżowe/towarzyskie",
     "ambiguous_player_name": "dwóch zawodników o tym samym nazwisku",
     "p_low_not_positive": "p_low = 0",
+    "player_prop_unpriceable": (
+        "prop zawodnika — rodzina wyłączona z kuponu (zmierzone -30.5% ROI)"
+    ),
+    # The slip path's own three. They were as invisible as the prop gate and for
+    # longer -- the filter hid every reason it had no phrase for, and nobody had
+    # written phrases for these. Found 2026-09-06 by the test that now parses
+    # ``coupons.py``'s ``exclude(...)`` calls instead of trusting this dict to
+    # be complete.
+    "kickoff_passed_slip": "Bet Builder: mecz już się rozpoczął",
+    "duplicate_fixture_for_slip": "Bet Builder: ten sam mecz już ma kupon",
+    "competition_youth_or_friendly_slip": (
+        "Bet Builder: rozgrywki młodzieżowe/towarzyskie"
+    ),
 }
 
 
@@ -186,16 +201,27 @@ def _render_bar_basis(a, coupons: CouponSet) -> None:
         "szczeblu. Minimalny kurs = margines tieru / `p_shrunk`."
     )
     a("")
+    # **Every** reason with a count, not only the ones this module has a phrase
+    # for. Filtering on ``reason in _NEW_GATE_LABELS`` made an unlabelled gate
+    # invisible, which is the exact failure this section exists to prevent: on
+    # 2026-09-06 ``player_prop_unpriceable`` removed 38,691 rows -- 38% of the
+    # sheet -- and the header listed seven gates and not that one. A file
+    # thinner than yesterday's is either a quiet day or a new gate, and the
+    # operator could not tell which.
+    #
+    # An unlabelled reason prints its raw key. Ugly on purpose: that is what
+    # gets it noticed and labelled, where silence is self-concealing.
     removed = {
         reason: count
         for reason, count in sorted(coupons.excluded.items())
-        if reason in _NEW_GATE_LABELS and count
+        if count
     }
     if removed:
         a("**Bramki, które usunęły wiersze:**")
         a("")
         for reason, count in removed.items():
-            a(f"- `{reason}` ×{count} — {_NEW_GATE_LABELS[reason]}")
+            label = _NEW_GATE_LABELS.get(reason)
+            a(f"- `{reason}` ×{count}" + (f" — {label}" if label else ""))
         a("")
 
 
@@ -251,6 +277,95 @@ def _render_alternative_rungs(a, coupons: CouponSet) -> None:
             f"vs {single.rung_score:+.3f} dla wybranego szczebla)"
         )
     a("")
+
+
+# How many legs the accumulator table goes up to. Six because the operator's
+# own slips run to five and the seventh line of a table nobody reads is noise;
+# the arithmetic itself has no limit.
+_ACCUMULATOR_MAX_LEGS = 6
+
+
+def _accumulator_block(worth_it: list) -> list[str]:
+    """The table the file was missing: what happens when these are combined.
+
+    Every single above is priced as a single, and the operator does not bet
+    them as singles. The note this section replaces said the combined price
+    "is not computed and cannot be" -- true of a same-fixture Bet Builder,
+    whose combination margin is unobservable, and simply false of a
+    cross-match accumulator, which the book prices as the product of its legs.
+    The consequence was that the one number describing the bet actually being
+    placed appeared nowhere, and the only per-leg figure on the page was
+    ``p_low``, which understates by about 22 points.
+
+    One fixture contributes at most one leg. Two rows off one match are
+    positively correlated and Superbet will not take them on an accumulator
+    anyway; taking the better-priced row of each fixture is both the honest
+    arithmetic and the slip the operator could actually place.
+    """
+    best_per_fixture: dict[str, object] = {}
+    for row in worth_it:
+        if row.bar_probability is None or not row.superbet_price:
+            continue
+        incumbent = best_per_fixture.get(row.event_id)
+        if incumbent is None or row.rung_score is None:
+            best_per_fixture.setdefault(row.event_id, row)
+            continue
+        if (incumbent.rung_score or 0) < row.rung_score:
+            best_per_fixture[row.event_id] = row
+    legs = sorted(
+        best_per_fixture.values(),
+        key=lambda r: -((r.bar_probability or 0) * (r.superbet_price or 0)),
+    )
+    if len(legs) < 2:
+        return []
+    out = ["", "#### Gdy złożysz je w kupon (różne mecze)", ""]
+    out.append(
+        "> Kurs łączny kuponu z **różnych** meczów to iloczyn kursów nóg — "
+        "bukmacher liczy go dokładnie tak i tutaj też tak jest policzony. "
+        "To nie jest Bet Builder: tam marża za połączenie jest nieobserwowalna "
+        "i dlatego jej nie liczymy. Nogi z różnych meczów przyjmujemy za "
+        "niezależne (λ=1.0); zmierzone λ dla nóg w **jednym** meczu to 1.009, "
+        "a osobne mecze dzielą jeszcze mniej — gdyby prawdziwe λ było wyższe, "
+        "kupon byłby odrobinę lepszy niż poniżej, nie gorszy."
+    )
+    out.append(">")
+    out.append(
+        "> **Prawdopodobieństwo to iloczyn, więc spada szybko.** Każda noga "
+        "z osobna może być warta swojej ceny i kupon nadal przegrywa "
+        "w większości przypadków — to nie jest usterka arkusza, tylko "
+        "arytmetyka. Kolumna „raz na” mówi, jak często taki kupon wchodzi."
+    )
+    out.append("")
+    out.append("| Nóg | P(wszystkie) | raz na | Kurs z ekranu | Min. kurs | Zapas |")
+    out.append("|----:|-------------:|-------:|--------------:|----------:|------:|")
+    for count in range(2, min(_ACCUMULATOR_MAX_LEGS, len(legs)) + 1):
+        chosen = legs[:count]
+        margin = max(TIER_MARGIN[row.tier] for row in chosen)
+        acc = accumulator(
+            [row.bar_probability for row in chosen],
+            [row.superbet_price for row in chosen],
+            margin,
+        )
+        if acc is None:
+            continue
+        offered = f"{acc.offered_odds:.2f}" if acc.offered_odds is not None else "—"
+        surplus = f"{acc.surplus:+.2f}" if acc.surplus is not None else "—"
+        out.append(
+            f"| {acc.legs} | {acc.probability:.1%} | {1 / acc.probability:.1f} | "
+            f"**{offered}** | {acc.required_odds:.2f} | {surplus} |"
+        )
+    out.append("")
+    out.append(
+        "Nogi brane po kolei od najlepszej wartości oczekiwanej, po jednej "
+        "z meczu: "
+        + " · ".join(
+            f"{row.match.split(' – ')[0]} {row.market_label} {row.line} "
+            f"{row.direction} @{row.superbet_price:.2f}"
+            for row in legs[: min(_ACCUMULATOR_MAX_LEGS, len(legs))]
+        )
+    )
+    out.append("")
+    return out
 
 
 def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
@@ -335,6 +450,8 @@ def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
             a("")
         else:
             _render_singles(worth_it)
+            for line in _accumulator_block(worth_it):
+                a(line)
 
         a(f"### Poniżej progu — cena nie uzasadnia zakładu ({len(below)})")
         a("")

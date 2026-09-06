@@ -50,9 +50,12 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
 from bet.api_clients import get_client  # noqa: E402
 from bet.api_clients.rate_limiter import RateLimiter  # noqa: E402
 from bet.simple_stats.analyze import analyze_dossiers  # noqa: E402
-from bet.simple_stats.artifact_io import load_market_context, write_json_atomic  # noqa: E402
+from bet.simple_stats.artifact_io import (  # noqa: E402
+    load_event_dossiers,
+    load_market_context,
+    write_json_atomic,
+)
 from bet.simple_stats.contracts import (  # noqa: E402
-    EventDossierListV1,
     EventListV1,
     MarketContextV1,
     StatsSheetV1,
@@ -190,6 +193,42 @@ def _fetch_one(client, bzz_id: str) -> tuple[dict, list[str]]:
         actuals["away"]["goals_1h_for"] = goals["__away_goals_1h"]
         actuals["home"]["goals_2h_for"] = goals["__home_goals"] - goals["__home_goals_1h"]
         actuals["away"]["goals_2h_for"] = goals["__away_goals"] - goals["__away_goals_1h"]
+    # Player box scores, one request for the whole fixture. This is what makes
+    # a prop settleable at all: ``/events/{id}/stats/`` has no player block, so
+    # every ``player_*`` row on every slate had returned NO_DATA since this
+    # script was written -- 6 of the 15 singles shipped on 2026-09-05 among
+    # them, and 15 of the 37 rows ever marked VALUE.
+    #
+    # ``/events/{id}/player-stats/`` is the opposite cut from the one the prop
+    # *sample* is built from: N players across one match, rather than one
+    # player across N matches. That is the wrong shape for building a sample
+    # (see ``get_event_player_stats_result``) and exactly the right one for
+    # settling a slate, where the fixtures are few and the players in them
+    # many. One call per fixture, cached to disk with the rest of the actuals.
+    #
+    # A failure here is a gap and never an exception: the counting markets for
+    # this fixture are already in hand and must still settle.
+    try:
+        players = client.get_event_player_stats_result(bzz_id)
+        rows = (players.value or {}).get("players") or []
+    except Exception as exc:  # noqa: BLE001
+        rows = []
+        gaps.append(f"{bzz_id}: player-stats error: {exc}")
+    box: dict[str, dict[str, float]] = {}
+    for row in rows:
+        pid = str(row.get("provider_player_id") or "").strip()
+        if not pid:
+            continue
+        box[pid] = {
+            key: float(value)
+            for key, value in row.items()
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+        }
+    # Assigned even when empty: the key's presence is what tells
+    # ``_cache_entry_is_current`` this entry was built by the player-aware
+    # fetcher, so a fixture that genuinely published no box scores is recorded
+    # as answered rather than refetched on every run forever.
+    actuals["players"] = box
     if not any(actuals.values()):
         gaps.append(f"{bzz_id}: no statistics and no score")
         return {}, gaps
@@ -212,6 +251,12 @@ def _cache_entry_is_current(entry: dict) -> bool:
     if not isinstance(total, dict):
         return True
     if "cards_total" in total and "cards_points_total" not in total:
+        return False
+    # Every entry written before 2026-09-06 predates the player block. Without
+    # this the props would keep answering NO_DATA out of the cache for exactly
+    # the older slates, which is the shape of bias the note above describes --
+    # and this time it would hide the only measurement the family has ever had.
+    if "players" not in entry:
         return False
     return True
 
@@ -388,6 +433,111 @@ def fetch_tennis_actuals(
 # --------------------------------------------------------------- coupons
 
 
+def settle_slips(
+    coupons: CouponSet, events: EventListV1, actuals_by_event: dict[str, dict]
+) -> list[dict]:
+    """One record per Bet Builder **slip** -- the unit the operator actually stakes.
+
+    ``settle_slip_legs`` settles each leg as if it were an independent single,
+    which is the right way to grade the *drafter's claims* and the wrong way to
+    grade the *bet*: a slip pays nothing unless every leg lands, so 87.6% at the
+    leg level and 68.4% at the slip level are both true and only the second one
+    is the thing being bought.
+
+    Nothing had ever computed the second. Measured the first time this ran, over
+    the eight slates in ``runs/``: 39 of 57 fully settleable slips had every leg
+    land, and a four-leg slip -- the drafter's usual shape -- landed 29 times in
+    43 and therefore needs a combined price of 1.48 to break even.
+
+    ``claimed`` is the file's own ``draft.joint_probability`` and is the number
+    this measurement exists to check. It is None on a slip drafted before that
+    field existed, which is most of the archive; those slips still settle and
+    are simply absent from the calibration line.
+
+    A slip with any unsettleable leg is reported ``NO_DATA`` as a whole rather
+    than scored on the legs that did settle -- an unknown leg makes the product
+    unknown, and dropping it would silently grade a four-leg slip as a three.
+    """
+    by_id = {e.event_id: e for e in events.events}
+    out: list[dict] = []
+    for slip in coupons.slips:
+        event = by_id.get(slip.event_id)
+        actuals = actuals_by_event.get(slip.event_id)
+        draft = slip.draft
+        legs = list(draft.legs) if draft is not None else []
+        record = {
+            "event_id": slip.event_id,
+            "match": slip.match,
+            "slip_rank": slip.rank,
+            "legs": len(legs),
+            "claimed": getattr(draft, "joint_probability", None),
+            "min_combined_odds": getattr(draft, "min_acceptable_combined_odds", None),
+            "legs_priced_separately": getattr(draft, "legs_priced_separately", None),
+            "correlation_risk": getattr(draft, "correlation_risk", None),
+            "builder_score": getattr(draft, "builder_score", None),
+        }
+        if event is None or actuals is None or not legs:
+            out.append({**record, "outcome": "NO_DATA", "legs_won": None})
+            continue
+        outcomes = []
+        for leg in legs:
+            outcome, _ = settle_row(
+                market=leg.market, line=leg.line, direction=leg.direction,
+                actuals=actuals, team_name=leg.team_name,
+                home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
+                player_id=leg.player_id,
+            )
+            outcomes.append(outcome)
+        if any(o == "NO_DATA" for o in outcomes):
+            out.append({**record, "outcome": "NO_DATA",
+                        "legs_won": sum(1 for o in outcomes if o in ("WON", "PUSH"))})
+            continue
+        landed = all(o in ("WON", "PUSH") for o in outcomes)
+        out.append({
+            **record,
+            "outcome": "WON" if landed else "LOST",
+            "legs_won": sum(1 for o in outcomes if o in ("WON", "PUSH")),
+        })
+    return out
+
+
+def summarise_slips(label: str, records: list[dict]) -> dict:
+    """Slip-level hit rate against the file's own claimed joint probability."""
+    decided = [r for r in records if r["outcome"] in ("WON", "LOST")]
+    won = sum(1 for r in decided if r["outcome"] == "WON")
+    claimed = [r["claimed"] for r in decided if r.get("claimed") is not None]
+    realised = (won / len(decided)) if decided else None
+    return {
+        "label": label,
+        "emitted": len(records),
+        "settled": len(decided),
+        "won": won,
+        "hit": realised,
+        "claimed": (statistics.fmean(claimed) if claimed else None),
+        "claimed_n": len(claimed),
+        # What the combined price would have to be for the slip to break even,
+        # from what actually happened rather than from the legs.
+        "fair_combined_odds": (1.0 / realised) if realised else None,
+    }
+
+
+def _format_slips(summary: dict) -> str:
+    hit = "  n/a" if summary["hit"] is None else f"{summary['hit'] * 100:5.1f}%"
+    claimed = (
+        "  n/a" if summary["claimed"] is None else f"{summary['claimed']:.3f}"
+    )
+    fair = (
+        "  n/a" if summary["fair_combined_odds"] is None
+        else f"{summary['fair_combined_odds']:5.2f}"
+    )
+    return (
+        f"{summary['label']:<28} slips {summary['emitted']:3d}  settled "
+        f"{summary['settled']:3d}  all legs landed {summary['won']:3d}  "
+        f"hit {hit}  claimed {claimed} (n={summary['claimed_n']})  "
+        f"fair combined odds {fair}"
+    )
+
+
 def _run_paths(date: str) -> dict[str, Path]:
     base = ROOT / "runs" / date
     return {
@@ -420,9 +570,16 @@ def rebuild(date: str) -> StatsSheetV1 | None:
     paths = _run_paths(date)
     if not paths["dossiers"].exists() or not paths["events"].exists():
         return None
-    dossier_list = EventDossierListV1.model_validate_json(
-        paths["dossiers"].read_text(encoding="utf-8")
-    )
+    dossier_list, retired = load_event_dossiers(paths["dossiers"])
+    if retired:
+        # Loud, because a rebuild that silently reused a retired provider's
+        # readings would be measuring the arm the retirement removed.
+        print(
+            f"  note: {paths['dossiers'].name} carries observations from "
+            f"{len(retired)} provider(s) this schema has retired, dropped for "
+            f"the replay: {', '.join(retired)}",
+            file=sys.stderr,
+        )
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
     offer = None
     if paths["offer"].exists():
@@ -503,10 +660,23 @@ def coupons_from_sheet(
     events: EventListV1,
     *,
     max_singles: int = 15,
-    bar_basis: str = "p_low",
+    bar_basis: str = "p_central",
     shrink_k: float | None = None,
 ) -> CouponSet:
     """``build_coupons`` over a sheet, with the day's own offer and vetoes.
+
+    ``bar_basis`` defaults to what the pipeline ships and **not** to this
+    module's own old default. It read ``p_low`` from the day the flag was added
+    until 2026-09-06, while ``build_coupons.py --bar`` and ``build_coupons()``
+    have both defaulted to ``p_central`` since 2026-09-03 -- so every replay
+    run without an explicit ``--bar-basis`` priced its rows against a bar the
+    pipeline had abandoned, and the flag's own help text asserted the opposite
+    ("p_low is what the pipeline ships"). The bar is ``(1/p) x margin`` and
+    ``p_low`` sits 16-22 points under ``p_central``, so the arm being settled
+    demanded roughly 1.4x the price the shipped one does. It emptied the group
+    the file is built around: replaying 2026-09-05 at a 400-single budget
+    returned **1** VALUE row where the same sheet, the same offer and the same
+    vetoes at the shipped basis return 7 at a budget of 15.
 
     ``max_singles`` is raised for the calibration pass: with a budget of 15 the
     file is a *ranking* decision and 15 rows is far too few to say anything
@@ -532,7 +702,7 @@ def rebuilt_coupons(
     date: str,
     *,
     max_singles: int = 15,
-    bar_basis: str = "p_low",
+    bar_basis: str = "p_central",
     shrink_k: float | None = None,
 ) -> CouponSet | None:
     sheet = rebuild(date)
@@ -550,7 +720,7 @@ def recorded_sheet_coupons(
     date: str,
     *,
     max_singles: int = 15,
-    bar_basis: str = "p_low",
+    bar_basis: str = "p_central",
     shrink_k: float | None = None,
 ) -> CouponSet | None:
     """Today's selection over the sheet the pipeline wrote that day.
@@ -616,6 +786,7 @@ def settle_singles(
             market=single.market, line=single.line, direction=single.direction,
             actuals=actuals, team_name=_team_subject(single),
             home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
+            player_id=single.subject_id,
         )
         out.append(
             {
@@ -677,14 +848,16 @@ def settle_slip_legs(
                             "reason": "no actuals for this fixture"})
                 continue
             # ``team_name`` is already separate from ``player_name`` on a leg,
-            # so unlike a single there is nothing to disambiguate: a player
-            # leg settles against the player family, which bzzoiro's match
-            # ``/stats/`` does not carry, and reports NO_DATA rather than
-            # being scored against his team's figure.
+            # so unlike a single there is nothing to disambiguate. Since
+            # 2026-09-06 a prop leg settles against the fixture's box scores
+            # by ``player_id``; a leg recorded before that field existed has
+            # None here and still reports NO_DATA rather than being scored
+            # against his team's figure.
             outcome, actual = settle_row(
                 market=leg.market, line=leg.line, direction=leg.direction,
                 actuals=actuals, team_name=leg.team_name,
                 home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
+                player_id=leg.player_id,
             )
             out.append({**base, "match": "{} v {}".format(*_sides_of(event)),
                         "outcome": outcome, "actual": actual})
@@ -796,11 +969,12 @@ def main() -> int:
         help="Report claimed p_low against realised hit rate in buckets.",
     )
     parser.add_argument(
-        "--bar-basis", dest="bar_basis", default="p_low", choices=list(BAR_BASES),
+        "--bar-basis", dest="bar_basis", default="p_central", choices=list(BAR_BASES),
         help="Which probability min_acceptable_odds is derived from, for the "
-             "rebuilt/recorded-sheet passes. p_low is what the pipeline ships; "
-             "p_central is the arm bet_builder_draft.BAR_BASES exists to "
-             "paper-trade and, until this flag, could not be settled at all.",
+             "rebuilt/recorded-sheet passes. Defaults to what the pipeline "
+             "actually ships -- `build_coupons.py --bar` and `build_coupons()` "
+             "have both defaulted to p_central since 2026-09-03. Pass p_low to "
+             "reproduce a file built before that switch, or to compare the two.",
     )
     parser.add_argument(
         "--shrink-k", dest="shrink_k", type=float, default=None,
@@ -821,7 +995,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    both = not (args.recorded or args.rebuilt)
+    # ``--recorded-sheet`` counts as a choice. It did not, so asking for the
+    # controlled arm alone silently ran all three -- including ``--rebuilt``,
+    # whose dossier load is the expensive one and, on 2026-08-29, the one that
+    # aborted the whole invocation with 824 validation errors.
+    both = not (args.recorded or args.rebuilt or args.recorded_sheet)
     cache_path = Path(args.cache)
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
 
@@ -883,6 +1061,16 @@ def main() -> int:
                 leg_summary = summarise(f"{date} {which} legs", legs)
                 per_slate.append(leg_summary)
                 print("  " + _format(leg_summary))
+                # The slip is the unit that is staked; the legs are how it was
+                # argued. Both are printed because they answer different
+                # questions and the leg number flatters the slip badly.
+                slips = settle_slips(coupons, events, actuals)
+                for record in slips:
+                    record["date"] = date
+                all_records.setdefault(f"{which}_slips", []).extend(slips)
+                slip_summary = summarise_slips(f"{date} {which} slips", slips)
+                per_slate.append(slip_summary)
+                print("  " + _format_slips(slip_summary))
             if args.show_rows:
                 for r in sorted(records, key=lambda x: -x["p_low"]):
                     price = "   --" if r.get("price") is None else f"{r['price']:5.2f}"
@@ -904,6 +1092,11 @@ def main() -> int:
             summary = summarise(f"ALL {which}", all_records[which])
             pooled.append(summary)
             print("  " + _format(summary))
+    for which in ("recorded_slips", "recorded_sheet_slips", "rebuilt_slips"):
+        if all_records.get(which):
+            summary = summarise_slips(f"ALL {which}", all_records[which])
+            pooled.append(summary)
+            print("  " + _format_slips(summary))
     if args.calibrate:
         print("\ncalibration -- p_low is a lower bound, so realised should be >= claimed")
         for which in ("recorded", "recorded_sheet", "rebuilt",

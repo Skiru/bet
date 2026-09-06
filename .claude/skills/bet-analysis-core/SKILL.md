@@ -27,6 +27,10 @@ followed.
 
 1. **Data integrity.** Is the sample about this fixture? (a/b/h2h split, what
    `sample_excluded` removed, `DISAGREE` on the line, one side thin, stale h2h.)
+   For a row worth a closer look, `superbet-market-matcher` does this split for
+   you instead of reading `event_dossiers.json` by hand, and adds what the book
+   is offering beside it — hand it the row and read back which bucket
+   disagrees with the pooled number, and whether the price was ever there.
 2. **Market definition and availability.** Does Superbet post this line
    (`row.superbet.availability == "OFFERED"`)? Does the market settle the
    quantity the sample measures (`cards_points` vs yellows; own-plus-own vs pooled)?

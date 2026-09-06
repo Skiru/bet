@@ -2949,6 +2949,23 @@ def _apply_card_points(
     return flags
 
 
+# ``(red-card total, a metric from the same period that is never omitted)``.
+# The witness proves the provider answered for that period; without one, an
+# absent red count is a coverage gap and stays absent.
+_RED_CARD_ZERO_WITNESS = (
+    ("red_cards_total", "shots_total"),
+    ("red_cards_1h_total", "shots_1h_total"),
+    ("red_cards_2h_total", "shots_2h_total"),
+)
+
+
+def _fill_absent_red_cards(totals: dict[str, float]) -> None:
+    """Write the zero the provider omits. See the caller for why and what it cost."""
+    for metric, witness in _RED_CARD_ZERO_WITNESS:
+        if metric not in totals and totals.get(witness) is not None:
+            totals[metric] = 0.0
+
+
 def _bzzoiro_match_stats(
     client: Any, event_id: str, run_budget: RunBudget | None = None
 ) -> tuple[dict[str, dict[str, float]], str | None, dict[str, str]]:
@@ -3023,6 +3040,32 @@ def _bzzoiro_match_stats(
             half_for_name = _BZZOIRO_FOR_ALIASES_BY_PERIOD[period].get(normalized)
             if half_for_name is not None and side in per_side:
                 per_side[side][half_for_name] = per_side[side].get(half_for_name, 0.0) + value
+
+    # A red-card count the provider omitted because there were none.
+    #
+    # ``red_cards`` is absent from ``/events/{id}/stats/`` on a match with no
+    # red card -- the same payload shape the ``CARD_FLAG_REDS_UNKNOWN`` comment
+    # above documents, and confirmed there against the incidents feed on 51 of
+    # 51 fixtures. Left absent, the match contributes no ``red_cards_total``
+    # observation at all, so the *sample* is built only from matches that had
+    # one.
+    #
+    # Measured on the 2026-09-06 slate: ``red_cards_total`` carried a median of
+    # 12 observations per fixture where ``cards_total`` -- the same matches,
+    # from the same payload -- carried 23. Half of every red-card sample was
+    # missing, and it was exactly the zero half. The sample mean came out 0.280
+    # against a settled actual 0.26 *lower* (z = -7.69 over 338 matches on
+    # ``audit_sample_bias.py --check``), which is the whole of the discrepancy.
+    #
+    # This is the mirror of ``settle.ABSENT_MEANS_ZERO`` and is deliberately
+    # written to the same rule: absence means zero **only** when the provider
+    # answered for this fixture at all. No statistics block, no inference.
+    #
+    # Card *points* are untouched by this. ``_apply_card_points`` still drops a
+    # match whose red breakdown cannot be established, because that metric
+    # needs the type of each red and not just the count -- a different question
+    # with a different failure cost, argued at ``CARD_FLAG_REDS_UNKNOWN``.
+    _fill_absent_red_cards(totals)
 
     # Booking points. Computed here rather than in an alias table because no
     # alias can express it: the arithmetic needs the *type* of each red, which

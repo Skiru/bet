@@ -177,12 +177,14 @@ def test_the_unwrapped_shape_is_accepted_like_the_score_reader(bt):
 
 
 class _Leg:
-    def __init__(self, market, line, direction, team_name=None, player_name=None):
+    def __init__(self, market, line, direction, team_name=None, player_name=None,
+                 player_id=None):
         self.market = market
         self.line = line
         self.direction = direction
         self.team_name = team_name
         self.player_name = player_name
+        self.player_id = player_id
         self.tier = "LEAN"
         self.p_low = 0.7
         self.superbet_price = 1.05
@@ -278,3 +280,215 @@ def test_a_fixture_without_actuals_yields_no_data_and_not_a_loss(bt):
     out = bt.settle_slip_legs(_Coupons(slips), _Events([]), {})
     assert out[0]["outcome"] == "NO_DATA"
     assert out[0]["actual"] is None
+
+
+# --------------------------------------------------------------------------
+# 2026-09-06: three defects in the *instrument*, found while using it.
+#
+# None of them changed a coupon. All three changed what the coupon was measured
+# against, which is worse: a wrong number that looks like evidence outranks a
+# missing one.
+
+
+def test_the_replay_defaults_to_the_bar_the_pipeline_actually_ships(bt):
+    """``--bar-basis`` defaulted to p_low; ``build_coupons`` ships p_central.
+
+    The bar is ``(1/p) x margin`` and ``p_low`` sits 16-22 points under
+    ``p_central``, so the default replay arm demanded roughly 1.4x the price
+    the live file does. It did not merely shift the numbers -- it emptied the
+    group the coupon is built around. Replaying 2026-09-05 at a 400-single
+    budget returned **1** VALUE row; the same sheet, offer and vetoes at the
+    shipped basis return 7 at a budget of 15.
+
+    Pinned against ``build_coupons``'s own signature default rather than
+    against the string, so the two cannot drift apart again silently.
+    """
+    import inspect
+
+    from bet.simple_stats.coupons import build_coupons
+
+    shipped = inspect.signature(build_coupons).parameters["bar_basis"].default
+    for fn in (bt.coupons_from_sheet, bt.rebuilt_coupons, bt.recorded_sheet_coupons):
+        assert inspect.signature(fn).parameters["bar_basis"].default == shipped
+
+
+def test_recorded_sheet_alone_does_not_silently_run_every_other_arm():
+    """``--recorded-sheet`` was not counted as a choice.
+
+    ``both = not (args.recorded or args.rebuilt)`` left ``--recorded-sheet``
+    out, so asking for the controlled arm on its own quietly ran all three --
+    including ``--rebuilt``, whose dossier load is the expensive one and, on
+    2026-08-29, aborted the whole invocation with 824 validation errors.
+    """
+    source = (
+        ROOT / "scripts" / "simple" / "backtest_slate.py"
+    ).read_text(encoding="utf-8")
+    assert "args.recorded or args.rebuilt or args.recorded_sheet" in source
+
+
+def _observation(provider: str, value: float) -> dict:
+    return {
+        "provider": provider,
+        "match_id": f"m-{provider}-{value}",
+        "match_date": "2026-08-01T00:00:00+00:00",
+        "opponent": "Someone",
+        "value": value,
+        "observed_at": "2026-08-29T00:00:00+00:00",
+    }
+
+
+def test_a_retired_provider_does_not_make_a_frozen_dossier_unreplayable(tmp_path):
+    """Taking bzzoiro-tennis out of ``PROVIDER_NAMES`` broke ``runs/2026-08-29``.
+
+    ``load_market_context`` was hardened against exactly this on 2026-09-02 and
+    the dossier artifact one step upstream was not, so the slate simply dropped
+    out of every replay -- reported as one "unavailable" line on stderr among a
+    thousand coverage gaps. The retired provider's observations must be
+    dropped, not accepted: reusing them is what the retirement was for.
+    """
+    import json as _json
+
+    from bet.simple_stats.artifact_io import load_event_dossiers
+
+    payload = {
+        "run_id": "RID-1",
+        "date": "2026-08-29",
+        "generated_at": "2026-08-29T00:00:00+00:00",
+        "dossiers": [
+            {
+                "event_id": "evt-1",
+                "sport": "tennis",
+                "readiness": "READY",
+                "team_a_name": "A",
+                "team_b_name": "B",
+                "metrics": {
+                    "aces_total": {
+                        "canonical_name": "aces_total",
+                        "team_a_l10": [
+                            _observation("tennis-abstract", 5.0),
+                            _observation("bzzoiro-tennis", 99.0),
+                        ],
+                    },
+                    "double_faults_total": {
+                        "canonical_name": "double_faults_total",
+                        "team_a_l10": [_observation("bzzoiro-tennis", 3.0)],
+                    },
+                },
+            }
+        ],
+    }
+    path = tmp_path / "dossiers.json"
+    path.write_text(_json.dumps(payload), encoding="utf-8")
+
+    dossiers, retired = load_event_dossiers(path)
+    assert retired == ["bzzoiro-tennis"]
+    metrics = dossiers.dossiers[0].metrics
+    # The surviving provider's reading is still evidence.
+    assert [o.value for o in metrics["aces_total"].team_a_l10] == [5.0]
+    # A metric left with nothing is not a sample and is removed outright.
+    assert "double_faults_total" not in metrics
+
+
+# --------------------------------------------------------------------------
+# 2026-09-06: the Bet Builder was graded by its legs and staked as a slip.
+
+
+def _slip_coupons(*leg_specs):
+    """A CouponSet with one slip whose legs are ``(market, line, direction)``."""
+    from bet.simple_stats.bet_builder_draft import BetBuilderDraft, BetBuilderLeg
+    from bet.simple_stats.coupons import CouponSet, CouponSlip
+
+    legs = [
+        BetBuilderLeg(
+            event_id="evt-1", market=m, line=ln, direction=d, tier="LEAN",
+            p_low=0.6, p_central=0.8, hit_rate=0.8, sample_size=10,
+            fair_odds=1.67, min_acceptable_odds=1.38,
+        )
+        for m, ln, d in leg_specs
+    ]
+    draft = BetBuilderDraft(
+        event_id="evt-1", legs=legs, combined_price=None,
+        joint_probability=0.64, correlation_lambda=1.006,
+        min_acceptable_combined_odds=1.72, legs_priced_separately=2.79,
+        correlation_risk="HIGH", correlation_note="n/a", excluded={},
+    )
+    return CouponSet(
+        run_id="RID-1", date="2026-09-06",
+        generated_at="2026-09-06T00:00:00+00:00", singles=[],
+        slips=[CouponSlip(
+            rank=1, event_id="evt-1", match="A – B", competition="PL",
+            kickoff="2026-09-06T20:00:00+00:00", draft=draft,
+            weakest_leg_p_low=0.6,
+        )],
+        combined_price=None, rows_considered=0, events_considered=1,
+    )
+
+
+def _slip_events():
+    from bet.simple_stats.contracts import EventListV1, EventRecord
+
+    return EventListV1(
+        run_id="RID-1", date="2026-09-06",
+        generated_at="2026-09-06T00:00:00+00:00",
+        events=[EventRecord(
+            event_id="evt-1", sport="football", competition="PL",
+            home_team="A", away_team="B",
+            start_time="2026-09-06T20:00:00+00:00",
+            identity_confidence="CONFIRMED", status="ACTIVE",
+        )],
+    )
+
+
+_SLIP_ACTUALS = {"evt-1": {
+    "home": {}, "away": {},
+    "total": {"corners_total": 11.0, "fouls_total": 24.0, "shots_total": 22.0},
+}}
+
+
+def test_a_slip_pays_nothing_unless_every_leg_lands(bt):
+    """The whole point. 87.6% of legs landed and 67.8% of slips did; only the
+    second number is the thing being staked, and nothing had ever computed it."""
+    coupons = _slip_coupons(
+        ("corners_total", 9.5, "OVER"),    # 11 > 9.5  -> WON
+        ("fouls_total", 26.5, "UNDER"),    # 24 < 26.5 -> WON
+    )
+    [record] = bt.settle_slips(coupons, _slip_events(), _SLIP_ACTUALS)
+    assert record["outcome"] == "WON"
+    assert record["legs"] == 2 and record["legs_won"] == 2
+
+    coupons = _slip_coupons(
+        ("corners_total", 9.5, "OVER"),    # WON
+        ("fouls_total", 20.5, "UNDER"),    # 24 > 20.5 -> LOST
+    )
+    [record] = bt.settle_slips(coupons, _slip_events(), _SLIP_ACTUALS)
+    assert record["outcome"] == "LOST"
+    # One leg landing is exactly the case the leg-level number flatters.
+    assert record["legs_won"] == 1
+
+
+def test_one_unsettleable_leg_makes_the_whole_slip_unknown(bt):
+    """Grading the legs that did settle would score a three-leg slip as a two."""
+    coupons = _slip_coupons(
+        ("corners_total", 9.5, "OVER"),
+        ("offsides_total", 3.5, "UNDER"),   # not in the actuals at all
+    )
+    [record] = bt.settle_slips(coupons, _slip_events(), _SLIP_ACTUALS)
+    assert record["outcome"] == "NO_DATA"
+
+
+def test_the_slip_summary_reports_the_price_the_bet_would_have_needed(bt):
+    """``fair_combined_odds`` is 1/realised -- computed from what happened, not
+    from the legs. Measured over the archive: 1.48 for the drafter's usual
+    four-leg shape, against a 1.72 the file was asking for."""
+    records = [
+        {"outcome": "WON", "claimed": 0.64}, {"outcome": "WON", "claimed": 0.64},
+        {"outcome": "LOST", "claimed": 0.64}, {"outcome": "WON", "claimed": 0.64},
+        {"outcome": "NO_DATA", "claimed": None},
+    ]
+    summary = bt.summarise_slips("t", records)
+    assert summary["settled"] == 4 and summary["won"] == 3
+    assert summary["hit"] == pytest.approx(0.75)
+    assert summary["fair_combined_odds"] == pytest.approx(1 / 0.75)
+    # A slip drafted before ``joint_probability`` existed still settles and is
+    # simply absent from the calibration line.
+    assert summary["claimed_n"] == 4
