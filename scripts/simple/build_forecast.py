@@ -44,6 +44,7 @@ Exit codes: 0 = written, 2 = missing input.
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import sys
 from pathlib import Path
@@ -337,31 +338,47 @@ def _coverage_block(coverage: list[dict]) -> str:
 
 def _exclusions_note(
     team: _Ranked,
-    players: _Ranked,
+    over: _Ranked,
+    under: _Ranked,
     floor: float,
     player_floor: float,
+    player_sample: int,
     ceiling: bool,
 ) -> str:
-    """Everything the two tables above do not show, and on what grounds.
+    """Everything the three tables above do not show, and on what grounds.
 
     Written because the tables *are* a summary and a summary excludes things.
     The operator's objection was never to a shorter list, it was to a shorter
-    list that does not say what it dropped -- so all three grounds are counted
-    here and none of them is a price.
+    list that does not say what it dropped -- so every ground is counted here
+    and none of them is a price.
     """
     lines = [
-        "> **Czego nie ma w tych dwóch tabelach.** Tabele pokazują po jednym "
-        "wierszu na statystykę, więc coś muszą pomijać — poniżej dokładnie co "
-        "i dlaczego. Żaden z tych powodów nie jest ceną.",
+        "> **Czego nie ma w tych trzech tabelach.** Tabele pokazują po jednym "
+        "wierszu na statystykę i stronę, więc coś muszą pomijać — poniżej "
+        "dokładnie co i dlaczego. Żaden z tych powodów nie jest ceną.",
         "",
         f"> * **Poniżej progu:** {team.below_floor} kart drużynowych "
-        f"(próg {floor:.0%}) i {players.below_floor} kart zawodników "
+        f"(próg {floor:.0%}), {over.below_floor} propowych POWYŻEJ "
+        f"(próg {floor:.0%}) i {under.below_floor} propowych PONIŻEJ "
         f"(próg {max(floor, player_floor):.0%}). Karty drużynowe pod progiem "
         "są w całości w sekcjach meczów niżej — próg dotyczy tylko tabeli. "
         "Karty zawodników pod progiem są **tylko w JSON**: jest ich sześć razy "
         "więcej niż drużynowych i sekcja meczu przestawała być czytelna; każdy "
         "mecz podaje, ile ich pominął.",
     ]
+    if player_sample:
+        lines.append(
+            f"> * **Mała próba:** {over.thin_sample} kart zawodników ma "
+            f"n < {player_sample} i nie wchodzi do żadnej z tabel propowych. "
+            "Przy n=3 „3/3\" daje wysokie prawdopodobieństwo z arytmetyki, a "
+            "nie z wiedzy o zawodniku, i takie wiersze zajmowały górę listy. "
+            "Progu nie stawiam na 8 — czyli na to, co kupon nazywa „małą "
+            "próbą\" — bo tam strona POWYŻEJ traci dwie trzecie treści: na "
+            "planszy 2026-09-07 zostawało 108 wierszy wobec 294 przy n ≥ 5. "
+            "A n < 8 i tak jest wypisane przy każdym wierszu kuponu jako "
+            "zastrzeżenie, więc jest ostrzeżeniem, nie dyskwalifikacją. "
+            "`--min-player-sample 0` wyłącza."
+        )
     if not ceiling:
         lines.append(
             "> * **Sufit modelu:** licząc „najmocniejszy szczebel\" pomijam "
@@ -369,13 +386,14 @@ def _exclusions_note(
             "urywa (`_clamp_count_probability`), więc każda taka linia "
             "raportuje tę samą liczbę i żadna nie mówi, która wartość jest "
             "bardziej prawdopodobna. To fakt o naszej arytmetyce, nie o meczu. "
-            f"Skutek: {team.demoted_by_ceiling} kart drużynowych i "
-            f"{players.demoted_by_ceiling} kart zawodników weszłoby do tabeli "
+            f"Skutek: {team.demoted_by_ceiling} kart drużynowych, "
+            f"{over.demoted_by_ceiling} propowych POWYŻEJ i "
+            f"{under.demoted_by_ceiling} propowych PONIŻEJ weszłoby do tabeli "
             "na szczeblu z sufitu, a wchodzi na swoim najmocniejszym "
-            "*informacyjnym* szczeblu albo spada pod próg. "
-            f"Kart bez ani jednego szczebla poniżej sufitu: "
-            f"{team.ceiling_only} i {players.ceiling_only}. "
-            "`--include-ceiling` wyłącza tę regułę."
+            "*informacyjnym* szczeblu albo spada pod próg. Kart bez ani "
+            f"jednego szczebla poniżej sufitu: {team.ceiling_only} "
+            f"drużynowych, {over.ceiling_only} POWYŻEJ, {under.ceiling_only} "
+            "PONIŻEJ. `--include-ceiling` wyłącza tę regułę."
         )
     lines.append("")
     return "\n".join(lines)
@@ -428,10 +446,16 @@ class _Ranked(NamedTuple):
     ceiling_only: int
     below_floor: int
     demoted_by_ceiling: int
+    thin_sample: int = 0
 
 
 def _strongest_per_card(
-    cards: list[ForecastCard], floor: float, *, ceiling: bool
+    cards: list[ForecastCard],
+    floor: float,
+    *,
+    ceiling: bool,
+    direction: str | None = None,
+    min_sample: int = 0,
 ) -> _Ranked:
     """One row per statistic, plus the account of every card left out.
 
@@ -456,10 +480,15 @@ def _strongest_per_card(
     counts are printed in the file, and ``--include-ceiling`` turns it off.
     """
     out = []
-    ceiling_only = below_floor = demoted = 0
+    ceiling_only = below_floor = demoted = thin = 0
     for card in cards:
-        every = card.ranked_rungs(1)
-        ranked = card.ranked_rungs(1, informative_only=not ceiling)
+        if card.sample_size < min_sample:
+            thin += 1
+            continue
+        every = card.ranked_rungs(1, direction=direction)
+        ranked = card.ranked_rungs(
+            1, informative_only=not ceiling, direction=direction
+        )
         if not ranked:
             if every:
                 ceiling_only += 1
@@ -473,9 +502,10 @@ def _strongest_per_card(
             if every and (every[0].p_honest or 0.0) >= floor:
                 demoted += 1
             continue
+
         out.append((rung.p_honest, card, rung))
     out.sort(key=lambda item: (-item[0], -item[2].sample_size, -item[2].line))
-    return _Ranked(out, ceiling_only, below_floor, demoted)
+    return _Ranked(out, ceiling_only, below_floor, demoted, thin)
 
 
 def _render(
@@ -490,6 +520,7 @@ def _render(
     max_ladder: int,
     ceiling: bool,
     max_player_cards: int,
+    player_sample: int,
 ) -> str:
     """The operator-facing file. Probability first, price a column, no gates.
 
@@ -562,11 +593,36 @@ def _render(
     team = [c for c in cards if not c.market.startswith("player_")]
 
     team_ranked = _strongest_per_card(team, floor, ceiling=ceiling)
-    player_ranked = _strongest_per_card(
-        players, max(floor, player_floor), ceiling=ceiling
+    # Props, split by side. The two sides of a prop are not comparable as
+    # reads: an UNDER on a count averaging 0.4 is near-certain by arithmetic,
+    # so a single ranking is always an UNDER ranking. Measured on the
+    # 2026-09-07 board, that ranking was 648 UNDER rows out of 688 and only 14
+    # of the 688 carried any price at all -- because **Superbet posts football
+    # props OVER-only**: of 4,690 prop rows the stats sheet marked ``OFFERED``
+    # on that day, every single one was an OVER. (The paragraph rendered below
+    # quotes a smaller number, 3,985, and both are right: that one counts
+    # priced rungs on the cards this file actually built, which start at
+    # ``min_sample`` and are grouped per subject.)
+    #
+    # So OVER gets the same floor as the team markets and UNDER keeps the
+    # higher prop floor. That asymmetry is the volume argument the prop floor
+    # was always built on, and the volume is entirely on the UNDER side: at
+    # n>=5 and a 0.70 floor the two sides are 294 rows and 937. It is not a
+    # price decision -- the price stays a column on every row of both tables,
+    # and both floors and both counts are printed.
+    over_ranked = _strongest_per_card(
+        players, floor, ceiling=ceiling, direction="OVER", min_sample=player_sample
+    )
+    under_ranked = _strongest_per_card(
+        players,
+        max(floor, player_floor),
+        ceiling=ceiling,
+        direction="UNDER",
+        min_sample=player_sample,
     )
     ranked_team = team_ranked.rows
-    ranked_players = player_ranked.rows
+    ranked_over = over_ranked.rows
+    ranked_under = under_ranked.rows
 
     out.append(f"## Największe prawdopodobieństwa dnia (od {floor:.0%})\n")
     out.append(
@@ -575,20 +631,61 @@ def _render(
         "pozostałe wartości są niżej, w sekcji tego meczu, wszystkie. "
         "Sortowane wyłącznie po `p (uczciwe)`, bez limitu wierszy.\n"
     )
-    out.append(_exclusions_note(team_ranked, player_ranked, floor, player_floor, ceiling))
+    out.append(
+        _exclusions_note(
+            team_ranked,
+            over_ranked,
+            under_ranked,
+            floor,
+            player_floor,
+            player_sample,
+            ceiling,
+        )
+    )
     out.append(f"### Rynki meczowe i drużynowe — {len(ranked_team)} pozycji\n")
     out += _ranked_table(ranked_team, identities)
     out.append(
-        f"### Rynki zawodników — {len(ranked_players)} pozycji "
-        f"(próg {max(floor, player_floor):.0%})\n"
+        f"### Rynki zawodników — POWYŻEJ — {len(ranked_over)} pozycji "
+        f"(próg {floor:.0%}, n ≥ {player_sample})\n"
+    )
+    # Derived, never written out. The hand-written version of this sentence
+    # carried "4,690" as a literal, which is a figure from one day's offer in a
+    # file that is rebuilt every day -- the exact failure this file has already
+    # been corrected for twice.
+    priced = collections.Counter(
+        r.direction
+        for c in players
+        for r in c.rungs
+        if r.price is not None
     )
     out.append(
-        "Propy mają własny, wyższy próg w tym pliku i tylko tutaj: jest ich "
-        f"{sum(1 for c in cards if c.market.startswith('player_'))} kart wobec "
-        f"{len(team)} drużynowych, a nie ma powodu, by liczba kart decydowała "
-        "o tym, co widzisz na górze. W JSON są wszystkie, bez progu.\n"
+        "**To jest strona, którą bukmacher wystawia.** Na ofercie z tego dnia "
+        f"Superbet wycenił {priced['OVER']} szczebli propowych POWYŻEJ i "
+        f"{priced['UNDER']} PONIŻEJ"
+        + (
+            " — propy piłkarskie są u niego jednostronne."
+            if not priced["UNDER"]
+            else "."
+        )
+        + f" Dlatego POWYŻEJ ma tu ten sam próg co rynki drużynowe ({floor:.0%}"
+        "), a nie podwyższony: zalew, dla którego ten wyższy próg istnieje, "
+        "jest w całości po stronie PONIŻEJ. Kurs nadal jest tylko kolumną.\n"
     )
-    out += _ranked_table(ranked_players, identities)
+    out += _ranked_table(ranked_over, identities)
+    out.append(
+        f"### Rynki zawodników — PONIŻEJ — {len(ranked_under)} pozycji "
+        f"(próg {max(floor, player_floor):.0%}, n ≥ {player_sample})\n"
+    )
+    out.append(
+        "Wyższy próg, bo tu jest zalew: PONIŻEJ przy średniej 0,4 fauli jest "
+        "niemal pewne z arytmetyki, i póki obie strony szły w jednym "
+        "sortowaniu, zajmowało 648 z 688 wierszy tej tabeli (zmierzone na "
+        "planszy 2026-09-07 — to fakt o starej wersji tego pliku, nie o dziś). "
+        "**Superbet tej strony nie wystawia**, więc kolumna kursu będzie tu "
+        "prawie zawsze pusta — to nie znaczy, że odczyt jest zły, tylko że nie "
+        "ma go jak obstawić w tym rynku. W JSON są wszystkie, bez progu.\n"
+    )
+    out += _ranked_table(ranked_under, identities)
 
     # --- per fixture ---------------------------------------------------------
     out.append("---\n")
@@ -624,7 +721,11 @@ def _render(
         # 106 cards a fixture against 20, and that day rendered 6.4 MB before
         # this bound. It is a page-length bound and not a judgement -- the JSON
         # has every one, and the number withheld is printed per fixture.
-        eligible = [c for c in prop_cards if _strength(c) >= player_floor]
+        eligible = [
+            c
+            for c in prop_cards
+            if c.sample_size >= player_sample and _strength(c) >= player_floor
+        ]
         shown = team_cards + eligible[:max_player_cards]
         below = len(prop_cards) - len(eligible)
         capped = len(eligible) - min(len(eligible), max_player_cards)
@@ -748,7 +849,7 @@ def _render(
     )
     paid = [
         item
-        for item in (ranked_team + ranked_players)
+        for item in (ranked_team + ranked_over + ranked_under)
         if item[2].price is not None and item[2].price >= CERTAINTY_PRICE_FLOOR
     ]
     paid.sort(key=lambda item: -item[0])
@@ -792,6 +893,17 @@ def main() -> int:
             "A higher floor for prop cards in the rendered file only. There are "
             "six times as many of them as team cards and the count must not "
             "decide what reaches the top of the page."
+        ),
+    )
+    parser.add_argument(
+        "--min-player-sample",
+        type=int,
+        default=5,
+        help=(
+            "Smallest sample a prop card may have to reach the ranked tables. "
+            "At n=3 a 3/3 is arithmetic rather than knowledge of the player, "
+            "and those rows sorted to the top of the file. Never filters the "
+            "JSON."
         ),
     )
     parser.add_argument(
@@ -935,6 +1047,7 @@ def main() -> int:
             max_ladder=args.max_ladder,
             ceiling=args.include_ceiling,
             max_player_cards=args.max_player_cards,
+            player_sample=args.min_player_sample,
         ),
         encoding="utf-8",
     )

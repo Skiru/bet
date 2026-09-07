@@ -290,52 +290,6 @@ def test_every_fixture_with_cards_prints_a_ladder_with_its_values(rendered, payl
         assert entry["match"] in rendered, entry["match"]
 
 
-def test_the_file_accounts_for_every_card_it_leaves_out(rendered, payload):
-    """A summary table excludes things; the objection was to not saying so.
-
-    The first version of this note reported only cards whose entire ladder sat
-    at the count model's clamp -- zero on a real board -- while the mechanism
-    that actually removed 2,781 prop cards from the table went unmentioned.
-    Every count in the note is derived from the day's own cards, and this test
-    re-derives them independently.
-    """
-    import re
-
-    from bet.simple_stats.analyze import MAX_COUNT_MODEL_PROBABILITY
-
-    note = re.search(
-        r"\*\*Poniżej progu:\*\* (\d+) kart drużynowych \(próg (\d+)%\) i "
-        r"(\d+) kart zawodników \(próg (\d+)%\)",
-        rendered,
-    )
-    assert note, "the exclusion note is missing"
-    team_stated, team_floor, player_stated, player_floor = (
-        int(note.group(1)), int(note.group(2)) / 100,
-        int(note.group(3)), int(note.group(4)) / 100,
-    )
-
-    def below(is_player: bool, floor: float) -> int:
-        count = 0
-        for card in payload["cards"]:
-            if card["market"].startswith("player_") is not is_player:
-                continue
-            informative = [
-                r["p_honest"]
-                for r in card["rungs"]
-                if r["p_honest"] is not None
-                and not (
-                    r["p_central"] is not None
-                    and r["p_central"] >= MAX_COUNT_MODEL_PROBABILITY
-                )
-            ]
-            if informative and max(informative) < floor:
-                count += 1
-        return count
-
-    assert team_stated == below(False, team_floor)
-    assert player_stated == below(True, player_floor)
-
-
 def test_a_team_card_below_the_table_floor_is_still_in_the_fixture_section(
     rendered, payload
 ):
@@ -369,3 +323,187 @@ def test_a_team_card_below_the_table_floor_is_still_in_the_fixture_section(
         if card["subject"]:
             label = f"{label} · {card['subject']}"
         assert f"**{label}**" in sections, label
+
+
+# --- the prop table is split by side, because the sides are not comparable ---
+
+
+def test_ranked_rungs_can_be_narrowed_to_one_side():
+    from bet.simple_stats.forecast import ForecastCard
+
+    rungs = [
+        Rung(line=0.5, direction="OVER", p_central=0.90, p_low=0.7,
+             hits=5, sample_size=5, p_honest=0.90),
+        Rung(line=2.5, direction="UNDER", p_central=0.95, p_low=0.8,
+             hits=5, sample_size=5, p_honest=0.95),
+    ]
+    card = ForecastCard(
+        event_id="e1", sport="football", market="player_fouls", subject="X",
+        expected=0.4, spread=0.5, sample_mean=0.4, sample_median=0.0,
+        sample_size=5, sample_min=0.0, sample_max=1.0, baseline=None,
+        baseline_source="none", weight=0.3, reliability=None,
+        grade="MEASURED", grade_reason="", rungs=rungs,
+    )
+    # Unnarrowed, the UNDER wins -- which is the whole problem.
+    assert card.ranked_rungs(1)[0].direction == "UNDER"
+    assert [r.direction for r in card.ranked_rungs(direction="OVER")] == ["OVER"]
+    assert [r.line for r in card.ranked_rungs(direction="UNDER")] == [2.5]
+
+
+def test_superbet_really_does_post_football_props_on_one_side_only(payload):
+    """The measured fact the whole split rests on.
+
+    If Superbet ever starts posting prop UNDERs, the asymmetric floor stops
+    being justified and this test is where that shows up -- not in a paragraph
+    somebody has to remember to reread.
+    """
+    import collections
+
+    priced = collections.Counter(
+        rung["direction"]
+        for card in payload["cards"]
+        if card["market"].startswith("player_")
+        for rung in card["rungs"]
+        if rung["superbet_price"] is not None
+    )
+    assert priced["OVER"] > 1000, priced
+    assert priced["UNDER"] == 0, priced
+
+
+def test_the_file_has_a_separate_over_table_and_it_comes_first(rendered):
+    over = rendered.index("### Rynki zawodników — POWYŻEJ")
+    under = rendered.index("### Rynki zawodników — PONIŻEJ")
+    team = rendered.index("### Rynki meczowe i drużynowe")
+    assert team < over < under, (team, over, under)
+
+
+def test_each_prop_table_holds_only_its_own_side(rendered):
+    """Asserted on the rendered rows, not on the code that produced them."""
+    over_block = rendered.split("### Rynki zawodników — POWYŻEJ")[1].split(
+        "### Rynki zawodników — PONIŻEJ"
+    )[0]
+    under_block = rendered.split("### Rynki zawodników — PONIŻEJ")[1].split(
+        "## Karty po meczach"
+    )[0]
+    for block, wanted, unwanted in (
+        (over_block, "OVER", "UNDER"),
+        (under_block, "UNDER", "OVER"),
+    ):
+        rows = [line for line in block.split("\n") if line.startswith("| **")]
+        assert rows, wanted
+        for row in rows:
+            direction = row.split("|")[7].strip().strip("*")
+            assert direction.endswith(wanted), row
+            assert not direction.endswith(unwanted), row
+
+
+def test_the_over_side_uses_the_team_floor_and_the_under_side_the_prop_floor(
+    rendered,
+):
+    """The asymmetry, pinned with its reason.
+
+    The higher prop floor exists for volume, and the volume is entirely on the
+    UNDER side: measured at n>=5, 294 OVER rows against 937 UNDER at a 0.70
+    floor. Applying the raised floor to both sides is what buried the only side
+    the book actually prices.
+    """
+    import re
+
+    over = re.search(r"POWYŻEJ — (\d+) pozycji \(próg (\d+)%, n ≥ (\d+)\)", rendered)
+    under = re.search(r"PONIŻEJ — (\d+) pozycji \(próg (\d+)%, n ≥ (\d+)\)", rendered)
+    team = re.search(r"drużynowe — (\d+) pozycji", rendered)
+    assert over and under and team
+    assert over.group(2) == "70"
+    assert under.group(2) == "85"
+    assert over.group(3) == under.group(3) == "5"
+    # And the split actually surfaced the postable side: more OVER rows than the
+    # 40 the single combined ranking managed.
+    assert int(over.group(1)) > 200, over.group(1)
+
+
+def test_the_small_sample_floor_keeps_three_match_props_out_of_the_tables(
+    rendered, payload
+):
+    """n=3 with 3/3 is arithmetic, not knowledge of the player, and those rows
+    sorted to the top of the file before this floor existed."""
+    thin = [
+        c
+        for c in payload["cards"]
+        if c["market"].startswith("player_") and c["sample"]["size"] < 5
+    ]
+    assert thin, "no thin prop cards on this slate"
+    blocks = rendered.split("### Rynki zawodników — POWYŻEJ")[1].split(
+        "## Karty po meczach"
+    )[0]
+    rows = [line for line in blocks.split("\n") if line.startswith("| **")]
+    # Non-empty, or the loop below asserts nothing. An earlier version of this
+    # test split the block on "---" and matched the table's own separator row,
+    # so it passed on zero rows.
+    assert len(rows) > 200, len(rows)
+    for row in rows:
+        raw = row.split("|")[9].strip()          # the "Surowo" cell, hits/n
+        assert int(raw.split("/")[1]) >= 5, row
+    # But they are still in the JSON, every one of them.
+    assert all(c["rungs"] for c in thin)
+
+
+def test_the_over_paragraph_derives_its_offer_counts(rendered, payload):
+    """It quoted a literal 4,690 for one day's board in a file rebuilt daily --
+    the same stale-figure failure this file has been corrected for twice."""
+    import collections
+    import re
+
+    priced = collections.Counter(
+        rung["direction"]
+        for card in payload["cards"]
+        if card["market"].startswith("player_")
+        for rung in card["rungs"]
+        if rung["superbet_price"] is not None
+    )
+    stated = re.search(
+        r"wycenił (\d+) szczebli propowych POWYŻEJ i (\d+) PONIŻEJ", rendered
+    )
+    assert stated, "the derived sentence is missing"
+    assert int(stated.group(1)) == priced["OVER"]
+    assert int(stated.group(2)) == priced["UNDER"]
+
+
+def test_the_exclusion_note_counts_all_three_tables_independently(
+    rendered, payload
+):
+    import re
+
+    from bet.simple_stats.analyze import MAX_COUNT_MODEL_PROBABILITY
+
+    note = re.search(
+        r"\*\*Poniżej progu:\*\* (\d+) kart drużynowych \(próg (\d+)%\), "
+        r"(\d+) propowych POWYŻEJ \(próg (\d+)%\) i (\d+) propowych PONIŻEJ "
+        r"\(próg (\d+)%\)",
+        rendered,
+    )
+    assert note, "the three-way exclusion note is missing"
+
+    def below(is_player: bool, floor: float, direction: str | None) -> int:
+        count = 0
+        for card in payload["cards"]:
+            if card["market"].startswith("player_") is not is_player:
+                continue
+            if is_player and card["sample"]["size"] < 5:
+                continue
+            informative = [
+                r["p_honest"]
+                for r in card["rungs"]
+                if r["p_honest"] is not None
+                and (direction is None or r["direction"] == direction)
+                and not (
+                    r["p_central"] is not None
+                    and r["p_central"] >= MAX_COUNT_MODEL_PROBABILITY
+                )
+            ]
+            if informative and max(informative) < floor:
+                count += 1
+        return count
+
+    assert int(note.group(1)) == below(False, int(note.group(2)) / 100, None)
+    assert int(note.group(3)) == below(True, int(note.group(4)) / 100, "OVER")
+    assert int(note.group(5)) == below(True, int(note.group(6)) / 100, "UNDER")

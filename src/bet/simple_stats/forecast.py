@@ -244,7 +244,11 @@ class ForecastCard:
         )
 
     def ranked_rungs(
-        self, limit: int | None = None, *, informative_only: bool = False
+        self,
+        limit: int | None = None,
+        *,
+        informative_only: bool = False,
+        direction: str | None = None,
     ) -> list[Rung]:
         """Every rung, most likely first, on the corrected probability.
 
@@ -253,11 +257,21 @@ class ForecastCard:
         likely". Ties are broken toward the wider claim -- more evidence, then
         the higher line -- so the top of a ladder outranks the fourth
         restatement of the same read one line down.
+
+        ``direction`` narrows to one side. It exists because the two sides of a
+        prop are not comparable as reads: an UNDER on a count that averages 0.4
+        is near-certain by arithmetic and beats every OVER on the board, so a
+        single ranking is always an UNDER ranking. Superbet posts football props
+        **OVER-only** -- on the 2026-09-07 offer, 4,690 prop rows on the stats
+        sheet came back ``OFFERED`` and not one of them was an UNDER -- so the
+        side a single ranking buries is the only side that exists as a market.
         """
         scored = [
             r
             for r in self.rungs
-            if r.p_honest is not None and not (informative_only and r.at_ceiling)
+            if r.p_honest is not None
+            and not (informative_only and r.at_ceiling)
+            and (direction is None or r.direction == direction)
         ]
         scored.sort(key=lambda r: (-(r.p_honest or 0.0), -r.sample_size, -r.line))
         return scored if limit is None else scored[:limit]
