@@ -78,11 +78,18 @@ people, and no read is safe.
    ```bash
    python3 scripts/simple/bet_builder_draft.py \
      --stats-sheet runs/<date>/<date>_event_dossiers_stats_sheet.json \
+     --offer runs/<date>/<date>_superbet_offer.json \
      --event-id <event_id> [--max-legs 4]
    ```
 
-   Report it verbatim, confront each leg with `row.superbet.price` (the CLI
-   has no `--offer` flag and does not see it), then write the concrete
+   **`--offer` is required** and this file said the opposite until 2026-09-06:
+   the command as printed here exited on a usage error before doing anything.
+   Prices come from the offer artifact, not from `row.superbet.price` — the
+   sheet's column is whatever ANALYZE wrote and a `--refresh-offer` rebuild
+   leaves it behind. The CLI's `builder_score` is its own object and may refuse
+   a slip the coupon carries; quote it as such.
+
+   Report it verbatim, then write the concrete
    scorelines that satisfy every leg, grade `ROBUST / MODERATE / FRAGILE`,
    name the scoreline that kills all legs. No combined price.
 

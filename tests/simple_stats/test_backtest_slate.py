@@ -492,3 +492,70 @@ def test_the_slip_summary_reports_the_price_the_bet_would_have_needed(bt):
     # A slip drafted before ``joint_probability`` existed still settles and is
     # simply absent from the calibration line.
     assert summary["claimed_n"] == 4
+
+
+# --- a mid-slate run must not report "no ROI" as if it were "no data" ------
+#
+# Confirmed on 2026-09-06 at 17:59Z, mid-slate: 400 rebuilt candidate rows,
+# 94 priced and every one NO_DATA, 232 settled and not one priced. ROI came
+# out None and printed as "n/a" next to "staked 0.0", which reads as a
+# small-sample shrug rather than "the two halves cannot meet". A fixture
+# leaves Superbet's board at kickoff, so an offer fetched mid-slate prices
+# only what has yet to start while settlement covers only what has finished.
+
+
+def _rec(outcome, price, p_low=0.7):
+    return {"outcome": outcome, "price": price, "p_low": p_low}
+
+
+def test_a_mid_slate_summary_counts_both_halves_of_the_disjoint_set(bt):
+    summary = bt.summarise(
+        "mid-slate",
+        [_rec("WON", None), _rec("LOST", None), _rec("NO_DATA", 1.8)],
+    )
+    assert summary["staked"] == 0.0
+    assert summary["roi"] is None
+    assert summary["decided"] == 2
+    assert summary["settled_unpriced"] == 2
+    assert summary["priced_unsettled"] == 1
+
+
+def test_the_note_names_the_cause_when_nothing_is_both_priced_and_settled(bt):
+    note = bt._disjoint_note(
+        bt.summarise("mid-slate", [_rec("WON", None), _rec("NO_DATA", 1.8)])
+    )
+    assert note is not None
+    assert "ROI unmeasurable" in note
+    assert "1 row(s) settled with no price" in note
+    assert "1 priced row(s) have not finished" in note
+
+
+def test_a_push_counts_as_settled_for_the_note(bt):
+    # PUSH is excluded from hit rate but the stake *was* returned, so a pushed
+    # row with no price is still a row that settled and could not be priced.
+    summary = bt.summarise("mid-slate", [_rec("PUSH", None), _rec("NO_DATA", 1.8)])
+    assert summary["settled_unpriced"] == 1
+
+
+def test_no_note_when_a_real_roi_was_measured(bt):
+    summary = bt.summarise("complete", [_rec("WON", 2.0), _rec("LOST", 1.5)])
+    assert summary["staked"] == 2.0
+    assert summary["roi"] is not None
+    assert bt._disjoint_note(summary) is None
+
+
+def test_no_note_when_the_day_simply_has_not_been_played(bt):
+    # Everything NO_DATA and nothing settled: ROI is absent because the
+    # question is premature, which "n/a" already says correctly. Adding the
+    # disjoint-set explanation here would name a cause that is not the cause.
+    summary = bt.summarise("unplayed", [_rec("NO_DATA", 1.8), _rec("NO_DATA", None)])
+    assert summary["decided"] == 0
+    assert bt._disjoint_note(summary) is None
+
+
+def test_no_note_when_settled_rows_were_simply_unpriced_and_nothing_else(bt):
+    # Rows settled, none priced, and no priced-but-unfinished row either --
+    # that is a slate Superbet never carried, not a mid-slate timing artefact.
+    summary = bt.summarise("unoffered", [_rec("WON", None), _rec("LOST", None)])
+    assert summary["staked"] == 0.0
+    assert bt._disjoint_note(summary) is None

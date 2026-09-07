@@ -1,6 +1,6 @@
 {
   "date": "2026-08-31",
-  "generated_at": "2026-09-06T14:59:22.291103+00:00",
+  "generated_at": "2026-09-07T04:31:26.425851+00:00",
   "result_markets": [],
   "rows": [
     {
@@ -3548,7 +3548,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -5889,7 +5896,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -9046,7 +9060,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -9087,7 +9108,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -10411,7 +10439,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 3,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -11125,7 +11160,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -11543,7 +11585,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 2,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -11947,7 +11996,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -12247,7 +12303,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -14028,7 +14091,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -14962,7 +15032,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -16227,7 +16304,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 3,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -16353,7 +16437,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -16435,7 +16526,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 2,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -17209,7 +17307,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -17420,7 +17525,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -18178,7 +18290,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 2,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -18811,7 +18930,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -18854,7 +18980,14 @@
       "centre_note": null,
       "confidence": "HIGH",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 4.0,
+          "note": "the opponent has 4 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -19155,7 +19288,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 3,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -19363,7 +19503,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -19623,7 +19770,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -19979,7 +20133,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -20192,7 +20353,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 6.0,
+          "note": "the opponent has 6 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 2,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -21036,7 +21204,14 @@
       "centre_note": null,
       "confidence": "MEDIUM",
       "confidence_reason": "ONE_SIDED_SAMPLE",
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 3,
       "cross_provider_agreement": "PARTIAL_AGREE",
       "data_quality": "READY",
@@ -21767,7 +21942,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -21810,7 +21992,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -21853,7 +22042,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",
@@ -21896,7 +22092,14 @@
       "centre_note": null,
       "confidence": "LOW",
       "confidence_reason": null,
-      "context_flags": [],
+      "context_flags": [
+        {
+          "direction": "ARGUES_AGAINST",
+          "magnitude": 5.0,
+          "note": "the opponent has 5 players unavailable",
+          "source": "squad_availability"
+        }
+      ],
       "corroborated_matches": 0,
       "cross_provider_agreement": "SINGLE_SOURCE",
       "data_quality": "READY",

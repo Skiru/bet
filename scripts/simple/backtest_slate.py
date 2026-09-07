@@ -870,6 +870,33 @@ def summarise(label: str, records: list[dict]) -> dict:
     won, decided, rate = hit_rate(outcomes)
     staked, returned, priced = profit(outcomes, prices)
     claimed = [r["p_low"] for r in records if r["outcome"] in ("WON", "LOST")]
+    # Why a row contributed nothing to ROI, split by which half was missing.
+    #
+    # ``roi`` is None whenever ``staked`` is zero, and that reads as "too few
+    # rows to say" -- which on a *partially played* day is exactly wrong. A
+    # fixture drops off Superbet's board when it kicks off, so the offer
+    # artifact prices only what has yet to start, while ``settle_row`` can only
+    # settle what has already finished. The two sets are then disjoint by
+    # construction and ROI is not small-sample-unknown, it is unmeasurable from
+    # these inputs.
+    #
+    # Measured on 2026-09-06 at 17:59Z, mid-slate: of 400 rebuilt candidate
+    # rows, 94 carried a price and every one of them was NO_DATA, while 232
+    # settled and not one of them carried a price. The tool printed
+    # "staked 0.0 ROI n/a" and said nothing else, which invites the reading
+    # that the day had no measurable return rather than that the question was
+    # asked too early. Counting both halves is what lets ``_format`` tell the
+    # two apart -- see ``_disjoint_note``.
+    settled_unpriced = sum(
+        1
+        for record, price in zip(records, prices)
+        if record["outcome"] in ("WON", "LOST", "PUSH") and price is None
+    )
+    priced_unsettled = sum(
+        1
+        for record, price in zip(records, prices)
+        if record["outcome"] == "NO_DATA" and price is not None
+    )
     return {
         "label": label,
         "emitted": len(records),
@@ -882,7 +909,31 @@ def summarise(label: str, records: list[dict]) -> dict:
         "staked": round(staked, 2),
         "returned": round(returned, 2),
         "roi": round(returned / staked - 1.0, 4) if staked else None,
+        "settled_unpriced": settled_unpriced,
+        "priced_unsettled": priced_unsettled,
     }
+
+
+def _disjoint_note(summary: dict) -> str | None:
+    """Say why ROI is absent when it is absent for a reason worth naming.
+
+    None unless *nothing* was both priced and settled while both halves exist
+    separately. That is the signature of a mid-slate run, and the note names
+    the cause rather than the symptom so the reader does not have to rediscover
+    it by cross-tabulating the record dump by hand.
+    """
+    if summary["staked"] or not summary["decided"]:
+        return None
+    if not (summary["settled_unpriced"] and summary["priced_unsettled"]):
+        return None
+    return (
+        f"    ROI unmeasurable: {summary['settled_unpriced']} row(s) settled "
+        f"with no price, {summary['priced_unsettled']} priced row(s) have not "
+        "finished, and no row is both. A fixture leaves Superbet's board at "
+        "kickoff, so a mid-slate offer cannot price what has already been "
+        "played -- settle the recorded coupon file, whose price is frozen, or "
+        "re-run once the slate is complete."
+    )
 
 
 _CALIBRATION_BUCKETS = ((0.50, 0.55), (0.55, 0.60), (0.60, 0.70), (0.70, 0.85), (0.85, 1.01))
@@ -1053,6 +1104,9 @@ def main() -> int:
             summary = summarise(f"{date} {which}", records)
             per_slate.append(summary)
             print("  " + _format(summary))
+            note = _disjoint_note(summary)
+            if note:
+                print(note)
             if args.legs:
                 legs = settle_slip_legs(coupons, events, actuals)
                 for record in legs:
@@ -1061,6 +1115,9 @@ def main() -> int:
                 leg_summary = summarise(f"{date} {which} legs", legs)
                 per_slate.append(leg_summary)
                 print("  " + _format(leg_summary))
+                note = _disjoint_note(leg_summary)
+                if note:
+                    print(note)
                 # The slip is the unit that is staked; the legs are how it was
                 # argued. Both are printed because they answer different
                 # questions and the leg number flatters the slip badly.
@@ -1092,6 +1149,9 @@ def main() -> int:
             summary = summarise(f"ALL {which}", all_records[which])
             pooled.append(summary)
             print("  " + _format(summary))
+            note = _disjoint_note(summary)
+            if note:
+                print(note)
     for which in ("recorded_slips", "recorded_sheet_slips", "rebuilt_slips"):
         if all_records.get(which):
             summary = summarise_slips(f"ALL {which}", all_records[which])

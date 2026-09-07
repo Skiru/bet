@@ -511,6 +511,11 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "Switzerland Super League": "sui.1",
     "Austria Bundesliga": "aut.1",
     "Greece Super League": "gre.1",
+    # The Greek top flight's sponsor name, which is what the feed sends. Safe
+    # to author despite the bare-"Super League" doctrine above: "Stoiximan"
+    # names exactly one competition in the world, so the signature cannot
+    # collide the way {super, league} does.
+    "Stoiximan Super League": "gre.1",
     # Bare "Superliga" is NOT here either. The 2026-08-28 slate proves why:
     # two fixtures came in as plain "Superliga" and resolved to den.1, but the
     # teams were Universitatea Cluj, Petrolul Ploiesti, Voluntari and Otelul
@@ -535,6 +540,16 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     # --- South America ---------------------------------------------------
     "Brasileirao": "bra.1", "Brasileiro": "bra.1",
     "Brazil Serie A": "bra.1", "Campeonato Brasileiro": "bra.1",
+    # bzzoiro's own spelling, and the one that actually arrives. Resolution is
+    # by *token signature*, not substring, so {brasileirao} and
+    # {brasileirao, serie, a} are different keys -- "Brasileirao Serie B" was
+    # authored below and "Serie A" was not, so the top flight was the only one
+    # of the two that missed. Cost, measured on 2026-09-06: 5 fixtures lost
+    # espn-football on both sides and their h2h, which is every Brasileirao
+    # Serie A row on that slate reading SINGLE_SOURCE with
+    # corroborated_matches 0 -- Remo-Flamengo, Internacional-Santos and
+    # Corinthians-Chapecoense among them. Same code, already /teams-verified.
+    "Brasileirao Serie A": "bra.1",
     # "Brasileirao Serie B" used to resolve to bra.1: "brasileirao" is longer
     # than "serie b", so the division marker lost the longest-match contest.
     "Brasileirao Serie B": "bra.2", "Brazil Serie B": "bra.2",
@@ -569,6 +584,11 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "USL League One": "usa.usl.l1",
     "NWSL": "usa.nwsl",
     "Liga MX": "mex.1", "Mexico Liga MX": "mex.1",
+    # Liga MX plays two tournaments a calendar year under one league; both are
+    # mex.1 at ESPN. bzzoiro names the tournament, not the league, so the bare
+    # key never matched: 5 fixtures on 2026-09-06, Cruz Azul - Santos Laguna
+    # among them, lost the corroborator on both sides.
+    "Liga MX Apertura": "mex.1", "Liga MX Clausura": "mex.1",
     "Liga de Expansion MX": "mex.2",
     "Costa Rica Primera Division": "crc.1",
     "Guatemala Liga Nacional": "gua.1",

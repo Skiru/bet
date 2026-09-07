@@ -1953,13 +1953,38 @@ def _normalize_event_row(
         "travel_distance_km": _scalar(row.get("travel_distance_km")),
         "weather": row.get("weather") if isinstance(row.get("weather"), dict) else None,
         # Stakes context, same "already in the row, costs nothing" reasoning
-        # as the block above. round_name/group_name are the provider's own
-        # free-text label ("" on every plain league fixture verified live
-        # 2026-08-31) and previous_leg_event_id points at the first leg of a
-        # two-legged tie -- reading which side trails needs a follow-up call
-        # to that event, so this is plumbing for the analyst to act on live,
-        # not a value this pipeline resolves itself.
-        "round_name": str(row.get("round_name")) if row.get("round_name") else None,
+        # as the block above. previous_leg_event_id points at the first leg of
+        # a two-legged tie -- reading which side trails needs a follow-up call
+        # to that event, so that part is plumbing for the analyst to act on
+        # live, not a value this pipeline resolves itself.
+        #
+        # ``round_name`` alone was read here until 2026-09-06, and it is the
+        # one round field this provider leaves **empty on every fixture that is
+        # not a named knockout tie**. The plumbing behind it was repaired on
+        # 2026-09-03 (discover._to_event_record) and the field still came back
+        # None on all 165 fixtures of 2026-09-04 and all 163 of 2026-09-06 --
+        # because the emptiness is at the source, not in the wiring.
+        #
+        # The provider fills three *other* fields on the same row and this
+        # function dropped all three. Verified live on event 223659
+        # (Lanus - Defensa y Justicia, 2026-09-06):
+        #
+        #     round_name  ""                       <- the only one read
+        #     round_number 8
+        #     stage        "group-stage"
+        #     stage_name   "Group stage"
+        #     round_label  "Group A - Matchday 8"  <- already composed
+        #
+        # So the fixture context could not tell a group stage's eighth matchday
+        # from a cup first round, which is the distinction every stakes read
+        # starts from: nobody rotates in matchday 8 of a 16-match group, and
+        # everybody rotates in a dead one.
+        #
+        # Preference order is most-specific-first and never invents: the
+        # provider's own composed label, else its free-text name, else a label
+        # built from the two structured fields, else None. A row that carries
+        # none of them is still None -- unknown stays unknown.
+        "round_name": _round_label(row),
         "group_name": str(row.get("group_name")) if row.get("group_name") else None,
         "previous_leg_event_id": (
             str(row.get("previous_leg_event_id"))
@@ -1968,6 +1993,32 @@ def _normalize_event_row(
         ),
         "source_order": source_order,
     }
+
+
+def _round_label(row: dict[str, Any]) -> str | None:
+    """The most specific round description this fixture row can support.
+
+    Order: the provider's own ``round_label`` (already composed, and the only
+    one that carries the group), then its free-text ``round_name`` (set on
+    named knockout ties -- "Quarterfinals"), then a label composed from
+    ``stage_name`` and ``round_number``, then ``round_number`` alone.
+
+    Composed rather than returning ``round_number`` as a bare integer because
+    every consumer of this field treats it as free text, and "8" reaching a
+    stakes read as a round name is worse than None: it reads as a cup round.
+    """
+    label = row.get("round_label")
+    if isinstance(label, str) and label.strip():
+        return label.strip()
+    name = row.get("round_name")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    stage = row.get("stage_name") or row.get("stage")
+    number = row.get("round_number")
+    stage = stage.strip() if isinstance(stage, str) and stage.strip() else None
+    if number is not None and str(number).strip():
+        return f"{stage} - Matchday {number}" if stage else f"Matchday {number}"
+    return stage
 
 
 def _infer_result(goals_for: Any, goals_against: Any) -> str | None:

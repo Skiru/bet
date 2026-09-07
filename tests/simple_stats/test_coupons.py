@@ -424,6 +424,37 @@ def test_one_veto_matching_several_rows_is_reported_once():
     assert vetoed.excluded.get("analyst_veto") == 3
 
 
+def test_a_market_wide_downgrade_reports_each_distinct_starting_tier_once():
+    """A market-wide veto (``line=None``) can land on rows that do not all
+    start at the same tier -- a thin (n=6) rung is already LEAN before any
+    veto, while an n=12 rung on the same market is CALL. Reporting only the
+    first row the loop reached described the wrong transition for every row
+    that did not happen to be it.
+
+    Live on 2026-09-06: Corinthians-Chapecoense's ``shots_on_target_for``
+    veto printed "LEAN→WEAK" from a thin rung, while the rung that actually
+    reached a Bet Builder leg started at CALL and went to LEAN -- a caveat
+    that described a different row's fate than the one on the slip.
+    """
+    coupons = build_coupons(
+        _sheet(
+            _row(p_low=0.90, market="shots_for", line=9.5, sample_size=12,
+                 cross_provider_agreement="AGREE"),
+            _row(p_low=0.85, market="shots_for", line=10.5, sample_size=6,
+                 cross_provider_agreement="SINGLE_SOURCE"),
+        ),
+        _events(_event()),
+        vetoes=[_veto(
+            market="shots_for", line=None, action="DOWNGRADE",
+            reason="sample nie warunkuje na rywalu",
+        )],
+    )
+    notes = [n for n in coupons.notes if "sample nie warunkuje na rywalu" in n]
+    assert len(notes) == 2
+    assert any("CALL→LEAN" in n for n in notes)
+    assert any("LEAN→WEAK" in n for n in notes)
+
+
 def test_two_distinct_vetoes_on_one_event_are_reported_separately():
     """Dedup keys on the decision, not on the event."""
     coupons = build_coupons(

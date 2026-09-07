@@ -568,3 +568,70 @@ def test_dossier_keeps_context_even_when_every_provider_failed(monkeypatch, tmp_
     assert dossier.readiness == "BLOCKED"
     assert dossier.referee is None
     assert dossier.fixture_context.is_local_derby is True
+
+
+# --- the round label the provider composes and this client used to drop ----
+#
+# ``round_name`` is empty on every fixture that is not a named knockout tie, so
+# reading it alone left ``fixture_context.round_name`` None on 165 of 165
+# fixtures (2026-09-04) and 163 of 163 (2026-09-06) even after the wiring
+# behind it was repaired on 2026-09-03. The emptiness was at the source.
+#
+# Captured live from event 223659 (Lanús - Defensa y Justicia, 2026-09-06):
+# round_name "", round_number 8, stage "group-stage", stage_name "Group stage",
+# round_label "Group A · Matchday 8".
+
+from bet.api_clients.bzzoiro import _round_label
+
+
+def test_the_providers_own_composed_label_wins():
+    assert _round_label(
+        {
+            "round_label": "Group A · Matchday 8",
+            "round_name": "",
+            "round_number": 8,
+            "stage_name": "Group stage",
+        }
+    ) == "Group A · Matchday 8"
+
+
+def test_a_named_knockout_tie_still_reads_its_own_name():
+    # The pre-2026-09-06 behaviour, preserved: a cup row carries round_name and
+    # no round_label, and that name is more specific than anything composed.
+    assert _round_label({"round_label": "", "round_name": "Quarterfinals"}) == "Quarterfinals"
+
+
+def test_a_plain_league_row_is_composed_from_the_structured_fields():
+    assert _round_label(
+        {"round_name": "", "round_number": 26, "stage_name": "Regular season"}
+    ) == "Regular season - Matchday 26"
+
+
+def test_the_machine_stage_is_used_when_the_display_name_is_absent():
+    assert _round_label(
+        {"round_name": None, "round_number": 3, "stage": "regular-season"}
+    ) == "regular-season - Matchday 3"
+
+
+def test_a_stage_without_a_number_is_still_a_label():
+    assert _round_label({"round_name": "", "stage_name": "Group stage"}) == "Group stage"
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        {},
+        {"round_label": "   ", "round_name": "  ", "round_number": "  "},
+        {"round_label": None, "round_name": None, "round_number": None, "stage": None},
+    ],
+)
+def test_a_row_carrying_nothing_stays_none(row):
+    """Unknown stays unknown. A bare round_number reaching a stakes read as a
+    round name would be worse than None -- "8" reads as a cup round."""
+    assert _round_label(row) is None
+
+
+def test_a_bare_number_is_labelled_and_never_returned_raw():
+    got = _round_label({"round_number": 8})
+    assert got == "Matchday 8"
+    assert got != "8"

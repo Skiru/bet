@@ -139,7 +139,7 @@ ten leagues; 7,516 for goals) unless stated.
 
 ## Bet Builder (any of the above combined)
 
-- Run `scripts/simple/bet_builder_draft.py --stats-sheet … --event-id …` and
+- Run `scripts/simple/bet_builder_draft.py --stats-sheet … --offer … --event-id …` (`--offer` is required; without it the command exits on a usage error) and
   report verbatim (legs, each bar, `correlation_note`, `builder_score` and
   its parts). The CLI has no `--offer` flag: **confront every leg with
   `row.superbet.price` yourself** — on 2026-09-03 three of four drafted legs

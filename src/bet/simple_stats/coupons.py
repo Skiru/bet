@@ -1040,6 +1040,61 @@ def _entitlement_note(market_context: MarketContextV1 | None) -> str | None:
     )
 
 
+def _stale_sheet_note(
+    stats_sheet: StatsSheetV1, superbet_offer: SuperbetOfferV1 | None
+) -> str | None:
+    """Say so when the coupon priced from a *newer* offer than the sheet on disk.
+
+    ``--refresh-offer`` re-fetches the board and prices the coupon from it, but
+    it does not rewrite ``<date>_event_dossiers_stats_sheet.json`` -- that file
+    keeps the ``row.superbet.price`` column from whenever ANALYZE last ran. The
+    two then disagree, silently, and the sheet is what every downstream reader
+    opens: the analyst agents, ``diff_stats_sheet.py``, and any hand check of
+    "is this price real".
+
+    Measured on 2026-09-06: the coupon was built at 18:51Z from an offer fetched
+    at 18:51Z while the sheet on disk carried prices from 16:00Z. Remo-Flamengo
+    10.5 UNDER read 1.60 in the coupon and 1.58 in the sheet, and the devigged
+    market probability behind the bar differed in the third decimal -- small,
+    but it is the number the threshold is derived from, and a reader reconciling
+    the two has no way to tell which is current.
+
+    Reported rather than repaired here because repairing it means rewriting a
+    164 MB artifact from inside a function that is documented pure. The note
+    names the gap in minutes so the reader knows which file to trust.
+    """
+    if superbet_offer is None:
+        return None
+    sheet_at = _moment_utc(getattr(stats_sheet, "generated_at", None))
+    offer_at = _moment_utc(getattr(superbet_offer, "generated_at", None))
+    if sheet_at is None or offer_at is None or offer_at <= sheet_at:
+        return None
+    minutes = int((offer_at - sheet_at).total_seconds() // 60)
+    if minutes < 1:
+        return None
+    return (
+        f"Oferta użyta do wyceny tego kuponu jest o {minutes} min świeższa niż "
+        f"kolumna cen w arkuszu na dysku (oferta {offer_at:%H:%M}Z, arkusz "
+        f"{sheet_at:%H:%M}Z). Ceny i progi **w tym pliku** pochodzą z tej "
+        "świeższej oferty; `row.superbet.price` w arkuszu jest za nimi i nie "
+        "zgodzi się z tabelami powyżej. Przy sprawdzaniu ceny ufaj temu plikowi "
+        "albo samemu ekranowi, nie arkuszowi."
+    )
+
+
+def _moment_utc(value: object) -> datetime | None:
+    """An ISO timestamp as an aware UTC datetime, or None if it is not one."""
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
 def build_coupons(
     stats_sheet: StatsSheetV1,
     event_list: EventListV1 | None = None,
@@ -1328,10 +1383,24 @@ def build_coupons(
     # loop printed the same downgrade twice in the coupon header. On 2026-09-01
     # Leicester's ``goals_for 1.5 UNDER`` appeared as two identical DOWNGRADE
     # notes, which reads as two separate findings against one fixture.
-    reported_vetoes: set[tuple[str, str, float | None, str | None, str]] = set()
+    reported_vetoes: set[tuple[str, str, float | None, str | None, str, str | None]] = set()
 
-    def note_veto_once(veto: AnalystVeto, note: str) -> None:
-        key = (veto.event_id, veto.market, veto.line, veto.direction, veto.action)
+    def note_veto_once(veto: AnalystVeto, note: str, *, variant: str | None = None) -> None:
+        # ``variant`` distinguishes DOWNGRADE notes whose printed "X→Y" differs
+        # by which row triggered them. A market-wide veto (``line=None``) can
+        # match rows on both teams and every rung; those rows do not all start
+        # at the same tier -- a per-team row that a *different* structural cap
+        # has already pinned to LEAN steps to WEAK, while the row that actually
+        # reaches the coupon may still have started at CALL and stepped to
+        # LEAN. Deduping on the veto alone printed whichever row the loop
+        # reached first as if it were the only one: live on 2026-09-06,
+        # Corinthians-Chapecoense's ``shots_on_target_for`` veto was reported as
+        # "LEAN→WEAK" from a ``RUNG_SEPARATED_BY_MODEL``-capped 6.5 line, while
+        # the 5.5 line that actually shipped as a Bet Builder leg went
+        # "CALL→LEAN" -- a caveat an operator reading that leg could not have
+        # matched to what happened to it. Keying on the starting tier too
+        # prints one note per distinct transition instead of one arbitrary one.
+        key = (veto.event_id, veto.market, veto.line, veto.direction, veto.action, variant)
         if key in reported_vetoes:
             return
         reported_vetoes.add(key)
@@ -1508,6 +1577,7 @@ def build_coupons(
                 f"DOWNGRADE analityka [{veto.reason_class}]: {_veto_scope(veto)} "
                 f"({row.event_id[:12]}) {tier}→{new_tier}"
                 f"{_veto_class_effect(veto)} — {veto.reason}",
+                variant=tier,
             )
             tier = new_tier
         if tier in ("WEAK", "DROP"):
@@ -1996,6 +2066,9 @@ def build_coupons(
         "zawyżona. To podłoga na dowody, nie gwarancja.",
         "Brak stawek i brak EV — celowo. Typ poniżej minimalnego kursu nie jest typem.",
     ]
+    stale_note = _stale_sheet_note(stats_sheet, superbet_offer)
+    if stale_note is not None:
+        notes.append(stale_note)
     if excluded.get("kickoff_passed"):
         notes.append(
             f"Odrzucono {excluded['kickoff_passed']} pozycji, których mecz już "

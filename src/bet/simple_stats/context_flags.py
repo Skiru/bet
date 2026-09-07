@@ -37,6 +37,7 @@ _SHOT_MARKETS = frozenset(
 )
 _CORNER_MARKETS = frozenset({"corners_total", "corners_for"})
 _SQUAD_SENSITIVE_FOR_MARKETS = frozenset({"shots_for", "shots_on_target_for", "goals_for"})
+_SQUAD_SENSITIVE_TOTAL_MARKETS = frozenset({"shots_total", "shots_on_target_total"})
 
 
 def _side_for_team(dossier: EventDossierV1, team_name: str | None) -> str | None:
@@ -136,6 +137,56 @@ def _squad_flag(row: StatsSheetRow, dossier: EventDossierV1) -> ContextFlag | No
         direction="ARGUES_AGAINST",
         magnitude=float(block.unavailable_count),
         note=f"{row.team_name} has {block.unavailable_count} players unavailable",
+    )
+
+
+def _opponent_squad_flag(row: StatsSheetRow, dossier: EventDossierV1) -> ContextFlag | None:
+    """Four or more unavailable on the OTHER side argues against this side's
+    own UNDER on shots/shots-on-target/goals -- a weakened defence concedes
+    more of what it usually concedes, not less.
+
+    ``_squad_flag`` above already reads this same list to argue a team's own
+    OVER down when *it* is short-handed; this is the mirror read of the same
+    feed from the opposite side, not a new signal. Missing until 2026-09-07:
+    Corinthians-Chapecoense 2026-09-06 had Chapecoense down three first-choice
+    defenders (6 unavailable, flagged correctly against Chapecoense's own OVER
+    rows) while Corinthians' ``shots_on_target_for`` UNDER 5.5 and the match's
+    ``shots_on_target_total`` UNDER 9.5 carried no flag at all -- the same
+    absence list argues just as hard against a home favourite's shots staying
+    under against a defence missing that much of itself, and nothing read it
+    from that side. Final score: Corinthians alone put 6 on target, missing
+    the 5.5 UNDER; the match total (11) missed the 9.5 UNDER by the same margin.
+
+    Scoped to ``UNDER`` only, mirroring ``_squad_flag``'s scope to ``OVER``: a
+    flag here only ever argues a row down, never up, so the opponent's own
+    absences can argue against this side's UNDER but never for one.
+    """
+    if row.direction != "UNDER":
+        return None
+    if row.market in _SQUAD_SENSITIVE_FOR_MARKETS:
+        side = _side_for_team(dossier, row.team_name)
+        if side is None:
+            return None
+        opponent_side = "away" if side == "home" else "home"
+        blocks = [s for s in dossier.squad_availability if s.side == opponent_side]
+    elif row.market in _SQUAD_SENSITIVE_TOTAL_MARKETS:
+        # A match total is either side's opponent at once -- whichever side is
+        # short-handed argues against the total staying under, regardless of
+        # which side's own row this would otherwise be.
+        blocks = [
+            s for s in dossier.squad_availability
+            if s.unavailable_count >= _MIN_UNAVAILABLE_FOR_FLAG
+        ]
+    else:
+        return None
+    block = max(blocks, key=lambda s: s.unavailable_count, default=None)
+    if block is None or block.unavailable_count < _MIN_UNAVAILABLE_FOR_FLAG:
+        return None
+    return ContextFlag(
+        source="squad_availability",
+        direction="ARGUES_AGAINST",
+        magnitude=float(block.unavailable_count),
+        note=f"the opponent has {block.unavailable_count} players unavailable",
     )
 
 
@@ -305,6 +356,7 @@ def _season_form_flag(row: StatsSheetRow, dossier: EventDossierV1) -> ContextFla
 _FLAG_RULES: tuple[Callable[[StatsSheetRow, EventDossierV1], ContextFlag | None], ...] = (
     _referee_flag,
     _squad_flag,
+    _opponent_squad_flag,
     _derby_flag,
     _weather_flag,
     _season_form_flag,
@@ -355,17 +407,28 @@ _FLAG_RULES: tuple[Callable[[StatsSheetRow, EventDossierV1], ContextFlag | None]
 # tier lever -- and there is nothing left here for a flag to add. See
 # tests/simple_stats/test_venue_split.py for the whole measurement.
 #
-# Also deliberately not a rule: fixture_context.round_name and
-# .group_name (bzzoiro's own free-text labels for cup rounds/group stages)
-# are plumbed all the way to the dossier, but every fixture checked live on
-# 2026-08-31 -- including league fixtures across ten competitions -- came
-# back with round_name="" and group_name=None. There is no cup/knockout
-# fixture on record yet to prove what a real "Final"/"Semi-final" string
-# looks like from this provider, and this file's whole discipline (see the
-# derby/weather rules above, and docs/PLAN_BOGATE_STATYSTYKI.md Faza 5b's own
-# "seen on a real slate, not guessed" rule) is that a pattern gets encoded
-# from provider data, never from what a string "probably" says. Add the rule
-# once a real knockout fixture's round_name has been observed and quoted here.
+# Also deliberately not a rule: fixture_context.round_name and .group_name.
+#
+# The reason changed on 2026-09-06 and the conclusion did not. It used to be
+# that the field was simply empty -- every fixture checked live on 2026-08-31
+# came back with round_name="" -- because the client read the provider's own
+# ``round_name``, which it fills only for named knockout ties. It now falls
+# back to ``round_label`` / ``stage_name`` + ``round_number`` (see
+# ``api_clients.bzzoiro._round_label``), so a plain league fixture reads
+# "Regular season - Matchday 26" and a group stage "Group A - Matchday 8".
+#
+# That makes the field *useful to the analyst* and still not a rule here. The
+# strings now observed are structural, not stakes: "Matchday 26" says where in
+# the calendar the fixture sits, not whether anyone is playing for anything,
+# and turning a round number into a tier lever would encode "late in the
+# season" as "high stakes" on nothing but a guess. A real knockout string
+# ("Final", "Semi-final") from this provider is still unobserved on any slate
+# on disk, and this file's discipline (see the derby/weather rules above, and
+# docs/PLAN_BOGATE_STATYSTYKI.md Faza 5b's "seen on a real slate, not
+# guessed") is that a pattern gets encoded from provider data, never from what
+# a string probably says. Add the rule when such a fixture is observed and
+# quoted here -- and note that the field being populated means an *absence* is
+# now informative in a way it was not before.
 #
 # previous_leg_event_id (the first leg of a two-legged tie) is not a rule
 # either, for a different reason: which side needs to attack depends on the

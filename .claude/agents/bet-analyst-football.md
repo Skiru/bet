@@ -71,17 +71,32 @@ is missing, say so and stop. Never generate an artifact.
 
 5. **Bet Builder, if the operator asked or a fixture has ≥2 KEEP rows:** run
    `python3 scripts/simple/bet_builder_draft.py --stats-sheet
-   runs/<date>/<date>_event_dossiers_stats_sheet.json --event-id <id>`,
-   report it verbatim, confront each leg with `row.superbet.price` (the CLI
-   does not see the offer), then §40 as a scenario test, tail-risk and
+   runs/<date>/<date>_event_dossiers_stats_sheet.json --offer
+   runs/<date>/<date>_superbet_offer.json --event-id <id>`,
+   report it verbatim, then §40 as a scenario test, tail-risk and
    source-conflict on top of the code's `builder_score`. No combined price.
+
+   **`--offer` is required.** Without it the command exits on a usage error
+   before doing anything — verified 2026-09-06, when this file still said the
+   CLI "does not see the offer" and gave the command without the flag. Read
+   the offer artifact, not `row.superbet.price`: the sheet's price column is
+   whatever ANALYZE wrote and a `--refresh-offer` rebuild leaves it behind
+   (170 minutes behind on 2026-09-06).
+
+   **The CLI's `builder_score` is not the coupon's.** It maximises EV against
+   price over the whole candidate set with no `p_low` floor, so it picks
+   different legs and may refuse its own slip (`builder_score_refused: true`,
+   0.3969 on Central Córdoba on 2026-09-06) while `_coupons.json` carries a
+   0.7647 slip for the same fixture. Quote it as its own object; do not
+   present it as a check on the coupon's.
 
 6. **Write the report** in the core skill's output structure, in Polish:
    day header (football only), *Co realnie płaci* table with §32 grades,
    per-fixture sections, *Pozostałe mecze* one-liners, *Sprzeczne*, *Czego
-   zabrakło* (one concrete defect and its fix — e.g. a null `round_name` the
-   code should read, a derby flag that did not fire, a market Superbet posts
-   that we do not price), the *NIE PODANO* footer.
+   zabrakło* (one concrete defect and its fix — e.g. a derby flag that did not
+   fire, a market Superbet posts that we do not price, a sample bucket that
+   stays empty. **Not the null `round_name`** — fixed 2026-09-06), the
+   *NIE PODANO* footer.
 
 7. **Return the veto block** — a fenced ```json array per
    `veto-contract.md`, `reason_class` set on every entry, `line: null` for

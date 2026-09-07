@@ -125,6 +125,74 @@ def test_squad_flag_never_applies_to_under():
     assert context_flags_for_row(row, dossier) == []
 
 
+# --- opponent squad availability --------------------------------------------
+
+
+def test_opponent_unavailable_argues_against_this_sides_under():
+    """Home FC's own shots UNDER, argued against by the AWAY side missing
+    players -- the mirror of ``_squad_flag``, read from the other side."""
+    row = _row(market="shots_on_target_for", team_name="Home FC", line=5.5, direction="UNDER")
+    dossier = _dossier(squad_availability=[
+        SquadAvailability(provider_team_id="2", side="away", unavailable_count=6),
+    ])
+    flags = context_flags_for_row(row, dossier)
+    assert len(flags) == 1
+    assert flags[0].source == "squad_availability"
+    assert flags[0].direction == "ARGUES_AGAINST"
+
+
+def test_opponent_squad_flag_never_applies_to_over():
+    """The opponent's absences make this side's own OVER more likely, not
+    less -- a flag here may only ever argue a row down."""
+    row = _row(market="shots_on_target_for", team_name="Home FC", line=5.5, direction="OVER")
+    dossier = _dossier(squad_availability=[
+        SquadAvailability(provider_team_id="2", side="away", unavailable_count=6),
+    ])
+    assert context_flags_for_row(row, dossier) == []
+
+
+def test_own_unavailable_players_do_not_trigger_the_opponent_flag():
+    """Reading the wrong side would double-count ``_squad_flag``'s own
+    signal instead of adding the mirrored one."""
+    row = _row(market="shots_on_target_for", team_name="Home FC", line=5.5, direction="UNDER")
+    dossier = _dossier(squad_availability=[
+        SquadAvailability(provider_team_id="1", side="home", unavailable_count=6),
+    ])
+    assert context_flags_for_row(row, dossier) == []
+
+
+def test_three_opponent_unavailable_is_not_enough_to_flag():
+    row = _row(market="shots_on_target_for", team_name="Home FC", line=5.5, direction="UNDER")
+    dossier = _dossier(squad_availability=[
+        SquadAvailability(provider_team_id="2", side="away", unavailable_count=3),
+    ])
+    assert context_flags_for_row(row, dossier) == []
+
+
+def test_opponent_squad_flag_reaches_the_match_total_from_either_side():
+    """A match total is both sides' opponent at once: either side being
+    short-handed argues the total should not stay under."""
+    row = _row(market="shots_on_target_total", team_name=None, line=9.5, direction="UNDER")
+    dossier = _dossier(squad_availability=[
+        SquadAvailability(provider_team_id="1", side="home", unavailable_count=5),
+        SquadAvailability(provider_team_id="2", side="away", unavailable_count=6),
+    ])
+    flags = context_flags_for_row(row, dossier)
+    assert len(flags) == 1
+    assert flags[0].direction == "ARGUES_AGAINST"
+    assert flags[0].magnitude == 6.0
+
+
+def test_opponent_squad_flag_does_not_reach_unrelated_markets():
+    """Corners and cards are not squad-sensitive the way shots and goals are
+    -- this mirrors ``_squad_flag``'s own market scope."""
+    row = _row(market="corners_total", team_name=None, line=9.5, direction="UNDER")
+    dossier = _dossier(squad_availability=[
+        SquadAvailability(provider_team_id="1", side="home", unavailable_count=6),
+    ])
+    assert context_flags_for_row(row, dossier) == []
+
+
 # --- derby ----------------------------------------------------------------
 
 

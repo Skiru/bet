@@ -28,11 +28,18 @@ needs a fix.
   not gated.
 - `source_ids.bzzoiro` is the integer you pass to `get_match_detail`. Tennis
   events carry none.
-- `round_name / group_name / previous_leg_*` are **null in every dossier seen
-  so far** even though `get_match_detail` returns them (memory:
-  `fixture-context-stakes-never-populate`). Do not read null as "league
-  fixture". For any cup tie, call `get_match_detail` and read `round_name`
-  and `previous_leg_event_id` yourself.
+- `round_name` is **populated from 2026-09-06 on**. It was null in every
+  dossier before that, and for one reason: the client read the provider's
+  `round_name`, which is `""` on every fixture that is not a named knockout
+  tie, and ignored the `round_label` / `stage_name` / `round_number` sitting
+  in the same row. It now falls back through them, so a plain league fixture
+  reads "Regular season - Matchday 26" and a group stage reads
+  "Group A - Matchday 8". A dossier written **before** 2026-09-06 still has
+  null; check `generated_at` before concluding anything from an absence.
+- `group_name / previous_leg_*` are still frequently null. Do not read null as
+  "league fixture". For any cup tie, call `get_match_detail` and read
+  `previous_leg_event_id` yourself — resolving which side trails needs a
+  second call to that event and this pipeline does not make it.
 - `is_local_derby` is the provider's flag and has been wrong (Grêmio–
   Internacional: `false` at 11 km). Treat `travel_distance_km < 25` as a
   derby candidate.

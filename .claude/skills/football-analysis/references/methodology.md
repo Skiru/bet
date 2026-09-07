@@ -71,8 +71,10 @@ underdog; a 0-0 to 60' inflates fouls and cards in a knockout.
   Extra time exists in some competitions and not others (UEFA yes; Copa do
   Brasil from the R16 straight to penalties) — settlement rules for counting
   markets follow the competition. *Implication:* `previous_leg_event_id` and
-  `round_name` are the highest-value context fields in the system and are null
-  in the dossiers; read them via `get_match_detail`.
+  `round_name` are the highest-value context fields in the system.
+  `round_name` is populated from 2026-09-06 on (falls back to the provider's
+  `round_label`, then `stage_name` + `round_number`); `previous_leg_event_id`
+  is still to be read via `get_match_detail`.
 - **Derbies** raise fouls and cards materially (Buraimo et al. controlled for
   it because it matters); `is_local_derby` is a provider flag that has been
   wrong — use distance too.
