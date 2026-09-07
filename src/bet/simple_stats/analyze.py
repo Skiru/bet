@@ -50,11 +50,13 @@ _OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
 _MARKET_PRIORS_PATH = _CONFIG_DIR / "market_priors.json"
 _LEAGUE_BASELINES_PATH = _CONFIG_DIR / "league_baselines.json"
 _MARKET_RELIABILITY_PATH = _CONFIG_DIR / "market_reliability.json"
+_SAMPLE_DRIFT_PATH = _CONFIG_DIR / "sample_drift.json"
 _CONFIG_LOCK = threading.Lock()
 _OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
 _MARKET_PRIORS_CACHE: dict[str, float] | None = None
 _LEAGUE_BASELINES_CACHE: dict[str, dict[str, float]] | None = None
 _MARKET_RELIABILITY_CACHE: dict[str, dict] | None = None
+_SAMPLE_DRIFT_CACHE: dict[str, dict] | None = None
 
 
 def _load_json(path: Path) -> dict:
@@ -331,6 +333,68 @@ def market_reliability() -> dict[str, dict]:
     with _CONFIG_LOCK:
         _MARKET_RELIABILITY_CACHE = out
         return _MARKET_RELIABILITY_CACHE
+
+
+def sample_drift() -> dict[str, dict]:
+    """``{market: {delta, se, z, fixtures, priced, drifted, overstated_side}}``.
+
+    Whether a market's sample counts the quantity Superbet settles, measured by
+    ``scripts/simple/audit_sample_bias.py --write``. Keyed by bare market name
+    with no ``@BO3``/``@BO5`` suffix, because the audit settles football team
+    markets only -- a tennis scope is absent here rather than centred.
+
+    ``delta`` is signed **actual minus sample**, so positive means the sample
+    runs *low* and the market's UNDER is the overstated side. ``overstated_side``
+    states that conclusion outright so no consumer re-derives it from the sign;
+    inverting it would point every caveat at the wrong half of the board while
+    looking like a repair.
+
+    Read for reporting only. Like ``market_reliability`` this never enters
+    ``p_low``, ``p_central``, a centre or a threshold -- the delta is measured
+    on the same slates it would be applied to, so folding it in would fit the
+    estimator to its own test set. ``config/sample_drift.json`` records the full
+    argument under ``_why_not_a_correction``.
+
+    ``{}`` when the file is absent, which is every run before 2026-09-07 and
+    means "nothing has been checked", not "nothing has drifted".
+    """
+    global _SAMPLE_DRIFT_CACHE
+    with _CONFIG_LOCK:
+        if _SAMPLE_DRIFT_CACHE is not None:
+            return _SAMPLE_DRIFT_CACHE
+    raw = _load_json(_SAMPLE_DRIFT_PATH).get("markets") or {}
+    out: dict[str, dict] = {}
+    if isinstance(raw, dict):
+        for market, entry in raw.items():
+            if not isinstance(entry, dict):
+                continue
+            # A malformed entry must read as "not checked" rather than as
+            # "checked and clean": the three fields every consumer prints are
+            # required, and an entry missing one is dropped whole.
+            if not isinstance(entry.get("fixtures"), int):
+                continue
+            if not isinstance(entry.get("delta"), (int, float)):
+                continue
+            if entry.get("overstated_side") not in ("UNDER", "OVER"):
+                continue
+            out[str(market)] = entry
+    with _CONFIG_LOCK:
+        _SAMPLE_DRIFT_CACHE = out
+        return _SAMPLE_DRIFT_CACHE
+
+
+def drifted_markets() -> dict[str, dict]:
+    """Only the markets that are measurable, certain and bettable at once.
+
+    The single entry point for both consumers, so ``drifted`` is decided by the
+    audit's own thresholds in one place and neither the forecast nor the coupon
+    gets to re-litigate what counts as drift.
+    """
+    return {
+        market: entry
+        for market, entry in sample_drift().items()
+        if entry.get("drifted") is True
+    }
 
 
 def shrinkage_target(

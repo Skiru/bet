@@ -48,6 +48,7 @@ import math
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Literal
 from pydantic import Field
 
@@ -72,6 +73,7 @@ from bet.simple_stats.bet_builder_draft import (
     tier_for_row,
 )
 from bet.discovery.team_aliases import resolve_team_alias
+from bet.simple_stats.analyze import drifted_markets
 from bet.simple_stats.contracts import (
     EventListV1,
     MarketContextV1,
@@ -1021,6 +1023,9 @@ def _caveats(row: StatsSheetRow) -> list[str]:
         )
     if is_trivial_under(row):
         notes.append("niska linia UNDER — łatwa do trafienia i zwykle wyceniana ~1.05")
+    drift = drifted_markets().get(row.market)
+    if drift:
+        notes.append(_drift_caveat(row.direction, drift))
     for reason in row.lean_ceiling_reasons:
         notes.append(_LEAN_CEILING_TEXT.get(reason, f"ograniczenie do LEAN: {reason}"))
     for reason, count in (row.observation_flags or {}).items():
@@ -1029,6 +1034,40 @@ def _caveats(row: StatsSheetRow) -> list[str]:
             .format(count=count)
         )
     return notes
+
+
+def _drift_caveat(direction: str, drift: Mapping[str, object]) -> str:
+    """The caveat every row of a drifted market carries, naming the side.
+
+    On the 2026-09-07 coupon this market put four rows on the file and three of
+    them were UNDERs -- the overstated side -- with nothing anywhere saying so:
+    the measurement existed only in a script's stdout.
+
+    ``overstated_side`` is read from the config rather than re-derived from the
+    sign of ``delta``, because that derivation is the one this whole path exists
+    to get right and doing it twice is how the two copies come to disagree. It
+    is a statement and not a discount: no probability, centre or threshold on
+    this row has been moved by it.
+    """
+    delta = float(drift.get("delta") or 0.0)
+    side = str(drift.get("overstated_side") or "")
+    magnitude = (
+        f"{abs(delta):.2f} na mecz {'nisko' if delta > 0 else 'wysoko'} "
+        f"({int(drift.get('fixtures') or 0)} rozliczonych meczów, "
+        f"z={float(drift.get('z') or 0.0):+.2f})"
+    )
+    if direction == side:
+        return (
+            f"dryf próbki: biegnie {magnitude} wobec tego, co bukmacher "
+            f"rozlicza — a {side} to właśnie strona, którą taki dryf zawyża, "
+            f"czyli ten wiersz wygląda pewniej, niż jest. Nigdzie nie "
+            f"skorygowane (wymaga dowodu out-of-sample)"
+        )
+    return (
+        f"dryf próbki: biegnie {magnitude} wobec tego, co bukmacher rozlicza "
+        f"— zawyża {side} na tym rynku, więc ten {direction} jest raczej "
+        f"zaniżony. Nigdzie nie skorygowane (wymaga dowodu out-of-sample)"
+    )
 
 
 # Why a row cannot be a CALL, in the coupon file's own words. Keyed by the

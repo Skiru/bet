@@ -63,7 +63,11 @@ from bet.simple_stats.contracts import (  # noqa: E402
     StatsSheetV1,
 )
 from bet.simple_stats.coupons import CERTAINTY_PRICE_FLOOR  # noqa: E402
-from bet.simple_stats.forecast import ForecastCard, build_cards  # noqa: E402
+from bet.simple_stats.forecast import (  # noqa: E402
+    _WORSE_THAN_AVERAGE,
+    ForecastCard,
+    build_cards,
+)
 
 # Markets whose card leads the file. Not a whitelist -- everything is written --
 # but the file is long and the reader's attention is the scarce thing, so the
@@ -159,21 +163,48 @@ def _grade_census(cards: list[ForecastCard]) -> str:
     Derived rather than written: the hand-written version of this paragraph
     named a count and three skill figures, and all four were wrong within a
     day of the measurement being rebuilt.
+
+    Both censuses read the *reliability entry*, not the grade. A card carries
+    one grade and a market can fail two independent tests at once, so counting
+    by grade made the two sentences mutually exclusive and the losing test went
+    unreported. On 2026-09-07 that hid the whole finding: every tennis market
+    on the board loses to its own constant, and because ``games_won@BO3`` and
+    ``total_games@BO3`` also have hot tails, the paragraph named only the two
+    that do not (``sety (mecz)`` at -6.2%) and left out ``gemy zawodnika`` at
+    -12.4% -- the worst market of the day. The card counts stay grade-based,
+    because a card really does display one grade.
     """
     worse: dict[str, float] = {}
     hot: dict[str, float] = {}
     for card in cards:
         entry = card.reliability or {}
-        if card.grade == "WORSE_THAN_AVERAGE":
-            worse[card.market] = float(entry.get("skill") or 0.0)
-        elif card.grade == "OVERCONFIDENT" and entry.get("hot_above") is not None:
-            hot[card.market] = float(entry["hot_above"])
+        if not entry:
+            continue
+        # Keyed by the *market*, which is format-blind, while the reliability
+        # entry is per scope -- so on a day carrying both tennis formats two
+        # different measurements land on one label. The worse one is kept, the
+        # same rule ``forecast._entry_for`` uses when it has to choose between
+        # formats: a label must not inherit the kinder of the two readings.
+        # Last-write-wins reported ``gemy zawodnika`` at -2.5% (BO5) and hid
+        # -12.4% (BO3), which was the worst market on the 2026-09-07 board.
+        skill = entry.get("skill")
+        if skill is not None and float(skill) <= _WORSE_THAN_AVERAGE:
+            worse[card.market] = min(worse.get(card.market, 1.0), float(skill))
+        if entry.get("hot_above") is not None:
+            hot[card.market] = min(
+                hot.get(card.market, 1.0), float(entry["hot_above"])
+            )
     parts = []
     if worse:
         listed = ", ".join(
             f"{_label(m)} {_pl(s)}" for m, s in sorted(worse.items(), key=lambda kv: kv[1])
         )
-        n_cards = sum(1 for c in cards if c.grade == "WORSE_THAN_AVERAGE")
+        n_cards = sum(
+            1
+            for c in cards
+            if (c.reliability or {}).get("skill") is not None
+            and float((c.reliability or {})["skill"]) <= _WORSE_THAN_AVERAGE
+        )
         parts.append(
             f"**GORSZY OD ŚREDNIEJ** dziś: {n_cards} "
             f"{_plural(n_cards, 'karta', 'karty', 'kart')} na {len(worse)} "
@@ -184,7 +215,9 @@ def _grade_census(cards: list[ForecastCard]) -> str:
             f"{_label(m)} powyżej {t:.0%}".replace("%", "%")
             for m, t in sorted(hot.items(), key=lambda kv: kv[1])
         )
-        n_hot = sum(1 for c in cards if c.grade == "OVERCONFIDENT")
+        n_hot = sum(
+            1 for c in cards if (c.reliability or {}).get("hot_above") is not None
+        )
         parts.append(
             f"**PRZESADNIE PEWNY**: {n_hot} "
             f"{_plural(n_hot, 'karta', 'karty', 'kart')} — {listed}. Poniżej "
@@ -265,6 +298,11 @@ def _card_json(card: ForecastCard, identity: dict) -> dict:
         "grade": card.grade,
         "grade_reason": card.grade_reason,
         "reliability": dict(card.reliability) if card.reliability else None,
+        # A third question from the grade: whether the sample counts what the
+        # book settles. Null on every market measured centred and on every
+        # market never measured -- config/sample_drift.json tells those apart.
+        "sample_drift": dict(card.drift) if card.drift else None,
+        "sample_drift_note": card.drift_note,
         "centre_note": card.centre_note,
         "drivers": [
             {
@@ -413,8 +451,17 @@ def _rank_row(card: ForecastCard, rung, identities: dict) -> str:
         f"**{rung.line:g} {rung.direction}** | "
         f"{card.expected:.2f} ({low:.1f}–{high:.1f}) | "
         f"{rung.hits}/{rung.sample_size} | "
-        f"{_GRADE_PL.get(card.grade, card.grade)} | {price} |"
+        f"{_GRADE_PL.get(card.grade, card.grade)}{_DRIFT_MARK if card.drift else ''}"
+        f" | {price} |"
     )
+
+
+# The ranked table is the first thing read and its grade column is the only
+# quality signal in it, so a market whose sample drifts has to be visible
+# *there* and not only on the card further down -- ``cards_points_total`` reads
+# ZMIERZONY, the best grade in the file, and the mark is what stops that being
+# the whole story. Explained once under the table by ``_drift_legend``.
+_DRIFT_MARK = " ⚠"
 
 
 _RANK_HEADER = (
@@ -429,7 +476,38 @@ def _ranked_table(rows: list[tuple], identities: dict) -> list[str]:
     out = [_RANK_HEADER]
     out += [_rank_row(card, rung, identities) for _p, card, rung in rows]
     out.append("")
+    # Printed only when a marked row is actually in this table, so the legend
+    # cannot outlive the drift it explains.
+    if any(card.drift for _p, card, _r in rows):
+        out += _drift_legend(
+            {card.market: card.drift for _p, card, _r in rows if card.drift}
+        )
     return out
+
+
+def _drift_legend(drifted: dict[str, dict]) -> list[str]:
+    """What the ⚠ in the grade column means, per market that carries one."""
+    lines = [
+        "> ⚠ = próbka tego rynku nie mierzy dokładnie tego, co bukmacher "
+        "rozlicza. To **osobne pytanie od oceny** — ocena mówi o "
+        "umiejętności i kalibracji, a te rynki wypadają w niej dobrze. "
+        "Zmierzone przez `scripts/simple/audit_sample_bias.py`, nigdzie nie "
+        "skorygowane (dowód out-of-sample jest wymagany, patrz "
+        "`config/sample_drift.json`):"
+    ]
+    for market in sorted(drifted):
+        entry = drifted[market] or {}
+        delta = float(entry.get("delta") or 0.0)
+        side = str(entry.get("overstated_side") or "")
+        lines.append(
+            f"> - `{market}` — próbka biegnie "
+            f"{abs(delta):.2f} na mecz {'nisko' if delta > 0 else 'wysoko'} "
+            f"({int(entry.get('fixtures') or 0)} meczów, "
+            f"z={float(entry.get('z') or 0.0):+.2f}); **{side} na tym rynku "
+            f"jest zawyżone** o mniej więcej tyle."
+        )
+    lines.append("")
+    return lines
 
 
 class _Ranked(NamedTuple):
@@ -759,6 +837,13 @@ def _render(
                 f"{_GRADE_PL.get(card.grade, card.grade)}"
             )
             out.append(f"- _{card.grade_reason}_")
+            if card.drift_note:
+                # Deliberately its own bullet and not appended to the grade
+                # line: the grade can read MEASURED and this can read drifted
+                # at the same time, which is exactly the 2026-09-07 case, and
+                # one sentence containing both would be read as a contradiction
+                # rather than as two answers.
+                out.append(f"- **dryf próbki**: _{card.drift_note}_")
             baseline = f"{card.baseline:.2f}" if card.baseline is not None else "brak"
             out.append(
                 f"- środek = próbka {card.sample_mean:.2f} (n={card.sample_size}, "

@@ -59,6 +59,7 @@ from dataclasses import dataclass, field
 from bet.simple_stats.analyze import (
     MAX_COUNT_MODEL_PROBABILITY,
     SHRINKAGE_K,
+    drifted_markets,
     market_reliability,
     scope_values,
     shrinkage_target,
@@ -218,6 +219,10 @@ class ForecastCard:
     reliability: Mapping[str, object] | None
     grade: str
     grade_reason: str
+    # Set only where the sample has been measured to drift against settlement.
+    # Carried next to the grade rather than folded into it; see ``_drift_note``.
+    drift: Mapping[str, object] | None = None
+    drift_note: str | None = None
     drivers: list[Driver] = field(default_factory=list)
     rungs: list[Rung] = field(default_factory=list)
     centre_note: str | None = None
@@ -371,27 +376,38 @@ def _grade(
     comparable = bool(reliability.get("skill_comparable", True))
     hot_above = reliability.get("hot_above")
     hot = reliability.get("hot_above_detail")
+    hot_sentence = ""
     if hot_above is not None and isinstance(hot, Mapping):
-        return (
-            "OVERCONFIDENT",
-            prefix + f"the level is not the problem here, the confidence is, and it "
-            f"is only a problem above a point: rows on this market claiming "
-            f"{float(hot_above):.0%} or more have realised "
-            f"{float(hot['realised']):.1%} against a claimed "
+        hot_sentence = (
+            f"rows on this market claiming {float(hot_above):.0%} or more have "
+            f"realised {float(hot['realised']):.1%} against a claimed "
             f"{float(hot['claimed']):.1%} over {int(hot['fixtures'])} settled "
             f"fixtures ({float(hot['gap']):+.1%}, 95% interval from "
-            f"{float(hot['gap_ci_low']):+.1%}, resampled by fixture). Below "
-            f"{float(hot_above):.0%} the market is calibrated -- so read the "
-            f"expectation, and discount the confidence only on the rungs that "
-            f"claim at least that much",
+            f"{float(hot['gap_ci_low']):+.1%}, resampled by fixture)"
         )
+    # The two level grades run *before* the confidence grade, and the reason
+    # they have to is ``games_won@BO3``. It is hot above 0.55 and its skill is
+    # -12.4% -- the worst on the tennis board, six times past this threshold --
+    # and while OVERCONFIDENT returned first it was the only thing said about
+    # that market. OVERCONFIDENT's own text asserts "the level is not the
+    # problem here", so on a market that loses to its own constant the grade
+    # was stating the opposite of the finding, and the day's census (which
+    # counts by grade) reported one tennis market as worse than average when
+    # every one of them is.
+    #
+    # Nothing is lost by the reorder: the hot tail is carried into whichever
+    # grade wins, and the *number* is corrected by ``honest_probability``,
+    # which reads the reliability entry directly and never consults the grade.
+    # A market with an acceptable centre and a hot tail still grades
+    # OVERCONFIDENT, which is the case the check was written for.
+    also = f". Its confident rungs are hot as well: {hot_sentence}" if hot_sentence else ""
     if sd and abs(bias) > _BIAS_CEILING_IN_SD * sd:
         return (
             "BIASED",
             prefix + f"forecast runs {bias:+.2f} against actual over {fixtures} settled "
             f"fixtures ({abs(bias) / sd:.0%} of the market's own spread, on an "
             f"actual mean of {float(reliability.get('actual_mean') or 0):.2f}) -- "
-            f"correct for it by hand before reading any rung",
+            f"correct for it by hand before reading any rung" + also,
         )
     if skill <= _WORSE_THAN_AVERAGE:
         return (
@@ -400,7 +416,16 @@ def _grade(
             f"*worse* than simply predicting the average of {float(reliability.get('actual_mean') or 0):.2f} "
             f"(MAE {mae:.2f} vs {constant:.2f}) -- the fixture-specific sample is "
             f"costing accuracy, so the average is the better read and no rung here "
-            f"is evidence about this match",
+            f"is evidence about this match" + also,
+        )
+    if hot_sentence:
+        return (
+            "OVERCONFIDENT",
+            prefix + f"the level is not the problem here, the confidence is, and it "
+            f"is only a problem above a point: {hot_sentence}. Below "
+            f"{float(hot_above):.0%} the market is calibrated -- so read the "
+            f"expectation, and discount the confidence only on the rungs that "
+            f"claim at least that much",
         )
     if not comparable:
         # Reached only by a market whose skill is *positive* and whose bias is
@@ -433,6 +458,97 @@ def _grade(
         "MEASURED",
         prefix + f"over {fixtures} settled fixtures the sample beat predicting the average "
         f"by {skill:.1%} (MAE {mae:.2f} vs {constant:.2f}), bias {bias:+.2f}",
+    )
+
+
+def _drift_reconciliation(
+    delta: float, reliability: Mapping[str, object] | None
+) -> str:
+    """Why the grade line's ``bias`` and this drift are different numbers.
+
+    They sit on adjacent bullets and are the same error measured at two stages,
+    so left unexplained they read as a contradiction. ``bias`` is signed
+    forecast-minus-actual on the *shrunk* centre; ``delta`` is
+    actual-minus-sample on the *raw* one. Shrinkage toward the league baseline
+    pulls the centre back toward the truth, so the surviving error is the
+    smaller of the two -- on ``cards_points_total`` 0.55 raw becomes 0.34 after
+    shrinkage, so the baseline recovers about two-fifths and three-fifths reach
+    the rung.
+
+    Empty when there is nothing to reconcile: no reliability entry, or the two
+    measurements point opposite ways, which happens on a market centred enough
+    that both numbers are noise (``goals_for`` is -0.02 against +0.05) and where
+    claiming a relationship would be reading a pattern into two zeroes.
+    """
+    if not reliability:
+        return ""
+    bias = reliability.get("bias")
+    if not isinstance(bias, (int, float)) or not bias or not delta:
+        return ""
+    survives = -float(bias)
+    if (survives > 0) != (delta > 0):
+        return ""
+    if abs(survives) >= abs(delta):
+        return (
+            f" The grade line's `bias` of {float(bias):+.2f} is this same error "
+            f"measured after shrinkage, and it is no smaller, so the league "
+            f"baseline is not absorbing any of it."
+        )
+    return (
+        f" The grade line's `bias` of {float(bias):+.2f} is this same error "
+        f"after shrinkage toward the league baseline -- so the baseline "
+        f"recovers about {1.0 - abs(survives) / abs(delta):.0%} of the drift "
+        f"and the remaining {abs(survives):.2f} a match is what reaches the "
+        f"rung."
+    )
+
+
+def _drift_note(
+    entry: Mapping[str, object] | None,
+    reliability: Mapping[str, object] | None = None,
+) -> str | None:
+    """The sentence a drifted market carries *beside* its grade, or ``None``.
+
+    Beside, not instead of, and the reason is measured rather than editorial.
+    The grade answers two questions -- did the fixture's own sample beat
+    predicting the average, and do the rungs realise what they claim -- and
+    ``cards_points_total``, the market this exists for, is the best football
+    scope in ``market_reliability.json`` on both: skill +9.7%, calibration
+    error 0.0001. Grading it down would delete two true facts in order to
+    report a third.
+
+    The third is independent of both. ``BIASED`` already fires on
+    ``|bias| > 0.25 * actual_sd``, which is a question about *materiality*;
+    drift is ``|z| > 3``, a question about *certainty*; and the two cross.
+    ``shots_total`` carries 2.8 times this market's bias and is not drifted,
+    because its spread is wide enough to swallow it. ``red_cards_total`` is
+    graded ``BIASED`` and is centred here. Neither test implies the other.
+
+    And what the operator acts on is a *side*. No grade in the file names one,
+    because skill and calibration are properties of a market rather than of a
+    direction -- so the fact that a low sample makes every UNDER on the ladder
+    look better than it is has nowhere else to be said.
+    """
+    if not entry:
+        return None
+    delta = float(entry.get("delta") or 0.0)
+    side = str(entry.get("overstated_side") or "")
+    other = "OVER" if side == "UNDER" else "UNDER"
+    return (
+        f"the sample for this market does not measure quite what the book "
+        f"settles: it runs {abs(delta):.2f} a match "
+        f"{'low' if delta > 0 else 'high'} against what actually happened, over "
+        f"{int(entry.get('fixtures') or 0)} settled fixtures "
+        f"(z={float(entry.get('z') or 0.0):+.2f}, one row per fixture) -- so "
+        f"every {side} rung here is overstated and every {other} understated, "
+        f"by roughly that much of a count. This is a third question from the "
+        f"grade above, which is about skill and calibration and does not "
+        f"include it; project memory records the cause as competition mix, not "
+        f"a transcription fault, so the numbers are read correctly off matches "
+        f"that are not this fixture's mix."
+        + _drift_reconciliation(delta, reliability)
+        + " Not corrected for anywhere in the pipeline, deliberately -- see "
+        "`_why_not_a_correction` in `config/sample_drift.json`"
     )
 
 
@@ -659,6 +775,7 @@ def build_cards(
 
     cards: list[ForecastCard] = []
     reliability = market_reliability()
+    drift = drifted_markets()
     for (event_id, market, subject), rows in grouped.items():
         dossier = by_event.get(event_id)
         if dossier is None:
@@ -729,6 +846,11 @@ def build_cards(
                 reliability=entry,
                 grade=grade,
                 grade_reason=why,
+                # Keyed on the bare market: the audit settles football team
+                # markets, so a tennis scope is simply absent and a prop is
+                # never measured here at all.
+                drift=drift.get(market),
+                drift_note=_drift_note(drift.get(market), entry),
                 drivers=_drivers_for(
                     market, dossier, subject, match_format=match_format
                 ),

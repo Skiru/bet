@@ -517,17 +517,70 @@ def test_a_bucket_that_under_claims_is_kept_rather_than_dropped():
 
 
 def test_a_market_measured_but_inconclusive_says_so_and_is_not_silent():
-    """games_won@BO3 on the real config: four buckets, all hot, none past the
-    noise on 31 fixtures. Reporting that as "never measured" would be a
-    different and false statement to an operator deciding what to trust."""
-    from bet.simple_stats.analyze import market_reliability
+    """Every bucket hot, none past its own noise, and no tail to fall back on.
 
-    entry = market_reliability()["games_won@BO3"]
+    Reporting that as "never measured" would be a different and false
+    statement to an operator deciding what to trust, so the two silences get
+    two notes.
+
+    Built synthetically rather than off a shipped scope on purpose. This used
+    to assert on ``games_won@BO3``, which had exactly this shape until the
+    correction started reading ``at_75`` -- and then the test failed for the
+    right reason, which is a bad property for the test guarding a *different*
+    branch. ``_entry`` writes no ``at_75``, so this fixture cannot stop
+    exercising the branch it names.
+    """
+    entry = _entry(
+        {
+            "0.60": _bucket(0.628, 0.600, fixtures=22, rungs=30, half=0.151),
+            "0.65": _bucket(0.670, 0.639, fixtures=27, rungs=36, half=0.146),
+            "0.70": _bucket(0.735, 0.677, fixtures=25, rungs=34, half=0.162),
+        }
+    )
     assert corrected_points(entry) == []
     honest, note = honest_probability(0.80, entry)
     assert honest == 0.80
     assert "zmierzony, ale" in note
     assert "brak zmierzonej kalibracji" not in note
+
+
+def test_the_tail_is_read_where_no_bucket_reaches_the_claim():
+    """``at_75`` is a measurement, and it used to be one the correction skipped.
+
+    ``curve_points`` needs ``MIN_BUCKET_RUNGS`` inside a *single* 0.05 bucket.
+    ``games_won@BO3`` has 82 rungs on 28 fixtures claiming 0.75 or more, spread
+    over five buckets, so none of them forms -- its curve stops at 0.7346 and a
+    row claiming 0.9448 was corrected by **nothing**, while the same record
+    already said those 82 rungs claimed 85.9% and realised 62.2%, interval from
+    +9.5%. That was the top row of the 2026-09-07 tennis board.
+
+    ``games_won@BO5`` is the harder half of the same bug: no
+    ``calibration_curve`` key at all, so the read returned empty before it
+    reached any tail, and every ATP row went uncorrected.
+    """
+    from bet.simple_stats.analyze import market_reliability
+
+    table = market_reliability()
+
+    bo3 = table["games_won@BO3"]
+    assert max(b.claimed for b in curve_points(bo3)) > 0.75
+    honest, note = honest_probability(0.9448, bo3)
+    assert honest < 0.80
+    assert "skorygowane" in note
+
+    bo5 = table["games_won@BO5"]
+    assert bo5.get("calibration_curve") is None
+    assert curve_points(bo5), "a tail alone must still produce a curve point"
+    assert honest_probability(0.9448, bo5)[0] < 0.85
+
+    # The tail is a fallback, not an override: a scope whose buckets do reach
+    # the tail keeps them, because they are the finer read of the same rungs
+    # and ``at_75`` pools those same matches again.
+    total = table["total_games@BO3"]
+    assert max(b.claimed for b in curve_points(total)) >= 0.75
+    assert curve_points(total) == curve_points(
+        {k: v for k, v in total.items() if k != "at_75"}
+    )
 
 
 def test_the_gate_is_the_pooled_tail_and_not_the_bucket():

@@ -68,6 +68,12 @@ MIN_BUCKET_FIXTURES = 5.0
 # about a claim below a half, and such a row is left exactly as it came.
 CURVE_FLOOR = 0.5
 
+# The claim region ``at_75`` measures, and therefore the only region the tail
+# fallback below may be read at. That aggregate pools every rung claiming at
+# least three quarters, so reading it at 0.60 would apply a tail's
+# overconfidence to the body of the curve.
+TAIL_FALLBACK_FLOOR = 0.75
+
 # Which correction ships. "gated": the damped point estimate where the
 # clustered interval says the overconfidence is real, and nothing where it does
 # not. Chosen on held-out dates -- see applied_correction for the three
@@ -183,11 +189,15 @@ def curve_points(
     """
     if not entry:
         return []
-    curve = entry.get("calibration_curve")
-    if not isinstance(curve, Mapping):
-        return []
+    # A missing curve is not the end of the read: ``games_won@BO5`` has no
+    # ``calibration_curve`` at all (no single 0.05 bucket reaches
+    # MIN_BUCKET_RUNGS on 25 fixtures) and a perfectly good ``at_75`` -- 82
+    # rungs claiming 87.5% and realising 64.6%, interval from +6.0%. Returning
+    # empty here, as this did, meant every ATP row on the board was corrected
+    # by nothing while that measurement sat in the same record.
     raw: list[Bucket] = []
-    for bucket in curve.values():
+    curve = entry.get("calibration_curve")
+    for bucket in (curve.values() if isinstance(curve, Mapping) else ()):
         if not isinstance(bucket, Mapping):
             continue
         claimed = bucket.get("claimed")
@@ -211,6 +221,26 @@ def curve_points(
                 half=half,
             )
         )
+    # Where no bucket reaches three quarters, ``at_75`` is added as one more
+    # point. It is the same measurement one resolution coarser -- see
+    # ``_tail_bucket`` -- and adding it *here*, before the monotonicity pass
+    # and the gate, rather than consulting it separately afterwards, is what
+    # keeps the shipped number non-decreasing in the claim. Read as a separate
+    # fallback it made ``games_won@BO3`` fall 16.6 points as a claim crossed
+    # 0.75, which is the jump ``_isotonic`` and ``corrected_points`` both
+    # exist to prevent.
+    #
+    # Only when the curve stops below the floor, because ``at_75`` pools every
+    # rung claiming at least that much: on ``total_games@BO3`` its 93 rungs
+    # *include* the 0.75 and 0.80 buckets, and adding it there would weigh the
+    # same matches twice. Below the floor the two are disjoint by construction.
+    tail = _tail_bucket(entry)
+    if (
+        tail is not None
+        and tail.fixtures >= MIN_BUCKET_FIXTURES
+        and not any(b.claimed >= TAIL_FALLBACK_FLOOR for b in raw)
+    ):
+        raw.append(tail)
     raw.sort()
     if not raw:
         return []
@@ -537,6 +567,52 @@ def _read_curve(
             nearer = hi.bucket if t >= 0.5 else lo.bucket
             return lo.value + t * (hi.value - lo.value), nearer
     return targets[-1].value, targets[-1].bucket
+
+
+def _tail_bucket(entry: Mapping[str, object] | None) -> Bucket | None:
+    """``at_75`` read as a bucket, so the ordinary correction can be applied to it.
+
+    ``curve_points`` needs ``MIN_BUCKET_RUNGS`` inside a *single* 0.05 bucket
+    before it will read one, and a market can be measured well above 0.75
+    without any one bucket clearing that floor. ``games_won@BO3`` is the case
+    that found this: 82 rungs on 28 fixtures claim 0.75 or more, they spread
+    across five buckets, none reaches thirty, so the curve stops at 0.7346.
+    A row claiming 0.9448 was then corrected by *nothing*, while the
+    measurement pass had already recorded those same 82 rungs claiming 85.9%
+    and realising 62.2% -- a gap of +23.7 points whose clustered interval
+    starts at +9.5.
+
+    That is not a missing measurement. It is a measurement the correction never
+    read. ``at_75`` answers exactly the question ``_tail_gate`` asks -- is a
+    claim of *at least* this size trustworthy here -- over the whole tail at
+    once instead of bucket by bucket, which is the same discipline one
+    resolution coarser. So it is used on the same terms: gated on its own
+    clustered interval clearing zero, damped by the fixtures behind it, and
+    one-sided.
+
+    ``fixtures`` is what damps the correction and ``at_75`` records it
+    directly, so unlike ``_bucket_fixtures`` there is nothing to deflate here.
+    """
+    if not entry:
+        return None
+    tail = entry.get("at_75")
+    if not isinstance(tail, Mapping):
+        return None
+    claimed = tail.get("claimed")
+    realised = tail.get("realised")
+    if claimed is None or realised is None:
+        return None
+    ci = tail.get("gap_ci")
+    half = None
+    if isinstance(ci, (list, tuple)) and len(ci) == 2:
+        half = (float(ci[1]) - float(ci[0])) / 2.0
+    return Bucket(
+        claimed=float(claimed),
+        gap=float(claimed) - float(realised),
+        fixtures=float(tail.get("fixtures") or 0.0),
+        rungs=float(tail.get("rungs") or 0.0),
+        half=half,
+    )
 
 
 def honest_probability(
