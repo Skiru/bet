@@ -89,9 +89,16 @@ class ModelCardV1(StrictBaseModel):
         # (legacy/bet_pipeline/readiness_contracts.py). Fail closed rather than
         # raise: this is an eligibility check, and "cannot verify" must read as
         # "not eligible", never as an error that aborts an unrelated caller.
+        #
+        # SyntaxError is caught alongside ImportError because the quarantined
+        # module does not merely fail to import -- 16 files under legacy/ still
+        # carry unresolved merge markers, and an unparseable module raises
+        # SyntaxError, which ImportError does not cover. Catching only
+        # ImportError made this method raise instead of returning False,
+        # contradicting the comment directly above it.
         try:
             from legacy.bet_pipeline.readiness_contracts import ModelPackageResolver
-        except ImportError:
+        except (ImportError, SyntaxError):
             ModelPackageResolver = None  # noqa: N806 -- rebinding the imported name, not a new variable
 
         if self.package_path and ModelPackageResolver is not None:
@@ -106,7 +113,11 @@ class ModelCardV1(StrictBaseModel):
             root / "data" / "models",
         ]
         for d in artifact_dirs:
-            if d.exists() and d.is_dir():
+            # The resolver may be absent (see above); every check in this block
+            # goes through it, so without the guard "cannot verify" became an
+            # AttributeError on None as soon as one artifact directory existed.
+            # The hash comparison below needs no resolver and stays reachable.
+            if ModelPackageResolver is not None and d.exists() and d.is_dir():
                 pkg = ModelPackageResolver.resolve_package(d, approved_dirs=artifact_dirs)
                 if pkg and pkg.is_eligible and pkg.package and pkg.package.calibration_report_sha256 == self.calibration_report_sha256:
                     return True

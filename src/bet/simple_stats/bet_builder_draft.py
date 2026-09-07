@@ -1491,7 +1491,53 @@ def _caveats(row: StatsSheetRow) -> list[str]:
         )
     if row.sample_size < 8:
         notes.append(f"thin sample (n={row.sample_size})")
+    notes.extend(_drift_caveat(row))
     return notes
+
+
+def _drift_caveat(row: StatsSheetRow) -> list[str]:
+    """Name a measured sample drift on this leg, in the draft's own language.
+
+    ``draft_legs`` states the invariant that every gate a single passes a leg
+    passes too, and until 2026-09-07 the caveats broke it: ``coupons.py`` put
+    the drift on every single of a drifted market and this file, a separate
+    English implementation of the same list, said nothing. The
+    ``cards_points_total 4.5 UNDER`` leg the draft picked for Göztepe -
+    Gaziantep FK on that day is the case: a drifted market, on the overstated
+    side, with an empty ``caveats`` list.
+
+    A statement, never a discount: nothing here moves ``p_low``,
+    ``p_central``, a centre or a threshold. ``overstated_side`` is read from
+    the config rather than re-derived from the sign of ``delta``, for the same
+    reason ``coupons.py`` reads it -- two derivations of that sign are how the
+    two copies come to disagree, and an inverted sign points the warning at
+    the wrong half of the market while looking like a fix.
+    """
+    from bet.simple_stats.analyze import drifted_markets
+
+    drift = drifted_markets().get(row.market)
+    if not drift:
+        return []
+    delta = float(drift.get("delta") or 0.0)
+    side = str(drift.get("overstated_side") or "")
+    magnitude = (
+        f"{abs(delta):.2f} a match {'low' if delta > 0 else 'high'} "
+        f"({int(drift.get('fixtures') or 0)} settled fixtures, "
+        f"z={float(drift.get('z') or 0.0):+.2f})"
+    )
+    if row.direction == side:
+        return [
+            f"sample drift: this market's sample runs {magnitude} against what "
+            f"the book settles, and {side} is the side that inflates -- this "
+            f"leg looks safer than it is. Nowhere corrected for (needs "
+            f"out-of-sample evidence)"
+        ]
+    return [
+        f"sample drift: this market's sample runs {magnitude} against what the "
+        f"book settles, which inflates {side} here, so this {row.direction} is "
+        f"if anything understated. Nowhere corrected for (needs out-of-sample "
+        f"evidence)"
+    ]
 
 
 def draft_legs(

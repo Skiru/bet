@@ -252,3 +252,75 @@ class TestTheCoupon:
                 f"{row['p_central']} -- the drift must not move a probability"
             )
         assert checked, "no drifted coupon row joined back to the sheet"
+
+
+class TestTheBetBuilderDraft:
+    """The third consumer, and the one the first fix missed.
+
+    ``coupons.py`` and ``bet_builder_draft.py`` hold two separate
+    implementations of the same caveat list -- one Polish, one English -- and
+    on 2026-09-07 only the first learned about drift. ``draft_legs`` states as
+    its own invariant that every gate a single passes a leg passes too, so a
+    leg on ``cards_points_total`` with an empty ``caveats`` list while the
+    single beside it carried the drift was that invariant failing quietly.
+
+    Driven through ``draft_legs`` rather than the artifact, because the draft
+    is generated on demand by the analyst and never written to ``runs/``. Costs
+    no provider calls: sheet and offer both come off disk.
+    """
+
+    def test_a_drifted_leg_carries_the_caveat_and_names_the_side(
+        self, drifted
+    ) -> None:
+        from bet.simple_stats.bet_builder_draft import draft_legs
+        from bet.simple_stats.contracts import StatsSheetV1
+
+        sheet_path = RUN / f"{DATE}_event_dossiers_stats_sheet.json"
+        if not sheet_path.exists():
+            pytest.skip("stats sheet not on disk")
+        sheet = StatsSheetV1.model_validate_json(
+            sheet_path.read_text(encoding="utf-8")
+        )
+        event_ids = sorted({row.event_id for row in sheet.rows})
+        checked = 0
+        for event_id in event_ids:
+            draft = draft_legs(sheet, event_id, max_legs=4)
+            for leg in draft.legs:
+                entry = drifted.get(leg.market)
+                if entry is None:
+                    continue
+                checked += 1
+                caveat = next(
+                    (c for c in leg.caveats if "sample drift" in c), None
+                )
+                assert caveat is not None, (
+                    f"{event_id[:8]} leg {leg.market} {leg.line} "
+                    f"{leg.direction} is on a drifted market and carries no "
+                    f"drift caveat; it has: {leg.caveats}"
+                )
+                if leg.direction == entry["overstated_side"]:
+                    assert "looks safer than it is" in caveat, caveat
+                else:
+                    assert "understated" in caveat, caveat
+        if not checked:
+            pytest.skip("no drafted leg on the day sits on a drifted market")
+
+    def test_a_centred_leg_stays_silent(self, drifted) -> None:
+        """The complement, without which a note on every leg would pass."""
+        from bet.simple_stats.bet_builder_draft import draft_legs
+        from bet.simple_stats.contracts import StatsSheetV1
+
+        sheet_path = RUN / f"{DATE}_event_dossiers_stats_sheet.json"
+        if not sheet_path.exists():
+            pytest.skip("stats sheet not on disk")
+        sheet = StatsSheetV1.model_validate_json(
+            sheet_path.read_text(encoding="utf-8")
+        )
+        for event_id in sorted({row.event_id for row in sheet.rows}):
+            for leg in draft_legs(sheet, event_id, max_legs=4).legs:
+                if leg.market in drifted:
+                    continue
+                assert not any("sample drift" in c for c in leg.caveats), (
+                    f"{leg.market} is not marked drifted but its leg claims a "
+                    f"sample drift"
+                )

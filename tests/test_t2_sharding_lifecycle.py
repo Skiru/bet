@@ -3,14 +3,18 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+
 import pytest
 
-from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1, ChunkWorkOrderV1
 from bet.pipeline.sharding.lifecycle import (
-    create_chunk_execution_plan,
-    aggregate_chunks,
-    get_aggregator_source_sha256,
     ChunkLifecycleError,
+    aggregate_chunks,
+    create_chunk_execution_plan,
+    get_aggregator_source_sha256,
+)
+from bet.pipeline.sharding.models import (
+    ChunkArtifactV1,
+    WorkOrderBudgetV1,
 )
 
 
@@ -44,12 +48,16 @@ def test_t2_chunk_work_order_bindings():
 
 def test_t2_aggregator_source_sha256():
     """Verify aggregation receipt uses actual source file SHA256, not a label string."""
-    lifecycle_file = Path(__file__).resolve().parents[1] / "src" / "bet" / "pipeline" / "sharding" / "lifecycle.py"
+    lifecycle_file = (
+        Path(__file__).resolve().parents[1]
+        / "src" / "bet" / "pipeline" / "sharding" / "lifecycle.py"
+    )
     expected_file_sha = hashlib.sha256(lifecycle_file.read_bytes()).hexdigest()
     actual_sha = get_aggregator_source_sha256()
 
     assert actual_sha == expected_file_sha
-    assert actual_sha != hashlib.sha256(b"DETERMINISTIC_CHUNK_AGGREGATOR_V1").hexdigest()
+    label = b"DETERMINISTIC_CHUNK_AGGREGATOR_V1"
+    assert actual_sha != hashlib.sha256(label).hexdigest()
 
 
 def test_t2_aggregation_enforces_exact_event_union():
@@ -85,10 +93,8 @@ def test_t2_aggregation_enforces_exact_event_union():
         aggregate_chunks(plan, [art_incomplete])
 
 
-<<<<<<< HEAD
-=======
 def test_t2_chunk_payload_event_records_are_promoted_before_aggregation():
-    """Ensure chunk artifacts using the payload compatibility shape keep event coverage."""
+    """Payload-shaped chunk artifacts must keep their event coverage."""
     event_ids = ["EVT_001"]
     plan = create_chunk_execution_plan(
         parent_work_order_id="WO_PAYLOAD_RECORDS",
@@ -110,7 +116,8 @@ def test_t2_chunk_payload_event_records_are_promoted_before_aggregation():
         "processed_event_ids": event_ids,
         "payload": {"event_records": [{"canonical_event_id": "EVT_001"}]},
     }
-    if not artifact_data.get("event_records") and isinstance(artifact_data.get("payload"), dict):
+    payload = artifact_data.get("payload")
+    if not artifact_data.get("event_records") and isinstance(payload, dict):
         artifact_data["event_records"] = artifact_data["payload"]["event_records"]
 
     receipt, records = aggregate_chunks(plan, [ChunkArtifactV1(**artifact_data)])
@@ -118,12 +125,22 @@ def test_t2_chunk_payload_event_records_are_promoted_before_aggregation():
     assert records == [{"canonical_event_id": "EVT_001"}]
 
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 def test_t2_orchestrator_sharded_lifecycle_31_events(tmp_path: Path):
-    """Verify 31-event universe sharded execution lifecycle across orchestrator instances."""
-    import json
-    from bet.pipeline.orchestrator import Orchestrator
+    """Verify a 31-event universe shards into 3 chunks and aggregates whole.
 
+    The name says "across orchestrator instances" and the body does not: every
+    assertion below goes through ``create_chunk_execution_plan`` and
+    ``aggregate_chunks`` in ``bet.pipeline.sharding``, which are live in
+    ``src/``. It imported ``bet.pipeline.orchestrator`` and ``json`` and used
+    neither -- and since that module is quarantined under ``legacy/``, the dead
+    import was the only thing failing this test. Removed rather than guarded
+    with ``importorskip``: a skip would have retired a test that exercises live
+    code and passes.
+
+    What the name promises and the body does not cover -- a lifecycle carried
+    across two orchestrator instances -- is not tested here or anywhere in
+    tests/, and cannot be while that stack stays quarantined.
+    """
     day = "2026-07-16"
     run_id = "run-shard-31"
     run_root = tmp_path / "pipeline_runs" / day / run_id
@@ -154,7 +171,11 @@ def test_t2_orchestrator_sharded_lifecycle_31_events(tmp_path: Path):
     chunk_artifacts: list[ChunkArtifactV1] = []
     for c_wo in plan.chunks:
         records = [
-            {"canonical_event_id": eid, "terminal_status": "CONTINUE", "sport": "football"}
+            {
+                "canonical_event_id": eid,
+                "terminal_status": "CONTINUE",
+                "sport": "football",
+            }
             for eid in c_wo.event_ids
         ]
         art = ChunkArtifactV1(

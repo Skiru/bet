@@ -2,25 +2,23 @@
 from __future__ import annotations
 
 import pytest
-from bet.pipeline.sharding.models import (
-    WorkOrderBudgetV1,
-    ChunkWorkOrderV1,
-    ChunkExecutionPlanV1,
-    ChunkArtifactV1,
-    RetrievalReceiptV1,
-    DatabaseQueryReceiptV1,
-    EvidenceBundleV1,
-)
+
 from bet.pipeline.sharding.lifecycle import (
     ChunkLifecycleError,
+    aggregate_chunks,
     create_chunk_execution_plan,
     validate_chunk_against_work_order,
-    aggregate_chunks,
+)
+from bet.pipeline.sharding.models import (
+    ChunkArtifactV1,
+    DatabaseQueryReceiptV1,
+    RetrievalReceiptV1,
+    WorkOrderBudgetV1,
 )
 
 
 def test_547_events_chunking_accounting():
-    """Verify a 547-event universe is deterministically chunked and aggregated with 100% accounting."""
+    """A 547-event universe chunks deterministically, accounting for all of it."""
     event_ids = [f"EVT_{i:04d}" for i in range(1, 548)]  # 547 events
     budget = WorkOrderBudgetV1(max_events_per_chunk=15)
 
@@ -92,15 +90,16 @@ def test_missing_chunk_blocks_aggregation():
         status="PASS",
         producer_agent_id="bet-researcher",
         processed_event_ids=c1.event_ids,
-        event_records=[{"canonical_event_id": eid, "terminal_status": "CONTINUE"} for eid in c1.event_ids],
+        event_records=[
+            {"canonical_event_id": eid, "terminal_status": "CONTINUE"}
+            for eid in c1.event_ids
+        ],
     )
 
     with pytest.raises(ChunkLifecycleError, match="Aggregation incomplete"):
         aggregate_chunks(plan, [art1])
 
 
-<<<<<<< HEAD
-=======
 def test_complete_blocked_chunks_are_accounted():
     """Verify complete fail-closed chunk artifacts can be aggregated."""
     event_ids = [f"EVT_{i:03d}" for i in range(1, 31)]
@@ -140,7 +139,6 @@ def test_complete_blocked_chunks_are_accounted():
 
 
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 def test_foreign_event_in_chunk_rejected():
     """Verify a chunk artifact containing an unassigned foreign event is rejected."""
     event_ids = ["EVT_001", "EVT_002"]
@@ -170,7 +168,7 @@ def test_foreign_event_in_chunk_rejected():
 
 
 def test_provenance_honesty_classification():
-    """Verify receipts correctly distinguish system-verified vs agent-attested provenance."""
+    """Receipts must separate system-verified from agent-attested provenance."""
     rec = RetrievalReceiptV1(
         receipt_id="REC_001",
         tool="webfetch",
