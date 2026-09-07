@@ -176,6 +176,29 @@ python3 scripts/simple/run_analyze.py \
 `--event-list` is not optional here even though the CLI calls it so. Note in
 your report that the sheet was rebuilt, not just the coupon.
 
+**Then rebuild both tails of ANALYZE, or two artifacts now describe a sheet
+nobody has.** A hand re-run of ANALYZE rewrites the sheet; the Superbet
+comparison and the forecast were built against the old one. Both are free —
+no HTTP, no quota, no clock:
+
+```bash
+python3 scripts/simple/run_superbet.py \
+  --event-list runs/<date>/<date>_event_list.json \
+  --offer runs/<date>/<date>_superbet_offer.json \
+  --stats-sheet runs/<date>/<date>_event_dossiers_stats_sheet.json \
+  --output-dir runs/<date> -v
+
+python3 scripts/simple/build_forecast.py --date <date>
+```
+
+`--offer` is what keeps the comparison free and honest: it reads the offer
+already on disk, so nothing is re-fetched and the prices stay the vintage
+ANALYZE priced against. Skip the comparison rebuild only if you refreshed the
+offer in 3b *and* are about to refresh it again — otherwise the coupon's own
+`VALUE` count and the analysts' inventory read a sheet that is gone (memory:
+`superbet-comparison-is-always-stale`). The forecast rebuild has no exception:
+run it whenever 3c ran.
+
 **If the dossiers themselves are missing or predate the merge**, stop. Resuming
 at ENRICH is a different operation with different risks — pin the clock with
 `run_enrich.py --now <ISO>` so the diff is about code rather than about which

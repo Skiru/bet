@@ -386,6 +386,19 @@ artifact said `verdict_counts.VALUE = 52`; the real answer was **82** (77 LEAN
 the three fields onto its own `AGENT_SUMMARY`, so on a full pipeline run you do
 not have to. Run it by hand only when you re-ran ANALYZE by hand, as above.
 
+**And rebuild the forecast, for exactly the same reason.** FORECAST is the
+second tail of ANALYZE and it reads the sheet, so a hand re-run of ANALYZE
+leaves `<date>_forecast.json` describing a sheet that no longer exists on disk
+— the same defect as the stale comparison above, on the artifact the analysts
+open first and the operator reads. It is pure: no network, no quota, no clock.
+
+```bash
+python3 scripts/simple/build_forecast.py --date <date>
+```
+
+On a full `run_pipeline.py` run this happens by itself, as `forecast` in
+`steps_run`. Check it is there before trusting the file's dates.
+
 Then read off that summary, and quote the first two in the run report:
 
 * `markets_with_no_line_overlap` — `[]` is the healthy answer and now means it,
@@ -853,6 +866,7 @@ Short. The operator opens the file, not the chat:
 
 ```
 KUPONY:  runs/<date>/<date>_kupony.md  — <n> singli, <n> kuponów BB
+PROGNOZA: runs/<date>/<date>_forecast.md — <n> statystyk od <próg>%, <n> z <n> meczów pokrytych
 ANALIZA: runs/<date>/<date>_analiza.md
 RUN:     <run_id> · <verdict> · <n> odkrytych → <n> wzbogaconych
 WETA:    <n> vetoed, <n> downgraded (0/0 if neither analyst found anything to flag) · piłka <n> / tenis <n>
@@ -860,7 +874,14 @@ SUPERBET: <n> z <n> singli osiąga minimalny kurs · <n> bez linii na ekranie
 UWAGA:   <the single biggest weakness of the day, one line>
 ```
 
-Do not paste either file's tables into the chat.
+Do not paste any of those files' tables into the chat.
+
+`PROGNOZA` is the operator's own line and the reason the forecast exists: it
+answers which statistic, in which direction, at which value is most likely,
+with no price filtering anything. Quote the coverage fraction from the file's
+own `Zasięg dnia` block, and **if any fixture there lacks cards for a reason
+other than "kickoff already passed", say which and why** — that is a data gap,
+not a decision.
 
 ## Hard rules
 

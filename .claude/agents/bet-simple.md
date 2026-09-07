@@ -1,6 +1,6 @@
 ---
 name: bet-simple
-description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> SUPERBET -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
+description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> SUPERBET -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE, then two tails of ANALYZE - the Superbet comparison and FORECAST), reads the AGENT_SUMMARY contract, and reports the stats sheet and the forecast counts. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
 tools: Bash, Read, Glob, Grep
 ---
 

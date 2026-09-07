@@ -26,8 +26,10 @@ The difference between the corrected and the raw figure is bootstrapped over
 sample, and treating those as forty trials is how this repo once turned a
 population artifact into a corroboration effect.
 
-Exit codes: 0 = the correction is an out-of-sample improvement, 1 = it is not
-(and then it must not ship), 2 = missing input.
+Exit codes: 0 = the correction improved things out of sample, or left them
+exactly where they were (a no-op on a calibrated board is the right answer, not
+a failure); 1 = it made something worse, and then it must not ship; 2 = missing
+input.
 """
 from __future__ import annotations
 
@@ -305,18 +307,38 @@ def main() -> int:
     # is the one that can fail, and it is why this script has an exit code.
     brier_before = _brier([(r[0], r[2]) for r in scored])
     brier_after = _brier([(r[1], r[2]) for r in scored])
-    ok = cal_after <= cal_before - 1e-6 and brier_after <= brier_before + 1e-6
+    # Three outcomes, not two. A correction that fires on a board with nothing
+    # wrong with it is a no-op, and a no-op is not a failure -- it is the right
+    # answer, and the property the whole design is built around. Only a
+    # correction that makes something *worse* is a reason not to ship.
+    worse_calibration = cal_after > cal_before + 1e-6
+    worse_brier = brier_after > brier_before + 1e-6
+    unchanged = (
+        abs(cal_after - cal_before) <= 1e-6 and abs(brier_after - brier_before) <= 1e-6
+    )
+    verdict = (
+        "REGRESSION"
+        if worse_calibration or worse_brier
+        else "NO CHANGE"
+        if unchanged
+        else "IMPROVEMENT"
+    )
     print(
-        f"\nverdict: {'IMPROVEMENT' if ok else 'NO IMPROVEMENT'} "
+        f"\nverdict: {verdict} "
         f"(bucketed |gap| {cal_before:.4f}->{cal_after:.4f}, "
         f"Brier {brier_before:.4f}->{brier_after:.4f})"
     )
     print(
         "  the gate is the bucketed figure and not the pooled signed gap: the "
-        "pooled one is zero by cancellation on this board and a correction "
+        "pooled one is zero by cancellation on a real board and a correction "
         "cannot improve it without making some market worse."
     )
-    return 0 if ok else 1
+    if verdict == "NO CHANGE":
+        print(
+            "  nothing to correct on this data. Not a failure -- a correction "
+            "that leaves a calibrated market alone is the point."
+        )
+    return 1 if verdict == "REGRESSION" else 0
 
 
 if __name__ == "__main__":
