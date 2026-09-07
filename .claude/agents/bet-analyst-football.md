@@ -104,22 +104,29 @@ provider calls: `python3 scripts/simple/build_forecast.py --date <date>`.
    for other `run_id`s on the date (the query is in the core skill). Note
    `player_props` on/off.
 
-   **The comparison can be older than the sheet, and then its verdicts are
-   not this sheet's.** `<date>_superbet_comparison.json` is written by the
-   SUPERBET step, which runs *before* ANALYZE, so it is never newer than the
-   sheet and never updates when ANALYZE re-runs — which `/rebuild-coupon` and
-   any code change both do. On 2026-09-07 the comparison (06:21Z) still
-   reported one football `VALUE` row that the sheet (08:29Z) had already
-   dropped below its bar: same 15/20, `p_low` 0.5313 in the comparison against
-   0.4823 in the sheet, because the league baseline replaced the pooled prior
-   between the two writes. Nothing downstream is harmed — `build_coupons`
-   never reads the comparison — but *you* were told to count `VALUE` from it.
-   So: compare `comparison.generated_at` with the sheet's first. If it is
-   older, say so, treat its verdict column as superseded, and read the price
-   off the sheet's own `superbet` block instead, which ANALYZE attaches when
-   it builds the row and is therefore always coherent with that row's numbers.
-   The bar itself is computed downstream by the coupon, so a row's final
-   verdict is not yours to state — its price and its `p_central` are.
+   **Check the comparison's age against the sheet's before you count `VALUE`
+   from it.** On a full `run_pipeline.py` run it is *newer* than the sheet and
+   coherent with it: the pipeline runs a comparison-only SUPERBET pass after
+   ANALYZE, exactly so this cannot happen (fixed 2026-09-02, when a stale
+   artifact reported 52 VALUE rows against 82 real ones). But a **manual
+   ANALYZE re-run** rewrites the sheet and leaves the comparison behind unless
+   that second pass is repeated, and any code change to the estimator implies
+   one. 2026-09-07 is such a day: the pipeline finished at 06:21Z, ANALYZE was
+   re-run at 08:29Z to pick up `config/league_baselines.json`, and the
+   comparison still reports one football `VALUE` row the sheet had already
+   dropped below its bar — same 15/20, `p_low` 0.5313 against 0.4823, because
+   the Argentine Liga Profesional's measured 0.821 replaced the pooled 1.243
+   prior between the two writes.
+
+   Nothing downstream is harmed: `build_coupons` never reads the comparison,
+   and that row is correctly absent from the coupon. The exposure is yours
+   alone, because you were told to count `VALUE` from that file. So if
+   `comparison.generated_at` is older than the sheet's, say so, treat the
+   verdict column as superseded, and read the price off the sheet's own
+   `superbet` block — ANALYZE attaches it when it builds the row, so it is
+   always coherent with that row's numbers. The bar itself is computed
+   downstream by the coupon, so a row's final verdict is not yours to state;
+   its price and its `p_central` are.
 
 4. **Verify every football fixture you will mention** through
    `mcp__bzzoiro__get_match_detail(match_id=<source_ids.bzzoiro>)`: `status`,
