@@ -17,9 +17,20 @@ All CLI entrypoints reside in `scripts/`, referencing the library package rather
 ## 2. Canonical Runner and Manifest
 
 The sole entrypoint for orchestrating a daily run is:
-`scripts/pipeline_steps/run_daily_pipeline.py`
+`scripts/simple/run_pipeline.py`
 
-This runner is fully driven by the canonical manifest:
+It runs DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE,
+then the two tails of ANALYZE (the Superbet comparison and FORECAST), and
+writes its artifacts to `runs/<date>/`.
+
+The former runner, `scripts/pipeline_steps/run_daily_pipeline.py`, drove the
+S0–S10 stack described in the rest of this section. **That stack is
+quarantined**: it now lives under `legacy/` and does not import — 16 files
+there still carry unresolved merge markers — so nothing below this line
+describes code that currently runs. It is kept because the artifacts and the
+database rows it produced are still on disk and still read.
+
+The quarantined runner was fully driven by the canonical manifest:
 `config/pipeline_manifest.json`
 
 The manifest governs:

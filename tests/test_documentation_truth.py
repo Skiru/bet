@@ -55,16 +55,25 @@ def test_documentation_truth():
     if not re.search(s8_pattern, readme_content, re.IGNORECASE):
         mismatches.append("README.md must describe S8 as manual Superbet quote pack")
 
-    # One canonical runner identified
-    runner_pattern = r"scripts/pipeline_steps/run_daily_pipeline\.py"
+    # One canonical runner identified.
+    #
+    # Retargeted 2026-09-07. This used to require both documents to name
+    # `scripts/pipeline_steps/run_daily_pipeline.py`, which is the *retired*
+    # runner: it drove the S0-S10 stack, now quarantined under legacy/ and
+    # unimportable. The test was therefore enforcing staleness -- README.md had
+    # correctly moved on to the simple pipeline and so failed this check, while
+    # ARCHITECTURE.md still named the dead path and so passed it. A
+    # documentation-truth test that fails when the docs tell the truth is worse
+    # than no test, so it now asks for the runner that actually runs.
+    runner_pattern = r"scripts/simple/run_pipeline\.py"
     if not re.search(runner_pattern, readme_content, re.IGNORECASE):
         mismatches.append(
-            "README.md must identify scripts/pipeline_steps/run_daily_pipeline.py as the canonical runner"
+            "README.md must identify scripts/simple/run_pipeline.py as the canonical runner"
         )
 
     if not re.search(runner_pattern, arch_content, re.IGNORECASE):
         mismatches.append(
-            "ARCHITECTURE.md must identify scripts/pipeline_steps/run_daily_pipeline.py as the canonical runner"
+            "ARCHITECTURE.md must identify scripts/simple/run_pipeline.py as the canonical runner"
         )
 
     # No generic sN.py operational instruction in README

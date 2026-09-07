@@ -518,12 +518,23 @@ def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
 
 
 def test_s8_does_not_use_hardcoded_old_run_id():
+    """S8 must not fall back to a hardcoded run id.
+
+    Retargeted 2026-09-07 to ``legacy/pipeline_steps/``. S8 moved there with
+    the rest of the quarantined S0-S10 stack, so reading it from
+    ``scripts/pipeline_steps/`` raised FileNotFoundError -- the one failing
+    test in this file's 52. The property is still worth asserting because the
+    file is still on disk and still read, so this follows it rather than
+    standing down; it skips only if the file goes away entirely.
+    """
     s8_file_path = (
         Path(__file__).resolve().parents[1]
-        / "scripts"
+        / "legacy"
         / "pipeline_steps"
         / "s8_build_coupons.py"
     )
+    if not s8_file_path.exists():
+        pytest.skip(f"{s8_file_path.name} is no longer present in legacy/")
     s8_content = s8_file_path.read_text(encoding="utf-8")
     # Verify that TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254 is no longer hardcoded as fallback in S8 code
     assert (

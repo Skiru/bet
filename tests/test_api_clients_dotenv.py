@@ -27,7 +27,22 @@ class ProbeClient(BaseAPIClient):
 
 @pytest.fixture
 def dotenv_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the credential reader at a throwaway ``.env``.
+
+    ``ENV_PATH`` has to be patched, not just ``PROJECT_ROOT``: it is computed
+    once at import time as ``PROJECT_ROOT / ".env"``, so patching the root
+    afterwards left ``_dotenv()`` reading the *real* project ``.env``. These
+    two tests therefore asserted against the operator's own live credentials
+    and failed with a real key where they expected ``dotenv-...`` -- passing
+    only on a machine that has no ``.env`` at all.
+
+    The cache is reset too, because ``_dotenv`` memoises on (mtime, size) and
+    would otherwise serve the real file's contents to the first test that ran.
+    """
     monkeypatch.setattr(env_module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(env_module, "ENV_PATH", tmp_path / ".env")
+    monkeypatch.setattr(env_module, "_cache", {})
+    monkeypatch.setattr(env_module, "_cache_stamp", None)
     return tmp_path
 
 

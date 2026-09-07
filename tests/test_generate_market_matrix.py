@@ -3,10 +3,30 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import generate_market_matrix as matrix_mod
+
+# The five `test_market_semantics_*` tests below exercise a capability that is
+# currently switched off, not broken. `generate_market_matrix` imports
+# `extract_market_semantics` from `bet.pipeline.market_probability_inputs`,
+# which is part of the quarantined S0-S10 stack under legacy/ and does not
+# import; the script guards that import and sets the name to None, so
+# `_attach_market_semantics` returns the markets untouched and every assertion
+# on `market_family` raised KeyError. Skipping on the capability states that
+# plainly and turns back on by itself if the module ever returns -- which
+# asserting the degraded shape instead would not.
+requires_market_semantics = pytest.mark.skipif(
+    getattr(matrix_mod, "extract_market_semantics", None) is None,
+    reason=(
+        "generate_market_matrix.extract_market_semantics is unavailable: "
+        "bet.pipeline.market_probability_inputs is quarantined under legacy/"
+    ),
+)
+
 
 
 def test_sport_aliases_are_canonicalized():
@@ -45,6 +65,7 @@ def test_generate_market_matrix_keeps_noncanonical_esports_fixture(monkeypatch):
     assert matrix["sport_breakdown"] == {"cs2": 1}
 
 
+@requires_market_semantics
 def test_market_semantics_extracted_from_h2h_result():
     markets = matrix_mod.extract_markets_from_odds_api(
         {
@@ -72,6 +93,7 @@ def test_market_semantics_extracted_from_h2h_result():
     assert markets[0]["mapping_status"] == ""
 
 
+@requires_market_semantics
 def test_market_semantics_extracted_from_totals_with_line_direction():
     markets = matrix_mod.extract_markets_from_odds_api(
         {
@@ -101,6 +123,7 @@ def test_market_semantics_extracted_from_totals_with_line_direction():
     assert over_market["line"] == 2.5
 
 
+@requires_market_semantics
 def test_market_semantics_extracted_from_corners_with_line_direction():
     markets = matrix_mod._attach_market_semantics(
         [{"market": "Over 9.5", "market_type": "corners", "outcome": "Over", "point": 9.5, "best_odds": 1.9, "best_bookmaker": "bet365", "source": "odds-api"}],
@@ -113,6 +136,7 @@ def test_market_semantics_extracted_from_corners_with_line_direction():
     assert markets[0]["line"] == 9.5
 
 
+@requires_market_semantics
 def test_market_semantics_extracted_from_cards_with_line_direction():
     markets = matrix_mod._attach_market_semantics(
         [{"market": "Over 4.5", "market_type": "bookings_totals", "outcome": "Over", "point": 4.5, "best_odds": 1.9, "best_bookmaker": "bet365", "source": "odds-api"}],
@@ -125,6 +149,7 @@ def test_market_semantics_extracted_from_cards_with_line_direction():
     assert markets[0]["line"] == 4.5
 
 
+@requires_market_semantics
 def test_market_semantics_extracted_from_shots_with_line_direction():
     markets = matrix_mod._attach_market_semantics(
         [{"market": "Over 24.5", "market_type": "match_shots", "outcome": "Over", "point": 24.5, "best_odds": 1.9, "best_bookmaker": "bet365", "source": "odds-api"}],

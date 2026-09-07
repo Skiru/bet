@@ -66,8 +66,33 @@ def _block_network(monkeypatch):
 
 
 def test_football_data_live_and_replay(tmp_path, monkeypatch):
-    from dotenv import load_dotenv
-    load_dotenv()
+    # Live provider e2e is opt-in, and the default is to skip.
+    #
+    # This used to call `load_dotenv()`, which copies the whole project `.env`
+    # into `os.environ` for the rest of the pytest process. Two consequences,
+    # both measured 2026-09-07:
+    #   * on any machine that has a `.env` -- i.e. the operator's -- the
+    #     `pytest.skip` below never fired, so a plain `pytest tests/` made real
+    #     provider calls and spent real quota. That is the incident this repo
+    #     already carries a memo about: the suite must never move the counter
+    #     preflight decides GO from.
+    #   * the injected keys outlived this test and leaked into every later one,
+    #     which is how `tests/test_api_clients_dotenv.py` came to read a real
+    #     credential where it had written `dotenv-...` into a tmp `.env`. It
+    #     passed alone and failed in the suite.
+    # `dotenv_values` reads the file without touching `os.environ`, and the
+    # keys are injected through `monkeypatch`, so they are reverted.
+    if os.environ.get("BET_ENABLE_LIVE_PROVIDER_E2E") != "1":
+        pytest.skip(
+            "live provider e2e spends real provider quota; "
+            "set BET_ENABLE_LIVE_PROVIDER_E2E=1 to run it"
+        )
+    from dotenv import dotenv_values
+
+    _dotenv = dotenv_values(Path(__file__).resolve().parents[2] / ".env")
+    for _name in ("FOOTBALL_DATA_ORG_KEY", "FOOTBALL_DATA_API_KEY"):
+        if _dotenv.get(_name):
+            monkeypatch.setenv(_name, _dotenv[_name])
 
     key = os.getenv("FOOTBALL_DATA_ORG_KEY")
     if not key:
@@ -262,8 +287,14 @@ def test_football_data_live_and_replay(tmp_path, monkeypatch):
         assert r_row.goal_diff == l_row.goal_diff
         assert r_row.form == l_row.form
 
-    # Write compact artifact summary
-    artifact_dir = Path(".kilo/artifacts/football_truthful_live")
+    # Write compact artifact summary.
+    #
+    # Into tmp_path, not `.kilo/artifacts/`. This used to overwrite a *tracked*
+    # file, so every suite run left the worktree dirty with a new proof_id and
+    # bundle_id -- which then tripped the git-cleanliness check in
+    # `launch_bridge.verify_canonical_db_and_preflight` for whatever ran later.
+    # A test may not mutate a checked-in artifact.
+    artifact_dir = tmp_path / "kilo_artifacts" / "football_truthful_live"
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate a unique replay proof ID derived from the proof artifact

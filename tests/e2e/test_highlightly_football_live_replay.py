@@ -114,9 +114,34 @@ def _proof_entry(
 
 
 def test_highlightly_live_and_replay(tmp_path, monkeypatch):
-    from dotenv import load_dotenv
+    # Live provider e2e is opt-in, and the default is to skip.
+    #
+    # This used to call `load_dotenv()`, which copies the whole project `.env`
+    # into `os.environ` for the rest of the pytest process. Two consequences,
+    # both measured 2026-09-07:
+    #   * on any machine that has a `.env` -- i.e. the operator's -- the
+    #     `pytest.skip` below never fired, so a plain `pytest tests/` made real
+    #     provider calls and spent real quota. That is the incident this repo
+    #     already carries a memo about: the suite must never move the counter
+    #     preflight decides GO from.
+    #   * the injected keys outlived this test and leaked into every later one,
+    #     which is how `tests/test_api_clients_dotenv.py` came to read a real
+    #     credential where it had written `dotenv-...` into a tmp `.env`. It
+    #     passed alone and failed in the suite.
+    # `dotenv_values` reads the file without touching `os.environ`, and the
+    # keys are injected through `monkeypatch`, so they are reverted.
+    if os.environ.get("BET_ENABLE_LIVE_PROVIDER_E2E") != "1":
+        pytest.skip(
+            "live provider e2e spends real provider quota; "
+            "set BET_ENABLE_LIVE_PROVIDER_E2E=1 to run it"
+        )
+    from dotenv import dotenv_values
 
-    load_dotenv()
+    _dotenv = dotenv_values(Path(__file__).resolve().parents[2] / ".env")
+    for _name in ("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY"):
+        if _dotenv.get(_name):
+            monkeypatch.setenv(_name, _dotenv[_name])
+
     key, key_alias = _resolve_highlightly_key()
     if not key:
         pytest.skip("Highlightly key not found in environment or .env")
