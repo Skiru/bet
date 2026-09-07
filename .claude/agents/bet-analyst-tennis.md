@@ -127,6 +127,23 @@ people, and no read is safe.
    was built without `--event-list` and every men's length row is suspect —
    say so before anything else.
 
+   **The comparison can be older than the sheet, and then its verdicts are
+   not this sheet's.** `<date>_superbet_comparison.json` is written by the
+   SUPERBET step, which runs *before* ANALYZE, so it is never newer than the
+   sheet and never updates when ANALYZE re-runs — which `/rebuild-coupon` and
+   any code change both do. On 2026-09-07 the comparison (06:21Z) still
+   reported one football `VALUE` row that the sheet (08:29Z) had already
+   dropped below its bar: same 15/20, `p_low` 0.5313 in the comparison against
+   0.4823 in the sheet, because the league baseline replaced the pooled prior
+   between the two writes. Nothing downstream is harmed — `build_coupons`
+   never reads the comparison — but *you* were told to count `VALUE` from it.
+   So: compare `comparison.generated_at` with the sheet's first. If it is
+   older, say so, treat its verdict column as superseded, and read the price
+   off the sheet's own `superbet` block instead, which ANALYZE attaches when
+   it builds the row and is therefore always coherent with that row's numbers.
+   The bar itself is computed downstream by the coupon, so a row's final
+   verdict is not yours to state — its price and its `p_central` are.
+
 4. **Verify time and round** for every fixture you will mention: the
    tournament's official order of play plus one independent domain. A
    disagreement of hours between the artifact/Superbet and the media is
@@ -166,9 +183,23 @@ people, and no read is safe.
    scorelines that satisfy every leg, grade `ROBUST / MODERATE / FRAGILE`,
    name the scoreline that kills all legs. No combined price.
 
-7. **Write the report** in the core structure, in Polish: tennis header
-   (events, rows, VALUE count, offer time, format-gate check, the absence of
-   any model/market/MCP stated once), *Co realnie płaci*, per-match sections
+7. **Write the report** in the core structure, in Polish, and open it with
+   ***Czego się spodziewamy*** — its **own heading**, before anything about a
+   price. One row per market you graded: `expected`, the 80% interval, the
+   grade, and the centre decomposition. Folding the expectation into
+   *Co realnie płaci* does not satisfy this even when the numbers are all
+   there in the right order, and that is exactly what happened on the first
+   run against these instructions: the section existed in substance and had no
+   heading, so the file still read as a price list. The operator decides
+   whether a number is worth a price; leading with what pays makes that
+   decision for him and buries the analysis he asked for. For a market graded
+   `WORSE_THAN_AVERAGE` or `OVERCONFIDENT` this section is the *whole* of what
+   you may say about it — state the format average, state ours beside it, and
+   grade no rungs.
+
+   Then: tennis header (events, rows, VALUE count with the comparison's age
+   against the sheet's, offer time, format-gate check, the absence of any
+   model/market/MCP stated once), *Co realnie płaci*, per-match sections
    with the §81 matrix (fill what you can, `n/d` the rest), *Pozostałe mecze*,
    *Sprzeczne*, *Czego zabrakło* (one concrete defect — e.g. opponent rank
    parsed by the client and dropped before the dossier; an unpinned

@@ -104,6 +104,23 @@ provider calls: `python3 scripts/simple/build_forecast.py --date <date>`.
    for other `run_id`s on the date (the query is in the core skill). Note
    `player_props` on/off.
 
+   **The comparison can be older than the sheet, and then its verdicts are
+   not this sheet's.** `<date>_superbet_comparison.json` is written by the
+   SUPERBET step, which runs *before* ANALYZE, so it is never newer than the
+   sheet and never updates when ANALYZE re-runs — which `/rebuild-coupon` and
+   any code change both do. On 2026-09-07 the comparison (06:21Z) still
+   reported one football `VALUE` row that the sheet (08:29Z) had already
+   dropped below its bar: same 15/20, `p_low` 0.5313 in the comparison against
+   0.4823 in the sheet, because the league baseline replaced the pooled prior
+   between the two writes. Nothing downstream is harmed — `build_coupons`
+   never reads the comparison — but *you* were told to count `VALUE` from it.
+   So: compare `comparison.generated_at` with the sheet's first. If it is
+   older, say so, treat its verdict column as superseded, and read the price
+   off the sheet's own `superbet` block instead, which ANALYZE attaches when
+   it builds the row and is therefore always coherent with that row's numbers.
+   The bar itself is computed downstream by the coupon, so a row's final
+   verdict is not yours to state — its price and its `p_central` are.
+
 4. **Verify every football fixture you will mention** through
    `mcp__bzzoiro__get_match_detail(match_id=<source_ids.bzzoiro>)`: `status`,
    `event_date` vs `start_time`, `round_name`, `previous_leg_event_id`,
