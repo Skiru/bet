@@ -55,7 +55,18 @@ provider calls: `python3 scripts/simple/build_forecast.py --date <date>`.
    never as support. `references/forecast-card.md` in the core skill is the
    full contract; the one rule you must not break is that the referee, the h2h
    and recent form are **not three reasons**, they are three descriptions of
-   the sample's own mean. **No driver on any market is `SHARPENS`** — the two
+   the sample's own mean.
+
+   **Rank and quote `p_honest`, not `p_central`.** Every rung now carries both:
+   `p_central` as the estimator computed it, and `p_honest` after that market's
+   own settled calibration curve — the part of its measured overconfidence that
+   a clustered interval puts beyond zero, subtracted. It can only lower a
+   number, it leaves a well-calibrated market untouched, and it shrinks itself
+   where the evidence is thin. Where the two differ, `calibration_note` says in
+   one line what such rows really realised and on how many matches; quote that
+   instead of writing your own veto for the same reason. It does **not**
+   replace the grade: `WORSE_THAN_AVERAGE` means the level is wrong, and no
+   recalibration fixes a wrong level. **No driver on any market is `SHARPENS`** — the two
    that used to be were the referee on `cards_total` and `cards_1h_total`,
    markets the sheet never prices, and nothing survives the interval once you
    correct for testing twenty-two drivers at once.

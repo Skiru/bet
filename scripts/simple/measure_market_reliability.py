@@ -266,7 +266,12 @@ def _side_of(row, dossier: dict) -> tuple[str | None, str] | None:
     return None
 
 
-def measure(baselines: dict, baseline_matches: dict) -> tuple[dict, set[str]]:
+def measure(
+    baselines: dict,
+    baseline_matches: dict,
+    *,
+    collect_rungs: dict[str, list[tuple[float, float, str, str]]] | None = None,
+) -> tuple[dict, set[str]]:
     """``(per-scope error, the markets the sheet actually prices)``.
 
     The forecast scored here is not recomputed -- it is taken from
@@ -316,7 +321,12 @@ def measure(baselines: dict, baseline_matches: dict) -> tuple[dict, set[str]]:
     # whether the number the bet is placed from is true, and unlike MAE it is
     # comparable between a market averaging 24 fouls and one averaging 0.13
     # offsides.
-    rungs: dict[str, list[tuple[float, float, str]]] = defaultdict(list)
+    # (p_central, won, fixture key, date). The date is carried for one reason:
+    # a correction fitted on the same rows it is scored against will always
+    # look like it works. ``validate_calibration.py`` holds one date out, fits
+    # the curve on the rest and applies it to the held-out day, which is the
+    # only version of this check that can fail.
+    rungs: dict[str, list[tuple[float, float, str, str]]] = defaultdict(list)
 
     for run in _run_dirs():
         date = run.name
@@ -398,7 +408,7 @@ def measure(baselines: dict, baseline_matches: dict) -> tuple[dict, set[str]]:
                         continue
                     rungs[
                         market if sport == "football" else f"{market}@{fmt or 'UNKNOWN'}"
-                    ].append((float(r.p_central), settled_rung, fixture_key))
+                    ].append((float(r.p_central), settled_rung, fixture_key, date))
                 venue = next((r.venue for r in group if r.venue), None)
                 competition_id = (
                     _competition_id_for(dossier) if sport == "football" else None
@@ -406,6 +416,9 @@ def measure(baselines: dict, baseline_matches: dict) -> tuple[dict, set[str]]:
                 target, _ = shrinkage_target(market, venue, competition_id)
                 scope = market if sport == "football" else f"{market}@{fmt or 'UNKNOWN'}"
                 records[scope].append((actual, forecast, target, fixture_key))
+
+    if collect_rungs is not None:
+        collect_rungs.update(rungs)
 
     out: dict[str, dict] = {}
     for scope, rows in sorted(records.items()):
@@ -519,6 +532,92 @@ def _settle_rung(actual: float, line: float, direction: str) -> float | None:
     return None
 
 
+MIN_BUCKET_RUNGS = 30
+
+
+def clustered_gap_ci(
+    points: list[tuple[float, float, str]]
+) -> tuple[float, float, float]:
+    """``(claimed - realised, lo, hi)`` with the match as the unit, in closed form.
+
+    The same quantity ``_clustered_gap`` bootstraps, computed from the
+    cluster-robust ("sandwich") variance of a ratio mean instead of resampling.
+    Two reasons it has to be closed form here rather than a bootstrap: this runs
+    once per bucket per scope where the bootstrap runs once per scope, and
+    ``validate_calibration.py`` refits every curve once per held-out date --
+    2,000 draws inside that loop is hundreds of millions of operations for an
+    interval that has an exact expression.
+
+    Why clustered at all: one match contributes up to forty rungs off one
+    sample, so the rungs are not forty trials. Treating them as independent is
+    the error that once turned a population artifact in this repo into a
+    +6.2pp corroboration effect, and it would shrink every interval here by
+    roughly the square root of the rungs per fixture -- about six -- which is
+    the difference between "measurably hot" and "noise" on most buckets.
+
+    Agreement with the bootstrap is asserted in the test suite.
+    """
+    grouped: dict[str, list[float]] = defaultdict(list)
+    for claimed, won, fixture in points:
+        grouped[fixture].append(claimed - won)
+    clusters = list(grouped.values())
+    total = sum(len(c) for c in clusters)
+    if total == 0 or len(clusters) < 2:
+        return 0.0, -1.0, 1.0
+    gap = sum(sum(c) for c in clusters) / total
+    # Each cluster's residual around the pooled gap, weighted by its own size:
+    # a match contributing forty rungs moves the estimate forty times as much
+    # as one contributing a single rung, and the variance has to say so.
+    m = len(clusters)
+    variance = sum((sum(c) - len(c) * gap) ** 2 for c in clusters) / total**2
+    variance *= m / (m - 1)
+    half = 1.96 * variance**0.5
+    return gap, gap - half, gap + half
+
+
+def calibration_curve(
+    favoured: list[tuple[float, float, str]]
+) -> dict[str, dict[str, float | int]]:
+    """``{"0.75": {rungs, fixtures, claimed, realised, gap}}`` in 0.05 buckets.
+
+    Takes the already-favoured rungs (``p_central >= 0.5``, one per line) as
+    ``(claim, won, fixture key)``. Split out of ``_calibration`` so that
+    ``validate_calibration.py`` can refit exactly this curve on a subset of
+    dates. A validator with its own copy of the bucketing would be testing its
+    copy, and the two would drift on the first change to either.
+    """
+    buckets: dict[int, list[tuple[float, float, str]]] = defaultdict(list)
+    for point in favoured:
+        buckets[min(9, int(point[0] * 20) - 10)].append(point)
+    curve: dict[str, dict[str, float | int]] = {}
+    for index in sorted(buckets):
+        group = buckets[index]
+        if len(group) < MIN_BUCKET_RUNGS:
+            continue
+        claimed = statistics.fmean(p for p, _, _ in group)
+        realised = statistics.fmean(w for _, w, _ in group)
+        _gap, lo, hi = clustered_gap_ci(group)
+        curve[f"{0.5 + index * 0.05:.2f}"] = {
+            "rungs": len(group),
+            # Distinct fixtures behind the bucket, not rungs. One match
+            # contributes up to forty rungs off one sample, so a bucket of
+            # 1,559 rungs can be 24 matches -- and the shrinkage that decides
+            # how much of this bucket's gap to believe has to weight the 24.
+            # Weighting the 1,559 would trust every bucket almost completely
+            # and let one unusual afternoon set a market's correction.
+            "fixtures": len({f for _, _, f in group}),
+            "claimed": round(claimed, 4),
+            "realised": round(realised, 4),
+            "gap": round(claimed - realised, 4),
+            # A clustered interval on this bucket's own gap. Written per bucket
+            # because the correction applied downstream is only as large as the
+            # overconfidence that survives it -- a bucket whose interval
+            # straddles zero has not measured anything to subtract.
+            "gap_ci": [round(lo, 4), round(hi, 4)],
+        }
+    return curve
+
+
 def _calibration(rungs: list[tuple[float, float, str]]) -> dict:
     """How true the probability the bet is placed from turned out to be.
 
@@ -555,7 +654,10 @@ def _calibration(rungs: list[tuple[float, float, str]]) -> dict:
     [-9.4, -0.7]: the sheet is conservative where the money is and hot on
     tennis and shots-for.
     """
-    favoured = [(p, w, f) for p, w, f in rungs if p >= 0.5]
+    # The date is dropped here on purpose: everything below this line answers
+    # "how true was the claim", which is not a question about when. It is kept
+    # on the incoming tuples for the out-of-sample validator alone.
+    favoured = [(p, w, f) for p, w, f, *_ in rungs if p >= 0.5]
     if len(favoured) < 50:
         return {"rungs": len(favoured)}
     # Two independent gates, because the two answers need different amounts of
@@ -563,27 +665,12 @@ def _calibration(rungs: list[tuple[float, float, str]]) -> dict:
     # matters: red_cards_total has 593 favoured rungs but only 162 in the
     # 0.75 tail, and an earlier single gate at 200 rungs decided both. The
     # curve needs enough rungs to fill buckets; the tail needs only the tail.
-    buckets: dict[int, list[tuple[float, float, str]]] = defaultdict(list)
-    for point in favoured:
-        buckets[min(9, int(point[0] * 20) - 10)].append(point)
-    curve = {}
-    weighted = 0.0
-    for index in sorted(buckets):
-        group = buckets[index]
-        if len(group) < 30:
-            continue
-        claimed = statistics.fmean(p for p, _, _ in group)
-        realised = statistics.fmean(w for _, w, _ in group)
-        curve[f"{0.5 + index * 0.05:.2f}"] = {
-            "rungs": len(group),
-            "claimed": round(claimed, 4),
-            "realised": round(realised, 4),
-            "gap": round(claimed - realised, 4),
-        }
-        weighted += (claimed - realised) * len(group)
+    curve = calibration_curve(favoured)
     out: dict = {"rungs": len(favoured)}
     if curve:
-        out["calibration_error"] = round(weighted / len(favoured), 4)
+        out["calibration_error"] = round(
+            sum(b["gap"] * b["rungs"] for b in curve.values()) / len(favoured), 4
+        )
         out["calibration_curve"] = curve
     tail = [(p, w, f) for p, w, f in favoured if p >= 0.75]
     if len(tail) >= 50:
@@ -915,13 +1002,31 @@ def _baseline_for(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="Write both config files")
+    parser.add_argument(
+        "--emit-rungs",
+        metavar="PATH",
+        help=(
+            "Also dump every settled rung as {scope: [[p_central, won, fixture, "
+            "date], ...]}. The input to validate_calibration.py, which cannot "
+            "hold a date out without knowing each rung's date."
+        ),
+    )
     args = parser.parse_args()
 
     baselines, baseline_matches = collect_league_baselines()
     if not baselines:
         print(json.dumps({"error": "no dossiers to measure"}), file=sys.stderr)
         return 2
-    reliability, priced = measure(baselines, baseline_matches)
+    collected: dict[str, list] = {}
+    reliability, priced = measure(
+        baselines, baseline_matches, collect_rungs=collected
+    )
+    if args.emit_rungs:
+        Path(args.emit_rungs).write_text(json.dumps(collected))
+        print(
+            f"rungs: {sum(len(v) for v in collected.values())} over "
+            f"{len(collected)} scopes -> {args.emit_rungs}"
+        )
     drivers = measure_drivers(baselines, baseline_matches, priced)
 
     pinned = sum(len(v) for v in baselines.values())

@@ -10,7 +10,7 @@ python3 scripts/simple/run_pipeline.py -v            # run it
 
 | Script | Role |
 |---|---|
-| `run_pipeline.py` | **Start here.** DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE under one `run_id`. Also `--preflight`. |
+| `run_pipeline.py` | **Start here.** DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE under one `run_id`, then two tails of ANALYZE — the Superbet comparison and FORECAST. Also `--preflight`. |
 
 SUPERBET precedes ENRICH: its offer is the slate gate (`enrich.SlateGate`), which keeps the provider budget off fixtures bzzoiro never discovered, fixtures already under way, and fixtures Superbet does not price in a competition where it prices others.
 | `run_discover.py` | Step 1 alone — event universe for a date |
@@ -18,6 +18,8 @@ SUPERBET precedes ENRICH: its offer is the slate gate (`enrich.SlateGate`), whic
 | `run_tipsters.py` | Optional step — public tipster picks per event (`--skip-tipsters` to omit) |
 | `run_superbet.py` | Optional step — the operator's own book: is this line on the screen, and at what price (`--skip-superbet` to omit) |
 | `run_analyze.py` | Step 3 alone — hit rates and the stats sheet |
+| `build_forecast.py` | **The operator's file.** Which statistic, in which direction, at which value is most likely — ranked on the calibration-corrected probability, with nothing filtered, ordered or vetoed by a price. Runs as a tail of ANALYZE; pure, so re-run it as often as you like. |
+| `validate_calibration.py` | Whether that correction actually helps on a day it has never seen. Leave-one-date-out over every settled rung; exits non-zero if it does not, and then it must not ship. Needs `measure_market_reliability.py --emit-rungs`. |
 | `review_oddspapi.py` | What OddsPapi can do for this account *today* — plan, quota, which Superbet storefront is entitled. 1 request, 3 with `--probe`. |
 | `reset_provider_quota.py` | Clear a local usage counter after rotating a key |
 | `purge_unproven_cache.py` | Delete cached provider data written before the checks that would have caught it. Dry run by default. |

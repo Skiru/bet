@@ -152,6 +152,10 @@ STEP_SCRIPTS = {
     "tipsters": "scripts/simple/run_tipsters.py",
     "superbet": "scripts/simple/run_superbet.py",
     "analyze": "scripts/simple/run_analyze.py",
+    # A tail step, not a member of ``STEPS``: it must never be addressable by
+    # --start-at/--stop-after. Listed here anyway so it is resolved through the
+    # same table as everything else and can be substituted in tests.
+    "forecast": "scripts/simple/build_forecast.py",
 }
 
 # Ordered worst-last: the run's verdict is the worst any step reached.
@@ -675,6 +679,42 @@ def main() -> None:
                 "output_path": compare_metrics.get("comparison_path"),
                 "persisted": compare_metrics.get("persisted"),
                 "metrics": compare_metrics,
+            }
+
+        # FORECAST, also a tail of ANALYZE and also deliberately not in
+        # ``STEPS``. It is a pure read over the finished sheet and dossiers --
+        # no network, no quota, no clock -- so it cannot fail the run, and a
+        # non-zero exit is recorded rather than propagated.
+        #
+        # It runs here rather than by hand because it is the operator's primary
+        # artifact and was the only one he had to remember to build. Its
+        # ordering matters for one reason: it prints Superbet's price as a
+        # column, and running it after the comparison means that column is the
+        # offer ANALYZE priced against rather than a fresher fetch.
+        if (
+            name == "analyze"
+            and stats_sheet
+            and verdict not in ("FAILED", "PRECONDITION_FAILED")
+        ):
+            forecast_verdict, forecast_metrics, forecast_code = _run_step(
+                out,
+                "forecast",
+                # ``--run-dir`` and not ``*common``: build_forecast reads a
+                # directory rather than writing to one, and its default is
+                # ``runs/<date>``. On a run with --output-dir elsewhere it would
+                # otherwise read a different day's artifacts, or none.
+                [
+                    STEP_SCRIPTS["forecast"],
+                    "--date", date,
+                    "--run-dir", str(output_dir),
+                ],
+                verbose=args.verbose,
+            )
+            step_results["forecast"] = {
+                "verdict": forecast_verdict,
+                "exit_code": forecast_code,
+                "output_path": forecast_metrics.get("markdown"),
+                "metrics": forecast_metrics,
             }
 
         # DISCOVER/ENRICH failing means the next step has no input to read.

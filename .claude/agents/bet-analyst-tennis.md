@@ -49,6 +49,18 @@ people, and no read is safe.
    tennis — it is the whole difference between this agent working and this
    agent inventing:
 
+   **Rank and quote `p_honest`, not `p_central`.** Every rung carries both:
+   `p_central` as the estimator computed it, and `p_honest` after that market's
+   own settled calibration curve — the part of its measured overconfidence a
+   clustered interval puts beyond zero, subtracted. On tennis this matters more
+   than anywhere else, because the length markets are the most overconfident
+   scopes on the board and the correction is therefore largest exactly there: a
+   `total_games` row that used to need a hand-written veto now arrives already
+   marked down, with `calibration_note` giving what such rows really realised
+   and on how many matches. Quote that note rather than writing your own veto
+   for the same reason. It does **not** replace the grade — `WORSE_THAN_AVERAGE`
+   means the *level* is wrong, and no recalibration fixes a wrong level.
+
    **Every tennis market this pipeline prices loses to its own format
    average.** Measured over the settled fixtures in `runs/`, scoring the
    estimator that actually ships: `games_won@BO5` −2.5%, `total_sets@BO3`

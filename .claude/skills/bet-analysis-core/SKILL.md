@@ -31,7 +31,9 @@ followed.
    average" by 8.5% over 580 settled fixtures*.
    `runs/<date>/<date>_forecast.json` carries it per (fixture, market) as a
    card, with the centre decomposed, every driver labelled and **this market's
-   measured error** attached. Read `references/forecast-card.md`.
+   measured error** attached, and **two probabilities per rung** — `p_central`
+   as computed and `p_honest` after that market's own settled calibration.
+   Rank and quote `p_honest`. Read `references/forecast-card.md`.
 
    The card carries two independent measurements and they answer different
    questions. `skill` says whether the *centre* is in the right place;
@@ -69,7 +71,7 @@ No later step may redeem an earlier hard fail (method §64).
 
 ```
 runs/<date>/<date>_forecast.json                        # OPEN FIRST — expectation card per (fixture, market): expected, interval_80, centre decomposition, drivers with measured status, grade + reliability, rungs
-runs/<date>/<date>_forecast.md                          # the same, rendered, ranked by confidence with no price filter
+runs/<date>/<date>_forecast.md                          # the same, rendered: ranked by p_honest, no price filter, no grade filter, every fixture's full ladder with its values
 runs/<date>/<date>_event_list.json                      # event_id → names, competition, kickoff (UTC ISO), source_ids, fixture_context
 runs/<date>/<date>_event_dossiers_stats_sheet_top.json  # rows with p_low >= 0.50 — READ THIS ONE
 runs/<date>/<date>_event_dossiers_stats_sheet.json      # every row — open only to chase a row missing from top

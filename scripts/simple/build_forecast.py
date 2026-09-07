@@ -6,19 +6,38 @@
     # only the markets whose error has actually been measured
     python3 scripts/simple/build_forecast.py --date 2026-09-07 --measured-only
 
+    # everything, nothing bounded (4.1 MB on the 37-fixture 2026-09-07 slate;
+    # 1.1 MB as shipped)
+    python3 scripts/simple/build_forecast.py --date 2026-09-07 \
+        --min-probability 0 --min-player-probability 0 \
+        --include-ceiling --max-player-cards 9999 --max-ladder 999
+
 Produces ``<date>_forecast.json`` and ``<date>_forecast.md`` beside the day's
 other artifacts. This is the read the sheet could never state: the sheet says
 ``P(over 21.5) = 0.59`` and this says *expect 24.0 fouls, 80% between 16 and
 32, off a 24-match sample that beat a league constant by 7% over 568 settled
 fixtures, with the referee 2.1 below the pairing and the h2h agreeing.*
 
-**Ordered by confidence, never by price.** The price is a column and the
-threshold gap is a column; neither removes a row. A rung a few percent under
-its own threshold is still a read the operator may want and the decision is
-his. The one thing this file will not do is present a rung whose probability
-comes from arithmetic rather than evidence without saying so -- that is what
-the grade is for, and ``LEVEL_ONLY`` means the sample did not beat a league
-average for that market however confident the number looks.
+**The question this file answers** is the operator's own: which statistic, in
+which direction, at which value is most likely. So it is ordered by probability
+and **nothing in it is filtered, ordered or vetoed by a price**. The price is a
+column carrying its own timestamp, and an appendix at the end; he watches it
+change live and this process fetches it once a morning, so it is the one input
+here that this file has no business ranking on.
+
+Ordered by ``p_honest``, not ``p_central``: the claim after that market's own
+settled calibration curve (see ``bet.simple_stats.calibration``). That is what
+makes the ranking possible without a price filter -- rank on the raw claim and
+the top fills with saturated arithmetic, which is exactly the pressure that put
+a price floor in this file in the first place. Correcting the number instead of
+hiding the row means a rung the market has not earned sinks on its own measured
+record.
+
+Three bounds keep the rendered file readable, all of them stated in the file
+with their counts, none of them a price, and every card is in the JSON
+regardless: a probability floor on the two summary tables, a per-fixture cap on
+prop cards, and the rule that a card represents itself on its strongest
+*informative* rung rather than on the count model's clamp.
 
 Exit codes: 0 = written, 2 = missing input.
 """
@@ -28,19 +47,20 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 for entry in (str(ROOT), str(ROOT / "src")):
     if entry not in sys.path:
         sys.path.insert(0, entry)
 
+from bet.simple_stats.analyze import MAX_COUNT_MODEL_PROBABILITY  # noqa: E402
 from bet.simple_stats.artifact_io import write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
     EventListV1,
     StatsSheetV1,
 )
-from bet.simple_stats.analyze import MAX_COUNT_MODEL_PROBABILITY  # noqa: E402
 from bet.simple_stats.coupons import CERTAINTY_PRICE_FLOOR  # noqa: E402
 from bet.simple_stats.forecast import ForecastCard, build_cards  # noqa: E402
 
@@ -262,146 +282,325 @@ def _card_json(card: ForecastCard, identity: dict) -> dict:
                 "line": r.line,
                 "direction": r.direction,
                 "p_central": round(r.p_central, 4) if r.p_central is not None else None,
+                # The ranked number. Never above p_central; see
+                # calibration.honest_probability for why the correction is
+                # one-sided.
+                "p_honest": round(r.p_honest, 4) if r.p_honest is not None else None,
+                "calibration_note": r.honest_note,
                 "p_low": round(r.p_low, 4) if r.p_low is not None else None,
                 "hits": r.hits,
                 "sample_size": r.sample_size,
                 "superbet_price": r.price,
             }
-            for r in card.rungs
+            for r in card.ranked_rungs()
         ],
     }
 
 
-def _render(cards: list[ForecastCard], identities: dict, date: str) -> str:
-    """The operator-facing file. Confidence first, price as a column."""
+def _coverage_block(coverage: list[dict]) -> str:
+    """Every fixture DISCOVER returned, and for any without cards, why.
+
+    The operator's instruction is that every match discovered gets enriched and
+    analysed. Three of 37 on 2026-09-07 had no card and the file said nothing --
+    all three legitimately (``readiness: BLOCKED``, "kickoff already passed:
+    cannot be backed pre-match"), but silence and a correct refusal read the
+    same on the page, and only one of them is acceptable. So the count is
+    stated and every gap is named with the reason the dossier itself recorded.
+    """
+    covered = [c for c in coverage if c["cards"]]
+    gaps = [c for c in coverage if not c["cards"]]
+    out = ["## Zasięg dnia\n"]
+    total = len(coverage)
+    out.append(
+        f"**{len(covered)} z {total}** "
+        f"{_plural(total, 'meczu z DISCOVER ma karty', 'meczów z DISCOVER ma karty', 'meczów z DISCOVER ma karty')}"
+        f" ({sum(c['cards'] for c in coverage)} kart, "
+        f"{sum(c['rungs'] for c in coverage)} szczebli).\n"
+    )
+    if not gaps:
+        out.append("Żaden mecz nie został pominięty.\n")
+        return "\n".join(out) + "\n"
+    out.append(
+        f"Bez kart: **{len(gaps)}**. Każdy z powodem, który zapisał dossier — "
+        "jeśli którykolwiek powód nie jest „mecz już się zaczął\", to jest luka "
+        "w danych, nie decyzja:\n"
+    )
+    for gap in gaps:
+        reason = "; ".join(gap["gaps"]) or "brak zapisanego powodu"
+        out.append(
+            f"- **{gap['match']}** ({gap['competition'] or '?'}, "
+            f"{gap['kickoff'] or '?'}) — `{gap['readiness'] or 'brak'}`: {reason}"
+        )
+    out.append("")
+    return "\n".join(out) + "\n"
+
+
+def _exclusions_note(
+    team: _Ranked,
+    players: _Ranked,
+    floor: float,
+    player_floor: float,
+    ceiling: bool,
+) -> str:
+    """Everything the two tables above do not show, and on what grounds.
+
+    Written because the tables *are* a summary and a summary excludes things.
+    The operator's objection was never to a shorter list, it was to a shorter
+    list that does not say what it dropped -- so all three grounds are counted
+    here and none of them is a price.
+    """
+    lines = [
+        "> **Czego nie ma w tych dwóch tabelach.** Tabele pokazują po jednym "
+        "wierszu na statystykę, więc coś muszą pomijać — poniżej dokładnie co "
+        "i dlaczego. Żaden z tych powodów nie jest ceną.",
+        "",
+        f"> * **Poniżej progu:** {team.below_floor} kart drużynowych "
+        f"(próg {floor:.0%}) i {players.below_floor} kart zawodników "
+        f"(próg {max(floor, player_floor):.0%}). Karty drużynowe pod progiem "
+        "są w całości w sekcjach meczów niżej — próg dotyczy tylko tabeli. "
+        "Karty zawodników pod progiem są **tylko w JSON**: jest ich sześć razy "
+        "więcej niż drużynowych i sekcja meczu przestawała być czytelna; każdy "
+        "mecz podaje, ile ich pominął.",
+    ]
+    if not ceiling:
+        lines.append(
+            "> * **Sufit modelu:** licząc „najmocniejszy szczebel\" pomijam "
+            f"szczeble na {MAX_COUNT_MODEL_PROBABILITY:.0%} — tam model się "
+            "urywa (`_clamp_count_probability`), więc każda taka linia "
+            "raportuje tę samą liczbę i żadna nie mówi, która wartość jest "
+            "bardziej prawdopodobna. To fakt o naszej arytmetyce, nie o meczu. "
+            f"Skutek: {team.demoted_by_ceiling} kart drużynowych i "
+            f"{players.demoted_by_ceiling} kart zawodników weszłoby do tabeli "
+            "na szczeblu z sufitu, a wchodzi na swoim najmocniejszym "
+            "*informacyjnym* szczeblu albo spada pod próg. "
+            f"Kart bez ani jednego szczebla poniżej sufitu: "
+            f"{team.ceiling_only} i {players.ceiling_only}. "
+            "`--include-ceiling` wyłącza tę regułę."
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _rank_row(card: ForecastCard, rung, identities: dict) -> str:
+    identity = identities.get(card.event_id, {})
+    subject = "—" if card.subject is None else card.subject
+    low, high = card.interval
+    price = "—" if rung.price is None else f"{rung.price:.2f}"
+    correction = rung.claim_correction
+    shift = "—" if not correction else f"{correction * 100:+.1f}".replace(".", ",")
+    return (
+        f"| **{rung.p_honest:.1%}** | {rung.p_central:.1%} | {shift} | "
+        f"{identity.get('match', card.event_id[:10])} | "
+        f"{_label(card.market)} | {subject} | "
+        f"**{rung.line:g} {rung.direction}** | "
+        f"{card.expected:.2f} ({low:.1f}–{high:.1f}) | "
+        f"{rung.hits}/{rung.sample_size} | "
+        f"{_GRADE_PL.get(card.grade, card.grade)} | {price} |"
+    )
+
+
+_RANK_HEADER = (
+    "| p (uczciwe) | p (model) | korekta pp | Mecz | Statystyka | Kto | "
+    "Kierunek | Oczekiwane (80%) | Surowo | Ocena | Kurs |\n"
+    "|------------:|----------:|-----------:|------|------------|-----|"
+    "----------|------------------|-------:|-------|-----:|"
+)
+
+
+def _ranked_table(rows: list[tuple], identities: dict) -> list[str]:
+    out = [_RANK_HEADER]
+    out += [_rank_row(card, rung, identities) for _p, card, rung in rows]
+    out.append("")
+    return out
+
+
+class _Ranked(NamedTuple):
+    """A ranked table and the full account of what did not reach it.
+
+    Three numbers rather than one, because the first version reported only
+    ``ceiling_only`` -- which is zero on a real board -- while the mechanism
+    that actually removed 2,781 prop cards went unmentioned. Excluding a card
+    from a summary table is defensible; not saying that you did is the thing
+    the operator objected to in the first place.
+    """
+
+    rows: list[tuple]
+    ceiling_only: int
+    below_floor: int
+    demoted_by_ceiling: int
+
+
+def _strongest_per_card(
+    cards: list[ForecastCard], floor: float, *, ceiling: bool
+) -> _Ranked:
+    """One row per statistic, plus the account of every card left out.
+
+    A ladder publishes the same read at a dozen lines, and ranking rungs
+    directly fills the table with "under 12.5, under 13.5, under 14.5" off one
+    sample. The question is which *statistic* is most likely, so each statistic
+    gets one line -- its strongest -- and the rest of its ladder is in the
+    fixture's own section below with every value spelled out.
+
+    "Strongest" means strongest **informative** rung unless ``ceiling`` is set.
+    The count model clamps at ``MAX_COUNT_MODEL_PROBABILITY``, so a line the
+    sample never came near reports exactly that number for every such line and
+    none of them says which value is likelier. On the 2026-09-07 board 1,261
+    prop cards and 9 team cards would have represented themselves in the table
+    on such a rung; every one of them has an informative rung too, so none is
+    dropped outright -- they enter on their strongest real reading or fall
+    under the floor. That is the difference between a table of 2,000 rows that
+    all say 95% and a table of the reads that distinguish anything.
+
+    This is a filter on our own arithmetic and not on anybody's price: the
+    rungs stay in the JSON and in the fixture's ladder, all three exclusion
+    counts are printed in the file, and ``--include-ceiling`` turns it off.
+    """
+    out = []
+    ceiling_only = below_floor = demoted = 0
+    for card in cards:
+        every = card.ranked_rungs(1)
+        ranked = card.ranked_rungs(1, informative_only=not ceiling)
+        if not ranked:
+            if every:
+                ceiling_only += 1
+            continue
+        rung = ranked[0]
+        if rung.p_honest is None or rung.p_honest < floor:
+            below_floor += 1
+            # Would this card have cleared the floor on its clamped rung? That
+            # is the difference the informative-only rule actually makes, and
+            # it is much larger than ceiling_only.
+            if every and (every[0].p_honest or 0.0) >= floor:
+                demoted += 1
+            continue
+        out.append((rung.p_honest, card, rung))
+    out.sort(key=lambda item: (-item[0], -item[2].sample_size, -item[2].line))
+    return _Ranked(out, ceiling_only, below_floor, demoted)
+
+
+def _render(
+    cards: list[ForecastCard],
+    identities: dict,
+    date: str,
+    *,
+    coverage: list[dict],
+    floor: float,
+    offer_generated_at: str | None,
+    player_floor: float,
+    max_ladder: int,
+    ceiling: bool,
+    max_player_cards: int,
+) -> str:
+    """The operator-facing file. Probability first, price a column, no gates.
+
+    Rewritten 2026-09-07 on the operator's instruction, and the instruction was
+    a correction of this file's own behaviour. It used to rank the day by
+    ``p_central``, drop every card whose grade was not MEASURED or BIASED, drop
+    every rung claiming at least the count-model clamp -- which is to say
+    exactly the highest probabilities on the board -- cap the result at twelve
+    rows and then print a second table gated on ``price >= 1.30``. Per fixture
+    it showed ``best_rungs(4)``: the four rungs *nearest even money*, the least
+    confident of each ladder.
+
+    So four of the six things this file did were forms of deciding for him, and
+    the price -- a number he watches change live and this process reads once a
+    morning -- was one of the deciders. Now: nothing is filtered on price,
+    nothing is filtered on grade, the ranking is on the corrected probability
+    so the saturated rows sink on their own measured record rather than on a
+    hand-written rule, and every fixture's whole ladder is printed with its
+    values. The price appears twice, both times as information: a column, and
+    an appendix at the end carrying its own age.
+    """
     out: list[str] = []
     out.append(f"# Oczekiwania {date}\n")
     out.append(
-        "**Czego się spodziewamy, zanim cokolwiek o cenie.** Każda karta podaje "
-        "wartość oczekiwaną w jednostkach, w których rynek się rozlicza, przedział "
-        "80%, z czego ten środek się składa, i **zmierzony błąd tego rynku** na "
-        "rozegranych już meczach z `runs/`.\n"
+        "**Która statystyka, w którą stronę, przy jakiej wartości jest "
+        "najbardziej prawdopodobna.** Nic tutaj nie jest odfiltrowane ceną i "
+        "nic nie jest odfiltrowane oceną rynku. Kurs jest kolumną — jest z "
+        "jednego pobrania z rana, zmienia się w ciągu dnia i to Ty go widzisz "
+        "na żywo, nie ten plik.\n"
     )
-    # Both legends below are derived from the day's own cards and the shipped
-    # config, never written out by hand. The hand-written version went stale
-    # inside a day: it claimed "all 14 such cards today are tennis length
-    # markets (BO3 games -9.2%, BO5 games -14.0%, BO5 sets -38.2%)" after the
-    # count had become 4 and every one of those three figures had changed.
+    out.append(_coverage_block(coverage))
     out.append(
-        "> **Jak czytać ocenę.** Benchmarkiem jest **przewidywanie samej średniej "
-        "tego zakresu** — najuczciwsza możliwa stała. `ZMIERZONY` — próbka tego "
-        "meczu bije tę średnią, rozdział szczebli opiera się na dowodzie. "
-        "`TYLKO POZIOM` — próbka wyszła na remis ze średnią (albo rynek zdarza "
-        "się tak rzadko, że jej MAE mierzy częstość bazową, nie umiejętność); "
-        "poziom jest coś wart, ale to, co rozdziela sąsiednie szczeble, jest "
-        "dopasowanym rozkładem, nie obserwacją. `OBCIĄŻONY` — prognoza myli się "
-        "systematycznie w znanym kierunku, popraw ręcznie. **`PRZESADNIE PEWNY`** "
-        "— poziom jest w porządku, a pewność nie: wiersze tego rynku, które "
-        "deklarowały co najmniej pewien próg, realizowały mniej. **`GORSZY OD "
-        "ŚREDNIEJ`** — próbka tego meczu *psuje* odpowiedź: sama średnia formatu "
-        "jest bliżej prawdy i żaden szczebel tam nie jest dowodem o tym meczu. "
+        "> **Dwie kolumny prawdopodobieństwa.** `p (model)` to liczba, którą "
+        "liczy arkusz. `p (uczciwe)` to ta sama liczba **po własnej historii "
+        "tego rynku**: dla każdego przedziału deklaracji wiemy z rozliczonych "
+        "meczów w `runs/`, ile takie wiersze naprawdę realizowały, i tyle "
+        "odejmujemy — przeskalowane liczbą meczów, na których to zmierzono, i "
+        "**tylko w dół**. Rynek, który w danym przedziale zaniża, zostaje "
+        "nietknięty; podnoszenie liczby na podstawie wahnięcia w kubełku "
+        "produkowałoby pewność, której nikt nie zmierzył. Sortowanie idzie po "
+        "`p (uczciwe)`, więc wiersze z sufitu arytmetycznego (0,95) spadają "
+        "same, jeśli ich rynek na tym poziomie nie dowoził — a nie dlatego, że "
+        "ktoś je wykluczył regułą.\n"
+    )
+    out.append(
+        "> **Jak czytać ocenę.** Benchmarkiem jest **przewidywanie samej "
+        "średniej tego zakresu** — najuczciwsza możliwa stała. `ZMIERZONY` — "
+        "próbka tego meczu bije tę średnią, rozdział szczebli opiera się na "
+        "dowodzie. `TYLKO POZIOM` — próbka wyszła na remis ze średnią (albo "
+        "rynek zdarza się tak rzadko, że jej MAE mierzy częstość bazową, nie "
+        "umiejętność); poziom jest coś wart, ale to, co rozdziela sąsiednie "
+        "szczeble, jest dopasowanym rozkładem, nie obserwacją. `OBCIĄŻONY` — "
+        "prognoza myli się systematycznie w znanym kierunku, popraw ręcznie. "
+        "`PRZESADNIE PEWNY` — poziom jest w porządku, a pewność nie; kolumna "
+        "`p (uczciwe)` już to odjęła. **`GORSZY OD ŚREDNIEJ`** — próbka tego "
+        "meczu *psuje* odpowiedź: sama średnia formatu jest bliżej prawdy, i "
+        "tego kalibracja nie naprawia, bo zły jest poziom, nie pewność. "
         "`NIEZMIERZONY` — nikt tego nigdy nie rozliczył; to nie znaczy "
         "„w porządku\".\n"
     )
     out.append(_grade_census(cards))
     out.append(_driver_legend())
 
-    by_event: dict[str, list[ForecastCard]] = {}
-    for card in cards:
-        by_event.setdefault(card.event_id, []).append(card)
+    # Tennis ``aces_for``/``double_faults_for``/``games_won`` are per-player and
+    # so carry a subject, but they are not props -- they are the tennis
+    # equivalent of a ``*_for`` market and belong with the match markets. The
+    # split is on the ``player_`` prefix, which is the football prop namespace,
+    # not on whether a subject exists.
+    players = [c for c in cards if c.market.startswith("player_")]
+    team = [c for c in cards if not c.market.startswith("player_")]
 
-    # --- the day's most informative reads, ranked by confidence alone ---------
-    ranked = []
-    for card in cards:
-        # OVERCONFIDENT is excluded here even though it is a measured grade:
-        # this block ranks the day's reads *by confidence*, and the one thing
-        # measured about those markets is that their confidence is overstated.
-        # red_cards_total would otherwise lead the section on the strength of
-        # the best MAE on the board while its 75%+ rows realise 74%.
-        if card.grade not in ("MEASURED", "BIASED"):
-            continue
-        for rung in card.rungs:
-            if rung.p_central is None or rung.p_low is None:
-                continue
-            # A rung sitting *at* the clamp is a ceiling, not a measurement:
-            # ``analyze._clamp_count_probability`` caps a count model at
-            # MAX_COUNT_MODEL_PROBABILITY, so "goals 2H under 4.5" off a sample
-            # that never exceeded two reports exactly that number and says
-            # nothing about the match. This filter used to read <= 0.97, which
-            # is above the clamp and therefore never fired -- so the section
-            # meant to hold the day's most informative reads was 28 rows of
-            # saturated arithmetic priced at 1.00-1.05, all tied at the cap.
-            # Below 0.55 there is nothing to say either.
-            if not 0.55 <= rung.p_central < MAX_COUNT_MODEL_PROBABILITY:
-                continue
-            ranked.append((rung.p_central, card, rung))
-    # Ties broken toward the wider, more informative claim: more evidence
-    # first, then the higher line, so a rung at the top of a market's ladder
-    # outranks the fourth restatement of the same read one line down.
-    ranked.sort(key=lambda item: (-item[0], -item[2].sample_size, -item[2].line))
+    team_ranked = _strongest_per_card(team, floor, ceiling=ceiling)
+    player_ranked = _strongest_per_card(
+        players, max(floor, player_floor), ceiling=ceiling
+    )
+    ranked_team = team_ranked.rows
+    ranked_players = player_ranked.rows
 
-    def _table(rows: list, limit: int) -> None:
-        out.append(
-            "| Pewność | Mecz | Rynek | Szczebel | Oczekiwane | Surowo | n | Ocena | Superbet |"
-        )
-        out.append(
-            "|--------:|------|-------|----------|-----------:|-------:|--:|-------|---------:|"
-        )
-        for p_central, card, rung in rows[:limit]:
-            identity = identities.get(card.event_id, {})
-            subject = "" if card.subject is None else f" · {card.subject}"
-            low, high = card.interval
-            price = "—" if rung.price is None else f"{rung.price:.2f}"
-            out.append(
-                f"| {p_central:.1%} | {identity.get('match', card.event_id[:10])} | "
-                f"{_label(card.market)}{subject} | {rung.line} {rung.direction} | "
-                f"{card.expected:.2f} ({low:.1f}–{high:.1f}) | "
-                f"{rung.hits}/{rung.sample_size} | {rung.sample_size} | "
-                f"{_GRADE_PL.get(card.grade, card.grade)} | {price} |"
-            )
-        out.append("")
-
-    out.append("## Najpewniejsze czytania dnia\n")
+    out.append(f"## Największe prawdopodobieństwa dnia (od {floor:.0%})\n")
     out.append(
-        "Sortowane **wyłącznie po pewności modelu**, bez żadnego filtra cenowego. "
-        "Kolumna Superbet jest informacją, nie bramką.\n"
+        "Jeden wiersz na statystykę w meczu — jej najmocniejszy szczebel. "
+        "Drabinka publikuje ten sam odczyt przy kilkunastu wartościach, więc "
+        "pozostałe wartości są niżej, w sekcji tego meczu, wszystkie. "
+        "Sortowane wyłącznie po `p (uczciwe)`, bez limitu wierszy.\n"
     )
-    _table(ranked, 12)
-
-    # The same ranking with a price floor, and it is a different list. Ranked on
-    # confidence alone the table fills with reads the book has already priced at
-    # 1.01-1.07 -- true, and worth nothing to know, because the book knows them
-    # too. Measured over the settled history the 1.00-1.05 band realises 97.5%
-    # against 98.5% implied, so such a row is a point of EV *behind* its price.
-    # The band that pays is 1.35-1.60 at +7.3%, and a confident read that still
-    # gets a price is the intersection the operator actually asked for.
-    # Priced rows first, then the unpriced ones. An unpriced row belongs here --
-    # the book posting no market states no opinion, so nothing has been
-    # discounted away -- but it cannot be taken, and sorting it level with a
-    # row that can be filled the whole table with dashes.
-    paid = sorted(
-        (
-            item
-            for item in ranked
-            if item[2].price is None or item[2].price >= CERTAINTY_PRICE_FLOOR
-        ),
-        key=lambda item: (item[2].price is None, -item[0]),
+    out.append(_exclusions_note(team_ranked, player_ranked, floor, player_floor, ceiling))
+    out.append(f"### Rynki meczowe i drużynowe — {len(ranked_team)} pozycji\n")
+    out += _ranked_table(ranked_team, identities)
+    out.append(
+        f"### Rynki zawodników — {len(ranked_players)} pozycji "
+        f"(próg {max(floor, player_floor):.0%})\n"
     )
-    if paid:
-        out.append(f"### …za które rynek jeszcze płaci (kurs ≥ {CERTAINTY_PRICE_FLOOR:.2f})\n")
-        out.append(
-            "Ta sama kolejność, jeden filtr: kurs co najmniej "
-            f"{CERTAINTY_PRICE_FLOOR:.2f}, albo brak ceny (bukmacher nie wystawił "
-            "rynku, więc nie ma swojej opinii). Powyżej pewność jest prawdziwa, "
-            "ale w pasmie 1,00–1,05 arkusz realizuje 97,5% przy 98,5% "
-            "implikowanych — noga tam kosztuje około punktu EV. Pasmo, które "
-            "płaci, to 1,35–1,60: +7,3%.\n"
-        )
-        _table(paid, 18)
+    out.append(
+        "Propy mają własny, wyższy próg w tym pliku i tylko tutaj: jest ich "
+        f"{sum(1 for c in cards if c.market.startswith('player_'))} kart wobec "
+        f"{len(team)} drużynowych, a nie ma powodu, by liczba kart decydowała "
+        "o tym, co widzisz na górze. W JSON są wszystkie, bez progu.\n"
+    )
+    out += _ranked_table(ranked_players, identities)
 
     # --- per fixture ---------------------------------------------------------
     out.append("---\n")
     out.append("## Karty po meczach\n")
+    out.append(
+        "Każdy mecz, każda statystyka, **każda wartość** — pełna drabinka "
+        "posortowana po `p (uczciwe)`, żebyś widział nie tylko kierunek, ale "
+        "i przy jakiej liczbie się kończy.\n"
+    )
+    by_event: dict[str, list[ForecastCard]] = {}
+    for card in cards:
+        by_event.setdefault(card.event_id, []).append(card)
     for event_id, event_cards in sorted(
         by_event.items(), key=lambda kv: identities.get(kv[0], {}).get("kickoff") or ""
     ):
@@ -410,23 +609,56 @@ def _render(cards: list[ForecastCard], identities: dict, date: str) -> str:
             f"### {identity.get('match', event_id[:12])} — "
             f"{identity.get('competition', '?')} · {identity.get('kickoff', '?')}\n"
         )
-        event_cards.sort(
-            key=lambda c: (_GRADE_ORDER.get(c.grade, 9), c.market, c.subject or "")
+        def _strength(card: ForecastCard) -> float:
+            ranked = card.ranked_rungs(1, informative_only=not ceiling)
+            return ranked[0].p_honest or 0.0 if ranked else 0.0
+
+        team_cards = [c for c in event_cards if not c.market.startswith("player_")]
+        prop_cards = sorted(
+            (c for c in event_cards if c.market.startswith("player_")),
+            key=lambda c: -_strength(c),
         )
-        for card in event_cards:
+        # Above the floor, then capped per fixture. The cap is what keeps this
+        # file readable as the slate grows: props are (players x markets) and
+        # team cards are just markets, so on 2026-09-06's 117 fixtures they ran
+        # 106 cards a fixture against 20, and that day rendered 6.4 MB before
+        # this bound. It is a page-length bound and not a judgement -- the JSON
+        # has every one, and the number withheld is printed per fixture.
+        eligible = [c for c in prop_cards if _strength(c) >= player_floor]
+        shown = team_cards + eligible[:max_player_cards]
+        below = len(prop_cards) - len(eligible)
+        capped = len(eligible) - min(len(eligible), max_player_cards)
+        if below or capped:
+            parts = []
+            if below:
+                parts.append(f"{below} poniżej progu {player_floor:.0%}")
+            if capped:
+                parts.append(
+                    f"{capped} powyżej progu, ale poza limitem "
+                    f"{max_player_cards} na mecz"
+                )
+            out.append(
+                f"_Karty zawodników pominięte tutaj: {', '.join(parts)} — "
+                "wszystkie są w pliku JSON._\n"
+            )
+        # Ranked by what the fixture's own strongest read is, so the operator
+        # meets each match at its best statistic rather than in alphabetical
+        # order of market name.
+        shown.sort(
+            key=lambda c: -max(
+                (r.p_honest or 0.0) for r in c.rungs
+            ) if c.rungs else 0.0
+        )
+        for card in shown:
             low, high = card.interval
-            # The subject is inside the bolded market label, so it must not
-            # carry its own asterisks -- nested bold renders literally, and
-            # every per-participant card printed "**faule drużyny · **Nantes****".
             subject = "" if card.subject is None else f" · {card.subject}"
             out.append(
-                f"**{_label(card.market)}{subject}** — oczekiwane **{card.expected:.2f}**, "
-                f"80% {low:.1f}–{high:.1f} · {_GRADE_PL.get(card.grade, card.grade)}"
+                f"**{_label(card.market)}{subject}** — oczekiwane "
+                f"**{card.expected:.2f}**, 80% {low:.1f}–{high:.1f} · "
+                f"{_GRADE_PL.get(card.grade, card.grade)}"
             )
             out.append(f"- _{card.grade_reason}_")
-            baseline = (
-                f"{card.baseline:.2f}" if card.baseline is not None else "brak"
-            )
+            baseline = f"{card.baseline:.2f}" if card.baseline is not None else "brak"
             out.append(
                 f"- środek = próbka {card.sample_mean:.2f} (n={card.sample_size}, "
                 f"waga {card.weight:.2f}) + baza {baseline} "
@@ -440,31 +672,92 @@ def _render(cards: list[ForecastCard], identities: dict, date: str) -> str:
             )
             if card.centre_note:
                 out.append(f"- środek skorygowany: {card.centre_note}")
+            note = next(
+                (r.honest_note for r in card.ranked_rungs() if r.honest_note), None
+            )
+            if note:
+                out.append(f"- kalibracja: {note}")
             for driver in card.drivers:
                 delta = driver.delta
                 arrow = "" if delta is None else ("↑" if delta > 0 else "↓")
                 out.append(
                     f"- driver `{driver.name}` = {driver.value:.2f} wobec "
                     f"{driver.reference:.2f} ({delta:+.2f} {arrow}) — "
-                    f"**{_STATUS_PL.get(driver.status, driver.status)}**; {driver.detail}"
+                    f"**{_STATUS_PL.get(driver.status, driver.status)}**; "
+                    f"{driver.detail}"
                 )
             if card.scope_excluded:
                 dropped = ", ".join(
                     f"{k}: {v}" for k, v in sorted(card.scope_excluded.items())
                 )
                 out.append(f"- odrzucone z próbki przed liczeniem: {dropped}")
-            informative = card.best_rungs(4)
-            if informative:
+            # Capped, and the cap is a page-length decision rather than an
+            # editorial one: a ladder is the same read restated at a dozen
+            # lines, so the six most likely values carry it and the rest are in
+            # the JSON.
+            #
+            # Worth knowing how little this one does: uncapping it costs 107
+            # bytes on the 2026-09-07 board, because the 0.5 floor two lines
+            # down has already trimmed most ladders below six rungs. The
+            # megabytes on that slate came from the two bounds above -- the
+            # ceiling rule and the per-fixture prop cap -- and removing all
+            # three takes the file from 1.1 MB to 2.8 MB. This one is here for
+            # the pathological ladder, not for the common case.
+            ranked = [r for r in card.ranked_rungs() if (r.p_honest or 0.0) >= 0.5]
+            ladder = ranked[:max_ladder]
+            if ladder:
                 out.append("")
-                out.append("  | szczebel | p_central | p_low | surowo | Superbet |")
-                out.append("  |----------|----------:|------:|-------:|---------:|")
-                for rung in informative:
+                out.append(
+                    "  | wartość | kierunek | p (uczciwe) | p (model) | p_low | "
+                    "surowo | kurs |"
+                )
+                out.append(
+                    "  |--------:|----------|------------:|----------:|------:|"
+                    "-------:|-----:|"
+                )
+                for rung in ladder:
                     price = "—" if rung.price is None else f"{rung.price:.2f}"
+                    p_low = "—" if rung.p_low is None else f"{rung.p_low:.3f}"
+                    mark = " *sufit*" if rung.at_ceiling else ""
                     out.append(
-                        f"  | {rung.line} {rung.direction} | {rung.p_central:.3f} | "
-                        f"{rung.p_low:.3f} | {rung.hits}/{rung.sample_size} | {price} |"
+                        f"  | {rung.line:g} | {rung.direction} | "
+                        f"**{rung.p_honest:.3f}**{mark} | {rung.p_central:.3f} | "
+                        f"{p_low} | {rung.hits}/{rung.sample_size} | {price} |"
+                    )
+                if len(ranked) > len(ladder):
+                    out.append("")
+                    out.append(
+                        f"  _+{len(ranked) - len(ladder)} dalszych wartości "
+                        "powyżej 50% — w JSON._"
                     )
             out.append("")
+
+    # --- price, last and clearly labelled as one morning's snapshot ----------
+    out.append("---\n")
+    out.append("## Dodatek: gdzie rynek jeszcze płacił rano\n")
+    stamp = offer_generated_at or "nieznana godzina"
+    out.append(
+        f"Kursy pobrane **{stamp}**, jedno pobranie. Do dziś wieczora część z "
+        "nich nie istnieje. Ta sekcja nie jest rekomendacją i nie usuwa "
+        "niczego z tabel powyżej — jest po to, żeby nie szukać ręcznie, które "
+        f"z najpewniejszych odczytów miały rano kurs co najmniej "
+        f"{CERTAINTY_PRICE_FLOOR:.2f}. Poniżej tego pasma zmierzona historia "
+        "mówi, że 1,00–1,05 realizuje 97,5% przy 98,5% implikowanych — noga "
+        "tam kosztuje około punktu EV, i to jest fakt o cenie, nie o "
+        "statystyce.\n"
+    )
+    paid = [
+        item
+        for item in (ranked_team + ranked_players)
+        if item[2].price is not None and item[2].price >= CERTAINTY_PRICE_FLOOR
+    ]
+    paid.sort(key=lambda item: -item[0])
+    if paid:
+        out += _ranked_table(paid, identities)
+    else:
+        out.append(
+            "Rano żaden z tych odczytów nie miał kursu w tym pasmie.\n"
+        )
     return "\n".join(out) + "\n"
 
 
@@ -477,7 +770,57 @@ def main() -> int:
         action="store_true",
         help="Drop UNMEASURED and LEVEL_ONLY cards from the rendered file",
     )
-    parser.add_argument("--include-players", action="store_true")
+    parser.add_argument(
+        "--no-players",
+        action="store_true",
+        help="Drop player prop cards entirely (they are included by default)",
+    )
+    parser.add_argument(
+        "--min-probability",
+        type=float,
+        default=0.70,
+        help=(
+            "Floor for the ranked tables, on the corrected probability. Not a "
+            "quality gate -- every card is in the JSON regardless."
+        ),
+    )
+    parser.add_argument(
+        "--min-player-probability",
+        type=float,
+        default=0.85,
+        help=(
+            "A higher floor for prop cards in the rendered file only. There are "
+            "six times as many of them as team cards and the count must not "
+            "decide what reaches the top of the page."
+        ),
+    )
+    parser.add_argument(
+        "--include-ceiling",
+        action="store_true",
+        help=(
+            "Let a card whose whole ladder sits at the count model's clamp "
+            "represent its statistic in the ranked tables"
+        ),
+    )
+    parser.add_argument(
+        "--max-player-cards",
+        type=int,
+        default=10,
+        help=(
+            "How many prop cards each fixture's own section prints, strongest "
+            "first. Props are players times markets, so this is what keeps the "
+            "file bounded as the slate grows; the JSON is never capped."
+        ),
+    )
+    parser.add_argument(
+        "--max-ladder",
+        type=int,
+        default=6,
+        help=(
+            "How many values of each ladder the rendered file prints, most "
+            "likely first. The JSON always carries every one."
+        ),
+    )
     args = parser.parse_args()
 
     run_dir = Path(args.run_dir) if args.run_dir else ROOT / "runs" / args.date
@@ -514,19 +857,63 @@ def main() -> int:
         sheet,
         dossiers.dossiers,
         competitions=competitions,
-        include_players=args.include_players,
+        include_players=not args.no_players,
     )
     rendered = [
         c for c in cards
         if not args.measured_only or c.grade in ("MEASURED", "BIASED")
     ]
 
+    # Every fixture DISCOVER returned, whether or not it produced a card, with
+    # the reason the dossier recorded when it did not. Built here rather than
+    # in the renderer because it needs the event list and the dossiers, and the
+    # renderer is given cards.
+    cards_by_event: dict[str, list[ForecastCard]] = {}
+    for card in cards:
+        cards_by_event.setdefault(card.event_id, []).append(card)
+    dossier_by_event = {d.event_id: d for d in dossiers.dossiers}
+    coverage = []
+    for event in events.events:
+        dossier = dossier_by_event.get(event.event_id)
+        own = cards_by_event.get(event.event_id, [])
+        identity = identities.get(event.event_id, {})
+        coverage.append(
+            {
+                "event_id": event.event_id,
+                "match": identity.get("match"),
+                "competition": identity.get("competition"),
+                "kickoff": identity.get("kickoff"),
+                "sport": event.sport,
+                "cards": len(own),
+                "rungs": sum(len(c.rungs) for c in own),
+                "readiness": getattr(dossier, "readiness", None) if dossier else None,
+                "gaps": list(getattr(dossier, "data_gaps", None) or []) if dossier else ["no dossier"],
+            }
+        )
+
+    offer_path = run_dir / f"{args.date}_superbet_offer.json"
+    offer_generated_at = None
+    if offer_path.exists():
+        try:
+            offer_generated_at = json.loads(offer_path.read_text(encoding="utf-8")).get(
+                "generated_at"
+            )
+        except (json.JSONDecodeError, OSError):
+            # A price stamp is decoration; a missing one must never stop the
+            # statistics from being written.
+            offer_generated_at = None
+
     payload = {
         "run_id": sheet.run_id,
         "date": args.date,
         "cards": [_card_json(c, identities.get(c.event_id, {})) for c in cards],
+        "coverage": coverage,
+        "offer_generated_at": offer_generated_at,
         "counts": {
             "cards": len(cards),
+            "events_discovered": len(events.events),
+            "events_with_cards": len(cards_by_event),
+            "rungs": sum(len(c.rungs) for c in cards),
             "by_grade": {
                 grade: sum(1 for c in cards if c.grade == grade)
                 for grade in sorted({c.grade for c in cards})
@@ -536,10 +923,29 @@ def main() -> int:
     json_path = run_dir / f"{args.date}_forecast.json"
     md_path = run_dir / f"{args.date}_forecast.md"
     write_json_atomic(json_path, payload)
-    md_path.write_text(_render(rendered, identities, args.date), encoding="utf-8")
+    md_path.write_text(
+        _render(
+            rendered,
+            identities,
+            args.date,
+            coverage=coverage,
+            floor=args.min_probability,
+            offer_generated_at=offer_generated_at,
+            player_floor=args.min_player_probability,
+            max_ladder=args.max_ladder,
+            ceiling=args.include_ceiling,
+            max_player_cards=args.max_player_cards,
+        ),
+        encoding="utf-8",
+    )
 
+    # Prefixed, because run_pipeline.py runs this as a tail step and its
+    # _run_step reads exactly this line to record the step's metrics. Without
+    # the prefix the step showed up in the run summary with no numbers at all,
+    # which is indistinguishable from a step that did nothing.
     print(
-        json.dumps(
+        "AGENT_SUMMARY:"
+        + json.dumps(
             {
                 "step": "simple_stats:FORECAST",
                 "verdict": "OK",
@@ -550,7 +956,8 @@ def main() -> int:
                 },
             },
             ensure_ascii=False,
-        )
+        ),
+        flush=True,
     )
     return 0
 

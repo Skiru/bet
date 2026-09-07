@@ -24,10 +24,44 @@ total, a team name for a `*_for` row, a player for a prop.
                   "overconfident_at_75": false},
   "drivers": [{"name": "referee", "value": 21.9, "reference": 23.96, "delta": -2.06,
                "status": "PRICES_IN", "detail": "... partial r=+0.144 against the residual ..."}],
-  "rungs":   [{"line": 22.5, "direction": "OVER", "p_central": 0.595, "p_low": 0.351,
-               "hits": 13, "sample_size": 24, "superbet_price": 1.83}]
+  "rungs":   [{"line": 22.5, "direction": "OVER", "p_central": 0.595, "p_honest": 0.595,
+               "calibration_note": "rynek w tym przedziale raczej zaniża ...",
+               "p_low": 0.351, "hits": 13, "sample_size": 24, "superbet_price": 1.83}]
 }
 ```
+
+`rungs` arrives **most likely first**, on `p_honest`.
+
+## Two probabilities, and `p_honest` is the one to rank by
+
+`p_central` is what the estimator computes. `p_honest` is that number after
+**this market's own settled record at that claim**: `market_reliability.json`
+carries a `calibration_curve` per scope saying what rows claiming roughly that
+much really realised over every settled fixture in `runs/`, and `p_honest`
+subtracts the part of the overconfidence a clustered interval puts beyond zero.
+
+Four properties you can rely on:
+
+* **It can only lower.** A bucket that under-claims is left alone. Raising a
+  number off a bucket-level wobble would manufacture confidence nobody
+  measured, and the two errors do not cost the same — too high becomes a bet,
+  too low becomes a pass.
+* **A well-calibrated market is untouched.** The correction is the interval's
+  lower bound, so a bucket straddling zero subtracts nothing. Most of the board
+  is in this state and reads `p_honest == p_central`.
+* **It shrinks itself on thin evidence.** No constant: a bucket standing on
+  eight matches has a wide interval and corrects almost nothing.
+* **It does not replace the grade.** `WORSE_THAN_AVERAGE` says the sample loses
+  to its own format's mean, and recalibration cannot fix that — the level is
+  wrong, not the confidence. Read both.
+
+`calibration_note` is the audit trail in Polish: what such rows realised, on
+how many matches, and how much was taken off. Quote it when you demote a row
+for its market's record rather than for something you found in the fixture.
+
+The practical effect is that a rung sitting at the count-model clamp no longer
+has to be filtered out of the ranking by hand. It stays, and it sinks by its own
+measured record if that record does not support it.
 
 ## Say the expectation first, in the market's own units
 

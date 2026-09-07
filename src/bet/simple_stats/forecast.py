@@ -57,12 +57,14 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from bet.simple_stats.analyze import (
+    MAX_COUNT_MODEL_PROBABILITY,
     SHRINKAGE_K,
     market_reliability,
     scope_values,
     shrinkage_target,
     tennis_match_format,
 )
+from bet.simple_stats.calibration import honest_probability
 from bet.simple_stats.contracts import (
     EventDossierV1,
     StatsSheetRow,
@@ -148,6 +150,38 @@ class Rung:
     sample_size: int
     price: float | None = None
     min_odds: float | None = None
+    # ``p_central`` after this market's own settled record at this claim; see
+    # calibration.honest_probability. It is the number the day's reads are
+    # ranked by, and it may only ever be lower than or equal to p_central.
+    p_honest: float | None = None
+    honest_note: str | None = None
+
+    @property
+    def at_ceiling(self) -> bool:
+        """Whether this rung is the count model's clamp rather than a reading.
+
+        ``analyze._clamp_count_probability`` caps a count model at
+        ``MAX_COUNT_MODEL_PROBABILITY``, so a line the sample never came near
+        reports exactly that number for every such line and says nothing about
+        which of them is more likely. It is a fact about our own arithmetic --
+        not about a price -- and it is the reason a probability ranking fills
+        with "under 8.5 tackles, 95%" restated twenty times.
+
+        Reported rather than removed: the rung stays in the JSON and in the
+        fixture's own ladder, marked. What it does not do is represent its card
+        at the top of the file when the card has something informative to say.
+        """
+        return (
+            self.p_central is not None
+            and self.p_central >= MAX_COUNT_MODEL_PROBABILITY
+        )
+
+    @property
+    def claim_correction(self) -> float | None:
+        """How many points this market's record took off the claim, if any."""
+        if self.p_central is None or self.p_honest is None:
+            return None
+        return self.p_honest - self.p_central
 
     @property
     def price_gap_pct(self) -> float | None:
@@ -208,6 +242,25 @@ class ForecastCard:
             f"expected {self.expected:.2f} "
             f"(80% {low:.1f}-{high:.1f}, n={self.sample_size}, {self.grade})"
         )
+
+    def ranked_rungs(
+        self, limit: int | None = None, *, informative_only: bool = False
+    ) -> list[Rung]:
+        """Every rung, most likely first, on the corrected probability.
+
+        The opposite ordering to ``best_rungs`` and the one the operator asked
+        for: "which statistic, in which direction, at which value is most
+        likely". Ties are broken toward the wider claim -- more evidence, then
+        the higher line -- so the top of a ladder outranks the fourth
+        restatement of the same read one line down.
+        """
+        scored = [
+            r
+            for r in self.rungs
+            if r.p_honest is not None and not (informative_only and r.at_ceiling)
+        ]
+        scored.sort(key=lambda r: (-(r.p_honest or 0.0), -r.sample_size, -r.line))
+        return scored if limit is None else scored[:limit]
 
     def best_rungs(self, limit: int = 4) -> list[Rung]:
         """The rungs nearest even money, which are the ones that carry a claim.
@@ -559,7 +612,7 @@ def build_cards(
     dossiers: Iterable[EventDossierV1],
     *,
     competitions: Mapping[str, str] | None = None,
-    include_players: bool = False,
+    include_players: bool = True,
     min_sample: int = 3,
 ) -> list[ForecastCard]:
     """One card per (fixture, market, subject) the sheet has rows for.
@@ -568,10 +621,18 @@ def build_cards(
     returns the same cards, which is what makes a read reviewable after the
     fact against the same two files.
 
-    ``include_players`` is off by default. Player props are not offered as bets
-    (measured at -30.5% ROI against posted prices) and there are 19,000 of them
-    on a slate; a card apiece would bury the thirty that matter. They can still
-    be asked for explicitly.
+    ``include_players`` is **on** by default since 2026-09-07. It was off, on
+    the reasoning that props measured -30.5% ROI against posted prices and that
+    21,000 rows would bury the thirty that matter. Both halves of that have
+    stopped being reasons. The ROI is a statement about Superbet's prices and
+    this file no longer decides anything about a price -- the operator prices
+    live and asked for the statistics. And burial was a property of the old
+    ordering: with every rung ranked on its corrected probability the props
+    that deserve the top of the list reach it and the rest sort themselves
+    below, which is what the ranking is for. It costs 3,520 prop cards against
+    658 team cards on the 2026-09-07 board, so the rendered file keeps a higher
+    probability floor and a per-fixture cap on prop cards while the JSON keeps
+    every one of them.
     """
     by_event = {d.event_id: d for d in dossiers}
     grouped: dict[tuple[str, str, str | None], list[StatsSheetRow]] = {}
@@ -617,18 +678,22 @@ def build_cards(
             str(getattr(getattr(dossier, "fixture_context", None), "league_id", "") or "")
             or None,
         )
-        rungs = [
-            Rung(
-                line=r.line,
-                direction=r.direction,
-                p_central=r.p_central,
-                p_low=r.p_low,
-                hits=r.hits,
-                sample_size=r.sample_size,
-                price=(r.superbet.price if r.superbet else None),
+        rungs = []
+        for r in sorted(rows, key=lambda r: (r.line, r.direction)):
+            honest, honest_note = honest_probability(r.p_central, entry)
+            rungs.append(
+                Rung(
+                    line=r.line,
+                    direction=r.direction,
+                    p_central=r.p_central,
+                    p_low=r.p_low,
+                    hits=r.hits,
+                    sample_size=r.sample_size,
+                    price=(r.superbet.price if r.superbet else None),
+                    p_honest=honest,
+                    honest_note=honest_note,
+                )
             )
-            for r in sorted(rows, key=lambda r: (r.line, r.direction))
-        ]
         cards.append(
             ForecastCard(
                 event_id=event_id,

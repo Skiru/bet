@@ -104,7 +104,12 @@ ALL_STEPS = ["discover", "superbet", "enrich", "market_context", "tipsters", "an
 # appears in steps_run because it ran, so every "which steps ran" assertion has
 # to account for it.
 COMPARISON = "superbet_comparison"
-ALL_STEPS_WITH_COMPARISON = [*ALL_STEPS, COMPARISON]
+# Both tails of ANALYZE, in the order they run. Neither is in ``STEPS`` -- the
+# comparison must re-read the sheet ANALYZE just wrote, and FORECAST must see
+# the prices the comparison settled on -- so a run that stopped earlier has
+# neither, and ``--stop-after`` cannot name them.
+FORECAST = "forecast"
+ALL_STEPS_WITH_COMPARISON = [*ALL_STEPS, COMPARISON, FORECAST]
 
 
 def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
@@ -145,6 +150,11 @@ def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
             metrics={"run_id": run_id, "output_path": str(sheet), "persisted": True},
             exit_code=0, writes=str(sheet),
         ),
+        "forecast": _stub(
+            tmp_path / "f.py", verdict="OK",
+            metrics={"cards": 12, "markdown": str(out_dir / f"{date}_forecast.md")},
+            exit_code=0,
+        ),
     }
 
 
@@ -164,6 +174,59 @@ def test_exactly_one_agent_summary_is_emitted(tmp_path, out_dir):
     assert sum(line.startswith("AGENT_SUMMARY:") for line in stdout.splitlines()) == 1
 
 
+def test_a_failed_forecast_does_not_cost_the_run_its_verdict(tmp_path, out_dir):
+    """FORECAST is a pure read over artifacts that already exist.
+
+    It touches no provider, spends no quota and cannot invalidate a sheet, so a
+    traceback in it is a missing report and not a bad betting day. Recorded per
+    step so nobody has to wonder why the file is absent, and kept out of the run
+    verdict -- the same treatment the comparison pass gets, and for the same
+    reason.
+    """
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["forecast"] = _stub(
+        tmp_path / "f_bad.py", verdict="FAILED", metrics={}, exit_code=2
+    )
+    code, summary, _ = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir)
+    )
+    assert code == 0
+    assert summary["verdict"] == "OK"
+    assert summary["metrics"]["step_verdicts"][FORECAST] == "FAILED"
+
+
+def test_forecast_is_given_the_directory_the_run_actually_wrote_to(tmp_path, out_dir):
+    """build_forecast defaults to ``runs/<date>`` and reads rather than writes.
+
+    Without an explicit --run-dir a run pointed elsewhere by --output-dir would
+    have it read a different day's artifacts, or none at all, and report OK on
+    a file built from the wrong sheet.
+    """
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    _, summary, stdout = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "-v"
+    )
+    assert summary["metrics"]["step_verdicts"][FORECAST] == "OK"
+    assert f"--run-dir {out_dir}" in stdout
+
+
+def test_forecast_cannot_be_named_by_stop_after(tmp_path, out_dir):
+    """It is a tail of ANALYZE, not a step: it must see the sheet ANALYZE
+    finished writing, so a run that stopped before ANALYZE has nothing for it
+    to read."""
+    import subprocess
+    import sys as _sys
+
+    proc = subprocess.run(
+        [_sys.executable, "scripts/simple/run_pipeline.py", "--stop-after", "forecast"],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode != 0
+    assert "invalid choice" in proc.stderr
+
+
 def test_verdict_is_the_worst_step_not_the_last(tmp_path, out_dir):
     stubs = _all_ok_stubs(tmp_path, out_dir)
     date = "2026-08-25"
@@ -181,6 +244,7 @@ def test_verdict_is_the_worst_step_not_the_last(tmp_path, out_dir):
         "superbet": "OK",
         "analyze": "OK",
         COMPARISON: "OK",
+        FORECAST: "OK",
     }
     assert summary["verdict"] == "PARTIAL"
     assert code == 1
@@ -247,7 +311,15 @@ def test_resume_adopts_the_run_id_stamped_in_the_artifact(tmp_path, out_dir):
         tmp_path, stubs, "--date", date, "--output-dir", str(out_dir), "--start-at", "analyze"
     )
     assert summary["metrics"]["run_id"] == "ORIGINAL-RUN"
-    assert summary["metrics"]["steps_run"] == ["analyze"]
+    # ANALYZE and its two tails. Resuming at ANALYZE rewrites the sheet, so both
+    # tails have to re-run or the comparison and the forecast describe a sheet
+    # nobody has -- which is the defect run_pipeline's comparison pass exists to
+    # prevent in the first place.
+    # ANALYZE and the one tail that can still run. The comparison needs the
+    # offer artifact, which a resume at ANALYZE never produced; FORECAST needs
+    # only the sheet, the dossiers and the event list, so it runs and simply has
+    # no price column to print.
+    assert summary["metrics"]["steps_run"] == ["analyze", FORECAST]
 
 
 def test_resume_without_the_upstream_artifact_is_precondition_failed(tmp_path, out_dir):
@@ -369,7 +441,8 @@ def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
     )
     assert code == 0
     assert summary["metrics"]["steps_run"] == [
-        "discover", "superbet", "enrich", "market_context", "analyze", COMPARISON
+        "discover", "superbet", "enrich", "market_context", "analyze",
+        COMPARISON, FORECAST,
     ]
     assert summary["metrics"]["tipster_signal"] is None
 
@@ -399,7 +472,8 @@ def test_skip_market_context_omits_the_step_entirely(tmp_path, out_dir):
     )
     assert code == 0
     assert summary["metrics"]["steps_run"] == [
-        "discover", "superbet", "enrich", "tipsters", "analyze", COMPARISON
+        "discover", "superbet", "enrich", "tipsters", "analyze",
+        COMPARISON, FORECAST,
     ]
     assert summary["metrics"]["market_context"] is None
 

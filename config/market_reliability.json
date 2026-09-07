@@ -26,63 +26,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 182,
+     "fixtures": 143,
      "claimed": 0.5263,
      "realised": 0.544,
-     "gap": -0.0177
+     "gap": -0.0177,
+     "gap_ci": [
+      -0.0915,
+      0.0561
+     ]
     },
     "0.55": {
      "rungs": 213,
+     "fixtures": 162,
      "claimed": 0.577,
      "realised": 0.6573,
-     "gap": -0.0802
+     "gap": -0.0802,
+     "gap_ci": [
+      -0.1464,
+      -0.0141
+     ]
     },
     "0.60": {
      "rungs": 263,
+     "fixtures": 163,
      "claimed": 0.6235,
      "realised": 0.6312,
-     "gap": -0.0077
+     "gap": -0.0077,
+     "gap_ci": [
+      -0.056,
+      0.0406
+     ]
     },
     "0.65": {
      "rungs": 187,
+     "fixtures": 141,
      "claimed": 0.6758,
      "realised": 0.6738,
-     "gap": 0.002
+     "gap": 0.002,
+     "gap_ci": [
+      -0.0656,
+      0.0695
+     ]
     },
     "0.70": {
      "rungs": 124,
+     "fixtures": 101,
      "claimed": 0.7242,
      "realised": 0.7258,
-     "gap": -0.0016
+     "gap": -0.0016,
+     "gap_ci": [
+      -0.0747,
+      0.0715
+     ]
     },
     "0.75": {
      "rungs": 141,
+     "fixtures": 112,
      "claimed": 0.7737,
      "realised": 0.7801,
-     "gap": -0.0065
+     "gap": -0.0065,
+     "gap_ci": [
+      -0.075,
+      0.0621
+     ]
     },
     "0.80": {
      "rungs": 139,
+     "fixtures": 119,
      "claimed": 0.8253,
      "realised": 0.8129,
-     "gap": 0.0123
+     "gap": 0.0123,
+     "gap_ci": [
+      -0.0528,
+      0.0775
+     ]
     },
     "0.85": {
      "rungs": 121,
+     "fixtures": 103,
      "claimed": 0.8733,
      "realised": 0.8347,
-     "gap": 0.0386
+     "gap": 0.0386,
+     "gap_ci": [
+      -0.0306,
+      0.1078
+     ]
     },
     "0.90": {
      "rungs": 160,
+     "fixtures": 128,
      "claimed": 0.9258,
      "realised": 0.8938,
-     "gap": 0.0321
+     "gap": 0.0321,
+     "gap_ci": [
+      -0.0148,
+      0.079
+     ]
     },
     "0.95": {
      "rungs": 203,
+     "fixtures": 107,
      "claimed": 0.95,
      "realised": 0.8867,
-     "gap": 0.0633
+     "gap": 0.0633,
+     "gap_ci": [
+      0.0051,
+      0.1215
+     ]
     }
    },
    "at_75": {
@@ -116,63 +166,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 147,
+     "fixtures": 145,
      "claimed": 0.5236,
      "realised": 0.5646,
-     "gap": -0.0411
+     "gap": -0.0411,
+     "gap_ci": [
+      -0.1204,
+      0.0382
+     ]
     },
     "0.55": {
      "rungs": 150,
+     "fixtures": 118,
      "claimed": 0.5748,
      "realised": 0.5467,
-     "gap": 0.0281
+     "gap": 0.0281,
+     "gap_ci": [
+      -0.0375,
+      0.0937
+     ]
     },
     "0.60": {
      "rungs": 150,
+     "fixtures": 140,
      "claimed": 0.624,
      "realised": 0.64,
-     "gap": -0.016
+     "gap": -0.016,
+     "gap_ci": [
+      -0.0901,
+      0.0582
+     ]
     },
     "0.65": {
      "rungs": 130,
+     "fixtures": 107,
      "claimed": 0.6737,
      "realised": 0.7538,
-     "gap": -0.0801
+     "gap": -0.0801,
+     "gap_ci": [
+      -0.1489,
+      -0.0114
+     ]
     },
     "0.70": {
      "rungs": 117,
+     "fixtures": 104,
      "claimed": 0.723,
      "realised": 0.6838,
-     "gap": 0.0393
+     "gap": 0.0393,
+     "gap_ci": [
+      -0.0436,
+      0.1221
+     ]
     },
     "0.75": {
      "rungs": 111,
+     "fixtures": 103,
      "claimed": 0.7753,
      "realised": 0.8108,
-     "gap": -0.0355
+     "gap": -0.0355,
+     "gap_ci": [
+      -0.1081,
+      0.037
+     ]
     },
     "0.80": {
      "rungs": 103,
+     "fixtures": 100,
      "claimed": 0.8254,
      "realised": 0.7573,
-     "gap": 0.0681
+     "gap": 0.0681,
+     "gap_ci": [
+      -0.014,
+      0.1502
+     ]
     },
     "0.85": {
      "rungs": 109,
+     "fixtures": 109,
      "claimed": 0.876,
      "realised": 0.844,
-     "gap": 0.032
+     "gap": 0.032,
+     "gap_ci": [
+      -0.0366,
+      0.1005
+     ]
     },
     "0.90": {
      "rungs": 131,
+     "fixtures": 131,
      "claimed": 0.9252,
      "realised": 0.9084,
-     "gap": 0.0168
+     "gap": 0.0168,
+     "gap_ci": [
+      -0.033,
+      0.0667
+     ]
     },
     "0.95": {
      "rungs": 233,
+     "fixtures": 129,
      "claimed": 0.95,
      "realised": 0.9442,
-     "gap": 0.0058
+     "gap": 0.0058,
+     "gap_ci": [
+      -0.0394,
+      0.051
+     ]
     }
    },
    "at_75": {
@@ -206,63 +306,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 855,
+     "fixtures": 534,
      "claimed": 0.5245,
      "realised": 0.5088,
-     "gap": 0.0158
+     "gap": 0.0158,
+     "gap_ci": [
+      -0.0166,
+      0.0482
+     ]
     },
     "0.55": {
      "rungs": 850,
+     "fixtures": 465,
      "claimed": 0.5748,
      "realised": 0.5812,
-     "gap": -0.0064
+     "gap": -0.0064,
+     "gap_ci": [
+      -0.0347,
+      0.0218
+     ]
     },
     "0.60": {
      "rungs": 903,
+     "fixtures": 507,
      "claimed": 0.6244,
      "realised": 0.6357,
-     "gap": -0.0112
+     "gap": -0.0112,
+     "gap_ci": [
+      -0.0402,
+      0.0178
+     ]
     },
     "0.65": {
      "rungs": 879,
+     "fixtures": 476,
      "claimed": 0.6738,
      "realised": 0.6928,
-     "gap": -0.0191
+     "gap": -0.0191,
+     "gap_ci": [
+      -0.0464,
+      0.0083
+     ]
     },
     "0.70": {
      "rungs": 923,
+     "fixtures": 500,
      "claimed": 0.726,
      "realised": 0.7172,
-     "gap": 0.0088
+     "gap": 0.0088,
+     "gap_ci": [
+      -0.0191,
+      0.0366
+     ]
     },
     "0.75": {
      "rungs": 849,
+     "fixtures": 493,
      "claimed": 0.7734,
      "realised": 0.7974,
-     "gap": -0.024
+     "gap": -0.024,
+     "gap_ci": [
+      -0.0503,
+      0.0022
+     ]
     },
     "0.80": {
      "rungs": 666,
+     "fixtures": 433,
      "claimed": 0.8247,
      "realised": 0.7883,
-     "gap": 0.0364
+     "gap": 0.0364,
+     "gap_ci": [
+      0.0058,
+      0.0671
+     ]
     },
     "0.85": {
      "rungs": 548,
+     "fixtures": 378,
      "claimed": 0.8716,
      "realised": 0.8339,
-     "gap": 0.0377
+     "gap": 0.0377,
+     "gap_ci": [
+      0.0072,
+      0.0681
+     ]
     },
     "0.90": {
      "rungs": 267,
+     "fixtures": 221,
      "claimed": 0.9241,
      "realised": 0.8652,
-     "gap": 0.0589
+     "gap": 0.0589,
+     "gap_ci": [
+      0.017,
+      0.1008
+     ]
     },
     "0.95": {
      "rungs": 145,
+     "fixtures": 107,
      "claimed": 0.95,
      "realised": 0.8621,
-     "gap": 0.0879
+     "gap": 0.0879,
+     "gap_ci": [
+      0.0252,
+      0.1507
+     ]
     }
    },
    "at_75": {
@@ -305,57 +455,102 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 553,
+     "fixtures": 527,
      "claimed": 0.525,
      "realised": 0.5552,
-     "gap": -0.0302
+     "gap": -0.0302,
+     "gap_ci": [
+      -0.0704,
+      0.01
+     ]
     },
     "0.55": {
      "rungs": 557,
+     "fixtures": 451,
      "claimed": 0.5746,
      "realised": 0.5907,
-     "gap": -0.016
+     "gap": -0.016,
+     "gap_ci": [
+      -0.0518,
+      0.0198
+     ]
     },
     "0.60": {
      "rungs": 575,
+     "fixtures": 422,
      "claimed": 0.6255,
      "realised": 0.6539,
-     "gap": -0.0284
+     "gap": -0.0284,
+     "gap_ci": [
+      -0.0602,
+      0.0034
+     ]
     },
     "0.65": {
      "rungs": 591,
+     "fixtures": 420,
      "claimed": 0.6758,
      "realised": 0.6887,
-     "gap": -0.0128
+     "gap": -0.0128,
+     "gap_ci": [
+      -0.0451,
+      0.0195
+     ]
     },
     "0.70": {
      "rungs": 552,
+     "fixtures": 419,
      "claimed": 0.7261,
      "realised": 0.7464,
-     "gap": -0.0203
+     "gap": -0.0203,
+     "gap_ci": [
+      -0.0533,
+      0.0127
+     ]
     },
     "0.75": {
      "rungs": 515,
+     "fixtures": 405,
      "claimed": 0.7742,
      "realised": 0.7728,
-     "gap": 0.0014
+     "gap": 0.0014,
+     "gap_ci": [
+      -0.0325,
+      0.0354
+     ]
     },
     "0.80": {
      "rungs": 350,
+     "fixtures": 307,
      "claimed": 0.8225,
      "realised": 0.8086,
-     "gap": 0.0139
+     "gap": 0.0139,
+     "gap_ci": [
+      -0.025,
+      0.0528
+     ]
     },
     "0.85": {
      "rungs": 197,
+     "fixtures": 197,
      "claimed": 0.8697,
      "realised": 0.868,
-     "gap": 0.0017
+     "gap": 0.0017,
+     "gap_ci": [
+      -0.0457,
+      0.0492
+     ]
     },
     "0.90": {
      "rungs": 42,
+     "fixtures": 42,
      "claimed": 0.9167,
      "realised": 0.8571,
-     "gap": 0.0595
+     "gap": 0.0595,
+     "gap_ci": [
+      -0.0464,
+      0.1654
+     ]
     }
    },
    "at_75": {
@@ -389,51 +584,91 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 584,
+     "fixtures": 430,
      "claimed": 0.5234,
      "realised": 0.5531,
-     "gap": -0.0296
+     "gap": -0.0296,
+     "gap_ci": [
+      -0.0704,
+      0.0111
+     ]
     },
     "0.55": {
      "rungs": 493,
+     "fixtures": 358,
      "claimed": 0.574,
      "realised": 0.568,
-     "gap": 0.006
+     "gap": 0.006,
+     "gap_ci": [
+      -0.035,
+      0.0471
+     ]
     },
     "0.60": {
      "rungs": 465,
+     "fixtures": 338,
      "claimed": 0.6255,
      "realised": 0.6366,
-     "gap": -0.011
+     "gap": -0.011,
+     "gap_ci": [
+      -0.0512,
+      0.0291
+     ]
     },
     "0.65": {
      "rungs": 450,
+     "fixtures": 360,
      "claimed": 0.6735,
      "realised": 0.6644,
-     "gap": 0.009
+     "gap": 0.009,
+     "gap_ci": [
+      -0.035,
+      0.0531
+     ]
     },
     "0.70": {
      "rungs": 329,
+     "fixtures": 271,
      "claimed": 0.7243,
      "realised": 0.7204,
-     "gap": 0.0039
+     "gap": 0.0039,
+     "gap_ci": [
+      -0.0436,
+      0.0514
+     ]
     },
     "0.75": {
      "rungs": 317,
+     "fixtures": 268,
      "claimed": 0.7754,
      "realised": 0.8139,
-     "gap": -0.0385
+     "gap": -0.0385,
+     "gap_ci": [
+      -0.0822,
+      0.0053
+     ]
     },
     "0.80": {
      "rungs": 384,
+     "fixtures": 304,
      "claimed": 0.8249,
      "realised": 0.8411,
-     "gap": -0.0162
+     "gap": -0.0162,
+     "gap_ci": [
+      -0.0521,
+      0.0196
+     ]
     },
     "0.85": {
      "rungs": 179,
+     "fixtures": 154,
      "claimed": 0.8683,
      "realised": 0.9106,
-     "gap": -0.0423
+     "gap": -0.0423,
+     "gap_ci": [
+      -0.0837,
+      -0.0009
+     ]
     }
    },
    "at_75": {
@@ -467,51 +702,91 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 344,
+     "fixtures": 337,
      "claimed": 0.5251,
      "realised": 0.4971,
-     "gap": 0.028
+     "gap": 0.028,
+     "gap_ci": [
+      -0.0241,
+      0.0802
+     ]
     },
     "0.55": {
      "rungs": 313,
+     "fixtures": 248,
      "claimed": 0.5758,
      "realised": 0.5942,
-     "gap": -0.0184
+     "gap": -0.0184,
+     "gap_ci": [
+      -0.0625,
+      0.0256
+     ]
     },
     "0.60": {
      "rungs": 271,
+     "fixtures": 254,
      "claimed": 0.623,
      "realised": 0.6753,
-     "gap": -0.0523
+     "gap": -0.0523,
+     "gap_ci": [
+      -0.1058,
+      0.0013
+     ]
     },
     "0.65": {
      "rungs": 231,
+     "fixtures": 226,
      "claimed": 0.6756,
      "realised": 0.7489,
-     "gap": -0.0733
+     "gap": -0.0733,
+     "gap_ci": [
+      -0.1284,
+      -0.0182
+     ]
     },
     "0.70": {
      "rungs": 213,
+     "fixtures": 213,
      "claimed": 0.7229,
      "realised": 0.7512,
-     "gap": -0.0283
+     "gap": -0.0283,
+     "gap_ci": [
+      -0.0862,
+      0.0297
+     ]
     },
     "0.75": {
      "rungs": 150,
+     "fixtures": 150,
      "claimed": 0.7729,
      "realised": 0.8267,
-     "gap": -0.0537
+     "gap": -0.0537,
+     "gap_ci": [
+      -0.1145,
+      0.007
+     ]
     },
     "0.80": {
      "rungs": 90,
+     "fixtures": 90,
      "claimed": 0.823,
      "realised": 0.8778,
-     "gap": -0.0548
+     "gap": -0.0548,
+     "gap_ci": [
+      -0.1227,
+      0.0131
+     ]
     },
     "0.85": {
      "rungs": 38,
+     "fixtures": 38,
      "claimed": 0.8709,
      "realised": 0.8947,
-     "gap": -0.0239
+     "gap": -0.0239,
+     "gap_ci": [
+      -0.122,
+      0.0743
+     ]
     }
    },
    "at_75": {
@@ -545,33 +820,58 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 41,
+     "fixtures": 27,
      "claimed": 0.5273,
      "realised": 0.561,
-     "gap": -0.0336
+     "gap": -0.0336,
+     "gap_ci": [
+      -0.1536,
+      0.0863
+     ]
     },
     "0.55": {
      "rungs": 43,
+     "fixtures": 26,
      "claimed": 0.5709,
      "realised": 0.5581,
-     "gap": 0.0127
+     "gap": 0.0127,
+     "gap_ci": [
+      -0.1047,
+      0.1302
+     ]
     },
     "0.60": {
      "rungs": 30,
+     "fixtures": 22,
      "claimed": 0.6281,
      "realised": 0.6,
-     "gap": 0.0281
+     "gap": 0.0281,
+     "gap_ci": [
+      -0.1229,
+      0.1791
+     ]
     },
     "0.65": {
      "rungs": 36,
+     "fixtures": 27,
      "claimed": 0.6697,
      "realised": 0.6389,
-     "gap": 0.0308
+     "gap": 0.0308,
+     "gap_ci": [
+      -0.1149,
+      0.1765
+     ]
     },
     "0.70": {
      "rungs": 34,
+     "fixtures": 25,
      "claimed": 0.7346,
      "realised": 0.6765,
-     "gap": 0.0581
+     "gap": 0.0581,
+     "gap_ci": [
+      -0.1041,
+      0.2204
+     ]
     }
    },
    "at_75": {
@@ -650,63 +950,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 54,
+     "fixtures": 54,
      "claimed": 0.5274,
      "realised": 0.5185,
-     "gap": 0.0089
+     "gap": 0.0089,
+     "gap_ci": [
+      -0.1261,
+      0.1439
+     ]
     },
     "0.55": {
      "rungs": 44,
+     "fixtures": 44,
      "claimed": 0.5744,
      "realised": 0.6136,
-     "gap": -0.0392
+     "gap": -0.0392,
+     "gap_ci": [
+      -0.1851,
+      0.1067
+     ]
     },
     "0.60": {
      "rungs": 69,
+     "fixtures": 68,
      "claimed": 0.6264,
      "realised": 0.6812,
-     "gap": -0.0547
+     "gap": -0.0547,
+     "gap_ci": [
+      -0.1657,
+      0.0562
+     ]
     },
     "0.65": {
      "rungs": 131,
+     "fixtures": 120,
      "claimed": 0.6793,
      "realised": 0.6641,
-     "gap": 0.0152
+     "gap": 0.0152,
+     "gap_ci": [
+      -0.0595,
+      0.0898
+     ]
     },
     "0.70": {
      "rungs": 196,
+     "fixtures": 192,
      "claimed": 0.7258,
      "realised": 0.7551,
-     "gap": -0.0293
+     "gap": -0.0293,
+     "gap_ci": [
+      -0.0898,
+      0.0312
+     ]
     },
     "0.75": {
      "rungs": 147,
+     "fixtures": 134,
      "claimed": 0.7703,
      "realised": 0.6735,
-     "gap": 0.0969
+     "gap": 0.0969,
+     "gap_ci": [
+      0.0228,
+      0.1709
+     ]
     },
     "0.80": {
      "rungs": 53,
+     "fixtures": 53,
      "claimed": 0.8235,
      "realised": 0.9245,
-     "gap": -0.101
+     "gap": -0.101,
+     "gap_ci": [
+      -0.1716,
+      -0.0303
+     ]
     },
     "0.85": {
      "rungs": 48,
+     "fixtures": 48,
      "claimed": 0.8756,
      "realised": 0.9375,
-     "gap": -0.0619
+     "gap": -0.0619,
+     "gap_ci": [
+      -0.1324,
+      0.0085
+     ]
     },
     "0.90": {
      "rungs": 58,
+     "fixtures": 58,
      "claimed": 0.9282,
      "realised": 0.931,
-     "gap": -0.0028
+     "gap": -0.0028,
+     "gap_ci": [
+      -0.0684,
+      0.0628
+     ]
     },
     "0.95": {
      "rungs": 150,
+     "fixtures": 108,
      "claimed": 0.95,
      "realised": 0.9667,
-     "gap": -0.0167
+     "gap": -0.0167,
+     "gap_ci": [
+      -0.0504,
+      0.017
+     ]
     }
    },
    "at_75": {
@@ -740,63 +1090,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 82,
+     "fixtures": 82,
      "claimed": 0.523,
      "realised": 0.5488,
-     "gap": -0.0258
+     "gap": -0.0258,
+     "gap_ci": [
+      -0.1342,
+      0.0826
+     ]
     },
     "0.55": {
      "rungs": 50,
+     "fixtures": 49,
      "claimed": 0.5718,
      "realised": 0.6,
-     "gap": -0.0282
+     "gap": -0.0282,
+     "gap_ci": [
+      -0.1631,
+      0.1067
+     ]
     },
     "0.60": {
      "rungs": 37,
+     "fixtures": 30,
      "claimed": 0.6243,
      "realised": 0.5946,
-     "gap": 0.0297
+     "gap": 0.0297,
+     "gap_ci": [
+      -0.1145,
+      0.1738
+     ]
     },
     "0.65": {
      "rungs": 59,
+     "fixtures": 57,
      "claimed": 0.6778,
      "realised": 0.7627,
-     "gap": -0.0849
+     "gap": -0.0849,
+     "gap_ci": [
+      -0.1907,
+      0.0208
+     ]
     },
     "0.70": {
      "rungs": 127,
+     "fixtures": 120,
      "claimed": 0.7286,
      "realised": 0.7323,
-     "gap": -0.0037
+     "gap": -0.0037,
+     "gap_ci": [
+      -0.0788,
+      0.0715
+     ]
     },
     "0.75": {
      "rungs": 233,
+     "fixtures": 209,
      "claimed": 0.7778,
      "realised": 0.7854,
-     "gap": -0.0077
+     "gap": -0.0077,
+     "gap_ci": [
+      -0.0587,
+      0.0434
+     ]
     },
     "0.80": {
      "rungs": 166,
+     "fixtures": 157,
      "claimed": 0.8213,
      "realised": 0.8373,
-     "gap": -0.0161
+     "gap": -0.0161,
+     "gap_ci": [
+      -0.0716,
+      0.0394
+     ]
     },
     "0.85": {
      "rungs": 53,
+     "fixtures": 51,
      "claimed": 0.8763,
      "realised": 0.9057,
-     "gap": -0.0293
+     "gap": -0.0293,
+     "gap_ci": [
+      -0.1083,
+      0.0497
+     ]
     },
     "0.90": {
      "rungs": 71,
+     "fixtures": 71,
      "claimed": 0.9261,
      "realised": 0.9577,
-     "gap": -0.0317
+     "gap": -0.0317,
+     "gap_ci": [
+      -0.0785,
+      0.0152
+     ]
     },
     "0.95": {
      "rungs": 127,
+     "fixtures": 100,
      "claimed": 0.95,
      "realised": 0.9685,
-     "gap": -0.0185
+     "gap": -0.0185,
+     "gap_ci": [
+      -0.0557,
+      0.0187
+     ]
     }
    },
    "at_75": {
@@ -830,63 +1230,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 372,
+     "fixtures": 290,
      "claimed": 0.5242,
      "realised": 0.4946,
-     "gap": 0.0295
+     "gap": 0.0295,
+     "gap_ci": [
+      -0.0198,
+      0.0789
+     ]
     },
     "0.55": {
      "rungs": 279,
+     "fixtures": 228,
      "claimed": 0.5736,
      "realised": 0.5878,
-     "gap": -0.0142
+     "gap": -0.0142,
+     "gap_ci": [
+      -0.0733,
+      0.0449
+     ]
     },
     "0.60": {
      "rungs": 230,
+     "fixtures": 188,
      "claimed": 0.625,
      "realised": 0.6043,
-     "gap": 0.0206
+     "gap": 0.0206,
+     "gap_ci": [
+      -0.0405,
+      0.0818
+     ]
     },
     "0.65": {
      "rungs": 328,
+     "fixtures": 237,
      "claimed": 0.6771,
      "realised": 0.7622,
-     "gap": -0.0851
+     "gap": -0.0851,
+     "gap_ci": [
+      -0.1316,
+      -0.0387
+     ]
     },
     "0.70": {
      "rungs": 468,
+     "fixtures": 320,
      "claimed": 0.7252,
      "realised": 0.7308,
-     "gap": -0.0056
+     "gap": -0.0056,
+     "gap_ci": [
+      -0.0446,
+      0.0334
+     ]
     },
     "0.75": {
      "rungs": 458,
+     "fixtures": 296,
      "claimed": 0.7751,
      "realised": 0.821,
-     "gap": -0.0459
+     "gap": -0.0459,
+     "gap_ci": [
+      -0.0785,
+      -0.0132
+     ]
     },
     "0.80": {
      "rungs": 256,
+     "fixtures": 206,
      "claimed": 0.8238,
      "realised": 0.8008,
-     "gap": 0.0231
+     "gap": 0.0231,
+     "gap_ci": [
+      -0.025,
+      0.0712
+     ]
     },
     "0.85": {
      "rungs": 203,
+     "fixtures": 181,
      "claimed": 0.8761,
      "realised": 0.8522,
-     "gap": 0.0239
+     "gap": 0.0239,
+     "gap_ci": [
+      -0.0269,
+      0.0746
+     ]
     },
     "0.90": {
      "rungs": 159,
+     "fixtures": 134,
      "claimed": 0.9265,
      "realised": 0.9308,
-     "gap": -0.0043
+     "gap": -0.0043,
+     "gap_ci": [
+      -0.0437,
+      0.0351
+     ]
     },
     "0.95": {
      "rungs": 302,
+     "fixtures": 167,
      "claimed": 0.95,
      "realised": 0.9007,
-     "gap": 0.0493
+     "gap": 0.0493,
+     "gap_ci": [
+      0.013,
+      0.0857
+     ]
     }
    },
    "at_75": {
@@ -920,63 +1370,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 209,
+     "fixtures": 209,
      "claimed": 0.5274,
      "realised": 0.5694,
-     "gap": -0.042
+     "gap": -0.042,
+     "gap_ci": [
+      -0.1092,
+      0.0253
+     ]
     },
     "0.55": {
      "rungs": 258,
+     "fixtures": 231,
      "claimed": 0.5749,
      "realised": 0.5736,
-     "gap": 0.0013
+     "gap": 0.0013,
+     "gap_ci": [
+      -0.0549,
+      0.0575
+     ]
     },
     "0.60": {
      "rungs": 219,
+     "fixtures": 195,
      "claimed": 0.6254,
      "realised": 0.6073,
-     "gap": 0.0181
+     "gap": 0.0181,
+     "gap_ci": [
+      -0.0409,
+      0.0771
+     ]
     },
     "0.65": {
      "rungs": 214,
+     "fixtures": 194,
      "claimed": 0.6755,
      "realised": 0.7243,
-     "gap": -0.0488
+     "gap": -0.0488,
+     "gap_ci": [
+      -0.1043,
+      0.0067
+     ]
     },
     "0.70": {
      "rungs": 268,
+     "fixtures": 227,
      "claimed": 0.7266,
      "realised": 0.7388,
-     "gap": -0.0122
+     "gap": -0.0122,
+     "gap_ci": [
+      -0.0604,
+      0.036
+     ]
     },
     "0.75": {
      "rungs": 327,
+     "fixtures": 288,
      "claimed": 0.7752,
      "realised": 0.8165,
-     "gap": -0.0413
+     "gap": -0.0413,
+     "gap_ci": [
+      -0.0824,
+      -0.0002
+     ]
     },
     "0.80": {
      "rungs": 267,
+     "fixtures": 245,
      "claimed": 0.8245,
      "realised": 0.8427,
-     "gap": -0.0181
+     "gap": -0.0181,
+     "gap_ci": [
+      -0.0614,
+      0.0251
+     ]
     },
     "0.85": {
      "rungs": 313,
+     "fixtures": 262,
      "claimed": 0.8764,
      "realised": 0.9073,
-     "gap": -0.0309
+     "gap": -0.0309,
+     "gap_ci": [
+      -0.0626,
+      0.0007
+     ]
     },
     "0.90": {
      "rungs": 312,
+     "fixtures": 275,
      "claimed": 0.9186,
      "realised": 0.9231,
-     "gap": -0.0045
+     "gap": -0.0045,
+     "gap_ci": [
+      -0.0334,
+      0.0244
+     ]
     },
     "0.95": {
      "rungs": 81,
+     "fixtures": 68,
      "claimed": 0.95,
      "realised": 0.9506,
-     "gap": -0.0006
+     "gap": -0.0006,
+     "gap_ci": [
+      -0.0552,
+      0.054
+     ]
     }
    },
    "at_75": {
@@ -1010,51 +1510,91 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 320,
+     "fixtures": 240,
      "claimed": 0.5242,
      "realised": 0.5,
-     "gap": 0.0242
+     "gap": 0.0242,
+     "gap_ci": [
+      -0.0289,
+      0.0774
+     ]
     },
     "0.55": {
      "rungs": 316,
+     "fixtures": 230,
      "claimed": 0.576,
      "realised": 0.5728,
-     "gap": 0.0032
+     "gap": 0.0032,
+     "gap_ci": [
+      -0.0506,
+      0.057
+     ]
     },
     "0.60": {
      "rungs": 269,
+     "fixtures": 177,
      "claimed": 0.6237,
      "realised": 0.632,
-     "gap": -0.0083
+     "gap": -0.0083,
+     "gap_ci": [
+      -0.0638,
+      0.0473
+     ]
     },
     "0.65": {
      "rungs": 224,
+     "fixtures": 170,
      "claimed": 0.6751,
      "realised": 0.692,
-     "gap": -0.0168
+     "gap": -0.0168,
+     "gap_ci": [
+      -0.0787,
+      0.045
+     ]
     },
     "0.70": {
      "rungs": 211,
+     "fixtures": 160,
      "claimed": 0.726,
      "realised": 0.7915,
-     "gap": -0.0654
+     "gap": -0.0654,
+     "gap_ci": [
+      -0.1193,
+      -0.0115
+     ]
     },
     "0.75": {
      "rungs": 313,
+     "fixtures": 200,
      "claimed": 0.7763,
      "realised": 0.8339,
-     "gap": -0.0575
+     "gap": -0.0575,
+     "gap_ci": [
+      -0.0978,
+      -0.0173
+     ]
     },
     "0.80": {
      "rungs": 225,
+     "fixtures": 165,
      "claimed": 0.8225,
      "realised": 0.7822,
-     "gap": 0.0403
+     "gap": 0.0403,
+     "gap_ci": [
+      -0.0101,
+      0.0907
+     ]
     },
     "0.85": {
      "rungs": 89,
+     "fixtures": 71,
      "claimed": 0.8682,
      "realised": 0.809,
-     "gap": 0.0592
+     "gap": 0.0592,
+     "gap_ci": [
+      -0.0164,
+      0.1349
+     ]
     }
    },
    "at_75": {
@@ -1097,51 +1637,91 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 292,
+     "fixtures": 292,
      "claimed": 0.5247,
      "realised": 0.5479,
-     "gap": -0.0232
+     "gap": -0.0232,
+     "gap_ci": [
+      -0.0803,
+      0.0339
+     ]
     },
     "0.55": {
      "rungs": 308,
+     "fixtures": 244,
      "claimed": 0.5759,
      "realised": 0.6364,
-     "gap": -0.0605
+     "gap": -0.0605,
+     "gap_ci": [
+      -0.1077,
+      -0.0133
+     ]
     },
     "0.60": {
      "rungs": 277,
+     "fixtures": 247,
      "claimed": 0.6239,
      "realised": 0.6715,
-     "gap": -0.0476
+     "gap": -0.0476,
+     "gap_ci": [
+      -0.1007,
+      0.0056
+     ]
     },
     "0.65": {
      "rungs": 295,
+     "fixtures": 255,
      "claimed": 0.6772,
      "realised": 0.6915,
-     "gap": -0.0143
+     "gap": -0.0143,
+     "gap_ci": [
+      -0.0646,
+      0.036
+     ]
     },
     "0.70": {
      "rungs": 281,
+     "fixtures": 259,
      "claimed": 0.7238,
      "realised": 0.7829,
-     "gap": -0.0592
+     "gap": -0.0592,
+     "gap_ci": [
+      -0.1065,
+      -0.0119
+     ]
     },
     "0.75": {
      "rungs": 216,
+     "fixtures": 197,
      "claimed": 0.7769,
      "realised": 0.8287,
-     "gap": -0.0518
+     "gap": -0.0518,
+     "gap_ci": [
+      -0.1017,
+      -0.002
+     ]
     },
     "0.80": {
      "rungs": 249,
+     "fixtures": 232,
      "claimed": 0.8246,
      "realised": 0.8112,
-     "gap": 0.0134
+     "gap": 0.0134,
+     "gap_ci": [
+      -0.0353,
+      0.062
+     ]
     },
     "0.85": {
      "rungs": 123,
+     "fixtures": 123,
      "claimed": 0.8672,
      "realised": 0.8618,
-     "gap": 0.0054
+     "gap": 0.0054,
+     "gap_ci": [
+      -0.0556,
+      0.0664
+     ]
     }
    },
    "at_75": {
@@ -1175,57 +1755,102 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 270,
+     "fixtures": 115,
      "claimed": 0.5075,
      "realised": 0.4444,
-     "gap": 0.0631
+     "gap": 0.0631,
+     "gap_ci": [
+      0.0251,
+      0.101
+     ]
     },
     "0.55": {
      "rungs": 182,
+     "fixtures": 124,
      "claimed": 0.5808,
      "realised": 0.7582,
-     "gap": -0.1774
+     "gap": -0.1774,
+     "gap_ci": [
+      -0.2383,
+      -0.1166
+     ]
     },
     "0.60": {
      "rungs": 99,
+     "fixtures": 81,
      "claimed": 0.6189,
      "realised": 0.7374,
-     "gap": -0.1185
+     "gap": -0.1185,
+     "gap_ci": [
+      -0.21,
+      -0.0269
+     ]
     },
     "0.65": {
      "rungs": 194,
+     "fixtures": 120,
      "claimed": 0.6738,
      "realised": 0.8196,
-     "gap": -0.1458
+     "gap": -0.1458,
+     "gap_ci": [
+      -0.2005,
+      -0.0911
+     ]
     },
     "0.70": {
      "rungs": 249,
+     "fixtures": 139,
      "claimed": 0.729,
      "realised": 0.9116,
-     "gap": -0.1826
+     "gap": -0.1826,
+     "gap_ci": [
+      -0.2171,
+      -0.1481
+     ]
     },
     "0.75": {
      "rungs": 164,
+     "fixtures": 90,
      "claimed": 0.7752,
      "realised": 0.9207,
-     "gap": -0.1456
+     "gap": -0.1456,
+     "gap_ci": [
+      -0.1901,
+      -0.1011
+     ]
     },
     "0.80": {
      "rungs": 151,
+     "fixtures": 87,
      "claimed": 0.8264,
      "realised": 0.9272,
-     "gap": -0.1008
+     "gap": -0.1008,
+     "gap_ci": [
+      -0.1396,
+      -0.0619
+     ]
     },
     "0.85": {
      "rungs": 147,
+     "fixtures": 70,
      "claimed": 0.875,
      "realised": 0.9116,
-     "gap": -0.0366
+     "gap": -0.0366,
+     "gap_ci": [
+      -0.0839,
+      0.0107
+     ]
     },
     "0.95": {
      "rungs": 3095,
+     "fixtures": 320,
      "claimed": 0.95,
      "realised": 0.9486,
-     "gap": 0.0014
+     "gap": 0.0014,
+     "gap_ci": [
+      -0.0062,
+      0.0089
+     ]
     }
    },
    "at_75": {
@@ -1259,63 +1884,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 2282,
+     "fixtures": 340,
      "claimed": 0.5152,
      "realised": 0.5039,
-     "gap": 0.0113
+     "gap": 0.0113,
+     "gap_ci": [
+      -0.0022,
+      0.0248
+     ]
     },
     "0.55": {
      "rungs": 1596,
+     "fixtures": 339,
      "claimed": 0.5775,
      "realised": 0.5639,
-     "gap": 0.0136
+     "gap": 0.0136,
+     "gap_ci": [
+      -0.0096,
+      0.0368
+     ]
     },
     "0.60": {
      "rungs": 1481,
+     "fixtures": 328,
      "claimed": 0.6237,
      "realised": 0.6057,
-     "gap": 0.018
+     "gap": 0.018,
+     "gap_ci": [
+      -0.0054,
+      0.0415
+     ]
     },
     "0.65": {
      "rungs": 1899,
+     "fixtures": 343,
      "claimed": 0.6746,
      "realised": 0.6835,
-     "gap": -0.0089
+     "gap": -0.0089,
+     "gap_ci": [
+      -0.0256,
+      0.0078
+     ]
     },
     "0.70": {
      "rungs": 1342,
+     "fixtures": 326,
      "claimed": 0.7282,
      "realised": 0.6826,
-     "gap": 0.0456
+     "gap": 0.0456,
+     "gap_ci": [
+      0.0201,
+      0.0711
+     ]
     },
     "0.75": {
      "rungs": 1299,
+     "fixtures": 316,
      "claimed": 0.7723,
      "realised": 0.786,
-     "gap": -0.0137
+     "gap": -0.0137,
+     "gap_ci": [
+      -0.034,
+      0.0067
+     ]
     },
     "0.80": {
      "rungs": 1279,
+     "fixtures": 327,
      "claimed": 0.8201,
      "realised": 0.8147,
-     "gap": 0.0054
+     "gap": 0.0054,
+     "gap_ci": [
+      -0.0166,
+      0.0273
+     ]
     },
     "0.85": {
      "rungs": 1435,
+     "fixtures": 322,
      "claimed": 0.8747,
      "realised": 0.8613,
-     "gap": 0.0134
+     "gap": 0.0134,
+     "gap_ci": [
+      -0.004,
+      0.0308
+     ]
     },
     "0.90": {
      "rungs": 1673,
+     "fixtures": 323,
      "claimed": 0.9266,
      "realised": 0.9157,
-     "gap": 0.0109
+     "gap": 0.0109,
+     "gap_ci": [
+      -0.0022,
+      0.0239
+     ]
     },
     "0.95": {
      "rungs": 8176,
+     "fixtures": 347,
      "claimed": 0.95,
      "realised": 0.9426,
-     "gap": 0.0074
+     "gap": 0.0074,
+     "gap_ci": [
+      -0.0002,
+      0.0149
+     ]
     }
    },
    "at_75": {
@@ -1349,63 +2024,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 409,
+     "fixtures": 176,
      "claimed": 0.5099,
      "realised": 0.5012,
-     "gap": 0.0086
+     "gap": 0.0086,
+     "gap_ci": [
+      -0.0181,
+      0.0354
+     ]
     },
     "0.55": {
      "rungs": 246,
+     "fixtures": 162,
      "claimed": 0.5812,
      "realised": 0.687,
-     "gap": -0.1058
+     "gap": -0.1058,
+     "gap_ci": [
+      -0.1657,
+      -0.0458
+     ]
     },
     "0.60": {
      "rungs": 159,
+     "fixtures": 122,
      "claimed": 0.6168,
      "realised": 0.7736,
-     "gap": -0.1568
+     "gap": -0.1568,
+     "gap_ci": [
+      -0.2175,
+      -0.0961
+     ]
     },
     "0.65": {
      "rungs": 279,
+     "fixtures": 162,
      "claimed": 0.6729,
      "realised": 0.7814,
-     "gap": -0.1085
+     "gap": -0.1085,
+     "gap_ci": [
+      -0.152,
+      -0.065
+     ]
     },
     "0.70": {
      "rungs": 248,
+     "fixtures": 144,
      "claimed": 0.7289,
      "realised": 0.8306,
-     "gap": -0.1017
+     "gap": -0.1017,
+     "gap_ci": [
+      -0.1458,
+      -0.0576
+     ]
     },
     "0.75": {
      "rungs": 184,
+     "fixtures": 112,
      "claimed": 0.7723,
      "realised": 0.8478,
-     "gap": -0.0756
+     "gap": -0.0756,
+     "gap_ci": [
+      -0.1252,
+      -0.0259
+     ]
     },
     "0.80": {
      "rungs": 215,
+     "fixtures": 154,
      "claimed": 0.8212,
      "realised": 0.8558,
-     "gap": -0.0346
+     "gap": -0.0346,
+     "gap_ci": [
+      -0.0826,
+      0.0134
+     ]
     },
     "0.85": {
      "rungs": 294,
+     "fixtures": 163,
      "claimed": 0.8767,
      "realised": 0.9252,
-     "gap": -0.0485
+     "gap": -0.0485,
+     "gap_ci": [
+      -0.0782,
+      -0.0188
+     ]
     },
     "0.90": {
      "rungs": 96,
+     "fixtures": 84,
      "claimed": 0.9314,
      "realised": 0.9479,
-     "gap": -0.0165
+     "gap": -0.0165,
+     "gap_ci": [
+      -0.0618,
+      0.0288
+     ]
     },
     "0.95": {
      "rungs": 8365,
+     "fixtures": 329,
      "claimed": 0.95,
      "realised": 0.9677,
-     "gap": -0.0177
+     "gap": -0.0177,
+     "gap_ci": [
+      -0.022,
+      -0.0135
+     ]
     }
    },
    "at_75": {
@@ -1435,67 +2160,117 @@
    "skill_vs_shrinkage_target": 0.0,
    "skill_comparable": false,
    "rungs": 15340,
-   "calibration_error": -0.0104,
+   "calibration_error": -0.0103,
    "calibration_curve": {
     "0.50": {
      "rungs": 1240,
+     "fixtures": 313,
      "claimed": 0.5133,
      "realised": 0.4742,
-     "gap": 0.0391
+     "gap": 0.0391,
+     "gap_ci": [
+      0.0216,
+      0.0566
+     ]
     },
     "0.55": {
      "rungs": 752,
+     "fixtures": 293,
      "claimed": 0.5776,
      "realised": 0.5997,
-     "gap": -0.0221
+     "gap": -0.0221,
+     "gap_ci": [
+      -0.0576,
+      0.0134
+     ]
     },
     "0.60": {
      "rungs": 614,
+     "fixtures": 249,
      "claimed": 0.6207,
      "realised": 0.6173,
-     "gap": 0.0034
+     "gap": 0.0034,
+     "gap_ci": [
+      -0.0319,
+      0.0388
+     ]
     },
     "0.65": {
      "rungs": 778,
+     "fixtures": 283,
      "claimed": 0.6742,
      "realised": 0.6671,
-     "gap": 0.0071
+     "gap": 0.0071,
+     "gap_ci": [
+      -0.0221,
+      0.0364
+     ]
     },
     "0.70": {
      "rungs": 613,
+     "fixtures": 264,
      "claimed": 0.7282,
      "realised": 0.752,
-     "gap": -0.0238
+     "gap": -0.0238,
+     "gap_ci": [
+      -0.0576,
+      0.01
+     ]
     },
     "0.75": {
      "rungs": 490,
+     "fixtures": 224,
      "claimed": 0.7716,
      "realised": 0.8102,
-     "gap": -0.0386
+     "gap": -0.0386,
+     "gap_ci": [
+      -0.0712,
+      -0.006
+     ]
     },
     "0.80": {
      "rungs": 485,
+     "fixtures": 242,
      "claimed": 0.822,
      "realised": 0.8598,
-     "gap": -0.0378
+     "gap": -0.0378,
+     "gap_ci": [
+      -0.0692,
+      -0.0064
+     ]
     },
     "0.85": {
      "rungs": 616,
+     "fixtures": 247,
      "claimed": 0.8769,
      "realised": 0.8912,
-     "gap": -0.0143
+     "gap": -0.0143,
+     "gap_ci": [
+      -0.0391,
+      0.0104
+     ]
     },
     "0.90": {
      "rungs": 579,
+     "fixtures": 262,
      "claimed": 0.9274,
      "realised": 0.9447,
-     "gap": -0.0173
+     "gap": -0.0173,
+     "gap_ci": [
+      -0.0358,
+      0.0012
+     ]
     },
     "0.95": {
      "rungs": 9173,
+     "fixtures": 344,
      "claimed": 0.95,
      "realised": 0.9639,
-     "gap": -0.0139
+     "gap": -0.0139,
+     "gap_ci": [
+      -0.0186,
+      -0.0092
+     ]
     }
    },
    "at_75": {
@@ -1529,63 +2304,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 2365,
+     "fixtures": 317,
      "claimed": 0.5158,
      "realised": 0.5184,
-     "gap": -0.0026
+     "gap": -0.0026,
+     "gap_ci": [
+      -0.0168,
+      0.0116
+     ]
     },
     "0.55": {
      "rungs": 1671,
+     "fixtures": 313,
      "claimed": 0.5775,
      "realised": 0.5518,
-     "gap": 0.0257
+     "gap": 0.0257,
+     "gap_ci": [
+      0.0031,
+      0.0484
+     ]
     },
     "0.60": {
      "rungs": 1660,
+     "fixtures": 313,
      "claimed": 0.6239,
      "realised": 0.6096,
-     "gap": 0.0142
+     "gap": 0.0142,
+     "gap_ci": [
+      -0.0063,
+      0.0347
+     ]
     },
     "0.65": {
      "rungs": 2070,
+     "fixtures": 316,
      "claimed": 0.6752,
      "realised": 0.657,
-     "gap": 0.0181
+     "gap": 0.0181,
+     "gap_ci": [
+      0.0003,
+      0.036
+     ]
     },
     "0.70": {
      "rungs": 1648,
+     "fixtures": 311,
      "claimed": 0.7279,
      "realised": 0.7118,
-     "gap": 0.0162
+     "gap": 0.0162,
+     "gap_ci": [
+      -0.0041,
+      0.0364
+     ]
     },
     "0.75": {
      "rungs": 1536,
+     "fixtures": 310,
      "claimed": 0.7731,
      "realised": 0.7507,
-     "gap": 0.0224
+     "gap": 0.0224,
+     "gap_ci": [
+      0.0017,
+      0.0431
+     ]
     },
     "0.80": {
      "rungs": 1486,
+     "fixtures": 314,
      "claimed": 0.8221,
      "realised": 0.7968,
-     "gap": 0.0253
+     "gap": 0.0253,
+     "gap_ci": [
+      0.004,
+      0.0467
+     ]
     },
     "0.85": {
      "rungs": 1453,
+     "fixtures": 310,
      "claimed": 0.8738,
      "realised": 0.8417,
-     "gap": 0.0321
+     "gap": 0.0321,
+     "gap_ci": [
+      0.0143,
+      0.0499
+     ]
     },
     "0.90": {
      "rungs": 1559,
+     "fixtures": 308,
      "claimed": 0.9252,
      "realised": 0.8884,
-     "gap": 0.0368
+     "gap": 0.0368,
+     "gap_ci": [
+      0.0214,
+      0.0521
+     ]
     },
     "0.95": {
      "rungs": 6192,
+     "fixtures": 320,
      "claimed": 0.95,
      "realised": 0.9307,
-     "gap": 0.0193
+     "gap": 0.0193,
+     "gap_ci": [
+      0.0084,
+      0.0302
+     ]
     }
    },
    "at_75": {
@@ -1619,63 +2444,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 2204,
+     "fixtures": 341,
      "claimed": 0.5156,
      "realised": 0.5068,
-     "gap": 0.0088
+     "gap": 0.0088,
+     "gap_ci": [
+      -0.0068,
+      0.0245
+     ]
     },
     "0.55": {
      "rungs": 1517,
+     "fixtures": 335,
      "claimed": 0.5766,
      "realised": 0.5458,
-     "gap": 0.0308
+     "gap": 0.0308,
+     "gap_ci": [
+      0.0058,
+      0.0557
+     ]
     },
     "0.60": {
      "rungs": 1467,
+     "fixtures": 330,
      "claimed": 0.6235,
      "realised": 0.6012,
-     "gap": 0.0223
+     "gap": 0.0223,
+     "gap_ci": [
+      -0.0001,
+      0.0447
+     ]
     },
     "0.65": {
      "rungs": 1676,
+     "fixtures": 333,
      "claimed": 0.6743,
      "realised": 0.6778,
-     "gap": -0.0035
+     "gap": -0.0035,
+     "gap_ci": [
+      -0.0239,
+      0.0169
+     ]
     },
     "0.70": {
      "rungs": 1412,
+     "fixtures": 332,
      "claimed": 0.7286,
      "realised": 0.7047,
-     "gap": 0.024
+     "gap": 0.024,
+     "gap_ci": [
+      0.0018,
+      0.0461
+     ]
     },
     "0.75": {
      "rungs": 1234,
+     "fixtures": 321,
      "claimed": 0.7731,
      "realised": 0.7585,
-     "gap": 0.0146
+     "gap": 0.0146,
+     "gap_ci": [
+      -0.0093,
+      0.0384
+     ]
     },
     "0.80": {
      "rungs": 1254,
+     "fixtures": 319,
      "claimed": 0.8217,
      "realised": 0.7879,
-     "gap": 0.0339
+     "gap": 0.0339,
+     "gap_ci": [
+      0.0115,
+      0.0562
+     ]
     },
     "0.85": {
      "rungs": 1285,
+     "fixtures": 317,
      "claimed": 0.8742,
      "realised": 0.8568,
-     "gap": 0.0174
+     "gap": 0.0174,
+     "gap_ci": [
+      -0.0023,
+      0.0371
+     ]
     },
     "0.90": {
      "rungs": 1340,
+     "fixtures": 310,
      "claimed": 0.926,
      "realised": 0.9157,
-     "gap": 0.0103
+     "gap": 0.0103,
+     "gap_ci": [
+      -0.0057,
+      0.0262
+     ]
     },
     "0.95": {
      "rungs": 8051,
+     "fixtures": 343,
      "claimed": 0.95,
      "realised": 0.9466,
-     "gap": 0.0034
+     "gap": 0.0034,
+     "gap_ci": [
+      -0.0038,
+      0.0106
+     ]
     }
    },
    "at_75": {
@@ -1709,63 +2584,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 2226,
+     "fixtures": 343,
      "claimed": 0.515,
      "realised": 0.5045,
-     "gap": 0.0105
+     "gap": 0.0105,
+     "gap_ci": [
+      -0.0036,
+      0.0247
+     ]
     },
     "0.55": {
      "rungs": 1538,
+     "fixtures": 334,
      "claimed": 0.5779,
      "realised": 0.5689,
-     "gap": 0.0089
+     "gap": 0.0089,
+     "gap_ci": [
+      -0.0141,
+      0.032
+     ]
     },
     "0.60": {
      "rungs": 1490,
+     "fixtures": 330,
      "claimed": 0.6232,
      "realised": 0.6114,
-     "gap": 0.0118
+     "gap": 0.0118,
+     "gap_ci": [
+      -0.0113,
+      0.0349
+     ]
     },
     "0.65": {
      "rungs": 1748,
+     "fixtures": 337,
      "claimed": 0.6742,
      "realised": 0.6648,
-     "gap": 0.0094
+     "gap": 0.0094,
+     "gap_ci": [
+      -0.0085,
+      0.0274
+     ]
     },
     "0.70": {
      "rungs": 1326,
+     "fixtures": 328,
      "claimed": 0.7279,
      "realised": 0.7081,
-     "gap": 0.0198
+     "gap": 0.0198,
+     "gap_ci": [
+      -0.0053,
+      0.0448
+     ]
     },
     "0.75": {
      "rungs": 1217,
+     "fixtures": 323,
      "claimed": 0.7721,
      "realised": 0.7765,
-     "gap": -0.0044
+     "gap": -0.0044,
+     "gap_ci": [
+      -0.0271,
+      0.0183
+     ]
     },
     "0.80": {
      "rungs": 1268,
+     "fixtures": 332,
      "claimed": 0.8205,
      "realised": 0.8336,
-     "gap": -0.0131
+     "gap": -0.0131,
+     "gap_ci": [
+      -0.0344,
+      0.0083
+     ]
     },
     "0.85": {
      "rungs": 1331,
+     "fixtures": 319,
      "claimed": 0.8745,
      "realised": 0.8723,
-     "gap": 0.0022
+     "gap": 0.0022,
+     "gap_ci": [
+      -0.016,
+      0.0205
+     ]
     },
     "0.90": {
      "rungs": 1537,
+     "fixtures": 325,
      "claimed": 0.9267,
      "realised": 0.9284,
-     "gap": -0.0017
+     "gap": -0.0017,
+     "gap_ci": [
+      -0.0148,
+      0.0114
+     ]
     },
     "0.95": {
      "rungs": 8759,
+     "fixtures": 345,
      "claimed": 0.95,
      "realised": 0.9455,
-     "gap": 0.0045
+     "gap": 0.0045,
+     "gap_ci": [
+      -0.0029,
+      0.0118
+     ]
     }
    },
    "at_75": {
@@ -1795,43 +2720,73 @@
    "skill_vs_shrinkage_target": -0.0125,
    "skill_comparable": false,
    "rungs": 593,
-   "calibration_error": -0.1121,
+   "calibration_error": -0.112,
    "calibration_curve": {
     "0.50": {
      "rungs": 183,
+     "fixtures": 183,
      "claimed": 0.5241,
      "realised": 0.6503,
-     "gap": -0.1261
+     "gap": -0.1261,
+     "gap_ci": [
+      -0.1951,
+      -0.0572
+     ]
     },
     "0.55": {
      "rungs": 96,
+     "fixtures": 96,
      "claimed": 0.5728,
      "realised": 0.8333,
-     "gap": -0.2605
+     "gap": -0.2605,
+     "gap_ci": [
+      -0.3357,
+      -0.1853
+     ]
     },
     "0.60": {
      "rungs": 74,
+     "fixtures": 74,
      "claimed": 0.6256,
      "realised": 0.8378,
-     "gap": -0.2122
+     "gap": -0.2122,
+     "gap_ci": [
+      -0.2966,
+      -0.1279
+     ]
     },
     "0.65": {
      "rungs": 56,
+     "fixtures": 56,
      "claimed": 0.6783,
      "realised": 0.7857,
-     "gap": -0.1074
+     "gap": -0.1074,
+     "gap_ci": [
+      -0.2166,
+      0.0018
+     ]
     },
     "0.75": {
      "rungs": 39,
+     "fixtures": 39,
      "claimed": 0.7643,
      "realised": 0.7949,
-     "gap": -0.0305
+     "gap": -0.0305,
+     "gap_ci": [
+      -0.1576,
+      0.0965
+     ]
     },
     "0.95": {
      "rungs": 89,
+     "fixtures": 89,
      "claimed": 0.95,
      "realised": 0.8989,
-     "gap": 0.0511
+     "gap": 0.0511,
+     "gap_ci": [
+      -0.0119,
+      0.1141
+     ]
     }
    },
    "at_75": {
@@ -1865,57 +2820,102 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 682,
+     "fixtures": 439,
      "claimed": 0.5245,
      "realised": 0.4897,
-     "gap": 0.0348
+     "gap": 0.0348,
+     "gap_ci": [
+      -0.0026,
+      0.0723
+     ]
     },
     "0.55": {
      "rungs": 619,
+     "fixtures": 370,
      "claimed": 0.5749,
      "realised": 0.5945,
-     "gap": -0.0196
+     "gap": -0.0196,
+     "gap_ci": [
+      -0.052,
+      0.0129
+     ]
     },
     "0.60": {
      "rungs": 588,
+     "fixtures": 393,
      "claimed": 0.625,
      "realised": 0.6139,
-     "gap": 0.011
+     "gap": 0.011,
+     "gap_ci": [
+      -0.0276,
+      0.0496
+     ]
     },
     "0.65": {
      "rungs": 516,
+     "fixtures": 380,
      "claimed": 0.6743,
      "realised": 0.6744,
-     "gap": -0.0001
+     "gap": -0.0001,
+     "gap_ci": [
+      -0.0406,
+      0.0404
+     ]
     },
     "0.70": {
      "rungs": 461,
+     "fixtures": 355,
      "claimed": 0.7232,
      "realised": 0.6746,
-     "gap": 0.0486
+     "gap": 0.0486,
+     "gap_ci": [
+      0.0054,
+      0.0918
+     ]
     },
     "0.75": {
      "rungs": 337,
+     "fixtures": 284,
      "claimed": 0.7736,
      "realised": 0.7122,
-     "gap": 0.0614
+     "gap": 0.0614,
+     "gap_ci": [
+      0.0141,
+      0.1087
+     ]
     },
     "0.80": {
      "rungs": 221,
+     "fixtures": 192,
      "claimed": 0.8252,
      "realised": 0.7421,
-     "gap": 0.0831
+     "gap": 0.0831,
+     "gap_ci": [
+      0.023,
+      0.1433
+     ]
     },
     "0.85": {
      "rungs": 124,
+     "fixtures": 113,
      "claimed": 0.8676,
      "realised": 0.7581,
-     "gap": 0.1096
+     "gap": 0.1096,
+     "gap_ci": [
+      0.0338,
+      0.1853
+     ]
     },
     "0.90": {
      "rungs": 36,
+     "fixtures": 28,
      "claimed": 0.918,
      "realised": 0.7778,
-     "gap": 0.1402
+     "gap": 0.1402,
+     "gap_ci": [
+      -0.0163,
+      0.2967
+     ]
     }
    },
    "at_75": {
@@ -1958,63 +2958,113 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 766,
+     "fixtures": 501,
      "claimed": 0.5246,
      "realised": 0.5274,
-     "gap": -0.0028
+     "gap": -0.0028,
+     "gap_ci": [
+      -0.037,
+      0.0314
+     ]
     },
     "0.55": {
      "rungs": 808,
+     "fixtures": 439,
      "claimed": 0.5744,
      "realised": 0.5916,
-     "gap": -0.0172
+     "gap": -0.0172,
+     "gap_ci": [
+      -0.0429,
+      0.0084
+     ]
     },
     "0.60": {
      "rungs": 766,
+     "fixtures": 461,
      "claimed": 0.6252,
      "realised": 0.6436,
-     "gap": -0.0184
+     "gap": -0.0184,
+     "gap_ci": [
+      -0.0488,
+      0.012
+     ]
     },
     "0.65": {
      "rungs": 817,
+     "fixtures": 453,
      "claimed": 0.6754,
      "realised": 0.7136,
-     "gap": -0.0382
+     "gap": -0.0382,
+     "gap_ci": [
+      -0.066,
+      -0.0104
+     ]
     },
     "0.70": {
      "rungs": 937,
+     "fixtures": 495,
      "claimed": 0.7255,
      "realised": 0.7439,
-     "gap": -0.0184
+     "gap": -0.0184,
+     "gap_ci": [
+      -0.0438,
+      0.007
+     ]
     },
     "0.75": {
      "rungs": 813,
+     "fixtures": 463,
      "claimed": 0.7745,
      "realised": 0.8106,
-     "gap": -0.0361
+     "gap": -0.0361,
+     "gap_ci": [
+      -0.0632,
+      -0.009
+     ]
     },
     "0.80": {
      "rungs": 942,
+     "fixtures": 502,
      "claimed": 0.8256,
      "realised": 0.8408,
-     "gap": -0.0152
+     "gap": -0.0152,
+     "gap_ci": [
+      -0.0374,
+      0.007
+     ]
     },
     "0.85": {
      "rungs": 872,
+     "fixtures": 473,
      "claimed": 0.874,
      "realised": 0.8842,
-     "gap": -0.0102
+     "gap": -0.0102,
+     "gap_ci": [
+      -0.0312,
+      0.0109
+     ]
     },
     "0.90": {
      "rungs": 628,
+     "fixtures": 402,
      "claimed": 0.9218,
      "realised": 0.8917,
-     "gap": 0.0301
+     "gap": 0.0301,
+     "gap_ci": [
+      0.0058,
+      0.0543
+     ]
     },
     "0.95": {
      "rungs": 265,
+     "fixtures": 186,
      "claimed": 0.95,
      "realised": 0.8906,
-     "gap": 0.0594
+     "gap": 0.0594,
+     "gap_ci": [
+      0.0214,
+      0.0975
+     ]
     }
    },
    "at_75": {
@@ -2048,57 +3098,102 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 115,
+     "fixtures": 115,
      "claimed": 0.5262,
      "realised": 0.5478,
-     "gap": -0.0216
+     "gap": -0.0216,
+     "gap_ci": [
+      -0.1132,
+      0.07
+     ]
     },
     "0.55": {
      "rungs": 167,
+     "fixtures": 147,
      "claimed": 0.5776,
      "realised": 0.6228,
-     "gap": -0.0451
+     "gap": -0.0451,
+     "gap_ci": [
+      -0.1094,
+      0.0192
+     ]
     },
     "0.60": {
      "rungs": 231,
+     "fixtures": 214,
      "claimed": 0.6256,
      "realised": 0.6926,
-     "gap": -0.0671
+     "gap": -0.0671,
+     "gap_ci": [
+      -0.1241,
+      -0.0101
+     ]
     },
     "0.65": {
      "rungs": 263,
+     "fixtures": 245,
      "claimed": 0.6739,
      "realised": 0.6958,
-     "gap": -0.0219
+     "gap": -0.0219,
+     "gap_ci": [
+      -0.0746,
+      0.0308
+     ]
     },
     "0.70": {
      "rungs": 325,
+     "fixtures": 320,
      "claimed": 0.724,
      "realised": 0.7415,
-     "gap": -0.0175
+     "gap": -0.0175,
+     "gap_ci": [
+      -0.0647,
+      0.0297
+     ]
     },
     "0.75": {
      "rungs": 329,
+     "fixtures": 322,
      "claimed": 0.7748,
      "realised": 0.8207,
-     "gap": -0.0459
+     "gap": -0.0459,
+     "gap_ci": [
+      -0.0869,
+      -0.0049
+     ]
     },
     "0.80": {
      "rungs": 360,
+     "fixtures": 359,
      "claimed": 0.8256,
      "realised": 0.8583,
-     "gap": -0.0327
+     "gap": -0.0327,
+     "gap_ci": [
+      -0.0687,
+      0.0033
+     ]
     },
     "0.85": {
      "rungs": 350,
+     "fixtures": 350,
      "claimed": 0.8748,
      "realised": 0.9114,
-     "gap": -0.0367
+     "gap": -0.0367,
+     "gap_ci": [
+      -0.0664,
+      -0.0069
+     ]
     },
     "0.90": {
      "rungs": 255,
+     "fixtures": 239,
      "claimed": 0.9197,
      "realised": 0.949,
-     "gap": -0.0294
+     "gap": -0.0294,
+     "gap_ci": [
+      -0.0563,
+      -0.0024
+     ]
     }
    },
    "at_75": {
@@ -2132,57 +3227,102 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 361,
+     "fixtures": 322,
      "claimed": 0.5238,
      "realised": 0.5152,
-     "gap": 0.0086
+     "gap": 0.0086,
+     "gap_ci": [
+      -0.0389,
+      0.0561
+     ]
     },
     "0.55": {
      "rungs": 347,
+     "fixtures": 270,
      "claimed": 0.5752,
      "realised": 0.5735,
-     "gap": 0.0018
+     "gap": 0.0018,
+     "gap_ci": [
+      -0.0412,
+      0.0447
+     ]
     },
     "0.60": {
      "rungs": 319,
+     "fixtures": 276,
      "claimed": 0.6246,
      "realised": 0.6458,
-     "gap": -0.0211
+     "gap": -0.0211,
+     "gap_ci": [
+      -0.07,
+      0.0278
+     ]
     },
     "0.65": {
      "rungs": 289,
+     "fixtures": 254,
      "claimed": 0.6724,
      "realised": 0.7059,
-     "gap": -0.0335
+     "gap": -0.0335,
+     "gap_ci": [
+      -0.0818,
+      0.0149
+     ]
     },
     "0.70": {
      "rungs": 241,
+     "fixtures": 217,
      "claimed": 0.7234,
      "realised": 0.7842,
-     "gap": -0.0608
+     "gap": -0.0608,
+     "gap_ci": [
+      -0.1105,
+      -0.0111
+     ]
     },
     "0.75": {
      "rungs": 226,
+     "fixtures": 214,
      "claimed": 0.7757,
      "realised": 0.8142,
-     "gap": -0.0385
+     "gap": -0.0385,
+     "gap_ci": [
+      -0.0886,
+      0.0116
+     ]
     },
     "0.80": {
      "rungs": 200,
+     "fixtures": 191,
      "claimed": 0.8257,
      "realised": 0.89,
-     "gap": -0.0643
+     "gap": -0.0643,
+     "gap_ci": [
+      -0.1065,
+      -0.0222
+     ]
     },
     "0.85": {
      "rungs": 165,
+     "fixtures": 165,
      "claimed": 0.8747,
      "realised": 0.8667,
-     "gap": 0.008
+     "gap": 0.008,
+     "gap_ci": [
+      -0.0444,
+      0.0604
+     ]
     },
     "0.90": {
      "rungs": 121,
+     "fixtures": 121,
      "claimed": 0.9203,
      "realised": 0.9504,
-     "gap": -0.0301
+     "gap": -0.0301,
+     "gap_ci": [
+      -0.0688,
+      0.0086
+     ]
     }
    },
    "at_75": {
@@ -2212,49 +3352,84 @@
    "skill_vs_shrinkage_target": 0.0114,
    "skill_comparable": true,
    "rungs": 441,
-   "calibration_error": 0.0878,
+   "calibration_error": 0.0877,
    "calibration_curve": {
     "0.50": {
      "rungs": 102,
+     "fixtures": 67,
      "claimed": 0.5293,
      "realised": 0.4608,
-     "gap": 0.0685
+     "gap": 0.0685,
+     "gap_ci": [
+      0.0074,
+      0.1297
+     ]
     },
     "0.55": {
      "rungs": 59,
+     "fixtures": 50,
      "claimed": 0.5733,
      "realised": 0.6102,
-     "gap": -0.0369
+     "gap": -0.0369,
+     "gap_ci": [
+      -0.1499,
+      0.0761
+     ]
     },
     "0.60": {
      "rungs": 74,
+     "fixtures": 62,
      "claimed": 0.6207,
      "realised": 0.5676,
-     "gap": 0.0531
+     "gap": 0.0531,
+     "gap_ci": [
+      -0.0428,
+      0.1491
+     ]
     },
     "0.65": {
      "rungs": 65,
+     "fixtures": 64,
      "claimed": 0.6744,
      "realised": 0.4615,
-     "gap": 0.2129
+     "gap": 0.2129,
+     "gap_ci": [
+      0.0885,
+      0.3372
+     ]
     },
     "0.70": {
      "rungs": 48,
+     "fixtures": 48,
      "claimed": 0.7236,
      "realised": 0.6667,
-     "gap": 0.057
+     "gap": 0.057,
+     "gap_ci": [
+      -0.0782,
+      0.1921
+     ]
     },
     "0.75": {
      "rungs": 41,
+     "fixtures": 41,
      "claimed": 0.7707,
      "realised": 0.561,
-     "gap": 0.2097
+     "gap": 0.2097,
+     "gap_ci": [
+      0.0555,
+      0.3639
+     ]
     },
     "0.80": {
      "rungs": 30,
+     "fixtures": 27,
      "claimed": 0.8262,
      "realised": 0.6667,
-     "gap": 0.1595
+     "gap": 0.1595,
+     "gap_ci": [
+      -0.0207,
+      0.3397
+     ]
     }
    },
    "at_75": {
@@ -2297,9 +3472,14 @@
    "calibration_curve": {
     "0.50": {
      "rungs": 73,
+     "fixtures": 73,
      "claimed": 0.5262,
      "realised": 0.6301,
-     "gap": -0.104
+     "gap": -0.104,
+     "gap_ci": [
+      -0.2159,
+      0.008
+     ]
     }
    }
   },
