@@ -24,6 +24,9 @@ A date (`YYYY-MM-DD`, UTC betting day) and usually a note about the run. Work
 from `runs/<date>/`. **You cover tennis only** — filter every artifact by
 `sport == "tennis"`. Football is `bet-analyst-football`'s.
 
+If `<date>_forecast.json` is missing, build it — pure, no provider calls:
+`python3 scripts/simple/build_forecast.py --date <date>`.
+
 If `<date>_event_dossiers_stats_sheet_top.json` or `<date>_event_list.json`
 is missing, say so and stop. If the caller says `verify_tennis_providers.py`
 returned `MISIDENTIFIED`, stop: numbers on the sheet may belong to other
@@ -41,7 +44,77 @@ people, and no read is safe.
    §65 for an H2H-heavy read, …). You do not need to open all of §7–§114;
    cite what you actually used.
 
-2. **Take the tennis inventory** (one `python3 -c`): tennis events with
+2. **Read the forecast cards first** (`<date>_forecast.json`, tennis only) and
+   let the grade decide what you are allowed to say. This is not advisory for
+   tennis — it is the whole difference between this agent working and this
+   agent inventing:
+
+   **Every tennis market this pipeline prices loses to its own format
+   average.** Measured over the settled fixtures in `runs/`, scoring the
+   estimator that actually ships: `games_won@BO5` −2.5%, `total_sets@BO3`
+   −6.2% (89 fixtures), `total_games@BO3` −8.8% (88), `games_won@BO3` −12.4%,
+   `total_sets@BO5` −59.9% (29). The fixture-specific sample makes the answer
+   *worse* than "about 21.5 games for a WTA slam match, about 36 for an ATP
+   one". Both estimators are broken and they disagree about the sign of the
+   error: the pooled centre runs 5.85 games low on best-of-five, the
+   estimand-framed one (`_framed_tennis_total_centre`, which is what
+   `shrunk_mean` carries) runs 3.81 high.
+
+   **And the confidence is worse than the level.** Rows on these markets
+   claiming 75% or more have realised, against what they claimed:
+   `total_games@BO3` **63.4%** against 81.7% (46 fixtures, gap +18.3pp, 95%
+   [+4.6, +34.2]); `games_won@BO3` **62.2%** against 85.9% (+23.7pp);
+   `games_won@BO5` **64.6%** against 87.5% (+22.9pp). Every interval is
+   bootstrapped over fixtures and every one excludes zero. So a tennis row
+   claiming 87% is a row that has historically won about 64% of the time. That
+   is not a small correction and it is not something to average away in prose.
+   The grade is `OVERCONFIDENT` where the calibration is the binding problem
+   and `WORSE_THAN_AVERAGE` where the level is.
+
+   So for `total_games`, `total_sets` and `games_won`: state the format average
+   as the best available answer, state our own number beside it, and **do not
+   grade rungs**. You do not need to hand-write a veto for each one — that is
+   what 2026-09-07 cost, four long vetoes re-deriving one measured fact, one of
+   them with the sign of the mechanism backwards. The code steps these markets
+   down on its own now: `market_forecast_is_worse_than_average` and
+   `market_claims_more_than_it_delivers` each take a tier, and a market that
+   fails both goes CALL → WEAK and off the coupon without you writing anything.
+   Cite the grade; spend your effort on what the grade cannot see.
+
+   **A best-of-five format below the measurement floor borrows its twin.**
+   `total_games@BO5` sits just under 25 settled fixtures — which is exactly a
+   US Open men's final — so rather than reading `UNMEASURED` the card borrows
+   the *worse* of the other formats and says so in `grade_reason` ("this format
+   has too few settled fixtures to measure"). Read that as a floor on what to
+   expect here, not as a measurement of it, and say which you are quoting.
+
+   **`aces_*` and `double_faults_*` are `UNMEASURED` and cannot become
+   anything else.** ESPN answers `statsSource: none` for tennis and the bzzoiro
+   tennis addon is unpaid, so no aces or double-faults row has ever been
+   settled against a result. You may state `expected`; you may not attach a
+   precision to it, and a `p_central` of 0.90 on such a row is an unchecked
+   claim however it looks.
+
+   **`games_won` is a per-participant market and the estimand trap is yours to
+   catch.** A player's own `games_won` sample is drawn from matches she mostly
+   won; tonight's opponent is a different conditioning. The card gives you the
+   sample and the decomposition — do the conditional yourself (the opponent's
+   games conceded, `total_games − games_won` per match, on this surface) and
+   say which set you conditioned on. On 2026-09-07 that correction was right
+   and its headline number was not: the veto claimed 30% against a properly
+   conditioned ~50%, having substituted one unconditional pool for another.
+   Condition on opponent *quality*, not merely on "the opponent's opponents".
+
+   The trap now has a price on it. `games_won` used to be the one
+   per-participant market with no measured error at all, because the
+   measurement read only the `total` bucket and a player's own games are not in
+   it. Measured since 2026-09-08 against the two `games_won` columns the
+   scoreboard does publish: −12.4% on best-of-three, −2.5% on best-of-five,
+   and 22–24 points hot on the rows claiming 75%+. That is the estimand trap
+   showing up in the score — a sample drawn from matches she mostly won,
+   priced as though tonight's opponent were the average of her past ones.
+
+3. **Take the tennis inventory** (one `python3 -c`): tennis events with
    `competition` (pinned in `config/tennis_surface_map.json` /
    `config/tennis_match_format.json`? — unpinned means unscoped), rows in the
    top sheet by market, tennis `VALUE` rows counted yourself from
@@ -54,13 +127,13 @@ people, and no read is safe.
    was built without `--event-list` and every men's length row is suspect —
    say so before anything else.
 
-3. **Verify time and round** for every fixture you will mention: the
+4. **Verify time and round** for every fixture you will mention: the
    tournament's official order of play plus one independent domain. A
    disagreement of hours between the artifact/Superbet and the media is
    common; report both times and mark the fixture *godzina sporna* rather
    than pick one. Walkover or withdrawal → VETO all lines.
 
-4. **Run the protocol** (`event-protocol.md`) on every fixture with a tennis
+5. **Run the protocol** (`event-protocol.md`) on every fixture with a tennis
    `VALUE` row and every fixture you intend to veto: format and surface →
    sample integrity per side (retained on surface, dates, `match_level`,
    `opponent` names → opposition class via web rankings) → framed centre
@@ -73,7 +146,7 @@ people, and no read is safe.
    match odds → ladder → price → buy/kill → verdict. `FACT → CALCULATION →
    IMPLICATION → RISK` on every argument. State `NO_REFERENCE_SOURCE` once.
 
-5. **Bet Builder, if asked or a fixture has ≥2 KEEP rows:**
+6. **Bet Builder, if asked or a fixture has ≥2 KEEP rows:**
 
    ```bash
    python3 scripts/simple/bet_builder_draft.py \
@@ -93,7 +166,7 @@ people, and no read is safe.
    scorelines that satisfy every leg, grade `ROBUST / MODERATE / FRAGILE`,
    name the scoreline that kills all legs. No combined price.
 
-6. **Write the report** in the core structure, in Polish: tennis header
+7. **Write the report** in the core structure, in Polish: tennis header
    (events, rows, VALUE count, offer time, format-gate check, the absence of
    any model/market/MCP stated once), *Co realnie płaci*, per-match sections
    with the §81 matrix (fill what you can, `n/d` the rest), *Pozostałe mecze*,
@@ -101,7 +174,7 @@ people, and no read is safe.
    parsed by the client and dropped before the dossier; an unpinned
    competition; a one-sided total that reached the sheet), *NIE PODANO*.
 
-7. **Return the veto block** per `veto-contract.md`: `reason_class` on every
+8. **Return the veto block** per `veto-contract.md`: `reason_class` on every
    entry; `ESTIMAND_WRONG` for a total priced from one side or a `games_won`
    built against a different class of opponent; `SAMPLE_NOT_REPRESENTATIVE`
    for mixed-surface or ≤3-on-surface samples; `LINE_ON_MODE` with a line;

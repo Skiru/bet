@@ -224,11 +224,166 @@ def test_a_single_source_row_reaches_call_only_on_a_complete_primary_sample():
 def test_a_tennis_row_still_needs_a_second_provider_for_call():
     """The new ceiling is football-only, because that is where it was measured:
     backtest_slate settles football alone. Tennis has no primary provider, so
-    its READY still means "two providers agreed" and CALL still asks for it."""
-    row = _row(sport="tennis", market="total_games", line=21.5,
+    its READY still means "two providers agreed" and CALL still asks for it.
+
+    Asserted on ``aces_total`` rather than ``total_games``. Both are tennis
+    length markets and only one of them has a settled record: aces never settle
+    at all (ESPN answers ``statsSource: none``), while ``total_games`` is
+    measured at -9.2%/-14.0% against its own format average and is stepped down
+    for it since 2026-09-07. Using it here would have made this test assert two
+    unrelated rules at once -- which is how it started failing.
+    """
+    row = _row(sport="tennis", market="aces_total", line=7.5,
                cross_provider_agreement="SINGLE_SOURCE", data_quality="READY")
     assert tier_for_row(row) == "LEAN"
     assert tier_for_row(row.model_copy(update={"cross_provider_agreement": "AGREE"})) == "CALL"
+
+
+def test_a_market_measured_worse_than_its_own_average_steps_down():
+    """The tier reads the settled record, not only this row's sample.
+
+    ``total_sets`` is measured at -6.2% (BO3, 89 fixtures) and -59.9% (BO5, 29)
+    against predicting the format's own average: the fixture-specific sample
+    makes the answer *worse*, so its ``p_central`` is not evidence about the
+    match and the rungs are separated by a fitted distribution. On 2026-09-07
+    four of the analyst's ten vetoes were this one finding, hand-derived per
+    fixture.
+
+    ``total_sets`` and not ``total_games`` on purpose. Every tennis market fails
+    *some* measured rule and only this one fails the level rule alone, so it is
+    the only one that isolates the level rule -- using a market that fails two
+    would assert neither, which is how the previous version of this test broke.
+
+    A step, composing with the others, never an exclusion -- and never fired on
+    a market nobody has settled.
+    """
+    measured_bad = _row(sport="tennis", market="total_sets", line=2.5,
+                        cross_provider_agreement="AGREE", data_quality="READY")
+    never_settled = measured_bad.model_copy(update={"market": "aces_total", "line": 7.5})
+    assert tier_for_row(never_settled) == "CALL"
+    assert tier_for_row(measured_bad) == "LEAN"
+
+    # And it composes: a row already at LEAN for another reason goes to WEAK
+    # rather than being capped, because two reasons to doubt are two reasons.
+    single_source = measured_bad.model_copy(
+        update={"cross_provider_agreement": "SINGLE_SOURCE"}
+    )
+    assert tier_for_row(single_source) == "WEAK"
+
+    # Football markets that beat the average are untouched: fouls_total scores
+    # +8.5% over 580 settled fixtures.
+    football = _row(market="fouls_total", line=21.5, sample_size=40,
+                    cross_provider_agreement="SINGLE_SOURCE", data_quality="READY")
+    assert tier_for_row(football) == "CALL"
+
+
+def test_a_market_whose_confident_rows_run_hot_steps_down_on_its_own():
+    """The second measured rule, and the one that speaks to the bet.
+
+    ``shots_for`` has a perfectly good *level* -- +4.3% skill over 551 settled
+    fixtures, so it is not touched by the rule above -- and its rows claiming
+    0.70 or more have realised 71.2% against a claimed 77.9% over 527
+    fixtures. MAE says where the centre is; this says whether the probability
+    the bar is computed from is true, and that is the number with money on it.
+    """
+    from bet.simple_stats.bet_builder_draft import (
+        market_claims_more_than_it_delivers,
+        market_forecast_is_worse_than_average,
+    )
+
+    hot = _row(market="shots_for", line=12.5, team_name="Malmö FF", sample_size=40,
+               p_central=0.85, cross_provider_agreement="AGREE", data_quality="READY")
+    assert market_forecast_is_worse_than_average(hot) is False
+    assert market_claims_more_than_it_delivers(hot) is True
+    assert tier_for_row(hot) == "LEAN"
+
+    # A market that passes both is untouched at any claim, so the step above is
+    # this rule and not a side effect of the row's own fields.
+    cool = hot.model_copy(update={"market": "fouls_for", "line": 10.5, "p_central": 0.95})
+    assert market_claims_more_than_it_delivers(cool) is False
+    assert tier_for_row(cool) == "CALL"
+
+
+def test_the_hot_rule_reads_the_row_s_own_claim_and_not_the_market():
+    """Overconfidence is not flat across the curve and a market-wide step
+    demoted rows the market forecasts well.
+
+    ``shots_for`` reads +0.035, -0.020, +0.011, -0.000 for claims up to 0.70
+    and then +0.049, +0.061, +0.083, +0.110, +0.140. Applied market-wide, a
+    step taken off the 0.75 tail demoted every row on the market: on the
+    2026-09-07 slate the three ``shots_for`` UNDER 17.5 rows claimed 0.813,
+    0.773 and 0.680, and only the first two are in the region the measurement
+    is about.
+
+    ``hot_above`` is the lowest claim at or above which the market is
+    measurably hot, and the rule is a comparison against it.
+    """
+    from bet.simple_stats.analyze import market_reliability
+    from bet.simple_stats.bet_builder_draft import market_claims_more_than_it_delivers
+
+    assert market_reliability()["shots_for"]["hot_above"] == 0.70
+
+    calibrated = _row(market="shots_for", line=17.5, direction="UNDER",
+                      team_name="Vitória", sample_size=40, p_central=0.66,
+                      cross_provider_agreement="AGREE", data_quality="READY")
+    assert market_claims_more_than_it_delivers(calibrated) is False
+    assert tier_for_row(calibrated) == "CALL"
+
+    over_the_line = calibrated.model_copy(update={"p_central": 0.70})
+    assert market_claims_more_than_it_delivers(over_the_line) is True
+
+    # And a row with no claim at all cannot be judged by a rule about claims.
+    assert market_claims_more_than_it_delivers(
+        calibrated.model_copy(update={"p_central": None})
+    ) is False
+
+
+def test_failing_both_measured_rules_costs_two_tiers():
+    """``total_games`` is the market that fails the level rule *and* the
+    calibration rule: -8.8% skill on best-of-three, and confident rows realising
+    63.4% against a claimed 81.7%. Two findings about one market are two steps,
+    which takes a CALL to WEAK and off the coupon -- deliberately not composed
+    into one step, because they are not one finding.
+    """
+    from bet.simple_stats.bet_builder_draft import (
+        market_claims_more_than_it_delivers,
+        market_forecast_is_worse_than_average,
+    )
+
+    row = _row(sport="tennis", market="total_games", line=21.5, p_central=0.80,
+               cross_provider_agreement="AGREE", data_quality="READY")
+    assert market_forecast_is_worse_than_average(row) is True
+    assert market_claims_more_than_it_delivers(row) is True
+    assert tier_for_row(row) == "WEAK"
+
+    # Below the calibration threshold only the level rule fires, which is one
+    # step -- the two rules stay separable on the same market.
+    modest = row.model_copy(update={"p_central": 0.52})
+    assert market_claims_more_than_it_delivers(modest) is False
+    assert tier_for_row(modest) == "LEAN"
+
+
+def test_a_low_base_rate_market_is_not_judged_on_its_mae_skill():
+    """``player_offsides`` happens 0.13 times a match and scores +24.2% skill,
+    which is not evidence that we forecast offsides better than fouls: MAE there
+    is dominated by the base rate, and predicting roughly nothing for everybody
+    is close to right without discriminating between anybody.
+
+    The measurement flags it ``skill_comparable: false`` and the tier rule
+    refuses to read the figure at all -- in either direction. The mirror image
+    of crediting a market for that number is stepping one down for it.
+    """
+    from bet.simple_stats.analyze import market_reliability
+    from bet.simple_stats.bet_builder_draft import market_forecast_is_worse_than_average
+
+    entry = market_reliability()["player_offsides"]
+    assert entry["skill"] > 0.2
+    assert entry["skill_comparable"] is False
+
+    row = _row(market="player_offsides", line=0.5, player_id="2190",
+               player_name="Loïs Openda", lineup_status="confirmed",
+               sample_size=12, cross_provider_agreement="AGREE")
+    assert market_forecast_is_worse_than_average(row) is False
 
 
 def test_a_predicted_xi_prop_is_capped_at_lean():

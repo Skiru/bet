@@ -500,14 +500,39 @@ def test_two_length_dependent_tennis_legs_can_no_longer_share_a_slip():
     becomes a leg. The HIGH branch is kept in ``draft_legs`` as a defence for
     any future caller that assembles legs itself, and is unreachable through
     this path.
+
+    Since 2026-09-07 a measured rule reaches these markets too -- every tennis
+    length market loses to its own format average and is stepped down for it --
+    but it is a single step and these rows are CALL, so the family gate is
+    still what excludes the second leg. The calibration rule needs the row's
+    own ``p_central`` to clear the market's measured threshold and these rows
+    carry none, which is the behaviour under test in
+    ``test_the_hot_rule_reads_the_row_s_own_claim_and_not_the_market``.
     """
-    slip = draft_legs(
+    tennis = draft_legs(
         _sheet(
             _row(sport="tennis", market="total_games", line=34.5, direction="UNDER"),
             _row(sport="tennis", market="total_sets", line=3.5, direction="UNDER"),
         ),
         "evt-1",
     )
-    assert len(slip.legs) == 1
-    assert slip.excluded["duplicate_mechanism_family"] == 1
-    assert slip.correlation_risk == "NOT_APPLICABLE"
+    assert len(tennis.legs) == 1
+    assert tennis.excluded["duplicate_mechanism_family"] == 1
+    assert tennis.correlation_risk == "NOT_APPLICABLE"
+
+    # And the family gate itself, on a pair chosen so that nothing else can
+    # explain the exclusion. Corners and shots are both ``attacking``; both
+    # markets pass their own measured record (+3.1% and +3.9% skill, neither
+    # hot); and neither is nested inside the other, which is what rules out the
+    # obvious pair -- goals over the match and goals in the first half are one
+    # mechanism, but the half is *contained* in the match and ``nested_leg``
+    # gets there first.
+    football = draft_legs(
+        _sheet(
+            _row(market="corners_total", line=10.5, direction="UNDER"),
+            _row(market="shots_total", line=24.5, direction="UNDER"),
+        ),
+        "evt-1",
+    )
+    assert len(football.legs) == 1
+    assert football.excluded["duplicate_mechanism_family"] == 1

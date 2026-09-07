@@ -1,0 +1,7761 @@
+{
+ "_purpose": "Per-competition mean for each counting market, read by analyze.shrunk_centre as the shrinkage target in place of the single pooled number in market_priors.json. Rebuild with scripts/simple/measure_market_reliability.py --write.",
+ "_why": "market_priors.json pins one prior per market for every league on earth and says so in its own _venue_limits ('league-blind'). Measured over every dossier in runs/, goals_1h_total runs 0.821 in the Argentine Liga Profesional (145 matches) against a pinned 1.243 -- and on 2026-09-07 that gap was the entire edge of the day's only bet, which needed 1.688 rather than 1.599 once the prior knew the league.",
+ "_rule": "A competition needs 40 independent matches before its own mean is used; below that the pooled prior stands. Deduplicated by match_id. bzzoiro only, because it is the only football provider that stamps a competition id at all.",
+ "baselines": {
+  "goals_for": {
+   "34": {
+    "mean": 1.0396,
+    "matches": 101
+   },
+   "12": {
+    "mean": 1.4921,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.7167,
+    "matches": 60
+   },
+   "79": {
+    "mean": 1.8946,
+    "matches": 2125
+   },
+   "86": {
+    "mean": 1.3333,
+    "matches": 60
+   },
+   "1": {
+    "mean": 1.6667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 1.1912,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.2308,
+    "matches": 52
+   },
+   "17": {
+    "mean": 1.1974,
+    "matches": 76
+   },
+   "91": {
+    "mean": 1.5469,
+    "matches": 64
+   },
+   "25": {
+    "mean": 1.3077,
+    "matches": 65
+   },
+   "80": {
+    "mean": 1.169,
+    "matches": 71
+   },
+   "81": {
+    "mean": 1.7234,
+    "matches": 47
+   },
+   "85": {
+    "mean": 1.0069,
+    "matches": 145
+   },
+   "72": {
+    "mean": 1.443,
+    "matches": 79
+   },
+   "83": {
+    "mean": 1.8938,
+    "matches": 113
+   },
+   "13": {
+    "mean": 1.2653,
+    "matches": 49
+   },
+   "9": {
+    "mean": 1.1571,
+    "matches": 70
+   },
+   "57": {
+    "mean": 1.22,
+    "matches": 100
+   },
+   "8": {
+    "mean": 1.2909,
+    "matches": 55
+   },
+   "14": {
+    "mean": 1.6512,
+    "matches": 43
+   },
+   "49": {
+    "mean": 1.5172,
+    "matches": 87
+   },
+   "22": {
+    "mean": 1.1569,
+    "matches": 51
+   },
+   "3": {
+    "mean": 1.1154,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.6087,
+    "matches": 46
+   },
+   "26": {
+    "mean": 1.5352,
+    "matches": 71
+   },
+   "18": {
+    "mean": 1.7048,
+    "matches": 105
+   },
+   "2": {
+    "mean": 0.9464,
+    "matches": 56
+   },
+   "82": {
+    "mean": 1.1408,
+    "matches": 71
+   },
+   "54": {
+    "mean": 1.5147,
+    "matches": 68
+   },
+   "38": {
+    "mean": 1.1698,
+    "matches": 53
+   },
+   "29": {
+    "mean": 0.9726,
+    "matches": 73
+   },
+   "89": {
+    "mean": 1.5417,
+    "matches": 48
+   },
+   "10": {
+    "mean": 1.9388,
+    "matches": 49
+   },
+   "23": {
+    "mean": 1.2321,
+    "matches": 56
+   },
+   "11": {
+    "mean": 1.1754,
+    "matches": 57
+   },
+   "19": {
+    "mean": 1.3953,
+    "matches": 43
+   },
+   "36": {
+    "mean": 1.75,
+    "matches": 80
+   },
+   "47": {
+    "mean": 0.8571,
+    "matches": 42
+   },
+   "88": {
+    "mean": 1.2,
+    "matches": 75
+   },
+   "28": {
+    "mean": 1.3148,
+    "matches": 54
+   },
+   "52": {
+    "mean": 1.622,
+    "matches": 82
+   },
+   "50": {
+    "mean": 1.1,
+    "matches": 60
+   }
+  },
+  "cards_1h_total": {
+   "34": {
+    "mean": 1.42,
+    "matches": 100
+   },
+   "12": {
+    "mean": 1.35,
+    "matches": 60
+   },
+   "40": {
+    "mean": 1.0893,
+    "matches": 56
+   },
+   "86": {
+    "mean": 1.0526,
+    "matches": 57
+   },
+   "1": {
+    "mean": 1.1556,
+    "matches": 45
+   },
+   "79": {
+    "mean": 0.7333,
+    "matches": 75
+   },
+   "87": {
+    "mean": 1.3529,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.1875,
+    "matches": 48
+   },
+   "17": {
+    "mean": 1.3784,
+    "matches": 74
+   },
+   "25": {
+    "mean": 1.3651,
+    "matches": 63
+   },
+   "80": {
+    "mean": 1.8451,
+    "matches": 71
+   },
+   "85": {
+    "mean": 1.7014,
+    "matches": 144
+   },
+   "72": {
+    "mean": 0.9143,
+    "matches": 70
+   },
+   "13": {
+    "mean": 1.4878,
+    "matches": 41
+   },
+   "83": {
+    "mean": 1.2586,
+    "matches": 58
+   },
+   "9": {
+    "mean": 1.4783,
+    "matches": 69
+   },
+   "57": {
+    "mean": 1.6633,
+    "matches": 98
+   },
+   "49": {
+    "mean": 1.0921,
+    "matches": 76
+   },
+   "3": {
+    "mean": 1.2308,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.2727,
+    "matches": 44
+   },
+   "26": {
+    "mean": 1.1972,
+    "matches": 71
+   },
+   "18": {
+    "mean": 1.2692,
+    "matches": 104
+   },
+   "2": {
+    "mean": 1.6415,
+    "matches": 53
+   },
+   "54": {
+    "mean": 0.9841,
+    "matches": 63
+   },
+   "38": {
+    "mean": 1.4038,
+    "matches": 52
+   },
+   "89": {
+    "mean": 1.0909,
+    "matches": 44
+   },
+   "10": {
+    "mean": 0.8,
+    "matches": 40
+   },
+   "23": {
+    "mean": 1.5556,
+    "matches": 54
+   },
+   "11": {
+    "mean": 1.3019,
+    "matches": 53
+   },
+   "36": {
+    "mean": 1.0811,
+    "matches": 74
+   },
+   "88": {
+    "mean": 1.6957,
+    "matches": 46
+   },
+   "52": {
+    "mean": 1.2716,
+    "matches": 81
+   },
+   "50": {
+    "mean": 0.9322,
+    "matches": 59
+   }
+  },
+  "offsides_for": {
+   "34": {
+    "mean": 1.6354,
+    "matches": 96
+   },
+   "12": {
+    "mean": 2.1429,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.9655,
+    "matches": 58
+   },
+   "79": {
+    "mean": 0.6423,
+    "matches": 629
+   },
+   "86": {
+    "mean": 2.0339,
+    "matches": 59
+   },
+   "1": {
+    "mean": 1.814,
+    "matches": 43
+   },
+   "87": {
+    "mean": 1.6364,
+    "matches": 66
+   },
+   "4": {
+    "mean": 2.4565,
+    "matches": 46
+   },
+   "17": {
+    "mean": 2.0541,
+    "matches": 74
+   },
+   "91": {
+    "mean": 1.7302,
+    "matches": 63
+   },
+   "25": {
+    "mean": 1.6833,
+    "matches": 60
+   },
+   "80": {
+    "mean": 2.1212,
+    "matches": 66
+   },
+   "81": {
+    "mean": 2.625,
+    "matches": 40
+   },
+   "85": {
+    "mean": 2.0362,
+    "matches": 138
+   },
+   "72": {
+    "mean": 1.5526,
+    "matches": 76
+   },
+   "83": {
+    "mean": 1.5769,
+    "matches": 78
+   },
+   "13": {
+    "mean": 1.3902,
+    "matches": 41
+   },
+   "9": {
+    "mean": 1.6721,
+    "matches": 61
+   },
+   "57": {
+    "mean": 2.086,
+    "matches": 93
+   },
+   "8": {
+    "mean": 1.4762,
+    "matches": 42
+   },
+   "49": {
+    "mean": 1.8795,
+    "matches": 83
+   },
+   "3": {
+    "mean": 2.06,
+    "matches": 50
+   },
+   "6": {
+    "mean": 1.7857,
+    "matches": 42
+   },
+   "26": {
+    "mean": 1.25,
+    "matches": 64
+   },
+   "18": {
+    "mean": 1.64,
+    "matches": 100
+   },
+   "2": {
+    "mean": 1.1111,
+    "matches": 54
+   },
+   "54": {
+    "mean": 1.4921,
+    "matches": 63
+   },
+   "38": {
+    "mean": 2.08,
+    "matches": 50
+   },
+   "89": {
+    "mean": 2.3636,
+    "matches": 44
+   },
+   "10": {
+    "mean": 1.5682,
+    "matches": 44
+   },
+   "23": {
+    "mean": 1.449,
+    "matches": 49
+   },
+   "11": {
+    "mean": 2.0364,
+    "matches": 55
+   },
+   "19": {
+    "mean": 1.561,
+    "matches": 41
+   },
+   "36": {
+    "mean": 1.7067,
+    "matches": 75
+   },
+   "88": {
+    "mean": 1.8095,
+    "matches": 42
+   },
+   "52": {
+    "mean": 2.3026,
+    "matches": 76
+   },
+   "50": {
+    "mean": 1.8103,
+    "matches": 58
+   }
+  },
+  "cards_total": {
+   "34": {
+    "mean": 4.12,
+    "matches": 100
+   },
+   "12": {
+    "mean": 3.7,
+    "matches": 60
+   },
+   "40": {
+    "mean": 3.2857,
+    "matches": 56
+   },
+   "79": {
+    "mean": 1.5556,
+    "matches": 630
+   },
+   "86": {
+    "mean": 3.6667,
+    "matches": 57
+   },
+   "1": {
+    "mean": 3.8667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 3.7206,
+    "matches": 68
+   },
+   "4": {
+    "mean": 3.5417,
+    "matches": 48
+   },
+   "17": {
+    "mean": 3.5676,
+    "matches": 74
+   },
+   "91": {
+    "mean": 3.7302,
+    "matches": 63
+   },
+   "25": {
+    "mean": 3.7937,
+    "matches": 63
+   },
+   "80": {
+    "mean": 5.6197,
+    "matches": 71
+   },
+   "81": {
+    "mean": 4.575,
+    "matches": 40
+   },
+   "85": {
+    "mean": 4.6667,
+    "matches": 144
+   },
+   "72": {
+    "mean": 2.6857,
+    "matches": 70
+   },
+   "83": {
+    "mean": 3.95,
+    "matches": 80
+   },
+   "13": {
+    "mean": 3.8837,
+    "matches": 43
+   },
+   "9": {
+    "mean": 4.2754,
+    "matches": 69
+   },
+   "57": {
+    "mean": 4.2959,
+    "matches": 98
+   },
+   "8": {
+    "mean": 4.1273,
+    "matches": 55
+   },
+   "49": {
+    "mean": 2.75,
+    "matches": 76
+   },
+   "22": {
+    "mean": 4.2,
+    "matches": 50
+   },
+   "3": {
+    "mean": 4.1923,
+    "matches": 52
+   },
+   "6": {
+    "mean": 3.4773,
+    "matches": 44
+   },
+   "26": {
+    "mean": 3.1408,
+    "matches": 71
+   },
+   "18": {
+    "mean": 4.1346,
+    "matches": 104
+   },
+   "2": {
+    "mean": 4.3962,
+    "matches": 53
+   },
+   "82": {
+    "mean": 4.1831,
+    "matches": 71
+   },
+   "54": {
+    "mean": 3.6508,
+    "matches": 63
+   },
+   "38": {
+    "mean": 4.3654,
+    "matches": 52
+   },
+   "89": {
+    "mean": 3.3556,
+    "matches": 45
+   },
+   "10": {
+    "mean": 2.925,
+    "matches": 40
+   },
+   "23": {
+    "mean": 4.7222,
+    "matches": 54
+   },
+   "11": {
+    "mean": 4.1111,
+    "matches": 54
+   },
+   "36": {
+    "mean": 3.1757,
+    "matches": 74
+   },
+   "88": {
+    "mean": 5.0533,
+    "matches": 75
+   },
+   "52": {
+    "mean": 3.716,
+    "matches": 81
+   },
+   "50": {
+    "mean": 3.5254,
+    "matches": 59
+   }
+  },
+  "shots_on_target_for": {
+   "34": {
+    "mean": 4.0891,
+    "matches": 101
+   },
+   "12": {
+    "mean": 4.0476,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.3667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 4.05,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.9316,
+    "matches": 117
+   },
+   "1": {
+    "mean": 4.5556,
+    "matches": 45
+   },
+   "87": {
+    "mean": 3.9412,
+    "matches": 68
+   },
+   "4": {
+    "mean": 4.44,
+    "matches": 50
+   },
+   "17": {
+    "mean": 4.1316,
+    "matches": 76
+   },
+   "91": {
+    "mean": 4.4603,
+    "matches": 63
+   },
+   "25": {
+    "mean": 4.4844,
+    "matches": 64
+   },
+   "80": {
+    "mean": 4.7606,
+    "matches": 71
+   },
+   "81": {
+    "mean": 5.275,
+    "matches": 40
+   },
+   "85": {
+    "mean": 4.0483,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.7089,
+    "matches": 79
+   },
+   "83": {
+    "mean": 5.8706,
+    "matches": 85
+   },
+   "13": {
+    "mean": 3.7209,
+    "matches": 43
+   },
+   "9": {
+    "mean": 3.7571,
+    "matches": 70
+   },
+   "57": {
+    "mean": 4.12,
+    "matches": 100
+   },
+   "8": {
+    "mean": 4.5238,
+    "matches": 42
+   },
+   "14": {
+    "mean": 4.9762,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.3218,
+    "matches": 87
+   },
+   "3": {
+    "mean": 3.9038,
+    "matches": 52
+   },
+   "6": {
+    "mean": 4.6087,
+    "matches": 46
+   },
+   "26": {
+    "mean": 4.6901,
+    "matches": 71
+   },
+   "18": {
+    "mean": 4.9905,
+    "matches": 105
+   },
+   "2": {
+    "mean": 3.4464,
+    "matches": 56
+   },
+   "82": {
+    "mean": 4.0,
+    "matches": 71
+   },
+   "54": {
+    "mean": 4.5588,
+    "matches": 68
+   },
+   "38": {
+    "mean": 3.9057,
+    "matches": 53
+   },
+   "89": {
+    "mean": 4.6042,
+    "matches": 48
+   },
+   "10": {
+    "mean": 5.4583,
+    "matches": 48
+   },
+   "23": {
+    "mean": 4.3214,
+    "matches": 56
+   },
+   "11": {
+    "mean": 3.8596,
+    "matches": 57
+   },
+   "19": {
+    "mean": 4.4186,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.7895,
+    "matches": 76
+   },
+   "88": {
+    "mean": 4.0,
+    "matches": 46
+   },
+   "52": {
+    "mean": 4.9024,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.1833,
+    "matches": 60
+   }
+  },
+  "shots_1h_total": {
+   "34": {
+    "mean": 13.495,
+    "matches": 101
+   },
+   "12": {
+    "mean": 12.3175,
+    "matches": 63
+   },
+   "40": {
+    "mean": 13.1167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 11.65,
+    "matches": 60
+   },
+   "79": {
+    "mean": 11.3077,
+    "matches": 104
+   },
+   "1": {
+    "mean": 12.5111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 11.6765,
+    "matches": 68
+   },
+   "4": {
+    "mean": 12.14,
+    "matches": 50
+   },
+   "17": {
+    "mean": 11.6842,
+    "matches": 76
+   },
+   "25": {
+    "mean": 13.5938,
+    "matches": 64
+   },
+   "80": {
+    "mean": 12.6479,
+    "matches": 71
+   },
+   "85": {
+    "mean": 11.9103,
+    "matches": 145
+   },
+   "72": {
+    "mean": 12.9241,
+    "matches": 79
+   },
+   "13": {
+    "mean": 12.5116,
+    "matches": 43
+   },
+   "83": {
+    "mean": 13.0476,
+    "matches": 63
+   },
+   "9": {
+    "mean": 12.8714,
+    "matches": 70
+   },
+   "57": {
+    "mean": 12.23,
+    "matches": 100
+   },
+   "14": {
+    "mean": 12.6905,
+    "matches": 42
+   },
+   "49": {
+    "mean": 12.5057,
+    "matches": 87
+   },
+   "3": {
+    "mean": 11.4231,
+    "matches": 52
+   },
+   "6": {
+    "mean": 12.3696,
+    "matches": 46
+   },
+   "26": {
+    "mean": 13.0845,
+    "matches": 71
+   },
+   "18": {
+    "mean": 12.0476,
+    "matches": 105
+   },
+   "2": {
+    "mean": 11.8036,
+    "matches": 56
+   },
+   "54": {
+    "mean": 13.6324,
+    "matches": 68
+   },
+   "38": {
+    "mean": 11.0755,
+    "matches": 53
+   },
+   "89": {
+    "mean": 11.0,
+    "matches": 47
+   },
+   "10": {
+    "mean": 12.9375,
+    "matches": 48
+   },
+   "23": {
+    "mean": 13.0893,
+    "matches": 56
+   },
+   "11": {
+    "mean": 11.6667,
+    "matches": 57
+   },
+   "19": {
+    "mean": 13.5581,
+    "matches": 43
+   },
+   "36": {
+    "mean": 10.1316,
+    "matches": 76
+   },
+   "88": {
+    "mean": 11.0,
+    "matches": 46
+   },
+   "52": {
+    "mean": 12.4512,
+    "matches": 82
+   },
+   "50": {
+    "mean": 11.0333,
+    "matches": 60
+   }
+  },
+  "corners_1h_for": {
+   "34": {
+    "mean": 2.396,
+    "matches": 101
+   },
+   "12": {
+    "mean": 2.1905,
+    "matches": 63
+   },
+   "40": {
+    "mean": 2.7333,
+    "matches": 60
+   },
+   "86": {
+    "mean": 2.4167,
+    "matches": 60
+   },
+   "79": {
+    "mean": 2.3558,
+    "matches": 104
+   },
+   "1": {
+    "mean": 2.6444,
+    "matches": 45
+   },
+   "87": {
+    "mean": 2.1912,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.88,
+    "matches": 50
+   },
+   "17": {
+    "mean": 2.2237,
+    "matches": 76
+   },
+   "25": {
+    "mean": 2.5,
+    "matches": 64
+   },
+   "80": {
+    "mean": 2.5915,
+    "matches": 71
+   },
+   "85": {
+    "mean": 2.1793,
+    "matches": 145
+   },
+   "72": {
+    "mean": 1.7722,
+    "matches": 79
+   },
+   "13": {
+    "mean": 2.2093,
+    "matches": 43
+   },
+   "83": {
+    "mean": 2.6984,
+    "matches": 63
+   },
+   "9": {
+    "mean": 2.2429,
+    "matches": 70
+   },
+   "57": {
+    "mean": 2.16,
+    "matches": 100
+   },
+   "14": {
+    "mean": 2.4048,
+    "matches": 42
+   },
+   "49": {
+    "mean": 1.9425,
+    "matches": 87
+   },
+   "3": {
+    "mean": 2.6731,
+    "matches": 52
+   },
+   "6": {
+    "mean": 2.4348,
+    "matches": 46
+   },
+   "26": {
+    "mean": 2.5915,
+    "matches": 71
+   },
+   "18": {
+    "mean": 2.5238,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.9643,
+    "matches": 56
+   },
+   "54": {
+    "mean": 2.5735,
+    "matches": 68
+   },
+   "38": {
+    "mean": 2.1887,
+    "matches": 53
+   },
+   "89": {
+    "mean": 1.9787,
+    "matches": 47
+   },
+   "10": {
+    "mean": 2.5208,
+    "matches": 48
+   },
+   "23": {
+    "mean": 2.1429,
+    "matches": 56
+   },
+   "11": {
+    "mean": 1.9298,
+    "matches": 57
+   },
+   "19": {
+    "mean": 2.6977,
+    "matches": 43
+   },
+   "36": {
+    "mean": 2.3026,
+    "matches": 76
+   },
+   "88": {
+    "mean": 2.0217,
+    "matches": 46
+   },
+   "52": {
+    "mean": 2.3293,
+    "matches": 82
+   },
+   "50": {
+    "mean": 2.3833,
+    "matches": 60
+   }
+  },
+  "offsides_1h_total": {
+   "34": {
+    "mean": 1.6771,
+    "matches": 96
+   },
+   "12": {
+    "mean": 2.2222,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.6552,
+    "matches": 58
+   },
+   "86": {
+    "mean": 1.8136,
+    "matches": 59
+   },
+   "79": {
+    "mean": 1.8119,
+    "matches": 101
+   },
+   "1": {
+    "mean": 1.4419,
+    "matches": 43
+   },
+   "87": {
+    "mean": 2.0455,
+    "matches": 66
+   },
+   "4": {
+    "mean": 1.7391,
+    "matches": 46
+   },
+   "17": {
+    "mean": 2.0541,
+    "matches": 74
+   },
+   "25": {
+    "mean": 1.35,
+    "matches": 60
+   },
+   "80": {
+    "mean": 1.9242,
+    "matches": 66
+   },
+   "85": {
+    "mean": 1.7971,
+    "matches": 138
+   },
+   "72": {
+    "mean": 1.8026,
+    "matches": 76
+   },
+   "13": {
+    "mean": 1.4878,
+    "matches": 41
+   },
+   "83": {
+    "mean": 1.5179,
+    "matches": 56
+   },
+   "9": {
+    "mean": 1.5082,
+    "matches": 61
+   },
+   "57": {
+    "mean": 1.871,
+    "matches": 93
+   },
+   "49": {
+    "mean": 2.0,
+    "matches": 83
+   },
+   "3": {
+    "mean": 1.58,
+    "matches": 50
+   },
+   "6": {
+    "mean": 1.9762,
+    "matches": 42
+   },
+   "26": {
+    "mean": 1.3906,
+    "matches": 64
+   },
+   "18": {
+    "mean": 1.59,
+    "matches": 100
+   },
+   "2": {
+    "mean": 1.1296,
+    "matches": 54
+   },
+   "54": {
+    "mean": 1.5238,
+    "matches": 63
+   },
+   "38": {
+    "mean": 2.08,
+    "matches": 50
+   },
+   "89": {
+    "mean": 2.2045,
+    "matches": 44
+   },
+   "10": {
+    "mean": 1.6364,
+    "matches": 44
+   },
+   "23": {
+    "mean": 1.2653,
+    "matches": 49
+   },
+   "11": {
+    "mean": 1.8727,
+    "matches": 55
+   },
+   "19": {
+    "mean": 1.5366,
+    "matches": 41
+   },
+   "36": {
+    "mean": 1.76,
+    "matches": 75
+   },
+   "88": {
+    "mean": 1.4524,
+    "matches": 42
+   },
+   "52": {
+    "mean": 2.3684,
+    "matches": 76
+   },
+   "50": {
+    "mean": 1.3276,
+    "matches": 58
+   }
+  },
+  "shots_2h_total": {
+   "34": {
+    "mean": 14.505,
+    "matches": 101
+   },
+   "12": {
+    "mean": 14.5238,
+    "matches": 63
+   },
+   "40": {
+    "mean": 14.3,
+    "matches": 60
+   },
+   "86": {
+    "mean": 14.7833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 12.9118,
+    "matches": 102
+   },
+   "1": {
+    "mean": 14.4667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 13.4706,
+    "matches": 68
+   },
+   "4": {
+    "mean": 13.84,
+    "matches": 50
+   },
+   "17": {
+    "mean": 13.6842,
+    "matches": 76
+   },
+   "25": {
+    "mean": 15.8906,
+    "matches": 64
+   },
+   "80": {
+    "mean": 13.4648,
+    "matches": 71
+   },
+   "85": {
+    "mean": 14.5586,
+    "matches": 145
+   },
+   "72": {
+    "mean": 14.8734,
+    "matches": 79
+   },
+   "13": {
+    "mean": 14.4884,
+    "matches": 43
+   },
+   "83": {
+    "mean": 14.8254,
+    "matches": 63
+   },
+   "9": {
+    "mean": 16.2,
+    "matches": 70
+   },
+   "57": {
+    "mean": 13.69,
+    "matches": 100
+   },
+   "14": {
+    "mean": 16.0238,
+    "matches": 42
+   },
+   "49": {
+    "mean": 13.8506,
+    "matches": 87
+   },
+   "3": {
+    "mean": 13.3654,
+    "matches": 52
+   },
+   "6": {
+    "mean": 14.5435,
+    "matches": 46
+   },
+   "26": {
+    "mean": 15.1831,
+    "matches": 71
+   },
+   "18": {
+    "mean": 14.4095,
+    "matches": 105
+   },
+   "2": {
+    "mean": 12.1429,
+    "matches": 56
+   },
+   "54": {
+    "mean": 15.3235,
+    "matches": 68
+   },
+   "38": {
+    "mean": 13.7736,
+    "matches": 53
+   },
+   "89": {
+    "mean": 13.7872,
+    "matches": 47
+   },
+   "10": {
+    "mean": 16.3542,
+    "matches": 48
+   },
+   "23": {
+    "mean": 15.7143,
+    "matches": 56
+   },
+   "11": {
+    "mean": 14.2105,
+    "matches": 57
+   },
+   "19": {
+    "mean": 15.7674,
+    "matches": 43
+   },
+   "36": {
+    "mean": 12.7763,
+    "matches": 76
+   },
+   "88": {
+    "mean": 13.2174,
+    "matches": 46
+   },
+   "52": {
+    "mean": 15.3415,
+    "matches": 82
+   },
+   "50": {
+    "mean": 15.1167,
+    "matches": 60
+   }
+  },
+  "shots_on_target_2h_for": {
+   "34": {
+    "mean": 2.3267,
+    "matches": 101
+   },
+   "12": {
+    "mean": 2.254,
+    "matches": 63
+   },
+   "40": {
+    "mean": 2.7667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 2.15,
+    "matches": 60
+   },
+   "79": {
+    "mean": 2.8137,
+    "matches": 102
+   },
+   "1": {
+    "mean": 2.5111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 2.2647,
+    "matches": 68
+   },
+   "4": {
+    "mean": 2.54,
+    "matches": 50
+   },
+   "17": {
+    "mean": 2.3289,
+    "matches": 76
+   },
+   "25": {
+    "mean": 2.7188,
+    "matches": 64
+   },
+   "80": {
+    "mean": 2.2958,
+    "matches": 71
+   },
+   "85": {
+    "mean": 2.269,
+    "matches": 145
+   },
+   "72": {
+    "mean": 2.5316,
+    "matches": 79
+   },
+   "13": {
+    "mean": 2.0465,
+    "matches": 43
+   },
+   "83": {
+    "mean": 3.6032,
+    "matches": 63
+   },
+   "9": {
+    "mean": 2.1286,
+    "matches": 70
+   },
+   "57": {
+    "mean": 2.3,
+    "matches": 100
+   },
+   "14": {
+    "mean": 2.9286,
+    "matches": 42
+   },
+   "49": {
+    "mean": 2.2414,
+    "matches": 87
+   },
+   "3": {
+    "mean": 2.0769,
+    "matches": 52
+   },
+   "6": {
+    "mean": 2.5435,
+    "matches": 46
+   },
+   "26": {
+    "mean": 2.6479,
+    "matches": 71
+   },
+   "18": {
+    "mean": 2.819,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.8036,
+    "matches": 56
+   },
+   "54": {
+    "mean": 2.4706,
+    "matches": 68
+   },
+   "38": {
+    "mean": 2.0755,
+    "matches": 53
+   },
+   "89": {
+    "mean": 2.7447,
+    "matches": 47
+   },
+   "10": {
+    "mean": 2.9583,
+    "matches": 48
+   },
+   "23": {
+    "mean": 2.4821,
+    "matches": 56
+   },
+   "11": {
+    "mean": 2.3333,
+    "matches": 57
+   },
+   "19": {
+    "mean": 2.3488,
+    "matches": 43
+   },
+   "36": {
+    "mean": 2.6711,
+    "matches": 76
+   },
+   "88": {
+    "mean": 2.3478,
+    "matches": 46
+   },
+   "52": {
+    "mean": 2.8171,
+    "matches": 82
+   },
+   "50": {
+    "mean": 2.3667,
+    "matches": 60
+   }
+  },
+  "fouls_1h_for": {
+   "34": {
+    "mean": 6.9604,
+    "matches": 101
+   },
+   "12": {
+    "mean": 5.1429,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.5333,
+    "matches": 60
+   },
+   "86": {
+    "mean": 6.05,
+    "matches": 60
+   },
+   "79": {
+    "mean": 5.8333,
+    "matches": 102
+   },
+   "1": {
+    "mean": 4.6889,
+    "matches": 45
+   },
+   "87": {
+    "mean": 5.8676,
+    "matches": 68
+   },
+   "4": {
+    "mean": 5.44,
+    "matches": 50
+   },
+   "17": {
+    "mean": 5.1053,
+    "matches": 76
+   },
+   "25": {
+    "mean": 6.3438,
+    "matches": 64
+   },
+   "80": {
+    "mean": 5.2254,
+    "matches": 71
+   },
+   "85": {
+    "mean": 5.7448,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.6456,
+    "matches": 79
+   },
+   "13": {
+    "mean": 5.5116,
+    "matches": 43
+   },
+   "83": {
+    "mean": 5.8254,
+    "matches": 63
+   },
+   "9": {
+    "mean": 5.9429,
+    "matches": 70
+   },
+   "57": {
+    "mean": 5.59,
+    "matches": 100
+   },
+   "14": {
+    "mean": 4.9524,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.6552,
+    "matches": 87
+   },
+   "3": {
+    "mean": 5.5192,
+    "matches": 52
+   },
+   "6": {
+    "mean": 5.087,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.5493,
+    "matches": 71
+   },
+   "18": {
+    "mean": 5.3238,
+    "matches": 105
+   },
+   "2": {
+    "mean": 5.6786,
+    "matches": 56
+   },
+   "54": {
+    "mean": 5.6176,
+    "matches": 68
+   },
+   "38": {
+    "mean": 5.9434,
+    "matches": 53
+   },
+   "89": {
+    "mean": 6.5532,
+    "matches": 47
+   },
+   "10": {
+    "mean": 4.9792,
+    "matches": 48
+   },
+   "23": {
+    "mean": 6.2321,
+    "matches": 56
+   },
+   "11": {
+    "mean": 6.5614,
+    "matches": 57
+   },
+   "19": {
+    "mean": 6.0233,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.4737,
+    "matches": 76
+   },
+   "88": {
+    "mean": 6.5652,
+    "matches": 46
+   },
+   "52": {
+    "mean": 5.9146,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.9048,
+    "matches": 42
+   }
+  },
+  "corners_for": {
+   "34": {
+    "mean": 5.3168,
+    "matches": 101
+   },
+   "12": {
+    "mean": 5.1905,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.65,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.7672,
+    "matches": 670
+   },
+   "86": {
+    "mean": 5.3167,
+    "matches": 60
+   },
+   "1": {
+    "mean": 5.1556,
+    "matches": 45
+   },
+   "87": {
+    "mean": 5.0588,
+    "matches": 68
+   },
+   "4": {
+    "mean": 4.04,
+    "matches": 50
+   },
+   "17": {
+    "mean": 4.5921,
+    "matches": 76
+   },
+   "91": {
+    "mean": 4.6667,
+    "matches": 63
+   },
+   "25": {
+    "mean": 5.4844,
+    "matches": 64
+   },
+   "80": {
+    "mean": 4.8732,
+    "matches": 71
+   },
+   "81": {
+    "mean": 5.625,
+    "matches": 40
+   },
+   "85": {
+    "mean": 4.4207,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.2152,
+    "matches": 79
+   },
+   "83": {
+    "mean": 5.5529,
+    "matches": 85
+   },
+   "13": {
+    "mean": 4.8837,
+    "matches": 43
+   },
+   "9": {
+    "mean": 4.6286,
+    "matches": 70
+   },
+   "57": {
+    "mean": 5.01,
+    "matches": 100
+   },
+   "8": {
+    "mean": 4.3571,
+    "matches": 42
+   },
+   "14": {
+    "mean": 5.0714,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.2644,
+    "matches": 87
+   },
+   "3": {
+    "mean": 5.0385,
+    "matches": 52
+   },
+   "6": {
+    "mean": 5.4565,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.2958,
+    "matches": 71
+   },
+   "18": {
+    "mean": 5.0571,
+    "matches": 105
+   },
+   "2": {
+    "mean": 3.8393,
+    "matches": 56
+   },
+   "82": {
+    "mean": 4.4225,
+    "matches": 71
+   },
+   "54": {
+    "mean": 5.2647,
+    "matches": 68
+   },
+   "38": {
+    "mean": 4.7547,
+    "matches": 53
+   },
+   "89": {
+    "mean": 4.3404,
+    "matches": 47
+   },
+   "10": {
+    "mean": 5.6875,
+    "matches": 48
+   },
+   "23": {
+    "mean": 4.5893,
+    "matches": 56
+   },
+   "11": {
+    "mean": 4.0702,
+    "matches": 57
+   },
+   "19": {
+    "mean": 4.9302,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.5263,
+    "matches": 76
+   },
+   "88": {
+    "mean": 4.3696,
+    "matches": 46
+   },
+   "52": {
+    "mean": 4.878,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.8833,
+    "matches": 60
+   }
+  },
+  "shots_off_target_2h_total": {
+   "34": {
+    "mean": 6.2277,
+    "matches": 101
+   },
+   "12": {
+    "mean": 5.3968,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.3667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 6.0167,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.8333,
+    "matches": 102
+   },
+   "1": {
+    "mean": 5.4222,
+    "matches": 45
+   },
+   "87": {
+    "mean": 4.9118,
+    "matches": 68
+   },
+   "4": {
+    "mean": 6.06,
+    "matches": 50
+   },
+   "17": {
+    "mean": 5.6974,
+    "matches": 76
+   },
+   "25": {
+    "mean": 6.2031,
+    "matches": 64
+   },
+   "80": {
+    "mean": 5.3803,
+    "matches": 71
+   },
+   "85": {
+    "mean": 6.2069,
+    "matches": 145
+   },
+   "72": {
+    "mean": 5.6076,
+    "matches": 79
+   },
+   "13": {
+    "mean": 5.4186,
+    "matches": 43
+   },
+   "83": {
+    "mean": 5.9841,
+    "matches": 63
+   },
+   "9": {
+    "mean": 6.6857,
+    "matches": 70
+   },
+   "57": {
+    "mean": 5.5,
+    "matches": 100
+   },
+   "14": {
+    "mean": 6.0476,
+    "matches": 42
+   },
+   "49": {
+    "mean": 5.6782,
+    "matches": 87
+   },
+   "3": {
+    "mean": 5.25,
+    "matches": 52
+   },
+   "6": {
+    "mean": 5.8913,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.7183,
+    "matches": 71
+   },
+   "18": {
+    "mean": 5.7238,
+    "matches": 105
+   },
+   "2": {
+    "mean": 5.3571,
+    "matches": 56
+   },
+   "54": {
+    "mean": 6.2059,
+    "matches": 68
+   },
+   "38": {
+    "mean": 5.8491,
+    "matches": 53
+   },
+   "89": {
+    "mean": 5.5957,
+    "matches": 47
+   },
+   "10": {
+    "mean": 6.3958,
+    "matches": 48
+   },
+   "23": {
+    "mean": 7.0714,
+    "matches": 56
+   },
+   "11": {
+    "mean": 5.8421,
+    "matches": 57
+   },
+   "19": {
+    "mean": 7.0698,
+    "matches": 43
+   },
+   "36": {
+    "mean": 5.1053,
+    "matches": 76
+   },
+   "88": {
+    "mean": 5.5652,
+    "matches": 46
+   },
+   "52": {
+    "mean": 6.1829,
+    "matches": 82
+   },
+   "50": {
+    "mean": 5.95,
+    "matches": 60
+   }
+  },
+  "cards_for": {
+   "34": {
+    "mean": 2.02,
+    "matches": 100
+   },
+   "12": {
+    "mean": 1.7833,
+    "matches": 60
+   },
+   "40": {
+    "mean": 1.5536,
+    "matches": 56
+   },
+   "79": {
+    "mean": 0.7302,
+    "matches": 630
+   },
+   "86": {
+    "mean": 1.8596,
+    "matches": 57
+   },
+   "1": {
+    "mean": 1.7556,
+    "matches": 45
+   },
+   "87": {
+    "mean": 1.8824,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.8125,
+    "matches": 48
+   },
+   "17": {
+    "mean": 1.8243,
+    "matches": 74
+   },
+   "91": {
+    "mean": 1.6984,
+    "matches": 63
+   },
+   "25": {
+    "mean": 2.0159,
+    "matches": 63
+   },
+   "80": {
+    "mean": 2.7324,
+    "matches": 71
+   },
+   "81": {
+    "mean": 2.2,
+    "matches": 40
+   },
+   "85": {
+    "mean": 2.3264,
+    "matches": 144
+   },
+   "72": {
+    "mean": 1.1571,
+    "matches": 70
+   },
+   "83": {
+    "mean": 1.75,
+    "matches": 80
+   },
+   "13": {
+    "mean": 1.9535,
+    "matches": 43
+   },
+   "9": {
+    "mean": 1.9855,
+    "matches": 69
+   },
+   "57": {
+    "mean": 2.0714,
+    "matches": 98
+   },
+   "8": {
+    "mean": 2.0545,
+    "matches": 55
+   },
+   "49": {
+    "mean": 1.3553,
+    "matches": 76
+   },
+   "22": {
+    "mean": 2.24,
+    "matches": 50
+   },
+   "3": {
+    "mean": 2.1154,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.7955,
+    "matches": 44
+   },
+   "26": {
+    "mean": 1.4648,
+    "matches": 71
+   },
+   "18": {
+    "mean": 2.0673,
+    "matches": 104
+   },
+   "2": {
+    "mean": 2.5849,
+    "matches": 53
+   },
+   "82": {
+    "mean": 2.0563,
+    "matches": 71
+   },
+   "54": {
+    "mean": 2.1111,
+    "matches": 63
+   },
+   "38": {
+    "mean": 2.3269,
+    "matches": 52
+   },
+   "89": {
+    "mean": 1.6,
+    "matches": 45
+   },
+   "10": {
+    "mean": 1.375,
+    "matches": 40
+   },
+   "23": {
+    "mean": 2.3704,
+    "matches": 54
+   },
+   "11": {
+    "mean": 2.3148,
+    "matches": 54
+   },
+   "36": {
+    "mean": 1.6892,
+    "matches": 74
+   },
+   "88": {
+    "mean": 2.4533,
+    "matches": 75
+   },
+   "52": {
+    "mean": 1.6173,
+    "matches": 81
+   },
+   "50": {
+    "mean": 1.6271,
+    "matches": 59
+   }
+  },
+  "cards_1h_for": {
+   "34": {
+    "mean": 0.62,
+    "matches": 100
+   },
+   "12": {
+    "mean": 0.6667,
+    "matches": 60
+   },
+   "40": {
+    "mean": 0.6607,
+    "matches": 56
+   },
+   "86": {
+    "mean": 0.5088,
+    "matches": 57
+   },
+   "1": {
+    "mean": 0.5556,
+    "matches": 45
+   },
+   "79": {
+    "mean": 0.32,
+    "matches": 75
+   },
+   "87": {
+    "mean": 0.7353,
+    "matches": 68
+   },
+   "4": {
+    "mean": 0.6875,
+    "matches": 48
+   },
+   "17": {
+    "mean": 0.7432,
+    "matches": 74
+   },
+   "25": {
+    "mean": 0.7143,
+    "matches": 63
+   },
+   "80": {
+    "mean": 1.0,
+    "matches": 71
+   },
+   "85": {
+    "mean": 0.8472,
+    "matches": 144
+   },
+   "72": {
+    "mean": 0.4286,
+    "matches": 70
+   },
+   "13": {
+    "mean": 0.7805,
+    "matches": 41
+   },
+   "83": {
+    "mean": 0.6207,
+    "matches": 58
+   },
+   "9": {
+    "mean": 0.6667,
+    "matches": 69
+   },
+   "57": {
+    "mean": 0.8163,
+    "matches": 98
+   },
+   "49": {
+    "mean": 0.5658,
+    "matches": 76
+   },
+   "3": {
+    "mean": 0.5962,
+    "matches": 52
+   },
+   "6": {
+    "mean": 0.75,
+    "matches": 44
+   },
+   "26": {
+    "mean": 0.5352,
+    "matches": 71
+   },
+   "18": {
+    "mean": 0.6058,
+    "matches": 104
+   },
+   "2": {
+    "mean": 0.9434,
+    "matches": 53
+   },
+   "54": {
+    "mean": 0.6508,
+    "matches": 63
+   },
+   "38": {
+    "mean": 0.7308,
+    "matches": 52
+   },
+   "89": {
+    "mean": 0.5909,
+    "matches": 44
+   },
+   "10": {
+    "mean": 0.375,
+    "matches": 40
+   },
+   "23": {
+    "mean": 0.8704,
+    "matches": 54
+   },
+   "11": {
+    "mean": 0.7736,
+    "matches": 53
+   },
+   "36": {
+    "mean": 0.6622,
+    "matches": 74
+   },
+   "88": {
+    "mean": 0.8696,
+    "matches": 46
+   },
+   "52": {
+    "mean": 0.4691,
+    "matches": 81
+   },
+   "50": {
+    "mean": 0.4237,
+    "matches": 59
+   }
+  },
+  "goals_1h_total": {
+   "34": {
+    "mean": 0.9802,
+    "matches": 101
+   },
+   "12": {
+    "mean": 1.3968,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.2833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 1.4647,
+    "matches": 1713
+   },
+   "86": {
+    "mean": 1.1667,
+    "matches": 60
+   },
+   "1": {
+    "mean": 1.1556,
+    "matches": 45
+   },
+   "87": {
+    "mean": 1.1912,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.0769,
+    "matches": 52
+   },
+   "17": {
+    "mean": 1.4474,
+    "matches": 76
+   },
+   "91": {
+    "mean": 1.1719,
+    "matches": 64
+   },
+   "25": {
+    "mean": 1.2308,
+    "matches": 65
+   },
+   "80": {
+    "mean": 1.1268,
+    "matches": 71
+   },
+   "81": {
+    "mean": 1.1702,
+    "matches": 47
+   },
+   "85": {
+    "mean": 0.8207,
+    "matches": 145
+   },
+   "72": {
+    "mean": 1.4304,
+    "matches": 79
+   },
+   "83": {
+    "mean": 1.1947,
+    "matches": 113
+   },
+   "13": {
+    "mean": 1.449,
+    "matches": 49
+   },
+   "9": {
+    "mean": 1.0857,
+    "matches": 70
+   },
+   "57": {
+    "mean": 1.12,
+    "matches": 100
+   },
+   "8": {
+    "mean": 1.3273,
+    "matches": 55
+   },
+   "14": {
+    "mean": 1.3953,
+    "matches": 43
+   },
+   "49": {
+    "mean": 1.3218,
+    "matches": 87
+   },
+   "22": {
+    "mean": 1.0196,
+    "matches": 51
+   },
+   "3": {
+    "mean": 1.4038,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.1304,
+    "matches": 46
+   },
+   "26": {
+    "mean": 1.3239,
+    "matches": 71
+   },
+   "18": {
+    "mean": 1.5238,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.1964,
+    "matches": 56
+   },
+   "82": {
+    "mean": 1.0423,
+    "matches": 71
+   },
+   "54": {
+    "mean": 1.5294,
+    "matches": 68
+   },
+   "38": {
+    "mean": 1.0377,
+    "matches": 53
+   },
+   "29": {
+    "mean": 0.726,
+    "matches": 73
+   },
+   "89": {
+    "mean": 1.125,
+    "matches": 48
+   },
+   "10": {
+    "mean": 1.4898,
+    "matches": 49
+   },
+   "23": {
+    "mean": 1.125,
+    "matches": 56
+   },
+   "11": {
+    "mean": 1.3684,
+    "matches": 57
+   },
+   "19": {
+    "mean": 1.3721,
+    "matches": 43
+   },
+   "36": {
+    "mean": 1.3125,
+    "matches": 80
+   },
+   "47": {
+    "mean": 0.7857,
+    "matches": 42
+   },
+   "88": {
+    "mean": 1.0533,
+    "matches": 75
+   },
+   "28": {
+    "mean": 1.0741,
+    "matches": 54
+   },
+   "52": {
+    "mean": 1.4024,
+    "matches": 82
+   },
+   "50": {
+    "mean": 1.1333,
+    "matches": 60
+   }
+  },
+  "shots_on_target_2h_total": {
+   "34": {
+    "mean": 4.5347,
+    "matches": 101
+   },
+   "12": {
+    "mean": 4.6349,
+    "matches": 63
+   },
+   "40": {
+    "mean": 4.8,
+    "matches": 60
+   },
+   "86": {
+    "mean": 4.5833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 5.0882,
+    "matches": 102
+   },
+   "1": {
+    "mean": 4.6667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 4.4853,
+    "matches": 68
+   },
+   "4": {
+    "mean": 4.7,
+    "matches": 50
+   },
+   "17": {
+    "mean": 5.1316,
+    "matches": 76
+   },
+   "25": {
+    "mean": 5.3594,
+    "matches": 64
+   },
+   "80": {
+    "mean": 4.831,
+    "matches": 71
+   },
+   "85": {
+    "mean": 4.8897,
+    "matches": 145
+   },
+   "72": {
+    "mean": 5.3544,
+    "matches": 79
+   },
+   "13": {
+    "mean": 4.814,
+    "matches": 43
+   },
+   "83": {
+    "mean": 5.4603,
+    "matches": 63
+   },
+   "9": {
+    "mean": 4.8429,
+    "matches": 70
+   },
+   "57": {
+    "mean": 4.55,
+    "matches": 100
+   },
+   "14": {
+    "mean": 5.3333,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.5747,
+    "matches": 87
+   },
+   "3": {
+    "mean": 4.7885,
+    "matches": 52
+   },
+   "6": {
+    "mean": 4.6739,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.1831,
+    "matches": 71
+   },
+   "18": {
+    "mean": 5.0667,
+    "matches": 105
+   },
+   "2": {
+    "mean": 3.875,
+    "matches": 56
+   },
+   "54": {
+    "mean": 5.0588,
+    "matches": 68
+   },
+   "38": {
+    "mean": 4.434,
+    "matches": 53
+   },
+   "89": {
+    "mean": 5.1064,
+    "matches": 47
+   },
+   "10": {
+    "mean": 5.8958,
+    "matches": 48
+   },
+   "23": {
+    "mean": 5.0714,
+    "matches": 56
+   },
+   "11": {
+    "mean": 4.9825,
+    "matches": 57
+   },
+   "19": {
+    "mean": 5.2326,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.7632,
+    "matches": 76
+   },
+   "88": {
+    "mean": 4.2174,
+    "matches": 46
+   },
+   "52": {
+    "mean": 5.561,
+    "matches": 82
+   },
+   "50": {
+    "mean": 5.1,
+    "matches": 60
+   }
+  },
+  "fouls_2h_total": {
+   "34": {
+    "mean": 15.0198,
+    "matches": 101
+   },
+   "12": {
+    "mean": 11.4286,
+    "matches": 63
+   },
+   "40": {
+    "mean": 11.3833,
+    "matches": 60
+   },
+   "86": {
+    "mean": 13.2333,
+    "matches": 60
+   },
+   "79": {
+    "mean": 11.4848,
+    "matches": 99
+   },
+   "1": {
+    "mean": 11.1556,
+    "matches": 45
+   },
+   "87": {
+    "mean": 11.9559,
+    "matches": 68
+   },
+   "4": {
+    "mean": 12.44,
+    "matches": 50
+   },
+   "17": {
+    "mean": 11.8816,
+    "matches": 76
+   },
+   "25": {
+    "mean": 13.25,
+    "matches": 64
+   },
+   "80": {
+    "mean": 12.9014,
+    "matches": 71
+   },
+   "85": {
+    "mean": 12.5517,
+    "matches": 145
+   },
+   "72": {
+    "mean": 10.557,
+    "matches": 79
+   },
+   "13": {
+    "mean": 12.7674,
+    "matches": 43
+   },
+   "83": {
+    "mean": 13.6667,
+    "matches": 63
+   },
+   "9": {
+    "mean": 13.0857,
+    "matches": 70
+   },
+   "57": {
+    "mean": 13.25,
+    "matches": 100
+   },
+   "14": {
+    "mean": 11.4286,
+    "matches": 42
+   },
+   "49": {
+    "mean": 10.954,
+    "matches": 87
+   },
+   "3": {
+    "mean": 13.6923,
+    "matches": 52
+   },
+   "6": {
+    "mean": 11.7609,
+    "matches": 46
+   },
+   "26": {
+    "mean": 12.8028,
+    "matches": 71
+   },
+   "18": {
+    "mean": 12.1238,
+    "matches": 105
+   },
+   "2": {
+    "mean": 13.9286,
+    "matches": 56
+   },
+   "54": {
+    "mean": 13.0735,
+    "matches": 68
+   },
+   "38": {
+    "mean": 13.4151,
+    "matches": 53
+   },
+   "89": {
+    "mean": 14.1915,
+    "matches": 47
+   },
+   "10": {
+    "mean": 10.6042,
+    "matches": 48
+   },
+   "23": {
+    "mean": 12.3036,
+    "matches": 56
+   },
+   "11": {
+    "mean": 13.4912,
+    "matches": 57
+   },
+   "19": {
+    "mean": 11.9302,
+    "matches": 43
+   },
+   "36": {
+    "mean": 9.0789,
+    "matches": 76
+   },
+   "88": {
+    "mean": 14.7609,
+    "matches": 46
+   },
+   "52": {
+    "mean": 12.8659,
+    "matches": 82
+   },
+   "50": {
+    "mean": 11.7317,
+    "matches": 41
+   }
+  },
+  "cards_2h_for": {
+   "34": {
+    "mean": 1.4,
+    "matches": 100
+   },
+   "12": {
+    "mean": 1.1,
+    "matches": 60
+   },
+   "40": {
+    "mean": 0.875,
+    "matches": 56
+   },
+   "86": {
+    "mean": 1.3509,
+    "matches": 57
+   },
+   "1": {
+    "mean": 1.2,
+    "matches": 45
+   },
+   "79": {
+    "mean": 0.6133,
+    "matches": 75
+   },
+   "87": {
+    "mean": 1.1471,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.125,
+    "matches": 48
+   },
+   "17": {
+    "mean": 1.1081,
+    "matches": 74
+   },
+   "25": {
+    "mean": 1.3333,
+    "matches": 63
+   },
+   "80": {
+    "mean": 1.7324,
+    "matches": 71
+   },
+   "85": {
+    "mean": 1.4653,
+    "matches": 144
+   },
+   "72": {
+    "mean": 0.7571,
+    "matches": 70
+   },
+   "13": {
+    "mean": 1.1951,
+    "matches": 41
+   },
+   "83": {
+    "mean": 1.1053,
+    "matches": 57
+   },
+   "9": {
+    "mean": 1.3188,
+    "matches": 69
+   },
+   "57": {
+    "mean": 1.2551,
+    "matches": 98
+   },
+   "49": {
+    "mean": 0.7895,
+    "matches": 76
+   },
+   "3": {
+    "mean": 1.5385,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.0455,
+    "matches": 44
+   },
+   "26": {
+    "mean": 0.9296,
+    "matches": 71
+   },
+   "18": {
+    "mean": 1.4712,
+    "matches": 104
+   },
+   "2": {
+    "mean": 1.6415,
+    "matches": 53
+   },
+   "54": {
+    "mean": 1.4762,
+    "matches": 63
+   },
+   "38": {
+    "mean": 1.5962,
+    "matches": 52
+   },
+   "89": {
+    "mean": 1.0227,
+    "matches": 44
+   },
+   "10": {
+    "mean": 0.975,
+    "matches": 40
+   },
+   "23": {
+    "mean": 1.5185,
+    "matches": 54
+   },
+   "11": {
+    "mean": 1.5741,
+    "matches": 54
+   },
+   "36": {
+    "mean": 1.0405,
+    "matches": 74
+   },
+   "88": {
+    "mean": 1.5,
+    "matches": 46
+   },
+   "52": {
+    "mean": 1.1605,
+    "matches": 81
+   },
+   "50": {
+    "mean": 1.2034,
+    "matches": 59
+   }
+  },
+  "shots_off_target_total": {
+   "34": {
+    "mean": 12.2277,
+    "matches": 101
+   },
+   "12": {
+    "mean": 10.1587,
+    "matches": 63
+   },
+   "40": {
+    "mean": 10.4667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 10.2667,
+    "matches": 60
+   },
+   "79": {
+    "mean": 8.8632,
+    "matches": 117
+   },
+   "1": {
+    "mean": 10.3556,
+    "matches": 45
+   },
+   "87": {
+    "mean": 9.7647,
+    "matches": 68
+   },
+   "4": {
+    "mean": 11.18,
+    "matches": 50
+   },
+   "17": {
+    "mean": 10.0395,
+    "matches": 76
+   },
+   "91": {
+    "mean": 7.2857,
+    "matches": 63
+   },
+   "25": {
+    "mean": 12.2656,
+    "matches": 64
+   },
+   "80": {
+    "mean": 10.5493,
+    "matches": 71
+   },
+   "81": {
+    "mean": 9.625,
+    "matches": 40
+   },
+   "85": {
+    "mean": 11.8138,
+    "matches": 145
+   },
+   "72": {
+    "mean": 10.8354,
+    "matches": 79
+   },
+   "83": {
+    "mean": 10.7059,
+    "matches": 85
+   },
+   "13": {
+    "mean": 10.2558,
+    "matches": 43
+   },
+   "9": {
+    "mean": 12.1286,
+    "matches": 70
+   },
+   "57": {
+    "mean": 10.62,
+    "matches": 100
+   },
+   "8": {
+    "mean": 10.8571,
+    "matches": 42
+   },
+   "14": {
+    "mean": 11.3571,
+    "matches": 42
+   },
+   "49": {
+    "mean": 10.5977,
+    "matches": 87
+   },
+   "3": {
+    "mean": 9.9231,
+    "matches": 52
+   },
+   "6": {
+    "mean": 11.0435,
+    "matches": 46
+   },
+   "26": {
+    "mean": 10.7465,
+    "matches": 71
+   },
+   "18": {
+    "mean": 9.9905,
+    "matches": 105
+   },
+   "2": {
+    "mean": 10.2857,
+    "matches": 56
+   },
+   "82": {
+    "mean": 7.7183,
+    "matches": 71
+   },
+   "54": {
+    "mean": 11.5588,
+    "matches": 68
+   },
+   "38": {
+    "mean": 10.566,
+    "matches": 53
+   },
+   "89": {
+    "mean": 10.0,
+    "matches": 48
+   },
+   "10": {
+    "mean": 11.5625,
+    "matches": 48
+   },
+   "23": {
+    "mean": 13.1071,
+    "matches": 56
+   },
+   "11": {
+    "mean": 10.7368,
+    "matches": 57
+   },
+   "19": {
+    "mean": 13.0698,
+    "matches": 43
+   },
+   "36": {
+    "mean": 9.3684,
+    "matches": 76
+   },
+   "88": {
+    "mean": 10.413,
+    "matches": 46
+   },
+   "52": {
+    "mean": 11.4146,
+    "matches": 82
+   },
+   "50": {
+    "mean": 10.55,
+    "matches": 60
+   }
+  },
+  "shots_on_target_total": {
+   "34": {
+    "mean": 8.3465,
+    "matches": 101
+   },
+   "12": {
+    "mean": 8.5714,
+    "matches": 63
+   },
+   "40": {
+    "mean": 9.3,
+    "matches": 60
+   },
+   "86": {
+    "mean": 8.6833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 9.0342,
+    "matches": 117
+   },
+   "1": {
+    "mean": 8.7111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 8.0441,
+    "matches": 68
+   },
+   "4": {
+    "mean": 8.62,
+    "matches": 50
+   },
+   "17": {
+    "mean": 9.4868,
+    "matches": 76
+   },
+   "91": {
+    "mean": 9.0635,
+    "matches": 63
+   },
+   "25": {
+    "mean": 9.1562,
+    "matches": 64
+   },
+   "80": {
+    "mean": 9.3803,
+    "matches": 71
+   },
+   "81": {
+    "mean": 8.675,
+    "matches": 40
+   },
+   "85": {
+    "mean": 8.5655,
+    "matches": 145
+   },
+   "72": {
+    "mean": 10.0506,
+    "matches": 79
+   },
+   "83": {
+    "mean": 9.6588,
+    "matches": 85
+   },
+   "13": {
+    "mean": 8.8605,
+    "matches": 43
+   },
+   "9": {
+    "mean": 8.6714,
+    "matches": 70
+   },
+   "57": {
+    "mean": 8.43,
+    "matches": 100
+   },
+   "8": {
+    "mean": 9.2381,
+    "matches": 42
+   },
+   "14": {
+    "mean": 9.4048,
+    "matches": 42
+   },
+   "49": {
+    "mean": 8.8851,
+    "matches": 87
+   },
+   "3": {
+    "mean": 8.8846,
+    "matches": 52
+   },
+   "6": {
+    "mean": 8.9783,
+    "matches": 46
+   },
+   "26": {
+    "mean": 9.5211,
+    "matches": 71
+   },
+   "18": {
+    "mean": 9.4571,
+    "matches": 105
+   },
+   "2": {
+    "mean": 7.3571,
+    "matches": 56
+   },
+   "82": {
+    "mean": 7.9577,
+    "matches": 71
+   },
+   "54": {
+    "mean": 9.5441,
+    "matches": 68
+   },
+   "38": {
+    "mean": 8.2642,
+    "matches": 53
+   },
+   "89": {
+    "mean": 8.6458,
+    "matches": 48
+   },
+   "10": {
+    "mean": 10.6667,
+    "matches": 48
+   },
+   "23": {
+    "mean": 9.0179,
+    "matches": 56
+   },
+   "11": {
+    "mean": 8.8246,
+    "matches": 57
+   },
+   "19": {
+    "mean": 9.4419,
+    "matches": 43
+   },
+   "36": {
+    "mean": 8.6579,
+    "matches": 76
+   },
+   "88": {
+    "mean": 7.413,
+    "matches": 46
+   },
+   "52": {
+    "mean": 9.5976,
+    "matches": 82
+   },
+   "50": {
+    "mean": 8.6333,
+    "matches": 60
+   }
+  },
+  "goals_1h_for": {
+   "34": {
+    "mean": 0.4455,
+    "matches": 101
+   },
+   "12": {
+    "mean": 0.6032,
+    "matches": 63
+   },
+   "40": {
+    "mean": 0.7667,
+    "matches": 60
+   },
+   "79": {
+    "mean": 0.8488,
+    "matches": 1713
+   },
+   "86": {
+    "mean": 0.5333,
+    "matches": 60
+   },
+   "1": {
+    "mean": 0.7778,
+    "matches": 45
+   },
+   "87": {
+    "mean": 0.4265,
+    "matches": 68
+   },
+   "4": {
+    "mean": 0.5962,
+    "matches": 52
+   },
+   "17": {
+    "mean": 0.5526,
+    "matches": 76
+   },
+   "91": {
+    "mean": 0.6719,
+    "matches": 64
+   },
+   "25": {
+    "mean": 0.4769,
+    "matches": 65
+   },
+   "80": {
+    "mean": 0.507,
+    "matches": 71
+   },
+   "81": {
+    "mean": 0.8298,
+    "matches": 47
+   },
+   "85": {
+    "mean": 0.3931,
+    "matches": 145
+   },
+   "72": {
+    "mean": 0.7215,
+    "matches": 79
+   },
+   "83": {
+    "mean": 0.708,
+    "matches": 113
+   },
+   "13": {
+    "mean": 0.5714,
+    "matches": 49
+   },
+   "9": {
+    "mean": 0.4571,
+    "matches": 70
+   },
+   "57": {
+    "mean": 0.45,
+    "matches": 100
+   },
+   "8": {
+    "mean": 0.6909,
+    "matches": 55
+   },
+   "14": {
+    "mean": 0.6977,
+    "matches": 43
+   },
+   "49": {
+    "mean": 0.6667,
+    "matches": 87
+   },
+   "22": {
+    "mean": 0.451,
+    "matches": 51
+   },
+   "3": {
+    "mean": 0.5769,
+    "matches": 52
+   },
+   "6": {
+    "mean": 0.587,
+    "matches": 46
+   },
+   "26": {
+    "mean": 0.6197,
+    "matches": 71
+   },
+   "18": {
+    "mean": 0.7429,
+    "matches": 105
+   },
+   "2": {
+    "mean": 0.3929,
+    "matches": 56
+   },
+   "82": {
+    "mean": 0.493,
+    "matches": 71
+   },
+   "54": {
+    "mean": 0.7206,
+    "matches": 68
+   },
+   "38": {
+    "mean": 0.566,
+    "matches": 53
+   },
+   "29": {
+    "mean": 0.3973,
+    "matches": 73
+   },
+   "89": {
+    "mean": 0.6875,
+    "matches": 48
+   },
+   "10": {
+    "mean": 0.7959,
+    "matches": 49
+   },
+   "23": {
+    "mean": 0.6071,
+    "matches": 56
+   },
+   "11": {
+    "mean": 0.4386,
+    "matches": 57
+   },
+   "19": {
+    "mean": 0.7209,
+    "matches": 43
+   },
+   "36": {
+    "mean": 0.7125,
+    "matches": 80
+   },
+   "47": {
+    "mean": 0.4524,
+    "matches": 42
+   },
+   "88": {
+    "mean": 0.6,
+    "matches": 75
+   },
+   "28": {
+    "mean": 0.5741,
+    "matches": 54
+   },
+   "52": {
+    "mean": 0.6707,
+    "matches": 82
+   },
+   "50": {
+    "mean": 0.4833,
+    "matches": 60
+   }
+  },
+  "goals_2h_for": {
+   "34": {
+    "mean": 0.5941,
+    "matches": 101
+   },
+   "12": {
+    "mean": 0.8889,
+    "matches": 63
+   },
+   "40": {
+    "mean": 0.95,
+    "matches": 60
+   },
+   "79": {
+    "mean": 1.0286,
+    "matches": 1713
+   },
+   "86": {
+    "mean": 0.8,
+    "matches": 60
+   },
+   "1": {
+    "mean": 0.8889,
+    "matches": 45
+   },
+   "87": {
+    "mean": 0.7647,
+    "matches": 68
+   },
+   "4": {
+    "mean": 0.6346,
+    "matches": 52
+   },
+   "17": {
+    "mean": 0.6447,
+    "matches": 76
+   },
+   "91": {
+    "mean": 0.875,
+    "matches": 64
+   },
+   "25": {
+    "mean": 0.8308,
+    "matches": 65
+   },
+   "80": {
+    "mean": 0.662,
+    "matches": 71
+   },
+   "81": {
+    "mean": 0.8936,
+    "matches": 47
+   },
+   "85": {
+    "mean": 0.6138,
+    "matches": 145
+   },
+   "72": {
+    "mean": 0.7215,
+    "matches": 79
+   },
+   "83": {
+    "mean": 1.1858,
+    "matches": 113
+   },
+   "13": {
+    "mean": 0.6939,
+    "matches": 49
+   },
+   "9": {
+    "mean": 0.7,
+    "matches": 70
+   },
+   "57": {
+    "mean": 0.77,
+    "matches": 100
+   },
+   "8": {
+    "mean": 0.6,
+    "matches": 55
+   },
+   "14": {
+    "mean": 0.9535,
+    "matches": 43
+   },
+   "49": {
+    "mean": 0.8506,
+    "matches": 87
+   },
+   "22": {
+    "mean": 0.7059,
+    "matches": 51
+   },
+   "3": {
+    "mean": 0.5385,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.0217,
+    "matches": 46
+   },
+   "26": {
+    "mean": 0.9155,
+    "matches": 71
+   },
+   "18": {
+    "mean": 0.9619,
+    "matches": 105
+   },
+   "2": {
+    "mean": 0.5536,
+    "matches": 56
+   },
+   "82": {
+    "mean": 0.6479,
+    "matches": 71
+   },
+   "54": {
+    "mean": 0.7941,
+    "matches": 68
+   },
+   "38": {
+    "mean": 0.6038,
+    "matches": 53
+   },
+   "29": {
+    "mean": 0.5753,
+    "matches": 73
+   },
+   "89": {
+    "mean": 0.8542,
+    "matches": 48
+   },
+   "10": {
+    "mean": 1.1429,
+    "matches": 49
+   },
+   "23": {
+    "mean": 0.625,
+    "matches": 56
+   },
+   "11": {
+    "mean": 0.7368,
+    "matches": 57
+   },
+   "19": {
+    "mean": 0.6744,
+    "matches": 43
+   },
+   "36": {
+    "mean": 1.0375,
+    "matches": 80
+   },
+   "47": {
+    "mean": 0.4048,
+    "matches": 42
+   },
+   "88": {
+    "mean": 0.6,
+    "matches": 75
+   },
+   "28": {
+    "mean": 0.7407,
+    "matches": 54
+   },
+   "52": {
+    "mean": 0.9512,
+    "matches": 82
+   },
+   "50": {
+    "mean": 0.6167,
+    "matches": 60
+   }
+  },
+  "goals_2h_total": {
+   "34": {
+    "mean": 1.3069,
+    "matches": 101
+   },
+   "12": {
+    "mean": 1.5397,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.6,
+    "matches": 60
+   },
+   "79": {
+    "mean": 1.7402,
+    "matches": 1713
+   },
+   "86": {
+    "mean": 1.8333,
+    "matches": 60
+   },
+   "1": {
+    "mean": 1.7111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 1.5735,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.5192,
+    "matches": 52
+   },
+   "17": {
+    "mean": 1.5132,
+    "matches": 76
+   },
+   "91": {
+    "mean": 1.9219,
+    "matches": 64
+   },
+   "25": {
+    "mean": 1.8154,
+    "matches": 65
+   },
+   "80": {
+    "mean": 1.3803,
+    "matches": 71
+   },
+   "81": {
+    "mean": 1.4043,
+    "matches": 47
+   },
+   "85": {
+    "mean": 1.3724,
+    "matches": 145
+   },
+   "72": {
+    "mean": 1.557,
+    "matches": 79
+   },
+   "83": {
+    "mean": 1.7522,
+    "matches": 113
+   },
+   "13": {
+    "mean": 1.3878,
+    "matches": 49
+   },
+   "9": {
+    "mean": 1.4857,
+    "matches": 70
+   },
+   "57": {
+    "mean": 1.53,
+    "matches": 100
+   },
+   "8": {
+    "mean": 1.3818,
+    "matches": 55
+   },
+   "14": {
+    "mean": 1.8372,
+    "matches": 43
+   },
+   "49": {
+    "mean": 1.6897,
+    "matches": 87
+   },
+   "22": {
+    "mean": 1.6667,
+    "matches": 51
+   },
+   "3": {
+    "mean": 1.3269,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.7609,
+    "matches": 46
+   },
+   "26": {
+    "mean": 1.5634,
+    "matches": 71
+   },
+   "18": {
+    "mean": 1.6571,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.3393,
+    "matches": 56
+   },
+   "82": {
+    "mean": 1.2254,
+    "matches": 71
+   },
+   "54": {
+    "mean": 1.7353,
+    "matches": 68
+   },
+   "38": {
+    "mean": 1.3774,
+    "matches": 53
+   },
+   "29": {
+    "mean": 0.9863,
+    "matches": 73
+   },
+   "89": {
+    "mean": 1.5625,
+    "matches": 48
+   },
+   "10": {
+    "mean": 2.2041,
+    "matches": 49
+   },
+   "23": {
+    "mean": 1.3393,
+    "matches": 56
+   },
+   "11": {
+    "mean": 1.4737,
+    "matches": 57
+   },
+   "19": {
+    "mean": 1.5581,
+    "matches": 43
+   },
+   "36": {
+    "mean": 1.5625,
+    "matches": 80
+   },
+   "47": {
+    "mean": 0.9524,
+    "matches": 42
+   },
+   "88": {
+    "mean": 1.1467,
+    "matches": 75
+   },
+   "28": {
+    "mean": 1.463,
+    "matches": 54
+   },
+   "52": {
+    "mean": 1.9024,
+    "matches": 82
+   },
+   "50": {
+    "mean": 1.5,
+    "matches": 60
+   }
+  },
+  "fouls_2h_for": {
+   "34": {
+    "mean": 7.4455,
+    "matches": 101
+   },
+   "12": {
+    "mean": 5.8889,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.6,
+    "matches": 60
+   },
+   "86": {
+    "mean": 6.8833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 6.0909,
+    "matches": 99
+   },
+   "1": {
+    "mean": 5.8889,
+    "matches": 45
+   },
+   "87": {
+    "mean": 6.3529,
+    "matches": 68
+   },
+   "4": {
+    "mean": 6.56,
+    "matches": 50
+   },
+   "17": {
+    "mean": 6.0789,
+    "matches": 76
+   },
+   "25": {
+    "mean": 6.5,
+    "matches": 64
+   },
+   "80": {
+    "mean": 6.493,
+    "matches": 71
+   },
+   "85": {
+    "mean": 6.0828,
+    "matches": 145
+   },
+   "72": {
+    "mean": 5.2911,
+    "matches": 79
+   },
+   "13": {
+    "mean": 6.7209,
+    "matches": 43
+   },
+   "83": {
+    "mean": 6.746,
+    "matches": 63
+   },
+   "9": {
+    "mean": 6.3,
+    "matches": 70
+   },
+   "57": {
+    "mean": 6.86,
+    "matches": 100
+   },
+   "14": {
+    "mean": 5.7381,
+    "matches": 42
+   },
+   "49": {
+    "mean": 5.4023,
+    "matches": 87
+   },
+   "3": {
+    "mean": 6.8269,
+    "matches": 52
+   },
+   "6": {
+    "mean": 5.8261,
+    "matches": 46
+   },
+   "26": {
+    "mean": 6.4648,
+    "matches": 71
+   },
+   "18": {
+    "mean": 6.1143,
+    "matches": 105
+   },
+   "2": {
+    "mean": 6.9286,
+    "matches": 56
+   },
+   "54": {
+    "mean": 7.2206,
+    "matches": 68
+   },
+   "38": {
+    "mean": 6.6415,
+    "matches": 53
+   },
+   "89": {
+    "mean": 7.0,
+    "matches": 47
+   },
+   "10": {
+    "mean": 5.25,
+    "matches": 48
+   },
+   "23": {
+    "mean": 6.4107,
+    "matches": 56
+   },
+   "11": {
+    "mean": 6.5789,
+    "matches": 57
+   },
+   "19": {
+    "mean": 5.7674,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.8158,
+    "matches": 76
+   },
+   "88": {
+    "mean": 7.5435,
+    "matches": 46
+   },
+   "52": {
+    "mean": 6.6707,
+    "matches": 82
+   },
+   "50": {
+    "mean": 6.1463,
+    "matches": 41
+   }
+  },
+  "corners_1h_total": {
+   "34": {
+    "mean": 5.1683,
+    "matches": 101
+   },
+   "12": {
+    "mean": 4.2381,
+    "matches": 63
+   },
+   "40": {
+    "mean": 4.75,
+    "matches": 60
+   },
+   "86": {
+    "mean": 5.0167,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.2404,
+    "matches": 104
+   },
+   "1": {
+    "mean": 5.1333,
+    "matches": 45
+   },
+   "87": {
+    "mean": 4.2794,
+    "matches": 68
+   },
+   "4": {
+    "mean": 4.14,
+    "matches": 50
+   },
+   "17": {
+    "mean": 4.5,
+    "matches": 76
+   },
+   "25": {
+    "mean": 4.7188,
+    "matches": 64
+   },
+   "80": {
+    "mean": 4.6761,
+    "matches": 71
+   },
+   "85": {
+    "mean": 4.269,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.2405,
+    "matches": 79
+   },
+   "13": {
+    "mean": 5.1628,
+    "matches": 43
+   },
+   "83": {
+    "mean": 4.6984,
+    "matches": 63
+   },
+   "9": {
+    "mean": 4.9286,
+    "matches": 70
+   },
+   "57": {
+    "mean": 4.35,
+    "matches": 100
+   },
+   "14": {
+    "mean": 4.7857,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.1494,
+    "matches": 87
+   },
+   "3": {
+    "mean": 4.9808,
+    "matches": 52
+   },
+   "6": {
+    "mean": 4.8696,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.1972,
+    "matches": 71
+   },
+   "18": {
+    "mean": 4.7238,
+    "matches": 105
+   },
+   "2": {
+    "mean": 4.3036,
+    "matches": 56
+   },
+   "54": {
+    "mean": 5.4118,
+    "matches": 68
+   },
+   "38": {
+    "mean": 4.1321,
+    "matches": 53
+   },
+   "89": {
+    "mean": 4.2553,
+    "matches": 47
+   },
+   "10": {
+    "mean": 4.7917,
+    "matches": 48
+   },
+   "23": {
+    "mean": 4.2679,
+    "matches": 56
+   },
+   "11": {
+    "mean": 4.1404,
+    "matches": 57
+   },
+   "19": {
+    "mean": 5.5116,
+    "matches": 43
+   },
+   "36": {
+    "mean": 3.8553,
+    "matches": 76
+   },
+   "88": {
+    "mean": 4.3261,
+    "matches": 46
+   },
+   "52": {
+    "mean": 4.5732,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.3,
+    "matches": 60
+   }
+  },
+  "shots_total": {
+   "34": {
+    "mean": 28.0,
+    "matches": 101
+   },
+   "12": {
+    "mean": 27.0794,
+    "matches": 63
+   },
+   "40": {
+    "mean": 27.4167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 26.4333,
+    "matches": 60
+   },
+   "79": {
+    "mean": 23.9811,
+    "matches": 106
+   },
+   "1": {
+    "mean": 26.9778,
+    "matches": 45
+   },
+   "87": {
+    "mean": 25.2794,
+    "matches": 68
+   },
+   "4": {
+    "mean": 25.98,
+    "matches": 50
+   },
+   "17": {
+    "mean": 25.3684,
+    "matches": 76
+   },
+   "91": {
+    "mean": 23.0635,
+    "matches": 63
+   },
+   "25": {
+    "mean": 29.4844,
+    "matches": 64
+   },
+   "80": {
+    "mean": 26.1127,
+    "matches": 71
+   },
+   "81": {
+    "mean": 24.35,
+    "matches": 40
+   },
+   "85": {
+    "mean": 26.7172,
+    "matches": 145
+   },
+   "72": {
+    "mean": 27.7975,
+    "matches": 79
+   },
+   "13": {
+    "mean": 27.0,
+    "matches": 43
+   },
+   "83": {
+    "mean": 28.9524,
+    "matches": 63
+   },
+   "9": {
+    "mean": 29.0571,
+    "matches": 70
+   },
+   "57": {
+    "mean": 25.9,
+    "matches": 100
+   },
+   "14": {
+    "mean": 28.7143,
+    "matches": 42
+   },
+   "49": {
+    "mean": 26.4598,
+    "matches": 87
+   },
+   "3": {
+    "mean": 24.7885,
+    "matches": 52
+   },
+   "6": {
+    "mean": 26.913,
+    "matches": 46
+   },
+   "26": {
+    "mean": 28.2535,
+    "matches": 71
+   },
+   "18": {
+    "mean": 26.4571,
+    "matches": 105
+   },
+   "2": {
+    "mean": 23.9464,
+    "matches": 56
+   },
+   "54": {
+    "mean": 28.9559,
+    "matches": 68
+   },
+   "38": {
+    "mean": 24.8491,
+    "matches": 53
+   },
+   "89": {
+    "mean": 24.2708,
+    "matches": 48
+   },
+   "10": {
+    "mean": 29.75,
+    "matches": 48
+   },
+   "23": {
+    "mean": 28.7857,
+    "matches": 56
+   },
+   "11": {
+    "mean": 25.8772,
+    "matches": 57
+   },
+   "19": {
+    "mean": 29.3256,
+    "matches": 43
+   },
+   "36": {
+    "mean": 22.8947,
+    "matches": 76
+   },
+   "88": {
+    "mean": 24.2174,
+    "matches": 46
+   },
+   "52": {
+    "mean": 27.8415,
+    "matches": 82
+   },
+   "50": {
+    "mean": 26.15,
+    "matches": 60
+   }
+  },
+  "shots_off_target_1h_total": {
+   "34": {
+    "mean": 6.0396,
+    "matches": 101
+   },
+   "12": {
+    "mean": 4.7302,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.15,
+    "matches": 60
+   },
+   "86": {
+    "mean": 4.2667,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.1923,
+    "matches": 104
+   },
+   "1": {
+    "mean": 4.9333,
+    "matches": 45
+   },
+   "87": {
+    "mean": 4.8235,
+    "matches": 68
+   },
+   "4": {
+    "mean": 5.16,
+    "matches": 50
+   },
+   "17": {
+    "mean": 4.3684,
+    "matches": 76
+   },
+   "25": {
+    "mean": 6.125,
+    "matches": 64
+   },
+   "80": {
+    "mean": 5.169,
+    "matches": 71
+   },
+   "85": {
+    "mean": 5.5172,
+    "matches": 145
+   },
+   "72": {
+    "mean": 5.2405,
+    "matches": 79
+   },
+   "13": {
+    "mean": 4.8605,
+    "matches": 43
+   },
+   "83": {
+    "mean": 5.2222,
+    "matches": 63
+   },
+   "9": {
+    "mean": 5.4571,
+    "matches": 70
+   },
+   "57": {
+    "mean": 5.16,
+    "matches": 100
+   },
+   "14": {
+    "mean": 5.3333,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.9195,
+    "matches": 87
+   },
+   "3": {
+    "mean": 4.6923,
+    "matches": 52
+   },
+   "6": {
+    "mean": 5.1739,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.0423,
+    "matches": 71
+   },
+   "18": {
+    "mean": 4.3048,
+    "matches": 105
+   },
+   "2": {
+    "mean": 4.9286,
+    "matches": 56
+   },
+   "54": {
+    "mean": 5.3676,
+    "matches": 68
+   },
+   "38": {
+    "mean": 4.717,
+    "matches": 53
+   },
+   "89": {
+    "mean": 4.617,
+    "matches": 47
+   },
+   "10": {
+    "mean": 5.0417,
+    "matches": 48
+   },
+   "23": {
+    "mean": 6.0714,
+    "matches": 56
+   },
+   "11": {
+    "mean": 4.8947,
+    "matches": 57
+   },
+   "19": {
+    "mean": 6.0698,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.2763,
+    "matches": 76
+   },
+   "88": {
+    "mean": 4.8478,
+    "matches": 46
+   },
+   "52": {
+    "mean": 5.2073,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.6,
+    "matches": 60
+   }
+  },
+  "corners_2h_for": {
+   "34": {
+    "mean": 2.9208,
+    "matches": 101
+   },
+   "12": {
+    "mean": 2.9841,
+    "matches": 63
+   },
+   "40": {
+    "mean": 2.9167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 2.9,
+    "matches": 60
+   },
+   "79": {
+    "mean": 2.451,
+    "matches": 102
+   },
+   "1": {
+    "mean": 2.5111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 2.8676,
+    "matches": 68
+   },
+   "4": {
+    "mean": 2.16,
+    "matches": 50
+   },
+   "17": {
+    "mean": 2.3684,
+    "matches": 76
+   },
+   "25": {
+    "mean": 2.9844,
+    "matches": 64
+   },
+   "80": {
+    "mean": 2.2817,
+    "matches": 71
+   },
+   "85": {
+    "mean": 2.2,
+    "matches": 145
+   },
+   "72": {
+    "mean": 2.443,
+    "matches": 79
+   },
+   "13": {
+    "mean": 2.6744,
+    "matches": 43
+   },
+   "83": {
+    "mean": 3.1587,
+    "matches": 63
+   },
+   "9": {
+    "mean": 2.3857,
+    "matches": 70
+   },
+   "57": {
+    "mean": 2.86,
+    "matches": 100
+   },
+   "14": {
+    "mean": 2.6667,
+    "matches": 42
+   },
+   "49": {
+    "mean": 2.2874,
+    "matches": 87
+   },
+   "3": {
+    "mean": 2.3654,
+    "matches": 52
+   },
+   "6": {
+    "mean": 3.0217,
+    "matches": 46
+   },
+   "26": {
+    "mean": 2.7183,
+    "matches": 71
+   },
+   "18": {
+    "mean": 2.5333,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.875,
+    "matches": 56
+   },
+   "54": {
+    "mean": 2.6912,
+    "matches": 68
+   },
+   "38": {
+    "mean": 2.566,
+    "matches": 53
+   },
+   "89": {
+    "mean": 2.3617,
+    "matches": 47
+   },
+   "10": {
+    "mean": 3.1458,
+    "matches": 48
+   },
+   "23": {
+    "mean": 2.4464,
+    "matches": 56
+   },
+   "11": {
+    "mean": 2.1404,
+    "matches": 57
+   },
+   "19": {
+    "mean": 2.2326,
+    "matches": 43
+   },
+   "36": {
+    "mean": 2.2368,
+    "matches": 76
+   },
+   "88": {
+    "mean": 2.3478,
+    "matches": 46
+   },
+   "52": {
+    "mean": 2.5366,
+    "matches": 82
+   },
+   "50": {
+    "mean": 2.5,
+    "matches": 60
+   }
+  },
+  "offsides_1h_for": {
+   "34": {
+    "mean": 0.8646,
+    "matches": 96
+   },
+   "12": {
+    "mean": 1.2222,
+    "matches": 63
+   },
+   "40": {
+    "mean": 0.931,
+    "matches": 58
+   },
+   "86": {
+    "mean": 0.9661,
+    "matches": 59
+   },
+   "79": {
+    "mean": 0.8416,
+    "matches": 101
+   },
+   "1": {
+    "mean": 0.8837,
+    "matches": 43
+   },
+   "87": {
+    "mean": 0.8636,
+    "matches": 66
+   },
+   "4": {
+    "mean": 0.9348,
+    "matches": 46
+   },
+   "17": {
+    "mean": 0.9459,
+    "matches": 74
+   },
+   "25": {
+    "mean": 0.8667,
+    "matches": 60
+   },
+   "80": {
+    "mean": 1.1818,
+    "matches": 66
+   },
+   "85": {
+    "mean": 1.0145,
+    "matches": 138
+   },
+   "72": {
+    "mean": 0.6974,
+    "matches": 76
+   },
+   "13": {
+    "mean": 0.7805,
+    "matches": 41
+   },
+   "83": {
+    "mean": 0.8214,
+    "matches": 56
+   },
+   "9": {
+    "mean": 0.7541,
+    "matches": 61
+   },
+   "57": {
+    "mean": 1.0215,
+    "matches": 93
+   },
+   "49": {
+    "mean": 0.9518,
+    "matches": 83
+   },
+   "3": {
+    "mean": 0.86,
+    "matches": 50
+   },
+   "6": {
+    "mean": 0.9048,
+    "matches": 42
+   },
+   "26": {
+    "mean": 0.6406,
+    "matches": 64
+   },
+   "18": {
+    "mean": 0.72,
+    "matches": 100
+   },
+   "2": {
+    "mean": 0.3704,
+    "matches": 54
+   },
+   "54": {
+    "mean": 0.7619,
+    "matches": 63
+   },
+   "38": {
+    "mean": 1.2,
+    "matches": 50
+   },
+   "89": {
+    "mean": 1.3636,
+    "matches": 44
+   },
+   "10": {
+    "mean": 0.9545,
+    "matches": 44
+   },
+   "23": {
+    "mean": 0.7551,
+    "matches": 49
+   },
+   "11": {
+    "mean": 1.0364,
+    "matches": 55
+   },
+   "19": {
+    "mean": 0.6829,
+    "matches": 41
+   },
+   "36": {
+    "mean": 0.8267,
+    "matches": 75
+   },
+   "88": {
+    "mean": 0.7619,
+    "matches": 42
+   },
+   "52": {
+    "mean": 1.25,
+    "matches": 76
+   },
+   "50": {
+    "mean": 0.7414,
+    "matches": 58
+   }
+  },
+  "corners_total": {
+   "34": {
+    "mean": 10.9703,
+    "matches": 101
+   },
+   "12": {
+    "mean": 10.3492,
+    "matches": 63
+   },
+   "40": {
+    "mean": 10.0667,
+    "matches": 60
+   },
+   "79": {
+    "mean": 8.2701,
+    "matches": 670
+   },
+   "86": {
+    "mean": 10.3167,
+    "matches": 60
+   },
+   "1": {
+    "mean": 10.1111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 9.7059,
+    "matches": 68
+   },
+   "4": {
+    "mean": 8.54,
+    "matches": 50
+   },
+   "17": {
+    "mean": 9.3684,
+    "matches": 76
+   },
+   "91": {
+    "mean": 10.0317,
+    "matches": 63
+   },
+   "25": {
+    "mean": 10.2031,
+    "matches": 64
+   },
+   "80": {
+    "mean": 9.1408,
+    "matches": 71
+   },
+   "81": {
+    "mean": 9.925,
+    "matches": 40
+   },
+   "85": {
+    "mean": 9.0828,
+    "matches": 145
+   },
+   "72": {
+    "mean": 9.1519,
+    "matches": 79
+   },
+   "83": {
+    "mean": 9.9176,
+    "matches": 85
+   },
+   "13": {
+    "mean": 10.5116,
+    "matches": 43
+   },
+   "9": {
+    "mean": 10.4,
+    "matches": 70
+   },
+   "57": {
+    "mean": 9.54,
+    "matches": 100
+   },
+   "8": {
+    "mean": 9.5476,
+    "matches": 42
+   },
+   "14": {
+    "mean": 10.0476,
+    "matches": 42
+   },
+   "49": {
+    "mean": 8.8966,
+    "matches": 87
+   },
+   "3": {
+    "mean": 9.7308,
+    "matches": 52
+   },
+   "6": {
+    "mean": 10.2826,
+    "matches": 46
+   },
+   "26": {
+    "mean": 10.5775,
+    "matches": 71
+   },
+   "18": {
+    "mean": 9.8667,
+    "matches": 105
+   },
+   "2": {
+    "mean": 8.6786,
+    "matches": 56
+   },
+   "82": {
+    "mean": 9.8732,
+    "matches": 71
+   },
+   "54": {
+    "mean": 11.0147,
+    "matches": 68
+   },
+   "38": {
+    "mean": 8.7547,
+    "matches": 53
+   },
+   "89": {
+    "mean": 8.8511,
+    "matches": 47
+   },
+   "10": {
+    "mean": 10.9792,
+    "matches": 48
+   },
+   "23": {
+    "mean": 9.1786,
+    "matches": 56
+   },
+   "11": {
+    "mean": 8.386,
+    "matches": 57
+   },
+   "19": {
+    "mean": 10.8837,
+    "matches": 43
+   },
+   "36": {
+    "mean": 8.4737,
+    "matches": 76
+   },
+   "88": {
+    "mean": 8.9565,
+    "matches": 46
+   },
+   "52": {
+    "mean": 9.939,
+    "matches": 82
+   },
+   "50": {
+    "mean": 9.2167,
+    "matches": 60
+   }
+  },
+  "cards_2h_total": {
+   "34": {
+    "mean": 2.72,
+    "matches": 100
+   },
+   "12": {
+    "mean": 2.3167,
+    "matches": 60
+   },
+   "40": {
+    "mean": 2.1429,
+    "matches": 56
+   },
+   "86": {
+    "mean": 2.614,
+    "matches": 57
+   },
+   "1": {
+    "mean": 2.7111,
+    "matches": 45
+   },
+   "79": {
+    "mean": 1.28,
+    "matches": 75
+   },
+   "87": {
+    "mean": 2.3529,
+    "matches": 68
+   },
+   "4": {
+    "mean": 2.3958,
+    "matches": 48
+   },
+   "17": {
+    "mean": 2.2162,
+    "matches": 74
+   },
+   "25": {
+    "mean": 2.4603,
+    "matches": 63
+   },
+   "80": {
+    "mean": 3.7887,
+    "matches": 71
+   },
+   "85": {
+    "mean": 2.9236,
+    "matches": 144
+   },
+   "72": {
+    "mean": 1.8,
+    "matches": 70
+   },
+   "13": {
+    "mean": 2.439,
+    "matches": 41
+   },
+   "83": {
+    "mean": 2.5263,
+    "matches": 57
+   },
+   "9": {
+    "mean": 2.7971,
+    "matches": 69
+   },
+   "57": {
+    "mean": 2.6429,
+    "matches": 98
+   },
+   "49": {
+    "mean": 1.6579,
+    "matches": 76
+   },
+   "3": {
+    "mean": 3.0,
+    "matches": 52
+   },
+   "6": {
+    "mean": 2.2045,
+    "matches": 44
+   },
+   "26": {
+    "mean": 1.9577,
+    "matches": 71
+   },
+   "18": {
+    "mean": 2.875,
+    "matches": 104
+   },
+   "2": {
+    "mean": 2.7736,
+    "matches": 53
+   },
+   "54": {
+    "mean": 2.6825,
+    "matches": 63
+   },
+   "38": {
+    "mean": 2.9615,
+    "matches": 52
+   },
+   "89": {
+    "mean": 2.2273,
+    "matches": 44
+   },
+   "10": {
+    "mean": 2.025,
+    "matches": 40
+   },
+   "23": {
+    "mean": 3.2037,
+    "matches": 54
+   },
+   "11": {
+    "mean": 2.8519,
+    "matches": 54
+   },
+   "36": {
+    "mean": 2.1081,
+    "matches": 74
+   },
+   "88": {
+    "mean": 3.3261,
+    "matches": 46
+   },
+   "52": {
+    "mean": 2.4568,
+    "matches": 81
+   },
+   "50": {
+    "mean": 2.5932,
+    "matches": 59
+   }
+  },
+  "shots_on_target_1h_for": {
+   "34": {
+    "mean": 1.8119,
+    "matches": 101
+   },
+   "12": {
+    "mean": 1.8095,
+    "matches": 63
+   },
+   "40": {
+    "mean": 2.6167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 1.9,
+    "matches": 60
+   },
+   "79": {
+    "mean": 2.3846,
+    "matches": 104
+   },
+   "1": {
+    "mean": 2.0667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 1.6471,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.9,
+    "matches": 50
+   },
+   "17": {
+    "mean": 1.8158,
+    "matches": 76
+   },
+   "25": {
+    "mean": 1.7656,
+    "matches": 64
+   },
+   "80": {
+    "mean": 2.4648,
+    "matches": 71
+   },
+   "85": {
+    "mean": 1.7655,
+    "matches": 145
+   },
+   "72": {
+    "mean": 2.2025,
+    "matches": 79
+   },
+   "13": {
+    "mean": 1.7442,
+    "matches": 43
+   },
+   "83": {
+    "mean": 2.4921,
+    "matches": 63
+   },
+   "9": {
+    "mean": 1.6286,
+    "matches": 70
+   },
+   "57": {
+    "mean": 1.82,
+    "matches": 100
+   },
+   "14": {
+    "mean": 2.0476,
+    "matches": 42
+   },
+   "49": {
+    "mean": 2.0575,
+    "matches": 87
+   },
+   "3": {
+    "mean": 1.8654,
+    "matches": 52
+   },
+   "6": {
+    "mean": 2.087,
+    "matches": 46
+   },
+   "26": {
+    "mean": 2.0563,
+    "matches": 71
+   },
+   "18": {
+    "mean": 2.1714,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.7143,
+    "matches": 56
+   },
+   "54": {
+    "mean": 2.1176,
+    "matches": 68
+   },
+   "38": {
+    "mean": 1.8491,
+    "matches": 53
+   },
+   "89": {
+    "mean": 1.9574,
+    "matches": 47
+   },
+   "10": {
+    "mean": 2.4583,
+    "matches": 48
+   },
+   "23": {
+    "mean": 1.8571,
+    "matches": 56
+   },
+   "11": {
+    "mean": 1.5263,
+    "matches": 57
+   },
+   "19": {
+    "mean": 2.093,
+    "matches": 43
+   },
+   "36": {
+    "mean": 2.1316,
+    "matches": 76
+   },
+   "88": {
+    "mean": 1.6522,
+    "matches": 46
+   },
+   "52": {
+    "mean": 2.0976,
+    "matches": 82
+   },
+   "50": {
+    "mean": 1.8167,
+    "matches": 60
+   }
+  },
+  "offsides_2h_for": {
+   "34": {
+    "mean": 0.7917,
+    "matches": 96
+   },
+   "12": {
+    "mean": 0.9206,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.0345,
+    "matches": 58
+   },
+   "86": {
+    "mean": 1.1017,
+    "matches": 59
+   },
+   "79": {
+    "mean": 0.9798,
+    "matches": 99
+   },
+   "1": {
+    "mean": 0.9302,
+    "matches": 43
+   },
+   "87": {
+    "mean": 0.7576,
+    "matches": 66
+   },
+   "4": {
+    "mean": 1.5217,
+    "matches": 46
+   },
+   "17": {
+    "mean": 1.1081,
+    "matches": 74
+   },
+   "25": {
+    "mean": 0.8167,
+    "matches": 60
+   },
+   "80": {
+    "mean": 0.9394,
+    "matches": 66
+   },
+   "85": {
+    "mean": 1.029,
+    "matches": 138
+   },
+   "72": {
+    "mean": 0.8816,
+    "matches": 76
+   },
+   "13": {
+    "mean": 0.6098,
+    "matches": 41
+   },
+   "83": {
+    "mean": 0.8571,
+    "matches": 56
+   },
+   "9": {
+    "mean": 0.918,
+    "matches": 61
+   },
+   "57": {
+    "mean": 1.0645,
+    "matches": 93
+   },
+   "49": {
+    "mean": 0.9398,
+    "matches": 83
+   },
+   "3": {
+    "mean": 1.2,
+    "matches": 50
+   },
+   "6": {
+    "mean": 0.881,
+    "matches": 42
+   },
+   "26": {
+    "mean": 0.625,
+    "matches": 64
+   },
+   "18": {
+    "mean": 0.96,
+    "matches": 100
+   },
+   "2": {
+    "mean": 0.7407,
+    "matches": 54
+   },
+   "54": {
+    "mean": 0.7778,
+    "matches": 63
+   },
+   "38": {
+    "mean": 0.9,
+    "matches": 50
+   },
+   "89": {
+    "mean": 1.0227,
+    "matches": 44
+   },
+   "10": {
+    "mean": 0.6136,
+    "matches": 44
+   },
+   "23": {
+    "mean": 0.6939,
+    "matches": 49
+   },
+   "11": {
+    "mean": 1.0,
+    "matches": 55
+   },
+   "19": {
+    "mean": 0.878,
+    "matches": 41
+   },
+   "36": {
+    "mean": 0.88,
+    "matches": 75
+   },
+   "88": {
+    "mean": 1.0476,
+    "matches": 42
+   },
+   "52": {
+    "mean": 1.0263,
+    "matches": 76
+   },
+   "50": {
+    "mean": 1.069,
+    "matches": 58
+   }
+  },
+  "goals_against": {
+   "34": {
+    "mean": 1.2475,
+    "matches": 101
+   },
+   "12": {
+    "mean": 1.4444,
+    "matches": 63
+   },
+   "40": {
+    "mean": 1.1667,
+    "matches": 60
+   },
+   "79": {
+    "mean": 1.3915,
+    "matches": 2125
+   },
+   "86": {
+    "mean": 1.6667,
+    "matches": 60
+   },
+   "1": {
+    "mean": 1.2,
+    "matches": 45
+   },
+   "87": {
+    "mean": 1.5735,
+    "matches": 68
+   },
+   "4": {
+    "mean": 1.3654,
+    "matches": 52
+   },
+   "17": {
+    "mean": 1.7632,
+    "matches": 76
+   },
+   "91": {
+    "mean": 1.5469,
+    "matches": 64
+   },
+   "25": {
+    "mean": 1.7385,
+    "matches": 65
+   },
+   "80": {
+    "mean": 1.338,
+    "matches": 71
+   },
+   "81": {
+    "mean": 0.8511,
+    "matches": 47
+   },
+   "85": {
+    "mean": 1.1862,
+    "matches": 145
+   },
+   "72": {
+    "mean": 1.5443,
+    "matches": 79
+   },
+   "83": {
+    "mean": 1.0531,
+    "matches": 113
+   },
+   "13": {
+    "mean": 1.5714,
+    "matches": 49
+   },
+   "9": {
+    "mean": 1.4143,
+    "matches": 70
+   },
+   "57": {
+    "mean": 1.43,
+    "matches": 100
+   },
+   "8": {
+    "mean": 1.4182,
+    "matches": 55
+   },
+   "14": {
+    "mean": 1.5814,
+    "matches": 43
+   },
+   "49": {
+    "mean": 1.4943,
+    "matches": 87
+   },
+   "22": {
+    "mean": 1.5294,
+    "matches": 51
+   },
+   "3": {
+    "mean": 1.6154,
+    "matches": 52
+   },
+   "6": {
+    "mean": 1.2826,
+    "matches": 46
+   },
+   "26": {
+    "mean": 1.3521,
+    "matches": 71
+   },
+   "18": {
+    "mean": 1.4762,
+    "matches": 105
+   },
+   "2": {
+    "mean": 1.5893,
+    "matches": 56
+   },
+   "82": {
+    "mean": 1.1268,
+    "matches": 71
+   },
+   "54": {
+    "mean": 1.75,
+    "matches": 68
+   },
+   "38": {
+    "mean": 1.2453,
+    "matches": 53
+   },
+   "29": {
+    "mean": 0.7397,
+    "matches": 73
+   },
+   "89": {
+    "mean": 1.1458,
+    "matches": 48
+   },
+   "10": {
+    "mean": 1.7551,
+    "matches": 49
+   },
+   "23": {
+    "mean": 1.2321,
+    "matches": 56
+   },
+   "11": {
+    "mean": 1.6667,
+    "matches": 57
+   },
+   "19": {
+    "mean": 1.5349,
+    "matches": 43
+   },
+   "36": {
+    "mean": 1.125,
+    "matches": 80
+   },
+   "47": {
+    "mean": 0.881,
+    "matches": 42
+   },
+   "88": {
+    "mean": 1.0,
+    "matches": 75
+   },
+   "28": {
+    "mean": 1.2222,
+    "matches": 54
+   },
+   "52": {
+    "mean": 1.6829,
+    "matches": 82
+   },
+   "50": {
+    "mean": 1.5333,
+    "matches": 60
+   }
+  },
+  "blocked_shots_2h_total": {
+   "34": {
+    "mean": 3.8317,
+    "matches": 101
+   },
+   "12": {
+    "mean": 4.6032,
+    "matches": 63
+   },
+   "40": {
+    "mean": 4.2,
+    "matches": 60
+   },
+   "86": {
+    "mean": 4.2167,
+    "matches": 60
+   },
+   "79": {
+    "mean": 3.0392,
+    "matches": 102
+   },
+   "1": {
+    "mean": 4.4444,
+    "matches": 45
+   },
+   "87": {
+    "mean": 4.1029,
+    "matches": 68
+   },
+   "4": {
+    "mean": 3.1,
+    "matches": 50
+   },
+   "17": {
+    "mean": 3.0,
+    "matches": 76
+   },
+   "25": {
+    "mean": 4.4531,
+    "matches": 64
+   },
+   "80": {
+    "mean": 3.2676,
+    "matches": 71
+   },
+   "85": {
+    "mean": 3.5172,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.038,
+    "matches": 79
+   },
+   "13": {
+    "mean": 4.4186,
+    "matches": 43
+   },
+   "83": {
+    "mean": 3.4603,
+    "matches": 63
+   },
+   "9": {
+    "mean": 4.7429,
+    "matches": 70
+   },
+   "57": {
+    "mean": 3.73,
+    "matches": 100
+   },
+   "14": {
+    "mean": 4.6905,
+    "matches": 42
+   },
+   "49": {
+    "mean": 3.6437,
+    "matches": 87
+   },
+   "3": {
+    "mean": 3.3846,
+    "matches": 52
+   },
+   "6": {
+    "mean": 4.0217,
+    "matches": 46
+   },
+   "26": {
+    "mean": 4.338,
+    "matches": 71
+   },
+   "18": {
+    "mean": 3.6857,
+    "matches": 105
+   },
+   "2": {
+    "mean": 3.0714,
+    "matches": 56
+   },
+   "54": {
+    "mean": 4.1324,
+    "matches": 68
+   },
+   "38": {
+    "mean": 3.5472,
+    "matches": 53
+   },
+   "89": {
+    "mean": 3.1064,
+    "matches": 47
+   },
+   "10": {
+    "mean": 4.1875,
+    "matches": 48
+   },
+   "23": {
+    "mean": 3.6429,
+    "matches": 56
+   },
+   "11": {
+    "mean": 3.4211,
+    "matches": 57
+   },
+   "19": {
+    "mean": 3.5814,
+    "matches": 43
+   },
+   "36": {
+    "mean": 2.9737,
+    "matches": 76
+   },
+   "88": {
+    "mean": 3.4348,
+    "matches": 46
+   },
+   "52": {
+    "mean": 3.6829,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.0667,
+    "matches": 60
+   }
+  },
+  "corners_2h_total": {
+   "34": {
+    "mean": 5.802,
+    "matches": 101
+   },
+   "12": {
+    "mean": 6.0476,
+    "matches": 63
+   },
+   "40": {
+    "mean": 5.3167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 5.3,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.2941,
+    "matches": 102
+   },
+   "1": {
+    "mean": 4.9778,
+    "matches": 45
+   },
+   "87": {
+    "mean": 5.4265,
+    "matches": 68
+   },
+   "4": {
+    "mean": 4.4,
+    "matches": 50
+   },
+   "17": {
+    "mean": 4.8684,
+    "matches": 76
+   },
+   "25": {
+    "mean": 5.4844,
+    "matches": 64
+   },
+   "80": {
+    "mean": 4.4648,
+    "matches": 71
+   },
+   "85": {
+    "mean": 4.7379,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.9241,
+    "matches": 79
+   },
+   "13": {
+    "mean": 5.3488,
+    "matches": 43
+   },
+   "83": {
+    "mean": 5.1746,
+    "matches": 63
+   },
+   "9": {
+    "mean": 5.4714,
+    "matches": 70
+   },
+   "57": {
+    "mean": 5.2,
+    "matches": 100
+   },
+   "14": {
+    "mean": 5.2619,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.7126,
+    "matches": 87
+   },
+   "3": {
+    "mean": 4.75,
+    "matches": 52
+   },
+   "6": {
+    "mean": 5.413,
+    "matches": 46
+   },
+   "26": {
+    "mean": 5.3944,
+    "matches": 71
+   },
+   "18": {
+    "mean": 5.1429,
+    "matches": 105
+   },
+   "2": {
+    "mean": 4.375,
+    "matches": 56
+   },
+   "54": {
+    "mean": 5.6029,
+    "matches": 68
+   },
+   "38": {
+    "mean": 4.6226,
+    "matches": 53
+   },
+   "89": {
+    "mean": 4.5957,
+    "matches": 47
+   },
+   "10": {
+    "mean": 6.0625,
+    "matches": 48
+   },
+   "23": {
+    "mean": 4.9107,
+    "matches": 56
+   },
+   "11": {
+    "mean": 4.2456,
+    "matches": 57
+   },
+   "19": {
+    "mean": 5.3721,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.6316,
+    "matches": 76
+   },
+   "88": {
+    "mean": 4.6304,
+    "matches": 46
+   },
+   "52": {
+    "mean": 5.3537,
+    "matches": 82
+   },
+   "50": {
+    "mean": 4.9167,
+    "matches": 60
+   }
+  },
+  "fouls_total": {
+   "34": {
+    "mean": 28.8416,
+    "matches": 101
+   },
+   "12": {
+    "mean": 22.0159,
+    "matches": 63
+   },
+   "40": {
+    "mean": 22.15,
+    "matches": 60
+   },
+   "86": {
+    "mean": 24.2333,
+    "matches": 60
+   },
+   "79": {
+    "mean": 21.442,
+    "matches": 138
+   },
+   "1": {
+    "mean": 21.5333,
+    "matches": 45
+   },
+   "87": {
+    "mean": 23.9118,
+    "matches": 68
+   },
+   "4": {
+    "mean": 23.44,
+    "matches": 50
+   },
+   "17": {
+    "mean": 22.2632,
+    "matches": 76
+   },
+   "91": {
+    "mean": 24.4603,
+    "matches": 63
+   },
+   "25": {
+    "mean": 25.4375,
+    "matches": 64
+   },
+   "80": {
+    "mean": 23.5211,
+    "matches": 71
+   },
+   "81": {
+    "mean": 24.725,
+    "matches": 40
+   },
+   "85": {
+    "mean": 24.4345,
+    "matches": 145
+   },
+   "72": {
+    "mean": 19.6329,
+    "matches": 79
+   },
+   "83": {
+    "mean": 25.1882,
+    "matches": 85
+   },
+   "13": {
+    "mean": 24.3721,
+    "matches": 43
+   },
+   "9": {
+    "mean": 24.6,
+    "matches": 70
+   },
+   "57": {
+    "mean": 24.78,
+    "matches": 100
+   },
+   "8": {
+    "mean": 25.3095,
+    "matches": 42
+   },
+   "14": {
+    "mean": 21.1905,
+    "matches": 42
+   },
+   "49": {
+    "mean": 21.069,
+    "matches": 87
+   },
+   "3": {
+    "mean": 25.6731,
+    "matches": 52
+   },
+   "6": {
+    "mean": 22.3261,
+    "matches": 46
+   },
+   "26": {
+    "mean": 24.2958,
+    "matches": 71
+   },
+   "18": {
+    "mean": 22.7333,
+    "matches": 105
+   },
+   "2": {
+    "mean": 25.875,
+    "matches": 56
+   },
+   "54": {
+    "mean": 23.8382,
+    "matches": 68
+   },
+   "38": {
+    "mean": 25.6226,
+    "matches": 53
+   },
+   "89": {
+    "mean": 26.7447,
+    "matches": 47
+   },
+   "10": {
+    "mean": 20.7083,
+    "matches": 48
+   },
+   "23": {
+    "mean": 23.9464,
+    "matches": 56
+   },
+   "11": {
+    "mean": 26.4035,
+    "matches": 57
+   },
+   "19": {
+    "mean": 23.2093,
+    "matches": 43
+   },
+   "36": {
+    "mean": 18.2368,
+    "matches": 76
+   },
+   "88": {
+    "mean": 27.9348,
+    "matches": 46
+   },
+   "52": {
+    "mean": 25.1098,
+    "matches": 82
+   },
+   "50": {
+    "mean": 20.9545,
+    "matches": 44
+   }
+  },
+  "offsides_total": {
+   "34": {
+    "mean": 3.4375,
+    "matches": 96
+   },
+   "12": {
+    "mean": 4.2381,
+    "matches": 63
+   },
+   "40": {
+    "mean": 3.6724,
+    "matches": 58
+   },
+   "79": {
+    "mean": 1.283,
+    "matches": 629
+   },
+   "86": {
+    "mean": 3.7797,
+    "matches": 59
+   },
+   "1": {
+    "mean": 2.9767,
+    "matches": 43
+   },
+   "87": {
+    "mean": 4.0606,
+    "matches": 66
+   },
+   "4": {
+    "mean": 4.0652,
+    "matches": 46
+   },
+   "17": {
+    "mean": 4.3378,
+    "matches": 74
+   },
+   "91": {
+    "mean": 3.4762,
+    "matches": 63
+   },
+   "25": {
+    "mean": 2.8167,
+    "matches": 60
+   },
+   "80": {
+    "mean": 3.6364,
+    "matches": 66
+   },
+   "81": {
+    "mean": 4.325,
+    "matches": 40
+   },
+   "85": {
+    "mean": 3.8116,
+    "matches": 138
+   },
+   "72": {
+    "mean": 3.8421,
+    "matches": 76
+   },
+   "83": {
+    "mean": 3.0769,
+    "matches": 78
+   },
+   "13": {
+    "mean": 2.9024,
+    "matches": 41
+   },
+   "9": {
+    "mean": 3.1967,
+    "matches": 61
+   },
+   "57": {
+    "mean": 3.8495,
+    "matches": 93
+   },
+   "8": {
+    "mean": 2.9762,
+    "matches": 42
+   },
+   "49": {
+    "mean": 3.7349,
+    "matches": 83
+   },
+   "3": {
+    "mean": 3.68,
+    "matches": 50
+   },
+   "6": {
+    "mean": 3.9524,
+    "matches": 42
+   },
+   "26": {
+    "mean": 2.7969,
+    "matches": 64
+   },
+   "18": {
+    "mean": 3.65,
+    "matches": 100
+   },
+   "2": {
+    "mean": 2.7407,
+    "matches": 54
+   },
+   "54": {
+    "mean": 3.1587,
+    "matches": 63
+   },
+   "38": {
+    "mean": 3.82,
+    "matches": 50
+   },
+   "89": {
+    "mean": 4.0682,
+    "matches": 44
+   },
+   "10": {
+    "mean": 2.9545,
+    "matches": 44
+   },
+   "23": {
+    "mean": 2.6122,
+    "matches": 49
+   },
+   "11": {
+    "mean": 3.7273,
+    "matches": 55
+   },
+   "19": {
+    "mean": 3.2927,
+    "matches": 41
+   },
+   "36": {
+    "mean": 3.84,
+    "matches": 75
+   },
+   "88": {
+    "mean": 3.4286,
+    "matches": 42
+   },
+   "52": {
+    "mean": 4.5132,
+    "matches": 76
+   },
+   "50": {
+    "mean": 3.1552,
+    "matches": 58
+   }
+  },
+  "shots_on_target_1h_total": {
+   "34": {
+    "mean": 3.8713,
+    "matches": 101
+   },
+   "12": {
+    "mean": 3.9206,
+    "matches": 63
+   },
+   "40": {
+    "mean": 4.5167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 4.1,
+    "matches": 60
+   },
+   "79": {
+    "mean": 4.4135,
+    "matches": 104
+   },
+   "1": {
+    "mean": 4.0667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 3.5147,
+    "matches": 68
+   },
+   "4": {
+    "mean": 3.94,
+    "matches": 50
+   },
+   "17": {
+    "mean": 4.3816,
+    "matches": 76
+   },
+   "25": {
+    "mean": 3.8281,
+    "matches": 64
+   },
+   "80": {
+    "mean": 4.5634,
+    "matches": 71
+   },
+   "85": {
+    "mean": 3.6069,
+    "matches": 145
+   },
+   "72": {
+    "mean": 4.7468,
+    "matches": 79
+   },
+   "13": {
+    "mean": 4.1163,
+    "matches": 43
+   },
+   "83": {
+    "mean": 4.3492,
+    "matches": 63
+   },
+   "9": {
+    "mean": 3.8429,
+    "matches": 70
+   },
+   "57": {
+    "mean": 3.89,
+    "matches": 100
+   },
+   "14": {
+    "mean": 4.0714,
+    "matches": 42
+   },
+   "49": {
+    "mean": 4.3103,
+    "matches": 87
+   },
+   "3": {
+    "mean": 4.1346,
+    "matches": 52
+   },
+   "6": {
+    "mean": 4.3261,
+    "matches": 46
+   },
+   "26": {
+    "mean": 4.3521,
+    "matches": 71
+   },
+   "18": {
+    "mean": 4.4,
+    "matches": 105
+   },
+   "2": {
+    "mean": 3.5893,
+    "matches": 56
+   },
+   "54": {
+    "mean": 4.5441,
+    "matches": 68
+   },
+   "38": {
+    "mean": 3.8679,
+    "matches": 53
+   },
+   "89": {
+    "mean": 3.7234,
+    "matches": 47
+   },
+   "10": {
+    "mean": 4.6667,
+    "matches": 48
+   },
+   "23": {
+    "mean": 3.9643,
+    "matches": 56
+   },
+   "11": {
+    "mean": 3.8772,
+    "matches": 57
+   },
+   "19": {
+    "mean": 4.2558,
+    "matches": 43
+   },
+   "36": {
+    "mean": 3.9211,
+    "matches": 76
+   },
+   "88": {
+    "mean": 3.1957,
+    "matches": 46
+   },
+   "52": {
+    "mean": 4.0366,
+    "matches": 82
+   },
+   "50": {
+    "mean": 3.5333,
+    "matches": 60
+   }
+  },
+  "goals_total": {
+   "34": {
+    "mean": 2.2871,
+    "matches": 101
+   },
+   "12": {
+    "mean": 2.9365,
+    "matches": 63
+   },
+   "40": {
+    "mean": 2.8833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 3.2861,
+    "matches": 2125
+   },
+   "86": {
+    "mean": 3.0,
+    "matches": 60
+   },
+   "1": {
+    "mean": 2.8667,
+    "matches": 45
+   },
+   "87": {
+    "mean": 2.7647,
+    "matches": 68
+   },
+   "4": {
+    "mean": 2.5962,
+    "matches": 52
+   },
+   "17": {
+    "mean": 2.9605,
+    "matches": 76
+   },
+   "91": {
+    "mean": 3.0938,
+    "matches": 64
+   },
+   "25": {
+    "mean": 3.0462,
+    "matches": 65
+   },
+   "80": {
+    "mean": 2.507,
+    "matches": 71
+   },
+   "81": {
+    "mean": 2.5745,
+    "matches": 47
+   },
+   "85": {
+    "mean": 2.1931,
+    "matches": 145
+   },
+   "72": {
+    "mean": 2.9873,
+    "matches": 79
+   },
+   "83": {
+    "mean": 2.9469,
+    "matches": 113
+   },
+   "13": {
+    "mean": 2.8367,
+    "matches": 49
+   },
+   "9": {
+    "mean": 2.5714,
+    "matches": 70
+   },
+   "57": {
+    "mean": 2.65,
+    "matches": 100
+   },
+   "8": {
+    "mean": 2.7091,
+    "matches": 55
+   },
+   "14": {
+    "mean": 3.2326,
+    "matches": 43
+   },
+   "49": {
+    "mean": 3.0115,
+    "matches": 87
+   },
+   "22": {
+    "mean": 2.6863,
+    "matches": 51
+   },
+   "3": {
+    "mean": 2.7308,
+    "matches": 52
+   },
+   "6": {
+    "mean": 2.8913,
+    "matches": 46
+   },
+   "26": {
+    "mean": 2.8873,
+    "matches": 71
+   },
+   "18": {
+    "mean": 3.181,
+    "matches": 105
+   },
+   "2": {
+    "mean": 2.5357,
+    "matches": 56
+   },
+   "82": {
+    "mean": 2.2676,
+    "matches": 71
+   },
+   "54": {
+    "mean": 3.2647,
+    "matches": 68
+   },
+   "38": {
+    "mean": 2.4151,
+    "matches": 53
+   },
+   "29": {
+    "mean": 1.7123,
+    "matches": 73
+   },
+   "89": {
+    "mean": 2.6875,
+    "matches": 48
+   },
+   "10": {
+    "mean": 3.6939,
+    "matches": 49
+   },
+   "23": {
+    "mean": 2.4643,
+    "matches": 56
+   },
+   "11": {
+    "mean": 2.8421,
+    "matches": 57
+   },
+   "19": {
+    "mean": 2.9302,
+    "matches": 43
+   },
+   "36": {
+    "mean": 2.875,
+    "matches": 80
+   },
+   "47": {
+    "mean": 1.7381,
+    "matches": 42
+   },
+   "88": {
+    "mean": 2.2,
+    "matches": 75
+   },
+   "28": {
+    "mean": 2.537,
+    "matches": 54
+   },
+   "52": {
+    "mean": 3.3049,
+    "matches": 82
+   },
+   "50": {
+    "mean": 2.6333,
+    "matches": 60
+   }
+  },
+  "shots_for": {
+   "34": {
+    "mean": 13.802,
+    "matches": 101
+   },
+   "12": {
+    "mean": 13.4921,
+    "matches": 63
+   },
+   "40": {
+    "mean": 15.25,
+    "matches": 60
+   },
+   "86": {
+    "mean": 13.1833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 13.217,
+    "matches": 106
+   },
+   "1": {
+    "mean": 14.6444,
+    "matches": 45
+   },
+   "87": {
+    "mean": 12.9559,
+    "matches": 68
+   },
+   "4": {
+    "mean": 12.62,
+    "matches": 50
+   },
+   "17": {
+    "mean": 11.8816,
+    "matches": 76
+   },
+   "91": {
+    "mean": 10.7143,
+    "matches": 63
+   },
+   "25": {
+    "mean": 14.6094,
+    "matches": 64
+   },
+   "80": {
+    "mean": 13.2535,
+    "matches": 71
+   },
+   "81": {
+    "mean": 13.55,
+    "matches": 40
+   },
+   "85": {
+    "mean": 12.8138,
+    "matches": 145
+   },
+   "72": {
+    "mean": 13.1519,
+    "matches": 79
+   },
+   "13": {
+    "mean": 11.7907,
+    "matches": 43
+   },
+   "83": {
+    "mean": 16.7302,
+    "matches": 63
+   },
+   "9": {
+    "mean": 12.7143,
+    "matches": 70
+   },
+   "57": {
+    "mean": 12.77,
+    "matches": 100
+   },
+   "14": {
+    "mean": 15.7381,
+    "matches": 42
+   },
+   "49": {
+    "mean": 13.5632,
+    "matches": 87
+   },
+   "3": {
+    "mean": 11.4615,
+    "matches": 52
+   },
+   "6": {
+    "mean": 14.3043,
+    "matches": 46
+   },
+   "26": {
+    "mean": 13.831,
+    "matches": 71
+   },
+   "18": {
+    "mean": 13.7048,
+    "matches": 105
+   },
+   "2": {
+    "mean": 11.5536,
+    "matches": 56
+   },
+   "54": {
+    "mean": 14.1176,
+    "matches": 68
+   },
+   "38": {
+    "mean": 12.5283,
+    "matches": 53
+   },
+   "89": {
+    "mean": 12.8333,
+    "matches": 48
+   },
+   "10": {
+    "mean": 14.9375,
+    "matches": 48
+   },
+   "23": {
+    "mean": 14.0179,
+    "matches": 56
+   },
+   "11": {
+    "mean": 11.9825,
+    "matches": 57
+   },
+   "19": {
+    "mean": 13.9767,
+    "matches": 43
+   },
+   "36": {
+    "mean": 12.0,
+    "matches": 76
+   },
+   "88": {
+    "mean": 12.9565,
+    "matches": 46
+   },
+   "52": {
+    "mean": 14.4146,
+    "matches": 82
+   },
+   "50": {
+    "mean": 12.55,
+    "matches": 60
+   }
+  },
+  "shots_2h_for": {
+   "34": {
+    "mean": 7.0297,
+    "matches": 101
+   },
+   "12": {
+    "mean": 7.1429,
+    "matches": 63
+   },
+   "40": {
+    "mean": 7.9833,
+    "matches": 60
+   },
+   "86": {
+    "mean": 7.45,
+    "matches": 60
+   },
+   "79": {
+    "mean": 7.0686,
+    "matches": 102
+   },
+   "1": {
+    "mean": 7.6222,
+    "matches": 45
+   },
+   "87": {
+    "mean": 7.0147,
+    "matches": 68
+   },
+   "4": {
+    "mean": 6.96,
+    "matches": 50
+   },
+   "17": {
+    "mean": 6.6053,
+    "matches": 76
+   },
+   "25": {
+    "mean": 8.2031,
+    "matches": 64
+   },
+   "80": {
+    "mean": 6.6901,
+    "matches": 71
+   },
+   "85": {
+    "mean": 6.931,
+    "matches": 145
+   },
+   "72": {
+    "mean": 7.1646,
+    "matches": 79
+   },
+   "13": {
+    "mean": 6.3488,
+    "matches": 43
+   },
+   "83": {
+    "mean": 8.6825,
+    "matches": 63
+   },
+   "9": {
+    "mean": 7.0286,
+    "matches": 70
+   },
+   "57": {
+    "mean": 6.73,
+    "matches": 100
+   },
+   "14": {
+    "mean": 8.4524,
+    "matches": 42
+   },
+   "49": {
+    "mean": 7.2529,
+    "matches": 87
+   },
+   "3": {
+    "mean": 6.0,
+    "matches": 52
+   },
+   "6": {
+    "mean": 8.0435,
+    "matches": 46
+   },
+   "26": {
+    "mean": 7.3662,
+    "matches": 71
+   },
+   "18": {
+    "mean": 7.7524,
+    "matches": 105
+   },
+   "2": {
+    "mean": 5.8214,
+    "matches": 56
+   },
+   "54": {
+    "mean": 7.5441,
+    "matches": 68
+   },
+   "38": {
+    "mean": 7.0189,
+    "matches": 53
+   },
+   "89": {
+    "mean": 7.3191,
+    "matches": 47
+   },
+   "10": {
+    "mean": 8.1667,
+    "matches": 48
+   },
+   "23": {
+    "mean": 7.4464,
+    "matches": 56
+   },
+   "11": {
+    "mean": 6.8246,
+    "matches": 57
+   },
+   "19": {
+    "mean": 7.8605,
+    "matches": 43
+   },
+   "36": {
+    "mean": 6.6579,
+    "matches": 76
+   },
+   "88": {
+    "mean": 7.1304,
+    "matches": 46
+   },
+   "52": {
+    "mean": 7.7805,
+    "matches": 82
+   },
+   "50": {
+    "mean": 7.2,
+    "matches": 60
+   }
+  },
+  "fouls_1h_total": {
+   "34": {
+    "mean": 13.8218,
+    "matches": 101
+   },
+   "12": {
+    "mean": 10.4603,
+    "matches": 63
+   },
+   "40": {
+    "mean": 10.7667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 11.0,
+    "matches": 60
+   },
+   "79": {
+    "mean": 11.5196,
+    "matches": 102
+   },
+   "1": {
+    "mean": 10.3778,
+    "matches": 45
+   },
+   "87": {
+    "mean": 11.8088,
+    "matches": 68
+   },
+   "4": {
+    "mean": 11.0,
+    "matches": 50
+   },
+   "17": {
+    "mean": 10.3816,
+    "matches": 76
+   },
+   "25": {
+    "mean": 12.1875,
+    "matches": 64
+   },
+   "80": {
+    "mean": 10.6197,
+    "matches": 71
+   },
+   "85": {
+    "mean": 11.6759,
+    "matches": 145
+   },
+   "72": {
+    "mean": 9.0759,
+    "matches": 79
+   },
+   "13": {
+    "mean": 11.6047,
+    "matches": 43
+   },
+   "83": {
+    "mean": 11.6032,
+    "matches": 63
+   },
+   "9": {
+    "mean": 11.5143,
+    "matches": 70
+   },
+   "57": {
+    "mean": 11.53,
+    "matches": 100
+   },
+   "14": {
+    "mean": 9.7619,
+    "matches": 42
+   },
+   "49": {
+    "mean": 10.0805,
+    "matches": 87
+   },
+   "3": {
+    "mean": 11.9808,
+    "matches": 52
+   },
+   "6": {
+    "mean": 10.5652,
+    "matches": 46
+   },
+   "26": {
+    "mean": 11.493,
+    "matches": 71
+   },
+   "18": {
+    "mean": 10.6095,
+    "matches": 105
+   },
+   "2": {
+    "mean": 11.9464,
+    "matches": 56
+   },
+   "54": {
+    "mean": 10.7647,
+    "matches": 68
+   },
+   "38": {
+    "mean": 12.2075,
+    "matches": 53
+   },
+   "89": {
+    "mean": 12.5532,
+    "matches": 47
+   },
+   "10": {
+    "mean": 9.7708,
+    "matches": 48
+   },
+   "23": {
+    "mean": 11.6429,
+    "matches": 56
+   },
+   "11": {
+    "mean": 12.9123,
+    "matches": 57
+   },
+   "19": {
+    "mean": 11.2791,
+    "matches": 43
+   },
+   "36": {
+    "mean": 9.1579,
+    "matches": 76
+   },
+   "88": {
+    "mean": 13.1739,
+    "matches": 46
+   },
+   "52": {
+    "mean": 12.2195,
+    "matches": 82
+   },
+   "50": {
+    "mean": 9.4524,
+    "matches": 42
+   }
+  },
+  "shots_1h_for": {
+   "34": {
+    "mean": 6.7723,
+    "matches": 101
+   },
+   "12": {
+    "mean": 6.2222,
+    "matches": 63
+   },
+   "40": {
+    "mean": 7.2667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 5.7333,
+    "matches": 60
+   },
+   "79": {
+    "mean": 6.3173,
+    "matches": 104
+   },
+   "1": {
+    "mean": 7.0222,
+    "matches": 45
+   },
+   "87": {
+    "mean": 5.8971,
+    "matches": 68
+   },
+   "4": {
+    "mean": 5.66,
+    "matches": 50
+   },
+   "17": {
+    "mean": 5.2763,
+    "matches": 76
+   },
+   "25": {
+    "mean": 6.4062,
+    "matches": 64
+   },
+   "80": {
+    "mean": 6.5634,
+    "matches": 71
+   },
+   "85": {
+    "mean": 5.8069,
+    "matches": 145
+   },
+   "72": {
+    "mean": 5.9873,
+    "matches": 79
+   },
+   "13": {
+    "mean": 5.4419,
+    "matches": 43
+   },
+   "83": {
+    "mean": 7.6667,
+    "matches": 63
+   },
+   "9": {
+    "mean": 5.7,
+    "matches": 70
+   },
+   "57": {
+    "mean": 6.06,
+    "matches": 100
+   },
+   "14": {
+    "mean": 7.2857,
+    "matches": 42
+   },
+   "49": {
+    "mean": 6.1954,
+    "matches": 87
+   },
+   "3": {
+    "mean": 5.4615,
+    "matches": 52
+   },
+   "6": {
+    "mean": 6.2609,
+    "matches": 46
+   },
+   "26": {
+    "mean": 6.4789,
+    "matches": 71
+   },
+   "18": {
+    "mean": 5.9524,
+    "matches": 105
+   },
+   "2": {
+    "mean": 5.7321,
+    "matches": 56
+   },
+   "54": {
+    "mean": 6.5735,
+    "matches": 68
+   },
+   "38": {
+    "mean": 5.5094,
+    "matches": 53
+   },
+   "89": {
+    "mean": 5.7872,
+    "matches": 47
+   },
+   "10": {
+    "mean": 6.6667,
+    "matches": 48
+   },
+   "23": {
+    "mean": 6.5893,
+    "matches": 56
+   },
+   "11": {
+    "mean": 5.1579,
+    "matches": 57
+   },
+   "19": {
+    "mean": 6.1163,
+    "matches": 43
+   },
+   "36": {
+    "mean": 5.3553,
+    "matches": 76
+   },
+   "88": {
+    "mean": 5.8261,
+    "matches": 46
+   },
+   "52": {
+    "mean": 6.622,
+    "matches": 82
+   },
+   "50": {
+    "mean": 5.35,
+    "matches": 60
+   }
+  },
+  "blocked_shots_total": {
+   "34": {
+    "mean": 7.4554,
+    "matches": 101
+   },
+   "12": {
+    "mean": 8.381,
+    "matches": 63
+   },
+   "40": {
+    "mean": 7.6667,
+    "matches": 60
+   },
+   "86": {
+    "mean": 7.4833,
+    "matches": 60
+   },
+   "79": {
+    "mean": 5.1774,
+    "matches": 124
+   },
+   "1": {
+    "mean": 7.9111,
+    "matches": 45
+   },
+   "87": {
+    "mean": 7.4853,
+    "matches": 68
+   },
+   "4": {
+    "mean": 6.18,
+    "matches": 50
+   },
+   "17": {
+    "mean": 5.8816,
+    "matches": 76
+   },
+   "91": {
+    "mean": 6.3175,
+    "matches": 63
+   },
+   "25": {
+    "mean": 8.0781,
+    "matches": 64
+   },
+   "80": {
+    "mean": 6.1831,
+    "matches": 71
+   },
+   "81": {
+    "mean": 5.575,
+    "matches": 40
+   },
+   "85": {
+    "mean": 6.3862,
+    "matches": 145
+   },
+   "72": {
+    "mean": 6.962,
+    "matches": 79
+   },
+   "83": {
+    "mean": 6.7412,
+    "matches": 85
+   },
+   "13": {
+    "mean": 7.8837,
+    "matches": 43
+   },
+   "9": {
+    "mean": 8.2714,
+    "matches": 70
+   },
+   "57": {
+    "mean": 6.89,
+    "matches": 100
+   },
+   "8": {
+    "mean": 6.4286,
+    "matches": 42
+   },
+   "14": {
+    "mean": 7.9524,
+    "matches": 42
+   },
+   "49": {
+    "mean": 6.9885,
+    "matches": 87
+   },
+   "3": {
+    "mean": 6.0,
+    "matches": 52
+   },
+   "6": {
+    "mean": 6.9348,
+    "matches": 46
+   },
+   "26": {
+    "mean": 8.0141,
+    "matches": 71
+   },
+   "18": {
+    "mean": 7.0381,
+    "matches": 105
+   },
+   "2": {
+    "mean": 6.3571,
+    "matches": 56
+   },
+   "54": {
+    "mean": 7.8824,
+    "matches": 68
+   },
+   "38": {
+    "mean": 6.0377,
+    "matches": 53
+   },
+   "89": {
+    "mean": 5.6458,
+    "matches": 48
+   },
+   "10": {
+    "mean": 7.5417,
+    "matches": 48
+   },
+   "23": {
+    "mean": 6.6964,
+    "matches": 56
+   },
+   "11": {
+    "mean": 6.3158,
+    "matches": 57
+   },
+   "19": {
+    "mean": 6.814,
+    "matches": 43
+   },
+   "36": {
+    "mean": 4.9079,
+    "matches": 76
+   },
+   "88": {
+    "mean": 6.3913,
+    "matches": 46
+   },
+   "52": {
+    "mean": 6.8659,
+    "matches": 82
+   },
+   "50": {
+    "mean": 6.9667,
+    "matches": 60
+   }
+  },
+  "offsides_2h_total": {
+   "34": {
+    "mean": 1.7917,
+    "matches": 96
+   },
+   "12": {
+    "mean": 2.0159,
+    "matches": 63
+   },
+   "40": {
+    "mean": 2.0172,
+    "matches": 58
+   },
+   "86": {
+    "mean": 2.0,
+    "matches": 59
+   },
+   "79": {
+    "mean": 1.8182,
+    "matches": 99
+   },
+   "1": {
+    "mean": 1.5349,
+    "matches": 43
+   },
+   "87": {
+    "mean": 1.9848,
+    "matches": 66
+   },
+   "4": {
+    "mean": 2.3261,
+    "matches": 46
+   },
+   "17": {
+    "mean": 2.2838,
+    "matches": 74
+   },
+   "25": {
+    "mean": 1.4667,
+    "matches": 60
+   },
+   "80": {
+    "mean": 1.7273,
+    "matches": 66
+   },
+   "85": {
+    "mean": 2.0,
+    "matches": 138
+   },
+   "72": {
+    "mean": 2.0658,
+    "matches": 76
+   },
+   "13": {
+    "mean": 1.4146,
+    "matches": 41
+   },
+   "83": {
+    "mean": 1.7143,
+    "matches": 56
+   },
+   "9": {
+    "mean": 1.6885,
+    "matches": 61
+   },
+   "57": {
+    "mean": 2.0,
+    "matches": 93
+   },
+   "49": {
+    "mean": 1.7349,
+    "matches": 83
+   },
+   "3": {
+    "mean": 2.12,
+    "matches": 50
+   },
+   "6": {
+    "mean": 1.9762,
+    "matches": 42
+   },
+   "26": {
+    "mean": 1.4219,
+    "matches": 64
+   },
+   "18": {
+    "mean": 2.1,
+    "matches": 100
+   },
+   "2": {
+    "mean": 1.6111,
+    "matches": 54
+   },
+   "54": {
+    "mean": 1.6984,
+    "matches": 63
+   },
+   "38": {
+    "mean": 1.76,
+    "matches": 50
+   },
+   "89": {
+    "mean": 1.8864,
+    "matches": 44
+   },
+   "10": {
+    "mean": 1.2727,
+    "matches": 44
+   },
+   "23": {
+    "mean": 1.3469,
+    "matches": 49
+   },
+   "11": {
+    "mean": 1.8545,
+    "matches": 55
+   },
+   "19": {
+    "mean": 1.7805,
+    "matches": 41
+   },
+   "36": {
+    "mean": 2.08,
+    "matches": 75
+   },
+   "88": {
+    "mean": 1.9762,
+    "matches": 42
+   },
+   "52": {
+    "mean": 2.1184,
+    "matches": 76
+   },
+   "50": {
+    "mean": 1.8276,
+    "matches": 58
+   }
+  },
+  "blocked_shots_1h_total": {
+   "34": {
+    "mean": 3.6832,
+    "matches": 101
+   },
+   "12": {
+    "mean": 3.7302,
+    "matches": 63
+   },
+   "40": {
+    "mean": 3.5167,
+    "matches": 60
+   },
+   "86": {
+    "mean": 3.3333,
+    "matches": 60
+   },
+   "79": {
+    "mean": 2.7596,
+    "matches": 104
+   },
+   "1": {
+    "mean": 3.5778,
+    "matches": 45
+   },
+   "87": {
+    "mean": 3.3824,
+    "matches": 68
+   },
+   "4": {
+    "mean": 3.08,
+    "matches": 50
+   },
+   "17": {
+    "mean": 2.9868,
+    "matches": 76
+   },
+   "25": {
+    "mean": 3.6875,
+    "matches": 64
+   },
+   "80": {
+    "mean": 2.9437,
+    "matches": 71
+   },
+   "85": {
+    "mean": 2.8828,
+    "matches": 145
+   },
+   "72": {
+    "mean": 3.0,
+    "matches": 79
+   },
+   "13": {
+    "mean": 3.5349,
+    "matches": 43
+   },
+   "83": {
+    "mean": 3.5397,
+    "matches": 63
+   },
+   "9": {
+    "mean": 3.6143,
+    "matches": 70
+   },
+   "57": {
+    "mean": 3.23,
+    "matches": 100
+   },
+   "14": {
+    "mean": 3.3333,
+    "matches": 42
+   },
+   "49": {
+    "mean": 3.4023,
+    "matches": 87
+   },
+   "3": {
+    "mean": 2.6346,
+    "matches": 52
+   },
+   "6": {
+    "mean": 2.9348,
+    "matches": 46
+   },
+   "26": {
+    "mean": 3.7183,
+    "matches": 71
+   },
+   "18": {
+    "mean": 3.3905,
+    "matches": 105
+   },
+   "2": {
+    "mean": 3.3571,
+    "matches": 56
+   },
+   "54": {
+    "mean": 3.8235,
+    "matches": 68
+   },
+   "38": {
+    "mean": 2.5849,
+    "matches": 53
+   },
+   "89": {
+    "mean": 2.7021,
+    "matches": 47
+   },
+   "10": {
+    "mean": 3.3125,
+    "matches": 48
+   },
+   "23": {
+    "mean": 3.1071,
+    "matches": 56
+   },
+   "11": {
+    "mean": 2.9123,
+    "matches": 57
+   },
+   "19": {
+    "mean": 3.3023,
+    "matches": 43
+   },
+   "36": {
+    "mean": 1.9737,
+    "matches": 76
+   },
+   "88": {
+    "mean": 2.9565,
+    "matches": 46
+   },
+   "52": {
+    "mean": 3.2805,
+    "matches": 82
+   },
+   "50": {
+    "mean": 2.9,
+    "matches": 60
+   }
+  },
+  "fouls_for": {
+   "34": {
+    "mean": 14.4059,
+    "matches": 101
+   },
+   "12": {
+    "mean": 11.1111,
+    "matches": 63
+   },
+   "40": {
+    "mean": 11.1333,
+    "matches": 60
+   },
+   "86": {
+    "mean": 12.9333,
+    "matches": 60
+   },
+   "79": {
+    "mean": 10.8478,
+    "matches": 138
+   },
+   "1": {
+    "mean": 10.5778,
+    "matches": 45
+   },
+   "87": {
+    "mean": 12.2794,
+    "matches": 68
+   },
+   "4": {
+    "mean": 12.0,
+    "matches": 50
+   },
+   "17": {
+    "mean": 11.1842,
+    "matches": 76
+   },
+   "91": {
+    "mean": 12.3492,
+    "matches": 63
+   },
+   "25": {
+    "mean": 12.8438,
+    "matches": 64
+   },
+   "80": {
+    "mean": 11.7183,
+    "matches": 71
+   },
+   "81": {
+    "mean": 12.65,
+    "matches": 40
+   },
+   "85": {
+    "mean": 11.9103,
+    "matches": 145
+   },
+   "72": {
+    "mean": 9.9367,
+    "matches": 79
+   },
+   "83": {
+    "mean": 12.3765,
+    "matches": 85
+   },
+   "13": {
+    "mean": 12.2326,
+    "matches": 43
+   },
+   "9": {
+    "mean": 12.2429,
+    "matches": 70
+   },
+   "57": {
+    "mean": 12.45,
+    "matches": 100
+   },
+   "8": {
+    "mean": 12.9762,
+    "matches": 42
+   },
+   "14": {
+    "mean": 10.6905,
+    "matches": 42
+   },
+   "49": {
+    "mean": 10.0575,
+    "matches": 87
+   },
+   "3": {
+    "mean": 12.3462,
+    "matches": 52
+   },
+   "6": {
+    "mean": 10.913,
+    "matches": 46
+   },
+   "26": {
+    "mean": 12.0141,
+    "matches": 71
+   },
+   "18": {
+    "mean": 11.4381,
+    "matches": 105
+   },
+   "2": {
+    "mean": 12.6071,
+    "matches": 56
+   },
+   "54": {
+    "mean": 12.8382,
+    "matches": 68
+   },
+   "38": {
+    "mean": 12.5849,
+    "matches": 53
+   },
+   "89": {
+    "mean": 13.5532,
+    "matches": 47
+   },
+   "10": {
+    "mean": 10.3958,
+    "matches": 48
+   },
+   "23": {
+    "mean": 12.6429,
+    "matches": 56
+   },
+   "11": {
+    "mean": 13.1404,
+    "matches": 57
+   },
+   "19": {
+    "mean": 11.7907,
+    "matches": 43
+   },
+   "36": {
+    "mean": 9.2895,
+    "matches": 76
+   },
+   "88": {
+    "mean": 14.1087,
+    "matches": 46
+   },
+   "52": {
+    "mean": 12.5976,
+    "matches": 82
+   },
+   "50": {
+    "mean": 11.0,
+    "matches": 44
+   }
+  },
+  "possession_2h": {
+   "12": {
+    "mean": 100.0,
+    "matches": 46
+   },
+   "40": {
+    "mean": 100.0,
+    "matches": 59
+   },
+   "86": {
+    "mean": 100.0,
+    "matches": 48
+   },
+   "87": {
+    "mean": 100.0,
+    "matches": 56
+   },
+   "25": {
+    "mean": 100.0,
+    "matches": 57
+   },
+   "80": {
+    "mean": 100.0,
+    "matches": 46
+   },
+   "49": {
+    "mean": 100.0,
+    "matches": 77
+   }
+  },
+  "red_cards_total": {
+   "79": {
+    "mean": 0.0673,
+    "matches": 535
+   },
+   "91": {
+    "mean": 0.1905,
+    "matches": 63
+   },
+   "81": {
+    "mean": 0.275,
+    "matches": 40
+   },
+   "85": {
+    "mean": 0.825,
+    "matches": 40
+   },
+   "83": {
+    "mean": 0.3864,
+    "matches": 44
+   },
+   "8": {
+    "mean": 0.2407,
+    "matches": 54
+   },
+   "22": {
+    "mean": 0.16,
+    "matches": 50
+   },
+   "26": {
+    "mean": 0.1395,
+    "matches": 43
+   },
+   "82": {
+    "mean": 0.2535,
+    "matches": 71
+   },
+   "88": {
+    "mean": 0.5238,
+    "matches": 42
+   }
+  },
+  "possession_1h": {
+   "12": {
+    "mean": 100.0,
+    "matches": 46
+   },
+   "40": {
+    "mean": 100.0,
+    "matches": 59
+   },
+   "86": {
+    "mean": 100.0,
+    "matches": 48
+   },
+   "87": {
+    "mean": 100.0,
+    "matches": 56
+   },
+   "25": {
+    "mean": 100.0,
+    "matches": 57
+   },
+   "80": {
+    "mean": 100.0,
+    "matches": 46
+   },
+   "49": {
+    "mean": 100.0,
+    "matches": 77
+   }
+  },
+  "possession": {
+   "12": {
+    "mean": 100.0,
+    "matches": 46
+   },
+   "40": {
+    "mean": 100.0,
+    "matches": 59
+   },
+   "79": {
+    "mean": 99.5851,
+    "matches": 241
+   },
+   "86": {
+    "mean": 100.0,
+    "matches": 48
+   },
+   "87": {
+    "mean": 100.0,
+    "matches": 56
+   },
+   "25": {
+    "mean": 100.0,
+    "matches": 57
+   },
+   "80": {
+    "mean": 100.0,
+    "matches": 46
+   },
+   "49": {
+    "mean": 100.0,
+    "matches": 77
+   }
+  },
+  "red_cards_2h_total": {
+   "85": {
+    "mean": 0.625,
+    "matches": 40
+   },
+   "26": {
+    "mean": 0.0698,
+    "matches": 43
+   }
+  },
+  "red_cards_1h_total": {
+   "85": {
+    "mean": 0.15,
+    "matches": 40
+   },
+   "26": {
+    "mean": 0.0698,
+    "matches": 43
+   }
+  },
+  "cards_points_total": {
+   "3": {
+    "mean": 4.5577,
+    "matches": 52
+   },
+   "79": {
+    "mean": 1.7188,
+    "matches": 601
+   },
+   "6": {
+    "mean": 3.75,
+    "matches": 44
+   },
+   "25": {
+    "mean": 3.8125,
+    "matches": 48
+   },
+   "83": {
+    "mean": 4.275,
+    "matches": 80
+   },
+   "8": {
+    "mean": 4.5455,
+    "matches": 55
+   },
+   "34": {
+    "mean": 4.2755,
+    "matches": 98
+   },
+   "4": {
+    "mean": 3.8837,
+    "matches": 43
+   },
+   "17": {
+    "mean": 3.8108,
+    "matches": 74
+   },
+   "26": {
+    "mean": 3.338,
+    "matches": 71
+   },
+   "9": {
+    "mean": 4.7164,
+    "matches": 67
+   },
+   "80": {
+    "mean": 6.0476,
+    "matches": 63
+   },
+   "18": {
+    "mean": 4.4519,
+    "matches": 104
+   },
+   "57": {
+    "mean": 4.5729,
+    "matches": 96
+   },
+   "85": {
+    "mean": 4.9787,
+    "matches": 141
+   },
+   "2": {
+    "mean": 4.6604,
+    "matches": 53
+   },
+   "82": {
+    "mean": 4.6338,
+    "matches": 71
+   },
+   "1": {
+    "mean": 4.0227,
+    "matches": 44
+   },
+   "40": {
+    "mean": 3.5,
+    "matches": 56
+   },
+   "12": {
+    "mean": 3.7143,
+    "matches": 56
+   },
+   "54": {
+    "mean": 3.8594,
+    "matches": 64
+   },
+   "91": {
+    "mean": 4.1935,
+    "matches": 62
+   },
+   "38": {
+    "mean": 4.6154,
+    "matches": 52
+   },
+   "22": {
+    "mean": 4.6531,
+    "matches": 49
+   },
+   "89": {
+    "mean": 3.6,
+    "matches": 45
+   },
+   "10": {
+    "mean": 3.075,
+    "matches": 40
+   },
+   "23": {
+    "mean": 5.2037,
+    "matches": 54
+   },
+   "11": {
+    "mean": 4.3519,
+    "matches": 54
+   },
+   "72": {
+    "mean": 2.7429,
+    "matches": 70
+   },
+   "36": {
+    "mean": 3.5,
+    "matches": 74
+   },
+   "88": {
+    "mean": 5.5733,
+    "matches": 75
+   },
+   "87": {
+    "mean": 3.8644,
+    "matches": 59
+   },
+   "86": {
+    "mean": 3.96,
+    "matches": 50
+   },
+   "52": {
+    "mean": 4.037,
+    "matches": 81
+   },
+   "49": {
+    "mean": 2.9242,
+    "matches": 66
+   },
+   "50": {
+    "mean": 3.8,
+    "matches": 60
+   }
+  },
+  "cards_points_for": {
+   "3": {
+    "mean": 2.3269,
+    "matches": 52
+   },
+   "79": {
+    "mean": 0.792,
+    "matches": 601
+   },
+   "6": {
+    "mean": 1.9773,
+    "matches": 44
+   },
+   "25": {
+    "mean": 2.0,
+    "matches": 48
+   },
+   "83": {
+    "mean": 1.9125,
+    "matches": 80
+   },
+   "8": {
+    "mean": 2.2364,
+    "matches": 55
+   },
+   "34": {
+    "mean": 2.0918,
+    "matches": 98
+   },
+   "4": {
+    "mean": 1.7907,
+    "matches": 43
+   },
+   "17": {
+    "mean": 1.9865,
+    "matches": 74
+   },
+   "26": {
+    "mean": 1.6056,
+    "matches": 71
+   },
+   "9": {
+    "mean": 2.2687,
+    "matches": 67
+   },
+   "80": {
+    "mean": 2.9206,
+    "matches": 63
+   },
+   "18": {
+    "mean": 2.2596,
+    "matches": 104
+   },
+   "57": {
+    "mean": 2.1979,
+    "matches": 96
+   },
+   "85": {
+    "mean": 2.4965,
+    "matches": 141
+   },
+   "2": {
+    "mean": 2.8113,
+    "matches": 53
+   },
+   "82": {
+    "mean": 2.3803,
+    "matches": 71
+   },
+   "1": {
+    "mean": 1.8182,
+    "matches": 44
+   },
+   "40": {
+    "mean": 1.6429,
+    "matches": 56
+   },
+   "12": {
+    "mean": 1.8036,
+    "matches": 56
+   },
+   "54": {
+    "mean": 2.2656,
+    "matches": 64
+   },
+   "91": {
+    "mean": 2.0484,
+    "matches": 62
+   },
+   "38": {
+    "mean": 2.4231,
+    "matches": 52
+   },
+   "22": {
+    "mean": 2.551,
+    "matches": 49
+   },
+   "89": {
+    "mean": 1.7333,
+    "matches": 45
+   },
+   "10": {
+    "mean": 1.375,
+    "matches": 40
+   },
+   "23": {
+    "mean": 2.6111,
+    "matches": 54
+   },
+   "11": {
+    "mean": 2.5185,
+    "matches": 54
+   },
+   "72": {
+    "mean": 1.1857,
+    "matches": 70
+   },
+   "36": {
+    "mean": 1.8243,
+    "matches": 74
+   },
+   "88": {
+    "mean": 2.7867,
+    "matches": 75
+   },
+   "87": {
+    "mean": 1.9322,
+    "matches": 59
+   },
+   "86": {
+    "mean": 2.04,
+    "matches": 50
+   },
+   "52": {
+    "mean": 1.7407,
+    "matches": 81
+   },
+   "49": {
+    "mean": 1.3788,
+    "matches": 66
+   },
+   "50": {
+    "mean": 1.8333,
+    "matches": 60
+   }
+  }
+ }
+}

@@ -51,6 +51,8 @@ from pathlib import Path
 from typing import Literal
 from pydantic import Field
 
+from collections import defaultdict
+
 from bet.simple_stats.bet_builder_draft import (
     scope_sibling,
     required_odds,
@@ -63,6 +65,7 @@ from bet.simple_stats.bet_builder_draft import (
     bar_components,
     bar_input,
     draft_legs,
+    mechanism_family,
     shrink_k_for_market,
     is_trivial_under,
     step_tier_down,
@@ -194,6 +197,131 @@ MARKET_LABELS: dict[str, str] = {
 # 3.14 on a corners line that is quoted near 2.30 -- reporting it as a "bet" is
 # reporting something unplaceable.
 MIN_SINGLE_P_LOW = 0.50
+
+# How far under its own threshold a price may sit and still lead the file.
+#
+# The bar is ``tier_margin / p_shrunk``, and a row whose price misses it by one
+# percent was being filed with rows that miss it by twenty. That is not a
+# distinction the arithmetic supports and it is not one the settled record
+# supports either. Measured over 1,269 settled, priced match-total rows from
+# the slates in ``runs/``, bucketed by how far the posted price sat from the
+# threshold, with ROI bootstrapped over fixtures:
+#
+#     gap >= 0% (the old VALUE rule)   n=  52  win 63.5%  ROI -0.8%  [-35.6, +28.3]
+#     gap >= -2%                       n=  71  win 66.2%  ROI +0.5%  [-28.2, +25.7]
+#     gap >= -5%                       n= 144  win 72.9%  ROI +1.3%  [-13.8, +15.8]
+#     gap >= -8%                       n= 277  win 78.3%  ROI +0.2%  [ -9.6,  +9.5]
+#     gap >= -10%                      n= 472  win 82.2%  ROI -0.7%  [ -7.0,  +5.2]
+#     gap >= -15%                      n= 993  win 85.5%  ROI -1.6%  [ -5.6,  +2.0]
+#
+# The finding is the first line against the third. Insisting on a non-negative
+# gap threw away 92 of 144 rows and bought nothing measurable -- its own point
+# estimate is *worse*, on a sample too small to say anything at all. -5% is the
+# best point estimate on the curve and the last floor whose interval is still
+# mostly positive.
+#
+# Every interval here contains zero, so this is not a claim that -5% is
+# profitable. It is a claim that the 0% line was arbitrary, cost most of the
+# candidates, and was never measured. Nothing is deleted either way: a row past
+# the tolerance is still written, still ranked, and still carries its gap.
+#
+# Note which way the win rate runs. It climbs monotonically as the gap gets
+# worse -- 63.5% at the top, 92.6% past -20% -- because a worse gap means a
+# shorter price. High-probability reads live structurally *below* the
+# threshold, which is why a file gated at 0% can never show one.
+PRICE_TOLERANCE_PCT = 5.0
+
+# Where the measured edge actually lives, by posted price. Used to *label* a
+# row, never to remove one -- the operator has said the decision is his and the
+# bands are what he needs to make it.
+#
+# Measured over 668 settled, priced coupon singles from the slates in ``runs/``,
+# rebuilt at ``max_singles=400`` so the whole candidate set is scored, against
+# each row's own posted price. "edge" is realised hit rate minus the price's
+# implied probability, so it is the part that is not vig:
+#
+#     price        n    win    implied    edge      ROI
+#     1.00-1.05  239  97.5%      98.5%   -1.0%    -1.1%
+#     1.05-1.10   75  89.3%      93.6%   -4.3%    -4.7%
+#     1.10-1.20  119  84.9%      87.6%   -2.7%    -3.2%
+#     1.20-1.35  128  78.1%      79.4%   -1.3%    -1.6%
+#     1.35-1.60   86  76.7%      69.4%   +7.3%   +10.8%
+#     1.60-2.00   19  63.2%      57.1%   +6.1%   +11.0%
+#
+# This is the answer to "a near-certain leg is worth having as a top-up". It is
+# not: at 1.00-1.05 the sheet realises 97.5% against an implied 98.5%, so such a
+# row is priced *above* what it actually does and adding it to anything the book
+# multiplies costs about a point of EV per leg. Certainty is real there and it
+# is already in the price.
+#
+# The band that pays is 1.35-1.60, where a 76.7% realised rate meets a 69.4%
+# implied one. High confidence and a takeable price are not opposites -- they
+# meet in the middle of the ladder, which is exactly where a sheet gated on
+# "must clear the threshold" never looked.
+CERTAINTY_PRICE_FLOOR = 1.30
+
+# How many singles the file may carry.
+#
+# It was 15 from the first version and nothing had ever measured what the cap
+# was protecting. On 2026-09-07 it excluded 262 rows, and the operator's
+# objection was the right one: a row he would not stake alone can still be the
+# thing he wants to see, and the cap was making that call for him.
+#
+# Measured by rebuilding every slate in ``runs/`` at ``max_singles=400`` and
+# settling each single:
+#
+#     rank      n    win    priced    ROI
+#      1-15    67  73.1%       52   +13.4%
+#     16-25    47  93.6%       28   +14.1%
+#     26-50   135  84.4%       57    -7.0%
+#     51-100  254  85.8%       66    +1.6%
+#    101-400  1302  87.8%      465    -1.8%
+#
+# The deep ranks *win more* -- 87.4% past rank 15 against 73.1% inside it --
+# and return less, because winning more is what a short price buys. So the cap
+# was not protecting the file from bad rows; it was hiding the safe ones, which
+# are the ones the operator asked for by name.
+#
+# 40 rather than 400: past rank 50 the rows are near-certain trivia at 1.02 and
+# a file nobody finishes reading is not a longer file, it is a shorter one. The
+# ordering already puts every priced, takeable row ahead of every unpriced one
+# (see ``_append_singles``), so raising the cap cannot push a VALUE row out --
+# it only lets the tail through behind them. Pass ``--max-singles`` for more.
+MAX_SINGLES = 40
+
+# How many singles one fixture may contribute, per mechanism family and in
+# total. Both exist because raising the cap to 40 exposed what the cap had been
+# hiding rather than protecting.
+#
+# On 2026-09-07 the first 40-single file drew **14 of 34 fixtures**, with 22 of
+# the 40 rows coming from five of them: Universitatea Craiova 5, Mjällby 5,
+# Malmö 4, Barracas 4, Midtjylland 4. Craiova's five were ``goals_total`` 5.5
+# UNDER, ``goals_1h_total`` 3.5 UNDER, ``goals_2h_total`` 3.5 UNDER,
+# ``goals_for`` 2.5 UNDER and ``corners_total`` 11.5 UNDER -- four readings of
+# "do goals happen in this match" presented as four rows. The operator asked
+# for more *events*; row-level deduplication by (event, market, subject) cannot
+# give him that, because those four are four different markets.
+#
+# ``mechanism_family`` already exists and the Bet Builder has used it since
+# 2026-09-03 (``duplicate_mechanism_family``, 85 exclusions on the 2026-09-06
+# slate). The singles list simply never asked it.
+#
+# One per family, three per fixture: three is what a fixture can say that is
+# not a restatement -- scoring, attacking, discipline -- and a fourth row from
+# the same match is a fourth line on one of them.
+MAX_SINGLES_PER_FAMILY = 1
+MAX_SINGLES_PER_EVENT = 3
+
+# The price bands above, as (floor, label, measured edge). Read by
+# ``_price_band`` and printed beside every priced single.
+_PRICE_BANDS: tuple[tuple[float, str, float], ...] = (
+    (1.60, "1.60+", 0.061),
+    (1.35, "1.35-1.60", 0.073),
+    (1.20, "1.20-1.35", -0.013),
+    (1.10, "1.10-1.20", -0.027),
+    (1.05, "1.05-1.10", -0.043),
+    (0.0, "1.00-1.05", -0.010),
+)
 
 # How far above the operator's own book this sheet may claim to be before the
 # row stops being a lean and starts being a question about the sample.
@@ -510,15 +638,26 @@ class CouponSingle(StrictBaseModel):
     # Superbet for this exact (market, line, direction, subject), or the reason
     # there isn't one.
     #
-    # ``superbet_verdict`` is VALUE only when a live, active Superbet price is
-    # at or above ``min_acceptable_odds``. It is not a probability and it never
-    # touches p_low; it answers "can this be taken, and is it worth taking at
-    # the price on the screen".
+    # ``superbet_verdict`` is VALUE when a live, active Superbet price is at or
+    # above ``min_acceptable_odds``, WITHIN_TOLERANCE when it misses by no more
+    # than ``PRICE_TOLERANCE_PCT``, and PRICED_BELOW_THRESHOLD past that. It is
+    # not a probability and it never touches p_low; it answers "can this be
+    # taken, and how close is the screen to what the bar asks".
     superbet_availability: str | None = None
     superbet_verdict: str | None = None
     superbet_price: float | None = None
     # price - min_acceptable_odds, in odds. Positive is the whole point.
     superbet_surplus: float | None = None
+    # The same distance as a percentage of the threshold, which is the form the
+    # tolerance is set in and the only form comparable across prices: 0.06 of
+    # surplus is 4.6% at 1.30 and 2.2% at 2.70. See PRICE_TOLERANCE_PCT.
+    superbet_price_gap_pct: float | None = None
+    # Which measured price band this row's price falls in, and what that band
+    # has realised. Not a gate and not derived from this row -- it is the
+    # settled record of every row ever priced there, attached so a 97%-certain
+    # row at 1.03 cannot be mistaken for a free one. See _PRICE_BANDS.
+    price_band: str | None = None
+    price_band_measured_edge: float | None = None
     # Set when the market exists but our line does not: the closest rung of
     # Superbet's ladder, so a systematic line mismatch is visible in the file
     # a human reads rather than only in an audit artifact.
@@ -612,6 +751,21 @@ class CouponSet(StrictBaseModel):
     # this module reads it -- it cannot reach ranking, tiering or the value
     # test. See ``tipster_consensus``. None means the artifact was not passed.
     tipster_consensus: TipsterConsensus | None = None
+
+
+def _price_band(price: float | None) -> tuple[str | None, float | None]:
+    """``(band label, that band's measured edge)`` for one posted price.
+
+    The edge is a property of the *band* over 668 settled rows, not of this row
+    -- attaching it is how "97% certain at 1.03" stops reading as free money.
+    See ``_PRICE_BANDS``.
+    """
+    if not isinstance(price, (int, float)) or price <= 1.0:
+        return None, None
+    for floor, label, edge in _PRICE_BANDS:
+        if price >= floor:
+            return label, edge
+    return None, None
 
 
 def _now_iso() -> str:
@@ -1099,7 +1253,7 @@ def build_coupons(
     stats_sheet: StatsSheetV1,
     event_list: EventListV1 | None = None,
     *,
-    max_singles: int = 15,
+    max_singles: int = MAX_SINGLES,
     max_slips: int = 8,
     max_legs: int = 4,
     min_p_low: float = MIN_SINGLE_P_LOW,
@@ -1111,6 +1265,9 @@ def build_coupons(
     bar_basis: str = "p_central",
     shrink_k: float | None = None,
     allow_player_props: bool = ALLOW_PLAYER_PROPS,
+    price_tolerance_pct: float = PRICE_TOLERANCE_PCT,
+    max_per_family: int = MAX_SINGLES_PER_FAMILY,
+    max_per_event: int = MAX_SINGLES_PER_EVENT,
 ) -> CouponSet:
     """Turn a finished stats sheet into the day's singles and slips.
 
@@ -1194,16 +1351,27 @@ def build_coupons(
         )
         verdict: str | None = None
         surplus: float | None = None
+        gap_pct: float | None = None
         if availability == "OFFERED" and exact is not None and minimum is not None:
             surplus = round(exact.price - minimum, 4)
-            verdict = "VALUE" if exact.price >= minimum else "PRICED_BELOW_THRESHOLD"
+            gap_pct = round((exact.price / minimum - 1.0) * 100.0, 2)
+            if exact.price >= minimum:
+                verdict = "VALUE"
+            elif gap_pct >= -price_tolerance_pct:
+                verdict = "WITHIN_TOLERANCE"
+            else:
+                verdict = "PRICED_BELOW_THRESHOLD"
         elif availability != "OFFERED":
             verdict = availability
+        band, band_edge = _price_band(exact.price if exact else None)
         return {
             "superbet_availability": availability,
             "superbet_verdict": verdict,
             "superbet_price": exact.price if exact else None,
             "superbet_surplus": surplus,
+            "superbet_price_gap_pct": gap_pct,
+            "price_band": band,
+            "price_band_measured_edge": band_edge,
             "superbet_nearest_line": near_line,
             "superbet_nearest_price": near_price,
         }
@@ -1570,19 +1738,22 @@ def build_coupons(
         # the analyst steps to WEAK is excluded by that same check, exactly
         # like a context flag's downgrade would be -- no second exclusion path
         # needed for it.
-        if veto is not None and veto.action == "DOWNGRADE":
-            new_tier = step_tier_down(tier)
-            note_veto_once(
-                veto,
-                f"DOWNGRADE analityka [{veto.reason_class}]: {_veto_scope(veto)} "
-                f"({row.event_id[:12]}) {tier}→{new_tier}"
-                f"{_veto_class_effect(veto)} — {veto.reason}",
-                variant=tier,
-            )
-            tier = new_tier
-        if tier in ("WEAK", "DROP"):
-            exclude(f"tier_{tier.lower()}")
-            continue
+        #
+        # A hard VETO is checked *first*, before both the downgrade and the
+        # tier gate. It used to sit after them, and the effect was that the
+        # analyst's strongest verdict was the only one that could vanish
+        # without trace: a row already at WEAK left through ``tier_weak`` and
+        # never reached this branch, so no note was written and ``excluded``
+        # carried no ``analyst_veto`` at all. On 2026-09-07 the file recorded
+        # nine notes for ten vetoes and reported zero hard vetoes while the
+        # veto artifact held two -- Cerundolo-Blockx aces and double faults,
+        # both struck outright, neither mentioned. The two artifacts disagreed
+        # about what the analyst had done, and the coupon was the one the
+        # operator reads.
+        #
+        # Attribution follows the same logic: a row that is both thin and
+        # vetoed was removed *because the analyst removed it*, and counting it
+        # as a tier casualty hides a judgement behind a threshold.
         if veto is not None and veto.action == "VETO":
             exclude("analyst_veto")
             note_veto_once(
@@ -1590,6 +1761,28 @@ def build_coupons(
                 f"WETO analityka [{veto.reason_class}]: {_veto_scope(veto)} "
                 f"({row.event_id[:12]}) — {veto.reason}",
             )
+            continue
+        if veto is not None and veto.action == "DOWNGRADE":
+            new_tier = step_tier_down(tier)
+            # ``variant`` is the *incoming* tier, so one veto covering rows at
+            # two different tiers renders once per tier -- which is right when
+            # the step differs and pure noise when it does not. A row already
+            # at WEAK steps to WEAK, changes nothing, and used to emit a second
+            # full copy of a 1,500-character reason: on 2026-09-07 the
+            # Gea-van de Zandschulp games_won note appeared twice, once as
+            # LEAN→WEAK and once as WEAK→WEAK, identical but for the arrow.
+            # A transition that is a no-op is not a second finding.
+            if new_tier != tier:
+                note_veto_once(
+                    veto,
+                    f"DOWNGRADE analityka [{veto.reason_class}]: {_veto_scope(veto)} "
+                    f"({row.event_id[:12]}) {tier}→{new_tier}"
+                    f"{_veto_class_effect(veto)} — {veto.reason}",
+                    variant=tier,
+                )
+            tier = new_tier
+        if tier in ("WEAK", "DROP"):
+            exclude(f"tier_{tier.lower()}")
             continue
         if not allow_player_props and is_player_prop(row):
             exclude("player_prop_unpriceable")
@@ -1619,6 +1812,9 @@ def build_coupons(
     # RUNG_PENALTY_LINE_ON_MODE.
     seen: set[tuple[tuple, str, str | None]] = set()
     singles: list[CouponSingle] = []
+    # Per-fixture budgets. See MAX_SINGLES_PER_EVENT.
+    per_family: dict[tuple[tuple, str], int] = defaultdict(int)
+    per_event: dict[tuple, int] = defaultdict(int)
 
     def rung_score(row: StatsSheetRow, tier: str) -> float | None:
         """Expected value at the book's own price, penalised for a bad rung.
@@ -1692,6 +1888,22 @@ def build_coupons(
             if wanted is not None and wanted != f"{row.line}:{row.direction}":
                 exclude("rung_not_chosen")
                 continue
+            # Diversity, checked before the slot is spent and for the same
+            # reason ``kickoff_passed`` is: a fourth reading of one fixture's
+            # scoring must not push another fixture off the end of the list.
+            #
+            # Both counters are per real-world fixture rather than per
+            # ``event_id``, because two dossiers can describe one match when two
+            # feeds spell a club differently -- the same key ``fixture_key``
+            # already dedups the slips by.
+            fixture = fixture_key(row.event_id)
+            family = mechanism_family(row)
+            if per_family[(fixture, family)] >= max_per_family:
+                exclude("duplicate_mechanism_family")
+                continue
+            if per_event[fixture] >= max_per_event:
+                exclude("over_max_per_event")
+                continue
             seen.add(key)
             match, competition, kickoff = identity(row.event_id)
             # Checked before the max_singles slot is spent: a started match
@@ -1709,6 +1921,8 @@ def build_coupons(
                 continue
             fair = 1.0 / row.p_low
             minimum, bar = bar_for(row, tier)
+            per_family[(fixture, family)] += 1
+            per_event[fixture] += 1
             singles.append(
                 CouponSingle(
                     rank=len(singles) + 1,
@@ -1803,10 +2017,20 @@ def build_coupons(
         Returns the artifact's own ``superbet_surplus`` so a caller can test it
         for None, and it is deliberately **not** what orders the group; see
         ``_value_rank_key``.
+
+        ``WITHIN_TOLERANCE`` counts as membership. The group means "a price the
+        operator can act on today", and the settled record says a price a few
+        percent under the bar belongs in it: over 1,269 settled priced rows the
+        rows at ``gap >= -5%`` went 72.9% for +1.3%, against 63.5% for -0.8% on
+        the 52 rows that cleared the bar outright. Insisting on a non-negative
+        gap was throwing away nine of every fourteen candidates for a point
+        estimate that was worse. See ``PRICE_TOLERANCE_PCT``.
         """
         row, tier = pair
         info = superbet_for(row, bar_for(row, tier)[0])
-        return info.get("superbet_surplus") if info.get("superbet_verdict") == "VALUE" else None
+        if info.get("superbet_verdict") not in ("VALUE", "WITHIN_TOLERANCE"):
+            return None
+        return info.get("superbet_surplus")
 
     def _value_rank_key(pair: tuple[StatsSheetRow, str]) -> float:
         """How far above the book this row is, in probability, capped.
@@ -1866,6 +2090,48 @@ def build_coupons(
         ours = row.p_central if row.p_central is not None else row.p_low
         return ours - implied
 
+    def _no_reference_rank_key(pair: tuple[StatsSheetRow, str]) -> tuple:
+        """Order for the group this sheet cannot price against a market.
+
+        It used to be ``(is_trivial_under, -p_low)`` and ``-p_low`` was the
+        problem: inside this group a high ``p_low`` *is* a short price, so
+        sorting on it descending sorted the group by how little the book pays.
+        Raising ``max_singles`` to 40 made that visible -- the first 40-single
+        file put eleven rows in the 1.00-1.05 band, every one of them at the
+        ``p_central`` clamp of 0.950, things like "under 4.5 goals in the second
+        half at 1.004".
+
+        Two keys go in front of it, both measured:
+
+        **A row the book does not carry goes last.** It is information, not a
+        candidate: the operator cannot place it at any price, and it was taking
+        a slot from a fixture he could bet. Thirteen of the first forty were
+        ``MARKET_NOT_OFFERED``.
+
+        **Then the band's measured edge, descending.** Over 668 settled priced
+        rows the 1.35-1.60 band realised 76.7% against a 69.4% implied rate
+        (+7.3%) while 1.00-1.05 realised 97.5% against 98.5% (-1.0%). Certainty
+        and a takeable price meet in the middle of the ladder, and this is the
+        key that looks there first.
+
+        ``is_trivial_under`` stays in front of all of it, unchanged: a low UNDER
+        line at 10/10 is its own separate objection and already has a home.
+        ``p_low`` remains the tie-break, so nothing about the old order survives
+        except where the new keys are equal.
+        """
+        row, tier = pair
+        info = superbet_for(row, bar_for(row, tier)[0])
+        price = info.get("superbet_price")
+        unpriced = not isinstance(price, (int, float)) or price <= 1.0
+        _, band_edge = _price_band(price if not unpriced else None)
+        return (
+            is_trivial_under(row),
+            unpriced,
+            -(band_edge if band_edge is not None else 0.0),
+            -row.p_low,
+            row.event_id,
+        )
+
     # The ladder gate, and it is a *demotion*, not an exclusion.
     #
     # Nothing is deleted, because the gate cannot tell an edge from a broken
@@ -1913,7 +2179,7 @@ def build_coupons(
     _append_singles(
         sorted(
             without_reference,
-            key=lambda pair: (is_trivial_under(pair[0]), -pair[0].p_low, pair[0].event_id),
+            key=_no_reference_rank_key,
         )
     )
     # Last, and only if the budget above did not run out. Ranked by how far the
@@ -2153,6 +2419,7 @@ def build_coupons(
         # unexplained reads as a bug in the count rather than as a fact about
         # the day -- which is what happened the first time this note shipped.
         buckets = {
+            f"w tolerancji (do {price_tolerance_pct:.0f}% pod progiem)": "WITHIN_TOLERANCE",
             "wystawionych taniej niż próg": "PRICED_BELOW_THRESHOLD",
             "z rynkiem, ale bez naszej linii": "LINE_NOT_OFFERED",
             "bez tego rynku u bukmachera": "MARKET_NOT_OFFERED",
@@ -2193,11 +2460,64 @@ def build_coupons(
                     f"{pairs}. To nie jest zły kurs, to brak rynku — takiego typu "
                     "nie postawisz."
                 )
-        if singles and not value:
+        near = [s for s in singles if s.superbet_verdict == "WITHIN_TOLERANCE"]
+        if near:
+            closest = sorted(
+                near, key=lambda s: -(s.superbet_price_gap_pct or -99.0)
+            )[:5]
+            listed = "; ".join(
+                f"{s.match} {market_label(s.market)} {s.line} {s.direction} "
+                f"@{s.superbet_price} ({s.superbet_price_gap_pct:+.1f}% vs próg "
+                f"{s.min_acceptable_odds})"
+                for s in closest
+            )
             notes.append(
-                "Żaden single nie osiąga minimalnego kursu na Superbecie. To jest "
-                "odpowiedź o dniu, nie awaria — wysokie p_low nie jest przewagą, "
-                "jeśli rynek stoi wyżej niż ono."
+                f"W tolerancji ({price_tolerance_pct:.0f}% pod progiem): {len(near)} "
+                f"singli. Zmierzone na 1 269 rozliczonych wierszach z ceną: "
+                f"wiersze z luką ≥ −5% trafiły 72,9% przy ROI +1,3%, a same wiersze "
+                f"nad progiem 63,5% przy −0,8% na próbie 52 — trzymanie się progu "
+                f"co do groszа wyrzucało 9 z 14 kandydatów i nic za to nie kupowało. "
+                f"Najbliżej progu: {listed}."
+            )
+        # The "na dobicie" section, and it exists to price the idea rather than
+        # to refuse it. A near-certain leg feels free -- it barely moves the
+        # joint probability and it multiplies the price -- and the settled
+        # record says it is not. See _PRICE_BANDS.
+        certain = [
+            s for s in singles
+            if s.superbet_price and (s.p_central or 0) >= 0.75
+        ]
+        if certain:
+            by_band: dict[str, list] = {}
+            for single in certain:
+                by_band.setdefault(single.price_band or "?", []).append(single)
+            lines = []
+            for band, rows_in in sorted(
+                by_band.items(), key=lambda kv: -(kv[1][0].price_band_measured_edge or 0)
+            ):
+                edge = rows_in[0].price_band_measured_edge
+                lines.append(
+                    f"{band}: {len(rows_in)} "
+                    f"(zmierzony edge {edge:+.1%})" if edge is not None else band
+                )
+            notes.append(
+                "Pewne czytania (p_central ≥ 75%) z ceną, po zmierzonym pasmie "
+                "kursu: " + " · ".join(lines) + ". Zmierzone na 668 rozliczonych "
+                "wierszach z ceną: w pasmie 1.00–1.05 arkusz realizuje 97,5% "
+                "przeciw 98,5% implikowanym (edge −1,0%), a w 1.05–1.10 89,3% "
+                "przeciw 93,6% (−4,3%). **Noga „na dobicie\" po 1.03 nie jest "
+                "darmowa — pewność jest realna i już siedzi w cenie**, a "
+                "bukmacher mnoży kursy, więc każda taka noga zabiera około "
+                "punktu EV. Pasmo, które płaci, to 1.35–1.60: 76,7% przeciw "
+                f"69,4% implikowanym, edge +7,3%. Dlatego lista jest sortowana "
+                f"tak, by szukać najpierw tam (próg pewności: "
+                f"{CERTAINTY_PRICE_FLOOR:.2f})."
+            )
+        if singles and not value and not near:
+            notes.append(
+                "Żaden single nie osiąga minimalnego kursu na Superbecie ani nie "
+                "mieści się w tolerancji. To jest odpowiedź o dniu, nie awaria — "
+                "wysokie p_low nie jest przewagą, jeśli rynek stoi wyżej niż ono."
             )
     # Every veto/downgrade the analyst applied, with its reason -- visible in
     # the coupon file's header, not just as an exclusion count (Faza 5e).

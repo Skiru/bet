@@ -229,6 +229,113 @@ class VetoIndex:
 _STEP_DOWN: dict[Tier, Tier] = {"CALL": "LEAN", "LEAN": "WEAK"}
 
 
+# A market's forecast has to be this much worse than "just say the average"
+# before the tier steps down for it. Mirrors ``forecast._WORSE_THAN_AVERAGE``
+# exactly, and the two must stay equal: the grade the operator reads and the
+# tier the coupon prices from would otherwise disagree about the same market.
+WORSE_THAN_AVERAGE_SKILL = -0.02
+
+
+def _measured_scopes(row) -> list[dict]:
+    """This row's entries in ``market_reliability``, one per format present.
+
+    Scoped the way the measurement is scoped: the bare market for football,
+    ``market@BO3``/``market@BO5`` for tennis, because best-of-three and
+    best-of-five are two different forecasting problems and pooling them hides
+    the broken one. The row carries no format, so the tennis lookup tries both.
+    """
+    from bet.simple_stats.analyze import market_reliability
+
+    table = market_reliability()
+    if not table:
+        return []
+    scopes = [row.market] if row.sport != "tennis" else [
+        f"{row.market}@BO3", f"{row.market}@BO5"
+    ]
+    return [table[s] for s in scopes if s in table]
+
+
+def market_forecast_is_worse_than_average(row) -> bool:
+    """Whether this market's settled record says its sample hurts.
+
+    Fires only if *every* format present is past the floor -- a market that is
+    fine in one draw and broken in the other must not be stepped down on the
+    strength of the other draw.
+
+    ``skill_comparable`` is deliberately **not** consulted here. That flag says
+    a *positive* skill is unimpressive, because a market happening 0.13 times a
+    match has an MAE dominated by its base rate and predicting roughly nothing
+    for everybody is close to right without discriminating between anybody. It
+    does not say a *negative* skill is meaningless: losing to the constant is
+    not something luck does, it requires predicting the wrong level. Gating on
+    it in both directions let ``red_cards_total`` through at -47.0% -- a
+    forecast of 0.35 against an actual 0.16 -- which is exactly the case this
+    rule exists for.
+
+    False whenever the market has no entry. An unmeasured market is not a bad
+    one and this must never fail closed on a missing config.
+    """
+    measured = _measured_scopes(row)
+    if not measured:
+        return False
+    return all(
+        float(entry.get("skill") or 0.0) <= WORSE_THAN_AVERAGE_SKILL
+        for entry in measured
+    )
+
+
+def market_claims_more_than_it_delivers(row) -> bool:
+    """Whether *this row's own claim* is one this market has not lived up to.
+
+    A second, independent reason to step down, and the one that speaks to the
+    bet rather than to the forecast. ``skill`` asks whether the centre is in
+    the right place; this asks whether the probability the bar is computed from
+    is true, which is the number with money on it (see
+    ``bar-basis-is-now-p-central``). A market can pass either and fail the
+    other, and both directions occur:
+
+    * ``shots_for`` has a good level -- +4.3% skill over 551 settled fixtures,
+      untouched by the rule above -- and its rows claiming 0.70 or more have
+      realised 0.712 against a claimed 0.779, over 527 fixtures.
+    * ``red_cards_total`` is the mirror case: the worst level on the board
+      (-47.0%, forecasting 0.35 against an actual 0.16) and confident rows
+      calibrated to within half a point, because its rungs are UNDERs on a
+      rare event. It steps down for its level and not for its certainty.
+
+    **Read against the row's own ``p_central``, not market-wide.**
+    Overconfidence is not flat across the curve. ``shots_for`` reads +0.035,
+    -0.020, +0.011, -0.000 for claims up to 0.70 and then +0.049, +0.061,
+    +0.083, +0.110, +0.140 -- calibrated where most rows sit and steadily worse
+    the more it claims. A market-wide step off the 0.75 tail therefore demoted
+    rows the market forecasts perfectly well: on the 2026-09-07 slate the three
+    ``shots_for`` UNDER 17.5 rows claimed 0.813 (Vitória), 0.773 (Göztepe) and
+    0.680 (Al-Hilal), and the third of those is inside the calibrated stretch.
+    ``hot_above`` is the lowest claim at or above which the market is measurably
+    hot -- 0.70 for ``shots_for``, 0.85 for ``corners_for`` and ``offsides_for``,
+    0.55 for both best-of-three tennis markets -- and a row fires only if it
+    claims at least that much, so Al-Hilal keeps its tier and the other two do
+    not.
+
+    Every threshold is a pooled measurement over rungs claiming at least that
+    much, bootstrapped over fixtures, needing a five-point gap with an
+    interval clear of zero. Fires only if *every* measured format agrees, the
+    same rule the level check follows and for the same reason.
+
+    False on a missing entry or a row with no ``p_central``, for the same
+    reason as above: unmeasured is not measured-bad.
+    """
+    claim = getattr(row, "p_central", None)
+    if claim is None:
+        return False
+    measured = _measured_scopes(row)
+    if not measured:
+        return False
+    judged = [e for e in measured if e.get("hot_above") is not None]
+    if not judged or len(judged) != len(measured):
+        return False
+    return all(float(claim) >= float(entry["hot_above"]) for entry in judged)
+
+
 def cap_tier_at_lean(tier: Tier) -> Tier:
     """A ceiling, not a step: CALL becomes LEAN and nothing else moves.
 
@@ -1324,6 +1431,45 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     # fixture with three of them is not three tiers worse than one with one.
     if row.lean_ceiling_reasons:
         tier = cap_tier_at_lean(tier)
+    # And last, what the market's *own settled record* says about whether this
+    # sample knows anything. Every ceiling above asks a question about this row;
+    # this one asks whether rows of this kind have ever been right.
+    #
+    # ``config/market_reliability.json`` scores each market against the honest
+    # constant -- predicting that scope's own average. A negative score means
+    # the fixture-specific sample made the answer *worse* than the average, so
+    # its ``p_central`` is not evidence about this fixture and the rungs are
+    # separated by a fitted distribution. Six scopes are past the floor: every
+    # tennis market the sheet prices -- ``games_won@BO5`` -2.5%,
+    # ``total_sets@BO3`` -6.2%, ``total_games@BO3`` -8.8%, ``games_won@BO3``
+    # -12.4%, ``total_sets@BO5`` -59.9% -- plus ``red_cards_total`` at -47.0%,
+    # a forecast of 0.35 red cards against an actual 0.16.
+    #
+    # This is the step the analyst was writing by hand. On 2026-09-07 four of
+    # his ten vetoes were exactly this finding, re-derived per fixture at about
+    # 1,500 characters each, and one of the four got the sign of the mechanism
+    # backwards while still reaching the right verdict. A measured table states
+    # it once and cannot get the sign wrong.
+    #
+    # A *step*, not a cap, and not an exclusion: it is one reason among the
+    # others, it composes with them, and a row that survives it still ships
+    # with its grade attached (``forecast.py``). Markets with no entry are
+    # untouched -- unmeasured is not the same as measured-bad, which is why
+    # ``aces_*`` and ``double_faults_*`` (never settleable: ESPN answers
+    # ``statsSource: none``) keep whatever tier their sample earns and carry
+    # the ``UNMEASURED`` grade instead.
+    if market_forecast_is_worse_than_average(row):
+        tier = step_tier_down(tier)
+    # The second measured reason, and a separate step because it is a separate
+    # finding: the level can be right while the confident rows run hot. Not
+    # composed into the one above -- a market that fails both has two things
+    # wrong with it and should fall two tiers, which for a CALL means WEAK and
+    # off the coupon. Among football markets only shots_for fails the
+    # calibration rule and only red_cards_total fails the level rule; every
+    # tennis market fails one or the other, and total_games and games_won fail
+    # both.
+    if market_claims_more_than_it_delivers(row):
+        tier = step_tier_down(tier)
     return tier
 
 

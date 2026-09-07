@@ -45,6 +45,8 @@ from bet.simple_stats.bet_builder_draft import (  # noqa: E402
     accumulator,
 )
 from bet.simple_stats.coupons import (  # noqa: E402
+    MAX_SINGLES,
+    PRICE_TOLERANCE_PCT,
     AnalystVeto,
     CouponSet,
     build_coupons,
@@ -145,6 +147,8 @@ _NEW_GATE_LABELS: dict[str, str] = {
     "superbet_not_value": "cena Superbetu poniżej minimum",
     "kickoff_passed": "mecz już się rozpoczął",
     "over_max_singles": "poza limitem singli",
+    "over_max_per_event": "limit wierszy na jeden mecz (różnorodność meczów)",
+    "duplicate_mechanism_family": "ten sam mechanizm tego meczu (np. gole całe/1poł/2poł/drużyny)",
     "competition_youth_or_friendly": "rozgrywki młodzieżowe/towarzyskie",
     "ambiguous_player_name": "dwóch zawodników o tym samym nazwisku",
     "p_low_not_positive": "p_low = 0",
@@ -823,6 +827,12 @@ def _funnel(offer, sheet, coupons) -> dict[str, int | None]:
         if row.superbet is not None and row.superbet.price is not None
     )
     worth_it = sum(1 for s in coupons.singles if s.superbet_verdict == "VALUE")
+    # Reported beside the strict count rather than folded into it. A funnel
+    # whose last row read "0" while six singles sat within a measured
+    # tolerance of their own threshold was describing the old gate, not the
+    # day: the strict line is the arithmetic, the tolerance line is what is
+    # actually actionable, and the operator decides between them.
+    near = sum(1 for s in coupons.singles if s.superbet_verdict == "WITHIN_TOLERANCE")
     return {
         "na tablicy Superbetu (wszystkie sporty)": offer.events_on_offer,
         "w oknie i w naszych sportach": ours,
@@ -830,6 +840,8 @@ def _funnel(offer, sheet, coupons) -> dict[str, int | None]:
         "wzbogacone (mecze z wierszami)": len({row.event_id for row in sheet.rows}),
         "wiersze z ceną na ekranie": priced,
         "single powyżej progu": worth_it,
+        "single w tolerancji (do 5% pod progiem)": near,
+        "single do rozważenia (suma)": worth_it + near,
     }
 
 
@@ -841,7 +853,15 @@ def main() -> None:
     parser.add_argument("--stats-sheet", default=None)
     parser.add_argument("--event-list", default=None)
     parser.add_argument("--output", default=None, help="Markdown path (default: runs/<date>/<date>_kupony.md)")
-    parser.add_argument("--max-singles", type=int, default=15)
+    parser.add_argument(
+        "--max-singles", type=int, default=MAX_SINGLES,
+        help=(
+            "How many singles the file may carry. The default is the module's "
+            "own, so the CLI and build_coupons() cannot drift -- this argument "
+            "was pinned at 15 while the module moved to 40 and the flag won, "
+            "which is why the cap appeared not to change."
+        ),
+    )
     parser.add_argument("--max-slips", type=int, default=8)
     parser.add_argument("--max-legs", type=int, default=4)
     parser.add_argument("--min-p-low", type=float, default=None)

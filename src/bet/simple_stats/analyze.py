@@ -48,9 +48,13 @@ from bet.simple_stats.contracts import (
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
 _OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
 _MARKET_PRIORS_PATH = _CONFIG_DIR / "market_priors.json"
+_LEAGUE_BASELINES_PATH = _CONFIG_DIR / "league_baselines.json"
+_MARKET_RELIABILITY_PATH = _CONFIG_DIR / "market_reliability.json"
 _CONFIG_LOCK = threading.Lock()
 _OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
 _MARKET_PRIORS_CACHE: dict[str, float] | None = None
+_LEAGUE_BASELINES_CACHE: dict[str, dict[str, float]] | None = None
+_MARKET_RELIABILITY_CACHE: dict[str, dict] | None = None
 
 
 def _load_json(path: Path) -> dict:
@@ -233,8 +237,147 @@ def venue_market_priors() -> dict[tuple[str, str], float]:
 SHRINKAGE_K = 10.0
 
 
-def shrunk_centre(values: list[float], market: str, venue: str | None = None) -> float:
+def league_baselines() -> dict[str, dict[str, float]]:
+    """``{market: {competition_id: mean}}`` from config/league_baselines.json.
+
+    The shrinkage target, measured per competition, and the reason it exists is
+    that ``market_priors.json`` is one number per market for every league on
+    earth -- a limitation that file states about itself ("league-blind: one
+    number for the Championship and the Ekstraklasa alike") and that had never
+    been costed. Measured over every dossier in ``runs/``, ``goals_1h_total``
+    runs **0.821** in the Argentine Liga Profesional over 145 independent
+    matches against the pinned **1.243**, which is the widest gap in the table
+    and sits on the lowest-scoring league in the set.
+
+    On 2026-09-07 that difference was the whole of the day's only bet. Barracas
+    Central's first-half OVER 0.5 cleared its threshold at 1.5989 against a
+    price of 1.62 with the global prior pulling the centre from 0.900 up to
+    1.0143; with the Argentine baseline the centre lands at 0.8737 and the
+    threshold at 1.6880, so the row is 4.2% short of its price rather than 1.3%
+    above it. Superbet's own devigged number for the fixture was 0.5668 and the
+    league's measured base rate is 0.572 -- the book was pricing the league and
+    the prior was arguing with it.
+
+    Missing, malformed or thin entries fall through to the pooled prior, which
+    is the pre-2026-09-07 behaviour: an unmeasured league is not a league whose
+    average is zero, and a config problem must degrade to the old number rather
+    than empty the centre.
+    """
+    global _LEAGUE_BASELINES_CACHE
+    with _CONFIG_LOCK:
+        if _LEAGUE_BASELINES_CACHE is not None:
+            return _LEAGUE_BASELINES_CACHE
+    raw = _load_json(_LEAGUE_BASELINES_PATH).get("baselines") or {}
+    out: dict[str, dict[str, float]] = {}
+    if isinstance(raw, dict):
+        for market, entries in raw.items():
+            if not isinstance(entries, dict):
+                continue
+            per_competition: dict[str, float] = {}
+            for competition, entry in entries.items():
+                if not isinstance(entry, dict):
+                    continue
+                mean = entry.get("mean")
+                # Same validation ``_load_market_priors`` applies, and for the
+                # same reason: a zero or a bool here would become a shrinkage
+                # target that drags every thin sample to nothing.
+                if (
+                    isinstance(mean, (int, float))
+                    and not isinstance(mean, bool)
+                    and mean > 0
+                ):
+                    per_competition[str(competition)] = float(mean)
+            if per_competition:
+                out[str(market)] = per_competition
+    with _CONFIG_LOCK:
+        _LEAGUE_BASELINES_CACHE = out
+        return _LEAGUE_BASELINES_CACHE
+
+
+def market_reliability() -> dict[str, dict]:
+    """``{scope: {bias, mae, mae_baseline, skill, fixtures, ...}}``.
+
+    How well this pipeline's point forecast has actually done for a market,
+    measured against played fixtures by
+    ``scripts/simple/measure_market_reliability.py``. ``scope`` is the market
+    for football and ``market@BO3``/``market@BO5`` for tennis, because those
+    are two different forecasting problems: over the settled slates the
+    best-of-three total is unbiased to +0.79 games while the best-of-five total
+    runs **5.85 games low**, and pooling them would report a mild error for
+    both and hide the one that matters.
+
+    This is read for reporting only and never enters ``p_low``, ``p_central``
+    or a threshold. A measured bias is a fact about the estimator, and folding
+    it back into the estimator would be fitting the forecast to the eight
+    slates it was measured on -- the same objection ``market_priors.json``
+    records against computing its prior per run. What it changes is what the
+    sheet is allowed to *claim*: a market whose ``skill`` is negative is one
+    where a league constant beat the sample, and a card that prints an expected
+    count for it has to say so.
+
+    ``{}`` when the file is absent, which is every run before 2026-09-07 and is
+    not a degraded state -- it means no forecast carries a measured error yet.
+    """
+    global _MARKET_RELIABILITY_CACHE
+    with _CONFIG_LOCK:
+        if _MARKET_RELIABILITY_CACHE is not None:
+            return _MARKET_RELIABILITY_CACHE
+    raw = _load_json(_MARKET_RELIABILITY_PATH).get("scopes") or {}
+    out: dict[str, dict] = {}
+    if isinstance(raw, dict):
+        for scope, entry in raw.items():
+            if isinstance(entry, dict) and isinstance(entry.get("fixtures"), int):
+                out[str(scope)] = entry
+    with _CONFIG_LOCK:
+        _MARKET_RELIABILITY_CACHE = out
+        return _MARKET_RELIABILITY_CACHE
+
+
+def shrinkage_target(
+    market: str, venue: str | None = None, competition_id: str | None = None
+) -> tuple[float | None, str]:
+    """``(target, where it came from)`` for one market's shrinkage.
+
+    Precedence is most-specific-first and each step is a strictly narrower
+    population than the one below it: this competition's own measured mean,
+    then the venue-split pooled prior, then the pooled prior. Returning the
+    provenance rather than just the number is what lets a forecast card say
+    *which* baseline it was pulled toward -- an operator cannot check "shrunk
+    toward 1.243" against anything, and can check "shrunk toward the Liga
+    Profesional's 0.821 over 145 matches" against the league table.
+
+    The venue prior is deliberately not combined with the league baseline. Both
+    are corrections to the same pooled number and multiplying them would apply
+    the venue offset to a mean that already contains that league's own venue
+    mix; the league baseline is the larger and better-measured of the two, so
+    it wins outright where it exists.
+    """
+    if competition_id:
+        baseline = league_baselines().get(market, {}).get(str(competition_id))
+        if baseline is not None:
+            return baseline, f"league:{competition_id}"
+    if venue is not None:
+        prior = venue_market_priors().get((market, venue))
+        if prior is not None:
+            return prior, f"venue:{venue}"
+    prior = market_priors().get(market)
+    if prior is not None:
+        return prior, "pooled"
+    return None, "none"
+
+
+def shrunk_centre(
+    values: list[float],
+    market: str,
+    venue: str | None = None,
+    competition_id: str | None = None,
+) -> float:
     """The sample's centre, pulled toward its market's prior by ``n/(n+k)``.
+
+    ``competition_id`` selects a measured per-league target in place of the
+    pooled one -- see ``league_baselines`` for what that is worth and the day it
+    was worth it. Left None the behaviour is exactly the pre-2026-09-07 one, so
+    every caller that has no competition to name is unchanged.
 
     ``venue`` is which side the subject plays on in *tonight's* fixture, and it
     changes only which prior is the target: a home ``corners_for`` row is
@@ -280,11 +423,7 @@ def shrunk_centre(values: list[float], market: str, venue: str | None = None) ->
     if not values:
         return 0.0
     mean = statistics.fmean(values)
-    prior = None
-    if venue is not None:
-        prior = venue_market_priors().get((market, venue))
-    if prior is None:
-        prior = market_priors().get(market)
+    prior, _ = shrinkage_target(market, venue, competition_id)
     if prior is None:
         return mean
     n = float(len(values))
@@ -298,10 +437,13 @@ def reset_scope_caches() -> None:
     The surface and format tables now live in ``providers.py`` -- one table for
     both sides of each comparison -- so their caches are reset there.
     """
-    global _OBSERVATION_SCOPE_CACHE, _MARKET_PRIORS_CACHE
+    global _OBSERVATION_SCOPE_CACHE, _MARKET_PRIORS_CACHE, _LEAGUE_BASELINES_CACHE
+    global _MARKET_RELIABILITY_CACHE
     with _CONFIG_LOCK:
         _OBSERVATION_SCOPE_CACHE = None
         _MARKET_PRIORS_CACHE = None
+        _LEAGUE_BASELINES_CACHE = None
+        _MARKET_RELIABILITY_CACHE = None
     reset_tennis_surface_cache()
     reset_tennis_match_format_cache()
     reset_tennis_tournament_map_cache()
@@ -1777,6 +1919,22 @@ def _blend_referee(
     return blended, note
 
 
+def _competition_id_for(dossier: EventDossierV1) -> str | None:
+    """The provider competition id this fixture is played in, or None.
+
+    Read off ``fixture_context.league_id``, which is bzzoiro's own id and is
+    therefore the same key ``league_baselines.json`` is written under -- the
+    baselines are built from ``competition_id`` on bzzoiro observations, so
+    both sides of the lookup come from one provider's numbering and never need
+    a name join. Football only in practice: tennis carries no
+    ``fixture_context`` at all, so this returns None there and the pooled prior
+    stands, which is what tennis had before.
+    """
+    context = getattr(dossier, "fixture_context", None)
+    league_id = getattr(context, "league_id", None) if context else None
+    return str(league_id) if league_id else None
+
+
 def _rows_for_sample(
     *,
     dossier: EventDossierV1,
@@ -1864,7 +2022,10 @@ def _rows_for_sample(
             _centre = centre_override
         else:
             _centre = shrunk_centre(
-                _adverse_values(independent, _direction), canonical, venue
+                _adverse_values(independent, _direction),
+                canonical,
+                venue,
+                _competition_id_for(dossier),
             )
         centres[_direction], centre_notes[_direction] = _blend_referee(
             _centre, canonical, team_name, dossier

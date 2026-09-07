@@ -56,6 +56,7 @@ from bet.simple_stats.contracts import (
 )
 from bet.simple_stats.coupons import (
     MAX_LADDER_SIGMA,
+    PRICE_TOLERANCE_PCT,
     MAX_MARKET_DISAGREEMENT,
     build_coupons,
 )
@@ -366,13 +367,44 @@ def test_an_all_zeros_sample_cannot_hide_from_the_gate_behind_its_own_dispersion
     """The sigma denominator is the sample's dispersion, floored at
     ``sqrt(mean)`` -- which is 0 exactly when the sample is all zeros, the
     provider-fabrication class. Reading that as "cannot compute sigma" made
-    the most broken sample possible the only one the gate could not touch:
-    p_central 1.0, no demotion, rank one. It is not unreadable; it is
-    infinitely far from a book whose ladder is perfectly legible."""
+    the most broken sample possible the only one the gate could not touch: no
+    demotion, rank one. It is not unreadable; it is infinitely far from a book
+    whose ladder is perfectly legible.
+
+    Two things about this row have since changed and both are asserted here
+    rather than papered over.
+
+    ``p_central`` on an all-zeros sample is **0.95** and not 1.0. The literal
+    1.0 was a real defect (see ``p-central-was-overconfident-by-construction``,
+    calibration error 0.0246 -> 0.0037) and this test used to hard-code the
+    broken value.
+
+    And 0.95 is past the claim ``corners_for`` has been measured hot above
+    (0.85: rows claiming that much have realised 83.4% against a claimed
+    87.2%), so the row is now caught *twice* -- by the ladder gate this test is
+    about and by the calibration rule -- and never reaches the file. That is
+    the stronger outcome, so it is asserted first; the ladder sigma is then
+    observed on the same sample with a claim below the calibration threshold,
+    which is what isolates the gate under test.
+    """
+    from bet.simple_stats.analyze import count_model_central
+
+    zeros = [0.0] * 5
+    assert count_model_central(zeros, 4.5, "UNDER", centre=0.0) == 0.95
+
+    fabricated = _row(line=4.5, mean=0.0, median=0.0, dispersion=0.0,
+                      hits=5, sample_size=5, hit_rate=1.0, p_low=0.5655,
+                      p_central=0.95)
+    caught = build_coupons(
+        _sheet(fabricated), _events(), superbet_offer=_offer(*SHEFFIELD_LADDER)
+    )
+    assert caught.singles == []
+    assert caught.excluded["tier_weak"] == 1
+
+    # The ladder gate on its own, with the claim held under the market's
+    # measured threshold so only one rule can be responsible for the caveat.
     coupons = build_coupons(
-        _sheet(_row(line=4.5, mean=0.0, median=0.0, dispersion=0.0,
-                    hits=5, sample_size=5, hit_rate=1.0, p_low=0.5655,
-                    p_central=1.0)),
+        _sheet(fabricated.model_copy(update={"p_central": 0.845})),
         _events(),
         superbet_offer=_offer(*SHEFFIELD_LADDER),
     )
@@ -469,7 +501,15 @@ def test_agreeing_with_the_ladder_is_not_penalised():
     assert not any("drabinka" in c for c in single.caveats)
     assert single.market_probability == pytest.approx(0.468, abs=0.01)
     assert single.sample_weight == pytest.approx(12 / 22, abs=1e-4)
-    assert single.superbet_verdict == "PRICED_BELOW_THRESHOLD"
+    # Under the bar, but only just: this row misses it by 3.8%, which is
+    # WITHIN_TOLERANCE rather than PRICED_BELOW_THRESHOLD since 2026-09-07.
+    # The point of this test is that agreeing with the ladder is not punished,
+    # and the tolerance does not touch that -- what it changes is that a row
+    # four percent short is no longer filed with rows fifteen percent short.
+    # See coupons.PRICE_TOLERANCE_PCT for the 1,269-row measurement behind it.
+    assert single.superbet_verdict == "WITHIN_TOLERANCE"
+    assert single.superbet_price_gap_pct == pytest.approx(-3.84, abs=0.05)
+    assert -PRICE_TOLERANCE_PCT <= single.superbet_price_gap_pct < 0
 
     bigger_edge = build_coupons(
         _sheet(_row(line=5.5, mean=5.7, median=6.0, hits=9, sample_size=12,

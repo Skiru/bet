@@ -436,16 +436,23 @@ def test_a_market_wide_downgrade_reports_each_distinct_starting_tier_once():
     reached a Bet Builder leg started at CALL and went to LEAN -- a caveat
     that described a different row's fate than the one on the slip.
     """
+    # noqa: D202 - the market choice below is load-bearing, see the comment
+    # ``fouls_for`` and not ``shots_for``: the point here is that two rows start
+    # at *different* tiers, and shots_for is now stepped down for running 7.9
+    # points hot on its confident rows -- which takes the thin rung to WEAK and
+    # out of the file, leaving one note and nothing to compare it with. fouls_for
+    # passes both measured rules (+3.9% skill, calibration flat), so the only
+    # thing separating these two rows is the sample the test is about.
     coupons = build_coupons(
         _sheet(
-            _row(p_low=0.90, market="shots_for", line=9.5, sample_size=12,
+            _row(p_low=0.90, market="fouls_for", line=9.5, sample_size=12,
                  cross_provider_agreement="AGREE"),
-            _row(p_low=0.85, market="shots_for", line=10.5, sample_size=6,
+            _row(p_low=0.85, market="fouls_for", line=10.5, sample_size=6,
                  cross_provider_agreement="SINGLE_SOURCE"),
         ),
         _events(_event()),
         vetoes=[_veto(
-            market="shots_for", line=None, action="DOWNGRADE",
+            market="fouls_for", line=None, action="DOWNGRADE",
             reason="sample nie warunkuje na rywalu",
         )],
     )
@@ -704,8 +711,13 @@ def test_a_tennis_fixture_is_named_by_its_players():
         start_time="2026-08-29T17:00:00+00:00",
         identity_confidence="CONFIRMED", status="ACTIVE",
     )
+    # ``aces_total`` and not ``total_games``: this test is about how a fixture is
+    # *named*, and every tennis length market is now stepped down for its
+    # measured record (``market_forecast_is_worse_than_average`` and
+    # ``market_claims_more_than_it_delivers``), which would leave no single to
+    # read a name off. aces never settle at all, so no measured rule touches it.
     coupons = build_coupons(
-        _sheet(_row(event_id="evt-t", sport="tennis", market="total_games", line=21.5)),
+        _sheet(_row(event_id="evt-t", sport="tennis", market="aces_total", line=7.5)),
         _events(event),
     )
     assert coupons.singles[0].match == "Sinner – Alcaraz"

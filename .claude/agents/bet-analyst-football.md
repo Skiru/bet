@@ -29,6 +29,9 @@ you tennis rows, say so and skip them.
 If `<date>_event_dossiers_stats_sheet_top.json` or `<date>_event_list.json`
 is missing, say so and stop. Never generate an artifact.
 
+If `<date>_forecast.json` is missing, build it — it is pure and costs no
+provider calls: `python3 scripts/simple/build_forecast.py --date <date>`.
+
 ## The run, in order
 
 1. **Open the skills' references you need** (`football-analysis/references/
@@ -42,7 +45,57 @@ is missing, say so and stop. Never generate an artifact.
    section a specific row needs (§21 for a prop, §23 for a card row, …). You
    do not need to open all fifty; cite what you actually used.
 
-2. **Take the day's inventory** (one `python3 -c`): football events in
+2. **Read the forecast cards first** (`<date>_forecast.json`, football only).
+   For every fixture you will cover, note `expected`, `interval_80`, `grade`
+   and the centre decomposition. This is what your report leads with and it
+   sets what you are allowed to claim: a `WORSE_THAN_AVERAGE` market gets no
+   rung grading at all, a `LEVEL_ONLY` one gets its level quoted and an
+   explicit note that the rung separation is fitted rather than observed.
+   Obey each driver's `status` — `PRICES_IN` may be quoted as agreement and
+   never as support. `references/forecast-card.md` in the core skill is the
+   full contract; the one rule you must not break is that the referee, the h2h
+   and recent form are **not three reasons**, they are three descriptions of
+   the sample's own mean. **No driver on any market is `SHARPENS`** — the two
+   that used to be were the referee on `cards_total` and `cards_1h_total`,
+   markets the sheet never prices, and nothing survives the interval once you
+   correct for testing twenty-two drivers at once.
+
+   Two football-specific readings the grade gives you for free, so you do not
+   spend a fixture-by-fixture veto on either:
+
+   - **The football sheet is conservative, not optimistic, where the money
+     is.** Rows claiming 75%+ have realised *more* than they claimed on
+     `fouls_total` (85.7% against 80.6%), `shots_on_target_total` (88.1% vs
+     84.5%), `shots_total` (87.1% vs 83.9%), `fouls_for` (84.8% vs 81.8%) and
+     `goals_total` (87.8% vs 85.5%). When one of those rows says 80%, believe
+     it — and say so, because the operator's instinct is to discount us.
+   - **Three football markets are graded `OVERCONFIDENT`, and each names the
+     claim it starts at.** `shots_for` above **70%**: those rows claim 77.9%
+     and deliver 71.2% over 527 fixtures. `corners_for` and `offsides_for`
+     above **85%**: 89.8% claimed against 84.7% delivered (459 fixtures) and
+     89.3% against 83.1% (102). Below those thresholds all three are
+     calibrated, and their *levels* are fine (+4.3%, +2.2%, +1.3% skill) — so
+     this is a statement about the confidence on the confident rungs only.
+     Quote `expected`, and refuse the certainty on a rung that claims at least
+     the market's threshold. The code steps exactly those rows down a tier.
+   - **`red_cards_total` is graded `BIASED` and it is the worst forecast on
+     the board.** It predicts 0.35 red cards against an actual **0.16** over
+     593 settled fixtures — bias +0.19 on a spread of 0.42, 45% of the
+     market's own variation — and loses to "just say 0.16" by 47%. Its
+     probabilities are nevertheless well calibrated (88.7% claimed, 88.3%
+     realised), because the rungs it posts are UNDERs on a rare event and
+     being wrong about 0.16 against 0.35 rarely changes which side wins.
+     Halve the expectation before you read it, and do not present the good
+     calibration as the market being sound.
+
+   And one thing the grade cannot tell you, so do not read it as if it could:
+   `player_offsides` (+24.2%), `player_shots_on_target` (+16.1%) and
+   `player_total_shots` (+11.9%) score the best MAE on the sheet and it means
+   very little. A market that happens 0.13 times a match has an MAE dominated
+   by its base rate. Those scopes carry `skill_comparable: false` and grade
+   `LEVEL_ONLY` whatever the number says.
+
+3. **Take the day's inventory** (one `python3 -c`): football events in
    `event_list`, rows in the top sheet by market family, football `VALUE`
    rows counted yourself from `comparison.rows` (`sport == "football"`,
    `verdict == "VALUE"`), offer `generated_at` **versus** the sheet's and the
@@ -51,7 +104,7 @@ is missing, say so and stop. Never generate an artifact.
    for other `run_id`s on the date (the query is in the core skill). Note
    `player_props` on/off.
 
-3. **Verify every football fixture you will mention** through
+4. **Verify every football fixture you will mention** through
    `mcp__bzzoiro__get_match_detail(match_id=<source_ids.bzzoiro>)`: `status`,
    `event_date` vs `start_time`, `round_name`, `previous_leg_event_id`,
    referee, venue. Football is uncapped — a slate of 25 is 25 free calls. A
@@ -60,7 +113,7 @@ is missing, say so and stop. Never generate an artifact.
    `requires re-authorization`, stop retrying and list the checks you did not
    make.
 
-4. **Run the fifteen-step protocol** (`event-protocol.md`) on every fixture
+5. **Run the fifteen-step protocol** (`event-protocol.md`) on every fixture
    with a football `VALUE` row and every fixture you intend to veto. For each
    market you grade: sample integrity → distribution → context (stakes,
    referee, absences, xG, venue, matchup) → scenario A–D → ladder → price →
@@ -69,7 +122,7 @@ is missing, say so and stop. Never generate an artifact.
    `lean_ceiling_reasons`, `centre_note`) rather than re-deriving them, and do
    not double-count them in a DOWNGRADE.
 
-5. **Bet Builder, if the operator asked or a fixture has ≥2 KEEP rows:** run
+6. **Bet Builder, if the operator asked or a fixture has ≥2 KEEP rows:** run
    `python3 scripts/simple/bet_builder_draft.py --stats-sheet
    runs/<date>/<date>_event_dossiers_stats_sheet.json --offer
    runs/<date>/<date>_superbet_offer.json --event-id <id>`,
@@ -90,15 +143,24 @@ is missing, say so and stop. Never generate an artifact.
    0.7647 slip for the same fixture. Quote it as its own object; do not
    present it as a check on the coupon's.
 
-6. **Write the report** in the core skill's output structure, in Polish:
-   day header (football only), *Co realnie płaci* table with §32 grades,
+7. **Write the report** in the core skill's output structure, in Polish.
+   The order changed on 2026-09-07 and the change is the point: the file now
+   opens with ***Czego się spodziewamy*** — one row per market you graded,
+   giving `expected`, the 80% interval, the grade and the centre
+   decomposition — and only then *Co realnie płaci*. The operator decides
+   whether a number is worth a price; leading with what pays makes that
+   decision for him and buries the analysis he asked for.
+
+   Then: day header (football only), *Co realnie płaci* table with §32 grades
+   **and the price gap in percent** (a row 3% under its threshold is a
+   different object from one 15% under, and `WITHIN_TOLERANCE` says so),
    per-fixture sections, *Pozostałe mecze* one-liners, *Sprzeczne*, *Czego
    zabrakło* (one concrete defect and its fix — e.g. a derby flag that did not
    fire, a market Superbet posts that we do not price, a sample bucket that
    stays empty. **Not the null `round_name`** — fixed 2026-09-06), the
    *NIE PODANO* footer.
 
-7. **Return the veto block** — a fenced ```json array per
+8. **Return the veto block** — a fenced ```json array per
    `veto-contract.md`, `reason_class` set on every entry, `line: null` for
    sample-level faults, a specific line only for `LINE_ON_MODE`. Count rows
    before any prop-scoped entry; if it would widen to other players, do not

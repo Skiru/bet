@@ -2,6 +2,22 @@
 docs/PLAN_BOGATE_STATYSTYKI.md. Every later phase changes the stats sheet's
 row count, so this script (and the frozen fixture + baseline it reads) is
 what tells an intended change apart from an accidental regression.
+
+Both baselines were last re-recorded on **2026-09-07**, when
+``analyze.shrunk_centre`` began shrinking toward a per-competition measured
+mean (``config/league_baselines.json``) instead of the single league-blind
+prior in ``market_priors.json``. The diff that was reviewed before accepting
+it: ``shrunk_mean`` moved on 482 rows, ``p_central`` on 480 and ``p_low`` on
+165, with **no row added and none removed** -- exactly the signature of a
+change to the shrinkage target and nothing else. The largest single move on
+the fixture is Mjällby's ``corners_for`` centre going 4.12 -> 4.76, because the
+Allsvenskan's own measured mean sits above the pooled prior and a low-corner
+side is therefore pulled up harder; Djurgården's, in the same fixture and the
+same league, moves 6.13 -> 6.16.
+
+Re-record with ``--write-baseline`` (and again with ``--profile legacy``) only
+after reading the diff and being able to name the mechanism, which is what
+those two paragraphs are for.
 """
 from __future__ import annotations
 

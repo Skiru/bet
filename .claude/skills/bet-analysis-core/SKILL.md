@@ -25,6 +25,27 @@ followed.
 
 ## Order of operations — never reverse it
 
+0. **State the expectation.** Before anything about a price, say what you
+   expect to happen in the units the market settles in: *expect 24.0 fouls,
+   80% between 16 and 32, off a 24-match sample that beats "just say the
+   average" by 8.5% over 580 settled fixtures*.
+   `runs/<date>/<date>_forecast.json` carries it per (fixture, market) as a
+   card, with the centre decomposed, every driver labelled and **this market's
+   measured error** attached. Read `references/forecast-card.md`.
+
+   The card carries two independent measurements and they answer different
+   questions. `skill` says whether the *centre* is in the right place;
+   `at_75` says whether the *probability* the bar is computed from is true —
+   what a row claiming 75% or more on this market has actually done. A market
+   can pass either and fail the other, so quote the one you are relying on.
+   `red_cards_total` forecasts 0.35 red cards against an actual 0.16 and its
+   confident rows are nonetheless well calibrated (88.7% claimed, 88.3%
+   realised): the level is doubled and the probability is fine, because every
+   rung it posts sits on the safe side of a rare event.
+
+   A report that opens with what pays has put the operator's decision before
+   the analysis. He decides whether a number is worth a price; you cannot help
+   him decide until you have told him the number.
 1. **Data integrity.** Is the sample about this fixture? (a/b/h2h split, what
    `sample_excluded` removed, `DISAGREE` on the line, one side thin, stale h2h.)
    For a row worth a closer look, `superbet-market-matcher` does this split for
@@ -47,6 +68,8 @@ No later step may redeem an earlier hard fail (method §64).
 ## Artifacts — what to open, in what order
 
 ```
+runs/<date>/<date>_forecast.json                        # OPEN FIRST — expectation card per (fixture, market): expected, interval_80, centre decomposition, drivers with measured status, grade + reliability, rungs
+runs/<date>/<date>_forecast.md                          # the same, rendered, ranked by confidence with no price filter
 runs/<date>/<date>_event_list.json                      # event_id → names, competition, kickoff (UTC ISO), source_ids, fixture_context
 runs/<date>/<date>_event_dossiers_stats_sheet_top.json  # rows with p_low >= 0.50 — READ THIS ONE
 runs/<date>/<date>_event_dossiers_stats_sheet.json      # every row — open only to chase a row missing from top
