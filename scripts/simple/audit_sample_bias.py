@@ -175,7 +175,11 @@ def _predates_definition_change(market: str, date: str) -> bool:
 def collect(
     runs_dir: Path, cache: dict, dates_used: set[str] | None = None
 ) -> dict[str, list[float]]:
-    """``{market: [actual - sample mean, ...]}``, one entry per fixture.
+    """``{market: [((date, event_id), actual - sample mean), ...]}``.
+
+    One entry per (fixture, subject): a match total yields one, a per-team
+    market yields two -- one per side. The fixture key travels with the delta
+    so ``report`` can cluster on it.
 
     ``dates_used``, when given, is filled with the slates that contributed at
     least one delta. It exists so ``--write`` can date its own numbers off the
@@ -231,8 +235,10 @@ def collect(
             if value is None:
                 continue
             seen[key] = value - float(row["mean"])
-        for (_, _, market, _), delta in seen.items():
-            deltas[market].append(delta)
+        for (row_date, event_id, market, _), delta in seen.items():
+            # The fixture, not the row: a per-team market contributes two rows
+            # per match and they are not independent. See ``report``.
+            deltas[market].append(((row_date, event_id), delta))
         if seen and dates_used is not None:
             dates_used.add(date)
         del rows
@@ -240,23 +246,61 @@ def collect(
     return deltas
 
 
+def _clustered_se(entries: list[tuple], mean: float) -> float:
+    """Standard error of the mean, clustered on the fixture.
+
+    ``sd / sqrt(n)`` treats every row as an independent draw, and for a
+    per-team market that is false: a match contributes one row per side and the
+    two share a referee, a competition and a game state. Measured 2026-09-07,
+    every ``*_for`` market runs at 1.92-2.00 rows per fixture, so the naive SE
+    was too small by roughly sqrt(2) and the ``fixtures`` field in the config
+    was really an observation count.
+
+    This is the usual cluster-robust ("sandwich") variance for a sample mean,
+    with the G/(G-1) finite-sample correction:
+
+        Var = G/(G-1) * (1/n^2) * sum_g (sum_{i in g} (x_i - xbar))^2
+
+    On a market with one row per fixture it reduces to the naive SE up to that
+    correction, so the match totals are unaffected. It is the same principle
+    the rest of this repository applies by bootstrapping fixtures rather than
+    rungs -- one level further out, on sides rather than ladders.
+    """
+    n = len(entries)
+    if n < 2:
+        return 0.0
+    sums: dict[object, float] = defaultdict(float)
+    for key, value in entries:
+        sums[key] += value - mean
+    groups = len(sums)
+    if groups < 2:
+        return 0.0
+    meat = sum(total * total for total in sums.values())
+    variance = (groups / (groups - 1)) * meat / (n * n)
+    return math.sqrt(variance) if variance > 0 else 0.0
+
+
 def report(
     deltas: dict[str, list[float]], priced: set[str] | None = None
 ) -> tuple[list[dict], list[dict]]:
     out: list[dict] = []
-    for market, values in deltas.items():
+    for market, entries in deltas.items():
+        values = [delta for _, delta in entries]
         n = len(values)
+        fixtures = len({key for key, _ in entries})
         mean = statistics.mean(values)
-        sd = statistics.stdev(values) if n > 1 else 0.0
-        se = sd / math.sqrt(n) if sd else 0.0
+        se = _clustered_se(entries, mean)
         out.append({
-            "market": market, "n": n, "delta": mean, "se": se,
+            "market": market, "n": n, "observations": n, "fixtures": fixtures,
+            "delta": mean, "se": se,
             "z": (mean / se) if se else 0.0,
             "priced": priced is None or market in priced,
         })
-    out.sort(key=lambda r: -r["n"])
-    drifted = [r for r in out
-               if r["n"] >= MIN_FIXTURES and abs(r["z"]) > MAX_ABS_Z and r["priced"]]
+    out.sort(key=lambda r: -r["fixtures"])
+    drifted = [
+        r for r in out
+        if r["fixtures"] >= MIN_FIXTURES and abs(r["z"]) > MAX_ABS_Z and r["priced"]
+    ]
     return out, drifted
 
 
@@ -288,10 +332,12 @@ def document(rows: list[dict], dates: set[str]) -> dict:
             "sample's centre than it really sits above the truth. Invert this "
             "sign and every caveat in the pipeline points at the wrong side of "
             "the market while looking like a fix, which is why it is written "
-            "here rather than left to be re-derived. z is delta/SE with one row "
-            "per fixture, never per rung: a ladder contributes eight rungs to "
-            "the sheet and one match to reality, and counting the rungs would "
-            "divide every SE by about three and turn noise into drift."
+            "here rather than left to be re-derived. z is delta/SE where the SE "
+            "is CLUSTERED ON THE FIXTURE, never a plain sd/sqrt(rows): a ladder "
+            "contributes eight rungs to the sheet and one match to reality, and "
+            "a per-team market contributes one row per side, which are not "
+            "independent of each other. Counting rows as draws divides the SE "
+            "by about sqrt(2) on every *_for market and turns noise into drift."
         ),
         "_the_finding": (
             "The card markets, and only the card markets, are both drifted and "
@@ -363,14 +409,21 @@ def document(rows: list[dict], dates: set[str]) -> dict:
                 "delta": round(row["delta"], 4),
                 "se": round(row["se"], 4),
                 "z": round(row["z"], 3),
-                "fixtures": row["n"],
+                # Both counts, because they differ and only one of them is the
+                # sample size that matters. ``fixtures`` is distinct matches --
+                # what the thresholds are applied to and what the SE clusters
+                # on. ``observations`` is rows, which is ~2x that on every
+                # per-team market. Until 2026-09-07 this field was named
+                # ``fixtures`` and held ``observations``.
+                "fixtures": row["fixtures"],
+                "observations": row["observations"],
                 "priced": row["priced"],
                 # The one field a consumer is meant to branch on, so that the
                 # thresholds are applied once here and not re-decided by every
                 # reader. A market drifts only if it is measurable, certain and
                 # bettable at once.
                 "drifted": (
-                    row["n"] >= MIN_FIXTURES
+                    row["fixtures"] >= MIN_FIXTURES
                     and abs(row["z"]) > MAX_ABS_Z
                     and row["priced"]
                 ),
@@ -414,9 +467,13 @@ def main() -> int:
 
     priced = priced_markets(runs_dir)
     rows, drifted = report(deltas, priced or None)
-    print(f"{'rynek':<24} {'meczów':>7} {'Δ (wynik − próbka)':>19} {'SE':>7} {'z':>7}  werdykt")
+    header = (
+        f"{'rynek':<24} {'meczów':>7} {'obs.':>6} "
+        f"{'Δ (wynik − próbka)':>19} {'SE':>7} {'z':>7}  werdykt"
+    )
+    print(header)
     for row in rows:
-        if row["n"] < MIN_FIXTURES:
+        if row["fixtures"] < MIN_FIXTURES:
             verdict = f"za mało meczów (<{MIN_FIXTURES})"
         elif abs(row["z"]) > MAX_ABS_Z and row["priced"]:
             verdict = "PRZESUNIĘTY — próbka mierzy co innego niż rozliczenie"
@@ -424,7 +481,8 @@ def main() -> int:
             verdict = "przesunięty, ale Superbet tego nie wystawia — nie do obstawienia"
         else:
             verdict = "ok"
-        print(f"{row['market']:<24} {row['n']:>7} {row['delta']:>+19.2f} "
+        print(f"{row['market']:<24} {row['fixtures']:>7} {row['observations']:>6} "
+              f"{row['delta']:>+19.2f} "
               f"{row['se']:>7.2f} {row['z']:>+7.2f}  {verdict}")
 
     if args.write:
@@ -435,10 +493,16 @@ def main() -> int:
             ) + "\n",
             encoding="utf-8",
         )
+        drifted_count = sum(
+            1
+            for r in rows
+            if r["fixtures"] >= MIN_FIXTURES
+            and abs(r["z"]) > MAX_ABS_Z
+            and r["priced"]
+        )
         print(
             f"\nzapisano {out_path} — {len(rows)} rynków, "
-            f"{sum(1 for r in rows if r['n'] >= MIN_FIXTURES and abs(r['z']) > MAX_ABS_Z and r['priced'])}"
-            " z dryfem"
+            f"{drifted_count} z dryfem"
         )
 
     if args.check and drifted:

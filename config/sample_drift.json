@@ -1,6 +1,6 @@
 {
  "_purpose": "Whether each market's sample counts the same quantity Superbet settles, measured over the settled slates in runs/. Read by simple_stats/forecast.py and simple_stats/coupons.py so a drifted market says so on its own card and on every coupon row, instead of the knowledge living in a script somebody has to remember to run. Rebuild with scripts/simple/audit_sample_bias.py --write.",
- "_reading_it": "delta is signed actual minus sample mean, so POSITIVE means the sample runs LOW: the match returns more than the sample expected. A low sample overstates UNDER and understates OVER -- the UNDER looks likelier than it is, because the line sits further above the sample's centre than it really sits above the truth. Invert this sign and every caveat in the pipeline points at the wrong side of the market while looking like a fix, which is why it is written here rather than left to be re-derived. z is delta/SE with one row per fixture, never per rung: a ladder contributes eight rungs to the sheet and one match to reality, and counting the rungs would divide every SE by about three and turn noise into drift.",
+ "_reading_it": "delta is signed actual minus sample mean, so POSITIVE means the sample runs LOW: the match returns more than the sample expected. A low sample overstates UNDER and understates OVER -- the UNDER looks likelier than it is, because the line sits further above the sample's centre than it really sits above the truth. Invert this sign and every caveat in the pipeline points at the wrong side of the market while looking like a fix, which is why it is written here rather than left to be re-derived. z is delta/SE where the SE is CLUSTERED ON THE FIXTURE, never a plain sd/sqrt(rows): a ladder contributes eight rungs to the sheet and one match to reality, and a per-team market contributes one row per side, which are not independent of each other. Counting rows as draws divides the SE by about sqrt(2) on every *_for market and turns noise into drift.",
  "_the_finding": "The card markets, and only the card markets, are both drifted and bettable. cards_points_total runs 0.55 low a match over 266 fixtures (z=+3.86) and cards_points_for 0.28 over 525 (z=+3.84); everything else Superbet prices is centred to within its own noise. Project memory records the cause as competition mix rather than transcription -- a hand check found 160 of 160 sampled values identical to the provider's -- so the sample is reading the right numbers off the right matches and the matches are simply not the mix today's fixture comes from. cards_total (+0.42, z=+3.78) and cards_for (+0.20, z=+3.68) drift too and are reported without failing anything, because Superbet's card lines have mapped to cards_points_* since 2026-09-03 and a drift that cannot reach a bet must not train the operator to ignore this file.",
  "_why_a_caveat_and_not_a_grade": "The forecast states this next to its grade and never as a grade, and the reason is measured rather than stylistic. The grade answers two questions -- did the fixture-specific sample beat predicting the average (skill), and do the rungs realise what they claim (calibration) -- and on both of them cards_points_total is genuinely the best football market in market_reliability.json: skill +9.7%, calibration error 0.0001. Demoting it would delete two true facts to report a third. The third is independent: the existing BIASED grade fires on |bias| > 0.25 * actual_sd, a MATERIALITY test, while this file's |z| > 3 is a CERTAINTY test, and the two cross. shots_total carries a bias of -0.978, 2.8 times cards_points_total's, and is not drifted (z=+1.60) because its spread is huge; red_cards_total is graded BIASED and is centred here (-0.03) because the audit skips the slates built by the superseded sample. Neither test subsumes the other. And the part with money on it is a SIDE -- UNDER overstated, OVER understated -- which no grade in the file encodes at all.",
  "_why_not_a_correction": "Nothing downstream subtracts delta from a centre, a mean or a probability, and this file must not be wired to. The delta is measured on the same slates it would be applied to, so shipping it as a constant fits the estimator to its own test set -- the objection market_priors.json already records against computing its prior per run, and the one project memory records for leaving the tennis length markets' 25pp overconfidence deliberately uncorrected. The route to correcting it exists and has a gate: scripts/simple/validate_calibration.py does leave-one-DATE-out and exits non-zero when a change does not help out of sample. Name the drift first; correct it only against that.",
@@ -13,18 +13,20 @@
  "markets": {
   "cards_for": {
    "delta": 0.1974,
-   "se": 0.0537,
-   "z": 3.675,
-   "fixtures": 645,
+   "se": 0.058,
+   "z": 3.401,
+   "fixtures": 331,
+   "observations": 645,
    "priced": false,
    "drifted": false,
    "overstated_side": "UNDER"
   },
   "cards_points_for": {
    "delta": 0.2752,
-   "se": 0.0716,
-   "z": 3.843,
-   "fixtures": 525,
+   "se": 0.0759,
+   "z": 3.626,
+   "fixtures": 263,
+   "observations": 525,
    "priced": true,
    "drifted": true,
    "overstated_side": "UNDER"
@@ -34,6 +36,7 @@
    "se": 0.1438,
    "z": 3.857,
    "fixtures": 266,
+   "observations": 266,
    "priced": true,
    "drifted": true,
    "overstated_side": "UNDER"
@@ -43,15 +46,17 @@
    "se": 0.1119,
    "z": 3.776,
    "fixtures": 331,
+   "observations": 331,
    "priced": false,
    "drifted": false,
    "overstated_side": "UNDER"
   },
   "corners_for": {
    "delta": 0.1993,
-   "se": 0.0899,
-   "z": 2.218,
-   "fixtures": 1162,
+   "se": 0.0853,
+   "z": 2.337,
+   "fixtures": 591,
+   "observations": 1162,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -61,15 +66,17 @@
    "se": 0.1548,
    "z": 2.239,
    "fixtures": 594,
+   "observations": 594,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
   },
   "fouls_for": {
    "delta": 0.197,
-   "se": 0.1185,
-   "z": 1.663,
-   "fixtures": 1138,
+   "se": 0.1176,
+   "z": 1.675,
+   "fixtures": 576,
+   "observations": 1138,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -79,6 +86,7 @@
    "se": 0.223,
    "z": 2.092,
    "fixtures": 580,
+   "observations": 580,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -88,6 +96,7 @@
    "se": 0.0528,
    "z": -0.927,
    "fixtures": 451,
+   "observations": 451,
    "priced": true,
    "drifted": false,
    "overstated_side": "OVER"
@@ -97,15 +106,17 @@
    "se": 0.065,
    "z": 0.846,
    "fixtures": 451,
+   "observations": 451,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
   },
   "goals_for": {
    "delta": -0.0185,
-   "se": 0.044,
-   "z": -0.421,
-   "fixtures": 893,
+   "se": 0.0442,
+   "z": -0.418,
+   "fixtures": 466,
+   "observations": 893,
    "priced": true,
    "drifted": false,
    "overstated_side": "OVER"
@@ -115,15 +126,17 @@
    "se": 0.0823,
    "z": 0.618,
    "fixtures": 470,
+   "observations": 470,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
   },
   "offsides_for": {
    "delta": 0.0444,
-   "se": 0.0617,
-   "z": 0.719,
-   "fixtures": 736,
+   "se": 0.0629,
+   "z": 0.706,
+   "fixtures": 374,
+   "observations": 736,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -133,6 +146,7 @@
    "se": 0.1136,
    "z": 2.076,
    "fixtures": 378,
+   "observations": 378,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -142,24 +156,27 @@
    "se": 0.0714,
    "z": -0.392,
    "fixtures": 62,
+   "observations": 62,
    "priced": true,
    "drifted": false,
    "overstated_side": "OVER"
   },
   "shots_for": {
    "delta": 0.2113,
-   "se": 0.1716,
-   "z": 1.231,
-   "fixtures": 1094,
+   "se": 0.1547,
+   "z": 1.366,
+   "fixtures": 548,
+   "observations": 1094,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
   },
   "shots_on_target_for": {
    "delta": 0.0253,
-   "se": 0.0771,
-   "z": 0.329,
-   "fixtures": 1141,
+   "se": 0.0761,
+   "z": 0.333,
+   "fixtures": 579,
+   "observations": 1141,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -169,6 +186,7 @@
    "se": 0.1367,
    "z": 1.243,
    "fixtures": 582,
+   "observations": 582,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"
@@ -178,6 +196,7 @@
    "se": 0.3437,
    "z": 1.601,
    "fixtures": 363,
+   "observations": 363,
    "priced": true,
    "drifted": false,
    "overstated_side": "UNDER"

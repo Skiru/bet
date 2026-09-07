@@ -33,10 +33,25 @@ def audit():
     return _module()
 
 
+def _per_fixture(values, market="m"):
+    """Wrap plain deltas as ``report`` now expects: one distinct fixture each.
+
+    ``report`` takes ``[((date, event_id), delta), ...]`` since 2026-09-07, so
+    that the standard error can be clustered on the fixture. Giving every delta
+    its own fixture key reproduces the old independent-draw arithmetic exactly,
+    which is what these cases mean to describe; ``TestClusteredStandardError``
+    below covers the case where it does not.
+    """
+    return [
+        ((f"2026-01-{i // 28 + 1:02d}", f"{market}_{i}"), v)
+        for i, v in enumerate(values)
+    ]
+
+
 class TestReport:
     def test_a_centred_market_passes(self, audit) -> None:
         # Noise around zero, no drift.
-        deltas = {"corners_total": [0.5, -0.5, 0.4, -0.4, 0.1, -0.1] * 8}
+        deltas = {"corners_total": _per_fixture([0.5, -0.5, 0.4, -0.4, 0.1, -0.1] * 8)}
         rows, drifted = audit.report(deltas, {"corners_total"})
         assert drifted == []
         assert rows[0]["n"] == 48
@@ -44,7 +59,7 @@ class TestReport:
     def test_a_market_that_always_lands_above_its_sample_fails(self, audit) -> None:
         # Every fixture comes in half a card over what the sample said: this is
         # the shape of a yellow-only sample against a book counting reds.
-        deltas = {"cards_total": [0.5, 0.6, 0.4, 0.5, 0.6, 0.4] * 8}
+        deltas = {"cards_total": _per_fixture([0.5, 0.6, 0.4, 0.5, 0.6, 0.4] * 8)}
         _, drifted = audit.report(deltas, {"cards_total"})
         assert [r["market"] for r in drifted] == ["cards_total"]
         assert drifted[0]["z"] > audit.MAX_ABS_Z
@@ -52,7 +67,7 @@ class TestReport:
     def test_a_thin_market_is_reported_and_never_failed_on(self, audit) -> None:
         # Below the floor the SE is too wide for |z| > 3 to mean anything, and
         # a newly added market must not block every run until it has history.
-        deltas = {"breaks_total": [0.5] * (audit.MIN_FIXTURES - 1)}
+        deltas = {"breaks_total": _per_fixture([0.5] * (audit.MIN_FIXTURES - 1))}
         rows, drifted = audit.report(deltas, {"breaks_total"})
         assert drifted == []
         assert rows[0]["n"] == audit.MIN_FIXTURES - 1
@@ -62,7 +77,7 @@ class TestReport:
     ) -> None:
         # The live ``cards_total`` case: really drifted, really unbettable,
         # because every card line Superbet posts now maps to cards_points_*.
-        deltas = {"cards_total": [0.5, 0.6, 0.4, 0.5, 0.6, 0.4] * 8}
+        deltas = {"cards_total": _per_fixture([0.5, 0.6, 0.4, 0.5, 0.6, 0.4] * 8)}
         rows, drifted = audit.report(deltas, {"cards_points_total"})
         assert drifted == []
         assert rows[0]["priced"] is False
@@ -71,7 +86,7 @@ class TestReport:
     def test_priced_none_means_check_everything(self, audit) -> None:
         # No offer artifact on disk: fail closed rather than silently pass a
         # drifted market because nothing said it was bettable.
-        deltas = {"cards_total": [0.5, 0.6, 0.4, 0.5, 0.6, 0.4] * 8}
+        deltas = {"cards_total": _per_fixture([0.5, 0.6, 0.4, 0.5, 0.6, 0.4] * 8)}
         _, drifted = audit.report(deltas, None)
         assert [r["market"] for r in drifted] == ["cards_total"]
 
@@ -190,10 +205,10 @@ class TestTheWrittenConfig:
         UNDER.
         """
         rows = [
-            {"market": "high", "n": 100, "delta": 0.5, "se": 0.1, "z": 5.0,
-             "priced": True},
-            {"market": "low", "n": 100, "delta": -0.5, "se": 0.1, "z": -5.0,
-             "priced": True},
+            {"market": "high", "n": 100, "fixtures": 100, "observations": 100,
+             "delta": 0.5, "se": 0.1, "z": 5.0, "priced": True},
+            {"market": "low", "n": 100, "fixtures": 100, "observations": 100,
+             "delta": -0.5, "se": 0.1, "z": -5.0, "priced": True},
         ]
         markets = audit.document(rows, {"2026-09-01"})["markets"]
         assert markets["high"]["overstated_side"] == "UNDER"
@@ -210,8 +225,8 @@ class TestTheWrittenConfig:
         operator to ignore the ones that matter.
         """
         rows = [
-            {"market": "unpriced", "n": 300, "delta": 0.42, "se": 0.11,
-             "z": 3.78, "priced": False},
+            {"market": "unpriced", "n": 300, "fixtures": 300, "observations": 300,
+             "delta": 0.42, "se": 0.11, "z": 3.78, "priced": False},
         ]
         entry = audit.document(rows, {"2026-09-01"})["markets"]["unpriced"]
         assert entry["priced"] is False
@@ -220,9 +235,81 @@ class TestTheWrittenConfig:
     def test_a_thin_market_is_recorded_but_not_drifted(self, audit) -> None:
         """Below ``MIN_FIXTURES`` the SE is too wide for |z| to mean anything."""
         rows = [
-            {"market": "thin", "n": 5, "delta": 3.0, "se": 0.2, "z": 15.0,
-             "priced": True},
+            {"market": "thin", "n": 5, "fixtures": 5, "observations": 5,
+             "delta": 3.0, "se": 0.2, "z": 15.0, "priced": True},
         ]
         entry = audit.document(rows, {"2026-09-01"})["markets"]["thin"]
         assert entry["fixtures"] == 5
         assert entry["drifted"] is False
+
+
+class TestClusteredStandardError:
+    """The standard error must cluster on the fixture, not count rows.
+
+    Added 2026-09-07 with the fix. Until then ``report`` divided by
+    ``sqrt(rows)``, and every per-team market carries two rows per match -- one
+    per side, sharing a referee, a competition and a game state. Measured over
+    the slates on disk, ``*_for`` markets run at 1.92-2.00 rows per fixture, so
+    the field the config called ``fixtures`` was an observation count and the z
+    on those markets was overstated (``cards_points_for`` +3.84 against a
+    clustered +3.63).
+    """
+
+    def test_duplicating_every_row_within_its_fixture_does_not_shrink_the_se(
+        self, audit
+    ) -> None:
+        """The whole defect, in one comparison.
+
+        Same deltas, same means; the second dataset just records each match
+        twice, as a per-team market does. Under ``sd/sqrt(n)`` that alone would
+        divide the SE by sqrt(2) and manufacture certainty out of nothing.
+        """
+        values = [0.5, -0.4, 0.3, -0.2, 0.45, -0.35] * 6
+        singles = [((f"d{i}", f"e{i}"), v) for i, v in enumerate(values)]
+        # Each fixture seen twice, once per side, with the identical value.
+        doubled = [
+            ((f"d{i}", f"e{i}"), v) for i, v in enumerate(values) for _ in (0, 1)
+        ]
+
+        (single_row,), _ = audit.report({"m": singles}, {"m"})
+        (double_row,), _ = audit.report({"m": doubled}, {"m"})
+
+        assert single_row["fixtures"] == len(values)
+        assert double_row["fixtures"] == len(values)
+        assert double_row["observations"] == 2 * len(values)
+        assert double_row["delta"] == pytest.approx(single_row["delta"])
+        # The point: duplicating a fixture buys no certainty.
+        assert double_row["se"] == pytest.approx(single_row["se"], rel=1e-9)
+        assert double_row["z"] == pytest.approx(single_row["z"], rel=1e-9)
+
+    def test_fixtures_counts_matches_and_observations_counts_rows(
+        self, audit
+    ) -> None:
+        """The two counts must not be confused again; they differ by side."""
+        entries = [
+            (("2026-09-01", "evt_1"), 0.4),
+            (("2026-09-01", "evt_1"), 0.6),
+            (("2026-09-01", "evt_2"), 0.5),
+            (("2026-09-01", "evt_2"), 0.5),
+        ]
+        (row,), _ = audit.report({"cards_points_for": entries}, {"cards_points_for"})
+        assert row["fixtures"] == 2
+        assert row["observations"] == 4
+
+    def test_the_floor_is_applied_to_fixtures_not_observations(self, audit) -> None:
+        """A thin slate must not clear the floor by counting both sides.
+
+        ``MIN_FIXTURES`` exists because below it the SE is too wide for |z| > 3
+        to mean anything. Counting rows would let a per-team market reach it on
+        half the matches.
+        """
+        half = audit.MIN_FIXTURES - 1
+        entries = [
+            ((f"d{i}", f"e{i}"), 0.5) for i in range(half) for _ in (0, 1)
+        ]
+        (row,), drifted = audit.report(
+            {"cards_points_for": entries}, {"cards_points_for"}
+        )
+        assert row["observations"] >= audit.MIN_FIXTURES
+        assert row["fixtures"] == half
+        assert drifted == [], "cleared the floor on observations, not fixtures"

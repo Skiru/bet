@@ -207,7 +207,8 @@ Two fields carry it, and they are present only on a market measured to drift:
 
 ```json
 "sample_drift": {"delta": 0.5546, "z": 3.857, "fixtures": 266,
-                 "drifted": true, "overstated_side": "UNDER"},
+                 "observations": 266, "drifted": true,
+                 "overstated_side": "UNDER"},
 "sample_drift_note": "... every UNDER rung here is overstated ..."
 ```
 
@@ -222,7 +223,10 @@ market while looking like a repair.
 side the row you are quoting sits on. As of 2026-09-07 that is two markets,
 both football: `cards_points_total`, running 0.55 of a booking point low a
 match (z=+3.86 over 266 settled fixtures), and `cards_points_for`, 0.28 low
-(z=+3.84 over 525). Project memory records the cause as competition mix, not a
+(z=+3.63 over 263 fixtures / 525 observations -- a per-team market records both
+sides of a match, and the standard error is clustered on the fixture so the two
+do not count as independent). Project memory records the cause as competition
+mix, not a
 transcription fault — a hand check found 160 of 160 sampled values identical to
 the provider's — so the sample reads the right numbers off the right matches,
 and the matches are simply not the mix today's fixture comes from.

@@ -1152,8 +1152,8 @@ class BetBuilderLeg(StrictBaseModel):
     min_acceptable_odds: float
     # Copied from ``row.market_signal`` when the MARKET_CONTEXT stage ran and
     # reached a verdict on this exact row. Reported, never priced with: it does
-    # not enter fair_odds or min_acceptable_odds, both of which come from p_low
-    # and nothing else.
+    # not enter fair_odds or min_acceptable_odds, both of which come from the
+    # bar probability and nothing else.
     market_verdict: str | None = None
     # The operator's own book (SUPERBET, 2026-08-31). ``superbet_availability``
     # is the field that matters: a leg whose line is not on Superbet's ladder
@@ -1742,7 +1742,17 @@ def draft_legs(
         if family in families_used:
             exclude("duplicate_mechanism_family")
             continue
-        fair_odds = 1.0 / row.p_low
+        # The fair price on the probability this row is actually priced with.
+        #
+        # This used to be ``1.0 / row.p_low``, which was the basis before the
+        # bar moved to ``p_central``, and it read as nonsense on a sample with
+        # no hit: the goals_total 5.5 OVER leg drafted for Getafe - Celta on
+        # 2026-09-07 reported fair odds of 4.9e+16 beside a sane
+        # min_acceptable_odds of 22.0, because Wilson's lower bound underflows
+        # to ~2e-17 at 0/11. The gate a few lines below already used the bar
+        # probability for exactly this quantity, so the field was reporting a
+        # different number from the one the code decided on.
+        fair_odds = 1.0 / bar_probability(row, basis=bar_basis)
         minimum, availability, price = priced[id(row)]
         # Availability is not a value judgement and is not optional. A slip
         # is placed as one unit, so a leg the book does not carry does not
@@ -1779,8 +1789,7 @@ def draft_legs(
         # compound the same conservatism four times, which is the mistake this
         # file has already made once with ``p_low``.
         if price is not None:
-            fair = 1.0 / bar_probability(row, basis=bar_basis)
-            if price <= fair:
+            if price <= fair_odds:
                 exclude("leg_would_lower_slip_value")
                 continue
 

@@ -8,6 +8,7 @@ import json
 import math
 import statistics
 import threading
+from collections import defaultdict
 from collections.abc import Mapping
 from typing import NamedTuple
 from datetime import date, datetime, timedelta, timezone
@@ -1710,13 +1711,12 @@ def _tennis_match_keys(values: list[ProviderValue]) -> list[str]:
     and a ratio there would merge the sibling pairs tennis actually has
     (Mirra/Erika Andreeva), so it is left open rather than guessed at.
     """
-    seen: dict[tuple[str, str], int] = {}
     canonical: list[str] = []
-    keys: list[str] = []
+    resolved: list[str] = []
     for pv in values:
         opponent = _tennis_match_key(pv)
         if not opponent:
-            keys.append("")
+            resolved.append("")
             continue
         for known in canonical:
             if _team_matches(opponent, known):
@@ -1724,11 +1724,46 @@ def _tennis_match_keys(values: list[ProviderValue]) -> list[str]:
                 break
         else:
             canonical.append(opponent)
-        slot = (pv.provider, opponent)
-        occurrence = seen.get(slot, 0)
-        seen[slot] = occurrence + 1
-        keys.append(f"{opponent}#{occurrence}")
-    return keys
+        resolved.append(opponent)
+
+    # Occurrence numbering is CHRONOLOGICAL within (provider, opponent), not by
+    # arrival order.
+    #
+    # Arrival order paired the wrong matches whenever a provider reported two
+    # meetings with the same opponent. Andreeva - Tjen on 2026-09-07 is the
+    # case: tennis-abstract had one row (Cincinnati, 20 games, dated
+    # 2026-08-13, which is the *tournament start* -- that provider has no match
+    # dates) and espn-tennis had two, listed US Open first (2026-09-01, 16
+    # games) and Cincinnati second (2026-08-18, 20 games). Slot 0 therefore
+    # merged tennis-abstract's Cincinnati with espn's US Open and averaged them
+    # to 18.0 -- a match that never happened -- while the real Cincinnati pair
+    # never met. Sorting each provider's rows by date makes rank 0 the earlier
+    # meeting on both sides, so 08-13 pairs with 08-18 and the US Open match
+    # stands alone, which is what the two providers actually saw.
+    #
+    # It is a rank pairing, not a tolerance: no window, no threshold, nothing
+    # fitted. Ties fall back to the original order, so the function stays
+    # deterministic. Measured on the 2026-09-07 slate, 22 of 707 tennis
+    # (bucket, opponent) groups carried a provider with two distinct match ids
+    # and were exposed to this; 19 of them merged values that differ, the worst
+    # averaging a 22-game match with a 49-game one.
+    order: dict[tuple[str, str], list[int]] = defaultdict(list)
+    for index, opponent in enumerate(resolved):
+        if opponent:
+            order[(values[index].provider, opponent)].append(index)
+
+    occurrence_of: dict[int, int] = {}
+    for slot, indexes in order.items():
+        chronological = sorted(
+            indexes, key=lambda i: (values[i].match_date or "", i)
+        )
+        for rank, index in enumerate(chronological):
+            occurrence_of[index] = rank
+
+    return [
+        f"{opponent}#{occurrence_of[index]}" if opponent else ""
+        for index, opponent in enumerate(resolved)
+    ]
 
 
 def _one_per_day(values: list[ProviderValue], sport: str = "football") -> list[ProviderValue]:

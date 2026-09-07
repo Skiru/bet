@@ -324,3 +324,69 @@ class TestTheBetBuilderDraft:
                     f"{leg.market} is not marked drifted but its leg claims a "
                     f"sample drift"
                 )
+
+
+class TestTheAnalystContract:
+    """The reader the fields were written for must be told they exist.
+
+    ``sample_drift`` and ``sample_drift_note`` shipped on the forecast card on
+    2026-09-07 and the contract both analysts preload as "the full contract"
+    for reading a card documented neither: a grep for drift across
+    ``bet-analyst-football.md``, ``bet-analyst-tennis.md``,
+    ``bet-analysis-core/SKILL.md`` and ``references/forecast-card.md`` returned
+    0 in all four. The artifact carried the finding and the instructions did
+    not ask anyone to read it.
+
+    This exists because that gap could not otherwise be caught in the session
+    that closed it -- agent definitions and their preloaded skills load at
+    session start, so a rewritten contract cannot be exercised until the next
+    session. Asserting the contract's *text* against the config is checkable
+    now, and it fails if a future market is marked drifted while the analysts
+    are still told nothing about drift.
+    """
+
+    CONTRACT = (
+        ROOT
+        / ".claude"
+        / "skills"
+        / "bet-analysis-core"
+        / "references"
+        / "forecast-card.md"
+    )
+
+    def test_the_contract_documents_both_fields_and_the_sign(self, drifted) -> None:
+        if not self.CONTRACT.exists():
+            pytest.skip(f"{self.CONTRACT.name} not present")
+        text = self.CONTRACT.read_text(encoding="utf-8")
+        for required in (
+            "sample_drift",
+            "sample_drift_note",
+            "overstated_side",
+            # The sign convention is the part that inverts silently.
+            "actual minus sample",
+        ):
+            assert required in text, (
+                f"the forecast-card contract never mentions {required!r}, so an "
+                f"analyst reading it has no instruction to report the drift"
+            )
+
+    def test_the_contract_forbids_quoting_it_as_a_correction(self, drifted) -> None:
+        """A named drift is a statement; the file must say so in the contract."""
+        if not self.CONTRACT.exists():
+            pytest.skip(f"{self.CONTRACT.name} not present")
+        text = self.CONTRACT.read_text(encoding="utf-8")
+        assert "never quote it as a correction" in text.lower(), (
+            "the contract must state that the drift does not move a "
+            "probability, centre or threshold"
+        )
+
+    def test_every_drifted_market_is_named_in_the_contract(self, drifted) -> None:
+        """So a new drifted market cannot ship unmentioned to its reader."""
+        if not self.CONTRACT.exists():
+            pytest.skip(f"{self.CONTRACT.name} not present")
+        text = self.CONTRACT.read_text(encoding="utf-8")
+        for market in drifted:
+            assert market in text, (
+                f"{market} is marked drifted in config/sample_drift.json but "
+                f"the analyst contract does not name it"
+            )

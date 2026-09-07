@@ -1958,8 +1958,15 @@ def build_coupons(
                 # row whose lower bound is zero is making no claim to rank.
                 exclude("p_low_not_positive")
                 continue
-            fair = 1.0 / row.p_low
             minimum, bar = bar_for(row, tier)
+            # The fair price on the probability the bar is computed from, so
+            # that ``fair_odds`` and ``min_acceptable_odds`` describe the same
+            # row. It was ``1.0 / row.p_low``, the basis the bar moved off when
+            # it went to p_central, which left the two fields disagreeing and
+            # printed absurd magnitudes wherever Wilson's bound underflows -- a
+            # sample with no hit reported fair odds of 4.9e+16 next to a
+            # min_acceptable_odds of 22.0.
+            fair = 1.0 / bar.probability if bar.probability > 0 else 0.0
             per_family[(fixture, family)] += 1
             per_event[fixture] += 1
             singles.append(
