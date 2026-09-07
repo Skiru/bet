@@ -195,6 +195,63 @@ the money is and hot on the thin stuff. `fouls_total` claims 80.6% and delivers
 counting-market row says 80%, believe it. When a tennis row or a red-card row
 says 87%, do not.
 
+## Sample drift is a third question, and it names a side
+
+Skill asks whether the centre is in the right place. Calibration asks whether
+the probability is true. Drift asks something prior to both: **is the sample
+counting the same quantity the bookmaker settles?** When it is not, every
+number downstream stays internally consistent and the rows lose in a way that
+looks like bad luck.
+
+Two fields carry it, and they are present only on a market measured to drift:
+
+```json
+"sample_drift": {"delta": 0.5546, "z": 3.857, "fixtures": 266,
+                 "drifted": true, "overstated_side": "UNDER"},
+"sample_drift_note": "... every UNDER rung here is overstated ..."
+```
+
+`delta` is **actual minus sample**, so positive means the sample runs *low*:
+the match returns more than the sample expected, the line sits further above
+the sample's centre than it really sits above the truth, and so the **UNDER
+looks likelier than it is**. Read `overstated_side` rather than re-deriving it
+from the sign — inverting it points the warning at the wrong half of the
+market while looking like a repair.
+
+**Report it on every card and every rung of an affected market**, and say which
+side the row you are quoting sits on. As of 2026-09-07 that is two markets,
+both football: `cards_points_total`, running 0.55 of a booking point low a
+match (z=+3.86 over 266 settled fixtures), and `cards_points_for`, 0.28 low
+(z=+3.84 over 525). Project memory records the cause as competition mix, not a
+transcription fault — a hand check found 160 of 160 sampled values identical to
+the provider's — so the sample reads the right numbers off the right matches,
+and the matches are simply not the mix today's fixture comes from.
+
+**It is not a grade and does not lower one.** `cards_points_total` scores
++9.7% skill and a calibration error of 0.0001; on the two questions a grade
+answers it is the best football market on the board, and it earns `MEASURED`
+honestly. That is exactly why silence was dangerous rather than merely
+incomplete. The tests genuinely cross, in both directions:
+
+- `shots_total` drifts by **+0.550**, all but identical to
+  `cards_points_total`'s +0.555, and is *not* flagged — z=+1.60, because its
+  spread is 6.45 against 2.44. Materiality is not certainty.
+- `red_cards_total` is graded `BIASED` and is *centred* here (−0.03, z=−0.39).
+
+**Never quote it as a correction.** No probability, centre or threshold has
+been moved by it, and none may be until `validate_calibration.py` shows out of
+sample that moving them helps — the objection `market_priors.json` records
+against fitting a prior to the slates it was measured on, and the reason the
+tennis length markets' 25pp overconfidence is still deliberately uncorrected.
+Naming a drift costs nothing if it turns out to be noise; correcting for one
+that is noise moves every rung on the market.
+
+The same statement reaches the coupon (a caveat on every row of that market,
+naming the side) and a Bet Builder leg. `config/sample_drift.json` holds the
+full argument and every market checked, including the centred ones — "checked
+and centred" and "never checked" are different states, and the absence of an
+entry means the second.
+
 ## Drivers are labelled, never summed
 
 This is the rule that matters most and it is the easiest one to break, because
