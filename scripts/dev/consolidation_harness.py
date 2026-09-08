@@ -32,11 +32,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 # Mirrors bet.simple_stats.discover.DISCOVERY_SOURCES_BY_SPORT. Not imported
-# directly so this harness keeps working even mid-refactor of that module;
-# the two are checked against each other in discovery-gate mode.
+# directly so this harness keeps working even mid-refactor of that module --
+# there is no automated check that the two stay in sync, so update this by
+# hand whenever the real roster changes (last done 2026-09-08, when tennis
+# gained superbet-tennis-challenger) or this harness will false-positive-FAIL
+# a discovery-gate run against a slate the real roster covers fine.
 DISCOVERY_SOURCES_BY_SPORT = {
     "football": ("bzzoiro",),
-    "tennis": ("odds-api",),
+    "tennis": ("odds-api", "superbet-tennis-challenger"),
 }
 
 

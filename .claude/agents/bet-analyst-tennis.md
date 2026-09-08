@@ -132,8 +132,20 @@ people, and no read is safe.
 
 3. **Take the tennis inventory** (one `python3 -c`): tennis events with
    `competition` (pinned in `config/tennis_surface_map.json` /
-   `config/tennis_match_format.json`? — unpinned means unscoped), rows in the
-   top sheet by market, tennis `VALUE` rows counted yourself from
+   `config/tennis_match_format.json`? — unpinned means unscoped). `"ATP
+   Challenger"` (added 2026-09-08, via `superbet-tennis-challenger` discovery)
+   is *always* unpinned in both maps, by design, not a data gap — Challenger
+   spans dozens of surfaces per week and is always best-of-three anyway, so
+   the unpinned default (no surface filter, no BO5 gate) is already correct;
+   don't spend time investigating it as missing config. Do expect these rows
+   to be single-source markedly more often than tour rows — ESPN's tennis
+   scoreboard resolves the competition fine but carries no Challenger-tour
+   schedule at all (verified empirically, see `discover.py`'s
+   `SuperbetTennisChallengerDiscoveryAdapter` docstring), so tennis-abstract
+   alone is the normal, expected shape of a Challenger sample. Also expect
+   less to verify by name in web search: Challenger-level players and
+   rankings get materially thinner media coverage than tour regulars. Rows in
+   the top sheet by market, tennis `VALUE` rows counted yourself from
    `comparison.rows` (`sport == "tennis"`, `verdict == "VALUE"`), offer
    `generated_at` versus the sheet's and the comparison's (a newer offer means
    row prices are stale — re-read the offer), Superbet

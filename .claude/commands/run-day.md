@@ -89,8 +89,9 @@ regression, not a provider outage.
 replacements for watching `highlightly`'s quota, which drove discovery breadth
 until 2026-09-04 (measured 2026-08-28: 348 events with it available vs 80
 without — a 77% smaller day) but no longer runs at DISCOVER at all
-(`DISCOVERY_SOURCES_BY_SPORT` is bzzoiro-only for football, odds-api-only for
-tennis). `SPORT_EMPTY: <sport>` means that sport discovered zero `ACTIVE`
+(`DISCOVERY_SOURCES_BY_SPORT` is bzzoiro-only for football; tennis is
+odds-api for ATP/WTA main tour plus superbet-tennis-challenger for ATP
+Challenger singles, added 2026-09-08). `SPORT_EMPTY: <sport>` means that sport discovered zero `ACTIVE`
 events outright. `SLATE_BELOW_FLOOR: <sport>: N ACTIVE vs median M over W
 prior runs` means today's count collapsed relative to that sport's own recent
 history, whatever the cause — read `metrics.events_by_sport` for the numbers.

@@ -233,9 +233,12 @@ Never infer persistence from stderr.
 `PARTIAL` on its own.** A sport with zero `ACTIVE` events is a silent gap, not
 a quiet day, so it counts toward the verdict the same way a blocked provider
 does -- read `metrics.events_by_sport` to see which sport and report it by
-name. This is not theoretical for tennis: DISCOVER now runs from a single
-schedule source (`odds-api`, 44 tournament keys), and there are weeks with
-zero active ones.
+name. This is not theoretical for tennis: ATP/WTA main tour still runs from a
+single schedule source (`odds-api`, 44 tournament keys, and there are weeks
+with zero active ones) -- ATP Challenger singles is a second, independent
+source added 2026-09-08 (`superbet-tennis-challenger`, reading Superbet's own
+board directly), so a zero on one does not mean a zero on both; check
+`metrics.events_by_source` to tell them apart.
 
 **Always report discovered vs enriched.** A capped run marks the rest BLOCKED
 with `"not enriched: run capped at N events"`. "84 rows over 3 matches" reads

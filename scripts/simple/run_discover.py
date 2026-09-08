@@ -216,8 +216,10 @@ def _history_active_counts(
     **Counted per sport under today's discovery roster, not as the prior day's
     raw total.** The roster changed on 2026-09-04
     (``DISCOVERY_SOURCES_BY_SPORT``: football bzzoiro-only, tennis
-    odds-api-only), and a floor that compares the new roster's output with the
-    old one's is measuring the change of roster, not the shape of the day.
+    odds-api-only) and again on 2026-09-08 (tennis gained
+    superbet-tennis-challenger), and a floor that compares the new roster's
+    output with the old one's is measuring the change of roster, not the
+    shape of the day.
     Measured on the first live run after the change: football discovered 45
     fixtures against a raw median of 179 -- a 7-days-running ``PARTIAL`` that
     said nothing, exactly the "always fires" mirror of the permanently-dead

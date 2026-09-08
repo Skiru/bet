@@ -42,7 +42,7 @@
 ## 3. Format: best-of-five is a different sport for every length market
 
 - Men's Grand Slam main draw is best-of-five; everything else (all WTA, ATP
-  tour, slam qualifying) is best-of-three. A BO5 match runs 18–65 games and 3–5
+  tour, ATP Challenger, slam qualifying) is best-of-three. A BO5 match runs 18–65 games and 3–5
   sets; a BO3 runs 12–39 games and 2–3 sets. `total_sets UNDER 3.5` is a
   tautology in BO3 and a real bet in BO5; a book pricing a BO5 event posts
   2.40 for the same words.

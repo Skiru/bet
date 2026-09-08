@@ -61,13 +61,22 @@ def test_football_discovery_is_gated_to_bzzoiro_only():
     assert bzzoiro.calls == ["football"]
 
 
-def test_tennis_discovery_is_gated_to_odds_api_only():
+def test_tennis_discovery_is_gated_to_odds_api_and_superbet_challenger_only():
+    """odds-api covers ATP/WTA main tour; superbet-tennis-challenger covers
+    the Challenger tier odds-api has no key for at all (verified live
+    2026-09-08: its free /v4/sports auto-discovery lists only
+    tennis_atp_us_open/tennis_wta_us_open). Nothing else is queried."""
     odds_api = _FakeAdapter("odds-api", ["tennis"])
+    superbet_challenger = _FakeAdapter("superbet-tennis-challenger", ["tennis"])
     highlightly = _FakeAdapter("highlightly", ["tennis"])  # hypothetical: never true today
 
     events = _fetch_source_events(odds_api, "2026-09-04", ["tennis"])
     assert len(events) == 1
     assert odds_api.calls == ["tennis"]
+
+    events = _fetch_source_events(superbet_challenger, "2026-09-04", ["tennis"])
+    assert len(events) == 1
+    assert superbet_challenger.calls == ["tennis"]
 
     assert _fetch_source_events(highlightly, "2026-09-04", ["tennis"]) == []
     assert highlightly.calls == []
@@ -536,4 +545,201 @@ def test_qualifying_a_generic_name_can_only_help_the_espn_map():
         assert after == before or (before is None and after is not None), (
             f"{bare!r} + {country!r}: {before!r} -> {after!r}"
         )
+
+
+# --- SuperbetTennisChallengerDiscoveryAdapter --------------------------------
+#
+# ATP Challenger singles: odds-api has no key for this tier at all (verified
+# live 2026-09-08), and ESPN was tried and ruled out empirically the same day
+# (its tennis scoreboard carries only Slams and top-line tour events under
+# league="atp"/"wta"; every other league code 400s). Superbet's own
+# /events/by-date already lists the pairing directly.
+
+
+def _superbet_row(
+    *,
+    event_id=14851993,
+    sport_id=2,
+    category_id=205,
+    tournament_id=80804,
+    match_name="Kimmer Coppejans·Pablo Llamas Ruiz",
+    match_date="2026-09-08 09:00:00",
+    utc_date="2026-09-08T09:00:00Z",
+    market_count=60,
+    betradar_id="74374920",
+):
+    return {
+        "eventId": event_id,
+        "sportId": sport_id,
+        "categoryId": category_id,
+        "tournamentId": tournament_id,
+        "matchName": match_name,
+        "matchDate": match_date,
+        "utcDate": utc_date,
+        "marketCount": market_count,
+        "betradarId": betradar_id,
+        "metadata": {"status": "NOT_STARTED"},
+    }
+
+
+def _stub_superbet_adapter(monkeypatch, rows):
+    from bet.simple_stats.discover import SuperbetTennisChallengerDiscoveryAdapter
+
+    adapter = SuperbetTennisChallengerDiscoveryAdapter()
+    monkeypatch.setattr(adapter._client, "events_by_date", lambda *a, **kw: rows)
+    return adapter
+
+
+def test_superbet_challenger_adapter_keeps_only_the_challenger_category(monkeypatch):
+    """categoryId=205 is Superbet's own field, empirically verified against
+    two live Challenger draws on 2026-09-08 -- not documented, so this test
+    is the guard against silently widening (or narrowing) which tier gets
+    discovered."""
+    rows = [
+        _superbet_row(event_id=1, category_id=205, match_name="A·B"),  # ATP Challenger: kept
+        _superbet_row(event_id=2, category_id=3, match_name="C·D"),  # ATP main tour
+        _superbet_row(event_id=3, category_id=2, match_name="E·F"),  # WTA main tour
+        _superbet_row(event_id=4, category_id=1877, match_name="G·H"),  # ITF
+    ]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert [e.external_id for e in events] == ["1"]
+    assert events[0].competition == "ATP Challenger"
+    assert events[0].home_team == "A"
+    assert events[0].away_team == "B"
+
+
+def test_superbet_challenger_adapter_skips_doubles(monkeypatch):
+    """This tier's doubles ladder is a single line with no per-player
+    breakdown -- nothing this pipeline's tennis samples could key on -- so
+    doubles are dropped rather than discovered and later found useless."""
+    rows = [
+        _superbet_row(event_id=1, match_name="Kimmer Coppejans·Pablo Llamas Ruiz"),
+        _superbet_row(
+            event_id=2,
+            match_name="B.Carpico/N.S.Filin·R.Ram/J.Salisbury",
+        ),
+    ]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert [e.external_id for e in events] == ["1"]
+
+
+def test_superbet_challenger_adapter_uses_utc_date_not_local_match_date(monkeypatch):
+    """``matchDate`` is unlabeled local time (the same trap
+    pipeline-timestamps-are-local-not-utc already warns about elsewhere in
+    this pipeline); ``utcDate`` carries an explicit ``Z`` and is what kickoff
+    must be built from."""
+    rows = [
+        _superbet_row(
+            match_date="2026-09-08 23:30:00",  # would read as a different UTC day if used
+            utc_date="2026-09-08T21:30:00Z",
+        )
+    ]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert len(events) == 1
+    assert events[0].kickoff.isoformat() == "2026-09-08T21:30:00+00:00"
+
+
+def test_superbet_challenger_adapter_filters_to_the_requested_date(monkeypatch):
+    rows = [
+        _superbet_row(event_id=1, utc_date="2026-09-08T21:30:00Z"),
+        _superbet_row(event_id=2, utc_date="2026-09-09T02:00:00Z"),
+    ]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert [e.external_id for e in events] == ["1"]
+
+
+def test_superbet_challenger_adapter_ignores_other_sports(monkeypatch):
+    rows = [_superbet_row(sport_id=5, category_id=205)]  # football's sportId, same categoryId
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    assert adapter._fetch_events_impl("2026-09-08", "tennis") == []
+
+
+def test_superbet_challenger_adapter_drops_a_row_with_no_away_side(monkeypatch):
+    """A walkover-shaped or malformed matchName ("Coppejans·") must not
+    become a one-sided fixture -- split_match_name falls back to a
+    single-sided split rather than raising, so the adapter has to guard it."""
+    rows = [_superbet_row(match_name="Kimmer Coppejans·")]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    assert adapter._fetch_events_impl("2026-09-08", "tennis") == []
+
+
+def test_superbet_challenger_adapter_drops_a_row_with_no_event_id(monkeypatch):
+    rows = [_superbet_row(event_id=None)]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    assert adapter._fetch_events_impl("2026-09-08", "tennis") == []
+
+
+def test_superbet_challenger_adapter_drops_a_row_with_an_unparseable_utc_date(monkeypatch):
+    rows = [_superbet_row(utc_date="not-a-date")]
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    assert adapter._fetch_events_impl("2026-09-08", "tennis") == []
+
+
+def test_superbet_challenger_adapter_carries_superbets_own_status_through(monkeypatch):
+    """Superbet's own metadata.status (e.g. a match already interrupted or
+    postponed at discovery time) must not be flattened to a fixed
+    "scheduled", unlike odds-api's /events endpoint, which genuinely carries
+    no status field to lose."""
+    rows = [_superbet_row(event_id=1)]
+    rows[0]["metadata"] = {"status": "POSTPONED"}
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert events[0].status == "POSTPONED"
+
+
+def test_superbet_challenger_adapter_maps_unknown_status_to_scheduled(monkeypatch):
+    rows = [_superbet_row(event_id=1)]
+    rows[0]["metadata"] = {"status": "UNKNOWN"}
+    adapter = _stub_superbet_adapter(monkeypatch, rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert events[0].status == "scheduled"
+
+
+def test_superbet_challenger_adapter_records_error_on_client_failure(monkeypatch):
+    from bet.api_clients.superbet import SuperbetError
+    from bet.simple_stats.discover import SuperbetTennisChallengerDiscoveryAdapter
+
+    adapter = SuperbetTennisChallengerDiscoveryAdapter()
+
+    def _raise(*a, **kw):
+        raise SuperbetError("Superbet offer returned HTTP 500 for /events/by-date")
+
+    monkeypatch.setattr(adapter._client, "events_by_date", _raise)
+
+    events = adapter._fetch_events_impl("2026-09-08", "tennis")
+
+    assert events == []
+    assert adapter.last_errors  # the caller can tell this source went dark
+
+
+def test_superbet_challenger_adapter_is_registered_disjoint_from_odds_api():
+    """No categoryId this adapter accepts is one odds-api's main-tour
+    discovery ever produces, so the two sources never need to merge or
+    disambiguate a Challenger fixture against a main-tour one."""
+    from bet.simple_stats.discover import DISCOVERY_SOURCES_BY_SPORT
+
+    assert DISCOVERY_SOURCES_BY_SPORT["tennis"] == (
+        "odds-api",
+        "superbet-tennis-challenger",
+    )
 

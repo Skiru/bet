@@ -571,3 +571,31 @@ def test_a_borrowed_measurement_says_so_in_its_reason():
     assert why.startswith("this format has too few settled fixtures")
     assert "total_games@BO3" in why
     assert "floor" in why
+
+
+def test_an_unpinned_tennis_competition_borrows_the_same_way_as_a_thin_format():
+    """ATP Challenger (added 2026-09-08) is never in
+    config/tennis_match_format.json by design, scoping it to
+    ``f"{market}@UNKNOWN"``. That is not a special "can never be measured"
+    case: measure_market_reliability.py pools every unpinned competition into
+    that scope and gates it on the same settled-fixture floor as
+    ``@BO3``/``@BO5`` (confirmed by reading the script directly) -- so a
+    borrowed ``@UNKNOWN`` scope is genuinely just thin, like any other, and
+    must not get a different message pretending otherwise.
+    """
+    from bet.simple_stats.forecast import _grade
+
+    entry = {
+        "skill": -0.0883,
+        "skill_comparable": True,
+        "fixtures": 88,
+        "mae": 5.24,
+        "mae_constant": 4.81,
+        "actual_mean": 21.53,
+        "actual_sd": 5.9,
+        "bias": 1.2,
+    }
+    _, why = _grade(entry, borrowed_from="total_games@BO3")
+    assert why.startswith("this format has too few settled fixtures")
+    assert "total_games@BO3" in why
+    assert "floor" in why

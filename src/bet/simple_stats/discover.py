@@ -10,7 +10,7 @@ import json
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -18,6 +18,8 @@ import requests
 from bet.api_clients.bzzoiro import BzzoiroClient
 from bet.api_clients.highlightly import HighlightlyClient
 from bet.api_clients.rate_limiter import RateLimiter
+from bet.api_clients.superbet import SPORT_IDS as SUPERBET_SPORT_IDS
+from bet.api_clients.superbet import SuperbetClient, SuperbetError, split_match_name
 from bet.discovery.dedup import DeduplicationEngine
 from bet.discovery.models import DiscoveredEvent, MergedFixture
 from bet.discovery.sources.base import AbstractSourceAdapter
@@ -622,18 +624,173 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
         return events
 
 
+# Superbet's own field, empirically -- not documented anywhere Superbet
+# publishes. Verified live on 2026-09-08 against two ATP Challenger draws
+# (Cassis: tournamentId 80804, Kimmer Coppejans / Jaume Munar; a second draw:
+# tournamentId 91617, Lorenzo Sonego) and cross-checked against
+# categoryId=3/2 (ATP/WTA main tour, e.g. the US Open) and categoryId=1877/
+# 1878 (ITF, marketCount capped at 11 -- no total_games/total_sets ladder).
+# This is a soft inference, not a contract: if Superbet ever restructures its
+# category taxonomy, this constant silently starts matching the wrong tier
+# (or nothing) rather than raising. Re-verify it the way it was found --
+# fetch a live /events/by-date window, group by categoryId, and check that a
+# known Challenger player's match is still in this bucket -- before trusting
+# it again after a long gap.
+#
+# WTA Challenger was not verified before this shipped (categoryId 235 looked
+# like a plausible candidate on 2026-09-08's data but its player names were
+# never cross-checked against a known WTA Challenger draw). Only the ATP side
+# is enabled.
+_SUPERBET_ATP_CHALLENGER_CATEGORY_ID = 205
+
+
+class SuperbetTennisChallengerDiscoveryAdapter(AbstractSourceAdapter):
+    """Discovery source reading Superbet PL's own ``/events/by-date`` schedule,
+    scoped to ATP Challenger singles.
+
+    Every other tennis source in this pipeline resolves a *player* (ESPN,
+    tennis-abstract) or a *schedule* gated behind a key odds-api simply does
+    not sell for this tier (see ``discover_events``'s docstring: the free
+    ``/v4/sports`` auto-discovery that finds active odds-api sport keys
+    returns ``tennis_atp_us_open``/``tennis_wta_us_open`` on 2026-09-08 and
+    nothing Challenger-shaped, because there is no Challenger key to find).
+    ESPN was the other candidate considered and ruled out empirically: its
+    tennis scoreboard only accepts ``league="atp"``/``"wta"`` (every other
+    code, including ``"challenger"``, answers HTTP 400) and that scoreboard
+    itself carries only Grand Slams and top-line ATP/WTA tour events -- a
+    live probe on 2026-09-08 found Kimmer Coppejans's entire ESPN match
+    history to be Slam *qualifying* rounds, zero Challenger-tour matches.
+
+    Superbet's own board already lists the Challenger pairing directly
+    (``matchName``, split on the ``·`` separator ``split_match_name``
+    handles), with no native id anything downstream needs: ENRICH resolves
+    both tennis providers by player name, exactly as it does for odds-api's
+    events today.
+
+    Scoped to ``categoryId == _SUPERBET_ATP_CHALLENGER_CATEGORY_ID`` on
+    purpose, not "every tennis event Superbet lists": that keeps this source
+    disjoint from odds-api's existing ATP/WTA main-tour coverage (different
+    categoryId, different players) with nothing to merge or disambiguate --
+    no shared fixture, no AMBIGUOUS risk, no new duplicate-fixture surface for
+    the reasons ``duplicate-fixtures-reach-the-coupon`` already warns about.
+    Doubles are skipped (``matchName`` containing ``/``): a different
+    statistical shape (two-player attribution) this pipeline's tennis samples
+    were never built to hold, and Superbet's own doubles ladder on this tier
+    is a single line with no per-player breakdown to key a sample on anyway.
+    """
+
+    name = "superbet-tennis-challenger"
+    priority = 5
+    supported_sports = ["tennis"]
+
+    def __init__(self):
+        # No rate_limiter parameter: unlike Highlightly/Bzzoiro, SuperbetClient
+        # has no rate_limiter hook to receive one -- it does its own
+        # retry/backoff internally (see superbet.py's module docstring) -- and
+        # discover_events()'s own sources list already constructs
+        # OddsAPIEventsAdapter() with no arguments alongside the two that do
+        # take one, so there is no uniform constructor shape to match here.
+        self._client = SuperbetClient()
+        super().__init__()
+
+    def is_available(self) -> bool:
+        # Public prematch offer, no API key, no account -- see superbet.py's
+        # module docstring. Nothing here can be "unavailable" the way a
+        # missing key makes an adapter unavailable; a dead host surfaces as a
+        # fetch-time SuperbetError instead, caught in _fetch_events_impl.
+        return True
+
+    def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
+        if sport != "tennis":
+            return []
+
+        window_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        window_end = window_start + timedelta(days=1)
+        try:
+            # offer_state="all", not the client's "prematch" default: a
+            # Challenger match already live or finished by the time DISCOVER
+            # runs would otherwise never be *discovered* at all -- not "priced
+            # stale", which is what "prematch"-only means for the downstream
+            # SUPERBET step reading this same endpoint, but "never created as
+            # a fixture, no record it existed." Verified live 2026-09-08:
+            # "prematch" returned 75 ATP Challenger rows for today, "all"
+            # returned 98, the extra 23 already FINISHED before this ran.
+            # ENRICH's SlateGate drops anything whose kickoff has passed on
+            # its own, so surfacing them here costs nothing downstream.
+            rows = self._client.events_by_date(window_start, window_end, offer_state="all")
+        except SuperbetError as exc:
+            self._record_error(str(exc))
+            return []
+
+        events: list[DiscoveredEvent] = []
+        for row in rows:
+            if row.get("sportId") != SUPERBET_SPORT_IDS["tennis"]:
+                continue
+            if row.get("categoryId") != _SUPERBET_ATP_CHALLENGER_CATEGORY_ID:
+                continue
+            match_name = row.get("matchName") or ""
+            if "/" in match_name:
+                continue  # doubles
+            home, away = split_match_name(match_name)
+            if not home or not away:
+                continue
+            raw_utc_date = str(row.get("utcDate") or "")
+            try:
+                kickoff = datetime.fromisoformat(raw_utc_date.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if kickoff.strftime("%Y-%m-%d") != date:
+                continue
+            event_id = row.get("eventId")
+            if event_id is None:
+                continue
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            raw_status = str(metadata.get("status") or "").strip()
+            events.append(
+                DiscoveredEvent(
+                    source=self.name,
+                    external_id=str(event_id),
+                    sport="tennis",
+                    competition="ATP Challenger",
+                    home_team=home,
+                    away_team=away,
+                    kickoff=kickoff,
+                    # Superbet's own status for this row (e.g. NOT_STARTED),
+                    # not a fixed "scheduled" -- carried through rather than
+                    # discarded, the way bzzoiro's own match_status already
+                    # is elsewhere in this file. "UNKNOWN" and an absent
+                    # field both fall back to "scheduled" rather than
+                    # surfacing Superbet's own placeholder value.
+                    status="scheduled" if raw_status in ("", "UNKNOWN") else raw_status,
+                    raw_data={
+                        "category_id": row.get("categoryId"),
+                        "tournament_id": row.get("tournamentId"),
+                        "betradar_id": row.get("betradarId"),
+                        "market_count": row.get("marketCount"),
+                    },
+                )
+            )
+        return events
+
+
 # `.get(sport, ())`, not `[sport]`: --sports is free text with no argparse
 # choices, and OddsAPIEventsAdapter also declares basketball and hockey.
 #
 # football: SlateGate rejects any event without a bzzoiro row regardless (297
 # of 342 on 2026-09-04), so discovering it elsewhere first is pure noise in
 # the artifact -- an event that cannot be enriched should not be discovered.
-# tennis: odds-api is the only schedule source left after bzzoiro-tennis was
-# removed (see discover_events' docstring) and highlightly's tennis discovery
-# never carried a native id anything downstream could use.
+# tennis: odds-api remains the schedule source for ATP/WTA main tour (the
+# sole schedule source left after bzzoiro-tennis was removed -- see
+# discover_events' docstring -- and highlightly's tennis discovery never
+# carried a native id anything downstream could use either).
+# superbet-tennis-challenger adds ATP Challenger singles, a tier odds-api has
+# no key for at all (verified 2026-09-08: its free /v4/sports auto-discovery
+# lists only tennis_atp_us_open/tennis_wta_us_open). It reads Superbet PL's
+# own schedule directly and is scoped to categoryId=205 so it never overlaps
+# odds-api's main-tour events.
 DISCOVERY_SOURCES_BY_SPORT: dict[str, tuple[str, ...]] = {
     "football": ("bzzoiro",),
-    "tennis": ("odds-api",),
+    "tennis": ("odds-api", "superbet-tennis-challenger"),
 }
 
 
@@ -652,7 +809,11 @@ def _fetch_all_sources(
     sources: list[AbstractSourceAdapter], date: str, sports: list[str]
 ) -> dict[str, list[DiscoveredEvent]]:
     events_by_source: dict[str, list[DiscoveredEvent]] = {}
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    # One worker per source: four adapters (odds-api, highlightly, bzzoiro,
+    # superbet-tennis-challenger) queued against fewer workers serializes one
+    # of them behind the others on every DISCOVER run instead of the
+    # constant-time parallel fetch this pool exists for.
+    with ThreadPoolExecutor(max_workers=max(1, len(sources))) as pool:
         futures = {pool.submit(_fetch_source_events, src, date, sports): src.name for src in sources}
         for future in as_completed(futures):
             name = futures[future]
@@ -818,19 +979,32 @@ def discover_events(
     """Discover football/tennis events for ``date``, dedup them, and classify
     each merged fixture's identity confidence.
 
-    All three source adapters (The Odds API, Highlightly, Bzzoiro) are always
-    constructed -- ``source_errors`` reads the full list -- but
+    All source adapters (The Odds API, Highlightly, Bzzoiro, Superbet) are
+    always constructed -- ``source_errors`` reads the full list -- but
     ``DISCOVERY_SOURCES_BY_SPORT`` narrows which of them are actually queried
     per sport. Football discovers from bzzoiro only: SlateGate rejects every
     event without a bzzoiro identity regardless (section 4.1), so discovering
-    one nowhere else can enrich is pure noise in the artifact. Tennis
-    discovers from odds-api only, the sole schedule source left after the
-    bzzoiro tennis adapter was removed on 2026-09-02 (it had been the only one
-    handing over native tennis ids, and stopped answering -- HTTP 402, paid
-    addon -- before that ever paid for itself); Highlightly's tennis
-    discovery never carried a native id anything downstream could use either.
-    ESPN and tennis-abstract both resolve a player from a name, so nothing
-    downstream depends on a tennis discovery source's ids.
+    one nowhere else can enrich is pure noise in the artifact. Tennis's main
+    tour (ATP/WTA) discovers from odds-api, the sole schedule source left
+    after the bzzoiro tennis adapter was removed on 2026-09-02 (it had been
+    the only one handing over native tennis ids, and stopped answering --
+    HTTP 402, paid addon -- before that ever paid for itself); Highlightly's
+    tennis discovery never carried a native id anything downstream could use
+    either. ESPN and tennis-abstract both resolve a player from a name, so
+    nothing downstream depends on a tennis discovery source's ids.
+
+    ATP Challenger singles discovers from
+    ``SuperbetTennisChallengerDiscoveryAdapter`` instead: odds-api's free
+    ``/v4/sports`` auto-discovery has no Challenger key to find (verified
+    2026-09-08: only ``tennis_atp_us_open``/``tennis_wta_us_open`` come back
+    active), and ESPN was tried and ruled out empirically the same day -- its
+    tennis scoreboard only accepts ``league="atp"``/``"wta"`` and that
+    scoreboard itself carries only Slams and top-line tour events, never the
+    Challenger circuit (a live probe found a known Challenger player's entire
+    ESPN match history to be Grand Slam *qualifying* rounds). Superbet's own
+    ``/events/by-date`` already lists the Challenger pairing directly, with
+    no native id anything downstream needs -- see that adapter's docstring
+    for the categoryId caveat.
 
     SportDB is not a discovery source: its only schedule-shaped method,
     ``get_competition_results_with_evidence``, returns rows
@@ -846,6 +1020,7 @@ def discover_events(
         OddsAPIEventsAdapter(),
         HighlightlyDiscoveryAdapter(rate_limiter),
         BzzoiroDiscoveryAdapter(rate_limiter),
+        SuperbetTennisChallengerDiscoveryAdapter(),
     ]
     events_by_source = _fetch_all_sources(sources, date, sports)
     source_errors = {
@@ -898,13 +1073,15 @@ def coverage_floor_reasons(
     (section 7 of the 2026-09-04 consolidation plan).
 
     ``DISCOVERY_SOURCES_BY_SPORT`` narrowed discovery to bzzoiro (football)
-    and odds-api (tennis); neither has a daily quota to exhaust, and
-    highlightly -- the one source ``SLATE_CRITICAL_SOURCES`` names -- is no
-    longer fetched for either sport (``_fetch_source_events`` skips it
+    and odds-api plus superbet-tennis-challenger (tennis); none of the three
+    has a daily quota to exhaust (Superbet's ``/events/by-date`` is a public,
+    unauthenticated endpoint -- see ``SuperbetTennisChallengerDiscoveryAdapter``),
+    and highlightly -- the one source ``SLATE_CRITICAL_SOURCES`` names -- is
+    no longer fetched for either sport (``_fetch_source_events`` skips it
     unconditionally), so that check's "quota exhausted" substring can never
-    match again. Adding bzzoiro or odds-api to ``SLATE_CRITICAL_SOURCES``
-    would not fix this: it is a string match on a specific error message, and
-    neither source ever produces one shaped like a quota error.
+    match again. Adding any of the three to ``SLATE_CRITICAL_SOURCES`` would
+    not fix this: it is a string match on a specific error message, and none
+    of them ever produces one shaped like a quota error.
 
     This reads the day's own shape instead: today's ACTIVE count per sport
     against the median of that sport's own recent runs, both already on disk

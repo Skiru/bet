@@ -357,6 +357,15 @@ def _grade(
     predicting roughly nothing for everybody is close to right without
     discriminating between anybody -- so for those the level grades are skipped
     and the calibration is the whole verdict.
+
+    A tennis competition ``tennis_match_format`` has never pinned (e.g. ATP
+    Challenger, unpinned by design, or any ATP/WTA tour event nobody has
+    added to ``config/tennis_match_format.json`` yet) scopes as
+    ``f"{market}@UNKNOWN"`` -- pooled across every unpinned competition by
+    ``measure_market_reliability.py``, gated by the same settled-fixture
+    floor as ``@BO3``/``@BO5``, nothing more. So a borrowed ``@UNKNOWN`` scope
+    is genuinely the same situation as a thin ``total_games@BO5``: too few
+    settled fixtures *so far*, not a scope that can never be measured.
     """
     if not reliability:
         return "UNMEASURED", "this market has never been settled against a result"
