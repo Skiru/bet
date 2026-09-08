@@ -223,6 +223,58 @@ def test_a_downgrade_that_reaches_weak_removes_the_leg():
     assert coupons.slips == []
 
 
+def test_a_sample_not_representative_downgrade_prices_the_leg_off_the_market():
+    """Measured 2026-09-08: the tier step reached the leg, the price did not.
+
+    ``draft_legs`` priced every leg through the bare ``required_odds``/
+    ``bar_probability`` calls, which default to ``market_probability=None``
+    and ``force_weight=None`` -- so a ``SAMPLE_NOT_REPRESENTATIVE`` veto's
+    whole point (price this row off the book's own devig, not its own
+    now-untrusted sample) reached the singles list, via ``coupons.py``'s own
+    ``bar_for`` closure, and never reached a Bet Builder leg on the same row.
+    A Bournemouth-Lincoln City ``cards_points_total`` row the analyst had
+    zeroed for an opponent-class mismatch still shipped inside a slip at its
+    raw, sample-only price after the same veto had already priced it out of
+    singles.
+
+    Here: a sample claiming 0.97 sits far above the market's own ~0.57, so a
+    price of 1.50 clears the sample-only bar (pre-fix) but not the
+    market-only one a ``force_weight=0`` downgrade must produce (post-fix).
+    """
+    sheet = _two_row_sheet(p_low=0.60, p_central=0.97, sample_size=12)
+    offer = _offer(
+        *_both_sides("corners_total", 9.5, "UNDER", price=1.50, other=2.00),
+        *_both_sides("cards_total", 4.5, "UNDER", price=3.00, other=1.30),
+    )
+
+    plain = build_coupons(sheet, _events(_event()), superbet_offer=offer)
+    before = next(
+        leg for leg in plain.slips[0].draft.legs if leg.market == "corners_total"
+    )
+    assert before.tier == "CALL"
+
+    downgraded = build_coupons(
+        sheet, _events(_event()), superbet_offer=offer,
+        vetoes=[
+            AnalystVeto(
+                event_id="evt-1", market="corners_total", line=None,
+                direction=None, action="DOWNGRADE",
+                reason_class="SAMPLE_NOT_REPRESENTATIVE",
+                reason="opponent-class mismatch: sample is a different tier of match",
+            )
+        ],
+    )
+    legs = [leg for slip in downgraded.slips for leg in slip.draft.legs]
+    assert "corners_total" not in {leg.market for leg in legs}, (
+        "a SAMPLE_NOT_REPRESENTATIVE downgrade must price the leg off the "
+        "market (~0.57), not the zero-weighted sample (0.97) -- at 1.50 it "
+        "clears the sample-only bar but not the market-only one"
+    )
+    # With only cards_total left, there is no slip at all -- the honest
+    # outcome, same as any other downgrade that removes a leg down to one.
+    assert downgraded.slips == []
+
+
 # --- the veto may scope a whole market -------------------------------------
 
 

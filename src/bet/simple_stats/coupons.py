@@ -2324,6 +2324,7 @@ def build_coupons(
             # minimum "as context".
             require_value=superbet_offer is not None,
             bar_basis=bar_basis,
+            bar_for=bar_for,
         )
         # A one-leg "slip" is a single wearing a different hat, and printing it
         # in both sections would double-count the same read.

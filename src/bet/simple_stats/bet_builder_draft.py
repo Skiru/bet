@@ -1704,6 +1704,7 @@ def draft_legs(
     price_for: Callable[[StatsSheetRow], tuple[str | None, float | None]] | None = None,
     require_value: bool = False,
     bar_basis: str = "p_central",
+    bar_for: Callable[[StatsSheetRow, Tier], tuple[float, BarComponents]] | None = None,
 ) -> BetBuilderDraft:
     """Draft up to ``max_legs`` legs for one fixture, best-evidenced first.
 
@@ -1731,6 +1732,23 @@ def draft_legs(
     eligibility: a leg whose price is below ``min_acceptable_odds``, or which
     has no price at all, is not a leg. Without it the price is annotated and
     reported exactly as before -- the operator sees the number and judges it.
+
+    ``bar_for`` is ``coupons.build_coupons``'s own ``bar_for`` closure --
+    ``(min_acceptable_odds, BarComponents)`` for one row at one tier, already
+    carrying that row's veto-driven ``force_weight``/``shrink_k`` (a
+    ``SAMPLE_NOT_REPRESENTATIVE``/``ESTIMAND_WRONG`` DOWNGRADE zeroes the
+    sample's weight so the row prices off the book's own devig; a
+    ``MISSING_REFEREE`` one halves it). Without it this function falls back to
+    the bare ``required_odds(row, tier, basis=bar_basis)`` / ``bar_probability``
+    it always used, which reads only the sample and never the veto: measured
+    2026-09-08, a struck Bournemouth-Lincoln City ``cards_points_total`` row
+    still shipped inside a slip at its raw, uncorrected price after the same
+    veto had already zeroed it out of the singles list -- the tier step
+    (``step_tier_down`` below) reached the leg, the price correction did not.
+    ``coupons.py`` is the only caller with a ``VetoIndex`` *and* the constants
+    (``VETO_CLASS_ZERO_WEIGHT`` etc.) that turn one into a bar; duplicating
+    that mapping here would import back into the module this one is imported
+    from.
 
     Ranked by ``p_low`` within a demotion class: a trivial low-line UNDER
     (``is_trivial_under``) never leads a slip, because 20/20 on "under 4.5
@@ -1772,20 +1790,25 @@ def draft_legs(
     # threshold is a property of the leg, so it has to be known to rank it -- and
     # pricing here rather than inside the loop below means ``price_for`` is
     # called once per row instead of twice.
-    def _priced(row: StatsSheetRow, tier: Tier) -> tuple[float, str | None, float | None]:
-        minimum = required_odds(row, tier, basis=bar_basis)
+    def _priced(row: StatsSheetRow, tier: Tier) -> tuple[float, str | None, float | None, float]:
+        if bar_for is not None:
+            minimum, components = bar_for(row, tier)
+            probability = components.probability
+        else:
+            minimum = required_odds(row, tier, basis=bar_basis)
+            probability = bar_probability(row, basis=bar_basis)
         if price_for is None:
-            return minimum, None, None
+            return minimum, None, None, probability
         availability, price = price_for(row)
-        return minimum, availability, price
+        return minimum, availability, price, probability
 
-    priced: dict[int, tuple[float, str | None, float | None]] = {
+    priced: dict[int, tuple[float, str | None, float | None, float]] = {
         id(row): _priced(row, tier) for row, tier in eligible
     }
 
     def _surplus(pair: tuple[StatsSheetRow, Tier]) -> float | None:
         """How far this leg's price clears its own threshold, or None."""
-        minimum, availability, price = priced[id(pair[0])]
+        minimum, availability, price, _ = priced[id(pair[0])]
         if availability != "OFFERED" or price is None or price < minimum:
             return None
         return round(price - minimum, 4)
@@ -1811,7 +1834,7 @@ def draft_legs(
         against one of 2.05, and the second group is where every rejected leg
         lives.
         """
-        minimum, availability, price = priced[id(pair[0])]
+        minimum, availability, price, _ = priced[id(pair[0])]
         if availability != "OFFERED" or price is None or minimum <= 0:
             return None
         return price / minimum
@@ -1906,8 +1929,8 @@ def draft_legs(
         # to ~2e-17 at 0/11. The gate a few lines below already used the bar
         # probability for exactly this quantity, so the field was reporting a
         # different number from the one the code decided on.
-        fair_odds = 1.0 / bar_probability(row, basis=bar_basis)
-        minimum, availability, price = priced[id(row)]
+        minimum, availability, price, probability = priced[id(row)]
+        fair_odds = 1.0 / probability if probability > 0 else float("inf")
         # Availability is not a value judgement and is not optional. A slip
         # is placed as one unit, so a leg the book does not carry does not
         # make the slip worse -- it makes the slip impossible. Five of the
