@@ -515,6 +515,50 @@ def test_the_smallest_unconstrained_sport_is_satisfied_first():
     assert len(kept) == 100
 
 
+def test_a_smaller_unconstrained_sport_cannot_zero_a_larger_one():
+    """The 2026-09-08 shape, live and real: football=40, tennis=52, cap=40 --
+    the pipeline's own default. Superbet's ATP Challenger discovery (added
+    that day) broke the assumption every prior test here relies on, that
+    tennis is always the *smaller* of the two: tennis maxed out at 46
+    fixtures against a 250 cap before that, so it could never exhaust the
+    budget ahead of football's turn. On 2026-09-08 it could, and did.
+
+    Before this fix: football (smaller that day) sorted first, 40 <= 40,
+    granted its whole slate, budget -> 0; tennis then needed 52 <= 0 and got
+    *zero* -- not a smaller share, the entire sport, all 86 of that day's new
+    ATP Challenger fixtures among them, reported as the generic-sounding
+    "not enriched: run capped at 40 events" with nothing naming a whole sport
+    as the thing that vanished. Reproduced exactly against this shape before
+    the fix landed.
+
+    The fix does not grant either sport a blanket exemption here (unlike
+    ``test_the_smallest_unconstrained_sport_is_satisfied_first``, where the
+    smaller sport still leaves room behind it): both being unconstrained
+    means neither should be rationed for quota reasons, but *some* fixture
+    of each still has to give since 40 + 52 exceeds the cap of 40. The
+    correct floor is "nonzero and proportional", not "whole slate for
+    whoever is smaller today" -- 17 and 23 split the 40 slots by relative
+    size, matching the ordinary largest-remainder apportionment every
+    constrained sport already gets.
+    """
+    now = datetime(2026, 9, 8, 6, 0, tzinfo=timezone.utc)
+    active = [_event(f"f{i}", "football") for i in range(40)]
+    active += [_event(f"t{i}", "tennis") for i in range(52)]
+
+    kept, skipped = _apportion_cap(
+        active, 40, now, unconstrained_sports=frozenset({"football", "tennis"})
+    )
+
+    football_kept = sum(1 for e in kept if e.sport == "football")
+    tennis_kept = sum(1 for e in kept if e.sport == "tennis")
+    assert football_kept > 0, "a whole sport must never be zeroed by another's exemption"
+    assert tennis_kept > 0, "a whole sport must never be zeroed by another's exemption"
+    assert football_kept == 17
+    assert tennis_kept == 23
+    assert len(kept) == 40
+    assert len(skipped) == 52
+
+
 def test_default_behaviour_is_unchanged_without_the_exemption():
     """Every existing caller passes no ``unconstrained_sports``."""
     now = datetime(2026, 9, 2, 6, 0, tzinfo=timezone.utc)

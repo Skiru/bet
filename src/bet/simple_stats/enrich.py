@@ -930,6 +930,29 @@ def _apportion_cap(
     # board against a cap of 250, so it is always satisfied in full, while
     # football keeps whatever the cap has left and goes on being ranked inside
     # it exactly as before.
+    #
+    # A sport being granted its whole slate must reserve at least one slot for
+    # every other unconstrained sport still waiting behind it in the queue --
+    # without that reservation this degenerates from "the smallest sport is
+    # protected" into "whichever sport happens to be smallest today claims the
+    # entire budget for itself." That distinction used to be academic, because
+    # football was always the larger of the two: tennis maxed out at 46
+    # fixtures against a 250 cap, so it could never come close to exhausting
+    # the budget before football's turn. Superbet's ATP Challenger discovery
+    # (added 2026-09-08) broke that assumption -- tennis can now be the
+    # *larger* sport on a thin football day. Live on 2026-09-08:
+    # football=40, tennis=52, cap=40 (the default). Football sorted first,
+    # 40 <= 40, granted in full, budget -> 0; tennis then needed 52 <= 0 and
+    # got zero -- not a smaller share, the entire sport, all 86 of that day's
+    # new ATP Challenger fixtures included, silently BLOCKED as "run capped at
+    # 40 events" (a message that reads like an ordinary quota squeeze, not
+    # like a whole sport being erased). With the reservation, football's own
+    # request becomes 40 <= (40 - 1 reserved for tennis) = 39, which fails, so
+    # neither sport gets a blanket grant and both fall through together to the
+    # ordinary largest-remainder apportionment below -- which still respects
+    # who is unconstrained (nothing here removes them from `active_events`
+    # early) and produces a fair, proportional, *nonzero* split instead of an
+    # all-or-nothing race.
     exempt: list[EventRecord] = []
     if unconstrained_sports:
         sizes: dict[str, int] = {}
@@ -938,8 +961,10 @@ def _apportion_cap(
                 sizes[event.sport] = sizes.get(event.sport, 0) + 1
         budget = max_events
         granted: set[str] = set()
-        for sport in sorted(sizes, key=lambda s: (sizes[s], s)):
-            if sizes[sport] <= budget:
+        ordered = sorted(sizes, key=lambda s: (sizes[s], s))
+        for i, sport in enumerate(ordered):
+            reserve_for_the_rest = len(ordered) - i - 1
+            if sizes[sport] <= budget - reserve_for_the_rest:
                 granted.add(sport)
                 budget -= sizes[sport]
         if granted:
