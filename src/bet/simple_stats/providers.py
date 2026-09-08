@@ -295,6 +295,23 @@ def half_time_is_possible(
     )
 
 
+# Goals is the only half-split guarded against a bad 1h/2h reading. Corners,
+# cards, shots, fouls and offsides build their halves a different way --
+# ``_bzzoiro_match_stats`` sums rows the payload already tags "<stat>_1h" /
+# "<stat>_2h", independently of the full-match row -- so there is no
+# subtraction here for ``half_time_is_possible`` to protect, and nothing
+# checks that bzzoiro's own halves agree with its own total for these five.
+#
+# They do not always agree. scripts/simple/audit_half_totals.py measured it
+# offline against every dossier on disk (29,441 checks, deduplicated by match):
+# 0.91%-2.21% of matches per market have ``1h_total + 2h_total != total``
+# (cards and offsides worst at ~2.2%; corners best at ~1%; 1.42% pooled) --
+# versus 0/10,173 for goals above. This is left unfixed on purpose: nothing
+# downstream reads these halves today (analyze.py's _MARKET_STAT_TO_CANONICAL
+# maps only goals_1h/goals_2h; market_ranking.py keeps the rest dossier-only),
+# so a bad split cannot reach a priced row. Re-run the audit script and add a
+# guard analogous to this one -- BEFORE shipping the market, not after -- the
+# day any of these five halves gets turned into something Superbet-priced.
 def _bzzoiro_half_alias(full_match_name: str, period: str) -> str:
     """Insert a half-period tag before the trailing ``_total``/``_for``.
 
