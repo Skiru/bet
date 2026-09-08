@@ -3,17 +3,42 @@ docs/PLAN_BOGATE_STATYSTYKI.md. Every later phase changes the stats sheet's
 row count, so this script (and the frozen fixture + baseline it reads) is
 what tells an intended change apart from an accidental regression.
 
-Both baselines were last re-recorded on **2026-09-07**, when
-``analyze.shrunk_centre`` began shrinking toward a per-competition measured
-mean (``config/league_baselines.json``) instead of the single league-blind
-prior in ``market_priors.json``. The diff that was reviewed before accepting
-it: ``shrunk_mean`` moved on 482 rows, ``p_central`` on 480 and ``p_low`` on
-165, with **no row added and none removed** -- exactly the signature of a
-change to the shrinkage target and nothing else. The largest single move on
-the fixture is Mjällby's ``corners_for`` centre going 4.12 -> 4.76, because the
-Allsvenskan's own measured mean sits above the pooled prior and a low-corner
-side is therefore pulled up harder; Djurgården's, in the same fixture and the
-same league, moves 6.13 -> 6.16.
+Both baselines were last re-recorded on **2026-09-08**, second pass, when a
+row stopped describing two different samples at once. A provider conflict that
+straddles the line settles nothing and had already left ``sample_size``; it had
+not left the list the count model prices from, nor the corroboration count, and
+one real match sitting in three buckets was counted three times. The diff
+reviewed before accepting it: 6 rows, all match totals with a conflict on that
+exact line, moving ``corroborated_matches`` (10->9, 2->1), ``shrunk_mean``,
+``p_central`` and ``p_low`` -- and `fouls_total 22.5` now sums to 1.000000
+across its two sides, which it did not before, because the straddler was the
+only thing making the OVER and the UNDER read different samples.
+
+Earlier the same day, when corroboration
+stopped keying tennis observations on the calendar day. ``_tennis_match_key``
+had discarded the date as unusable for tennis since 2026-08-28 --
+tennis-abstract stamps a match with its tournament's start, 10-11 days before
+espn-tennis' match date -- while ``corroborated_matches`` and
+``_cross_provider_agreement`` still bucketed by day, so no tennis row in this
+repo had ever been able to report the corroboration it had. The diff reviewed
+before accepting it: ``corroborated_matches`` moved on 24 rows and
+``cross_provider_agreement`` on 16, all tennis ``total_games``, with **no row
+added, none removed, and not one probability, centre or tier moved** -- which
+is the whole signature of a labelling fix. Tsitsipas - Fils goes
+``SINGLE_SOURCE`` -> ``AGREE`` on 10 corroborated matches, and the two feeds
+agree to within one game on every one of them.
+
+Before that, on **2026-09-07**, when ``analyze.shrunk_centre`` began shrinking
+toward a per-competition measured mean (``config/league_baselines.json``)
+instead of the single league-blind prior in ``market_priors.json``. The diff
+that was reviewed before accepting it: ``shrunk_mean`` moved on 482 rows,
+``p_central`` on 480 and ``p_low`` on 165, with **no row added and none
+removed** -- exactly the signature of a change to the shrinkage target and
+nothing else. The largest single move on the fixture is Mjällby's
+``corners_for`` centre going 4.12 -> 4.76, because the Allsvenskan's own
+measured mean sits above the pooled prior and a low-corner side is therefore
+pulled up harder; Djurgården's, in the same fixture and the same league, moves
+6.13 -> 6.16.
 
 Re-record with ``--write-baseline`` (and again with ``--profile legacy``) only
 after reading the diff and being able to name the mechanism, which is what

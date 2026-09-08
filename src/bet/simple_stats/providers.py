@@ -268,6 +268,33 @@ _BZZOIRO_FOR_ALIASES = {
 }
 
 
+def half_time_is_possible(
+    home_ht: object, away_ht: object, home_goals: object, away_goals: object
+) -> bool:
+    """Whether a half-time score can belong to this full-time score.
+
+    Neither side can have scored more by the break than it did in the match, so
+    a half-time figure above the full-time one is not a close call -- it is one
+    of the two being wrong. ``ft - ht`` had no guard and turned it into a
+    negative goal count: bzzoiro match 221408 (Penafiel - Leganes, 2026-07-24)
+    reports Penafiel 1 at half time and 0 at the end, so ``goals_2h_for``
+    entered that sample as **-1.0**. One observation in 10,173, and every UNDER
+    built on the sample was better for it.
+
+    False when either half-time figure is missing, which is the common case on
+    h2h listings and simply means no split is available.
+
+    A predicate rather than an inline expression so it can be tested without a
+    provider call -- which is the only way a guard like this gets a test at all.
+    """
+    if home_ht is None or away_ht is None:
+        return False
+    return (
+        float(home_ht) <= float(home_goals)
+        and float(away_ht) <= float(away_goals)
+    )
+
+
 def _bzzoiro_half_alias(full_match_name: str, period: str) -> str:
     """Insert a half-period tag before the trailing ``_total``/``_for``.
 
@@ -3286,7 +3313,31 @@ def fetch_bzzoiro_history(
             # present on l10 listings but not on h2h's recent_matches -- see
             # _normalize_event_row. Absent there, this simply adds nothing.
             home_ht, away_ht = score.get("home_ht"), score.get("away_ht")
-            if home_ht is not None and away_ht is not None:
+            # A half-time score above the full-time score is arithmetically
+            # impossible, and the subtraction below turned it into a negative
+            # goal count with nothing to notice it. bzzoiro match 221408
+            # (Penafiel - Leganes, 2026-07-24) reports Penafiel 1 at half time
+            # and 0 at the end, so ``goals_2h_for`` entered that sample as
+            # **-1.0** -- one observation in 10,173, and every UNDER built on
+            # the sample was better for it.
+            #
+            # The half split is dropped for such a match rather than clamped:
+            # both figures cannot be right and there is nothing here that says
+            # which one is wrong, so inventing a 0 would be picking. The
+            # full-time values stay -- they ride on ``score``, are checked
+            # against nothing else here, and are what the priced markets use.
+            # Reported as a data gap, because a silently thinner sample is the
+            # failure this whole path keeps running into.
+            possible = half_time_is_possible(
+                home_ht, away_ht, home_goals, away_goals
+            )
+            if home_ht is not None and away_ht is not None and not possible:
+                outcome.data_gaps.append(
+                    f"bzzoiro: match {match_id} reports a half-time score "
+                    f"({home_ht}-{away_ht}) above its full-time score "
+                    f"({home_goals}-{away_goals}); half splits dropped"
+                )
+            if possible:
                 goal_values["goals_1h_total"] = float(home_ht) + float(away_ht)
                 goal_values["goals_2h_total"] = (
                     float(home_goals) - float(home_ht)

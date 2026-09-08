@@ -39,6 +39,7 @@ from bet.simple_stats.contracts import (  # noqa: E402
     TipsterSignalV1,
 )
 from bet.simple_stats.bet_builder_draft import (  # noqa: E402
+    MIN_REPORTABLE_CALIBRATION,
     TIER_MARGIN,
     _CORRELATED_FOOTBALL_FAMILY,
     _CORRELATED_TENNIS_FAMILY,
@@ -198,11 +199,36 @@ def _render_bar_basis(a, coupons: CouponSet) -> None:
             "**Ograniczenia podstawy:** "
             + ", ".join(f"{name} ×{count}" for name, count in sorted(reasons.items()))
         )
+    # The third stage of the bar, and it has to be visible for the same reason
+    # the other two are: it moves ``Min. kurs`` and a reader who cannot see it
+    # cannot check the row. Named per market with the largest correction, since
+    # the amount is per claim and a single average would hide the spread.
+    calibrated = [
+        s for s in coupons.singles
+        if (s.bar_calibration or 0.0) >= MIN_REPORTABLE_CALIBRATION
+    ]
+    if calibrated:
+        worst: dict[str, float] = {}
+        for single in calibrated:
+            worst[single.market] = max(
+                worst.get(single.market, 0.0), float(single.bar_calibration or 0.0)
+            )
+        a(
+            f"**Korekta o zmierzoną historię rynku:** {len(calibrated)}/"
+            f"{len(coupons.singles)} wierszy — "
+            + ", ".join(
+                f"`{market}` do −{amount:.1%}".replace(".", ",")
+                for market, amount in sorted(worst.items(), key=lambda kv: -kv[1])
+            )
+        )
     a(
         "> `p_shrunk = w·p_bar + (1−w)·p_mkt`, `w = n/(n+k)`. `p_bar` to własne "
         "zdanie próby po dwóch ograniczeniach (Laplace przy zerowym pudle, "
-        "`p_low` przy n<8), `p_mkt` to odwigowana cena Superbetu na tym samym "
-        "szczeblu. Minimalny kurs = margines tieru / `p_shrunk`."
+        "`p_low` przy n<8) **i po korekcie o zmierzoną historię tego rynku** — "
+        "ile naprawdę realizowały wiersze deklarujące tyle samo, z "
+        "`config/market_reliability.json`, tylko w dół. `p_mkt` to odwigowana "
+        "cena Superbetu na tym samym szczeblu. Minimalny kurs = margines "
+        "tieru / `p_shrunk`."
     )
     a("")
     # **Every** reason with a count, not only the ones this module has a phrase

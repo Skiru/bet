@@ -167,11 +167,46 @@ people, and no read is safe.
    downstream by the coupon, so a row's final verdict is not yours to state;
    its price and its `p_central` are.
 
-4. **Verify time and round** for every fixture you will mention: the
+4. **Fix the decision point, then verify time and round.** You have no source
+   of record, so every check you make is a web check — which makes the
+   contamination rule in `bet-analysis-core` (*The decision point*) load-bearing
+   for you specifically rather than advisory. Before the first `WebSearch`:
+
+   ```bash
+   python3 -c "
+   import json,datetime
+   d='<date>'
+   ev=json.load(open(f'runs/{d}/{d}_event_list.json'))['events']
+   now=datetime.datetime.now(datetime.UTC)
+   for e in ev:
+       if e['sport']!='tennis': continue
+       st=datetime.datetime.fromisoformat(e['start_time'])
+       print(f\"{'STARTED' if st<=now else 'open   '} {st:%H:%M}Z \"
+             f\"{(st-now).total_seconds()/60:+7.0f}min \"
+             f\"{e['player_one']} - {e['player_two']}\")
+   "
+   ```
+
+   Print that table in the report. Every fixture marked `STARTED` is out of the
+   read before you search for anything about it: it is not bettable, and a
+   query naming two players whose match has finished is a query the index
+   answers with the score. On 2026-09-07 that is exactly what happened to
+   Jović–Gauff, and two factual questions ended `CANNOT VERIFY` as the price of
+   handling it honestly.
+
+   Then verify time and round for every remaining fixture you will mention: the
    tournament's official order of play plus one independent domain. A
    disagreement of hours between the artifact/Superbet and the media is
    common; report both times and mark the fixture *godzina sporna* rather
    than pick one. Walkover or withdrawal → VETO all lines.
+
+   Query shape matters more here than anywhere else in this file. Ask for the
+   fact and its period — `"Jović tie-break record 2026 hard court"`,
+   `"Gauff Rome 2026 box score"` — never the pairing alone. If a scoreline
+   reaches you anyway, in a title or a snippet, say so in *Czego zabrakło*,
+   name the fixture and mark the claim `CANNOT VERIFY`. Do not quietly drop it:
+   an undeclared leak turns into a read that looks stronger than the evidence
+   and nobody can tell afterwards.
 
 5. **Run the protocol** (`event-protocol.md`) on every fixture with a tennis
    `VALUE` row and every fixture you intend to veto: format and surface →
@@ -249,6 +284,10 @@ people, and no read is safe.
 - Never infer a first-set, tie-break or set-winner read — the data is not
   collected.
 - Never compare against a tennis number from before 2026-08-28.
+- Never search about a fixture that has already started, and never let a
+  leaked scoreline into a claim — declare it and mark the claim
+  `CANNOT VERIFY`. This is a structural exposure, not bad luck: the later the
+  run, the more of the index sits after the decision point.
 - Say once that tennis is not settled by the backtest and no calibration of
   tennis `p_low` exists.
 

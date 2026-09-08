@@ -501,14 +501,20 @@ def test_agreeing_with_the_ladder_is_not_penalised():
     assert not any("drabinka" in c for c in single.caveats)
     assert single.market_probability == pytest.approx(0.468, abs=0.01)
     assert single.sample_weight == pytest.approx(12 / 22, abs=1e-4)
-    # Under the bar, but only just: this row misses it by 3.8%, which is
+    # Under the bar, but only just: this row misses it by 4.6%, which is
     # WITHIN_TOLERANCE rather than PRICED_BELOW_THRESHOLD since 2026-09-07.
     # The point of this test is that agreeing with the ladder is not punished,
     # and the tolerance does not touch that -- what it changes is that a row
     # four percent short is no longer filed with rows fifteen percent short.
     # See coupons.PRICE_TOLERANCE_PCT for the 1,269-row measurement behind it.
+    #
+    # 3.84% until 2026-09-08, when the bar began reading this market's own
+    # settled calibration curve (``market_record_correction``). ``corners_for``
+    # rows claiming around 0.55 have realised measurably less, so the claim is
+    # marked down before the market prior and the required price rises. The
+    # verdict does not move and neither does anything this test is about.
     assert single.superbet_verdict == "WITHIN_TOLERANCE"
-    assert single.superbet_price_gap_pct == pytest.approx(-3.84, abs=0.05)
+    assert single.superbet_price_gap_pct == pytest.approx(-4.61, abs=0.05)
     assert -PRICE_TOLERANCE_PCT <= single.superbet_price_gap_pct < 0
 
     bigger_edge = build_coupons(

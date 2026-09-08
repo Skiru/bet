@@ -223,6 +223,20 @@ def main() -> None:
     bo5_report = best_of_five_suppression_report(dossier_list, competitions)
     if bo5_report["markets"]:
         out.event("best_of_five_markets_suppressed", **bo5_report)
+    # Said out loud for the same reason the block above is. A tennis fixture
+    # whose draw cannot be resolved suppresses nothing and scopes nothing, so
+    # it produces no ``sample_excluded`` entry and no suppression line -- the
+    # gate is simply not there, and the run used to look identical to one where
+    # it passed. Absent ``--event-list``, an unlisted fixture, or a competition
+    # ``config/tennis_match_format.json`` does not pin all land here.
+    unresolved = bo5_report["fixtures_with_no_resolved_draw"]
+    if unresolved:
+        out.warning(
+            f"{unresolved} tennis fixture(s) have no resolved draw: the "
+            "best-of-five gate is inert on them and their length markets are "
+            "priced against an unscoped sample"
+            + ("" if args.event_list else " -- no --event-list was passed")
+        )
         if bo5_report["fixtures_mostly_unknown_draw"]:
             out.warning(
                 f"{bo5_report['fixtures_mostly_unknown_draw']} best-of-five "

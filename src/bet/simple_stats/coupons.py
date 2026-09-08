@@ -63,6 +63,7 @@ from bet.simple_stats.bet_builder_draft import (
     Tier,
     VetoIndex,
     BarComponents,
+    MIN_REPORTABLE_CALIBRATION,
     bar_components,
     bar_input,
     draft_legs,
@@ -615,6 +616,14 @@ class CouponSingle(StrictBaseModel):
     # gap between this and ``bar_probability`` is how much of the bar is the
     # book's opinion rather than ours.
     bar_sample_probability: float | None = None
+    # How much this market's own settled record took off the claim before the
+    # book's price entered, and the sentence that says what such rows realised.
+    # A separate field rather than another value of ``bar_basis_reason``,
+    # because it is not a cap on the sample and can fire alongside one -- and
+    # because a bar that moved for two reasons must be able to name both. See
+    # ``bet_builder_draft.market_record_correction``.
+    bar_calibration: float | None = None
+    bar_calibration_note: str | None = None
     # Superbet's own devigged probability for this exact outcome. None when the
     # book posted only one side of the line, which is also when no shrinkage
     # happened. Same number as ``SuperbetComparisonRow.superbet_implied_probability``.
@@ -1998,6 +2007,10 @@ def build_coupons(
                     bar_basis_reason=bar.reason,
                     bar_probability=round(bar.probability, 4),
                     bar_sample_probability=round(bar.p_bar, 4),
+                    bar_calibration=(
+                        round(bar.calibration, 4) if bar.calibration else None
+                    ),
+                    bar_calibration_note=bar.calibration_note,
                     market_probability=(
                         round(bar.p_market, 4) if bar.p_market is not None else None
                     ),
@@ -2014,6 +2027,18 @@ def build_coupons(
                     ),
                     tipster=_tipster_summary(row),
                     caveats=_caveats(row) + (
+                        # The bar's third stage, on the row it moved. The
+                        # header counts them; this says which row and by how
+                        # much, because the amount is per claim and the note
+                        # carries what such rows actually realised.
+                        [
+                            f"próg podniesiony o zmierzoną historię rynku — "
+                            f"{bar.calibration_note}"
+                        ] if (
+                            bar.calibration >= MIN_REPORTABLE_CALIBRATION
+                            and bar.calibration_note
+                        ) else []
+                    ) + (
                         [
                             "rynek wycenia to znacznie niżej niż my — najpierw "
                             "sprawdź próbkę, potem kurs"

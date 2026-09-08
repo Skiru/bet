@@ -499,6 +499,12 @@ a test-only re-export. Chain: `tier_for_row` → `bar_for` → `bar_components`
   two entries; WEAK/DROP have no margin because they are not bets.
 - Caps apply **only on the `p_central` basis**: Laplace `(hits+1)/(n+2)` when
   `hits == n`, and the `p_low` floor above (`bet_builder_draft.py:344-368`).
+- Then, since 2026-09-08, `p_bar` has this market's **measured overconfidence
+  at this claim** subtracted — `config/market_reliability.json` read through
+  `market_record_correction`, one-sided, so it can only raise the bar. The
+  amount and the sentence behind it are on the coupon row
+  (`bar_calibration`, `bar_calibration_note`). It is why a surplus you compute
+  from `p_central` alone will read a little better than the file's.
 - Shrinkage `p = w·p_bar + (1−w)·p_mkt`, `w = n/(n+k)`; `k = 10`, **`k = 20`
   for length-dependent tennis markets** — both explicitly *unmeasured* priors,
   "a prior on a prior" (`bet_builder_draft.py:400-423`).

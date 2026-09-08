@@ -511,7 +511,32 @@ class TestTheSuppressionSaysWhy:
         assert report == {
             "fixtures": 0, "markets": 0, "by_reason": {},
             "fixtures_mostly_unknown_draw": 0,
+            # A pinned competition, so the draw resolved -- the field added on
+            # 2026-09-08 counts the fixtures where it did not, which is the
+            # third way this gate comes back empty and the one the run used to
+            # be silent about.
+            "fixtures_with_no_resolved_draw": 0,
         }
+
+    def test_an_unresolved_draw_is_counted_even_though_it_suppresses_nothing(
+        self,
+    ) -> None:
+        """The fail-open this closed. ``--event-list`` is optional; without it
+        no competition resolves, ``suppressed_markets_for`` returns nothing, and
+        the run said nothing at all while every length market was priced
+        against an unscoped sample. Silence about a skipped check reads as a
+        passed check."""
+        dossiers = self._list(self._tennis("e1", SLAM, SLAM))
+        with_list = best_of_five_suppression_report(dossiers, {"e1": "ATP US Open"})
+        without = best_of_five_suppression_report(dossiers, {})
+        unpinned = best_of_five_suppression_report(dossiers, {"e1": "Some Exhibition"})
+
+        assert with_list["fixtures_with_no_resolved_draw"] == 0
+        assert without["fixtures_with_no_resolved_draw"] == 1
+        assert unpinned["fixtures_with_no_resolved_draw"] == 1
+        # and it is not mistaken for a suppression, which is a different finding
+        assert without["markets"] == 0
+        assert without["by_reason"] == {}
 
     def test_the_womens_draw_and_football_never_appear(self) -> None:
         wta = self._tennis("e1", TOUR, TOUR)

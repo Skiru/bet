@@ -1409,11 +1409,23 @@ _TENNIS_LENGTH_DEPENDENT_MARKETS = frozenset(
     }
 )
 
-# A best-of-five match can run to four or five sets; a best-of-three cannot.
-# Kept as the *check* on the draw rule rather than as the rule itself: no
-# scoped best-of-five sample may contain a two-set match unless somebody
-# retired, so this is the arithmetic that would catch a bad ``level`` mapping.
-_BO5_MIN_SETS = 4.0
+# There was a ``_BO5_MIN_SETS = 4.0`` here, described as "the *check* on the
+# draw rule ... the arithmetic that would catch a bad ``level`` mapping". No
+# code ever performed it, and it could not have: the rule the comment states is
+# that no scoped best-of-five sample contains a *two*-set match unless somebody
+# retired, which is a threshold of 3 and not 4 -- while a threshold of 4 would
+# reject exactly the case this file argues for two paragraphs below, Taylor
+# Fritz's six Grand Slam wins in straight sets. A named constant that claims to
+# be a guard and is not one is worse than no constant, because a reader assumes
+# the guard is there.
+#
+# The rule itself was then checked, once, where a check belongs: over the 97
+# scoped best-of-five ``total_sets`` samples on the eleven slates in ``runs/``,
+# **none** contains an observation under three sets. The ``match_level``
+# mapping is clean and has been. What has no defence in code is a *mislabelled*
+# ``match_level`` -- a best-of-three tagged GRAND_SLAM would survive
+# ``scope_values`` -- and the measurement says it has not happened rather than
+# that it cannot.
 
 
 def _market_has_a_best_of_five_sample(
@@ -1506,64 +1518,289 @@ MIN_CORROBORATED_MATCHES = 2
 MIN_CORROBORATED_SHARE = 0.5
 
 
-def corroborated_matches(metric: str, observations: list[ProviderValue]) -> int:
+def _unpairable_opponents(
+    bucket: list[ProviderValue], keys: list[str]
+) -> set[str]:
+    """Opponents whose repeat meetings the two feeds cannot be lined up on.
+
+    ``_tennis_match_keys`` numbers repeat meetings by rank, oldest first, and
+    that pairing is only sound while both providers report the *same number* of
+    meetings with the opponent. When they do not, rank 0 on one side is not
+    rank 0 on the other, and it fails in **both** directions -- which is why
+    this refuses rather than picking an end to align from:
+
+    * Andreeva - Tjen, 2026-09-07. tennis-abstract has one meeting (Cincinnati,
+      20 games, stamped with the tournament's start), espn-tennis has two (US
+      Open 16, Cincinnati 20). Oldest-first pairs the two Cincinnati rows and is
+      right; newest-first would pair Cincinnati with the US Open.
+    * Andreeva - Potapova, same slate. tennis-abstract has two meetings
+      (2025-08-25, 16 games; 2026-04-06, 26), espn-tennis has one (2026-04-12,
+      26 -- the same match as abstract's 2026-04-06, tournament-start-dated).
+      Oldest-first pairs a 16 with a 26 and reports the feeds as contradicting
+      each other by ten games. Newest-first would be right here.
+
+    One provider is short at the recent end, the other long at the old end, so
+    no rank alignment is correct for both. What would be is a date tolerance --
+    abstract's stamp is the tournament start and runs 0-11 days early -- and
+    that is a window and a threshold, which this identity has stayed clear of on
+    purpose (see ``_tennis_match_keys``).
+
+    So the slot is declared unjudgeable and the rows are left uncorroborated.
+    The cost is a corroboration this repo cannot prove; the alternative is a
+    ``DISAGREE`` it cannot prove either, and DISAGREE demotes. On the
+    2026-09-07 slate one bucket is affected out of 118.
+    """
+    counts: dict[str, dict[str, int]] = {}
+    for pv, key in zip(bucket, keys, strict=True):
+        if not key:
+            continue
+        opponent = key.rsplit("#", 1)[0]
+        counts.setdefault(opponent, {})
+        counts[opponent][pv.provider] = counts[opponent].get(pv.provider, 0) + 1
+    return {
+        opponent
+        for opponent, per_provider in counts.items()
+        if len(set(per_provider.values())) > 1
+    }
+
+
+def _corroboration_clusters(
+    buckets: list[list[ProviderValue]], sport: str = "football"
+) -> tuple[list[list[ProviderValue]], bool]:
+    """Group observations that describe one historical match, per sport.
+
+    Returns ``(clusters, saw_unplaceable)``. A cluster holding two providers is
+    a corroborated match; ``saw_unplaceable`` is True when some observation
+    carried nothing to identify it by, which can neither corroborate nor
+    contradict anything.
+
+    **Clustered inside each bucket, never across the pooled sample**, which is
+    the rule ``_one_per_day`` states in its first line and the one this
+    function got wrong on its first attempt. A match total pools team A's last
+    ten, team B's and the h2h, and an opponent name is only an identity
+    *within* one player's bucket: on the frozen 2026-08-31 fixture Tsitsipas
+    played Alex de Minaur (28 games) and Fils played Alex de Minaur (19 games),
+    so pooled keying put a 28 and a 19 in one slot and reported the two feeds
+    as contradicting each other by nine games. They agree about both matches.
+    Two different matches with one opponent's name is not a provider conflict.
+
+    **The match identity is the sport's, not the calendar's.** This function
+    exists because it was the calendar's for both sports, and for tennis that
+    is the one thing the rest of this file already refuses to trust. Football
+    keys on the day (a club plays at most one match on a date -- see
+    ``_one_per_day``), then clusters within the day by fuzzy opponent name,
+    because two feeds spell one club 72 different ways. Tennis keys on
+    ``_tennis_match_keys``, the *same* slots ``_one_per_day`` collapses the
+    priced sample into, because tennis-abstract stamps a match with its
+    tournament's start date and so runs 10-11 days early against espn-tennis
+    -- the very reason ``_tennis_match_key`` discards the date.
+
+    The consequence of the mismatch was measured on the 2026-09-07 slate: of
+    the 39 tennis buckets carrying two providers, day-keying found **6**
+    corroborated matches and match-keying finds **132**, and all 448 tennis
+    rows on that sheet reported ``SINGLE_SOURCE`` with ``corroborated_matches:
+    0``. Coco Gauff's own sample had 7 of its 10 matches reported by both
+    providers, agreeing to within a game, and the sheet said no provider had
+    ever seen it twice. The only corroboration tennis has in this repo was
+    invisible to the label that reports it.
+
+    It does not run one way. On the same slate the fix turns 18 buckets AGREE,
+    3 PARTIAL_AGREE and **1 DISAGREE** -- an Andreeva-Potapova h2h conflict the
+    day key had been hiding -- and DISAGREE is a demotion. Nothing is promoted
+    past LEAN either way: every tennis row carries the
+    ``NO_REFERENCE_SOURCE`` ceiling, so AGREE cannot buy CALL here.
+    """
+    clusters: list[list[ProviderValue]] = []
+    unplaceable = False
+    for bucket in buckets:
+        if not bucket:
+            continue
+        if sport == "tennis":
+            keys = _tennis_match_keys(bucket)
+            by_key: dict[str, list[ProviderValue]] = {}
+            order: list[str] = []
+            for pv, key in zip(bucket, keys, strict=True):
+                if not key:
+                    # No opponent name: the same silence a missing date is
+                    # below.
+                    unplaceable = True
+                    continue
+                if key not in by_key:
+                    by_key[key] = []
+                    order.append(key)
+                by_key[key].append(pv)
+            unjudgeable = _unpairable_opponents(bucket, keys)
+            for key in order:
+                if key.rsplit("#", 1)[0] in unjudgeable:
+                    # Not judged either way: every row becomes its own cluster,
+                    # so it can neither corroborate nor contradict. See
+                    # ``_unpairable_opponents``.
+                    unplaceable = True
+                    clusters.extend([pv] for pv in by_key[key])
+                    continue
+                clusters.append(by_key[key])
+            continue
+
+        by_day: dict[str, list[ProviderValue]] = {}
+        day_order: list[str] = []
+        for pv in bucket:
+            day = _day_key(pv.match_date)
+            if not day:
+                # No usable date: cannot tell which match this belongs to, so
+                # it cannot corroborate or contradict anything.
+                unplaceable = True
+                continue
+            if day not in by_day:
+                by_day[day] = []
+                day_order.append(day)
+            by_day[day].append(pv)
+        for day in day_order:
+            clusters.extend(_cluster_by_opponent(by_day[day]))
+    return clusters, unplaceable
+
+
+def _count_corroborated(
+    clusters: list[list[ProviderValue]],
+    sport: str,
+    fold_keys: set[str] | None,
+    line: float | None = None,
+) -> int:
+    """Distinct real matches in this sample that a second provider also reported.
+
+    Clusters come from ``_corroboration_clusters``, which works **per bucket**
+    -- and one real match can sit in more than one bucket. A fixture the two
+    sides already played this season is in team A's last ten, in team B's last
+    ten *and* in the h2h, so it produced up to three multi-provider clusters
+    for one match while ``_independent_match_sample`` folded all three into one
+    priced observation. On Gotham - Portland (2026-08-29) the 2026-07-25
+    meeting was counted three times, giving 19 corroborated matches against a
+    priced sample of 18.
+
+    That is not only a nonsense fraction on the coupon ("19/18 matches seen by
+    a second provider", which both ``coupons`` and ``bet_builder_draft`` print
+    verbatim). ``_cross_provider_agreement`` divides this count by the sample
+    size to decide ``AGREE`` against ``PARTIAL_AGREE``, and ``AGREE`` is what
+    ``tier_for_row`` reads as "this sample is corroborated" and hands CALL --
+    the top tier, with the thinner 1.05 margin. Measured over the eleven slates
+    in ``runs/``: **13 of 32,027 samples** took AGREE on the inflated numerator
+    and are PARTIAL_AGREE once the match is counted once.
+
+    Folded exactly as ``_independent_match_sample`` folds it, so the numerator
+    and the denominator count the same things: football keeps one per shared
+    day, tennis collapses every meeting between the two into one, because a
+    tennis "day" is a tournament week and cannot separate two meetings anyway.
+
+    ``line``, when given, counts only the matches that settle it -- see
+    ``corroborated_matches``.
+    """
+    key_of = (
+        _tennis_match_key if sport == "tennis"
+        else (lambda pv: _day_key(pv.match_date))
+    )
+    plain = 0
+    shared: set[str] = set()
+    for cluster in clusters:
+        if len({pv.provider for pv in cluster}) < 2:
+            continue
+        if line is not None:
+            values = [pv.value for pv in cluster]
+            if min(values) < line < max(values) or line in values:
+                continue
+        key = key_of(cluster[0])
+        if fold_keys and key in fold_keys:
+            shared.add("h2h" if sport == "tennis" else key)
+            continue
+        plain += 1
+    return plain + len(shared)
+
+
+def corroborated_matches(
+    metric: str,
+    observations: list[ProviderValue],
+    sport: str = "football",
+    buckets: list[list[ProviderValue]] | None = None,
+    line: float | None = None,
+    fold_keys: set[str] | None = None,
+) -> int:
     """How many distinct matches in this sample a second provider also reported.
 
     Counted the same way ``_cross_provider_agreement`` clusters, so the two can
-    never disagree about what a corroborated match is.
+    never disagree about what a corroborated match is -- which is now one
+    function, ``_corroboration_clusters``, rather than two copies of a
+    grouping.
+
+    ``buckets`` is the sample's own partition (team A's last ten, team B's, the
+    h2h) where the caller has it. Absent, ``observations`` is treated as one
+    bucket, which is right for the per-team and per-player families -- they are
+    built from one bucket -- and is the safe reading for any caller that cannot
+    say.
+
+    ``line`` counts only the matches that **settle** it, which is what makes the
+    number safe to print as a fraction of ``sample_size``. Both the coupon and
+    the Bet Builder draft render it exactly that way ("N/n matches seen by a
+    second provider"), and on 62 rows of the recorded slates N was larger than
+    n -- 19 of 18, 21 of 20 -- because a match whose two providers straddle the
+    line leaves ``sample_size`` and did not leave this count. Every straddling
+    match is corroborated by construction (a straddle needs two providers
+    disagreeing), so excluding them lowers this by exactly
+    ``HitCount.conflicts_on_line``, and a value sitting on the line is dropped
+    for the same reason ``count_hits`` drops it. The result is
+    ``corroborated_matches <= sample_size`` by construction rather than by luck.
+
+    The *label* ``_cross_provider_agreement`` returns is deliberately **not**
+    filtered this way. `DISAGREE` is a statement about the providers -- this
+    sample contains a cluster they cannot agree on -- and that stays true at
+    every line, including the ones the disputed match happens to settle.
+    Filtering it per line would let a row escape its own demotion.
     """
-    by_day: dict[str, list[ProviderValue]] = {}
-    for pv in observations:
-        by_day.setdefault(_day_key(pv.match_date), []).append(pv)
-    count = 0
-    for day, day_observations in by_day.items():
-        if not day:
-            continue
-        for cluster in _cluster_by_opponent(day_observations):
-            if len({pv.provider for pv in cluster}) >= 2:
-                count += 1
-    return count
+    clusters, _unplaceable = _corroboration_clusters(
+        buckets if buckets is not None else [observations], sport
+    )
+    return _count_corroborated(clusters, sport, fold_keys, line)
 
 
 def _cross_provider_agreement(
-    metric: str, observations: list[ProviderValue], sample_size: int | None = None
+    metric: str,
+    observations: list[ProviderValue],
+    sample_size: int | None = None,
+    sport: str = "football",
+    buckets: list[list[ProviderValue]] | None = None,
+    fold_keys: set[str] | None = None,
 ) -> str:
     """Classify whether providers agree on the same historical match.
 
-    Providers spell opponents differently ("Ulsan Hyundai FC" vs "Ulsan HD",
-    "Real Betis" vs "Betis") and stamp dates in different formats, so
-    observations are bucketed by calendar day and then clustered within the day
-    by fuzzy opponent match. Keying on the raw opponent string instead made
-    every cross-provider pair look like SINGLE_SOURCE, which silently disabled
-    the agreement check this pipeline exists to surface.
+    Which observations are "the same match" is ``_corroboration_clusters``'s
+    question and is answered per sport there -- day plus fuzzy opponent for
+    football, ``_tennis_match_keys`` for tennis. Keying football on the raw
+    opponent string instead made every cross-provider pair look like
+    SINGLE_SOURCE, which silently disabled the agreement check this pipeline
+    exists to surface; keying tennis on the calendar day did the same thing to
+    the whole sport for a different reason, and for longer.
 
     Disagreeing values are never averaged away: they drive the AGREE/DISAGREE
     verdict and both stay in the dossier.
     """
-    by_day: dict[str, list[ProviderValue]] = {}
-    for pv in observations:
-        by_day.setdefault(_day_key(pv.match_date), []).append(pv)
+    clusters, saw_unplaceable = _corroboration_clusters(
+        buckets if buckets is not None else [observations], sport
+    )
 
     threshold = 5.0 if metric in PERCENTAGE_METRICS else 1.0
-    saw_single = False
+    saw_single = saw_unplaceable
     saw_multi = False
-    multi_matches = 0
-    for day, day_observations in by_day.items():
-        if not day:
-            # No usable date: cannot tell which match this belongs to, so it
-            # cannot corroborate or contradict anything.
+    for cluster in clusters:
+        providers = {pv.provider for pv in cluster}
+        if len(providers) < 2:
             saw_single = True
             continue
-        for cluster in _cluster_by_opponent(day_observations):
-            providers = {pv.provider for pv in cluster}
-            if len(providers) < 2:
-                saw_single = True
-                continue
-            saw_multi = True
-            multi_matches += 1
-            values = [pv.value for pv in cluster]
-            if max(values) - min(values) > threshold:
-                return "DISAGREE"
+        saw_multi = True
+        values = [pv.value for pv in cluster]
+        if max(values) - min(values) > threshold:
+            return "DISAGREE"
+    # Counted through the same helper ``corroborated_matches`` uses, so the
+    # share below and the number the row prints can never disagree -- and so a
+    # match sitting in three buckets is one match to both. It used to be
+    # incremented in the loop above, which counted bucket appearances.
+    multi_matches = _count_corroborated(clusters, sport, fold_keys)
 
     # ``saw_multi`` alone used to be enough. It is now the *count* that decides,
     # for the reason in MIN_CORROBORATED_MATCHES: one corroborated match out of
@@ -1913,16 +2150,59 @@ _MIN_SIDE_FOR_MEDIUM = 2
 ONE_SIDED_SAMPLE = "ONE_SIDED_SAMPLE"
 
 
-def _adverse_values(observations: list[ProviderValue], direction: str) -> list[float]:
+def _straddles(pv: ProviderValue, line: float) -> bool:
+    """Whether this observation's provider conflict spans the line.
+
+    One provider called it a hit and the other a miss, so the match settles
+    nothing here -- the rule ``count_hits`` states and the reason it drops the
+    observation from ``sample_size``.
+    """
+    low, high = pv.conflict_low, pv.conflict_high
+    return low is not None and high is not None and low < line < high
+
+
+def _adverse_values(
+    observations: list[ProviderValue], direction: str, line: float | None = None
+) -> list[float]:
     """The sample as numbers, with every provider conflict resolved against
     the side being priced -- the maximum for an UNDER, the minimum for an OVER.
 
     Identical to ``[pv.value for pv in observations]`` on any sample with no
     conflict, which is the overwhelming majority: on the 2026-09-03 slate
     20,961 of 21,925 rows were SINGLE_SOURCE.
+
+    ``line`` drops the observations whose conflict straddles it, so the count
+    model prices **the same sample the hit count settled**. Without it the two
+    disagreed, and the row said so without anyone noticing: ``count_hits``
+    removed the straddling match from ``sample_size`` while this function kept
+    it, at the adverse end, in the list ``count_model_central``,
+    ``count_model_bound`` and ``shrunk_centre`` all read. So a row reported
+    ``n=10`` above a centre computed from eleven observations, and
+    ``corroborated_matches`` counted eleven matches against a sample of ten --
+    which is how it was found, as ``corroborated_matches > sample_size`` on 62
+    rows of the recorded slates.
+
+    Two errors, pointing opposite ways, which is why it survived. Keeping the
+    straddler at the adverse end charges the sample for a disagreement
+    ``count_hits`` had deliberately refused to charge it for ("counting it as
+    the adverse one would charge the sample for a disagreement twice"), pulling
+    the centre against the bet; while ``_predictive_dispersion``'s
+    ``1 + 1/len(values)`` used the inflated count and so *understated* the
+    predictive spread, pushing every probability away from a half. Measured
+    over the eleven slates in ``runs/``, resolving both moves ``p_central`` by
+    0.0105 on average and up to 0.242, and ``p_low`` by 0.0024 and up to 0.174.
+    982 sheet rows carry a straddling conflict and **one** of them ever reached
+    a coupon, so this is a consistency fix rather than a repricing.
+
+    **Pushes stay.** A value sitting exactly on the line settles no bet either,
+    but it is a real measurement of the level, and ``_winning_boundary`` already
+    keeps the model from handing that mass to both sides. The model fits a
+    level; the hit count settles a bet; only the straddler is unusable to both.
     """
     out: list[float] = []
     for pv in observations:
+        if line is not None and _straddles(pv, line):
+            continue
         low, high = pv.conflict_low, pv.conflict_high
         if low is None or high is None:
             out.append(pv.value)
@@ -2051,6 +2331,8 @@ def _rows_for_sample(
     venue: str | None = None,
     centre_override: float | None = None,
     side_sizes: tuple[int, int] | None = None,
+    observation_buckets: list[list[ProviderValue]] | None = None,
+    h2h_fold_keys: set[str] | None = None,
 ) -> list[StatsSheetRow]:
     """Every (line x direction) row for one sample of one metric.
 
@@ -2069,8 +2351,27 @@ def _rows_for_sample(
     # because that corroboration is evidence the value is right, not a second
     # trial. ``independent`` is built by the caller, which still knows which
     # bucket each observation came from; see ``_one_per_day``.
-    corroborated = corroborated_matches(canonical, observations)
-    agreement = _cross_provider_agreement(canonical, observations, len(independent))
+    # ``sport`` decides what "the same match" means, and it has to be passed:
+    # tennis identity is (bucket, opponent, nth meeting) and football's is the
+    # calendar day. ``observation_buckets`` decides *where* that identity is
+    # allowed to apply -- an opponent name identifies a match inside one
+    # player's bucket and not across a pooled match total. See
+    # ``_corroboration_clusters``.
+    # ``h2h_fold_keys`` is how one real match in three buckets counts once, and
+    # is only ever non-empty for a pooled match total -- the per-team and
+    # per-player families are built from a single bucket, where nothing can
+    # overlap. See ``_count_corroborated``.
+    corroborated = corroborated_matches(
+        canonical, observations, dossier.sport, observation_buckets,
+        fold_keys=h2h_fold_keys,
+    )
+    agreement = _cross_provider_agreement(
+        canonical, observations, len(independent), dossier.sport,
+        observation_buckets, h2h_fold_keys,
+    )
+    # Both above are sample-level and are what every line without a straddling
+    # provider conflict gets. A line that has one recomputes -- see the loop.
+    corroboration_args = (canonical, observations, dossier.sport, observation_buckets)
     # Counted over the sample that was actually priced, not over every
     # observation: a caveat on a duplicate report that ``_one_per_day``
     # discarded is a caveat on nothing.
@@ -2148,6 +2449,31 @@ def _rows_for_sample(
             hits, sample_size, pushes = counted.hits, counted.sample_size, counted.pushes
             if sample_size == 0:
                 continue
+            # A provider conflict that straddles *this* line settles nothing, so
+            # it is out of ``sample_size`` -- and has to be out of everything
+            # else this row counts, or the row describes two different samples
+            # at once. Recomputed only when there is one (982 rows of 358,000
+            # on the recorded slates), so the common path is untouched and costs
+            # nothing. See ``_adverse_values`` and ``corroborated_matches``.
+            row_corroborated = corroborated
+            row_centre = centres[direction]
+            row_centre_note = centre_notes[direction]
+            if counted.conflicts_on_line:
+                row_corroborated = corroborated_matches(
+                    *corroboration_args, float(line), h2h_fold_keys
+                )
+                if canonical not in _COUNT_MARKETS_EXCLUDED and centre_override is None:
+                    row_centre, row_centre_note = _blend_referee(
+                        shrunk_centre(
+                            _adverse_values(independent, direction, float(line)),
+                            canonical,
+                            venue,
+                            _competition_id_for(dossier),
+                        ),
+                        canonical,
+                        team_name,
+                        dossier,
+                    )
             row_flags = dict(observation_flags)
             if counted.conflicts_resolved_adverse:
                 row_flags[CONFLICT_RESOLVED_ADVERSE] = counted.conflicts_resolved_adverse
@@ -2166,13 +2492,13 @@ def _rows_for_sample(
                 agreement, sample_size, side_sizes
             )
             empirical = wilson_lower_bound(hits, sample_size)
-            centre = centres[direction]
-            referee_note = centre_notes[direction]
+            centre = row_centre
+            referee_note = row_centre_note
             if canonical in _COUNT_MARKETS_EXCLUDED:
                 p_low = empirical
                 p_central = hits / sample_size
             else:
-                directed = _adverse_values(independent, direction)
+                directed = _adverse_values(independent, direction, float(line))
                 p_low = min(
                     empirical,
                     count_model_bound(directed, float(line), direction, centre),
@@ -2207,7 +2533,7 @@ def _rows_for_sample(
                 sample_max=max(values) if values else None,
                 sources=sources,
                 cross_provider_agreement=agreement,
-                corroborated_matches=corroborated,
+                corroborated_matches=row_corroborated,
                 confidence=confidence,
                 confidence_reason=confidence_reason,
                 data_quality=dossier.readiness,
@@ -2466,6 +2792,92 @@ def _side_sizes(obs, sport: str) -> tuple[int, int]:
     )
 
 
+# What a set count can actually be, per draw. A best-of-three is won 2-0 or
+# 2-1; a best-of-five 3-0, 3-1 or 3-2.
+#
+# The static grid prices **one** set line, 2.5, which is the only line a
+# best-of-three has and a tautology on a best-of-five: no best-of-five tie ends
+# under three sets except on a retirement, and the lines a best-of-five
+# actually turns on -- 3.5 and 4.5 -- were never in the grid at all. So a men's
+# slam tie whose Superbet ladder was missing (``OFFER_EMPTY``,
+# ``EVENT_NOT_MATCHED``) got exactly the rung that cannot settle and none of
+# the ones that can: 8 such rows on the 2026-09-05 and 2026-09-06 slates,
+# rebuilt with today's code.
+#
+# And the number on them was not a rounding matter. Shelton - Shapovalov read
+# 14/14 with a sample minimum of 3 sets, and ``count_model_central`` returned
+# **0.6028** for the OVER and **0.3972 for the UNDER** -- four tenths on an
+# outcome the draw does not allow -- because ``_sample_dispersion`` floors the
+# variance at the mean, and a mean of 3.36 sets is a variance nine times the
+# one the sample shows and larger than *any* distribution on {3,4,5} can have.
+# The floor is right for corners and shots, which are unbounded counts; it is
+# not a statement about a variable with three possible values.
+#
+# Filtering the ladder is the narrow half of the answer and the only half that
+# needs no estimator change: a rung is kept when the draw can settle it both
+# ways.
+#
+# The variance question was then measured rather than argued, and the
+# measurement says **leave the floor alone**. Settling every ``total_sets``
+# rung against ESPN's set counts over the eleven slates in ``runs/`` (207
+# favoured rungs on 138 fixtures), against the same rungs rebuilt with the
+# floor removed:
+#
+#     variance             mean sd   claimed   realised      gap
+#     Poisson floor (ships)   1.65    0.6336     0.6908   -0.0573
+#     sample variance only    0.55    0.7429     0.6908   +0.0521
+#     realised, 205 matches   0.90
+#
+# The truth sits between the two. The floor is 1.8x too wide and the raw
+# sample variance 1.6x too narrow -- the small-sample downward bias
+# ``_predictive_dispersion`` deliberately leaves alone, here on a variable
+# whose whole tail is the five-setter a 10-match sample rarely contains. The
+# absolute errors are the same size (0.057 against 0.052), so removing the
+# floor buys nothing and pays for it by flipping a 5.7-point
+# *under*confidence into a 5.2-point overconfidence, which is the half that
+# becomes a bet. That asymmetry is the one ``calibration.honest_probability``
+# is built around, and it decides this.
+#
+# A retirement can end a best-of-five in two sets, so 2.5 is not strictly
+# impossible -- it is a retirement bet, and none of these samples contains a
+# retirement. A rung whose only path is an event the sample has never seen is
+# not weak evidence about that path; it is no evidence, which is the same
+# contract ``suppressed_markets_for`` states.
+_TENNIS_SET_SUPPORT: dict[str, tuple[float, float]] = {
+    "BO3": (2.0, 3.0),
+    "BO5": (3.0, 5.0),
+}
+
+# The static ladder each draw gets when Superbet posts none. Per draw and not
+# one grid for both, which is the trap the first version of this fell into:
+# widening the shared grid to [2.5, 3.5, 4.5] gave 3.5 and 4.5 to *unpinned*
+# fixtures too, where the filter below is inert by design -- and on the frozen
+# 2026-08-31 fixture, which ``analyze_dossiers`` builds with no competition
+# names at all, that produced ``total_sets UNDER 4.5`` at 20/20 off a sample
+# whose maximum is 3. The mirror image of the bug being fixed.
+_TENNIS_SET_LINES_BY_FORMAT: dict[str, list[float]] = {
+    "BO3": [2.5],
+    "BO5": [3.5, 4.5],
+}
+
+
+def _set_lines_for_format(
+    lines: list[float], match_format: str | None
+) -> list[float]:
+    """The set lines this draw can settle both ways.
+
+    Unpinned formats are left alone: ``tennis_match_format`` returning None
+    means the competition is not pinned, and the standing rule is that an
+    unpinned fixture scopes nothing and suppresses nothing rather than being
+    guessed at.
+    """
+    support = _TENNIS_SET_SUPPORT.get(match_format or "")
+    if support is None:
+        return lines
+    low, high = support
+    return [line for line in lines if low < line < high]
+
+
 def _match_total_rows(
     dossier: EventDossierV1,
     offered: OfferedLines | None = None,
@@ -2496,10 +2908,19 @@ def _match_total_rows(
             obs, surface=surface,
             match_format=_format_scope_for(canonical, match_format),
         )
+        static_lines = market_def["lines"]
+        if canonical == "total_sets" and match_format in _TENNIS_SET_LINES_BY_FORMAT:
+            static_lines = _TENNIS_SET_LINES_BY_FORMAT[match_format]
         lines, limit, offered_sides = _resolve_lines(
             offered, event_id=dossier.event_id, market=canonical,
-            static=market_def["lines"],
+            static=static_lines,
         )
+        if canonical == "total_sets":
+            # Applied after resolution so it covers the offered ladder too, not
+            # only the static grid. See ``_set_lines_for_format``.
+            lines = _set_lines_for_format(lines, match_format)
+            if not lines:
+                continue
         rows.extend(
             _rows_for_sample(
                 dossier=dossier,
@@ -2508,6 +2929,21 @@ def _match_total_rows(
                 line_limit=limit,
                 offered_sides=offered_sides,
                 observations=_all_values(obs),
+                # The pooled sample's own partition. Corroboration is clustered
+                # inside each bucket, because an opponent's name identifies a
+                # match for one participant and not for the other -- both sides
+                # of a fixture can have played the same third party.
+                observation_buckets=[
+                    _dedup(obs.team_a_l10),
+                    _dedup(obs.team_b_l10),
+                    _dedup(obs.h2h),
+                ],
+                # The one match that legitimately sits in all three buckets, so
+                # the corroboration count folds it exactly as
+                # ``_independent_match_sample`` does below.
+                h2h_fold_keys=_head_to_head_days(
+                    obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
+                ),
                 independent=_independent_match_sample(
                     obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
                 ),
@@ -2843,16 +3279,30 @@ def best_of_five_suppression_report(
 
     Counted per (fixture, market) pair, with the observation-level reasons
     pooled, because that is the grain the decision is taken at.
+
+    ``fixtures_with_no_resolved_draw`` is the third way the gate comes back
+    empty, and the only one this report used to be silent about -- because a
+    fixture whose draw cannot be resolved suppresses nothing, so it never
+    entered the loop below. ``--event-list`` is optional and its help text says
+    the gate is "inert" without it, and the run said nothing at all: no event
+    list, or a competition absent from it, or one that
+    ``config/tennis_match_format.json`` does not pin, and every length market
+    on that fixture is priced against an unscoped sample with no trace in the
+    artifact. Silence about a skipped check reads as a passed check, which is
+    the one thing this function exists not to do.
     """
     lookup = competitions or {}
     reasons: dict[str, int] = {}
     pairs = 0
     fixtures: set[str] = set()
     unknown_dominated = 0
+    unresolved_draw: set[str] = set()
     for dossier in dossier_list.dossiers:
         if dossier.sport != "tennis":
             continue
         competition = lookup.get(dossier.event_id)
+        if tennis_match_format(competition) is None:
+            unresolved_draw.add(dossier.event_id)
         suppressed = suppressed_markets_for(dossier, competition)
         if not suppressed:
             continue
@@ -2882,6 +3332,7 @@ def best_of_five_suppression_report(
         "markets": pairs,
         "by_reason": dict(sorted(reasons.items())),
         "fixtures_mostly_unknown_draw": unknown_dominated,
+        "fixtures_with_no_resolved_draw": len(unresolved_draw),
     }
 
 

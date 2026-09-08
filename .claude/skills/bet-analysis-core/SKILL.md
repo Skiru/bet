@@ -48,22 +48,28 @@ followed.
    A report that opens with what pays has put the operator's decision before
    the analysis. He decides whether a number is worth a price; you cannot help
    him decide until you have told him the number.
-1. **Data integrity.** Is the sample about this fixture? (a/b/h2h split, what
+1. **The decision point, before any web or MCP tool runs.** Per fixture:
+   scheduled start in UTC, `now`, and the delta. A fixture that has started is
+   dropped here — not researched and then discarded, because researching it is
+   how a result gets into the read. Full rules and the 2026-09-07 incident in
+   *The decision point* below. Note that `ts` fields in these artifacts print
+   local time (UTC+2) unlabelled; `start_time` on the event list is UTC.
+2. **Data integrity.** Is the sample about this fixture? (a/b/h2h split, what
    `sample_excluded` removed, `DISAGREE` on the line, one side thin, stale h2h.)
    For a row worth a closer look, `superbet-market-matcher` does this split for
    you instead of reading `event_dossiers.json` by hand, and adds what the book
    is offering beside it — hand it the row and read back which bucket
    disagrees with the pooled number, and whether the price was ever there.
-2. **Market definition and availability.** Does Superbet post this line
+3. **Market definition and availability.** Does Superbet post this line
    (`row.superbet.availability == "OFFERED"`)? Does the market settle the
    quantity the sample measures (`cards_points` vs yellows; own-plus-own vs pooled)?
-3. **Context that changes the estimand** — stakes, second leg, derby, referee,
+4. **Context that changes the estimand** — stakes, second leg, derby, referee,
    absences, surface, format, fatigue. Read `references/evidence-rules.md`.
-4. **Distribution and scenario** — mode, tail, ladder, game-script A–D.
-5. **Kill case vs buy case**, then the price. **Price is validation, not
+5. **Distribution and scenario** — mode, tail, ladder, game-script A–D.
+6. **Kill case vs buy case**, then the price. **Price is validation, not
    evidence** (method §90): a good price cannot rescue a broken sample, and a
    short price is not a reason to drop a row — only a reason to grade it.
-6. Fresh eyes, verdict: `KEEP / WATCH / NO BET`, and the veto entry if any.
+7. Fresh eyes, verdict: `KEEP / WATCH / NO BET`, and the veto entry if any.
 
 No later step may redeem an earlier hard fail (method §64).
 
@@ -134,11 +140,29 @@ between two rungs, so everything separating them is model, not sample — say so
 
 ```
 p_bar    = p_central, capped (Laplace when hits == n; p_low when n < 8)
+           minus this market's measured overconfidence at this claim   <- since 2026-09-08
 p_mkt    = Superbet's own line devigged against its other side (None if one-sided)
 w        = n / (n + k)          k per market, 10 by default; doubled by MISSING_REFEREE
 p_shrunk = w·p_bar + (1−w)·p_mkt
 min price = TIER_MARGIN[tier] / p_shrunk     CALL 1.05, LEAN 1.10; WEAK/DROP are not bets
 ```
+
+The second line is new and is the same correction the forecast has been ranking
+by (`p_honest`): `config/market_reliability.json` records, per market and per
+claim bucket, what rows claiming that much actually realised over every settled
+fixture in `runs/`, and the part a clustered interval puts beyond zero is
+subtracted. **One-sided — it can only raise a bar, never lower one.** The
+coupon prints the amount per row (`bar_calibration`) and the sentence behind it
+(`bar_calibration_note`), and the header counts how many rows it moved.
+
+It exists because the operator found the gap on the card markets: over the
+settled slates in `runs/`, `cards_points_for` UNDER rows above the single floor
+claimed 91.9% and realised 87.0% on 142 fixtures, and nothing between the sheet
+and the price knew. Corrected, they claim 87.4%. Over all 49,799 settled
+football rungs above the floor, pooled |claim − realised| goes 0.0309 → 0.0208.
+Note what it does *not* do: it does not change which rows reach the file, only
+the price each has to beat — so a row missing its bar by a hair may now miss it
+by a little more, and `WITHIN_TOLERANCE` is where you will see it.
 
 A `DOWNGRADE` steps `CALL→LEAN→WEAK`. `LEAN→WEAK` removes the row from the
 coupon; `CALL→LEAN` raises its bar by ~5%. Two `reason_class` values do more
@@ -212,6 +236,53 @@ Details, thresholds and the column enums: `references/evidence-rules.md`.
   checks you therefore did not make. Silence about a skipped check reads as a
   passed check.
 
+## The decision point — the web index runs ahead of you
+
+Every web read you make is made *after* the decision it informs. That is not a
+worry about a careless click; it is a property of the medium. A search index
+carries content published after a fixture started, and a result snippet renders
+that content in your context before you choose whether to open anything. So the
+later in the day the analysis runs, the more of the index is post-decision — and
+the contamination arrives, by construction, dressed as a *confident* read.
+
+It happened on 2026-09-07: a query about Iva Jović's tie-break record returned
+headlines that appeared to carry the Jović–Gauff result. The searches were
+abandoned and nothing from them entered the analysis, which is the correct
+recovery — but two of that day's factual questions stayed `CANNOT VERIFY`
+because of it, so the honest handling still cost the read.
+
+Four rules, in this order.
+
+1. **Establish the decision point before any web tool runs.** Per fixture, that
+   is its scheduled start in UTC. Print it, print `now`, print the delta. This
+   comes *before* verification, not after — see the order of operations.
+
+2. **A fixture already started is not a bet, and is not a research subject.**
+   Drop it from the read first. `build_coupons(not_before=...)` already refuses
+   it, and ANALYZE has no kickoff filter at all, so the sheet will happily rank
+   a finished match at the top. Searching about a match that has begun is
+   asking the index for the answer; not searching about it costs nothing,
+   because there was no bet there to make.
+
+3. **Titles and snippets are content.** Contamination is not "I opened the box
+   score". If a result reaches you in a snippet, it has reached you. Construct
+   queries that cannot return one: ask for the historical fact and its period
+   (`"Jović tie-break record 2026 hard court"`), never the two participants'
+   names alone, which is the shape of a query the index answers with a
+   scoreline.
+
+4. **If a result does leak, say so in the report and treat the affected claim
+   as unverified.** Name the fixture, name what leaked, and mark the claim
+   `CANNOT VERIFY` — never `unknown`, never silently omitted. A leak you
+   declare costs one fact. A leak you absorb produces a read that looks better
+   than any honest read of the same evidence and cannot be told apart from one
+   afterwards, which is the failure that actually costs money.
+
+The equivalent risk on football is smaller and not zero: bzzoiro MCP is by-id
+and returns `status`, so the source of record tells you the fixture has
+finished rather than leaking the score sideways. The rules above still apply to
+every `WebSearch` a football read makes.
+
 ## The veto block — the only thing that reaches the coupon
 
 After the markdown report, return one fenced ```json block: a bare array,
@@ -282,3 +353,6 @@ vocabulary (`strong statistical support`, `fragile`, `watch`, `no bet`).
 - No stake, no EV, no placement. Never read, echo or log `.env` values.
 - A settled result is a fact about the day, not about the decision. Never let
   "it won" into the reasoning for the next one.
+- Never research a fixture that has already started, and never let a result
+  that leaked from a search snippet into a claim. Declare the leak; mark the
+  claim `CANNOT VERIFY`. See *The decision point*.

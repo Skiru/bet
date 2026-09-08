@@ -458,6 +458,16 @@ produced vetoes, or the offer went stale — not to fill out a thin day.
   `margin / (w·p_bar + (1−w)·p_mkt)` with `w = n/(n+k)`, so it asks you to beat
   the devigged Superbet price by `(margin − 1)/w` — 50% relative at n=5, k=20;
   15% at n=20, k=10;
+- **how much this market's own settled record took off `p_bar`**, per row and
+  in one line for the file, since 2026-09-08. `p_bar` is `p_central` after the
+  two caps *and* after the measured overconfidence at that claim
+  (`config/market_reliability.json`, one-sided, so the bar only ever rises).
+  Before that the coupon priced from the uncorrected claim while the forecast
+  ranked the corrected one, and card UNDERs were the visible cost: 91.9%
+  claimed against 87.0% realised on `cards_points_for`, 142 settled fixtures;
+- **`p_low ≥ 0.50` is the admission floor and was never the instrument for
+  overconfidence.** On the card markets `p_low` *understates* by 19–27pp, so a
+  floor on it cannot catch a claim that runs hot. That is the bar's job;
 - **every gate's row count**, so a file thinner than yesterday's can be read as
   a quiet day or as a gate rather than guessed at.
 

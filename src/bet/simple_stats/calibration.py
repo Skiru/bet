@@ -528,10 +528,39 @@ def corrected_points(
     return merged
 
 
-def _read_curve(
-    claim: float, targets: list[Target]
-) -> tuple[float, Bucket] | None:
-    """The corrected value at this claim, interpolated, with its bucket.
+class Read(NamedTuple):
+    """The curve read at one claim, and the blocks the reading actually used.
+
+    ``blocks`` is one bucket when the claim sat on a block or outside the
+    measured range, and two when the value was interpolated between them. It
+    exists because the note used to quote something else.
+
+    ``honest_probability`` reported the *nearer* of the two blocks and decided
+    the sentence's direction from that block's sign, while the number it
+    announced came from the interpolation across both. The two can disagree,
+    and on 2026-09-07 they did in both available ways. ``player_was_fouled``
+    printed "the market here rather **under**-states (realised 92,8% against a
+    claim of 93%, 325 matches)" -- a sentence whose own two numbers say the
+    opposite of the sentence, because the claim was rounded to whole points
+    (0.9267 -> "93%") and the realised rate to tenths. And a row claiming 0.672
+    on the same market was told "corrected -0,4%: rows claiming ~77% realised
+    77,6%" -- a *downward* correction justified by quoting a bucket that
+    over-delivered, because the correction came from the 0.515 block and the
+    quote from the 0.772 one.
+
+    So the note now derives its direction from the same interpolation that
+    produced the number, quotes every block that fed it, and prints claim and
+    realised rate at one precision -- which is what makes a rounding artifact
+    unable to invert a sentence again.
+    """
+
+    value: float
+    blocks: tuple[Bucket, ...]
+    gap: float
+
+
+def _read_curve(claim: float, targets: list[Target]) -> Read | None:
+    """The corrected value at this claim, interpolated, with the blocks used.
 
     Interpolated rather than snapped: a row claiming 0.87 sits between the 0.85
     and 0.90 buckets and deserves a blend. Snapping would move the correction by
@@ -542,6 +571,11 @@ def _read_curve(
     market measured to 0.90 says nothing about 0.99 beyond the last thing seen,
     and a trend fitted there would put the largest corrections exactly where
     there is no data.
+
+    ``gap`` is the *measured* gap at this claim, interpolated along the same two
+    blocks and by the same weight as the value. It is what the note's direction
+    must be read off: the alternative -- one block's own sign -- is what let a
+    note contradict its own arithmetic. See ``Read``.
     """
     if not targets:
         return None
@@ -554,19 +588,27 @@ def _read_curve(
     # stays monotone because ``claim - constant`` rises with the claim.
     if claim <= targets[0].claimed:
         first = targets[0]
-        return claim - (first.claimed - first.value), first.bucket
+        return Read(
+            claim - (first.claimed - first.value), (first.bucket,), first.bucket.gap
+        )
     if claim >= targets[-1].claimed:
         last = targets[-1]
-        return claim - (last.claimed - last.value), last.bucket
+        return Read(
+            claim - (last.claimed - last.value), (last.bucket,), last.bucket.gap
+        )
     for lo, hi in zip(targets, targets[1:], strict=False):
         if lo.claimed <= claim <= hi.claimed:
             span = hi.claimed - lo.claimed
             if span <= 0:
-                return lo.value, lo.bucket
+                return Read(lo.value, (lo.bucket,), lo.bucket.gap)
             t = (claim - lo.claimed) / span
-            nearer = hi.bucket if t >= 0.5 else lo.bucket
-            return lo.value + t * (hi.value - lo.value), nearer
-    return targets[-1].value, targets[-1].bucket
+            return Read(
+                lo.value + t * (hi.value - lo.value),
+                (lo.bucket, hi.bucket),
+                lo.bucket.gap + t * (hi.bucket.gap - lo.bucket.gap),
+            )
+    last = targets[-1]
+    return Read(last.value, (last.bucket,), last.bucket.gap)
 
 
 def _tail_bucket(entry: Mapping[str, object] | None) -> Bucket | None:
@@ -615,6 +657,31 @@ def _tail_bucket(entry: Mapping[str, object] | None) -> Bucket | None:
     )
 
 
+def _evidence(read: Read) -> str:
+    """The measured blocks behind one reading, in the note's own words.
+
+    Claim and realised rate at the **same** precision, which is the whole
+    point: printing the claim at whole points and the realised rate at tenths
+    is how "realizował 92,8% przy deklaracji 93%" came to introduce a sentence
+    saying the market under-states. 0.9267 and 0.9284 do not read as a
+    contradiction; "93%" and "92,8%" do.
+
+    Both blocks when the reading was interpolated between two, because the
+    correction is then a blend of both and quoting one of them lets the
+    evidence contradict the action -- a downward correction carried across from
+    a hot block, footnoted with a block that over-delivered. Naming both is the
+    only version of this sentence that is true.
+    """
+    parts = [
+        f"wiersze deklarujące ~{b.claimed:.1%} realizowały {b.realised:.1%} "
+        f"({b.fixtures:.0f} meczów)"
+        for b in read.blocks
+    ]
+    if len(parts) == 1:
+        return parts[0]
+    return "interpolacja między zmierzonymi przedziałami: " + " oraz ".join(parts)
+
+
 def honest_probability(
     claim: float | None,
     entry: Mapping[str, object] | None,
@@ -647,26 +714,24 @@ def honest_probability(
                 "wychodzi poza szum — nie odejmuję nic"
             )
         return claim, "brak zmierzonej kalibracji dla tego rynku"
-    target, bucket = read
     # ``min`` is a guarantee rather than a formality: the correction is
     # non-negative per bucket, but a pooled block carries a value averaged with
     # its neighbour's and is read at claims lower than its own.
-    honest = max(0.01, min(claim, target))
+    honest = max(0.01, min(claim, read.value))
     applied = claim - honest
-    realised = bucket.claimed - bucket.gap
+    # Both directions are read off ``read.gap`` -- the measured gap at *this
+    # claim*, interpolated exactly as the value was -- and never off one
+    # block's own sign. See ``Read`` for the two notes that inverted.
     if applied <= 1e-9:
-        if bucket.gap <= 0.0:
+        if read.gap <= 0.0:
             return claim, (
-                f"rynek w tym przedziale raczej zaniża (realizował {realised:.1%} "
-                f"przy deklaracji {bucket.claimed:.0%}, {bucket.fixtures:.0f} "
-                "meczów) — nie podnoszę, korekta działa tylko w dół"
+                f"rynek w tym przedziale raczej zaniża ({_evidence(read)}) "
+                "— nie podnoszę, korekta działa tylko w dół"
             ).replace(".", ",")
         return claim, (
-            f"zmierzone przestrzelenie {bucket.gap:.1%} nie wychodzi poza szum "
-            f"({bucket.fixtures:.0f} meczów) — nie odejmuję"
+            f"zmierzone przestrzelenie {read.gap:.1%} nie wychodzi poza szum "
+            f"({_evidence(read)}) — nie odejmuję"
         ).replace(".", ",")
     return honest, (
-        f"skorygowane −{applied:.1%}: wiersze tego rynku deklarujące ~"
-        f"{bucket.claimed:.0%} realizowały {realised:.1%} "
-        f"({bucket.fixtures:.0f} meczów)"
+        f"skorygowane −{applied:.1%}: {_evidence(read)}"
     ).replace(".", ",")

@@ -314,6 +314,9 @@ def test_an_unlabelled_gate_is_printed_rather_than_hidden():
     single = type("S", (), {
         "bar_basis": "p_central", "shrink_k": 10.0,
         "bar_basis_reason": None, "sample_weight": 0.5,
+        # The bar's third stage, since 2026-09-08. A stub that omits a field the
+        # renderer prints tests the stub, not the renderer.
+        "market": "corners_for", "bar_calibration": None,
     })()
     coupons = type(
         "C", (), {"excluded": {"a_brand_new_gate": 7}, "singles": [single]}

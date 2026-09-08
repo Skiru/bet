@@ -518,6 +518,18 @@ BAR_REASON_SMALL_SAMPLE = "SMALL_SAMPLE_P_LOW"
 # built from a different basis than the team rows above it, rather than
 # wondering why an 88% sample is being asked to pay 1.55.
 BAR_REASON_INTERVAL_MID = "PROP_INTERVAL_MIDPOINT"
+# Not a cap on the sample and so not a ``bar_input`` reason: it is what this
+# market's own settled record says about claims of this size, applied in
+# ``bar_components`` between the sample's claim and the book's price. Named so
+# the coupon can print it beside the caps rather than instead of one.
+BAR_REASON_CALIBRATED = "MARKET_RECORD_CALIBRATION"
+
+# Below this the correction is applied and not *reported*. It is a tenth of a
+# point on a probability -- the resolution the file prints at -- so a caveat
+# about it would render as "-0,0%" and spend a line of the operator's attention
+# saying nothing. The amount stays on the JSON row either way, so the audit
+# trail is complete; what this gates is the sentence.
+MIN_REPORTABLE_CALIBRATION = 0.001
 
 
 def laplace_rate(hits: int, sample_size: int) -> float | None:
@@ -715,6 +727,119 @@ class BarComponents(NamedTuple):
     # ``n / (n + k)``: how much of the answer is the sample's. None when there
     # is no market probability to shrink toward.
     weight: float | None
+    # How much ``p_bar`` was lowered by this market's own settled record, in
+    # probability, and the sentence that says why. 0.0 and None when the market
+    # is unmeasured, when the correction is inside the noise, or when the basis
+    # fell back to ``p_low``. Never negative -- see
+    # ``calibration.honest_probability``.
+    calibration: float = 0.0
+    calibration_note: str | None = None
+
+
+def market_record_correction(
+    row: StatsSheetRow, basis: str = "p_low"
+) -> tuple[float, str | None]:
+    """``(how much to take off this row's claim, why)`` from its own market's record.
+
+    **The measurement existed and the coupon did not read it.** ``p_central``
+    is the number the bar divides into 1, and
+    ``config/market_reliability.json`` records, per market and per claim
+    bucket, what rows claiming that much have really realised over every
+    settled fixture in ``runs/``. The forecast has ranked the day by that
+    corrected number since 2026-09-07; the coupon -- the artifact with money on
+    it -- priced from the uncorrected one.
+
+    What that cost is measurable, and the card markets are where the operator
+    found it. Settling every football rung above the single floor from the
+    slates in ``runs/`` (49,799 rungs on 341 fixtures, ``settle_row`` against
+    the cached actuals):
+
+        cards_points_for  UNDER   377 rungs, 142 fx, realised 87.0%
+                                  p_central 91.9% (-4.9pp)
+                                  corrected 87.4% (-0.4pp)
+        cards_points_total UNDER  586 rungs, 191 fx, realised 87.4%
+                                  p_central 89.4% (-2.0pp)
+                                  corrected 89.4% (-2.0pp)
+
+        whole board               p_central 95.1% against a realised 92.3%
+                                  corrected 94.0%
+        pooled |claim - realised| 0.0309 -> 0.0208
+
+    So it closes the larger half of the reported overstatement and leaves the
+    smaller half exactly where it was: ``cards_points_total``'s pooled tail
+    does not clear zero, so ``gated`` refuses to correct it and the drift
+    caveat keeps naming it instead. That asymmetry is the point -- a correction
+    that fired on both would be fitting the one it cannot measure.
+
+    It only ever *lowers* a probability, so it only ever *raises* a bar. There
+    is no direction in which this admits a row that used to be excluded.
+
+    **Read at ``row.p_central``, never at the chosen basis.** The curve's
+    x-axis is the sheet's published ``p_central`` (see
+    ``measure_market_reliability._calibration``), so that is where it may be
+    read; the *amount* is then subtracted from whichever basis the run uses.
+    Reading it at ``p_interval_mid`` would consult a bucket the row does not
+    belong to. A basis that fell back to ``p_low`` is not corrected at all --
+    ``p_low`` is the tighter bar already and is not the axis this was measured
+    on.
+
+    **It overlaps ``market_claims_more_than_it_delivers`` and that is left
+    standing, on a measurement.** That rule steps the tier down when a row
+    claims at or above its market's ``hot_above``, and it was written (on
+    2026-09-07) as a proxy for exactly the correction this function now
+    applies -- its own docstring says it "asks whether the probability the bar
+    is computed from is true". So the same finding can now move the number and
+    the margin, which is the double charge this file rejects elsewhere ("the
+    Wilson bound already prices the thinness of five trials; refusing the row
+    on top of that is charging twice for it").
+
+    On the 2026-09-07 sheet the overlap is total in one direction: 193 rows get
+    both, and **zero** rows get the tier step without the correction. The proxy
+    is now strictly redundant. It stays anyway, because removing it was
+    measured and bought nothing -- rebuilding all eleven slates in ``runs/`` at
+    a 400-single budget and settling every football single against the cached
+    actuals:
+
+        no correction, tier step   1,876 candidates, 1,388 settled, 84.15%, ROI +0.65%
+        correction + tier step     1,876 candidates, 1,388 settled, 84.08%, ROI +0.56%
+        correction, no tier step   1,877 candidates, 1,387 settled, 84.07%, ROI +0.40%
+
+    Three tenths of a point apart on 1,388 rows is nothing, and dropping a
+    guard on a null result is the one trade that is never worth making. Note
+    what those rows also say about this correction: it does **not** change
+    which rows reach the file (1,876 either way). It changes the price each one
+    has to beat, on 6,708 of 26,962 rows, and the claim being made for it is
+    calibration (pooled |claim - realised| 0.0309 -> 0.0208) rather than ROI,
+    which at these volumes nothing here can measure.
+
+    **The minimum across formats when the row's format is unknown.** Tennis
+    scopes are ``market@BO3``/``market@BO5`` and the row carries no format, so
+    ``_measured_scopes`` returns both. Taking the smaller correction is the
+    same rule ``market_forecast_is_worse_than_average`` and
+    ``market_claims_more_than_it_delivers`` already follow -- every format
+    present has to agree -- and it fails toward leaving the number alone rather
+    than charging a fixture for the draw it may not be in. Football resolves to
+    exactly one scope, so the card markets get the whole correction.
+    """
+    from bet.simple_stats.calibration import honest_probability
+
+    claim = row.p_central
+    if claim is None:
+        return 0.0, None
+    if bar_basis_for_row(row, basis) not in ("p_central", "p_interval_mid"):
+        return 0.0, None
+    reads = [honest_probability(claim, entry) for entry in _measured_scopes(row)]
+    corrections = [
+        (claim - honest, note)
+        for honest, note in reads
+        if honest is not None and claim - honest > 1e-9
+    ]
+    if not corrections or len(corrections) < len(reads):
+        # Nothing to take off, or one of the formats present says nothing to
+        # take off -- which is a disagreement, and the rule is that every
+        # format has to agree before a market's record moves a number.
+        return 0.0, None
+    return min(corrections, key=lambda correction: correction[0])
 
 
 def bar_components(
@@ -735,8 +860,21 @@ def bar_components(
     verdicts (see ``AnalystVeto.reason_class``): a sample the analyst has
     declared uninformative is worth zero observations, whatever ``n`` says, and
     that is a judgement no formula on ``n`` can express.
+
+    Three stages, in this order and for a reason. ``bar_input`` is what *this
+    sample* claims, after the caps that are statements about this sample.
+    ``market_record_correction`` is what *this market* has delivered on claims
+    of that size, which is not a fact about the sample and so is applied after
+    it. Only then does the book's own price enter: shrinking toward a price
+    from an uncorrected claim would blend the book's opinion with a number we
+    already know runs hot.
     """
     p_bar, reason = bar_input(row, basis)
+    correction, calibration_note = market_record_correction(row, basis)
+    # Floored at 0.01 for the same reason the prop penalty below is floored:
+    # the bar is 1/p, so a probability driven to zero becomes an infinite price
+    # and the row leaves the file silently instead of being hard to clear.
+    p_bar = max(0.01, p_bar - correction) if correction else p_bar
     if market_probability is None or not 0.0 < market_probability < 1.0:
         penalty = unanchored_prop_penalty(row, market_probability)
         if penalty:
@@ -745,9 +883,17 @@ def bar_components(
             # the file. It should be *hard* to clear, not impossible to show.
             corrected = max(p_bar - penalty, 0.05)
             return BarComponents(
-                corrected, p_bar, reason or "PLAYER_PROP_UNANCHORED", None, None
+                corrected,
+                p_bar,
+                reason or "PLAYER_PROP_UNANCHORED",
+                None,
+                None,
+                correction,
+                calibration_note,
             )
-        return BarComponents(p_bar, p_bar, reason, None, None)
+        return BarComponents(
+            p_bar, p_bar, reason, None, None, correction, calibration_note
+        )
 
     if force_weight is not None:
         weight = min(1.0, max(0.0, force_weight))
@@ -756,7 +902,15 @@ def bar_components(
         n = float(row.sample_size)
         weight = 1.0 if k <= 0 else n / (n + k)
     probability = weight * p_bar + (1.0 - weight) * market_probability
-    return BarComponents(probability, p_bar, reason, market_probability, weight)
+    return BarComponents(
+        probability,
+        p_bar,
+        reason,
+        market_probability,
+        weight,
+        correction,
+        calibration_note,
+    )
 
 
 def bar_probability(

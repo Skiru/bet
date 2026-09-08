@@ -13,6 +13,23 @@ signal, no model), so every row is `NO_REFERENCE_SOURCE` and can never be
 format and schedule history; and every market is a function of **match
 length**, so a short match settles every UNDER at once.
 
+**`cross_provider_agreement` on a tennis row means something as of
+2026-09-08, and it did not before.** Corroboration was bucketed by calendar
+day while tennis match identity deliberately discards the date —
+tennis-abstract stamps a match with its tournament's start, 10–11 days before
+espn-tennis' match date — so every tennis row ever written by this pipeline
+reported `SINGLE_SOURCE` with `corroborated_matches: 0`. On the 2026-09-07
+slate that was 448 of 448 rows, including samples where both feeds had seen 7
+of 10 matches and agreed to within a game. Read the field now: `AGREE` says
+two independent transcriptions of the same match match, `PARTIAL_AGREE` gives
+you the share, `DISAGREE` is a reason to distrust the sample outright. It buys
+no tier — `NO_REFERENCE_SOURCE` still caps every tennis row at `LEAN` — so
+what it changes is what you may *say*: a corroborated tennis sample is no
+longer to be described as uncorroborated. Note also what it deliberately
+refuses: where the two feeds report a different number of meetings with one
+opponent, the rows cannot be lined up and the slot is left unjudged rather
+than guessed at, so it neither corroborates nor conflicts.
+
 Reference files — open at the step that needs them:
 
 | File | Open when |
