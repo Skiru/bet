@@ -136,6 +136,51 @@ def test_team_goals_rows_are_two_separate_samples_per_side():
     assert over_05_a.hits == 4  # everything but the 0.0
 
 
+def test_match_total_row_carries_the_side_split():
+    """``sample_split`` is ``(team_a retained, team_b retained)`` on a match
+    total -- the same two counts ``_confidence`` already computes internally
+    to decide ``ONE_SIDED_SAMPLE``, now on the row so a reader does not have
+    to reconstruct them by hand from the dossier's raw buckets."""
+    team_a_values = [3.0, 4.0, 5.0]
+    team_b_values = [2.0, 3.0, 4.0, 5.0, 6.0]
+    obs = MetricObservation(
+        canonical_name="corners_total",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-04-{i + 1:02d}", match_id=f"a{i}") for i, v in enumerate(team_a_values)],
+        team_b_l10=[_pv("bzzoiro", v, f"2026-05-{i + 1:02d}", match_id=f"b{i}") for i, v in enumerate(team_b_values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-split", sport="football", metrics={"corners_total": obs},
+        team_a_name="Team A", team_b_name="Team B",
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    corners_rows = [r for r in rows if r.market == "corners_total"]
+    assert corners_rows
+    assert all(r.sample_split == (3, 5) for r in corners_rows)
+
+
+def test_per_team_row_carries_no_side_split():
+    """A ``_for`` row is one participant's own history by construction --
+    ``sample_split`` (a *second* side to compare against) does not apply and
+    must stay ``None``, not a guess at what the other side's row would be."""
+    obs = MetricObservation(
+        canonical_name="goals_for",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-02-{i + 1:02d}", match_id=f"a{i}") for i, v in enumerate([1.0, 1.0, 2.0, 0.0, 3.0])],
+        team_b_l10=[_pv("bzzoiro", v, f"2026-03-{i + 1:02d}", match_id=f"b{i}") for i, v in enumerate([0.0, 0.0, 1.0, 1.0, 2.0])],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-team-split", sport="football", metrics={"goals_for": obs},
+        team_a_name="Team A", team_b_name="Team B",
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    team_goals_rows = [r for r in rows if r.market == "goals_for"]
+    assert team_goals_rows
+    assert all(r.sample_split is None for r in team_goals_rows)
+
+
 def test_shots_total_rows_cover_every_standard_line():
     """docs/PLAN_BOGATE_STATYSTYKI.md Faza 2: shots_total was already collected
     (PRIORITY_METRICS) and priced per-team as Team Shots, but had no

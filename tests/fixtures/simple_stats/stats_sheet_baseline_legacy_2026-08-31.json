@@ -1,6 +1,6 @@
 {
   "date": "2026-08-31",
-  "generated_at": "2026-09-08T05:32:53.182745+00:00",
+  "generated_at": "2026-09-08T10:40:06.636577+00:00",
   "result_markets": [],
   "rows": [
     {
@@ -34,6 +34,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -75,6 +79,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -116,6 +124,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -159,6 +171,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -200,6 +216,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -241,6 +261,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -284,6 +308,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -327,6 +355,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -369,6 +401,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -411,6 +447,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -460,6 +500,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -502,6 +546,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -543,6 +588,7 @@
       "sample_max": 15.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.6735,
       "sources": [
         "bzzoiro"
@@ -584,6 +630,10 @@
       "sample_max": 37.0,
       "sample_min": 20.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 26.18655,
       "sources": [
         "bzzoiro",
@@ -626,6 +676,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -670,6 +724,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -712,6 +770,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 11.596529411764706,
       "sources": [
         "bzzoiro"
@@ -753,6 +812,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -795,6 +858,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -838,6 +905,7 @@
       "sample_max": 17.0,
       "sample_min": 13.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 13.0308,
       "sources": [
         "bzzoiro"
@@ -879,6 +947,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -922,6 +991,7 @@
       "sample_max": 13.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 6.155684210526315,
       "sources": [
         "bzzoiro"
@@ -963,6 +1033,7 @@
       "sample_max": 19.0,
       "sample_min": 9.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 14.700526315789475,
       "sources": [
         "bzzoiro"
@@ -1004,6 +1075,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -1046,6 +1121,7 @@
       "sample_max": 14.0,
       "sample_min": 8.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 11.581666666666667,
       "sources": [
         "bzzoiro"
@@ -1089,6 +1165,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -1132,6 +1209,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -1173,6 +1254,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -1216,6 +1298,10 @@
       "sample_max": 21.0,
       "sample_min": 3.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.952916666666667,
       "sources": [
         "tennis-abstract"
@@ -1263,6 +1349,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 19,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.845517241379312,
       "sources": [
         "espn-tennis",
@@ -1305,6 +1395,7 @@
       "sample_max": 12.0,
       "sample_min": 5.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 10.574333333333334,
       "sources": [
         "bzzoiro"
@@ -1346,6 +1437,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -1395,6 +1490,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -1439,6 +1538,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.23978947368421,
       "sources": [
         "bzzoiro"
@@ -1480,6 +1580,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -1521,6 +1625,7 @@
       "sample_max": 13.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 11.785714285714285,
       "sources": [
         "bzzoiro"
@@ -1562,6 +1667,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -1603,6 +1709,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -1647,6 +1757,10 @@
       "sample_max": 13.0,
       "sample_min": 1.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 6.423928571428571,
       "sources": [
         "tennis-abstract"
@@ -1688,6 +1802,7 @@
       "sample_max": 17.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 10.988900000000001,
       "sources": [
         "bzzoiro"
@@ -1738,6 +1853,7 @@
       "sample_max": 20.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 14.2222,
       "sources": [
         "bzzoiro"
@@ -1788,6 +1904,7 @@
       "sample_max": 20.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 14.2222,
       "sources": [
         "bzzoiro"
@@ -1838,6 +1955,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -1879,6 +1997,10 @@
       "sample_max": 37.0,
       "sample_min": 20.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 26.18655,
       "sources": [
         "bzzoiro",
@@ -1921,6 +2043,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -1970,6 +2096,7 @@
       "sample_max": 19.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 12.66,
       "sources": [
         "bzzoiro"
@@ -2020,6 +2147,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -2061,6 +2189,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -2102,6 +2234,7 @@
       "sample_max": 13.0,
       "sample_min": 5.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 10.581666666666667,
       "sources": [
         "bzzoiro"
@@ -2145,6 +2278,7 @@
       "sample_max": 13.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 6.155684210526315,
       "sources": [
         "bzzoiro"
@@ -2188,6 +2322,10 @@
       "sample_max": 31.0,
       "sample_min": 10.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 22.09620689655172,
       "sources": [
         "bzzoiro"
@@ -2238,6 +2376,10 @@
       "sample_max": 28.0,
       "sample_min": 12.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 22.35896153846154,
       "sources": [
         "bzzoiro",
@@ -2280,6 +2422,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -2325,6 +2471,10 @@
       "sample_max": 22.0,
       "sample_min": 0.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.444166666666666,
       "sources": [
         "tennis-abstract"
@@ -2368,6 +2518,10 @@
       "sample_max": 21.0,
       "sample_min": 3.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.952916666666667,
       "sources": [
         "tennis-abstract"
@@ -2411,6 +2565,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -2454,6 +2609,7 @@
       "sample_max": 19.0,
       "sample_min": 9.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 14.700526315789475,
       "sources": [
         "bzzoiro"
@@ -2495,6 +2651,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -2546,6 +2706,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -2590,6 +2754,10 @@
       "sample_max": 13.0,
       "sample_min": 1.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 6.423928571428571,
       "sources": [
         "tennis-abstract"
@@ -2633,6 +2801,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -2674,6 +2843,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 23.092307692307692,
       "sources": [
         "bzzoiro",
@@ -2718,6 +2891,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 9.52357142857143,
       "sources": [
         "tennis-abstract"
@@ -2761,6 +2938,10 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 6.343500000000001,
       "sources": [
         "tennis-abstract"
@@ -2802,6 +2983,7 @@
       "sample_max": 15.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 11.8661875,
       "sources": [
         "bzzoiro"
@@ -2843,6 +3025,7 @@
       "sample_max": 20.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.747285714285715,
       "sources": [
         "bzzoiro"
@@ -2893,6 +3076,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -2944,6 +3131,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -2992,6 +3180,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.494736842105263,
       "sources": [
         "bzzoiro"
@@ -3035,6 +3224,7 @@
       "sample_max": 17.0,
       "sample_min": 13.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 13.0308,
       "sources": [
         "bzzoiro"
@@ -3079,6 +3269,10 @@
       "sample_max": 22.0,
       "sample_min": 0.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.444166666666666,
       "sources": [
         "tennis-abstract"
@@ -3122,6 +3316,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -3172,6 +3370,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 23.14659259259259,
       "sources": [
         "bzzoiro"
@@ -3213,6 +3415,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -3254,6 +3460,7 @@
       "sample_max": 17.0,
       "sample_min": 3.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.0235,
       "sources": [
         "bzzoiro"
@@ -3295,6 +3502,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 5.082833333333333,
       "sources": [
         "bzzoiro"
@@ -3336,6 +3544,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -3377,6 +3586,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -3418,6 +3631,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -3459,6 +3676,7 @@
       "sample_max": 17.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 10.988900000000001,
       "sources": [
         "bzzoiro"
@@ -3507,6 +3725,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -3555,6 +3774,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -3596,6 +3816,7 @@
       "sample_max": 16.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.35,
       "sources": [
         "bzzoiro"
@@ -3637,6 +3858,7 @@
       "sample_max": 11.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.92455,
       "sources": [
         "bzzoiro"
@@ -3678,6 +3900,7 @@
       "sample_max": 17.0,
       "sample_min": 3.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.0235,
       "sources": [
         "bzzoiro"
@@ -3719,6 +3942,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -3760,6 +3984,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.642949999999999,
       "sources": [
         "bzzoiro"
@@ -3801,6 +4026,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -3845,6 +4074,10 @@
       "sample_max": 16.0,
       "sample_min": 5.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 9.233,
       "sources": [
         "tennis-abstract"
@@ -3888,6 +4121,10 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 6.343500000000001,
       "sources": [
         "tennis-abstract"
@@ -3931,6 +4168,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -3974,6 +4212,10 @@
       "sample_max": 21.0,
       "sample_min": 3.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.952916666666667,
       "sources": [
         "tennis-abstract"
@@ -4015,6 +4257,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -4059,6 +4305,10 @@
       "sample_max": 28.0,
       "sample_min": 12.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 22.435884615384616,
       "sources": [
         "bzzoiro",
@@ -4101,6 +4351,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -4147,6 +4401,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.625714285714285,
       "sources": [
         "espn-tennis",
@@ -4189,6 +4447,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 11.32321052631579,
       "sources": [
         "bzzoiro"
@@ -4230,6 +4489,7 @@
       "sample_max": 16.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.93825,
       "sources": [
         "bzzoiro"
@@ -4275,6 +4535,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 20,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.85066666666667,
       "sources": [
         "espn-tennis",
@@ -4319,6 +4583,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 23.092307692307692,
       "sources": [
         "bzzoiro",
@@ -4363,6 +4631,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -4405,6 +4677,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -4446,6 +4719,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -4489,6 +4766,10 @@
       "sample_max": 3.0,
       "sample_min": 2.0,
       "sample_size": 20,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 2.333,
       "sources": [
         "espn-tennis"
@@ -4537,6 +4818,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -4581,6 +4863,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 9.52357142857143,
       "sources": [
         "tennis-abstract"
@@ -4624,6 +4910,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -4668,6 +4958,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -4709,6 +5000,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -4752,6 +5047,10 @@
       "sample_max": 34.0,
       "sample_min": 12.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.38032258064516,
       "sources": [
         "bzzoiro"
@@ -4795,6 +5094,7 @@
       "sample_max": 19.0,
       "sample_min": 9.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 14.700526315789475,
       "sources": [
         "bzzoiro"
@@ -4843,6 +5143,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -4885,6 +5189,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -4926,6 +5234,7 @@
       "sample_max": 10.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.8278,
       "sources": [
         "bzzoiro"
@@ -4969,6 +5278,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -5012,6 +5325,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 23.14659259259259,
       "sources": [
         "bzzoiro"
@@ -5055,6 +5372,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -5105,6 +5426,7 @@
       "sample_max": 10.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.847058823529412,
       "sources": [
         "bzzoiro"
@@ -5148,6 +5470,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -5189,6 +5512,7 @@
       "sample_max": 15.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.6735,
       "sources": [
         "bzzoiro"
@@ -5230,6 +5554,7 @@
       "sample_max": 9.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.020263157894737,
       "sources": [
         "bzzoiro"
@@ -5273,6 +5598,10 @@
       "sample_max": 31.0,
       "sample_min": 10.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 22.09620689655172,
       "sources": [
         "bzzoiro"
@@ -5314,6 +5643,7 @@
       "sample_max": 16.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.888111111111111,
       "sources": [
         "bzzoiro"
@@ -5357,6 +5687,10 @@
       "sample_max": 34.0,
       "sample_min": 12.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.38032258064516,
       "sources": [
         "bzzoiro"
@@ -5398,6 +5732,7 @@
       "sample_max": 11.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.92455,
       "sources": [
         "bzzoiro"
@@ -5439,6 +5774,7 @@
       "sample_max": 14.0,
       "sample_min": 8.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 11.581666666666667,
       "sources": [
         "bzzoiro"
@@ -5482,6 +5818,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -5526,6 +5866,10 @@
       "sample_max": 16.0,
       "sample_min": 5.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 9.233,
       "sources": [
         "tennis-abstract"
@@ -5567,6 +5911,7 @@
       "sample_max": 13.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 6.155684210526315,
       "sources": [
         "bzzoiro"
@@ -5608,6 +5953,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -5652,6 +6001,7 @@
       "sample_max": 9.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.020263157894737,
       "sources": [
         "bzzoiro"
@@ -5693,6 +6043,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -5734,6 +6085,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 11.596529411764706,
       "sources": [
         "bzzoiro"
@@ -5781,6 +6133,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 19,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.77655172413793,
       "sources": [
         "espn-tennis",
@@ -5823,6 +6179,7 @@
       "sample_max": 17.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 10.988900000000001,
       "sources": [
         "bzzoiro"
@@ -5871,6 +6228,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -5912,6 +6270,7 @@
       "sample_max": 16.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.35,
       "sources": [
         "bzzoiro"
@@ -5953,6 +6312,7 @@
       "sample_max": 16.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.35,
       "sources": [
         "bzzoiro"
@@ -6003,6 +6363,7 @@
       "sample_max": 19.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 12.66,
       "sources": [
         "bzzoiro"
@@ -6046,6 +6407,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.1993,
       "sources": [
         "bzzoiro"
@@ -6087,6 +6449,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -6128,6 +6491,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -6171,6 +6535,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.642949999999999,
       "sources": [
         "bzzoiro"
@@ -6212,6 +6577,10 @@
       "sample_max": 37.0,
       "sample_min": 20.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 26.18655,
       "sources": [
         "bzzoiro",
@@ -6256,6 +6625,10 @@
       "sample_max": 16.0,
       "sample_min": 5.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 9.233,
       "sources": [
         "tennis-abstract"
@@ -6297,6 +6670,7 @@
       "sample_max": 24.0,
       "sample_min": 11.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.4725,
       "sources": [
         "bzzoiro"
@@ -6340,6 +6714,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -6383,6 +6761,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -6426,6 +6808,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.1993,
       "sources": [
         "bzzoiro"
@@ -6467,6 +6850,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -6517,6 +6901,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -6562,6 +6947,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 20,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.85066666666667,
       "sources": [
         "espn-tennis",
@@ -6607,6 +6996,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -6651,6 +7044,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.23978947368421,
       "sources": [
         "bzzoiro"
@@ -6699,6 +7093,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -6747,6 +7142,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.585714285714285,
       "sources": [
         "bzzoiro"
@@ -6788,6 +7184,7 @@
       "sample_max": 17.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.307857142857143,
       "sources": [
         "bzzoiro"
@@ -6838,6 +7235,10 @@
       "sample_max": 28.0,
       "sample_min": 12.0,
       "sample_size": 15,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 22.41332,
       "sources": [
         "bzzoiro",
@@ -6882,6 +7283,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 4.586562499999999,
       "sources": [
         "bzzoiro"
@@ -6923,6 +7325,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -6966,6 +7369,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 5.082833333333333,
       "sources": [
         "bzzoiro"
@@ -7016,6 +7420,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -7059,6 +7464,7 @@
       "sample_max": 11.0,
       "sample_min": 0.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.762235294117647,
       "sources": [
         "bzzoiro"
@@ -7102,6 +7508,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -7143,6 +7550,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -7186,6 +7594,10 @@
       "sample_max": 13.0,
       "sample_min": 1.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 6.423928571428571,
       "sources": [
         "tennis-abstract"
@@ -7227,6 +7639,7 @@
       "sample_max": 16.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.888111111111111,
       "sources": [
         "bzzoiro"
@@ -7277,6 +7690,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 23.092307692307692,
       "sources": [
         "bzzoiro",
@@ -7321,6 +7738,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -7367,6 +7785,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.661428571428573,
       "sources": [
         "espn-tennis",
@@ -7409,6 +7831,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -7450,6 +7876,10 @@
       "sample_max": 34.0,
       "sample_min": 12.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.38032258064516,
       "sources": [
         "bzzoiro"
@@ -7491,6 +7921,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -7534,6 +7968,7 @@
       "sample_max": 18.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 10.841285714285714,
       "sources": [
         "bzzoiro"
@@ -7577,6 +8012,10 @@
       "sample_max": 3.0,
       "sample_min": 2.0,
       "sample_size": 8,
+      "sample_split": [
+        8,
+        0
+      ],
       "shrunk_mean": 2.332777777777778,
       "sources": [
         "espn-tennis"
@@ -7618,6 +8057,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -7662,6 +8105,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 9.52357142857143,
       "sources": [
         "tennis-abstract"
@@ -7712,6 +8159,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 23.14659259259259,
       "sources": [
         "bzzoiro"
@@ -7753,6 +8204,7 @@
       "sample_max": 13.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 11.785714285714285,
       "sources": [
         "bzzoiro"
@@ -7794,6 +8246,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -7835,6 +8291,10 @@
       "sample_max": 31.0,
       "sample_min": 10.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 22.09620689655172,
       "sources": [
         "bzzoiro"
@@ -7878,6 +8338,10 @@
       "sample_max": 22.0,
       "sample_min": 0.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.444166666666666,
       "sources": [
         "tennis-abstract"
@@ -7921,6 +8385,10 @@
       "sample_max": 22.0,
       "sample_min": 0.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.444166666666666,
       "sources": [
         "tennis-abstract"
@@ -7962,6 +8430,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.494736842105263,
       "sources": [
         "bzzoiro"
@@ -8005,6 +8474,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 11.32321052631579,
       "sources": [
         "bzzoiro"
@@ -8048,6 +8518,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 11.32321052631579,
       "sources": [
         "bzzoiro"
@@ -8089,6 +8560,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -8139,6 +8611,7 @@
       "sample_max": 10.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.847058823529412,
       "sources": [
         "bzzoiro"
@@ -8182,6 +8655,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -8225,6 +8702,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 23.14659259259259,
       "sources": [
         "bzzoiro"
@@ -8268,6 +8749,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -8317,6 +8802,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.494736842105263,
       "sources": [
         "bzzoiro"
@@ -8360,6 +8846,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.642949999999999,
       "sources": [
         "bzzoiro"
@@ -8406,6 +8893,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.661428571428573,
       "sources": [
         "espn-tennis",
@@ -8451,6 +8942,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -8496,6 +8991,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -8538,6 +9037,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -8581,6 +9084,10 @@
       "sample_max": 34.0,
       "sample_min": 12.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.38032258064516,
       "sources": [
         "bzzoiro"
@@ -8624,6 +9131,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 13.047812500000001,
       "sources": [
         "bzzoiro"
@@ -8668,6 +9176,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -8710,6 +9222,7 @@
       "sample_max": 15.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 11.8661875,
       "sources": [
         "bzzoiro"
@@ -8753,6 +9266,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -8794,6 +9311,7 @@
       "sample_max": 16.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.93825,
       "sources": [
         "bzzoiro"
@@ -8835,6 +9353,7 @@
       "sample_max": 10.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.8278,
       "sources": [
         "bzzoiro"
@@ -8883,6 +9402,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -8931,6 +9451,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -8979,6 +9500,7 @@
       "sample_max": 20.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 14.2222,
       "sources": [
         "bzzoiro"
@@ -9020,6 +9542,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.1993,
       "sources": [
         "bzzoiro"
@@ -9061,6 +9584,7 @@
       "sample_max": 15.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.6735,
       "sources": [
         "bzzoiro"
@@ -9104,6 +9628,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -9147,6 +9672,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -9188,6 +9714,7 @@
       "sample_max": 16.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.93825,
       "sources": [
         "bzzoiro"
@@ -9229,6 +9756,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -9271,6 +9802,7 @@
       "sample_max": 13.0,
       "sample_min": 5.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 10.581666666666667,
       "sources": [
         "bzzoiro"
@@ -9314,6 +9846,10 @@
       "sample_max": 13.0,
       "sample_min": 1.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 6.423928571428571,
       "sources": [
         "tennis-abstract"
@@ -9357,6 +9893,7 @@
       "sample_max": 12.0,
       "sample_min": 5.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 10.574333333333334,
       "sources": [
         "bzzoiro"
@@ -9400,6 +9937,7 @@
       "sample_max": 17.0,
       "sample_min": 13.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 13.0308,
       "sources": [
         "bzzoiro"
@@ -9447,6 +9985,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 19,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.880000000000003,
       "sources": [
         "espn-tennis",
@@ -9491,6 +10033,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -9532,6 +10075,10 @@
       "sample_max": 34.0,
       "sample_min": 12.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.38032258064516,
       "sources": [
         "bzzoiro"
@@ -9573,6 +10120,10 @@
       "sample_max": 31.0,
       "sample_min": 10.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 22.09620689655172,
       "sources": [
         "bzzoiro"
@@ -9614,6 +10165,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.585714285714285,
       "sources": [
         "bzzoiro"
@@ -9655,6 +10207,7 @@
       "sample_max": 10.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.8278,
       "sources": [
         "bzzoiro"
@@ -9696,6 +10249,7 @@
       "sample_max": 17.0,
       "sample_min": 3.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.0235,
       "sources": [
         "bzzoiro"
@@ -9742,6 +10296,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.661428571428573,
       "sources": [
         "espn-tennis",
@@ -9784,6 +10342,7 @@
       "sample_max": 13.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 11.785714285714285,
       "sources": [
         "bzzoiro"
@@ -9834,6 +10393,7 @@
       "sample_max": 19.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 12.66,
       "sources": [
         "bzzoiro"
@@ -9875,6 +10435,7 @@
       "sample_max": 11.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.92455,
       "sources": [
         "bzzoiro"
@@ -9920,6 +10481,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 20,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.717333333333336,
       "sources": [
         "espn-tennis",
@@ -9964,6 +10529,10 @@
       "sample_max": 34.0,
       "sample_min": 12.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.38032258064516,
       "sources": [
         "bzzoiro"
@@ -10005,6 +10574,7 @@
       "sample_max": 16.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.888111111111111,
       "sources": [
         "bzzoiro"
@@ -10046,6 +10616,7 @@
       "sample_max": 16.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.888111111111111,
       "sources": [
         "bzzoiro"
@@ -10087,6 +10658,7 @@
       "sample_max": 13.0,
       "sample_min": 5.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 10.581666666666667,
       "sources": [
         "bzzoiro"
@@ -10128,6 +10700,7 @@
       "sample_max": 14.0,
       "sample_min": 8.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 11.581666666666667,
       "sources": [
         "bzzoiro"
@@ -10169,6 +10742,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -10210,6 +10784,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -10258,6 +10833,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -10306,6 +10882,7 @@
       "sample_max": 20.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 14.2222,
       "sources": [
         "bzzoiro"
@@ -10349,6 +10926,7 @@
       "sample_max": 11.0,
       "sample_min": 0.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.762235294117647,
       "sources": [
         "bzzoiro"
@@ -10397,6 +10975,7 @@
       "sample_max": 24.0,
       "sample_min": 11.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.4725,
       "sources": [
         "bzzoiro"
@@ -10438,6 +11017,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -10480,6 +11063,7 @@
       "sample_max": 24.0,
       "sample_min": 11.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.4725,
       "sources": [
         "bzzoiro"
@@ -10523,6 +11107,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 4.586562499999999,
       "sources": [
         "bzzoiro"
@@ -10564,6 +11149,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -10613,6 +11202,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -10660,6 +11253,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.625714285714285,
       "sources": [
         "espn-tennis",
@@ -10707,6 +11304,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.625714285714285,
       "sources": [
         "espn-tennis",
@@ -10754,6 +11355,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.625714285714285,
       "sources": [
         "espn-tennis",
@@ -10799,6 +11404,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 9.52357142857143,
       "sources": [
         "tennis-abstract"
@@ -10843,6 +11452,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 9.52357142857143,
       "sources": [
         "tennis-abstract"
@@ -10886,6 +11499,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -10928,6 +11545,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -10976,6 +11597,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -11018,6 +11643,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -11061,6 +11690,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -11104,6 +11734,7 @@
       "sample_max": 9.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.020263157894737,
       "sources": [
         "bzzoiro"
@@ -11145,6 +11776,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -11186,6 +11821,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -11236,6 +11872,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -11277,6 +11914,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 13.047812500000001,
       "sources": [
         "bzzoiro"
@@ -11318,6 +11956,7 @@
       "sample_max": 15.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 11.8661875,
       "sources": [
         "bzzoiro"
@@ -11359,6 +11998,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.1993,
       "sources": [
         "bzzoiro"
@@ -11400,6 +12040,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 10.050322580645162,
       "sources": [
         "bzzoiro"
@@ -11443,6 +12087,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -11486,6 +12131,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -11530,6 +12179,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -11579,6 +12232,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -11623,6 +12280,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 23.092307692307692,
       "sources": [
         "bzzoiro",
@@ -11674,6 +12335,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 23.092307692307692,
       "sources": [
         "bzzoiro",
@@ -11718,6 +12383,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 11.32321052631579,
       "sources": [
         "bzzoiro"
@@ -11763,6 +12429,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 20,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.717333333333336,
       "sources": [
         "espn-tennis",
@@ -11807,6 +12477,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 5.082833333333333,
       "sources": [
         "bzzoiro"
@@ -11850,6 +12521,7 @@
       "sample_max": 18.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 10.841285714285714,
       "sources": [
         "bzzoiro"
@@ -11900,6 +12572,10 @@
       "sample_max": 28.0,
       "sample_min": 12.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 22.35896153846154,
       "sources": [
         "bzzoiro",
@@ -11944,6 +12620,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -11987,6 +12667,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 23.14659259259259,
       "sources": [
         "bzzoiro"
@@ -12032,6 +12716,10 @@
       "sample_max": 52.0,
       "sample_min": 15.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 24.661428571428573,
       "sources": [
         "espn-tennis",
@@ -12076,6 +12764,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -12126,6 +12815,7 @@
       "sample_max": 10.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.847058823529412,
       "sources": [
         "bzzoiro"
@@ -12174,6 +12864,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.388857142857143,
       "sources": [
         "bzzoiro"
@@ -12217,6 +12908,10 @@
       "sample_max": 17.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 10.399074074074075,
       "sources": [
         "bzzoiro"
@@ -12260,6 +12955,10 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 6.343500000000001,
       "sources": [
         "tennis-abstract"
@@ -12301,6 +13000,7 @@
       "sample_max": 17.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 10.988900000000001,
       "sources": [
         "bzzoiro"
@@ -12342,6 +13042,7 @@
       "sample_max": 16.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.35,
       "sources": [
         "bzzoiro"
@@ -12383,6 +13084,7 @@
       "sample_max": 16.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.35,
       "sources": [
         "bzzoiro"
@@ -12426,6 +13128,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -12469,6 +13172,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -12512,6 +13216,7 @@
       "sample_max": 19.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 12.66,
       "sources": [
         "bzzoiro"
@@ -12555,6 +13260,7 @@
       "sample_max": 19.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 12.66,
       "sources": [
         "bzzoiro"
@@ -12596,6 +13302,7 @@
       "sample_max": 11.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.92455,
       "sources": [
         "bzzoiro"
@@ -12639,6 +13346,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.1993,
       "sources": [
         "bzzoiro"
@@ -12680,6 +13388,7 @@
       "sample_max": 17.0,
       "sample_min": 3.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.0235,
       "sources": [
         "bzzoiro"
@@ -12721,6 +13430,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -12762,6 +13472,7 @@
       "sample_max": 16.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.93825,
       "sources": [
         "bzzoiro"
@@ -12805,6 +13516,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.642949999999999,
       "sources": [
         "bzzoiro"
@@ -12853,6 +13565,10 @@
       "sample_max": 37.0,
       "sample_min": 20.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 26.18655,
       "sources": [
         "bzzoiro",
@@ -12897,6 +13613,10 @@
       "sample_max": 16.0,
       "sample_min": 5.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 9.233,
       "sources": [
         "tennis-abstract"
@@ -12940,6 +13660,10 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 6.343500000000001,
       "sources": [
         "tennis-abstract"
@@ -12990,6 +13714,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 23.14659259259259,
       "sources": [
         "bzzoiro"
@@ -13033,6 +13761,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -13074,6 +13806,7 @@
       "sample_max": 15.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.6735,
       "sources": [
         "bzzoiro"
@@ -13117,6 +13850,10 @@
       "sample_max": 21.0,
       "sample_min": 3.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.952916666666667,
       "sources": [
         "tennis-abstract"
@@ -13160,6 +13897,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 9.52357142857143,
       "sources": [
         "tennis-abstract"
@@ -13201,6 +13942,7 @@
       "sample_max": 11.0,
       "sample_min": 0.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.762235294117647,
       "sources": [
         "bzzoiro"
@@ -13242,6 +13984,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -13283,6 +14026,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -13326,6 +14070,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -13374,6 +14119,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -13415,6 +14161,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -13458,6 +14208,10 @@
       "sample_max": 31.0,
       "sample_min": 10.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 22.09620689655172,
       "sources": [
         "bzzoiro"
@@ -13501,6 +14255,10 @@
       "sample_max": 31.0,
       "sample_min": 10.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 22.09620689655172,
       "sources": [
         "bzzoiro"
@@ -13542,6 +14300,7 @@
       "sample_max": 14.0,
       "sample_min": 8.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 11.581666666666667,
       "sources": [
         "bzzoiro"
@@ -13585,6 +14344,10 @@
       "sample_max": 28.0,
       "sample_min": 12.0,
       "sample_size": 15,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 22.41332,
       "sources": [
         "bzzoiro",
@@ -13627,6 +14390,7 @@
       "sample_max": 18.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 10.841285714285714,
       "sources": [
         "bzzoiro"
@@ -13675,6 +14439,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -13725,6 +14490,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.388857142857143,
       "sources": [
         "bzzoiro"
@@ -13775,6 +14541,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.388857142857143,
       "sources": [
         "bzzoiro"
@@ -13823,6 +14590,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -13864,6 +14632,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -13912,6 +14681,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.585714285714285,
       "sources": [
         "bzzoiro"
@@ -13955,6 +14725,7 @@
       "sample_max": 20.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.747285714285715,
       "sources": [
         "bzzoiro"
@@ -13998,6 +14769,7 @@
       "sample_max": 20.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.747285714285715,
       "sources": [
         "bzzoiro"
@@ -14041,6 +14813,7 @@
       "sample_max": 20.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.747285714285715,
       "sources": [
         "bzzoiro"
@@ -14089,6 +14862,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -14132,6 +14906,7 @@
       "sample_max": 17.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.307857142857143,
       "sources": [
         "bzzoiro"
@@ -14175,6 +14950,7 @@
       "sample_max": 17.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.307857142857143,
       "sources": [
         "bzzoiro"
@@ -14218,6 +14994,7 @@
       "sample_max": 17.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.307857142857143,
       "sources": [
         "bzzoiro"
@@ -14259,6 +15036,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.23978947368421,
       "sources": [
         "bzzoiro"
@@ -14302,6 +15080,10 @@
       "sample_max": 32.0,
       "sample_min": 14.0,
       "sample_size": 18,
+      "sample_split": [
+        11,
+        7
+      ],
       "shrunk_mean": 22.804285714285715,
       "sources": [
         "espn-tennis",
@@ -14346,6 +15128,10 @@
       "sample_max": 3.0,
       "sample_min": 2.0,
       "sample_size": 20,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 2.333,
       "sources": [
         "espn-tennis"
@@ -14387,6 +15173,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 11.596529411764706,
       "sources": [
         "bzzoiro"
@@ -14428,6 +15215,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -14472,6 +15263,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -14516,6 +15311,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -14558,6 +15357,7 @@
       "sample_max": 11.0,
       "sample_min": 0.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.762235294117647,
       "sources": [
         "bzzoiro"
@@ -14599,6 +15399,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -14643,6 +15447,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 5.082833333333333,
       "sources": [
         "bzzoiro"
@@ -14686,6 +15491,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 5.082833333333333,
       "sources": [
         "bzzoiro"
@@ -14727,6 +15533,7 @@
       "sample_max": 16.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.888111111111111,
       "sources": [
         "bzzoiro"
@@ -14768,6 +15575,7 @@
       "sample_max": 13.0,
       "sample_min": 5.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 10.581666666666667,
       "sources": [
         "bzzoiro"
@@ -14809,6 +15617,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -14857,6 +15666,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.494736842105263,
       "sources": [
         "bzzoiro"
@@ -14900,6 +15710,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.1993,
       "sources": [
         "bzzoiro"
@@ -14941,6 +15752,7 @@
       "sample_max": 16.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.93825,
       "sources": [
         "bzzoiro"
@@ -14982,6 +15794,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -15023,6 +15836,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -15064,6 +15881,7 @@
       "sample_max": 10.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.8278,
       "sources": [
         "bzzoiro"
@@ -15112,6 +15930,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -15156,6 +15978,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.642949999999999,
       "sources": [
         "bzzoiro"
@@ -15199,6 +16022,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 4.586562499999999,
       "sources": [
         "bzzoiro"
@@ -15242,6 +16066,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 13.047812500000001,
       "sources": [
         "bzzoiro"
@@ -15283,6 +16108,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.494736842105263,
       "sources": [
         "bzzoiro"
@@ -15326,6 +16152,7 @@
       "sample_max": 9.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.020263157894737,
       "sources": [
         "bzzoiro"
@@ -15369,6 +16196,7 @@
       "sample_max": 9.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.020263157894737,
       "sources": [
         "bzzoiro"
@@ -15410,6 +16238,7 @@
       "sample_max": 13.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 6.155684210526315,
       "sources": [
         "bzzoiro"
@@ -15457,6 +16286,10 @@
       "sample_max": 32.0,
       "sample_min": 17.0,
       "sample_size": 19,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 22.94896551724138,
       "sources": [
         "espn-tennis",
@@ -15508,6 +16341,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -15558,6 +16392,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -15608,6 +16443,7 @@
       "sample_max": 12.0,
       "sample_min": 5.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 10.574333333333334,
       "sources": [
         "bzzoiro"
@@ -15658,6 +16494,7 @@
       "sample_max": 12.0,
       "sample_min": 5.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 10.574333333333334,
       "sources": [
         "bzzoiro"
@@ -15702,6 +16539,10 @@
       "sample_max": 22.0,
       "sample_min": 0.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.444166666666666,
       "sources": [
         "tennis-abstract"
@@ -15746,6 +16587,10 @@
       "sample_max": 22.0,
       "sample_min": 0.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.444166666666666,
       "sources": [
         "tennis-abstract"
@@ -15789,6 +16634,10 @@
       "sample_max": 21.0,
       "sample_min": 3.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.952916666666667,
       "sources": [
         "tennis-abstract"
@@ -15832,6 +16681,7 @@
       "sample_max": 12.0,
       "sample_min": 5.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 10.574333333333334,
       "sources": [
         "bzzoiro"
@@ -15873,6 +16723,7 @@
       "sample_max": 10.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.8278,
       "sources": [
         "bzzoiro"
@@ -15914,6 +16765,7 @@
       "sample_max": 17.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 10.988900000000001,
       "sources": [
         "bzzoiro"
@@ -15962,6 +16814,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -16003,6 +16856,7 @@
       "sample_max": 16.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.35,
       "sources": [
         "bzzoiro"
@@ -16044,6 +16898,7 @@
       "sample_max": 11.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.92455,
       "sources": [
         "bzzoiro"
@@ -16085,6 +16940,7 @@
       "sample_max": 15.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.6735,
       "sources": [
         "bzzoiro"
@@ -16126,6 +16982,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -16167,6 +17024,7 @@
       "sample_max": 16.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.93825,
       "sources": [
         "bzzoiro"
@@ -16215,6 +17073,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -16259,6 +17121,10 @@
       "sample_max": 16.0,
       "sample_min": 5.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 9.233,
       "sources": [
         "tennis-abstract"
@@ -16300,6 +17166,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.642949999999999,
       "sources": [
         "bzzoiro"
@@ -16341,6 +17208,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.585714285714285,
       "sources": [
         "bzzoiro"
@@ -16389,6 +17257,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -16430,6 +17299,7 @@
       "sample_max": 15.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 11.8661875,
       "sources": [
         "bzzoiro"
@@ -16471,6 +17341,7 @@
       "sample_max": 18.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 10.841285714285714,
       "sources": [
         "bzzoiro"
@@ -16519,6 +17390,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -16568,6 +17443,10 @@
       "sample_max": 32.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 23.092307692307692,
       "sources": [
         "bzzoiro",
@@ -16610,6 +17489,7 @@
       "sample_max": 9.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.020263157894737,
       "sources": [
         "bzzoiro"
@@ -16651,6 +17531,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 3.8032500000000002,
       "sources": [
         "bzzoiro"
@@ -16692,6 +17573,7 @@
       "sample_max": 17.0,
       "sample_min": 3.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.0235,
       "sources": [
         "bzzoiro"
@@ -16735,6 +17617,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 4.586562499999999,
       "sources": [
         "bzzoiro"
@@ -16778,6 +17661,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 4.586562499999999,
       "sources": [
         "bzzoiro"
@@ -16821,6 +17705,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 4.586562499999999,
       "sources": [
         "bzzoiro"
@@ -16864,6 +17749,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 13.047812500000001,
       "sources": [
         "bzzoiro"
@@ -16907,6 +17793,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 13.047812500000001,
       "sources": [
         "bzzoiro"
@@ -16948,6 +17835,7 @@
       "sample_max": 15.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 11.8661875,
       "sources": [
         "bzzoiro"
@@ -16991,6 +17879,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -17034,6 +17926,10 @@
       "sample_max": 13.0,
       "sample_min": 1.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 6.423928571428571,
       "sources": [
         "tennis-abstract"
@@ -17075,6 +17971,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -17119,6 +18019,10 @@
       "sample_max": 13.0,
       "sample_min": 1.0,
       "sample_size": 18,
+      "sample_split": [
+        8,
+        10
+      ],
       "shrunk_mean": 6.423928571428571,
       "sources": [
         "tennis-abstract"
@@ -17160,6 +18064,7 @@
       "sample_max": 13.0,
       "sample_min": 5.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 10.581666666666667,
       "sources": [
         "bzzoiro"
@@ -17208,6 +18113,10 @@
       "sample_max": 12.0,
       "sample_min": 4.0,
       "sample_size": 18,
+      "sample_split": [
+        7,
+        9
+      ],
       "shrunk_mean": 8.835714285714285,
       "sources": [
         "bzzoiro",
@@ -17250,6 +18159,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -17293,6 +18203,7 @@
       "sample_max": 17.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.307857142857143,
       "sources": [
         "bzzoiro"
@@ -17334,6 +18245,10 @@
       "sample_max": 22.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 9.984827586206897,
       "sources": [
         "bzzoiro"
@@ -17375,6 +18290,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -17418,6 +18337,7 @@
       "sample_max": 10.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.847058823529412,
       "sources": [
         "bzzoiro"
@@ -17461,6 +18381,7 @@
       "sample_max": 10.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.847058823529412,
       "sources": [
         "bzzoiro"
@@ -17504,6 +18425,7 @@
       "sample_max": 10.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.847058823529412,
       "sources": [
         "bzzoiro"
@@ -17547,6 +18469,7 @@
       "sample_max": 11.0,
       "sample_min": 0.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.762235294117647,
       "sources": [
         "bzzoiro"
@@ -17590,6 +18513,7 @@
       "sample_max": 11.0,
       "sample_min": 0.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.762235294117647,
       "sources": [
         "bzzoiro"
@@ -17631,6 +18555,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 11.596529411764706,
       "sources": [
         "bzzoiro"
@@ -17674,6 +18599,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -17717,6 +18643,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -17760,6 +18687,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -17808,6 +18736,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.4778,
       "sources": [
         "bzzoiro"
@@ -17851,6 +18780,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -17894,6 +18824,7 @@
       "sample_max": 20.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.747285714285715,
       "sources": [
         "bzzoiro"
@@ -17937,6 +18868,10 @@
       "sample_max": 3.0,
       "sample_min": 3.0,
       "sample_size": 1,
+      "sample_split": [
+        1,
+        0
+      ],
       "shrunk_mean": 2.453636363636363,
       "sources": [
         "espn-tennis"
@@ -17978,6 +18913,7 @@
       "sample_max": 7.0,
       "sample_min": 1.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 4.111823529411764,
       "sources": [
         "bzzoiro"
@@ -18028,6 +18964,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.388857142857143,
       "sources": [
         "bzzoiro"
@@ -18069,6 +19006,7 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 5.082833333333333,
       "sources": [
         "bzzoiro"
@@ -18110,6 +19048,7 @@
       "sample_max": 16.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.888111111111111,
       "sources": [
         "bzzoiro"
@@ -18151,6 +19090,7 @@
       "sample_max": 14.0,
       "sample_min": 8.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 11.581666666666667,
       "sources": [
         "bzzoiro"
@@ -18192,6 +19132,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -18233,6 +19174,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -18274,6 +19216,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -18317,6 +19260,10 @@
       "sample_max": 3.0,
       "sample_min": 2.0,
       "sample_size": 8,
+      "sample_split": [
+        8,
+        0
+      ],
       "shrunk_mean": 2.332777777777778,
       "sources": [
         "espn-tennis"
@@ -18360,6 +19307,10 @@
       "sample_max": 16.0,
       "sample_min": 5.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 9.233,
       "sources": [
         "tennis-abstract"
@@ -18408,6 +19359,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -18452,6 +19407,10 @@
       "sample_max": 28.0,
       "sample_min": 12.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 22.435884615384616,
       "sources": [
         "bzzoiro",
@@ -18496,6 +19455,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 11.32321052631579,
       "sources": [
         "bzzoiro"
@@ -18537,6 +19497,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.23978947368421,
       "sources": [
         "bzzoiro"
@@ -18578,6 +19539,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.494736842105263,
       "sources": [
         "bzzoiro"
@@ -18619,6 +19581,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 11.32321052631579,
       "sources": [
         "bzzoiro"
@@ -18662,6 +19625,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -18705,6 +19669,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -18748,6 +19713,7 @@
       "sample_max": 19.0,
       "sample_min": 9.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 14.700526315789475,
       "sources": [
         "bzzoiro"
@@ -18791,6 +19757,7 @@
       "sample_max": 19.0,
       "sample_min": 9.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 14.700526315789475,
       "sources": [
         "bzzoiro"
@@ -18832,6 +19799,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -18875,6 +19843,10 @@
       "sample_max": 21.0,
       "sample_min": 3.0,
       "sample_size": 14,
+      "sample_split": [
+        7,
+        7
+      ],
       "shrunk_mean": 8.952916666666667,
       "sources": [
         "tennis-abstract"
@@ -18916,6 +19888,7 @@
       "sample_max": 10.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.8278,
       "sources": [
         "bzzoiro"
@@ -18957,6 +19930,7 @@
       "sample_max": 17.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 10.988900000000001,
       "sources": [
         "bzzoiro"
@@ -19007,6 +19981,7 @@
       "sample_max": 20.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 14.2222,
       "sources": [
         "bzzoiro"
@@ -19050,6 +20025,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -19093,6 +20069,7 @@
       "sample_max": 8.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.720000000000001,
       "sources": [
         "bzzoiro"
@@ -19134,6 +20111,7 @@
       "sample_max": 19.0,
       "sample_min": 0.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 12.66,
       "sources": [
         "bzzoiro"
@@ -19175,6 +20153,7 @@
       "sample_max": 11.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.92455,
       "sources": [
         "bzzoiro"
@@ -19216,6 +20195,7 @@
       "sample_max": 17.0,
       "sample_min": 3.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.0235,
       "sources": [
         "bzzoiro"
@@ -19264,6 +20244,10 @@
       "sample_max": 37.0,
       "sample_min": 20.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 26.18655,
       "sources": [
         "bzzoiro",
@@ -19308,6 +20292,10 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 6.343500000000001,
       "sources": [
         "tennis-abstract"
@@ -19356,6 +20344,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -19398,6 +20390,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -19439,6 +20432,7 @@
       "sample_max": 17.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 13.047812500000001,
       "sources": [
         "bzzoiro"
@@ -19489,6 +20483,7 @@
       "sample_max": 20.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 14.2222,
       "sources": [
         "bzzoiro"
@@ -19539,6 +20534,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.388857142857143,
       "sources": [
         "bzzoiro"
@@ -19582,6 +20578,10 @@
       "sample_max": 9.0,
       "sample_min": 1.0,
       "sample_size": 10,
+      "sample_split": [
+        0,
+        10
+      ],
       "shrunk_mean": 6.343500000000001,
       "sources": [
         "tennis-abstract"
@@ -19625,6 +20625,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -19669,6 +20673,10 @@
       "sample_max": 14.0,
       "sample_min": 2.0,
       "sample_size": 21,
+      "sample_split": [
+        9,
+        10
+      ],
       "shrunk_mean": 8.584225806451613,
       "sources": [
         "bzzoiro",
@@ -19713,6 +20721,7 @@
       "sample_max": 18.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 10.841285714285714,
       "sources": [
         "bzzoiro"
@@ -19756,6 +20765,7 @@
       "sample_max": 18.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 10.841285714285714,
       "sources": [
         "bzzoiro"
@@ -19804,6 +20814,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -19852,6 +20863,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -19900,6 +20912,7 @@
       "sample_max": 15.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.388857142857143,
       "sources": [
         "bzzoiro"
@@ -19941,6 +20954,7 @@
       "sample_max": 13.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 11.785714285714285,
       "sources": [
         "bzzoiro"
@@ -19982,6 +20996,7 @@
       "sample_max": 13.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 11.785714285714285,
       "sources": [
         "bzzoiro"
@@ -20030,6 +21045,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -20071,6 +21087,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.585714285714285,
       "sources": [
         "bzzoiro"
@@ -20119,6 +21136,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.585714285714285,
       "sources": [
         "bzzoiro"
@@ -20167,6 +21185,7 @@
       "sample_max": 24.0,
       "sample_min": 11.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.4725,
       "sources": [
         "bzzoiro"
@@ -20208,6 +21227,7 @@
       "sample_max": 24.0,
       "sample_min": 11.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.4725,
       "sources": [
         "bzzoiro"
@@ -20249,6 +21269,7 @@
       "sample_max": 17.0,
       "sample_min": 6.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 13.307857142857143,
       "sources": [
         "bzzoiro"
@@ -20297,6 +21318,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -20338,6 +21360,10 @@
       "sample_max": 14.0,
       "sample_min": 4.0,
       "sample_size": 16,
+      "sample_split": [
+        9,
+        6
+      ],
       "shrunk_mean": 8.973384615384616,
       "sources": [
         "bzzoiro",
@@ -20387,6 +21413,10 @@
       "sample_max": 15.0,
       "sample_min": 3.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.542730769230769,
       "sources": [
         "bzzoiro",
@@ -20429,6 +21459,10 @@
       "sample_max": 13.0,
       "sample_min": 0.0,
       "sample_size": 16,
+      "sample_split": [
+        4,
+        10
+      ],
       "shrunk_mean": 8.623076923076923,
       "sources": [
         "bzzoiro",
@@ -20473,6 +21507,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -20514,6 +21552,7 @@
       "sample_max": 15.0,
       "sample_min": 8.0,
       "sample_size": 6,
+      "sample_split": null,
       "shrunk_mean": 11.8661875,
       "sources": [
         "bzzoiro"
@@ -20555,6 +21594,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -20596,6 +21639,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -20637,6 +21684,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 11.596529411764706,
       "sources": [
         "bzzoiro"
@@ -20678,6 +21726,7 @@
       "sample_max": 13.0,
       "sample_min": 5.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 10.581666666666667,
       "sources": [
         "bzzoiro"
@@ -20719,6 +21768,7 @@
       "sample_max": 14.0,
       "sample_min": 8.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 11.581666666666667,
       "sources": [
         "bzzoiro"
@@ -20760,6 +21810,7 @@
       "sample_max": 6.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.238777777777778,
       "sources": [
         "bzzoiro"
@@ -20803,6 +21854,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -20846,6 +21898,7 @@
       "sample_max": 8.0,
       "sample_min": 1.0,
       "sample_size": 8,
+      "sample_split": null,
       "shrunk_mean": 4.281388888888889,
       "sources": [
         "bzzoiro"
@@ -20889,6 +21942,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.23978947368421,
       "sources": [
         "bzzoiro"
@@ -20932,6 +21986,7 @@
       "sample_max": 8.0,
       "sample_min": 2.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 4.23978947368421,
       "sources": [
         "bzzoiro"
@@ -20975,6 +22030,7 @@
       "sample_max": 13.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 6.155684210526315,
       "sources": [
         "bzzoiro"
@@ -21018,6 +22074,7 @@
       "sample_max": 13.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 6.155684210526315,
       "sources": [
         "bzzoiro"
@@ -21059,6 +22116,7 @@
       "sample_max": 19.0,
       "sample_min": 9.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 14.700526315789475,
       "sources": [
         "bzzoiro"
@@ -21100,6 +22158,7 @@
       "sample_max": 15.0,
       "sample_min": 7.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 11.6735,
       "sources": [
         "bzzoiro"
@@ -21141,6 +22200,7 @@
       "sample_max": 7.0,
       "sample_min": 2.0,
       "sample_size": 10,
+      "sample_split": null,
       "shrunk_mean": 4.2149,
       "sources": [
         "bzzoiro"
@@ -21189,6 +22249,10 @@
       "sample_max": 37.0,
       "sample_min": 20.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 26.18655,
       "sources": [
         "bzzoiro",
@@ -21238,6 +22302,10 @@
       "sample_max": 11.0,
       "sample_min": 4.0,
       "sample_size": 10,
+      "sample_split": [
+        4,
+        5
+      ],
       "shrunk_mean": 8.1423,
       "sources": [
         "bzzoiro",
@@ -21280,6 +22348,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -21321,6 +22393,10 @@
       "sample_max": 19.0,
       "sample_min": 5.0,
       "sample_size": 21,
+      "sample_split": [
+        10,
+        10
+      ],
       "shrunk_mean": 9.953870967741935,
       "sources": [
         "bzzoiro"
@@ -21364,6 +22440,10 @@
       "sample_max": 21.0,
       "sample_min": 5.0,
       "sample_size": 17,
+      "sample_split": [
+        9,
+        7
+      ],
       "shrunk_mean": 9.674481481481482,
       "sources": [
         "bzzoiro"
@@ -21405,6 +22485,7 @@
       "sample_max": 12.0,
       "sample_min": 3.0,
       "sample_size": 9,
+      "sample_split": null,
       "shrunk_mean": 5.731631578947368,
       "sources": [
         "bzzoiro"
@@ -21446,6 +22527,10 @@
       "sample_max": 15.0,
       "sample_min": 5.0,
       "sample_size": 19,
+      "sample_split": [
+        8,
+        8
+      ],
       "shrunk_mean": 8.674827586206897,
       "sources": [
         "bzzoiro"
@@ -21489,6 +22574,7 @@
       "sample_max": 17.0,
       "sample_min": 13.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 13.0308,
       "sources": [
         "bzzoiro"
@@ -21532,6 +22618,7 @@
       "sample_max": 17.0,
       "sample_min": 13.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 13.0308,
       "sources": [
         "bzzoiro"
@@ -21575,6 +22662,7 @@
       "sample_max": 17.0,
       "sample_min": 13.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 13.0308,
       "sources": [
         "bzzoiro"
@@ -21623,6 +22711,7 @@
       "sample_max": 5.0,
       "sample_min": 1.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 3.4692000000000003,
       "sources": [
         "bzzoiro"
@@ -21671,6 +22760,7 @@
       "sample_max": 12.0,
       "sample_min": 5.0,
       "sample_size": 5,
+      "sample_split": null,
       "shrunk_mean": 10.574333333333334,
       "sources": [
         "bzzoiro"
@@ -21712,6 +22802,7 @@
       "sample_max": 18.0,
       "sample_min": 9.0,
       "sample_size": 7,
+      "sample_split": null,
       "shrunk_mean": 11.596529411764706,
       "sources": [
         "bzzoiro"
@@ -21760,6 +22851,7 @@
       "sample_max": 5.0,
       "sample_min": 0.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.111142857142857,
       "sources": [
         "bzzoiro"
@@ -21801,6 +22893,7 @@
       "sample_max": 13.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 11.785714285714285,
       "sources": [
         "bzzoiro"
@@ -21844,6 +22937,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -21887,6 +22981,7 @@
       "sample_max": 6.0,
       "sample_min": 4.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.5285714285714285,
       "sources": [
         "bzzoiro"
@@ -21928,6 +23023,7 @@
       "sample_max": 20.0,
       "sample_min": 9.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.747285714285715,
       "sources": [
         "bzzoiro"
@@ -21978,6 +23074,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -22028,6 +23125,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -22078,6 +23176,7 @@
       "sample_max": 8.0,
       "sample_min": 5.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 4.574142857142856,
       "sources": [
         "bzzoiro"
@@ -22126,6 +23225,7 @@
       "sample_max": 24.0,
       "sample_min": 11.0,
       "sample_size": 4,
+      "sample_split": null,
       "shrunk_mean": 12.4725,
       "sources": [
         "bzzoiro"
@@ -22169,6 +23269,10 @@
       "sample_max": 3.0,
       "sample_min": 3.0,
       "sample_size": 1,
+      "sample_split": [
+        1,
+        0
+      ],
       "shrunk_mean": 2.453636363636363,
       "sources": [
         "espn-tennis"

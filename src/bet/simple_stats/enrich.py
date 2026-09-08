@@ -853,7 +853,7 @@ def build_slate_gate(
     )
 
 
-def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, str]:
+def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, int, str]:
     """Order events best-corroborated-first, so a capped run spends its
     provider budget on the events most likely to reach READY: identity
     CONFIRMED by two sources beats a single-source FUZZY_MATCHED one, and an
@@ -870,14 +870,25 @@ def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, s
     kickoff was 86 minutes before the run finished, while Valencia - Real
     Betis, Bodo/Glimt - NEC and LASK - Celtic came back BLOCKED on the cap.
 
+    Tour level outranks corroboration too, for tennis specifically. ATP
+    Challenger discovery (2026-09-08) is single-source same as the main tour,
+    so without this term the corroboration bucket is again a tie and the sort
+    falls back to kickoff -- and prime-time main-tour matches kick off later
+    than the morning's Challenger first rounds, so they lose. On 2026-09-08
+    that sent Sabalenka - Noskova, Tiafoe - Michelsen and Pegula - Navarro
+    (2 WTA US Open, 1 ATP US Open) past the 40-event cap in favour of thin
+    Challenger fixtures.
+
     Started events are pushed behind the cap rather than dropped from ACTIVE,
     so a run over a past date (a backfill or a re-analysis) still enriches
     everything it is given.
     """
     confirmed = 0 if event.identity_confidence == "CONFIRMED" else 1
     has_native_ids = 0 if event.provider_team_ids else 1
+    is_challenger = 1 if "Challenger" in event.competition else 0
     return (
         1 if _has_started(event, now) else 0,
+        is_challenger,
         confirmed + has_native_ids,
         event.start_time,
     )

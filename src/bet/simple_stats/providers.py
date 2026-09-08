@@ -2166,6 +2166,38 @@ def _misidentified_reason(
     return None
 
 
+def _espn_football_rescope_for_form(client: Any, team_id: str, rate_limiter: RateLimiter) -> Any:
+    """The client to ask for this team's recent form/H2H, not the one that found it.
+
+    ``client`` was built from the *fixture's own* competition (``_provider_client``),
+    which for a cup or continental match is not the league the team plays week to
+    week. Its schedule endpoint only ever answers for the league that scopes the
+    URL, so a team discovered via 'Champions League' or 'Carabao Cup' gets asked
+    for recent form there too, and before that competition's own matches have
+    been played the honest answer is empty -- verified live 2026-09-08: Real
+    Madrid under ``uefa.champions`` returns 0 recent fixtures on the Champions
+    League's first matchday, despite 4 finished LaLiga matches that same week.
+
+    ``ESPNClient.get_team_home_league`` answers the team's actual domestic
+    league regardless of which league scoped that lookup, so this asks once
+    (cached 24h there) and re-scopes only the *next* call -- never the identity
+    lookup that already found ``team_id``, and never for a non-football
+    provider, whose client this function is not given.
+    """
+    try:
+        home_league = client.get_team_home_league(team_id)
+    except Exception:  # noqa: BLE001 - a lookup failure is not fatal, just no rescope
+        home_league = None
+    if not home_league or home_league == getattr(client, "league", None):
+        return client
+    from bet.api_clients.espn import ESPNClient
+
+    try:
+        return ESPNClient(sport="football", league=home_league, rate_limiter=rate_limiter)
+    except Exception:  # noqa: BLE001 - an unbuildable client is not fatal, just no rescope
+        return client
+
+
 def _fetch_l10_generic(
     provider_key: str, team_name: str, rate_limiter: RateLimiter, last_n: int = 10, competition: str = ""
 ) -> FetchOutcome:
@@ -2197,8 +2229,11 @@ def _fetch_l10_generic(
     # fetch eight of them and discard six.
     draw_filter = _draw_filter_kwargs(provider_key, competition)
     max_age_days = _SLAM_SCOPED_OBSERVATION_AGE_DAYS if draw_filter else None
+    fetch_client = client
+    if provider_key == "espn-football":
+        fetch_client = _espn_football_rescope_for_form(client, team_id, rate_limiter)
     try:
-        raw = getattr(client, method_name)(team_id, last_n=last_n, **draw_filter)
+        raw = getattr(fetch_client, method_name)(team_id, last_n=last_n, **draw_filter)
         if unwrap:
             if raw.status != SourceResultStatus.SUCCESS:
                 outcome.data_gaps.append(f"{provider_key}: {raw.status.value} fetching last fixtures")
@@ -2209,6 +2244,19 @@ def _fetch_l10_generic(
     except Exception as exc:  # noqa: BLE001
         outcome.data_gaps.append(f"{provider_key}: last-fixtures error for '{team_name}': {exc}")
         return outcome
+    if not fixtures and fetch_client is not client:
+        # The competition that discovered this team was not its home league,
+        # and asking there answered nothing -- fall back to the scope that at
+        # least found the team, rather than reporting an absence the home
+        # league was never asked to confirm.
+        try:
+            raw = getattr(client, method_name)(team_id, last_n=last_n, **draw_filter)
+            if unwrap:
+                fixtures = raw.value or [] if raw.status == SourceResultStatus.SUCCESS else []
+            else:
+                fixtures = raw or []
+        except Exception:  # noqa: BLE001
+            fixtures = []
     if not fixtures:
         outcome.data_gaps.append(f"{provider_key}: no recent matches for '{team_name}'")
         return outcome
@@ -2377,8 +2425,16 @@ def _fetch_h2h_generic(
     if not id_one or not id_two:
         outcome.data_gaps.append(f"{provider_key}: could not resolve h2h identity for '{team_one}' vs '{team_two}'")
         return outcome
+    fetch_client = client
+    if provider_key == "espn-football":
+        fetch_client = _espn_football_rescope_for_form(client, id_one, rate_limiter)
     try:
-        meetings = client.get_h2h(id_one, id_two, last_n=last_n) or []
+        meetings = fetch_client.get_h2h(id_one, id_two, last_n=last_n) or []
+        if not meetings and fetch_client is not client:
+            # Same fallback as the L10 path: team_one's home league was
+            # asked and had nothing to say about team_two, so fall back to
+            # the competition that discovered them both in the first place.
+            meetings = client.get_h2h(id_one, id_two, last_n=last_n) or []
     except Exception as exc:  # noqa: BLE001
         outcome.data_gaps.append(f"{provider_key}: h2h error for '{team_one}' vs '{team_two}': {exc}")
         return outcome

@@ -363,6 +363,46 @@ def test_get_team_last_fixtures_applies_cutoff_and_event_exclusion(
     assert fixtures[0]["away_participant_id"] == "362"
 
 
+def test_get_team_home_league_reads_defaultLeague_across_any_scope(
+    monkeypatch, isolated_cache_dir,
+):
+    """Verified live 2026-09-08: /teams/{id} (no /schedule) answers a team's
+    real domestic league from its own record even when the client asking is
+    scoped to a competition the team is merely a guest in -- Real Madrid
+    queried under 'uefa.champions' still reports defaultLeague.slug 'esp.1'."""
+    from bet.integration import telemetry_wrapper
+
+    payload = {"team": {"id": "86", "displayName": "Real Madrid", "defaultLeague": {"slug": "esp.1"}}}
+    monkeypatch.setattr(telemetry_wrapper, "wrap_request", lambda **_: _transport_result(json.dumps(payload)))
+    client = ESPNClient(sport="football", league="uefa.champions", rate_limiter=RateLimiter())
+
+    assert client.get_team_home_league("86") == "esp.1"
+
+
+def test_get_team_home_league_falls_back_to_leagueAbbrev(monkeypatch, isolated_cache_dir):
+    from bet.integration import telemetry_wrapper
+
+    payload = {"team": {"id": "366", "leagueAbbrev": "eng.1"}}
+    monkeypatch.setattr(telemetry_wrapper, "wrap_request", lambda **_: _transport_result(json.dumps(payload)))
+    client = ESPNClient(sport="football", league="eng.league_cup", rate_limiter=RateLimiter())
+
+    assert client.get_team_home_league("366") == "eng.1"
+
+
+def test_get_team_home_league_is_none_when_request_fails(monkeypatch, isolated_cache_dir):
+    from bet.integration import telemetry_wrapper
+
+    monkeypatch.setattr(telemetry_wrapper, "wrap_request", lambda **_: _transport_result("", status_code=500))
+    client = ESPNClient(sport="football", league="uefa.champions", rate_limiter=RateLimiter())
+
+    assert client.get_team_home_league("86") is None
+
+
+def test_get_team_home_league_is_none_for_non_football_sport(isolated_cache_dir):
+    client = ESPNClient(sport="tennis", league="atp", rate_limiter=RateLimiter())
+    assert client.get_team_home_league("123") is None
+
+
 def test_get_event_fixture_result_requires_explicit_unique_sides(
     monkeypatch, isolated_cache_dir, isolated_evidence_root,
 ):

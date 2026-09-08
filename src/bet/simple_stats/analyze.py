@@ -2536,6 +2536,7 @@ def _rows_for_sample(
                 corroborated_matches=row_corroborated,
                 confidence=confidence,
                 confidence_reason=confidence_reason,
+                sample_split=side_sizes,
                 data_quality=dossier.readiness,
                 sample_excluded=dict(sorted(row_excluded.items())),
                 observation_flags=dict(sorted(row_flags.items())),

@@ -277,6 +277,114 @@ def test_espn_football_goals_is_a_real_zero_not_absence(monkeypatch):
     assert outcome.metrics["goals_against"][0].value == 0
 
 
+class _FakeEspnHomeLeagueClient:
+    """Stands in for the ESPNClient _espn_football_rescope_for_form builds
+    once it learns a team's real domestic league."""
+
+    def __init__(self, league, fixtures, stats_by_fixture):
+        self.league = league
+        self._fixtures = fixtures
+        self._stats_by_fixture = stats_by_fixture
+
+    def get_team_last_fixtures(self, team_id, last_n=10):
+        return self._fixtures
+
+    def get_h2h(self, id_one, id_two, last_n=10):
+        return self._fixtures
+
+    def get_fixture_stats(self, fixture_id):
+        return self._stats_by_fixture[fixture_id]
+
+
+class _FakeEspnCupScopedClient:
+    """Stands in for the client ``_provider_client`` hands back when the
+    fixture being enriched is a cup/continental competition: it resolves the
+    team's identity there (that competition's own team list), but its own
+    schedule/H2H endpoints have nothing to say before that competition's
+    matches are played -- exactly what a Champions League or League Cup
+    client answers on the competition's first matchday."""
+
+    def __init__(self, team_id, league, home_league, home_league_client=None):
+        self._team_id = team_id
+        self.league = league
+        self._home_league = home_league
+        self._home_league_client = home_league_client
+
+    def resolve_team_id(self, name):
+        return self._team_id
+
+    def get_team_home_league(self, team_id):
+        if self._home_league is None:
+            raise RuntimeError("ESPN team-detail lookup failed")
+        return self._home_league
+
+    def get_team_last_fixtures(self, team_id, last_n=10):
+        return []
+
+    def get_h2h(self, id_one, id_two, last_n=10):
+        return []
+
+    def get_fixture_stats(self, fixture_id):
+        return self._home_league_client.get_fixture_stats(fixture_id)
+
+
+def test_espn_football_l10_rescopes_to_the_teams_home_league(monkeypatch):
+    """Real Madrid discovered via a Champions League fixture: the cup-scoped
+    client resolves identity but its own schedule is empty pre-matchday-1
+    (verified live 2026-09-08). _fetch_l10_generic must re-scope to the
+    team's real league (LaLiga) and read the recent fixtures found there."""
+    fixtures = [{
+        "id": "401882894", "date": "2026-09-04T19:00:00Z",
+        "home_team": "Real Betis", "away_team": "Real Madrid",
+        "home_participant_id": "244", "away_participant_id": "86",
+    }]
+    stats = {"401882894": _FakeFixtureStats({"corners": {"home": 4, "away": 6}})}
+    home_client = _FakeEspnHomeLeagueClient("esp.1", fixtures, stats)
+    cup_client = _FakeEspnCupScopedClient("86", "uefa.champions", "esp.1", home_client)
+
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: cup_client)
+    monkeypatch.setattr("bet.api_clients.espn.ESPNClient", lambda **kw: home_client)
+
+    outcome = providers._fetch_l10_generic("espn-football", "Real Madrid", rate_limiter=None)
+
+    assert "corners_total" in outcome.metrics
+    assert not any("no recent matches" in g for g in outcome.data_gaps)
+
+
+def test_espn_football_l10_falls_back_when_home_league_unknown(monkeypatch):
+    """A team ESPN cannot place in a home league (get_team_home_league
+    raises, or the rescoped client has nothing either) must still report the
+    plain 'no recent matches' gap -- rescoping must never turn a real
+    absence into a silent success, nor crash the fetch."""
+    cup_client = _FakeEspnCupScopedClient("999", "eng.league_cup", None)
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: cup_client)
+
+    outcome = providers._fetch_l10_generic("espn-football", "Nowhere FC", rate_limiter=None)
+
+    assert any("no recent matches" in g for g in outcome.data_gaps)
+
+
+def test_espn_football_h2h_rescopes_to_the_teams_home_league(monkeypatch):
+    """Same rescoping, exercised through the H2H path: the cup-scoped
+    client's own get_h2h is empty, the home-league client's is not."""
+    meetings = [{
+        "id": "401882894", "date": "2026-09-04T19:00:00Z",
+        "competitors": [{"id": "86"}, {"id": "244"}],
+    }]
+    stats = {"401882894": _FakeFixtureStats({"corners": {"home": 4, "away": 6}})}
+    home_client = _FakeEspnHomeLeagueClient("esp.1", meetings, stats)
+    cup_client = _FakeEspnCupScopedClient("86", "uefa.champions", "esp.1", home_client)
+
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: cup_client)
+    monkeypatch.setattr("bet.api_clients.espn.ESPNClient", lambda **kw: home_client)
+
+    outcome = providers._fetch_h2h_generic(
+        "espn-football", "Real Madrid", "Real Betis", rate_limiter=None
+    )
+
+    assert not any("no h2h meetings" in g for g in outcome.data_gaps)
+
+
 class _FakeHighlightlyClient:
     def __init__(self, l10_matches=None, h2h_matches=None, stats_by_match_id=None):
         self._l10_matches = l10_matches or []

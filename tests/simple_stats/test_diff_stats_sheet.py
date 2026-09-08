@@ -3,8 +3,22 @@ docs/PLAN_BOGATE_STATYSTYKI.md. Every later phase changes the stats sheet's
 row count, so this script (and the frozen fixture + baseline it reads) is
 what tells an intended change apart from an accidental regression.
 
-Both baselines were last re-recorded on **2026-09-08**, second pass, when a
-row stopped describing two different samples at once. A provider conflict that
+Both baselines were last re-recorded on **2026-09-08**, third pass, when
+``StatsSheetRow`` gained ``sample_split``: ``(team_a retained, team_b
+retained)`` on every match-total row, already computed internally as
+``_side_sizes`` for ``confidence_reason == "ONE_SIDED_SAMPLE"`` and discarded
+rather than kept -- so a reader who needed to know how one-sided a sample
+actually was had to reconstruct the two counts by hand from the dossier's raw
+``team_a_l10``/``team_b_l10`` buckets, re-applying ``scope_values``'
+exclusions and the per-day collapse to get numbers that could disagree with
+the row above them if either step was done slightly wrong. The diff reviewed
+before accepting it: 342 rows moved (v2 baseline), every one a `[match]` row
+gaining `sample_split`, **no row added, none removed, and not one
+probability, centre or tier moved** -- the same signature as the tennis
+corroboration fix below. `None` on every `[team]`/`[player]` row, which is
+one participant's history by construction and has no second side to split.
+
+Second pass, when a row stopped describing two different samples at once. A provider conflict that
 straddles the line settles nothing and had already left ``sample_size``; it had
 not left the list the count model prices from, nor the corroboration count, and
 one real match sitting in three buckets was counted three times. The diff

@@ -878,6 +878,15 @@ class StatsSheetRow(StrictBaseModel):
     # 11 is not the settled sample the total suggests. None when the total
     # alone explains the tier.
     confidence_reason: str | None = None
+    # (team_a retained observations, team_b retained observations), post
+    # ``scope_values`` -- the two numbers ``confidence_reason ==
+    # "ONE_SIDED_SAMPLE"`` is a verdict about, so a reader is not left to
+    # reconstruct them by hand from the dossier's raw ``team_a_l10``/
+    # ``team_b_l10`` buckets (which still carry pre-scoping duplicates and
+    # need ``sample_excluded`` re-applied to match). ``None`` for a per-team
+    # row or a player prop, which are one participant's history by
+    # construction and have no second side to split.
+    sample_split: tuple[int, int] | None = None
     data_quality: Literal["READY", "PARTIAL", "BLOCKED"]
     # Optional and always last: a sheet produced without a tipster run is a
     # valid sheet, and every field above it is computed with no knowledge that

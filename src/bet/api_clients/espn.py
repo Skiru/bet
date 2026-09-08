@@ -2484,6 +2484,45 @@ class ESPNClient(BaseAPIClient):
             evidence_refs=payload_result.evidence_refs,
         )
 
+    def get_team_home_league(self, team_id: str) -> str | None:
+        """This team's own domestic league, per ESPN's team-detail endpoint.
+
+        A team is discovered through the fixture being enriched, which for a
+        cup or continental competition is not the league it plays week to
+        week -- and ``/teams/{id}/schedule`` only ever answers for the league
+        that scopes the request. Verified live 2026-09-08: Real Madrid's
+        ``uefa.champions``-scoped schedule returns 0 events on the Champions
+        League's first matchday even though LaLiga had already played 4
+        rounds, and the same team queried under ``esp.1`` returns them.
+
+        ``/teams/{id}`` (no ``/schedule``) answers ``defaultLeague`` from the
+        team's own record regardless of which league scoped the URL --
+        confirmed live under ``uefa.champions`` for team 86, which still
+        reports ``defaultLeague.slug == "esp.1"``. That makes it safe to ask
+        once, with the same client that discovered the team, and use the
+        answer to re-scope the *next* call instead of guessing a
+        competition -> country table that would not cover every case.
+
+        Football only: individual sports have no analogous "home league" and
+        already resolve players tour-wide (``_resolve_athlete_id``).
+        """
+        if self.sport != "football":
+            return None
+        cache_key = f"espn/{self.sport}/team_home_league/{team_id}"
+        cached = self._check_cache(cache_key, ttl_hours=24)
+        if cached:
+            return cached.get("league") or None
+        try:
+            data = self._request(f"/teams/{team_id}")
+        except Exception:
+            return None
+        team = data.get("team", data) if isinstance(data, dict) else {}
+        if not isinstance(team, dict):
+            return None
+        league = (team.get("defaultLeague") or {}).get("slug") or team.get("leagueAbbrev") or None
+        self._save_cache(cache_key, {"league": league})
+        return league
+
     def get_injuries(self) -> list[dict]:
         """Get injury reports for the league."""
         cache_key = f"espn/{self.sport}/{self.league}/injuries"
