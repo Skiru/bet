@@ -256,17 +256,32 @@ def knockout_second_leg_is_live(dossier: EventDossierV1) -> bool:
     return abs(home - away) <= 1
 
 
-def is_knockout_round(dossier: EventDossierV1) -> bool:
-    """A named cup/knockout round -- not a league matchday, and not a
-    round-robin league-phase matchday either.
 
-    ``fixture_context.round_name`` is ``api_clients.bzzoiro._round_label``'s
-    composed label, and that function only drops the "Matchday" suffix for a
-    provider-named knockout tie (its own ``round_name`` field, non-empty).
-    Every other shape it can produce keeps "Matchday" in it: a domestic league
-    reads "Regular season · Matchday 6", and the Champions League's
-    round-robin league phase reads "League phase · Matchday 1" -- both still
-    schedule, not stakes.
+# ``fixture_context.round_name`` is ``api_clients.bzzoiro._round_label``'s
+# composed label. A domestic league reads "Regular season · Matchday 6", the
+# Champions League's round-robin league phase reads "League phase · Matchday
+# 1", a group stage reads "Group A · Matchday 8" -- all still schedule, not
+# stakes, and all built as "<stage> · Matchday <n>". A named knockout tie
+# skips the join entirely: "Quarterfinals", "Round 3", "Round of 16",
+# "Qualification Round 1".
+#
+# The first version of this check (2026-09-08) read "no 'Matchday'
+# substring" as the signal, which works whenever ``round_number`` is present
+# -- and breaks the moment it is not: five MLS fixtures and one Veikkausliiga
+# fixture on 2026-09-09 carry a bare ``round_label`` of "Regular season" with
+# no round number behind it at all, and would have been read as knockout
+# ties and zero-weighted on cards/fouls/goals_2h_total for no reason. Checked
+# live against that day's dossier before this fix shipped. A prefix check
+# against the known *schedule* stages is the safer direction to test from:
+# reject what is known to be schedule, rather than accept what merely lacks
+# one particular suffix.
+_LEAGUE_STAGE_PREFIXES = ("Regular season", "League phase", "Group ")
+
+
+def is_knockout_round(dossier: EventDossierV1) -> bool:
+    """A named cup/knockout round -- not a league matchday, a round-robin
+    league-phase matchday, or a group-stage matchday, and not any of those
+    three with the matchday number missing either.
 
     Seen together on 2026-09-08, the day this rule was added: "Quarterfinals"
     (Independiente Santa Fe-Vasco da Gama, Fluminense-Platense -- Copa
@@ -276,12 +291,15 @@ def is_knockout_round(dossier: EventDossierV1) -> bool:
     phase · Matchday 1" (Borussia Dortmund-Villarreal, AEK Athens-LASK) on the
     same slate. The four knockout fixtures cost two of the day's six VALUE
     singles on goals_2h_total/fouls_total -- see
-    ``runs/2026-09-08/2026-09-08_coupon_review.md``.
+    ``runs/2026-09-08/2026-09-08_coupon_review.md``. "Round of 16"/
+    "Qualification Round 1" (Copa Colombia, England FA Cup) confirmed as
+    further knockout shapes on 2026-09-09, the day the bare-"Regular season"
+    counterexample above was found and fixed.
     """
     context = dossier.fixture_context
     if context is None or not context.round_name:
         return False
-    return "Matchday" not in context.round_name
+    return not context.round_name.startswith(_LEAGUE_STAGE_PREFIXES)
 
 
 # A knockout round's sample risk is not "rougher" or "calmer" in one

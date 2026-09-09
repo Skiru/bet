@@ -198,14 +198,25 @@ def test_no_first_leg_is_not_a_second_leg():
     [
         ("Quarterfinals", True),
         ("Round 3", True),
+        ("Round of 16", True),
+        ("Qualification Round 1", True),
         ("Regular season · Matchday 6", False),
         ("League phase · Matchday 1", False),
         ("Group A · Matchday 8", False),
+        # The false positive found live on 2026-09-09: five MLS fixtures and
+        # one Veikkausliiga fixture carry a bare "Regular season" round_label
+        # with no round_number behind it, so no "Matchday" suffix ever gets
+        # composed -- the very first version of this check (substring-based)
+        # would have read all six as knockout ties and zero-weighted their
+        # cards/fouls/goals_2h_total samples for no reason.
+        ("Regular season", False),
+        ("League phase", False),
+        ("Group A", False),
         (None, False),
         ("", False),
     ],
 )
-def test_a_knockout_round_is_a_named_round_without_a_matchday(round_name, expected):
+def test_a_knockout_round_is_a_named_round_not_a_schedule_stage(round_name, expected):
     context = GRENAL_CONTEXT.model_copy(update={"round_name": round_name})
     assert is_knockout_round(_dossier(fixture_context=context)) is expected
 
