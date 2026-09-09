@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -10,7 +9,6 @@ from unittest.mock import patch
 from bet.tipsters.contracts import ExtractorVerdict, RawDocument
 from bet.tipsters.zawodtyper import (
     ZAWODTYPER_COOKIE_POLICY_NO_COOKIE,
-    ZAWODTYPER_COOKIE_POLICY_TECHNICAL,
     build_zawodtyper_daily_url,
     build_zawodtyper_transport_warnings,
     build_zawodtyper_xhr_payloads,

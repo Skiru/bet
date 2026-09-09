@@ -53,7 +53,6 @@ from bet.simple_stats.contracts import (
 from bet.tipsters.claim import MarketClaim, classify_claim
 from bet.tipsters.contracts import TipsterPick
 from bet.tipsters.matching import pair_score, side_score
-from bet.tipsters.normalization import normalize_key
 
 # Both sides must clear this. 82 is what bet.tipsters.pipeline_adapter already
 # uses for cross-source event grouping, so a pick that two sources agree is the

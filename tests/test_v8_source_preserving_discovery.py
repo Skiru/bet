@@ -1,9 +1,8 @@
 """Test suite for source-preserving discovery models and deduplication (Cases 01-06)."""
 
 from datetime import UTC, datetime
-import pytest
 
-from bet.discovery.models import DiscoveredEvent, MergedFixture, SourceRef, ProviderEventCandidate
+from bet.discovery.models import DiscoveredEvent
 from bet.discovery.dedup import DeduplicationEngine
 
 

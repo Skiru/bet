@@ -1,7 +1,5 @@
-import pytest
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.runner import run_freemium_rescue_capture
 
 def test_rescue_runner_mock_execution(tmp_path):

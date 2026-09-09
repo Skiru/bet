@@ -1,4 +1,3 @@
-import pytest
 
 from bet.enrichment.football_data_foundation.source_bound_activation.contracts import ActivationPolicy
 from bet.enrichment.football_data_foundation.source_bound_activation.gate import evaluate_activation_gate

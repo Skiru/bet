@@ -44,7 +44,6 @@ from bet.simple_stats.artifact_io import (  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
     EventListV1,
-    MarketContextV1,
     StatsSheetV1,
     SuperbetOfferV1,
     TipsterSignalV1,

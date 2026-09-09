@@ -65,7 +65,6 @@ from bet.simple_stats.bet_builder_draft import (
     BarComponents,
     MIN_REPORTABLE_CALIBRATION,
     bar_components,
-    bar_input,
     draft_legs,
     mechanism_family,
     shrink_k_for_market,

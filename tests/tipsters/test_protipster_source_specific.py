@@ -1,4 +1,3 @@
-import pytest
 from bet.tipsters.contracts import RawDocument, ExtractorVerdict
 from bet.tipsters.protipster import (
     is_allowed_protipster_url,

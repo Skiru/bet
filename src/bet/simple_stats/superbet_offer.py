@@ -59,6 +59,7 @@ recorded on every match so the tolerance can be audited rather than trusted.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping
@@ -966,9 +967,12 @@ def match_offer_events(
     """
     from bet.api_clients.superbet import split_match_name
 
+    event_meta: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
     exact_index: dict[tuple[str, tuple[str, ...]], list[EventRecord]] = {}
     for event in event_list.events:
-        exact_index.setdefault((event.sport, _side_key(_sides(event))), []).append(event)
+        side_k = _side_key(_sides(event))
+        event_meta[event.event_id] = (side_k, _folded_side_key(_sides(event)))
+        exact_index.setdefault((event.sport, side_k), []).append(event)
 
     # (raw, sport, normalised sides) for everything the feed offered in a sport
     # this pipeline reads. Computed once: pass two scans it per leftover event.
@@ -1055,10 +1059,9 @@ def match_offer_events(
     for event in event_list.events:
         if event.event_id in scored:
             continue
-        mine = _side_key(_sides(event))
+        mine, mine_folded = event_meta[event.event_id]
         if len(mine) != 2:
             continue
-        mine_folded = _folded_side_key(_sides(event))
         hits: list[tuple[int, float, dict[str, Any]]] = []
         for index, (raw, sport, theirs, kickoff) in leftovers:
             if sport != event.sport or len(theirs) != 2:
@@ -1074,21 +1077,23 @@ def match_offer_events(
         # And the reverse check: this Superbet fixture must not be compatible
         # with any *other* event of ours, or the pairing is a coin flip.
         rivals = 0
+        theirs = offered[index][2]
+        their_folded = folded_by_index[index]
+        their_kickoff = offered[index][3]
         for other in event_list.events:
             if other.sport != event.sport:
                 continue
-            theirs = offered[index][2]
-            candidate = _side_key(_sides(other))
+            candidate, candidate_folded = event_meta[other.event_id]
             if len(candidate) != 2:
                 continue
-            if _kickoff_ok(other.sport, other.start_time, offered[index][3]) is None:
+            if _kickoff_ok(other.sport, other.start_time, their_kickoff) is None:
                 continue
             # The same compatibility the forward pass used, folded fallback
             # included. Testing the reverse direction more strictly than the
             # forward one would let the folded match through while the guard
             # meant to bound it looked at a narrower question.
             if _pair_compatible(
-                candidate, theirs, _folded_side_key(_sides(other)), folded_by_index[index]
+                candidate, theirs, candidate_folded, their_folded
             ):
                 rivals += 1
         if rivals != 1:
@@ -1546,25 +1551,36 @@ def collect_superbet_offer(
             gaps.append(f"capped at {max_events} fixtures; {len(skipped)} matched fixtures not priced")
             without_offer = without_offer + [event_id for event_id, _ in skipped]
 
-    offers: list[SuperbetEventOffer] = []
-    for event_id, found in ordered:
+    def _fetch_one_odds(item: tuple[str, dict[str, Any]]) -> tuple[str, dict[str, Any], str | None]:
+        event_id, found = item
         raw = found["raw"]
         superbet_id = raw.get("eventId") or raw.get("offerId")
         detailed = raw
+        err_msg = None
         try:
             fetched = api.event_odds(superbet_id)
             if fetched:
                 detailed = fetched
         except Exception as exc:  # noqa: BLE001 - one dead fixture is not a dead run
-            gaps.append(f"event {superbet_id}: {exc}")
-        offers.append(
-            build_event_offer(
-                detailed,
-                event=events_by_id.get(event_id),
-                delta_minutes=found["delta_minutes"],
-                matched_by=str(found.get("matched_by") or "name_and_kickoff"),
-            )
-        )
+            err_msg = f"event {superbet_id}: {exc}"
+        return event_id, detailed, err_msg
+
+    offers: list[SuperbetEventOffer] = []
+    if ordered:
+        with ThreadPoolExecutor(max_workers=min(8, len(ordered))) as pool:
+            futures = [pool.submit(_fetch_one_odds, item) for item in ordered]
+            for future, (event_id, found) in zip(futures, ordered, strict=False):
+                _, detailed, err_msg = future.result()
+                if err_msg:
+                    gaps.append(err_msg)
+                offers.append(
+                    build_event_offer(
+                        detailed,
+                        event=events_by_id.get(event_id),
+                        delta_minutes=found["delta_minutes"],
+                        matched_by=str(found.get("matched_by") or "name_and_kickoff"),
+                    )
+                )
 
     missing = sorted(set(without_offer))
     # offerState=prematch stops carrying a fixture the moment it goes live, so

@@ -40,7 +40,6 @@ import argparse
 import hashlib
 import json
 import shutil
-import sys
 from collections import Counter
 from pathlib import Path
 

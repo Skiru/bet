@@ -1,12 +1,8 @@
-import pytest
-from pathlib import Path
-from bet.tipsters.contracts import RawDocument, ExtractorVerdict
+from bet.tipsters.contracts import RawDocument
 from bet.tipsters.typersi import extract_typersi_document
 from bet.tipsters.sportsgambler import extract_sportsgambler_documents
-from bet.tipsters.protipster import extract_protipster_document
-from bet.tipsters.pipeline_adapter import consensus_from_picks, to_legacy_pick, write_artifact
-from bet.tipsters.handoff import build_tipster_evidence_handoff, write_handoff_artifact
-from bet.tipsters.source_registry import CERTIFIED_SHADOW_SOURCE_IDS
+from bet.tipsters.pipeline_adapter import consensus_from_picks, to_legacy_pick
+from bet.tipsters.handoff import build_tipster_evidence_handoff
 
 
 def test_certified_shadow_consensus_and_handoff(tmp_path):

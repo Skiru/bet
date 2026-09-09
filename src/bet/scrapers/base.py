@@ -5,7 +5,6 @@ import math
 import time
 import random
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from sqlalchemy.orm import sessionmaker

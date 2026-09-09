@@ -33,7 +33,6 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
 from bet.simple_stats.artifact_io import load_market_context, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventListV1,
-    MarketContextV1,
     StatsSheetV1,
     SuperbetOfferV1,
     TipsterSignalV1,
@@ -47,7 +46,6 @@ from bet.simple_stats.bet_builder_draft import (  # noqa: E402
 )
 from bet.simple_stats.coupons import (  # noqa: E402
     MAX_SINGLES,
-    PRICE_TOLERANCE_PCT,
     AnalystVeto,
     CouponSet,
     build_coupons,

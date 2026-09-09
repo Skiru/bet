@@ -7,7 +7,6 @@ Fallback L6 in tennis H2H chain — works when tennis-abstract is rate-limited
 and SofaScore event H2H is unavailable.
 """
 
-import json
 import logging
 import re
 import time

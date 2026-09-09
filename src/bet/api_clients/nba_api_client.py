@@ -7,7 +7,6 @@ Free, no API key needed. Rate limit: ~1 req/sec.
 import json
 import time
 from datetime import datetime
-from pathlib import Path
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
@@ -89,7 +88,6 @@ class NBAAPIClient(BaseAPIClient):
             fixtures = []
             for game_id, teams in games.items():
                 if "home" in teams and "away" in teams:
-                    from dataclasses import asdict
                     fixtures.append(NormalizedFixture(
                         fixture_id=str(game_id),
                         source="nba-api",

@@ -33,7 +33,7 @@ def test_point_in_time_windows_and_deterministic_drift(db_conn, tmp_path):
     os.environ["BET_EVIDENCE_ROOT"] = str(tmp_path)
 
     try:
-        from bet.integration.evidence import EvidenceRef, write_bundle_manifest
+        from bet.integration.evidence import write_bundle_manifest
 
         from bet.integration.telemetry_wrapper import TransportResult
         from bet.integration.evidence import persist_response_evidence

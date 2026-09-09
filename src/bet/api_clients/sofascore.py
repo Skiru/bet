@@ -13,7 +13,6 @@ Base URL: https://api.sofascore.com/api/v1/
 
 import logging
 import re
-from typing import Dict, List, Optional, Any
 import requests
 
 from .base_client import BaseAPIClient, APIError, APINotFoundError

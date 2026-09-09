@@ -1,5 +1,4 @@
-import pytest
-from bet.tipsters.risk_policy import get_risk_policy, ComplianceTier, EvidenceUse
+from bet.tipsters.risk_policy import get_risk_policy, ComplianceTier
 from bet.tipsters.pipeline_adapter import to_legacy_pick
 from bet.tipsters.contracts import TipsterPick
 from bet.tipsters.handoff import build_tipster_evidence_handoff

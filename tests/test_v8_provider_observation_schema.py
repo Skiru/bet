@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 import pytest
 
-from bet.db.schema import init_db, get_schema_version, SCHEMA_VERSION
+from bet.db.schema import init_db, get_schema_version
 
 
 def test_c3_fresh_db_has_committed_observation_schema(tmp_path):

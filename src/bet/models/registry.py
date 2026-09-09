@@ -85,21 +85,7 @@ class ModelCardV1(StrictBaseModel):
 
         from pathlib import Path
 
-        # ModelPackageResolver belongs to the quarantined S0-S10 stack
-        # (legacy/bet_pipeline/readiness_contracts.py). Fail closed rather than
-        # raise: this is an eligibility check, and "cannot verify" must read as
-        # "not eligible", never as an error that aborts an unrelated caller.
-        #
-        # SyntaxError is caught alongside ImportError because the quarantined
-        # module does not merely fail to import -- 16 files under legacy/ still
-        # carry unresolved merge markers, and an unparseable module raises
-        # SyntaxError, which ImportError does not cover. Catching only
-        # ImportError made this method raise instead of returning False,
-        # contradicting the comment directly above it.
-        try:
-            from legacy.bet_pipeline.readiness_contracts import ModelPackageResolver
-        except (ImportError, SyntaxError):
-            ModelPackageResolver = None  # noqa: N806 -- rebinding the imported name, not a new variable
+        ModelPackageResolver = None
 
         if self.package_path and ModelPackageResolver is not None:
             pkg = ModelPackageResolver.resolve_package(self.package_path, approved_dirs=[Path(self.package_path)])

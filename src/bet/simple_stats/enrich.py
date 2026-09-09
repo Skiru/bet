@@ -55,7 +55,7 @@ from bet.simple_stats.providers import (
     metric_capable_providers,
 )
 
-MAX_WORKERS = 4
+MAX_WORKERS = 8
 
 # Goalkeepers are skipped when collecting player props: none of the five prop
 # markets in PLAYER_PROP_LINES is offered on a keeper, so asking for their
@@ -1114,8 +1114,14 @@ def enrich_events(
     }
 
     tasks = [task for event in active_events for task in _build_tasks(event)]
+    extras_by_event: dict[str, _FixtureExtras] = {}
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         futures = {pool.submit(_run_task, task, rate_limiter, run_budget): task for task in tasks}
+        extras_futures = {
+            pool.submit(_fixture_extras_for_event, event, rate_limiter, run_budget): event
+            for event in active_events
+        } if active_events else {}
+
         for future in as_completed(futures):
             task = futures[future]
             try:
@@ -1123,6 +1129,15 @@ def enrich_events(
             except Exception as exc:  # noqa: BLE001 - one (event, provider) failure must not abort the run
                 outcome = FetchOutcome(data_gaps=[f"{task.provider}: unhandled error: {exc}"])
             per_event[task.event.event_id][task.slot].merge(outcome)
+
+        for future in as_completed(extras_futures):
+            event = extras_futures[future]
+            try:
+                extras_by_event[event.event_id] = future.result()
+            except Exception as exc:  # noqa: BLE001 - one event must not abort the run
+                extras_by_event[event.event_id] = _FixtureExtras(
+                    data_gaps=[f"unhandled error collecting fixture context: {exc}"]
+                )
 
     # A second pass, not more tasks in the first: props need the fixture's XI
     # before they know which players to ask about, so they cannot be enumerated
@@ -1141,26 +1156,6 @@ def enrich_events(
                 except Exception as exc:  # noqa: BLE001 - one event's props must not abort the run
                     props_by_event[event.event_id] = _PlayerProps(
                         data_gaps=[f"unhandled error collecting player props: {exc}"]
-                    )
-
-    # Always collected, never opt-in. Unlike player props this needs no lineup
-    # and no extra identity: the referee id arrived free with discovery and the
-    # team ids are the same ones the metric fetches already used. Its failures
-    # are data gaps, so a provider outage here costs a context line, not a run.
-    extras_by_event: dict[str, _FixtureExtras] = {}
-    if active_events:
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            futures = {
-                pool.submit(_fixture_extras_for_event, event, rate_limiter, run_budget): event
-                for event in active_events
-            }
-            for future in as_completed(futures):
-                event = futures[future]
-                try:
-                    extras_by_event[event.event_id] = future.result()
-                except Exception as exc:  # noqa: BLE001 - one event must not abort the run
-                    extras_by_event[event.event_id] = _FixtureExtras(
-                        data_gaps=[f"unhandled error collecting fixture context: {exc}"]
                     )
 
     dossiers = [

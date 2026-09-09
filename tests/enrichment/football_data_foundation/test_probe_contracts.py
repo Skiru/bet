@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from bet.enrichment.football_data_foundation.kernel.contracts import FactType, ProviderCapabilityError, SourceRole
+from bet.enrichment.football_data_foundation.kernel.contracts import ProviderCapabilityError, SourceRole
 from bet.enrichment.football_data_foundation.providers.registry import get_adapter
 
 FIX = Path(__file__).parent.parent / "fixtures/enrichment/football_data_foundation/pass1"

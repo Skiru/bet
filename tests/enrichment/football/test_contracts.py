@@ -150,7 +150,6 @@ def test_t1_normalized_match_hash_is_evidence_independent():
 
 def test_t1_nan_inf_blocks_snapshot():
     from bet.enrichment.football.contracts import round_float_six
-    import math
 
     with pytest.raises(ValueError, match="NaN and Infinity are not allowed"):
         round_float_six(float("nan"))

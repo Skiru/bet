@@ -18,7 +18,7 @@ if _SCRIPTS_DIR.name != "scripts":
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from utils import normalize_team_name
+from bet.utils import normalize_team_name
 
 try:
     from bet.odds_merge import merge_event_odds as _market_safe_merge_event_odds

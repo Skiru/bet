@@ -1,6 +1,4 @@
-import pytest
 
-from bet.enrichment.football_data_foundation.kernel.contracts import FactType, SourceRole
 from bet.enrichment.football_data_foundation.providers.registry import (
     get_adapter,
     get_registered_football_adapters,

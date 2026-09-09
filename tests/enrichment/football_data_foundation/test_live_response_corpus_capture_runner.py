@@ -1,11 +1,6 @@
-import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.runner import (
     run_live_response_corpus_capture,
-)
-from bet.enrichment.football_data_foundation.live_response_corpus_capture.contracts import (
-    CaptureStatus,
 )
 
 

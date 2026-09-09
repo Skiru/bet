@@ -11,7 +11,6 @@ The property under test throughout is the one that makes this data safe to add:
 dossier's context slots and never ``metrics``, so no hit rate can be counted
 from them and ``p_low`` cannot move.
 """
-from types import SimpleNamespace
 
 import pytest
 

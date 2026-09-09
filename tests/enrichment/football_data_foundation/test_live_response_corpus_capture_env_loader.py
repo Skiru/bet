@@ -1,6 +1,5 @@
 import os
 import pytest
-from pathlib import Path
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.env_loader import (
     load_project_dotenv,
     get_credential,

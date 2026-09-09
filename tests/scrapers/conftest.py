@@ -5,7 +5,6 @@ import tempfile
 import sqlite3
 
 from bet.db.schema import init_db
-from bet.scrapers.engine import get_session_factory, Base
 from bet.scrapers.models import _reflect_existing_tables
 
 @pytest.fixture

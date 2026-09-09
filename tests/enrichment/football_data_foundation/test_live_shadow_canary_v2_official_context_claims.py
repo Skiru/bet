@@ -1,4 +1,3 @@
-from datetime import datetime, UTC
 from bet.enrichment.football_data_foundation.live_shadow_canary.contracts import OfficialFixtureContext
 from bet.enrichment.football_data_foundation.live_shadow_canary.official_context import build_official_context_claim_batch
 from bet.enrichment.football_data_foundation.kernel.contracts import FactType, ProofLevel

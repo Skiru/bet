@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from .base_client import BaseAPIClient, APIError
+from .base_client import BaseAPIClient
 from .rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)

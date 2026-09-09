@@ -21,7 +21,6 @@ from bet.simple_stats import providers
 from bet.simple_stats.contracts import ModelPrediction
 from bet.simple_stats.market_context import (
     SIGNAL_MARKETS,
-    _model_probability,
 )
 from bet.simple_stats.providers import (
     RunBudget,

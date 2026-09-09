@@ -49,7 +49,9 @@ football. Football is uncapped; a stable answer is worth one call.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+import threading
 from typing import Any
 
 from bet.api_clients import get_client
@@ -114,12 +116,14 @@ CALLS_PER_EVENT = 4
 # entitlement belongs to the subscription, not to a league or a fixture, so one
 # probe answers for every event in the run.
 _ENTITLEMENT_CACHE: dict[str, str] = {}
+_ENTITLEMENT_LOCK = threading.Lock()
 
 
 def reset_entitlement_cache() -> None:
     """Forget the probe result. For tests, and for a long-lived process that
     wants a fresh answer rather than one cached across betting days."""
-    _ENTITLEMENT_CACHE.clear()
+    with _ENTITLEMENT_LOCK:
+        _ENTITLEMENT_CACHE.clear()
 
 
 def _now_iso() -> str:
@@ -178,16 +182,18 @@ def _probe_entitlement(client: Any, provider_event_id: str) -> tuple[str, Source
     than a synthetic one, so its answer is also the first event's data and no
     call is wasted establishing it.
     """
-    cached = _ENTITLEMENT_CACHE.get("football_unlimited")
-    if cached is not None:
-        return cached, None
+    with _ENTITLEMENT_LOCK:
+        cached = _ENTITLEMENT_CACHE.get("football_unlimited")
+        if cached is not None:
+            return cached, None
     result = client.get_odds_comparison_result(provider_event_id)
     entitlement = _entitlement_of(result)
     # Only a definitive answer is cached. A transport error says nothing about
     # the subscription, and caching it would silently disable the grid for the
     # rest of a run over one dropped connection.
     if entitlement in ("ENTITLED", "NOT_ENTITLED"):
-        _ENTITLEMENT_CACHE["football_unlimited"] = entitlement
+        with _ENTITLEMENT_LOCK:
+            _ENTITLEMENT_CACHE["football_unlimited"] = entitlement
     return entitlement, result
 
 
@@ -203,6 +209,109 @@ def _quotes_from(result: SourceOperationResult) -> list[MarketOddsLine]:
         return []
     value = result.value or {}
     return [MarketOddsLine(**quote) for quote in value.get("quotes") or []]
+
+
+def _collect_event_context(
+    event: EventRecord,
+    client: Any,
+    budget: RunBudget,
+    prefetched: dict[str, dict[str, Any]],
+    prefetch_note: str,
+) -> tuple[EventMarketContext, int, str]:
+    provider_event_id = event.source_ids[PROVIDER]
+    calls = 0
+    gaps: list[str] = []
+    unknown_markets: list[str] = []
+
+    # --- the signal path: this event's corners quotes ------------------
+    odds: list[MarketOddsLine] = []
+    if budget.try_consume(PROVIDER):
+        calls += 1
+        result = client.get_odds_result(provider_event_id, market=SIGNAL_MARKET)
+        if result.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+            odds = _quotes_from(result)
+            unknown_markets.extend((result.value or {}).get("unknown_markets") or [])
+            if not odds:
+                gaps.append(f"no {SIGNAL_MARKET} quotes published for this fixture")
+        else:
+            gaps.append(f"corners odds unavailable: {result.status} {result.error_code}")
+    else:
+        gaps.append("corners odds skipped: run call budget exhausted")
+
+    # --- context: the provider's consensus block ----------------------
+    consensus: dict[str, float] = {}
+    if budget.try_consume(PROVIDER):
+        calls += 1
+        result = client.get_consensus_odds_result(provider_event_id)
+        if result.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+            consensus = dict((result.value or {}).get("consensus_odds") or {})
+        else:
+            gaps.append(f"consensus odds unavailable: {result.status} {result.error_code}")
+    else:
+        gaps.append("consensus odds skipped: run call budget exhausted")
+
+    # --- depth: the per-bookmaker grid, entitlement permitting ---------
+    comparison: list[MarketOddsLine] = []
+    entitlement = "NOT_ATTEMPTED"
+    bookmakers_count = 0
+    with _ENTITLEMENT_LOCK:
+        cached_ent = _ENTITLEMENT_CACHE.get("football_unlimited")
+    if cached_ent != "NOT_ENTITLED":
+        if budget.try_consume(PROVIDER):
+            calls += 1
+            entitlement, result = _probe_entitlement(client, provider_event_id)
+            if result is None:
+                # The probe was already answered by an earlier event, so this
+                # is a plain fetch rather than a probe.
+                result = client.get_odds_comparison_result(provider_event_id)
+                entitlement = _entitlement_of(result)
+            if entitlement == "ENTITLED":
+                comparison = _quotes_from(result)
+                bookmakers_count = int((result.value or {}).get("bookmakers_count") or 0)
+                unknown_markets.extend((result.value or {}).get("unknown_markets") or [])
+            elif entitlement == "ERROR":
+                gaps.append(
+                    f"bookmaker comparison unavailable: {result.status} {result.error_code}"
+                )
+        else:
+            gaps.append("bookmaker comparison skipped: run call budget exhausted")
+    else:
+        entitlement = "NOT_ENTITLED"
+
+    # --- the independent second opinion -------------------------------
+    prediction: ModelPrediction | None = None
+    if prefetch_note:
+        gaps.append(prefetch_note)
+    if provider_event_id in prefetched:
+        # Same parser, same fields, no request. The list and the per-event
+        # endpoint share ``_parse_prediction_row`` precisely so that this
+        # branch cannot produce a different number from the one below.
+        prediction = ModelPrediction(**prefetched[provider_event_id])
+    elif budget.try_consume(PROVIDER):
+        calls += 1
+        result = client.get_prediction_result(provider_event_id)
+        if result.status is SourceResultStatus.SUCCESS:
+            prediction = ModelPrediction(**(result.value or {})["prediction"])
+        elif result.status is SourceResultStatus.NOT_FOUND:
+            gaps.append("no model prediction published for this fixture")
+        else:
+            gaps.append(f"model prediction unavailable: {result.status} {result.error_code}")
+    else:
+        gaps.append("model prediction skipped: run call budget exhausted")
+
+    ctx = EventMarketContext(
+        event_id=event.event_id,
+        provider_event_id=provider_event_id,
+        odds=odds,
+        consensus_odds=consensus,
+        bookmaker_comparison=comparison,
+        comparison_entitlement=entitlement,  # type: ignore[arg-type]
+        bookmakers_count=bookmakers_count,
+        predictions=prediction,
+        unknown_markets=sorted(set(unknown_markets)),
+        data_gaps=gaps,
+    )
+    return ctx, calls, entitlement
 
 
 def collect_market_context(
@@ -251,114 +360,31 @@ def collect_market_context(
                 f"{listing.error_code}; fell back to one call per fixture"
             )
 
-    for event in candidates:
-        provider_event_id = event.source_ids[PROVIDER]
-        gaps: list[str] = []
-        unknown_markets: list[str] = []
-
-        # --- the signal path: this event's corners quotes ------------------
-        odds: list[MarketOddsLine] = []
-        if budget.try_consume(PROVIDER):
-            calls += 1
-            result = client.get_odds_result(provider_event_id, market=SIGNAL_MARKET)
-            if result.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
-                odds = _quotes_from(result)
-                unknown_markets.extend((result.value or {}).get("unknown_markets") or [])
-                if not odds:
-                    gaps.append(f"no {SIGNAL_MARKET} quotes published for this fixture")
-            else:
-                gaps.append(f"corners odds unavailable: {result.status} {result.error_code}")
-        else:
-            gaps.append("corners odds skipped: run call budget exhausted")
-
-        # --- context: the provider's consensus block ----------------------
-        consensus: dict[str, float] = {}
-        if budget.try_consume(PROVIDER):
-            calls += 1
-            result = client.get_consensus_odds_result(provider_event_id)
-            if result.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
-                consensus = dict((result.value or {}).get("consensus_odds") or {})
-            else:
-                gaps.append(f"consensus odds unavailable: {result.status} {result.error_code}")
-        else:
-            gaps.append("consensus odds skipped: run call budget exhausted")
-
-        # --- depth: the per-bookmaker grid, entitlement permitting ---------
-        comparison: list[MarketOddsLine] = []
-        entitlement = "NOT_ATTEMPTED"
-        bookmakers_count = 0
-        if _ENTITLEMENT_CACHE.get("football_unlimited") != "NOT_ENTITLED":
-            if budget.try_consume(PROVIDER):
-                calls += 1
-                entitlement, result = _probe_entitlement(client, provider_event_id)
-                if result is None:
-                    # The probe was already answered by an earlier event, so this
-                    # is a plain fetch rather than a probe.
-                    result = client.get_odds_comparison_result(provider_event_id)
-                    entitlement = _entitlement_of(result)
-                if entitlement == "ENTITLED":
-                    comparison = _quotes_from(result)
-                    bookmakers_count = int((result.value or {}).get("bookmakers_count") or 0)
-                    unknown_markets.extend((result.value or {}).get("unknown_markets") or [])
-                elif entitlement == "ERROR":
-                    gaps.append(
-                        f"bookmaker comparison unavailable: {result.status} {result.error_code}"
-                    )
-                # An entitlement that worked earlier this run and 403s now is
-                # surfaced rather than smoothed over: a subscription that lapses
-                # mid-run makes the artifact half one thing and half another,
-                # and that is exactly what an operator needs told.
-                if (
-                    entitlement_seen == "ENTITLED"
-                    and entitlement == "NOT_ENTITLED"
-                ):
-                    gaps.append(
-                        "ANOMALY: bookmaker comparison was entitled earlier in this "
-                        "run and answered 403 here -- the grid in this artifact is "
-                        "not uniform across events"
-                    )
-            else:
-                gaps.append("bookmaker comparison skipped: run call budget exhausted")
-        else:
-            entitlement = "NOT_ENTITLED"
-        if entitlement in ("ENTITLED", "NOT_ENTITLED"):
-            entitlement_seen = entitlement
-
-        # --- the independent second opinion -------------------------------
-        prediction: ModelPrediction | None = None
-        if prefetch_note:
-            gaps.append(prefetch_note)
-        if provider_event_id in prefetched:
-            # Same parser, same fields, no request. The list and the per-event
-            # endpoint share ``_parse_prediction_row`` precisely so that this
-            # branch cannot produce a different number from the one below.
-            prediction = ModelPrediction(**prefetched[provider_event_id])
-        elif budget.try_consume(PROVIDER):
-            calls += 1
-            result = client.get_prediction_result(provider_event_id)
-            if result.status is SourceResultStatus.SUCCESS:
-                prediction = ModelPrediction(**(result.value or {})["prediction"])
-            elif result.status is SourceResultStatus.NOT_FOUND:
-                gaps.append("no model prediction published for this fixture")
-            else:
-                gaps.append(f"model prediction unavailable: {result.status} {result.error_code}")
-        else:
-            gaps.append("model prediction skipped: run call budget exhausted")
-
-        contexts.append(
-            EventMarketContext(
-                event_id=event.event_id,
-                provider_event_id=provider_event_id,
-                odds=odds,
-                consensus_odds=consensus,
-                bookmaker_comparison=comparison,
-                comparison_entitlement=entitlement,  # type: ignore[arg-type]
-                bookmakers_count=bookmakers_count,
-                predictions=prediction,
-                unknown_markets=sorted(set(unknown_markets)),
-                data_gaps=gaps,
-            )
-        )
+    if candidates:
+        with ThreadPoolExecutor(max_workers=min(8, len(candidates))) as pool:
+            futures = [
+                pool.submit(
+                    _collect_event_context,
+                    event,
+                    client,
+                    budget,
+                    prefetched,
+                    prefetch_note,
+                )
+                for event in candidates
+            ]
+            for f in futures:
+                ctx, evt_calls, ent = f.result()
+                if ent in ("ENTITLED", "NOT_ENTITLED"):
+                    if entitlement_seen == "ENTITLED" and ent == "NOT_ENTITLED":
+                        ctx.data_gaps.append(
+                            "ANOMALY: bookmaker comparison was entitled earlier in this "
+                            "run and answered 403 here -- the grid in this artifact is "
+                            "not uniform across events"
+                        )
+                    entitlement_seen = ent
+                contexts.append(ctx)
+                calls += evt_calls
 
     return MarketContextV1(
         run_id=event_list.run_id,

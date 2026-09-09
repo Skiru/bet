@@ -4,7 +4,7 @@ Unit tests for provider access V2 rescue diagnostic execution.
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.provider_access_diagnostic_v2 import (
     run_provider_access_rescue_diagnostic_v2,

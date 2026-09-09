@@ -4,14 +4,13 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from bet.api_clients.sportdb_mcp import (
     SportDBMCPShadowAdapter,
     SportDBEvidenceBundleWriter,
-    RequiredPayloadFieldUnknownError,
 )
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 

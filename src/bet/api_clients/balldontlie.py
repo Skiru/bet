@@ -12,7 +12,6 @@ nba_api: Python package for NBA.com stats (fallback, rate-limited)
 
 import json
 import time
-from pathlib import Path
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter

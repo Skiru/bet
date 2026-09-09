@@ -8,7 +8,7 @@ Endpoint: /odds?date=YYYY-MM-DD (paginated)
 
 import re
 
-from .base_client import APISportsClient, CACHE_DIR
+from .base_client import APISportsClient
 from .rate_limiter import RateLimiter
 
 # Map API-Football bet type IDs to standard market keys

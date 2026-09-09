@@ -5,7 +5,6 @@ from sqlalchemy.pool import StaticPool
 
 from bet.db.schema import init_db
 from bet.discovery.repository import FixtureSourceRepo
-from bet.discovery.models import FixtureSourceModel
 from bet.scrapers.engine import Base
 
 

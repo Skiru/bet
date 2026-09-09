@@ -12,11 +12,11 @@ import io
 import logging
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 
 import requests
 
-from .base_client import BaseAPIClient, APIError, CACHE_DIR
+from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 from bet.scrapers.constants import SACKMANN_ATP_URL, SACKMANN_WTA_URL

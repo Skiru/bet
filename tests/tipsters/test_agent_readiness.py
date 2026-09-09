@@ -1,7 +1,6 @@
 """Tests for agent readiness and match resolution identity."""
 from __future__ import annotations
 
-import json
 from bet.tipsters.contracts import TipsterPick
 from bet.tipsters.agent_readiness import (
     split_participants,

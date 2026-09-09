@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from bet.tipsters.contracts import TipsterPick
 from bet.tipsters.storage import build_payload
 from bet.tipsters.handoff import build_tipster_evidence_handoff, write_handoff_artifact
-from bet.tipsters.agent_readiness import analyze_pick_readiness
 
 
 def test_tipster_handoff_structure_and_enforcement():

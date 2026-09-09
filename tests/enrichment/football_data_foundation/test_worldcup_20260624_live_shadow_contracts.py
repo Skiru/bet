@@ -1,8 +1,7 @@
 from bet.enrichment.football_data_foundation.worldcup_20260624_live_shadow.contracts import (
     FixtureSpec,
     ProviderCaptureEnvelope,
-    LiveFixtureShadowSnapshot,
-    LiveShadowRunSummary
+    LiveFixtureShadowSnapshot
 )
 
 def test_fixture_spec_contract() -> None:

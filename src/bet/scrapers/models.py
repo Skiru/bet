@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import json
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, text, Table
+from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from bet.scrapers.engine import Base, get_engine
 
 

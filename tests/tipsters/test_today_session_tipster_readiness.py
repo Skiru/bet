@@ -1,8 +1,6 @@
-import json
 from pathlib import Path
-import pytest
 
-from bet.tipsters.contracts import TipsterPick, RawDocument
+from bet.tipsters.contracts import TipsterPick
 from bet.tipsters.agent_readiness import analyze_pick_readiness
 from bet.tipsters.source_registry import CERTIFIED_SHADOW_SOURCE_IDS
 from bet.tipsters.risk_policy import get_risk_policy, ComplianceTier

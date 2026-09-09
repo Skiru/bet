@@ -9,11 +9,9 @@ Tests:
 6. source_health tracking via base_client
 """
 
-import json
 import sqlite3
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 

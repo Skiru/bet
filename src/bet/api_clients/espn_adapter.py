@@ -10,7 +10,7 @@ basketball (NBA/WNBA), hockey (NHL), tennis (ATP/WTA), volleyball (FIVB).
 import sys
 from pathlib import Path
 
-from .base_client import BaseAPIClient, CACHE_DIR
+from .base_client import BaseAPIClient
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
@@ -22,7 +22,6 @@ if str(_SRC_ROOT) not in sys.path:
 from bet.api_clients.espn import (
     ESPNClient,
     ESPN_LEAGUES,
-    COMPETITION_TO_ESPN_LEAGUE,
     get_espn_league_for_competition,
 )
 

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
 from bet.tipsters.source_registry import CERTIFIED_SHADOW_SOURCE_IDS
 from bet.tipsters.live import (
     review_gate_details as _review_gate_details,
-    review_allows_source,
     resolve_target_entrypoints,
 )
 

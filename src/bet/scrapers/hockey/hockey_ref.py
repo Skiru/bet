@@ -9,7 +9,6 @@ from bs4 import Comment
 
 import requests
 from bs4 import BeautifulSoup
-from sqlalchemy import text
 
 from bet.scrapers.base import BaseScraper, ScraperError
 from bet.scrapers.models import PlayerSeasonStat

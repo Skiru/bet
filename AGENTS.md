@@ -27,34 +27,6 @@ Morning procedure: `docs/MORNING.md`.
 Contract: `.kilo/skills/simple-stats-runtime/SKILL.md`.
 Operations: `docs/SIMPLE_STATS_RUNBOOK.md`.
 
-## S0–S10 stack: quarantined, do not select
-
-The seven-agent S0–S10 architecture below is **not runnable** and now lives under
-`legacy/`. `legacy/pipeline_steps/run_daily_pipeline.py`,
-`legacy/bet_pipeline/orchestrator.py` and 13 other files carry unresolved
-`<<<<<<< HEAD` merge markers committed to `main`; they raise `SyntaxError` on
-import. Selecting `bet-executor` as primary therefore points a shell-capable
-agent at a script that cannot start. See `legacy/README.md`.
-
-Until those conflicts are resolved, treat `bet-executor` and the six S0–S10
-specialists as documentation of intent, not as an execution path. `simple_stats`
-deliberately does not import `src/bet/pipeline/**`, which is why it runs while
-that stack does not.
-
-## Quarantined Power Agent Architecture (S0–S10)
-
-Seven power agents are defined for the S0–S10 architecture:
-
-1. **`bet-executor` (Primary Mode):** Bounded betting pipeline executor. Runs canonical pipeline scripts (e.g., `legacy/pipeline_steps/run_daily_pipeline.py`), captures logs and fish `$pipestatus` codes, checks git tree cleanliness, and enforces gates. Business agents cannot run shell. **Blocked: its canonical script does not parse.**
-2. **`bet-researcher` (Subagent Mode):** Shell-less domain specialist for discovery, tipsters aggregation, gap detection, enrichment, and fact reconciliation. Handles facts and factual conflicts.
-3. **`bet-modeler` (Subagent Mode):** Shell-less domain specialist for S3 probabilities and S4 fair pricing, minimum acceptable quotes, and EV only after real operator odds exist.
-4. **`bet-risk-gatekeeper` (Subagent Mode):** Shell-less domain specialist for S5 context, S6 portfolio risk, and S7 hard approval gates. Handles risk conflicts but never impersonates the human S9 operator.
-5. **`bet-builder` (Subagent Mode):** Shell-less domain specialist for S8 quote packs, Bet Builder idea groups, and correlation warnings. It does not create an executable coupon.
-6. **`bet-auditor` (Subagent Mode):** Verification-only specialist for independent checks, database integrity audits, and S7b validation. May use bash for running target verification tests only. Never mutates or repairs. Performs final verification.
-7. **`bet-settler-postevent` (Subagent Mode):** Consolidated historical settlement and learning specialist for S10 (post-event accounting).
-
-All old legacy micro-agents and orchestrators have been removed. `bet-executor` was the full-day betting primary for this stack; `bet-simple` is the default today. Technical engineering repairs and emergency fallback use built-in Code or General in a fresh worktree and are not handled by any betting agent.
-
 ## Execution rules
 
 1. Never run more than one request against the local Rapid-MLX server at once.
@@ -110,8 +82,7 @@ Do not use Playwright from local agents. Browser automation requires approval. C
 
 ## Betting Run Primary Executor & Control-Plane Hardening
 
-- For live/full-day betting sessions, select `bet-simple` as the canonical primary executor. `bet-executor` is quarantined (see above) and cannot start its script. Built-in Code or General with Bash is an emergency fallback and engineering repair path, not the normal betting orchestrator.
-- Never select legacy orchestrators as the primary shell executor.
+- For live/full-day betting sessions, select `bet-simple` as the canonical primary executor. Built-in Code or General with Bash is an emergency fallback and engineering repair path, not the normal betting orchestrator.
 - If the selected primary agent has no Bash, stop immediately with `WRONG_KILO_AGENT_MODE_NO_BASH`.
 - Use the same session and same worktree for bounded continuation of a betting run.
 - Use a new session in the same worktree only when the UI/session step limit is hit.

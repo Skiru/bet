@@ -1,5 +1,4 @@
 """Tests for bet.simple_stats.analyze: hit-rate STATS_SHEET_V1 rows."""
-import pytest
 
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
@@ -9,7 +8,6 @@ from bet.simple_stats.analyze import (
     analyze_dossier,
     compute_hit_rate,
     corroborated_matches,
-    count_model_bound,
     limit_rows_per_event,
     wilson_lower_bound,
 )

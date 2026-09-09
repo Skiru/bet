@@ -1,5 +1,4 @@
 import json
-import pytest
 from pathlib import Path
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.verifier import (
     verify_run_directory,

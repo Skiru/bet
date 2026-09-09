@@ -116,7 +116,7 @@ def test_dead_providers_are_distinguished_from_exhausted_ones(tmp_path):
             assert kinds[provider] == "upstream_unavailable"
 
 
-def test_coverage_tracks_the_primary_not_the_most_generous_provider(tmp_path):
+def test_coverage_tracks_the_primary_not_the_most_generous_provider(tmp_path, monkeypatch):
     """Football coverage is bzzoiro's reach, and no other provider stands in.
 
     This asserted the *second* best provider's quota until 2026-09-02, on the
@@ -126,6 +126,7 @@ def test_coverage_tracks_the_primary_not_the_most_generous_provider(tmp_path):
     more event readable. Under the old rule this run planned for ESPN's league
     map -- 114 events against a bzzoiro-covered slate of 52 on 2026-09-02.
     """
+    monkeypatch.setenv("BZZORIO_KEY", "test_key")
     # ESPN unlimited, bzzoiro thin. Under the old rule ESPN's 10000/25 = 400
     # and bzzoiro's 60/30 = 2 would both be in play and the second-best would
     # be reported; now only bzzoiro's is.
@@ -197,7 +198,8 @@ def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
     assert result["coverage_by_sport"]["football"] == 0
 
 
-def test_thin_quota_is_warned_about_before_the_run(tmp_path):
+def test_thin_quota_is_warned_about_before_the_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("BZZORIO_KEY", "test_key")
     limiter = _limiter(tmp_path, {"espn-football": 10_000, "bzzoiro": 70, "api-football": 10_000})
     result = enrich_preflight(_list(_event()), limiter, planned_events=40)
     thin = {t["provider"]: t for t in result["thin"]}

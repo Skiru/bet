@@ -7,7 +7,6 @@ Covers: AnalysisResultRepo, GateResultRepo, AnalysisRawDataRepo,
         TransactionRepo, PowerIndexRepo.
 """
 
-import json
 import sqlite3
 from pathlib import Path
 

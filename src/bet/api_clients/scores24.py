@@ -1,7 +1,6 @@
 """Scores24 API client — multi-sport deep data with trends."""
 import logging
 import re
-from datetime import datetime
 from urllib.parse import urlparse
 
 from .base_client import APIError

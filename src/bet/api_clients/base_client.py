@@ -7,13 +7,11 @@ Adapted from scripts/api_clients/base_client.py for src/bet/ package layout.
 """
 
 import json
-import os
 import random
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from datetime import UTC
-from enum import StrEnum
 from pathlib import Path
 from typing import Any
 

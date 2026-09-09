@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
 from bet.tipsters.source_registry import SOURCES
 from bet.tipsters.source_certification import (
     build_source_certification_matrix,
     check_source_robots_compliance,
     Classification,
-    STATIC_RESCUE_MATRIX,
 )
 
 

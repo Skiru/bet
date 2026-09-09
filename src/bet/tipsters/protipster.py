@@ -6,7 +6,7 @@ supports ContextSignals for top matches, and excludes forbidden marketing/bonus/
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 

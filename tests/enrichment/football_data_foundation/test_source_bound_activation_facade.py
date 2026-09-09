@@ -1,7 +1,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from bet.enrichment.football_data_foundation.source_bound_activation.facade import (
     build_football_source_bound_activation_candidate,

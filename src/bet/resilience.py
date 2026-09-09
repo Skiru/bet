@@ -31,7 +31,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, Callable, TypeVar
 
 import requests
 

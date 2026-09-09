@@ -1,6 +1,4 @@
 """Tests for fuzzy_match module."""
-import pytest
-from unittest.mock import patch, MagicMock
 from bet.fuzzy_match import match_team, SPORT_THRESHOLDS
 
 

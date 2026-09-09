@@ -5,10 +5,6 @@ from pathlib import Path
 from bet.enrichment.multisport_foundation import (
     verify_plan,
     verify_source_inventory,
-    verify_provider_corpus,
-    verify_shadow_artifacts,
-    verify_activation_candidates,
-    verify_live_observations,
     verify_provider_mapping,
     verify_provider_probes,
 )

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 from bet.scrapers.hockey.hockey_ref import HockeyRefScraper

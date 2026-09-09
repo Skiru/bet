@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from bet.enrichment.football_data_foundation.source_bound_shadow.loader import load_provider_envelopes, load_mapping_metadata
+from bet.enrichment.football_data_foundation.source_bound_shadow.loader import load_provider_envelopes
 
 def make_sample_run(root: Path) -> Path:
     run = root / "run_sample"

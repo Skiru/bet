@@ -5,10 +5,8 @@ Docs: https://www.thesportsdb.com/api.php
 Free tier key: "3" (default). Premium key goes in URL path.
 """
 
-import json
-from pathlib import Path
 
-from .base_client import BaseAPIClient, CACHE_DIR
+from .base_client import BaseAPIClient
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture
 

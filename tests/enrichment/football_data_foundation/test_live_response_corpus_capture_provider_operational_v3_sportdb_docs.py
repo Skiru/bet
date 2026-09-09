@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import pytest
-from bet.enrichment.football_data_foundation.live_response_corpus_capture.provider_operational_transport_v3 import (
-    SportDBOperationalTransport,
-)
 
 
 def test_sportdb_worldcup_routes_exact() -> None:

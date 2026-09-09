@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from bet.enrichment.multisport_foundation.contracts import SportKey, ProofLevel, OutcomeStatus, PassKind
+from bet.enrichment.multisport_foundation.contracts import SportKey, ProofLevel, OutcomeStatus
 from bet.enrichment.multisport_foundation.profiles import build_sport_profiles
 from bet.enrichment.multisport_foundation.providers import build_provider_profiles, provider_matrix
 from bet.enrichment.multisport_foundation.plan import build_multisport_wave_plan

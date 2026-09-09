@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from bet.api_clients.sportdb_mcp import SportDBMCPClient, SportDBMCPShadowAdapter
 from bet.api_clients.highlightly import HighlightlyClient
 

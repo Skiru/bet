@@ -1,9 +1,5 @@
-import os
-import pytest
 from bet.enrichment.multisport_foundation.single_flight_probe import (
     SingleFlightProbeStatus,
-    SingleFlightProbeArtifact,
-    SingleFlightProbePolicy,
     default_policy_for_sport,
     run_single_flight_probe,
 )

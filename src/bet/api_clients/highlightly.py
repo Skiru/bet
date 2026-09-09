@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
-import os
 from typing import Any
 
-import requests
 
 from bet.integration.evidence import namespaced_source_refs
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus

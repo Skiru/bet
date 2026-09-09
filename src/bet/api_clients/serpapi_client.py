@@ -6,13 +6,10 @@ SerpAPI returns structured sports_results when querying team/match info.
 API docs: https://serpapi.com/search-api
 """
 
-import json
-import sys
-from pathlib import Path
 
 import requests
 
-from .base_client import BaseAPIClient, CACHE_DIR
+from .base_client import BaseAPIClient
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 

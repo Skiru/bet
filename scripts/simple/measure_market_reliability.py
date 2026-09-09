@@ -105,8 +105,11 @@ TENNIS_PROVIDERS = ("tennis-abstract", "espn-tennis", "sackmann")
 
 def _run_dirs() -> list[Path]:
     """Every ``runs/<YYYY-MM-DD>/`` that holds both artifacts this needs."""
+    runs_dir = ROOT / "runs"
+    if not runs_dir.exists():
+        return []
     out = []
-    for path in sorted((ROOT / "runs").iterdir()):
+    for path in sorted(runs_dir.iterdir()):
         if not path.is_dir() or len(path.name) != 10:
             continue
         date = path.name

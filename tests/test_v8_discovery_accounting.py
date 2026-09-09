@@ -1,7 +1,6 @@
 """Test suite for discovery accounting cases 31-38."""
 
-import pytest
-from bet.discovery.accounting import DiscoveryAccountingEngine, DiscoveryAccountingSummary
+from bet.discovery.accounting import DiscoveryAccountingEngine
 
 
 # C4_CASE_31_GENUINELY_NEW_COUNT

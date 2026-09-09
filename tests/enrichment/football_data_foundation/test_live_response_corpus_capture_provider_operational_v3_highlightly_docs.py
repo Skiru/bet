@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 
 
 def test_highlightly_countries_is_preflight_only() -> None:

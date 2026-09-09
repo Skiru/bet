@@ -11,7 +11,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from .contracts import ExtractionResult, ExtractorVerdict, RawDocument, TipsterPick
-from .html_tools import html_to_text, link_candidates, text_blocks, joined_context
+from .html_tools import html_to_text, text_blocks, joined_context
 from .market_parser import extract_market_text, market_family, direction, parse_line, extract_odds, stats_cited
 from .normalization import clean_team_name, is_garbage_team, collapse_ws
 from .extractors import detect_sport, valuable_signals, PARSER_VERSION

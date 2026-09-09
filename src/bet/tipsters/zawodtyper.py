@@ -12,7 +12,7 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener, urlopen
 from .contracts import ExtractionResult, ExtractorVerdict, RawDocument, TipsterPick
 from .legacy_bridge import convert_legacy_pick_to_v2
 from .market_parser import market_family, direction, stats_cited, extract_odds
-from .normalization import collapse_ws, clean_team_name, is_garbage_team
+from .normalization import clean_team_name, is_garbage_team
 from bet.tipsters.parsers import extract_zawodtyper_bets_payload, parse_zawodtyper_xhr_bets
 
 POLISH_MONTHS = {

@@ -15,7 +15,6 @@ conditional GET caching, and deterministic SHA-256 keys.
 import hashlib
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path

@@ -1,6 +1,5 @@
 from bet.enrichment.football_data_foundation.worldcup_20260624_live_shadow.fixtures import (
-    load_target_fixtures,
-    execute_fixture_preflight
+    load_target_fixtures
 )
 
 def test_six_target_fixtures_declared() -> None:

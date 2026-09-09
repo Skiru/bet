@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from bet.enrichment.football_data_foundation.source_bound_shadow.loader import load_provider_envelopes
 from bet.enrichment.football_data_foundation.source_bound_shadow.normalizers import normalize_envelope
 

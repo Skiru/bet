@@ -1,21 +1,17 @@
 """Tests for Flashscore multi-sport scraper (mocked HTTP)."""
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
-import pytest
 from sqlalchemy import text
 
 from bet.scrapers.flashscore import (
-    FlashscoreScraper,
     FootballFlashscoreScraper,
     BasketballFlashscoreScraper,
     HockeyFlashscoreScraper,
     TennisFlashscoreScraper,
     VolleyballFlashscoreScraper,
     _extract_match_scores,
-    _extract_stat_values,
     _parse_flashscore_stats,
     _validate_stat_values,
 )

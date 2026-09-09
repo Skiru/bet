@@ -1,6 +1,4 @@
 import ast
-import socket
-import pytest
 from pathlib import Path
 from bet.enrichment.football_data_foundation.source_bound_shadow.runner import run_source_bound_shadow_enrichment
 

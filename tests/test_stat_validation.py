@@ -1,5 +1,4 @@
 """Tests for stat_validation module."""
-import pytest
 from bet.stats.stat_validation import (
     is_valid_stat_key,
     get_valid_stats,

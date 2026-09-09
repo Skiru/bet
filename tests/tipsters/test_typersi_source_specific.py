@@ -1,4 +1,3 @@
-import pytest
 from bet.tipsters.contracts import RawDocument, ExtractorVerdict
 from bet.tipsters.typersi import (
     is_allowed_typersi_url,

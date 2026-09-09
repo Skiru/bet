@@ -34,25 +34,12 @@ class DatabaseInfrastructureError(RuntimeError):
 
 
 def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
-    """Resolve the effective DB path from env vars or explicit argument.
-
-    Resolution order:
+    """Resolve database path with explicit priority:
     1. Explicit `db_path` argument (used by tests/custom callers)
     2. `BET_DB_PATH` environment variable (direct path)
     3. `DATABASE_URL` environment variable (sqlite:/// or sqlite:///:memory:)
     A path is mandatory. There is no implicit operational database fallback.
     """
-    live_shadow = os.environ.get("BET_PIPELINE_RUNTIME_MODE") == "LIVE_ANALYSIS_SHADOW"
-    if live_shadow:
-        from bet.pipeline.runtime_execution import RuntimeExecutionContext
-
-        context = RuntimeExecutionContext.from_child_env(dict(os.environ))
-        requested = Path(str(db_path or context.shadow_db_path)).resolve()
-        if requested != Path(context.shadow_db_path).resolve():
-            raise DatabaseInfrastructureError(
-                code="SHADOW_DB_TARGET_MISMATCH", operation="resolve_path"
-            )
-        return context.shadow_db_path
     if db_path is not None:
         return db_path
 
@@ -115,21 +102,9 @@ def _configure_connection(conn: sqlite3.Connection) -> None:
 @contextmanager
 def get_db(db_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
     """Own one explicit read-write transaction and commit only on clean exit."""
-    if os.environ.get("BET_PIPELINE_RUNTIME_MODE") == "LIVE_ANALYSIS_SHADOW":
-        from bet.pipeline.runtime_execution import (
-            RuntimeDatabaseAccessPolicy,
-            RuntimeDbRole,
-            RuntimeExecutionContext,
-        )
-
-        context = RuntimeExecutionContext.from_child_env(dict(os.environ))
-        conn = RuntimeDatabaseAccessPolicy(context).connect(
-            RuntimeDbRole.SHADOW_READ_WRITE
-        )
-    else:
-        resolved = _resolve_db_path(db_path)
-        conn = sqlite3.connect(str(resolved))
-        _configure_connection(conn)
+    resolved = _resolve_db_path(db_path)
+    conn = sqlite3.connect(str(resolved))
+    _configure_connection(conn)
     try:
         yield conn
         conn.commit()

@@ -20,7 +20,6 @@ is discarded rather than scored.
 """
 
 import ast
-import io
 import logging
 import re
 import time
@@ -28,9 +27,8 @@ import unicodedata
 from datetime import datetime, timezone
 
 import requests
-from bs4 import BeautifulSoup
 
-from .base_client import BaseAPIClient, APIError, APINotFoundError, CACHE_DIR
+from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
 from .tennis_score import parse_tennis_score
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
@@ -732,7 +730,6 @@ class TennisAbstractClient(BaseAPIClient):
     def _save_to_cache(self, cache_key: str, data: dict) -> None:
         """Save data to stats_cache with last_updated for BaseAPIClient compatibility."""
         import json
-        from pathlib import Path
         from datetime import datetime, timezone
         self._validate_cache_key(cache_key)
         cache_file = CACHE_DIR / f"{cache_key}.json"

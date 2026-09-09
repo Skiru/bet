@@ -3,7 +3,7 @@
 Defines active provider roles, supported sports, and routing contracts.
 """
 
-from typing import TypedDict, List, Dict, Optional
+from typing import TypedDict, List, Dict
 
 
 class ProviderCapability(TypedDict):

@@ -22,12 +22,12 @@ Usage:
 import json
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import requests
 
-from .base_client import BaseAPIClient, CACHE_DIR
+from .base_client import BaseAPIClient
 from .env import get_env
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats

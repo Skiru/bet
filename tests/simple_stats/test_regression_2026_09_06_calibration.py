@@ -11,7 +11,6 @@ through ``backtest_slate.rebuild`` and settling every row that had actuals.
 """
 from __future__ import annotations
 
-import statistics
 
 import pytest
 

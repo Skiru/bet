@@ -7,10 +7,8 @@ Uses the same API key as API-Football (api-sports.io unified platform).
 Free tier: shares quota with other API-Sports APIs.
 """
 
-import json
-from pathlib import Path
 
-from .base_client import APISportsClient, CACHE_DIR
+from .base_client import APISportsClient
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 

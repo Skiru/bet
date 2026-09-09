@@ -25,7 +25,6 @@ a property tells you which claim it broke.
 """
 from __future__ import annotations
 
-import math
 import statistics
 
 import pytest

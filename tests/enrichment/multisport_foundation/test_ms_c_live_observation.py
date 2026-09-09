@@ -4,7 +4,6 @@ import pytest
 from dataclasses import replace
 
 from bet.enrichment.multisport_foundation.live_observation import (
-    LiveObservationArtifact,
     build_live_observation,
 )
 from bet.enrichment.multisport_foundation.verifier import verify_live_observations

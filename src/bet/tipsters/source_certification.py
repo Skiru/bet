@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import urllib.robotparser
 from typing import Any
-from .source_registry import SOURCES, CORE_SOURCE_IDS, RESEARCH_SOURCE_IDS, LEGACY_SOURCE_IDS, MANUAL_REVIEW_SOURCE_IDS
+from .source_registry import SOURCES
 
 # Exact Enum Classifications as requested
 class Classification:

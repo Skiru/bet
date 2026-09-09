@@ -4,9 +4,8 @@ Follows the established pattern: mock ESPN API responses, verify DB writes.
 """
 from __future__ import annotations
 
-import json
 import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, field
 from sqlalchemy import text
 

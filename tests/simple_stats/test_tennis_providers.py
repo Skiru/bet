@@ -19,7 +19,6 @@ checks.
 """
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 

@@ -5,7 +5,6 @@ import urllib.request
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from bet.enrichment.football_data_foundation.source_bound_activation.runner import run_activation_candidate
 from tests.enrichment.football_data_foundation.test_source_bound_activation_loader import create_mock_bundle

@@ -1,10 +1,8 @@
 import pytest
-from pathlib import Path
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.sanitizer import (
     sanitize_json_body,
     compute_body_sha256,
     write_json,
-    is_html,
 )
 
 

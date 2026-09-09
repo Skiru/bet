@@ -2,7 +2,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -10,7 +10,6 @@ import requests
 from bet.resilience import (
     CircuitBreaker,
     CircuitOpenError,
-    RequestResult,
     atomic_json_write,
     atomic_write,
     resilient_request,

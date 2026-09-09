@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import pytest
 
 from bet.enrichment.football_data_foundation.live_response_corpus_capture.provider_operational_verifier_v3 import (
     verify_provider_operational_capture_v3,

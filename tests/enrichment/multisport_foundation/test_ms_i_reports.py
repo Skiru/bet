@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from bet.enrichment.multisport_foundation.single_flight_probe_report import write_single_flight_reports
 
 TARGET_SPORTS = {"basketball", "volleyball", "hockey", "tennis", "cs2", "dota2", "valorant"}

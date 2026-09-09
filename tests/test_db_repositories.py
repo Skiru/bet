@@ -1,6 +1,5 @@
 """Unit tests for new DB repository methods (Phases 1-3)."""
 
-import json
 import sqlite3
 from pathlib import Path
 
@@ -9,7 +8,6 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from bet.db.connection import get_db
 from bet.db.models import Fixture, OddsRecord, TeamForm
 from bet.db.repositories import (
     CompetitionRepo,

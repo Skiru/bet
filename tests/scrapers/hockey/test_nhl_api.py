@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import json
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from bet.scrapers.hockey.nhl_api import HockeyNHLScraper
 from bet.scrapers.models import PlayerSeasonStat

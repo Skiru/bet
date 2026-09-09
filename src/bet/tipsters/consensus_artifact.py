@@ -1,7 +1,7 @@
 """Helpers for stable S2 tipster artifact output."""
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
 
 from bet.tipsters.source_contract_types import validate_tipster_pick
 from bet.tipsters.source_contracts import TIPSTER_SOURCE_CONTRACTS

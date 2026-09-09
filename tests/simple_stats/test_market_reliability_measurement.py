@@ -150,8 +150,11 @@ def test_team_a_is_the_home_side_in_every_artifact_that_names_both():
     """
     import json
 
+    runs = mmr._run_dirs()
+    if not runs:
+        pytest.skip("no runs/ directory with completed artifacts in this worktree")
     agree = disagree = 0
-    for run in mmr._run_dirs():
+    for run in runs:
         events = {
             e["event_id"]: e
             for e in json.loads(

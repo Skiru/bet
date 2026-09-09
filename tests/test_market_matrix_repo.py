@@ -1,6 +1,5 @@
 """Tests for MarketMatrixRepo."""
 
-import json
 import sqlite3
 
 import pytest

@@ -1,6 +1,5 @@
 """Base class for Playwright-based API clients."""
 import logging
-import random
 import time
 
 from .base_client import BaseAPIClient, APIError
