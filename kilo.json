@@ -1,0 +1,22 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "default_agent": "bet-simple",
+  "mcp": {
+    "bzzoiro": {
+      "type": "remote",
+      "url": "https://sports.bzzoiro.com/mcp",
+      "headers": {
+        "Authorization": "Token ${BZZORIO_KEY}"
+      },
+      "enabled": true
+    },
+    "bzzoiro-tennis": {
+      "type": "remote",
+      "url": "https://sports.bzzoiro.com/tennis/mcp",
+      "headers": {
+        "Authorization": "Token ${BZZORIO_KEY}"
+      },
+      "enabled": false
+    }
+  }
+}
