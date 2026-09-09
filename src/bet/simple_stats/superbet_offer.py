@@ -66,7 +66,7 @@ from datetime import UTC, datetime, timedelta
 from statistics import NormalDist
 from typing import Any
 
-from bet.discovery.team_aliases import resolve_team_alias
+from bet.discovery.team_aliases import fold_club_name, resolve_team_alias
 from bet.simple_stats.bet_builder_draft import TIER_MARGIN, tier_for_row, required_odds
 from bet.simple_stats.contracts import (
     EventListV1,
@@ -801,6 +801,63 @@ def _side_key(names: Iterable[str]) -> tuple[str, ...]:
     return tuple(sorted(normalize_team_name(resolve_team_alias(name)) for name in names if name))
 
 
+def _folded_side_key(names: Iterable[str]) -> tuple[str, ...]:
+    """The same identity, alias-resolved but with no club words removed.
+
+    ``normalize_team_name`` strips club-form words, and its refusal to strip
+    when nothing distinguishing would survive is *asymmetric*: a name made only
+    of those words keeps all of them, while the same club with one extra
+    qualifier keeps only the qualifier. So the two feeds' renderings of one club
+    can normalise onto disjoint keys --
+
+        ours   "Athletic Club"     -> all generic -> guard fires  -> "athletic club"
+        theirs "Athletic Club MG"  -> "mg" survives -> guard silent -> "club mg"
+
+    -- which share no token and cannot be joined by ``sides_compatible``. That
+    cost Cuiabá-Athletic Club its price on 2026-09-08: the fixture was on the
+    board at the identical kickoff, our sheet held 188 rows for it, and every
+    one printed "brak meczu".
+
+    The guard itself must stay. Its comment names what it prevents -- bare
+    "Athletic Club" reducing to "club" would merge Bilbao with the Brazilian
+    Série B side, and that mistake files one club's history under another. So
+    the repair is a *second, looser* key rather than a change to the first, and
+    it is used only as a fallback by the offer matcher's tolerant pass, never by
+    team-identity resolution.
+
+    Folding without stripping is what makes the qualifier case work here:
+    "athletic club" is contained in "athletic club mg". That is exactly the case
+    ``TEAM_ALIASES`` documents as belonging to token containment rather than to
+    the alias table, and an alias entry genuinely cannot fix it -- bzzoiro calls
+    the Brazilian club "Athletic Club", the identical string the table already
+    binds to Bilbao, so a pin would have to claim one name means two clubs.
+    """
+    return tuple(sorted(fold_club_name(resolve_team_alias(name)) for name in names if name))
+
+
+def _pair_compatible(
+    mine: tuple[str, ...],
+    theirs: tuple[str, ...],
+    mine_folded: tuple[str, ...],
+    theirs_folded: tuple[str, ...],
+) -> bool:
+    """One fixture, either order, on the normalised keys or the folded ones.
+
+    Both orders are tried because ``_side_key`` sorts and the two feeds can
+    disagree about which side is home. The folded comparison is a fallback, not
+    a widening: it runs only where the normalised keys already failed, and its
+    callers keep the uniqueness requirement that makes a tolerant match safe.
+    """
+    for left, right in ((mine, theirs), (mine_folded, theirs_folded)):
+        if len(left) != 2 or len(right) != 2:
+            continue
+        straight = sides_compatible(left[0], right[0]) and sides_compatible(left[1], right[1])
+        crossed = sides_compatible(left[0], right[1]) and sides_compatible(left[1], right[0])
+        if straight or crossed:
+            return True
+    return False
+
+
 def _tokens(name: str) -> frozenset[str]:
     return frozenset(part for part in re.split(r"[^a-z0-9]+", name) if part)
 
@@ -916,11 +973,16 @@ def match_offer_events(
     # (raw, sport, normalised sides) for everything the feed offered in a sport
     # this pipeline reads. Computed once: pass two scans it per leftover event.
     offered: list[tuple[dict[str, Any], str, tuple[str, ...], datetime | None]] = []
+    # The looser key, kept alongside rather than inside ``offered`` so the
+    # tuple's arity -- and every site that unpacks it -- stays as it was. Only
+    # pass two reads it, and only after the normalised key has already failed.
+    folded_by_index: dict[int, tuple[str, ...]] = {}
     for raw in raw_events:
         sport = sport_of(raw)
         if sport is None:
             continue
         home, away = split_match_name(raw.get("matchName"))
+        folded_by_index[len(offered)] = _folded_side_key((home, away))
         offered.append((raw, sport, _side_key((home, away)), _parse_kickoff(raw.get("utcDate"))))
 
     scored: dict[str, list[tuple[float, int, dict[str, Any]]]] = {}
@@ -996,6 +1058,7 @@ def match_offer_events(
         mine = _side_key(_sides(event))
         if len(mine) != 2:
             continue
+        mine_folded = _folded_side_key(_sides(event))
         hits: list[tuple[int, float, dict[str, Any]]] = []
         for index, (raw, sport, theirs, kickoff) in leftovers:
             if sport != event.sport or len(theirs) != 2:
@@ -1003,13 +1066,7 @@ def match_offer_events(
             delta = _kickoff_ok(sport, event.start_time, kickoff)
             if delta is None:
                 continue
-            straight = (
-                sides_compatible(mine[0], theirs[0]) and sides_compatible(mine[1], theirs[1])
-            )
-            crossed = (
-                sides_compatible(mine[0], theirs[1]) and sides_compatible(mine[1], theirs[0])
-            )
-            if straight or crossed:
+            if _pair_compatible(mine, theirs, mine_folded, folded_by_index[index]):
                 hits.append((index, delta, raw))
         if len(hits) != 1:
             continue
@@ -1026,9 +1083,12 @@ def match_offer_events(
                 continue
             if _kickoff_ok(other.sport, other.start_time, offered[index][3]) is None:
                 continue
-            if (
-                (sides_compatible(candidate[0], theirs[0]) and sides_compatible(candidate[1], theirs[1]))
-                or (sides_compatible(candidate[0], theirs[1]) and sides_compatible(candidate[1], theirs[0]))
+            # The same compatibility the forward pass used, folded fallback
+            # included. Testing the reverse direction more strictly than the
+            # forward one would let the folded match through while the guard
+            # meant to bound it looked at a narrower question.
+            if _pair_compatible(
+                candidate, theirs, _folded_side_key(_sides(other)), folded_by_index[index]
             ):
                 rivals += 1
         if rivals != 1:

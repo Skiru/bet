@@ -109,6 +109,41 @@ TEAM_ALIASES: dict[str, set[str]] = {
     "Racing Santander": {"Real Racing Club"},
     "Asteras Tripolis": {"Asteras Aktor"},
     "Royale Union Saint-Gilloise": {"Royale Union SG"},
+    # Added 2026-09-08, found the same way and the same case as "Sporting
+    # Lisbon": the Finnish club's own name against the initialism-plus-city the
+    # book uses. Folded, "turun palloseura" and "tps turku" share **no** token,
+    # so neither containment nor overlap can reach it and only a pin can.
+    #
+    # This one was expensive, and not in the usual way. The offer join failing
+    # normally costs a fixture its price; here it fell on ENRICH's priced-gate
+    # instead, which reads an unmatched fixture as one the book does not carry
+    # and blocks it outright. Turun Palloseura - SJK was on the board at the
+    # identical kickoff as `TPS Turku·SJK Seinajoki` and reached the sheet with
+    # **zero rows** on a day three other Finnish fixtures made the coupon.
+    #
+    # Keyed on the whole folded string, which is what keeps it away from Inter
+    # Turku -- the club this table's own opening note warns a token-level rule
+    # would pair with anything containing "turku".
+    "Turun Palloseura": {"TPS Turku", "TPS"},
+    # Also 2026-09-08, and these three were *masked*: the Betradar id pass had
+    # been quietly carrying them (74 of the day's matches came in by id), so
+    # the name table never had to know them. Re-running the offer with the
+    # bridge off -- which is the normal state, since OddsPapi is a 250-request
+    # lifetime budget -- dropped all three, each with a future kickoff.
+    #
+    # Two are the "Sporting Lisbon" case verbatim, Superbet being a Polish book
+    # rendering foreign cities in Polish, and the table already holds "Atletico
+    # Madryt" for exactly this. The third is an initialism of the name we carry.
+    #
+    #   ours "Real Madrid"        theirs "Real Madryt"   -> {aek..} share 1 token
+    #   ours "AEK Athens"         theirs "AEK Ateny"     -> ditto, below overlap
+    #   ours "Kuopion Palloseura" theirs "KuPS"          -> no shared token at all
+    #
+    # Their opponents needed nothing: "Inter" is contained in "Inter Mediolan"
+    # and "LASK" in "LASK Linz", which is containment's job and not this table's.
+    "Real Madrid": {"Real Madryt"},
+    "AEK Athens": {"AEK Ateny"},
+    "Kuopion Palloseura": {"KuPS"},
 }
 # Deliberately *not* added from the same sweep, and the reasons are the rule:
 #

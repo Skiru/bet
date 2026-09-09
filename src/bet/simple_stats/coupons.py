@@ -1646,15 +1646,46 @@ def build_coupons(
     # Reported, not repaired: matching such an entry to "the same fixture under
     # a new id" would be a guess at which row the analyst meant, and a veto
     # applied to the wrong row is worse than one applied to none.
+    #
+    # The *diagnosis*, though, does not have to be a guess. A stale id and a
+    # fixture that simply produced no rows are two different situations with
+    # two different follow-ups -- re-read the day versus accept the fixture is
+    # gone -- and the event list settles which one this is: an id the list
+    # still knows was minted by this very run, so nothing was renamed. Until
+    # 2026-09-08 the message asserted the stale-id hypothesis either way, and
+    # on that day it was wrong about all three of the day's unapplied vetoes:
+    # two ATP Challenger fixtures that had kicked off at 10:10Z and so reached
+    # the sheet with zero rows, reported to the operator as a renaming problem
+    # that had not happened.
     sheet_event_ids = {row.event_id for row in stats_sheet.rows}
     sheet_event_markets = {(row.event_id, row.market) for row in stats_sheet.rows}
     for veto in vetoes or ():
         if veto.event_id not in sheet_event_ids:
+            known = events.get(veto.event_id)
+            if known is not None:
+                # ``identity`` is defined further down this function body, so
+                # the two names are read straight off the record here.
+                if known.sport == "tennis":
+                    match = f"{known.player_one or '?'} – {known.player_two or '?'}"
+                else:
+                    match = f"{known.home_team or '?'} – {known.away_team or '?'}"
+                why = (
+                    f"mecz jest w liście wydarzeń ({match}"
+                    f"{', ' + known.competition if known.competition else ''}"
+                    f"{', start ' + known.start_time if known.start_time else ''}), "
+                    "ale nie wniósł do arkusza ani jednego wiersza "
+                    "(zablokowany albo niewzbogacony) — id jest aktualne, "
+                    "nic nie zostało przemianowane"
+                )
+            else:
+                why = (
+                    "arkusz nie zawiera tego event_id i liście wydarzeń też "
+                    "jest on nieznany (weto z innego przebiegu? event_id "
+                    "zmienia się przy zmianie nazwy rozgrywek)"
+                )
             applied_vetoes.append(
                 f"NIEZASTOSOWANE WETO: {_veto_scope(veto)} "
-                f"({veto.event_id[:12]}) — arkusz nie zawiera tego event_id "
-                "(weto z innego przebiegu? event_id zmienia się przy zmianie "
-                f"nazwy rozgrywek); {veto.reason}"
+                f"({veto.event_id[:12]}) — {why}; {veto.reason}"
             )
         elif (veto.event_id, veto.market) not in sheet_event_markets:
             applied_vetoes.append(
@@ -2238,12 +2269,41 @@ def build_coupons(
     rest = [c for c in trusted if id(c) not in value_ids]
     with_reference = [c for c in rest if _has_market_reference(c[0])]
     without_reference = [c for c in rest if not _has_market_reference(c[0])]
-    _append_singles(
-        sorted(
-            superbet_value,
-            key=lambda pair: (-_value_rank_key(pair), -pair[0].p_low, pair[0].event_id),
+
+    # Group one holds two kinds of row -- ``VALUE``, which clears its bar, and
+    # ``WITHIN_TOLERANCE``, which does not -- and it is appended before every
+    # other group, so it is where ``MAX_SINGLES_PER_FAMILY`` is actually spent.
+    # That slot must go to a row the file will print as bettable.
+    #
+    # It did not. The order inside the group is ``_value_rank_key``, a pure
+    # probability gap that never asks whether the price clears the bar, so a
+    # row priced *under* its threshold could outrank one priced *over* it,
+    # claim the family's only slot, and leave the bettable row excluded as
+    # ``duplicate_mechanism_family``. On 2026-09-08 that happened on
+    # Ilves-FF Jaro: family ``scoring`` shipped ``goals_for 2.5 UNDER`` at 1.38
+    # against a 1.4181 bar (-2.7%, rank key 0.195) and struck
+    # ``goals_total 3.5 UNDER`` at 1.50 against a 1.4585 bar (+2.8%, rank key
+    # 0.101). Two of the day's ten VALUE rows were lost that way.
+    #
+    # Split rather than re-sorted, deliberately. ``_superbet_surplus`` admits
+    # the tolerance band on measured evidence -- rows at gap >= -5% went 72.9%
+    # for +1.3% against 63.5% for -0.8% on the 52 rows that cleared the bar
+    # outright -- so a tolerance row is *not* a worse bet and its rank inside
+    # its own subgroup is untouched. What it must not do is spend a slot the
+    # file then tells the operator not to stake.
+    clears_bar = [
+        c for c in superbet_value
+        if superbet_for(c[0], bar_for(c[0], c[1])[0]).get("superbet_verdict") == "VALUE"
+    ]
+    clears_ids = {id(c) for c in clears_bar}
+    within_tolerance = [c for c in superbet_value if id(c) not in clears_ids]
+    for _group in (clears_bar, within_tolerance):
+        _append_singles(
+            sorted(
+                _group,
+                key=lambda pair: (-_value_rank_key(pair), -pair[0].p_low, pair[0].event_id),
+            )
         )
-    )
     _append_singles(
         sorted(with_reference, key=lambda pair: (-_edge(pair[0]), -pair[0].p_low, pair[0].event_id))
     )
