@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-AGENTS = ROOT / ".claude" / "agents"
+AGENT_DIRS = (ROOT / ".claude" / "agents", ROOT / ".kilo" / "agent")
 
 ANALYSTS = ("bet-analyst-football.md", "bet-analyst-tennis.md")
 
@@ -42,27 +42,29 @@ _WRITING_COMMANDS = (
 )
 
 
+@pytest.mark.parametrize("agent_dir", AGENT_DIRS)
 @pytest.mark.parametrize("name", ANALYSTS)
-def test_an_analyst_does_not_both_forbid_and_instruct_a_write(name) -> None:
-    path = AGENTS / name
+def test_an_analyst_does_not_both_forbid_and_instruct_a_write(agent_dir, name) -> None:
+    path = agent_dir / name
     if not path.exists():
-        pytest.skip(f"{name} not present")
+        pytest.skip(f"{name} not present in {agent_dir}")
     text = path.read_text(encoding="utf-8")
     instructs_a_write = "build_forecast.py" in text
     for phrase in ("never writes files", "Never generate an artifact"):
         if phrase.lower() in text.lower():
             assert not instructs_a_write, (
-                f"{name} says {phrase!r} and also instructs build_forecast.py. "
+                f"{name} in {agent_dir.name} says {phrase!r} and also instructs build_forecast.py. "
                 f"Name the one permitted write instead of denying it."
             )
 
 
+@pytest.mark.parametrize("agent_dir", AGENT_DIRS)
 @pytest.mark.parametrize("name", ANALYSTS)
-def test_an_analyst_never_instructs_a_pipeline_write(name) -> None:
+def test_an_analyst_never_instructs_a_pipeline_write(agent_dir, name) -> None:
     """The prohibition that must hold unconditionally: no pipeline, no coupon."""
-    path = AGENTS / name
+    path = agent_dir / name
     if not path.exists():
-        pytest.skip(f"{name} not present")
+        pytest.skip(f"{name} not present in {agent_dir}")
     text = path.read_text(encoding="utf-8")
     for command in _WRITING_COMMANDS:
         # A prohibition may name the command; an instruction is a command line.
@@ -71,6 +73,6 @@ def test_an_analyst_never_instructs_a_pipeline_write(name) -> None:
             line = text[line_start:text.find("\n", match.start())]
             prose = line.lstrip().startswith(("#", ">", "*", "-"))
             assert prose or "not" in line.lower(), (
-                f"{name} contains a runnable {command} command: {line.strip()!r}. "
+                f"{name} in {agent_dir.name} contains a runnable {command} command: {line.strip()!r}. "
                 f"Analysts read a finished day; they do not produce one."
             )
