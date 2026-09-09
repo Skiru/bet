@@ -550,6 +550,19 @@ VETO_CLASS_DOUBLE_K = frozenset({"MISSING_REFEREE"})
 # analyst would write down by hand.
 CEILING_DOUBLE_K = frozenset({"MISSING_REFEREE"})
 
+# The structural ceiling that zeroes the sample's weight outright, pricing the
+# row off Superbet's own devigged number instead. Mirrors
+# ``VETO_CLASS_ZERO_WEIGHT``'s "SAMPLE_NOT_REPRESENTATIVE": ANALYZE sets
+# ``context_flags.CEILING_KNOCKOUT_ROUND`` when
+# ``fixture_context.round_name`` names a cup/knockout round, and a domestic
+# sample does not describe that fixture -- exactly the reasoning an analyst
+# wrote by hand for two of 2026-09-08's cup fixtures (Fluminense-Platense's
+# ``cards_points_for``, Bournemouth-Lincoln City's ``cards_points_total``)
+# and never got to write for the other two, including the fixture that lost
+# the day's other VALUE single (Independiente Santa Fe-Vasco da Gama,
+# ``goals_2h_total``). See ``runs/2026-09-08/2026-09-08_coupon_review.md``.
+CEILING_ZERO_WEIGHT = frozenset({"KNOCKOUT_ROUND"})
+
 
 class CouponSingle(StrictBaseModel):
     """One standalone bet, with the price that would justify it."""
@@ -720,6 +733,9 @@ class CouponSingle(StrictBaseModel):
     # ``p x price - 1`` after penalties, for this rung and for the runner-up.
     rung_score: float | None = None
     alternative_rung_score: float | None = None
+    analyst_action: str | None = None
+    analyst_reason_class: str | None = None
+    analyst_reason: str | None = None
 
 
 class CouponSlip(StrictBaseModel):
@@ -1088,6 +1104,10 @@ _LEAN_CEILING_TEXT: dict[str, str] = {
     "KNOCKOUT_SECOND_LEG": (
         "rewanż dwumeczu przy wyrównanym dwumeczu — ten mecz nie musi wyglądać "
         "jak żaden z próby"
+    ),
+    "KNOCKOUT_ROUND": (
+        "runda pucharowa (nazwa rundy bez \"Matchday\") — próba jest ligowa, "
+        "kierunek błędu nieznany, cena wyłącznie z rynku"
     ),
     "DERBY": "derby — kartki i faule zachowują się inaczej niż w próbie",
     "MISSING_REFEREE": "brak przypisanego sędziego — rynek kartek bez sędziego to zgadywanka",
@@ -1714,6 +1734,8 @@ def build_coupons(
                 k *= 2.0
         if set(row.lean_ceiling_reasons) & CEILING_DOUBLE_K:
             k *= 2.0
+        if set(row.lean_ceiling_reasons) & CEILING_ZERO_WEIGHT:
+            force_weight = 0.0
 
         components = bar_components(
             row,
@@ -2008,6 +2030,10 @@ def build_coupons(
             fair = 1.0 / bar.probability if bar.probability > 0 else 0.0
             per_family[(fixture, family)] += 1
             per_event[fixture] += 1
+            sb_info = superbet_for(row, minimum)
+            veto = veto_index.for_row(row)
+            if veto is not None and veto.action == "DOWNGRADE" and sb_info.get("superbet_verdict") == "VALUE":
+                sb_info["superbet_verdict"] = "DOWNGRADE"
             singles.append(
                 CouponSingle(
                     rank=len(singles) + 1,
@@ -2057,6 +2083,10 @@ def build_coupons(
                     ),
                     tipster=_tipster_summary(row),
                     caveats=_caveats(row) + (
+                        [
+                            f"weto analityka [{veto.reason_class}]: {veto.reason}"
+                        ] if (veto is not None and veto.action == "DOWNGRADE") else []
+                    ) + (
                         # The bar's third stage, on the row it moved. The
                         # header counts them; this says which row and by how
                         # much, because the amount is per claim and the note
@@ -2095,7 +2125,10 @@ def build_coupons(
                     market_disagreement=disagreement(row),
                     ladder_sigma=ladder_sigma(row),
                     needs_review=over_disagreement(row),
-                    **superbet_for(row, minimum),
+                    analyst_action=veto.action if veto is not None else None,
+                    analyst_reason_class=veto.reason_class if veto is not None else None,
+                    analyst_reason=veto.reason if veto is not None else None,
+                    **sb_info,
                 )
             )
 
@@ -2128,6 +2161,9 @@ def build_coupons(
         estimate that was worse. See ``PRICE_TOLERANCE_PCT``.
         """
         row, tier = pair
+        veto = veto_index.for_row(row)
+        if veto is not None and veto.action == "DOWNGRADE":
+            return None
         info = superbet_for(row, bar_for(row, tier)[0])
         if info.get("superbet_verdict") not in ("VALUE", "WITHIN_TOLERANCE"):
             return None
@@ -2300,7 +2336,13 @@ def build_coupons(
         _append_singles(
             sorted(
                 _group,
-                key=lambda pair: (-_value_rank_key(pair), -pair[0].p_low, pair[0].event_id),
+                key=lambda pair: (
+                    pair[1] != "CALL",
+                    bool(veto_index.for_row(pair[0]) and veto_index.for_row(pair[0]).action == "DOWNGRADE"),
+                    -_value_rank_key(pair),
+                    -pair[0].p_low,
+                    pair[0].event_id,
+                ),
             )
         )
     _append_singles(
@@ -2558,6 +2600,7 @@ def build_coupons(
             "bez meczu w ofercie": "EVENT_NOT_MATCHED",
             "zablokowanych": "SUSPENDED",
             "których nie czytamy (propy zawodników)": "SCOPE_NOT_SUPPORTED",
+            "objętych wetem analityka (DOWNGRADE)": "DOWNGRADE",
         }
         counted = {
             label: sum(

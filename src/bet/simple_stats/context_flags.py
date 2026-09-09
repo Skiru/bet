@@ -256,6 +256,48 @@ def knockout_second_leg_is_live(dossier: EventDossierV1) -> bool:
     return abs(home - away) <= 1
 
 
+def is_knockout_round(dossier: EventDossierV1) -> bool:
+    """A named cup/knockout round -- not a league matchday, and not a
+    round-robin league-phase matchday either.
+
+    ``fixture_context.round_name`` is ``api_clients.bzzoiro._round_label``'s
+    composed label, and that function only drops the "Matchday" suffix for a
+    provider-named knockout tie (its own ``round_name`` field, non-empty).
+    Every other shape it can produce keeps "Matchday" in it: a domestic league
+    reads "Regular season · Matchday 6", and the Champions League's
+    round-robin league phase reads "League phase · Matchday 1" -- both still
+    schedule, not stakes.
+
+    Seen together on 2026-09-08, the day this rule was added: "Quarterfinals"
+    (Independiente Santa Fe-Vasco da Gama, Fluminense-Platense -- Copa
+    Sudamericana/Libertadores) and "Round 3" (Bournemouth-Lincoln City,
+    Crystal Palace-Middlesbrough -- Carabao Cup) against "Regular season ·
+    Matchday 6" (Bolton Wanderers-West Ham, Al-Ettifaq-Al Faisaly) and "League
+    phase · Matchday 1" (Borussia Dortmund-Villarreal, AEK Athens-LASK) on the
+    same slate. The four knockout fixtures cost two of the day's six VALUE
+    singles on goals_2h_total/fouls_total -- see
+    ``runs/2026-09-08/2026-09-08_coupon_review.md``.
+    """
+    context = dossier.fixture_context
+    if context is None or not context.round_name:
+        return False
+    return "Matchday" not in context.round_name
+
+
+# A knockout round's sample risk is not "rougher" or "calmer" in one
+# consistent direction -- 2026-09-08 alone had it both ways. Independiente
+# Santa Fe-Vasco (first leg, 0-0) and Fluminense-Platense (led 2-0 from half)
+# both suppressed second-half goals and fouls below their domestic sample;
+# Bournemouth-Lincoln City and Crystal Palace-Middlesbrough (Carabao Cup,
+# top-flight side against lower-league opposition) went the other way on
+# goals. A ceiling makes no claim about which way a row tips, which is why it
+# is the right shape for a pattern with a confirmed cause (the sample is
+# domestic, the fixture is not) and no confirmed direction -- see
+# ``coupons.CEILING_ZERO_WEIGHT``, which prices these off Superbet's own
+# devigged number instead of guessing.
+_KNOCKOUT_ROUND_SENSITIVE_MARKETS = _CARD_MARKETS | _FOUL_MARKETS | frozenset({"goals_2h_total"})
+
+
 def _derby_flag(row: StatsSheetRow, dossier: EventDossierV1) -> ContextFlag | None:
     """A local derby supports OVER on cards/fouls: more needle, more cards."""
     if row.direction != "OVER" or row.market not in (_CARD_MARKETS | _FOUL_MARKETS):
@@ -449,10 +491,12 @@ _FLAG_RULES: tuple[Callable[[StatsSheetRow, EventDossierV1], ContextFlag | None]
 # the Grenal collects three of these at once and is not three tiers worse than
 # a fixture that collects one.
 #
-# All three are scoped to the *UNDER* side of the two markets a rough match
-# moves, except the referee one, which is about a missing input rather than
-# about the match being rough and therefore applies to both directions.
+# All scoped to the *UNDER* side of the two markets a rough match moves,
+# except the referee one (a missing input, not a rough match, so it applies to
+# both directions) and the knockout-round one (no confirmed direction at all,
+# so it applies to both directions too -- see its own comment above).
 CEILING_KNOCKOUT_SECOND_LEG = "KNOCKOUT_SECOND_LEG"
+CEILING_KNOCKOUT_ROUND = "KNOCKOUT_ROUND"
 CEILING_DERBY = "DERBY"
 CEILING_MISSING_REFEREE = "MISSING_REFEREE"
 CEILING_NO_REFERENCE_SOURCE = "NO_REFERENCE_SOURCE"
@@ -479,6 +523,11 @@ def lean_ceilings_for_row(row: StatsSheetRow, dossier: EventDossierV1) -> list[s
             reasons.append(CEILING_DERBY)
         if knockout_second_leg_is_live(dossier):
             reasons.append(CEILING_KNOCKOUT_SECOND_LEG)
+
+    if row.market in _KNOCKOUT_ROUND_SENSITIVE_MARKETS and is_knockout_round(dossier):
+        # Both directions: see ``_KNOCKOUT_ROUND_SENSITIVE_MARKETS``'s comment
+        # for why this one does not pick a side.
+        reasons.append(CEILING_KNOCKOUT_ROUND)
 
     if dossier.sport not in PRIMARY_PROVIDER_BY_SPORT:
         # No provider of record for the sport, so no row in it is a CALL.

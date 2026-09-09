@@ -21,6 +21,7 @@ from bet.simple_stats.contracts import (
     SuperbetLine,
     SuperbetOfferV1,
 )
+from bet.simple_stats.bet_builder_draft import AnalystVeto
 from bet.simple_stats.coupons import build_coupons
 
 
@@ -559,3 +560,59 @@ def test_a_slip_needs_two_legs_that_clear_their_bars_or_it_is_not_a_slip():
     coupons = build_coupons(sheet, events, superbet_offer=nothing_priced, max_slips=2)
 
     assert coupons.slips == []
+
+
+def test_analyst_downgrade_excludes_from_accumulator_and_top_singles():
+    """A row with an analyst DOWNGRADE veto must not be marked as VALUE
+
+    and must not be qualified for play in the top singles or the accumulator.
+    """
+    from scripts.simple.build_coupons import _accumulator_block
+
+    sheet = _sheet(
+        _row(event_id="evt-1", market="cards_total", line=4.5, direction="UNDER", hits=19, sample_size=22, p_low=0.62),
+        _row(event_id="evt-2", market="corners_total", line=8.5, direction="UNDER", hits=15, sample_size=18, p_low=0.60),
+    )
+    events = _events(
+        _event(event_id="evt-1", home="Botafogo", away="Novorizontino"),
+        _event(event_id="evt-2", home="Santos", away="Palmeiras"),
+    )
+    offer = _two_event_offer(
+        [_line(market="cards_total", line=4.5, direction="UNDER", price=1.80)],
+        [_line(market="corners_total", line=8.5, direction="UNDER", price=1.85)],
+    )
+    veto = AnalystVeto(
+        event_id="evt-1",
+        market="cards_total",
+        line=None,
+        direction=None,
+        action="DOWNGRADE",
+        reason_class="MISSING_REFEREE",
+        reason="Referee has only n=1 match in database",
+    )
+    coupons = build_coupons(sheet, events, superbet_offer=offer, vetoes=[veto])
+
+    single_1 = next(s for s in coupons.singles if s.event_id == "evt-1")
+    single_2 = next(s for s in coupons.singles if s.event_id == "evt-2")
+
+    # The downgraded single must have analyst_action recorded
+    assert single_1.analyst_action == "DOWNGRADE"
+    assert single_1.analyst_reason_class == "MISSING_REFEREE"
+    # It must not be marked as VALUE
+    assert single_1.superbet_verdict == "DOWNGRADE"
+
+    # Clean single remains VALUE
+    assert single_2.superbet_verdict == "VALUE"
+
+    # In build_coupons markdown rendering, worth_it excludes downgraded single
+    worth_it = [
+        s for s in coupons.singles
+        if s.superbet_verdict == "VALUE" and getattr(s, "analyst_action", None) != "DOWNGRADE"
+    ]
+    assert single_1 not in worth_it
+    assert single_2 in worth_it
+
+    # Accumulator block must NOT include the downgraded row
+    acc_lines = _accumulator_block(worth_it)
+    assert not any("Botafogo" in line for line in acc_lines)
+

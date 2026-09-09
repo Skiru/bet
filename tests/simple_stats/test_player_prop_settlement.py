@@ -200,6 +200,30 @@ class TestCrossMatchAccumulator:
 
         assert accumulator([0.8, 0.0], [1.5, 2.0], 1.10) is None
 
+    def test_accumulator_compounds_margins_and_required_odds(self) -> None:
+        from bet.simple_stats.bet_builder_draft import accumulator
+
+        # Two legs with LEAN margins (1.10 each) compounded: 1.10 * 1.10 = 1.21
+        acc_compounded = accumulator(
+            [0.8, 0.75],
+            [1.50, 1.60],
+            [1.10, 1.10],
+        )
+        assert acc_compounded is not None
+        assert acc_compounded.probability == pytest.approx(0.60)
+        assert acc_compounded.required_odds == pytest.approx(1.21 / 0.60, abs=1e-4)
+
+        # Passing explicit required_odds (e.g. product of min_acceptable_odds)
+        acc_with_req = accumulator(
+            [0.8, 0.75],
+            [1.50, 1.60],
+            [1.10, 1.10],
+            required_odds=2.52,
+        )
+        assert acc_with_req is not None
+        assert acc_with_req.required_odds == 2.52
+        assert acc_with_req.surplus == pytest.approx(2.40 - 2.52, abs=1e-4)
+
 
 class TestUnreviewedScopeSibling:
     """An analyst objection to the estimand lands on one scope; the other ships."""

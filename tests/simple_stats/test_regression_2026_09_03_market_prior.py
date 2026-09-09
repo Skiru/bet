@@ -43,6 +43,7 @@ from bet.simple_stats.contracts import (
     SuperbetOfferV1,
 )
 from bet.simple_stats.coupons import (
+    CEILING_ZERO_WEIGHT,
     VETO_CLASS_DOUBLE_K,
     VETO_CLASS_ZERO_WEIGHT,
     build_coupons,
@@ -413,6 +414,26 @@ def test_a_structural_missing_referee_ceiling_doubles_k_too():
     single = coupons.singles[0]
     assert single.sample_weight == pytest.approx(21 / 41, abs=1e-3)
     assert single.tier == "LEAN"
+
+
+def test_a_structural_knockout_round_ceiling_zeroes_the_samples_weight():
+    """ANALYZE's own knockout-round ceiling (2026-09-08) does what
+    ``SAMPLE_NOT_REPRESENTATIVE`` does by hand -- the fault is the same fault,
+    a domestic sample standing in for a cup fixture, and it should not matter
+    whether an analyst happened to write it down for this exact market.
+    """
+    row = _row(FOULS_TOTAL, lean_ceiling_reasons=["KNOCKOUT_ROUND"])
+    coupons = build_coupons(
+        _sheet(row), _events(),
+        superbet_offer=_offer(
+            _line("fouls_total", 36.5, "UNDER", FOULS_PRICE),
+            _line("fouls_total", 36.5, "OVER", round(1.0 / ((1.0 - FOULS_MKT) / 0.96), 2)),
+        ),
+    )
+    single = coupons.singles[0]
+    assert single.sample_weight == 0.0
+    assert single.bar_probability == single.market_probability
+    assert "KNOCKOUT_ROUND" in CEILING_ZERO_WEIGHT
 
 
 def test_line_on_mode_without_a_line_names_no_rung_and_is_reported():

@@ -124,7 +124,7 @@ def superbet_cell(s) -> str:
         return _SUPERBET_CELL.get(s.superbet_availability, s.superbet_availability)
     if s.superbet_price is None:
         return "—"
-    if s.superbet_verdict == "VALUE":
+    if s.superbet_verdict == "VALUE" and getattr(s, "analyst_action", None) != "DOWNGRADE":
         return f"**{s.superbet_price:.2f} ✓**"
     return f"{s.superbet_price:.2f}"
 
@@ -334,6 +334,8 @@ def _accumulator_block(worth_it: list) -> list[str]:
     for row in worth_it:
         if row.bar_probability is None or not row.superbet_price:
             continue
+        if getattr(row, "analyst_action", None) == "DOWNGRADE":
+            continue
         incumbent = best_per_fixture.get(row.event_id)
         if incumbent is None or row.rung_score is None:
             best_per_fixture.setdefault(row.event_id, row)
@@ -368,11 +370,14 @@ def _accumulator_block(worth_it: list) -> list[str]:
     out.append("|----:|-------------:|-------:|--------------:|----------:|------:|")
     for count in range(2, min(_ACCUMULATOR_MAX_LEGS, len(legs)) + 1):
         chosen = legs[:count]
-        margin = max(TIER_MARGIN[row.tier] for row in chosen)
+        req_odds = 1.0
+        for r in chosen:
+            req_odds *= r.min_acceptable_odds
         acc = accumulator(
             [row.bar_probability for row in chosen],
             [row.superbet_price for row in chosen],
-            margin,
+            [TIER_MARGIN[row.tier] for row in chosen],
+            required_odds=req_odds,
         )
         if acc is None:
             continue
@@ -462,8 +467,11 @@ def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
                 a(_singles_row(row))
             a("")
 
-    worth_it = [s for s in coupons.singles if s.superbet_verdict == "VALUE"]
-    below = [s for s in coupons.singles if s.superbet_verdict != "VALUE"]
+    worth_it = [
+        s for s in coupons.singles
+        if s.superbet_verdict == "VALUE" and getattr(s, "analyst_action", None) != "DOWNGRADE"
+    ]
+    below = [s for s in coupons.singles if s not in worth_it]
     if not coupons.singles:
         a("_Żaden wiersz nie przeszedł progu — dzień bez typów singlowych._")
     else:

@@ -33,10 +33,12 @@ from bet.simple_stats.bet_builder_draft import (
 )
 from bet.simple_stats.context_flags import (
     CEILING_DERBY,
+    CEILING_KNOCKOUT_ROUND,
     CEILING_KNOCKOUT_SECOND_LEG,
     CEILING_MISSING_REFEREE,
     CEILING_NO_REFERENCE_SOURCE,
     is_derby,
+    is_knockout_round,
     knockout_second_leg_is_live,
     lean_ceilings_for_row,
     referee_card_points_per_match,
@@ -181,26 +183,87 @@ def test_no_first_leg_is_not_a_second_leg():
     assert knockout_second_leg_is_live(_dossier(fixture_context=context)) is False
 
 
+# --- 2026-09-08: the knockout round nothing downstream read ----------------
+#
+# Four real fixtures from one slate, quoted in ``is_knockout_round``'s own
+# docstring: two Copa Sudamericana/Libertadores quarter-finals and two
+# Carabao Cup Round 3 ties lost two of the day's six VALUE singles on
+# goals_2h_total/fouls_total, and the domestic-sample-does-not-transfer
+# reasoning an analyst wrote by hand for two of the four (on cards, not on
+# the market that lost) is now a ceiling instead.
+
+
+@pytest.mark.parametrize(
+    "round_name,expected",
+    [
+        ("Quarterfinals", True),
+        ("Round 3", True),
+        ("Regular season · Matchday 6", False),
+        ("League phase · Matchday 1", False),
+        ("Group A · Matchday 8", False),
+        (None, False),
+        ("", False),
+    ],
+)
+def test_a_knockout_round_is_a_named_round_without_a_matchday(round_name, expected):
+    context = GRENAL_CONTEXT.model_copy(update={"round_name": round_name})
+    assert is_knockout_round(_dossier(fixture_context=context)) is expected
+
+
+def test_no_fixture_context_is_not_a_knockout_round():
+    assert is_knockout_round(_dossier(fixture_context=None)) is False
+
+
+def test_the_knockout_round_ceiling_reaches_second_half_goals_too():
+    """Independiente Santa Fe-Vasco da Gama's loss was goals_2h_total, not a
+    card or a foul market -- the ceiling has to reach it or it misses half of
+    2026-09-08's real damage."""
+    row = _row(market="goals_2h_total", line=0.5, direction="OVER")
+    assert CEILING_KNOCKOUT_ROUND in lean_ceilings_for_row(row, _dossier())
+
+
+@pytest.mark.parametrize("market", ["corners_total", "shots_total", "goals_for"])
+def test_the_knockout_round_ceiling_does_not_reach_corners_or_shots(market):
+    """Fluminense-Platense's corners_total OVER and Independiente Santa
+    Fe-Vasco's shots_total OVER both won on the same cup fixtures that lost
+    on cards/fouls/2h-goals -- there is no evidence this pattern touches
+    these markets, so it stays out rather than guessing it does too."""
+    row = _row(market=market, line=8.5, direction="OVER")
+    assert CEILING_KNOCKOUT_ROUND not in lean_ceilings_for_row(row, _dossier())
+
+
+def test_a_league_fixture_never_collects_the_knockout_round_ceiling():
+    context = GRENAL_CONTEXT.model_copy(update={"round_name": "Regular season · Matchday 6"})
+    row = _row(market="goals_2h_total", line=0.5, direction="OVER")
+    assert CEILING_KNOCKOUT_ROUND not in lean_ceilings_for_row(row, _dossier(fixture_context=context))
+
+
 # --- Phase 5: what the ceilings do -----------------------------------------
 
 
 def test_the_grenal_card_under_collects_both_ceilings_and_stays_a_lean():
+    """The Grenal's own round_name is "Quarterfinals" (GRENAL_CONTEXT), so
+    this row also collects the knockout-round ceiling added 2026-09-08 --
+    correctly: a Copa do Brasil quarter-final's cards do not have to look
+    like the domestic sample either."""
     reasons = lean_ceilings_for_row(_row(), _dossier())
-    assert set(reasons) == {CEILING_DERBY, CEILING_KNOCKOUT_SECOND_LEG}
+    assert set(reasons) == {CEILING_DERBY, CEILING_KNOCKOUT_SECOND_LEG, CEILING_KNOCKOUT_ROUND}
 
 
-def test_the_over_side_is_left_alone():
+def test_the_over_side_is_left_alone_by_derby_and_second_leg():
     """A derby and a live tie make a match rougher than either side's last ten,
     so the UNDER is the side the sample flatters. Nothing in this pipeline
-    promotes a row on context, so the OVER gets no ceiling -- only the
-    ``SUPPORTS`` flag it already had."""
-    assert lean_ceilings_for_row(_row(direction="OVER"), _dossier()) == []
+    promotes a row on context, so the OVER gets no ceiling from either --
+    only the ``SUPPORTS`` flag it already had. The knockout-round ceiling
+    still fires on this OVER row: unlike derby/second-leg, it has no
+    confirmed direction to spare one side (see its own docstring)."""
+    assert lean_ceilings_for_row(_row(direction="OVER"), _dossier()) == [CEILING_KNOCKOUT_ROUND]
 
 
 def test_a_card_market_with_no_referee_cannot_be_a_call():
     context = GRENAL_CONTEXT.model_copy(update={"referee_id": None})
     reasons = lean_ceilings_for_row(_row(direction="OVER"), _dossier(fixture_context=context))
-    assert reasons == [CEILING_MISSING_REFEREE]
+    assert set(reasons) == {CEILING_MISSING_REFEREE, CEILING_KNOCKOUT_ROUND}
 
 
 def test_a_sport_with_no_provider_of_record_cannot_be_a_call():

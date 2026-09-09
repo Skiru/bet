@@ -1171,7 +1171,11 @@ class Accumulator(NamedTuple):
 
 
 def accumulator(
-    probabilities: list[float], prices: list[float | None], margin: float
+    probabilities: list[float],
+    prices: list[float | None],
+    margin: float | list[float],
+    *,
+    required_odds: float | None = None,
 ) -> Accumulator | None:
     """The arithmetic for combining singles **from different fixtures**.
 
@@ -1203,7 +1207,15 @@ def accumulator(
         if not 0.0 < value <= 1.0:
             return None
         joint *= value
-    required = margin / joint
+    if required_odds is not None:
+        required = float(required_odds)
+    elif isinstance(margin, (list, tuple)):
+        compound_margin = 1.0
+        for m in margin:
+            compound_margin *= float(m)
+        required = compound_margin / joint
+    else:
+        required = margin / joint
     offered: float | None = None
     if prices and len(prices) == len(probabilities) and all(p for p in prices):
         offered = 1.0
