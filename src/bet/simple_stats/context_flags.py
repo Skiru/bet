@@ -518,6 +518,89 @@ CEILING_KNOCKOUT_ROUND = "KNOCKOUT_ROUND"
 CEILING_DERBY = "DERBY"
 CEILING_MISSING_REFEREE = "MISSING_REFEREE"
 CEILING_NO_REFERENCE_SOURCE = "NO_REFERENCE_SOURCE"
+CEILING_QUALITY_MISMATCH = "QUALITY_MISMATCH"
+CEILING_SIEGE_CORNER_INVERSION = "SIEGE_CORNER_INVERSION"
+
+_CONTINENTAL_LEAGUES = frozenset({"7", "8", "83", "29", "68"})
+_ELITE_EUROPEAN_CLUBS = frozenset({
+    "Paris Saint-Germain",
+    "Real Madrid",
+    "Barcelona",
+    "FC Barcelona",
+    "Manchester City",
+    "Arsenal",
+    "Liverpool",
+    "Bayern München",
+    "FC Bayern München",
+    "Inter",
+    "Internazionale",
+    "Juventus",
+    "Bayer Leverkusen",
+    "Borussia Dortmund",
+    "Atlético Madrid",
+    "Chelsea",
+    "Aston Villa",
+    "Milan",
+    "AC Milan",
+    "Napoli",
+    "SSC Napoli",
+})
+_DOMINANT_DOMESTIC_HOME_CLUBS = frozenset({
+    "Rangers",
+    "Celtic",
+    "Manchester City",
+    "Arsenal",
+    "Liverpool",
+    "Real Madrid",
+    "Barcelona",
+    "FC Barcelona",
+    "Bayern München",
+    "FC Bayern München",
+    "Paris Saint-Germain",
+    "Benfica",
+    "Sporting CP",
+    "Porto",
+})
+_GOAL_UNDER_MARKETS = frozenset({"goals_total", "goals_1h_total", "goals_2h_total", "goals_for"})
+_CORNER_UNDER_MARKETS = frozenset({"corners_for", "corners_total"})
+
+
+def is_continental_competition(dossier: EventDossierV1) -> bool:
+    context = dossier.fixture_context
+    if context is None or not context.league_id:
+        return False
+    return str(context.league_id) in _CONTINENTAL_LEAGUES
+
+
+def is_quality_mismatch(dossier: EventDossierV1) -> bool:
+    """A match in a continental competition between an elite European giant
+    and an opponent from a smaller domestic league.
+
+    Slovan Bratislava's domestic league sample (10/10 UNDER 4.5) was completely
+    unrepresentative of facing PSG at Parc des Princes (6:1 blowout).
+    """
+    if not is_continental_competition(dossier):
+        return False
+    a_elite = dossier.team_a_name in _ELITE_EUROPEAN_CLUBS
+    b_elite = dossier.team_b_name in _ELITE_EUROPEAN_CLUBS
+    return (a_elite and not b_elite) or (b_elite and not a_elite)
+
+
+def is_siege_corner_match(row: StatsSheetRow, dossier: EventDossierV1) -> bool:
+    """A domestic league match where a dominant home club sieges a low-block opponent.
+
+    Taking UNDER on the attacker's corners (e.g. Rangers corners UNDER 7.5) is walking
+    into a structural trap: prolonged siege produces endless crosses, deflections, and corners.
+    """
+    if row.direction != "UNDER":
+        return False
+    if dossier.team_a_name not in _DOMINANT_DOMESTIC_HOME_CLUBS:
+        return False
+    if row.market == "corners_for":
+        return row.team_name == dossier.team_a_name or row.team_name is None
+    if row.market == "corners_total" and row.line <= 10.5:
+        return True
+    return False
 
 _ROUGH_MATCH_MARKETS = _CARD_MARKETS | _FOUL_MARKETS
 
@@ -546,6 +629,12 @@ def lean_ceilings_for_row(row: StatsSheetRow, dossier: EventDossierV1) -> list[s
         # Both directions: see ``_KNOCKOUT_ROUND_SENSITIVE_MARKETS``'s comment
         # for why this one does not pick a side.
         reasons.append(CEILING_KNOCKOUT_ROUND)
+
+    if row.market in _GOAL_UNDER_MARKETS and row.direction == "UNDER" and is_quality_mismatch(dossier):
+        reasons.append(CEILING_QUALITY_MISMATCH)
+
+    if row.market in _CORNER_UNDER_MARKETS and row.direction == "UNDER" and is_siege_corner_match(row, dossier):
+        reasons.append(CEILING_SIEGE_CORNER_INVERSION)
 
     if dossier.sport not in PRIMARY_PROVIDER_BY_SPORT:
         # No provider of record for the sport, so no row in it is a CALL.

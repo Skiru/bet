@@ -200,6 +200,11 @@ MARKET_LABELS: dict[str, str] = {
 # reporting something unplaceable.
 MIN_SINGLE_P_LOW = 0.50
 
+# Minimum Superbet price for a single. Lines below 1.10 (e.g. 1.01-1.06) carry
+# documented negative EV (-1.0% to -4.3%) and catastrophic asymmetric tail risk
+# (e.g. 0-0 on Pohang-Gimcheon losing an entire unit to gain 1.02).
+MIN_SINGLE_ODDS_FLOOR = 1.10
+
 # How far under its own threshold a price may sit and still lead the file.
 #
 # The bar is ``tier_margin / p_shrunk``, and a row whose price misses it by one
@@ -561,7 +566,21 @@ CEILING_DOUBLE_K = frozenset({"MISSING_REFEREE"})
 # and never got to write for the other two, including the fixture that lost
 # the day's other VALUE single (Independiente Santa Fe-Vasco da Gama,
 # ``goals_2h_total``). See ``runs/2026-09-08/2026-09-08_coupon_review.md``.
-CEILING_ZERO_WEIGHT = frozenset({"KNOCKOUT_ROUND"})
+# Extended 2026-09-10 with QUALITY_MISMATCH (PSG-Slovan) and SIEGE_CORNER_INVERSION (Rangers).
+CEILING_ZERO_WEIGHT = frozenset({"KNOCKOUT_ROUND", "QUALITY_MISMATCH", "SIEGE_CORNER_INVERSION"})
+
+# Tennis prop markets where ESPN returns statsSource: none (no box-score feed for aces/DFs).
+_TENNIS_UNMEASURED_MARKETS = frozenset({
+    "aces_total",
+    "aces_for",
+    "double_faults_total",
+    "double_faults_for",
+})
+
+# Leagues where bzzoiro does not publish official box-score counting stats.
+_LEAGUE_UNSUPPORTED_METRICS: dict[str, frozenset[str]] = {
+    "81": frozenset({"corners_total", "corners_for"}),  # Copa Colombia: no corner feed
+}
 
 
 class CouponSingle(StrictBaseModel):
@@ -1332,6 +1351,8 @@ def build_coupons(
     bar_basis: str = "p_central",
     shrink_k: float | None = None,
     allow_player_props: bool = ALLOW_PLAYER_PROPS,
+    allow_unmeasured_tennis_props: bool = False,
+    min_odds_floor: float = 0.0,
     price_tolerance_pct: float = PRICE_TOLERANCE_PCT,
     max_per_family: int = MAX_SINGLES_PER_FAMILY,
     max_per_event: int = MAX_SINGLES_PER_EVENT,
@@ -1813,6 +1834,13 @@ def build_coupons(
         buildable = buildable.model_copy(update={
             "rows": [r for r in buildable.rows if not is_player_prop(r)]
         })
+    if not allow_unmeasured_tennis_props:
+        buildable = buildable.model_copy(update={
+            "rows": [
+                r for r in buildable.rows
+                if not (r.sport == "tennis" and r.market in _TENNIS_UNMEASURED_MARKETS)
+            ]
+        })
     if ambiguous_players:
         buildable = buildable.model_copy(update={
             "rows": [
@@ -1887,6 +1915,9 @@ def build_coupons(
         if not allow_player_props and is_player_prop(row):
             exclude("player_prop_unpriceable")
             continue
+        if not allow_unmeasured_tennis_props and row.sport == "tennis" and row.market in _TENNIS_UNMEASURED_MARKETS:
+            exclude("tennis_unmeasured_prop")
+            continue
         if row.p_low < min_p_low:
             exclude("p_low_below_threshold")
             continue
@@ -1901,6 +1932,11 @@ def build_coupons(
         if event is not None and competition_tier(event.competition) in ("YOUTH", "FRIENDLY"):
             exclude("competition_youth_or_friendly")
             continue
+        if event is not None and event.fixture_context and event.fixture_context.league_id:
+            unsupported = _LEAGUE_UNSUPPORTED_METRICS.get(str(event.fixture_context.league_id))
+            if unsupported and row.market in unsupported:
+                exclude("league_metric_unsupported")
+                continue
         candidates.append((row, tier))
 
     # A fixture contributes at most one single per market family, so one match
@@ -2028,9 +2064,13 @@ def build_coupons(
             # sample with no hit reported fair odds of 4.9e+16 next to a
             # min_acceptable_odds of 22.0.
             fair = 1.0 / bar.probability if bar.probability > 0 else 0.0
+            sb_info = superbet_for(row, minimum)
+            price = sb_info.get("superbet_price")
+            if min_odds_floor > 0 and isinstance(price, (int, float)) and price < min_odds_floor:
+                exclude("odds_below_floor")
+                continue
             per_family[(fixture, family)] += 1
             per_event[fixture] += 1
-            sb_info = superbet_for(row, minimum)
             veto = veto_index.for_row(row)
             if veto is not None and veto.action == "DOWNGRADE" and sb_info.get("superbet_verdict") == "VALUE":
                 sb_info["superbet_verdict"] = "DOWNGRADE"

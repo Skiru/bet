@@ -719,6 +719,7 @@ def test_a_tennis_fixture_is_named_by_its_players():
     coupons = build_coupons(
         _sheet(_row(event_id="evt-t", sport="tennis", market="aces_total", line=7.5)),
         _events(event),
+        allow_unmeasured_tennis_props=True,
     )
     assert coupons.singles[0].match == "Sinner – Alcaraz"
 

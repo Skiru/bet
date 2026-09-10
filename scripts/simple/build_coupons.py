@@ -154,6 +154,13 @@ _NEW_GATE_LABELS: dict[str, str] = {
     "player_prop_unpriceable": (
         "prop zawodnika — rodzina wyłączona z kuponu (zmierzone -30.5% ROI)"
     ),
+    "tennis_unmeasured_prop": (
+        "prop tenisowy (asy/podwójne błędy) — brak źródła weryfikacji w feedzie"
+    ),
+    "odds_below_floor": "kurs poniżej 1.10 (ujemne EV wariancji)",
+    "league_metric_unsupported": (
+        "metryka nieobsługiwana przez providera dla tych rozgrywek"
+    ),
     # The slip path's own three. They were as invisible as the prop gate and for
     # longer -- the filter hid every reason it had no phrase for, and nobody had
     # written phrases for these. Found 2026-09-06 by the test that now parses
@@ -897,6 +904,7 @@ def main() -> None:
     parser.add_argument("--max-slips", type=int, default=8)
     parser.add_argument("--max-legs", type=int, default=4)
     parser.add_argument("--min-p-low", type=float, default=None)
+    parser.add_argument("--min-odds-floor", type=float, default=1.10)
     parser.add_argument(
         "--bar",
         choices=("p_central", "p_low"),
@@ -1067,6 +1075,7 @@ def main() -> None:
         vetoes=vetoes, market_context=market_context, superbet_offer=superbet_offer,
         require_superbet_value=args.require_superbet_value,
         bar_basis=args.bar,
+        min_odds_floor=args.min_odds_floor,
     )
     if args.min_p_low is not None:
         kwargs["min_p_low"] = args.min_p_low
