@@ -761,6 +761,8 @@ class SlateGate:
 
     def verdict(self, event: EventRecord, now: datetime) -> str:
         """Why this event must not be enriched, or ``""`` to enrich it."""
+        if event.status != "ACTIVE":
+            return event.terminal_reason or f"event status is {event.status}"
         primary = PRIMARY_PROVIDER_BY_SPORT.get(event.sport)
         if primary and not _has_primary_identity(event):
             return (
@@ -1181,7 +1183,7 @@ def enrich_events(
     ]
 
     for event in event_list.events:
-        if event.status == "BLOCKED_IDENTITY":
+        if event.status != "ACTIVE":
             dossiers.append(
                 EventDossierV1(
                     event_id=event.event_id,

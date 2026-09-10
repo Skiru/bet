@@ -305,7 +305,7 @@ class EventRecord(StrictBaseModel):
     # Shape: {"highlightly": {"home": "3662637", "away": "16819097"}}.
     provider_team_ids: dict[str, dict[str, str]] = Field(default_factory=dict)
     identity_confidence: Literal["CONFIRMED", "FUZZY_MATCHED", "AMBIGUOUS"]
-    status: Literal["ACTIVE", "BLOCKED_IDENTITY"]
+    status: Literal["ACTIVE", "BLOCKED_IDENTITY", "BLOCKED_STATUS"]
     terminal_reason: str | None = None
     # Only bzzoiro publishes this, and only for events it discovered itself, so
     # it is None on any fixture another source found alone. Defaulted rather

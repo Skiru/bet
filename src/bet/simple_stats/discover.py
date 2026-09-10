@@ -48,6 +48,16 @@ _HIGHLIGHTLY_MAX_PAGES = 5
 _BZZOIRO_PAGE_SIZE = 200
 _BZZOIRO_MAX_PAGES = 5
 
+UNPLAYABLE_FIXTURE_STATUSES = frozenset({
+    "postponed",
+    "cancelled",
+    "canceled",
+    "suspended",
+    "abandoned",
+    "interrupted",
+    "delayed",
+})
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -577,7 +587,7 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
                         home_team=home["team_name"],
                         away_team=away["team_name"],
                         kickoff=kickoff,
-                        status=str(row.get("match_status") or "scheduled"),
+                        status=str(row.get("match_status") or "scheduled").strip().lower(),
                         raw_data={
                             "provider_match_id": row["provider_match_id"],
                             "home_team_id": home["provider_team_id"],
@@ -1041,6 +1051,25 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
                 away_team_id=str(raw.get("away_team_id") or "") or None,
             )
 
+    # Check if fixture status indicates it is unplayable (e.g. postponed, cancelled)
+    status_str = (fixture.status or "").strip().lower()
+    unplayable_reason: str | None = None
+    if status_str in UNPLAYABLE_FIXTURE_STATUSES:
+        unplayable_reason = f"fixture status is '{status_str}'"
+    else:
+        for src in fixture.sources:
+            raw = str(src.raw_status or "").strip().lower()
+            if raw in UNPLAYABLE_FIXTURE_STATUSES:
+                unplayable_reason = f"fixture marked '{raw}' by {src.source}"
+                break
+
+    if unplayable_reason:
+        event_status = "BLOCKED_STATUS"
+        terminal_reason = unplayable_reason
+    else:
+        event_status = "ACTIVE"
+        terminal_reason = None
+
     record_kwargs = dict(
         event_id=event_id,
         sport=sport,
@@ -1049,8 +1078,8 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
         source_ids=source_ids,
         provider_team_ids=provider_team_ids,
         identity_confidence=identity_confidence,
-        status="ACTIVE",
-        terminal_reason=None,
+        status=event_status,
+        terminal_reason=terminal_reason,
         fixture_context=fixture_context,
     )
     if sport == "tennis":

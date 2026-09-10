@@ -258,6 +258,31 @@ def test_blocked_identity_event_carried_through_as_blocked_dossier():
     assert "conflicting start_time" in ids["evt-blocked"].data_gaps[0]
 
 
+def test_blocked_status_event_carried_through_as_blocked_dossier():
+    """A BLOCKED_STATUS event (e.g. postponed match) is carried through as a BLOCKED
+    placeholder dossier with its terminal reason."""
+    blocked = EventRecord(
+        event_id="evt-postponed",
+        sport="football",
+        competition="Saudi Pro League",
+        home_team="Neom SC",
+        away_team="Al-Fateh",
+        start_time="2026-09-10T18:00:00+00:00",
+        source_ids={},
+        identity_confidence="FUZZY_MATCHED",
+        status="BLOCKED_STATUS",
+        terminal_reason="fixture status is 'postponed'",
+    )
+    event_list = EventListV1(generated_at="x", date="2026-09-10", sports=["football"], events=[blocked])
+
+    dossier_list = enrich_events(event_list)
+    ids = {d.event_id: d for d in dossier_list.dossiers}
+    assert "evt-postponed" in ids
+    assert ids["evt-postponed"].readiness == "BLOCKED"
+    assert "fixture status is 'postponed'" in ids["evt-postponed"].data_gaps[0]
+    assert len(dossier_list.dossiers) == len(event_list.events)
+
+
 def _event(event_id: str, start_time: str, **overrides) -> EventRecord:
     return EventRecord(
         event_id=event_id,

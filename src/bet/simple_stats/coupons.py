@@ -1860,6 +1860,10 @@ def build_coupons(
     # --- singles ----------------------------------------------------------
     candidates: list[tuple[StatsSheetRow, str]] = []
     for row in stats_sheet.rows:
+        ev = events.get(row.event_id)
+        if ev is not None and ev.status != "ACTIVE":
+            exclude(f"fixture_{ev.status.lower()}")
+            continue
         tier: Tier = tier_for_row(row)
         veto = veto_index.for_row(row)
         # DOWNGRADE is applied before the tier gate below, not after: a CALL
@@ -2442,6 +2446,9 @@ def build_coupons(
     # had diversified. ``fixture_key`` is the same resolver the singles use.
     seen_fixtures: set[tuple] = set()
     for event_id in sorted({row.event_id for row in stats_sheet.rows}):
+        ev = events.get(event_id)
+        if ev is not None and ev.status != "ACTIVE":
+            continue
         fixture = fixture_key(event_id)
         if fixture in seen_fixtures:
             exclude("duplicate_fixture_for_slip")

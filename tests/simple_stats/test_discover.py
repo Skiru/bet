@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pytest
 
 from bet.discovery.dedup import DeduplicationEngine
-from bet.discovery.models import DiscoveredEvent
+from bet.discovery.models import DiscoveredEvent, MergedFixture, SourceRef
 
 from bet.simple_stats.discover import (
     DISCOVERY_SOURCES_BY_SPORT,
@@ -744,4 +744,80 @@ def test_superbet_challenger_adapter_is_registered_disjoint_from_odds_api():
     assert "odds-api" in DISCOVERY_SOURCES_BY_SPORT["tennis"]
     assert "superbet-tennis-challenger" in DISCOVERY_SOURCES_BY_SPORT["tennis"]
     assert "superbet" in DISCOVERY_SOURCES_BY_SPORT["tennis"]
+
+
+def test_postponed_fixture_blocked_at_discovery():
+    """A postponed fixture must be marked BLOCKED_STATUS so it cannot be enriched
+    or placed on coupons."""
+    events_by_source = {
+        "bzzoiro": [
+            DiscoveredEvent(
+                source="bzzoiro",
+                external_id="postponed_1",
+                sport="football",
+                competition="Saudi Pro League",
+                home_team="Neom SC",
+                away_team="Al-Fateh",
+                kickoff=_KICKOFF,
+                status="postponed",
+            )
+        ]
+    }
+    merged = DeduplicationEngine().merge(events_by_source)
+    assert len(merged) == 1
+    record = _to_event_record(merged[0])
+
+    assert record.status == "BLOCKED_STATUS"
+    assert record.terminal_reason == "fixture status is 'postponed'"
+
+
+def test_cancelled_fixture_blocked_at_discovery():
+    """A cancelled fixture must be marked BLOCKED_STATUS."""
+    events_by_source = {
+        "bzzoiro": [
+            DiscoveredEvent(
+                source="bzzoiro",
+                external_id="cancelled_1",
+                sport="football",
+                competition="League One",
+                home_team="Stevenage",
+                away_team="Luton Town",
+                kickoff=_KICKOFF,
+                status="cancelled",
+            )
+        ]
+    }
+    merged = DeduplicationEngine().merge(events_by_source)
+    assert len(merged) == 1
+    record = _to_event_record(merged[0])
+
+    assert record.status == "BLOCKED_STATUS"
+    assert record.terminal_reason == "fixture status is 'cancelled'"
+
+
+def test_source_raw_status_postponed_blocks_fixture():
+    """Even if MergedFixture.status is 'scheduled', if any source flagged it as
+    postponed or cancelled, it must be marked BLOCKED_STATUS."""
+    fixture = MergedFixture(
+        sport="football",
+        competition="Saudi Pro League",
+        home_team="Al-Riyadh",
+        away_team="Al-Kholood",
+        kickoff=_KICKOFF,
+        status="scheduled",
+        sources=[
+            SourceRef(
+                source="bzzoiro",
+                external_id="222826",
+                raw_status="postponed",
+            )
+        ],
+        primary_source="bzzoiro",
+        primary_external_id="222826",
+    )
+    record = _to_event_record(fixture)
+
+    assert record.status == "BLOCKED_STATUS"
+    assert record.terminal_reason == "fixture marked 'postponed' by bzzoiro"
+
 

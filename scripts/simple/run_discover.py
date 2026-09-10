@@ -82,7 +82,7 @@ def main() -> None:
     out.event("artifact_written", path=str(output_path), sha256=digest, events=len(result.events))
 
     active = [e for e in result.events if e.status == "ACTIVE"]
-    blocked = [e for e in result.events if e.status == "BLOCKED_IDENTITY"]
+    blocked = [e for e in result.events if e.status != "ACTIVE"]
     by_source: dict[str, int] = {}
     for event in result.events:
         for source in event.source_ids:
@@ -94,7 +94,7 @@ def main() -> None:
 
     for event in blocked:
         out.warning(
-            "event blocked at discovery: ambiguous identity",
+            f"event blocked at discovery: {event.status}",
             event_id=event.event_id,
             reason=event.terminal_reason,
         )
@@ -107,7 +107,8 @@ def main() -> None:
         "date": args.date,
         "total_events": len(result.events),
         "active_events": len(active),
-        "blocked_identity_events": len(blocked),
+        "blocked_identity_events": sum(1 for e in result.events if e.status == "BLOCKED_IDENTITY"),
+        "blocked_status_events": sum(1 for e in result.events if e.status == "BLOCKED_STATUS"),
         "confirmed_identity_events": sum(1 for e in active if e.identity_confidence == "CONFIRMED"),
         "multi_source_events": sum(1 for e in active if len(e.source_ids) > 1),
         "events_by_source": by_source,
