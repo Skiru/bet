@@ -37,7 +37,7 @@ Ostatnia linia to Twoja decyzja. Trzy możliwe:
 
 | Werdykt | Co znaczy | Co robisz |
 |---|---|---|
-| `GO: quota corroborates all 40...` | Wszystko gra | Krok 3, bez zmian |
+| `GO: quota corroborates all ...` | Wszystko gra (pipeline przetworzy wszystkie wykryte zdarzenia) | Krok 3, bez zmian |
 | `GO with --max-events N` | Limitów starczy na N zdarzeń z korroboracją | Krok 3 z `--max-events N` |
 | `GO, but nothing will be corroborated` | Jeden provider na sport — wszystko wyjdzie `SINGLE_SOURCE` / `LOW` | Krok 2, albo świadomie akceptujesz słabe dane |
 | `NO-GO: no usable provider` | Zero providerów | Krok 2. Bez tego nie ma sensu startować |

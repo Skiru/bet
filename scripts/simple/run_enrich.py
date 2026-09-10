@@ -59,9 +59,8 @@ def main() -> None:
     parser.add_argument(
         "--max-events",
         type=int,
-        default=40,
-        help="Max ACTIVE events to enrich, best-corroborated first (default: 40). "
-             "A full day is 150+ fixtures, which exceeds every provider's daily quota.",
+        default=None,
+        help="Max ACTIVE events to enrich, best-corroborated first (default: all discovered events).",
     )
     parser.add_argument(
         "--provider-call-budget",
@@ -234,7 +233,9 @@ def main() -> None:
 
     # ── Preflight ────────────────────────────────────────────────────
     rate_limiter = RateLimiter()
-    planned = min(args.max_events, sum(1 for e in event_list.events if e.status == "ACTIVE"))
+    active_count = sum(1 for e in event_list.events if e.status == "ACTIVE")
+    effective_max_events = args.max_events if args.max_events is not None else active_count
+    planned = min(effective_max_events, active_count)
     preflight = enrich_preflight(event_list, rate_limiter, planned_events=planned)
     for quota in preflight["quotas"]:
         out.event(
@@ -335,7 +336,7 @@ def main() -> None:
         dossier_list = enrich_events(
             event_list,
             rate_limiter=rate_limiter,
-            max_events=args.max_events,
+            max_events=effective_max_events,
             provider_call_budget=args.provider_call_budget,
             player_props=args.player_props,
             slate_gate=gate,
@@ -428,7 +429,7 @@ def main() -> None:
         "data_gap_count": gap_count,
         "usable_providers": preflight["usable_providers"],
         "blocked_providers": [b["provider"] for b in preflight["blocked"]],
-        "max_events": args.max_events,
+        "max_events": effective_max_events,
         "player_props": args.player_props,
         "player_prop_observations": sum(
             len(d.player_metrics) for d in dossier_list.dossiers

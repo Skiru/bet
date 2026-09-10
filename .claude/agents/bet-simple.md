@@ -30,7 +30,7 @@ Advice line -> action:
 
 | Advice | Action |
 |---|---|
-| `GO: quota corroborates all N` | Run, no extra flags |
+| `GO: quota corroborates all ...` | Run, no extra flags (sizes to all discovered events) |
 | `GO with --max-events N` | Run with exactly that N |
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | Stop. Report each blocked provider's `kind`. Do not run |

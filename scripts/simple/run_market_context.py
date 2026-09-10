@@ -60,8 +60,8 @@ def main() -> None:
     parser.add_argument("--event-list", required=True, help="Path to EVENT_LIST_V1 JSON (from run_discover.py)")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument(
-        "--max-events", type=int, default=40,
-        help=f"Fixtures to fetch context for, at ~{CALLS_PER_EVENT} calls each (default: 40)",
+        "--max-events", type=int, default=None,
+        help=f"Fixtures to fetch context for, at ~{CALLS_PER_EVENT} calls each (default: all eligible candidates)",
     )
     parser.add_argument(
         "--provider-call-budget", type=int, default=100,
@@ -104,13 +104,14 @@ def main() -> None:
 
     event_list = EventListV1.model_validate_json(event_list_path.read_text(encoding="utf-8"))
     candidates = eligible_events(event_list)
+    effective_max_events = args.max_events if args.max_events is not None else len(candidates)
     out.event(
         "run_start",
         run_id=event_list.run_id,
         date=event_list.date,
         events=len(event_list.events),
         eligible=len(candidates),
-        planned_calls=min(len(candidates), args.max_events) * CALLS_PER_EVENT,
+        planned_calls=min(len(candidates), effective_max_events) * CALLS_PER_EVENT,
     )
 
     if not candidates:
@@ -125,7 +126,7 @@ def main() -> None:
         context = collect_market_context(
             event_list,
             RateLimiter(),
-            max_events=args.max_events,
+            max_events=effective_max_events,
             budget=RunBudget(args.provider_call_budget),
         )
     except Exception as exc:

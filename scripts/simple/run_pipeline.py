@@ -40,6 +40,7 @@ for entry in (scripts_path, src_path):
 
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
+from bet.simple_stats.contracts import EventListV1  # noqa: E402
 from bet.simple_stats.providers import PRIMARY_PROVIDER_BY_SPORT  # noqa: E402
 from bet.simple_stats.run_context import new_run_id  # noqa: E402
 
@@ -98,7 +99,7 @@ def preflight_advice(
     verdict: str,
     coverage: dict[str, int | None],
     recommended: int | None,
-    max_events: int,
+    max_events: int | None = None,
 ) -> tuple[str, str]:
     """The morning GO / NO-GO line, and the verdict that goes with it.
 
@@ -134,12 +135,14 @@ def preflight_advice(
         )
     if recommended is None:
         return "OK", "GO: no provider bounds the run -- every sport's coverage is unlimited."
-    if recommended < max_events:
+    if max_events is not None and recommended < max_events:
         return "PARTIAL", (
             f"GO with --max-events {recommended} "
             f"(quota corroborates {recommended}, not the {max_events} planned)."
         )
-    return "OK", f"GO: quota corroborates all {max_events} planned events."
+    if max_events is not None:
+        return "OK", f"GO: quota corroborates all {max_events} planned events."
+    return "OK", f"GO: quota corroborates all discovered events (up to {recommended} supported by providers)."
 OPTIONAL_STEPS = frozenset({"market_context", "tipsters", "superbet"})
 
 # Indirection so tests can substitute stub steps: the wrapper's job is
@@ -246,10 +249,23 @@ def _preflight_only(sports: list[str], args) -> None:
     the answer does not depend on which fixtures exist today.
     """
     from bet.api_clients.rate_limiter import RateLimiter
+    from bet.simple_stats.contracts import EventListV1
     from bet.simple_stats.preflight import preflight_for_sports
 
+    date = args.date or _utc_today()
+    output_dir = Path(args.output_dir) if args.output_dir else ROOT / "runs" / date
+    event_list_path = output_dir / f"{date}_event_list.json"
+
+    planned_events = args.max_events
+    if planned_events is None and event_list_path.exists():
+        try:
+            event_list = EventListV1.model_validate_json(event_list_path.read_text(encoding="utf-8"))
+            planned_events = sum(1 for e in event_list.events if e.status == "ACTIVE")
+        except Exception:
+            planned_events = None
+
     out = AgentOutput("simple_stats:PREFLIGHT", verbose=args.verbose)
-    result = preflight_for_sports(sports, RateLimiter(), planned_events=args.max_events)
+    result = preflight_for_sports(sports, RateLimiter(), planned_events=planned_events)
 
     usable = result["usable_providers"]
     coverage = result["coverage_by_sport"]
@@ -288,7 +304,7 @@ def _preflight_only(sports: list[str], args) -> None:
     # enough to produce an artifact, but nothing in it will be corroborated, and
     # corroboration is the only reason this pipeline exists.
     verdict, advice = preflight_advice(
-        result["verdict"], coverage, recommended, args.max_events
+        result["verdict"], coverage, recommended, planned_events
     )
 
     print(f"\n{advice}")
@@ -320,7 +336,7 @@ def _preflight_only(sports: list[str], args) -> None:
             "coverage_basis": "quota_only",
             "capability_note": capability_note,
             "recommended_max_events": recommended,
-            "planned_events": args.max_events,
+            "planned_events": planned_events,
             "advice": advice,
         },
     )
@@ -341,7 +357,7 @@ def main() -> None:
     parser.add_argument("--sports", default=None, help="Comma-separated (default: football,tennis)")
     parser.add_argument(
         "--max-events", type=int, default=None,
-        help="Enrichment cap (default: 40 on a fresh run; required explicitly "
+        help="Enrichment cap (default: all discovered events; required explicitly "
              "when resuming at a step that consumes it)",
     )
     parser.add_argument(
@@ -422,16 +438,14 @@ def main() -> None:
 
     # A resume must state its own breadth. ENRICH overwrites the dossier and
     # SUPERBET/MARKET_CONTEXT cap how many fixtures they read, so resuming a
-    # 250-event day under a silent default of 40 rebuilds the dossier at a
-    # sixth of its size -- the sheet shrinks ~84% and nothing reports why.
-    # The first pass's breadth is not recoverable from a default, so ask.
+    # 250-event day under a silent default could rebuild the dossier at a different
+    # size. The first pass's breadth is not recoverable from a default, so ask.
     if args.max_events is None:
         if args.start_at in ("enrich", "market_context", "superbet"):
             parser.error(
                 f"--start-at {args.start_at} requires an explicit --max-events: "
                 "the default of 40 would silently shrink a wider first pass"
             )
-        args.max_events = 40
 
     if args.preflight:
         _preflight_only(sports, args)  # exits
@@ -480,6 +494,14 @@ def main() -> None:
     stats_sheet: str | None = None
 
     for name in STEPS[first : last + 1]:
+        effective_max_events = args.max_events
+        if effective_max_events is None and event_list.exists():
+            try:
+                loaded = EventListV1.model_validate_json(event_list.read_text(encoding="utf-8"))
+                effective_max_events = sum(1 for e in loaded.events if e.status == "ACTIVE")
+            except Exception:
+                pass
+
         if name == "discover":
             argv = [STEP_SCRIPTS["discover"], "--date", date, "--run-id", run_id, *common]
             if args.sports:
@@ -495,7 +517,10 @@ def main() -> None:
             argv = [
                 STEP_SCRIPTS["enrich"],
                 "--event-list", str(event_list),
-                "--max-events", str(args.max_events),
+            ]
+            if effective_max_events is not None:
+                argv += ["--max-events", str(effective_max_events)]
+            argv += [
                 "--provider-call-budget", str(args.provider_call_budget),
                 *common,
             ]
@@ -529,7 +554,10 @@ def main() -> None:
             argv = [
                 STEP_SCRIPTS["market_context"],
                 "--event-list", str(event_list),
-                "--max-events", str(args.max_events),
+            ]
+            if effective_max_events is not None:
+                argv += ["--max-events", str(effective_max_events)]
+            argv += [
                 "--provider-call-budget", str(args.provider_call_budget),
                 *common,
             ]
@@ -562,11 +590,12 @@ def main() -> None:
                     pipeline_step=name,
                 )
                 continue
+            sb_cap = max(effective_max_events or 0, SUPERBET_OFFER_CAP) if effective_max_events is not None else SUPERBET_OFFER_CAP
             argv = [
                 STEP_SCRIPTS["superbet"],
                 "--event-list", str(event_list),
                 # SUPERBET_OFFER_CAP, never args.max_events -- see the constant.
-                "--max-events", str(max(args.max_events, SUPERBET_OFFER_CAP)),
+                "--max-events", str(sb_cap),
                 "--oddspapi-bridge", args.oddspapi_bridge,
                 *common,
             ]

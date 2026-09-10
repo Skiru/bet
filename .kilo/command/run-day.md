@@ -41,7 +41,7 @@ Quote the advice line, then act on it:
 
 | Advice | Action |
 |---|---|
-| `GO: quota corroborates all N` | Run with `--max-events 250` |
+| `GO: quota corroborates all ...` | Run, no `--max-events` needed (sizes to all discovered events) |
 | `GO with --max-events N` | Run with **exactly** that N |
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | **STOP.** Report each blocked provider's `kind`. Write no file |
@@ -144,8 +144,13 @@ the check working, not a new outage.
 ## Step 2 — Run the pipeline
 
 ```bash
-python3 scripts/simple/run_pipeline.py --date <resolved> -v --max-events <N> --player-props
+python3 scripts/simple/run_pipeline.py --date <resolved> -v --player-props
 ```
+
+By default, `--max-events` is omitted and the run automatically sizes to all
+discovered events (football is uncapped on the PRO plan and ESPN is free).
+Pass `--max-events N` only if preflight advised `GO with --max-events N` or when
+running a smaller bounded test.
 
 **`--player-props` costs ~20 extra bzzoiro calls per event** (one per outfield
 starter) to fill player prop rows (shots, shots on target, fouls, cards). It
@@ -162,13 +167,6 @@ Player props on a player either squad's `squad_availability` marks
 `unavailable` are dropped before ANALYZE ever sees them
 (`analyze.py:_unavailable_player_ids`) — a prop on an injured player is void,
 not losing, and that filter is enforced in code now, not left to manual review.
-
-**`--max-events 40` is too small and was the single biggest cost of the
-2026-08-28 run.** 277 of 387 discovered fixtures came back BLOCKED reading "run
-capped at 40 events", which looks like a quota problem and is not one: football
-is uncapped on the PRO plan, and ESPN is free. 250 is the number to use unless
-preflight says otherwise. Measured on that slate, going from 40 to 250 took the
-sheet from 37 to 92 events and 2954 to 5218 rows.
 
 The cap is now **split between sports** before ranking inside each one. It used
 to be one global sort whose tie-break rewards corroboration -- and corroboration

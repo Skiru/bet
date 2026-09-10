@@ -818,3 +818,15 @@ def test_no_usable_provider_outranks_every_coverage_reading():
     verdict, advice = _advice({"football": 40}, 40, verdict="PRECONDITION_FAILED")
     assert verdict == "PRECONDITION_FAILED"
     assert "no usable provider" in advice
+
+
+def test_preflight_advice_sizes_to_discovery_when_no_explicit_cap():
+    verdict, advice = _advice({"football": None, "tennis": 3333}, 3333, max_events=None)
+    assert verdict == "OK"
+    assert "all discovered events" in advice
+
+
+def test_preflight_advice_sizes_to_planned_events_when_explicit_or_known():
+    verdict, advice = _advice({"football": None, "tennis": 3333}, 3333, max_events=480)
+    assert verdict == "OK"
+    assert "all 480 planned events" in advice
