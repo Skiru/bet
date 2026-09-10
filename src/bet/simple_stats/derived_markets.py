@@ -240,28 +240,16 @@ REFUSED: dict[str, str] = {
 
 
 def _poisson_pmf(k: int, lam: float) -> float:
-    """P(X = k) for X ~ Poisson(lam), computed in log space.
-
-    The direct form ``exp(-lam) * lam**k / factorial(k)`` is what this was, and
-    it raises ``OverflowError`` once ``factorial(k)`` outgrows a float -- around
-    k = 170, which is inside the range a larger ``cap`` would ask for. Log space
-    has no such ceiling and loses nothing at the scales here.
-    """
+    """P(X = k) for X ~ Poisson(lam), computed in log space."""
+    if k < 0:
+        return 0.0
     if lam <= 0:
         return 1.0 if k == 0 else 0.0
     return math.exp(-lam + k * math.log(lam) - math.lgamma(k + 1))
 
 
 def skellam_three_way(lam_a: float, lam_b: float, *, cap: int = 80) -> Triple:
-    """P(A>B), P(A=B), P(A<B) for two independent Poisson counts.
-
-    ``cap`` truncates the two supports, and the result is renormalised so
-    truncation cannot leak probability -- but renormalising does not make
-    truncation free, because it redistributes the missing tail across both
-    sides unevenly. The cap was 45 and that was too low: at lambda 25 a side,
-    which a corrected shots line reaches, it moved the answer by 2.3e-05.
-    At 80 the same comparison against 200 moves it by less than 1e-12.
-    """
+    """P(A>B), P(A=B), P(A<B) for two independent Poisson counts."""
     pa = [_poisson_pmf(k, lam_a) for k in range(cap)]
     pb = [_poisson_pmf(k, lam_b) for k in range(cap)]
     more = equal = less = 0.0
@@ -277,7 +265,7 @@ def skellam_three_way(lam_a: float, lam_b: float, *, cap: int = 80) -> Triple:
             else:
                 less += p
     total = more + equal + less
-    if total <= 0:
+    if total <= 0 or math.isnan(total):
         return (1 / 3, 1 / 3, 1 / 3)
     return (more / total, equal / total, less / total)
 
@@ -395,6 +383,51 @@ def estimate(
         mean_home=mean_home,
         mean_away=mean_away,
         calibration=cal,
+    )
+
+
+def estimate_tennis(
+    metric: str, p1_sample: Sequence[float], p2_sample: Sequence[float]
+) -> DerivedEstimate:
+    """The comparative estimate for one tennis match (games, aces, double faults)."""
+    if metric not in ("games_won", "aces_for", "double_faults_for"):
+        return DerivedEstimate(
+            metric=metric,
+            verdict="REFUSED_UNKNOWN_METRIC",
+            reason=f"Tennis comparative estimator does not support metric '{metric}'",
+        )
+    if len(p1_sample) < 3 or len(p2_sample) < 3:
+        return DerivedEstimate(
+            metric=metric,
+            verdict="REFUSED_THIN_SAMPLE",
+            reason=f"Próbka {len(p1_sample)}/{len(p2_sample)}, minimum to 3 na stronę.",
+            n_home=len(p1_sample),
+            n_away=len(p2_sample),
+        )
+    mean_p1 = sum(p1_sample) / len(p1_sample)
+    mean_p2 = sum(p2_sample) / len(p2_sample)
+    if mean_p1 <= 0 or mean_p2 <= 0:
+        return DerivedEstimate(
+            metric=metric,
+            verdict="REFUSED_OUT_OF_RANGE",
+            reason="Jedna ze stron ma zerową średnią.",
+            n_home=len(p1_sample),
+            n_away=len(p2_sample),
+            mean_home=mean_p1,
+            mean_away=mean_p2,
+        )
+    base = (0.47, 0.06, 0.47) if metric == "games_won" else (0.45, 0.10, 0.45)
+    probs = shrink(skellam_three_way(mean_p1, mean_p2), base, k=0.85)
+    return DerivedEstimate(
+        metric=metric,
+        verdict="USABLE",
+        probabilities=probs,
+        lam_home=mean_p1,
+        lam_away=mean_p2,
+        n_home=len(p1_sample),
+        n_away=len(p2_sample),
+        mean_home=mean_p1,
+        mean_away=mean_p2,
     )
 
 

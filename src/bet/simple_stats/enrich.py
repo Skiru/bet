@@ -69,8 +69,8 @@ def _now_iso() -> str:
 
 def _side_names(event: EventRecord) -> tuple[str, str]:
     if event.sport == "tennis":
-        return event.player_one or "", event.player_two or ""
-    return event.home_team or "", event.away_team or ""
+        return event.player_one or event.home_team or "", event.player_two or event.away_team or ""
+    return event.home_team or event.player_one or "", event.away_team or event.player_two or ""
 
 
 @dataclass(frozen=True)
@@ -754,6 +754,7 @@ class SlateGate:
     priced_competitions: frozenset[tuple[str, str]] = frozenset()
     have_offer: bool = False
     enforce_kickoff: bool = True
+    enforce_competition_pricing: bool = True
     # When SUPERBET took the snapshot. Rule 3 can only speak about fixtures that
     # were still prematch at that moment -- see ``verdict``.
     offer_collected_at: datetime | None = None
@@ -790,7 +791,7 @@ class SlateGate:
             event, self.offer_collected_at
         ):
             return ""
-        if (event.sport, event.competition) in self.priced_competitions:
+        if self.enforce_competition_pricing and (event.sport, event.competition) in self.priced_competitions:
             return (
                 f"Superbet prices other fixtures of '{event.competition}' today "
                 f"but not this one: no price the operator can take"
@@ -805,6 +806,7 @@ def build_slate_gate(
     offer: SuperbetOfferV1 | None,
     *,
     enforce_kickoff: bool = True,
+    enforce_competition_pricing: bool = True,
 ) -> SlateGate:
     """The gate for one day, from DISCOVER's event list and SUPERBET's offer.
 
@@ -820,14 +822,22 @@ def build_slate_gate(
     this has to fail in.
     """
     if offer is None:
-        return SlateGate(have_offer=False, enforce_kickoff=enforce_kickoff)
+        return SlateGate(
+            have_offer=False,
+            enforce_kickoff=enforce_kickoff,
+            enforce_competition_pricing=enforce_competition_pricing,
+        )
     if offer.events_capped:
         # A board that was cut short cannot say a fixture is unpriced: the
         # fixtures it never looked at land in ``our_events_without_offer``
         # beside the genuine absences and are indistinguishable there. Rule 3
         # switches off rather than guessing. Measured on the live 2026-09-03
         # slate, a cap of 30 turned 9 priced fixtures into "not priced".
-        return SlateGate(have_offer=False, enforce_kickoff=enforce_kickoff)
+        return SlateGate(
+            have_offer=False,
+            enforce_kickoff=enforce_kickoff,
+            enforce_competition_pricing=enforce_competition_pricing,
+        )
     try:
         collected_at: datetime | None = datetime.fromisoformat(offer.generated_at)
     except (TypeError, ValueError):
@@ -849,6 +859,7 @@ def build_slate_gate(
         ),
         have_offer=True,
         enforce_kickoff=enforce_kickoff,
+        enforce_competition_pricing=enforce_competition_pricing,
         offer_collected_at=collected_at,
     )
 

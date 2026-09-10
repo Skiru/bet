@@ -44,14 +44,12 @@ class _FakeAdapter:
         return [_event(self.name, f"{self.name}-{sport}", sport=sport)]
 
 
-def test_football_discovery_is_gated_to_bzzoiro_only():
-    """Step 1 of the source-consolidation plan: an adapter that supports a
-    sport is only actually queried for it if it is also rostered in
-    DISCOVERY_SOURCES_BY_SPORT. A fixture no other source can enrich (every
-    football event lacking a bzzoiro row is dropped by SlateGate) should
-    never have been discovered in the first place."""
+def test_football_discovery_sources():
+    """Football queries all rostered sources in DISCOVERY_SOURCES_BY_SPORT:
+    bzzoiro and superbet."""
     highlightly = _FakeAdapter("highlightly", ["football"])
     bzzoiro = _FakeAdapter("bzzoiro", ["football"])
+    superbet = _FakeAdapter("superbet", ["football"])
 
     assert _fetch_source_events(highlightly, "2026-09-04", ["football"]) == []
     assert highlightly.calls == []
@@ -60,15 +58,17 @@ def test_football_discovery_is_gated_to_bzzoiro_only():
     assert len(events) == 1
     assert bzzoiro.calls == ["football"]
 
+    assert len(_fetch_source_events(superbet, "2026-09-04", ["football"])) == 1
+    assert superbet.calls == ["football"]
 
-def test_tennis_discovery_is_gated_to_odds_api_and_superbet_challenger_only():
-    """odds-api covers ATP/WTA main tour; superbet-tennis-challenger covers
-    the Challenger tier odds-api has no key for at all (verified live
-    2026-09-08: its free /v4/sports auto-discovery lists only
-    tennis_atp_us_open/tennis_wta_us_open). Nothing else is queried."""
+
+def test_tennis_discovery_sources():
+    """Tennis queries all rostered sources in DISCOVERY_SOURCES_BY_SPORT:
+    odds-api, superbet-tennis-challenger, and superbet."""
     odds_api = _FakeAdapter("odds-api", ["tennis"])
     superbet_challenger = _FakeAdapter("superbet-tennis-challenger", ["tennis"])
-    highlightly = _FakeAdapter("highlightly", ["tennis"])  # hypothetical: never true today
+    superbet = _FakeAdapter("superbet", ["tennis"])
+    highlightly = _FakeAdapter("highlightly", ["tennis"])
 
     events = _fetch_source_events(odds_api, "2026-09-04", ["tennis"])
     assert len(events) == 1
@@ -77,6 +77,9 @@ def test_tennis_discovery_is_gated_to_odds_api_and_superbet_challenger_only():
     events = _fetch_source_events(superbet_challenger, "2026-09-04", ["tennis"])
     assert len(events) == 1
     assert superbet_challenger.calls == ["tennis"]
+
+    assert len(_fetch_source_events(superbet, "2026-09-04", ["tennis"])) == 1
+    assert superbet.calls == ["tennis"]
 
     assert _fetch_source_events(highlightly, "2026-09-04", ["tennis"]) == []
     assert highlightly.calls == []
@@ -738,8 +741,7 @@ def test_superbet_challenger_adapter_is_registered_disjoint_from_odds_api():
     disambiguate a Challenger fixture against a main-tour one."""
     from bet.simple_stats.discover import DISCOVERY_SOURCES_BY_SPORT
 
-    assert DISCOVERY_SOURCES_BY_SPORT["tennis"] == (
-        "odds-api",
-        "superbet-tennis-challenger",
-    )
+    assert "odds-api" in DISCOVERY_SOURCES_BY_SPORT["tennis"]
+    assert "superbet-tennis-challenger" in DISCOVERY_SOURCES_BY_SPORT["tennis"]
+    assert "superbet" in DISCOVERY_SOURCES_BY_SPORT["tennis"]
 

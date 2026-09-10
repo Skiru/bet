@@ -1411,6 +1411,18 @@ class SuperbetResultLine(StrictBaseModel):
     source_outcome_name: str
 
 
+class SuperbetComparativeLine(StrictBaseModel):
+    """One offered comparative / H2H / handicap line from Superbet."""
+
+    market: str
+    side: str
+    line: float | None = None
+    price: float
+    status: str = "active"
+    source_market_name: str
+    source_outcome_name: str
+
+
 class SuperbetEventOffer(StrictBaseModel):
     """One Superbet fixture, matched to one of our events (or to none)."""
 
@@ -1443,6 +1455,7 @@ class SuperbetEventOffer(StrictBaseModel):
     # identified it exactly and this pipeline has no sample that speaks to it".
     # Only the first reading is a mapping bug.
     result_market_lines: list[SuperbetResultLine] = Field(default_factory=list)
+    comparative_lines: list[SuperbetComparativeLine] = Field(default_factory=list)
 
 
 class SuperbetOfferV1(StrictBaseModel):

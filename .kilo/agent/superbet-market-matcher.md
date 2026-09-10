@@ -206,18 +206,16 @@ This is the axis that answers "Superbet has a nice price on corner H2H, we have
 no such row — can we still judge it?" **Yes, for three metrics, and no for
 three others, and the difference was measured rather than argued.**
 
-## Why no artifact will ever show you this family
+Since the deep enrich overhaul, `superbet_offer.json` now extracts and carries
+`comparative_lines` (corners_h2h, shots_h2h, shots_on_target_h2h, fouls_h2h,
+cards_h2h, corners_handicap, cards_handicap, tennis games_handicap, sets_handicap,
+match_winner) directly in the artifact. For deeper per-outcome screens, the per-fixture
+endpoint remains available.
 
-`normalize_lines` keeps a market only when its outcome parses as
-powyżej/poniżej, and records an *unmapped* name only when it also contains the
-word "liczba". "Najwięcej kartek" contains neither. So an entire family —
-comparative markets, handicaps, ranges, races — is not filtered as unpriceable,
-it is **never seen**, and it is absent from `unmapped_markets` too. Grepping the
-offer artifact for it will always return nothing, and that nothing means
-nothing.
+## How to access this family
 
-The only way to see it is the per-fixture endpoint the pipeline's own client
-already reads:
+`comparative_lines` in `<date>_superbet_offer.json` now indexes these lines per event.
+Additionally, the full per-fixture endpoint can be queried:
 
 ```
 GET https://production-superbet-offer-pl.freetls.fastly.net/v2/pl-PL/events/{superbet_event_id}

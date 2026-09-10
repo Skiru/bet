@@ -773,24 +773,116 @@ class SuperbetTennisChallengerDiscoveryAdapter(AbstractSourceAdapter):
         return events
 
 
+class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
+    """Discovery source reading Superbet PL's own ``/events/by-date`` schedule,
+    for both football and all tennis singles.
+    """
+
+    name = "superbet"
+    priority = 5
+    supported_sports = ["football", "tennis"]
+
+    def __init__(self):
+        self._client = SuperbetClient()
+        super().__init__()
+
+    def is_available(self) -> bool:
+        return True
+
+    def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
+        if sport not in ("football", "tennis"):
+            return []
+
+        target_sport_id = SUPERBET_SPORT_IDS.get(sport)
+        if target_sport_id is None:
+            return []
+
+        window_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        window_end = window_start + timedelta(days=1)
+        try:
+            rows = self._client.events_by_date(window_start, window_end, offer_state="all")
+        except Exception as exc:
+            self._record_error(str(exc))
+            return []
+
+        events: list[DiscoveredEvent] = []
+        for row in rows:
+            if row.get("sportId") != target_sport_id:
+                continue
+            match_name = row.get("matchName") or ""
+            if sport == "tennis" and "/" in match_name:
+                continue  # doubles
+            home, away = split_match_name(match_name)
+            if not home or not away:
+                continue
+            raw_utc_date = str(row.get("utcDate") or "")
+            try:
+                kickoff = datetime.fromisoformat(raw_utc_date.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if kickoff.strftime("%Y-%m-%d") != date:
+                continue
+            event_id = row.get("eventId")
+            if event_id is None:
+                continue
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            raw_status = str(metadata.get("status") or "").strip().lower()
+            if raw_status in ("", "unknown", "not_started", "notstarted"):
+                status = "scheduled"
+            elif raw_status in ("finished", "ft", "ended"):
+                status = "finished"
+            elif raw_status in ("live", "inprogress", "in_progress"):
+                status = "inprogress"
+            else:
+                status = raw_status
+
+            cat_id = row.get("categoryId")
+            tourn_id = row.get("tournamentId")
+
+            if sport == "tennis":
+                if cat_id == _SUPERBET_ATP_CHALLENGER_CATEGORY_ID:
+                    competition = "ATP Challenger"
+                elif cat_id == 235:
+                    competition = "WTA Challenger"
+                elif cat_id in (2, 3):
+                    competition = "ATP/WTA Tour"
+                else:
+                    competition = f"Tennis Category {cat_id}" if cat_id else "Tennis"
+            else:
+                competition = f"Superbet League {cat_id}" if cat_id else "Football"
+
+            br_id = row.get("betradarId") or (metadata.get("brId") if isinstance(metadata, dict) else None)
+            events.append(
+                DiscoveredEvent(
+                    source=self.name,
+                    external_id=str(event_id),
+                    sport=sport,
+                    competition=competition,
+                    home_team=home,
+                    away_team=away,
+                    kickoff=kickoff,
+                    status=status,
+                    raw_data={
+                        "category_id": cat_id,
+                        "tournament_id": tourn_id,
+                        "betradar_id": str(br_id) if br_id is not None else None,
+                        "home_team_id": str(row.get("homeTeamId") or ""),
+                        "away_team_id": str(row.get("awayTeamId") or ""),
+                        "market_count": row.get("marketCount"),
+                    },
+                )
+            )
+        return events
+
+
 # `.get(sport, ())`, not `[sport]`: --sports is free text with no argparse
 # choices, and OddsAPIEventsAdapter also declares basketball and hockey.
 #
-# football: SlateGate rejects any event without a bzzoiro row regardless (297
-# of 342 on 2026-09-04), so discovering it elsewhere first is pure noise in
-# the artifact -- an event that cannot be enriched should not be discovered.
-# tennis: odds-api remains the schedule source for ATP/WTA main tour (the
-# sole schedule source left after bzzoiro-tennis was removed -- see
-# discover_events' docstring -- and highlightly's tennis discovery never
-# carried a native id anything downstream could use either).
-# superbet-tennis-challenger adds ATP Challenger singles, a tier odds-api has
-# no key for at all (verified 2026-09-08: its free /v4/sports auto-discovery
-# lists only tennis_atp_us_open/tennis_wta_us_open). It reads Superbet PL's
-# own schedule directly and is scoped to categoryId=205 so it never overlaps
-# odds-api's main-tour events.
+# Broad discovery across sources: bzzoiro and superbet for football,
+# odds-api, superbet-tennis-challenger, and superbet for tennis.
 DISCOVERY_SOURCES_BY_SPORT: dict[str, tuple[str, ...]] = {
-    "football": ("bzzoiro",),
-    "tennis": ("odds-api", "superbet-tennis-challenger"),
+    "football": ("bzzoiro", "superbet"),
+    "tennis": ("odds-api", "superbet-tennis-challenger", "superbet"),
 }
 
 
@@ -1021,6 +1113,7 @@ def discover_events(
         HighlightlyDiscoveryAdapter(rate_limiter),
         BzzoiroDiscoveryAdapter(rate_limiter),
         SuperbetTennisChallengerDiscoveryAdapter(),
+        SuperbetDiscoveryAdapter(),
     ]
     events_by_source = _fetch_all_sources(sources, date, sports)
     source_errors = {

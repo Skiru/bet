@@ -14,7 +14,11 @@ from typing import NamedTuple
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from bet.stats.market_ranking import player_prop_lines, standard_market_lines
+from bet.stats.market_ranking import (
+    markets_profile,
+    player_prop_lines,
+    standard_market_lines,
+)
 
 from bet.simple_stats.providers import (
     _normalize_team_name,
@@ -561,6 +565,8 @@ _TEAM_MARKET_STAT_TO_CANONICAL = {
     "games_won": "games_won",
 }
 
+_PER_SIDE_MARKETS = frozenset({"games_won", "aces_for", "double_faults_for", "games_won_1s", "games_won_2s"})
+
 _CONFIDENCE_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
 
 
@@ -688,12 +694,14 @@ def wilson_lower_bound(hits: int, sample_size: int, z: float = 1.96) -> float:
     """
     if sample_size <= 0:
         return 0.0
+    hits = max(0, min(hits, sample_size))
     p = hits / sample_size
     z2 = z * z
     denominator = 1 + z2 / sample_size
     centre = p + z2 / (2 * sample_size)
-    margin = z * ((p * (1 - p) / sample_size + z2 / (4 * sample_size * sample_size)) ** 0.5)
-    return max(0.0, (centre - margin) / denominator)
+    variance_term = p * (1 - p) / sample_size + z2 / (4 * sample_size * sample_size)
+    margin = z * (max(0.0, variance_term) ** 0.5)
+    return max(0.0, min(1.0, (centre - margin) / denominator))
 
 
 # Markets whose value is a count of discrete events, so a distribution can be
@@ -3109,6 +3117,161 @@ def _player_prop_rows(
                     sample_excluded=sample_excluded,
                 )
             )
+
+    # Dynamic fallback: analyze any player metric present in by_stat that was not in player_prop_lines
+    handled_prop_stats = {m["stat"] for m in player_prop_lines().get(dossier.sport, [])}
+    for canonical, observations in sorted(by_stat.items(), key=lambda x: x[0]):
+        if canonical in handled_prop_stats or canonical in suppressed_markets:
+            continue
+        for observation in observations:
+            l10, sample_excluded = scope_values(
+                observation.l10, surface=surface,
+                match_format=_format_scope_for(canonical, match_format),
+            )
+            if not l10:
+                continue
+            vals = [float(v.value) for v in l10 if v.value is not None]
+            if not vals:
+                continue
+            med = statistics.median(vals)
+            static_lines = [round(med, 1) + 0.5] if med > 0 else [0.5]
+            lines, limit, offered_sides = _resolve_lines(
+                offered, event_id=dossier.event_id, market=canonical,
+                static=static_lines, player_name=observation.player_name,
+            )
+            rows.extend(
+                _rows_for_sample(
+                    dossier=dossier,
+                    canonical=canonical,
+                    lines=lines,
+                    line_limit=limit,
+                    offered_sides=offered_sides,
+                    observations=_dedup(l10),
+                    independent=_one_per_day(l10, dossier.sport),
+                    team_name=side_names.get(observation.team_side),
+                    player_id=observation.player_id,
+                    player_name=observation.player_name,
+                    lineup_status=dossier.lineup_status or None,
+                    sample_excluded=sample_excluded,
+                )
+            )
+    return rows
+
+
+def _remaining_metric_rows(
+    dossier: EventDossierV1,
+    offered: OfferedLines | None = None,
+    *,
+    handled_match_markets: set[str],
+    handled_team_markets: set[str],
+    suppressed_markets: frozenset[str] = frozenset(),
+    surface: str | None = None,
+    match_format: str | None = None,
+) -> list[StatsSheetRow]:
+    """Emit rows for any metric in dossier.metrics that was not handled by standard lines.
+    Ensures that every fetched statistic for every event is analyzed.
+    """
+    rows: list[StatsSheetRow] = []
+    for canonical, obs in sorted(dossier.metrics.items(), key=lambda x: x[0]):
+        if canonical in suppressed_markets:
+            continue
+        if canonical.endswith("_for") or canonical in _PER_SIDE_MARKETS:
+            if canonical in handled_team_markets:
+                continue
+            for raw_bucket, team_name, venue in (
+                (obs.team_a_l10, dossier.team_a_name, "home"),
+                (obs.team_b_l10, dossier.team_b_name, "away"),
+            ):
+                if not raw_bucket or not team_name:
+                    continue
+                bucket, sample_excluded = scope_values(
+                    raw_bucket, surface=surface,
+                    match_format=_format_scope_for(canonical, match_format),
+                )
+                if not bucket:
+                    continue
+                vals = [float(v.value) for v in bucket if v.value is not None]
+                if not vals:
+                    continue
+                med = statistics.median(vals)
+                if canonical in PERCENTAGE_METRICS:
+                    static_lines = [round(med - 5.0, 1) + 0.5, round(med, 1) + 0.5, round(med + 5.0, 1) + 0.5]
+                    static_lines = sorted(set(l for l in static_lines if 0 < l < 100)) or [49.5, 50.5]
+                else:
+                    static_lines = [round(med - 1.0, 1) + 0.5, round(med, 1) + 0.5, round(med + 1.0, 1) + 0.5]
+                    static_lines = sorted(set(l for l in static_lines if l > 0)) or [0.5, 1.5]
+                lines, limit, offered_sides = _resolve_lines(
+                    offered, event_id=dossier.event_id, market=canonical,
+                    static=static_lines, team_name=team_name,
+                )
+                rows.extend(
+                    _rows_for_sample(
+                        dossier=dossier,
+                        canonical=canonical,
+                        lines=lines,
+                        line_limit=limit,
+                        offered_sides=offered_sides,
+                        observations=_dedup(bucket),
+                        independent=_one_per_day(bucket, dossier.sport),
+                        team_name=team_name,
+                        sample_excluded=sample_excluded,
+                        venue=venue if dossier.sport == "football" else None,
+                    )
+                )
+        else:
+            if canonical in handled_match_markets:
+                continue
+            framed_centre, one_sided = _framed_tennis_total_centre(
+                dossier, canonical, surface, match_format
+            )
+            if one_sided:
+                continue
+            all_obs = _all_values(obs)
+            if not all_obs:
+                continue
+            scoped_obs, sample_excluded = _scope_observation(
+                obs, surface=surface,
+                match_format=_format_scope_for(canonical, match_format),
+            )
+            scoped_vals = _all_values(scoped_obs)
+            vals = [float(v.value) for v in (scoped_vals or all_obs) if v.value is not None]
+            if not vals:
+                continue
+            med = statistics.median(vals)
+            if canonical in PERCENTAGE_METRICS:
+                static_lines = [round(med - 5.0, 1) + 0.5, round(med, 1) + 0.5, round(med + 5.0, 1) + 0.5]
+                static_lines = sorted(set(l for l in static_lines if 0 < l < 100)) or [49.5, 50.5]
+            else:
+                static_lines = [round(med - 1.0, 1) + 0.5, round(med, 1) + 0.5, round(med + 1.0, 1) + 0.5]
+                static_lines = sorted(set(l for l in static_lines if l > 0)) or [0.5, 1.5]
+            lines, limit, offered_sides = _resolve_lines(
+                offered, event_id=dossier.event_id, market=canonical,
+                static=static_lines,
+            )
+            rows.extend(
+                _rows_for_sample(
+                    dossier=dossier,
+                    canonical=canonical,
+                    lines=lines,
+                    line_limit=limit,
+                    offered_sides=offered_sides,
+                    observations=all_obs,
+                    observation_buckets=[
+                        _dedup(obs.team_a_l10),
+                        _dedup(obs.team_b_l10),
+                        _dedup(obs.h2h),
+                    ],
+                    h2h_fold_keys=_head_to_head_days(
+                        obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
+                    ),
+                    independent=_independent_match_sample(
+                        obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
+                    ),
+                    sample_excluded=sample_excluded,
+                    centre_override=framed_centre,
+                    side_sizes=_side_sizes(obs, dossier.sport),
+                )
+            )
     return rows
 
 
@@ -3179,30 +3342,9 @@ def analyze_dossier(
     offered: OfferedLines | None = None,
     *,
     competition: str | None = None,
+    deep_analysis: bool = False,
 ) -> list[StatsSheetRow]:
-    """STATS_SHEET_V1 rows for one event. BLOCKED dossiers never enter
-    ANALYZE (section 2).
-
-    Three families, distinguishable by the row's own fields rather than by a
-    type tag: a match total has ``team_name`` and ``player_id`` unset, a per-team
-    row has ``team_name`` only, a prop has both. They share one event_id and one
-    ranking key, so a consumer that wants them separately can group on those
-    fields and one that wants the day's strongest read can just sort.
-
-    ``offered`` is the SUPERBET ladder for the day, when one was loaded. Where it
-    covers a sample, its lines replace the static grid -- a line the operator
-    cannot take is not a bet, however well evidenced. Omitting it is not a
-    degraded mode: it is the sheet this function produced before the book was
-    ever read, byte for byte.
-
-    ``competition`` is the fixture's own competition name from EVENT_LIST_V1.
-    The dossier does not carry it and cannot be made to answer for it, but two
-    fixtures with identical statistics are different bets when one is a
-    best-of-three and the other a best-of-five -- see ``suppressed_markets_for``.
-    Omitting it suppresses nothing, which is exactly the behaviour of every run
-    before this argument existed.
-    """
-    if dossier.readiness == "BLOCKED":
+    if dossier.readiness == "BLOCKED" and not dossier.metrics and not dossier.player_metrics:
         return []
     suppressed = suppressed_markets_for(dossier, competition)
     # Football never pins a surface or a format, so both are None for every
@@ -3212,10 +3354,27 @@ def analyze_dossier(
         tennis_match_format(competition) if dossier.sport == "tennis" else None
     )
     scoping = {"surface": surface, "match_format": match_format}
+    match_rows = _match_total_rows(dossier, offered, suppressed_markets=suppressed, **scoping)
+    team_rows = _team_total_rows(dossier, offered, suppressed_markets=suppressed, **scoping)
+    player_rows = _player_prop_rows(dossier, offered, suppressed_markets=suppressed, **scoping)
+    if deep_analysis and markets_profile() != "legacy":
+        handled_match = {r.market for r in match_rows}
+        handled_team = {r.market for r in team_rows}
+        remaining_rows = _remaining_metric_rows(
+            dossier,
+            offered,
+            handled_match_markets=handled_match,
+            handled_team_markets=handled_team,
+            suppressed_markets=suppressed,
+            **scoping,
+        )
+    else:
+        remaining_rows = []
     return [
-        *_match_total_rows(dossier, offered, suppressed_markets=suppressed, **scoping),
-        *_team_total_rows(dossier, offered, suppressed_markets=suppressed, **scoping),
-        *_player_prop_rows(dossier, offered, suppressed_markets=suppressed, **scoping),
+        *match_rows,
+        *team_rows,
+        *player_rows,
+        *remaining_rows,
     ]
 
 
@@ -3224,6 +3383,7 @@ def analyze_dossiers(
     offered: OfferedLines | None = None,
     *,
     competitions: Mapping[str, str] | None = None,
+    deep_analysis: bool = False,
 ) -> StatsSheetV1:
     """Every dossier's rows, strongest first.
 
@@ -3236,7 +3396,10 @@ def analyze_dossiers(
     for dossier in dossier_list.dossiers:
         rows.extend(
             analyze_dossier(
-                dossier, offered, competition=lookup.get(dossier.event_id)
+                dossier,
+                offered,
+                competition=lookup.get(dossier.event_id),
+                deep_analysis=deep_analysis,
             )
         )
     # p_low first, tier second. Sorting on -hit_rate inside a confidence tier

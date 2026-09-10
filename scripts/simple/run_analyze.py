@@ -140,6 +140,11 @@ def main() -> None:
              "(default: unlimited). Faza 2 sizing guard against the sheet "
              "outgrowing the analyst's context window as market coverage grows.",
     )
+    parser.add_argument(
+        "--no-deep-analysis",
+        action="store_true",
+        help="Disable deep analysis of all unmapped metrics from dossier.metrics.",
+    )
     add_agent_args(parser)
     args = parser.parse_args()
 
@@ -205,7 +210,12 @@ def main() -> None:
             out.warning(f"event list unreadable, best-of-five gate inert: {exc}")
 
     try:
-        stats_sheet = analyze_dossiers(dossier_list, offered, competitions=competitions)
+        stats_sheet = analyze_dossiers(
+            dossier_list,
+            offered,
+            competitions=competitions,
+            deep_analysis=not args.no_deep_analysis,
+        )
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"analysis crashed: {exc}", recoverable=False, run_id=run_id)

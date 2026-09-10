@@ -92,7 +92,7 @@ def team_side(
 # would settle "Lilli Tagger games_won OVER 6.5" against the *match's* 22
 # games instead of her 9, scoring a straight-sets defeat as a win, on all 438
 # such rows in the four slates on disk.
-_PER_SIDE_MARKETS = frozenset({"games_won"})
+_PER_SIDE_MARKETS = frozenset({"games_won", "games_won_1s", "games_won_2s"})
 
 # Every market whose subject is one footballer rather than a team or a match.
 # The vocabulary is bzzoiro's ``PLAYER_STAT_MAP`` canonical names, and the
@@ -230,20 +230,15 @@ def actual_value(
 
 
 def settle(direction: str, line: float, value: float | None) -> Outcome:
-    """One bet's outcome at one line.
-
-    ``value is None`` is ``NO_DATA`` and never ``LOST``. A market the provider
-    did not report is a coverage gap in *this* module, not a failed bet, and
-    folding the two together would make every configuration look worse in
-    proportion to how many exotic markets it reached.
-    """
+    """One bet's outcome at one line."""
     if value is None:
         return "NO_DATA"
-    if value == line:
+    if abs(value - line) < 1e-9:
         return "PUSH"
-    if direction == "OVER":
+    d = direction.strip().upper()
+    if d == "OVER":
         return "WON" if value > line else "LOST"
-    if direction == "UNDER":
+    if d == "UNDER":
         return "WON" if value < line else "LOST"
     return "NO_DATA"
 

@@ -76,6 +76,7 @@ from bet.simple_stats.contracts import (
     StatsSheetV1,
     SuperbetColumn,
     SuperbetBoardEvent,
+    SuperbetComparativeLine,
     SuperbetComparisonRow,
     SuperbetComparisonV1,
     SuperbetEventOffer,
@@ -161,6 +162,47 @@ MATCH_MARKET_NAMES: dict[str, str] = {
     "liczba setow": "total_sets",
 }
 
+PERIOD_MARKET_NAMES: dict[str, str] = {
+    "1.polowa - liczba rzutow roznych": "corners_1h_total",
+    "1. polowa - liczba rzutow roznych": "corners_1h_total",
+    "2.polowa - liczba rzutow roznych": "corners_2h_total",
+    "2. polowa - liczba rzutow roznych": "corners_2h_total",
+    "1.polowa - liczba fauli": "fouls_1h_total",
+    "1. polowa - liczba fauli": "fouls_1h_total",
+    "2.polowa - liczba fauli": "fouls_2h_total",
+    "2. polowa - liczba fauli": "fouls_2h_total",
+    "1.polowa - liczba kartek": "cards_points_1h_total",
+    "1. polowa - liczba kartek": "cards_points_1h_total",
+    "2.polowa - liczba kartek": "cards_points_2h_total",
+    "2. polowa - liczba kartek": "cards_points_2h_total",
+    "1.polowa - liczba celnych strzalow": "shots_on_target_1h_total",
+    "1. polowa - liczba celnych strzalow": "shots_on_target_1h_total",
+    "2.polowa - liczba celnych strzalow": "shots_on_target_2h_total",
+    "2. polowa - liczba celnych strzalow": "shots_on_target_2h_total",
+    "1.polowa - liczba strzalow": "shots_1h_total",
+    "1. polowa - liczba strzalow": "shots_1h_total",
+    "2.polowa - liczba strzalow": "shots_2h_total",
+    "2. polowa - liczba strzalow": "shots_2h_total",
+    "1.polowa - liczba spalonych": "offsides_1h_total",
+    "1. polowa - liczba spalonych": "offsides_1h_total",
+    "2.polowa - liczba spalonych": "offsides_2h_total",
+    "2. polowa - liczba spalonych": "offsides_2h_total",
+    "1. set - liczba gemow": "total_games_1s",
+    "1.set - liczba gemow": "total_games_1s",
+    "2. set - liczba gemow": "total_games_2s",
+    "2.set - liczba gemow": "total_games_2s",
+}
+
+
+def classify_period_market(market_name: str | None) -> tuple[str, str | None] | None:
+    folded = fold(market_name)
+    if not folded:
+        return None
+    mapped = PERIOD_MARKET_NAMES.get(folded)
+    if mapped is not None:
+        return (mapped, None)
+    return None
+
 # Player-scope markets, matched on the *exact* normalised name for the same
 # reason the match table is exact: Superbet ships five sub-population variants
 # of every shot market ("... glowa", "... lewa noga", "... spoza pola karnego")
@@ -205,31 +247,26 @@ TEAM_MARKET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^liczba strzalow (?P<team>.+?)$"), "shots_for"),
     (re.compile(r"^liczba fauli - (?P<team>.+?)$"), "fouls_for"),
     (re.compile(r"^spalone - (?P<team>.+?)$"), "offsides_for"),
-    # Superbet writes this one with no separator at all -- "Liczba czerwonych
-    # kartek West Ham" -- which is a fourth shape on top of the three above.
-    # It was the only genuinely mapped market missing from a live 4,172-outcome
-    # fixture on 2026-09-01, and it must be matched *before* "liczba kartek"
-    # would be, or a red-card line gets filed as a booking line.
     (re.compile(r"^liczba czerwonych kartek (?P<team>.+?)$"), "red_cards_for"),
-    # Tennis, where "per team" is "per player" -- the same mechanism, told
-    # apart by ``team_name``, and the same three canonical metrics ANALYZE
-    # already emits per side (``_TEAM_MARKET_STAT_TO_CANONICAL``).
-    #
-    # Superbet writes these with the player's name and no separator: "Alex
-    # Michelsen liczba asow". Twenty of them went unmapped on 2026-09-02 across
-    # a slate whose *one* genuinely-priced row was a tennis ``aces_total``, so
-    # this is the second and less-glued view of exactly the market that
-    # survived the analyst -- per-player aces measured on that player's own
-    # serve rather than on both players summed.
-    #
-    # These sit after every football pattern and match a whole name against a
-    # phrase no football market uses, so they cannot capture a club. The
-    # combined "liczba asow + podwojnych bledow" is deliberately absent: there
-    # is no canonical metric that adds the two, and inventing one here would
-    # price a market nothing measured.
+    # Half-time per-team patterns
+    (re.compile(r"^1\. ?polowa - (?P<team>.+?) liczba rzutow roznych$"), "corners_1h_for"),
+    (re.compile(r"^2\. ?polowa - (?P<team>.+?) liczba rzutow roznych$"), "corners_2h_for"),
+    (re.compile(r"^1\. ?polowa - (?P<team>.+?) liczba fauli$"), "fouls_1h_for"),
+    (re.compile(r"^2\. ?polowa - (?P<team>.+?) liczba fauli$"), "fouls_2h_for"),
+    (re.compile(r"^1\. ?polowa - (?P<team>.+?) liczba kartek$"), "cards_points_1h_for"),
+    (re.compile(r"^2\. ?polowa - (?P<team>.+?) liczba kartek$"), "cards_points_2h_for"),
+    (re.compile(r"^1\. ?polowa - (?P<team>.+?) liczba strzalow$"), "shots_1h_for"),
+    (re.compile(r"^2\. ?polowa - (?P<team>.+?) liczba strzalow$"), "shots_2h_for"),
+    (re.compile(r"^1\. ?polowa - (?P<team>.+?) liczba celnych strzalow$"), "shots_on_target_1h_for"),
+    (re.compile(r"^2\. ?polowa - (?P<team>.+?) liczba celnych strzalow$"), "shots_on_target_2h_for"),
+    (re.compile(r"^1\. ?polowa - (?P<team>.+?) liczba spalonych$"), "offsides_1h_for"),
+    (re.compile(r"^2\. ?polowa - (?P<team>.+?) liczba spalonych$"), "offsides_2h_for"),
+    # Tennis per player
     (re.compile(r"^(?P<team>.+?) liczba asow$"), "aces_for"),
     (re.compile(r"^(?P<team>.+?) liczba podwojnych bledow$"), "double_faults_for"),
     (re.compile(r"^(?P<team>.+?) liczba gemow$"), "games_won"),
+    (re.compile(r"^1\. ?set - (?P<team>.+?) liczba gemow$"), "games_won_1s"),
+    (re.compile(r"^2\. ?set - (?P<team>.+?) liczba gemow$"), "games_won_2s"),
 ]
 
 # --- the result family -----------------------------------------------------
@@ -670,6 +707,110 @@ def normalize_result_lines(
     return list(best.values())
 
 
+COMPARATIVE_MARKET_NAMES: dict[str, str] = {
+    "liczba rzutow roznych - h2h": "corners_h2h",
+    "najwiecej strzalow": "shots_h2h",
+    "najwiecej celnych strzalow": "shots_on_target_h2h",
+    "najwiecej kartek": "cards_h2h",
+    "najwiecej fauli": "fouls_h2h",
+    "liczba fauli - h2h": "fouls_h2h",
+    "1. polowa - najwiecej rzutow roznych": "corners_1h_h2h",
+    "1.polowa - najwiecej rzutow roznych": "corners_1h_h2h",
+    "2. polowa - najwiecej rzutow roznych": "corners_2h_h2h",
+    "2.polowa - najwiecej rzutow roznych": "corners_2h_h2h",
+    "rzuty rozne handicap": "corners_handicap",
+    "liczba kartek - handicap": "cards_handicap",
+    "liczba celnych strzalow - handicap": "shots_on_target_handicap",
+    "handicap gemy": "games_handicap",
+    "handicap sety": "sets_handicap",
+    "zwyciezca": "match_winner",
+}
+
+_COMPARATIVE_DRAW_NAMES = frozenset({"remis", "x", "zadna"})
+
+
+def normalize_comparative_lines(
+    raw_event: dict[str, Any],
+    *,
+    team_names: Iterable[str] = (),
+) -> list[SuperbetComparativeLine]:
+    """Every offered outcome in comparative / H2H / handicap markets on one Superbet event."""
+    ours = {
+        normalize_team_name(resolve_team_alias(name)): name
+        for name in team_names
+        if name
+    }
+    resolve_team = _team_resolver(ours)
+    home_name, away_name = (list(team_names) + ["", ""])[:2]
+    best: dict[tuple[str, str, float | None], SuperbetComparativeLine] = {}
+
+    for raw in raw_event.get("odds") or []:
+        if not isinstance(raw, dict):
+            continue
+        market_name = str(raw.get("marketName") or "")
+        folded_market = fold(market_name)
+        market = COMPARATIVE_MARKET_NAMES.get(folded_market)
+        if market is None:
+            continue
+        try:
+            price = float(raw.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if price <= 1.0:
+            continue
+
+        raw_name = str(raw.get("name") or "").strip()
+        folded_name = fold(raw_name)
+
+        line: float | None = None
+        match = re.search(r"\(([+-]?\d+(?:\.\d+)?)\)", raw_name)
+        if match:
+            try:
+                line = float(match.group(1))
+            except ValueError:
+                pass
+        elif raw.get("specialBetValue") is not None:
+            try:
+                line = float(raw["specialBetValue"])
+            except (TypeError, ValueError):
+                pass
+
+        side: str = raw_name
+        if folded_name in _COMPARATIVE_DRAW_NAMES:
+            side = "DRAW"
+        elif folded_name == "1":
+            side = home_name or "HOME"
+        elif folded_name == "2":
+            side = away_name or "AWAY"
+        else:
+            cleaned_name = re.sub(r"\s*\([+-]?\d+(?:\.\d+)?\)", "", raw_name).strip()
+            resolved = resolve_team(cleaned_name)
+            if resolved:
+                side = resolved
+            else:
+                side = cleaned_name
+
+        candidate = SuperbetComparativeLine(
+            market=market,
+            side=side,
+            line=line,
+            price=price,
+            status=str(raw.get("status") or "active"),
+            source_market_name=market_name,
+            source_outcome_name=raw_name,
+        )
+        slot = (market, side, line)
+        current = best.get(slot)
+        if current is None:
+            best[slot] = candidate
+        elif current.status != "active" and candidate.status == "active":
+            best[slot] = candidate
+        elif current.status == candidate.status and candidate.price > current.price:
+            best[slot] = candidate
+
+    return list(best.values())
+
+
 def normalize_lines(
     raw_event: dict[str, Any],
     *,
@@ -766,6 +907,8 @@ def normalize_lines(
             _record_unmapped(unmapped, raw, board_sides)
             continue
         classified = classify_market(raw.get("marketName"))
+        if classified is None:
+            classified = classify_period_market(raw.get("marketName"))
         if classified is None:
             _record_unmapped(unmapped, raw, board_sides)
             continue
@@ -1134,6 +1277,7 @@ def build_event_offer(
     team_names = _sides(event) if event is not None else split_match_name(raw_event.get("matchName"))
     lines, unmapped = normalize_lines(raw_event, team_names=team_names)
     result_lines = normalize_result_lines(raw_event, team_names=team_names)
+    comparative_lines = normalize_comparative_lines(raw_event, team_names=team_names)
     quality = "UNMATCHED"
     if event is not None:
         if matched_by == "betradar_id":
@@ -1160,6 +1304,7 @@ def build_event_offer(
         lines=lines,
         unmapped_markets=unmapped,
         result_market_lines=result_lines,
+        comparative_lines=comparative_lines,
     )
 
 

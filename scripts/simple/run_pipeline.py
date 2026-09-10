@@ -359,6 +359,23 @@ def main() -> None:
              "(~20 extra bzzoiro calls per event). Off by default.",
     )
     parser.add_argument(
+        "--no-enforce-kickoff",
+        "--include-started",
+        dest="no_enforce_kickoff",
+        action="store_true",
+        help="Do not drop events whose kickoff has passed. Essential for historical replays and backfills.",
+    )
+    parser.add_argument(
+        "--no-competition-pricing",
+        action="store_true",
+        help="Do not drop events merely because Superbet priced other matches in that competition.",
+    )
+    parser.add_argument(
+        "--no-slate-gate",
+        action="store_true",
+        help="Enrich every ACTIVE event without applying SlateGate filters.",
+    )
+    parser.add_argument(
         "--start-at", choices=STEPS, default="discover",
         help="Resume from a step, reusing artifacts already in --output-dir",
     )
@@ -492,6 +509,12 @@ def main() -> None:
                 argv.append("--skip-preflight")
             if args.player_props:
                 argv.append("--player-props")
+            if args.no_enforce_kickoff:
+                argv.append("--no-enforce-kickoff")
+            if args.no_competition_pricing:
+                argv.append("--no-competition-pricing")
+            if args.no_slate_gate:
+                argv.append("--no-slate-gate")
         elif name == "market_context":
             if args.skip_market_context:
                 out.event("step_skipped", pipeline_step=name, reason="--skip-market-context")

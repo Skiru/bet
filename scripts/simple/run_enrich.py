@@ -103,6 +103,23 @@ def main() -> None:
              "normal run wants the gate.",
     )
     parser.add_argument(
+        "--no-enforce-kickoff",
+        "--include-started",
+        dest="no_enforce_kickoff",
+        action="store_true",
+        help="Do not drop events whose kickoff has passed. Essential for historical replays and backfills.",
+    )
+    parser.add_argument(
+        "--no-competition-pricing",
+        action="store_true",
+        help="Do not drop events merely because Superbet priced other matches in that competition.",
+    )
+    parser.add_argument(
+        "--force-all",
+        action="store_true",
+        help="When backfilling, retry all incomplete/empty events without skipping gate-refused ones.",
+    )
+    parser.add_argument(
         "--now",
         default=None,
         help=(
@@ -152,14 +169,18 @@ def main() -> None:
         # off for *this* pass's own decisions, it does not re-open fixtures a
         # previous pass already excluded. To re-enrich those, run without
         # ``--backfill-from`` over an event list containing them.
-        gate_refused = {
-            dossier.event_id
-            for dossier in prior.dossiers
-            if any(
-                (kind := gate_drop_kind(gap)) is not None and kind != "capped"
-                for gap in dossier.data_gaps
-            )
-        }
+        if args.force_all:
+            gate_refused = set()
+        else:
+            gate_refused = {
+                dossier.event_id
+                for dossier in prior.dossiers
+                if any(
+                    (kind := gate_drop_kind(gap)) is not None
+                    and kind != "capped"
+                    for gap in dossier.data_gaps
+                )
+            }
         # Readiness alone is the wrong test. A dossier can be READY and still
         # be missing observations, because a provider call failed upstream and
         # the gap was reported rather than retried -- and ``sample_size`` is
@@ -292,12 +313,19 @@ def main() -> None:
         # fixture has started. Enforcing kickoff would empty the slate rather
         # than protect it.
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        enforce_kickoff = not event_list.date or event_list.date >= today
-        gate = build_slate_gate(event_list, offer, enforce_kickoff=enforce_kickoff)
+        enforce_kickoff = (not event_list.date or event_list.date >= today) and not args.no_enforce_kickoff
+        enforce_competition = not args.no_competition_pricing
+        gate = build_slate_gate(
+            event_list,
+            offer,
+            enforce_kickoff=enforce_kickoff,
+            enforce_competition_pricing=enforce_competition,
+        )
         out.event(
             "slate_gate",
             have_offer=gate.have_offer,
             enforce_kickoff=enforce_kickoff,
+            enforce_competition_pricing=enforce_competition,
             priced_events=len(gate.priced_event_ids),
             priced_competitions=len(gate.priced_competitions),
         )
@@ -504,6 +532,11 @@ def _merge_dossiers(prior, fresh) -> tuple[EventDossierListV1, int]:
             improved += 1
         else:
             merged.append(old)
+    prior_ids = {d.event_id for d in prior.dossiers}
+    for new in fresh.dossiers:
+        if new.event_id not in prior_ids:
+            merged.append(new)
+            improved += 1
     return (
         EventDossierListV1(
             run_id=prior.run_id or fresh.run_id,

@@ -305,20 +305,15 @@ def fetch_actuals(
 
 
 def _sides_of(event) -> tuple[str, str]:
-    """The two competitors' names, whichever pair of fields the sport uses.
-
-    EVENT_LIST_V1 stores a football fixture as ``home_team``/``away_team`` and
-    a tennis match as ``player_one``/``player_two``, and every settlement site
-    here read only the first pair. For tennis that made ``settle.team_side``
-    resolve against ``None``/``None``, so it returned None and **every
-    per-player row settled NO_DATA** -- a player's games, aces and double
-    faults, 702 of the 2,824 tennis rows on the four slates on disk -- no
-    matter what actuals were fetched. It read as missing coverage and was a
-    field name.
-    """
+    """The two competitors' names, whichever pair of fields the sport uses."""
+    if isinstance(event, dict):
+        return (
+            event.get("home_team") or event.get("player_one") or "",
+            event.get("away_team") or event.get("player_two") or "",
+        )
     return (
-        event.home_team or event.player_one or "",
-        event.away_team or event.player_two or "",
+        getattr(event, "home_team", None) or getattr(event, "player_one", None) or "",
+        getattr(event, "away_team", None) or getattr(event, "player_two", None) or "",
     )
 
 

@@ -1418,3 +1418,33 @@ def test_no_market_in_the_result_table_can_ever_appear_as_a_priced_total():
     assert priced_names == {"liczba goli"}
     # And the result family did come through, or the assertion above is vacuous.
     assert len(result_lines) >= 10
+
+
+def test_normalize_comparative_lines():
+    from bet.simple_stats.superbet_offer import normalize_comparative_lines
+
+    raw = {
+        "matchName": "Santos·Atletico MG",
+        "odds": [
+            {"marketName": "Liczba rzutów rożnych - H2H", "name": "Santos", "price": 1.65},
+            {"marketName": "Liczba rzutów rożnych - H2H", "name": "remis", "price": 6.7},
+            {"marketName": "Liczba rzutów rożnych - H2H", "name": "Atletico MG", "price": 2.67},
+            {"marketName": "Najwięcej strzałów", "name": "Santos", "price": 1.49},
+            {"marketName": "Najwięcej strzałów", "name": "Remis", "price": 13.0},
+            {"marketName": "Najwięcej strzałów", "name": "Atletico MG", "price": 2.82},
+            {"marketName": "Rzuty rożne handicap", "name": "Santos (-1.5)", "price": 2.02, "specialBetValue": -1.5},
+            {"marketName": "Rzuty rożne handicap", "name": "Atletico MG (1.5)", "price": 1.69, "specialBetValue": -1.5},
+        ]
+    }
+    comp_lines = normalize_comparative_lines(raw, team_names=("Santos", "Atletico MG"))
+    assert len(comp_lines) == 8
+    markets = {cl.market for cl in comp_lines}
+    assert "corners_h2h" in markets
+    assert "shots_h2h" in markets
+    assert "corners_handicap" in markets
+    corners_draw = [cl for cl in comp_lines if cl.market == "corners_h2h" and cl.side == "DRAW"]
+    assert len(corners_draw) == 1
+    assert corners_draw[0].price == 6.7
+    hcp_santos = [cl for cl in comp_lines if cl.market == "corners_handicap" and cl.side == "Santos"]
+    assert len(hcp_santos) == 1
+    assert hcp_santos[0].line == -1.5
