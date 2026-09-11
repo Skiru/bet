@@ -376,6 +376,24 @@ def test_tennis_is_within_quota_for_any_realistic_slate():
     assert "tennis" in sports_within_quota(events, RateLimiter())
 
 
+def test_football_is_within_quota_for_a_realistic_bzzoiro_slate():
+    """Football's providers are espn-football (free, unlimited -- no
+    ``API_DAILY_LIMITS`` entry) and bzzoiro (native id, also unlimited on the
+    PRO plan). Neither has anything left to ration, so a slate of
+    bzzoiro-identified fixtures must read as unconstrained on a plain
+    ``RateLimiter()`` -- the same guarantee tennis already had via
+    ``test_tennis_is_within_quota_for_any_realistic_slate``, extended to
+    football once ESPN's stray 10000/day figure stopped shadowing it.
+
+    30 matches real bzzoiro's actual football coverage on 2026-09-10.
+    """
+    events = _list(*[
+        _event("football", event_id=f"f{i}", bzzoiro=True) for i in range(30)
+    ])
+
+    assert "football" in sports_within_quota(events, RateLimiter())
+
+
 def test_a_sport_whose_provider_cannot_cover_the_slate_is_not_exempt(monkeypatch):
     """The exemption is measured, not hardcoded: give espn-tennis a limit that
     does not reach the board and tennis has to compete for the cap again."""

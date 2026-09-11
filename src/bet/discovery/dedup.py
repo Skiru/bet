@@ -583,16 +583,25 @@ class DeduplicationEngine:
         if not fixture.country and event.country:
             fixture.country = event.country
 
-        # Re-canonicalize primary source if new source has higher priority rank
-        if self._source_priority_rank(
-            event.source
-        ) < self._source_priority_rank(fixture.primary_source):
-            fixture.primary_source = event.source
-            fixture.primary_external_id = event.external_id
-            if not self._is_placeholder_competition(event.competition):
-                fixture.competition = event.competition
-            if event.country:
-                fixture.country = event.country
+        # There is no re-canonicalization step for ``primary_source`` here,
+        # and there does not need to be one: ``merge()`` visits sources in a
+        # single pass, strictly in ``SOURCE_PRIORITY`` order, processing every
+        # event of one source before looking at the next. The first source to
+        # create a given fixture is therefore always the highest-priority
+        # source that discovered it at all -- if a higher-priority source had
+        # also found it, that source would have been visited earlier and
+        # created the fixture itself. A later, lower-priority ``_attach_source``
+        # call can never see a source that outranks the one already recorded.
+        #
+        # A version of this method once carried a
+        # ``rank(event.source) < rank(fixture.primary_source)`` branch meant to
+        # "upgrade" ``primary_source`` when a better one turned up late. It
+        # could not fire -- the invariant above makes the condition always
+        # false -- and its only test (``test_bzzoiro_priority_and_placeholder_
+        # competition_upgrade``) passed without exercising it, because bzzoiro
+        # sorts first in ``SOURCE_PRIORITY`` and had already set every field
+        # the test checked at fixture-creation time. Removed rather than left
+        # as a guard against a case that cannot occur under this architecture.
 
         # Merge odds if the new event has them and the fixture doesn't
         if event.odds and not fixture.odds:

@@ -24,7 +24,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from bet.simple_stats.providers import _normalize_team_name, _team_matches
+from bet.simple_stats.providers import (
+    _is_absent_not_zero,
+    _normalize_team_name,
+    _team_matches,
+)
 
 Outcome = Literal["WON", "LOST", "PUSH", "NO_DATA"]
 
@@ -93,6 +97,23 @@ def team_side(
 # games instead of her 9, scoring a straight-sets defeat as a win, on all 438
 # such rows in the four slates on disk.
 _PER_SIDE_MARKETS = frozenset({"games_won", "games_won_1s", "games_won_2s"})
+
+# Tennis's canonical vocabulary (contracts.COUNT_METRICS), needed only to route
+# ``_is_absent_not_zero`` to its tennis branch -- a retired or walkover match
+# reading as a genuine short one, e.g. ``total_games: 4, total_sets: 1`` --
+# which keys off *provider*, not market. Settlement has no provider to hand
+# it: ``actuals`` is already the settled figure a scoreboard published, not a
+# per-provider sample reading. This stands in as "tennis-shaped", the same
+# test ``_PER_SIDE_MARKETS`` above already makes for the per-player half of
+# the same vocabulary.
+_TENNIS_MARKETS = frozenset({
+    "total_games", "total_sets", "aces_total", "double_faults_total",
+    "breaks_total", "aces_for", "double_faults_for",
+}) | _PER_SIDE_MARKETS
+
+# Any member of ``_TENNIS_PROVIDERS`` works here -- this is a routing flag for
+# ``_is_absent_not_zero``, not a claim about who actually reported the figure.
+_TENNIS_ROUTING_KEY = "espn-tennis"
 
 # Every market whose subject is one footballer rather than a team or a match.
 # The vocabulary is bzzoiro's ``PLAYER_STAT_MAP`` canonical names, and the
@@ -210,15 +231,53 @@ def actual_value(
     and needs ``player_id``. Passing one without the other returns None rather
     than falling through to the match total, which is the mistake that would
     score "Fullkrug fouls over 0.5" against the match's 23.
+
+    A block ``_is_absent_not_zero`` rejects settles as if it were never
+    reported at all, even though every key it asks for returns a normal-looking
+    float. That function already gates the *sample* side of this provider's
+    output (``fouls_total: 0.0`` on a completed match, an impossible shots/goals
+    ordering, every counted-play metric at zero at once) -- Panathinaikos-Kifisia
+    (bzzoiro 601009, 2026-09-10) is the settlement-side case that motivated
+    reusing it here: its ``/stats/`` block reported ``fouls_total: 0.0`` and a
+    literal 100/0 ball-possession split for a match with a red card and four
+    goals, because bzzoiro's live tracker never engaged for it. Read at face
+    value, ``fouls_total OVER 20.5`` at 71% confidence settled a LOST that
+    should have been NO_DATA. The whole ``total`` (or per-side) block is
+    distrusted rather than just the one market asked for: a payload this
+    provider's own tracker never wrote to cannot be trusted piecemeal, and the
+    two other figures it happened to carry for this match (``goals_total``,
+    ``cards_points_total``) came from a different endpoint (incidents) anyway.
+
+    A tennis market gets the same treatment through ``_TENNIS_MARKETS``,
+    routed to the tennis branch of ``_is_absent_not_zero`` (sets/games below
+    what a completed singles match can produce -- a retirement's own
+    docstring there: "a player who quits at 2-1 down contributes three games
+    ... to a 'total games UNDER 21.5' sample as though he had played a whole
+    match"). Settlement has no provider to pass it, unlike the sample path,
+    so ``_TENNIS_ROUTING_KEY`` stands in as "this block is tennis-shaped".
     """
     if market.startswith(PLAYER_MARKET_PREFIX):
         return player_value(actuals, market, player_id)
+    routing_key = _TENNIS_ROUTING_KEY if market in _TENNIS_MARKETS else ""
+    # A retirement's tell (sets/games short of a completed match) lives only
+    # in the match total, never in one side's own box -- "games_won: 3" is a
+    # normal-looking number on its own, whichever side asks for it. So a
+    # per-side tennis market is checked against the *match's* total block
+    # too, not just its own, before either is trusted.
+    if routing_key and _is_absent_not_zero(actuals.get("total", {}), routing_key):
+        return None
     if market.endswith("_for") or market in _PER_SIDE_MARKETS:
         if side is None:
             return None
-        value = actuals.get(side, {}).get(market)
+        block = actuals.get(side, {})
+        if _is_absent_not_zero(block, routing_key):
+            return None
+        value = block.get(market)
     else:
-        value = actuals.get("total", {}).get(market)
+        block = actuals.get("total", {})
+        if _is_absent_not_zero(block, routing_key):
+            return None
+        value = block.get(market)
     if value is None:
         if market in ABSENT_MEANS_ZERO and _has_statistics_block(actuals):
             return 0.0

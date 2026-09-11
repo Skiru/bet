@@ -256,3 +256,50 @@ class TestEdgeCases:
         assert merged[0].primary_source == "bzzoiro"
         assert merged[0].competition == "Ekstraklasa Poland"
         assert merged[0].country == "Poland"
+
+
+class TestPrimarySourceIsDecidedOnlyAtCreation:
+    """``merge()`` visits sources in a single pass, strictly in
+    ``SOURCE_PRIORITY`` order, draining one source fully before the next --
+    so the first source to create a fixture is always the highest-priority
+    one that discovered it at all. ``_attach_source`` therefore carries no
+    step that reassigns ``primary_source``: a version of it once did, gated
+    on ``rank(new) < rank(existing)``, and that condition cannot be true
+    under this architecture. Its only test passed without exercising it,
+    because bzzoiro sorts first in ``SOURCE_PRIORITY`` and had already set
+    every field the test checked at fixture-creation time -- see
+    ``test_bzzoiro_priority_and_placeholder_competition_upgrade`` above.
+    """
+
+    def test_a_higher_priority_source_arriving_after_creation_does_not_move_primary_source(
+        self, engine
+    ):
+        """A real ``events_by_source`` dict can never hand bzzoiro's event to
+        ``_attach_source`` after superbet's has already created the fixture --
+        bzzoiro always sorts first. This calls ``_attach_source`` directly to
+        prove the *removed* branch is not missed: the placeholder competition
+        and country still upgrade (that part of the method is unconditional),
+        but ``primary_source`` stays exactly what ``merge()``'s single pass
+        established.
+        """
+        events = {
+            "superbet": [
+                _make_event(
+                    source="superbet", external_id="sb_1",
+                    competition="Superbet League 1",
+                )
+            ],
+        }
+        merged = engine.merge(events)
+        assert merged[0].primary_source == "superbet"
+
+        bzzoiro_event = _make_event(
+            source="bzzoiro", external_id="bz_1",
+            competition="Ekstraklasa Poland", country="Poland",
+        )
+        engine._attach_source(merged[0], bzzoiro_event)
+
+        assert merged[0].primary_source == "superbet"
+        assert merged[0].primary_external_id == "sb_1"
+        assert merged[0].competition == "Ekstraklasa Poland"
+        assert merged[0].country == "Poland"

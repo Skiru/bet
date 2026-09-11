@@ -104,6 +104,68 @@ def test_a_non_numeric_value_is_a_gap_and_not_a_zero():
     assert actual_value(actuals, "corners_total", None) is None
 
 
+def test_a_tracker_that_never_engaged_settles_nothing():
+    """Panathinaikos-Kifisia, bzzoiro event 601009, 2026-09-10: FT 3-1 with a
+    red card, but ``/events/{id}/stats/`` reported ``fouls_total: 0.0`` and a
+    literal 100/0 ball-possession split for both sides, because the live
+    tracker never engaged for this fixture (confirmed live: ``total_shots``,
+    ``shots_on_target`` and ``corner_kicks`` are absent from the raw payload
+    entirely, not zero). Read at face value, ``fouls_total OVER 20.5`` -- a
+    71%-confidence pick backed by 17 real observations -- settled a LOST
+    instead of NO_DATA.
+
+    ``_is_absent_not_zero`` already catches this shape for the *sample* it
+    feeds into other fixtures' history (``fouls_total == 0.0`` on a finished
+    match is its first, hard-coded check); this pins that the settlement path
+    now refuses the same block rather than trusting it selectively.
+    """
+    actuals = _actuals(
+        home={"fouls_for": 0.0, "cards_points_for": 1.0, "goals_for": 3.0},
+        away={"fouls_for": 0.0, "cards_points_for": 6.0, "goals_for": 1.0},
+        total={
+            "fouls_total": 0.0,
+            "cards_total": 1.0,
+            "cards_points_total": 7.0,
+            "goals_total": 4.0,
+        },
+    )
+    assert actual_value(actuals, "fouls_total", None) is None
+    assert settle_row(market="fouls_total", line=20.5, direction="OVER", actuals=actuals)[0] == "NO_DATA"
+    # The whole block is distrusted, not just the market that tipped it off:
+    # goals_total and cards_points_total came from a different endpoint
+    # (incidents) for this exact match and happened to be right, but nothing
+    # in the payload lets settlement tell that apart from the broken fields.
+    assert actual_value(actuals, "goals_total", None) is None
+    assert actual_value(actuals, "cards_for", "home") is None
+
+
+def test_a_tennis_retirement_settles_nothing():
+    """Total games/sets below what a completed singles match can produce is
+    the tennis half of the same fault: a player who quits at 2-1 down
+    contributes three games to a "total games UNDER 21.5" sample as though he
+    had played a whole match. The scoreboard states a real, non-zero score --
+    this is not a missing-value case, it is a value that describes something
+    no finished match can be, same as ``fouls_total: 0.0`` above.
+    """
+    actuals = _actuals(
+        home={"games_won": 3.0},
+        away={"games_won": 2.0},
+        total={"total_games": 5.0, "total_sets": 1.0},
+    )
+    assert actual_value(actuals, "total_games", None) is None
+    assert actual_value(actuals, "games_won", "home") is None
+    assert settle_row(market="total_games", line=21.5, direction="UNDER", actuals=actuals)[0] == "NO_DATA"
+
+    # A genuine completed match is untouched.
+    finished = _actuals(
+        home={"games_won": 13.0},
+        away={"games_won": 8.0},
+        total={"total_games": 21.0, "total_sets": 2.0},
+    )
+    assert actual_value(finished, "total_games", None) == 21.0
+    assert actual_value(finished, "games_won", "home") == 13.0
+
+
 # --- which side -------------------------------------------------------------
 
 

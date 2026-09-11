@@ -56,14 +56,14 @@ API_DAILY_LIMITS = {
     # backstop -- calibrate after the first pilot day (PIPELINE_SIMPLIFICATION_PLAN
     # section 11, Faza C).
     "highlightly": 100,
-    # "bzzoiro" is deliberately absent, which this limiter reads as unlimited
-    # (the same treatment ESPN gets): on the PRO plan the football product stops
-    # sending rate-limit headers altogether -- verified live 2026-08-28 across
-    # /leagues/, /events/, /events/{id}/stats/ and /coverage/, where the free
-    # plan had answered `ratelimit-policy: "football";q=7500;w=86400`. A local
-    # 7000 backstop was measured against a ceiling that no longer exists, and
-    # kept only as an artificial brake: at ~30 calls an event it capped a run at
-    # roughly 230 fixtures for no reason the provider was asking for.
+    # "bzzoiro" is deliberately absent, which this limiter reads as unlimited:
+    # on the PRO plan the football product stops sending rate-limit headers
+    # altogether -- verified live 2026-08-28 across /leagues/, /events/,
+    # /events/{id}/stats/ and /coverage/, where the free plan had answered
+    # `ratelimit-policy: "football";q=7500;w=86400`. A local 7000 backstop was
+    # measured against a ceiling that no longer exists, and kept only as an
+    # artificial brake: at ~30 calls an event it capped a run at roughly 230
+    # fixtures for no reason the provider was asking for.
     #
     # The remaining guard against a runaway loop is per-run, not per-day:
     # RUN_BUDGET_OVERRIDES["bzzoiro"] in simple_stats/providers.py. Set
@@ -79,12 +79,21 @@ API_DAILY_LIMITS = {
     "sportdb": 300,
     "totalcorner-scraper": 50,
     "scores24-scraper": 100,
-    # ESPN clients — free, unlimited, no cap needed but tracked
-    "espn-football": 10000,
-    "espn-basketball": 10000,
-    "espn-hockey": 10000,
-    "espn-tennis": 10000,
-    "espn-volleyball": 10000,
+    # ESPN clients are free and unlimited -- there is no dashboard quota to
+    # respect, unlike highlightly (429) or bzzoiro-tennis (95/day). They used
+    # to carry a numeric "10000, free, unlimited, no cap needed but tracked"
+    # entry here, which is self-contradictory: a number in this dict *is* an
+    # enforced daily ceiling (``_effective_limit`` reads it back as ``limit``,
+    # and ``can_request``/``get_remaining`` refuse once it is reached), not a
+    # label. It rarely bound in practice, but on a day this process already
+    # spent part of the counter (a prior run, or the test suite -- see
+    # ``tests-could-spend-the-quota``), ``sports_within_quota`` would read
+    # espn-football as scarce off a stale local number the provider never
+    # asked for, and a real slate would be capped and apportioned around a
+    # constraint that does not exist. Removed rather than raised, so it reads
+    # exactly like bzzoiro above: absent here means unlimited, and
+    # ``record_request`` still writes the usage file that keeps it visible.
+    # Override with BET_LIMIT_ESPN_FOOTBALL etc. if a real ceiling ever shows up.
 }
 
 # Window-aware rate limits: {api_name: {type: "hourly"|"daily"|"minute", limit: int, burst: int}}

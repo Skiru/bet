@@ -33,6 +33,7 @@ from bet.simple_stats.providers import (
     MatchContext,
     RunBudget,
     fetch_bzzoiro_history,
+    fetch_bzzoiro_lineup,
     fetch_bzzoiro_match_context,
     fetch_bzzoiro_player_history,
 )
@@ -501,6 +502,88 @@ def test_unplayed_history_is_one_counted_line_not_a_gap_each(monkeypatch, tmp_pa
     assert "3 of 3" in outcome.data_gaps[0]
 
 
+# --- lineups ----------------------------------------------------------------
+
+
+def test_lineup_not_yet_announced_is_a_gap_not_silence(monkeypatch, tmp_path):
+    """``get_lineups_result`` answers SUCCESS with empty ``sides`` for a
+    fixture with no lineup announced yet -- correctly, that is not a schema
+    violation. But every other branch of ``fetch_bzzoiro_lineup`` writes a gap
+    for "the provider answered, contributed nothing"; this one used to
+    return silently instead, so enrich.py proceeded with zero player props
+    and nothing on disk said why.
+    """
+    client, _ = _client(monkeypatch, tmp_path, {"/events/900001/lineups/": {"lineups": {}}})
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    lineup_status, players, gaps = fetch_bzzoiro_lineup(
+        "900001", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500)
+    )
+    assert players == {"home": [], "away": []}
+    assert lineup_status == ""
+    assert gaps == ["bzzoiro: lineup not yet announced for event 900001"]
+
+
+def test_a_published_lineup_with_no_players_is_also_a_gap(monkeypatch, tmp_path):
+    """Same fault, different shape: a lineup object is published (formation,
+    team id) but carries no parseable players -- still SUCCESS at the client,
+    still nothing to build a prop from."""
+    client, _ = _client(
+        monkeypatch,
+        tmp_path,
+        {
+            "/events/900002/lineups/": {
+                "lineup_status": "predicted",
+                "lineups": {
+                    "home": {"team_id": 1, "players": []},
+                    "away": {"team_id": 2, "players": []},
+                },
+            }
+        },
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    lineup_status, players, gaps = fetch_bzzoiro_lineup(
+        "900002", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500)
+    )
+    assert players == {"home": [], "away": []}
+    assert lineup_status == "predicted"
+    assert gaps == ["bzzoiro: lineup not yet announced for event 900002"]
+
+
+def test_a_real_lineup_produces_no_gap(monkeypatch, tmp_path):
+    """The positive case, pinned beside the two gaps above: a confirmed XI
+    with real players settles cleanly and writes nothing to data_gaps."""
+    client, _ = _client(
+        monkeypatch,
+        tmp_path,
+        {
+            "/events/900003/lineups/": {
+                "lineup_status": "confirmed",
+                "lineups": {
+                    "home": {
+                        "team_id": 1,
+                        "players": [{"id": 11, "name": "A. Player", "position": "FW"}],
+                    },
+                    "away": {
+                        "team_id": 2,
+                        "players": [{"id": 22, "name": "B. Player", "position": "MF"}],
+                    },
+                },
+            }
+        },
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    lineup_status, players, gaps = fetch_bzzoiro_lineup(
+        "900003", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500)
+    )
+    assert lineup_status == "confirmed"
+    assert [p["player_name"] for p in players["home"]] == ["A. Player"]
+    assert [p["player_name"] for p in players["away"]] == ["B. Player"]
+    assert gaps == []
+
+
 # --- player props ---------------------------------------------------------
 
 PLAYER_HISTORY = {
@@ -625,6 +708,21 @@ def test_run_budget_is_raised_for_bzzoiro_only():
     assert RunBudget(limit=50).limit_for("bzzoiro") == override
 
 
+def test_run_budget_is_also_raised_for_espn():
+    """ESPN is free and unlimited -- API_DAILY_LIMITS carries no entry for
+    ``espn-football`` or ``espn-tennis`` -- so the shared 100-call default was
+    the only thing actually throttling it, and at ~25 calls an event that is
+    four football fixtures a run before ESPN corroboration silently stops for
+    the rest of the slate. Missing this override was indistinguishable, in the
+    artifact, from a real quota problem; it is not one, so it gets the same
+    treatment as bzzoiro above.
+    """
+    budget = RunBudget(limit=100)
+    assert budget.limit_for("espn-football") == RUN_BUDGET_OVERRIDES["espn-football"]
+    assert budget.limit_for("espn-tennis") == RUN_BUDGET_OVERRIDES["espn-tennis"]
+    assert RUN_BUDGET_OVERRIDES["espn-football"] // 25 > 400
+
+
 def test_the_key_is_read_from_bzzorio_key(monkeypatch, tmp_path):
     """The provider is spelled bzzoiro and the key it issues is BZZORIO_KEY.
     Deriving one from the other -- which every other client here can do -- gives
@@ -641,7 +739,11 @@ def test_the_auth_header_is_a_token_scheme(tmp_path):
 
 
 def test_football_has_no_local_daily_cap_since_the_pro_upgrade():
-    """No entry means unlimited to this limiter, the same treatment ESPN gets.
+    """No entry means unlimited to this limiter, the same treatment ESPN gets
+    -- which used to be a claim this docstring made and the code did not:
+    ``espn-football``/``espn-tennis`` carried a numeric ``10000`` entry, and a
+    number here is an enforced daily ceiling, not a label. Fixed alongside
+    this test so the two actually agree.
 
     The PRO plan stopped sending rate-limit headers on the football product
     entirely (verified live 2026-08-28 across /leagues/, /events/,
@@ -653,6 +755,11 @@ def test_football_has_no_local_daily_cap_since_the_pro_upgrade():
     assert "bzzoiro" not in API_DAILY_LIMITS
     limit, window = RateLimiter()._effective_limit("bzzoiro")
     assert limit is None
+
+    for provider in ("espn-football", "espn-tennis", "espn-basketball", "espn-hockey", "espn-volleyball"):
+        assert provider not in API_DAILY_LIMITS
+        limit, window = RateLimiter()._effective_limit(provider)
+        assert limit is None
 
 
 def test_quota_override_env_var_matches_the_provider_name():

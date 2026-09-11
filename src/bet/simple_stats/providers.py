@@ -643,7 +643,23 @@ def _now_iso() -> str:
 # stopping a bug that loops from spending an afternoon on it. 20000 is therefore
 # set where it cannot bind a real day -- at ~30 calls an event that is over 600
 # fixtures, against 150-180 discovered -- while still terminating a runaway.
-RUN_BUDGET_OVERRIDES: dict[str, int] = {"bzzoiro": 20000}
+#
+# espn-football and espn-tennis belong here for the same reason and were
+# missing it: ESPN is free and unlimited (API_DAILY_LIMITS carries no entry
+# for either, see there), so the shared default of 100/run was the only cap
+# actually binding them, and at ~25 calls an event that is four football
+# events a run before ESPN corroboration silently stops for the rest of the
+# slate -- indistinguishable, in the artifact, from a quiet quota problem. It
+# also fed ``sports_within_quota``: football's own primary is bzzoiro, so this
+# never blocked football's *coverage*, but it could still make
+# ``affordable_events("espn-football")`` read artificially low and, on a day
+# an explicit ``--max-events`` actually bites, cost football's corroborator
+# reach for a ceiling ESPN never asked for.
+RUN_BUDGET_OVERRIDES: dict[str, int] = {
+    "bzzoiro": 20000,
+    "espn-football": 20000,
+    "espn-tennis": 20000,
+}
 
 
 class RunBudget:
@@ -3684,6 +3700,16 @@ def fetch_bzzoiro_lineup(
         side: list((sides.get(side) or {}).get("players") or [])
         for side in ("home", "away")
     }
+    # The client answers SUCCESS with empty ``sides`` both when the fixture has
+    # no lineup announced yet and when it announced one with no players parsed
+    # -- neither is a schema violation, so neither raises here, but both are
+    # exactly the "provider answered, contributed nothing" case every other
+    # branch in this function already writes a gap for. Left unrecorded, an
+    # empty lineup is indistinguishable from a full one in every downstream
+    # audit: enrich.py proceeds with zero player props and nothing on disk
+    # says why.
+    if not players["home"] and not players["away"]:
+        gaps.append(f"bzzoiro: lineup not yet announced for event {event_id}")
     return str(result.value.get("lineup_status") or ""), players, gaps
 
 
