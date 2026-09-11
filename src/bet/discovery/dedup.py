@@ -93,8 +93,11 @@ class DeduplicationEngine:
     """Merge events from multiple sources into unified fixtures."""
 
     SOURCE_PRIORITY = [
+        "bzzoiro",
         "odds-api-io",
         "odds-api",
+        "superbet-tennis-challenger",
+        "superbet",
         "api-football",
         "api-basketball",
         "api-volleyball",
@@ -537,7 +540,18 @@ class DeduplicationEngine:
         return self.merge(events_by_source)
 
     @staticmethod
+    def _is_placeholder_competition(name: str | None) -> bool:
+        if not name:
+            return True
+        s = name.strip()
+        return (
+            s.startswith("Superbet League")
+            or s.startswith("Tennis Category")
+            or s in ("Football", "Tennis", "Basketball", "Hockey", "Volleyball")
+        )
+
     def _attach_source(
+        self,
         fixture: MergedFixture,
         event: DiscoveredEvent,
         confidence: float = 1.0,
@@ -560,6 +574,26 @@ class DeduplicationEngine:
                 raw_away_team=event.away_team,
             )
         )
+        # If existing fixture has placeholder competition, upgrade it
+        if self._is_placeholder_competition(
+            fixture.competition
+        ) and not self._is_placeholder_competition(event.competition):
+            fixture.competition = event.competition
+
+        if not fixture.country and event.country:
+            fixture.country = event.country
+
+        # Re-canonicalize primary source if new source has higher priority rank
+        if self._source_priority_rank(
+            event.source
+        ) < self._source_priority_rank(fixture.primary_source):
+            fixture.primary_source = event.source
+            fixture.primary_external_id = event.external_id
+            if not self._is_placeholder_competition(event.competition):
+                fixture.competition = event.competition
+            if event.country:
+                fixture.country = event.country
+
         # Merge odds if the new event has them and the fixture doesn't
         if event.odds and not fixture.odds:
             fixture.odds = event.odds

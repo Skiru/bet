@@ -225,3 +225,34 @@ class TestEdgeCases:
         merged = engine.merge(events)
         assert len(merged) == 2
         assert all(m.source_count == 1 for m in merged)
+
+    def test_bzzoiro_priority_and_placeholder_competition_upgrade(self, engine):
+        """bzzoiro has higher priority than superbet and upgrades
+        placeholder competition.
+        """
+        events = {
+            "superbet": [
+                _make_event(
+                    source="superbet",
+                    external_id="sb_123",
+                    home="Rakow Czestochowa",
+                    away="Motor Lublin",
+                    competition="Superbet League 187",
+                )
+            ],
+            "bzzoiro": [
+                _make_event(
+                    source="bzzoiro",
+                    external_id="bz_456",
+                    home="Raków Częstochowa",
+                    away="Motor Lublin",
+                    competition="Ekstraklasa Poland",
+                    country="Poland",
+                )
+            ],
+        }
+        merged = engine.merge(events)
+        assert len(merged) == 1
+        assert merged[0].primary_source == "bzzoiro"
+        assert merged[0].competition == "Ekstraklasa Poland"
+        assert merged[0].country == "Poland"

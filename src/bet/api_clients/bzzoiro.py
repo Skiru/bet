@@ -909,6 +909,25 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
         if not isinstance(payload, dict):
             return self._schema_error(result, "payload_not_object")
         lineups = payload.get("lineups")
+        if lineups is None or lineups == [] or lineups == {}:
+            return self._bundle_result(
+                result=result,
+                parser_version=LINEUPS_PARSER_VERSION,
+                operation_name="lineups",
+                source_event_refs=namespaced_source_refs(
+                    self.api_name, [str(event_id)]
+                ),
+                value={
+                    "provider_match_id": str(event_id),
+                    "lineup_status": "",
+                    "sides": {},
+                },
+                parser_diagnostics={
+                    "lineup_status": "",
+                    "home_players": 0,
+                    "away_players": 0,
+                },
+            )
         if not isinstance(lineups, dict):
             return self._schema_error(result, "lineups_not_object")
 
@@ -947,7 +966,24 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
             }
 
         if not any(side.get("players") for side in sides.values()):
-            return self._schema_error(result, "lineups_empty")
+            return self._bundle_result(
+                result=result,
+                parser_version=LINEUPS_PARSER_VERSION,
+                operation_name="lineups",
+                source_event_refs=namespaced_source_refs(
+                    self.api_name, [str(event_id)]
+                ),
+                value={
+                    "provider_match_id": str(event_id),
+                    "lineup_status": lineup_status,
+                    "sides": sides,
+                },
+                parser_diagnostics={
+                    "lineup_status": lineup_status,
+                    "home_players": 0,
+                    "away_players": 0,
+                },
+            )
 
         return self._bundle_result(
             result=result,
