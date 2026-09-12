@@ -303,3 +303,65 @@ class TestPrimarySourceIsDecidedOnlyAtCreation:
         assert merged[0].primary_external_id == "sb_1"
         assert merged[0].competition == "Ekstraklasa Poland"
         assert merged[0].country == "Poland"
+
+
+class TestSwappedSides:
+    """Regression for 2026-09-12: the merge loop only ever compared
+    home-against-home and away-against-away, so a feed listing the same real
+    match with home/away reversed was invisible to exact, containment and
+    same-club matching alike -- Bali United - Adhyaksa Farmel FC (bzzoiro) and
+    Adhyaksa Farmel FC - Bali United (superbet) arrived as two separate
+    fixtures on the live 2026-09-12 slate, each then carrying only one of
+    Superbet's two listings of that match and neither carrying a usable
+    price.
+    """
+
+    def test_reversed_home_away_at_identical_kickoff_merges(self, engine):
+        events = {
+            "bzzoiro": [
+                _make_event(
+                    source="bzzoiro", external_id="bz_1",
+                    home="Bali United", away="Adhyaksa Farmel FC",
+                    kickoff_str="2026-09-12T12:00:00+00:00",
+                    competition="Superbet League 212",
+                )
+            ],
+            "superbet": [
+                _make_event(
+                    source="superbet", external_id="sb_1",
+                    home="Adhyaksa Farmel FC", away="Bali United",
+                    kickoff_str="2026-09-12T12:00:00+00:00",
+                    competition="Superbet League 212",
+                )
+            ],
+        }
+        merged = engine.merge(events)
+        assert len(merged) == 1
+        assert len(merged[0].sources) == 2
+
+    def test_reversed_sides_within_the_fuzzy_window_but_not_at_the_same_instant_do_not_merge(
+        self, engine
+    ):
+        """The safety argument is exact kickoff, not merely "close": a one-hour
+        gap is still inside the ±2h fuzzy window (so the fourth chance is
+        reached at all), but the two clubs cannot have played each other
+        twice, reversed, an hour apart -- these must be read as unrelated and
+        left unmerged rather than collapsed on the strength of the swap."""
+        events = {
+            "bzzoiro": [
+                _make_event(
+                    source="bzzoiro", external_id="bz_1",
+                    home="Bali United", away="Adhyaksa Farmel FC",
+                    kickoff_str="2026-09-12T12:00:00+00:00",
+                )
+            ],
+            "superbet": [
+                _make_event(
+                    source="superbet", external_id="sb_1",
+                    home="Adhyaksa Farmel FC", away="Bali United",
+                    kickoff_str="2026-09-12T13:00:00+00:00",
+                )
+            ],
+        }
+        merged = engine.merge(events)
+        assert len(merged) == 2

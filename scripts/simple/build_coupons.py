@@ -32,6 +32,8 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
 
 from bet.simple_stats.artifact_io import load_market_context, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
+    EventDossierListV1,
+    EventDossierV1,
     EventListV1,
     StatsSheetV1,
     SuperbetOfferV1,
@@ -51,12 +53,34 @@ from bet.simple_stats.coupons import (  # noqa: E402
     build_coupons,
     market_label,
 )
+from bet.simple_stats.forecast import build_event_blurb  # noqa: E402
 from bet.simple_stats.tipster_claims import TipsterClaimsV1  # noqa: E402
 from bet.simple_stats.tipster_consensus import build_consensus  # noqa: E402
 
 
 def _kickoff(iso: str) -> str:
     return iso[11:16] if len(iso) >= 16 else ""
+
+
+def _table_header(*, edge: bool, headerless: bool) -> tuple[str, str]:
+    """Header + separator for one singles table, shared by the flat
+    (Faza 5c) and per-event (Faza 6) renderers so a column added to one
+    cannot silently drift out of alignment with the other's copy.
+
+    ``edge`` adds the 'Przewaga' column; ``headerless`` drops 'Mecz' -- the
+    per-event grouping already names the match once in its section header,
+    so repeating it on every row would only widen the table."""
+    edge_h, edge_s = ("Przewaga | ", "--------:|") if edge else ("", "")
+    mecz_h, mecz_s = ("Mecz | ", "------|") if not headerless else ("", "")
+    header = (
+        f"| # | {edge_h}Pewność | {mecz_h}Rynek | Strona | Surowo | n | "
+        "Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |"
+    )
+    sep = (
+        f"|--:|{edge_s}--------:|{mecz_s}-------|--------|-------:|--:|"
+        "----------|-------|---------|----------:|---------|------|"
+    )
+    return header, sep
 
 
 def agreement_cell(s) -> str:
@@ -72,9 +96,12 @@ def agreement_cell(s) -> str:
     return s.cross_provider_agreement
 
 
-def _singles_row(s, *, edge: str | None = None) -> str:
+def _singles_row(s, *, edge: str | None = None, headerless: bool = False) -> str:
     """One markdown table row for a single. ``edge`` prepends an extra column
-    when given, so the two singles sections (Faza 5c) share one row format."""
+    when given, so the two singles sections (Faza 5c) share one row format.
+    ``headerless`` drops the ``Mecz`` cell -- for the per-event grouping,
+    where the match already names itself once in the section header and
+    repeating it on every row would only widen the table."""
     subject = f" · {s.subject}" if s.subject else ""
     market = f"{s.market_label} {s.line}{subject}"
     mkt = "—"
@@ -88,8 +115,9 @@ def _singles_row(s, *, edge: str | None = None) -> str:
         if s.market_price:
             mkt += f" · {s.market_price} @{s.market_bookmaker}"
     edge_cell = f"| {edge} " if edge is not None else ""
+    match_cell = "" if headerless else f"| {s.match} "
     return (
-        f"| {s.rank} {edge_cell}| {s.p_low * 100:.1f}% | {s.match} | {market} | {s.direction} "
+        f"| {s.rank} {edge_cell}| {s.p_low * 100:.1f}% {match_cell}| {market} | {s.direction} "
         f"| {s.hits}/{s.sample_size} | {s.sample_size} | {agreement_cell(s)} "
         f"| {mkt} | {s.tipster or 'brak'} | **{s.min_acceptable_odds:.2f}** "
         f"| {superbet_cell(s)} | {s.tier} |"
@@ -408,10 +436,25 @@ def _accumulator_block(worth_it: list) -> list[str]:
     return out
 
 
-def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
-    """The operator's file. Polish, because that is who reads it."""
+def render_markdown(
+    coupons: CouponSet,
+    funnel: dict | None = None,
+    *,
+    event_list: EventListV1 | None = None,
+    dossier_by_event: dict[str, EventDossierV1] | None = None,
+) -> str:
+    """The operator's file. Polish, because that is who reads it.
+
+    ``event_list``/``dossier_by_event`` are optional and additive: they only
+    feed the per-event context blurb and the "every discovered event is
+    named somewhere" listing below the price bar. Absent, the file renders
+    exactly as it did before either existed -- the same "missing input is the
+    healthy default" rule every other optional artifact here follows.
+    """
     out: list[str] = []
     a = out.append
+    events_by_id = {e.event_id: e for e in (event_list.events if event_list else [])}
+    dossier_by_event = dossier_by_event or {}
 
     a(f"# Kupony {coupons.date}")
     a("")
@@ -454,25 +497,150 @@ def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
         if with_edge:
             a("**Z odniesieniem do rynku**")
             a("")
-            a(
-                "| # | Przewaga | Pewność | Mecz | Rynek | Strona | Surowo | n | "
-                "Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |"
-            )
-            a(
-                "|--:|--------:|--------:|------|-------|--------|-------:|--:|"
-                "----------|-------|---------|----------:|---------|------|"
-            )
+            header, sep = _table_header(edge=True, headerless=False)
+            a(header)
+            a(sep)
             for row in with_edge:
                 a(_singles_row(row, edge=f"{row.edge * 100:+.1f}pp"))
             a("")
         if without_edge:
             a("**Bez odniesienia do rynku**")
             a("")
-            a("| # | Pewność | Mecz | Rynek | Strona | Surowo | n | Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |")
-            a("|--:|--------:|------|-------|--------|-------:|--:|----------|-------|---------|----------:|---------|------|")
+            header, sep = _table_header(edge=False, headerless=False)
+            a(header)
+            a(sep)
             for row in without_edge:
                 a(_singles_row(row))
             a("")
+
+    def _render_below_bar_index(rows: list) -> None:
+        """The below-bar rows nearest to clearing their own price bar, in one
+        flat table, ranked by edge -- restoring the "what's the closest
+        near-miss" read the per-event grouping below necessarily gives up by
+        sorting on kickoff instead of priority. An index into that section,
+        not a replacement for it."""
+        ranked = sorted(
+            (s for s in rows if s.edge is not None), key=lambda s: -s.edge
+        )[:15]
+        if not ranked:
+            return
+        a(f"**Najbliżej progu** ({len(ranked)} z {len(rows)}, po przewadze)")
+        a("")
+        header, sep = _table_header(edge=True, headerless=False)
+        a(header)
+        a(sep)
+        for row in ranked:
+            a(_singles_row(row, edge=f"{row.edge * 100:+.1f}pp"))
+        a("")
+        a(
+            "_Pełna lista niżej — pogrupowana po meczu, posortowana po "
+            "godzinie startu._"
+        )
+        a("")
+
+    def _render_below_by_event(rows: list) -> None:
+        """One block per event, sorted by kickoff, its blurb and its own
+        tipster picks folded in -- so a below-bar row is read beside the
+        match it describes and its context, instead of a flat table sorted
+        on a priority scheme the reader cannot see the reason for. The
+        "Warte swojej ceny" table above is unaffected -- it is already
+        the day's short, priority-ranked "what to bet" list, and this is
+        everything else, in the order it kicks off."""
+        by_event: dict[str, list] = {}
+        for row in rows:
+            by_event.setdefault(row.event_id, []).append(row)
+        tipster_by_event = {
+            f.event_id: f
+            for f in (
+                coupons.tipster_consensus.coupon_fixtures
+                if coupons.tipster_consensus else []
+            )
+        }
+        for event_id, event_rows in sorted(
+            by_event.items(), key=lambda kv: kv[1][0].kickoff
+        ):
+            sample = event_rows[0]
+            a(f"#### {sample.match} — {sample.competition} · {_kickoff(sample.kickoff)}")
+            dossier = dossier_by_event.get(event_id)
+            event = events_by_id.get(event_id)
+            if dossier is not None and event is not None:
+                blurb = build_event_blurb(dossier, event)
+                if blurb:
+                    a(f"_{blurb}_")
+            a("")
+            with_edge = [s for s in event_rows if s.edge is not None]
+            without_edge = [s for s in event_rows if s.edge is None]
+            if with_edge:
+                a("**Z odniesieniem do rynku**")
+                a("")
+                header, sep = _table_header(edge=True, headerless=True)
+                a(header)
+                a(sep)
+                for row in with_edge:
+                    a(_singles_row(row, edge=f"{row.edge * 100:+.1f}pp", headerless=True))
+                a("")
+            if without_edge:
+                a("**Bez odniesienia do rynku**")
+                a("")
+                header, sep = _table_header(edge=False, headerless=True)
+                a(header)
+                a(sep)
+                for row in without_edge:
+                    a(_singles_row(row, headerless=True))
+                a("")
+            picks = tipster_by_event.get(event_id)
+            if picks is not None and picks.picks:
+                a(f"Typerzy (dopasowanie {picks.match_quality or '—'}):")
+                for pick in picks.picks:
+                    a(f"- {pick}")
+                a("")
+
+    def _render_events_with_no_singles_row() -> None:
+        """Every event DISCOVER returned that has no row in any table above.
+
+        That can mean several different things -- BLOCKED at ENRICH, nothing
+        on it cleared the statistical floor, its kickoff already passed, or a
+        good row simply lost to the ``max_singles``/per-event/per-family caps
+        elsewhere in ``build_coupons()`` -- and this renderer, working from
+        ``coupons.singles`` and the event list alone, cannot tell which one
+        applies to a given event. So it does not guess: it names the event and
+        prints only the dossier's own recorded reason when there is one
+        (``data_gaps``, via the same blurb every other section uses), and
+        says nothing invented when there is not. The same "named, not
+        silent" rule forecast.md's own coverage section follows, so a
+        fixture missing a price is never indistinguishable from one nobody
+        looked at -- without asserting a cause this file cannot actually see.
+        """
+        if not events_by_id:
+            return
+        covered = {s.event_id for s in coupons.singles}
+        missing = [e for e in events_by_id.values() if e.event_id not in covered]
+        if not missing:
+            return
+        a(f"### Reszta dnia — bez wiersza w tym pliku ({len(missing)})")
+        a("")
+        a(
+            "> Odkryte, ale żaden wiersz nie trafił do tabel wyżej. Powód bywa "
+            "różny — blokada na ENRICH, nic nie przeszło progu statystycznego, "
+            "mecz już się zaczął, albo dobry wiersz przegrał z limitem liczby "
+            "singli/na mecz/na rodzinę rynków gdzie indziej w tym pliku — ta "
+            "sekcja go nie zgaduje. Podpisuje tylko to, co dossier faktycznie "
+            "zanotował."
+        )
+        a("")
+        for event in sorted(missing, key=lambda e: e.start_time):
+            match = (
+                f"{event.player_one} – {event.player_two}"
+                if event.sport == "tennis"
+                else f"{event.home_team} – {event.away_team}"
+            )
+            dossier = dossier_by_event.get(event.event_id)
+            blurb = build_event_blurb(dossier, event) if dossier else ""
+            line = f"- **{match}** — {event.competition} · {_kickoff(event.start_time)}"
+            if blurb:
+                line += f" — _{blurb}_"
+            a(line)
+        a("")
 
     worth_it = [
         s for s in coupons.singles
@@ -509,7 +677,8 @@ def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
                 "się rusza — jeśli podskoczy powyżej progu, typ staje się grywalny."
             )
             a("")
-            _render_singles(below)
+            _render_below_bar_index(below)
+            _render_below_by_event(below)
 
         _render_alternative_rungs(a, coupons)
 
@@ -519,6 +688,8 @@ def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
             if s.caveats:
                 a(f"- **#{s.rank} {s.match}** — {'; '.join(s.caveats)}")
         a("")
+
+    _render_events_with_no_singles_row()
 
     # --- slips -----------------------------------------------------------
     a("## Bet Builder")
@@ -891,6 +1062,15 @@ def main() -> None:
     parser.add_argument("--date", default=None, help="Betting day; resolves the default paths under runs/<date>/")
     parser.add_argument("--stats-sheet", default=None)
     parser.add_argument("--event-list", default=None)
+    parser.add_argument(
+        "--dossier",
+        default=None,
+        help="Path to <date>_event_dossiers.json from run_enrich.py. Feeds the "
+        "per-event context line (derby, weather, absences, competition tier) "
+        "and the 'named, not silent' listing of events with no row above. "
+        "Missing file simply omits both -- the same optional-input rule every "
+        "other artifact here follows.",
+    )
     parser.add_argument("--output", default=None, help="Markdown path (default: runs/<date>/<date>_kupony.md)")
     parser.add_argument(
         "--max-singles", type=int, default=MAX_SINGLES,
@@ -1028,6 +1208,31 @@ def main() -> None:
             file=sys.stderr,
         )
 
+    dossier_path = Path(args.dossier) if args.dossier else (
+        run_dir / f"{args.date}_event_dossiers.json" if run_dir else None
+    )
+    dossier_by_event: dict[str, EventDossierV1] = {}
+    if dossier_path and dossier_path.exists():
+        try:
+            dossier_list = EventDossierListV1.model_validate_json(
+                dossier_path.read_text(encoding="utf-8")
+            )
+        except (ValueError, UnicodeDecodeError) as exc:
+            # A dossier is optional input (the blurb and "Reszta dnia" simply
+            # go without it), so a truncated or schema-mismatched file must
+            # not crash the whole coupon build the way a missing --stats-sheet
+            # correctly does -- it degrades the same way an absent file does.
+            print(
+                f"WARNING: dossier at {dossier_path} could not be read ({exc}) "
+                "-- coupons will render without per-event context",
+                file=sys.stderr,
+            )
+        else:
+            dossier_by_event = {d.event_id: d for d in dossier_list.dossiers}
+    elif args.dossier:
+        print(json.dumps({"error": f"dossier not found: {dossier_path}"}), file=sys.stderr)
+        sys.exit(2)
+
     vetoes_path = Path(args.vetoes) if args.vetoes else (
         run_dir / f"{args.date}_analyst_vetoes.json" if run_dir else None
     )
@@ -1143,7 +1348,13 @@ def main() -> None:
         (run_dir or Path.cwd()) / f"{date}_kupony.md"
     )
     md_path.parent.mkdir(parents=True, exist_ok=True)
-    md_path.write_text(render_markdown(coupons, funnel=funnel), encoding="utf-8")
+    md_path.write_text(
+        render_markdown(
+            coupons, funnel=funnel,
+            event_list=event_list, dossier_by_event=dossier_by_event,
+        ),
+        encoding="utf-8",
+    )
     write_json_atomic(md_path.parent / f"{date}_coupons.json", coupons.model_dump(mode="json"))
 
     print(

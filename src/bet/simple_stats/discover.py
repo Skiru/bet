@@ -1004,6 +1004,74 @@ def _detect_ambiguous(
     return blocked_records, filtered
 
 
+def _dedup_by_event_identity(fixtures: list[MergedFixture]) -> list[MergedFixture]:
+    """Collapse fixtures that would hash to the same ``event_id``.
+
+    ``DeduplicationEngine.merge()`` can legitimately emit two ``MergedFixture``
+    siblings for one real-world match: ``_can_attach_source`` refuses to
+    attach a second same-source id to an existing fixture (that guard exists
+    to stop a *different* fixture from overwriting a source ref), so when a
+    source itself republishes one match under two external ids, the second
+    row falls through to the "new fixture" branch instead. Both siblings then
+    hash to the identical ``_event_id`` in ``_to_event_record``, and nothing
+    downstream (ENRICH keys per-event work off that hash) expects two rows to
+    share one id -- each sibling gets independently enriched, doubling
+    dossiers/stats/forecast cards for the one real match.
+
+    The key here is deliberately the *plain* ``_normalize_name`` (no alias
+    resolution, no fuzzy scoring), matching exactly what ``_to_event_record``
+    itself hashes a few lines below -- this function's only job is "would
+    these hash to the same event_id", not "are these plausibly the same
+    fixture" (that question is ``DeduplicationEngine._match_key``'s, richer
+    on purpose, and already answered upstream by ``engine.merge()`` before
+    this ever runs). Reusing ``_match_key``'s alias/fuzzy machinery here
+    would answer a different, harder question this pass does not need to:
+    every sibling pair it exists to catch shares identical raw home/away
+    strings already (one source republishing the same match twice), so no
+    alias resolution is required to see they match.
+    """
+    best: dict[tuple[str, str, str, str], MergedFixture] = {}
+    for fixture in fixtures:
+        key = (
+            fixture.sport if fixture.sport in ("football", "tennis") else "football",
+            # Lowercased/stripped, not raw-compared: two siblings can carry
+            # the placeholder-vs-upgraded competition label
+            # ``_attach_source`` leaves on genuinely separate MergedFixtures
+            # (dedup.py's own upgrade only touches one fixture at a time),
+            # and a case/whitespace difference must not be the reason a
+            # duplicate survives.
+            fixture.competition.strip().lower(),
+            f"{_normalize_name(fixture.home_team)}|{_normalize_name(fixture.away_team)}",
+            fixture.kickoff.isoformat(),
+        )
+        existing = best.get(key)
+        if existing is None:
+            best[key] = fixture
+            continue
+        # Merge, not just pick-a-winner-and-drop-the-other: the sibling with
+        # fewer sources can still be the one that actually carries a usable
+        # odds payload (or a source the other lacks entirely). Picking by
+        # source_count and discarding the loser whole would reproduce, one
+        # step later, exactly the "no price the operator can take" failure
+        # this session's team_aliases.py entries exist to fix -- silently,
+        # since the discarded sibling simply disappears.
+        keep, drop = (
+            (existing, fixture)
+            if existing.source_count >= fixture.source_count
+            else (fixture, existing)
+        )
+        merged_sources = list(keep.sources)
+        seen = {(s.source, s.external_id) for s in merged_sources}
+        for src in drop.sources:
+            if (src.source, src.external_id) not in seen:
+                merged_sources.append(src)
+                seen.add((src.source, src.external_id))
+        best[key] = keep.model_copy(
+            update={"sources": merged_sources, "odds": keep.odds or drop.odds}
+        )
+    return list(best.values())
+
+
 def _to_event_record(fixture: MergedFixture) -> EventRecord:
     sport = fixture.sport if fixture.sport in ("football", "tennis") else "football"
     participants = f"{_normalize_name(fixture.home_team)}|{_normalize_name(fixture.away_team)}"
@@ -1169,7 +1237,7 @@ def discover_events(
     blocked_records, filtered = _detect_ambiguous(events_by_source)
 
     engine = DeduplicationEngine()
-    merged = engine.merge(filtered)
+    merged = _dedup_by_event_identity(engine.merge(filtered))
     active_records = [_to_event_record(fixture) for fixture in merged]
 
     return EventListV1(

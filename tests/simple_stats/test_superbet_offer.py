@@ -411,6 +411,31 @@ def test_match_on_participants_and_kickoff():
     assert unmatched == [] and missing == []
 
 
+@pytest.mark.parametrize(
+    "our_home, our_away, their_match_name",
+    [
+        # Regression for 2026-09-12: each pair shared too few tokens for
+        # sides_compatible()'s token-overlap floor without the alias table
+        # entry added that day, so the fixture reached ENRICH's
+        # competition-priced gate as "no price the operator can take" while
+        # Superbet was pricing it under the name on the right the whole time.
+        ("Atlético Mineiro", "Fluminense", "Atletico MG·Fluminense"),
+        ("FC Rapid București", "FC Voluntari", "Rapid Bukareszt·Voluntari"),
+        ("Rahimo FC", "MAS de Fès", "Rahimo FC·Maghreb de Fes"),
+        ("Lusitano Ginásio Clube", "SC Covilhã", "Lusitano Evora·SC Covilha"),
+    ],
+)
+def test_2026_09_12_alias_gaps_now_match(our_home, our_away, their_match_name):
+    events = EventListV1(
+        generated_at="x", date="2026-09-12",
+        events=[make_event(home=our_home, away=our_away, start="2026-09-12T19:00:00+00:00")],
+    )
+    rows = [_offer_row(their_match_name, "2026-09-12T19:00:00Z")]
+    matched, unmatched, missing = match_offer_events(events, rows)
+    assert list(matched) == ["e1"]
+    assert unmatched == [] and missing == []
+
+
 def test_football_kickoff_drift_beyond_tolerance_is_not_the_same_fixture():
     events = EventListV1(generated_at="x", date="2026-08-31", events=[make_event()])
     rows = [_offer_row("Remo·Coritiba", "2026-09-01T04:00:00Z")]

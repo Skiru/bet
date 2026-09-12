@@ -10,9 +10,11 @@ from bet.simple_stats.discover import (
     DISCOVERY_SOURCES_BY_SPORT,
     _canonicalize_competition_names,
     _competition_canonical_map,
+    _dedup_by_event_identity,
     _detect_ambiguous,
     _event_id,
     _fetch_source_events,
+    _normalize_name,
     _to_event_record,
     reset_competition_canonical_cache,
 )
@@ -821,3 +823,115 @@ def test_source_raw_status_postponed_blocks_fixture():
     assert record.terminal_reason == "fixture marked 'postponed' by bzzoiro"
 
 
+
+
+def test_same_source_republished_under_two_ids_collapses_to_one_event():
+    """Regression for 2026-09-12: verbatim replay of the 4 real tennis pairs
+    pulled from that day's runs/2026-09-12/2026-09-12_event_list.json.
+    Superbet listed each match twice under two different fixture ids, same
+    names/competition/kickoff, no other source involved at all.
+    _can_attach_source correctly refuses to let the second id overwrite the
+    first fixture's superbet ref, but merge() then spins up a *second*
+    MergedFixture sibling for it instead of dropping it -- and both siblings
+    hash to the same event_id in _to_event_record, doubling ENRICH's work for
+    one real match. The expected event_id prefixes below are the exact
+    hashes _to_event_record produced in production that day.
+    """
+    real_pairs = [
+        ("Stefania Bojica", "Melinda Biro", "Tennis Category 37",
+         "2026-09-12T07:00:00+00:00", "14941583", "14942047", "59da6ee62e"),
+        ("Elza Tomase", "Anne Schaefer", "Tennis Category 37",
+         "2026-09-12T08:00:00+00:00", "14927346", "14944518", "57f6feda28"),
+        ("Hazem Naw", "Oscar Brown", "Tennis Category 23",
+         "2026-09-12T08:30:00+00:00", "14942337", "14942759", "f37a5f012b"),
+        ("Patrick Schoen", "Jack Anthrop", "Tennis Category 23",
+         "2026-09-12T10:30:00+00:00", "14942738", "14943083", "661c646210"),
+    ]
+
+    superbet_events = []
+    for home, away, competition, kickoff, id_a, id_b, _ in real_pairs:
+        for ext_id in (id_a, id_b):
+            superbet_events.append(
+                DiscoveredEvent(
+                    source="superbet",
+                    external_id=ext_id,
+                    sport="tennis",
+                    competition=competition,
+                    home_team=home,
+                    away_team=away,
+                    kickoff=datetime.fromisoformat(kickoff),
+                    status="scheduled",
+                )
+            )
+
+    merged = DeduplicationEngine().merge({"superbet": superbet_events})
+    assert len(merged) == 8, "documents the sibling-fixture bug merge() itself has"
+
+    deduped = _dedup_by_event_identity(merged)
+    assert len(deduped) == 4
+
+    records = [_to_event_record(f) for f in deduped]
+    assert {r.event_id for r in records} == {
+        _event_id(
+            "tennis", competition,
+            f"{_normalize_name(home)}|{_normalize_name(away)}", kickoff,
+        )
+        for home, away, competition, kickoff, _, _, _ in real_pairs
+    }
+    assert {r.event_id[:10] for r in records} == {p[6] for p in real_pairs}
+
+
+def test_dedup_by_event_identity_merges_sources_instead_of_discarding_the_loser():
+    """Regression for a bug the code review found in the fix above: picking
+    the sibling with more sources and discarding the other whole would
+    reproduce, one step later, exactly the 'no price' failure this session's
+    team_aliases.py entries exist to fix -- if the discarded sibling was the
+    one actually carrying odds, or a source the survivor lacks, that data
+    would silently disappear. The merge must combine sources and keep odds
+    from whichever sibling has them, not just pick a winner."""
+    fixture_a = MergedFixture(
+        sport="tennis", competition="Tennis Category 37",
+        home_team="Stefania Bojica", away_team="Melinda Biro",
+        kickoff=datetime.fromisoformat("2026-09-12T07:00:00+00:00"),
+        status="scheduled",
+        sources=[SourceRef(source="superbet", external_id="14941583")],
+        primary_source="superbet", primary_external_id="14941583",
+        odds=None,
+    )
+    fixture_b = MergedFixture(
+        sport="tennis", competition="Tennis Category 37",
+        home_team="Stefania Bojica", away_team="Melinda Biro",
+        kickoff=datetime.fromisoformat("2026-09-12T07:00:00+00:00"),
+        status="scheduled",
+        sources=[SourceRef(source="superbet-tennis-challenger", external_id="99")],
+        primary_source="superbet-tennis-challenger", primary_external_id="99",
+        odds={"1": 1.9},
+    )
+    merged = _dedup_by_event_identity([fixture_a, fixture_b])
+    assert len(merged) == 1
+    survivor = merged[0]
+    assert survivor.odds == {"1": 1.9}, "the tie-break must not drop the sibling's odds"
+    external_ids = {s.external_id for s in survivor.sources}
+    assert external_ids == {"14941583", "99"}, "both sources must survive the merge"
+
+
+def test_dedup_by_event_identity_ignores_competition_case_and_whitespace():
+    """A source can leave one sibling with a placeholder competition label
+    and the other with the real one (_attach_source's upgrade only ever
+    touches one fixture at a time) -- a raw string comparison would let a
+    trivial case/whitespace difference keep two siblings apart."""
+    kickoff = datetime.fromisoformat("2026-09-12T07:00:00+00:00")
+    fixture_a = MergedFixture(
+        sport="football", competition="Tennis Category 37 ",
+        home_team="A", away_team="B", kickoff=kickoff, status="scheduled",
+        sources=[SourceRef(source="bzzoiro", external_id="1")],
+        primary_source="bzzoiro", primary_external_id="1",
+    )
+    fixture_b = MergedFixture(
+        sport="football", competition="tennis category 37",
+        home_team="A", away_team="B", kickoff=kickoff, status="scheduled",
+        sources=[SourceRef(source="superbet", external_id="2")],
+        primary_source="superbet", primary_external_id="2",
+    )
+    merged = _dedup_by_event_identity([fixture_a, fixture_b])
+    assert len(merged) == 1

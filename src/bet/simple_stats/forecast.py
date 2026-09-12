@@ -68,9 +68,11 @@ from bet.simple_stats.analyze import (
 from bet.simple_stats.calibration import honest_probability
 from bet.simple_stats.contracts import (
     EventDossierV1,
+    EventRecord,
     StatsSheetRow,
     StatsSheetV1,
 )
+from bet.simple_stats.coupons import competition_tier
 from bet.simple_stats.providers import ProviderValue
 
 # The predictive interval printed on every card. 80% rather than 95% on
@@ -744,6 +746,72 @@ def _referee_rate(market: str, referee) -> float | None:
 def _subject_of(row: StatsSheetRow) -> str | None:
     """Whose number this is: a player, a team, or the match itself (None)."""
     return row.player_name or row.team_name
+
+
+_TIER_LABELS = {"YOUTH": "młodzieżowy", "FRIENDLY": "towarzyski"}
+
+
+def build_event_blurb(dossier: EventDossierV1, event: EventRecord) -> str:
+    """One short line of context for a match -- not a sample, never priced.
+
+    Built entirely from what the dossier and event record already carry:
+    ``fixture_context`` (derby, round, weather), ``squad_availability``
+    (absence counts) and ``config/competition_tier_map.json`` via
+    ``competition_tier`` (YOUTH/FRIENDLY only, exact-name pinned -- see that
+    function's own docstring on why an unclassified competition is left
+    alone rather than guessed at). No provider call, no new data.
+
+    Every one of ``data_gaps`` leads the line, verbatim, whenever the dossier
+    has any -- not gated on ``readiness == "BLOCKED"``. ``--enrich-all``'s
+    fallback path writes the identical "event blocked at discovery: ..." /
+    "not enriched: ..." reasons with ``readiness == "PARTIAL"``, and a
+    dossier with real ``fixture_context``/``squad_availability`` fetched
+    *before* a later gap can still be BLOCKED overall -- gating on the
+    enum would have silently dropped one or the other. Showing all of
+    ``data_gaps`` rather than only ``data_gaps[0]`` matters for the same
+    reason: they are appended in whatever order ENRICH happened to find
+    them, not in order of relevance, so the first one is not reliably "the"
+    reason.
+    """
+    clauses: list[str] = list(dossier.data_gaps)
+
+    tier = competition_tier(event.competition)
+    if tier is not None:
+        clauses.append(_TIER_LABELS.get(tier, tier.lower()))
+
+    ctx = dossier.fixture_context
+    if ctx is not None:
+        if ctx.round_name:
+            clauses.append(ctx.round_name)
+        if ctx.is_local_derby:
+            clauses.append("derby")
+        if ctx.is_neutral_ground:
+            clauses.append("boisko neutralne")
+        weather = ctx.weather or {}
+        weather_bits = []
+        if weather.get("description"):
+            weather_bits.append(str(weather["description"]))
+        if weather.get("temperature_c") is not None:
+            weather_bits.append(f"{weather['temperature_c']}°C")
+        if weather.get("wind_speed") is not None:
+            weather_bits.append(f"wiatr {weather['wind_speed']} km/h")
+        if weather_bits:
+            clauses.append("pogoda: " + ", ".join(weather_bits))
+
+    # Sides are assumed to line up with the dossier's own team_a/team_b
+    # naming convention (team_a == home, team_b == away), the same
+    # convention EventDossierV1's docstring already relies on.
+    side_names = {"home": dossier.team_a_name, "away": dossier.team_b_name}
+    side_fallback = {"home": "gospodarze", "away": "goście"}
+    for squad in dossier.squad_availability:
+        if squad.unavailable_count <= 0:
+            continue
+        name = side_names.get(squad.side) or side_fallback.get(squad.side, squad.side)
+        clauses.append(f"nieobecni {name}: {squad.unavailable_count}")
+
+    if not clauses:
+        return "brak danych" if dossier.readiness == "BLOCKED" else ""
+    return " · ".join(clauses)
 
 
 def build_cards(

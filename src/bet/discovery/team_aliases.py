@@ -144,6 +144,33 @@ TEAM_ALIASES: dict[str, set[str]] = {
     "Real Madrid": {"Real Madryt"},
     "AEK Athens": {"AEK Ateny"},
     "Kuopion Palloseura": {"KuPS"},
+    # Added 2026-09-12, found the same way: replay unmatched_events against
+    # our_events_without_offer at an identical kickoff. Two are abbreviations
+    # of a Brazilian/Portuguese place name, one is Superbet's Polish rendering
+    # of a Romanian city, one is a club initialism -- the same four shapes
+    # this table already exists for, none a qualifier.
+    #
+    #   ours "Atletico Mineiro"        theirs "Atletico MG"      -> share 1 token
+    #   ours "FC Rapid Bucuresti"      theirs "Rapid Bukareszt"  -> share 1 token
+    #   ours "MAS de Fes"              theirs "Maghreb de Fes"   -> share 2 of 3
+    #   ours "Lusitano Ginasio Clube"  theirs "Lusitano Evora"   -> share 1 token
+    #
+    # Each cost its fixture a real, live Superbet price: Atletico Mineiro -
+    # Fluminense, Rapid Bucuresti - Voluntari, Rahimo FC - MAS de Fes (CAF
+    # Champions League) and Lusitano Ginasio Clube - SC Covilha all reached
+    # ENRICH's competition-priced gate as "no price the operator can take"
+    # while the book was pricing them under these names the whole time.
+    "Atletico Mineiro": {"Atletico MG"},
+    # Not "FC Rapid Bucuresti" alongside it -- that pair is a qualifier
+    # ("FC " is a stripped club word both `normalize_team_name` and
+    # `fold_club_name` already remove), and this table's own rule above says
+    # qualifiers belong to containment, never to this dict.
+    "Rapid Bucuresti": {"Rapid Bukareszt"},
+    # Only "MAS de Fes" is the pair the 2026-09-12 slate actually proved;
+    # "MAS Fes" was never seen and is not added on the strength of a guess.
+    "Maghreb de Fes": {"MAS de Fes"},
+    # Likewise only "Lusitano Evora" is proven; "Lusitano GC Evora" is not.
+    "Lusitano Ginasio Clube": {"Lusitano Evora"},
 }
 # Deliberately *not* added from the same sweep, and the reasons are the rule:
 #

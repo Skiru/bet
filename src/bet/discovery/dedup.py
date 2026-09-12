@@ -324,6 +324,28 @@ class DeduplicationEngine:
                     best_score = score
                     best_match = fixture
 
+            # Fourth chance: the two sides are swapped. Every comparison above
+            # this line only ever checks home-against-home and away-against-
+            # away, so a feed that lists the same match with home and away
+            # reversed is invisible to all three -- confirmed live on
+            # 2026-09-12, where Bali United - Adhyaksa Farmel FC and Adhyaksa
+            # Farmel FC - Bali United arrived as two separate EventRecords,
+            # each then carrying only one of Superbet's two listings of that
+            # match and neither carrying a usable price.
+            #
+            # Exact kickoff is the whole safety argument, same as the third
+            # chance above: a club cannot play two matches at the same
+            # instant, so if the names cross-match at an identical kickoff the
+            # swap is the only explanation, never a coincidence between two
+            # real fixtures.
+            if event.kickoff == fixture.kickoff:
+                cross_home_score = fuzz.token_sort_ratio(ev_home, cand_away)
+                cross_away_score = fuzz.token_sort_ratio(ev_away, cand_home)
+                crossed = min(cross_home_score, cross_away_score)
+                if crossed >= self.fuzzy_threshold and crossed > best_score:
+                    best_score = crossed
+                    best_match = fixture
+
         if best_match is not None:
             return best_match, best_score / 100.0
 

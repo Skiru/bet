@@ -67,6 +67,7 @@ from bet.simple_stats.forecast import (  # noqa: E402
     _WORSE_THAN_AVERAGE,
     ForecastCard,
     build_cards,
+    build_event_blurb,
 )
 
 # Markets whose card leads the file. Not a whitelist -- everything is written --
@@ -784,6 +785,8 @@ def _render(
             f"### {identity.get('match', event_id[:12])} — "
             f"{identity.get('competition', '?')} · {identity.get('kickoff', '?')}\n"
         )
+        if identity.get("blurb"):
+            out.append(f"_{identity['blurb']}_\n")
         def _strength(card: ForecastCard) -> float:
             ranked = card.ranked_rungs(1, informative_only=not ceiling)
             return ranked[0].p_honest or 0.0 if ranked else 0.0
@@ -1034,6 +1037,7 @@ def main() -> int:
         dossier_path.read_text(encoding="utf-8")
     )
     events = EventListV1.model_validate_json(event_path.read_text(encoding="utf-8"))
+    dossier_by_event = {d.event_id: d for d in dossiers.dossiers}
 
     identities: dict[str, dict] = {}
     competitions: dict[str, str] = {}
@@ -1042,10 +1046,12 @@ def main() -> int:
             match = f"{event.player_one} – {event.player_two}"
         else:
             match = f"{event.home_team} – {event.away_team}"
+        dossier = dossier_by_event.get(event.event_id)
         identities[event.event_id] = {
             "match": match,
             "competition": event.competition,
             "kickoff": event.start_time,
+            "blurb": build_event_blurb(dossier, event) if dossier else "",
         }
         if event.competition:
             competitions[event.event_id] = event.competition
