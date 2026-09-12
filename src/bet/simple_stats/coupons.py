@@ -1667,6 +1667,11 @@ def build_coupons(
             f"POMINIĘTE WETO: {_veto_scope(ignored)} "
             f"({ignored.event_id[:12]}) — {why}; {ignored.reason}"
         )
+    for widened, why in getattr(veto_index, "widened", ()):
+        applied_vetoes.append(
+            f"POSZERZONE WETO: {_veto_scope(widened)} "
+            f"({widened.event_id[:12]}) — {why}"
+        )
 
     # A veto naming a row this sheet does not have applies to nothing, and
     # until 2026-09-04 it said so to nobody: ``VetoIndex`` reports the entries

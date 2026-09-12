@@ -890,4 +890,6 @@ def test_veto_sample_not_representative_widens_to_all_lines():
     matched = index.for_row(row_12_5)
     assert matched is not None
     assert matched.line is None
+    assert len(index.widened) == 1
+    assert "poszerzono do wszystkich linii" in index.widened[0][1]
 

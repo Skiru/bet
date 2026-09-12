@@ -736,6 +736,25 @@ def test_unbettable_tiers_offered_receive_tier_unbettable():
     assert row.odds_surplus is None
 
 
+def test_weak_tier_reports_as_tier_unbettable_not_silence():
+    """A row evaluated as WEAK is reported as TIER_UNBETTABLE rather than silently omitted."""
+    row = make_row(sample_size=4, hits=4, data_quality="READY", p_low=0.55)
+    result = _compare([row], [sb_line(price=1.90)])
+    assert result.rows_considered == 1
+    assert len(result.rows) == 1
+    assert result.rows[0].tier == "WEAK"
+    assert result.rows[0].verdict == "TIER_UNBETTABLE"
+    assert result.rows[0].superbet_price == 1.90
+    assert result.rows[0].min_acceptable_odds is None
+
+
+def test_zero_or_negative_p_low_is_not_compared():
+    """A row with p_low <= 0 has no minimum price and no bet, so it is silently dropped."""
+    result = _compare([make_row(p_low=0.0)], [sb_line(price=1.90)])
+    assert result.rows == []
+    assert result.rows_considered == 0
+
+
 def test_unbettable_tiers_unoffered_distinguished_from_untrusted():
     """An unbettable tier whose market is missing from Superbet is reported
     as MARKET_NOT_OFFERED, distinguishing unoffered from offered-but-untrusted.

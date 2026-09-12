@@ -184,7 +184,7 @@ class VetoIndex:
     the analyst had struck.
     """
 
-    __slots__ = ("_by_key", "ignored")
+    __slots__ = ("_by_key", "ignored", "widened")
 
     def __init__(self, vetoes: Iterable[AnalystVeto] | None = None) -> None:
         self._by_key: dict[tuple[str, str, float | None, str | None], AnalystVeto] = {}
@@ -192,6 +192,9 @@ class VetoIndex:
         # say a decision was written down and not applied. Silently dropping
         # one would be worse than either applying or refusing it.
         self.ignored: list[tuple[AnalystVeto, str]] = []
+        # Entries whose line was narrowed by an analyst despite an estimand/sample-wide
+        # fault; kept so the coupon header can announce they were widened to all rungs.
+        self.widened: list[tuple[AnalystVeto, str]] = []
         for veto in vetoes or ():
             if veto.reason_class == "LINE_ON_MODE" and veto.line is None:
                 # "The line sits on the sample's mode" is a statement about one
@@ -206,6 +209,12 @@ class VetoIndex:
                 # A sample integrity fault or wrong estimand is a fault across all rungs,
                 # not a per-rung fault. If an analyst narrowed it to a specific line,
                 # widen line to None so cheaper rungs cannot survive on the same broken sample.
+                self.widened.append(
+                    (
+                        veto,
+                        f"zawężone weto dla {veto.reason_class} poszerzono do wszystkich linii (line: {veto.line} → null)",
+                    )
+                )
                 veto = veto.model_copy(update={"line": None})
             self._by_key.setdefault(
                 (veto.event_id, veto.market, veto.line, veto.direction), veto
