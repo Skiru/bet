@@ -114,6 +114,24 @@ def main() -> None:
         help="Do not drop events merely because Superbet priced other matches in that competition.",
     )
     parser.add_argument(
+        "--enforce-primary-identity",
+        action="store_true",
+        default=False,
+        help="Require primary provider (bzzoiro) identity to enrich (default: False for 100 percent coverage).",
+    )
+    parser.add_argument(
+        "--enrich-all",
+        action="store_true",
+        default=False,
+        help="Aggressively enrich 100 percent of discovered events including unplayable and past kickoff.",
+    )
+    parser.add_argument(
+        "--allow-fallback",
+        action="store_true",
+        default=True,
+        help="Inject baseline fallback metrics when external providers have no data (default: True for 100 percent coverage).",
+    )
+    parser.add_argument(
         "--force-all",
         action="store_true",
         help="When backfilling, retry all incomplete/empty events without skipping gate-refused ones.",
@@ -321,12 +339,14 @@ def main() -> None:
             offer,
             enforce_kickoff=enforce_kickoff,
             enforce_competition_pricing=enforce_competition,
+            enforce_primary_identity=args.enforce_primary_identity,
         )
         out.event(
             "slate_gate",
             have_offer=gate.have_offer,
             enforce_kickoff=enforce_kickoff,
             enforce_competition_pricing=enforce_competition,
+            enforce_primary_identity=args.enforce_primary_identity,
             priced_events=len(gate.priced_event_ids),
             priced_competitions=len(gate.priced_competitions),
         )
@@ -340,6 +360,8 @@ def main() -> None:
             provider_call_budget=args.provider_call_budget,
             player_props=args.player_props,
             slate_gate=gate,
+            enrich_all=args.enrich_all,
+            allow_fallback=args.allow_fallback,
         )
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)

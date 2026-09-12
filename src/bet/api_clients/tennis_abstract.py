@@ -714,8 +714,12 @@ class TennisAbstractClient(BaseAPIClient):
         # Transliterate diacritics to ASCII (ř→r, á→a, č→c, etc.)
         nfkd = unicodedata.normalize("NFKD", player_name)
         ascii_name = nfkd.encode("ascii", "ignore").decode("ascii")
-        # Remove spaces, hyphens, apostrophes
-        return ascii_name.replace(" ", "").replace("-", "").replace("'", "")
+        if "," in ascii_name:
+            parts = [p.strip() for p in ascii_name.split(",", 1)]
+            if len(parts) == 2 and parts[1]:
+                ascii_name = f"{parts[1]} {parts[0]}"
+        # Remove spaces, hyphens, apostrophes, dots
+        return ascii_name.replace(" ", "").replace("-", "").replace("'", "").replace(".", "")
 
     @staticmethod
     def _safe_int(val) -> int | None:

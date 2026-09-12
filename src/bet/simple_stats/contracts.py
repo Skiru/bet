@@ -33,6 +33,7 @@ PROVIDER_NAMES = Literal[
     "sackmann",
     "espn-tennis",
     "google-sports",
+    "fallback",
 ]
 
 # The three metrics whose coverage decides readiness=READY for a sport. What

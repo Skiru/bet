@@ -1946,6 +1946,12 @@ def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimi
         # contains her. Only "atp"/"wta" may be pinned here; a football code
         # arriving from the shared table is a table bug, not a tennis league.
         league = get_espn_league_for_competition(competition) if competition else None
+        if not league and competition:
+            comp_lower = competition.lower()
+            if "1878" in comp_lower or "wta" in comp_lower or "women" in comp_lower:
+                league = "wta"
+            elif "1877" in comp_lower or "atp" in comp_lower or "men" in comp_lower or "challenger" in comp_lower:
+                league = "atp"
         if league in {"atp", "wta"}:
             return ESPNClient(sport="tennis", league=league, rate_limiter=rate_limiter)
         # Nothing else may be pinned. get_espn_league_for_competition's contract

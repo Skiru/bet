@@ -854,8 +854,14 @@ class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
                     competition = "ATP Challenger"
                 elif cat_id == 235:
                     competition = "WTA Challenger"
-                elif cat_id in (2, 3):
-                    competition = "ATP/WTA Tour"
+                elif cat_id == 1877:
+                    competition = "ITF Men"
+                elif cat_id == 1878:
+                    competition = "ITF Women"
+                elif cat_id == 2:
+                    competition = "WTA Tour"
+                elif cat_id == 3:
+                    competition = "ATP Tour"
                 else:
                     competition = f"Tennis Category {cat_id}" if cat_id else "Tennis"
             else:
@@ -953,7 +959,18 @@ def _detect_ambiguous(
         if len(sports) > 1:
             reasons.append(f"conflicting sport across sources: {sorted(sports)}")
         if spread_seconds > _AMBIGUOUS_WINDOW_SECONDS:
-            reasons.append("conflicting start_time across sources")
+            has_placeholder = any(e.kickoff.hour == 0 and e.kickoff.minute == 0 for e in evs)
+            has_authoritative = any(e.source in ("superbet", "superbet-tennis-challenger", "bzzoiro") for e in evs)
+            if has_placeholder or has_authoritative:
+                auth_ev = next((e for e in evs if e.source in ("superbet", "superbet-tennis-challenger")), None)
+                if not auth_ev:
+                    auth_ev = next((e for e in evs if e.source == "bzzoiro"), None)
+                if not auth_ev:
+                    auth_ev = next((e for e in evs if not (e.kickoff.hour == 0 and e.kickoff.minute == 0)), evs[0])
+                for e in evs:
+                    e.kickoff = auth_ev.kickoff
+            else:
+                reasons.append("conflicting start_time across sources")
         if not reasons:
             continue
 

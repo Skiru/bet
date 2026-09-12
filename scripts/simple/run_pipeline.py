@@ -427,6 +427,10 @@ def main() -> None:
         help="Repeatable. Overrides the default live tipster source set.",
     )
     parser.add_argument(
+        "--enrich-all", action="store_true", default=False,
+        help="Aggressively enrich 100% of discovered events across both sports.",
+    )
+    parser.add_argument(
         "--preflight", action="store_true",
         help="Check providers and stop. Spends nothing -- run this first, in the morning.",
     )
@@ -540,6 +544,8 @@ def main() -> None:
                 argv.append("--no-competition-pricing")
             if args.no_slate_gate:
                 argv.append("--no-slate-gate")
+            if args.enrich_all:
+                argv.append("--enrich-all")
         elif name == "market_context":
             if args.skip_market_context:
                 out.event("step_skipped", pipeline_step=name, reason="--skip-market-context")
