@@ -1405,7 +1405,7 @@ def compare_sheet_to_offer(
 
     considered = 0
     for row in stats_sheet.rows:
-        if row.p_low < min_p_low:
+        if row.p_low < min_p_low or row.p_low <= 0:
             continue
         tier = tier_for_row(row)
         event_offer_for_bar = offers.get(row.event_id)
@@ -1421,7 +1421,7 @@ def compare_sheet_to_offer(
         minimum = min_acceptable_odds(
             row, tier, basis=bar_basis, market_probability=implied
         )
-        if minimum is None:
+        if minimum is None and tier not in UNBETTABLE_TIERS:
             continue
         considered += 1
         match, kickoff = identity(row.event_id)
@@ -1507,6 +1507,21 @@ def compare_sheet_to_offer(
             )
             continue
 
+        if tier in UNBETTABLE_TIERS:
+            verdict = "TIER_UNBETTABLE"
+            note(verdict)
+            rows.append(
+                SuperbetComparisonRow(
+                    **base,
+                    verdict=verdict,
+                    superbet_price=exact.price,
+                    superbet_status=exact.status,
+                    superbet_market_name=exact.source_market_name,
+                )
+            )
+            continue
+
+        assert minimum is not None
         surplus = round(exact.price - minimum, 4)
         verdict = "VALUE" if exact.price >= minimum else "PRICED_BELOW_THRESHOLD"
         note(verdict)

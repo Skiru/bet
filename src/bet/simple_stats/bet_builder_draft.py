@@ -202,6 +202,11 @@ class VetoIndex:
                     (veto, "LINE_ON_MODE without a line names no rung")
                 )
                 continue
+            if veto.reason_class in ("SAMPLE_NOT_REPRESENTATIVE", "ESTIMAND_WRONG") and veto.line is not None:
+                # A sample integrity fault or wrong estimand is a fault across all rungs,
+                # not a per-rung fault. If an analyst narrowed it to a specific line,
+                # widen line to None so cheaper rungs cannot survive on the same broken sample.
+                veto = veto.model_copy(update={"line": None})
             self._by_key.setdefault(
                 (veto.event_id, veto.market, veto.line, veto.direction), veto
             )

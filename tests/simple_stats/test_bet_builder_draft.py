@@ -867,3 +867,27 @@ def test_legs_that_miss_the_bar_are_ranked_by_how_far_they_miss_it():
         leg.superbet_price < leg.min_acceptable_odds for leg in draft.legs
     )
     assert [leg.market for leg in draft.legs] == ["corners_total", "goals_1h_total"]
+
+
+def test_veto_sample_not_representative_widens_to_all_lines():
+    """SAMPLE_NOT_REPRESENTATIVE is a fault of the whole sample, not a single rung.
+    Even if an analyst writes down line 11.5, VetoIndex must widen line to None
+    so that line 12.5 on the same broken sample is also matched.
+    """
+    from bet.simple_stats.bet_builder_draft import AnalystVeto, VetoIndex
+
+    veto = AnalystVeto(
+        event_id="evt-levadia",
+        market="corners_total",
+        line=11.5,
+        direction="UNDER",
+        action="DOWNGRADE",
+        reason="synthetic sample",
+        reason_class="SAMPLE_NOT_REPRESENTATIVE",
+    )
+    index = VetoIndex([veto])
+    row_12_5 = _row(event_id="evt-levadia", market="corners_total", line=12.5, direction="UNDER")
+    matched = index.for_row(row_12_5)
+    assert matched is not None
+    assert matched.line is None
+

@@ -1315,6 +1315,10 @@ SUPERBET_VERDICTS = Literal[
     # book's, and separated from SCOPE_NOT_SUPPORTED because this one is fixable
     # per fixture and shows up as a name in the artifact.
     "PLAYER_NOT_MATCHED",
+    # Superbet offers this line, but the row's tier is WEAK or DROP -- the
+    # model does not trust the sample/market enough to price it. Distinguished
+    # from MARKET_NOT_OFFERED so reports do not confuse model rejection with book omission.
+    "TIER_UNBETTABLE",
 ]
 
 
@@ -1558,7 +1562,7 @@ class SuperbetComparisonRow(StrictBaseModel):
     sample_size: int
     median: float
     tier: str
-    min_acceptable_odds: float
+    min_acceptable_odds: float | None = None
     verdict: SUPERBET_VERDICTS
     superbet_price: float | None = None
     superbet_status: str | None = None

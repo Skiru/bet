@@ -722,11 +722,29 @@ def test_event_not_matched_is_distinct_from_market_missing():
     assert result.rows[0].verdict == "EVENT_NOT_MATCHED"
 
 
-def test_unbettable_tiers_are_not_compared():
-    """A DROP row has no minimum price, so it has nothing to compare against."""
-    result = _compare([make_row(sample_size=2, hits=2, data_quality="PARTIAL")], [sb_line()])
-    assert result.rows == []
-    assert result.rows_considered == 0
+def test_unbettable_tiers_offered_receive_tier_unbettable():
+    """When Superbet offers the line but the model tier is DROP or WEAK,
+    the row is reported as TIER_UNBETTABLE rather than silently dropped.
+    """
+    result = _compare([make_row(sample_size=2, hits=2, data_quality="PARTIAL")], [sb_line(price=1.90)])
+    assert result.rows_considered == 1
+    assert len(result.rows) == 1
+    row = result.rows[0]
+    assert row.verdict == "TIER_UNBETTABLE"
+    assert row.superbet_price == 1.90
+    assert row.min_acceptable_odds is None
+    assert row.odds_surplus is None
+
+
+def test_unbettable_tiers_unoffered_distinguished_from_untrusted():
+    """An unbettable tier whose market is missing from Superbet is reported
+    as MARKET_NOT_OFFERED, distinguishing unoffered from offered-but-untrusted.
+    """
+    row = make_row(sample_size=2, hits=2, data_quality="PARTIAL", market="fouls_total")
+    result = _compare([row], [sb_line(market="corners_total")])
+    assert result.rows_considered == 1
+    assert len(result.rows) == 1
+    assert result.rows[0].verdict == "MARKET_NOT_OFFERED"
 
 
 def test_value_rows_sort_above_everything_else():
