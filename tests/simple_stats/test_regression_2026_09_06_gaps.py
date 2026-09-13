@@ -132,7 +132,7 @@ def _prop_sheet():
     def row(market, **kw):
         base = dict(
             event_id="evt-1", sport="football", market=market, line=0.5,
-            direction="OVER", hits=8, sample_size=10, hit_rate=0.8,
+            direction="OVER", hits=10, sample_size=12, hit_rate=10 / 12,
             p_low=0.62, p_central=0.80, mean=1.4, median=1.0, mode=1.0,
             sample_min=0.0, sample_max=3.0, dispersion=1.2,
             sources=["bzzoiro"], cross_provider_agreement="SINGLE_SOURCE",

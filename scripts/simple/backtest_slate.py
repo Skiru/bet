@@ -476,9 +476,10 @@ def settle_slips(
             continue
         outcomes = []
         for leg in legs:
+            team_name = getattr(leg, "team_name", None) or getattr(leg, "subject", None)
             outcome, _ = settle_row(
                 market=leg.market, line=leg.line, direction=leg.direction,
-                actuals=actuals, team_name=leg.team_name,
+                actuals=actuals, team_name=team_name,
                 home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
                 player_id=leg.player_id,
             )
@@ -848,9 +849,10 @@ def settle_slip_legs(
             # by ``player_id``; a leg recorded before that field existed has
             # None here and still reports NO_DATA rather than being scored
             # against his team's figure.
+            team_name = getattr(leg, "team_name", None) or getattr(leg, "subject", None)
             outcome, actual = settle_row(
                 market=leg.market, line=leg.line, direction=leg.direction,
-                actuals=actuals, team_name=leg.team_name,
+                actuals=actuals, team_name=team_name,
                 home_team=_sides_of(event)[0], away_team=_sides_of(event)[1],
                 player_id=leg.player_id,
             )

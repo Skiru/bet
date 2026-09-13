@@ -70,8 +70,8 @@ def _row(
     p_low=0.68,
     p_central=0.85,
     sport="football",
-    hits=10,
-    sample_size=10,
+    hits=12,
+    sample_size=12,
 ) -> StatsSheetRow:
     return StatsSheetRow(
         event_id=event_id,

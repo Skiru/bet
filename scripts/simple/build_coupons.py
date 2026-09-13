@@ -185,7 +185,16 @@ _NEW_GATE_LABELS: dict[str, str] = {
     "tennis_unmeasured_prop": (
         "prop tenisowy (asy/podwójne błędy) — brak źródła weryfikacji w feedzie"
     ),
-    "odds_below_floor": "kurs poniżej 1.10 (ujemne EV wariancji)",
+    "odds_below_floor": "kurs poniżej progu odcięcia (ujemne EV wariancji)",
+    "synthetic_fallback_rejected": (
+        "sztuczne dane fallback — brak realnych danych providerów"
+    ),
+    "unpriceable_market_family": (
+        "niewycenialna rodzina rynków (czerwone kartki — pułapka ujemnego EV)"
+    ),
+    "sample_size_below_threshold": (
+        "próba poniżej minimalnej (n < 12 dla rynków sumarycznych OVER)"
+    ),
     "league_metric_unsupported": (
         "metryka nieobsługiwana przez providera dla tych rozgrywek"
     ),
@@ -1055,7 +1064,7 @@ def _funnel(offer, sheet, coupons) -> dict[str, int | None]:
     }
 
 
-def main() -> None:
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -1084,7 +1093,7 @@ def main() -> None:
     parser.add_argument("--max-slips", type=int, default=8)
     parser.add_argument("--max-legs", type=int, default=4)
     parser.add_argument("--min-p-low", type=float, default=None)
-    parser.add_argument("--min-odds-floor", type=float, default=1.10)
+    parser.add_argument("--min-odds-floor", type=float, default=1.25)
     parser.add_argument(
         "--bar",
         choices=("p_central", "p_low"),
@@ -1181,6 +1190,11 @@ def main() -> None:
         "the file, and an empty file is not the same information as a full one "
         "with every row honestly labelled unbettable.",
     )
+    return parser
+
+
+def main() -> None:
+    parser = _build_parser()
     args = parser.parse_args()
 
     if not args.date and not args.stats_sheet:

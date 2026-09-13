@@ -200,10 +200,10 @@ MARKET_LABELS: dict[str, str] = {
 # reporting something unplaceable.
 MIN_SINGLE_P_LOW = 0.50
 
-# Minimum Superbet price for a single. Lines below 1.10 (e.g. 1.01-1.06) carry
+# Minimum Superbet price for a single. Lines below 1.25 (e.g. 1.01-1.20) carry
 # documented negative EV (-1.0% to -4.3%) and catastrophic asymmetric tail risk
 # (e.g. 0-0 on Pohang-Gimcheon losing an entire unit to gain 1.02).
-MIN_SINGLE_ODDS_FLOOR = 1.10
+MIN_SINGLE_ODDS_FLOOR = 1.25
 
 # How far under its own threshold a price may sit and still lead the file.
 #
@@ -438,6 +438,17 @@ def is_player_prop(row: StatsSheetRow) -> bool:
     return row.market.startswith("player_")
 
 
+def _is_summary_market(row: StatsSheetRow) -> bool:
+    """Whether this row represents a match total count market (sumaryczny)."""
+    if row.team_name or is_player_prop(row):
+        return False
+    return (
+        row.market.endswith("_total")
+        or row.market.startswith("total_")
+        or row.market in {"breaks_total"}
+    )
+
+
 MAX_MARKET_DISAGREEMENT = 0.25
 
 # How far the sample's own centre may sit from the centre the book's ladder
@@ -541,6 +552,16 @@ VETO_CLASS_ZERO_WEIGHT = frozenset({"SAMPLE_NOT_REPRESENTATIVE", "ESTIMAND_WRONG
 # which is the job.
 RUNG_PENALTY_LINE_ON_MODE = 0.05
 RUNG_PENALTY_SAMPLE_CROSSES_LINE = 0.05
+RUNG_BONUS_135_160 = 0.073
+
+# Market families that carry negative EV fat-tail trap risk and are excluded
+# from singles selection.
+UNPRICEABLE_MARKET_FAMILIES = frozenset({
+    "red_cards_total",
+    "red_cards_1h_total",
+    "red_cards_2h_total",
+    "red_cards_for",
+})
 
 # Verdicts that halve the sample's weight rather than deleting it, by doubling
 # k. A card market with no referee assigned is not measuring nothing -- the two
@@ -1856,6 +1877,13 @@ def build_coupons(
                 )
             ]
         })
+    buildable = buildable.model_copy(update={
+        "rows": [
+            r for r in buildable.rows
+            if not ("fallback" in r.sources or any("fallback" in s.lower() for s in r.sources))
+            and r.market not in UNPRICEABLE_MARKET_FAMILIES
+        ]
+    })
 
     excluded: dict[str, int] = {}
 
@@ -1868,6 +1896,20 @@ def build_coupons(
         ev = events.get(row.event_id)
         if ev is not None and ev.status != "ACTIVE":
             exclude(f"fixture_{ev.status.lower()}")
+            continue
+        if ev is not None and competition_tier(ev.competition) in ("YOUTH", "FRIENDLY"):
+            exclude("competition_youth_or_friendly")
+            continue
+        if ev is not None and ev.fixture_context and ev.fixture_context.league_id:
+            unsupported = _LEAGUE_UNSUPPORTED_METRICS.get(str(ev.fixture_context.league_id))
+            if unsupported and row.market in unsupported:
+                exclude("league_metric_unsupported")
+                continue
+        if "fallback" in row.sources or any("fallback" in s.lower() for s in row.sources):
+            exclude("synthetic_fallback_rejected")
+            continue
+        if row.market in UNPRICEABLE_MARKET_FAMILIES:
+            exclude("unpriceable_market_family")
             continue
         tier: Tier = tier_for_row(row)
         veto = veto_index.for_row(row)
@@ -1927,25 +1969,16 @@ def build_coupons(
         if not allow_unmeasured_tennis_props and row.sport == "tennis" and row.market in _TENNIS_UNMEASURED_MARKETS:
             exclude("tennis_unmeasured_prop")
             continue
-        if row.p_low < min_p_low:
+        effective_min_p_low = max(min_p_low, 0.58) if row.direction == "OVER" else min_p_low
+        if row.p_low < effective_min_p_low:
             exclude("p_low_below_threshold")
+            continue
+        if row.direction == "OVER" and _is_summary_market(row) and row.sample_size < 12:
+            exclude("sample_size_below_threshold")
             continue
         if row.player_name and (row.event_id, row.player_name) in ambiguous_players:
             exclude("ambiguous_player_name")
             continue
-        # Faza 5d: youth and reserve/friendly fixtures stay on the full stats
-        # sheet but never reach the coupon -- their stats describe a slate
-        # nobody is pricing. An unmapped competition is left alone, never
-        # guessed at (see competition_tier's own docstring).
-        event = events.get(row.event_id)
-        if event is not None and competition_tier(event.competition) in ("YOUTH", "FRIENDLY"):
-            exclude("competition_youth_or_friendly")
-            continue
-        if event is not None and event.fixture_context and event.fixture_context.league_id:
-            unsupported = _LEAGUE_UNSUPPORTED_METRICS.get(str(event.fixture_context.league_id))
-            if unsupported and row.market in unsupported:
-                exclude("league_metric_unsupported")
-                continue
         candidates.append((row, tier))
 
     # A fixture contributes at most one single per market family, so one match
@@ -1982,6 +2015,9 @@ def build_coupons(
         )
         if crossed:
             score -= RUNG_PENALTY_SAMPLE_CROSSES_LINE
+        band, _ = _price_band(float(price))
+        if band == "1.35-1.60":
+            score += RUNG_BONUS_135_160
         return score
 
     def _alternative_fields(entry) -> dict[str, object]:
