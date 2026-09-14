@@ -160,6 +160,9 @@ def test_bet_simple_orchestrator_capabilities() -> None:
     for sub in subagents:
         assert task_policy.get(sub) == "allow", f"bet-simple must allow task delegation to {sub}"
 
+    assert perms.get("bzzoiro_*") == "allow", "bet-simple must allow bzzoiro MCP tools"
+    assert perms.get("mcp__bzzoiro__*") == "allow", "bet-simple must allow mcp__bzzoiro__* tools"
+
     assert "python3 scripts/simple/run_pipeline.py" in body
 
 

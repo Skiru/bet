@@ -1096,7 +1096,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-odds-floor", type=float, default=1.25)
     parser.add_argument(
         "--bar",
-        choices=("p_central", "p_low"),
+        choices=("p_central", "p_low", "p_interval_mid"),
         default="p_central",
         help=(
             "Which probability min_acceptable_odds is derived from. Default "
@@ -1189,6 +1189,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "minimum acceptable odds. Off by default: on a normal day it empties "
         "the file, and an empty file is not the same information as a full one "
         "with every row honestly labelled unbettable.",
+    )
+    parser.add_argument(
+        "--allow-player-props", action="store_true",
+        help="Allow vetted player props (player_was_fouled, player_shots_on_target, etc.) "
+        "with odds >= 1.15 to reach singles and Bet Builders.",
     )
     return parser
 
@@ -1295,6 +1300,7 @@ def main() -> None:
         require_superbet_value=args.require_superbet_value,
         bar_basis=args.bar,
         min_odds_floor=args.min_odds_floor,
+        allow_player_props=args.allow_player_props,
     )
     if args.min_p_low is not None:
         kwargs["min_p_low"] = args.min_p_low

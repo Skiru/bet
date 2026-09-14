@@ -23,10 +23,14 @@ python3 scripts/simple/run_pipeline.py --date <YYYY-MM-DD> -v
 5. **TIPSTERS**: Ingests and normalizes tipster opinions without arbitrary weighting.
 6. **ANALYZE**: Generates the statistical candidate sheet (`<date>_event_dossiers_stats_sheet.json`).
 7. **FORECAST / COMPARISON**: Re-reads sheet and dossiers deterministically via `build_forecast.py`.
+8. **SPORT SUBAGENTS**: Parallel invocation of `bet-analyst-football` and `bet-analyst-tennis` via `task` for deep fixture reads and veto production.
+9. **MCP BZZOIRO VERIFICATION**: Authoritative match verification via `bzzoiro_get_match_detail` to detect postponements, shifted kickoffs, or in-play status.
+10. **COUPON COMPILATION**: `build_coupons.py` consuming validated analyst vetoes and market context.
 
 ## Core Constraints
 
 - **Single Source of Truth**: All artifacts reside under `runs/<date>/`.
 - **Zero Hallucination**: No synthetic odds, no invented fixtures, no fake consensus.
 - **Fail-Closed Verification**: Check `--preflight` first; never run uncorroborated pipelines if quota is zero.
-- **Human Gate S9**: The final output is an analytical sheet for the operator; the agent does not place bets or execute coupons directly.
+- **Authoritative MCP Check**: Every fixture reaching a coupon must be verified through `bzzoiro_get_match_detail`.
+- **Human Gate S9**: The final output is an analytical sheet and coupon file for the operator; the agent does not place bets or execute coupons directly.

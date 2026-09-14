@@ -432,6 +432,17 @@ _PRICE_BANDS: tuple[tuple[float, str, float], ...] = (
 # stats sheet in full; this gate is about the coupon.
 ALLOW_PLAYER_PROPS = False
 
+ALLOWED_PLAYER_PROP_MARKETS: frozenset[str] = frozenset({
+    "player_was_fouled",
+    "player_shots_on_target",
+    "player_total_shots",
+    "player_tackles",
+    "player_cards",
+    "player_fouls",
+    "player_offsides",
+    "player_assists",
+})
+
 
 def is_player_prop(row: StatsSheetRow) -> bool:
     """Whether this row's subject is one footballer rather than a team or a match."""
@@ -1966,10 +1977,18 @@ def build_coupons(
         if not allow_player_props and is_player_prop(row):
             exclude("player_prop_unpriceable")
             continue
+        if allow_player_props and is_player_prop(row):
+            if row.market not in ALLOWED_PLAYER_PROP_MARKETS:
+                exclude("player_prop_unpriceable")
+                continue
         if not allow_unmeasured_tennis_props and row.sport == "tennis" and row.market in _TENNIS_UNMEASURED_MARKETS:
             exclude("tennis_unmeasured_prop")
             continue
-        effective_min_p_low = max(min_p_low, 0.58) if row.direction == "OVER" else min_p_low
+        effective_min_p_low = (
+            min_p_low
+            if is_player_prop(row)
+            else (max(min_p_low, 0.58) if row.direction == "OVER" else min_p_low)
+        )
         if row.p_low < effective_min_p_low:
             exclude("p_low_below_threshold")
             continue
@@ -2005,6 +2024,10 @@ def build_coupons(
         price = superbet_for(row, minimum).get("superbet_price")
         if not isinstance(price, (int, float)):
             return None
+        if is_player_prop(row):
+            min_prop_price = 1.15 if row.market == "player_was_fouled" else 1.25
+            if float(price) < min_prop_price:
+                return None
         score = bar.probability * float(price) - 1.0
         if row.mode is not None and abs(row.line - row.mode) <= 1.0:
             score -= RUNG_PENALTY_LINE_ON_MODE
@@ -2252,6 +2275,11 @@ def build_coupons(
         info = superbet_for(row, bar_for(row, tier)[0])
         if info.get("superbet_verdict") not in ("VALUE", "WITHIN_TOLERANCE"):
             return None
+        if is_player_prop(row):
+            min_prop_price = 1.15 if row.market == "player_was_fouled" else 1.25
+            price = info.get("superbet_price")
+            if price is not None and float(price) < min_prop_price:
+                return None
         return info.get("superbet_surplus")
 
     def _value_rank_key(pair: tuple[StatsSheetRow, str]) -> float:

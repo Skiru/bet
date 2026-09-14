@@ -658,6 +658,7 @@ def coupons_from_sheet(
     max_singles: int = 15,
     bar_basis: str = "p_central",
     shrink_k: float | None = None,
+    allow_player_props: bool = False,
 ) -> CouponSet:
     """``build_coupons`` over a sheet, with the day's own offer and vetoes.
 
@@ -691,6 +692,7 @@ def coupons_from_sheet(
         not_before=None,
         bar_basis=bar_basis,
         shrink_k=shrink_k,
+        allow_player_props=allow_player_props,
     )
 
 
@@ -700,6 +702,7 @@ def rebuilt_coupons(
     max_singles: int = 15,
     bar_basis: str = "p_central",
     shrink_k: float | None = None,
+    allow_player_props: bool = False,
 ) -> CouponSet | None:
     sheet = rebuild(date)
     if sheet is None:
@@ -708,7 +711,7 @@ def rebuilt_coupons(
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
     return coupons_from_sheet(
         date, sheet, events, max_singles=max_singles, bar_basis=bar_basis,
-        shrink_k=shrink_k,
+        shrink_k=shrink_k, allow_player_props=allow_player_props,
     )
 
 
@@ -718,6 +721,7 @@ def recorded_sheet_coupons(
     max_singles: int = 15,
     bar_basis: str = "p_central",
     shrink_k: float | None = None,
+    allow_player_props: bool = False,
 ) -> CouponSet | None:
     """Today's selection over the sheet the pipeline wrote that day.
 
@@ -733,7 +737,7 @@ def recorded_sheet_coupons(
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
     return coupons_from_sheet(
         date, sheet, events, max_singles=max_singles, bar_basis=bar_basis,
-        shrink_k=shrink_k,
+        shrink_k=shrink_k, allow_player_props=allow_player_props,
     )
 
 
@@ -1041,6 +1045,10 @@ def main() -> int:
         help="Also settle every Bet Builder leg. 32 of the 47 predictions in "
              "the 2026-09-02 coupon were legs and none had ever been settled.",
     )
+    parser.add_argument(
+        "--allow-player-props", action="store_true",
+        help="Allow vetted player props to reach singles and Bet Builders.",
+    )
     args = parser.parse_args()
 
     # ``--recorded-sheet`` counts as a choice. It did not, so asking for the
@@ -1080,11 +1088,11 @@ def main() -> int:
             "recorded": lambda d: load_recorded(d),
             "rebuilt": lambda d: rebuilt_coupons(
                 d, max_singles=budget, bar_basis=args.bar_basis,
-                shrink_k=args.shrink_k,
+                shrink_k=args.shrink_k, allow_player_props=args.allow_player_props,
             ),
             "recorded_sheet": lambda d: recorded_sheet_coupons(
                 d, max_singles=budget, bar_basis=args.bar_basis,
-                shrink_k=args.shrink_k,
+                shrink_k=args.shrink_k, allow_player_props=args.allow_player_props,
             ),
         }
         wanted = [w for w in ("recorded", "rebuilt", "recorded_sheet")
