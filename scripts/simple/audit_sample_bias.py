@@ -198,6 +198,13 @@ def collect(
         for event in events.events:
             bzz = (event.source_ids or {}).get("bzzoiro")
             entry = cache.get(str(bzz)) if bzz else None
+            if not entry and event.sport == "baseball":
+                # backtest_slate.fetch_baseball_actuals keys its cache on the
+                # native espn_event_id, not on a bzzoiro id -- baseball has no
+                # primary provider (docs/PLAN_MLB_2026-09-14.md section 2), so
+                # there is no bzz id to look up in the first place.
+                espn_id = (event.source_ids or {}).get("espn-baseball")
+                entry = cache.get(f"baseball:{espn_id}") if espn_id else None
             if entry:
                 actuals_by_event[event.event_id] = entry
                 sides_by_event[event.event_id] = (event.home_team, event.away_team)

@@ -653,6 +653,25 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
 # is enabled.
 _SUPERBET_ATP_CHALLENGER_CATEGORY_ID = 205
 
+# sportId 20 on Superbet is "baseball" generically -- it also carries KBO
+# (categoryId 409, confirmed live 2026-09-14: Hanwha Eagles/KT Wiz/Samsung
+# Lions/... all under tournamentId 15845) and other non-MLB leagues. ESPN has
+# no KBO coverage (HTTP 400, docs/PLAN_MLB section 1.1/5.8) and this pipeline
+# has no stats source for any baseball league besides MLB, so anything not
+# tagged with this categoryId must be skipped rather than mislabeled "MLB".
+_SUPERBET_MLB_CATEGORY_ID = 202
+
+# categoryId 202 is not exclusively MLB either -- confirmed live 2026-09-14:
+# Salt Lake Bees vs Round Rock Express (Triple-A, both teams are MiLB
+# affiliates, not one of the 30 MLB franchises) also carries categoryId 202,
+# under tournamentId 51669, while every real MLB fixture that same day carried
+# tournamentId 2453. tournamentId is the regular-season identifier and will
+# need re-verification at the postseason boundary the same way
+# _SUPERBET_MLB_CATEGORY_ID does -- re-check a live /events/by-date window
+# before trusting it again after a long gap, especially around the
+# postseason where the tournamentId is expected to change.
+_SUPERBET_MLB_TOURNAMENT_ID = 2453
+
 
 class SuperbetTennisChallengerDiscoveryAdapter(AbstractSourceAdapter):
     """Discovery source reading Superbet PL's own ``/events/by-date`` schedule,
@@ -785,12 +804,13 @@ class SuperbetTennisChallengerDiscoveryAdapter(AbstractSourceAdapter):
 
 class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
     """Discovery source reading Superbet PL's own ``/events/by-date`` schedule,
-    for both football and all tennis singles.
+    for football, all tennis singles, and MLB (a second identification
+    source alongside espn-baseball, the same role it plays for football).
     """
 
     name = "superbet"
     priority = 5
-    supported_sports = ["football", "tennis"]
+    supported_sports = ["football", "tennis", "baseball"]
 
     def __init__(self):
         self._client = SuperbetClient()
@@ -800,7 +820,7 @@ class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
         return True
 
     def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
-        if sport not in ("football", "tennis"):
+        if sport not in ("football", "tennis", "baseball"):
             return []
 
         target_sport_id = SUPERBET_SPORT_IDS.get(sport)
@@ -819,6 +839,10 @@ class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
         for row in rows:
             if row.get("sportId") != target_sport_id:
                 continue
+            if sport == "baseball" and row.get("categoryId") != _SUPERBET_MLB_CATEGORY_ID:
+                continue  # KBO / other non-MLB baseball leagues -- no stats source
+            if sport == "baseball" and row.get("tournamentId") != _SUPERBET_MLB_TOURNAMENT_ID:
+                continue  # categoryId 202 also carries Triple-A/MiLB fixtures
             match_name = row.get("matchName") or ""
             if sport == "tennis" and "/" in match_name:
                 continue  # doubles
@@ -864,6 +888,8 @@ class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
                     competition = "ATP Tour"
                 else:
                     competition = f"Tennis Category {cat_id}" if cat_id else "Tennis"
+            elif sport == "baseball":
+                competition = "MLB"
             else:
                 competition = f"Superbet League {cat_id}" if cat_id else "Football"
 
@@ -891,14 +917,119 @@ class SuperbetDiscoveryAdapter(AbstractSourceAdapter):
         return events
 
 
+_ESPN_MLB_SCOREBOARD_URL = (
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard"
+)
+
+
+class EspnMlbEventsAdapter(AbstractSourceAdapter):
+    """Discovery source reading ESPN's own MLB scoreboard.
+
+    MLB is architected as a copy of tennis (docs/PLAN_MLB_2026-09-14.md
+    section 2): no primary provider, no corroborator, one source per metric.
+    Unlike tennis, ESPN publishes MLB's own daily schedule directly
+    (``/baseball/mlb/scoreboard?dates=YYYYMMDD``) with no key and no rate
+    limit, so there is no need to borrow a schedule from Superbet the way
+    tennis borrows one from The Odds API -- ESPN is both schedule and stats
+    source here.
+
+    KBO is deliberately not read: ESPN answers HTTP 400 for
+    ``/baseball/kbo/scoreboard`` (verified 2026-09-14), and 4 fixtures/day
+    is not worth a second boxscore shape to support (docs/PLAN_MLB, section 5.8).
+    """
+
+    name = "espn-baseball"
+    priority = 5
+    supported_sports = ["baseball"]
+
+    def is_available(self) -> bool:
+        return True
+
+    def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
+        if sport != "baseball":
+            return []
+        try:
+            resp = requests.get(
+                _ESPN_MLB_SCOREBOARD_URL,
+                params={"dates": date.replace("-", "")},
+                timeout=20,
+            )
+        except requests.RequestException as exc:
+            self._record_error(f"request failed: {exc}")
+            return []
+        if resp.status_code >= 400:
+            self._record_error(f"HTTP {resp.status_code}")
+            return []
+        try:
+            payload = resp.json()
+        except (ValueError, json.JSONDecodeError):
+            self._record_error("non-JSON body")
+            return []
+
+        league_name = "MLB"
+        leagues = payload.get("leagues")
+        if isinstance(leagues, list) and leagues:
+            league_name = str(leagues[0].get("name") or league_name)
+
+        events: list[DiscoveredEvent] = []
+        for event in payload.get("events", []) or []:
+            competitions = event.get("competitions") or []
+            if not competitions:
+                continue
+            comp = competitions[0]
+            competitors = comp.get("competitors") or []
+            if len(competitors) < 2:
+                continue
+            teams: dict[str, str] = {}
+            for c in competitors:
+                ha = c.get("homeAway")
+                team_name = (c.get("team") or {}).get("displayName")
+                if ha in ("home", "away") and team_name:
+                    teams[ha] = team_name
+            if not teams.get("home") or not teams.get("away"):
+                continue
+            try:
+                kickoff = datetime.fromisoformat(
+                    str(event.get("date", "")).replace("Z", "+00:00")
+                )
+            except ValueError:
+                continue
+            status_info = (comp.get("status") or {}).get("type") or {}
+            state = status_info.get("state")
+            status = {"pre": "scheduled", "in": "live", "post": "finished"}.get(
+                state, "scheduled"
+            )
+            event_id = event.get("id")
+            if not event_id:
+                continue
+            events.append(
+                DiscoveredEvent(
+                    source=self.name,
+                    external_id=str(event_id),
+                    sport="baseball",
+                    competition=league_name,
+                    home_team=teams["home"],
+                    away_team=teams["away"],
+                    kickoff=kickoff,
+                    status=status,
+                    raw_data={"espn_event_id": str(event_id)},
+                )
+            )
+        return events
+
+
 # `.get(sport, ())`, not `[sport]`: --sports is free text with no argparse
 # choices, and OddsAPIEventsAdapter also declares basketball and hockey.
 #
 # Broad discovery across sources: bzzoiro and superbet for football,
-# odds-api, superbet-tennis-challenger, and superbet for tennis.
+# odds-api, superbet-tennis-challenger, and superbet for tennis, espn-baseball
+# and superbet for baseball. Superbet stays in the tuple as a second
+# identification source the same way it does for football/tennis, even
+# though ESPN alone already carries the full day's schedule.
 DISCOVERY_SOURCES_BY_SPORT: dict[str, tuple[str, ...]] = {
     "football": ("bzzoiro", "superbet"),
     "tennis": ("odds-api", "superbet-tennis-challenger", "superbet"),
+    "baseball": ("espn-baseball", "superbet"),
 }
 
 
@@ -975,7 +1106,7 @@ def _detect_ambiguous(
             continue
 
         rep = evs[0]
-        sport = rep.sport if rep.sport in ("football", "tennis") else "football"
+        sport = rep.sport if rep.sport in ("football", "tennis", "baseball") else "football"
         participants = f"{home}|{away}"
         record_kwargs = dict(
             event_id=_event_id(sport, rep.competition, participants, rep.kickoff.isoformat()),
@@ -1033,7 +1164,7 @@ def _dedup_by_event_identity(fixtures: list[MergedFixture]) -> list[MergedFixtur
     best: dict[tuple[str, str, str, str], MergedFixture] = {}
     for fixture in fixtures:
         key = (
-            fixture.sport if fixture.sport in ("football", "tennis") else "football",
+            fixture.sport if fixture.sport in ("football", "tennis", "baseball") else "football",
             # Lowercased/stripped, not raw-compared: two siblings can carry
             # the placeholder-vs-upgraded competition label
             # ``_attach_source`` leaves on genuinely separate MergedFixtures
@@ -1073,7 +1204,7 @@ def _dedup_by_event_identity(fixtures: list[MergedFixture]) -> list[MergedFixtur
 
 
 def _to_event_record(fixture: MergedFixture) -> EventRecord:
-    sport = fixture.sport if fixture.sport in ("football", "tennis") else "football"
+    sport = fixture.sport if fixture.sport in ("football", "tennis", "baseball") else "football"
     participants = f"{_normalize_name(fixture.home_team)}|{_normalize_name(fixture.away_team)}"
     event_id = _event_id(sport, fixture.competition, participants, fixture.kickoff.isoformat())
     source_ids = {s.source: s.external_id for s in fixture.sources}
@@ -1228,6 +1359,7 @@ def discover_events(
         BzzoiroDiscoveryAdapter(rate_limiter),
         SuperbetTennisChallengerDiscoveryAdapter(),
         SuperbetDiscoveryAdapter(),
+        EspnMlbEventsAdapter(),
     ]
     events_by_source = _fetch_all_sources(sources, date, sports)
     source_errors = {

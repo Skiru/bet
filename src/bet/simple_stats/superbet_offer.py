@@ -160,6 +160,11 @@ MATCH_MARKET_NAMES: dict[str, str] = {
     "liczba podwojnych bledow": "double_faults_total",
     "liczba gemow": "total_games",
     "liczba setow": "total_sets",
+    # baseball, match total. "(z dogrywka)" -- final score including extra
+    # innings -- is the only runs scope this pipeline prices; "po X inningach"
+    # and "Inning X" are banned outright (BANNED_SUBSTRINGS), not mapped here,
+    # per docs/PLAN_MLB_2026-09-14.md section 1.3/4.2.
+    "liczba runow (z dogrywka)": "runs_total",
 }
 
 PERIOD_MARKET_NAMES: dict[str, str] = {
@@ -223,6 +228,26 @@ PLAYER_MARKET_NAMES: dict[str, str] = {
     "zawodnik - liczba odbiorow": "player_tackles",
     "zawodnik - liczba asyst": "player_assists",
     "zawodnik - liczba spalonych": "player_offsides",
+    # Baseball props (Pałkarz/Miotacz/Starter): banned from pricing on day one
+    # (docs/PLAN_MLB_2026-09-14.md section 1.3.B, section 5.1 -- measured
+    # -30.5% ROI on football props, zero settlement history here). Mapped
+    # anyway, not left unmapped, so the offer artifact can say "offered and
+    # not priced" instead of surfacing them as a coverage-gap diagnostic. No
+    # ENRICH path ever collects a per-batter/pitcher observation for baseball,
+    # so these canonical names have no sample and can never be priced --
+    # that absence is the enforcement, not a check anywhere in ANALYZE.
+    "palkarz - liczba hits (z dogrywka)": "player_batter_hits",
+    "palkarz - liczba runs (z dogrywka)": "player_batter_runs",
+    "palkarz - liczba singli (z dogrywka)": "player_batter_singles",
+    "palkarz - liczba zdobytych baz (z dogrywka)": "player_batter_bases",
+    "palkarz - liczba batted in runs (z dogrywka)": "player_batter_rbi",
+    "palkarz - suma hits + runs + batted in runs (z dogrywka)": "player_batter_h_r_rbi",
+    "palkarz zaliczy home run (z dogrywka)": "player_batter_home_run",
+    "palkarz zdobedzie baze (z dogrywka)": "player_batter_reaches_base",
+    "miotacz - liczba autow (z dogrywka)": "player_pitcher_outs",
+    "miotacz - liczba strikeouts (z dogrywka)": "player_pitcher_strikeouts",
+    "miotacz - liczba hits allowed (z dogrywka)": "player_pitcher_hits_allowed",
+    "starter - zanotuje zwyciestwo (z dogrywka)": "player_starter_win",
 }
 
 # Player markets Superbet writes as a yes/no rather than an over/under: the
@@ -267,6 +292,10 @@ TEAM_MARKET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^(?P<team>.+?) liczba gemow$"), "games_won"),
     (re.compile(r"^1\. ?set - (?P<team>.+?) liczba gemow$"), "games_won_1s"),
     (re.compile(r"^2\. ?set - (?P<team>.+?) liczba gemow$"), "games_won_2s"),
+    # Baseball per-team runs. ESPN's own boxscore keeps the home/away split
+    # (docs/PLAN_MLB section 1.3), which is what makes this the one sport
+    # besides bzzoiro-football with a real "_for" market at all.
+    (re.compile(r"^(?P<team>.+?) liczba runow \(z dogrywka\)$"), "runs_for"),
 ]
 
 # --- the result family -----------------------------------------------------
@@ -371,6 +400,21 @@ BANNED_SUBSTRINGS: tuple[str, ...] = (
     "polowa/mecz",
     "polowa liczba",
     "polowa lub",
+    # Baseball per-innings runs scope ("Liczba runów po X inningach", "Inning
+    # X - liczba runów", and their per-team variants). Deliberately out of
+    # scope from day one (docs/PLAN_MLB_2026-09-14.md section 0.1/1.3): the
+    # match-total and per-team "(z dogrywką)" families are mapped explicitly
+    # above and are checked before this ban, the same precedent as the two
+    # mapped half-goal totals surviving the "1. polowa -" ban above. Banning
+    # rather than leaving unmapped matters here specifically because these
+    # names contain "liczba" (a _TOTAL_ISH_WORDS word) and their outcomes are
+    # over/under shaped, so an unclassified name would otherwise surface in
+    # the unmapped-market diagnostic as if it were a coverage gap rather than
+    # a deliberate scope decision.
+    "po x inningach",
+    "inning x -",
+    "inning 1 -",
+    "inning 2 -",
 )
 
 # Superbet writes "powyżej 8.5" / "poniżej 8.5". Both spellings of ż survive

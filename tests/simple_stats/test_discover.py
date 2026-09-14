@@ -696,6 +696,73 @@ def test_superbet_challenger_adapter_drops_a_row_with_an_unparseable_utc_date(mo
     assert adapter._fetch_events_impl("2026-09-08", "tennis") == []
 
 
+def test_superbet_adapter_keeps_only_mlb_baseball_category(monkeypatch):
+    """sportId 20 ("baseball") on Superbet is shared by MLB (categoryId 202)
+    and KBO (categoryId 409, confirmed live 2026-09-14: Hanwha Eagles/KT Wiz/
+    Samsung Lions/... under tournamentId 15845) and possibly other non-MLB
+    leagues. ESPN -- the only stats source this pipeline has for baseball --
+    has no KBO coverage (HTTP 400), so anything outside categoryId 202 must
+    be dropped rather than surfacing as a mislabeled "MLB" fixture."""
+    from bet.simple_stats.discover import SuperbetDiscoveryAdapter
+
+    rows = [
+        _superbet_row(
+            event_id=1,
+            sport_id=20,
+            category_id=202,
+            tournament_id=2453,
+            match_name="Cleveland Guardians·Chicago White Sox",
+        ),
+        _superbet_row(
+            event_id=2,
+            sport_id=20,
+            category_id=409,
+            tournament_id=15845,
+            match_name="Hanwha Eagles·KT Wiz",
+        ),
+    ]
+    adapter = SuperbetDiscoveryAdapter()
+    monkeypatch.setattr(adapter._client, "events_by_date", lambda *a, **kw: rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "baseball")
+
+    assert [e.external_id for e in events] == ["1"]
+    assert events[0].competition == "MLB"
+
+
+def test_superbet_adapter_drops_mlb_category_non_mlb_tournament(monkeypatch):
+    """categoryId 202 is not exclusively MLB either -- confirmed live
+    2026-09-14: Salt Lake Bees vs Round Rock Express (Triple-A, both MiLB
+    affiliates, not one of the 30 MLB franchises) carried categoryId 202
+    under tournamentId 51669, while every real MLB fixture that same day
+    carried tournamentId 2453. Both the categoryId and the tournamentId gate
+    must hold for a row to surface as "MLB"."""
+    from bet.simple_stats.discover import SuperbetDiscoveryAdapter
+
+    rows = [
+        _superbet_row(
+            event_id=1,
+            sport_id=20,
+            category_id=202,
+            tournament_id=2453,
+            match_name="Cleveland Guardians·Chicago White Sox",
+        ),
+        _superbet_row(
+            event_id=2,
+            sport_id=20,
+            category_id=202,
+            tournament_id=51669,
+            match_name="Salt Lake Bees·Round Rock Express",
+        ),
+    ]
+    adapter = SuperbetDiscoveryAdapter()
+    monkeypatch.setattr(adapter._client, "events_by_date", lambda *a, **kw: rows)
+
+    events = adapter._fetch_events_impl("2026-09-08", "baseball")
+
+    assert [e.external_id for e in events] == ["1"]
+
+
 def test_superbet_challenger_adapter_carries_superbets_own_status_through(monkeypatch):
     """Superbet's own metadata.status (e.g. a match already interrupted or
     postponed at discovery time) must not be flattened to a fixed

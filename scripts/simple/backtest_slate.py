@@ -425,6 +425,77 @@ def fetch_tennis_actuals(
     return resolved, gaps
 
 
+def fetch_baseball_actuals(
+    events: EventListV1, cache: dict
+) -> tuple[dict[str, dict], list[str]]:
+    """``{event_id: actuals}`` for the slate's MLB fixtures, one boxscore each.
+
+    Unlike tennis, a baseball ``EventRecord`` already carries ESPN's own
+    event id in ``source_ids["espn-baseball"]`` (discover.py's
+    ``EspnMlbEventsAdapter``), so this settles by id directly rather than by
+    a same-day name scan -- which also sidesteps the doubleheader identity
+    problem entirely: two games between the same teams on one date carry two
+    different ids, and each is fetched and settled on its own.
+
+    ``at_bats_total`` is carried into every block precisely so ``settle``'s
+    ``_BASEBALL_ROUTING_KEY`` can route through the baseball branch of
+    ``_is_absent_not_zero`` -- a shutout (0 runs) must settle as a real
+    result, not read as an absent payload the way the generic all-zero
+    heuristic would (docs/PLAN_MLB_2026-09-14.md section 4.4).
+    """
+    gaps: list[str] = []
+    baseball = [e for e in events.events if e.sport == "baseball"]
+    if not baseball:
+        return {}, gaps
+
+    client = get_client("espn-baseball", rate_limiter=RateLimiter())
+    resolved: dict[str, dict] = {}
+    for event in baseball:
+        fixture_id = event.source_ids.get("espn-baseball")
+        if not fixture_id:
+            gaps.append(f"{event.event_id}: no espn-baseball id to settle by")
+            continue
+        cache_key = f"baseball:{fixture_id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            resolved[event.event_id] = cached
+            continue
+        try:
+            raw_stats = client.get_fixture_stats(fixture_id)
+        except Exception as exc:  # noqa: BLE001
+            gaps.append(f"{fixture_id}: fetch error: {exc}")
+            continue
+        if isinstance(raw_stats, list):
+            raw_stats = raw_stats[0] if raw_stats else None
+        if raw_stats is None:
+            gaps.append(f"{fixture_id}: no boxscore (not finished, or unpublished)")
+            continue
+        stats = getattr(raw_stats, "stats", None) or {}
+        runs = stats.get("runs") or {}
+        at_bats = stats.get("at_bats") or {}
+        home_runs, away_runs = runs.get("home"), runs.get("away")
+        if home_runs is None or away_runs is None:
+            gaps.append(f"{fixture_id}: no final score on the boxscore")
+            continue
+        actuals = {
+            "total": {
+                "runs_total": float(home_runs) + float(away_runs),
+                "at_bats_total": float(at_bats.get("home", 0.0)) + float(at_bats.get("away", 0.0)),
+            },
+            "home": {
+                "runs_for": float(home_runs),
+                "at_bats_total": float(at_bats.get("home", 0.0)),
+            },
+            "away": {
+                "runs_for": float(away_runs),
+                "at_bats_total": float(at_bats.get("away", 0.0)),
+            },
+        }
+        resolved[event.event_id] = actuals
+        cache[cache_key] = actuals
+    return resolved, gaps
+
+
 # --------------------------------------------------------------- coupons
 
 
@@ -1072,6 +1143,9 @@ def main() -> int:
         tennis_actuals, tennis_gaps = fetch_tennis_actuals(events, date, cache)
         actuals.update(tennis_actuals)
         gaps.extend(tennis_gaps)
+        baseball_actuals, baseball_gaps = fetch_baseball_actuals(events, cache)
+        actuals.update(baseball_actuals)
+        gaps.extend(baseball_gaps)
         all_gaps.extend(gaps)
         # Called out on its own line, not left to be found among a few hundred
         # "no bzzoiro id" gaps: a slate that is still being played reads as a

@@ -10,7 +10,7 @@ from pydantic import Field
 
 from bet.strict_model import StrictBaseModel
 
-Sport = Literal["football", "tennis"]
+Sport = Literal["football", "tennis", "baseball"]
 
 PROVIDER_NAMES = Literal[
     "espn-football",
@@ -34,6 +34,9 @@ PROVIDER_NAMES = Literal[
     "espn-tennis",
     "google-sports",
     "fallback",
+    # MLB, ESPN's baseball site API. Single source per metric like
+    # espn-tennis -- no PRIMARY_PROVIDER_BY_SPORT entry, no corroborator.
+    "espn-baseball",
 ]
 
 # The three metrics whose coverage decides readiness=READY for a sport. What
@@ -55,6 +58,12 @@ PROVIDER_NAMES = Literal[
 PRIORITY_METRICS: dict[str, tuple[str, str, str]] = {
     "football": ("corners_total", "cards_total", "shots_total"),
     "tennis": ("total_games", "aces_total", "double_faults_total"),
+    # Same one-provider ceiling as tennis: espn-baseball is the only source,
+    # so readiness must ask about sample depth, not provider count, exactly
+    # as the comment above prescribes. hits_total is included only because
+    # it is the third metric this sport has any market-adjacent presence in
+    # (it is never priced, see providers.py _ESPN_BASEBALL_ALIASES).
+    "baseball": ("runs_total", "runs_for", "hits_total"),
 }
 
 # Canonical metric names in dossier/stats-sheet keys that represent a
@@ -116,6 +125,12 @@ COUNT_METRICS = frozenset(
         "aces_for",
         "double_faults_for",
         "games_won",
+        # Baseball: runs are counts of discrete events, same as goals. Scope
+        # is deliberately narrow -- see BASEBALL_STAT_MAP in espn.py -- but
+        # hits_total is carried too since it is a PRIORITY_METRICS entry.
+        "runs_total",
+        "runs_for",
+        "hits_total",
     }
 )
 

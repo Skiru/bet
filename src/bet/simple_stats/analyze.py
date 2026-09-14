@@ -2037,11 +2037,20 @@ def _one_per_day(values: list[ProviderValue], sport: str = "football") -> list[P
     the one residual path by which a sample can still be overstated, and it did
     not occur in either measured run.
     """
-    keys = (
-        _tennis_match_keys(values)
-        if sport == "tennis"
-        else [_day_key(pv.match_date) for pv in values]
-    )
+    if sport == "tennis":
+        keys = _tennis_match_keys(values)
+    elif sport == "baseball":
+        # Baseball can play two real matches between the same two teams on
+        # the same calendar day (a doubleheader), so day-keying would fold
+        # them into one observation and understate the sample -- confirmed
+        # live 2026-09-04, Detroit @ Cleveland, two distinct ESPN event ids
+        # (docs/PLAN_MLB_2026-09-14.md section 4.1). Baseball has a single
+        # provider (no corroborator), so match_id already disambiguates two
+        # games on the same date without any risk of folding a cross-provider
+        # duplicate that a day key would otherwise catch.
+        keys = [pv.match_id for pv in values]
+    else:
+        keys = [_day_key(pv.match_date) for pv in values]
     grouped: dict[str, list[ProviderValue]] = {}
     order: list[str] = []
     unkeyed: list[ProviderValue] = []
@@ -2107,7 +2116,14 @@ def _independent_match_sample(
     observation.
     """
     h2h_keys = _head_to_head_days(obs, team_a_name, team_b_name, sport)
-    key_of = _tennis_match_key if sport == "tennis" else (lambda pv: _day_key(pv.match_date))
+    if sport == "tennis":
+        key_of = _tennis_match_key
+    elif sport == "baseball":
+        # Same doubleheader reasoning as _one_per_day: two real matches on one
+        # calendar day must not collapse into one observation.
+        key_of = lambda pv: pv.match_id  # noqa: E731
+    else:
+        key_of = lambda pv: _day_key(pv.match_date)  # noqa: E731
     independent: list[ProviderValue] = []
     shared: list[ProviderValue] = []
     for bucket in (obs.team_a_l10, obs.team_b_l10, obs.h2h):
@@ -2120,10 +2136,17 @@ def _independent_match_sample(
     # Football folds the shared match per day; tennis folds every meeting
     # between these two players into one, because its day is a tournament week
     # and cannot separate two meetings anyway. That understates a repeat
-    # pairing, which is the safe direction for a lower bound.
+    # pairing, which is the safe direction for a lower bound. Baseball folds
+    # by match_id for the same doubleheader reason as above.
     grouped: dict[str, list[ProviderValue]] = {}
     for pv in shared:
-        grouped.setdefault("h2h" if sport == "tennis" else _day_key(pv.match_date), []).append(pv)
+        if sport == "tennis":
+            fold_key = "h2h"
+        elif sport == "baseball":
+            fold_key = pv.match_id
+        else:
+            fold_key = _day_key(pv.match_date)
+        grouped.setdefault(fold_key, []).append(pv)
     independent.extend(_representative(group) for group in grouped.values())
     return independent
 

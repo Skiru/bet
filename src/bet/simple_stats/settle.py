@@ -115,6 +115,14 @@ _TENNIS_MARKETS = frozenset({
 # ``_is_absent_not_zero``, not a claim about who actually reported the figure.
 _TENNIS_ROUTING_KEY = "espn-tennis"
 
+# Baseball, same pattern as tennis above: routes settlement's absent-vs-zero
+# check to the baseball branch of ``_is_absent_not_zero`` (at_bats as the
+# anchor, not "all values are zero" -- a shutout is a real result here, see
+# docs/PLAN_MLB_2026-09-14.md section 4.4). ``runs_for`` needs no entry in
+# ``_PER_SIDE_MARKETS`` above: the ``_for`` suffix already routes it per-side.
+_BASEBALL_MARKETS = frozenset({"runs_total", "runs_for"})
+_BASEBALL_ROUTING_KEY = "espn-baseball"
+
 # Every market whose subject is one footballer rather than a team or a match.
 # The vocabulary is bzzoiro's ``PLAYER_STAT_MAP`` canonical names, and the
 # prefix is what the pipeline itself uses to separate the family everywhere
@@ -258,7 +266,12 @@ def actual_value(
     """
     if market.startswith(PLAYER_MARKET_PREFIX):
         return player_value(actuals, market, player_id)
-    routing_key = _TENNIS_ROUTING_KEY if market in _TENNIS_MARKETS else ""
+    if market in _TENNIS_MARKETS:
+        routing_key = _TENNIS_ROUTING_KEY
+    elif market in _BASEBALL_MARKETS:
+        routing_key = _BASEBALL_ROUTING_KEY
+    else:
+        routing_key = ""
     # A retirement's tell (sets/games short of a completed match) lives only
     # in the match total, never in one side's own box -- "games_won: 3" is a
     # normal-looking number on its own, whichever side asks for it. So a

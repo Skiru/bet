@@ -81,11 +81,14 @@ DEFAULT_TIMEOUT_SECONDS = 25.0
 DEFAULT_MAX_RETRIES = 2
 RETRY_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 
-# Superbet's own sport ids. Only these two are read: everything else in the
+# Superbet's own sport ids. Only these three are read: everything else in the
 # by-date feed is esports, virtuals or simulated football (sportId 75 is
 # "Real Madryt (Liam) vs Atletico Madryt (Alexis)" -- a FIFA sim, not a match),
 # and letting those through would put player-handle fixtures on a betting sheet.
-SPORT_IDS = {"football": 5, "tennis": 2}
+# baseball (20) was verified live 2026-09-14: 10 MLB fixtures with real,
+# staggered kickoff times (median gap 30 min) -- the same "not a virtual"
+# check that ruled sportId 190 ("kobieca pilka", matches every 2 minutes) out.
+SPORT_IDS = {"football": 5, "tennis": 2, "baseball": 20}
 SPORT_BY_ID = {value: key for key, value in SPORT_IDS.items()}
 
 # The separator Superbet puts between the two sides of ``matchName``. It is

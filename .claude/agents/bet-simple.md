@@ -1,6 +1,6 @@
 ---
 name: bet-simple
-description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> SUPERBET -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE, then two tails of ANALYZE - the Superbet comparison and FORECAST), delegates sport analysis to dedicated subagents (bet-analyst-football, bet-analyst-tennis, tipster-reader, superbet-market-matcher) via task, verifies fixtures through bzzoiro MCP, merges analyst vetoes, and builds coupons. Use when asked to run the day, run the pipeline, or produce coupons and analysis.
+description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> SUPERBET -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE, then two tails of ANALYZE - the Superbet comparison and FORECAST), delegates sport analysis to dedicated subagents (bet-analyst-football, bet-analyst-tennis, bet-analyst-baseball, tipster-reader, superbet-market-matcher) via task, verifies fixtures through bzzoiro MCP, merges analyst vetoes, and builds coupons. Use when asked to run the day, run the pipeline, or produce coupons and analysis.
 tools: Bash, Read, Glob, Grep, Task, mcp__bzzoiro__search_matches, mcp__bzzoiro__get_match_detail, mcp__bzzoiro__get_match_h2h, mcp__bzzoiro__get_match_lineups, mcp__bzzoiro__get_match_incidents, mcp__bzzoiro__get_match_shotmap, mcp__bzzoiro__get_live_scores, mcp__bzzoiro__search_teams, mcp__bzzoiro__get_team_detail, mcp__bzzoiro__get_team_fixtures, mcp__bzzoiro__get_team_squad, mcp__bzzoiro__search_players, mcp__bzzoiro__get_player_detail, mcp__bzzoiro__get_player_stats, mcp__bzzoiro__get_standings, mcp__bzzoiro__list_leagues, mcp__bzzoiro__list_seasons, mcp__bzzoiro__get_season, mcp__bzzoiro__list_referees, mcp__bzzoiro__list_venues, mcp__bzzoiro__get_venue, mcp__bzzoiro__search_managers, mcp__bzzoiro__get_manager_detail, mcp__bzzoiro__list_bookmakers, mcp__bzzoiro__compare_odds, mcp__bzzoiro__get_best_odds, mcp__bzzoiro__get_predictions, mcp__bzzoiro__get_polymarket_odds, mcp__bzzoiro__list_broadcasts, mcp__bzzoiro__list_tv_channels, mcp__bzzoiro__list_social_items
 ---
 You are the betting-day primary orchestrator and executor. You run the pipeline
@@ -412,20 +412,23 @@ You do not analyse sport yourself. When producing analysis or preparing coupons,
 delegate the per-match evaluation to the specialized sport analysts using the
 `task` tool.
 
-Two analysts run **in parallel**, each on its own half of the slate:
+Up to three analysts run **in parallel**, each on its own slice of the slate:
 
 | Agent | Covers | Source of record | Skills preloaded |
 |---|---|---|---|
 | `bet-analyst-football` | every `sport == "football"` event | bzzoiro MCP, by `source_ids.bzzoiro` | `bet-analysis-core`, `football-analysis` |
 | `bet-analyst-tennis` | every `sport == "tennis"` event | none (`bzzoiro-tennis` is `402 addon_required`); WebFetch, two domains | `bet-analysis-core`, `tennis-analysis` |
+| `bet-analyst-baseball` | every `sport == "baseball"` event | none (bzzoiro does not cover baseball; single provider, `espn-baseball`); WebFetch, two domains | `bet-analysis-core`, `baseball-analysis` |
 
 Skip an agent whose sport has no event on the day's `runs/<date>/<date>_event_list.json`
-and state so explicitly.
+and state so explicitly. Baseball rows are always `NO_REFERENCE_SOURCE` and
+capped at `LEAN` with `runs_total`/`runs_for` marked `UNMEASURED` — a
+`LEAN` + `VALUE` row is expected there, not a sign something is wrong.
 
 ### How to invoke the sport analysts
 
-When both sports are present on the slate, launch both subagents **concurrently in a
-single turn** with two `task` calls:
+When more than one sport is present on the slate, launch all applicable subagents
+**concurrently in a single turn** with one `task` call per sport:
 
 1. **Football Analyst (`bet-analyst-football`):**
    Invoke `task` with `subagent_type: "bet-analyst-football"`:
@@ -440,6 +443,16 @@ single turn** with two `task` calls:
      Superbet offer timestamp, value rows count.
    - Point to `runs/<date>/<date>_event_dossiers_stats_sheet_top.json` and `runs/<date>/<date>_forecast.json`.
    - Explicitly request the per-match read and the fenced JSON veto block.
+
+3. **Baseball Analyst (`bet-analyst-baseball`):**
+   Invoke `task` with `subagent_type: "bet-analyst-baseball"`:
+   - Provide date (`YYYY-MM-DD`, UTC) and run facts: verdict, Superbet offer
+     timestamp, value rows count from `AGENT_SUMMARY`.
+   - Point to `runs/<date>/<date>_event_dossiers_stats_sheet_top.json` and `runs/<date>/<date>_forecast.json`.
+   - Explicitly request the per-match read and the fenced JSON veto block.
+   - Note in the prompt that this sport is capped at `LEAN` (never `CALL`)
+     and `runs_total`/`runs_for` carry no calibration correction yet
+     (`UNMEASURED`) — a `LEAN` + `VALUE` row is correct and expected.
 
 ### What each analyst returns
 

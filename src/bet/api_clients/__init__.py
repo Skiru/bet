@@ -107,6 +107,9 @@ CLIENT_REGISTRY["espn-basketball"] = _espn_factory("basketball", "nba")
 CLIENT_REGISTRY["espn-hockey"] = _espn_factory("hockey", "nhl")
 CLIENT_REGISTRY["espn-tennis"] = _espn_factory("tennis", "atp")
 CLIENT_REGISTRY["espn-volleyball"] = _espn_factory("volleyball", "fivb.m")
+# One league, no scoping ambiguity the way football's 100+ codes need
+# (docs/PLAN_MLB_2026-09-14.md section 2): mlb only, kbo is out of scope.
+CLIENT_REGISTRY["espn-baseball"] = _espn_factory("baseball", "mlb")
 
 # --- Newly consolidated clients (moved from scripts/api_clients/) ---
 try:

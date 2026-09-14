@@ -75,6 +75,7 @@ ESPN_SPORT_MAP = {
     "hockey": "hockey",
     "tennis": "tennis",
     "volleyball": "volleyball",
+    "baseball": "baseball",
 }
 
 ESPN_LEAGUES = {
@@ -110,6 +111,9 @@ ESPN_LEAGUES = {
     "hockey": ["nhl"],
     "tennis": ["atp", "wta"],
     "volleyball": ["fivb.m", "fivb.w", "ncaa.w", "ncaa.m"],
+    # mlb only -- kbo answers HTTP 400 (verified 2026-09-14) and is out of
+    # scope: 4 fixtures/day isn't worth a second boxscore shape to support.
+    "baseball": ["mlb"],
 }
 
 # --- Competition name -> ESPN league code --------------------------------
@@ -831,6 +835,27 @@ NHL_STAT_MAP = {
     "shootoutGoals": "shootout_goals",
 }
 
+# Baseball is deliberately narrow: ESPN's boxscore carries 60+ named counters
+# per team across three categories (batting/pitching/fielding), but Superbet
+# prices exactly one of them at team level -- runs. Aliasing the other 54+
+# fields would be the same mistake providers.py:174-177 already named for
+# football (passes, crosses, tackles have no line in STANDARD_MARKET_LINES,
+# so aliasing them adds a dossier column nothing reads). `hits` and `atBats`
+# are carried anyway: hits_total is a PRIORITY_METRICS entry (readiness needs
+# a third metric), and at_bats is never legitimately zero in a played game so
+# it is the anchor field _is_absent_not_zero's baseball branch keys off of
+# (see providers.py). `homeRuns`/`strikeouts`/`errors` exist only for the
+# _IMPOSSIBLE_ORDERINGS sanity checks (home_runs <= hits <= at_bats) -- none
+# of the three has a Superbet market and none should ever be aliased further.
+BASEBALL_STAT_MAP = {
+    "runs": "runs",
+    "hits": "hits",
+    "atBats": "at_bats",
+    "errors": "errors",
+    "homeRuns": "home_runs",
+    "strikeouts": "strikeouts",
+}
+
 VOLLEYBALL_STAT_MAP = {
     "kills": "kills",
     "aces": "aces",
@@ -853,6 +878,24 @@ _SPORT_STAT_MAPS = {
     "basketball": NBA_STAT_MAP,
     "hockey": NHL_STAT_MAP,
     "volleyball": VOLLEYBALL_STAT_MAP,
+    "baseball": BASEBALL_STAT_MAP,
+}
+
+# Baseball boxscore stats are nested one level deeper than every other sport
+# this client parses: team_data["statistics"] is a list of *categories*
+# (batting/pitching/fielding/records), each with its own stats[] list, and
+# the same stat name means different things in different categories (e.g.
+# "hits" appears in batting -- hits collected -- and in pitching -- hits
+# allowed -- and they are not the same number). _parse_flat_stats keys only
+# on name and would silently pick whichever category iterated last, so
+# baseball needs its own parser keyed on (category, name).
+_BASEBALL_STAT_CATEGORY = {
+    "runs": "batting",
+    "hits": "batting",
+    "atBats": "batting",
+    "homeRuns": "batting",
+    "strikeouts": "batting",
+    "errors": "fielding",
 }
 
 
@@ -1724,6 +1767,29 @@ class ESPNClient(BaseAPIClient):
             )
 
         data = payload_result.value
+        if self.sport == "baseball":
+            # Baseball-specific trap, found via audit_sample_bias.py on the
+            # first live day (docs/PLAN_MLB_2026-09-14.md): unlike every other
+            # sport this client reads, ESPN's baseball /summary still returns
+            # a populated boxscore.teams[].statistics[] for a game that has
+            # not started -- filled with each team's *season-to-date* totals
+            # (hundreds of runs, thousands of at-bats) rather than an empty or
+            # absent block. The generic "boxscore missing" check below never
+            # fires because the boxscore is present and well-formed; only the
+            # game's own status says it is not this game's data. Refusing
+            # unconditionally here (not just pre/in) is deliberate: a summary
+            # for a boxscore-less legitimately-finished game is a schema
+            # error, not a season-stat trap, and only "post" is trustworthy.
+            comps = data.get("header", {}).get("competitions", [{}])
+            status = (comps[0] if comps else {}).get("status", {})
+            state = status.get("type", {}).get("state") if isinstance(status, dict) else None
+            if state != "post":
+                return SourceOperationResult(
+                    SourceResultStatus.NOT_PUBLISHED_YET,
+                    http_status=payload_result.http_status,
+                    error_code="summary_game_not_final",
+                    evidence_refs=payload_result.evidence_refs,
+                )
         boxscore = data.get("boxscore")
         if not isinstance(boxscore, dict):
             status = data.get("header", {}).get("competitions", [{}])[0].get("status", {})
@@ -1773,13 +1839,24 @@ class ESPNClient(BaseAPIClient):
                 side = "home" if i == 0 else "away"
             teams[side] = team_name
             participant_ids[side] = participant_id
-            self._parse_flat_stats(team_data.get("statistics", []), side, stats)
+            if self.sport == "baseball":
+                self._parse_baseball_stats(team_data.get("statistics", []), side, stats)
+            else:
+                self._parse_flat_stats(team_data.get("statistics", []), side, stats)
 
         score_key = None
         if self.sport in ("football", "hockey"):
             score_key = "goals"
         elif self.sport == "basketball":
             score_key = "points"
+        elif self.sport == "baseball":
+            # header.competitors[].score is the final score including extra
+            # innings -- exactly the quantity Superbet's "(z dogrywką)" runs
+            # markets settle. boxscore's own batting.runs agrees with it in
+            # every game with no incomplete inning, but the header score is
+            # the more direct read of what the book pays out on, so it wins
+            # here the way it already does for goals/points.
+            score_key = "runs"
 
         if score_key:
             header = data.get("header", {})
@@ -1858,6 +1935,40 @@ class ESPNClient(BaseAPIClient):
             if normalized_key not in stats:
                 stats[normalized_key] = {}
             stats[normalized_key][side] = value
+
+    def _parse_baseball_stats(
+        self, team_stats_raw: list, side: str, stats: dict[str, dict[str, float]]
+    ) -> None:
+        """Parse baseball's nested category statistics (batting/pitching/fielding).
+
+        Unlike every other sport this client reads, a bare stat name is
+        ambiguous here -- "hits" exists in all three categories and means a
+        different thing in each. Only the (category, name) pairs in
+        _BASEBALL_STAT_CATEGORY are read, and a name found in the wrong
+        category (e.g. pitching.hits, which is hits allowed, not hits made)
+        is skipped rather than aliased.
+        """
+        stat_map = BASEBALL_STAT_MAP
+        for category in team_stats_raw:
+            category_name = category.get("name", "")
+            for stat_entry in category.get("stats", []):
+                espn_name = stat_entry.get("name", "")
+                if _BASEBALL_STAT_CATEGORY.get(espn_name) != category_name:
+                    continue
+                normalized_key = stat_map.get(espn_name)
+                if not normalized_key:
+                    continue
+                display_value = stat_entry.get("displayValue")
+                if display_value is None:
+                    continue
+                cleaned = str(display_value).replace("%", "").strip()
+                if not cleaned:
+                    continue
+                try:
+                    value = float(cleaned)
+                except (ValueError, TypeError):
+                    continue
+                stats.setdefault(normalized_key, {})[side] = value
 
     # Row shape v3: v2 rows carried four fields and no metadata, so a cache
     # written before this change would keep feeding ANALYZE observations with

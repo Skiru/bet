@@ -64,6 +64,9 @@ PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
     # it, and its alias table below is kept so restoring it is a one-line
     # change once someone finds where the CSVs went.
     "tennis": ("tennis-abstract", "espn-tennis"),
+    # MLB is architected as a copy of tennis (docs/PLAN_MLB_2026-09-14.md
+    # section 2): one team-name-driven provider, no primary, no corroborator.
+    "baseball": ("espn-baseball",),
 }
 
 # Providers that cannot be driven by team *name* and are therefore fetched
@@ -442,6 +445,21 @@ _TENNIS_ESPN_ALIASES = {
     "games_won": "total_games",
     "sets_won": "total_sets",
 }
+# ESPN's boxscore.py already writes {"home": x, "away": y} for every one of
+# these (BASEBALL_STAT_MAP's normalized keys), the same shape football's
+# alias table reads -- so, unlike tennis, no flat-stats combiner is needed.
+# hits/at_bats/errors/home_runs/strikeouts have no Superbet market and exist
+# only for the sanity-check orderings in _is_absent_not_zero (docs/PLAN_MLB
+# section 4.4) and for hits_total's PRIORITY_METRICS slot -- never map more
+# of ESPN's 60+ fields onto this table (see BASEBALL_STAT_MAP's own comment).
+_ESPN_BASEBALL_ALIASES = {
+    "runs": "runs_total",
+    "hits": "hits_total",
+    "at_bats": "at_bats_total",
+    "errors": "errors_total",
+    "home_runs": "home_runs_total",
+    "strikeouts": "strikeouts_total",
+}
 _FLAT_STAT_PROVIDERS = frozenset({"tennis-abstract", "sackmann"})
 
 # Providers whose {"home": x, "away": y}-shaped stats hold a per-player market
@@ -450,7 +468,7 @@ _FLAT_STAT_PROVIDERS = frozenset({"tennis-abstract", "sackmann"})
 # ``_parse_tennis_competition``), so the side the fetch already resolved for
 # venue/goals purposes is enough to read it off directly -- no new fetch, no
 # new field, just not discarding a number already in hand.
-_SIDE_SPLIT_PROVIDERS = frozenset({"espn-tennis"})
+_SIDE_SPLIT_PROVIDERS = frozenset({"espn-tennis", "espn-baseball"})
 
 # {provider: {summed canonical: per-side canonical}}. Named explicitly, not by
 # a "_for" suffix: the canonical metric is already called ``games_won`` (what
@@ -460,7 +478,15 @@ _SIDE_SPLIT_PROVIDERS = frozenset({"espn-tennis"})
 # so there is no market it could ever reach, and espn.py's own total_sets is
 # identical on both sides regardless (see its docstring) -- extending this
 # table to it would silently double-count a shared total as a per-player one.
-_SIDE_SPLIT_AS = {"espn-tennis": {"total_games": "games_won"}}
+#
+# espn-baseball's own boxscore already carries the home/away split for runs
+# (unlike football, where only bzzoiro does and needs its own
+# _BZZOIRO_FOR_ALIASES table) -- this is the only reason runs_for is possible
+# at all for a sport with a single provider (docs/PLAN_MLB section 1.3).
+_SIDE_SPLIT_AS = {
+    "espn-tennis": {"total_games": "games_won"},
+    "espn-baseball": {"runs_total": "runs_for"},
+}
 
 
 def _side_split_values(
@@ -498,6 +524,7 @@ def _side_split_values(
 _ALIASES_BY_PROVIDER: dict[str, dict[str, str]] = {
     "espn-football": _ESPN_FOOTBALL_ALIASES,
     "espn-tennis": _TENNIS_ESPN_ALIASES,
+    "espn-baseball": _ESPN_BASEBALL_ALIASES,
     "api-football": _API_FOOTBALL_ALIASES,
     "tennis-abstract": _TENNIS_MATCH_STAT_ALIASES,
     "sackmann": _TENNIS_MATCH_STAT_ALIASES,
@@ -623,7 +650,7 @@ def _draw_filter_kwargs(provider: str, competition: str) -> dict[str, str]:
 # returns raw provider payload items nested under "fixture", which this
 # generic path does not attempt to parse (section 4.1: api-football is a
 # supplementary cross-check, not a primary H2H source).
-_H2H_SUPPORTED_PROVIDERS = frozenset({"espn-football", "espn-tennis", "tennis-abstract"})
+_H2H_SUPPORTED_PROVIDERS = frozenset({"espn-football", "espn-tennis", "tennis-abstract", "espn-baseball"})
 
 
 def _now_iso() -> str:
@@ -659,6 +686,8 @@ RUN_BUDGET_OVERRIDES: dict[str, int] = {
     "bzzoiro": 20000,
     "espn-football": 20000,
     "espn-tennis": 20000,
+    # Same reasoning as espn-tennis: free, unlimited, ~15 fixtures/day.
+    "espn-baseball": 20000,
 }
 
 
@@ -917,6 +946,27 @@ _IMPOSSIBLE_ORDERINGS = (
 )
 _ORDERING_TOLERANCE = 1.0
 
+# Baseball is the football zero-heuristic inverted (docs/PLAN_MLB_2026-09-14.md
+# section 4.4): a shutout (0 runs), 0 home runs, 0 errors and a no-hitter's 0
+# hits are all ordinary results, not missing data, so the generic "all values
+# are zero" test at the end of _is_absent_not_zero would reject a real
+# boxscore as empty. at_bats is the anchor instead: no side finishes a played
+# game with 0 at-bats, so its absence (not a zero anywhere else) is what
+# "this payload describes nothing" means for this sport. Routed the same way
+# the tennis branch is routed above -- a provider-set membership check, not a
+# value heuristic.
+_BASEBALL_PROVIDERS = frozenset({"espn-baseball"})
+
+# You cannot hit more home runs than hits, or more hits than at-bats.
+# Deliberately narrow -- runs/errors/home_runs are *not* added to
+# _PLAY_METRICS (that heuristic is football's "some of each counted event
+# exists"; a real shutout or errorless game legitimately has none, exactly
+# the mistake the comment at _PLAY_METRICS already names for goals/cards).
+_BASEBALL_IMPOSSIBLE_ORDERINGS = (
+    ("home_runs_total", "hits_total"),
+    ("hits_total", "at_bats_total"),
+)
+
 # Every provider that serves tennis, including the id-addressed one -- the
 # retirement test is about the sport, not about how the fixture was looked up.
 _TENNIS_PROVIDERS = frozenset(
@@ -965,6 +1015,15 @@ def _is_absent_not_zero(combined: dict[str, float], provider_key: str = "") -> b
         if games is not None and games < _TENNIS_MIN_COMPLETED_GAMES:
             return True
         return len(combined) >= 2 and all(value == 0.0 for value in combined.values())
+    if provider_key in _BASEBALL_PROVIDERS:
+        at_bats = combined.get("at_bats_total")
+        if at_bats is None or at_bats == 0.0:
+            return True
+        for greater, lesser in _BASEBALL_IMPOSSIBLE_ORDERINGS:
+            big, small = combined.get(greater), combined.get(lesser)
+            if big is not None and small is not None and big > small:
+                return True
+        return False
     if any(combined.get(market) == 0.0 for market in _ZERO_IMPOSSIBLE_MARKETS):
         return True
     # Internally impossible: goals it cannot have scored, or shots on target it
@@ -1003,8 +1062,18 @@ def _id_or_none(raw: Any) -> str | None:
 # home at a neutral tournament. Recording slot one as "home" would be the same
 # class of invented fact as the ordering violations ``_is_absent_not_zero``
 # refuses.
-_VENUE_BEARING_PROVIDERS = frozenset(PROVIDERS_BY_SPORT["football"]) | frozenset(
-    NATIVE_ID_PROVIDERS_BY_SPORT["football"]
+# Baseball is added deliberately, not inherited by accident: unlike football's
+# "venue is a prior, not a split" (home/away is noise on a per-team mean),
+# §4.3 of docs/PLAN_MLB_2026-09-14.md found the home side's bottom-9th is
+# structurally truncated when it is already ahead (measured live, event
+# 401816920: home 8 linescore entries, away 9) -- a real asymmetry in how many
+# innings a side gets to bat, not sampling noise. runs_for needs the split
+# recorded so an analyst (or a future calibration) can see it, even though
+# nothing in this pipeline currently conditions on it.
+_VENUE_BEARING_PROVIDERS = (
+    frozenset(PROVIDERS_BY_SPORT["football"])
+    | frozenset(NATIVE_ID_PROVIDERS_BY_SPORT["football"])
+    | _BASEBALL_PROVIDERS
 )
 
 

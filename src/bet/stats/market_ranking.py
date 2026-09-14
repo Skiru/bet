@@ -241,6 +241,18 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         {"market": "Player Double Faults", "lines": [1.5, 2.5, 3.5], "stat": "double_faults", "is_combined": False},
         {"market": "Player Games Won", "lines": [8.5, 10.5, 12.5], "stat": "games_won", "is_combined": False},
     ],
+    # Lines measured on the live Superbet board, not guessed (docs/PLAN_MLB
+    # section 5): "Liczba runow (z dogrywka)" cleared 7.5/8.5/9.5/10.5 on all
+    # 10 MLB fixtures checked 2026-09-14, "{Team} liczba runow" clustered on
+    # 2.5/3.5/4.5. offered_lines.py overwrites this with the real board
+    # regardless -- the same precedent as football's old shots_on_target
+    # fallback that started at 4.5 against a Superbet ladder starting at 7.5.
+    "baseball": [
+        {"market": "Total Runs", "lines": [5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5],
+         "stat": "runs", "is_combined": True},
+        {"market": "Team Runs", "lines": [2.5, 3.5, 4.5, 5.5],
+         "stat": "runs", "is_combined": False},
+    ],
     "volleyball": [
         {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "sets_won", "is_combined": True},
         {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
