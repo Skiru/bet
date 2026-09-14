@@ -18,21 +18,26 @@ scripts/simple/verify_tennis_providers.py, whose artifact the last section
 checks.
 """
 import json
+import time
 from pathlib import Path
 
 import pytest
+import requests
 
+from bet.api_clients import tennis_abstract as ta_module
 from bet.api_clients.tennis_abstract import (
+    _ROUTE_RETRIES,
     _ROUTES,
     STALE_ROUTE_DAYS,
+    TRANSIENT_FALLBACK_TTL_HOURS,
     TennisAbstractClient,
     _fold_player_name,
     identity_matches,
 )
 from bet.simple_stats.preflight import KNOWN_DEAD_PROVIDERS
 from bet.simple_stats.providers import (
-    PROVIDERS_BY_SPORT,
     _H2H_SUPPORTED_PROVIDERS,
+    PROVIDERS_BY_SPORT,
     _opponent_of,
 )
 
@@ -332,12 +337,21 @@ def offline_client(monkeypatch):
 
 
 def _serve(client, monkeypatch, by_url):
+    """Wire a fake ``_make_scrape_request`` that always succeeds or 404s.
+
+    Matches ``TennisAbstractClient._ScrapeAttempt``'s contract: a body means a
+    clean 200, ``None`` means a clean "nothing here" (404), and ``failed`` is
+    never set here because these tests are not about retries or rate limits
+    -- see ``test_transient_failure_*`` below for those.
+    """
+    from bet.api_clients.tennis_abstract import _ScrapeAttempt
+
     seen = []
 
-    def fake_request(url, retries=2):
+    def fake_request(url, label="", retries=None):
         seen.append(url)
         body = by_url.get(next((k for k in by_url if k in url), ""), None)
-        return _FakePage(body) if body is not None else None
+        return _ScrapeAttempt(response=_FakePage(body) if body is not None else None)
 
     monkeypatch.setattr(client, "_make_scrape_request", fake_request, raising=False)
     return seen
@@ -517,3 +531,305 @@ def test_last_fixtures_does_not_wipe_cached_h2h_rows(offline_client, monkeypatch
     offline_client.get_team_last_fixtures("Jannik Sinner", last_n=10)
 
     assert offline_client.get_fixture_stats(meetings[0]["id"]) is not None
+
+
+# --- transient failure vs. genuine absence ---------------------------------
+#
+# Live on 2026-09-14: eight ``player-classic`` requests fired at once
+# (ThreadPoolExecutor(max_workers=8), matching enrich.py) drew Cloudflare 429s,
+# each with a real ``Retry-After`` header, past the first three to five --
+# not a connection reset or a timeout. Retrying once ``Retry-After`` elapsed
+# always got a 200 with fresh 2026 rows. The tests below reproduce that
+# distinction offline: a route that never actually answered must not be read
+# the same way as a route that answered and had nothing.
+
+
+class _FakeResponse:
+    def __init__(self, status_code, text="", headers=None):
+        self.status_code = status_code
+        self.text = text
+        self.headers = headers or {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}")
+
+
+class _ScriptedSession:
+    """A fake ``requests.Session`` whose ``.get()`` answers from a per-URL script.
+
+    Each key's script is a list of responses/exceptions, consumed in order and
+    held at the last entry once exhausted -- so "429 forever" is one-element
+    list, and "429 twice then 200" is a three-element list.
+    """
+
+    def __init__(self, scripts):
+        self.scripts = {
+            k: (v if isinstance(v, list) else [v]) for k, v in scripts.items()
+        }
+        self._counts = {k: 0 for k in self.scripts}
+        self.calls: list[str] = []
+
+    def get(self, url, timeout=15):
+        self.calls.append(url)
+        key = next((k for k in self.scripts if k in url), None)
+        if key is None:
+            return _FakeResponse(404)
+        script = self.scripts[key]
+        idx = min(self._counts[key], len(script) - 1)
+        self._counts[key] += 1
+        outcome = script[idx]
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+
+def _raw_client(monkeypatch, scripts):
+    """A client with a scripted session, no cache, no pacing, no real sleeps."""
+    client = TennisAbstractClient.__new__(TennisAbstractClient)
+    client.api_name = "tennis-abstract"
+    client._last_matches_cache = {}
+    client._proved_names = {}
+    client._session = _ScriptedSession(scripts)
+    monkeypatch.setattr(client, "_check_cache", lambda *a, **k: None, raising=False)
+    saved: dict[str, dict] = {}
+    monkeypatch.setattr(
+        client, "_save_to_cache",
+        lambda key, data: saved.__setitem__(key, data), raising=False,
+    )
+    monkeypatch.setattr(ta_module, "_pace", lambda *a, **k: None)
+    monkeypatch.setattr(ta_module.time, "sleep", lambda *a, **k: None)
+    return client, saved
+
+
+def _pc_calls(client):
+    return [c for c in client._session.calls if "player-classic" in c]
+
+
+def test_baseline_player_classic_succeeds_first_try_no_fallback(monkeypatch):
+    """The happy path: unchanged. One request, fresh data, no fallback."""
+    client, saved = _raw_client(monkeypatch, {
+        "player-classic.cgi": _FakeResponse(
+            200, _page("Carlos Alcaraz", [_row("20260901", "Jannik Sinner", 10)])
+        ),
+    })
+
+    matches = client._fetch_player_matches("Carlos Alcaraz")
+
+    assert {m["opp"] for m in matches} == {"Jannik Sinner"}
+    assert len(client._session.calls) == 1, "no retry, no fallback route touched"
+    record = saved["tennis-abstract/player/CarlosAlcaraz"]
+    assert record["route"] == "player-classic"
+    assert "fallback_reason" not in record
+
+
+def test_transient_failure_then_success_recovers_the_live_route(monkeypatch):
+    """The exact bug: player-classic 429s twice, then succeeds.
+
+    Must retry through it and use the fresh data -- not fall through to
+    jsmatches's stale table, which is what the un-fixed client did.
+    """
+    fresh = _page("Tallon Griekspoor", [_row("20260901", "Jack Draper", 7)])
+    stale = _page("Tallon Griekspoor", [_row("20181029", "Old Opponent", 3)])
+    client, saved = _raw_client(monkeypatch, {
+        "player-classic.cgi": [
+            _FakeResponse(429, headers={"Retry-After": "2"}),
+            _FakeResponse(429, headers={"Retry-After": "2"}),
+            _FakeResponse(200, fresh),
+        ],
+        "jsmatches/TallonGriekspoor.js": _FakeResponse(200, stale),
+    })
+
+    matches = client._fetch_player_matches("Tallon Griekspoor")
+
+    assert {m["opp"] for m in matches} == {"Jack Draper"}
+    assert len(_pc_calls(client)) == 3, "two 429s, then the recovering attempt"
+    assert not any("jsmatches" in c for c in client._session.calls), (
+        "jsmatches must never be touched once player-classic recovered"
+    )
+    record = saved["tennis-abstract/player/TallonGriekspoor"]
+    assert record["route"] == "player-classic"
+    assert "fallback_reason" not in record
+
+
+def test_genuine_exhaustion_falls_through_and_is_marked_failure_driven(monkeypatch):
+    """player-classic 429s on every attempt -- real exhaustion, not one bad
+    roll. Falls through to jsmatches, but the cached record must say the
+    fallback happened because the live route failed, not because it was ever
+    proven not to have him."""
+    stale = _page("Tallon Griekspoor", [_row("20181029", "Old Opponent", 3)])
+    client, saved = _raw_client(monkeypatch, {
+        "player-classic.cgi": _FakeResponse(429, headers={"Retry-After": "3"}),
+        "jsmatches/TallonGriekspoor.js": _FakeResponse(200, stale),
+    })
+
+    matches = client._fetch_player_matches("Tallon Griekspoor")
+
+    assert {m["opp"] for m in matches} == {"Old Opponent"}
+    assert len(_pc_calls(client)) == _ROUTE_RETRIES["player-classic"], (
+        "player-classic gets its full, larger retry budget before giving up"
+    )
+    record = saved["tennis-abstract/player/TallonGriekspoor"]
+    assert record["route"] == "jsmatches"
+    assert record["fallback_reason"] == "transient_failure"
+
+
+def test_genuine_wrong_player_absence_is_not_marked_as_failure(monkeypatch):
+    """player-classic answers every time with Benoit Paire's page -- a clean
+    identity refusal, proven absent, not a failure. Must not be retried like
+    one, and must not carry the failure-driven marker."""
+    client, saved = _raw_client(monkeypatch, {
+        "player-classic.cgi": _FakeResponse(
+            200, _page("Benoit Paire", [_row("20260810", "Someone", 5)])
+        ),
+        "jsmatches/IgaSwiatek.js": _FakeResponse(
+            200, _page("Iga Swiatek", [_row("20260813", "Jessica Pegula", 1)])
+        ),
+    })
+
+    matches = client._fetch_player_matches("Iga Swiatek")
+
+    assert {m["opp"] for m in matches} == {"Jessica Pegula"}
+    assert len(_pc_calls(client)) == 1, "an identity refusal is not a failure, not retried"
+    record = saved["tennis-abstract/player/IgaSwiatek"]
+    assert "fallback_reason" not in record
+
+
+def test_404_is_treated_as_absence_not_retried_like_a_failure(monkeypatch):
+    """A 404 will not turn into a 200 on retry; retrying it wastes politeness
+    budget for nothing and must not happen."""
+    client, saved = _raw_client(monkeypatch, {
+        "player-classic.cgi": _FakeResponse(404),
+        "jsmatches/ZzzzNotarealplayer.js": _FakeResponse(404),
+        "jsmatches/ZzzzNotarealplayerCareer.js": _FakeResponse(404),
+    })
+
+    matches = client._fetch_player_matches("Zzzz Notarealplayer")
+
+    assert matches is None
+    assert len(_pc_calls(client)) == 1
+    assert "tennis-abstract/player/ZzzzNotarealplayer" not in saved
+
+
+def test_backoff_honours_retry_after_and_is_not_a_tight_loop(monkeypatch):
+    """Assert real backoff behaviour via mocked ``time.sleep`` -- the server's
+    own ``Retry-After`` is used verbatim (within the polite bounds), not a
+    flat or trivially-short delay."""
+    sleeps = []
+    monkeypatch.setattr(ta_module.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(ta_module, "_pace", lambda *a, **k: None)
+    monkeypatch.setattr(ta_module.random, "uniform", lambda a, b: 0.0)
+
+    client = TennisAbstractClient.__new__(TennisAbstractClient)
+    client.api_name = "tennis-abstract"
+    client._session = _ScriptedSession({
+        "player-classic.cgi": [
+            _FakeResponse(429, headers={"Retry-After": "5"}),
+            _FakeResponse(429, headers={"Retry-After": "3"}),
+            _FakeResponse(200, _page("Carlos Alcaraz", [_row("20260901", "X", 1)])),
+        ],
+    })
+
+    attempt = client._make_scrape_request(
+        "https://www.tennisabstract.com/cgi-bin/player-classic.cgi?p=CarlosAlcaraz",
+        label="player-classic",
+    )
+
+    assert attempt.response is not None and not attempt.failed
+    assert sleeps == [5.0, 3.0], (
+        "must wait exactly what the server asked for, not a flat/tight retry"
+    )
+
+
+def test_transient_fallback_cache_expires_within_the_short_ttl(monkeypatch):
+    """A failure-driven stale fallback is not trusted for the normal 6h.
+
+    Within TRANSIENT_FALLBACK_TTL_HOURS it is still served (no need to hammer
+    the site again seconds later); past it, it is treated as a cache miss so a
+    retry can recover the real route -- rather than being stuck with an
+    eight-year-old sample for the rest of the 6h window.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    client = TennisAbstractClient.__new__(TennisAbstractClient)
+    client.api_name = "tennis-abstract"
+    client._proved_names = {}
+
+    stale_matches = [{"opp": "Old Opponent", "date": "2018-10-29"}]
+
+    def cached_at(age):
+        return {
+            "matches": stale_matches,
+            "proved_name": "Tallon Griekspoor",
+            "route": "jsmatches",
+            "newest_match": "2018-10-29",
+            "fallback_reason": "transient_failure",
+            "last_updated": (datetime.now(timezone.utc) - age).isoformat(),
+        }
+
+    # Within the short TTL: served as-is, no refetch attempted.
+    monkeypatch.setattr(
+        client, "_check_cache",
+        lambda *a, **k: cached_at(timedelta(minutes=5)), raising=False,
+    )
+
+    def must_not_refetch(*a, **k):
+        raise AssertionError("must not refetch within the short TTL")
+
+    monkeypatch.setattr(client, "_fetch_route", must_not_refetch, raising=False)
+    assert client._fetch_player_matches("Tallon Griekspoor") == stale_matches
+    assert TRANSIENT_FALLBACK_TTL_HOURS < 1, "sanity: the short TTL really is short"
+
+    # Past the short TTL (but still well within the normal 6h): a miss.
+    monkeypatch.setattr(
+        client, "_check_cache",
+        lambda *a, **k: cached_at(timedelta(hours=1)), raising=False,
+    )
+    refetched_labels = []
+
+    def refetch(url, label, player_name):
+        refetched_labels.append(label)
+        if label != "player-classic":
+            return None
+        return {
+            "label": "player-classic", "proved_name": "Tallon Griekspoor",
+            "matches": [{"opp": "Jack Draper", "date": "2026-09-01"}],
+            "newest": "2026-09-01",
+        }
+
+    monkeypatch.setattr(client, "_fetch_route", refetch, raising=False)
+    monkeypatch.setattr(client, "_save_to_cache", lambda *a, **k: None, raising=False)
+
+    matches = client._fetch_player_matches("Tallon Griekspoor")
+
+    assert refetched_labels, "an expired failure-driven fallback must trigger a real refetch"
+    assert {m["opp"] for m in matches} == {"Jack Draper"}
+
+
+def test_pacer_serializes_requests_issued_from_multiple_threads(monkeypatch):
+    """The other half of the bug: get_client() builds a fresh client and
+    session per call, so nothing but a module-level pacer can space out the
+    eight concurrent requests enrich.py's ThreadPoolExecutor(max_workers=8)
+    issues. Real threads, real elapsed time, mocked HTTP layer -- no network.
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setattr(ta_module, "_next_allowed_request_time", 0.0)
+
+    lock = threading.Lock()
+    stamps: list[float] = []
+
+    def call(_):
+        ta_module._pace(min_interval=0.05)
+        with lock:
+            stamps.append(time.monotonic())
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(call, range(6)))
+
+    stamps.sort()
+    gaps = [b - a for a, b in zip(stamps, stamps[1:])]
+    assert all(gap >= 0.04 for gap in gaps), (
+        f"pacer did not serialize across threads: gaps were {gaps}"
+    )

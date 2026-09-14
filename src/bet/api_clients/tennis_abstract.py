@@ -17,21 +17,44 @@ in another player's dossier, which is the worst thing this pipeline can do:
 fabricate a number that looks measured. So the page's own ``var fullname``
 decides whose page it is, and a page that does not name the player we asked for
 is discarded rather than scored.
+
+The site also rate-limits by IP, through Cloudflare, and answers with a real
+429 and an explicit ``Retry-After`` header -- not a connection reset, not a
+timeout. Verified live on 2026-09-14: eight ``player-classic`` requests fired
+from ``ThreadPoolExecutor(max_workers=8)`` (the concurrency ``enrich.py`` uses)
+drew 429s on every request past the first three to five, each carrying
+``Retry-After`` counting down to the window's reset (10, 8, 6, 4, 2 seconds
+apart, arriving in a single burst -- consistent with a rolling ~15s window
+capping this IP at a handful of requests). Retrying at the moment ``Retry-After``
+said to always produced a 200 with fresh 2026 rows. ``REQUEST_DELAY`` was
+written to be "a polite scraping delay", but it sleeps *inside one call*, so
+eight threads each doing their own 0.6s sleep still fire within the same
+window of each other -- the pacing was never actually cross-thread, which is
+exactly the gap that let this look like a per-player mystery instead of a
+process-wide one. The old retry budget (``retries=2``, a flat
+``REQUEST_DELAY * attempt`` backoff) gives up in ~1.2s, an order of magnitude
+short of the window's real reset time, so a 429 on the live route was silently
+read as "no page here" and the loop fell through to the deliberately-stale
+``jsmatches`` route -- the right player, eight-year-old data.
 """
 
 import ast
 import logging
+import random
 import re
+import threading
 import time
 import unicodedata
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import requests
 
-from .base_client import BaseAPIClient, CACHE_DIR
+from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
+
+from .base_client import CACHE_DIR, BaseAPIClient
 from .rate_limiter import RateLimiter
 from .tennis_score import parse_tennis_score
-from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +65,96 @@ REQUEST_DELAY = 0.6  # polite scraping delay
 # that carries a match table, which is what makes the check below possible.
 _FULLNAME_RE = re.compile(r"var\s+fullname\s*=\s*'([^']*)'")
 
+# --- cross-thread pacing ----------------------------------------------------
+#
+# get_client() (api_clients/__init__.py) builds a brand-new TennisAbstractClient
+# -- and a brand-new requests.Session -- on every call, so there is no per-
+# instance state that survives across the several players enrich.py's
+# ThreadPoolExecutor(max_workers=8) fetches concurrently. REQUEST_DELAY's
+# sleep is per-instance, per-call, so it never actually spaced anything out
+# across those eight threads; this lock and timestamp are process-wide
+# (module-level) for exactly that reason. It does not need to be perfect --
+# tennisabstract's real limit is a short rolling window that a handful of
+# threads will still exceed even spaced out -- it only needs to turn the
+# thundering-herd first request (all eight probes departing within
+# milliseconds of each other) into a staggered one, which is the cheapest,
+# least-clever fix that costs no extra requests.
+_PACE_LOCK = threading.Lock()
+_next_allowed_request_time = 0.0
+
+
+def _pace(min_interval: float = REQUEST_DELAY) -> None:
+    """Block until at least ``min_interval`` has passed since the last call.
+
+    Shared by every TennisAbstractClient instance in this process (module
+    globals, not ``self``), which is the only thing that can coordinate
+    threads that each hold their own client and session.
+    """
+    global _next_allowed_request_time
+    with _PACE_LOCK:
+        now = time.monotonic()
+        wait = _next_allowed_request_time - now
+        if wait > 0:
+            time.sleep(wait)
+            now = time.monotonic()
+        _next_allowed_request_time = now + min_interval
+
+
+# How many attempts a route gets before ``_make_scrape_request`` gives up.
+# ``player-classic`` is worth fighting for -- it is the correct, current-season
+# route for the overwhelming majority of names -- so it gets more attempts
+# than the fallback routes, which exist precisely so a handful of failed
+# attempts there does not strand a fixture with nothing.
+_ROUTE_RETRIES: dict[str, int] = {"player-classic": 5}
+_DEFAULT_RETRIES = 2
+
+# Bounds on how long a single retry may wait, whether it is honouring the
+# site's own ``Retry-After`` or backing off after a generic connection error.
+# Uncapped would make one throttled player able to stall the whole
+# ThreadPoolExecutor batch; too short would make the retry pointless (the
+# 2026-09-14 probe saw ``Retry-After`` values up to 10s, and a heavier
+# 14-concurrent-request stress test saw the site's own countdown run past that).
+_MIN_RETRY_WAIT = 1.0
+_MAX_RETRY_WAIT = 16.0
+_JITTER = 0.4  # seconds, spread so parallel threads do not retry in lockstep
+
+
+def _retry_after_seconds(response: requests.Response | None, attempt: int) -> float:
+    """How long to wait before the next attempt.
+
+    Prefers the server's own ``Retry-After`` (present on every 429 observed
+    live) over a guess; falls back to exponential backoff with jitter for
+    connection errors and timeouts, which carry no such header.
+    """
+    wait: float | None = None
+    if response is not None:
+        header = response.headers.get("Retry-After")
+        if header is not None:
+            try:
+                wait = float(header)
+            except (TypeError, ValueError):
+                wait = None
+    if wait is None:
+        wait = REQUEST_DELAY * (2 ** attempt)
+    wait = max(_MIN_RETRY_WAIT, min(_MAX_RETRY_WAIT, wait))
+    return wait + random.uniform(0, _JITTER)
+
+
+@dataclass
+class _ScrapeAttempt:
+    """The outcome of one ``_make_scrape_request`` call.
+
+    ``response`` is ``None`` for both a clean "nothing here" (404, or every
+    retry exhausted) and a rate-limited exhaustion -- ``failed`` is what tells
+    those two apart. A 404 is not ``failed``: the page does not exist and
+    retrying it would only be impolite. A 429 or connection error that
+    survived every retry *is* ``failed`` -- the route was never actually
+    proven empty, the site just never let this process look.
+    """
+
+    response: requests.Response | None
+    failed: bool = False
+
 # How stale a route's freshest match may be before it stops counting as this
 # player's *recent* form. Identity is necessary but not sufficient: the site
 # still serves /jsmatches/JannikSinner.js, and its last row is from November
@@ -49,6 +162,14 @@ _FULLNAME_RE = re.compile(r"var\s+fullname\s*=\s*'([^']*)'")
 # we are pricing a fixture for played this season, so a route whose newest
 # match predates that is kept only as a fallback.
 STALE_ROUTE_DAYS = 400
+
+# A cached fallback that only happened because the live route was rate-limited
+# or erroring -- not because it was ever proven not to have this player -- is
+# not trustworthy for the normal 6h TTL. tennisabstract's own throttling
+# window resets in well under this (Retry-After values observed live topped
+# out at 10s), so a retry a few minutes later is very likely to get the real,
+# fresh route instead of the stale one this process settled for under load.
+TRANSIENT_FALLBACK_TTL_HOURS = 0.25  # 15 minutes
 
 # (label, url template), in the order they are tried. Order is about coverage
 # and cost only -- never about trust, since all three are identity-checked.
@@ -362,24 +483,50 @@ class TennisAbstractClient(BaseAPIClient):
         accepted, because being the right player is not the same as being this
         player's recent form -- and a 2018 L10 labelled "last 10" is the same
         class of lie as another player's, just quieter.
+
+        A route that never actually answered -- every attempt rate-limited
+        (429) or errored -- is a third outcome, distinct from both "proved him"
+        and "proved someone else": the route was never examined, so it must
+        not be allowed to look like a clean "he's not here" the way a 404 or a
+        wrong-name page does. When that is *why* a stale fallback got used
+        (``any_route_failed``), the cached record says so and is trusted for a
+        much shorter window (see ``TRANSIENT_FALLBACK_TTL_HOURS``) instead of
+        the normal 6h, so the next read a few minutes later -- likely past
+        tennisabstract's own throttling window -- gets a chance at the real
+        route instead of repeating this run's bad luck for six hours.
         """
         url_name = self._url_name(player_name)
         cache_key = f"tennis-abstract/player/{url_name}"
         cached = self._check_cache(cache_key, ttl_hours=6)
         # Entries without ``proved_name`` predate the identity check and may
         # hold whoever's page happened to answer, so they are re-fetched rather
-        # than trusted.
+        # than trusted. A failure-driven stale fallback outside its short TTL
+        # is treated the same way -- not because it is wrong, but because a
+        # retry now is likely to do better and six hours is too long to wait
+        # to find out.
         if cached and cached.get("proved_name"):
-            self._proved_names[url_name] = cached["proved_name"]
-            return cached.get("matches")
+            if (
+                cached.get("fallback_reason") == "transient_failure"
+                and not self._cache_entry_is_fresh_enough(
+                    cached, TRANSIENT_FALLBACK_TTL_HOURS
+                )
+            ):
+                cached = None
+            if cached:
+                self._proved_names[url_name] = cached["proved_name"]
+                return cached.get("matches")
 
         best: dict | None = None
         refused: list[str] = []
+        failed: list[str] = []
         for label, template in _ROUTES:
             route = self._fetch_route(
                 template.format(base=BASE_URL, name=url_name), label, player_name
             )
             if route is None:
+                continue
+            if route.get("failed"):
+                failed.append(route["failed"])
                 continue
             if route.get("refused"):
                 refused.append(route["refused"])
@@ -391,17 +538,25 @@ class TennisAbstractClient(BaseAPIClient):
 
         if best is None:
             logger.info(
-                "[tennis-abstract] no page proved to be '%s'%s",
+                "[tennis-abstract] no page proved to be '%s'%s%s",
                 player_name,
                 f" (refused: {'; '.join(refused)})" if refused else "",
+                f" (unreachable: {', '.join(failed)})" if failed else "",
             )
             return None
+
+        # Distinguishes "this stale route is all that exists" from "the live
+        # route may well exist, we just couldn't get through to it this time"
+        # -- the two things Step 2.3 of the fix requires stay tellable apart.
+        fallback_is_due_to_failure = bool(failed) and not self._is_fresh(best["newest"])
 
         if not self._is_fresh(best["newest"]):
             logger.warning(
                 "[tennis-abstract] '%s' resolved only via %s, whose newest match "
-                "is %s -- this is the player but not his current form",
+                "is %s -- this is the player but not his current form%s",
                 player_name, best["label"], best["newest"] or "unknown",
+                f" ({', '.join(failed)} could not be reached this attempt)"
+                if failed else "",
             )
 
         logger.info(
@@ -409,31 +564,59 @@ class TennisAbstractClient(BaseAPIClient):
             len(best["matches"]), player_name, best["label"], best["proved_name"],
         )
         self._proved_names[url_name] = best["proved_name"]
-        self._save_to_cache(
-            cache_key,
-            {
-                "matches": best["matches"],
-                # The evidence, kept with the data: which page was accepted,
-                # what it called the player, and how fresh it was.
-                "proved_name": best["proved_name"],
-                "route": best["label"],
-                "newest_match": best["newest"],
-            },
-        )
+        cache_record = {
+            "matches": best["matches"],
+            # The evidence, kept with the data: which page was accepted,
+            # what it called the player, and how fresh it was.
+            "proved_name": best["proved_name"],
+            "route": best["label"],
+            "newest_match": best["newest"],
+        }
+        if fallback_is_due_to_failure:
+            cache_record["fallback_reason"] = "transient_failure"
+        self._save_to_cache(cache_key, cache_record)
         return best["matches"]
+
+    @staticmethod
+    def _cache_entry_is_fresh_enough(cached: dict, ttl_hours: float) -> bool:
+        """Is this cache entry younger than ``ttl_hours``?
+
+        Separate from ``BaseAPIClient._check_cache`` because that call already
+        happened (at the standard 6h TTL) by the time the fallback reason is
+        known -- this re-checks the same ``last_updated`` field against a
+        shorter window for the one record type that needs one.
+        """
+        last_updated = cached.get("last_updated")
+        if not last_updated:
+            return False
+        try:
+            updated_dt = datetime.fromisoformat(last_updated)
+        except ValueError:
+            return False
+        if updated_dt.tzinfo is None:
+            updated_dt = updated_dt.replace(tzinfo=timezone.utc)
+        age_hours = (datetime.now(timezone.utc) - updated_dt).total_seconds() / 3600
+        return age_hours < ttl_hours
 
     def _fetch_route(self, url: str, label: str, player_name: str) -> dict | None:
         """Fetch one route and return its rows only if the page names the player.
 
-        Returns None when the route has nothing (404, network error, no match
-        table), ``{"refused": ...}`` when it served a page for someone else,
-        and the parsed rows otherwise.
+        Returns None when the route cleanly has nothing (404, no identity
+        claim, no parseable table -- the site looked and there was nothing to
+        find), ``{"refused": ...}`` when it served a page for someone else,
+        ``{"failed": label}`` when every attempt was rate-limited or errored
+        and the route was never actually examined (do not read this as "he's
+        not here" -- see ``_fetch_player_matches``), and the parsed rows
+        otherwise.
         """
         try:
-            response = self._make_scrape_request(url)
+            attempt = self._make_scrape_request(url, label=label)
         except Exception as exc:  # noqa: BLE001 - a dead route is not an error
             logger.debug("[tennis-abstract] %s failed for %s: %s", label, player_name, exc)
-            return None
+            return {"failed": label}
+        if attempt.failed:
+            return {"failed": label}
+        response = attempt.response
         if not response or response.status_code != 200:
             return None
 
@@ -477,22 +660,76 @@ class TennisAbstractClient(BaseAPIClient):
             return False
         return (datetime.now(timezone.utc) - then).days <= STALE_ROUTE_DAYS
 
-    def _make_scrape_request(self, url: str, retries: int = 2) -> requests.Response | None:
-        """Make HTTP request with rate limiting and retry."""
+    def _make_scrape_request(
+        self, url: str, label: str = "", retries: int | None = None
+    ) -> _ScrapeAttempt:
+        """Make one HTTP request with cross-thread pacing, backoff and retry.
+
+        Verified live 2026-09-14: under ``ThreadPoolExecutor(max_workers=8)``
+        (the concurrency ``enrich.py`` runs at), tennisabstract answers a real
+        HTTP 429 through Cloudflare, with an explicit ``Retry-After`` header
+        (observed 2-10s), to most requests past the first handful in a short
+        rolling window -- not a connection reset or a timeout. Retrying once
+        that header's wait had elapsed produced a 200 every time in the
+        reproduction. The old ``retries=2`` / ``REQUEST_DELAY``-flat backoff
+        gave up in about a second, an order of magnitude short of that window,
+        which is what let a live 429 be read as "no page here".
+
+        ``retries`` defaults to ``_ROUTE_RETRIES[label]`` -- more chances for
+        ``player-classic`` than for the fallback routes -- so the caller does
+        not have to know the policy; passing it explicitly (as the tests do)
+        overrides that.
+
+        A 404 returns immediately, un-retried: it is not going to change
+        between attempts, and retrying it would only be impolite for no gain.
+        """
+        if retries is None:
+            retries = _ROUTE_RETRIES.get(label, _DEFAULT_RETRIES)
         for attempt in range(retries):
+            _pace()
             try:
-                time.sleep(REQUEST_DELAY)
                 response = self._session.get(url, timeout=15)
-                if response.status_code == 404:
-                    return None
-                response.raise_for_status()
-                return response
-            except requests.RequestException as e:
+            except requests.RequestException as exc:
                 if attempt == retries - 1:
-                    logger.debug(f"[tennis-abstract] Request failed: {url}: {e}")
-                    return None
-                time.sleep(REQUEST_DELAY * (attempt + 1))
-        return None
+                    logger.debug(
+                        "[tennis-abstract] %s: request failed after %d attempt(s): %s",
+                        url, retries, exc,
+                    )
+                    return _ScrapeAttempt(response=None, failed=True)
+                time.sleep(_retry_after_seconds(None, attempt))
+                continue
+
+            if response.status_code == 404:
+                return _ScrapeAttempt(response=None, failed=False)
+
+            if response.status_code == 429:
+                if attempt == retries - 1:
+                    logger.info(
+                        "[tennis-abstract] %s: still rate-limited (429) after "
+                        "%d attempt(s), giving up on this route for now "
+                        "(Retry-After=%s) -- not the same as this player "
+                        "having no page here",
+                        url, retries, response.headers.get("Retry-After"),
+                    )
+                    return _ScrapeAttempt(response=None, failed=True)
+                time.sleep(_retry_after_seconds(response, attempt))
+                continue
+
+            try:
+                response.raise_for_status()
+            except requests.RequestException as exc:
+                if attempt == retries - 1:
+                    logger.debug(
+                        "[tennis-abstract] %s: HTTP error after %d attempt(s): %s",
+                        url, retries, exc,
+                    )
+                    return _ScrapeAttempt(response=None, failed=True)
+                time.sleep(_retry_after_seconds(response, attempt))
+                continue
+
+            return _ScrapeAttempt(response=response, failed=False)
+
+        return _ScrapeAttempt(response=None, failed=True)
 
     def _parse_matches_from_html(self, html_content: str) -> list | None:
         """Extract match data array from HTML player page (var matchmx = [...])."""
