@@ -16,7 +16,7 @@ import threading
 import unicodedata
 from dataclasses import asdict
 from datetime import UTC, datetime
-from typing import TypeVar
+from typing import Callable, TypeVar
 
 import requests
 
@@ -1382,7 +1382,19 @@ class ESPNClient(BaseAPIClient):
         cache_key: str | None,
         ttl_hours: int,
         source_event_id: str | None = None,
+        should_cache: Callable[[dict], bool] | None = None,
     ) -> SourceOperationResult[dict]:
+        """``should_cache`` gates whether a *successful* payload is written to
+        disk. Needed for endpoints like ``/summary`` whose response is a
+        snapshot of the event's own progress: a fixture queried before it
+        finishes returns a well-formed 200 with a ``pre``/``in`` status, and
+        without this gate that snapshot was cached for ``ttl_hours`` (up to a
+        week for fixture stats) -- so a backtest run the day after a game
+        finished could still read "scheduled" off disk and report the fixture
+        as unsettleable, not because the provider lacked the result but
+        because the cache had never been allowed to see it. Callers that pass
+        ``None`` keep the old unconditional-cache behaviour.
+        """
         from bet.integration.telemetry_wrapper import wrap_request
 
         if cache_key:
@@ -1481,7 +1493,7 @@ class ESPNClient(BaseAPIClient):
                     error_code="payload_not_object",
                     evidence_refs=evidence_refs,
                 )
-            if cache_key:
+            if cache_key and (should_cache is None or should_cache(payload)):
                 self._save_cached_payload_result(cache_key, payload, evidence_refs)
             return SourceOperationResult(
                 SourceResultStatus.SUCCESS,
@@ -1739,6 +1751,22 @@ class ESPNClient(BaseAPIClient):
             status=status_name,
         )
 
+    @staticmethod
+    def _summary_is_final(payload: dict) -> bool:
+        """Whether a ``/summary`` payload's own competition has state ``post``.
+
+        Used as ``_request_payload_result``'s ``should_cache`` gate: this
+        endpoint answers 200 for a fixture that has not started, and that
+        answer is a legitimate but transient snapshot, not a result --
+        caching it indistinguishably from a final boxscore is what let ten
+        MLB fixtures from 2026-09-14 sit unsettleable for a week even after
+        the games finished (docs/PLAN_MLB_2026-09-14.md).
+        """
+        comps = payload.get("header", {}).get("competitions", [{}])
+        status = (comps[0] if comps else {}).get("status", {})
+        state = status.get("type", {}).get("state") if isinstance(status, dict) else None
+        return state == "post"
+
     def get_fixture_stats(self, fixture_id: str) -> list[APIMatchStats]:
         return self.get_fixture_stats_result(fixture_id).value or []
 
@@ -1755,6 +1783,7 @@ class ESPNClient(BaseAPIClient):
             cache_key=f"espn/{self.sport}/{self.league}/fixture_stats/{fixture_id}",
             ttl_hours=168,
             source_event_id=fixture_id,
+            should_cache=self._summary_is_final,
         )
         if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
             return SourceOperationResult(
