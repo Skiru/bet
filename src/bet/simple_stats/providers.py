@@ -53,17 +53,17 @@ PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
     # Their clients, alias tables and fetch functions are kept, unused, exactly
     # as sportdb's were: restoring either is one word in this tuple.
     "football": ("espn-football",),
-    # sackmann was removed on 2026-08-28. It reads two GitHub repositories,
-    # JeffSackmann/tennis_atp and tennis_wta, and both now 404 -- not the CSVs,
-    # the repositories: the GitHub API answers "Not Found" for each, while the
-    # account itself is alive and still publishes tennis_MatchChartingProject.
-    # The data moved or was withdrawn; where to is not known, and asserting a
-    # provider that serves nothing is exactly the mistake the 18 dead ESPN
-    # league codes were. It stays in KNOWN_DEAD_PROVIDERS (preflight.py) so the
-    # morning check keeps reporting it as dead rather than quietly forgetting
-    # it, and its alias table below is kept so restoring it is a one-line
-    # change once someone finds where the CSVs went.
-    "tennis": ("tennis-abstract", "espn-tennis"),
+    # sackmann was removed on 2026-08-28 (its GitHub repositories,
+    # JeffSackmann/tennis_atp and tennis_wta, 404'd at the *repository*
+    # level) and restored 2026-09-15 pointed at stats.tennismylife.org, which
+    # republishes the identical column schema under a live, free API --
+    # cross-checked against tennis-abstract's own cache the day it was found
+    # (Nadia Podoroska's last-10 double-faults matched exactly on every
+    # overlapping match). It covers ATP (incl. Challenger, qualifying) and
+    # WTA Tour only -- no ITF, no WTA Challenger -- so it rides second,
+    # behind tennis-abstract, as a corroborator on the matches it can see and
+    # a silent (correct) zero on the ones it cannot.
+    "tennis": ("tennis-abstract", "sackmann", "espn-tennis"),
     # MLB is architected as a copy of tennis (docs/PLAN_MLB_2026-09-14.md
     # section 2): one team-name-driven provider, no primary, no corroborator.
     "baseball": ("espn-baseball",),
@@ -555,24 +555,53 @@ def _provider_can_serve(provider: str, metric: str) -> bool:
     return metric in _SIDE_SPLIT_AS.get(provider, {}).values()
 
 
+# Providers whose coverage is real but permanently scoped to a fraction of a
+# sport's slate, so they must never count toward the *readiness* ceiling
+# ``metric_capable_providers`` computes -- only toward actual corroboration
+# when they happen to reach a fixture. sackmann (restored 2026-09-15, points
+# at stats.tennismylife.org) reads ATP (incl. Challenger, qualifying) and WTA
+# Tour, and nothing at ITF or WTA Challenger level -- about a quarter of a
+# typical tennis slate, checked against the file listing directly, not the
+# marketing page. Unlike espn-tennis (which reads any tour's published
+# scoreboard and is a real, universally reachable second opinion, so its
+# absence on a given fixture is a real gap), a missing sackmann observation on
+# an ITF fixture is not a gap at all -- it was never going to be there. If it
+# counted toward the ceiling, "aces_total has 2 capable providers" would ask
+# every ITF/WTA-Challenger fixture (which can only ever produce one) for
+# something as arithmetically impossible as the pre-2026-09-04 tennis
+# readiness rule this module's own history already paid for once. Counting it
+# here would make restoring a corroborator for one tier of tennis silently
+# regress every fixture in the tiers it cannot reach -- a capability gain must
+# never make readiness worse for a fixture the gain does not touch.
+_TIER_LIMITED_PROVIDERS = frozenset({"sackmann"})
+
+
 def metric_capable_providers(sport: str, metric: str) -> tuple[str, ...]:
-    """The rostered providers of ``sport`` that could ever serve ``metric``.
+    """The rostered providers of ``sport`` that could ever serve ``metric``,
+    for the purpose of setting the *readiness* ceiling -- see
+    ``_TIER_LIMITED_PROVIDERS`` for who is deliberately left out and why.
 
     The ceiling a readiness rule has to measure itself against. Tennis is the
     reason it exists: its priority metrics are ``total_games``, ``aces_total``
-    and ``double_faults_total``, and only the first has two providers that can
-    serve it -- espn-tennis reads the published set score and nothing else, so
-    the other two are single-sourced by construction, not by a coverage gap
-    that some later slate might close. A rule asking for "3 metrics with 2+
-    providers" therefore asked tennis for something arithmetically impossible,
-    and every tennis dossier ever written has been PARTIAL or worse because of
-    it (measured: ceiling 1 against a threshold of 3).
+    and ``double_faults_total``, and only the first has a provider (espn-tennis,
+    which reads the published set score and nothing else) that can reach any
+    fixture on the slate. The other two are single-sourced *for readiness
+    purposes* by construction, not by a coverage gap that some later slate
+    might close. A rule asking for "3 metrics with 2+ providers" therefore
+    asked tennis for something arithmetically impossible, and every tennis
+    dossier ever written was PARTIAL or worse because of it (measured: ceiling
+    1 against a threshold of 3) until the depth-floor exception in
+    ``enrich._compute_readiness`` repaired that.
     """
     roster = (
         *PROVIDERS_BY_SPORT.get(sport, ()),
         *NATIVE_ID_PROVIDERS_BY_SPORT.get(sport, ()),
     )
-    return tuple(p for p in dict.fromkeys(roster) if _provider_can_serve(p, metric))
+    return tuple(
+        p
+        for p in dict.fromkeys(roster)
+        if p not in _TIER_LIMITED_PROVIDERS and _provider_can_serve(p, metric)
+    )
 
 # Providers whose get_team_last_fixtures needs the *_result variant unwrapped
 # from a SourceOperationResult (the plain method is a bare id-only stub).
@@ -650,7 +679,9 @@ def _draw_filter_kwargs(provider: str, competition: str) -> dict[str, str]:
 # returns raw provider payload items nested under "fixture", which this
 # generic path does not attempt to parse (section 4.1: api-football is a
 # supplementary cross-check, not a primary H2H source).
-_H2H_SUPPORTED_PROVIDERS = frozenset({"espn-football", "espn-tennis", "tennis-abstract", "espn-baseball"})
+_H2H_SUPPORTED_PROVIDERS = frozenset(
+    {"espn-football", "espn-tennis", "tennis-abstract", "espn-baseball", "sackmann"}
+)
 
 
 def _now_iso() -> str:

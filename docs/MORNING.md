@@ -90,10 +90,14 @@ Nie trzeba restartować niczego; `.env` jest przeładowywany po zmianie pliku.
 `understat` (pakiet się nie buduje). **Nie naprawisz tego dziś rano.** Ignoruj
 — to znany, stały stan.
 
-`sackmann` zniknął z listy 2026-08-28: repozytoria `JeffSackmann/tennis_atp`
-i `tennis_wta` zwracają 404 (nie same CSV — całe repozytoria), więc provider
-nie jest już w ogóle deklarowany dla tenisa. Jeśli zobaczysz go w preflight,
-ktoś dopisał go z powrotem — to błąd, nie stan przejściowy.
+`sackmann` zniknął z listy 2026-08-28 (repozytoria `JeffSackmann/tennis_atp`
+i `tennis_wta` zwracały 404 — nie same CSV, całe repozytoria) i **wrócił
+2026-09-15**, wskazując na `stats.tennismylife.org`, który publikuje ten sam
+schemat kolumn (zweryfikowane kolumna po kolumnie i krzyżowo przeciwko
+próbce tennis-abstract). Pokrywa ATP (+Challenger, +quali) i WTA Tour, nie
+pokrywa ITF ani WTA Challenger — jest teraz drugi w kolejności providerów
+tenisa, za tennis-abstract, jako korroborator, nie zamiennik. Jeśli go widzisz
+w preflight — to jest oczekiwany stan, nie błąd.
 
 ### Tenis: co znaczą linie o „Benoit Paire"
 `tennis-abstract` trzyma ATP i WTA na **różnych trasach**, a trasa ATP odpowiada

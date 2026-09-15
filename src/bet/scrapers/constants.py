@@ -61,6 +61,28 @@ NBA_SEASONS = {
     "2223": "2022-23",
 }
 
-# Sackmann CSV URL templates
-SACKMANN_ATP_URL = "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_{year}.csv"
-SACKMANN_WTA_URL = "https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_{year}.csv"
+# Sackmann-schema CSV URL templates. The original host --
+# github.com/JeffSackmann/tennis_atp and tennis_wta -- 404'd at the
+# *repository* level on 2026-08-28 (checked via the GitHub API; the account
+# itself is alive). stats.tennismylife.org republishes the same schema
+# (tourney_id, w_ace, w_df, w_svpt, ... -- verified column-for-column against
+# JeffSackmann's original CSVs) under a live, MIT-licensed API, found and
+# cross-checked against our own tennis-abstract sample 2026-09-15 (Nadia
+# Podoroska's last 10 double-faults matched exactly on every overlapping
+# match). It does not cover ITF or WTA Challenger -- only ATP (incl.
+# Challenger, qualifying) and WTA Tour -- so it is a corroborator for those
+# two, not a replacement for tennis-abstract.
+SACKMANN_ATP_URL = "https://stats.tennismylife.org/data/{year}.csv"
+SACKMANN_WTA_URL = "https://stats.tennismylife.org/data/{year}_wta.csv"
+SACKMANN_ATP_CHALLENGER_URL = "https://stats.tennismylife.org/data/{year}_challenger.csv"
+# "Ongoing" files hold matches from tournaments still in progress, folded
+# into the main yearly file only once the event finishes -- this is where a
+# match from earlier the same day or the day before actually is.
+SACKMANN_ATP_ONGOING_URL = "https://stats.tennismylife.org/data/ongoing_tourneys.csv"
+SACKMANN_WTA_ONGOING_URL = "https://stats.tennismylife.org/data/wta_ongoing_tourneys.csv"
+SACKMANN_ATP_CHALLENGER_ONGOING_URL = "https://stats.tennismylife.org/data/challenger_ongoing_tourneys.csv"
+
+# Kept for provenance only -- not fetched by anything. If tennismylife.org
+# ever goes away, this is where the schema came from originally.
+SACKMANN_ATP_URL_ORIGINAL = "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_{year}.csv"
+SACKMANN_WTA_URL_ORIGINAL = "https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_{year}.csv"

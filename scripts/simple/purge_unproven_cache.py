@@ -18,9 +18,7 @@ read it straight back:
     names and no participant ids, so nothing can say which side the player was
     on. The consumer now refuses those rather than guessing, which turns a
     silent wrong opponent into a silent absence -- better, but still nothing.
-  * ``sackmann/`` is cached output from an upstream that no longer exists.
-
-The client-side guards already refuse all three: an entry without
+The client-side guards already refuse both: an entry without
 ``proved_name`` is re-fetched, and the ESPN key was versioned. This script is
 about the disk rather than the code -- so that "rerun today from scratch" means
 it, so nothing else that walks the cache can find them, and so the evidence is
@@ -132,10 +130,6 @@ def _scan_espn_athlete_search() -> list[Path]:
     return sorted(path for path in root.glob("*/athlete_search") if path.is_dir())
 
 
-def _scan_sackmann() -> list[Path]:
-    root = CACHE_ROOT / "sackmann"
-    return [root] if root.is_dir() else []
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -150,7 +144,6 @@ def main() -> int:
     ta_files, ta_notes = _scan_tennis_abstract()
     espn_dirs = _scan_espn_v1()
     search_dirs = _scan_espn_athlete_search()
-    sackmann_dirs = _scan_sackmann()
 
     print("Cache entries written before the checks that would have caught them:\n")
     print(f"  tennis-abstract players without an identity proof : {len(ta_files)}")
@@ -162,10 +155,7 @@ def main() -> int:
     search_count = sum(len(list(d.glob("*.json"))) for d in search_dirs)
     print(f"  espn tennis athlete_search (name -> id, unproven)  : "
           f"{search_count} in {len(search_dirs)} directories")
-    sack_count = sum(1 for d in sackmann_dirs for _ in d.rglob("*") if _.is_file())
-    print(f"  sackmann (upstream repositories no longer exist)   : {sack_count}")
-
-    total = len(ta_files) + espn_count + search_count + sack_count
+    total = len(ta_files) + espn_count + search_count
     if not total:
         print("\nnothing to purge -- the cache is all post-fix.")
         return 0
@@ -181,7 +171,7 @@ def main() -> int:
     for path in ta_files:
         path.unlink(missing_ok=True)
         removed += 1
-    for directory in (*espn_dirs, *search_dirs, *sackmann_dirs):
+    for directory in (*espn_dirs, *search_dirs):
         removed += sum(1 for _ in directory.rglob("*") if _.is_file())
         shutil.rmtree(directory, ignore_errors=True)
 

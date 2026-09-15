@@ -103,8 +103,9 @@ ENRICH checks provider quotas **before** the first network call:
   - `missing_credentials` — names the `.env` variable to set;
   - `quota_exhausted` — clears daily; the message names both
     `BET_LIMIT_<PROVIDER>` and the `reset_provider_quota.py` command;
-  - `upstream_unavailable` — will not clear on its own (understat; and
-    `sackmann`, which is no longer asserted for tennis at all — see below).
+  - `upstream_unavailable` — will not clear on its own (understat only as of
+    2026-09-15; `sackmann` was here 2026-08-28 to 2026-09-15 and is restored
+    — see below).
 - **Quota too thin for the planned event count** → warning naming the provider,
   plus `recommended_max_events` in `metrics`.
 
@@ -932,12 +933,24 @@ before it starts, for the same reason the table above still shows the row.
   (`api_clients/tennis_score.py`).
 - **`understat` always produces a `data_gap`** — unbuildable dependency.
   Expected, not a failure.
-- **`sackmann` is gone and is no longer asserted.** Removed from
-  `PROVIDERS_BY_SPORT["tennis"]` on 2026-08-28: `JeffSackmann/tennis_atp` and
-  `tennis_wta` both return 404 from the GitHub API — the *repositories*, not
-  merely the CSVs, while the account is alive and still publishes
-  `tennis_MatchChartingProject`. It stays in `KNOWN_DEAD_PROVIDERS` so preflight
-  keeps naming it rather than letting it vanish from the record.
+- **`sackmann` was gone 2026-08-28 to 2026-09-15, and is restored.** Removed
+  from `PROVIDERS_BY_SPORT["tennis"]` on 2026-08-28: `JeffSackmann/tennis_atp`
+  and `tennis_wta` both returned 404 from the GitHub API — the *repositories*,
+  not merely the CSVs, while the account stayed alive and still publishes
+  `tennis_MatchChartingProject`. Restored 2026-09-15 pointed at
+  `stats.tennismylife.org`, which republishes the identical column schema
+  under a live, free, MIT-licensed API (cross-checked against tennis-abstract's
+  own cache the day it was found — Nadia Podoroska's last-10 double-faults
+  matched exactly on every overlapping match). It covers ATP (incl. Challenger,
+  qualifying) and WTA Tour only — no ITF, no WTA Challenger, checked against
+  the file listing directly, not the marketing page — so it rides second in
+  `PROVIDERS_BY_SPORT["tennis"]`, behind tennis-abstract, as a corroborator
+  rather than a replacement. It is deliberately excluded from
+  `metric_capable_providers`' readiness ceiling
+  (`_TIER_LIMITED_PROVIDERS` in `providers.py`): counting it there would make
+  `aces_total`/`double_faults_total` demand two providers on every tennis
+  fixture, which is unreachable for the quarter of a typical slate (ITF, WTA
+  Challenger) it cannot reach — see that constant's docstring.
 - **`sportdb` is out of the active football roster as of 2026-08-31.** Removed
   from `NATIVE_ID_PROVIDERS_BY_SPORT["football"]`: it answered HTTP 402 on
   159/159 requests that day, producing ~340 false `data_gap` entries per run

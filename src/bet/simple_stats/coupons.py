@@ -197,8 +197,26 @@ MARKET_LABELS: dict[str, str] = {
 # the fair odds exceed 2.00, and once the tier margin is applied the required
 # price passes what these markets realistically pay. A row at p_low 0.35 needs
 # 3.14 on a corners line that is quoted near 2.30 -- reporting it as a "bet" is
-# reporting something unplaceable.
+# reporting something unplaceable. This is the coupon's own gate
+# (``build_coupons``'s ``min_p_low`` default) and stays exactly here --
+# nothing below should ever change what gets priced as a bet.
 MIN_SINGLE_P_LOW = 0.50
+
+# What a human (or the comparison artifact) gets to *see*, which is a
+# different question from what clears the betting gate above. ``p_low`` is a
+# Wilson lower bound and punishes a thin sample hard -- a row on 6/10 with a
+# plausible p_central still lands under 0.32, well under MIN_SINGLE_P_LOW, and
+# used to disappear from both `_stats_sheet_top.json` and
+# `superbet_comparison.json` before anyone (analyst or operator) ever saw it
+# against Superbet's price. Found 2026-09-15: Nadia Podoroska
+# `double_faults_for` OVER 5.5, p_low 0.313, p_central 0.590, Superbet 1.95 --
+# real money sat one filter below where anyone was looking. 0.35 was chosen by
+# measuring the sheet at several floors (over the day's 51,104-row sheet:
+# 0.50 keeps 13.2%, 0.35 keeps 23.9%, 0.30 keeps 33.3%): it is the smallest
+# widening that would have surfaced that row without roughly tripling what the
+# analyst has to read. Never used as `build_coupons`'s `min_p_low` -- that gate
+# stays at MIN_SINGLE_P_LOW above, unconditionally.
+MIN_VISIBLE_P_LOW = 0.35
 
 # Minimum Superbet price for a single. Lines below 1.25 (e.g. 1.01-1.20) carry
 # documented negative EV (-1.0% to -4.3%) and catastrophic asymmetric tail risk

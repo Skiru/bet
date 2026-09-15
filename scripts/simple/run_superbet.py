@@ -48,6 +48,7 @@ from bet.simple_stats.contracts import (  # noqa: E402
     StatsSheetV1,
     SuperbetOfferV1,
 )
+from bet.simple_stats.coupons import MIN_VISIBLE_P_LOW  # noqa: E402
 from bet.simple_stats.run_context import record_run  # noqa: E402
 from bet.simple_stats.superbet_identity import (  # noqa: E402
     build_identity_bridge,
@@ -85,12 +86,19 @@ def main() -> None:
              "public and unmetered, so this guards a runaway loop, not a quota.",
     )
     parser.add_argument(
-        "--min-p-low", type=float, default=0.50,
-        help="Compare only rows at or above this p_low (default: 0.50, the coupon's "
-             "own floor). Pass 0.0 for the full sweep -- that is the aggressive "
-             "mode, and on a 98-fixture day it writes ~20k rows and 14 MB, most of "
-             "them rows nobody would ever print. The comparison is still wider than "
-             "the coupon at the default: it keeps every line and every per-team row, "
+        "--min-p-low", type=float, default=MIN_VISIBLE_P_LOW,
+        help="Compare only rows at or above this p_low (default: MIN_VISIBLE_P_LOW, "
+             "0.35 -- looser than the coupon's own 0.50 floor on purpose. p_low is "
+             "a Wilson lower bound and punishes a thin sample hard, so a row with a "
+             "plausible p_central and a real Superbet price attached can sit below "
+             "the coupon's betting gate without being bad; the comparison should "
+             "still show it against the price so a human can judge it. Found "
+             "2026-09-15: Podoroska double_faults_for, p_low 0.313, invisible here "
+             "at the old 0.50 default despite p_central 0.590 against a devigged "
+             "0.473. Pass 0.0 for the full sweep -- that is the aggressive mode, "
+             "and on a 98-fixture day it writes ~20k rows and 14 MB, most of them "
+             "rows nobody would ever print. The comparison is still wider than the "
+             "coupon at the default: it keeps every line and every per-team row, "
              "where the coupon takes one single per market family.",
     )
     parser.add_argument(

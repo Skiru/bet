@@ -114,11 +114,20 @@ def _tennis_metrics(providers_per_metric, depth=5):
 
 
 def test_tennis_ready_is_reachable_at_all():
-    """The bar tennis could never clear: aces/double faults have one provider.
+    """The bar tennis could never clear on readiness terms: aces/double faults
+    have exactly one *readiness-eligible* provider.
 
     espn-tennis serves total games and total sets and nothing else, so a rule
     demanding 2+ providers on all three priority metrics asked for 3 where the
     ceiling is 1. Every tennis dossier was PARTIAL by construction.
+
+    sackmann (restored 2026-09-15) also serves aces_total/double_faults_total
+    now, but only for ATP/WTA Tour -- never ITF or WTA Challenger, about a
+    quarter of a typical slate -- so it is deliberately excluded from this
+    ceiling (``_TIER_LIMITED_PROVIDERS`` in providers.py) rather than raising
+    it to 2 and making every fixture it cannot reach permanently un-READY.
+    It still corroborates for real on the fixtures it does reach; see
+    test_sackmann_corroborates_a_tour_fixture_without_touching_the_ceiling.
     """
     assert len(metric_capable_providers("tennis", "aces_total")) == 1
     assert len(metric_capable_providers("tennis", "double_faults_total")) == 1
@@ -128,6 +137,21 @@ def test_tennis_ready_is_reachable_at_all():
         "total_games": ("tennis-abstract", "espn-tennis"),
         "aces_total": ("tennis-abstract",),
         "double_faults_total": ("tennis-abstract",),
+    })
+    assert _compute_readiness("tennis", metrics) == "READY"
+
+
+def test_sackmann_corroborates_a_tour_fixture_without_touching_the_ceiling():
+    """On an ATP/WTA Tour fixture, sackmann showing up alongside
+    tennis-abstract is real corroboration (``cross_provider_agreement`` reads
+    it downstream) -- but readiness itself still runs off the same
+    depth-floor rule as a single-sourced fixture, because the ceiling
+    deliberately does not count sackmann. A tier-limited provider's presence
+    must not become a requirement for readiness anywhere it happens to reach."""
+    metrics = _tennis_metrics({
+        "total_games": ("tennis-abstract", "espn-tennis"),
+        "aces_total": ("tennis-abstract", "sackmann"),
+        "double_faults_total": ("tennis-abstract", "sackmann"),
     })
     assert _compute_readiness("tennis", metrics) == "READY"
 

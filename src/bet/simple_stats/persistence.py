@@ -11,10 +11,13 @@ elsewhere in this codebase, so analysis_raw_data is used instead).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from bet.db.connection import get_db
 from bet.db.models import AnalysisRawData, AnalysisResult, Fixture
@@ -142,47 +145,77 @@ def fixture_ids_by_event_id(conn: sqlite3.Connection, event_ids: set[str]) -> di
     return {row["external_id"]: row["id"] for row in rows}
 
 
-def persist_event_list(event_list: EventListV1, conn: sqlite3.Connection) -> dict[str, int]:
+def persist_event_list(
+    event_list: EventListV1, conn: sqlite3.Connection
+) -> tuple[dict[str, int], list[dict[str, str]]]:
     """Persist EVENT_LIST_V1 to fixtures/fixture_sources (already-existing
-    tables, no migration). Returns event_id -> fixtures.id for the two
-    persist functions below. BLOCKED_IDENTITY events are skipped: there is no
-    single canonical pair of teams to key a fixture row on."""
+    tables, no migration). Returns (event_id -> fixtures.id, skipped) for the
+    two persist functions below. BLOCKED_IDENTITY events are skipped: there is
+    no single canonical pair of teams to key a fixture row on.
+
+    One event's row is its own unit of work: ``conn`` still commits or rolls
+    back the whole run as one transaction (``get_db``'s contract), but a
+    single event raising inside this loop used to take the other 500+ down
+    with it. Found 2026-09-15 -- one Superbet fixture named "Piper Freeman" v
+    "Belle Thompson" under "ITF Men" tripped TeamRepo's garbage-name guard,
+    ``persist_event_list`` propagated the ``ValueError`` uncaught, and DISCOVER
+    logged ``persisted: false`` for the entire day: 340 of 346 tennis events
+    and 199 of 205 football events never reached ``fixtures``, so
+    ``analysis_results`` had almost nothing to join against for a date that
+    had, in fact, run cleanly. The guard was correct to reject that one name;
+    it should never have been able to veto the other 550."""
     sport_repo = SportRepo(conn)
     team_repo = TeamRepo(conn)
     competition_repo = CompetitionRepo(conn)
     fixture_repo = FixtureRepo(conn)
 
     fixture_ids: dict[str, int] = {}
+    skipped: list[dict[str, str]] = []
     for event in event_list.events:
         if event.status != "ACTIVE":
             continue
-        sport_row = sport_repo.get_by_name(event.sport)
-        if sport_row is None:
-            sport_repo.seed_defaults()
+        try:
             sport_row = sport_repo.get_by_name(event.sport)
-        sport_id = sport_row.id
+            if sport_row is None:
+                sport_repo.seed_defaults()
+                sport_row = sport_repo.get_by_name(event.sport)
+            sport_id = sport_row.id
 
-        team_a_name, team_b_name = _side_names(event)
-        team_a = team_repo.find_or_create(team_a_name, sport_id)
-        team_b = team_repo.find_or_create(team_b_name, sport_id)
-        competition_id = competition_repo.find_or_create(event.competition, sport_id)
+            team_a_name, team_b_name = _side_names(event)
+            team_a = team_repo.find_or_create(team_a_name, sport_id)
+            team_b = team_repo.find_or_create(team_b_name, sport_id)
+            competition_id = competition_repo.find_or_create(event.competition, sport_id)
 
-        fixture = Fixture(
-            id=None,
-            sport_id=sport_id,
-            competition_id=competition_id,
-            home_team_id=team_a.id,
-            away_team_id=team_b.id,
-            kickoff=event.start_time,
-            status="scheduled",
-            external_id=event.event_id,
-            source="+".join(sorted(event.source_ids)) or "simple_stats",
-            fetched_at=_now(),
-        )
-        fixture_id = fixture_repo.upsert(fixture)
-        fixture_ids[event.event_id] = fixture_id
-        _persist_fixture_sources(event, fixture_id, conn)
-    return fixture_ids
+            fixture = Fixture(
+                id=None,
+                sport_id=sport_id,
+                competition_id=competition_id,
+                home_team_id=team_a.id,
+                away_team_id=team_b.id,
+                kickoff=event.start_time,
+                status="scheduled",
+                external_id=event.event_id,
+                source="+".join(sorted(event.source_ids)) or "simple_stats",
+                fetched_at=_now(),
+            )
+            fixture_id = fixture_repo.upsert(fixture)
+            fixture_ids[event.event_id] = fixture_id
+            _persist_fixture_sources(event, fixture_id, conn)
+        except (ValueError, sqlite3.DatabaseError) as exc:
+            # Narrow on purpose: a data-quality guard (garbage team name, bad
+            # FK) or a row-level DB error skips this one event. Anything else
+            # (a programming error, a closed connection) still aborts the
+            # whole transaction -- that failure mode is real and should not
+            # be swallowed here.
+            logger.warning(
+                "persist_event_list: skipping event_id=%s (%s v %s): %s",
+                event.event_id,
+                event.home_team or event.player_one,
+                event.away_team or event.player_two,
+                exc,
+            )
+            skipped.append({"event_id": event.event_id, "reason": str(exc)})
+    return fixture_ids, skipped
 
 
 def _persist_fixture_sources(event: EventRecord, fixture_id: int, conn: sqlite3.Connection) -> None:
@@ -300,7 +333,14 @@ def persist_pipeline_run(
     transaction. Safe to call once per step (DISCOVER-only, then ENRICH,
     then ANALYZE) or once at the end with everything at hand."""
     with get_db(db_path or default_db_path()) as conn:
-        fixture_ids = persist_event_list(event_list, conn)
+        fixture_ids, skipped = persist_event_list(event_list, conn)
+        if skipped:
+            logger.warning(
+                "persist_pipeline_run: %d of %d active events skipped by "
+                "persist_event_list (see prior warnings for reasons)",
+                len(skipped),
+                sum(1 for e in event_list.events if e.status == "ACTIVE"),
+            )
         if dossier_list is not None:
             dossiers_by_id = {d.event_id: d for d in dossier_list.dossiers}
             for event_id, fixture_id in fixture_ids.items():

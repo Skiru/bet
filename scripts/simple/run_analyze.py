@@ -48,7 +48,7 @@ from bet.simple_stats.contracts import (  # noqa: E402
     SuperbetOfferV1,
     TipsterSignalV1,
 )
-from bet.simple_stats.coupons import MIN_SINGLE_P_LOW  # noqa: E402
+from bet.simple_stats.coupons import MIN_VISIBLE_P_LOW  # noqa: E402
 from bet.simple_stats.market_context import attach_market_context_column  # noqa: E402
 from bet.simple_stats.superbet_offer import attach_superbet_column  # noqa: E402
 from bet.simple_stats.persistence import (  # noqa: E402
@@ -428,9 +428,15 @@ def main() -> None:
     out.event("artifact_written", path=str(output_path), sha256=digest, rows=len(stats_sheet.rows))
 
     # Faza 2 sizing guard: the full sheet stays on disk for audit, but the
-    # analyst reads this slim companion -- same rows minus everything below
-    # the coupon's own p_low floor, which build_coupons.py would drop anyway.
-    top_rows = [row for row in stats_sheet.rows if row.p_low >= MIN_SINGLE_P_LOW]
+    # analyst reads this slim companion. Filtered at MIN_VISIBLE_P_LOW, not
+    # the coupon's own (tighter) MIN_SINGLE_P_LOW -- p_low is a Wilson lower
+    # bound and punishes a thin sample hard, so a row worth a human's eyes
+    # (decent p_central, real Superbet price attached) can sit below the
+    # coupon's betting gate without being bad; it should still reach this
+    # file even though build_coupons.py would not price it. See
+    # MIN_VISIBLE_P_LOW's docstring in coupons.py for the 2026-09-15 case that
+    # motivated this split (Podoroska double_faults_for, p_low 0.313).
+    top_rows = [row for row in stats_sheet.rows if row.p_low >= MIN_VISIBLE_P_LOW]
     top_sheet = StatsSheetV1(
         run_id=stats_sheet.run_id,
         date=stats_sheet.date,

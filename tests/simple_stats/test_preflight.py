@@ -421,7 +421,7 @@ def test_a_sport_with_no_usable_provider_is_not_exempt(monkeypatch):
 
     def unusable(rate_limiter, provider):
         quota = dict(real(rate_limiter, provider))
-        if provider in ("tennis-abstract", "espn-tennis"):
+        if provider in ("tennis-abstract", "espn-tennis", "sackmann"):
             quota["available"] = False
         return quota
 

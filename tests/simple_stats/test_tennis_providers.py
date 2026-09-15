@@ -205,17 +205,24 @@ def test_name_keyed_providers_still_resolve():
 # --- the roster -----------------------------------------------------------
 
 
-def test_sackmann_is_not_asserted_anywhere():
-    """github.com/JeffSackmann/tennis_atp and tennis_wta both 404 -- the
-    repositories, not just the CSVs (checked 2026-08-28 against the GitHub API,
-    while the account itself is alive and still publishes
-    tennis_MatchChartingProject). Asserting a provider that serves nothing is
-    the tennis version of the 18 dead ESPN league codes."""
-    assert "sackmann" not in PROVIDERS_BY_SPORT["tennis"]
-    assert "sackmann" not in _H2H_SUPPORTED_PROVIDERS
-    # Still named as dead, so preflight keeps saying so out loud rather than
-    # the provider quietly vanishing from the record.
-    assert "sackmann" in KNOWN_DEAD_PROVIDERS
+def test_sackmann_is_restored_and_asserted():
+    """github.com/JeffSackmann/tennis_atp and tennis_wta both 404'd at the
+    *repository* level 2026-08-28 (the GitHub API answered "Not Found" for
+    each, while the account itself stayed alive). Restored 2026-09-15 pointed
+    at stats.tennismylife.org, which republishes the identical column schema
+    (verified column-for-column, and cross-checked against tennis-abstract's
+    own cache the day it was found) under a live, free, MIT-licensed API.
+
+    It covers ATP (incl. Challenger, qualifying) and WTA Tour -- checked
+    directly against the file listing, not the marketing page -- and nothing
+    at ITF or WTA Challenger level, so it stays second in the roster, behind
+    tennis-abstract, as a corroborator rather than a primary."""
+    assert "sackmann" in PROVIDERS_BY_SPORT["tennis"]
+    assert PROVIDERS_BY_SPORT["tennis"].index("sackmann") > PROVIDERS_BY_SPORT["tennis"].index(
+        "tennis-abstract"
+    )
+    assert "sackmann" in _H2H_SUPPORTED_PROVIDERS
+    assert "sackmann" not in KNOWN_DEAD_PROVIDERS
 
 
 def test_tennis_still_has_two_independent_providers():

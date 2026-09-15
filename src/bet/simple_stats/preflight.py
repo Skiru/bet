@@ -20,17 +20,13 @@ from bet.simple_stats.providers import (
 )
 
 # Providers known to have no usable data source at all, independent of quota:
-# sackmann's GitHub repo returns 404 and the understat package will not build.
-# They are reported separately from "exhausted" so an agent does not read a
-# permanent upstream outage as a quota problem that will clear tomorrow.
+# the understat package will not build. Reported separately from "exhausted"
+# so an agent does not read a permanent outage as a quota problem that will
+# clear tomorrow.
+#
+# sackmann was here from 2026-08-28 (its GitHub repos 404'd) to 2026-09-15,
+# when it was restored pointed at stats.tennismylife.org. Not re-added here.
 KNOWN_DEAD_PROVIDERS = {
-    # Not the CSVs -- the repositories. github.com/JeffSackmann/tennis_atp and
-    # tennis_wta both answer "Not Found" from the GitHub API (checked
-    # 2026-08-28) while the account itself is alive and still publishes
-    # tennis_MatchChartingProject, so the data was moved or withdrawn rather
-    # than the network being at fault. Removed from PROVIDERS_BY_SPORT the same
-    # day; kept here so the morning check keeps saying so out loud.
-    "sackmann": "upstream repositories tennis_atp/tennis_wta return HTTP 404",
     "understat": "python package not installed (aiohttp fails to build)",
 }
 

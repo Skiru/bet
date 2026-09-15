@@ -101,8 +101,8 @@ def test_rerun_is_idempotent(db_with_sports):
     conn = db_with_sports
     event_list = EventListV1(generated_at="x", date="2026-08-25", sports=["football"], events=[_football_event()])
 
-    fixture_ids_1 = persist_event_list(event_list, conn)
-    fixture_ids_2 = persist_event_list(event_list, conn)
+    fixture_ids_1, skipped_1 = persist_event_list(event_list, conn)
+    fixture_ids_2, skipped_2 = persist_event_list(event_list, conn)
     conn.commit()
 
     assert fixture_ids_1 == fixture_ids_2
@@ -126,9 +126,10 @@ def test_tennis_dossier_persists_without_team_id(db_with_sports):
     conn = db_with_sports
     event_list = EventListV1(generated_at="x", date="2026-08-25", sports=["tennis"], events=[_tennis_event()])
 
-    fixture_ids = persist_event_list(event_list, conn)
+    fixture_ids, skipped = persist_event_list(event_list, conn)
     conn.commit()
 
+    assert skipped == []
     fixture_id = fixture_ids["evt2"]
     row = conn.execute(
         "SELECT home_team_id, away_team_id FROM fixtures WHERE id = ?", (fixture_id,)
@@ -152,10 +153,52 @@ def test_tennis_dossier_persists_without_team_id(db_with_sports):
 def test_fixture_ids_by_event_id_looks_up_persisted_fixtures(db_with_sports):
     conn = db_with_sports
     event_list = EventListV1(generated_at="x", date="2026-08-25", sports=["football"], events=[_football_event()])
-    fixture_ids = persist_event_list(event_list, conn)
+    fixture_ids, skipped = persist_event_list(event_list, conn)
     conn.commit()
 
     assert fixture_ids_by_event_id(conn, {"evt1"}) == fixture_ids
+
+
+# --- One garbage name must not veto the whole day (2026-09-15) ----------------
+#
+# DISCOVER persisted nothing at all on 2026-09-15 because a single Superbet
+# fixture ("Piper Freeman" v "Belle Thompson", filed under "ITF Men") tripped
+# TeamRepo's garbage-name guard and the ValueError propagated out of
+# persist_event_list uncaught: 340 of 346 tennis events and 199 of 205
+# football events never reached `fixtures`, though every one of them was
+# perfectly good. The guard staying strict is correct; one bad row taking the
+# other 550 down with it is not.
+
+
+def test_one_garbage_team_name_does_not_block_the_other_events(db_with_sports):
+    conn = db_with_sports
+    good_one = _football_event(event_id="evt-good-1")
+    good_two = _tennis_event(event_id="evt-good-2")
+    garbage = EventRecord(
+        event_id="evt-garbage",
+        sport="tennis",
+        competition="ITF Men",
+        player_one="Piper Freeman",
+        player_two="Bet $50 Get $20 FREE",
+        start_time="2026-09-15T00:20:00+00:00",
+        source_ids={"superbet": "14942977"},
+        identity_confidence="FUZZY_MATCHED",
+        status="ACTIVE",
+    )
+    event_list = EventListV1(
+        generated_at="x",
+        date="2026-09-15",
+        sports=["football", "tennis"],
+        events=[good_one, garbage, good_two],
+    )
+
+    fixture_ids, skipped = persist_event_list(event_list, conn)
+    conn.commit()
+
+    assert set(fixture_ids) == {"evt-good-1", "evt-good-2"}
+    assert len(skipped) == 1
+    assert skipped[0]["event_id"] == "evt-garbage"
+    assert conn.execute("SELECT COUNT(*) AS c FROM fixtures").fetchone()["c"] == 2
 
 
 # --- The tipster column has to survive the trip into analysis_results ---------
