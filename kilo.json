@@ -6,7 +6,7 @@
       "type": "remote",
       "url": "https://sports.bzzoiro.com/mcp",
       "headers": {
-        "Authorization": "Token ${BZZORIO_KEY}"
+        "Authorization": "Token {file:.bzzoiro_token}"
       },
       "enabled": true
     },
@@ -14,7 +14,7 @@
       "type": "remote",
       "url": "https://sports.bzzoiro.com/tennis/mcp",
       "headers": {
-        "Authorization": "Token ${BZZORIO_KEY}"
+        "Authorization": "Token {file:.bzzoiro_token}"
       },
       "enabled": false
     }

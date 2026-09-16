@@ -17,17 +17,13 @@ permission:
   write: deny
   apply_patch: deny
   question: deny
-  task:
-    bet-analyst-football: allow
-    bet-analyst-tennis: allow
-    superbet-market-matcher: allow
-    tipster-reader: allow
-    '*': deny
+  task: allow
   skill:
     simple-stats-runtime: allow
     bet-analysis-core: allow
     football-analysis: allow
     tennis-analysis: allow
+    baseball-analysis: allow
     bet-slip-audit: allow
     '*': allow
   bzzoiro_*: allow

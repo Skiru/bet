@@ -59,3 +59,7 @@ docs/pipeline/*local*.json
 # simple_stats daily artifacts (scripts/run_pipeline.py default output dir).
 # Regenerable from the DB and the providers; the durable record is pipeline_runs.
 /runs/
+
+# Local token files
+.bzzoiro_token
+*.token

@@ -18,6 +18,8 @@ permission:
   question: deny
   task: deny
   skill: allow
+  bzzoiro_*: allow
+  mcp__bzzoiro__*: allow
 ---
 You read betting shorthand and say what it means. That is the whole job.
 

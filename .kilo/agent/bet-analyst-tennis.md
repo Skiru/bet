@@ -25,8 +25,8 @@ permission:
   apply_patch: deny
   question: deny
   task: deny
-  bzzoiro_*: deny
-  mcp__bzzoiro__*: deny
+  bzzoiro_*: allow
+  mcp__bzzoiro__*: allow
   skill:
     bet-analysis-core: allow
     tennis-analysis: allow
