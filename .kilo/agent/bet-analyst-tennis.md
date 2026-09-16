@@ -19,7 +19,6 @@ permission:
   glob: allow
   grep: allow
   webfetch: allow
-  websearch: allow
   edit: deny
   write: deny
   apply_patch: deny
