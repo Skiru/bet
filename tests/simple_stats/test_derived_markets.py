@@ -21,13 +21,18 @@ from bet.simple_stats.derived_markets import (
     MIN_SAMPLE,
     REFUSED,
     Calibration,
+    ConjunctionEstimate,
     devig,
     dutch,
     estimate,
+    estimate_conjunction,
     handicap_versus_three_way,
     overround,
+    poisson_conjunction,
+    poisson_survival,
     range_from_ladder,
     required_price,
+    shrink_conjunction,
     skellam_three_way,
 )
 
@@ -301,6 +306,128 @@ class TestScreenReading:
         cli = self._cli()
         two_way = {"Inter": 1.47, "Napoli": 2.47}
         assert cli._three_way_sides(two_way, "Inter", "Napoli") is None
+
+    CONJUNCTION_ODDS = [
+        {"marketName": "Każda z drużyn powyżej X rzutów rożnych", "name": "Powyżej 1.5 - tak",
+         "price": 1.35, "specialBetValue": "1.5", "status": "active"},
+        {"marketName": "Każda z drużyn powyżej X rzutów rożnych", "name": "Powyżej 2.5 - tak",
+         "price": 1.95, "specialBetValue": "2.5", "status": "active"},
+        {"marketName": "Każda z drużyn powyżej X rzutów rożnych", "name": "Powyżej 3.5 - tak",
+         "price": 3.30, "specialBetValue": "3.5", "status": "active"},
+        {"marketName": "Każda z drużyn powyżej X rzutów rożnych", "name": "Powyżej 4.5 - tak",
+         "price": 5.80, "specialBetValue": "4.5", "status": "block"},
+        {"marketName": "Każda z drużyn powyżej X kartek", "name": "Powyżej 1.5 - tak",
+         "price": 1.62, "specialBetValue": "1.5", "status": "active"},
+        {"marketName": "Każda z drużyn powyżej X kartek", "name": "Powyżej 1.5 - nie",
+         "price": 2.15, "specialBetValue": "1.5", "status": "active"},
+    ]
+
+    def test_conjunction_lines_parsed_from_odds(self) -> None:
+        cli = self._cli()
+        lines = cli._conjunction_lines(
+            self.CONJUNCTION_ODDS, "Każda z drużyn powyżej X rzutów rożnych"
+        )
+        assert 1.5 in lines and 2.5 in lines and 3.5 in lines
+        assert lines[1.5]["tak"] == 1.35
+        assert lines[2.5]["tak"] == 1.95
+
+    def test_conjunction_lines_ignores_blocked_status(self) -> None:
+        cli = self._cli()
+        lines = cli._conjunction_lines(
+            self.CONJUNCTION_ODDS, "Każda z drużyn powyżej X rzutów rożnych"
+        )
+        assert 4.5 not in lines
+
+    def test_conjunction_lines_parses_two_sided(self) -> None:
+        cli = self._cli()
+        lines = cli._conjunction_lines(
+            self.CONJUNCTION_ODDS, "Każda z drużyn powyżej X kartek"
+        )
+        assert 1.5 in lines
+        assert lines[1.5]["tak"] == 1.62
+        assert lines[1.5]["nie"] == 2.15
+
+
+class TestConjunctionEstimate:
+    def test_poisson_survival_basic_properties(self) -> None:
+        assert math.isclose(poisson_survival(0.0, 1.5), 0.0)
+        assert math.isclose(poisson_survival(5.0, -0.5), 1.0)
+        p_15 = poisson_survival(4.0, 1.5)
+        p_25 = poisson_survival(4.0, 2.5)
+        p_35 = poisson_survival(4.0, 3.5)
+        assert 1.0 > p_15 > p_25 > p_35 > 0.0
+
+    def test_poisson_conjunction_is_independent_product(self) -> None:
+        lam_a, lam_b, line = 5.2, 4.1, 2.5
+        p_a = poisson_survival(lam_a, line)
+        p_b = poisson_survival(lam_b, line)
+        assert math.isclose(poisson_conjunction(lam_a, lam_b, line), p_a * p_b, abs_tol=1e-12)
+
+    def test_conjunction_estimate_usable(self) -> None:
+        est = estimate_conjunction("corners_for", 2.5, [6.0] * 10, [5.0] * 10)
+        assert est.verdict == "USABLE"
+        assert isinstance(est, ConjunctionEstimate)
+        assert est.probability is not None
+        assert 0.0 < est.probability < 1.0
+        assert est.base_rate == 0.666
+        assert est.p_raw is not None
+        assert est.p_home_over is not None and est.p_away_over is not None
+
+    def test_conjunction_monotonic_with_line(self) -> None:
+        home, away = [6.0] * 10, [5.0] * 10
+        probs = [
+            estimate_conjunction("corners_for", line, home, away).probability
+            for line in (0.5, 1.5, 2.5, 3.5, 4.5, 5.5)
+        ]
+        assert all(p is not None for p in probs)
+        for i in range(len(probs) - 1):
+            assert probs[i] > probs[i + 1]
+
+    def test_conjunction_refuses_no_signal_metrics(self) -> None:
+        for metric in ("cards_for", "fouls_for"):
+            est = estimate_conjunction(metric, 1.5, [3.0] * 10, [3.0] * 10)
+            assert est.verdict == "REFUSED_NO_SIGNAL"
+            assert est.probability is None
+            assert est.reason == REFUSED[metric]
+
+    def test_conjunction_refuses_unknown_metric(self) -> None:
+        est = estimate_conjunction("offsides_for", 1.5, [2.0] * 10, [2.0] * 10)
+        assert est.verdict == "REFUSED_UNKNOWN_METRIC"
+        assert est.probability is None
+
+    def test_conjunction_refuses_thin_sample(self) -> None:
+        est = estimate_conjunction("corners_for", 2.5, [5.0] * (MIN_SAMPLE - 1), [5.0] * 10)
+        assert est.verdict == "REFUSED_THIN_SAMPLE"
+        assert est.probability is None
+
+    def test_conjunction_refuses_out_of_range_or_unmeasured_line(self) -> None:
+        # Zero sample
+        est_zero = estimate_conjunction("corners_for", 2.5, [0.0] * 10, [0.0] * 10)
+        assert est_zero.verdict == "REFUSED_OUT_OF_RANGE"
+        # Unmeasured line (e.g. 15.5 for corners)
+        est_unmeasured = estimate_conjunction("corners_for", 15.5, [5.0] * 10, [5.0] * 10)
+        assert est_unmeasured.verdict == "REFUSED_OUT_OF_RANGE"
+        assert "nie ma zmierzonej częstości bazowej" in est_unmeasured.reason
+
+    def test_shrinkage_pulls_raw_toward_base(self) -> None:
+        base = 0.50
+        raw_high = 0.90
+        raw_low = 0.20
+        shrunk_high = shrink_conjunction(raw_high, base, 0.8)
+        shrunk_low = shrink_conjunction(raw_low, base, 0.8)
+        assert base < shrunk_high < raw_high
+        assert raw_low < shrunk_low < base
+
+    def test_confident_flag_respects_gate(self) -> None:
+        est_high = estimate_conjunction("corners_for", 0.5, [8.0] * 10, [8.0] * 10)
+        assert est_high.verdict == "USABLE"
+        assert est_high.probability >= GATE
+        assert est_high.confident
+
+        est_low = estimate_conjunction("corners_for", 5.5, [4.0] * 10, [4.0] * 10)
+        assert est_low.verdict == "USABLE"
+        assert est_low.probability < GATE
+        assert not est_low.confident
 
 
 class TestCalibrationIsReproducible:

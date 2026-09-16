@@ -45,6 +45,7 @@ from bet.simple_stats.derived_markets import (  # noqa: E402
     REFUSED,
     SHRINK_K,
     Triple,
+    estimate_conjunction,
     shrink,
     skellam_three_way,
 )
@@ -220,6 +221,39 @@ def measure(rows: list[dict]) -> dict:
     }
 
 
+def measure_conjunctions(rows: list[dict], metric: str) -> dict[float, dict]:
+    """Measure empirical conjunction hit rates and model Brier scores for one metric."""
+    cal = CALIBRATION.get(metric)
+    if not cal or not cal.conjunction_base:
+        return {}
+    results = {}
+    n = len(rows)
+    for line, base_want in cal.conjunction_base.items():
+        outcomes = [
+            1 if (r["actual_home"] > line and r["actual_away"] > line) else 0
+            for r in rows
+        ]
+        hits = sum(outcomes)
+        rate = hits / n
+        brier_base = sum((rate - y) ** 2 for y in outcomes) / n
+        preds = []
+        for r in rows:
+            est = estimate_conjunction(
+                metric, line, r["sample_home"], r["sample_away"]
+            )
+            preds.append(est.probability if est.probability is not None else rate)
+        brier_model = sum((p - y) ** 2 for p, y in zip(preds, outcomes, strict=True)) / n
+        results[line] = {
+            "n": n,
+            "hits": hits,
+            "base_rate": rate,
+            "base_want": base_want,
+            "brier_base": brier_base,
+            "brier_model": brier_model,
+        }
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -310,6 +344,39 @@ def main(argv: list[str] | None = None) -> int:
                 disagreements.append(
                     f"{metric}.base[{i}]: w kodzie {want}, zmierzone {have:.4f}"
                 )
+
+    print("\n--- KONIUNKCJE: Każda z drużyn powyżej X ---")
+    print(
+        f"{'metryka':22s} {'linia':>6s} {'n':>4s} {'traf':>4s} {'baza':>7s} "
+        f"{'w kodzie':>8s} {'brier_b':>8s} {'brier_m':>8s}"
+    )
+    for metric in metrics:
+        if metric in REFUSED:
+            continue
+        cal = CALIBRATION.get(metric)
+        if not cal or not cal.conjunction_base:
+            continue
+        rows = load_rows(args.runs_dir, metric)
+        if len(rows) < 20:
+            continue
+        c_res = measure_conjunctions(rows, metric)
+        for line in sorted(c_res):
+            cr = c_res[line]
+            print(
+                f"{metric:22s} {line:6.1f} {cr['n']:4d} {cr['hits']:4d} "
+                f"{cr['base_rate']:7.3f} {cr['base_want']:8.3f} "
+                f"{cr['brier_base']:8.4f} {cr['brier_model']:8.4f}"
+            )
+            if abs(cr["base_rate"] - cr["base_want"]) > 5e-3:
+                disagreements.append(
+                    f"{metric}.conjunction_base[{line}]: w kodzie {cr['base_want']:.3f}, zmierzone {cr['base_rate']:.3f}"
+                )
+
+    print(
+        "\nOGRANICZENIE CENOWE: Brak historycznych kursów rynków łączonych "
+        "('Każda z drużyn powyżej X') w artefaktach na dysku - niemożliwa bezpośrednia "
+        "weryfikacja zyskowności/EV wobec kursów Superbetu (brak danych cenowych, nie imputowano wartości)."
+    )
 
     if disagreements:
         print("\nROZBIEŻNOŚCI:")

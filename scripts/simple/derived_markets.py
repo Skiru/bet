@@ -59,6 +59,7 @@ from bet.simple_stats.derived_markets import (  # noqa: E402
     REFUSED,
     devig,
     estimate,
+    estimate_conjunction,
     handicap_versus_three_way,
     overround,
     range_from_ladder,
@@ -79,6 +80,11 @@ HANDICAP = {
     "corners_for": ("Rzuty rożne handicap",),
     "shots_on_target_for": ("Liczba celnych strzałów - handicap",),
 }
+CONJUNCTION = {
+    "corners_for": ("Każda z drużyn powyżej X rzutów rożnych",),
+    "shots_for": ("Każda z drużyn powyżej X strzałów",),
+    "shots_on_target_for": ("Każda z drużyn powyżej X celnych strzałów",),
+}
 # Comparisons Superbet posts that we deliberately do not price. Listed so the
 # report can say "offered, refused, here is why" instead of staying silent.
 # The range markets and the over/under ladder they repartition. Same quantity,
@@ -98,6 +104,8 @@ POSTED_BUT_REFUSED = {
     "2. połowa - rzuty rożne - handicap": "corners_1h_for",
     "1. połowa - najwięcej kartek": "cards_for",
     "2. połowa - najwięcej kartek": "cards_for",
+    "Każda z drużyn powyżej X kartek": "cards_for",
+    "Każda z drużyn powyżej X fauli": "fouls_for",
 }
 
 
@@ -331,6 +339,7 @@ def report_fixture(screen: dict, dossier: dict | None, home: str, away: str) -> 
                 )
 
     report_ranges(odds)
+    report_conjunctions(odds, dossier)
 
     posted = sorted({o.get("marketName") for o in odds} & set(POSTED_BUT_REFUSED))
     if posted:
@@ -418,6 +427,80 @@ def report_ranges(odds: list[dict]) -> None:
                 f"     {label:6s} {offered:6.2f}   uczciwa z drabiny {fair:6.2f}"
                 f"   ({offered * implied - 1:+.1%})"
             )
+
+
+def _conjunction_lines(
+    odds: Iterable[dict], market: str
+) -> dict[float, dict[str, float]]:
+    """Parse rungs of a conjunction market into {line: {'tak': price, 'nie': price}}."""
+    lines: dict[float, dict[str, float]] = {}
+    for o in odds:
+        if o.get("marketName") != market or str(o.get("status")) != "active":
+            continue
+        sbv = o.get("specialBetValue")
+        if sbv is None:
+            spec = o.get("specifiers") or {}
+            sbv = spec.get("total")
+        if sbv is None:
+            continue
+        try:
+            line = float(sbv)
+        except (ValueError, TypeError):
+            continue
+        name = str(o.get("name", "")).lower()
+        price = float(o["price"])
+        side = "nie" if "nie" in name else "tak"
+        lines.setdefault(line, {})[side] = price
+    return lines
+
+
+def report_conjunctions(odds: list[dict], dossier: dict | None) -> None:
+    """Parse and report conjunction markets ('Każda z drużyn powyżej X')."""
+    for metric, names in CONJUNCTION.items():
+        market = next(
+            (n for n in names if any(o.get("marketName") == n for o in odds)), None
+        )
+        if market is None:
+            continue
+        lines = _conjunction_lines(odds, market)
+        if not lines:
+            continue
+        print(f"  {metric}  [{market}]")
+        observation = (
+            (dossier.get("metrics") or {}).get(metric) if dossier else None
+        )
+        home_s = [v["value"] for v in (observation or {}).get("team_a_l10") or []]
+        away_s = [v["value"] for v in (observation or {}).get("team_b_l10") or []]
+        for line in sorted(lines):
+            sides = lines[line]
+            tak_price = sides.get("tak")
+            if tak_price is None:
+                continue
+            nie_str = f" / nie {sides['nie']:.2f}" if "nie" in sides else ""
+            margin_str = ""
+            if "tak" in sides and "nie" in sides:
+                margin = overround([sides["tak"], sides["nie"]])
+                margin_str = f"  marża {margin * 100:.1f}%"
+            est = (
+                estimate_conjunction(metric, line, home_s, away_s)
+                if dossier
+                else None
+            )
+            if est is None or est.verdict != "USABLE":
+                why = est.reason if est else "brak dossier"
+                print(
+                    f"     linia >{line:4.1f}: kurs {tak_price:5.2f}{nie_str}{margin_str}"
+                    f"   nasz szacunek: BRAK ({why})"
+                )
+            else:
+                p = est.probability
+                req = required_price(p)
+                verdict = "WARTE CENY" if tak_price >= req else "NIE WARTE"
+                print(
+                    f"     linia >{line:4.1f}: kurs {tak_price:5.2f}{nie_str}{margin_str}"
+                    f"   szacunek {p:.3f} (raw {est.p_raw:.3f}, baza {est.base_rate:.3f})"
+                    f"   wymagany {req:.2f} -> {verdict}"
+                )
 
 
 def main(argv: list[str] | None = None) -> int:

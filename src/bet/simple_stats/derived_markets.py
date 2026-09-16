@@ -104,7 +104,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 # Outcome order used everywhere in this module: (side A more, equal, side B
@@ -159,6 +159,8 @@ class Calibration:
     # the handicap ladder at +/-0.5.
     three_way_names: tuple[str, ...] = ()
     handicap_names: tuple[str, ...] = ()
+    conjunction_names: tuple[str, ...] = ()
+    conjunction_base: dict[float, float] = field(default_factory=dict)
 
     @property
     def price_floor(self) -> float | None:
@@ -186,6 +188,17 @@ CALIBRATION: dict[str, Calibration] = {
         gate_ci_by_day=(0.604, 0.730),
         three_way_names=("Liczba rzutów rożnych - H2H",),
         handicap_names=("Rzuty rożne handicap",),
+        conjunction_names=("Każda z drużyn powyżej X rzutów rożnych",),
+        conjunction_base={
+            0.5: 0.960,
+            1.5: 0.845,
+            2.5: 0.666,
+            3.5: 0.421,
+            4.5: 0.266,
+            5.5: 0.121,
+            6.5: 0.065,
+            7.5: 0.025,
+        },
     ),
     "shots_for": Calibration(
         base=(0.563, 0.027, 0.410),
@@ -199,6 +212,21 @@ CALIBRATION: dict[str, Calibration] = {
         gate_ci_by_day=(0.640, 0.831),
         three_way_names=("Najwięcej strzałów",),
         handicap_names=(),
+        conjunction_names=("Każda z drużyn powyżej X strzałów",),
+        conjunction_base={
+            0.5: 1.000,
+            1.5: 1.000,
+            2.5: 0.995,
+            3.5: 0.982,
+            4.5: 0.955,
+            5.5: 0.905,
+            6.5: 0.824,
+            7.5: 0.752,
+            8.5: 0.667,
+            9.5: 0.523,
+            10.5: 0.419,
+            11.5: 0.324,
+        },
     ),
     "shots_on_target_for": Calibration(
         base=(0.526, 0.115, 0.359),
@@ -212,6 +240,17 @@ CALIBRATION: dict[str, Calibration] = {
         gate_ci_by_day=(0.616, 0.830),
         three_way_names=("Najwięcej celnych strzałów",),
         handicap_names=("Liczba celnych strzałów - handicap",),
+        conjunction_names=("Każda z drużyn powyżej X celnych strzałów",),
+        conjunction_base={
+            0.5: 0.957,
+            1.5: 0.803,
+            2.5: 0.581,
+            3.5: 0.363,
+            4.5: 0.175,
+            5.5: 0.073,
+            6.5: 0.030,
+            7.5: 0.013,
+        },
     ),
 }
 
@@ -276,6 +315,58 @@ def shrink(p: Triple, base: Triple, k: float = SHRINK_K) -> Triple:
         k * p[1] + (1 - k) * base[1],
         k * p[2] + (1 - k) * base[2],
     )
+
+
+def poisson_survival(lam: float, line: float, *, cap: int = 80) -> float:
+    """P(X > line) for X ~ Poisson(lam) on non-negative counts.
+
+    Computed by summing _poisson_pmf upper tail.
+    """
+    if lam <= 0:
+        return 0.0
+    k_floor = math.floor(line)
+    if k_floor < 0:
+        return 1.0
+    cdf = sum(_poisson_pmf(k, lam) for k in range(min(cap, k_floor + 1)))
+    return max(0.0, min(1.0, 1.0 - cdf))
+
+
+def poisson_conjunction(lam_a: float, lam_b: float, line: float, *, cap: int = 80) -> float:
+    """P(A > line AND B > line) for two independent Poisson counts."""
+    return poisson_survival(lam_a, line, cap=cap) * poisson_survival(lam_b, line, cap=cap)
+
+
+def shrink_conjunction(p: float, base: float, k: float = SHRINK_K) -> float:
+    """Shrink a scalar conjunction probability toward its measured base rate."""
+    return k * p + (1.0 - k) * base
+
+
+@dataclass(frozen=True)
+class ConjunctionEstimate:
+    """One conjunction market's probability: P(A > line AND B > line)."""
+
+    metric: str
+    line: float
+    verdict: Verdict
+    reason: str = ""
+    probability: float | None = None
+    p_raw: float | None = None
+    base_rate: float | None = None
+    lam_home: float | None = None
+    lam_away: float | None = None
+    p_home_over: float | None = None
+    p_away_over: float | None = None
+    n_home: int = 0
+    n_away: int = 0
+    mean_home: float | None = None
+    mean_away: float | None = None
+    calibration: Calibration | None = None
+
+    @property
+    def confident(self) -> bool:
+        if self.probability is None:
+            return False
+        return self.probability >= GATE
 
 
 @dataclass(frozen=True)
@@ -378,6 +469,107 @@ def estimate(
         probabilities=probs,
         lam_home=lam_home,
         lam_away=lam_away,
+        n_home=len(home_sample),
+        n_away=len(away_sample),
+        mean_home=mean_home,
+        mean_away=mean_away,
+        calibration=cal,
+    )
+
+
+def estimate_conjunction(
+    metric: str,
+    line: float,
+    home_sample: Sequence[float],
+    away_sample: Sequence[float],
+) -> ConjunctionEstimate:
+    """The conjunction estimate P(A > line AND B > line), or a refusal that says why."""
+    if metric in REFUSED:
+        return ConjunctionEstimate(
+            metric=metric,
+            line=line,
+            verdict="REFUSED_NO_SIGNAL",
+            reason=REFUSED[metric],
+        )
+    cal = CALIBRATION.get(metric)
+    if cal is None:
+        return ConjunctionEstimate(
+            metric=metric,
+            line=line,
+            verdict="REFUSED_UNKNOWN_METRIC",
+            reason=(
+                "Ta metryka nie przeszła replayu - nie wiadomo, czy estymator na niej "
+                "działa. Zmierz ją, zanim jej użyjesz."
+            ),
+        )
+    if len(home_sample) < MIN_SAMPLE or len(away_sample) < MIN_SAMPLE:
+        return ConjunctionEstimate(
+            metric=metric,
+            line=line,
+            verdict="REFUSED_THIN_SAMPLE",
+            reason=(
+                f"Próbka {len(home_sample)}/{len(away_sample)}, "
+                f"minimum to {MIN_SAMPLE} na stronę."
+            ),
+            n_home=len(home_sample),
+            n_away=len(away_sample),
+            calibration=cal,
+        )
+    mean_home = sum(home_sample) / len(home_sample)
+    mean_away = sum(away_sample) / len(away_sample)
+    lam_home = mean_home + cal.home_delta / 2
+    lam_away = mean_away - cal.home_delta / 2
+    if lam_home <= 0 or lam_away <= 0 or mean_home == 0 or mean_away == 0:
+        return ConjunctionEstimate(
+            metric=metric,
+            line=line,
+            verdict="REFUSED_OUT_OF_RANGE",
+            reason=(
+                f"Średnie {mean_home:.2f}/{mean_away:.2f} przy korekcie "
+                f"{cal.home_delta:+.2f} dają nieujemną intensywność albo zerową "
+                "próbkę. W 697 meczach replayu taki przypadek nie wystąpił ani "
+                "razu, więc estymator nie był tu nigdy sprawdzony. Zero w tej "
+                "metryce zwykle znaczy 'dostawca nie miał danych', nie 'zero rzutów'."
+            ),
+            n_home=len(home_sample),
+            n_away=len(away_sample),
+            mean_home=mean_home,
+            mean_away=mean_away,
+            calibration=cal,
+        )
+    base_rate = cal.conjunction_base.get(line)
+    if base_rate is None:
+        return ConjunctionEstimate(
+            metric=metric,
+            line=line,
+            verdict="REFUSED_OUT_OF_RANGE",
+            reason=(
+                f"Linia {line} dla metryki '{metric}' nie ma zmierzonej częstości bazowej w replayu."
+            ),
+            n_home=len(home_sample),
+            n_away=len(away_sample),
+            mean_home=mean_home,
+            mean_away=mean_away,
+            lam_home=lam_home,
+            lam_away=lam_away,
+            calibration=cal,
+        )
+    p_home_over = poisson_survival(lam_home, line)
+    p_away_over = poisson_survival(lam_away, line)
+    p_raw = p_home_over * p_away_over
+    prob = shrink_conjunction(p_raw, base_rate, SHRINK_K)
+
+    return ConjunctionEstimate(
+        metric=metric,
+        line=line,
+        verdict="USABLE",
+        probability=prob,
+        p_raw=p_raw,
+        base_rate=base_rate,
+        lam_home=lam_home,
+        lam_away=lam_away,
+        p_home_over=p_home_over,
+        p_away_over=p_away_over,
         n_home=len(home_sample),
         n_away=len(away_sample),
         mean_home=mean_home,
