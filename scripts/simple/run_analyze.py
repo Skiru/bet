@@ -219,7 +219,7 @@ def main() -> None:
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"analysis crashed: {exc}", recoverable=False, run_id=run_id)
-        _record(args, run_id, betting_date, "FAILED", {"error": str(exc)}, started_at, str(exc))
+        _record(out, args, run_id, betting_date, "FAILED", {"error": str(exc)}, started_at, str(exc))
         out.summary(verdict="FAILED", metrics={"total_rows": 0, "run_id": run_id})
         sys.exit(2)
 
@@ -512,7 +512,7 @@ def main() -> None:
     else:
         verdict = "OK"
 
-    _record(args, run_id, betting_date, verdict, metrics, started_at, persist_error)
+    _record(out, args, run_id, betting_date, verdict, metrics, started_at, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else (1 if verdict == "PARTIAL" else 2))
 
@@ -529,7 +529,7 @@ def _persist(out: AgentOutput, args, stats_sheet, betting_date: str) -> tuple[bo
         return False, str(exc)
 
 
-def _record(args, run_id: str, date: str, status: str, stats: dict, started_at: str, error: str | None) -> None:
+def _record(out: AgentOutput, args, run_id: str, date: str, status: str, stats: dict, started_at: str, error: str | None) -> None:
     try:
         record_run(
             date=date,
@@ -542,8 +542,22 @@ def _record(args, run_id: str, date: str, status: str, stats: dict, started_at: 
             started_at=started_at,
         )
     except Exception as exc:  # noqa: BLE001 - bookkeeping must never mask the run's own result
-        print(f"[{STEP}] WARNING: could not record pipeline_runs row: {exc}", file=sys.stderr)
+        out.warning(f"could not record pipeline_runs row: {exc}", db_path=args.db_path)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "AGENT_SUMMARY:" + json.dumps({
+                "step": STEP,
+                "verdict": "FAILED",
+                "metrics": {"error": str(exc), "total_rows": 0},
+                "issues": [{"level": "error", "message": f"ANALYZE crashed: {exc}"}],
+            }),
+        )
+        sys.exit(2)

@@ -100,7 +100,12 @@ def _competition_canonical_map() -> dict[str, str]:
             str(name): str(target)
             for name, target in (document.get("canonical") or {}).items()
         }
-    except (OSError, ValueError, AttributeError):
+    except (OSError, ValueError, AttributeError) as exc:
+        logger.warning(
+            "could not load competition canonical map from %s: %s",
+            _COMPETITION_CANONICAL_MAP_PATH,
+            exc,
+        )
         canonical = {}
     with _COMPETITION_CANONICAL_LOCK:
         if _COMPETITION_CANONICAL_CACHE is None:

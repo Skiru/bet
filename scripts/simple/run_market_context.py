@@ -28,6 +28,7 @@ Exit codes: 0 = OK, 1 = PARTIAL (ran, thin or blocked), 2 = PRECONDITION_FAILED.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import traceback
 from datetime import datetime, timezone
@@ -81,7 +82,7 @@ def main() -> None:
     out = AgentOutput(STEP, verbose=args.verbose, stop_on_error=args.stop_on_error)
     started_at = datetime.now(timezone.utc).isoformat()
 
-    def record(date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
+    def record(out: AgentOutput, date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
         """Lineage on every exit path, including the failures. A step that writes
         no pipeline_runs row is indistinguishable from a step that was never
         asked to run -- which is the exact question an operator has when the
@@ -94,7 +95,7 @@ def main() -> None:
                 db_path=args.db_path, stats=stats, error_message=error, started_at=started_at,
             )
         except Exception as exc:  # noqa: BLE001 - bookkeeping never masks the run's own result
-            print(f"[{STEP}] WARNING: could not record pipeline_runs row: {exc}", file=sys.stderr)
+            out.warning(f"could not record pipeline_runs row: {exc}", db_path=args.db_path)
 
     event_list_path = Path(args.event_list)
     if not event_list_path.exists():
@@ -132,7 +133,7 @@ def main() -> None:
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"market context run crashed: {exc}", recoverable=True)
-        record(event_list.date, event_list.run_id, "PARTIAL", {"events_with_odds": 0}, str(exc))
+        record(out, event_list.date, event_list.run_id, "PARTIAL", {"events_with_odds": 0}, str(exc))
         out.summary(verdict="PARTIAL", metrics={"error": str(exc), "events_with_odds": 0})
         sys.exit(1)
 
@@ -196,10 +197,29 @@ def main() -> None:
     for note in summary_metrics.get("tennis_model_unavailable", []):
         out.warning(f"tennis model: {note}")
 
-    record(context.date, context.run_id, verdict, metrics)
+    record(out, context.date, context.run_id, verdict, metrics)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "AGENT_SUMMARY:"
+            + json.dumps(
+                {
+                    "step": STEP,
+                    "verdict": "PARTIAL",
+                    "metrics": {"error": str(exc), "events_with_odds": 0},
+                    "issues": [
+                        {"level": "error", "message": f"MARKET_CONTEXT crashed: {exc}"}
+                    ],
+                }
+            ),
+        )
+        sys.exit(1)

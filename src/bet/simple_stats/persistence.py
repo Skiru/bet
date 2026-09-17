@@ -328,7 +328,7 @@ def persist_pipeline_run(
     stats_sheet: StatsSheetV1 | None,
     betting_date: str,
     db_path: str | Path | None = None,
-) -> dict[str, int]:
+) -> tuple[dict[str, int], list[dict[str, str]]]:
     """Persist whichever artifacts are available for one pipeline run, in one
     transaction. Safe to call once per step (DISCOVER-only, then ENRICH,
     then ANALYZE) or once at the end with everything at hand."""
@@ -351,4 +351,4 @@ def persist_pipeline_run(
                     )
         if stats_sheet is not None:
             persist_stats_sheet(stats_sheet, fixture_ids, betting_date, conn)
-    return fixture_ids
+    return fixture_ids, skipped

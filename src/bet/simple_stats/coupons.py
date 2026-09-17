@@ -119,7 +119,14 @@ def _competition_tier_map() -> dict[str, str]:
             str(name): str(tier)
             for name, tier in (document.get("tiers") or {}).items()
         }
-    except (OSError, ValueError, AttributeError):
+    except (OSError, ValueError, AttributeError) as exc:
+        from bet.simple_stats.providers import logger
+
+        logger.warning(
+            "could not load competition tier map from %s: %s",
+            _COMPETITION_TIER_MAP_PATH,
+            exc,
+        )
         tiers = {}
     with _COMPETITION_TIER_LOCK:
         if _COMPETITION_TIER_CACHE is None:

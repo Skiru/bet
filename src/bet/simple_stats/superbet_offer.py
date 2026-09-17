@@ -2027,7 +2027,6 @@ def lookup_line(
 # centre from it). Three implementations of "what does the book think" would
 # drift within a week, and the one that decides a bar is the one that matters.
 
-
 def devigged_probability(
     event_offer: SuperbetEventOffer | None,
     *,

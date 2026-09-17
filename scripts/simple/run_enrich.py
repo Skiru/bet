@@ -13,6 +13,7 @@ Emits the repo-standard AGENT_SUMMARY:{json} contract via scripts/agent_output.p
 Exit codes: 0 = OK, 1 = PARTIAL, 2 = FAILED / PRECONDITION_FAILED.
 """
 import argparse
+import json
 import sys
 import traceback
 from datetime import datetime, timezone
@@ -267,7 +268,7 @@ def main() -> None:
             "preflight_reason": preflight["reason"],
         }
         out.error(f"preflight failed: {preflight['reason']}", recoverable=False)
-        _record(args, run_id, event_list.date, "PRECONDITION_FAILED", metrics, started_at, preflight["reason"])
+        _record(out, args, run_id, event_list.date, "PRECONDITION_FAILED", metrics, started_at, preflight["reason"])
         out.summary(verdict="PRECONDITION_FAILED", metrics=metrics)
         sys.exit(2)
 
@@ -344,7 +345,7 @@ def main() -> None:
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"enrichment crashed: {exc}", recoverable=False, run_id=run_id)
-        _record(args, run_id, event_list.date, "FAILED", {"error": str(exc)}, started_at, str(exc))
+        _record(out, args, run_id, event_list.date, "FAILED", {"error": str(exc)}, started_at, str(exc))
         out.summary(verdict="FAILED", metrics={"total_dossiers": 0, "run_id": run_id})
         sys.exit(2)
 
@@ -418,7 +419,7 @@ def main() -> None:
                 f"{dossier.event_id[:12]} {dossier.readiness} metrics={len(dossier.metrics)}",
             )
 
-    persisted, persist_error = _persist(out, args, event_list, dossier_list)
+    persisted_fully, persist_error, skipped_count = _persist(out, args, event_list, dossier_list)
 
     metrics = {
         "run_id": run_id,
@@ -453,19 +454,20 @@ def main() -> None:
         "quota_thin_providers": [t["provider"] for t in preflight["thin"]],
         "output_path": str(output_path),
         "output_sha256": digest,
-        "persisted": persisted,
+        "persisted_fully": persisted_fully,
+        "persisted_skipped_events": skipped_count,
         "persist_error": persist_error,
     }
 
     if not total or by_readiness["BLOCKED"] == total:
         out.error("no event reached PARTIAL or better", recoverable=False)
         verdict = "FAILED"
-    elif by_readiness["PARTIAL"] or by_readiness["BLOCKED"] or not persisted:
+    elif by_readiness["PARTIAL"] or by_readiness["BLOCKED"] or not persisted_fully:
         verdict = "PARTIAL"
     else:
         verdict = "OK"
 
-    _record(args, run_id, event_list.date, verdict, metrics, started_at, persist_error)
+    _record(out, args, run_id, event_list.date, verdict, metrics, started_at, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else (1 if verdict == "PARTIAL" else 2))
 
@@ -549,19 +551,19 @@ def _merge_dossiers(prior, fresh) -> tuple[EventDossierListV1, int]:
     )
 
 
-def _persist(out: AgentOutput, args, event_list, dossier_list) -> tuple[bool, str | None]:
+def _persist(out: AgentOutput, args, event_list, dossier_list) -> tuple[bool, str | None, int]:
     try:
-        persist_pipeline_run(
+        _, skipped = persist_pipeline_run(
             event_list, dossier_list, None, betting_date=event_list.date, db_path=args.db_path
         )
         out.event("db_persisted", table="analysis_raw_data", dossiers=len(dossier_list.dossiers))
-        return True, None
+        return not skipped, None, len(skipped)
     except Exception as exc:
         out.error(f"DB persistence failed: {exc}", recoverable=True)
-        return False, str(exc)
+        return False, str(exc), 0
 
 
-def _record(args, run_id: str, date: str, status: str, stats: dict, started_at: str, error: str | None) -> None:
+def _record(out: AgentOutput, args, run_id: str, date: str, status: str, stats: dict, started_at: str, error: str | None) -> None:
     try:
         record_run(
             date=date,
@@ -574,8 +576,22 @@ def _record(args, run_id: str, date: str, status: str, stats: dict, started_at: 
             started_at=started_at,
         )
     except Exception as exc:  # noqa: BLE001 - bookkeeping must never mask the run's own result
-        print(f"[{STEP}] WARNING: could not record pipeline_runs row: {exc}", file=sys.stderr)
+        out.warning(f"could not record pipeline_runs row: {exc}", db_path=args.db_path)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "AGENT_SUMMARY:" + json.dumps({
+                "step": STEP,
+                "verdict": "FAILED",
+                "metrics": {"error": str(exc), "dossiers": 0},
+                "issues": [{"level": "error", "message": f"ENRICH crashed: {exc}"}],
+            }),
+        )
+        sys.exit(2)

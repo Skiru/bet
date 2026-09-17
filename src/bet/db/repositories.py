@@ -189,7 +189,7 @@ class TeamRepo:
         r"|^\W+$"  # only non-word chars ("- -", "---")
         r"|^#\d+"  # ad anchors ("#100 FREE $20")
         r"|\$\d+"  # dollar amounts
-        r"|FREE|Sign Up|PICKSWISE"  # ad keywords
+        r"|\bFREE\b|\bSign Up\b|\bPICKSWISE\b"  # ad keywords
         r"|\[VIDEO\]"  # media tags
         r"|^\d[\d\s.]+$"  # pure numbers/odds ("1.03 11.00 23.00")
         r"|Bet \$"  # betting promos

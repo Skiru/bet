@@ -4478,7 +4478,10 @@ def _pinned_competition_map() -> dict[str, dict[str, Any]]:
             refs = entry.get("refs")
             if isinstance(refs, dict) and entry.get("verification"):
                 pinned[_fold(key)] = refs
-    except (OSError, ValueError, AttributeError):
+    except (OSError, ValueError, AttributeError) as exc:
+        logger.warning(
+            "could not load pinned competition map from %s: %s", _COMPETITION_MAP_PATH, exc
+        )
         pinned = {}
     with _COMPETITION_MAP_LOCK:
         if _COMPETITION_MAP_CACHE is None:

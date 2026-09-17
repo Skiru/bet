@@ -72,7 +72,7 @@ def main() -> None:
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"discovery crashed: {exc}", recoverable=False, run_id=run_id)
-        _record(args, run_id, "FAILED", {"error": str(exc)}, started_at, str(exc))
+        _record(out, args, run_id, "FAILED", {"error": str(exc)}, started_at, str(exc))
         out.summary(verdict="FAILED", metrics={"total_events": 0, "run_id": run_id})
         sys.exit(2)
 
@@ -94,7 +94,8 @@ def main() -> None:
 
     for event in blocked:
         out.warning(
-            f"event blocked at discovery: {event.status}",
+            f"event blocked at discovery ({event.status}): {event.event_id[:12]}: "
+            f"{event.terminal_reason}",
             event_id=event.event_id,
             reason=event.terminal_reason,
         )
@@ -123,7 +124,7 @@ def main() -> None:
         # so the specific cause travels in issues rather than as a made-up
         # verdict a monitoring agent would not recognise.
         out.error("BLOCK_NO_EVENTS: discovery returned no ACTIVE events", recoverable=False, date=args.date)
-        _record(args, run_id, "FAILED", metrics, started_at, "BLOCK_NO_EVENTS")
+        _record(out, args, run_id, "FAILED", metrics, started_at, "BLOCK_NO_EVENTS")
         out.summary(verdict="FAILED", metrics=metrics)
         sys.exit(2)
 
@@ -140,8 +141,9 @@ def main() -> None:
             date=args.date,
         )
 
-    persisted, persist_error = _persist(out, args, result)
-    metrics["persisted"] = persisted
+    persisted_fully, persist_error, skipped_count = _persist(out, args, result)
+    metrics["persisted_fully"] = persisted_fully
+    metrics["persisted_skipped_events"] = skipped_count
     metrics["persist_error"] = persist_error
 
     # A slate a quota cut short is not an OK slate.
@@ -187,7 +189,7 @@ def main() -> None:
     verdict = (
         "OK"
         if (
-            persisted
+            persisted_fully
             and not blocked
             and not result.degraded_reasons
             and not empty_sports
@@ -195,7 +197,7 @@ def main() -> None:
         )
         else "PARTIAL"
     )
-    _record(args, run_id, verdict, metrics, started_at, persist_error)
+    _record(out, args, run_id, verdict, metrics, started_at, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)
 
@@ -274,17 +276,29 @@ def _history_active_counts(
     return counts
 
 
-def _persist(out: AgentOutput, args, result) -> tuple[bool, str | None]:
+def _persist(out: AgentOutput, args, result) -> tuple[bool, str | None, int]:
     try:
-        persist_pipeline_run(result, None, None, betting_date=args.date, db_path=args.db_path)
-        out.event("db_persisted", table="fixtures+fixture_sources", events=len(result.events))
-        return True, None
+        _, skipped = persist_pipeline_run(
+            result, None, None, betting_date=args.date, db_path=args.db_path
+        )
+        total = len(result.events)
+        persisted_count = total - len(skipped)
+        out.event(
+            "db_persisted",
+            table="fixtures+fixture_sources",
+            events=persisted_count,
+            total=total,
+            skipped=len(skipped),
+        )
+        return not skipped, None, len(skipped)
     except Exception as exc:
         out.error(f"DB persistence failed: {exc}", recoverable=True)
-        return False, str(exc)
+        return False, str(exc), 0
 
 
-def _record(args, run_id: str, status: str, stats: dict, started_at: str, error: str | None) -> None:
+def _record(
+    out: AgentOutput, args, run_id: str, status: str, stats: dict, started_at: str, error: str | None
+) -> None:
     try:
         record_run(
             date=args.date,
@@ -297,8 +311,22 @@ def _record(args, run_id: str, status: str, stats: dict, started_at: str, error:
             started_at=started_at,
         )
     except Exception as exc:  # noqa: BLE001 - bookkeeping must never mask the run's own result
-        print(f"[{STEP}] WARNING: could not record pipeline_runs row: {exc}", file=sys.stderr)
+        out.warning(f"could not record pipeline_runs row: {exc}", db_path=args.db_path)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "AGENT_SUMMARY:" + json.dumps({
+                "step": STEP,
+                "verdict": "FAILED",
+                "metrics": {"error": str(exc), "total_events": 0},
+                "issues": [{"level": "error", "message": f"DISCOVER crashed: {exc}"}],
+            }),
+        )
+        sys.exit(2)

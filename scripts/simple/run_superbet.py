@@ -30,6 +30,7 @@ Exit codes: 0 = OK, 1 = PARTIAL (ran, thin or blocked), 2 = PRECONDITION_FAILED.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import traceback
 from datetime import UTC, datetime
@@ -137,7 +138,7 @@ def main() -> None:
     # reconstructing the day read the DB, not the JSONL that scrolled by.
     db_step = "SUPERBET_COMPARE" if args.offer else "SUPERBET"
 
-    def record(date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
+    def record(out: AgentOutput, date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
         if args.no_persist:
             return
         try:
@@ -146,7 +147,7 @@ def main() -> None:
                 db_path=args.db_path, stats=stats, error_message=error, started_at=started_at,
             )
         except Exception as exc:  # noqa: BLE001 - bookkeeping never masks the run's result
-            print(f"[{STEP}] WARNING: could not record pipeline_runs row: {exc}", file=sys.stderr)
+            out.warning(f"could not record pipeline_runs row: {exc}", db_path=args.db_path)
 
     event_list_path = Path(args.event_list)
     if not event_list_path.exists():
@@ -219,7 +220,7 @@ def main() -> None:
         except Exception as exc:
             traceback.print_exc(file=sys.stderr)
             out.error(f"superbet offer run crashed: {exc}", recoverable=True)
-            record(event_list.date, event_list.run_id, "PARTIAL", {"events_matched": 0}, str(exc))
+            record(out, event_list.date, event_list.run_id, "PARTIAL", {"events_matched": 0}, str(exc))
             out.summary(verdict="PARTIAL", metrics={"error": str(exc), "events_matched": 0})
             sys.exit(1)
 
@@ -325,10 +326,24 @@ def main() -> None:
     else:
         verdict = "OK"
 
-    record(offer.date, offer.run_id, verdict, metrics)
+    record(out, offer.date, offer.run_id, verdict, metrics)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "AGENT_SUMMARY:" + json.dumps({
+                "step": STEP,
+                "verdict": "FAILED",
+                "metrics": {"error": str(exc), "events_matched": 0},
+                "issues": [{"level": "error", "message": f"SUPERBET crashed: {exc}"}],
+            }),
+        )
+        sys.exit(2)

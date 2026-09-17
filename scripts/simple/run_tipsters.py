@@ -89,7 +89,7 @@ def main() -> None:
     out = AgentOutput(STEP, verbose=args.verbose, stop_on_error=args.stop_on_error)
     started_at = datetime.now(timezone.utc).isoformat()
 
-    def record(date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
+    def record(out: AgentOutput, date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
         """Lineage, on every exit path including the failures.
 
         bet-analyst is instructed to cross-check pipeline_runs for the day. A
@@ -105,7 +105,7 @@ def main() -> None:
                 db_path=args.db_path, stats=stats, error_message=error, started_at=started_at,
             )
         except Exception as exc:  # noqa: BLE001 - bookkeeping never masks the run's own result
-            print(f"[{STEP}] WARNING: could not record pipeline_runs row: {exc}", file=sys.stderr)
+            out.warning(f"could not record pipeline_runs row: {exc}", db_path=args.db_path)
 
     event_list_path = Path(args.event_list)
     if not event_list_path.exists():
@@ -142,7 +142,7 @@ def main() -> None:
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"live tipster run crashed: {exc}", recoverable=True)
-        record(event_list.date, event_list.run_id, "PARTIAL", {"picks_ingested": 0}, str(exc))
+        record(out, event_list.date, event_list.run_id, "PARTIAL", {"picks_ingested": 0}, str(exc))
         out.summary(verdict="PARTIAL", metrics={"error": str(exc), "picks_ingested": 0})
         sys.exit(1)
 
@@ -223,7 +223,7 @@ def main() -> None:
     else:
         verdict = "OK"
 
-    record(signal.date, signal.run_id, verdict, metrics, persist_error)
+    record(out, signal.date, signal.run_id, verdict, metrics, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)
 

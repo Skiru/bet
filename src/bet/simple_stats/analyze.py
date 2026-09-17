@@ -73,7 +73,10 @@ def _load_json(path: Path) -> dict:
     """
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        from bet.simple_stats.providers import logger
+
+        logger.warning("could not load config from %s: %s", path, exc)
         return {}
     return document if isinstance(document, dict) else {}
 
