@@ -1,0 +1,46 @@
+[
+  {
+    "eventId": 10001,
+    "matchName": "Arsenal·Chelsea",
+    "utcDate": "2026-09-17T15:00:00Z",
+    "sportId": 5,
+    "marketCount": 100,
+    "metadata": {"status": "scheduled"}
+  },
+  {
+    "eventId": 10002,
+    "matchName": "Iga Swiatek·Aryna Sabalenka",
+    "utcDate": "2026-09-17T16:00:00+00:00",
+    "sportId": 2,
+    "marketCount": 50,
+    "metadata": {"status": "scheduled"}
+  },
+  {
+    "eventId": 10003,
+    "matchName": "Real Madryt (Liam)·Atletico Madryt (Alexis)",
+    "utcDate": "2026-09-17T17:00:00Z",
+    "sportId": 75,
+    "marketCount": 10
+  },
+  {
+    "eventId": 10004,
+    "matchName": "Hubert Hurkacz / Jan Zielinski",
+    "utcDate": "2026-09-17T18:00:00Z",
+    "sportId": 2,
+    "marketCount": 5
+  },
+  {
+    "eventId": 10005,
+    "matchName": "Wrong Separator-Team",
+    "utcDate": "2026-09-17T19:00:00Z",
+    "sportId": 5,
+    "marketCount": 5
+  },
+  {
+    "eventId": 10006,
+    "matchName": "Out of Date·Team",
+    "utcDate": "2026-09-18T19:00:00Z",
+    "sportId": 5,
+    "marketCount": 5
+  }
+]
