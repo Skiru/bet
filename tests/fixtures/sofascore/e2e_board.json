@@ -1,0 +1,26 @@
+[
+  {
+    "superbet_event_id": "sb_16363633",
+    "sport": "football",
+    "match_name": "Team A \u00b7 Team B",
+    "side_a": "Team A",
+    "side_b": "Team B",
+    "kickoff_utc": "2026-09-17T20:00:00Z"
+  },
+  {
+    "superbet_event_id": "sb_16416342",
+    "sport": "football",
+    "match_name": "Team C \u00b7 Team D",
+    "side_a": "Team C",
+    "side_b": "Team D",
+    "kickoff_utc": "2026-09-17T21:00:00Z"
+  },
+  {
+    "superbet_event_id": "sb_15345277",
+    "sport": "tennis",
+    "match_name": "Player 1 \u00b7 Player 2",
+    "side_a": "Player 1",
+    "side_b": "Player 2",
+    "kickoff_utc": "2026-09-17T22:00:00Z"
+  }
+]
