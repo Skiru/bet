@@ -1,0 +1,36 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/unique-tournament/17/events/next/0",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 404,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=60, public, s-maxage=86400",
+      "x-application-id": "core",
+      "etag": "W/\"80440c4b02\"",
+      "x-request-id": "79570424-c203-4160-9401-37b96388b351",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:59:43 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "62"
+    },
+    "body": {
+      "error": {
+        "code": 404,
+        "message": "Not Found"
+      }
+    },
+    "elapsed_seconds": 0.08941411972045898
+  }
+}

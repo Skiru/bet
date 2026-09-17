@@ -1,0 +1,33 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=superliga%20argentina",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"e2412c1ffb\"",
+      "x-request-id": "92356197-5092-486f-9523-f4271d89d668",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:01 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "34"
+    },
+    "body": {
+      "results": []
+    },
+    "elapsed_seconds": 0.24399304389953613
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/sport/football/scheduled-events",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 404,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "x-application-id": "core",
+      "etag": "W/\"80440c4b02\"",
+      "x-request-id": "94dc5302-c7f1-4e73-96b2-473e6e405cd4",
+      "content-encoding": "gzip",
+      "cache-control": "public, max-age=3600",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 08:00:00 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "62"
+    },
+    "body": {
+      "error": {
+        "code": 404,
+        "message": "Not Found"
+      }
+    },
+    "elapsed_seconds": 0.12837505340576172
+  }
+}

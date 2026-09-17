@@ -1,0 +1,244 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/event/15345277/tennis-power",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=3600, public",
+      "x-application-id": "core",
+      "etag": "W/\"ae09ee5c9a\"",
+      "x-request-id": "4f38eb5b-f258-49e3-a703-16d5522a03c8",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:57:40 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "376"
+    },
+    "body": {
+      "tennisPowerRankings": [
+        {
+          "set": 1,
+          "game": 1,
+          "value": -56,
+          "breakOccurred": true
+        },
+        {
+          "set": 1,
+          "game": 2,
+          "value": -45.8,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 3,
+          "value": 10.28,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 4,
+          "value": -10,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 5,
+          "value": 58.78,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 6,
+          "value": -49.76,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 7,
+          "value": 52.46,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 8,
+          "value": 20.06,
+          "breakOccurred": true
+        },
+        {
+          "set": 1,
+          "game": 9,
+          "value": 13.7,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 10,
+          "value": -24.4,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 11,
+          "value": 22.46,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 12,
+          "value": -10,
+          "breakOccurred": false
+        },
+        {
+          "set": 1,
+          "game": 13,
+          "value": 25,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 1,
+          "value": -28.4,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 2,
+          "value": 22.72,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 3,
+          "value": 21.3,
+          "breakOccurred": true
+        },
+        {
+          "set": 2,
+          "game": 4,
+          "value": 38.34,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 5,
+          "value": -24.66,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 6,
+          "value": 10,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 7,
+          "value": -34.7,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 8,
+          "value": 23.34,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 9,
+          "value": -34.6,
+          "breakOccurred": false
+        },
+        {
+          "set": 2,
+          "game": 10,
+          "value": 10,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 1,
+          "value": -10,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 2,
+          "value": 34.28,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 3,
+          "value": -10,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 4,
+          "value": 33.84,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 5,
+          "value": -24.2,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 6,
+          "value": 10,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 7,
+          "value": -10,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 8,
+          "value": 53.76,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 9,
+          "value": -43.52,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 10,
+          "value": 53.7,
+          "breakOccurred": false
+        },
+        {
+          "set": 3,
+          "game": 11,
+          "value": 56,
+          "breakOccurred": true
+        },
+        {
+          "set": 3,
+          "game": 12,
+          "value": 50.34,
+          "breakOccurred": false
+        }
+      ]
+    },
+    "elapsed_seconds": 0.15178203582763672
+  }
+}

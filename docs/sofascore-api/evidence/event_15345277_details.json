@@ -1,0 +1,477 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/event/15345277",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=172800",
+      "x-application-id": "core",
+      "etag": "W/\"990e4689b2\"",
+      "x-request-id": "0ef395ae-6fdc-406b-b950-b56a92e806ea",
+      "access-control-expose-headers": "x-token-refresh",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:57:40 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "3367"
+    },
+    "body": {
+      "event": {
+        "firstToServe": 1,
+        "homeTeamSeed": "1",
+        "awayTeamSeed": "19",
+        "tournament": {
+          "name": "Australian Open, Melbourne, Australia",
+          "slug": "australian-open-melbourne-australia",
+          "category": {
+            "name": "ATP",
+            "slug": "atp",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "priority": 8,
+            "country": {},
+            "id": 3,
+            "flag": "atp",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "bn": "\u098f\u099f\u09bf\u09aa\u09bf",
+                "hi": "\u0921\u092c\u094d\u0932\u094d\u092f\u0942\u091f\u0940\u090f",
+                "ar": "\u0631\u0627\u0628\u0637\u0629 \u0645\u062d\u062a\u0631\u0641\u064a \u0627\u0644\u062a\u0646\u0633",
+                "ru": "ATP"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "uniqueTournament": {
+            "name": "Australian Open, Men",
+            "slug": "australian-open",
+            "primaryColorHex": "#d0d830",
+            "secondaryColorHex": "#2294dc",
+            "category": {
+              "name": "ATP",
+              "slug": "atp",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 8,
+              "country": {},
+              "id": 3,
+              "flag": "atp",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "bn": "\u098f\u099f\u09bf\u09aa\u09bf",
+                  "hi": "\u0921\u092c\u094d\u0932\u094d\u092f\u0942\u091f\u0940\u090f",
+                  "ar": "\u0631\u0627\u0628\u0637\u0629 \u0645\u062d\u062a\u0631\u0641\u064a \u0627\u0644\u062a\u0646\u0633",
+                  "ru": "ATP"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 33948,
+            "groundType": "Hardcourt outdoor",
+            "tennisPoints": 2000,
+            "hasRounds": true,
+            "hasPerformanceGraphFeature": false,
+            "country": {},
+            "id": 2363,
+            "hasEventPlayerStatistics": false,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "az": "Australian Open, Ki\u015fil\u0259r",
+                "de": "Australian Open Herreneinzel",
+                "el": "\u0391\u03c5\u03c3\u03c4\u03c1\u03b1\u03bb\u03b9\u03b1\u03bd\u03cc \u038c\u03c0\u03b5\u03bd, \u03b1\u03c0\u03bb\u03cc \u03b1\u03bd\u03b4\u03c1\u03ce\u03bd",
+                "es": "Abierto de Australia, masculino",
+                "es-la": "Abierto de Australia, Varonil",
+                "fr": "Open d'Australie simple messieurs",
+                "hr": "Australian Open (M)",
+                "hu": "Australian Open, f\u00e9rfi egyes",
+                "id": "Australia Open, Tunggal (Pa)",
+                "it": "Australian Open (M)",
+                "ja": "\u5168\u8c6a\u30aa\u30fc\u30d7\u30f3\u3001\u7537\u5b50",
+                "ko": "\ud638\uc8fc \uc624\ud508 \ub0a8\uc790 \ub2e8\uc2dd",
+                "nl": "Australian Open mannenenkelspel",
+                "no": "Australian Open, menn",
+                "pl": "Australian Open, singiel m\u0119\u017cczyzn",
+                "tr": "Avustralya A\u00e7\u0131k, Tek Erkekler",
+                "pt": "Australian Open masculino",
+                "pt-pt": "Australian Open (M)",
+                "ro": "Australian Open, simplu masculin",
+                "sr": "\u0410\u0443\u0441\u0442\u0440\u0430\u043b\u0438\u0458\u0430\u043d \u043e\u043f\u0435\u043d, \u043f\u043e\u0458\u0435\u0434\u0438\u043d\u0430\u0447\u043d\u043e (\u041c)",
+                "sv": "Australian Open, herrsingel",
+                "th": "\u0e2d\u0e2d\u0e2a\u0e40\u0e15\u0e23\u0e40\u0e25\u0e35\u0e22\u0e19\u0e42\u0e2d\u0e40\u0e1e\u0e19 \u0e0a\u0e32\u0e22\u0e40\u0e14\u0e35\u0e48\u0e22\u0e27",
+                "vi": "\u00dac M\u1edf r\u1ed9ng, \u0111\u01a1n nam",
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0623\u0633\u062a\u0631\u0627\u0644\u064a\u0627 \u0627\u0644\u0645\u0641\u062a\u0648\u062d\u0629\u060c \u0641\u0631\u062f\u064a \u0627\u0644\u0631\u062c\u0627\u0644",
+                "bn": "\u0985\u09b8\u09cd\u099f\u09cd\u09b0\u09c7\u09b2\u09bf\u09af\u09bc\u09be\u09a8 \u0993\u09aa\u09c7\u09a8, \u09aa\u09c1\u09b0\u09c1\u09b7 \u098f\u0995\u0995",
+                "hi": "\u0911\u0938\u094d\u091f\u094d\u0930\u0947\u0932\u093f\u092f\u0928 \u0913\u092a\u0928, \u092a\u0941\u0930\u0941\u0937",
+                "ru": "Australian Open, \u043c\u0443\u0436\u0441\u043a\u043e\u0439 \u043e\u0434\u0438\u043d\u043e\u0447\u043d\u044b\u0439 \u0440\u0430\u0437\u0440\u044f\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "priority": 0,
+          "isGroup": false,
+          "competitionType": 2,
+          "id": 172867,
+          "endTimestamp": 1769904000,
+          "startTimestamp": 1768694400,
+          "fieldTranslations": {
+            "nameTranslation": {
+              "ar": "\u0628\u0637\u0648\u0644\u0629 \u0623\u0633\u062a\u0631\u0627\u0644\u064a\u0627 \u0627\u0644\u0645\u0641\u062a\u0648\u062d\u0629 \u0644\u0644\u062a\u0646\u0633\u060c \u0645\u0644\u0628\u0648\u0631\u0646\u060c \u0623\u0633\u062a\u0631\u0627\u0644\u064a\u0627",
+              "ru": "\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0439 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442 \u0410\u0432\u0441\u0442\u0440\u0430\u043b\u0438\u0438, \u041c\u0435\u043b\u044c\u0431\u0443\u0440\u043d, \u0410\u0432\u0441\u0442\u0440\u0430\u043b\u0438\u044f"
+            },
+            "shortNameTranslation": {}
+          }
+        },
+        "season": {
+          "name": "Australian Open Men Singles 2026",
+          "year": "2026",
+          "editor": false,
+          "id": 80012
+        },
+        "roundInfo": {
+          "round": 5,
+          "name": "Round of 16",
+          "slug": "round-of-16",
+          "cupRoundType": 8
+        },
+        "customId": "Wvfbsytkc",
+        "status": {
+          "code": 100,
+          "description": "Ended",
+          "type": "finished"
+        },
+        "winnerCode": 1,
+        "venue": {
+          "city": {
+            "name": "Melbourne",
+            "country": {
+              "alpha2": "AU",
+              "alpha3": "AUS",
+              "name": "Australia",
+              "slug": "australia"
+            },
+            "id": 17959
+          },
+          "venueCoordinates": {
+            "latitude": -37.821583103718,
+            "longitude": 144.9786958493
+          },
+          "hidden": false,
+          "slug": "rod-laver-arena",
+          "name": "Rod Laver Arena",
+          "capacity": 14820,
+          "country": {
+            "alpha2": "AU",
+            "alpha3": "AUS",
+            "name": "Australia",
+            "slug": "australia"
+          },
+          "id": 20122,
+          "fieldTranslations": {
+            "nameTranslation": {
+              "ar": "\u0628\u064a\u063a\u0646 \u0623\u0631\u064a\u0646\u0627 \u0631\u0648\u062f \u0644\u0627\u0641\u0631",
+              "hi": "\u0930\u0949\u0921 \u0932\u0947\u0935\u0930 \u090f\u0930\u093f\u0928\u093e",
+              "bn": "\u09b0\u09a1 \u09b2\u09c7\u09ad\u09be\u09b0 \u098f\u09b0\u09bf\u09a8\u09be"
+            },
+            "shortNameTranslation": {}
+          },
+          "stadium": {
+            "name": "Rod Laver Arena",
+            "capacity": 14820
+          }
+        },
+        "homeTeam": {
+          "name": "Carlos Alcaraz",
+          "slug": "alcaraz-carlos",
+          "shortName": "C. Alcaraz",
+          "gender": "M",
+          "sport": {
+            "name": "Tennis",
+            "slug": "tennis",
+            "id": 5
+          },
+          "userCount": 274197,
+          "playerTeamInfo": {
+            "height": 1.83,
+            "weight": 74,
+            "plays": "right-handed",
+            "turnedPro": "2018",
+            "prizeCurrent": 3797858,
+            "prizeTotal": 56547910,
+            "birthCity": {
+              "name": "El Palmar, Murcia",
+              "country": {
+                "alpha2": "ES",
+                "alpha3": "ESP",
+                "name": "Spain",
+                "slug": "spain"
+              },
+              "id": 35684
+            },
+            "residenceCity": {
+              "name": "El Palmar, Murcia",
+              "country": {
+                "alpha2": "ES",
+                "alpha3": "ESP",
+                "name": "Spain",
+                "slug": "spain"
+              },
+              "id": 35684
+            },
+            "id": 3111,
+            "birthplace": "El Palmar, Murcia, Spain",
+            "birthDateTimestamp": 1052092800,
+            "underage": false,
+            "residence": "El Palmar, Murcia, Spain",
+            "prizeCurrentRaw": {
+              "value": 3797858,
+              "currency": "EUR"
+            },
+            "prizeTotalRaw": {
+              "value": 56547910,
+              "currency": "EUR"
+            },
+            "currentRanking": 2
+          },
+          "nameCode": "ALC",
+          "ranking": 3,
+          "class": 4,
+          "disabled": false,
+          "national": false,
+          "type": 1,
+          "country": {
+            "alpha2": "ES",
+            "alpha3": "ESP",
+            "name": "Spain",
+            "slug": "spain"
+          },
+          "id": 275923,
+          "fullName": "Carlos Alcaraz",
+          "subTeams": [],
+          "teamColors": {
+            "primary": "#374df5",
+            "secondary": "#374df5",
+            "text": "#ffffff"
+          },
+          "fieldTranslations": {
+            "nameTranslation": {
+              "ar": "\u0643\u0627\u0631\u0644\u0648\u0633 \u0623\u0644\u0643\u0627\u0631\u0627\u0632",
+              "ru": "\u041a\u0430\u0440\u043b\u043e\u0441 \u0410\u043b\u044c\u043a\u0430\u0440\u0430\u0441"
+            },
+            "shortNameTranslation": {
+              "ar": "\u0643. \u0623\u0644\u0643\u0627\u0631\u0627\u0632",
+              "bn": "\u09b8\u09bf \u0986\u09b2\u0995\u09be\u09b0\u09be\u099c",
+              "hi": "\u0938\u0940. \u0905\u0932\u094d\u0915\u093e\u0930\u093e\u091c\u093c",
+              "ru": "\u041a. \u0410\u043b\u044c\u043a\u0430\u0440\u0430\u0441"
+            }
+          },
+          "timeActive": []
+        },
+        "awayTeam": {
+          "name": "Tommy Paul",
+          "slug": "paul-tommy",
+          "shortName": "T. Paul",
+          "gender": "M",
+          "sport": {
+            "name": "Tennis",
+            "slug": "tennis",
+            "id": 5
+          },
+          "userCount": 22566,
+          "playerTeamInfo": {
+            "height": 1.85,
+            "weight": 82,
+            "plays": "right-handed",
+            "turnedPro": "2015",
+            "prizeCurrent": 1698572,
+            "prizeTotal": 12969963,
+            "birthCity": {
+              "name": "Voorhees",
+              "state": "US-NJ",
+              "country": {
+                "alpha2": "US",
+                "alpha3": "USA",
+                "name": "USA",
+                "slug": "usa"
+              },
+              "id": 33255
+            },
+            "residenceCity": {
+              "name": "Greenville",
+              "state": "US-NC",
+              "country": {
+                "alpha2": "US",
+                "alpha3": "USA",
+                "name": "USA",
+                "slug": "usa"
+              },
+              "id": 23366
+            },
+            "id": 278,
+            "birthplace": "Voorhees, New Jersey, USA",
+            "birthDateTimestamp": 863827200,
+            "underage": false,
+            "residence": "Greenville, North Carolina, USA",
+            "prizeCurrentRaw": {
+              "value": 1698572,
+              "currency": "EUR"
+            },
+            "prizeTotalRaw": {
+              "value": 12969963,
+              "currency": "EUR"
+            },
+            "currentRanking": 18
+          },
+          "nameCode": "PAU",
+          "ranking": 19,
+          "class": 0,
+          "disabled": false,
+          "national": false,
+          "type": 1,
+          "country": {
+            "alpha2": "US",
+            "alpha3": "USA",
+            "name": "USA",
+            "slug": "usa"
+          },
+          "id": 138546,
+          "fullName": "Tommy Paul",
+          "subTeams": [],
+          "teamColors": {
+            "primary": "#374df5",
+            "secondary": "#374df5",
+            "text": "#ffffff"
+          },
+          "fieldTranslations": {
+            "nameTranslation": {
+              "ar": "\u062a\u0648\u0645\u064a \u0628\u0648\u0644",
+              "ru": "\u0422\u043e\u043c\u043c\u0438 \u041f\u043e\u043b"
+            },
+            "shortNameTranslation": {
+              "ar": "\u062a. \u0628\u0648\u0644",
+              "bn": "\u099f\u09bf. \u09aa\u09b2",
+              "hi": "\u091f\u0940. \u092a\u0949\u0932",
+              "ru": "\u0422. \u041f\u043e\u043b"
+            }
+          },
+          "timeActive": []
+        },
+        "homeScore": {
+          "current": 3,
+          "display": 3,
+          "period1": 7,
+          "period2": 6,
+          "period3": 7,
+          "period1TieBreak": 8,
+          "point": "40",
+          "normaltime": 3
+        },
+        "awayScore": {
+          "current": 0,
+          "display": 0,
+          "period1": 6,
+          "period2": 4,
+          "period3": 5,
+          "period1TieBreak": 6,
+          "point": "15",
+          "normaltime": 0
+        },
+        "time": {
+          "period1": 4303,
+          "period2": 2451,
+          "period3": 3111,
+          "currentPeriodStartTimestamp": 1769315858
+        },
+        "changes": {
+          "changes": [
+            "time.currentPeriodStart",
+            "time.period3"
+          ],
+          "changeTimestamp": 1769319004
+        },
+        "hasGlobalHighlights": true,
+        "crowdsourcingDataDisplayEnabled": false,
+        "id": 15345277,
+        "defaultPeriodCount": 5,
+        "slug": "carlos-alcaraz-tommy-paul",
+        "currentPeriodStartTimestamp": 1769315858,
+        "startTimestamp": 1769308800,
+        "periods": {
+          "point": "Game",
+          "current": "Match",
+          "period1": "1st set",
+          "period2": "2nd set",
+          "period3": "3rd set",
+          "period4": "4th set",
+          "period5": "5th set"
+        },
+        "finalResultOnly": false,
+        "hasBet365LiveStream": true,
+        "bet365ExcludedCountryCodes": [
+          "09",
+          "28",
+          "29",
+          "31",
+          "33",
+          "36",
+          "39",
+          "43",
+          "49",
+          "56",
+          "61",
+          "AA",
+          "AB",
+          "AC",
+          "BM",
+          "CA",
+          "IA",
+          "NZ",
+          "OH",
+          "ON",
+          "PR",
+          "VR",
+          "IR",
+          "GR",
+          "RU",
+          "CH"
+        ],
+        "feedLocked": false,
+        "groundType": "Hardcourt outdoor",
+        "showTotoPromo": true,
+        "isEditor": false,
+        "eventFilters": {
+          "category": [
+            "singles"
+          ],
+          "level": [
+            "pro"
+          ],
+          "tournament": [
+            "grand-slam"
+          ],
+          "gender": [
+            "M"
+          ]
+        }
+      }
+    },
+    "elapsed_seconds": 0.09124207496643066
+  }
+}

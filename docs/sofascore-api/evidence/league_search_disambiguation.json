@@ -1,0 +1,347 @@
+{
+  "la liga": [
+    {
+      "name": "LaLiga",
+      "id": 8,
+      "slug": "laliga",
+      "category": "Spain"
+    },
+    {
+      "name": "Copa de la Liga Profesional",
+      "id": 13475,
+      "slug": "copa-de-la-liga-profesional",
+      "category": "Argentina"
+    },
+    {
+      "name": "UEFA Champions League",
+      "id": 7,
+      "slug": "uefa-champions-league",
+      "category": "Europe"
+    }
+  ],
+  "serie a": [
+    {
+      "name": "Serie A",
+      "id": 23,
+      "slug": "serie-a",
+      "category": "Italy"
+    },
+    {
+      "name": "Brasileir\u00e3o Betano",
+      "id": 325,
+      "slug": "brasileirao-serie-a",
+      "category": "Brazil"
+    },
+    {
+      "name": "Paulista S\u00e9rie A1",
+      "id": 372,
+      "slug": "paulista-serie-a1",
+      "category": "Brazil"
+    }
+  ],
+  "bundesliga": [
+    {
+      "name": "Bundesliga",
+      "id": 35,
+      "slug": "bundesliga",
+      "category": "Germany"
+    },
+    {
+      "name": "2. Bundesliga",
+      "id": 44,
+      "slug": "2-bundesliga",
+      "category": "Germany"
+    },
+    {
+      "name": "Austrian Bundesliga",
+      "id": 45,
+      "slug": "bundesliga",
+      "category": "Austria"
+    }
+  ],
+  "ligue 1": [
+    {
+      "name": "Ligue 1",
+      "id": 34,
+      "slug": "ligue-1",
+      "category": "France"
+    },
+    {
+      "name": "Algerian Ligue 1",
+      "id": 841,
+      "slug": "ligue-1",
+      "category": "Algeria"
+    },
+    {
+      "name": "Senegal Ligue 1",
+      "id": 1226,
+      "slug": "ligue-1",
+      "category": "Senegal"
+    }
+  ],
+  "championship": [
+    {
+      "name": "FIFA World Cup",
+      "id": 16,
+      "slug": "world-championship",
+      "category": "World"
+    },
+    {
+      "name": "Championship",
+      "id": 18,
+      "slug": "championship",
+      "category": "England"
+    },
+    {
+      "name": "U-20 World Championship",
+      "id": 453,
+      "slug": "u20-world-cup",
+      "category": "World"
+    }
+  ],
+  "eredivisie": [
+    {
+      "name": "VriendenLoterij Eredivisie",
+      "id": 37,
+      "slug": "eredivisie",
+      "category": "Netherlands"
+    },
+    {
+      "name": "Eurojackpot Vrouwen Eredivisie",
+      "id": 2123,
+      "slug": "vrouwen-eredivisie",
+      "category": "Netherlands"
+    },
+    {
+      "name": "Eredivisie Cup",
+      "id": 22480,
+      "slug": "eredivisie-cup",
+      "category": "Netherlands"
+    }
+  ],
+  "primeira liga": [
+    {
+      "name": "Liga de Primera",
+      "id": 11653,
+      "slug": "primera-division",
+      "category": "Chile"
+    },
+    {
+      "name": "Liga Primera de Nicaragua",
+      "id": 10533,
+      "slug": "liga-primera",
+      "category": "Nicaragua"
+    },
+    {
+      "name": "Liga Regional Col\u00f3n, Primera",
+      "id": 21919,
+      "slug": "liga-regional-colon",
+      "category": "Argentina Amateur"
+    }
+  ],
+  "allsvenskan": [
+    {
+      "name": "Allsvenskan",
+      "id": 40,
+      "slug": "allsvenskan",
+      "category": "Sweden"
+    },
+    {
+      "name": "Allsvenskan U21",
+      "id": 1016,
+      "slug": "allsvenskan-u21",
+      "category": "Sweden Amateur"
+    },
+    {
+      "name": "U19 Allsvenskan",
+      "id": 3090,
+      "slug": "u19-allsvenskan",
+      "category": "Sweden Amateur"
+    }
+  ],
+  "eliteserien": [
+    {
+      "name": "Eliteserien",
+      "id": 20,
+      "slug": "eliteserien",
+      "category": "Norway"
+    },
+    {
+      "name": "Eliteserien",
+      "id": 318,
+      "slug": "eliteserien",
+      "category": "Norway"
+    },
+    {
+      "name": "Eliteserien",
+      "id": 317,
+      "slug": "eliteserien",
+      "category": "Norway"
+    }
+  ],
+  "brazil serie a": [
+    {
+      "name": "Brasileir\u00e3o Betano",
+      "id": 325,
+      "slug": "brasileirao-serie-a",
+      "category": "Brazil"
+    },
+    {
+      "name": "Paulista S\u00e9rie A1",
+      "id": 372,
+      "slug": "paulista-serie-a1",
+      "category": "Brazil"
+    },
+    {
+      "name": "Brasileir\u00e3o S\u00e9rie A1, Feminino",
+      "id": 10257,
+      "slug": "brasileirao-serie-a1-feminino",
+      "category": "Brazil"
+    }
+  ],
+  "swiss super league": [
+    {
+      "name": "Swiss Super League",
+      "id": 215,
+      "slug": "super-league",
+      "category": "Switzerland"
+    },
+    {
+      "name": "Swiss Women's Super League",
+      "id": 13994,
+      "slug": "womens-super-league",
+      "category": "Switzerland"
+    }
+  ],
+  "belgian pro league": [],
+  "scottish premiership": [
+    {
+      "name": "Scottish Premiership",
+      "id": 36,
+      "slug": "premiership",
+      "category": "Scotland"
+    }
+  ],
+  "austrian bundesliga": [
+    {
+      "name": "Austrian Bundesliga",
+      "id": 45,
+      "slug": "bundesliga",
+      "category": "Austria"
+    },
+    {
+      "name": "Austrian Women's Basketball Bundesliga",
+      "id": 300,
+      "slug": "awbl",
+      "category": "Austria"
+    }
+  ],
+  "mls": [
+    {
+      "name": "MLS",
+      "id": 242,
+      "slug": "mls",
+      "category": "USA"
+    },
+    {
+      "name": "MLS Next Pro",
+      "id": 18641,
+      "slug": "mls-next-pro",
+      "category": "USA"
+    },
+    {
+      "name": "MLS Preseason",
+      "id": 18553,
+      "slug": "mls-preseason",
+      "category": "USA"
+    }
+  ],
+  "superliga": [
+    {
+      "name": "Danish Superliga",
+      "id": 39,
+      "slug": "superliga",
+      "category": "Denmark"
+    },
+    {
+      "name": "SuperLiga Rom\u00e2niei",
+      "id": 152,
+      "slug": "superliga",
+      "category": "Romania"
+    },
+    {
+      "name": "Mozzart Bet Superliga",
+      "id": 210,
+      "slug": "mozzart-bet-superliga",
+      "category": "Serbia"
+    }
+  ],
+  "super league greece": [
+    {
+      "name": "Stoiximan Super League",
+      "id": 185,
+      "slug": "stoiximan-super-league",
+      "category": "Greece"
+    },
+    {
+      "name": "U19 Super League",
+      "id": 11414,
+      "slug": "u19-super-league",
+      "category": "Greece"
+    },
+    {
+      "name": "Futsal Super League",
+      "id": 18388,
+      "slug": "stoiximangr-super-league",
+      "category": "Greece"
+    }
+  ],
+  "conference league": [
+    {
+      "name": "UEFA Conference League",
+      "id": 17015,
+      "slug": "uefa-europa-conference-league",
+      "category": "Europe"
+    },
+    {
+      "name": "National Conference League",
+      "id": 31777,
+      "slug": "nifl-premier-intermediate-league",
+      "category": "Northern Ireland"
+    },
+    {
+      "name": "National Conference League - Premier Division",
+      "id": 18196,
+      "slug": "national-conference-league-premier-division",
+      "category": "Rugby League"
+    }
+  ],
+  "europa league": [
+    {
+      "name": "UEFA Europa League",
+      "id": 679,
+      "slug": "uefa-europa-league",
+      "category": "Europe"
+    },
+    {
+      "name": "EURO",
+      "id": 1,
+      "slug": "european-championship",
+      "category": "Europe"
+    },
+    {
+      "name": "Therino Protathlima Kilkis - Europa League Kilkis",
+      "id": 32816,
+      "slug": "europa-league-kilkis",
+      "category": "Greece"
+    }
+  ],
+  "efl cup": [
+    {
+      "name": "EFL Cup",
+      "id": 21,
+      "slug": "efl-cup",
+      "category": "England"
+    }
+  ]
+}

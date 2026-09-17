@@ -1,0 +1,175 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=liga%20profesional",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"a5e9bc9f52\"",
+      "x-request-id": "4588f055-2083-46da-ab70-ee96d13ee97a",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:37 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "988"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 155,
+            "name": "Liga Profesional de F\u00fatbol",
+            "slug": "liga-profesional-de-futbol",
+            "userCount": 69257,
+            "category": {
+              "id": 48,
+              "name": "Argentina",
+              "slug": "argentina",
+              "alpha2": "AR",
+              "flag": "argentina",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "AR",
+                "name": "Argentina",
+                "slug": "argentina"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645 \u0644\u0644\u0645\u062d\u062a\u0631\u0641\u064a\u0646",
+                "bn": "\u09b2\u09c0\u0997\u09be \u09aa\u09cd\u09b0\u09cb\u09ab\u09c7\u09b6\u09a8\u09be\u09b2 \u09a1\u09c7 \u09ab\u09c1\u099f\u09ac\u09b2",
+                "hi": "\u0932\u0940\u0917\u093e \u092a\u094d\u0930\u094b\u092b\u0947\u0936\u0928\u0932 \u0921\u0940 \u092b\u0941\u091f\u092c\u0949\u0932",
+                "ru": "\u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u0430\u044f \u043b\u0438\u0433\u0430 \u0444\u0443\u0442\u0431\u043e\u043b\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 31711.38,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 13475,
+            "name": "Copa de la Liga Profesional",
+            "slug": "copa-de-la-liga-profesional",
+            "userCount": 24332,
+            "category": {
+              "id": 48,
+              "name": "Argentina",
+              "slug": "argentina",
+              "alpha2": "AR",
+              "flag": "argentina",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "AR",
+                "name": "Argentina",
+                "slug": "argentina"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u062f\u0648\u0631\u064a \u0627\u0644\u0645\u062d\u062a\u0631\u0641\u064a\u0646",
+                "bn": "\u0995\u09cb\u09aa\u09be \u09a6\u09c7 \u09b2\u09be \u09b2\u09bf\u0997\u09be \u09aa\u09cd\u09b0\u09cb\u09ab\u09c7\u09b6\u09a8\u09be\u09b2",
+                "hi": "\u0915\u094b\u092a\u093e \u0921\u0947 \u0932\u093e \u0932\u0940\u0917\u093e \u092a\u094d\u0930\u094b\u092b\u0947\u0936\u0928\u0932",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e\u0439 \u043b\u0438\u0433\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 18796.293,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 18436,
+            "name": "Trofeo de Campeones de la Liga Profesional",
+            "slug": "trofeo-de-campeones-de-la-liga-profesional",
+            "userCount": 1993,
+            "category": {
+              "id": 48,
+              "name": "Argentina",
+              "slug": "argentina",
+              "alpha2": "AR",
+              "flag": "argentina",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "AR",
+                "name": "Argentina",
+                "slug": "argentina"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0623\u0628\u0637\u0627\u0644 \u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u062d\u062a\u0631\u0641\u064a\u0646",
+                "ru": "\u0422\u0440\u043e\u0444\u0435\u0439 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e\u0439 \u041b\u0438\u0433\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 5379.4385,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 16069,
+            "name": "Liga de Videojuegos Profesional",
+            "slug": "liga-de-videojuegos-profesional",
+            "userCount": 16,
+            "category": {
+              "id": 1572,
+              "name": "Counter Strike",
+              "slug": "csgo",
+              "flag": "counter-strike",
+              "sport": {
+                "id": 72,
+                "slug": "esports",
+                "name": "E-sports"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0644\u0639\u0627\u0628 \u0627\u0644\u0641\u064a\u062f\u064a\u0648 \u0627\u0644\u0627\u062d\u062a\u0631\u0627\u0641\u064a",
+                "ru": "\u041b\u0438\u0433\u0430 \u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0445 \u0412\u0438\u0434\u0435\u043e\u0438\u0433\u0440"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 43.817806,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.16697382926940918
+  }
+}

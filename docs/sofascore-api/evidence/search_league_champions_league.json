@@ -1,0 +1,693 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=champions%20league",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"142fcaccf4\"",
+      "x-request-id": "87d2b2ff-ed22-40e9-bcd1-623b5414dd41",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:00 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "3154"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 7,
+            "name": "UEFA Champions League",
+            "slug": "uefa-champions-league",
+            "userCount": 1258000,
+            "category": {
+              "id": 1465,
+              "name": "Europe",
+              "slug": "europe",
+              "flag": "europe",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627",
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "hr": "UEFA Liga prvaka",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0423\u0415\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 135152.36,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1054,
+            "name": "CAF Champions League",
+            "slug": "caf-champions-league",
+            "userCount": 86847,
+            "category": {
+              "id": 1466,
+              "name": "Africa",
+              "slug": "africa",
+              "flag": "africa",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0641\u0631\u064a\u0642\u064a\u0627",
+                "bn": "\u09b8\u09bf\u098f\u098f\u09ab \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09bf\u0997",
+                "hi": "\u0938\u0940\u090f\u090f\u092b \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u041a\u0410\u0424"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 35510.82,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 696,
+            "name": "UEFA Women's Champions League",
+            "slug": "uefa-womens-champions-league",
+            "userCount": 64145,
+            "category": {
+              "id": 1465,
+              "name": "Europe",
+              "slug": "europe",
+              "flag": "europe",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627 \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u0989\u0987\u09ae\u09c7\u09a8\u09b8 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u0935\u0942\u092e\u0947\u0902\u0938 \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0423\u0415\u0424\u0410 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 30518.607,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 463,
+            "name": "AFC Champions League Elite",
+            "slug": "afc-champions-league",
+            "userCount": 61183,
+            "category": {
+              "id": 1467,
+              "name": "Asia",
+              "slug": "asia",
+              "flag": "asia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0622\u0633\u064a\u0627 \u0627\u0644\u0646\u062e\u0628\u0629 \u0644\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0622\u0633\u064a\u0648\u064a \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "bn": "\u098f\u098f\u09ab\u09b8\u09bf \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997 \u098f\u09b2\u09bf\u099f",
+                "hi": "\u090f\u090f\u092b\u0938\u0940 \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917 \u090f\u0932\u0940\u091f",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0410\u0424\u041a \u042d\u043b\u0438\u0442"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 29805.656,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 668,
+            "name": "AFC Champions League Two",
+            "slug": "afc-cup",
+            "userCount": 20901,
+            "category": {
+              "id": 1467,
+              "name": "Asia",
+              "slug": "asia",
+              "flag": "asia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0622\u0633\u064a\u0627 \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u062b\u0627\u0646\u064a\u0629",
+                "bn": "\u098f\u098f\u09ab\u09b8\u09bf \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997 \u099f\u09c1",
+                "hi": "\u090f\u090f\u092b\u0938\u0940 \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917 \u091f\u0942",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0410\u0424\u041a 2"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 17420.75,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 16,
+            "name": "FIFA World Cup",
+            "slug": "world-championship",
+            "userCount": 1998693,
+            "category": {
+              "id": 1468,
+              "name": "World",
+              "slug": "world",
+              "flag": "international",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0639\u0627\u0644\u0645",
+                "az": "F\u0130FA D\u00fcnya Kuboku",
+                "bn": "\u0993\u09af\u09bc\u09be\u09b0\u09cd\u09b2\u09cd\u09a1 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa",
+                "de": "Weltmeisterschaft",
+                "el": "\u03a0\u03b1\u03b3\u03ba\u03cc\u03c3\u03bc\u03b9\u03bf \u039a\u03cd\u03c0\u03b5\u03bb\u03bb\u03bf",
+                "es": "Copa Mundial",
+                "fr": "Coupe du monde",
+                "hi": "\u0935\u0930\u094d\u0932\u094d\u0921 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a",
+                "hr": "FIFA Svjetsko prvenstvo",
+                "hu": "FIFA Vil\u00e1gbajnoks\u00e1g",
+                "id": "Piala Dunia FIFA",
+                "it": "Coppa del Mondo FIFA",
+                "ja": "FIFA\u30ef\u30fc\u30eb\u30c9\u30ab\u30c3\u30d7",
+                "ko": "FIFA \uc6d4\ub4dc\ucef5",
+                "nl": "Wereldkampioenschap",
+                "no": "Verdensmesterskapet",
+                "pl": "Mistrzostwa \u015awiata",
+                "pt": "Copa do Mundo FIFA",
+                "ro": "Campionatul Mondial",
+                "ru": "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442 \u043c\u0438\u0440\u0430",
+                "sr": "\u0421\u0432\u0435\u0442\u0441\u043a\u043e \u043f\u0440\u0432\u0435\u043d\u0441\u0442\u0432\u043e",
+                "sv": "V\u00e4rldsm\u00e4sterskapet",
+                "th": "\u0e1f\u0e38\u0e15\u0e1a\u0e2d\u0e25\u0e42\u0e25\u0e01",
+                "tr": "FIFA D\u00fcnya Kupas\u0131",
+                "vi": "Gi\u1ea3i V\u00f4 \u0110\u1ecbch Th\u1ebf Gi\u1edbi",
+                "es-la": "Copa Mundial",
+                "pt-pt": "Mundial"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 15486.87,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 30,
+            "name": "EHF Champions League",
+            "slug": "ehf-champions-league",
+            "userCount": 10468,
+            "category": {
+              "id": 73,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627",
+                "bn": "\u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0415\u0413\u0424"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 12328.64,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 586,
+            "name": "Champions League",
+            "slug": "champions-league",
+            "userCount": 5116,
+            "category": {
+              "id": 136,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 23,
+                "slug": "volleyball",
+                "name": "Volleyball"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627",
+                "bn": "\u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8618.835,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 9357,
+            "name": "Champions League",
+            "slug": "champions-league",
+            "userCount": 4466,
+            "category": {
+              "id": 103,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 2,
+                "slug": "basketball",
+                "name": "Basketball"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627",
+                "bn": "\u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8052.721,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 770,
+            "name": "UEFA Futsal Champions League",
+            "slug": "uefa-futsal-champions-league",
+            "userCount": 4259,
+            "category": {
+              "id": 541,
+              "name": "International Clubs",
+              "slug": "international-clubs",
+              "flag": "international",
+              "sport": {
+                "id": 29,
+                "slug": "futsal",
+                "name": "Futsal"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627 \u0644\u0643\u0631\u0629 \u0627\u0644\u0635\u0627\u0644\u0627\u062a",
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u09ab\u09c1\u099f\u09b8\u09be\u09b2 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u092b\u0941\u091f\u0938\u0932 \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0423\u0415\u0424\u0410 \u043f\u043e \u0444\u0443\u0442\u0437\u0430\u043b\u0443"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 7863.885,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 587,
+            "name": "Champions League Women",
+            "slug": "champions-league-women",
+            "userCount": 2613,
+            "category": {
+              "id": 136,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 23,
+                "slug": "volleyball",
+                "name": "Volleyball"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627 \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "bn": "\u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997 \u0989\u0987\u09ae\u09c7\u09a8",
+                "hi": "\u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917 \u0935\u0942\u092e\u0947\u0928",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 6159.607,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1222,
+            "name": "OFC Champions League",
+            "slug": "ofc-champions-league",
+            "userCount": 2378,
+            "category": {
+              "id": 1471,
+              "name": "Oceania",
+              "slug": "oceania",
+              "flag": "oceania",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0642\u064a\u0627\u0646\u0648\u0633\u064a\u0627",
+                "bn": "\u0993\u098f\u09ab\u09b8\u09bf \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u0913\u090f\u092b\u0938\u0940 \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u041e\u0424\u041a"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 5876.1006,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 288,
+            "name": "EHF Champions League Women",
+            "slug": "ehf-champions-league-women",
+            "userCount": 2158,
+            "category": {
+              "id": 73,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627 \u0644\u0643\u0631\u0629 \u0627\u0644\u064a\u062f \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "bn": "\u0987\u098f\u0987\u099a\u098f\u09ab \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997 \u0989\u0987\u09ae\u09c7\u09a8\u09b8",
+                "hi": "\u0908\u090f\u091a\u090f\u092b \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917 \u0935\u0942\u092e\u0947\u0928",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0415\u0413\u0424 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 5597.6924,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 21446,
+            "name": "CAF Women's Champions League",
+            "slug": "caf-womens-champions-league",
+            "userCount": 1732,
+            "category": {
+              "id": 1466,
+              "name": "Africa",
+              "slug": "africa",
+              "flag": "africa",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0625\u0641\u0631\u064a\u0642\u064a\u0627 \u0644\u0644\u0633\u064a\u062f\u0627\u062a (CAF)",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d \u041a\u0410\u0424"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 5014.842,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 23987,
+            "name": "Gulf Club Champions League",
+            "slug": "gulf-club-champions-league",
+            "userCount": 1586,
+            "category": {
+              "id": 1467,
+              "name": "Asia",
+              "slug": "asia",
+              "flag": "asia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0627\u0644\u0623\u0646\u062f\u064a\u0629 \u0627\u0644\u062e\u0644\u064a\u062c\u064a\u0629",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u043a\u043b\u0443\u0431\u043e\u0432 \u041f\u0435\u0440\u0441\u0438\u0434\u0441\u043a\u043e\u0433\u043e \u0437\u0430\u043b\u0438\u0432\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 4798.8247,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 23009,
+            "name": "AFC Women's Champions League",
+            "slug": "afc-champions-league-women",
+            "userCount": 1241,
+            "category": {
+              "id": 1467,
+              "name": "Asia",
+              "slug": "asia",
+              "flag": "asia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0622\u0633\u064a\u0627 \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d \u0410\u0424\u041a"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 4244.917,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 14360,
+            "name": "Champions League Americas",
+            "slug": "champions-league-americas",
+            "userCount": 1193,
+            "category": {
+              "id": 103,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 2,
+                "slug": "basketball",
+                "name": "Basketball"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0627\u0644\u0623\u0645\u0631\u064a\u0643\u062a\u064a\u0646",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0410\u043c\u0435\u0440\u0438\u043a\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 4162.014,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 18,
+            "name": "Championship",
+            "slug": "championship",
+            "userCount": 142243,
+            "category": {
+              "id": 1,
+              "name": "England",
+              "slug": "england",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0637\u0648\u0644\u0629 \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u0629",
+                "bn": "\u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa",
+                "hi": "\u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a",
+                "ru": "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 4131.484,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1264,
+            "name": "Champions League Men",
+            "slug": "len-champions-league",
+            "userCount": 1138,
+            "category": {
+              "id": 164,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 26,
+                "slug": "waterpolo",
+                "name": "Waterpolo"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627 LEN",
+                "bn": "\u098f\u09b2 \u0987 \u098f\u09a8 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "hi": "\u090f\u0932\u0908\u090f\u0928 \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0441\u0440\u0435\u0434\u0438 \u043c\u0443\u0436\u0447\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 4064.9429,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 2122,
+            "name": "ETTU Champions League",
+            "slug": "ettu-champions-league",
+            "userCount": 664,
+            "category": {
+              "id": 88,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 20,
+                "slug": "table-tennis",
+                "name": "Table tennis"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0623\u0648\u0631\u0648\u0628\u064a \u0644\u062a\u0646\u0633 \u0627\u0644\u0637\u0627\u0648\u0644\u0629 (ETTU)",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 ETTU"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 3105.041,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.1352078914642334
+  }
+}

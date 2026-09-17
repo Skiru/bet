@@ -1,0 +1,216 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=ekstraklasa",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"2e60493404\"",
+      "x-request-id": "1b637960-83d9-4c1e-a66e-b1eb0fb8fd34",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:57:59 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "905"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 202,
+            "name": "Ekstraklasa",
+            "slug": "ekstraklasa",
+            "userCount": 31610,
+            "category": {
+              "id": 47,
+              "name": "Poland",
+              "slug": "poland",
+              "alpha2": "PL",
+              "flag": "poland",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "PL",
+                "name": "Poland",
+                "slug": "poland"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0648\u0644\u0646\u062f\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u098f\u0995\u09b8\u09cd\u099f\u09cd\u09b0\u09be\u0995\u09cd\u09b2\u09be\u09b8\u09be",
+                "hi": "\u090f\u0915\u094d\u0938\u094d\u091f\u094d\u0930\u093e\u0915\u094d\u0932\u093e\u0938\u093e",
+                "ru": "\u042d\u043a\u0441\u0442\u0440\u0430\u043a\u043b\u0430\u0441\u0441\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 21423.754,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 11429,
+            "name": "Ekstraklasa",
+            "slug": "ekstraklasa",
+            "userCount": 205,
+            "category": {
+              "id": 429,
+              "name": "Poland",
+              "slug": "poland",
+              "alpha2": "PL",
+              "flag": "poland",
+              "sport": {
+                "id": 29,
+                "slug": "futsal",
+                "name": "Futsal"
+              },
+              "country": {
+                "alpha2": "PL",
+                "name": "Poland",
+                "slug": "poland"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u0625\u0643\u0633\u062a\u0631\u0627 \u0643\u0644\u0627\u0633\u064a\u0627",
+                "ru": "\u042d\u043a\u0441\u0442\u0440\u0430\u043a\u043b\u0430\u0441\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1725.2826,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1124158,
+            "name": "Ekstraklasa",
+            "nameCode": "EKS",
+            "slug": "ekstraklasa",
+            "national": false,
+            "sport": {
+              "id": 109,
+              "slug": "minifootball",
+              "name": "Minifootball"
+            },
+            "userCount": 13,
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "HR",
+              "name": "Croatia",
+              "slug": "croatia"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u0643\u0633\u062a\u0631\u0627\u0643\u0644\u0633\u0627",
+                "ru": "\u042d\u043a\u0441\u0442\u0440\u0430\u043a\u043b\u0430\u0441\u0441\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 520.61505,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 26640,
+            "name": "Ekstraklasa Beach Soccer",
+            "slug": "ekstraklasa-beach-soccer",
+            "userCount": 13,
+            "category": {
+              "id": 1864,
+              "name": "Poland",
+              "slug": "poland",
+              "alpha2": "PL",
+              "flag": "poland",
+              "sport": {
+                "id": 109,
+                "slug": "minifootball",
+                "name": "Minifootball"
+              },
+              "country": {
+                "alpha2": "PL",
+                "name": "Poland",
+                "slug": "poland"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u0643\u0633\u062a\u0631\u0627 \u0643\u0644\u0627\u0633 \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645 \u0627\u0644\u0634\u0627\u0637\u0626\u064a\u0629",
+                "ru": "\u042d\u043a\u0441\u0442\u0440\u0430\u043a\u043b\u0430\u0441\u0430 \u043f\u043e \u043f\u043b\u044f\u0436\u043d\u043e\u043c\u0443 \u0444\u0443\u0442\u0431\u043e\u043b\u0443"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 434.46518,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 32763,
+            "name": "Ekstraklasa LLPN",
+            "slug": "ekstraklasa-llpn",
+            "userCount": 1,
+            "category": {
+              "id": 1864,
+              "name": "Poland",
+              "slug": "poland",
+              "alpha2": "PL",
+              "flag": "poland",
+              "sport": {
+                "id": 109,
+                "slug": "minifootball",
+                "name": "Minifootball"
+              },
+              "country": {
+                "alpha2": "PL",
+                "name": "Poland",
+                "slug": "poland"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u0643\u0633\u062a\u0631\u0627\u0643\u0644\u0627\u0633\u0627 \u0644\u0644\u067e\u0646",
+                "ru": "\u042d\u043a\u0441\u0442\u0440\u0430\u043a\u043b\u0430\u0441\u0430 LLPN"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 120.49896,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.12218117713928223
+  }
+}

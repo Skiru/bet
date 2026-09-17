@@ -1,0 +1,771 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/team?q=Real%20Madrid",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"961f444a37\"",
+      "x-request-id": "335ec578-086a-4d83-9c45-44138c14d5d7",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:55:57 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "3081"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 1164925,
+            "name": "Cadillac Formula 1 Team",
+            "nameCode": "CAD",
+            "slug": "cadillac-formula-1-team",
+            "national": false,
+            "sport": {
+              "id": 11,
+              "slug": "motorsport",
+              "name": "Motorsport"
+            },
+            "userCount": 1669,
+            "teamColors": {
+              "primary": "#818181",
+              "secondary": "#222226",
+              "text": "#222226"
+            },
+            "type": 0,
+            "gender": "X",
+            "country": {
+              "alpha2": "US",
+              "name": "USA",
+              "slug": "usa"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0627\u062f\u064a\u0644\u0627\u0643",
+                "ru": "\u041a\u0430\u0434\u0438\u043b\u043b\u0430\u043a"
+              },
+              "shortNameTranslation": {}
+            },
+            "sportVariant": 4
+          },
+          "score": 15200.711,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 409766,
+            "name": "Team Falcons",
+            "nameCode": "TFA",
+            "slug": "team-falcons",
+            "national": false,
+            "sport": {
+              "id": 72,
+              "slug": "esports",
+              "name": "E-sports"
+            },
+            "userCount": 6980,
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "type": 0,
+            "country": {
+              "alpha2": "SA",
+              "name": "Saudi Arabia",
+              "slug": "saudi-arabia"
+            }
+          },
+          "score": 11625.496,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 115157,
+            "name": "Eastern SC",
+            "nameCode": "EAS",
+            "slug": "eastern-sc",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 5210,
+            "teamColors": {
+              "primary": "#11248f",
+              "secondary": "#ffffff",
+              "text": "#ffffff"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "HK",
+              "name": "Hong Kong",
+              "slug": "hong-kong"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0646\u0627\u062f\u064a \u0625\u064a\u0633\u062a\u0631\u0646 \u0633\u0628\u0648\u0631\u062a\u0633",
+                "hi": "\u0908\u0938\u094d\u091f\u0930\u094d\u0928 \u090f\u0938\u0938\u0940",
+                "ru": "\u0418\u0441\u0442\u0435\u0440\u043d \u0421\u041a"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 10044.15,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 69230,
+            "name": "Mexico Olympic Team",
+            "nameCode": "MEX",
+            "slug": "mexico-olympic-team",
+            "national": true,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 5207,
+            "teamColors": {
+              "primary": "#1a4d3e",
+              "secondary": "#960000",
+              "text": "#960000"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "MX",
+              "name": "Mexico",
+              "slug": "mexico"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u0645\u0643\u0633\u064a\u0643",
+                "ru": "\u041c\u0435\u043a\u0441\u0438\u043a\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 10041.259,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 7785,
+            "name": "Floridsdorfer AC",
+            "nameCode": "FAC",
+            "slug": "floridsdorfer-ac",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 5064,
+            "teamColors": {
+              "primary": "#0000ff",
+              "secondary": "#0000ff",
+              "text": "#0000ff"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "AT",
+              "name": "Austria",
+              "slug": "austria"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u0641 \u0623\u064a \u0633\u064a",
+                "ru": "\u0415\u044f\u0443\u0438\u043f\u0430 \u043f\u0430\u0440\u0430 \u0412\u0438\u0435\u043d\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 9902.444,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 163370,
+            "name": "NBA G-League Team",
+            "nameCode": "DTE",
+            "slug": "nba-g-league-team",
+            "national": false,
+            "sport": {
+              "id": 2,
+              "slug": "basketball",
+              "name": "Basketball"
+            },
+            "userCount": 3782,
+            "teamColors": {
+              "primary": "#000000",
+              "secondary": "#ffffff",
+              "text": "#ffffff"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "US",
+              "name": "USA",
+              "slug": "usa"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u0646 \u0628\u064a \u0625\u064a\u0647 \u062c\u064a-\u0644\u064a\u063a \u062a\u064a\u0645",
+                "ru": "\u041d\u0411\u0410 G-\u041b\u0438\u0433\u0430 \u041a\u043e\u043c\u0430\u043d\u0434\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 8557.972,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 263370,
+            "name": "Team Altamura",
+            "nameCode": "ASD",
+            "slug": "team-altamura",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 3577,
+            "teamColors": {
+              "primary": "#dc0a0b",
+              "secondary": "#fdfdfd",
+              "text": "#fdfdfd"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "IT",
+              "name": "Italy",
+              "slug": "italy"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u0631\u064a\u0642 \u0623\u0644\u062a\u0627\u0645\u0648\u0631\u0627",
+                "hi": "\u090f\u090f\u0938\u0921\u0940 \u091f\u0940\u092e \u0905\u0932\u094d\u091f\u093e\u092e\u0941\u0930\u093e",
+                "ru": "\u0422\u0438\u043c \u0410\u043b\u044c\u0442\u0430\u043c\u0443\u0440\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 8322.865,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 217888,
+            "name": "Germany Olympic Team",
+            "nameCode": "GER",
+            "slug": "germany-olympic-team",
+            "national": true,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 3336,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#000000",
+              "text": "#000000"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "DE",
+              "name": "Germany",
+              "slug": "germany"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u0644\u0645\u0627\u0646\u064a\u0627",
+                "ru": "\u0413\u0435\u0440\u043c\u0430\u043d\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 8037.681,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 276814,
+            "name": "Team LeBron",
+            "nameCode": "LEB",
+            "slug": "team-lebron",
+            "national": false,
+            "sport": {
+              "id": 2,
+              "slug": "basketball",
+              "name": "Basketball"
+            },
+            "userCount": 3228,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#000000",
+              "text": "#000000"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "US",
+              "name": "USA",
+              "slug": "usa"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u0631\u064a\u0642 \u0644\u064a\u0628\u0631\u0648\u0646",
+                "ru": "\u041a\u043e\u043c\u0430\u043d\u0434\u0430 \u041b\u0435\u0431\u0440\u043e\u043d"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 7906.544,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 4073,
+            "name": "Team Esbjerg",
+            "nameCode": "ESB",
+            "slug": "team-esbjerg",
+            "national": false,
+            "sport": {
+              "id": 6,
+              "slug": "handball",
+              "name": "Handball"
+            },
+            "userCount": 2928,
+            "teamColors": {
+              "primary": "#ee1212",
+              "secondary": "#000000",
+              "text": "#000000"
+            },
+            "type": 0,
+            "gender": "F",
+            "country": {
+              "alpha2": "DK",
+              "name": "Denmark",
+              "slug": "denmark"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u064a\u0645 \u0627\u064a\u0633\u0628\u064a\u0631\u063a",
+                "ru": "\u0413\u041a \u042d\u0441\u0431\u044c\u0435\u0440\u0433"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 7530.3013,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 1053323,
+            "name": "Team Chunkz",
+            "nameCode": "TCH",
+            "slug": "team-chunhz-x-speed",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 2907,
+            "teamColors": {
+              "primary": "#01ccb6",
+              "secondary": "#166676",
+              "text": "#166676"
+            },
+            "type": 0,
+            "gender": "M",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u064a\u0645 \u062a\u0634\u0627\u0646\u0643\u0632 & \u0633\u0628\u064a\u062f",
+                "ru": "\u0422\u0438\u043c \u0427\u0430\u043d\u043a\u0437"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 7503.258,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 1053322,
+            "name": "Team AboFlah",
+            "nameCode": "TAB",
+            "slug": "team-ksi-x-aboflah",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 2336,
+            "teamColors": {
+              "primary": "#5d3ea8",
+              "secondary": "#fc6e7f",
+              "text": "#fc6e7f"
+            },
+            "type": 0,
+            "gender": "M",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u064a\u0645 \u0643\u064a\u0647 \u0625\u0633 \u0622\u064a & \u0623\u0628\u0648 \u0641\u0644\u0627\u062d",
+                "ru": "\u0422\u0438\u043c \u0410\u0431\u043e\u0424\u043b\u0430\u0445"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 6726.3896,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 958283,
+            "name": "Henny Ella Reistad",
+            "slug": "henny-ella-reistad",
+            "userCount": 2693,
+            "team": {
+              "id": 4073,
+              "name": "Team Esbjerg",
+              "nameCode": "ESB",
+              "slug": "team-esbjerg",
+              "national": false,
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              },
+              "userCount": 2928,
+              "teamColors": {
+                "primary": "#ee1212",
+                "secondary": "#000000",
+                "text": "#000000"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u062a\u064a\u0645 \u0627\u064a\u0633\u0628\u064a\u0631\u063a",
+                  "ru": "\u0413\u041a \u042d\u0441\u0431\u044c\u0435\u0440\u0433"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "H. Reistad",
+            "position": "CB",
+            "jerseyNumber": "25",
+            "sofascoreId": "vuu55p",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0647. \u0625. \u0631\u0627\u064a\u0633\u062a\u0627\u062f",
+                "bn": "\u098f\u0987\u099a. \u09b0\u09bf\u09b8\u09cd\u099f\u09be\u09a1",
+                "hi": "\u090f\u091a. \u0930\u0940\u0938\u094d\u091f\u0948\u0921",
+                "ru": "\u0425. \u0420\u0435\u0439\u0441\u0442\u0430\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 6254.349,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 377888,
+            "name": "Haiti Olympic Team",
+            "nameCode": "HOT",
+            "slug": "haiti-olympic-team",
+            "national": true,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 1887,
+            "teamColors": {
+              "primary": "#3b5aa3",
+              "secondary": "#be0027",
+              "text": "#be0027"
+            },
+            "type": 0,
+            "country": {
+              "alpha2": "HT",
+              "name": "Haiti",
+              "slug": "haiti"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u0631\u064a\u0642 \u0647\u0627\u064a\u062a\u064a \u0627\u0644\u0623\u0648\u0644\u0645\u0628\u064a",
+                "ru": "\u041e\u043b\u0438\u043c\u043f\u0438\u0439\u0441\u043a\u0430\u044f \u043a\u043e\u043c\u0430\u043d\u0434\u0430 \u0413\u0430\u0438\u0442\u0438"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 6045.7983,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 217890,
+            "name": "Portugal Olympic Team",
+            "nameCode": "POR",
+            "slug": "portugal-olympic-team",
+            "national": true,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 1838,
+            "teamColors": {
+              "primary": "#cc0000",
+              "secondary": "#66cc66",
+              "text": "#66cc66"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "PT",
+              "name": "Portugal",
+              "slug": "portugal"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u0628\u0631\u062a\u063a\u0627\u0644",
+                "ru": "\u041f\u043e\u0440\u0442\u0443\u0433\u0430\u043b\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 5966.828,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 366513,
+            "name": "Team Spirit",
+            "nameCode": "TSP",
+            "slug": "team-spirit",
+            "national": false,
+            "sport": {
+              "id": 72,
+              "slug": "esports",
+              "name": "E-sports"
+            },
+            "userCount": 1829,
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "type": 0,
+            "country": {
+              "alpha2": "RU",
+              "name": "Russia",
+              "slug": "russia"
+            }
+          },
+          "score": 5952.2095,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 35649,
+            "name": "Umea FF",
+            "nameCode": "TTG",
+            "slug": "team-tg-ff",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 1679,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#e41f41",
+              "text": "#e41f41"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "SE",
+              "name": "Sweden",
+              "slug": "sweden"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u0631\u064a\u0642 TG FF",
+                "hi": "\u091f\u0940\u092e \u091f\u0940\u091c\u0940 \u090f\u092b\u090f\u092b",
+                "ru": "\u0422\u0438\u043c \u0422\u0413"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 5703.052,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 308843,
+            "name": "Team Giannis",
+            "nameCode": "GIAN",
+            "slug": "team-giannis",
+            "national": false,
+            "sport": {
+              "id": 2,
+              "slug": "basketball",
+              "name": "Basketball"
+            },
+            "userCount": 1490,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#000000",
+              "text": "#000000"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "US",
+              "name": "USA",
+              "slug": "usa"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u064a\u0645 \u064a\u0627\u0646\u064a\u0633",
+                "ru": "\u041a\u043e\u043c\u0430\u043d\u0434\u0430 \u042f\u043d\u043d\u0438\u0441\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 5372.6865,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 379208,
+            "name": "Saudi Arabia Olympic Team",
+            "nameCode": "SAU",
+            "slug": "saudi-arabia-olympic-team",
+            "national": true,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 1445,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#008000",
+              "text": "#008000"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "SA",
+              "name": "Saudi Arabia",
+              "slug": "saudi-arabia"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629",
+                "bn": "\u09b8\u09cc\u09a6\u09bf \u0986\u09b0\u09ac",
+                "hi": "\u0938\u090a\u0926\u0940 \u0905\u0930\u092c",
+                "ru": "\u0421\u0430\u0443\u0434\u043e\u0432\u0441\u043a\u0430\u044f \u0410\u0440\u0430\u0432\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 5290.989,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 1921715,
+            "name": "Haris \"Madney\" Tassos",
+            "slug": "xaris-tassos",
+            "userCount": 1876,
+            "team": {
+              "id": 1102033,
+              "name": "Team Madney FC",
+              "nameCode": "MFC",
+              "slug": "madney-fc",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 324,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0645\u0627\u062f\u0646\u064a",
+                  "ru": "\u041a\u043e\u043c\u0430\u043d\u0434\u0430 \u041c\u0430\u0434\u043d\u0438"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "GR",
+              "name": "Greece",
+              "slug": "greece"
+            },
+            "shortName": "X. Tassos",
+            "position": "F",
+            "jerseyNumber": "11",
+            "sofascoreId": "u5568r",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a. \u062a\u0627\u0633\u0648\u0633",
+                "bn": "\u098f\u0995\u09cd\u09b8. \u099f\u09be\u09b8\u09cb\u09b8",
+                "hi": "\u090f\u0915\u094d\u0938. \u091f\u0948\u0938\u094b\u0938",
+                "ru": "\u0425. \u0422\u0430\u0441\u043e\u0441"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 5220.54,
+          "type": "player"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.1388990879058838
+  }
+}

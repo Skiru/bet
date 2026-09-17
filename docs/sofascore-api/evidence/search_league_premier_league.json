@@ -1,0 +1,782 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=premier%20league",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"96b9b36bdf\"",
+      "x-request-id": "3fab4ecb-5064-49cd-9f90-3370aab66314",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:57:59 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "3231"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 17,
+            "name": "Premier League",
+            "slug": "premier-league",
+            "userCount": 1340990,
+            "category": {
+              "id": 1,
+              "name": "England",
+              "slug": "england",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09df\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u092a\u094d\u0930\u093f\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 139539.16,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 808,
+            "name": "Egyptian Premier League",
+            "slug": "premier-league",
+            "userCount": 71377,
+            "category": {
+              "id": 305,
+              "name": "Egypt",
+              "slug": "egypt",
+              "alpha2": "EG",
+              "flag": "egypt",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EG",
+                "name": "Egypt",
+                "slug": "egypt"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0635\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0987\u099c\u09bf\u09aa\u09cd\u099f\u09bf\u09df\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u0907\u091c\u093f\u092a\u094d\u0936\u093f\u092f\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0415\u0433\u0438\u043f\u0442\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 32193.074,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 203,
+            "name": "Russian Premier League",
+            "slug": "premier-liga",
+            "userCount": 35365,
+            "category": {
+              "id": 21,
+              "name": "Russia",
+              "slug": "russia",
+              "alpha2": "RU",
+              "flag": "russia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "RU",
+                "name": "Russia",
+                "slug": "russia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0631\u0648\u0633\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09b0\u09be\u09b6\u09bf\u09af\u09bc\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u0930\u0936\u093f\u092f\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u0420\u043e\u0441\u0441\u0438\u0439\u0441\u043a\u0430\u044f \u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u041b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 22660.533,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 11165,
+            "name": "Indian Premier League",
+            "slug": "indian-premier-league",
+            "userCount": 27549,
+            "category": {
+              "id": 1350,
+              "name": "India",
+              "slug": "india",
+              "alpha2": "IN",
+              "flag": "india",
+              "sport": {
+                "id": 62,
+                "slug": "cricket",
+                "name": "Cricket"
+              },
+              "country": {
+                "alpha2": "IN",
+                "name": "India",
+                "slug": "india"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0647\u0646\u062f\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0987\u09a8\u09cd\u09a1\u09bf\u09af\u09bc\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u0907\u0902\u0921\u093f\u092f\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u0418\u043d\u0434\u0438\u0439\u0441\u043a\u0430\u044f \u043f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 20000.287,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 2353,
+            "name": "Tanzanian Premier League",
+            "slug": "premier-league",
+            "userCount": 21623,
+            "category": {
+              "id": 1151,
+              "name": "Tanzania",
+              "slug": "tanzania",
+              "alpha2": "TZ",
+              "flag": "tanzania",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "TZ",
+                "name": "Tanzania",
+                "slug": "tanzania"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u062a\u0646\u0632\u0627\u0646\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09a4\u09be\u09a8\u099c\u09be\u09a8\u09bf\u09af\u09bc\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u0924\u0902\u091c\u093e\u0928\u093f\u092f\u093e \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0422\u0430\u043d\u0437\u0430\u043d\u0438\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 17719.084,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 218,
+            "name": "Ukrainian Premier League",
+            "slug": "premier-league",
+            "userCount": 17803,
+            "category": {
+              "id": 86,
+              "name": "Ukraine",
+              "slug": "ukraine",
+              "alpha2": "UA",
+              "flag": "ukraine",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "UA",
+                "name": "Ukraine",
+                "slug": "ukraine"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0623\u0648\u0643\u0631\u0627\u0646\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0987\u0989\u0995\u09cd\u09b0\u09c7\u09a8\u09c0\u09df\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u092f\u0942\u0915\u094d\u0930\u0947\u0928\u093f\u092f\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0423\u043a\u0440\u0430\u0438\u043d\u044b"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 16077.922,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1191,
+            "name": "Ghana Premier League",
+            "slug": "ghana-premier-league",
+            "userCount": 15582,
+            "category": {
+              "id": 542,
+              "name": "Ghana",
+              "slug": "ghana",
+              "alpha2": "GH",
+              "flag": "ghana",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "GH",
+                "name": "Ghana",
+                "slug": "ghana"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u063a\u0627\u0646\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0998\u09be\u09a8\u09be \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u0918\u093e\u0928\u093e \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440 \u041b\u0438\u0433\u0430 \u0413\u0430\u043d\u044b"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 15041.63,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 709,
+            "name": "Misli Premier League",
+            "slug": "misli-premier-league",
+            "userCount": 15122,
+            "category": {
+              "id": 297,
+              "name": "Azerbaijan",
+              "slug": "azerbaijan",
+              "alpha2": "AZ",
+              "flag": "azerbaijan",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "AZ",
+                "name": "Azerbaijan",
+                "slug": "azerbaijan"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0645\u064a\u0633\u0644\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09ae\u09bf\u09b8\u09b2\u09bf \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u092e\u093f\u0938\u0932\u0940 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 Misli \u041f\u0440\u0435\u043c\u044c\u0435\u0440"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 14817.943,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 266,
+            "name": "Israeli Premier League",
+            "slug": "israeli-premier-league",
+            "userCount": 13988,
+            "category": {
+              "id": 66,
+              "name": "Israel",
+              "slug": "israel",
+              "alpha2": "IL",
+              "flag": "israel",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "IL",
+                "name": "Israel",
+                "slug": "israel"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0633\u0631\u0627\u0626\u064a\u0644\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0987\u09b8\u09b0\u09be\u09af\u09bc\u09c7\u09b2\u09bf \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u0907\u0938\u0930\u093e\u0907\u0932\u0940 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0418\u0437\u0440\u0430\u0438\u043b\u044f"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 14251.518,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 11565,
+            "name": "Premier League Darts",
+            "slug": "premier-league-darts",
+            "userCount": 8603,
+            "category": {
+              "id": 104,
+              "name": "International",
+              "slug": "international",
+              "flag": "international",
+              "sport": {
+                "id": 22,
+                "slug": "darts",
+                "name": "Darts"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0644\u0644\u0633\u0647\u0627\u0645",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997 \u09a1\u09be\u09b0\u09cd\u099f\u09b8",
+                "hi": "\u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917 \u0921\u093e\u0930\u094d\u091f\u094d\u0938",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u043f\u043e \u0434\u0430\u0440\u0442\u0441\u0443"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "X"
+          },
+          "score": 11176.5625,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1129,
+            "name": "Premier League 2, Division 1",
+            "slug": "premier-league-2-division-1",
+            "userCount": 7123,
+            "category": {
+              "id": 252,
+              "name": "England Amateur",
+              "slug": "england-amateur",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a 2 - \u0627\u0644\u0642\u0633\u0645 \u0627\u0644\u0623\u0648\u0644",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997 2, \u09a1\u09bf\u09ad\u09bf\u09b6\u09a8 1",
+                "hi": "\u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917 2, \u0921\u093f\u0935\u0940\u091c\u093c\u0928 1",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440 \u041b\u0438\u0433\u0430 2, \u0414\u0438\u0432\u0438\u0437\u0438\u043e\u043d 1"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 10169.855,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 11164,
+            "name": "Bangladesh Premier League",
+            "slug": "bangladesh-premier-league",
+            "userCount": 6518,
+            "category": {
+              "id": 1348,
+              "name": "Bangladesh",
+              "slug": "bangladesh",
+              "alpha2": "BD",
+              "flag": "bangladesh",
+              "sport": {
+                "id": 62,
+                "slug": "cricket",
+                "name": "Cricket"
+              },
+              "country": {
+                "alpha2": "BD",
+                "name": "Bangladesh",
+                "slug": "bangladesh"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0646\u063a\u0644\u0627\u062f\u064a\u0634\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09ac\u09be\u0982\u09b2\u09be\u09a6\u09c7\u09b6 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u092c\u093e\u0902\u0917\u094d\u0932\u093e\u0926\u0947\u0936 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0411\u0430\u043d\u0433\u043b\u0430\u0434\u0435\u0448"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 9728.379,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1644,
+            "name": "FKF Kenyan Premier League",
+            "slug": "premier-league",
+            "userCount": 6206,
+            "category": {
+              "id": 805,
+              "name": "Kenya",
+              "slug": "kenya",
+              "alpha2": "KE",
+              "flag": "kenya",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "KE",
+                "name": "Kenya",
+                "slug": "kenya"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0643\u064a\u0646\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "bn": "\u0995\u09c7\u09a8\u09bf\u09af\u09bc\u09be \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u0915\u0947\u0928\u094d\u092f\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u043f\u0440\u0435\u043c\u044c\u0435\u0440-\u041b\u0438\u0433\u0438 \u041a\u0435\u043d\u0438\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 9492.6875,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 682,
+            "name": "Kazakhstan Premier League",
+            "slug": "premier-league",
+            "userCount": 5325,
+            "category": {
+              "id": 278,
+              "name": "Kazakhstan",
+              "slug": "kazakhstan",
+              "alpha2": "KZ",
+              "flag": "kazakhstan",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "KZ",
+                "name": "Kazakhstan",
+                "slug": "kazakhstan"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0643\u0627\u0632\u0627\u062e\u0633\u062a\u0627\u0646\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0995\u09be\u099c\u09be\u0996\u09b8\u09cd\u09a4\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u0915\u091c\u093e\u0916\u0938\u094d\u0924\u093e\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u041a\u0430\u0437\u0430\u0445\u0441\u0442\u0430\u043d\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8793.122,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 671,
+            "name": "Armenian Premier League",
+            "slug": "idbank-premier-league",
+            "userCount": 5313,
+            "category": {
+              "id": 296,
+              "name": "Armenia",
+              "slug": "armenia",
+              "alpha2": "AM",
+              "flag": "armenia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "AM",
+                "name": "Armenia",
+                "slug": "armenia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0623\u0631\u0645\u0646\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0986\u09b0\u09cd\u09ae\u09c7\u09a8\u09bf\u09af\u09bc\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u0905\u0930\u094d\u092e\u0947\u0928\u093f\u092f\u093e\u0908 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0410\u0440\u043c\u0435\u043d\u0438\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8783.209,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 10166,
+            "name": "Uganda Premier League",
+            "slug": "premier-league",
+            "userCount": 5138,
+            "category": {
+              "id": 1022,
+              "name": "Uganda",
+              "slug": "uganda",
+              "alpha2": "UG",
+              "flag": "uganda",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "UG",
+                "name": "Uganda",
+                "slug": "uganda"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0623\u0648\u063a\u0646\u062f\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0989\u0997\u09be\u09a8\u09cd\u09a1\u09be \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u092f\u0941\u0917\u093e\u0902\u0921\u093e \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u041b\u0438\u0433\u0430 \u0423\u0433\u0430\u043d\u0434\u044b"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8637.347,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 13470,
+            "name": "Canadian Premier League",
+            "slug": "canadian-premier-league",
+            "userCount": 4850,
+            "category": {
+              "id": 388,
+              "name": "Canada",
+              "slug": "canada",
+              "alpha2": "CA",
+              "flag": "canada",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "CA",
+                "name": "Canada",
+                "slug": "canada"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0643\u0646\u062f\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0995\u09be\u09a8\u09be\u09a1\u09bf\u09af\u09bc\u09be\u09a8 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u0915\u0948\u0928\u0947\u0921\u093f\u092f\u0928 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u041a\u0430\u043d\u0430\u0434\u044b"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8391.781,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 634,
+            "name": "Singapore Premier League",
+            "slug": "premier-league",
+            "userCount": 4614,
+            "category": {
+              "id": 45,
+              "name": "Singapore",
+              "slug": "singapore",
+              "alpha2": "SG",
+              "flag": "singapore",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "SG",
+                "name": "Singapore",
+                "slug": "singapore"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0633\u0646\u063a\u0627\u0641\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09b8\u09bf\u0999\u09cd\u0997\u09be\u09aa\u09c1\u09b0 \u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u0938\u093f\u0902\u0917\u093e\u092a\u0941\u0930 \u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430 \u0421\u0438\u043d\u0433\u0430\u043f\u0443\u0440\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 8185.0645,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 16641,
+            "name": "Premier League",
+            "slug": "premier-league",
+            "userCount": 4355,
+            "category": {
+              "id": 1117,
+              "name": "Libya",
+              "slug": "libya",
+              "alpha2": "LY",
+              "flag": "libya",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "LY",
+                "name": "Libya",
+                "slug": "libya"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0644\u064a\u0628\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "hi": "\u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 7952.0186,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1325,
+            "name": "Premier League Asia Trophy",
+            "slug": "premier-league-asia-trophy",
+            "userCount": 4263,
+            "category": {
+              "id": 1468,
+              "name": "World",
+              "slug": "world",
+              "flag": "international",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0627\u0644\u0622\u0633\u064a\u0648\u064a",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997 \u098f\u09b6\u09bf\u09af\u09bc\u09be \u099f\u09cd\u09b0\u09ab\u09bf",
+                "hi": "\u092a\u094d\u0930\u0940\u092e\u093f\u092f\u0930 \u0932\u0940\u0917 \u090f\u0936\u093f\u092f\u093e \u091f\u094d\u0930\u0949\u092b\u0940",
+                "ru": "\u0422\u0440\u043e\u0444\u0435\u0439 \u0410\u0437\u0438\u0430\u0442\u0441\u043a\u043e\u0439 \u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u041b\u0438\u0433\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 7867.5767,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.13465189933776855
+  }
+}

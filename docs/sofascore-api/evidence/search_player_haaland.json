@@ -1,0 +1,832 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=haaland",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"a8a9d6c552\"",
+      "x-request-id": "b149a89a-7fc6-48df-9555-4faef355715d",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:37 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "2890"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 839956,
+            "name": "Erling Haaland",
+            "slug": "erling-haaland",
+            "userCount": 1197997,
+            "team": {
+              "id": 17,
+              "name": "Manchester City",
+              "nameCode": "MCI",
+              "slug": "manchester-city",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 4719799,
+              "teamColors": {
+                "primary": "#66ccff",
+                "secondary": "#ffffff",
+                "text": "#ffffff"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0645\u0627\u0646\u0634\u0633\u062a\u0631 \u0633\u064a\u062a\u064a",
+                  "bn": "\u09ae\u09cd\u09af\u09be\u09a8 \u09b8\u09bf\u099f\u09bf",
+                  "hi": "\u092e\u0948\u0928 \u0938\u093f\u091f\u0940",
+                  "ru": "\u041c\u0430\u043d\u0447\u0435\u0441\u0442\u0435\u0440 \u0421\u0438\u0442\u0438"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "E. Haaland",
+            "position": "F",
+            "jerseyNumber": "9",
+            "sofascoreId": "ghm8ni",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "bn": "\u0987. \u09b9\u09be\u09b2\u09be\u09a8\u09cd\u09a1",
+                "hi": "\u0908. \u0939\u093e\u0932\u0948\u0902\u0921",
+                "ru": "\u042d. \u0425\u043e\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 131889.84,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1126486,
+            "name": "Markus Haaland",
+            "slug": "markus-haaland",
+            "retired": false,
+            "userCount": 276,
+            "team": {
+              "id": 1760,
+              "name": "BK H\u00e4cken",
+              "nameCode": "BKH",
+              "slug": "bk-hacken",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 43699,
+              "teamColors": {
+                "primary": "#000000",
+                "secondary": "#ffcc00",
+                "text": "#ffcc00"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0647\u0627\u0643\u0646",
+                  "bn": "\u09b9\u09cd\u09af\u09be\u0995\u09c7\u09a8",
+                  "hi": "\u0939\u0948\u0915\u0947\u0928",
+                  "ru": "\u0425\u0435\u043a\u043a\u0435\u043d"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "M. Haaland",
+            "position": "M",
+            "jerseyNumber": "14",
+            "sofascoreId": "dqanay",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u041c. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 2005.5024,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1421422,
+            "name": "Alf Inge Haaland",
+            "slug": "alf-inge-haaland",
+            "retired": true,
+            "userCount": 95,
+            "team": {
+              "id": 241802,
+              "name": "No team",
+              "nameCode": "NTE",
+              "slug": "no-team",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 16,
+              "teamColors": {
+                "primary": "#d0d0d0",
+                "secondary": "#000000",
+                "text": "#000000"
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "A. I. Haaland",
+            "position": "M",
+            "sofascoreId": "wrpyv5",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0410. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 1180.6439,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1487090,
+            "name": "Sebastian Lie Haaland",
+            "slug": "sebastian-lie-haaland",
+            "userCount": 27,
+            "team": {
+              "id": 703,
+              "name": "Vard Haugesund",
+              "nameCode": "VAH",
+              "slug": "vard-haugesund",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 2448,
+              "teamColors": {
+                "primary": "#ff0000",
+                "secondary": "#0000d0",
+                "text": "#0000d0"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0641\u0627\u0631\u062f - \u0647\u0627\u0648\u062c\u0633\u0648",
+                  "hi": "\u0935\u093e\u0930\u094d\u0921 \u0939\u094c\u0917\u0947\u0938\u0941\u0902\u0921",
+                  "ru": "\u0412\u0430\u0440\u0434 \u0425\u0430\u0443\u0433\u0435\u0441\u0443\u043d\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "S. L. Haaland",
+            "position": "M",
+            "sofascoreId": "n5i3y8",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0421. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 637.6206,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1418185,
+            "name": "Marte Haaland",
+            "slug": "marte-haaland",
+            "userCount": 25,
+            "team": {
+              "id": 117720,
+              "name": "Fana",
+              "nameCode": "FAN",
+              "slug": "fana",
+              "national": false,
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              },
+              "userCount": 164,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0641\u0627\u0646\u0627",
+                  "ru": "\u0424\u0430\u043d\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "M. Haaland",
+            "jerseyNumber": "2",
+            "sofascoreId": "8jq72i",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u041c. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 614.4266,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1122452,
+            "name": "Susanne Haaland",
+            "slug": "susanne-haaland",
+            "userCount": 24,
+            "team": {
+              "id": 1087190,
+              "name": "Ottawa Rapid FC",
+              "nameCode": "ORF",
+              "slug": "ottawa-rapid-fc",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 544,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u062a\u0627\u0648\u0627",
+                  "ru": "\u041e\u0442\u0442\u0430\u0432\u0430 \u0420\u0430\u043f\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "S. Haaland",
+            "position": "D",
+            "jerseyNumber": "2",
+            "sofascoreId": "g8m7ej",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0421. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 602.4948,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1740164,
+            "name": "Zack Haaland",
+            "slug": "haaland-zack",
+            "userCount": 23,
+            "team": {
+              "id": 380896,
+              "name": "Yale Bulldogs",
+              "nameCode": "YAL",
+              "slug": "yale-bulldogs",
+              "national": false,
+              "sport": {
+                "id": 63,
+                "slug": "american-football",
+                "name": "American football"
+              },
+              "userCount": 127,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u064a\u064a\u0644 \u0628\u0648\u0644\u062f\u0648\u062c\u0632",
+                  "ru": "\u0419\u0435\u043b\u044c \u0411\u0443\u043b\u043b\u0434\u043e\u0433\u0441"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "shortName": "Z. Haaland",
+            "position": "DB",
+            "jerseyNumber": "35",
+            "sofascoreId": "q4d8ti",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0632. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0417. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 590.32196,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 36205,
+            "name": "Solveig Haaland",
+            "slug": "solveig-haaland",
+            "userCount": 22,
+            "team": {
+              "id": 745,
+              "name": "R\u00f8a",
+              "nameCode": "ROA",
+              "slug": "roa",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 2606,
+              "teamColors": {
+                "primary": "#122a47",
+                "secondary": "#f8cf04",
+                "text": "#f8cf04"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u0648\u0627",
+                  "ru": "\u0420\u043e\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "shortName": "S. Haaland",
+            "sofascoreId": "wruaek",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0421. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 577.8927,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1937372,
+            "name": "Benedicte Haaland",
+            "slug": "benedicte-haaland",
+            "userCount": 22,
+            "team": {
+              "id": 334606,
+              "name": "Southampton FC Women",
+              "nameCode": "SOT",
+              "slug": "southampton-fc-women",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 1614,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0633\u0627\u0648\u062b\u0647\u0627\u0645\u0628\u062a\u0648\u0646",
+                  "ru": "\u0421\u0430\u0443\u0442\u0433\u0435\u043c\u043f\u0442\u043e\u043d"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "shortName": "B. Haaland",
+            "jerseyNumber": "13",
+            "sofascoreId": "he8gh2",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0411. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 577.8927,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1670092,
+            "name": "Josiah Haaland",
+            "slug": "haaland-josiah",
+            "userCount": 20,
+            "team": {
+              "id": 273129,
+              "name": "No team",
+              "nameCode": "NTE",
+              "slug": "no-team",
+              "national": false,
+              "sport": {
+                "id": 2,
+                "slug": "basketball",
+                "name": "Basketball"
+              },
+              "userCount": 2,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "M"
+            },
+            "deceased": false,
+            "shortName": "J. Haaland",
+            "position": "C",
+            "sofascoreId": "ek6khi",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062c. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0414. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 552.1956,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1711320,
+            "name": "Trevor Haaland",
+            "slug": "haaland-trevor",
+            "userCount": 18,
+            "team": {
+              "id": 273129,
+              "name": "No team",
+              "nameCode": "NTE",
+              "slug": "no-team",
+              "national": false,
+              "sport": {
+                "id": 2,
+                "slug": "basketball",
+                "name": "Basketball"
+              },
+              "userCount": 2,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "M"
+            },
+            "deceased": false,
+            "shortName": "T. Haaland",
+            "position": "G",
+            "sofascoreId": "5fucvn",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 525.2428,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1908282,
+            "name": "Noah Haaland",
+            "slug": "haaland-noah",
+            "userCount": 5,
+            "team": {
+              "id": 34620,
+              "name": "Gonzaga Bulldogs",
+              "nameCode": "GONZ",
+              "slug": "gonzaga-bulldogs",
+              "national": false,
+              "sport": {
+                "id": 2,
+                "slug": "basketball",
+                "name": "Basketball"
+              },
+              "userCount": 1746,
+              "teamColors": {
+                "primary": "#041e42",
+                "secondary": "#ffffff",
+                "text": "#ffffff"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u063a\u0648\u0646\u0632\u0627\u0646\u0627 \u0628\u0648\u0644\u062f\u0648\u063a\u0632",
+                  "ru": "\u0413\u043e\u043d\u0437\u0430\u0433\u0430 \u0411\u0443\u043b\u043b\u044c\u0434\u043e\u0433\u0437"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "US",
+              "name": "USA",
+              "slug": "usa"
+            },
+            "shortName": "N. Haaland",
+            "position": "F",
+            "jerseyNumber": "35",
+            "sofascoreId": "tffdrg",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0646. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u041d. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 295.16098,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1995851,
+            "name": "Sarah Haaland",
+            "slug": "sarah-haaland",
+            "userCount": 4,
+            "team": {
+              "id": 257459,
+              "name": "\u00c5sane",
+              "nameCode": "ASA",
+              "slug": "asane",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 909,
+              "teamColors": {
+                "primary": "#ff6600",
+                "secondary": "#000000",
+                "text": "#000000"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0633\u0627\u0646\u064a",
+                  "ru": "\u041e\u0441\u0430\u043d\u0435"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "shortName": "S. Haaland",
+            "position": "F",
+            "jerseyNumber": "37",
+            "sofascoreId": "vntvkb",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u0421. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 269.44388,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 2719710,
+            "name": "Haaland Masson",
+            "slug": "haaland-masson",
+            "userCount": 3,
+            "team": {
+              "id": 1251317,
+              "name": "Dynamo AC",
+              "nameCode": "DAC",
+              "slug": "dynamo-ac",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 70,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "M"
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "HT",
+              "name": "Haiti",
+              "slug": "haiti"
+            },
+            "shortName": "H. Masson",
+            "position": "F",
+            "jerseyNumber": "9",
+            "sofascoreId": "paqias"
+          },
+          "score": 240.99792,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1436462,
+            "name": "Erling Haaland",
+            "slug": "erling-haaland",
+            "userCount": 1,
+            "team": {
+              "id": 423301,
+              "name": "Ukumari",
+              "nameCode": "UKU",
+              "slug": "ukumari",
+              "national": false,
+              "sport": {
+                "id": 72,
+                "slug": "esports",
+                "name": "E-sports"
+              },
+              "userCount": 1,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              }
+            },
+            "deceased": false,
+            "shortName": "E. Haaland",
+            "sofascoreId": "wr7u6q"
+          },
+          "score": 170.41127,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 2173523,
+            "name": "Mari Haaland",
+            "slug": "mari-haaland",
+            "userCount": 1,
+            "team": {
+              "id": 283910,
+              "name": "Bryne",
+              "nameCode": "BRY",
+              "slug": "bryne",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 507,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              },
+              "gender": "F",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0628\u0631\u064a\u064a\u0646",
+                  "ru": "\u0411\u0440\u0438\u043d\u0435"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "NO",
+              "name": "Norway",
+              "slug": "norway"
+            },
+            "shortName": "M. Haaland",
+            "position": "M",
+            "jerseyNumber": "9",
+            "sofascoreId": "u543we",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645. \u0647\u0627\u0644\u0627\u0646\u062f",
+                "ru": "\u041c. \u0425\u0430\u0430\u043b\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 170.41127,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 2593498,
+            "name": "Haaland",
+            "slug": "haaland",
+            "userCount": 0,
+            "team": {
+              "id": 1226633,
+              "name": "ZEN Esports",
+              "nameCode": "ZES",
+              "slug": "zen-esports",
+              "national": false,
+              "sport": {
+                "id": 72,
+                "slug": "esports",
+                "name": "E-sports"
+              },
+              "userCount": 0,
+              "teamColors": {
+                "primary": "#374df5",
+                "secondary": "#374df5",
+                "text": "#ffffff"
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "VN",
+              "name": "Vietnam",
+              "slug": "vietnam"
+            },
+            "shortName": "Haaland",
+            "position": "top",
+            "sofascoreId": "tfsdm4"
+          },
+          "score": 120.49896,
+          "type": "player"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.12448477745056152
+  }
+}

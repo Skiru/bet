@@ -1,0 +1,1414 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/player/839956/statistics/seasons",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=60, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"e64317654f\"",
+      "x-request-id": "31147005-6404-4ab0-b57d-e178484f7e57",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:59:09 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "5419"
+    },
+    "body": {
+      "uniqueTournamentSeasons": [
+        {
+          "uniqueTournament": {
+            "name": "Premier League",
+            "slug": "premier-league",
+            "primaryColorHex": "#3c1c5a",
+            "secondaryColorHex": "#f80158",
+            "category": {
+              "name": "England",
+              "slug": "england",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 10,
+              "id": 1,
+              "flag": "england",
+              "alpha2": "EN",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0625\u0646\u062c\u0644\u062a\u0631\u0627",
+                  "bn": "\u0987\u0982\u09b2\u09cd\u09af\u09be\u09a8\u09cd\u09a1",
+                  "hi": "\u0907\u0902\u0917\u094d\u0932\u0948\u0902\u0921",
+                  "ru": "\u0410\u043d\u0433\u043b\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 1340990,
+            "id": 17,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "hi": "\u092a\u094d\u0930\u093f\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09df\u09be\u09b0 \u09b2\u09c0\u0997",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "Premier League 26/27",
+              "year": "26/27",
+              "editor": false,
+              "id": 96668
+            },
+            {
+              "name": "Premier League 25/26",
+              "year": "25/26",
+              "editor": false,
+              "id": 76986
+            },
+            {
+              "name": "Premier League 24/25",
+              "year": "24/25",
+              "editor": false,
+              "id": 61627
+            },
+            {
+              "name": "Premier League 23/24",
+              "year": "23/24",
+              "editor": false,
+              "id": 52186
+            },
+            {
+              "name": "Premier League 22/23",
+              "year": "22/23",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 41886
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "Community Shield",
+            "slug": "community-shield",
+            "primaryColorHex": "#e4051f",
+            "secondaryColorHex": "#949fa4",
+            "category": {
+              "name": "England",
+              "slug": "england",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 10,
+              "id": 1,
+              "flag": "england",
+              "alpha2": "EN",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0625\u0646\u062c\u0644\u062a\u0631\u0627",
+                  "bn": "\u0987\u0982\u09b2\u09cd\u09af\u09be\u09a8\u09cd\u09a1",
+                  "hi": "\u0907\u0902\u0917\u094d\u0932\u0948\u0902\u0921",
+                  "ru": "\u0410\u043d\u0433\u043b\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 47534,
+            "id": 346,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0631\u0639 \u0627\u0644\u0627\u062a\u062d\u0627\u062f",
+                "bn": "\u0995\u09ae\u09bf\u0989\u09a8\u09bf\u099f\u09bf \u09b6\u09bf\u09b2\u09cd\u09a1",
+                "hi": "\u0915\u092e\u094d\u092f\u0941\u0928\u093f\u091f\u0940 \u0936\u0940\u0932\u094d\u0921",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0421\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "Community Shield 2026",
+              "year": "26/27",
+              "editor": false,
+              "id": 95402
+            },
+            {
+              "name": "Community Shield 2024",
+              "year": "24/25",
+              "editor": false,
+              "id": 60997
+            },
+            {
+              "name": "Community Shield 2023",
+              "year": "23/24",
+              "editor": false,
+              "id": 53261
+            },
+            {
+              "name": "Community Shield 2022",
+              "year": "22/23",
+              "editor": false,
+              "id": 41860
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "UEFA Champions League",
+            "slug": "uefa-champions-league",
+            "primaryColorHex": "#062b5c",
+            "secondaryColorHex": "#086aab",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 1258000,
+            "id": 7,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997",
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0628\u0637\u0627\u0644 \u0623\u0648\u0631\u0648\u0628\u0627",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u091a\u0948\u0902\u092a\u093f\u092f\u0902\u0938 \u0932\u0940\u0917",
+                "hr": "UEFA Liga prvaka",
+                "ru": "\u041b\u0438\u0433\u0430 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u043e\u0432 \u0423\u0415\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "UEFA Champions League 26/27",
+              "year": "26/27",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 96518
+            },
+            {
+              "name": "UEFA Champions League 25/26",
+              "year": "25/26",
+              "editor": false,
+              "id": 76953
+            },
+            {
+              "name": "UEFA Champions League 24/25",
+              "year": "24/25",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 61644
+            },
+            {
+              "name": "UEFA Champions League 23/24",
+              "year": "23/24",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 52162
+            },
+            {
+              "name": "UEFA Champions League 22/23",
+              "year": "22/23",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 41897
+            },
+            {
+              "name": "UEFA Champions League 21/22",
+              "year": "21/22",
+              "editor": false,
+              "id": 36886
+            },
+            {
+              "name": "UEFA Champions League 20/21",
+              "year": "20/21",
+              "editor": false,
+              "id": 29267
+            },
+            {
+              "name": "UEFA Champions League 19/20",
+              "year": "19/20",
+              "editor": false,
+              "id": 23766
+            }
+          ],
+          "allTimeSeasonId": 64433
+        },
+        {
+          "uniqueTournament": {
+            "name": "FIFA World Cup",
+            "slug": "world-championship",
+            "primaryColorHex": "#d20a11",
+            "secondaryColorHex": "#e8bb57",
+            "category": {
+              "name": "World",
+              "slug": "world",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 20,
+              "id": 1468,
+              "flag": "international",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u0639\u0627\u0644\u0645",
+                  "bn": "\u09ac\u09bf\u09b6\u09cd\u09ac",
+                  "hi": "\u0935\u093f\u0936\u094d\u0935",
+                  "ru": "\u041c\u0438\u0440"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 1998693,
+            "id": 16,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "pt-pt": "Mundial",
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0639\u0627\u0644\u0645",
+                "bn": "\u0993\u09af\u09bc\u09be\u09b0\u09cd\u09b2\u09cd\u09a1 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa",
+                "hi": "\u0935\u0930\u094d\u0932\u094d\u0921 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a",
+                "hr": "FIFA Svjetsko prvenstvo",
+                "az": "F\u0130FA D\u00fcnya Kuboku",
+                "nl": "Wereldkampioenschap",
+                "fr": "Coupe du monde",
+                "de": "Weltmeisterschaft",
+                "el": "\u03a0\u03b1\u03b3\u03ba\u03cc\u03c3\u03bc\u03b9\u03bf \u039a\u03cd\u03c0\u03b5\u03bb\u03bb\u03bf",
+                "hu": "FIFA Vil\u00e1gbajnoks\u00e1g",
+                "id": "Piala Dunia FIFA",
+                "it": "Coppa del Mondo FIFA",
+                "ja": "FIFA\u30ef\u30fc\u30eb\u30c9\u30ab\u30c3\u30d7",
+                "ko": "FIFA \uc6d4\ub4dc\ucef5",
+                "no": "Verdensmesterskapet",
+                "pl": "Mistrzostwa \u015awiata",
+                "pt": "Copa do Mundo FIFA",
+                "ro": "Campionatul Mondial",
+                "es": "Copa Mundial",
+                "es-la": "Copa Mundial",
+                "sv": "V\u00e4rldsm\u00e4sterskapet",
+                "th": "\u0e1f\u0e38\u0e15\u0e1a\u0e2d\u0e25\u0e42\u0e25\u0e01",
+                "tr": "FIFA D\u00fcnya Kupas\u0131",
+                "vi": "Gi\u1ea3i V\u00f4 \u0110\u1ecbch Th\u1ebf Gi\u1edbi",
+                "ru": "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442 \u043c\u0438\u0440\u0430",
+                "sr": "\u0421\u0432\u0435\u0442\u0441\u043a\u043e \u043f\u0440\u0432\u0435\u043d\u0441\u0442\u0432\u043e"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "World Cup 2026",
+              "year": "2026",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 58210
+            }
+          ],
+          "allTimeSeasonId": 90607
+        },
+        {
+          "uniqueTournament": {
+            "name": "World Cup Qual. UEFA",
+            "slug": "world-championship-qual-uefa",
+            "primaryColorHex": "#9a1133",
+            "secondaryColorHex": "#c11541",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 213112,
+            "id": 11,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u0635\u0641\u064a\u0627\u062a \u0643\u0623\u0633 \u0627\u0644\u0639\u0627\u0644\u0645 \u0644\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0623\u0648\u0631\u0648\u0628\u064a \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "bn": "\u0993\u09af\u09bc\u09be\u09b0\u09cd\u09b2\u09cd\u09a1 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa \u0995\u09cb\u09af\u09bc\u09be\u09b2. \u0989\u09af\u09bc\u09c7\u09ab\u09be",
+                "hi": "\u0935\u0930\u094d\u0932\u094d\u0921 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a \u0915\u094d\u0935\u093e\u0932\u0940\u092b\u093e\u0907\u0902\u0917 \u092f\u0942\u0908\u090f\u092b\u090f",
+                "ru": "\u041a\u0432\u0430\u043b\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f \u043a \u041a\u0443\u0431\u043a\u0443 \u043c\u0438\u0440\u0430 \u0423\u0415\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "World Cup Qualification, UEFA 2026",
+              "year": "2026",
+              "editor": false,
+              "id": 69427
+            },
+            {
+              "name": "World Cup Qualification, UEFA 2022",
+              "year": "2022",
+              "editor": false,
+              "id": 35021
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "EFL Cup",
+            "slug": "efl-cup",
+            "primaryColorHex": "#203e93",
+            "secondaryColorHex": "#bc1723",
+            "category": {
+              "name": "England",
+              "slug": "england",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 10,
+              "id": 1,
+              "flag": "england",
+              "alpha2": "EN",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0625\u0646\u062c\u0644\u062a\u0631\u0627",
+                  "bn": "\u0987\u0982\u09b2\u09cd\u09af\u09be\u09a8\u09cd\u09a1",
+                  "hi": "\u0907\u0902\u0917\u094d\u0932\u0948\u0902\u0921",
+                  "ru": "\u0410\u043d\u0433\u043b\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 175594,
+            "id": 21,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0631\u0627\u0628\u0637\u0629 \u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a",
+                "bn": "\u0987\u098f\u09ab\u098f\u09b2 \u0995\u09be\u09aa",
+                "hi": "\u0908\u090f\u092b\u090f\u0932 \u0915\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a EFL"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "EFL Cup 25/26",
+              "year": "25/26",
+              "editor": false,
+              "id": 77500
+            },
+            {
+              "name": "EFL Cup 22/23",
+              "year": "22/23",
+              "editor": false,
+              "id": 42443
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "FIFA Club World Cup",
+            "slug": "club-world-championship",
+            "primaryColorHex": "#8d1536",
+            "secondaryColorHex": "#0bbda4",
+            "category": {
+              "name": "World",
+              "slug": "world",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 20,
+              "id": 1468,
+              "flag": "international",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u0639\u0627\u0644\u0645",
+                  "bn": "\u09ac\u09bf\u09b6\u09cd\u09ac",
+                  "hi": "\u0935\u093f\u0936\u094d\u0935",
+                  "ru": "\u041c\u0438\u0440"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 575765,
+            "id": 357,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0627\u0644\u0639\u0627\u0644\u0645 \u0644\u0644\u0623\u0646\u062f\u064a\u0629",
+                "bn": "\u0995\u09cd\u09b2\u09be\u09ac \u0993\u09af\u09bc\u09be\u09b0\u09cd\u09b2\u09cd\u09a1 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa",
+                "hi": "\u0915\u094d\u0932\u092c \u0935\u0930\u094d\u0932\u094d\u0921 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u043c\u0438\u0440\u0430 \u0441\u0440\u0435\u0434\u0438 \u043a\u043b\u0443\u0431\u043e\u0432 \u0424\u0418\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "FIFA Club World Cup 2025",
+              "year": "2025",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 69619
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "UEFA Nations League",
+            "slug": "uefa-nations-league",
+            "primaryColorHex": "#3a4179",
+            "secondaryColorHex": "#e5a422",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 278903,
+            "id": 10783,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0623\u0645\u0645 \u0623\u0648\u0631\u0648\u0628\u0627",
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u09a8\u09c7\u09b6\u09a8\u09b8 \u09b2\u09bf\u0997",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u0928\u0947\u0936\u0902\u0938 \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u043d\u0430\u0446\u0438\u0439 \u0423\u0415\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "UEFA Nations League 24/25",
+              "year": "24/25",
+              "editor": false,
+              "id": 58337
+            },
+            {
+              "name": "UEFA Nations League 22/23",
+              "year": "22/23",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 40128
+            },
+            {
+              "name": "UEFA Nations League 20/21",
+              "year": "20/21",
+              "editor": false,
+              "id": 27595
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "EURO, Qualification",
+            "slug": "european-championship-qualification",
+            "primaryColorHex": "#182026",
+            "secondaryColorHex": "#730000",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 144741,
+            "id": 27,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0623\u0648\u0631\u0648\u0628\u0627\u060c \u062a\u0635\u0641\u064a\u0627\u062a",
+                "hi": "\u092f\u0942\u0930\u094b\u092a\u0940\u092f\u0928 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a, \u0915\u094d\u0935\u093e\u0932\u093f\u092b\u093f\u0915\u0947\u0936\u0928",
+                "bn": "\u0987\u0989\u09b0\u09cb\u09aa\u09c0\u09af\u09bc \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa, \u0995\u09cb\u09df\u09be\u09b2\u09bf\u09ab\u09bf\u0995\u09c7\u09b6\u09a8",
+                "ru": "\u0415\u0412\u0420\u041e, \u041a\u0432\u0430\u043b\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "European Championship 2024, Qualification",
+              "year": "2024",
+              "editor": false,
+              "seasonCoverageInfo": {},
+              "id": 46599
+            },
+            {
+              "name": "European Championship 2021, Qualification",
+              "year": "2021",
+              "editor": false,
+              "id": 19857
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "UEFA Super Cup",
+            "slug": "uefa-super-cup",
+            "primaryColorHex": "#626366",
+            "secondaryColorHex": "#009ade",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 115592,
+            "id": 465,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0633\u0648\u0628\u0631 \u0627\u0644\u0623\u0648\u0631\u0648\u0628\u064a",
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u09b8\u09c1\u09aa\u09be\u09b0 \u0995\u09be\u09aa",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u0938\u0941\u092a\u0930 \u0915\u092a",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043a\u0443\u0431\u043e\u043a \u0423\u0415\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "UEFA Super Cup 2023",
+              "year": "23/24",
+              "editor": false,
+              "id": 52094
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "Franz Beckenbauer Supercup",
+            "slug": "super-cup",
+            "primaryColorHex": "#e2a700",
+            "secondaryColorHex": "#c6c6c6",
+            "category": {
+              "name": "Germany",
+              "slug": "germany",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 8,
+              "id": 30,
+              "flag": "germany",
+              "alpha2": "DE",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0644\u0645\u0627\u0646\u064a\u0627",
+                  "bn": "\u099c\u09be\u09b0\u09cd\u09ae\u09be\u09a8\u09bf",
+                  "hi": "\u091c\u0930\u094d\u092e\u0928\u0940",
+                  "ru": "\u0413\u0435\u0440\u043c\u0430\u043d\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 29206,
+            "id": 799,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0633\u0648\u0628\u0631 \u0627\u0644\u0623\u0644\u0645\u0627\u0646\u064a",
+                "bn": "\u09a1\u09bf\u098f\u09ab\u098f\u09b2 \u09b8\u09c1\u09aa\u09be\u09b0\u0995\u09be\u09aa",
+                "hi": "\u0921\u0940\u090f\u092b\u090f\u0932 \u0938\u0941\u092a\u0930\u0915\u092a",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043a\u0443\u0431\u043e\u043a \u0424\u0440\u0430\u043d\u0446\u0430 \u0411\u0435\u043a\u043a\u0435\u043d\u0431\u0430\u0443\u044d\u0440\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "Super Cup 2021",
+              "year": "21/22",
+              "editor": false,
+              "id": 36760
+            },
+            {
+              "name": "Super Cup 2020",
+              "year": "20/21",
+              "editor": false,
+              "id": 29295
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "Bundesliga",
+            "slug": "bundesliga",
+            "primaryColorHex": "#e2080e",
+            "secondaryColorHex": "#8e0902",
+            "category": {
+              "name": "Germany",
+              "slug": "germany",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 8,
+              "id": 30,
+              "flag": "germany",
+              "alpha2": "DE",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0644\u0645\u0627\u0646\u064a\u0627",
+                  "bn": "\u099c\u09be\u09b0\u09cd\u09ae\u09be\u09a8\u09bf",
+                  "hi": "\u091c\u0930\u094d\u092e\u0928\u0940",
+                  "ru": "\u0413\u0435\u0440\u043c\u0430\u043d\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 580714,
+            "id": 35,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "bn": "\u09ac\u09c1\u09a8\u09cd\u09a6\u09c7\u09b8\u09b2\u09c0\u0997\u09be",
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0623\u0644\u0645\u0627\u0646\u064a",
+                "hi": "\u092c\u0941\u0902\u0921\u0947\u0938\u0932\u0940\u0917\u093e",
+                "ru": "\u0411\u0443\u043d\u0434\u0435\u0441\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "Bundesliga 21/22",
+              "year": "21/22",
+              "editor": false,
+              "id": 37166
+            },
+            {
+              "name": "Bundesliga 20/21",
+              "year": "20/21",
+              "editor": false,
+              "id": 28210
+            },
+            {
+              "name": "Bundesliga 19/20",
+              "year": "19/20",
+              "editor": false,
+              "id": 23538
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "DFB Pokal",
+            "slug": "dfb-pokal",
+            "primaryColorHex": "#ffcc00",
+            "secondaryColorHex": "#666666",
+            "category": {
+              "name": "Germany",
+              "slug": "germany",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 8,
+              "id": 30,
+              "flag": "germany",
+              "alpha2": "DE",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0644\u0645\u0627\u0646\u064a\u0627",
+                  "bn": "\u099c\u09be\u09b0\u09cd\u09ae\u09be\u09a8\u09bf",
+                  "hi": "\u091c\u0930\u094d\u092e\u0928\u0940",
+                  "ru": "\u0413\u0435\u0440\u043c\u0430\u043d\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 84824,
+            "id": 217,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0623\u0644\u0645\u0627\u0646\u064a\u0627",
+                "bn": "\u09a1\u09bf\u098f\u09ab\u09ac\u09bf \u09aa\u09cb\u0995\u09be\u09b2",
+                "hi": "\u0921\u0940\u090f\u092b\u092c\u0940 \u092a\u094b\u0915\u0932",
+                "ru": "\u041a\u0443\u0431\u043e\u043a DFB"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "DFB Pokal 21/22",
+              "year": "21/22",
+              "editor": false,
+              "id": 37289
+            },
+            {
+              "name": "DFB Pokal 20/21",
+              "year": "20/21",
+              "editor": false,
+              "id": 29194
+            },
+            {
+              "name": "DFB Pokal 19/20",
+              "year": "19/20",
+              "editor": false,
+              "id": 23877
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "Austrian Bundesliga",
+            "slug": "bundesliga",
+            "primaryColorHex": "#b80a0c",
+            "secondaryColorHex": "#eb544a",
+            "category": {
+              "name": "Austria",
+              "slug": "austria",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 0,
+              "id": 17,
+              "flag": "austria",
+              "alpha2": "AT",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u0646\u0645\u0633\u0627",
+                  "ru": "\u0410\u0432\u0441\u0442\u0440\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 28743,
+            "id": 45,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0646\u0645\u0633\u0627\u0648\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u0985\u09b8\u09cd\u099f\u09cd\u09b0\u09bf\u09af\u09bc\u09be\u09a8 \u09ac\u09c1\u09a8\u09cd\u09a6\u09c7\u09b8\u09b2\u09bf\u0997\u09be",
+                "hi": "\u0911\u0938\u094d\u091f\u094d\u0930\u093f\u092f\u0928 \u092c\u0941\u0902\u0921\u0947\u0938\u0932\u0940\u0917\u093e",
+                "ru": "\u0410\u0432\u0441\u0442\u0440\u0438\u0439\u0441\u043a\u0430\u044f \u0411\u0443\u043d\u0434\u0435\u0441\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "Bundesliga 19/20",
+              "year": "19/20",
+              "editor": false,
+              "id": 23972
+            },
+            {
+              "name": "Bundesliga 18/19",
+              "year": "18/19",
+              "editor": false,
+              "id": 17454
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "\u00d6FB Cup",
+            "slug": "ofb-cup",
+            "primaryColorHex": "#dc2e25",
+            "secondaryColorHex": "#0065b1",
+            "category": {
+              "name": "Austria",
+              "slug": "austria",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 0,
+              "id": 17,
+              "flag": "austria",
+              "alpha2": "AT",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u0646\u0645\u0633\u0627",
+                  "ru": "\u0410\u0432\u0441\u0442\u0440\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 5139,
+            "id": 445,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0646\u0645\u0633\u0627",
+                "bn": "\u0993\u098f\u09ab\u09ac\u09bf \u0995\u09be\u09aa",
+                "hi": "\u0913\u090f\u092b\u092c\u0940 \u0915\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u00d6FB"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "OEFB Cup 19/20",
+              "year": "19/20",
+              "editor": false,
+              "id": 24049
+            },
+            {
+              "name": "OFB Cup 18/19",
+              "year": "18/19",
+              "editor": false,
+              "id": 17672
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "U-20 World Championship",
+            "slug": "u20-world-cup",
+            "primaryColorHex": "#c12122",
+            "secondaryColorHex": "#009949",
+            "category": {
+              "name": "World",
+              "slug": "world",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 20,
+              "id": 1468,
+              "flag": "international",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u0639\u0627\u0644\u0645",
+                  "bn": "\u09ac\u09bf\u09b6\u09cd\u09ac",
+                  "hi": "\u0935\u093f\u0936\u094d\u0935",
+                  "ru": "\u041c\u0438\u0440"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 47313,
+            "id": 453,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0627\u0644\u0639\u0627\u0644\u0645 \u0644\u0644\u0634\u0628\u0627\u0628 \u062a\u062d\u062a 20 \u0633\u0646\u0629",
+                "bn": "\u0986\u09a8\u09cd\u09a1\u09be\u09b020 \u0993\u09af\u09bc\u09be\u09b0\u09cd\u09b2\u09cd\u09a1 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa",
+                "hi": "U-20 \u0935\u0930\u094d\u0932\u094d\u0921 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a",
+                "ru": "\u0434\u043e 20 \u043b\u0435\u0442, \u0427\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442 \u043c\u0438\u0440\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "U20 World Cup 2019",
+              "year": "2019",
+              "editor": false,
+              "id": 22665
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "UEFA Europa League",
+            "slug": "uefa-europa-league",
+            "secondaryColorHex": "#f37d25",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 470989,
+            "id": 679,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "bn": "\u0989\u09af\u09bc\u09c7\u09ab\u09be \u0987\u0989\u09b0\u09cb\u09aa\u09be \u09b2\u09c0\u0997",
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0623\u0648\u0631\u0648\u0628\u064a",
+                "hi": "\u092f\u0942\u0908\u090f\u092b\u090f \u092f\u0942\u0930\u094b\u092a\u093e \u0932\u0940\u0917",
+                "ru": "\u041b\u0438\u0433\u0430 \u0415\u0432\u0440\u043e\u043f\u044b \u0423\u0415\u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "UEFA Europa League 18/19",
+              "year": "18/19",
+              "editor": false,
+              "id": 17352
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "U19 European Championship",
+            "slug": "u19-european-championship",
+            "primaryColorHex": "#12a63c",
+            "secondaryColorHex": "#c5d97f",
+            "category": {
+              "name": "Europe",
+              "slug": "europe",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 19,
+              "id": 1465,
+              "flag": "europe",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0623\u0648\u0631\u0648\u0628\u0627",
+                  "bn": "\u0987\u0989\u09b0\u09cb\u09aa",
+                  "hi": "\u092f\u0942\u0930\u094b\u092a",
+                  "ru": "\u0415\u0432\u0440\u043e\u043f\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 11281,
+            "id": 258,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0623\u0648\u0631\u0648\u0628\u0627 \u062a\u062d\u062a 19 \u0633\u0646\u0629",
+                "bn": "\u0986\u09a8\u09cd\u09a1\u09be\u09b0-19 \u0987\u0989\u09b0\u09cb\u09aa\u09c0\u09df\u09be\u09a8 \u099a\u09cd\u09af\u09be\u09ae\u09cd\u09aa\u09bf\u09af\u09bc\u09a8\u09b6\u09bf\u09aa",
+                "hi": "U19 \u092f\u0942\u0930\u094b\u092a\u093f\u092f\u0928 \u091a\u0948\u0902\u092a\u093f\u092f\u0928\u0936\u093f\u092a",
+                "ru": "\u0434\u043e 19 \u043b\u0435\u0442, \u0415\u0432\u0440\u043e\u043f\u0435\u0439\u0441\u043a\u0438\u0439 \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "U19 European Ch.ship 2018",
+              "year": "2018",
+              "editor": false,
+              "id": 17278
+            }
+          ]
+        },
+        {
+          "uniqueTournament": {
+            "name": "Eliteserien",
+            "slug": "eliteserien",
+            "primaryColorHex": "#002a64",
+            "category": {
+              "name": "Norway",
+              "slug": "norway",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 0,
+              "id": 5,
+              "flag": "norway",
+              "alpha2": "NO",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u0646\u0631\u0648\u064a\u062c",
+                  "ru": "\u041d\u043e\u0440\u0432\u0435\u0433\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "userCount": 38684,
+            "id": 20,
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0646\u0631\u0648\u064a\u062c\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u098f\u09b2\u09bf\u099f \u09b8\u09bf\u09b0\u09bf\u099c",
+                "hi": "\u090f\u0932\u0940\u091f\u0938\u0940\u0930\u093f\u090f\u0928",
+                "ru": "\u042d\u043b\u0438\u0442\u0441\u0435\u0440\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "seasons": [
+            {
+              "name": "Eliteserien 2018",
+              "year": "2018",
+              "editor": false,
+              "id": 15752
+            },
+            {
+              "name": "Eliteserien 2017",
+              "year": "2017",
+              "editor": false,
+              "id": 12783
+            }
+          ]
+        }
+      ],
+      "typesMap": {
+        "7": {
+          "41897": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "52162": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "29267": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "36886": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "61644": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "23766": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "96518": [
+            "overall",
+            "away"
+          ],
+          "76953": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "217": {
+          "29194": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "23877": [
+            "overall",
+            "away"
+          ],
+          "37289": [
+            "overall",
+            "away"
+          ]
+        },
+        "27": {
+          "46599": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "19857": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "799": {
+          "36760": [
+            "overall",
+            "home"
+          ],
+          "29295": [
+            "overall",
+            "home"
+          ]
+        },
+        "10783": {
+          "27595": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "58337": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "40128": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "35": {
+          "23538": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "28210": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "37166": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "17": {
+          "76986": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "96668": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "61627": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "41886": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "52186": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "445": {
+          "17672": [
+            "overall"
+          ],
+          "24049": [
+            "overall"
+          ]
+        },
+        "465": {
+          "52094": [
+            "overall",
+            "home"
+          ]
+        },
+        "258": {
+          "17278": [
+            "overall"
+          ]
+        },
+        "357": {
+          "69619": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "45": {
+          "17454": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "23972": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "679": {
+          "17352": [
+            "overall",
+            "home"
+          ]
+        },
+        "346": {
+          "53261": [
+            "overall",
+            "home"
+          ],
+          "41860": [
+            "overall",
+            "away"
+          ],
+          "60997": [
+            "overall",
+            "home"
+          ],
+          "95402": [
+            "overall",
+            "away"
+          ]
+        },
+        "11": {
+          "69427": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "35021": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "453": {
+          "22665": [
+            "overall"
+          ]
+        },
+        "16": {
+          "58210": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "21": {
+          "42443": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "77500": [
+            "overall",
+            "home",
+            "away"
+          ]
+        },
+        "20": {
+          "12783": [
+            "overall",
+            "home",
+            "away"
+          ],
+          "15752": [
+            "overall",
+            "home",
+            "away"
+          ]
+        }
+      }
+    },
+    "elapsed_seconds": 0.09109091758728027
+  }
+}

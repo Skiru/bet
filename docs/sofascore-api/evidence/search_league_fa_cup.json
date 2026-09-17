@@ -1,0 +1,747 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=fa%20cup",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"8f60cf0edc\"",
+      "x-request-id": "03789069-67bb-41e7-b662-82e69143bad5",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:00 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "2474"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 19,
+            "name": "FA Cup",
+            "slug": "fa-cup",
+            "userCount": 205982,
+            "category": {
+              "id": 1,
+              "name": "England",
+              "slug": "england",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a",
+                "bn": "\u098f\u09ab\u098f \u0995\u09be\u09aa",
+                "hi": "\u090f\u092b\u090f \u0915\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 54688.742,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1696,
+            "name": "FA Cup, Qualification",
+            "slug": "fa-cup-qualification",
+            "userCount": 8032,
+            "category": {
+              "id": 1,
+              "name": "England",
+              "slug": "england",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u0635\u0641\u064a\u0627\u062a \u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a",
+                "bn": "\u098f\u09ab\u098f \u0995\u09be\u09aa, \u0995\u09cb\u09df\u09be\u09b2\u09bf\u09ab\u09bf\u0995\u09c7\u09b6\u09a8",
+                "hi": "\u090f\u092b\u090f \u0915\u092a, \u0915\u094d\u0935\u093e\u0932\u0940\u092b\u093f\u0915\u0947\u0936\u0928",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410, \u043a\u0432\u0430\u043b\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 10799.289,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 11666,
+            "name": "Women's FA Cup",
+            "slug": "fa-cup-women",
+            "userCount": 6685,
+            "category": {
+              "id": 1,
+              "name": "England",
+              "slug": "england",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "bn": "\u0989\u0987\u09ae\u09c7\u09a8\u09cd\u09b8 \u098f\u09ab\u098f \u0995\u09be\u09aa",
+                "hi": "\u0935\u0942\u092e\u0947\u0928\u094d\u0938 \u090f\u092b\u090f \u0915\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 9852.218,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 2303,
+            "name": "Ghana FA Cup",
+            "slug": "fa-cup",
+            "userCount": 3085,
+            "category": {
+              "id": 542,
+              "name": "Ghana",
+              "slug": "ghana",
+              "alpha2": "GH",
+              "flag": "ghana",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "GH",
+                "name": "Ghana",
+                "slug": "ghana"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u063a\u0627\u0646\u064a",
+                "bn": "\u0998\u09be\u09a8\u09be \u098f\u09ab\u098f \u0995\u09be\u09aa",
+                "hi": "\u0918\u093e\u0928\u093e \u090f\u092b\u090f \u0915\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0413\u0430\u043d\u044b"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 6692.847,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 13474,
+            "name": "Malaysia FA Cup",
+            "slug": "malaysia-fa-cup",
+            "userCount": 1815,
+            "category": {
+              "id": 85,
+              "name": "Malaysia",
+              "slug": "malaysia",
+              "alpha2": "MY",
+              "flag": "malaysia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "MY",
+                "name": "Malaysia",
+                "slug": "malaysia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0645\u0627\u0644\u064a\u0632\u064a \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u041c\u0430\u043b\u0430\u0439\u0437\u0438\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 5133.595,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 21779,
+            "name": "Thai FA Cup",
+            "slug": "fa-cup",
+            "userCount": 815,
+            "category": {
+              "id": 485,
+              "name": "Thailand",
+              "slug": "thailand",
+              "alpha2": "TH",
+              "flag": "thailand",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "TH",
+                "name": "Thailand",
+                "slug": "thailand"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0627\u064a\u0644\u0627\u0646\u062f\u064a \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0422\u0430\u0438\u043b\u0430\u043d\u0434\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 3440.029,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 25377,
+            "name": "Iraqi FA Cup",
+            "slug": "iraqi-fa-cup",
+            "userCount": 417,
+            "category": {
+              "id": 1111,
+              "name": "Iraq",
+              "slug": "iraq",
+              "alpha2": "IQ",
+              "flag": "iraq",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "IQ",
+                "name": "Iraq",
+                "slug": "iraq"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0639\u0631\u0627\u0642\u064a \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0418\u0440\u0430\u043a\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 2460.6584,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1991,
+            "name": "FA Trophy, Qualification",
+            "slug": "fa-trophy-qualification",
+            "userCount": 304,
+            "category": {
+              "id": 252,
+              "name": "England Amateur",
+              "slug": "england-amateur",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u060c \u0627\u0644\u062a\u0635\u0641\u064a\u0627\u062a (FA)",
+                "ru": "\u0422\u0440\u043e\u0444\u0435\u0439 \u0424\u0410, \u043a\u0432\u0430\u043b\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 2100.9712,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 10291,
+            "name": "Hong Kong FA Cup",
+            "slug": "fa-cup",
+            "userCount": 296,
+            "category": {
+              "id": 339,
+              "name": "Hong Kong",
+              "slug": "hong-kong",
+              "alpha2": "HK",
+              "flag": "hong-kong",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "HK",
+                "name": "Hong Kong",
+                "slug": "hong-kong"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u062a\u062d\u0627\u062f \u0647\u0648\u0646\u063a \u0643\u0648\u0646\u063a \u0644\u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0413\u043e\u043d\u043a\u043e\u043d\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 2073.1426,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 23454,
+            "name": "FA Vase",
+            "slug": "isuzu-fa-vase",
+            "userCount": 166,
+            "category": {
+              "id": 252,
+              "name": "England Amateur",
+              "slug": "england-amateur",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0625\u064a\u0633\u0648\u0632\u0648 (FA)",
+                "ru": "Isuzu FA Vase"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1552.5205,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 36615,
+            "name": "FA Cup, Preliminary",
+            "slug": "fa-cup-preliminary-rounds",
+            "userCount": 70,
+            "category": {
+              "id": 252,
+              "name": "England Amateur",
+              "slug": "england-amateur",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "gender": "M"
+          },
+          "score": 1008.1666,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 35568,
+            "name": "Fiji FA Cup",
+            "slug": "fiji-fa-cup",
+            "userCount": 65,
+            "category": {
+              "id": 1103,
+              "name": "Fiji",
+              "slug": "fiji",
+              "alpha2": "FJ",
+              "flag": "fiji",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "FJ",
+                "name": "Fiji",
+                "slug": "fiji"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0443\u0442\u0431\u043e\u043b\u044c\u043d\u043e\u0439 \u0430\u0441\u0441\u043e\u0446\u0438\u0430\u0446\u0438\u0438 \u0424\u0438\u0434\u0436\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 971.4937,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 11667,
+            "name": "FA Women's League Cup",
+            "slug": "fa-womens-league-cup",
+            "userCount": 4996,
+            "category": {
+              "id": 1,
+              "name": "England",
+              "slug": "england",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "bn": "\u098f\u09ab\u098f \u0989\u0987\u09ae\u09c7\u09a8\u09cd\u09b8 \u09b2\u09c0\u0997 \u0995\u09be\u09aa",
+                "hi": "\u090f\u092b\u090f \u0935\u0942\u092e\u0947\u0928\u094d\u0938 \u0932\u0940\u0917 \u0915\u092a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u041b\u0438\u0433\u0438 \u0424\u0410 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 774.28674,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 21827,
+            "name": "FA Cup Chile",
+            "slug": "fa-cup-chile",
+            "userCount": 31,
+            "category": {
+              "id": 1687,
+              "name": "Chile Amateur",
+              "slug": "chile-amateur",
+              "alpha2": "CL",
+              "flag": "chile",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "CL",
+                "name": "Chile",
+                "slug": "chile"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0641\u064a \u062a\u0634\u064a\u0644\u064a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a FA \u0427\u0438\u043b\u0438"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 670.90985,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 34446,
+            "name": "Hong Kong U22 FA Cup",
+            "slug": "hong-kong-u22-fa-cup",
+            "userCount": 30,
+            "category": {
+              "id": 339,
+              "name": "Hong Kong",
+              "slug": "hong-kong",
+              "alpha2": "HK",
+              "flag": "hong-kong",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "HK",
+                "name": "Hong Kong",
+                "slug": "hong-kong"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u062a\u062d\u062a 22 \u0641\u064a \u0647\u0648\u0646\u063a \u0643\u0648\u0646\u063a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0413\u043e\u043d\u043a\u043e\u043d\u0433\u0430 \u0434\u043e 22 \u043b\u0435\u0442"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 660,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 28126,
+            "name": "Abeokuta South Coaches FA Cup",
+            "slug": "abeokuta-south-coaches-fa-cup",
+            "userCount": 26,
+            "category": {
+              "id": 1132,
+              "name": "Nigeria",
+              "slug": "nigeria",
+              "alpha2": "NG",
+              "flag": "nigeria",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "NG",
+                "name": "Nigeria",
+                "slug": "nigeria"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0645\u062f\u0631\u0628\u064a\u0646 \u0644\u0623\u0628\u064a\u0648\u0643\u0648\u062a\u0627 \u0627\u0644\u062c\u0646\u0648\u0628\u064a\u0629",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0442\u0440\u0435\u043d\u0435\u0440\u043e\u0432 \u0410\u0431\u0435\u043a\u0443\u0442\u044b \u042e\u0436\u043d\u043e\u0439"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 614.4266,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 36543,
+            "name": "Macao FA Cup",
+            "slug": "macao-fa-cup",
+            "userCount": 20,
+            "category": {
+              "id": 1118,
+              "name": "Macao",
+              "slug": "macao",
+              "alpha2": "MO",
+              "flag": "macao",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "MO",
+                "name": "Macao",
+                "slug": "macao"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "gender": "M"
+          },
+          "score": 538.88776,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 31836,
+            "name": "Guernsey FA Cup",
+            "slug": "guernsey-fa-cup",
+            "userCount": 15,
+            "category": {
+              "id": 252,
+              "name": "England Amateur",
+              "slug": "england-amateur",
+              "alpha2": "EN",
+              "flag": "england",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "EN",
+                "name": "England",
+                "slug": "england"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u062a\u062d\u0627\u062f \u063a\u0648\u064a\u0631\u0646\u0633\u064a",
+                "ru": "\u041a\u0443\u0431\u043e\u043a \u0424\u0410 \u0413\u0435\u0440\u043d\u0441\u0438"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 466.6905,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 29369,
+            "name": "FasoFoot Ligue 1",
+            "slug": "fasofoot-ligue-1",
+            "userCount": 1605,
+            "category": {
+              "id": 1092,
+              "name": "Burkina Faso",
+              "slug": "burkina-faso",
+              "alpha2": "BF",
+              "flag": "burkina-faso",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BF",
+                "name": "Burkina Faso",
+                "slug": "burkina-faso"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0641\u0627\u0633\u0648 \u0641\u0648\u062a 1",
+                "ru": "\u041b\u0438\u0433\u0430 1 FasoFoot"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 438.86215,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 21899,
+            "name": "FA Cup Internacional ",
+            "slug": "fa-cup-internacional",
+            "userCount": 13,
+            "category": {
+              "id": 1687,
+              "name": "Chile Amateur",
+              "slug": "chile-amateur",
+              "alpha2": "CL",
+              "flag": "chile",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "CL",
+                "name": "Chile",
+                "slug": "chile"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0623\u0633 \u0627\u0644\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u062f\u0648\u0644\u064a\u0629",
+                "ru": "\u041a\u0443\u0431\u043e\u043a FA Internacional"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 434.46518,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.12467312812805176
+  }
+}

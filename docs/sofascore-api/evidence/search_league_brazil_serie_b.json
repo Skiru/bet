@@ -1,0 +1,768 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=brazil%20serie%20b",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"932949392f\"",
+      "x-request-id": "968d6649-1c82-424f-a53f-e586cda59bdb",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:01 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "2388"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 325,
+            "name": "Brasileir\u00e3o Betano",
+            "slug": "brasileirao-serie-a",
+            "userCount": 356689,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0628\u064a\u062a\u0627\u0646\u0648 \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a\u0629",
+                "bn": "\u09ac\u09cd\u09b0\u09be\u09b8\u09bf\u09b2\u09bf\u09b0\u09be\u0993 \u09ac\u09c7\u09a4\u09be\u09a8\u09cb",
+                "hi": "\u092c\u094d\u0930\u093e\u091c\u093c\u0940\u0932\u0947\u0907\u0930\u093e\u0913 \u092c\u0947\u091f\u093e\u0928\u094b",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043d \u0411\u0435\u0442\u0430\u043d\u043e"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 6542.3755,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 390,
+            "name": "Brasileir\u00e3o S\u00e9rie B",
+            "slug": "brasileirao-serie-b",
+            "userCount": 80089,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u062b\u0627\u0646\u064a\u0629",
+                "bn": "\u09ac\u09cd\u09b0\u09be\u09b8\u09bf\u09b2\u09bf\u09b0\u09be\u0993 \u09b8\u09bf\u09b0\u09bf\u099c \u09ac\u09bf",
+                "hi": "\u092c\u094d\u0930\u093e\u091c\u093c\u0940\u0932\u0947\u0907\u0930\u093e\u0913 \u0938\u0947\u0930\u0940 \u092c\u0940",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043e \u0421\u0435\u0440\u0438\u044f B"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 3100.1096,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 372,
+            "name": "Paulista S\u00e9rie A1",
+            "slug": "paulista-serie-a1",
+            "userCount": 69492,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0628\u0627\u0648\u0644\u064a\u0633\u062a\u0627 \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u0623\u0648\u0644\u0649",
+                "bn": "\u09aa\u09b2\u09bf\u09b8\u09cd\u09a4\u09be \u09b8\u09bf\u09b0\u09bf\u099c \u098f1",
+                "hi": "\u092a\u0949\u0932\u093f\u0938\u094d\u0924\u093e \u0938\u0947\u0930\u0940 A1",
+                "ru": "\u0421\u0435\u0440\u0438\u044f A1 \u041f\u0430\u0443\u043b\u0438\u0441\u0442\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 2887.7395,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1281,
+            "name": "Brasileir\u00e3o S\u00e9rie C",
+            "slug": "brasileirao-serie-c",
+            "userCount": 20900,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644 \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u062b\u0627\u0644\u062b\u0629",
+                "bn": "\u09ac\u09cd\u09b0\u09be\u099c\u09bf\u09b2\u09bf\u09be\u09df\u09be\u09b0\u09cb \u09b8\u09bf\u09b0\u09bf\u099c \u09b8\u09bf",
+                "hi": "\u092c\u094d\u0930\u093e\u0938\u0940\u0932\u0930\u093f\u092f\u094b \u0938\u0940\u0930\u0940 \u0938\u0940",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043e \u0421\u0435\u0440\u0438\u044f C"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1583.6666,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 10326,
+            "name": "Brasileir\u00e3o S\u00e9rie D",
+            "slug": "brasileirao-serie-d",
+            "userCount": 11330,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u0631\u0627\u0628\u0639\u0629 \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a",
+                "bn": "\u09ac\u09cd\u09b0\u09be\u099c\u09bf\u09b2\u09c7\u0987\u09b0\u09be\u0993 \u09b8\u09bf\u09b0\u09bf\u099c \u09a1\u09bf",
+                "hi": "\u092c\u094d\u0930\u093e\u091c\u093c\u0940\u0932\u0947\u0907\u0930\u093e\u0913 \u0938\u0947\u0930\u0940 \u0921\u0940",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043d S\u00e9rie D"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1166.0189,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 10257,
+            "name": "Brasileir\u00e3o S\u00e9rie A1, Feminino",
+            "slug": "brasileirao-serie-a1-feminino",
+            "userCount": 9780,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "bn": "\u09ac\u09cd\u09b0\u09be\u09b8\u09bf\u09b2\u09bf\u09b0\u09be\u0993 \u09b8\u09bf\u09b0\u09bf\u099c \u098f1, \u0989\u0987\u09ae\u09c7\u09a8",
+                "hi": "\u092c\u094d\u0930\u093e\u0938\u0940\u0932\u0940\u0930\u093e\u0913 \u0938\u0947\u0930\u0940 A1, \u092b\u0947\u092e\u093f\u0928\u093f\u0928\u094b",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043d S\u00e9rie A1, \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 1083.3282,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1234,
+            "name": "Paulista, S\u00e9rie A2",
+            "slug": "paulista-serie-a2",
+            "userCount": 4154,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u0628\u0627\u0648\u0644\u064a\u0633\u062a\u0627 \u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u062b\u0627\u0646\u064a\u0629 A2",
+                "bn": "\u09aa\u09b2\u09bf\u09b8\u09cd\u09a4\u09be, \u09b8\u09bf\u09b0\u09bf\u099c \u098f2",
+                "hi": "\u092a\u0949\u0932\u093f\u0938\u094d\u0924\u093e, \u0938\u0947\u0930\u0940 A2",
+                "ru": "\u041f\u0430\u0443\u043b\u0438\u0441\u0442\u0430, \u0421\u0435\u0440\u0438\u044f A2"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 706.0312,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 1614,
+            "name": "Paulista, S\u00e9rie A3",
+            "slug": "paulista-serie-a3",
+            "userCount": 2120,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0627\u0648\u0644\u064a\u0633\u062a\u0627\u060c \u0633\u064a\u0631\u064a\u0627 A3",
+                "ru": "\u041f\u0430\u0443\u043b\u0438\u0441\u0442\u0430, \u0421\u0435\u0440\u0438\u044f A3"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 504.3808,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 14732,
+            "name": "Brasileir\u00e3o S\u00e9rie A2, Feminino",
+            "slug": "brasileirao-serie-a2-feminino",
+            "userCount": 2031,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a \u0633\u064a\u0631\u064a\u0627 A2\u060c \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043e, \u041b\u0438\u0433\u0430 2, \u0416\u0435\u043d\u0441\u043a\u0430\u044f"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 493.68005,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 18643,
+            "name": "Ga\u00facho, S\u00e9rie A2",
+            "slug": "gaucho-serie-a2",
+            "userCount": 1601,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u063a\u0627\u0648\u062a\u0634\u0648\u060c \u0627\u0644\u062f\u0631\u062c\u0629 A2",
+                "ru": "\u041b\u0438\u0433\u0430 \u0413\u0430\u0443\u0448\u043e, \u0421\u0435\u0440\u0438\u044f A2"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 438.31494,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 18644,
+            "name": "Carioca, S\u00e9rie A2",
+            "slug": "carioca-serie-a2",
+            "userCount": 1534,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0627\u0631\u064a\u0643\u0627\u060c \u0627\u0644\u062f\u0631\u062c\u0629 A2",
+                "ru": "\u041b\u0438\u0433\u0430 \u041a\u0430\u0440\u0438\u0439\u043e\u043a\u0430, \u0421\u0435\u0440\u0438\u044f A2"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 429.04544,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20352,
+            "name": "Baiano, S\u00e9rie B",
+            "slug": "baiano-serie-b",
+            "userCount": 1349,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0627\u064a\u0627\u0646\u0648\u060c \u0627\u0644\u062f\u0631\u062c\u0629 B",
+                "ru": "\u0411\u0430iano, \u0421\u0435\u0440\u0438\u044f B"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 402.34314,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20058,
+            "name": "Paulista, S\u00e9rie A4",
+            "slug": "paulista-serie-a4",
+            "userCount": 1251,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0627\u0648\u0644\u064a\u0633\u062a\u0627\u060c \u0633\u064a\u0631\u064a\u0647 A4",
+                "ru": "\u041b\u0438\u0433\u0430 \u041f\u0430\u0443\u043b\u0438\u0441\u0442\u0430, \u0421\u0435\u0440\u0438\u044f A4"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 387.45322,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20070,
+            "name": "Catarinense, S\u00e9rie B",
+            "slug": "catarinense-serie-b",
+            "userCount": 900,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0627\u062a\u0627\u0631\u064a\u0646\u064a\u0646\u0633\u064a\u060c \u0633\u064a\u0631\u064a\u0627 \u0628",
+                "ru": "\u041b\u0438\u0433\u0430 \u041a\u0430\u0442\u0430\u0440\u0438\u043dense, \u0421\u0435\u0440\u0438\u044f B"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 328.63354,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 19855,
+            "name": "Cearense, S\u00e9rie B",
+            "slug": "cearense-serie-b",
+            "userCount": 843,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633\u064a\u0631\u064a\u0647 B\u060c \u0633\u064a\u0627\u0631\u0627\u0646\u0633\u064a",
+                "ru": "\u041b\u0438\u0433\u0430 \u0421\u0435\u0430\u0440\u0430, \u0421\u0435\u0440\u0438\u044f B"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 318.0566,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 25276,
+            "name": "U20 Campeonato Brasileiro, S\u00e9rie B",
+            "slug": "u20-campeonato-brasileiro-serie-b",
+            "userCount": 759,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u062a\u062d\u062a 20 \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a\u0629\u060c \u0633\u064a\u0631\u064a\u0627 B",
+                "ru": "\u0434\u043e 20 \u043b\u0435\u0442 \u0427\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u0442 \u0411\u0440\u0430\u0437\u0438\u043b\u0438\u0438, \u0421\u0435\u0440\u0438\u044f B"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 301.79465,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 22272,
+            "name": "Brasileir\u00e3o S\u00e9rie A3, Feminino",
+            "slug": "brasileirao-serie-a3-feminino",
+            "userCount": 694,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0628\u0631\u0627\u0632\u064a\u0644\u064a \u0627\u0644\u0633\u0644\u0633\u0644\u0629 A3\u060c \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "ru": "\u0411\u0440\u0430\u0437\u0438\u043b\u0435\u0439\u0440\u0430\u043e \u0421\u0435\u0440\u0438\u044f A3, \u0416\u0435\u043d\u0441\u043a\u0438\u0439"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "F"
+          },
+          "score": 288.58273,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20902,
+            "name": "Carioca,  S\u00e9rie B1",
+            "slug": "carioca-serie-b1",
+            "userCount": 689,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0627\u0631\u064a\u0648\u0643\u0627\u060c \u0627\u0644\u062f\u0631\u062c\u0629 B1",
+                "ru": "\u041b\u0438\u0433\u0430 \u041a\u0430\u0440\u0440\u0438\u043e\u043a\u0430, \u0421\u0435\u0440\u0438\u044f B1"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 287.5413,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20239,
+            "name": "Carioca, S\u00e9rie C",
+            "slug": "carioca-serie-c",
+            "userCount": 653,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u0627\u0631\u064a\u0648\u0643\u0627\u060c \u0627\u0644\u062f\u0631\u062c\u0629 C",
+                "ru": "\u041a\u0430\u0440\u0438\u0439\u043e\u043a\u0430, \u0421\u0435\u0440\u0438\u044f C"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 279.92856,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20102,
+            "name": "U20 Carioca, S\u00e9rie A",
+            "slug": "u20-carioca-serie-a",
+            "userCount": 642,
+            "category": {
+              "id": 13,
+              "name": "Brazil",
+              "slug": "brazil",
+              "alpha2": "BR",
+              "flag": "brazil",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "BR",
+                "name": "Brazil",
+                "slug": "brazil"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u0637\u0648\u0644\u0629 \u062a\u062d\u062a 20 \u0643\u0627\u0631\u064a\u0648\u0643\u0627\u060c \u0633\u064a\u0631\u064a\u0627 \u0623",
+                "ru": "\u0434\u043e 20 \u043b\u0435\u0442 \u041a\u0430\u0440\u0438\u0439\u043e\u043a\u0430, \u0421\u0435\u0440\u0438\u044f A"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 277.5608,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.13250303268432617
+  }
+}

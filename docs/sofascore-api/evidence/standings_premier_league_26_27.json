@@ -1,0 +1,1197 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/unique-tournament/17/season/96668/standings/total",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=60, public, s-maxage=7200",
+      "x-application-id": "core",
+      "etag": "W/\"c850493e80\"",
+      "x-request-id": "e6df07f8-d53f-479c-8f58-d9003983e02d",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:56:22 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "4568"
+    },
+    "body": {
+      "standings": [
+        {
+          "id": 280504,
+          "type": "total",
+          "tournament": {
+            "name": "Premier League",
+            "slug": "premier-league",
+            "category": {
+              "name": "England",
+              "slug": "england",
+              "sport": {
+                "name": "Football",
+                "slug": "football",
+                "id": 1
+              },
+              "priority": 10,
+              "country": {
+                "alpha2": "EN",
+                "alpha3": "ENG",
+                "name": "England",
+                "slug": "england"
+              },
+              "id": 1,
+              "flag": "england",
+              "alpha2": "EN",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0625\u0646\u062c\u0644\u062a\u0631\u0627",
+                  "hi": "\u0907\u0902\u0917\u094d\u0932\u0948\u0902\u0921",
+                  "bn": "\u0987\u0982\u09b2\u09cd\u09af\u09be\u09a8\u09cd\u09a1",
+                  "ru": "\u0410\u043d\u0433\u043b\u0438\u044f"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Premier League",
+              "slug": "premier-league",
+              "primaryColorHex": "#3c1c5a",
+              "secondaryColorHex": "#f80158",
+              "category": {
+                "name": "England",
+                "slug": "england",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "priority": 10,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 1,
+                "flag": "england",
+                "alpha2": "EN",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0625\u0646\u062c\u0644\u062a\u0631\u0627",
+                    "hi": "\u0907\u0902\u0917\u094d\u0932\u0948\u0902\u0921",
+                    "bn": "\u0987\u0982\u09b2\u09cd\u09af\u09be\u09a8\u09cd\u09a1",
+                    "ru": "\u0410\u043d\u0433\u043b\u0438\u044f"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 1340990,
+              "hasPerformanceGraphFeature": true,
+              "country": {},
+              "id": 17,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                  "hi": "\u092a\u094d\u0930\u093f\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                  "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09df\u09be\u09b0 \u09b2\u09c0\u0997",
+                  "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 703,
+            "isGroup": false,
+            "isLive": false,
+            "id": 1,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "hi": "\u092a\u094d\u0930\u093f\u092e\u093f\u092f\u0930 \u0932\u0940\u0917",
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u09aa\u09cd\u09b0\u09bf\u09ae\u09bf\u09af\u09bc\u09be\u09b0 \u09b2\u09c0\u0997",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440-\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "name": "Premier League 26/27",
+          "descriptions": [],
+          "tieBreakingRule": {
+            "id": 17827,
+            "text": "In the event that two (or more) teams have an equal number of points, the following rules break the tie:\n1. Goal difference\n2. Goals scored\n3. H2H"
+          },
+          "rows": [
+            {
+              "id": 2356398,
+              "team": {
+                "name": "Arsenal",
+                "slug": "arsenal",
+                "shortName": "Arsenal",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 4169170,
+                "nameCode": "ARS",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 42,
+                "teamColors": {
+                  "primary": "#cc0000",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0631\u0633\u0646\u0627\u0644",
+                    "bn": "\u0986\u09b0\u09cd\u09b8\u09c7\u09a8\u09be\u09b2",
+                    "hi": "\u0906\u0930\u094d\u0938\u0947\u0928\u0932",
+                    "ru": "\u0410\u0440\u0441\u0435\u043d\u0430\u043b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 804,
+                "text": "Champions League"
+              },
+              "position": 1,
+              "matches": 4,
+              "wins": 4,
+              "losses": 0,
+              "draws": 0,
+              "scoresFor": 8,
+              "scoresAgainst": 1,
+              "points": 12,
+              "scoreDiffFormatted": "+7"
+            },
+            {
+              "id": 2356411,
+              "team": {
+                "name": "Manchester City",
+                "slug": "manchester-city",
+                "shortName": "Man City",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 4719799,
+                "nameCode": "MCI",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 17,
+                "teamColors": {
+                  "primary": "#66ccff",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0645\u0627\u0646\u0634\u0633\u062a\u0631 \u0633\u064a\u062a\u064a",
+                    "hi": "\u092e\u0947\u0928\u091a\u0947\u0938\u094d\u091f\u0930 \u0938\u093f\u091f\u0940 \u090d\u095e\u0938\u0940",
+                    "ru": "\u041c\u0430\u043d\u0447\u0435\u0441\u0442\u0435\u0440 \u0421\u0438\u0442\u0438"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0645\u0627\u0646\u0634\u0633\u062a\u0631 \u0633\u064a\u062a\u064a",
+                    "bn": "\u09ae\u09cd\u09af\u09be\u09a8 \u09b8\u09bf\u099f\u09bf",
+                    "hi": "\u092e\u0948\u0928 \u0938\u093f\u091f\u0940"
+                  }
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 804,
+                "text": "Champions League"
+              },
+              "position": 2,
+              "matches": 4,
+              "wins": 4,
+              "losses": 0,
+              "draws": 0,
+              "scoresFor": 8,
+              "scoresAgainst": 2,
+              "points": 12,
+              "scoreDiffFormatted": "+6"
+            },
+            {
+              "id": 2356409,
+              "team": {
+                "name": "Leeds United",
+                "slug": "leeds-united",
+                "shortName": "Leeds",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 282477,
+                "nameCode": "LEE",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 34,
+                "teamColors": {
+                  "primary": "#ffffff",
+                  "secondary": "#1d4189",
+                  "text": "#1d4189"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0644\u064a\u062f\u0632 \u064a\u0648\u0646\u0627\u064a\u062a\u062f",
+                    "bn": "\u09b2\u09bf\u09a1\u09b8",
+                    "hi": "\u0932\u0940\u0921\u094d\u0938 \u092f\u0942\u0928\u093e\u0907\u091f\u0947\u0921",
+                    "ru": "\u041b\u0438\u0434\u0441 \u042e\u043d\u0430\u0439\u0442\u0435\u0434"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0644\u064a\u062f\u0632",
+                    "hi": "\u0932\u0940\u0921\u094d\u0938",
+                    "ru": "\u041b\u0438\u0434\u0441"
+                  }
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 804,
+                "text": "Champions League"
+              },
+              "position": 3,
+              "matches": 4,
+              "wins": 2,
+              "losses": 0,
+              "draws": 2,
+              "scoresFor": 7,
+              "scoresAgainst": 3,
+              "points": 8,
+              "scoreDiffFormatted": "+4"
+            },
+            {
+              "id": 2356407,
+              "team": {
+                "name": "Hull City",
+                "slug": "hull-city",
+                "shortName": "Hull",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 115431,
+                "nameCode": "HUL",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 96,
+                "teamColors": {
+                  "primary": "#de8f38",
+                  "secondary": "#000000",
+                  "text": "#000000"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0647\u0627\u0644 \u0633\u064a\u062a\u064a",
+                    "hi": "\u0939\u0932 \u0938\u093f\u091f\u0940",
+                    "ru": "\u0425\u0430\u043b\u043b \u0421\u0438\u0442\u0438"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0647\u0627\u0644 \u0633\u064a\u062a\u064a"
+                  }
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 804,
+                "text": "Champions League"
+              },
+              "position": 4,
+              "matches": 4,
+              "wins": 2,
+              "losses": 0,
+              "draws": 2,
+              "scoresFor": 5,
+              "scoresAgainst": 2,
+              "points": 8,
+              "scoreDiffFormatted": "+3"
+            },
+            {
+              "id": 2356401,
+              "team": {
+                "name": "Brighton & Hove Albion",
+                "slug": "brighton-and-hove-albion",
+                "shortName": "Brighton",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 469425,
+                "nameCode": "BHA",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 30,
+                "teamColors": {
+                  "primary": "#0054a6",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0628\u0631\u0627\u064a\u062a\u0648\u0646 \u0623\u0646\u062f \u0647\u0648\u0641 \u0623\u0644\u0628\u064a\u0648\u0646",
+                    "hi": "\u092c\u094d\u0930\u093e\u0907\u091f\u094b\u0928 \u090f\u0902\u0921 \u0939\u094b\u0935 \u090f\u0932\u094d\u092c\u093f\u0913\u0928 \u090d\u095e\u0938\u0940",
+                    "ru": "\u0411\u0440\u0430\u0439\u0442\u043e\u043d \u044d\u043d\u0434 \u0425\u043e\u0443\u0432 \u0410\u043b\u044c\u0431\u0438\u043e\u043d"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0628\u0631\u0627\u064a\u062a\u0648\u0646",
+                    "bn": "\u09ac\u09cd\u09b0\u09be\u0987\u099f\u09a8",
+                    "hi": "\u092c\u094d\u0930\u093e\u0907\u091f\u0928"
+                  }
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 52,
+                "text": "Europa League"
+              },
+              "position": 5,
+              "matches": 4,
+              "wins": 2,
+              "losses": 1,
+              "draws": 1,
+              "scoresFor": 13,
+              "scoresAgainst": 5,
+              "points": 7,
+              "scoreDiffFormatted": "+8"
+            },
+            {
+              "id": 2356402,
+              "team": {
+                "name": "Chelsea",
+                "slug": "chelsea",
+                "shortName": "Chelsea",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 3525520,
+                "nameCode": "CHE",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 38,
+                "teamColors": {
+                  "primary": "#0310a7",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u0634\u064a\u0644\u0633\u064a",
+                    "bn": "\u099a\u09c7\u09b2\u09b8\u09bf",
+                    "hi": "\u091a\u0947\u0932\u094d\u0938\u0940",
+                    "ru": "\u0427\u0435\u043b\u0441\u0438"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "position": 6,
+              "matches": 4,
+              "wins": 2,
+              "losses": 1,
+              "draws": 1,
+              "scoresFor": 10,
+              "scoresAgainst": 9,
+              "points": 7,
+              "scoreDiffFormatted": "+1"
+            },
+            {
+              "id": 2356400,
+              "team": {
+                "name": "Brentford",
+                "slug": "brentford",
+                "shortName": "Brentford",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 324863,
+                "nameCode": "BRE",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 50,
+                "teamColors": {
+                  "primary": "#ffffff",
+                  "secondary": "#ff0000",
+                  "text": "#ff0000"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0628\u0631\u064a\u0646\u062a\u0641\u0648\u0631\u062f",
+                    "bn": "\u09ac\u09cd\u09b0\u09c7\u09a8\u09cd\u099f\u09ab\u09cb\u09b0\u09cd\u09a1",
+                    "hi": "\u092c\u094d\u0930\u0947\u0902\u091f\u092b\u094b\u0930\u094d\u0921",
+                    "ru": "\u0411\u0440\u0435\u043d\u0442\u0444\u043e\u0440\u0434"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "position": 7,
+              "matches": 4,
+              "wins": 1,
+              "losses": 0,
+              "draws": 3,
+              "scoresFor": 7,
+              "scoresAgainst": 4,
+              "points": 6,
+              "scoreDiffFormatted": "+3"
+            },
+            {
+              "id": 2356410,
+              "team": {
+                "name": "Liverpool FC",
+                "slug": "liverpool",
+                "shortName": "Liverpool",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 4285559,
+                "nameCode": "LIV",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 44,
+                "teamColors": {
+                  "primary": "#cc0000",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0644\u064a\u0641\u0631\u0628\u0648\u0644",
+                    "bn": "\u09b2\u09bf\u09ad\u09be\u09b0\u09aa\u09c1\u09b2",
+                    "hi": "\u0932\u093f\u0935\u0930\u092a\u0942\u0932",
+                    "ru": "\u041b\u0438\u0432\u0435\u0440\u043f\u0443\u043b\u044c"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "position": 8,
+              "matches": 4,
+              "wins": 1,
+              "losses": 0,
+              "draws": 3,
+              "scoresFor": 6,
+              "scoresAgainst": 4,
+              "points": 6,
+              "scoreDiffFormatted": "+2"
+            },
+            {
+              "id": 2356405,
+              "team": {
+                "name": "Everton",
+                "slug": "everton",
+                "shortName": "Everton",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 410884,
+                "nameCode": "EVE",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 48,
+                "teamColors": {
+                  "primary": "#274488",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0625\u064a\u0641\u0631\u062a\u0648\u0646",
+                    "bn": "\u098f\u09ad\u09be\u09b0\u099f\u09a8",
+                    "hi": "\u090f\u0935\u0930\u094d\u091f\u0928",
+                    "ru": "\u042d\u0432\u0435\u0440\u0442\u043e\u043d"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "position": 9,
+              "matches": 4,
+              "wins": 1,
+              "losses": 0,
+              "draws": 3,
+              "scoresFor": 5,
+              "scoresAgainst": 3,
+              "points": 6,
+              "scoreDiffFormatted": "+2"
+            },
+            {
+              "id": 2356408,
+              "team": {
+                "name": "Ipswich Town",
+                "slug": "ipswich-town",
+                "shortName": "Ipswich",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 148838,
+                "nameCode": "IPS",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 32,
+                "teamColors": {
+                  "primary": "#0000ff",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u064a\u0628\u0633\u0648\u064a\u062a\u0634 \u062a\u0627\u0648\u0646",
+                    "hi": "\u0907\u092a\u094d\u0938\u094d\u0935\u093f\u091a \u091f\u093e\u0909\u0928",
+                    "ru": "\u0418\u043f\u0441\u0432\u0438\u0447 \u0422\u0430\u0443\u043d"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0627\u064a\u0628\u0633\u0648\u064a\u062a\u0634"
+                  }
+                }
+              },
+              "descriptions": [],
+              "position": 10,
+              "matches": 4,
+              "wins": 2,
+              "losses": 2,
+              "draws": 0,
+              "scoresFor": 7,
+              "scoresAgainst": 10,
+              "points": 6,
+              "scoreDiffFormatted": "-3"
+            },
+            {
+              "id": 2356414,
+              "team": {
+                "name": "Nottingham Forest",
+                "slug": "nottingham-forest",
+                "shortName": "Forest",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 457749,
+                "nameCode": "NFO",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 14,
+                "teamColors": {
+                  "primary": "#cc0000",
+                  "secondary": "#cc0000",
+                  "text": "#cc0000"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0646\u0648\u062a\u064a\u0646\u063a\u0647\u0627\u0645 \u0641\u0648\u0631\u0633\u062a",
+                    "hi": "\u0928\u093e\u091f\u093f\u0902\u0928\u094d\u0917\u094d\u0939\u092e \u092b\u093e\u0930\u0947\u0938\u094d\u091f",
+                    "ru": "\u041d\u043e\u0442\u0442\u0438\u043d\u0433\u0435\u043c \u0424\u043e\u0440\u0435\u0441\u0442"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0646\u0648\u062a\u064a\u0646\u063a\u0647\u0627\u0645 \u0641\u0648\u0631\u0633\u062a",
+                    "bn": "\u09ab\u09b0\u09c7\u09b8\u09cd\u099f",
+                    "hi": "\u092b\u0949\u0930\u0947\u0938\u094d\u091f"
+                  }
+                }
+              },
+              "descriptions": [],
+              "position": 11,
+              "matches": 4,
+              "wins": 1,
+              "losses": 1,
+              "draws": 2,
+              "scoresFor": 4,
+              "scoresAgainst": 4,
+              "points": 5,
+              "scoreDiffFormatted": "0"
+            },
+            {
+              "id": 2356413,
+              "team": {
+                "name": "Newcastle United",
+                "slug": "newcastle-united",
+                "shortName": "Newcastle",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 964404,
+                "nameCode": "NEW",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 39,
+                "teamColors": {
+                  "primary": "#000000",
+                  "secondary": "#ffffff",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0646\u064a\u0648\u0643\u0627\u0633\u0644 \u064a\u0648\u0646\u0627\u064a\u062a\u062f",
+                    "hi": "\u0928\u094d\u092f\u0942 \u0915\u093e\u0938\u094d\u0938\u0947\u0932 \u092f\u0942\u0928\u093e\u0907\u091f\u0947\u0921 \u090d\u095e\u0938\u0940",
+                    "ru": "\u041d\u044c\u044e\u043a\u0430\u0441\u043b \u042e\u043d\u0430\u0439\u0442\u0435\u0434"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0646\u064a\u0648\u0643\u0627\u0633\u0644",
+                    "bn": "\u09a8\u09bf\u0989\u0995\u09cd\u09af\u09be\u09b8\u09b2",
+                    "hi": "\u0928\u094d\u092f\u0942\u0915\u0948\u0938\u0932"
+                  }
+                }
+              },
+              "descriptions": [],
+              "position": 12,
+              "matches": 4,
+              "wins": 1,
+              "losses": 1,
+              "draws": 2,
+              "scoresFor": 7,
+              "scoresAgainst": 8,
+              "points": 5,
+              "scoreDiffFormatted": "-1"
+            },
+            {
+              "id": 2356412,
+              "team": {
+                "name": "Manchester United",
+                "slug": "manchester-united",
+                "shortName": "Man Utd",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 4241736,
+                "nameCode": "MUN",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 35,
+                "teamColors": {
+                  "primary": "#ff0000",
+                  "secondary": "#373737",
+                  "text": "#373737"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0645\u0627\u0646\u0634\u0633\u062a\u0631 \u064a\u0648\u0646\u0627\u064a\u062a\u062f",
+                    "hi": "\u092e\u0947\u0928\u091a\u0947\u0938\u094d\u091f\u0930 \u092f\u0942\u0928\u093e\u0907\u091f\u0947\u0921 \u090d\u095e\u0938\u0940",
+                    "ru": "\u041c\u0430\u043d\u0447\u0435\u0441\u0442\u0435\u0440 \u042e\u043d\u0430\u0439\u0442\u0435\u0434"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0645\u0627\u0646\u0634\u0633\u062a\u0631 \u064a\u0648\u0646\u0627\u064a\u062a\u062f",
+                    "bn": "\u09ae\u09cd\u09af\u09be\u09a8 \u0987\u0989\u09a8\u09be\u0987\u099f\u09c7\u09a1",
+                    "hi": "\u092e\u0948\u0928 \u092f\u0942\u0928\u093e\u0907\u091f\u0947\u0921"
+                  }
+                }
+              },
+              "descriptions": [],
+              "position": 13,
+              "matches": 4,
+              "wins": 1,
+              "losses": 2,
+              "draws": 1,
+              "scoresFor": 7,
+              "scoresAgainst": 7,
+              "points": 4,
+              "scoreDiffFormatted": "0"
+            },
+            {
+              "id": 2356415,
+              "team": {
+                "name": "Sunderland",
+                "slug": "sunderland",
+                "shortName": "Sunderland",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 250913,
+                "nameCode": "SUN",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 41,
+                "teamColors": {
+                  "primary": "#ffffff",
+                  "secondary": "#ca0000",
+                  "text": "#ca0000"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0633\u0646\u062f\u0631\u0644\u0627\u0646\u062f",
+                    "ru": "\u0421\u0430\u043d\u0434\u0435\u0440\u043b\u0435\u043d\u0434"
+                  },
+                  "shortNameTranslation": {
+                    "ru": "\u0421\u0430\u043d\u0434\u0435\u0440\u043b\u0435\u043d\u0434"
+                  }
+                }
+              },
+              "descriptions": [],
+              "position": 14,
+              "matches": 4,
+              "wins": 1,
+              "losses": 2,
+              "draws": 1,
+              "scoresFor": 3,
+              "scoresAgainst": 5,
+              "points": 4,
+              "scoreDiffFormatted": "-2"
+            },
+            {
+              "id": 2356397,
+              "team": {
+                "name": "Bournemouth",
+                "slug": "bournemouth",
+                "shortName": "Bournemouth",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 352559,
+                "nameCode": "BOU",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 60,
+                "teamColors": {
+                  "primary": "#000000",
+                  "secondary": "#cc0000",
+                  "text": "#cc0000"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0628\u0648\u0631\u0646\u0645\u0648\u062b",
+                    "bn": "\u09ac\u09cb\u09b0\u09cd\u09a8\u09c7\u09ae\u09be\u0989\u09a5",
+                    "hi": "\u092c\u094b\u0930\u094d\u0928\u092e\u093e\u0909\u0925",
+                    "ru": "\u0411\u043e\u0440\u043d\u043c\u0443\u0442"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "position": 15,
+              "matches": 4,
+              "wins": 0,
+              "losses": 1,
+              "draws": 3,
+              "scoresFor": 6,
+              "scoresAgainst": 7,
+              "points": 3,
+              "scoreDiffFormatted": "-1"
+            },
+            {
+              "id": 2356404,
+              "team": {
+                "name": "Crystal Palace",
+                "slug": "crystal-palace",
+                "shortName": "Crystal Palace",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 469848,
+                "nameCode": "CRY",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 7,
+                "teamColors": {
+                  "primary": "#0033ff",
+                  "secondary": "#b90d2b",
+                  "text": "#b90d2b"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0643\u0631\u064a\u0633\u062a\u0627\u0644 \u0628\u0627\u0644\u0627\u0633",
+                    "bn": "\u0995\u09cd\u09b0\u09bf\u09b8\u09cd\u099f\u09be\u09b2 \u09aa\u09cd\u09af\u09be\u09b2\u09c7\u09b8",
+                    "hi": "\u0915\u094d\u0930\u093f\u0938\u094d\u091f\u0932 \u092a\u0948\u0932\u0947\u0938",
+                    "ru": "\u041a\u0440\u0438\u0441\u0442\u0430\u043b \u041f\u044d\u043b\u0430\u0441"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "position": 16,
+              "matches": 4,
+              "wins": 1,
+              "losses": 3,
+              "draws": 0,
+              "scoresFor": 6,
+              "scoresAgainst": 11,
+              "points": 3,
+              "scoreDiffFormatted": "-5"
+            },
+            {
+              "id": 2356416,
+              "team": {
+                "name": "Tottenham Hotspur",
+                "slug": "tottenham-hotspur",
+                "shortName": "Tottenham",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 1639941,
+                "nameCode": "TOT",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 33,
+                "teamColors": {
+                  "primary": "#ffffff",
+                  "secondary": "#000066",
+                  "text": "#000066"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u0648\u062a\u0646\u0647\u0627\u0645 \u0647\u0648\u062a\u0633\u0628\u064a\u0631",
+                    "hi": "\u091f\u094b\u091f\u0947\u0928\u0939\u0948\u092e \u0939\u0949\u091f\u0938\u094d\u092a\u0930 \u090d\u095e\u0938\u0940",
+                    "ru": "\u0422\u043e\u0442\u0442\u0435\u043d\u0445\u044d\u043c \u0425\u043e\u0442\u0441\u043f\u0443\u0440"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u062a\u0648\u062a\u0646\u0647\u0627\u0645",
+                    "bn": "\u099f\u099f\u09c7\u09a8\u09b9\u09cd\u09af\u09be\u09ae",
+                    "hi": "\u091f\u0949\u091f\u0928\u0939\u0948\u092e"
+                  }
+                }
+              },
+              "descriptions": [],
+              "position": 17,
+              "matches": 4,
+              "wins": 0,
+              "losses": 2,
+              "draws": 2,
+              "scoresFor": 0,
+              "scoresAgainst": 5,
+              "points": 2,
+              "scoreDiffFormatted": "-5"
+            },
+            {
+              "id": 2356406,
+              "team": {
+                "name": "Fulham",
+                "slug": "fulham",
+                "shortName": "Fulham",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 364643,
+                "nameCode": "FUL",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 43,
+                "teamColors": {
+                  "primary": "#ffffff",
+                  "secondary": "#000000",
+                  "text": "#000000"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0641\u0648\u0644\u0647\u0627\u0645",
+                    "bn": "\u09ab\u09c1\u09b2\u09b9\u09be\u09ae",
+                    "hi": "\u092b\u0941\u0932\u0939\u092e",
+                    "ru": "\u0424\u0443\u043b\u0445\u044d\u043c"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 3,
+                "text": "Relegation"
+              },
+              "position": 18,
+              "matches": 4,
+              "wins": 0,
+              "losses": 3,
+              "draws": 1,
+              "scoresFor": 4,
+              "scoresAgainst": 7,
+              "points": 1,
+              "scoreDiffFormatted": "-3"
+            },
+            {
+              "id": 2356399,
+              "team": {
+                "name": "Aston Villa",
+                "slug": "aston-villa",
+                "shortName": "Aston Villa",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 1079509,
+                "nameCode": "AVL",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 40,
+                "teamColors": {
+                  "primary": "#670e36",
+                  "secondary": "#94bee5",
+                  "text": "#94bee5"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0623\u0633\u062a\u0648\u0646 \u0641\u064a\u0644\u0627",
+                    "bn": "\u0985\u09cd\u09af\u09be\u09b8\u09cd\u099f\u09a8 \u09ad\u09bf\u09b2\u09be",
+                    "hi": "\u090f\u0938\u094d\u091f\u0928 \u0935\u093f\u0932\u093e",
+                    "ru": "\u0410\u0441\u0442\u043e\u043d \u0412\u0438\u043b\u043b\u0430"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 3,
+                "text": "Relegation"
+              },
+              "position": 19,
+              "matches": 4,
+              "wins": 0,
+              "losses": 3,
+              "draws": 1,
+              "scoresFor": 1,
+              "scoresAgainst": 7,
+              "points": 1,
+              "scoreDiffFormatted": "-6"
+            },
+            {
+              "id": 2356403,
+              "team": {
+                "name": "Coventry City",
+                "slug": "coventry-city",
+                "shortName": "Coventry",
+                "gender": "M",
+                "sport": {
+                  "name": "Football",
+                  "slug": "football",
+                  "id": 1
+                },
+                "userCount": 117473,
+                "nameCode": "COC",
+                "disabled": false,
+                "national": false,
+                "type": 0,
+                "country": {
+                  "alpha2": "EN",
+                  "alpha3": "ENG",
+                  "name": "England",
+                  "slug": "england"
+                },
+                "id": 11,
+                "teamColors": {
+                  "primary": "#0099cc",
+                  "secondary": "#999999",
+                  "text": "#999999"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0643\u0648\u0641\u0646\u062a\u0631\u064a \u0633\u064a\u062a\u064a",
+                    "hi": "\u0915\u094b\u0935\u0947\u0902\u091f\u094d\u0930\u0940 \u0938\u093f\u091f\u0940",
+                    "ru": "\u041a\u043e\u0432\u0435\u043d\u0442\u0440\u0438 \u0421\u0438\u0442\u0438"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0643\u0648\u0641\u0646\u062a\u0631\u064a"
+                  }
+                }
+              },
+              "descriptions": [],
+              "promotion": {
+                "id": 3,
+                "text": "Relegation"
+              },
+              "position": 20,
+              "matches": 4,
+              "wins": 0,
+              "losses": 4,
+              "draws": 0,
+              "scoresFor": 0,
+              "scoresAgainst": 10,
+              "points": 0,
+              "scoreDiffFormatted": "-10"
+            }
+          ],
+          "updatedAtTimestamp": 1789419167
+        }
+      ]
+    },
+    "elapsed_seconds": 0.08169388771057129
+  }
+}

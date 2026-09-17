@@ -1,0 +1,68 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/event/16363633/managers",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=60, public, s-maxage=86400",
+      "x-application-id": "core",
+      "etag": "W/\"f34461ca71\"",
+      "x-request-id": "7d6691ce-2e47-41af-8a82-43cc42c3dedd",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:56:52 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "406"
+    },
+    "body": {
+      "homeManager": {
+        "name": "Mikel Arteta",
+        "slug": "mikel-arteta",
+        "shortName": "M. Arteta",
+        "id": 794075,
+        "fieldTranslations": {
+          "nameTranslation": {
+            "ar": "\u0645\u064a\u0643\u064a\u0644 \u0623\u0631\u062a\u064a\u062a\u0627",
+            "bn": "\u09ae\u09bf\u0995\u09c7\u09b2 \u0986\u09b0\u09cd\u09a4\u09c7\u09a4\u09be",
+            "hi": "\u092e\u093f\u0915\u0947\u0932 \u0906\u0930\u094d\u091f\u0947\u091f\u093e",
+            "ru": "\u041c\u0438\u043a\u0435\u043b\u044c \u0410\u0440\u0442\u0435\u0442\u0430"
+          },
+          "shortNameTranslation": {
+            "ar": "\u0645. \u0623\u0631\u062a\u064a\u062a\u0627",
+            "hi": "\u090f\u092e. \u0906\u0930\u094d\u091f\u0947\u091f\u093e",
+            "bn": "\u098f\u09ae. \u0986\u09b0\u09a4\u09c7\u09a4\u09be",
+            "ru": "\u041c. \u0410\u0440\u0442\u0435\u0442\u0430"
+          }
+        }
+      },
+      "awayManager": {
+        "name": "Frank Lampard",
+        "slug": "frank-lampard",
+        "shortName": "F. Lampard",
+        "id": 790203,
+        "fieldTranslations": {
+          "nameTranslation": {
+            "ar": "\u0641\u0631\u0627\u0646\u0643 \u0644\u0627\u0645\u0628\u0627\u0631\u062f",
+            "ru": "\u0424\u0440\u044d\u043d\u043a \u041b\u044d\u043c\u043f\u0430\u0440\u0434"
+          },
+          "shortNameTranslation": {
+            "ar": "\u0641. \u0644\u0627\u0645\u0628\u0627\u0631\u062f",
+            "ru": "\u0424. \u041b\u044d\u043c\u043f\u0430\u0440\u0434"
+          }
+        }
+      }
+    },
+    "elapsed_seconds": 0.09059882164001465
+  }
+}

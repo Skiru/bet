@@ -1,0 +1,5413 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/sport/tennis/events/live",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=5, public, s-maxage=5, stale-while-revalidate=60",
+      "x-application-id": "core",
+      "etag": "W/\"450e07a1e4\"",
+      "x-request-id": "dd397ad2-eea9-41b7-b8c2-6d60360f671f",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:55:56 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "14076"
+    },
+    "body": {
+      "events": [
+        {
+          "firstToServe": 2,
+          "homeTeamSeed": "Q",
+          "tournament": {
+            "name": "Guangzhou, China",
+            "slug": "guangzhou-china",
+            "category": {
+              "name": "Challenger",
+              "slug": "challenger",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 6,
+              "country": {},
+              "id": 72,
+              "flag": "challenger",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                  "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                  "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                  "ru": "Challenger"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Guangzhou, China",
+              "slug": "guangzhou-china",
+              "category": {
+                "name": "Challenger",
+                "slug": "challenger",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 6,
+                "country": {},
+                "id": 72,
+                "flag": "challenger",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                    "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                    "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                    "ru": "Challenger"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 202,
+              "groundType": "Hardcourt outdoor",
+              "tennisPoints": 75,
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 3701,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0642\u0648\u0627\u0646\u063a\u062a\u0634\u0648\u060c \u0627\u0644\u0635\u064a\u0646",
+                  "ru": "\u0413\u0443\u0430\u043d\u0447\u0436\u043e\u0443, \u041a\u0438\u0442\u0430\u0439"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": false,
+            "id": 199397,
+            "endTimestamp": 1789948800,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "ATP Challenger Guangzhou, China Men Singles 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 94944
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "NtpbsGrtc",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Alexander Binda",
+            "slug": "binda-alexandr",
+            "shortName": "A. Binda",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 835,
+            "playerTeamInfo": {
+              "id": 4094
+            },
+            "nameCode": "BIN",
+            "ranking": 548,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "IT",
+              "alpha3": "ITA",
+              "name": "Italy",
+              "slug": "italy"
+            },
+            "id": 295881,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u0644\u0643\u0633\u0646\u062f\u0631 \u0628\u064a\u0646\u062f\u0627",
+                "ru": "\u0410\u043b\u0435\u043a\u0441\u0430\u043d\u0434\u0440 \u0411\u0438\u043d\u0434\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u0628\u064a\u0646\u062f\u0627",
+                "ru": "\u0410. \u0411\u0438\u043d\u0434\u0430"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Fajing Sun",
+            "slug": "sun-fajing",
+            "shortName": "F. Sun",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 1396,
+            "playerTeamInfo": {
+              "id": 2338
+            },
+            "nameCode": "SUN",
+            "ranking": 324,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CN",
+              "alpha3": "CHN",
+              "name": "China",
+              "slug": "china"
+            },
+            "id": 163438,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u0627\u062c\u064a\u0646\u063a \u0635\u0646",
+                "bn": "\u09ab\u09be\u099c\u09bf\u0982 \u09b8\u09be\u09a8",
+                "hi": "\u092b\u091c\u093f\u0902\u0917 \u0938\u0941\u0928",
+                "ru": "\u0421\u0443\u043d\u044c, \u0424\u0430\u0446\u0437\u0438\u043d"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0641. \u0635\u0646"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "point": "40"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "point": "0"
+          },
+          "time": {
+            "currentPeriodStartTimestamp": 1789630964
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631741
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17058672,
+          "slug": "alexander-binda-fajing-sun",
+          "startTimestamp": 1789630200,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "homeTeamSeed": "Q",
+          "awayTeamSeed": "Q",
+          "tournament": {
+            "name": "Guangzhou, China",
+            "slug": "guangzhou-china",
+            "category": {
+              "name": "Challenger",
+              "slug": "challenger",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 6,
+              "country": {},
+              "id": 72,
+              "flag": "challenger",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                  "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                  "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                  "ru": "Challenger"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Guangzhou, China",
+              "slug": "guangzhou-china",
+              "category": {
+                "name": "Challenger",
+                "slug": "challenger",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 6,
+                "country": {},
+                "id": 72,
+                "flag": "challenger",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                    "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                    "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                    "ru": "Challenger"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 202,
+              "groundType": "Hardcourt outdoor",
+              "tennisPoints": 75,
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 3701,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0642\u0648\u0627\u0646\u063a\u062a\u0634\u0648\u060c \u0627\u0644\u0635\u064a\u0646",
+                  "ru": "\u0413\u0443\u0430\u043d\u0447\u0436\u043e\u0443, \u041a\u0438\u0442\u0430\u0439"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": false,
+            "id": 199397,
+            "endTimestamp": 1789948800,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "ATP Challenger Guangzhou, China Men Singles 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 94944
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "Tuccsbhud",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "James Trotter",
+            "slug": "trotter-james-kent",
+            "shortName": "J. Trotter",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 1410,
+            "playerTeamInfo": {
+              "id": 3718
+            },
+            "nameCode": "TRO",
+            "ranking": 439,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "JP",
+              "alpha3": "JPN",
+              "name": "Japan",
+              "slug": "japan"
+            },
+            "id": 255993,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062c\u064a\u0645\u0633 \u062a\u0631\u0648\u062a\u0631",
+                "ru": "\u0414\u0436\u0435\u0439\u043c\u0441 \u0422\u0440\u043e\u0442\u0442\u0435\u0440"
+              },
+              "shortNameTranslation": {
+                "ar": "\u062c. \u062a\u0631\u0648\u062a\u0631",
+                "ru": "\u0414. \u0422\u0440\u043e\u0442\u0442\u0435\u0440"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Mitsuki Wei Kang Leong",
+            "slug": "leong-mitsuki-wei-kang",
+            "shortName": "M. W. K. Leong",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 635,
+            "playerTeamInfo": {
+              "id": 5681
+            },
+            "nameCode": "LEO",
+            "ranking": 464,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "MY",
+              "alpha3": "MYS",
+              "name": "Malaysia",
+              "slug": "malaysia"
+            },
+            "id": 422851,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645\u064a\u062a\u0633\u0648\u0643\u064a \u0648\u064a \u0643\u0627\u0646\u063a \u0644\u064a\u0648\u0646\u063a",
+                "ru": "\u041c\u0438\u0446\u0443\u043a\u0438 \u0412\u044d\u0439 \u041a\u0430\u043d \u041b\u0438\u043e\u043d\u0433"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0645. \u0644\u064a\u0648\u0646\u063a",
+                "ru": "\u041c. \u041b\u0438\u043e\u043d\u0433"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "point": "40"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "point": "15"
+          },
+          "time": {
+            "currentPeriodStartTimestamp": 1789630671
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631717
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17058671,
+          "slug": "mitsuki-wei-kang-leong-james-trotter",
+          "startTimestamp": 1789630200,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "awayTeamSeed": "Q",
+          "tournament": {
+            "name": "Guangzhou, China",
+            "slug": "guangzhou-china",
+            "category": {
+              "name": "Challenger",
+              "slug": "challenger",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 6,
+              "country": {},
+              "id": 72,
+              "flag": "challenger",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                  "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                  "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                  "ru": "Challenger"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Guangzhou, China",
+              "slug": "guangzhou-china",
+              "category": {
+                "name": "Challenger",
+                "slug": "challenger",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 6,
+                "country": {},
+                "id": 72,
+                "flag": "challenger",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                    "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                    "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                    "ru": "Challenger"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 202,
+              "groundType": "Hardcourt outdoor",
+              "tennisPoints": 75,
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 3701,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0642\u0648\u0627\u0646\u063a\u062a\u0634\u0648\u060c \u0627\u0644\u0635\u064a\u0646",
+                  "ru": "\u0413\u0443\u0430\u043d\u0447\u0436\u043e\u0443, \u041a\u0438\u0442\u0430\u0439"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": false,
+            "id": 199397,
+            "endTimestamp": 1789948800,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "ATP Challenger Guangzhou, China Men Singles 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 94944
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "EBZcsyfJd",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Petr Bar Biryukov",
+            "slug": "bar-biryukov-petr",
+            "shortName": "P. Bar Biryukov",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 1171,
+            "playerTeamInfo": {
+              "id": 4940
+            },
+            "nameCode": "BAR",
+            "ranking": 299,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 373829,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u064a\u062a\u0631 \u0628\u0627\u0631 \u0628\u064a\u0631\u064a\u0648\u0643\u0648\u0641",
+                "ru": "\u041f\u0435\u0442\u0440 \u0411\u0430\u0440 \u0411\u0438\u0440\u044e\u043a\u043e\u0432"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0628. \u0628\u064a\u0631\u064a\u0648\u0643\u0648\u0641",
+                "ru": "\u041f. \u0411\u0438\u0440\u044e\u043a\u043e\u0432"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Naoya Honda",
+            "slug": "honda-naoya",
+            "shortName": "N. Honda",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 557,
+            "playerTeamInfo": {
+              "id": 6693
+            },
+            "nameCode": "HON",
+            "ranking": 656,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "JP",
+              "alpha3": "JPN",
+              "name": "Japan",
+              "slug": "japan"
+            },
+            "id": 460273,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0646\u0627\u0648\u064a\u0627 \u0647\u0648\u0646\u062f\u0627",
+                "ru": "\u041d\u0430\u043e\u044f \u0425\u043e\u043d\u0434\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0646. \u0647\u0648\u0646\u062f\u0627",
+                "ru": "\u041d. \u0425\u043e\u043d\u0434\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "point": "A"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "point": "40"
+          },
+          "time": {
+            "currentPeriodStartTimestamp": 1789630947
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631743
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17058695,
+          "slug": "naoya-honda-petr-bar-biryukov",
+          "startTimestamp": 1789630200,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "homeTeamSeed": "A",
+          "tournament": {
+            "name": "Phan Thiet 4, Vietnam, Doubles",
+            "slug": "phan-thiet-4-vietnam-doubles",
+            "category": {
+              "name": "Challenger",
+              "slug": "challenger",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 6,
+              "country": {},
+              "id": 72,
+              "flag": "challenger",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                  "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                  "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                  "ru": "Challenger"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Phan Thiet 4, Vietnam, Doubles",
+              "slug": "phan-thiet-4-vietnam-doubles",
+              "category": {
+                "name": "Challenger",
+                "slug": "challenger",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 6,
+                "country": {},
+                "id": 72,
+                "flag": "challenger",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                    "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                    "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                    "ru": "Challenger"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 8,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37726,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "isGroup": false,
+            "id": 199386,
+            "endTimestamp": 1789862400,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "ATP Challenger Charlottesville, USA Men Doubles 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 103205
+          },
+          "roundInfo": {
+            "round": 27,
+            "name": "Quarterfinals",
+            "slug": "quarterfinals",
+            "cupRoundType": 4
+          },
+          "customId": "HdlkscTlk",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Borisiouk M / Ianin N",
+            "slug": "borisiouk-m-ianin-n",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 4,
+            "nameCode": "B/I",
+            "national": false,
+            "type": 2,
+            "country": {},
+            "id": 1279652,
+            "subTeams": [
+              {
+                "name": "Martin Borisiouk",
+                "slug": "borisiouk-martin",
+                "shortName": "M. Borisiouk",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 306,
+                "nameCode": "BOR",
+                "ranking": 939,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "BY",
+                  "alpha3": "BLR",
+                  "name": "Belarus",
+                  "slug": "belarus"
+                },
+                "id": 208620,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0645\u0627\u0631\u062a\u0646 \u0628\u0648\u0631\u064a\u0632\u064a\u0648\u0643",
+                    "ru": "\u041c\u0430\u0440\u0442\u0438\u043d \u0411\u043e\u0440\u0438\u0441\u044e\u043a"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0645. \u0628\u0648\u0631\u064a\u0632\u064a\u0648\u0643",
+                    "ru": "\u041c. \u0411\u043e\u0440\u0438\u0441\u044e\u043a"
+                  }
+                }
+              },
+              {
+                "name": "Nikita Ianin",
+                "slug": "ianin-nikita",
+                "shortName": "N. Ianin",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 132,
+                "nameCode": "IAN",
+                "ranking": 965,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "RU",
+                  "alpha3": "RUS",
+                  "name": "Russia",
+                  "slug": "russia"
+                },
+                "id": 387857,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0646\u064a\u0643\u064a\u062a\u0627 \u0625\u064a\u0627\u0646\u064a\u0646",
+                    "ru": "\u041d\u0438\u043a\u0438\u0442\u0430 \u0418\u0430\u043d\u0438\u043d"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0646. \u0625\u064a\u0627\u0646\u064a\u0646",
+                    "ru": "\u041d. \u0418\u0430\u043d\u0438\u043d"
+                  }
+                }
+              }
+            ],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            }
+          },
+          "awayTeam": {
+            "name": "Jeong Y S / Matsuda K",
+            "slug": "jeong-y-s-matsuda-k",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 1,
+            "nameCode": "J/M",
+            "national": false,
+            "type": 2,
+            "country": {},
+            "id": 1277682,
+            "subTeams": [
+              {
+                "name": "Yeongseok Jeong",
+                "slug": "jeong-yeongseok",
+                "shortName": "Y. Jeong",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 71,
+                "nameCode": "JEO",
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "KR",
+                  "alpha3": "KOR",
+                  "name": "South Korea",
+                  "slug": "south-korea"
+                },
+                "id": 221327,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u064a\u0648\u0646\u063a\u0633\u0648\u0643 \u062c\u0648\u0646\u063a",
+                    "ru": "\u0401\u043d\u0441\u043e\u043a \u0427\u0436\u043e\u043d"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u064a. \u062c\u0648\u0646\u063a",
+                    "ru": "\u0401. \u0427\u0436\u043e\u043d"
+                  }
+                }
+              },
+              {
+                "name": "Koki Matsuda",
+                "slug": "matsuda-koki",
+                "shortName": "K. Matsuda",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 736,
+                "nameCode": "MAT",
+                "ranking": 467,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "JP",
+                  "alpha3": "JPN",
+                  "name": "Japan",
+                  "slug": "japan"
+                },
+                "id": 450874,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0643\u0648\u0643\u064a \u0645\u0627\u062a\u0633\u0648\u062f\u0627",
+                    "ru": "\u041a\u043e\u043a\u0438 \u041c\u0430\u0446\u0443\u0434\u0430"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0643. \u0645\u0627\u062a\u0633\u0648\u062f\u0627",
+                    "ru": "\u041a. \u041c\u0430\u0446\u0443\u0434\u0430"
+                  }
+                }
+              }
+            ],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 6,
+            "period2": 2,
+            "period1TieBreak": 3,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 7,
+            "period2": 2,
+            "period1TieBreak": 7,
+            "point": "0"
+          },
+          "time": {
+            "period1": 2920,
+            "currentPeriodStartTimestamp": 1789630685
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point",
+              "homeScore.period2",
+              "awayScore.point",
+              "firstToServe"
+            ],
+            "changeTimestamp": 1789631692
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17058747,
+          "slug": "borisiouk-ianin-jeongs-matsuda",
+          "startTimestamp": 1789626900,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "homeTeamSeed": "4",
+          "tournament": {
+            "name": "Phan Thiet 4, Vietnam, Doubles",
+            "slug": "phan-thiet-4-vietnam-doubles",
+            "category": {
+              "name": "Challenger",
+              "slug": "challenger",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 6,
+              "country": {},
+              "id": 72,
+              "flag": "challenger",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                  "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                  "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                  "ru": "Challenger"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Phan Thiet 4, Vietnam, Doubles",
+              "slug": "phan-thiet-4-vietnam-doubles",
+              "category": {
+                "name": "Challenger",
+                "slug": "challenger",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 6,
+                "country": {},
+                "id": 72,
+                "flag": "challenger",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u062d\u062f\u064a (\u062a\u0646\u0633)",
+                    "bn": "\u099a\u09cd\u09af\u09be\u09b2\u09c7\u099e\u09cd\u099c\u09be\u09b0",
+                    "hi": "\u0921\u0947\u0928\u092e\u093e\u0930\u094d\u0915",
+                    "ru": "Challenger"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 8,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37726,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "isGroup": false,
+            "id": 199386,
+            "endTimestamp": 1789862400,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "ATP Challenger Charlottesville, USA Men Doubles 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 103205
+          },
+          "roundInfo": {
+            "round": 27,
+            "name": "Quarterfinals",
+            "slug": "quarterfinals",
+            "cupRoundType": 4
+          },
+          "customId": "GfAcsiTce",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Ichikawa T / Imamura M",
+            "slug": "ichikawa-t-imamura-m",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 12,
+            "nameCode": "I/I",
+            "national": false,
+            "type": 2,
+            "country": {},
+            "id": 312781,
+            "subTeams": [
+              {
+                "name": "Taisei Ichikawa",
+                "slug": "ichikawa-taisei",
+                "shortName": "T. Ichikawa",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 360,
+                "nameCode": "ICH",
+                "ranking": 758,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "JP",
+                  "alpha3": "JPN",
+                  "name": "Japan",
+                  "slug": "japan"
+                },
+                "id": 255992,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u062a\u0627\u064a\u0633\u064a \u0625\u064a\u062a\u0634\u064a\u0643\u0627\u0648\u0627",
+                    "ru": "\u0418\u0448\u0438\u043a\u0430\u0432\u0430, \u0422\u0430\u0439\u0441\u0435\u0439"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u062a. \u0625\u064a\u062a\u0634\u064a\u0643\u0627\u0648\u0627"
+                  }
+                }
+              },
+              {
+                "name": "Masamichi Imamura",
+                "slug": "imamura-masamichi",
+                "shortName": "M. Imamura",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 638,
+                "nameCode": "IMA",
+                "ranking": 411,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "JP",
+                  "alpha3": "JPN",
+                  "name": "Japan",
+                  "slug": "japan"
+                },
+                "id": 197935,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0645\u0627\u0633\u0627\u0645\u064a\u0634\u064a \u0625\u064a\u0645\u0627\u0645\u0648\u0631\u0627",
+                    "ru": "\u041c\u0430\u0441\u0430\u043c\u0438\u0447\u0438 \u0418\u043c\u0430\u043c\u0443\u0440\u0430"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0645. \u0625\u064a\u0645\u0627\u0645\u0648\u0631\u0627",
+                    "ru": "\u041c. \u0418\u043c\u0430\u043c\u0443\u0440\u0430"
+                  }
+                }
+              }
+            ],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u064a\u062a\u0634\u064a\u0643\u0627\u0648\u0627 \u062a / \u0625\u0645\u0627\u0645\u0648\u0631\u0627 \u0645",
+                "ru": "\u0418\u0447\u0438\u043a\u0430\u0432\u0430 \u0422 / \u0418\u043c\u0430\u043c\u0443\u0440\u0430 \u041c"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "awayTeam": {
+            "name": "Heck H / Miyoshi K",
+            "slug": "heck-h-miyoshi-k",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 4,
+            "nameCode": "H/M",
+            "disabled": false,
+            "national": false,
+            "type": 2,
+            "country": {},
+            "id": 507158,
+            "subTeams": [
+              {
+                "name": "Hunter Heck",
+                "slug": "heck-hunter",
+                "shortName": "H. Heck",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 307,
+                "nameCode": "HEC",
+                "ranking": 700,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "US",
+                  "alpha3": "USA",
+                  "name": "USA",
+                  "slug": "usa"
+                },
+                "id": 275451,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0647\u0627\u0646\u062a\u0631 \u0647\u064a\u0643",
+                    "ru": "\u0425\u0430\u043d\u0442\u0435\u0440 \u0425\u0435\u043a"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0647. \u0647\u064a\u0643",
+                    "ru": "\u0425. \u0425\u0435\u043a"
+                  }
+                }
+              },
+              {
+                "name": "Kenta Miyoshi",
+                "slug": "miyoshi-kenta",
+                "shortName": "K. Miyoshi",
+                "gender": "M",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "userCount": 716,
+                "nameCode": "MIY",
+                "ranking": 452,
+                "disabled": false,
+                "national": false,
+                "type": 1,
+                "country": {
+                  "alpha2": "JP",
+                  "alpha3": "JPN",
+                  "name": "Japan",
+                  "slug": "japan"
+                },
+                "id": 191305,
+                "subTeams": [],
+                "teamColors": {
+                  "primary": "#374df5",
+                  "secondary": "#374df5",
+                  "text": "#ffffff"
+                },
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0643\u064a\u0646\u062a\u0627 \u0645\u064a\u0648\u0634\u064a",
+                    "ru": "\u041a\u0435\u043d\u0442\u0430 \u041c\u0438\u0451\u0448\u0438"
+                  },
+                  "shortNameTranslation": {
+                    "ar": "\u0643. \u0645\u064a\u0648\u0634\u064a",
+                    "ru": "\u041a. \u041c\u0438\u0451\u0448\u0438"
+                  }
+                }
+              }
+            ],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0647\u064a\u0643 \u0625\u062a\u0634 / \u0645\u064a\u0648\u0634\u064a \u0643",
+                "ru": "\u0425\u0435\u043a \u0425 / \u041c\u0438\u0451\u0448\u0438 \u041a"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 6,
+            "period1TieBreak": 8,
+            "point": "8"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 6,
+            "period1TieBreak": 7,
+            "point": "7"
+          },
+          "time": {
+            "period1": 0,
+            "period2": 0,
+            "period3": 0,
+            "currentPeriodStartTimestamp": 1789629748
+          },
+          "changes": {
+            "changes": [
+              "status.code",
+              "status.description",
+              "homeScore.current",
+              "homeScore.display",
+              "homeScore.period1",
+              "homeScore.period2",
+              "homeScore.period1TieBreak",
+              "homeScore.point",
+              "awayScore.period2",
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631445
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17058743,
+          "slug": "heck-miyoshi-ichikawa-imamura",
+          "startTimestamp": 1789630200,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "doubles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "tournament": {
+            "name": "ITF M15 Hurghada 9 Men",
+            "slug": "itf-m15-hurghada-9-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Hurghada 9 Men",
+              "slug": "itf-m15-hurghada-9-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 8,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37623,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198923
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102957
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "pyQbsXmld",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Charles Bertimon",
+            "slug": "bertimon-charles",
+            "shortName": "C. Bertimon",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 133,
+            "playerTeamInfo": {
+              "id": 19292
+            },
+            "nameCode": "BER",
+            "ranking": 951,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "FR",
+              "alpha3": "FRA",
+              "name": "France",
+              "slug": "france"
+            },
+            "id": 228665,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u0634\u0627\u0631\u0644\u0632 \u0628\u064a\u0631\u062a\u064a\u0645\u0648\u0646",
+                "ru": "\u0428\u0430\u0440\u043b\u044c \u0411\u0435\u0440\u0442\u0438\u043c\u043e\u043d"
+              },
+              "shortNameTranslation": {
+                "ar": "\u062a. \u0628\u064a\u0631\u062a\u064a\u0645\u0648\u0646",
+                "ru": "\u0428. \u0411\u0435\u0440\u0442\u0438\u043c\u043e\u043d"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Andriy Poritskyy",
+            "slug": "poritskyy-andriy",
+            "shortName": "A. Poritskyy",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 50,
+            "playerTeamInfo": {
+              "id": 30243
+            },
+            "nameCode": "POR",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "UA",
+              "alpha3": "UKR",
+              "name": "Ukraine",
+              "slug": "ukraine"
+            },
+            "id": 403147,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u0646\u062f\u0631\u064a\u0647 \u0628\u0648\u0631\u064a\u062a\u064a\u0643\u0633\u064a",
+                "ru": "\u0410\u043d\u0434\u0440\u0438\u0439 \u041f\u043e\u0440\u0438\u0446\u043a\u0438\u0439"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u0628\u0648\u0631\u064a\u062a\u064a\u0643\u0633\u064a",
+                "ru": "\u0410. \u041f\u043e\u0440\u0438\u0446\u043a\u0438\u0439"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 3,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "homeScore.point",
+              "awayScore.period1",
+              "awayScore.point",
+              "firstToServe"
+            ],
+            "changeTimestamp": 1789631727
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17113997,
+          "slug": "andriy-poritskyy-charles-bertimon",
+          "startTimestamp": 1789630440,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "ITF M15 Hurghada 9 Men",
+            "slug": "itf-m15-hurghada-9-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Hurghada 9 Men",
+              "slug": "itf-m15-hurghada-9-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 8,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37623,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198923
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102957
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "DqIdsuEUd",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Aaron Funk",
+            "slug": "funk-aaron",
+            "shortName": "A. Funk",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 140,
+            "playerTeamInfo": {
+              "id": 19055
+            },
+            "nameCode": "FUN",
+            "ranking": 838,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "DE",
+              "alpha3": "DEU",
+              "name": "Germany",
+              "slug": "germany"
+            },
+            "id": 486469,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0622\u0631\u0648\u0646 \u0641\u0646\u0643",
+                "ru": "\u0410\u0430\u0440\u043e\u043d \u0424\u0430\u043d\u043a"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0622. \u0641\u0646\u0643",
+                "ru": "\u0410. \u0424\u0430\u043d\u043a"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Gabriele Thomas Brancatelli",
+            "slug": "brancatelli-gabriele-thomas",
+            "shortName": "G. T. Brancatelli",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 98,
+            "playerTeamInfo": {
+              "id": 6903
+            },
+            "nameCode": "BRA",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "IT",
+              "alpha3": "ITA",
+              "name": "Italy",
+              "slug": "italy"
+            },
+            "id": 458328,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u063a\u0627\u0628\u0631\u064a\u064a\u0644 \u062a\u0648\u0645\u0627\u0633 \u0628\u0631\u0627\u0646\u0643\u0627\u062a\u064a\u0644\u064a",
+                "ru": "\u0413\u0430\u0431\u0440\u0438\u044d\u043b\u0435 \u0422\u043e\u043c\u0430\u0441 \u0411\u0440\u0430\u043d\u043a\u0430\u0442\u0435\u043b\u043b\u0438"
+              },
+              "shortNameTranslation": {
+                "ar": "\u063a. \u0628\u0631\u0627\u0646\u0643\u0627\u062a\u064a\u0644\u064a",
+                "ru": "\u0413. \u0411\u0440\u0430\u043d\u043a\u0430\u0442\u0435\u043b\u043b\u0438"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "point": "15"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 0,
+            "point": "30"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631741
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17114006,
+          "slug": "aaron-funk-gabriele-thomas-brancatelli",
+          "startTimestamp": 1789630800,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "tournament": {
+            "name": "ITF M15 Hurghada 9 Men",
+            "slug": "itf-m15-hurghada-9-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Hurghada 9 Men",
+              "slug": "itf-m15-hurghada-9-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 8,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37623,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198923
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102957
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "hDycsIHId",
+          "status": {
+            "code": 10,
+            "description": "3rd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Ivan Gretskiy",
+            "slug": "gretskiy-ivan",
+            "shortName": "I. Gretskiy",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 107,
+            "playerTeamInfo": {
+              "id": 19919
+            },
+            "nameCode": "GRE",
+            "ranking": 1435,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 459133,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u064a\u0641\u0627\u0646 \u063a\u0631\u064a\u0633\u062a\u0633\u0643\u064a",
+                "ru": "\u0418\u0432\u0430\u043d \u0413\u0440\u0435\u0442\u0441\u043a\u0438\u0439"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0625. \u063a\u0631\u064a\u0633\u062a\u0633\u0643\u064a",
+                "ru": "\u0418. \u0413\u0440\u0435\u0442\u0441\u043a\u0438\u0439"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Keshav Chopra",
+            "slug": "chopra-keshav",
+            "shortName": "K. Chopra",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 183,
+            "playerTeamInfo": {
+              "id": 5689
+            },
+            "nameCode": "CHO",
+            "ranking": 690,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "US",
+              "alpha3": "USA",
+              "name": "USA",
+              "slug": "usa"
+            },
+            "id": 308907,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643\u064a\u0634\u0627\u0641 \u062a\u0634\u0648\u0628\u0631\u0627",
+                "ru": "\u041a\u0435\u0448\u0430\u0432 \u0427\u043e\u043f\u0440\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0643. \u062a\u0634\u0648\u0628\u0631\u0627",
+                "ru": "\u041a. \u0427\u043e\u043f\u0440\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 4,
+            "period2": 6,
+            "period3": 0,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 3,
+            "period3": 0,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "status.code",
+              "status.description",
+              "homeScore.period3",
+              "awayScore.period3"
+            ],
+            "changeTimestamp": 1789631571
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17113999,
+          "slug": "ivan-gretskiy-keshav-chopra",
+          "startTimestamp": 1789635600,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period3",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "ITF M15 Hurghada 9 Men",
+            "slug": "itf-m15-hurghada-9-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Hurghada 9 Men",
+              "slug": "itf-m15-hurghada-9-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 8,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37623,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198923
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102957
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "jFjszrtd",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Sergey Betov",
+            "slug": "betov-sergey",
+            "shortName": "S. Betov",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 110,
+            "playerTeamInfo": {
+              "id": 526
+            },
+            "nameCode": "BET",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "BY",
+              "alpha3": "BLR",
+              "name": "Belarus",
+              "slug": "belarus"
+            },
+            "id": 24009,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633\u064a\u0631\u062c\u064a \u0628\u064a\u062a\u0648\u0641",
+                "ru": "\u0428\u0430\u0440\u0445\u0435\u0439 \u0411\u0435\u0442\u0430\u0443"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0633. \u0628\u064a\u062a\u0648\u0641"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Viktor Frydrych",
+            "slug": "frydrych-viktor",
+            "shortName": "V. Frydrych",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 112,
+            "playerTeamInfo": {
+              "id": 28224
+            },
+            "nameCode": "FRY",
+            "ranking": 1164,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "GB",
+              "alpha3": "GBR",
+              "name": "United Kingdom",
+              "slug": "united-kingdom"
+            },
+            "id": 420874,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u064a\u0643\u062a\u0648\u0631 \u0641\u0631\u064a\u062f\u0631\u064a\u062a\u0634",
+                "ru": "\u0412\u0438\u043a\u0442\u043e\u0440 \u0424\u0440\u0438\u0434\u0440\u044b\u0445"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0641. \u0641\u0631\u064a\u062f\u0631\u064a\u062a\u0634",
+                "ru": "\u0412. \u0424\u0440\u0438\u0434\u0440\u044b\u0445"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 5,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "firstToServe"
+            ],
+            "changeTimestamp": 1789629156
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17114005,
+          "slug": "viktor-frydrych-sergey-betov",
+          "startTimestamp": 1789635600,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "tournament": {
+            "name": "ITF M15 Tsaghkadzor 4 Men",
+            "slug": "itf-m15-tsaghkadzor-4-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Tsaghkadzor 4 Men",
+              "slug": "itf-m15-tsaghkadzor-4-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 10,
+              "groundType": "Clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37627,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198927
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102963
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "TlDdsCfJd",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Arthur Laborde",
+            "slug": "laborde-arthur",
+            "shortName": "A. Laborde",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 94,
+            "nameCode": "LAB",
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CH",
+              "alpha3": "CHE",
+              "name": "Switzerland",
+              "slug": "switzerland"
+            },
+            "id": 445593,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0622\u0631\u062b\u0631 \u0644\u0627\u0628\u0648\u0631\u062f",
+                "ru": "\u0410\u0440\u0442\u0443\u0440 \u041b\u0430\u0431\u043e\u0440\u0434\u0435"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0622. \u0644\u0627\u0628\u0648\u0631\u062f",
+                "ru": "\u0410. \u041b\u0430\u0431\u043e\u0440\u0434\u0435"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Daniil Sarksian",
+            "slug": "sarksian-daniil",
+            "shortName": "D. Sarksian",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 169,
+            "playerTeamInfo": {
+              "id": 19054
+            },
+            "nameCode": "SAR",
+            "ranking": 955,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 460277,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0627\u0646\u064a\u064a\u0644 \u0633\u0627\u0631\u0643\u0633\u064a\u0627\u0646",
+                "ru": "\u0414\u0430\u043d\u0438\u0438\u043b \u0421\u0430\u0440\u043a\u0441\u0438\u0430\u043d"
+              },
+              "shortNameTranslation": {
+                "ar": "\u062f. \u0633\u0627\u0631\u0643\u0633\u064a\u0627\u0646",
+                "ru": "\u0414. \u0421\u0430\u0440\u043a\u0441\u0438\u0430\u043d"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 3,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 4,
+            "period2": 3,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "homeScore.period2",
+              "homeScore.point",
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631719
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17112298,
+          "slug": "daniil-sarksian-arthur-laborde",
+          "startTimestamp": 1789641000,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "tournament": {
+            "name": "ITF M15 Tsaghkadzor 4 Men",
+            "slug": "itf-m15-tsaghkadzor-4-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Tsaghkadzor 4 Men",
+              "slug": "itf-m15-tsaghkadzor-4-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 10,
+              "groundType": "Clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37627,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198927
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102963
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "nBdcsunld",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Matteo Vavassori",
+            "slug": "vavassori-matteo",
+            "shortName": "M. Vavassori",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 164,
+            "playerTeamInfo": {
+              "id": 44896
+            },
+            "nameCode": "VAV",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "IT",
+              "alpha3": "ITA",
+              "name": "Italy",
+              "slug": "italy"
+            },
+            "id": 403169,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645\u0627\u062a\u064a\u0648 \u0641\u0627\u0641\u0627\u0633\u0648\u0631\u064a",
+                "ru": "\u041c\u0430\u0442\u0442\u0435\u043e \u0412\u0430\u0432\u0430\u0441\u0441\u043e\u0440\u0438"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0645. \u0641\u0627\u0641\u0627\u0633\u0648\u0631\u064a",
+                "ru": "\u041c. \u0412\u0430\u0432\u0430\u0441\u0441\u043e\u0440\u0438"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Martin Van der Meerschen",
+            "slug": "van-der-meerschen-martin",
+            "shortName": "M. Van der Meerschen",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 292,
+            "playerTeamInfo": {
+              "id": 3075
+            },
+            "nameCode": "VAN",
+            "ranking": 545,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "BE",
+              "alpha3": "BEL",
+              "name": "Belgium",
+              "slug": "belgium"
+            },
+            "id": 258813,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645\u0627\u0631\u062a\u0646 \u0641\u0627\u0646 \u062f\u064a\u0631 \u0645\u064a\u0631\u0634\u064a\u0646",
+                "ru": "\u0412\u0430\u043d \u0434\u0435\u0440 \u041c\u0435\u0451\u0440\u0441\u0445\u0435\u043d, \u041c\u0430\u0440\u0442\u0438\u043d"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0645. \u0641\u0627\u0646 \u062f\u064a\u0631 \u0645\u064a\u0631\u0634\u064a\u0646"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 0,
+            "point": "15"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 4,
+            "period2": 0,
+            "point": "40"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631742
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17112306,
+          "slug": "matteo-vavassori-martin-van-der-meerschen",
+          "startTimestamp": 1789641000,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "tournament": {
+            "name": "ITF M15 Tsaghkadzor 4 Men",
+            "slug": "itf-m15-tsaghkadzor-4-men",
+            "category": {
+              "name": "ITF Men",
+              "slug": "itf-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 4,
+              "country": {},
+              "id": 785,
+              "flag": "itf-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                  "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF M15 Tsaghkadzor 4 Men",
+              "slug": "itf-m15-tsaghkadzor-4-men",
+              "category": {
+                "name": "ITF Men",
+                "slug": "itf-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 4,
+                "country": {},
+                "id": 785,
+                "flag": "itf-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0631\u062c\u0627\u0644",
+                    "ru": "\u041c\u0443\u0436\u0441\u043a\u043e\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 10,
+              "groundType": "Clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37627,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198927
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102963
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "vEkdshdyh",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Ruslan Tiukaev",
+            "slug": "tiukaev-ruslan",
+            "shortName": "R. Tiukaev",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 123,
+            "playerTeamInfo": {
+              "id": 15330
+            },
+            "nameCode": "TIU",
+            "ranking": 990,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 401470,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u0648\u0633\u0644\u0627\u0646 \u062a\u064a\u0648\u0642\u0627\u064a\u0641",
+                "ru": "\u0420\u0443\u0441\u043b\u0430\u043d \u0422\u044e\u043a\u0430\u0435\u0432"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0631. \u062a\u064a\u0648\u0642\u0627\u064a\u0641",
+                "ru": "\u0420. \u0422\u044e\u043a\u0430\u0435\u0432"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Roman Kharlamov",
+            "slug": "kharlamov-roman",
+            "shortName": "R. Kharlamov",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 76,
+            "playerTeamInfo": {
+              "id": 36193
+            },
+            "nameCode": "RKH",
+            "ranking": 1373,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 932657,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u0648\u0645\u0627\u0646 \u062e\u0627\u0631\u0644\u0627\u0645\u0648\u0641",
+                "ru": "\u0420\u043e\u043c\u0430\u043d \u0425\u0430\u0440\u043b\u0430\u043c\u043e\u0432"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0631. \u062e\u0627\u0631\u0644\u0627\u0645\u0648\u0641",
+                "ru": "\u0420. \u0425\u0430\u0440\u043b\u0430\u043c\u043e\u0432"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 3,
+            "point": "40"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 3,
+            "period2": 0,
+            "point": "30"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631734
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17112302,
+          "slug": "roman-kharlamov-ruslan-tiukaev",
+          "startTimestamp": 1789641000,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "tournament": {
+            "name": "ITF W35 Hurghada 2 Women",
+            "slug": "itf-w35-hurghada-2-women",
+            "category": {
+              "name": "ITF Women",
+              "slug": "itf-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 3,
+              "country": {},
+              "id": 213,
+              "flag": "itf-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                  "ru": "\u0416\u0435\u043d\u0441\u043a\u0438\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF W35 Hurghada 2 Women",
+              "slug": "itf-w35-hurghada-2-women",
+              "category": {
+                "name": "ITF Women",
+                "slug": "itf-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 3,
+                "country": {},
+                "id": 213,
+                "flag": "itf-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                    "ru": "\u0416\u0435\u043d\u0441\u043a\u0438\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 15,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37631,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198931
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102975
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "TyqsXvNi",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Margarita Gasparyan Betova",
+            "slug": "betova-margarita",
+            "shortName": "M. Gasparyan Betova",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 505,
+            "playerTeamInfo": {
+              "id": 275
+            },
+            "nameCode": "BET",
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 41193,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645\u0627\u0631\u063a\u0627\u0631\u064a\u062a\u0627 \u0628\u064a\u062a\u0648\u0641\u0627",
+                "ru": "\u0413\u0430\u0441\u043f\u0430\u0440\u044f\u043d, \u041c\u0430\u0440\u0433\u0430\u0440\u0438\u0442\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0645. \u0628\u064a\u062a\u0648\u0641\u0627",
+                "bn": "\u098f\u09ae. \u09ac\u09c7\u099f\u09cb\u09ad\u09be",
+                "hi": "\u090f\u092e. \u092c\u0947\u091f\u094b\u0935\u093e"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Ekaterina Tupitsyna",
+            "slug": "tupitsyna-ekaterina",
+            "shortName": "E. Tupitsyna",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 261,
+            "playerTeamInfo": {
+              "id": 21856
+            },
+            "nameCode": "TUP",
+            "ranking": 615,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 1096047,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u064a\u0643\u0627\u062a\u064a\u0631\u064a\u0646\u0627 \u062a\u0648\u0628\u064a\u062a\u0633\u064a\u0646\u0627",
+                "ru": "\u0415\u043a\u0430\u0442\u0435\u0440\u0438\u043d\u0430 \u0422\u0443\u043f\u0438\u0446\u044b\u043d\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u064a. \u062a\u0648\u0628\u064a\u062a\u0633\u064a\u0646\u0627",
+                "ru": "\u0415. \u0422\u0443\u043f\u0438\u0446\u044b\u043d\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "point": "15"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631735
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17113978,
+          "slug": "ekaterina-tupitsyna-margarita-gasparyan-betova",
+          "startTimestamp": 1789630920,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        },
+        {
+          "tournament": {
+            "name": "ITF W35 Hurghada 2 Women",
+            "slug": "itf-w35-hurghada-2-women",
+            "category": {
+              "name": "ITF Women",
+              "slug": "itf-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 3,
+              "country": {},
+              "id": 213,
+              "flag": "itf-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                  "ru": "\u0416\u0435\u043d\u0441\u043a\u0438\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF W35 Hurghada 2 Women",
+              "slug": "itf-w35-hurghada-2-women",
+              "category": {
+                "name": "ITF Women",
+                "slug": "itf-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 3,
+                "country": {},
+                "id": 213,
+                "flag": "itf-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                    "ru": "\u0416\u0435\u043d\u0441\u043a\u0438\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 15,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37631,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198931
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102975
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "AqIdsKgae",
+          "status": {
+            "code": 10,
+            "description": "3rd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Olga Danilova",
+            "slug": "danilova-olga",
+            "shortName": "O. Danilova",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 110,
+            "playerTeamInfo": {
+              "id": 32290
+            },
+            "nameCode": "DAN",
+            "ranking": 753,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CY",
+              "alpha3": "CYP",
+              "name": "Cyprus",
+              "slug": "cyprus"
+            },
+            "id": 500335,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u0648\u0644\u063a\u0627 \u062f\u0627\u0646\u064a\u0644\u0648\u0641\u0627",
+                "ru": "\u041e\u043b\u044c\u0433\u0430 \u0414\u0430\u043d\u0438\u043b\u043e\u0432\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u062f\u0627\u0646\u064a\u0644\u0648\u0641\u0627",
+                "ru": "\u041e. \u0414\u0430\u043d\u0438\u043b\u043e\u0432\u0430"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Ekaterina Perelygina",
+            "slug": "perelygina-ekaterina",
+            "shortName": "E. Perelygina",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 270,
+            "playerTeamInfo": {
+              "id": 20041
+            },
+            "nameCode": "PER",
+            "ranking": 523,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "AT",
+              "alpha3": "AUT",
+              "name": "Austria",
+              "slug": "austria"
+            },
+            "id": 458325,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u064a\u0643\u0627\u062a\u064a\u0631\u064a\u0646\u0627 \u0628\u064a\u0631\u0644\u064a\u063a\u064a\u0646\u0627",
+                "ru": "\u0415\u043a\u0430\u0442\u0435\u0440\u0438\u043d\u0430 \u041f\u0435\u0440\u0435\u043b\u044b\u0433\u0438\u043d\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u064a. \u0628\u064a\u0631\u0644\u064a\u063a\u064a\u0646\u0627",
+                "ru": "\u0415. \u041f\u0435\u0440\u0435\u043b\u044b\u0433\u0438\u043d\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 3,
+            "period2": 6,
+            "period3": 0,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 4,
+            "period3": 0,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "status.code",
+              "status.description",
+              "homeScore.period3",
+              "awayScore.period3"
+            ],
+            "changeTimestamp": 1789631656
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17113973,
+          "slug": "olga-danilova-ekaterina-perelygina",
+          "startTimestamp": 1789635600,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period3",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "tournament": {
+            "name": "ITF W35 Hurghada 2 Women",
+            "slug": "itf-w35-hurghada-2-women",
+            "category": {
+              "name": "ITF Women",
+              "slug": "itf-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 3,
+              "country": {},
+              "id": 213,
+              "flag": "itf-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                  "ru": "\u0416\u0435\u043d\u0441\u043a\u0438\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "ITF W35 Hurghada 2 Women",
+              "slug": "itf-w35-hurghada-2-women",
+              "category": {
+                "name": "ITF Women",
+                "slug": "itf-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 3,
+                "country": {},
+                "id": 213,
+                "flag": "itf-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u062a\u062d\u0627\u062f \u0627\u0644\u062a\u0646\u0633 \u0627\u0644\u062f\u0648\u0644\u064a \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                    "ru": "\u0416\u0435\u043d\u0441\u043a\u0438\u0439 \u043c\u0438\u0440\u043e\u0432\u043e\u0439 \u0442\u0435\u043d\u043d\u0438\u0441\u043d\u044b\u0439 \u0442\u0443\u0440 ITF"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 15,
+              "groundType": "Hardcourt outdoor",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 37631,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false
+            },
+            "priority": 0,
+            "id": 198931
+          },
+          "season": {
+            "name": "2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102975
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "awDbsKmtd",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Zeel Desai",
+            "slug": "desai-zeel",
+            "shortName": "Z. Desai",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 264,
+            "playerTeamInfo": {
+              "id": 3311
+            },
+            "nameCode": "DES",
+            "ranking": 547,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "IN",
+              "alpha3": "IND",
+              "name": "India",
+              "slug": "india"
+            },
+            "id": 196050,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0632\u064a\u0644 \u062f\u064a\u0633\u0627\u064a",
+                "ru": "\u0414\u0435\u0441\u0430\u0439, \u0417\u0438\u043b"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0632. \u062f\u064a\u0633\u0627\u064a"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Ann Akasha Ceuca",
+            "slug": "ceuca-ann-akasha",
+            "shortName": "A. Ceuca",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 213,
+            "playerTeamInfo": {
+              "id": 20780
+            },
+            "nameCode": "CEU",
+            "ranking": 534,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "DE",
+              "alpha3": "DEU",
+              "name": "Germany",
+              "slug": "germany"
+            },
+            "id": 420635,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0622\u0646 \u0623\u0643\u0627\u0634\u0627 \u062a\u0634\u064a\u0648\u0643\u0627",
+                "ru": "\u0410\u043d\u043d \u0410\u043a\u0430\u0448\u0430 \u0427\u0435\u0443\u043a\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0622. \u062a\u0634\u064a\u0648\u0643\u0627",
+                "ru": "\u0410. \u0427\u0435\u0443\u043a\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 5,
+            "period2": 1,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 7,
+            "period2": 4,
+            "point": "0"
+          },
+          "time": {},
+          "changes": {
+            "changes": [
+              "homeScore.period2",
+              "homeScore.point",
+              "awayScore.point",
+              "firstToServe"
+            ],
+            "changeTimestamp": 1789631658
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17113983,
+          "slug": "ann-akasha-ceuca-zeel-desai",
+          "startTimestamp": 1789635600,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "UTR PTT Budapest Men 03, Group A",
+            "slug": "utr-ptt-budapest-men-03-group-a",
+            "category": {
+              "name": "UTR Men",
+              "slug": "utr-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 2,
+              "country": {},
+              "id": 1843,
+              "flag": "utr-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                  "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Budapest Men 03",
+              "slug": "utr-ptt-budapest-men-03",
+              "category": {
+                "name": "UTR Men",
+                "slug": "utr-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 2,
+                "country": {},
+                "id": 1843,
+                "flag": "utr-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                    "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 11,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 28250,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0628\u0648\u062f\u0627\u0628\u0633\u062a \u0644\u0644\u0631\u062c\u0627\u0644 03",
+                  "ru": "UTR PTT \u0411\u0443\u0434\u0430\u043f\u0435\u0448\u0442 \u0441\u0440\u0435\u0434\u0438 \u043c\u0443\u0436\u0447\u0438\u043d 03"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group A",
+            "id": 199563,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Budapest Men 03 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102662
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "FyTbsmEQd",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Rafael Kis Bal\u00e1zs",
+            "slug": "kis-balazs-rafael",
+            "shortName": "R. K. Bal\u00e1zs",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 105,
+            "playerTeamInfo": {
+              "id": 18542
+            },
+            "nameCode": "KIS",
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "HU",
+              "alpha3": "HUN",
+              "name": "Hungary",
+              "slug": "hungary"
+            },
+            "id": 233680,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u0627\u0641\u0627\u0626\u064a\u0644 \u0643\u064a\u0633 \u0628\u0627\u0644\u0627\u0632",
+                "ru": "\u0420\u0430\u0444\u0430\u044d\u043b\u044c \u041a\u0438\u0441 \u0411\u0430\u043b\u0430\u0436"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0631. \u0628\u0627\u0644\u0627\u0632",
+                "ru": "\u0420. \u0411\u0430\u043b\u0430\u0436"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Achilles Belkovics",
+            "slug": "belkovics-achilles",
+            "shortName": "A. Belkovics",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 103,
+            "playerTeamInfo": {
+              "id": 36382
+            },
+            "nameCode": "BEL",
+            "ranking": 1310,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "HU",
+              "alpha3": "HUN",
+              "name": "Hungary",
+              "slug": "hungary"
+            },
+            "id": 478962,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u062e\u064a\u0644\u0633 \u0628\u064a\u0644\u0643\u0648\u0641\u064a\u0633",
+                "ru": "\u0410\u0445\u0438\u043b\u043b\u0435\u0441 \u0411\u0435\u043b\u043a\u043e\u0432\u0438\u0447"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u0628\u064a\u0644\u0643\u0648\u0641\u064a\u0633",
+                "ru": "\u0410. \u0411\u0435\u043b\u043a\u043e\u0432\u0438\u0447"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "period2": 3,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 2,
+            "point": "0"
+          },
+          "time": {
+            "period1": 1422,
+            "currentPeriodStartTimestamp": 1789630337
+          },
+          "changes": {
+            "changes": [
+              "awayScore.period2",
+              "awayScore.point",
+              "firstToServe"
+            ],
+            "changeTimestamp": 1789631696
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17079109,
+          "slug": "achilles-belkovics-rafael-kis-balazs",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "tournament": {
+            "name": "UTR PTT Budapest Men 03, Group C",
+            "slug": "utr-ptt-budapest-men-03-group-c",
+            "category": {
+              "name": "UTR Men",
+              "slug": "utr-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 2,
+              "country": {},
+              "id": 1843,
+              "flag": "utr-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                  "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Budapest Men 03",
+              "slug": "utr-ptt-budapest-men-03",
+              "category": {
+                "name": "UTR Men",
+                "slug": "utr-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 2,
+                "country": {},
+                "id": 1843,
+                "flag": "utr-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                    "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 11,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 28250,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0628\u0648\u062f\u0627\u0628\u0633\u062a \u0644\u0644\u0631\u062c\u0627\u0644 03",
+                  "ru": "UTR PTT \u0411\u0443\u0434\u0430\u043f\u0435\u0448\u0442 \u0441\u0440\u0435\u0434\u0438 \u043c\u0443\u0436\u0447\u0438\u043d 03"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group C",
+            "id": 199562,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Budapest Men 03 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102662
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "NlzsJFtj",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Peter Goldsteiner",
+            "slug": "goldsteiner-peter",
+            "shortName": "P. Goldsteiner",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 158,
+            "playerTeamInfo": {
+              "id": 1552
+            },
+            "nameCode": "GOL",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "AT",
+              "alpha3": "AUT",
+              "name": "Austria",
+              "slug": "austria"
+            },
+            "id": 60588,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u064a\u062a\u0631 \u063a\u0648\u0644\u062f\u0634\u062a\u0627\u064a\u0646\u0631",
+                "ru": "\u0413\u043e\u043b\u0434\u0448\u0442\u0435\u0439\u043d\u0435\u0440, \u041f\u0435\u0442\u0435\u0440"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0628. \u063a\u0648\u0644\u062f\u0634\u062a\u0627\u064a\u0646\u0631"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "David Ioan Morega",
+            "slug": "morega-david-ioan",
+            "shortName": "D. I. Morega",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 25,
+            "playerTeamInfo": {
+              "id": 46506
+            },
+            "nameCode": "MOR",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RO",
+              "alpha3": "ROU",
+              "name": "Romania",
+              "slug": "romania"
+            },
+            "id": 1171534,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u064a\u0641\u064a\u062f \u0625\u064a\u0648\u0627\u0646 \u0645\u0648\u0631\u064a\u063a\u0627",
+                "ru": "\u0414\u0430\u0432\u0438\u0434 \u0418\u043e\u0430\u043d \u041c\u043e\u0440\u0435\u0433\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u062f. \u0625. \u0645\u0648\u0631\u064a\u063a\u0627",
+                "ru": "\u0414. \u041c\u043e\u0440\u0435\u0433\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 2,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 1,
+            "period2": 0,
+            "point": "15"
+          },
+          "time": {
+            "period1": 1962,
+            "currentPeriodStartTimestamp": 1789631114
+          },
+          "changes": {
+            "changes": [
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631731
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17068550,
+          "slug": "david-ioan-morega-peter-goldsteiner",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "tournament": {
+            "name": "UTR PTT Essen Men 01, Group B",
+            "slug": "utr-ptt-essen-men-01-group-b",
+            "category": {
+              "name": "UTR Men",
+              "slug": "utr-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 2,
+              "country": {},
+              "id": 1843,
+              "flag": "utr-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                  "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Essen Men 01",
+              "slug": "utr-ptt-essen-men-01",
+              "category": {
+                "name": "UTR Men",
+                "slug": "utr-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 2,
+                "country": {},
+                "id": 1843,
+                "flag": "utr-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                    "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 10,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 29421,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0625\u064a\u0633\u0646 \u0631\u062c\u0627\u0644 01",
+                  "ru": "UTR PTT \u042d\u0441\u0441\u0435\u043d \u0441\u0440\u0435\u0434\u0438 \u043c\u0443\u0436\u0447\u0438\u043d 01"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group B",
+            "id": 199604,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Essen Men 01 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102664
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "jTIsqlqc",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Nicolas Ifi",
+            "slug": "ifi-nicolas",
+            "shortName": "N. Ifi",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 200,
+            "playerTeamInfo": {
+              "id": 14634
+            },
+            "nameCode": "IFI",
+            "ranking": 1030,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "BE",
+              "alpha3": "BEL",
+              "name": "Belgium",
+              "slug": "belgium"
+            },
+            "id": 290566,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0646\u064a\u0643\u0648\u0644\u0627 \u0625\u064a\u0641\u064a",
+                "ru": "\u041d\u0438\u043a\u043e\u043b\u0430\u0441 \u0418\u0444\u0438"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0646. \u0625\u064a\u0641\u064a",
+                "ru": "\u041d. \u0418\u0444\u0438"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Dominik Re\u010dek",
+            "slug": "recek-dominik",
+            "shortName": "D. Re\u010dek",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 198,
+            "playerTeamInfo": {
+              "id": 5224
+            },
+            "nameCode": "REC",
+            "ranking": 845,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CZ",
+              "alpha3": "CZE",
+              "name": "Czechia",
+              "slug": "czechia"
+            },
+            "id": 84659,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0645\u064a\u0646\u064a\u0643 \u0631\u064a\u062a\u0634\u064a\u0643",
+                "ru": "\u0420\u0435\u0446\u0435\u043a, \u0414\u043e\u043c\u0438\u043d\u0438\u043a"
+              },
+              "shortNameTranslation": {
+                "ar": "\u062f. \u0631\u064a\u062a\u0634\u064a\u0643"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "period2": 2,
+            "point": "30"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 0,
+            "point": "30"
+          },
+          "time": {
+            "period1": 1841,
+            "currentPeriodStartTimestamp": 1789631038
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631741
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17071260,
+          "slug": "nicolas-ifi-dominik-recek",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "UTR PTT Essen Men 01, Group D",
+            "slug": "utr-ptt-essen-men-01-group-d",
+            "category": {
+              "name": "UTR Men",
+              "slug": "utr-men",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 2,
+              "country": {},
+              "id": 1843,
+              "flag": "utr-men",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                  "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Essen Men 01",
+              "slug": "utr-ptt-essen-men-01",
+              "category": {
+                "name": "UTR Men",
+                "slug": "utr-men",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 2,
+                "country": {},
+                "id": 1843,
+                "flag": "utr-men",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0631\u062c\u0627\u0644)",
+                    "ru": "UTR \u043c\u0443\u0436\u0447\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 10,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 29421,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0625\u064a\u0633\u0646 \u0631\u062c\u0627\u0644 01",
+                  "ru": "UTR PTT \u042d\u0441\u0441\u0435\u043d \u0441\u0440\u0435\u0434\u0438 \u043c\u0443\u0436\u0447\u0438\u043d 01"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group D",
+            "id": 199603,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Essen Men 01 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102664
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "LXzsYtgd",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Yan Sabanin",
+            "slug": "sabanin-yan",
+            "shortName": "Y. Sabanin",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 36,
+            "playerTeamInfo": {
+              "id": 1568
+            },
+            "nameCode": "SAB",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "RU",
+              "alpha3": "RUS",
+              "name": "Russia",
+              "slug": "russia"
+            },
+            "id": 62386,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u064a\u0627\u0646 \u0633\u0627\u0628\u0627\u0646\u064a\u0646",
+                "ru": "\u042f\u043d \u0428\u0430\u0431\u0430\u043d\u0438\u043d"
+              },
+              "shortNameTranslation": {
+                "ar": "\u064a. \u0633\u0627\u0628\u0627\u0646\u064a\u0646"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Stepan Baum",
+            "slug": "baum-stepan",
+            "shortName": "S. Baum",
+            "gender": "M",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 88,
+            "playerTeamInfo": {
+              "id": 12674
+            },
+            "nameCode": "BAU",
+            "ranking": 1299,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CZ",
+              "alpha3": "CZE",
+              "name": "Czechia",
+              "slug": "czechia"
+            },
+            "id": 390948,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633\u062a\u064a\u0628\u0627\u0646 \u0628\u0627\u0648\u0645",
+                "ru": "\u0421\u0442\u0435\u043f\u0430\u043d \u0411\u0430\u0443\u043c"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0633. \u0628\u0627\u0648\u0645",
+                "ru": "\u0421. \u0411\u0430\u0443\u043c"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "period2": 0,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 2,
+            "point": "0"
+          },
+          "time": {
+            "period1": 2144,
+            "currentPeriodStartTimestamp": 1789631127
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point",
+              "awayScore.period2",
+              "awayScore.point",
+              "firstToServe"
+            ],
+            "changeTimestamp": 1789631725
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17071224,
+          "slug": "stepan-baum-yan-sabanin",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "UTR PTT Budapest Women 03, Group B",
+            "slug": "utr-ptt-budapest-women-03-group-b",
+            "category": {
+              "name": "UTR Women",
+              "slug": "utr-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 1,
+              "country": {},
+              "id": 1844,
+              "flag": "utr-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                  "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Budapest Women 03",
+              "slug": "utr-ptt-budapest-women-03",
+              "category": {
+                "name": "UTR Women",
+                "slug": "utr-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 1,
+                "country": {},
+                "id": 1844,
+                "flag": "utr-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                    "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 14,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 28252,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0628\u0648\u062f\u0627\u0628\u0633\u062a \u0644\u0644\u0633\u064a\u062f\u0627\u062a 03",
+                  "ru": "UTR PTT \u0411\u0443\u0434\u0430\u043f\u0435\u0448\u0442 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d 03"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group B",
+            "id": 199560,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Budapest Women 03 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102663
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "NCtcsbnLd",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Izabela Heinzova",
+            "slug": "heinzova-izabela",
+            "shortName": "I. Heinzova",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 42,
+            "nameCode": "HEI",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CZ",
+              "alpha3": "CZE",
+              "name": "Czechia",
+              "slug": "czechia"
+            },
+            "id": 296388,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u064a\u0632\u0627\u0628\u064a\u0644\u0627 \u0647\u0627\u064a\u0646\u0632\u0648\u0641\u0627",
+                "ru": "\u0418\u0437\u0430\u0431\u0435\u043b\u0430 \u0425\u0435\u0439\u043d\u0446\u043e\u0432\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0625. \u0647\u0627\u064a\u0646\u0632\u0648\u0641\u0627",
+                "ru": "\u0418. \u0425\u0435\u0439\u043d\u0446\u043e\u0432\u0430"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Adriana Tkachenko",
+            "slug": "tkachenko-adriana",
+            "shortName": "A. Tkachenko",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 56,
+            "playerTeamInfo": {
+              "id": 29726
+            },
+            "nameCode": "TKA",
+            "ranking": 1134,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "UA",
+              "alpha3": "UKR",
+              "name": "Ukraine",
+              "slug": "ukraine"
+            },
+            "id": 465651,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u062f\u0631\u064a\u0627\u0646\u0627 \u062a\u0627\u0643\u0627\u0634\u064a\u0646\u0643\u0648",
+                "ru": "\u0410\u0434\u0440\u0438\u0430\u043d\u0430 \u0422\u043a\u0430\u0447\u0435\u043d\u043a\u043e"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u062a\u0627\u0643\u0627\u0634\u064a\u0646\u0643\u0648",
+                "ru": "\u0410. \u0422\u043a\u0430\u0447\u0435\u043d\u043a\u043e"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 3,
+            "period2": 0,
+            "point": "30"
+          },
+          "awayScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 0,
+            "point": "40"
+          },
+          "time": {
+            "period1": 2230,
+            "currentPeriodStartTimestamp": 1789631430
+          },
+          "changes": {
+            "changes": [
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631746
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17068443,
+          "slug": "adriana-tkachenko-izabela-heinzova",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "UTR PTT Budapest Women 03, Group C",
+            "slug": "utr-ptt-budapest-women-03-group-c",
+            "category": {
+              "name": "UTR Women",
+              "slug": "utr-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 1,
+              "country": {},
+              "id": 1844,
+              "flag": "utr-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                  "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Budapest Women 03",
+              "slug": "utr-ptt-budapest-women-03",
+              "category": {
+                "name": "UTR Women",
+                "slug": "utr-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 1,
+                "country": {},
+                "id": 1844,
+                "flag": "utr-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                    "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 14,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 28252,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0628\u0648\u062f\u0627\u0628\u0633\u062a \u0644\u0644\u0633\u064a\u062f\u0627\u062a 03",
+                  "ru": "UTR PTT \u0411\u0443\u0434\u0430\u043f\u0435\u0448\u0442 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d 03"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group C",
+            "id": 199557,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Budapest Women 03 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102663
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "emrsywpc",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Silvia Njiric",
+            "slug": "njiric-silvia",
+            "shortName": "S. Njiric",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 105,
+            "playerTeamInfo": {
+              "id": 1359
+            },
+            "nameCode": "NJI",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "HR",
+              "alpha3": "HRV",
+              "name": "Croatia",
+              "slug": "croatia"
+            },
+            "id": 43104,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0633\u064a\u0644\u0641\u064a\u0627 \u0646\u064a\u062c\u064a\u0631\u064a\u0643",
+                "ru": "\u041d\u0436\u0438\u0440\u0438\u0447, \u0421\u0438\u043b\u044c\u0432\u0438\u044f"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0633. \u0646\u064a\u062c\u064a\u0631\u064a\u0643"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Melissa Boyden",
+            "slug": "boyden-melissa",
+            "shortName": "M. Boyden",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 111,
+            "playerTeamInfo": {
+              "id": 19416
+            },
+            "nameCode": "BOY",
+            "ranking": 1238,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "GB",
+              "alpha3": "GBR",
+              "name": "United Kingdom",
+              "slug": "united-kingdom"
+            },
+            "id": 288573,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0645\u064a\u0644\u064a\u0633\u0627 \u0628\u0648\u064a\u062f\u0646",
+                "ru": "\u041c\u0435\u043b\u0438\u0441\u0441\u0430 \u0411\u043e\u0439\u0434\u044d\u043d"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0645. \u0628\u0648\u064a\u062f\u0646",
+                "ru": "\u041c. \u0411\u043e\u0439\u0434\u044d\u043d"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 5,
+            "point": "30"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 4,
+            "point": "15"
+          },
+          "time": {
+            "currentPeriodStartTimestamp": 1789628942
+          },
+          "changes": {
+            "changes": [
+              "homeScore.point"
+            ],
+            "changeTimestamp": 1789631734
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17068453,
+          "slug": "melissa-boyden-silvia-njiric",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "tournament": {
+            "name": "UTR PTT Budapest Women 03, Group D",
+            "slug": "utr-ptt-budapest-women-03-group-d",
+            "category": {
+              "name": "UTR Women",
+              "slug": "utr-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 1,
+              "country": {},
+              "id": 1844,
+              "flag": "utr-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                  "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Budapest Women 03",
+              "slug": "utr-ptt-budapest-women-03",
+              "category": {
+                "name": "UTR Women",
+                "slug": "utr-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 1,
+                "country": {},
+                "id": 1844,
+                "flag": "utr-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                    "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 14,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 28252,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0628\u0648\u062f\u0627\u0628\u0633\u062a \u0644\u0644\u0633\u064a\u062f\u0627\u062a 03",
+                  "ru": "UTR PTT \u0411\u0443\u0434\u0430\u043f\u0435\u0448\u0442 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d 03"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group D",
+            "id": 199556,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Budapest Women 03 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102663
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "AhjcsOHGc",
+          "status": {
+            "code": 9,
+            "description": "2nd set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Anika Jaskova",
+            "slug": "jaskova-anika",
+            "shortName": "A. Ja\u0161kov\u00e1",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 87,
+            "playerTeamInfo": {
+              "id": 4903
+            },
+            "nameCode": "JAS",
+            "ranking": 1145,
+            "disabled": false,
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "SK",
+              "alpha3": "SVK",
+              "name": "Slovakia",
+              "slug": "slovakia"
+            },
+            "id": 329139,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u0646\u064a\u0643\u0627 \u064a\u0627\u0633\u0643\u0648\u0641\u0627",
+                "ru": "\u0410\u043d\u0438\u043a\u0430 \u042f\u0441\u043a\u043e\u0432\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u064a\u0627\u0633\u0643\u0648\u0641\u0627",
+                "ru": "\u0410. \u042f\u0441\u043a\u043e\u0432\u0430"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Beata Havlickova",
+            "slug": "havlickova-beata",
+            "shortName": "B. Havlickova",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 43,
+            "nameCode": "HBE",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "CZ",
+              "alpha3": "CZE",
+              "name": "Czechia",
+              "slug": "czechia"
+            },
+            "id": 272875,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0628\u064a\u0627\u062a\u0627 \u0647\u0627\u0641\u0644\u064a\u0643\u0648\u06a4\u0627",
+                "ru": "\u0411\u0435\u0430\u0442\u0430 \u0413\u0430\u0432\u043b\u0438\u0447\u043a\u043e\u0432\u0430"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0628. \u0647\u0627\u0641\u0644\u064a\u0643\u0648\u06a4\u0627",
+                "ru": "\u0411. \u0413\u0430\u0432\u043b\u0438\u0447\u043a\u043e\u0432\u0430"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 1,
+            "display": 1,
+            "period1": 6,
+            "period2": 0,
+            "point": "0"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 3,
+            "period2": 0,
+            "point": "0"
+          },
+          "time": {
+            "period1": 2658,
+            "currentPeriodStartTimestamp": 1789631608
+          },
+          "changes": {
+            "changes": [
+              "time.period1"
+            ],
+            "changeTimestamp": 1789631690
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17068455,
+          "slug": "anika-jaskova-beata-havlickova",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period2",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        },
+        {
+          "firstToServe": 2,
+          "tournament": {
+            "name": "UTR PTT Essen Women 01, Group B",
+            "slug": "utr-ptt-essen-women-01-group-b",
+            "category": {
+              "name": "UTR Women",
+              "slug": "utr-women",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 1,
+              "country": {},
+              "id": 1844,
+              "flag": "utr-women",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                  "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "UTR PTT Essen Women 01",
+              "slug": "utr-ptt-essen-women-01",
+              "category": {
+                "name": "UTR Women",
+                "slug": "utr-women",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 1,
+                "country": {},
+                "id": 1844,
+                "flag": "utr-women",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "ar": "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0639\u0627\u0644\u0645\u064a \u0644\u0644\u062a\u0646\u0633 (\u0646\u0633\u0627\u0621)",
+                    "ru": "UTR \u0436\u0435\u043d\u0449\u0438\u043d\u044b"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
+              "userCount": 13,
+              "groundType": "Red clay",
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 29422,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "UTR PTT \u0625\u064a\u0633\u0646 \u0633\u064a\u062f\u0627\u062a 01",
+                  "ru": "UTR PTT \u042d\u0441\u0441\u0435\u043d \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d 01"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": true,
+            "groupName": "Group B",
+            "id": 199610,
+            "endTimestamp": 1789689600,
+            "startTimestamp": 1789344000
+          },
+          "season": {
+            "name": "UTR PTT Essen Women 01 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 102665
+          },
+          "roundInfo": {
+            "round": 4
+          },
+          "customId": "fCtcsTgfd",
+          "status": {
+            "code": 8,
+            "description": "1st set",
+            "type": "inprogress"
+          },
+          "homeTeam": {
+            "name": "Rixt van der Werff",
+            "slug": "van-der-werff-rixt",
+            "shortName": "R. Van der Werff",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 27,
+            "playerTeamInfo": {
+              "id": 48928
+            },
+            "nameCode": "VAN",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "NL",
+              "alpha3": "NLD",
+              "name": "Netherlands",
+              "slug": "netherlands"
+            },
+            "id": 296355,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631. \u0641\u0627\u0646 \u062f\u064a\u0631 \u0648\u064a\u0631\u0641",
+                "ru": "\u0420. \u0412\u0430\u043d \u0414\u0435\u0440 \u0412\u0435\u0440\u0444\u0444"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0631. \u0641\u0627\u0646 \u062f\u064a\u0631 \u0648\u064a\u0631\u0641",
+                "ru": "\u0420. \u0412\u0435\u0440\u0444\u0444"
+              }
+            }
+          },
+          "awayTeam": {
+            "name": "Annemarie Lazar",
+            "slug": "lazar-annemarie",
+            "shortName": "A. Lazar",
+            "gender": "F",
+            "sport": {
+              "name": "Tennis",
+              "slug": "tennis",
+              "id": 5
+            },
+            "userCount": 130,
+            "nameCode": "LAZ",
+            "national": false,
+            "type": 1,
+            "country": {
+              "alpha2": "DE",
+              "alpha3": "DEU",
+              "name": "Germany",
+              "slug": "germany"
+            },
+            "id": 387843,
+            "subTeams": [],
+            "teamColors": {
+              "primary": "#374df5",
+              "secondary": "#374df5",
+              "text": "#ffffff"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623\u0646\u064a \u0645\u0627\u0631\u064a \u0644\u0627\u0632\u0627\u0631",
+                "ru": "\u0410\u043d\u043d\u0435\u043c\u0430\u0440\u0438 \u041b\u0430\u0437\u0430\u0440"
+              },
+              "shortNameTranslation": {
+                "ar": "\u0623. \u0644\u0627\u0632\u0627\u0631",
+                "ru": "\u0410. \u041b\u0430\u0437\u0430\u0440"
+              }
+            }
+          },
+          "homeScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 2,
+            "point": "15"
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 4,
+            "point": "15"
+          },
+          "time": {
+            "currentPeriodStartTimestamp": 1789629361
+          },
+          "changes": {
+            "changes": [
+              "awayScore.point"
+            ],
+            "changeTimestamp": 1789631741
+          },
+          "hasGlobalHighlights": false,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 17071324,
+          "slug": "annemarie-lazar-rixt-van-der-werff",
+          "startTimestamp": 1789628400,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "lastPeriod": "period1",
+          "finalResultOnly": false,
+          "feedLocked": false,
+          "groundType": "Red clay",
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "lower"
+            ],
+            "gender": [
+              "F"
+            ]
+          }
+        }
+      ]
+    },
+    "elapsed_seconds": 0.0821690559387207
+  }
+}

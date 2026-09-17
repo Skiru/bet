@@ -1,0 +1,745 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=super%20lig",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"01e7c19b3b\"",
+      "x-request-id": "b4b7b17e-c7dc-49a9-a0ad-11da33120936",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:58:00 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "2561"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 52,
+            "name": "Trendyol S\u00fcper Lig",
+            "slug": "trendyol-super-lig",
+            "userCount": 130040,
+            "category": {
+              "id": 46,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u062a\u0631\u064a\u0646\u062f\u0648\u0644 \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "bn": "\u099f\u09cd\u09b0\u09c7\u09a8\u09cd\u09a1\u09bf\u0993\u09b2 \u09b8\u09c1\u09aa\u09be\u09b0 \u09b2\u09bf\u0997",
+                "hi": "\u091f\u094d\u0930\u0947\u0902\u0921\u092f\u094b\u0932 \u0938\u0941\u092a\u0930 \u0932\u093f\u0917",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430 Trendyol"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 43453.203,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 685,
+            "name": "Moldovan Super Liga",
+            "slug": "super-liga",
+            "userCount": 2706,
+            "category": {
+              "id": 279,
+              "name": "Moldova",
+              "slug": "moldova",
+              "alpha2": "MD",
+              "flag": "moldova",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "MD",
+                "name": "Moldova",
+                "slug": "moldova"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0633\u0648\u0628\u0631 \u0627\u0644\u0645\u0648\u0644\u062f\u0648\u0641\u064a",
+                "bn": "\u09ae\u09cb\u09b2\u09cd\u09a6\u09cb\u09ad\u09be\u09a8 \u09b8\u09c1\u09aa\u09be\u09b0 \u09b2\u09bf\u0997\u09be",
+                "hi": "\u092e\u094b\u0932\u094d\u0926\u094b\u0935\u0928 \u0938\u0941\u092a\u0930 \u0932\u0940\u0917\u093e",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430 \u041c\u043e\u043b\u0434\u043e\u0432\u044b"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 4558.737,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 14249,
+            "name": "S\u00fcper Lig",
+            "slug": "super-lig",
+            "userCount": 463,
+            "category": {
+              "id": 413,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "ru": "\u0421\u0443\u043f\u0435\u0440 \u041b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 2592.8286,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 28091,
+            "name": "Super Ligue",
+            "slug": "super-ligue",
+            "userCount": 499,
+            "category": {
+              "id": 1131,
+              "name": "Niger",
+              "slug": "niger",
+              "alpha2": "NE",
+              "flag": "niger",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "NE",
+                "name": "Niger",
+                "slug": "niger"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0633\u0648\u0628\u0631",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1957.6312,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 23800,
+            "name": "KTFF S\u00fcper Lig",
+            "slug": "ktff-super-league",
+            "userCount": 117,
+            "category": {
+              "id": 1747,
+              "name": "Europe Amateur",
+              "slug": "europe-amateur",
+              "flag": "europe",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 KTFF",
+                "ru": "\u041b\u0438\u0433\u0430 \u0421\u0443\u043f\u0435\u0440 KTFF"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1303.3955,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 20855,
+            "name": "Super Liga",
+            "slug": "super-liga",
+            "userCount": 161,
+            "category": {
+              "id": 1441,
+              "name": "Serbia",
+              "slug": "serbia",
+              "alpha2": "RS",
+              "flag": "serbia",
+              "sport": {
+                "id": 26,
+                "slug": "waterpolo",
+                "name": "Waterpolo"
+              },
+              "country": {
+                "alpha2": "RS",
+                "name": "Serbia",
+                "slug": "serbia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0633\u0648\u0628\u0631",
+                "bn": "\u09b8\u09c1\u09aa\u09be\u09b0 \u09b2\u09c0\u0997\u09be",
+                "hi": "\u0938\u0941\u092a\u0930 \u0932\u0940\u0917\u093e",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 1111.9712,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 19948,
+            "name": "Super Liga",
+            "slug": "super-liga",
+            "userCount": 125,
+            "category": {
+              "id": 401,
+              "name": "North Macedonia",
+              "slug": "north-macedonia",
+              "alpha2": "MK",
+              "flag": "macedonia",
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              },
+              "country": {
+                "alpha2": "MK",
+                "name": "North Macedonia",
+                "slug": "north-macedonia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u0633\u0648\u0628\u0631 \u0644\u064a\u063a\u0627",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 979.7959,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 22381,
+            "name": "Super Liga MNZ Ptuj",
+            "slug": "super-liga-mnz-ptuj",
+            "userCount": 56,
+            "category": {
+              "id": 1623,
+              "name": "Slovenia Amateur",
+              "slug": "slovenia-amateur",
+              "alpha2": "SI",
+              "flag": "slovenia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "SI",
+                "name": "Slovenia",
+                "slug": "slovenia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 MNZ \u0628\u062a\u0648\u064a",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430 MNZ \u041f\u0442\u0443\u0439"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 655.8049,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 26397,
+            "name": "Super Ligue",
+            "slug": "super-ligue",
+            "userCount": 51,
+            "category": {
+              "id": 1129,
+              "name": "New Caledonia",
+              "slug": "new-caledonia",
+              "alpha2": "NC",
+              "flag": "new-caledonia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "NC",
+                "name": "New Caledonia",
+                "slug": "new-caledonia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 625.84344,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 24128,
+            "name": "Super Lig, Women",
+            "slug": "super-lig-women",
+            "userCount": 26,
+            "category": {
+              "id": 413,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 6,
+                "slug": "handball",
+                "name": "Handball"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0644\u0644\u0633\u064a\u062f\u0627\u062a",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430 \u0441\u0440\u0435\u0434\u0438 \u0436\u0435\u043d\u0449\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 614.4266,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 24666,
+            "name": "Olumo Super Liga",
+            "slug": "olumo-super-liga",
+            "userCount": 44,
+            "category": {
+              "id": 1132,
+              "name": "Nigeria",
+              "slug": "nigeria",
+              "alpha2": "NG",
+              "flag": "nigeria",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "NG",
+                "name": "Nigeria",
+                "slug": "nigeria"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0623\u0648\u0644\u0648\u0645\u0648",
+                "ru": "\u041b\u0438\u0433\u0430 \u0421\u0443\u043f\u0435\u0440 \u041e\u043b\u0443\u043c\u043e"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 581.30884,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 34201,
+            "name": "U19 Mladinska Super Liga",
+            "slug": "u19-mladinska-super-liga",
+            "userCount": 29,
+            "category": {
+              "id": 159,
+              "name": "North Macedonia",
+              "slug": "north-macedonia",
+              "alpha2": "MK",
+              "flag": "macedonia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "MK",
+                "name": "North Macedonia",
+                "slug": "north-macedonia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a\u062d\u062a 19 \u062f\u0648\u0631\u064a \u0627\u0644\u0634\u0628\u0627\u0628 \u0627\u0644\u0633\u0648\u0628\u0631",
+                "ru": "\u0421\u0443\u043f\u0435\u0440 \u041b\u0438\u0433\u0430 U19 \u041c\u043b\u0430\u0434\u0438\u043d\u0441\u043a\u0430"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 471.9322,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 23684,
+            "name": "Habeco Super Liga",
+            "slug": "2-clanska-liga",
+            "userCount": 27,
+            "category": {
+              "id": 1623,
+              "name": "Slovenia Amateur",
+              "slug": "slovenia-amateur",
+              "alpha2": "SI",
+              "flag": "slovenia",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "SI",
+                "name": "Slovenia",
+                "slug": "slovenia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0647\u0627\u0628\u064a\u0643\u0648",
+                "ru": "\u041b\u0438\u0433\u0430 \u0421\u0443\u043f\u0435\u0440 \u0425\u0430\u0431\u0435\u043a\u043e"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 455.36798,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 579,
+            "name": "SuperSport Premijer Liga",
+            "slug": "croatian-premier-league",
+            "userCount": 1515,
+            "category": {
+              "id": 190,
+              "name": "Croatia",
+              "slug": "croatia",
+              "alpha2": "HR",
+              "flag": "croatia",
+              "sport": {
+                "id": 2,
+                "slug": "basketball",
+                "name": "Basketball"
+              },
+              "country": {
+                "alpha2": "HR",
+                "name": "Croatia",
+                "slug": "croatia"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0643\u0631\u0648\u0627\u062a\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0644\u0643\u0631\u0629 \u0627\u0644\u0633\u0644\u0629",
+                "ru": "\u041f\u0440\u0435\u043c\u044c\u0435\u0440 \u043b\u0438\u0433\u0430 SuperSport"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 426.38013,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 26011,
+            "name": "Konya S\u00fcper Ligi",
+            "slug": "konya-super-ligi",
+            "userCount": 17,
+            "category": {
+              "id": 1873,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 109,
+                "slug": "minifootball",
+                "name": "Minifootball"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0642\u0648\u0646\u064a\u0629 \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "ru": "\u041b\u0438\u0433\u0430 \u041a\u043e\u043d\u044c\u044f \u0421\u0443\u043f\u0435\u0440"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 361.33087,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 28312,
+            "name": "Super Liga Academias F\u00fatbol",
+            "slug": "super-liga-academias-futbol",
+            "userCount": 16,
+            "category": {
+              "id": 1687,
+              "name": "Chile Amateur",
+              "slug": "chile-amateur",
+              "alpha2": "CL",
+              "flag": "chile",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "CL",
+                "name": "Chile",
+                "slug": "chile"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0644\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0627\u062a \u0643\u0631\u0629 \u0627\u0644\u0642\u062f\u0645",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430 \u0410\u043a\u0430\u0434\u0435\u043c\u0438\u0439 \u0424\u0443\u0442\u0431\u043e\u043b\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 350.54245,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 25995,
+            "name": "Bursa S\u00fcper Ligi",
+            "slug": "bursa-super-ligi",
+            "userCount": 16,
+            "category": {
+              "id": 1873,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 109,
+                "slug": "minifootball",
+                "name": "Minifootball"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0628\u0648\u0631\u0635\u0629 \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "ru": "\u041b\u0438\u0433\u0430 \u0411\u0443\u0440\u0441\u0430 \u0421\u0443\u043f\u0435\u0440"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 350.54245,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 30209,
+            "name": "Erkekler S\u00fcper Ligi",
+            "slug": "erkekler-super-ligi",
+            "userCount": 15,
+            "category": {
+              "id": 1443,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 26,
+                "slug": "waterpolo",
+                "name": "Waterpolo"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632 \u0644\u0644\u0631\u062c\u0627\u0644",
+                "ru": "\u0421\u0443\u043f\u0435\u0440\u043b\u0438\u0433\u0430 \u0441\u0440\u0435\u0434\u0438 \u043c\u0443\u0436\u0447\u0438\u043d"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 339.41125,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 25997,
+            "name": "Kocaeli S\u00fcper Ligi",
+            "slug": "kocaeli-super-ligi",
+            "userCount": 12,
+            "category": {
+              "id": 1873,
+              "name": "Turkey",
+              "slug": "turkey",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 109,
+                "slug": "minifootball",
+                "name": "Minifootball"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f\u0648\u0631\u064a \u0643\u0648\u062c\u0627\u0644\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+                "ru": "\u041b\u0438\u0433\u0430 \u041a\u043e\u0434\u0436\u0430\u044d\u043b\u0438 \u0421\u0443\u043f\u0435\u0440"
+              },
+              "shortNameTranslation": {}
+            },
+            "gender": "M"
+          },
+          "score": 303.57864,
+          "type": "uniqueTournament"
+        },
+        {
+          "entity": {
+            "id": 36370,
+            "name": "Legends Cup Amasya S\u00fcper Ligi",
+            "slug": "legends-cup-konya-free-ligi",
+            "userCount": 11,
+            "category": {
+              "id": 254,
+              "name": "Turkey Amateur",
+              "slug": "turkey-amateur",
+              "alpha2": "TR",
+              "flag": "turkey",
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "country": {
+                "alpha2": "TR",
+                "name": "T\u00fcrkiye",
+                "slug": "turkiye"
+              }
+            },
+            "displayInverseHomeAwayTeams": false,
+            "gender": "M"
+          },
+          "score": 290.65442,
+          "type": "uniqueTournament"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.12833404541015625
+  }
+}

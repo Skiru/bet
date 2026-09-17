@@ -1,0 +1,1112 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/search/all?q=Real%20Madrid",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=10, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "W/\"38e574fa88\"",
+      "x-request-id": "713f0b4d-654e-4ea1-91d5-a6fd8ccc6f80",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:55:57 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "3672"
+    },
+    "body": {
+      "results": [
+        {
+          "entity": {
+            "id": 2829,
+            "name": "Real Madrid",
+            "nameCode": "RMA",
+            "slug": "real-madrid",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 8733404,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#004996",
+              "text": "#004996"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "ES",
+              "name": "Spain",
+              "slug": "spain"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 411191.84,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 826643,
+            "name": "Kylian Mbapp\u00e9",
+            "slug": "kylian-mbappe",
+            "userCount": 2534169,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "FR",
+              "name": "France",
+              "slug": "france"
+            },
+            "shortName": "K. Mbapp\u00e9",
+            "position": "F",
+            "jerseyNumber": "10",
+            "sofascoreId": "uvkfsn",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0643. \u0645\u0628\u0627\u0628\u064a",
+                "bn": "\u0995\u09c7. \u098f\u09ae\u09ac\u09be\u09aa\u09cd\u09aa\u09c7",
+                "hi": "\u0915\u0947. \u090f\u092e\u092c\u093e\u092a\u094d\u092a\u0947",
+                "ru": "\u041a. \u041c\u0431\u0430\u043f\u043f\u0435"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 191823.22,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 868812,
+            "name": "Vin\u00edcius J\u00fanior",
+            "slug": "vinicius-junior",
+            "userCount": 1713670,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "BR",
+              "name": "Brazil",
+              "slug": "brazil"
+            },
+            "shortName": "Vin\u00edcius Jr.",
+            "position": "F",
+            "jerseyNumber": "7",
+            "sofascoreId": "eivjs8",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641\u064a\u0646\u064a\u0633\u064a\u0648\u0633",
+                "bn": "\u09ad\u09bf\u09a8\u09bf\u09b8\u09bf\u09af\u09bc\u09be\u09b8",
+                "hi": "\u0935\u093f\u0928\u0940\u0938\u093f\u092f\u0938",
+                "ru": "\u0412. \u0416\u0443\u043d\u0438\u043e\u0440"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 157741.89,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 991011,
+            "name": "Jude Bellingham",
+            "slug": "jude-bellingham",
+            "userCount": 1442567,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "EN",
+              "name": "England",
+              "slug": "england"
+            },
+            "shortName": "J. Bellingham",
+            "position": "M",
+            "jerseyNumber": "5",
+            "sofascoreId": "jvs5t3",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062c. \u0628\u064a\u0644\u064a\u0646\u063a\u0647\u0627\u0645",
+                "bn": "\u099c\u09c7. \u09ac\u09c7\u09b2\u09bf\u0982\u09b9\u09be\u09ae",
+                "hi": "\u091c\u0947. \u092c\u0947\u0932\u093f\u0902\u0918\u092e",
+                "ru": "\u0414. \u0411\u0435\u043b\u043b\u0438\u043d\u0433\u0435\u043c"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 144727.62,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 910536,
+            "name": "Rodrygo",
+            "slug": "rodrygo",
+            "userCount": 945893,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "BR",
+              "name": "Brazil",
+              "slug": "brazil"
+            },
+            "shortName": "Rodrygo",
+            "position": "F",
+            "jerseyNumber": "11",
+            "sofascoreId": "eeqfm8",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u0648\u062f\u0631\u064a\u063a\u0648",
+                "bn": "\u09b0\u09a1\u09cd\u09b0\u09bf\u0997\u09cb",
+                "hi": "\u0930\u094b\u0921\u094d\u0930\u093f\u0917\u094b",
+                "ru": "\u0420\u043e\u0434\u0440\u0438\u0433\u043e"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 117193.77,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1174937,
+            "name": "Endrick",
+            "slug": "endrick",
+            "userCount": 494662,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "BR",
+              "name": "Brazil",
+              "slug": "brazil"
+            },
+            "shortName": "Endrick",
+            "position": "F",
+            "jerseyNumber": "9",
+            "sofascoreId": "b7h8vy",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625\u0646\u062f\u0631\u064a\u0643",
+                "ru": "\u042d\u043d\u0434\u0440\u0438\u043a"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 84749.67,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 831808,
+            "name": "Federico Valverde",
+            "slug": "federico-valverde",
+            "userCount": 488601,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "UY",
+              "name": "Uruguay",
+              "slug": "uruguay"
+            },
+            "shortName": "F. Valverde",
+            "position": "M",
+            "jerseyNumber": "8",
+            "sofascoreId": "8gipqw",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0641. \u0641\u0627\u0644\u0641\u064a\u0631\u062f\u064a",
+                "bn": "\u098f\u09ab. \u09ad\u09be\u09b2\u09ad\u09be\u09b0\u09cd\u09a6\u09c7",
+                "hi": "\u090f\u092b. \u0935\u0947\u0932\u0935\u0947\u0930\u094d\u0921\u0947",
+                "ru": "\u0424. \u0412\u0430\u043b\u044c\u0432\u0435\u0440\u0434\u0435"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 84228.86,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1091116,
+            "name": "Arda G\u00fcler",
+            "slug": "arda-guler",
+            "userCount": 474109,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "TR",
+              "name": "T\u00fcrkiye",
+              "slug": "turkiye"
+            },
+            "shortName": "A. G\u00fcler",
+            "position": "M",
+            "jerseyNumber": "15",
+            "sofascoreId": "ekv75n",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623. \u063a\u0648\u0644\u0631",
+                "bn": "\u098f.\u0997\u09c1\u09b2\u09be\u09b0",
+                "hi": "\u090f. \u0917\u0941\u0932\u0947\u0930",
+                "ru": "\u0410. \u0413\u044e\u043b\u0435\u0440"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 82970.336,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 835485,
+            "name": "Brahim D\u00edaz",
+            "slug": "brahim-diaz",
+            "userCount": 295423,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "MA",
+              "name": "Morocco",
+              "slug": "morocco"
+            },
+            "shortName": "B. D\u00edaz",
+            "position": "M",
+            "jerseyNumber": "21",
+            "sofascoreId": "k8mf3j",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625. \u062f\u064a\u0627\u0632",
+                "bn": "\u09ac\u09bf. \u09a6\u09bf\u09af\u09bc\u09be\u099c",
+                "hi": "\u092c\u0940. \u0921\u093f\u092f\u093e\u091c\u093c",
+                "ru": "\u0411. \u0414\u0438\u0430\u0441"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 65494.707,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 70988,
+            "name": "Thibaut Courtois",
+            "slug": "thibaut-courtois",
+            "userCount": 266299,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "BE",
+              "name": "Belgium",
+              "slug": "belgium"
+            },
+            "shortName": "T. Courtois",
+            "position": "G",
+            "jerseyNumber": "1",
+            "sofascoreId": "ejthi8",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a. \u0643\u0648\u0631\u062a\u0648\u0627",
+                "bn": "\u099f\u09bf. \u0995\u09cb\u09b0\u09cd\u099f\u09cb\u0987\u09b8",
+                "hi": "\u091f\u0940. \u0915\u094b\u0930\u094d\u091f\u094b\u0907\u0938",
+                "ru": "\u0422. \u041a\u0443\u0440\u0442\u0443\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 62182.6,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 305051,
+            "name": "Real Madrid",
+            "nameCode": "RMC",
+            "slug": "real-madrid",
+            "national": false,
+            "sport": {
+              "id": 1,
+              "slug": "football",
+              "name": "Football"
+            },
+            "userCount": 171621,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#d90e4c",
+              "text": "#d90e4c"
+            },
+            "type": 0,
+            "gender": "F",
+            "country": {
+              "alpha2": "ES",
+              "name": "Spain",
+              "slug": "spain"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                "hi": "\u0930\u093f\u092f\u0932 \u092e\u093e\u0926\u094d\u0930\u093f\u0926 \u0938\u0940\u090d\u095e",
+                "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 57642.016,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 795064,
+            "name": "Trent Alexander-Arnold",
+            "slug": "trent-alexander-arnold",
+            "userCount": 225721,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "EN",
+              "name": "England",
+              "slug": "england"
+            },
+            "shortName": "T. Alexander-Arnold",
+            "position": "D",
+            "jerseyNumber": "12",
+            "sofascoreId": "5ury9z",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062a. \u0623\u0644\u0643\u0633\u0646\u062f\u0631-\u0623\u0631\u0646\u0648\u0644\u062f",
+                "bn": "\u099f\u09bf. \u0986\u09b2\u09c7\u0995\u099c\u09be\u09a8\u09cd\u09a1\u09be\u09b0-\u0986\u09b0\u09cd\u09a8\u09b2\u09cd\u09a1",
+                "hi": "\u091f\u0940. \u0905\u0932\u0947\u0915\u094d\u091c\u0947\u0902\u0921\u0930-\u0905\u0930\u094d\u0928\u094b\u0932\u094d\u0921",
+                "ru": "\u0422. \u0410\u043b\u0435\u043a\u0441\u0430\u043d\u0434\u0435\u0440-\u0410\u0440\u043d\u043e\u043b\u044c\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 57249.31,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 973887,
+            "name": "Eduardo Camavinga",
+            "slug": "eduardo-camavinga",
+            "userCount": 199329,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "FR",
+              "name": "France",
+              "slug": "france"
+            },
+            "shortName": "E. Camavinga",
+            "position": "M",
+            "jerseyNumber": "6",
+            "sofascoreId": "hiiqup",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625. \u0643\u0627\u0645\u0627\u0641\u064a\u0646\u063a\u0627",
+                "bn": "\u0987. \u0995\u09be\u09ae\u09be\u09ad\u09bf\u0999\u09cd\u0997\u09be",
+                "hi": "\u0908. \u090f\u0921\u0941\u0906\u0930\u094d\u0921\u094b",
+                "ru": "\u042d. \u041a\u0430\u043c\u0430\u0432\u0438\u043d\u0433\u0430"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 53798.434,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 142622,
+            "name": "Antonio R\u00fcdiger",
+            "slug": "antonio-rudiger",
+            "userCount": 195824,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "DE",
+              "name": "Germany",
+              "slug": "germany"
+            },
+            "shortName": "A. R\u00fcdiger",
+            "position": "D",
+            "jerseyNumber": "22",
+            "sofascoreId": "py5wx7",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623. \u0631\u0648\u062f\u064a\u063a\u0631",
+                "bn": "\u098f. \u09b0\u09c1\u09a1\u09bf\u0997\u09be\u09b0",
+                "hi": "\u090f. \u0930\u0941\u0921\u093f\u0917\u0930",
+                "ru": "\u0410. \u0420\u044e\u0434\u0438\u0433\u0435\u0440"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 53323.344,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1176744,
+            "name": "Dean Huijsen",
+            "slug": "dean-huijsen",
+            "userCount": 181190,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "ES",
+              "name": "Spain",
+              "slug": "spain"
+            },
+            "shortName": "D. Huijsen",
+            "position": "D",
+            "jerseyNumber": "4",
+            "sofascoreId": "ekufff",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u062f. \u0647\u0648\u064a\u0633\u064a\u0646",
+                "bn": "\u09a1\u09bf. \u09b9\u09c1\u0987\u099c\u09b8\u09c7\u09a8",
+                "hi": "\u0921\u0940. \u0939\u0941\u0907\u091c\u0938\u0947\u0928",
+                "ru": "\u0414. \u0425\u0443\u0439\u0441\u0435\u043d"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 51292.234,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 822519,
+            "name": "\u00c9der Milit\u00e3o",
+            "slug": "eder-militao",
+            "userCount": 171990,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "BR",
+              "name": "Brazil",
+              "slug": "brazil"
+            },
+            "shortName": "\u00c9. Milit\u00e3o",
+            "position": "D",
+            "jerseyNumber": "3",
+            "sofascoreId": "x3e33t",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0625. \u0645\u064a\u0644\u064a\u062a\u0627\u0648",
+                "bn": "\u098f. \u09ae\u09bf\u09b2\u09bf\u099f\u09be\u0993",
+                "hi": "\u0908. \u092e\u093f\u0932\u093f\u091f\u093e\u0913",
+                "ru": "\u042d. \u041c\u0438\u043b\u0438\u0442\u0430\u043e"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 49973.086,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 859025,
+            "name": "Aur\u00e9lien Tchouam\u00e9ni",
+            "slug": "aurelien-tchouameni",
+            "userCount": 165752,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "FR",
+              "name": "France",
+              "slug": "france"
+            },
+            "shortName": "A. Tchouam\u00e9ni",
+            "position": "M",
+            "jerseyNumber": "14",
+            "sofascoreId": "k8gepj",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0623. \u062a\u0634\u0648\u0627\u0645\u064a\u0646\u064a",
+                "bn": "\u098f. \u099a\u09cc\u09ae\u09c7\u09a8\u09bf",
+                "hi": "\u090f. \u091f\u091a\u094c\u092e\u0947\u0928\u0940",
+                "ru": "\u041e. \u0422\u0447\u0443\u0430\u043c\u0435\u043d\u0438"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 49058.473,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 3540,
+            "name": "Real Madrid",
+            "nameCode": "RMA",
+            "slug": "real-madrid",
+            "national": false,
+            "sport": {
+              "id": 2,
+              "slug": "basketball",
+              "name": "Basketball"
+            },
+            "userCount": 123455,
+            "teamColors": {
+              "primary": "#ffffff",
+              "secondary": "#660099",
+              "text": "#660099"
+            },
+            "type": 0,
+            "gender": "M",
+            "country": {
+              "alpha2": "ES",
+              "name": "Spain",
+              "slug": "spain"
+            },
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 48888.734,
+          "type": "team"
+        },
+        {
+          "entity": {
+            "id": 2087085,
+            "name": "Yan Diomande",
+            "slug": "yan-diomande",
+            "userCount": 143508,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "CI",
+              "name": "C\u00f4te d'Ivoire",
+              "slug": "cote-divoire"
+            },
+            "shortName": "Y. Diomande",
+            "position": "F",
+            "jerseyNumber": "25",
+            "sofascoreId": "wmxrh5",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u064a. \u062f\u064a\u0648\u0645\u0627\u0646\u062f",
+                "ru": "\u042f. \u0414\u044c\u043e\u043c\u0430\u043d\u0434"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 45648.117,
+          "type": "player"
+        },
+        {
+          "entity": {
+            "id": 1156645,
+            "name": "Ra\u00fal Asencio",
+            "slug": "raul-asencio",
+            "userCount": 132723,
+            "team": {
+              "id": 2829,
+              "name": "Real Madrid",
+              "nameCode": "RMA",
+              "slug": "real-madrid",
+              "national": false,
+              "sport": {
+                "id": 1,
+                "slug": "football",
+                "name": "Football"
+              },
+              "userCount": 8733404,
+              "teamColors": {
+                "primary": "#ffffff",
+                "secondary": "#004996",
+                "text": "#004996"
+              },
+              "gender": "M",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "ar": "\u0631\u064a\u0627\u0644 \u0645\u062f\u0631\u064a\u062f",
+                  "bn": "\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09ae\u09be\u09a6\u09cd\u09b0\u09bf\u09a6",
+                  "hi": "\u0930\u093f\u092f\u0932 \u092e\u0948\u0921\u094d\u0930\u093f\u0921",
+                  "ru": "\u0420\u0435\u0430\u043b \u041c\u0430\u0434\u0440\u0438\u0434"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "deceased": false,
+            "country": {
+              "alpha2": "ES",
+              "name": "Spain",
+              "slug": "spain"
+            },
+            "shortName": "R. Asencio",
+            "position": "D",
+            "jerseyNumber": "2",
+            "sofascoreId": "zbauk7",
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "\u0631. \u0623\u0633\u064a\u0646\u0633\u064a\u0648",
+                "bn": "\u0986\u09b0. \u0985\u09cd\u09af\u09be\u09b8\u09c7\u09a8\u09b8\u09bf\u0993",
+                "hi": "\u0906\u0930. \u0905\u0938\u0947\u0902\u0936\u093f\u092f\u094b",
+                "ru": "\u0420. \u0410\u0441\u0435\u043d\u0441\u0438\u043e"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "score": 43899.344,
+          "type": "player"
+        }
+      ]
+    },
+    "elapsed_seconds": 0.09103918075561523
+  }
+}

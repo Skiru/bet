@@ -1,0 +1,127 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/event/15345277/odds/1/all",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "public, s-maxage=43200",
+      "x-application-id": "core",
+      "etag": "W/\"6432fe6abb\"",
+      "x-request-id": "9beb7f68-b589-4861-9b93-3edc1cb22827",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:57:41 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "479"
+    },
+    "body": {
+      "markets": [
+        {
+          "sourceId": 188539895,
+          "structureType": 1,
+          "marketId": 1,
+          "marketName": "Full time",
+          "isLive": false,
+          "fid": 188539895,
+          "suspended": false,
+          "id": 224394362,
+          "marketGroup": "Home/Away",
+          "marketPeriod": "Match",
+          "choices": [
+            {
+              "initialFractionalValue": "2/25",
+              "fractionalValue": "2/25",
+              "sourceId": 452069693,
+              "name": "1",
+              "winning": true,
+              "change": 0
+            },
+            {
+              "initialFractionalValue": "7/1",
+              "fractionalValue": "7/1",
+              "sourceId": 452069729,
+              "name": "2",
+              "winning": false,
+              "change": 0
+            }
+          ]
+        },
+        {
+          "sourceId": 188539895,
+          "structureType": 1,
+          "marketId": 11,
+          "marketName": "First set winner",
+          "isLive": false,
+          "fid": 188539895,
+          "suspended": false,
+          "id": 224457621,
+          "marketGroup": "Home/Away",
+          "marketPeriod": "1st set",
+          "choices": [
+            {
+              "initialFractionalValue": "2/9",
+              "fractionalValue": "1/4",
+              "sourceId": 452461479,
+              "name": "1",
+              "winning": true,
+              "change": 1
+            },
+            {
+              "initialFractionalValue": "10/3",
+              "fractionalValue": "3/1",
+              "sourceId": 452461571,
+              "name": "2",
+              "winning": false,
+              "change": -1
+            }
+          ]
+        },
+        {
+          "sourceId": 188539895,
+          "structureType": 2,
+          "marketId": 12,
+          "marketName": "Total games won",
+          "choiceGroup": "33.5",
+          "isLive": false,
+          "fid": 188539895,
+          "suspended": false,
+          "id": 224457622,
+          "marketGroup": "Total sets/games",
+          "marketPeriod": "Extra time",
+          "choices": [
+            {
+              "initialFractionalValue": "5/6",
+              "fractionalValue": "5/6",
+              "sourceId": 452461390,
+              "name": "Over",
+              "winning": true,
+              "change": 0
+            },
+            {
+              "initialFractionalValue": "5/6",
+              "fractionalValue": "5/6",
+              "sourceId": 452461314,
+              "name": "Under",
+              "winning": false,
+              "change": 0
+            }
+          ]
+        }
+      ],
+      "eventId": 15345277,
+      "liveStreamUrl": null
+    },
+    "elapsed_seconds": 0.09101104736328125
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.sofascore.com/api/v1/unique-tournament/17/season/96668/rounds",
+    "headers": {
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.sofascore.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    },
+    "params": null
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "server": "nginx",
+      "cache-control": "max-age=3600, public, s-maxage=3600",
+      "x-application-id": "core",
+      "etag": "\"047f8d1e0a\"",
+      "x-request-id": "8946d7e9-b60b-4d14-8e49-a87d1801f279",
+      "content-type": "application/json",
+      "content-encoding": "gzip",
+      "access-control-allow-origin": "*",
+      "accept-ranges": "bytes",
+      "date": "Thu, 17 Sep 2026 07:56:22 GMT",
+      "vary": "Accept-Encoding",
+      "content-length": "147"
+    },
+    "body": {
+      "currentRound": {
+        "round": 5
+      },
+      "rounds": [
+        {
+          "round": 1
+        },
+        {
+          "round": 2
+        },
+        {
+          "round": 3
+        },
+        {
+          "round": 4
+        },
+        {
+          "round": 5
+        },
+        {
+          "round": 6
+        },
+        {
+          "round": 7
+        },
+        {
+          "round": 8
+        },
+        {
+          "round": 9
+        },
+        {
+          "round": 10
+        },
+        {
+          "round": 11
+        },
+        {
+          "round": 12
+        },
+        {
+          "round": 13
+        },
+        {
+          "round": 14
+        },
+        {
+          "round": 15
+        },
+        {
+          "round": 16
+        },
+        {
+          "round": 17
+        },
+        {
+          "round": 18
+        },
+        {
+          "round": 19
+        },
+        {
+          "round": 20
+        },
+        {
+          "round": 21
+        },
+        {
+          "round": 22
+        },
+        {
+          "round": 23
+        },
+        {
+          "round": 24
+        },
+        {
+          "round": 25
+        },
+        {
+          "round": 26
+        },
+        {
+          "round": 27
+        },
+        {
+          "round": 28
+        },
+        {
+          "round": 29
+        },
+        {
+          "round": 30
+        },
+        {
+          "round": 31
+        },
+        {
+          "round": 32
+        },
+        {
+          "round": 33
+        },
+        {
+          "round": 34
+        },
+        {
+          "round": 35
+        },
+        {
+          "round": 36
+        },
+        {
+          "round": 37
+        },
+        {
+          "round": 38
+        }
+      ]
+    },
+    "elapsed_seconds": 0.08288407325744629
+  }
+}
