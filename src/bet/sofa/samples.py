@@ -1,151 +1,216 @@
-import concurrent.futures
-from collections import defaultdict
-from datetime import datetime, UTC
+"""SAMPLES — build one metric sample per priced market (PLAN §6.1).
+
+Only metrics that Superbet actually prices are sampled (A5): a sample for a
+market nobody quotes is a call we paid for and cannot bet.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
-from bet.sofa.contracts import Fixture, FixtureSamples, MetricSample, Observation, GapEntry, GapReason, Readiness
+from bet.sofa.contracts import (
+    Fixture,
+    FixtureSamples,
+    GapEntry,
+    GapReason,
+    MetricSample,
+    Observation,
+    Readiness,
+)
+from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.market_mapper import classify_market
-from bet.sofa.metrics import extract_flat_statistics, check_identities, extract_metric, FOOTBALL_METRICS, TENNIS_METRICS
+from bet.sofa.metrics import (
+    check_halves_identity,
+    check_identities,
+    extract_flat_statistics,
+    extract_metric,
+    infer_best_of,
+)
+from bet.sofa.settle import is_completed_event
 from bet.sofa.superbet import SuperbetClient
 
+_FRIENDLIES_PATH = (
+    Path(__file__).resolve().parents[3] / "config" / "sofa_friendly_competitions.json"
+)
 
-def fetch_available_metrics(fixture: Fixture, superbet_client: SuperbetClient) -> set[str]:
-    available_metrics = set()
+# Metrics whose only source is /event/{id}/incidents.
+INCIDENT_METRICS = frozenset({"cards_points_total", "cards_points_for"})
+
+
+def _load_friendly_ids() -> frozenset[int]:
+    """Competition ids excluded from football counting samples (PLAN §6.1).
+
+    A missing or malformed config degrades to "exclude nothing" rather than
+    crashing — but the caller reports the size of this set, so an empty filter
+    is visible in the run summary instead of being silently inert.
+    """
+    try:
+        raw = json.loads(_FRIENDLIES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    entries = raw.get("excluded", []) if isinstance(raw, dict) else []
+    ids: set[int] = set()
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("competition_id"), int):
+            ids.add(entry["competition_id"])
+        elif isinstance(entry, int):
+            ids.add(entry)
+    return frozenset(ids)
+
+
+FRIENDLY_COMPETITION_IDS: frozenset[int] = _load_friendly_ids()
+
+
+def fetch_available_metrics(
+    fixture: Fixture, superbet_client: SuperbetClient
+) -> set[str]:
+    """Canonical metric names Superbet prices for this fixture (A5)."""
+    available_metrics: set[str] = set()
     for s_id in fixture.superbet_event_ids:
         odds_data = superbet_client.event_odds(s_id)
         if not odds_data:
             continue
-        # Based on Superbet API response structure: "odds" is a list of markets
-        # We need to extract marketName
         odds = odds_data.get("odds") or []
         for item in odds:
-            market_name = item.get("marketName")
-            classified = classify_market(market_name)
+            classified = classify_market(item.get("marketName"))
             if classified:
                 available_metrics.add(classified[0])
     return available_metrics
 
 
+def _competition_id(event: dict[str, Any]) -> int | None:
+    value = event.get("tournament", {}).get("uniqueTournament", {}).get("id")
+    return int(value) if isinstance(value, int) else None
+
+
 def get_historical_events(
-    client: SofascoreClient, 
-    cache: SofaCache, 
-    entity_id: int, 
-    sport: str, 
-    fixture: Fixture, 
+    client: SofascoreClient,
+    cache: SofaCache,
+    entity_id: int,
+    sport: str,
+    fixture: Fixture,
     config: SofaConfig,
-    is_side_a: bool,
 ) -> list[dict[str, Any]]:
-    events = []
+    """The last ``sample_n`` finished events for ``entity_id`` before kickoff.
+
+    The listing goes through the TTL cache: a second run of the same day must
+    not re-fetch pages it already holds (E2/T13).
+    """
+    events: list[dict[str, Any]] = []
     page = 0
-    while len(events) < config.sample_n and page < 5:  # safeguard against infinite loop
-        page_events = client.entity_events(entity_id, "last", page)
+    while len(events) < config.sample_n and page < 5:
+        cached = cache.get_entity_events(entity_id, "last", page)
+        if cached is not None:
+            payload: dict[str, Any] | None = cached
+        else:
+            fetched = client.entity_events(entity_id, "last", page)
+            payload = fetched
+            if fetched:
+                cache.save_entity_events(entity_id, "last", page, fetched)
+
+        page_events = (payload or {}).get("events") or []
         if not page_events:
             break
-            
-        for e in page_events:
+
+        for event in page_events:
             if len(events) >= config.sample_n:
                 break
-            
-            # Check finished
-            if e.get("status", {}).get("type") != "finished":
+
+            # A walkover or retirement is `finished` but did not produce a
+            # comparable result; it must not enter a sample (L31).
+            if not is_completed_event(event):
                 continue
-                
-            # Check future leak
-            start_ts = e.get("startTimestamp")
+
+            start_ts = event.get("startTimestamp")
             if not start_ts:
                 continue
-            dt = datetime.fromtimestamp(start_ts, UTC)
-            if dt >= fixture.kickoff_utc:
+            # T12: an event at or after our kickoff is the future leaking in.
+            if datetime.fromtimestamp(start_ts, UTC) >= fixture.kickoff_utc:
                 continue
-                
-            # Tennis filters
+
             if sport == "tennis":
-                g_type = e.get("groundType")
-                if g_type != fixture.ground_type:
+                # groundType IS on the listing (30/30 in the recorded payload);
+                # a clay match does not describe a hard-court match (§5.7).
+                if event.get("groundType") != fixture.ground_type:
                     continue
-                # For tennis, verify best_of
-                best_of = e.get("defaultPeriodCount")
-                if best_of != fixture.best_of:
-                    continue
+                # defaultPeriodCount is NOT on the listing, so the format is
+                # derived from sets won. None means "cannot tell" — and an
+                # unknown format is not a match for a known one.
+                if fixture.best_of is not None:
+                    if infer_best_of(event) != fixture.best_of:
+                        continue
             else:
-                # Football filters: Ignore friendlies. 
-                # For now, let's assume we have an EXCLUDED_COMPETITIONS list.
-                # If uniqueTournament.id in excluded_list, continue
-                comp_id = e.get("tournament", {}).get("uniqueTournament", {}).get("id")
-                # e.g., friendlies: 
-                # if comp_id in EXCLUDED_COMPETITIONS: continue
-                pass
-            
-            # Additional safety: event must be either home or away for entity_id
-            home_id = e.get("homeTeam", {}).get("id")
-            away_id = e.get("awayTeam", {}).get("id")
+                comp_id = _competition_id(event)
+                if comp_id is not None and comp_id in FRIENDLY_COMPETITION_IDS:
+                    continue
+
+            home_id = event.get("homeTeam", {}).get("id")
+            away_id = event.get("awayTeam", {}).get("id")
             if home_id != entity_id and away_id != entity_id:
                 continue
 
-            events.append(e)
-            
+            events.append(event)
+
         page += 1
-        
+
     return events
 
 
 def process_historical_event(
-    client: SofascoreClient, 
-    cache: SofaCache, 
-    event: dict[str, Any], 
-    entity_id: int, 
+    client: SofascoreClient,
+    cache: SofaCache,
+    event: dict[str, Any],
+    entity_id: int,
     sport: str,
     metrics_to_collect: set[str],
-    fixture: Fixture
+    fixture: Fixture,
 ) -> dict[str, Any]:
     event_id = event["id"]
-    
-    # Try fetching from cache
+
     cached_stats = cache.get_event_stats(event_id)
     if cached_stats:
         statistics_json, incidents_json, _ = cached_stats
     else:
-        # Fetch from network
         statistics_json = client.event_statistics(event_id)
-        # Fetch incidents only if football and any metric needs incidents (cards)
         incidents_json = None
-        needs_incidents = sport == "football" and any(m in ["cards_points_total", "cards_points_for"] for m in metrics_to_collect)
+        needs_incidents = sport == "football" and bool(
+            metrics_to_collect & INCIDENT_METRICS
+        )
         if needs_incidents:
             incidents_json = client.event_incidents(event_id)
-            
+
         status_type = event.get("status", {}).get("type", "finished")
         cache.save_event_stats(event_id, statistics_json, incidents_json, status_type)
 
     flat_stats = extract_flat_statistics(statistics_json)
-    
     ident_gap = check_identities(flat_stats, incidents_json, event, sport)
-    
+    # Reported, not blocking (PLAN §5.5, last row).
+    halves_divergences = check_halves_identity(flat_stats)
+
     home_team = event.get("homeTeam", {})
     away_team = event.get("awayTeam", {})
-    
-    is_home = (home_team.get("id") == entity_id)
-    opponent_name = away_team.get("name") if is_home else home_team.get("name")
-    if not opponent_name:
-        opponent_name = "Unknown"
-        
+    is_home = home_team.get("id") == entity_id
+    opponent_name = (away_team if is_home else home_team).get("name") or "Unknown"
+
     match_dt = datetime.fromtimestamp(event["startTimestamp"], UTC)
-    
-    comp_id = event.get("tournament", {}).get("uniqueTournament", {}).get("id")
+    comp_id = _competition_id(event)
     season_id = event.get("season", {}).get("id")
-    
-    venue = "home" if is_home else "away"
-    if sport == "tennis":
-        venue = None
-        
-    collected = {}
+
+    # Tennis is played on neutral ground; calling slot 1 "home" invents a fact (L7).
+    venue: str | None = None if sport == "tennis" else ("home" if is_home else "away")
+
+    collected: dict[str, Observation | GapReason] = {}
     for metric in metrics_to_collect:
         if ident_gap:
             collected[metric] = ident_gap
             continue
-            
+
         val = extract_metric(metric, sport, flat_stats, incidents_json, event, is_home)
         if isinstance(val, GapReason):
             collected[metric] = val
@@ -157,130 +222,207 @@ def process_historical_event(
                 value=val,
                 competition_id=comp_id,
                 season_id=season_id,
-                venue=venue,
+                venue=venue,  # type: ignore[arg-type]
             )
-            
-    home_id = event.get("homeTeam", {}).get("id")
-    away_id = event.get("awayTeam", {}).get("id")
-    is_h2h = False
-    if home_id == fixture.home_entity_id and away_id == fixture.away_entity_id:
-        is_h2h = True
-    elif home_id == fixture.away_entity_id and away_id == fixture.home_entity_id:
-        is_h2h = True
-    return {"event_id": event_id, "collected": collected, "is_h2h": is_h2h}
+
+    home_id = home_team.get("id")
+    away_id = away_team.get("id")
+    is_h2h = {home_id, away_id} == {fixture.home_entity_id, fixture.away_entity_id}
+
+    return {
+        "event_id": event_id,
+        "collected": collected,
+        "is_h2h": is_h2h,
+        "halves_divergences": halves_divergences,
+    }
+
+
+def compute_readiness(
+    metric_samples: dict[str, MetricSample], min_sample: int
+) -> tuple[Readiness, dict[str, Readiness]]:
+    """Readiness per metric, and the fixture's readiness as its best metric.
+
+    §3.3 defines readiness on a metric. Reporting the fixture's *best* metric as
+    the headline is only honest alongside the per-metric map, which is why both
+    are returned and both are written to the run summary.
+    """
+    per_metric: dict[str, Readiness] = {}
+    for name, sample in metric_samples.items():
+        n_a = len(sample.side_a)
+        n_b = len(sample.side_b)
+        if n_a >= min_sample and n_b >= min_sample:
+            per_metric[name] = "READY"
+        elif n_a >= 1 or n_b >= 1:
+            per_metric[name] = "PARTIAL"
+        else:
+            per_metric[name] = "BLOCKED"
+
+    if not per_metric:
+        return "BLOCKED", per_metric
+    if "READY" in per_metric.values():
+        return "READY", per_metric
+    if "PARTIAL" in per_metric.values():
+        return "PARTIAL", per_metric
+    return "BLOCKED", per_metric
 
 
 def process_fixture_samples(
-    fixture: Fixture, 
-    client: SofascoreClient, 
-    cache: SofaCache, 
-    superbet_client: SuperbetClient, 
-    config: SofaConfig
+    fixture: Fixture,
+    client: SofascoreClient,
+    cache: SofaCache,
+    superbet_client: SuperbetClient,
+    config: SofaConfig,
 ) -> FixtureSamples:
-    
-    # 1. Fetch Superbet available markets
+    """Sample one fixture. A provider failure blocks this fixture, not the day.
+
+    An exception escaping here takes down the whole slate over one bad fixture,
+    and the operator is left with no artifact at all rather than an artifact
+    that names the fixture that failed. The circuit breaker is the mechanism
+    that stops a genuinely dead provider; a single error is not that.
+    """
+    try:
+        return _process_fixture_samples(
+            fixture, client, cache, superbet_client, config
+        )
+    except CircuitOpenError as exc:
+        return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
+    except ProviderError as exc:
+        return _blocked(fixture, GapReason.PROVIDER_ERROR, str(exc))
+
+
+def _blocked(fixture: Fixture, reason: GapReason, detail: str) -> FixtureSamples:
+    return FixtureSamples(
+        sofascore_event_id=fixture.sofascore_event_id,
+        readiness="BLOCKED",
+        metrics={},
+        gaps=[GapEntry(reason=reason, metric="all", detail=detail)],
+    )
+
+
+def _process_fixture_samples(
+    fixture: Fixture,
+    client: SofascoreClient,
+    cache: SofaCache,
+    superbet_client: SuperbetClient,
+    config: SofaConfig,
+) -> FixtureSamples:
     metrics_to_collect = fetch_available_metrics(fixture, superbet_client)
-    
-    # If no metrics, skip fetching history
+
     if not metrics_to_collect:
         return FixtureSamples(
             sofascore_event_id=fixture.sofascore_event_id,
             readiness="BLOCKED",
             metrics={},
-            gaps=[GapEntry(reason=GapReason.NO_PRICE, metric="all", detail="No priced markets on Superbet")]
+            gaps=[
+                GapEntry(
+                    reason=GapReason.NO_PRICE,
+                    metric="all",
+                    detail="No priced markets on Superbet",
+                )
+            ],
         )
-        
-    # 2. Get historical events
-    side_a_events = get_historical_events(client, cache, fixture.home_entity_id, fixture.sport, fixture, config, True)
-    side_b_events = get_historical_events(client, cache, fixture.away_entity_id, fixture.sport, fixture, config, False)
-    
-    # 3. Process events to extract metrics
-    side_a_results = []
-    side_b_results = []
-    
-    for e in side_a_events:
-        side_a_results.append(process_historical_event(client, cache, e, fixture.home_entity_id, fixture.sport, metrics_to_collect, fixture))
-        
-    for e in side_b_events:
-        side_b_results.append(process_historical_event(client, cache, e, fixture.away_entity_id, fixture.sport, metrics_to_collect, fixture))
-        
-    # 4. Build MetricSamples
-    metric_samples = {}
-    gaps = []
-    
-    # Helper to check if event was already used in a list (for deduplication in total)
-    
-    for metric in metrics_to_collect:
-        obs_a = []
-        obs_b = []
-        obs_h2h = []
-        
-        seen_events = set()
-        
-        # side_a
-        for res in side_a_results:
-            val = res["collected"].get(metric)
-            if isinstance(val, GapReason):
-                gaps.append(GapEntry(reason=val, metric=metric, detail=f"Side A event {res['event_id']} gap"))
-            elif val is not None:
-                obs_a.append(val)
-                seen_events.add(val.sofascore_event_id)
-                if res["is_h2h"]:
+
+    side_a_events = get_historical_events(
+        client, cache, fixture.home_entity_id, fixture.sport, fixture, config
+    )
+    side_b_events = get_historical_events(
+        client, cache, fixture.away_entity_id, fixture.sport, fixture, config
+    )
+
+    side_a_results = [
+        process_historical_event(
+            client,
+            cache,
+            e,
+            fixture.home_entity_id,
+            fixture.sport,
+            metrics_to_collect,
+            fixture,
+        )
+        for e in side_a_events
+    ]
+    side_b_results = [
+        process_historical_event(
+            client,
+            cache,
+            e,
+            fixture.away_entity_id,
+            fixture.sport,
+            metrics_to_collect,
+            fixture,
+        )
+        for e in side_b_events
+    ]
+
+    metric_samples: dict[str, MetricSample] = {}
+    gaps: list[GapEntry] = []
+
+    for metric in sorted(metrics_to_collect):
+        obs_a: list[Observation] = []
+        obs_b: list[Observation] = []
+        obs_h2h: list[Observation] = []
+        h2h_event_ids: set[int] = set()
+
+        for results, bucket, side_label in (
+            (side_a_results, obs_a, "Side A"),
+            (side_b_results, obs_b, "Side B"),
+        ):
+            seen_in_side: set[int] = set()
+            for res in results:
+                val = res["collected"].get(metric)
+                if isinstance(val, GapReason):
+                    gaps.append(
+                        GapEntry(
+                            reason=val,
+                            metric=metric,
+                            detail=f"{side_label} event {res['event_id']} gap",
+                        )
+                    )
+                    continue
+                if val is None:
+                    continue
+                # L13: one historical event contributes one observation per side.
+                if val.sofascore_event_id in seen_in_side:
+                    continue
+                seen_in_side.add(val.sofascore_event_id)
+                bucket.append(val)
+
+                # A head-to-head match appears in both histories; it must enter
+                # the h2h bucket once, not twice.
+                if res["is_h2h"] and val.sofascore_event_id not in h2h_event_ids:
+                    h2h_event_ids.add(val.sofascore_event_id)
                     obs_h2h.append(val)
-                    
-        # side_b
-        for res in side_b_results:
-            val = res["collected"].get(metric)
-            if isinstance(val, GapReason):
-                gaps.append(GapEntry(reason=val, metric=metric, detail=f"Side B event {res['event_id']} gap"))
-            elif val is not None:
-                # Deduplication logic: "jeden mecz historyczny wnosi jedną obserwację do _total"
-                # But wait, observation is per-side. If it's a "total" metric, it's the same value for both sides.
-                # If it's a "for" metric, the value is different!
-                # Wait, "Deduplication: jeden mecz = jedna obserwacja w _total". 
-                # This just means the sample size should not double count. But MetricSample has side_a and side_b lists.
-                # If we put it in side_b list, and it's already in side_a, should we exclude it from side_b?
-                # Actually, if we just collect side_a and side_b independently, the consumer (E8 SHEET) will deduplicate when combining into a single sample, OR we can deduplicate here.
-                # The rule: "deduplikacja obserwacji między side_a, side_b i h2h: jeden mecz historyczny wnosi jedną obserwację do _total, choćby występował w trzech koszykach."
-                # It's better to deduplicate when flattening in the engine, but let's just make sure we don't return the exact same observation. Wait, if it's side_b's perspective on `shots_for`, it's a DIFFERENT observation than side_a's `shots_for` on the SAME match!
-                # Ah! For `_total` metrics, the value is the same. For `_for` metrics, the value is side-specific.
-                # The instruction says: "jeden mecz historyczny wnosi jedną obserwację do _total". This probably refers to the stage where the arrays are merged. We'll just pass all valid observations here.
-                obs_b.append(val)
-                if val.sofascore_event_id not in seen_events:
-                    seen_events.add(val.sofascore_event_id)
-                    if res["is_h2h"]:
-                        obs_h2h.append(val)
-                        
+
         metric_samples[metric] = MetricSample(
-            metric=metric,
-            side_a=obs_a,
-            side_b=obs_b,
-            h2h=obs_h2h
+            metric=metric, side_a=obs_a, side_b=obs_b, h2h=obs_h2h
         )
-        
-    # Calculate readiness globally or per metric?
-    # "READY obie strony mają >= SOFA_MIN_SAMPLE (5) obserwacji metryki"
-    # Wait, readiness is per fixture or per metric? 
-    # FixtureSamples has `readiness`. Is it for the whole fixture?
-    # Usually readiness is per-metric, but in FixtureSamples it's at the top level.
-    # We define it as: if AT LEAST ONE metric is READY, then the fixture is READY?
-    # The requirement: "READY obie strony mają >= SOFA_MIN_SAMPLE (5) obserwacji metryki"
-    # Let's compute it across all collected metrics. If any metric is READY, we mark READY.
-    
-    max_a_len = max([len(ms.side_a) for ms in metric_samples.values()], default=0)
-    max_b_len = max([len(ms.side_b) for ms in metric_samples.values()], default=0)
-    
-    if max_a_len >= config.min_sample and max_b_len >= config.min_sample:
-        readiness = "READY"
-    elif max_a_len >= 1 or max_b_len >= 1:
-        readiness = "PARTIAL"
-    else:
-        readiness = "BLOCKED"
-        
+
+    readiness, per_metric = compute_readiness(metric_samples, config.min_sample)
+    for name, state in sorted(per_metric.items()):
+        if state == "BLOCKED":
+            gaps.append(
+                GapEntry(
+                    reason=GapReason.THIN_SAMPLE,
+                    metric=name,
+                    detail="no observation on either side",
+                )
+            )
+        elif state == "PARTIAL":
+            gaps.append(
+                GapEntry(
+                    reason=GapReason.THIN_SAMPLE,
+                    metric=name,
+                    detail=(
+                        f"side_a={len(metric_samples[name].side_a)} "
+                        f"side_b={len(metric_samples[name].side_b)} "
+                        f"below min_sample={config.min_sample}"
+                    ),
+                )
+            )
+
     return FixtureSamples(
         sofascore_event_id=fixture.sofascore_event_id,
         readiness=readiness,
         metrics=metric_samples,
-        gaps=gaps
+        gaps=gaps,
     )
-

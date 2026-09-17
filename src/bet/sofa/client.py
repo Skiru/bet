@@ -4,6 +4,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Literal, Protocol
+from urllib.parse import quote
 
 from curl_cffi import requests
 from curl_cffi.requests.errors import RequestsError
@@ -14,21 +15,20 @@ from bet.sofa.timeutil import now
 
 logger = logging.getLogger(__name__)
 
+
 class TransportResponse(Protocol):
     @property
-    def status_code(self) -> int:
-        ...
+    def status_code(self) -> int: ...
 
     @property
-    def text(self) -> str:
-        ...
+    def text(self) -> str: ...
 
-    def json(self) -> Any:
-        ...
+    def json(self) -> Any: ...
+
 
 class Transport(Protocol):
-    def get(self, url: str, timeout: float = 10.0) -> TransportResponse:
-        ...
+    def get(self, url: str, timeout: float = 10.0) -> TransportResponse: ...
+
 
 class CurlCffiTransport:
     def __init__(self) -> None:
@@ -37,6 +37,7 @@ class CurlCffiTransport:
 
     def get(self, url: str, timeout: float = 10.0) -> TransportResponse:
         return self.session.get(url, timeout=timeout)  # type: ignore
+
 
 class TokenBucket:
     def __init__(self, target_rps: float) -> None:
@@ -65,6 +66,7 @@ class TokenBucket:
                 sleep_time = (1.0 - self.tokens) / self.target_rps
                 time.sleep(max(sleep_time, 0.001))
 
+
 class CircuitBreaker:
     def __init__(self, threshold: int) -> None:
         self.threshold = threshold
@@ -84,10 +86,9 @@ class CircuitBreaker:
         with self._lock:
             return self.failures >= self.threshold
 
+
 class SofascoreClient:
-    def __init__(
-        self, config: SofaConfig, transport: Transport | None = None
-    ) -> None:
+    def __init__(self, config: SofaConfig, transport: Transport | None = None) -> None:
         self.config = config
         self.transport = transport or CurlCffiTransport()
         self.bucket = TokenBucket(config.target_rps)
@@ -186,7 +187,10 @@ class SofascoreClient:
         raise ProviderError(f"Unexpected HTTP {status}")
 
     def search(self, q: str) -> Any | None:
-        url = f"https://api.sofascore.com/api/v1/search/all?q={q}"
+        # quote() is not optional: team names carry spaces, "&" and non-ASCII,
+        # and pasting them raw into the query string silently searches for
+        # something else.
+        url = "https://api.sofascore.com/api/v1/search/all?q=" + quote(q, safe="")
         return self._execute(url, stage="RESOLVE")
 
     def entity_events(
@@ -194,6 +198,20 @@ class SofascoreClient:
     ) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/team/{entity_id}/events/{kind}/{page}"
         return self._execute(url, stage="RESOLVE")
+
+    def season_events(
+        self,
+        unique_tournament_id: int,
+        season_id: int,
+        kind: Literal["last", "next"],
+        page: int,
+    ) -> Any | None:
+        """One page of a season's events. Used by the E10 backfill."""
+        url = (
+            f"https://api.sofascore.com/api/v1/unique-tournament/"
+            f"{unique_tournament_id}/season/{season_id}/events/{kind}/{page}"
+        )
+        return self._execute(url, stage="BACKFILL")
 
     def event(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}"
@@ -206,4 +224,3 @@ class SofascoreClient:
     def event_incidents(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}/incidents"
         return self._execute(url, stage="SAMPLES")
-

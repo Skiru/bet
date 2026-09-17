@@ -1,14 +1,10 @@
-# MLB Measurement Report
+# MLB Measurement — NOT MEASURED
 
-## 1. Wyszukiwanie (Resolve)
-Przetestowano 50 fixture'ów MLB.
-- **Recall:** 82% (41/50).
-- Wyszukiwarka Sofascore poprawnie radzi sobie z nazwami drużyn (np. "New York Yankees").
+**Status:** NOT_MEASURED (attempted 2026-09-17T22:31:57.418934+00:00)
 
-## 2. Statystyki (/event/{id}/statistics)
-Sprawdzono 41 znalezionych meczów.
-- **Wynik:** 404 Not Found dla większości, lub puste grupy statystyk dla części.
-- Kluczowe metryki (runs, hits) **nie są obecne** w payloadzie statystyk (sprawdzono pod różnymi nazwami).
+**Reason:** Every one of 50 Sofascore requests failed; no fixture was resolved or probed.
 
-## 3. Wnioski
-Pokrycie Sofascore dla baseballu (MLB) na poziomie szczegółowych agregatów (runs, hits) nie pozwala na wyliczenie `p_central`. Brak zwrotu w `/statistics` dyskwalifikuje ten sport z pipeline'u `sofa`.
+No recall figure, no statistics-coverage finding and no conclusion about baseball may be quoted from this file. Re-run
+`python -m scripts.sofa.measure_mlb --date <YYYY-MM-DD>` from a host that can reach Sofascore, and this file will be overwritten with the measured numbers plus the raw payloads in `mlb_measurement_raw.json`.
+
+Baseball remains out of `sofa` (`Sport = Literal["football", "tennis"]`) because it was never measured, not because it was measured and rejected.

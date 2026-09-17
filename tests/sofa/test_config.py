@@ -6,9 +6,16 @@ from bet.sofa.config import SofaConfig
 def test_config_defaults() -> None:
     # Clear env vars that might affect tests
     for key in [
-        "SOFA_DB_PATH", "SOFA_RUNS_DIR", "SOFA_TARGET_RPS", "SOFA_MAX_CONCURRENCY",
-        "SOFA_BREAKER_THRESHOLD", "SOFA_EVENTS_TTL_MIN", "SOFA_SAMPLE_N",
-        "SOFA_MIN_SAMPLE", "SOFA_PRICE_MAX_AGE_MIN", "SOFA_SHRINK_K"
+        "SOFA_DB_PATH",
+        "SOFA_RUNS_DIR",
+        "SOFA_TARGET_RPS",
+        "SOFA_MAX_CONCURRENCY",
+        "SOFA_BREAKER_THRESHOLD",
+        "SOFA_EVENTS_TTL_MIN",
+        "SOFA_SAMPLE_N",
+        "SOFA_MIN_SAMPLE",
+        "SOFA_PRICE_MAX_AGE_MIN",
+        "SOFA_SHRINK_K",
     ]:
         if key in os.environ:
             del os.environ[key]

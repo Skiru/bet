@@ -49,10 +49,13 @@ def test_event_stats_is_permanent(cache: SofaCache) -> None:
     assert res3 is not None
     loaded_stats3, loaded_inc3, status3 = res3
     assert loaded_stats3 == {"shots": 10}
-    assert loaded_inc3 == {"cards": 2} # Kept old value!
+    assert loaded_inc3 == {"cards": 2}  # Kept old value!
+
 
 def test_save_event_stats_guards_non_terminal(cache: SofaCache) -> None:
-    with pytest.raises(ValueError, match="Cannot save event stats for non-terminal status"):
+    with pytest.raises(
+        ValueError, match="Cannot save event stats for non-terminal status"
+    ):
         cache.save_event_stats(999, {}, {}, "notstarted")
 
 
@@ -93,7 +96,9 @@ def test_entity_returns_rejected(cache: SofaCache) -> None:
     assert res["status"] == "rejected"
 
     # Save a verified entity
-    cache.save_entity("football", "good team", 222, "Good Team", "team", "ES", "verified")
+    cache.save_entity(
+        "football", "good team", 222, "Good Team", "team", "ES", "verified"
+    )
 
     res = cache.get_entity("football", "good team")
     assert res is not None
@@ -109,6 +114,7 @@ def test_entity_returns_rejected(cache: SofaCache) -> None:
             "SELECT hit_count FROM sofa_entity WHERE query_key = 'good team'"
         ).fetchone()
         assert row["hit_count"] == 1
+
 
 def test_entity_primary_key(cache: SofaCache) -> None:
     # Upewniamy się, że baza pozwala na klucze ze spacjami lub apostrofami

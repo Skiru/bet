@@ -1,8 +1,7 @@
-from typing import List
+from bet.sofa.contracts import SheetRow, Veto
 
-from bet.sofa.contracts import Veto, SheetRow
 
-def match_vetoes(row: SheetRow, vetoes: List[Veto]) -> List[Veto]:
+def match_vetoes(row: SheetRow, vetoes: list[Veto]) -> list[Veto]:
     matches = []
     for veto in vetoes:
         if veto.sofascore_event_id != row.sofascore_event_id:
@@ -18,7 +17,8 @@ def match_vetoes(row: SheetRow, vetoes: List[Veto]) -> List[Veto]:
         matches.append(veto)
     return matches
 
-def find_unmatched_vetoes(sheet_rows: List[SheetRow], vetoes: List[Veto]) -> List[Veto]:
+
+def find_unmatched_vetoes(sheet_rows: list[SheetRow], vetoes: list[Veto]) -> list[Veto]:
     unmatched = []
     for veto in vetoes:
         matched = False

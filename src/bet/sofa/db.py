@@ -69,7 +69,22 @@ def migrate(db_path: str) -> None:
         """,
     ]
 
+    # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is
+    # not idempotent in SQLite, so each one is guarded on the live column list.
+    added_columns = [
+        # MAX_LADDER_SIGMA can only be fitted from rows that recorded a ladder
+        # sigma, and the backfill cannot produce one (there are no historical
+        # Superbet ladders). Live settlement can, so the column exists for it.
+        ("sofa_settled_row", "ladder_sigma", "REAL"),
+    ]
+
     with get_connection(db_path) as conn:
         for q in queries:
             conn.execute(q)
+        for table, column, column_type in added_columns:
+            existing = {
+                row["name"] for row in conn.execute(f"PRAGMA table_info({table})")
+            }
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
         conn.commit()

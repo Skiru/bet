@@ -226,4 +226,3 @@ def test_log_format(config: SofaConfig, monkeypatch: Any) -> None:
     assert isinstance(row["elapsed_ms"], int)
     assert row["cache_hit"] is False
     assert row["breaker_state"] == "CLOSED"
-

@@ -1,0 +1,30 @@
+{
+  "board_fixtures": 3,
+  "resolved_fixtures": 3,
+  "samples_readiness": [
+    "READY",
+    "READY",
+    "READY"
+  ],
+  "sampled_metrics": [
+    "goals_total",
+    "sets_total"
+  ],
+  "sample_sizes": [
+    18,
+    20,
+    20
+  ],
+  "offer_rungs": [
+    1,
+    3,
+    3
+  ],
+  "sheet_rows": 14,
+  "sheet_verdicts": [
+    "BELOW_BAR",
+    "LEAN",
+    "VALUE"
+  ],
+  "coupon_singles": 2
+}

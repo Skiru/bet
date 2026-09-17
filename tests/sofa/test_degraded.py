@@ -1,5 +1,4 @@
-import os
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -115,11 +114,79 @@ def test_degraded_empty_statistics(config: SofaConfig) -> None:
 
     class FakeSBClient:
         def event_odds(self, s_id):
-            return {"data": [{"markets": [{"marketId": 12, "marketName": "Suma goli"}]}]}
+            return {
+                "data": [{"markets": [{"marketId": 12, "marketName": "Suma goli"}]}]
+            }
 
-    samples = [process_fixture_samples(fixtures[0], client, cache, FakeSBClient(), config)]
+    samples = [
+        process_fixture_samples(fixtures[0], client, cache, FakeSBClient(), config)
+    ]
     assert len(samples) == 1
     assert samples[0].readiness == "BLOCKED"
     for metric, sample in samples[0].metrics.items():
         assert len(sample.side_a) == 0
         assert len(sample.side_b) == 0
+
+
+# --------------------------------------------------------------------------
+# One bad fixture must not take the slate down with it.
+# --------------------------------------------------------------------------
+
+def test_a_provider_error_blocks_one_fixture_not_the_whole_day(tmp_path):
+    """The breaker stops a dead provider; a single error is not that.
+
+    If the exception escapes, the operator gets no 03_samples.json at all —
+    strictly worse than an artifact naming the fixture that failed.
+    """
+    from unittest.mock import MagicMock
+
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.contracts import Fixture, GapReason
+    from bet.sofa.db import migrate
+    from bet.sofa.errors import CircuitOpenError, ProviderError
+    from bet.sofa.samples import process_fixture_samples
+
+    db_path = str(tmp_path / "t.db")
+    migrate(db_path)
+    config = SofaConfig(db_path=db_path)
+    cache = SofaCache(config)
+
+    fixture = Fixture(
+        sofascore_event_id=1,
+        superbet_event_ids=["sb1"],
+        sport="football",
+        kickoff_utc=datetime(2026, 9, 17, 18, 0, tzinfo=UTC),
+        home_name="A",
+        away_name="B",
+        home_entity_id=10,
+        away_entity_id=20,
+        competition_name="L",
+        competition_id=1,
+        season_id=1,
+        category_name="C",
+        identity="CONFIRMED",
+        round_number=1,
+        round_name=None,
+        cup_round_type=None,
+        previous_leg_event_id=None,
+        venue_name=None,
+        referee=None,
+        has_xg=False,
+        ground_type=None,
+        best_of=None,
+    )
+
+    superbet = MagicMock()
+    superbet.event_odds.return_value = {"odds": [{"marketName": "Liczba goli"}]}
+
+    for error, expected in (
+        (ProviderError("HTTP 403"), GapReason.PROVIDER_ERROR),
+        (CircuitOpenError("open"), GapReason.CIRCUIT_OPEN),
+    ):
+        client = MagicMock()
+        client.entity_events.side_effect = error
+        result = process_fixture_samples(fixture, client, cache, superbet, config)
+        assert result.readiness == "BLOCKED"
+        assert result.metrics == {}
+        assert [g.reason for g in result.gaps] == [expected]

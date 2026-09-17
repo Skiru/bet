@@ -1,4 +1,3 @@
-import enum
 from datetime import datetime
 from enum import StrEnum
 from typing import Literal
@@ -36,6 +35,7 @@ class BoardFixture(BaseModel):
     side_b: str
     kickoff_utc: datetime
 
+
 class RefereeRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     name: str
@@ -43,6 +43,7 @@ class RefereeRecord(BaseModel):
     yellow_cards: int
     red_cards: int
     yellow_red_cards: int
+
 
 class Fixture(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -69,6 +70,7 @@ class Fixture(BaseModel):
     ground_type: str | None
     best_of: int | None
 
+
 class Observation(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     sofascore_event_id: int
@@ -79,6 +81,7 @@ class Observation(BaseModel):
     season_id: int | None
     venue: Literal["home", "away"] | None
 
+
 class MetricSample(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     metric: str
@@ -86,11 +89,13 @@ class MetricSample(BaseModel):
     side_b: list[Observation]
     h2h: list[Observation]
 
+
 class GapEntry(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     reason: GapReason
     metric: str
     detail: str
+
 
 class FixtureSamples(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -98,6 +103,7 @@ class FixtureSamples(BaseModel):
     readiness: Readiness
     metrics: dict[str, MetricSample]
     gaps: list[GapEntry]
+
 
 class PricedRung(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -115,6 +121,7 @@ class FixtureOffer(BaseModel):
     status: Literal["PRICED", "NO_PRICE"] | None = None
     rungs: list[PricedRung]
     unmapped_markets: list[str]
+
 
 class SheetRow(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -141,6 +148,7 @@ class SheetRow(BaseModel):
     verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"]
     notes: list[str]
 
+
 class Veto(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     sofascore_event_id: int
@@ -150,6 +158,7 @@ class Veto(BaseModel):
     direction: Direction | None
     reason_class: Literal["SAMPLE_UNINFORMATIVE", "CONTEXT", "PRICE", "OTHER"]
     reason: str
+
 
 class CouponRow(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -170,6 +179,7 @@ class CouponRow(BaseModel):
     required_odds: float
     edge: float | None
     surplus: float
+
 
 class Coupon(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)

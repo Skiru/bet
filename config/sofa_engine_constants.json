@@ -1,11 +1,27 @@
 {
+  "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
+  "fitted_from": {
+    "db_path": "data/sofa.db",
+    "settled_rows": 0,
+    "distinct_competitions": 0
+  },
   "K_CENTRE": {
-    "value": 10.0,
-    "curve": {}
+    "value": null,
+    "curve": {},
+    "status": "NOT_FITTED",
+    "criterion": "smallest K within 0.002 of the minimum median |p_central - outcome|"
   },
   "K_PRICE": {
-    "value": 10.0,
-    "curve": {}
+    "value": null,
+    "curve": {},
+    "status": "NOT_FITTED",
+    "criterion": "as K_CENTRE, on rows carrying a devigged market price"
   },
-  "MAX_LADDER_SIGMA": 1.25
+  "MAX_LADDER_SIGMA": {
+    "value": null,
+    "status": "NOT_FITTED",
+    "rows_available": 0,
+    "rows_required": 200,
+    "reason": "MAX_LADDER_SIGMA needs rows settled against a live Superbet ladder. Backfilled rows have market_p = NULL and no ladder (PLAN §A9), so they cannot support this constant."
+  }
 }

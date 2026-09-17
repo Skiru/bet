@@ -1,4 +1,5 @@
 import json
+from collections.abc import Iterator
 from datetime import timedelta
 from typing import Any, cast
 
@@ -20,7 +21,8 @@ class SofaCache:
         """
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
-                "SELECT statistics_json, incidents_json, status_type FROM sofa_event_stats WHERE sofascore_event_id = ?",
+                "SELECT statistics_json, incidents_json, status_type "
+                "FROM sofa_event_stats WHERE sofascore_event_id = ?",
                 (sofascore_event_id,),
             ).fetchone()
             if row:
@@ -46,10 +48,13 @@ class SofaCache:
     ) -> None:
         """
         Zapisuje statystyki i incydenty (na stałe, nigdy nie wygasa).
-        Pusta encja {} oznacza 404. None oznacza "nie pobrano w tym przebiegu" i nie nadpisuje bazy.
+        Pusta encja {} oznacza 404. None oznacza "nie pobrano w tym
+        przebiegu" i nie nadpisuje bazy.
         """
         if status_type not in ("finished", "canceled", "abandoned"):
-            raise ValueError(f"Cannot save event stats for non-terminal status: {status_type}")
+            raise ValueError(
+                f"Cannot save event stats for non-terminal status: {status_type}"
+            )
 
         fetched_at = now().isoformat()
         stats_json = json.dumps(statistics) if statistics is not None else None
@@ -58,16 +63,25 @@ class SofaCache:
         with get_connection(self.config.db_path) as conn:
             conn.execute(
                 """
-                INSERT INTO sofa_event_stats 
-                (sofascore_event_id, fetched_at, statistics_json, incidents_json, status_type)
+                INSERT INTO sofa_event_stats
+                (sofascore_event_id, fetched_at, statistics_json,
+                 incidents_json, status_type)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(sofascore_event_id) DO UPDATE SET
                     fetched_at = excluded.fetched_at,
-                    statistics_json = COALESCE(excluded.statistics_json, sofa_event_stats.statistics_json),
-                    incidents_json = COALESCE(excluded.incidents_json, sofa_event_stats.incidents_json),
+                    statistics_json = COALESCE(
+                        excluded.statistics_json, sofa_event_stats.statistics_json),
+                    incidents_json = COALESCE(
+                        excluded.incidents_json, sofa_event_stats.incidents_json),
                     status_type = excluded.status_type
                 """,
-                (sofascore_event_id, fetched_at, stats_json, incidents_json, status_type),
+                (
+                    sofascore_event_id,
+                    fetched_at,
+                    stats_json,
+                    incidents_json,
+                    status_type,
+                ),
             )
             conn.commit()
 
@@ -80,8 +94,8 @@ class SofaCache:
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
                 """
-                SELECT fetched_at, events_json 
-                FROM sofa_entity_events 
+                SELECT fetched_at, events_json
+                FROM sofa_entity_events
                 WHERE sofascore_entity_id = ? AND kind = ? AND page = ?
                 """,
                 (sofascore_entity_id, kind, page),
@@ -110,13 +124,38 @@ class SofaCache:
         with get_connection(self.config.db_path) as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO sofa_entity_events 
+                INSERT OR REPLACE INTO sofa_entity_events
                 (sofascore_entity_id, kind, page, fetched_at, events_json)
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 (sofascore_entity_id, kind, page, fetched_at, events_json),
             )
             conn.commit()
+
+    def iter_entity_events(
+        self,
+    ) -> Iterator[tuple[int, str, int, dict[str, Any]]]:
+        """Every cached listing, ignoring TTL.
+
+        Auditing what a sample was built from is a question about the past, so
+        an expired row is still the right answer here.
+        """
+        with get_connection(self.config.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT sofascore_entity_id, kind, page, events_json
+                FROM sofa_entity_events
+                """
+            ).fetchall()
+        for row in rows:
+            payload = json.loads(row["events_json"])
+            if isinstance(payload, dict):
+                yield (
+                    int(row["sofascore_entity_id"]),
+                    str(row["kind"]),
+                    int(row["page"]),
+                    cast(dict[str, Any], payload),
+                )
 
     def get_entity(self, sport: str, query_key: str) -> dict[str, Any] | None:
         """
@@ -135,7 +174,7 @@ class SofaCache:
             if row:
                 conn.execute(
                     """
-                    UPDATE sofa_entity 
+                    UPDATE sofa_entity
                     SET hit_count = hit_count + 1, last_used_at = ?
                     WHERE sport = ? AND query_key = ?
                     """,
@@ -163,15 +202,17 @@ class SofaCache:
     ) -> None:
         """
         Zapisuje encję (np. po weryfikacji).
-        status='verified' ustawiany wyłącznie po znalezieniu eventu potwierdzonego datą i przeciwnikiem.
+        status='verified' ustawiany wyłącznie po znalezieniu eventu
+        potwierdzonego datą i przeciwnikiem.
         """
         verified_at = now().isoformat() if status == "verified" else None
 
         with get_connection(self.config.db_path) as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO sofa_entity 
-                (sport, query_key, sofascore_id, sofascore_name, entity_type, country, status, verified_at, last_used_at, hit_count)
+                INSERT OR REPLACE INTO sofa_entity
+                (sport, query_key, sofascore_id, sofascore_name, entity_type,
+                 country, status, verified_at, last_used_at, hit_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
                 """,
                 (

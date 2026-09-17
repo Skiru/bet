@@ -1,0 +1,33 @@
+........................................................................ [ 33%]
+......................................................s................. [ 66%]
+...............s........................................................ [ 99%]
+.                                                                        [100%]
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.12.4-final-0 _______________
+
+Name                            Stmts   Miss  Cover
+---------------------------------------------------
+src/bet/sofa/__init__.py            0      0   100%
+src/bet/sofa/board.py              33      3    91%
+src/bet/sofa/cache.py              62      6    90%
+src/bet/sofa/client.py            140     17    88%
+src/bet/sofa/config.py             17      0   100%
+src/bet/sofa/contracts.py         157      0   100%
+src/bet/sofa/coupon.py             80     12    85%
+src/bet/sofa/coverage.py           65      5    92%
+src/bet/sofa/db.py                 16      0   100%
+src/bet/sofa/engine.py             85      0   100%
+src/bet/sofa/errors.py              6      0   100%
+src/bet/sofa/market_mapper.py      32     10    69%
+src/bet/sofa/metrics.py           180     12    93%
+src/bet/sofa/names.py              39      3    92%
+src/bet/sofa/offer.py              57      8    86%
+src/bet/sofa/resolve.py           114      6    95%
+src/bet/sofa/samples.py           186     16    91%
+src/bet/sofa/settle.py            128     14    89%
+src/bet/sofa/superbet.py           76     25    67%
+src/bet/sofa/timeutil.py            3      0   100%
+src/bet/sofa/veto.py               36      8    78%
+---------------------------------------------------
+TOTAL                            1512    145    90%
+215 passed, 2 skipped in 2.60s

@@ -1,20 +1,120 @@
 {
-  "incidents": [
-    {
-      "incidentType": "card",
-      "incidentClass": "yellow",
-      "isHome": true,
-      "rescinded": false,
-      "time": 34,
-      "playerName": "Sergio Ramos"
-    },
-    {
-      "incidentType": "card",
-      "incidentClass": "yellowRed",
-      "isHome": true,
-      "rescinded": false,
-      "time": 75,
-      "playerName": "Sergio Ramos"
-    }
-  ]
+  "_doc": [
+    "SYNTHETIC. No /incidents payload containing a yellowRed was ever recorded",
+    "(grep the evidence/ tree: zero hits). PLAN §5.4a asked for that one number",
+    "to be measured before the card market could be trusted.",
+    "",
+    "calculate_cards_points does not depend on the answer: it derives the",
+    "remainder per player from the payload in hand. These three variants are",
+    "the three conventions Sofascore could be using, and the correct Superbet",
+    "total is 3 points under every one of them."
+  ],
+  "one_yellow_plus_yellowRed": {
+    "_case": "Sofascore emits the FIRST yellow separately, then yellowRed.",
+    "incidents": [
+      {
+        "incidentType": "card",
+        "incidentClass": "yellow",
+        "isHome": true,
+        "rescinded": false,
+        "time": 34,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      },
+      {
+        "incidentType": "card",
+        "incidentClass": "yellowRed",
+        "isHome": true,
+        "rescinded": false,
+        "time": 75,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      }
+    ]
+  },
+  "two_yellows_plus_yellowRed": {
+    "_case": "Sofascore emits BOTH yellows, then yellowRed as the dismissal.",
+    "incidents": [
+      {
+        "incidentType": "card",
+        "incidentClass": "yellow",
+        "isHome": true,
+        "rescinded": false,
+        "time": 34,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      },
+      {
+        "incidentType": "card",
+        "incidentClass": "yellow",
+        "isHome": true,
+        "rescinded": false,
+        "time": 75,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      },
+      {
+        "incidentType": "card",
+        "incidentClass": "yellowRed",
+        "isHome": true,
+        "rescinded": false,
+        "time": 75,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      }
+    ]
+  },
+  "yellowRed_only": {
+    "_case": "Sofascore emits ONLY the yellowRed, with neither yellow listed.",
+    "incidents": [
+      {
+        "incidentType": "card",
+        "incidentClass": "yellowRed",
+        "isHome": true,
+        "rescinded": false,
+        "time": 75,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      }
+    ]
+  },
+  "rescinded_first_yellow": {
+    "_case": "The first yellow was rescinded. The disciplinary record then shows one yellow and a dismissal, so the remainder must be paid against the cards that still stand.",
+    "incidents": [
+      {
+        "incidentType": "card",
+        "incidentClass": "yellow",
+        "isHome": true,
+        "rescinded": true,
+        "time": 34,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      },
+      {
+        "incidentType": "card",
+        "incidentClass": "yellowRed",
+        "isHome": true,
+        "rescinded": false,
+        "time": 75,
+        "player": {
+          "id": 501,
+          "name": "Sergio Ramos"
+        }
+      }
+    ]
+  }
 }

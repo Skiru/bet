@@ -1,0 +1,30 @@
+{
+  "_doc": [
+    "uniqueTournament.id values excluded from FOOTBALL counting samples (PLAN §6.1).",
+    "A friendly is played at a different intensity from a league match; its corners,",
+    "cards and fouls describe a different game. Keyed on the id, never on the name,",
+    "because the name is localised and the id is not.",
+    "",
+    "Every entry names the evidence file the id was read from. An id nobody can",
+    "trace to a payload does not belong in this file. Extend it with",
+    "`python -m scripts.sofa.find_friendly_competitions` (E10 backfill data) and",
+    "review each candidate before promoting it here."
+  ],
+  "excluded": [
+    {
+      "competition_id": 853,
+      "name": "Club Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofascore-api/evidence/team_2829_events_last_10.json",
+      "source": "verified_payload"
+    },
+    {
+      "competition_id": 1794,
+      "name": "MLS All Star Game",
+      "category": "USA",
+      "evidence": "docs/sofascore-api/evidence/search_league_liga_mx.json",
+      "source": "verified_payload"
+    }
+  ],
+  "candidates": []
+}

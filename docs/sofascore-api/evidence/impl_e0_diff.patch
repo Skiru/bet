@@ -1,0 +1,556 @@
+diff --git a/docs/sofascore-api/evidence/impl_e0_pip_install.txt b/docs/sofascore-api/evidence/impl_e0_pip_install.txt
+new file mode 100644
+index 00000000..93f768e8
+--- /dev/null
++++ b/docs/sofascore-api/evidence/impl_e0_pip_install.txt
+@@ -0,0 +1,276 @@
++Obtaining file:///Users/mkoziol/projects/bet
++  Installing build dependencies: started
++  Installing build dependencies: finished with status 'done'
++  Checking if build backend supports build_editable: started
++  Checking if build backend supports build_editable: finished with status 'done'
++  Getting requirements to build editable: started
++  Getting requirements to build editable: finished with status 'done'
++  Installing backend dependencies: started
++  Installing backend dependencies: finished with status 'done'
++  Preparing editable metadata (pyproject.toml): started
++  Preparing editable metadata (pyproject.toml): finished with status 'done'
++Collecting curl-cffi<1,>=0.7 (from bet-pipeline==2.0.0)
++  Using cached curl_cffi-0.16.3-cp310-abi3-macosx_11_0_arm64.whl.metadata (17 kB)
++Collecting psutil<8,>=5.9 (from bet-pipeline==2.0.0)
++  Using cached psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl.metadata (22 kB)
++Collecting pydantic<3,>=2.10 (from bet-pipeline==2.0.0)
++  Using cached pydantic-2.13.5-py3-none-any.whl.metadata (110 kB)
++Collecting python-dotenv<2,>=1.0 (from bet-pipeline==2.0.0)
++  Using cached python_dotenv-1.2.3-py3-none-any.whl.metadata (29 kB)
++Collecting pyyaml<7,>=6.0 (from bet-pipeline==2.0.0)
++  Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.4 kB)
++Collecting rapidfuzz<4,>=3.0 (from bet-pipeline==2.0.0)
++  Downloading rapidfuzz-3.14.6-cp312-cp312-macosx_11_0_arm64.whl.metadata (12 kB)
++Collecting requests<3,>=2.32 (from bet-pipeline==2.0.0)
++  Using cached requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
++Collecting soccerdata<2,>=1.9 (from bet-pipeline==2.0.0)
++  Using cached soccerdata-1.9.1-py3-none-any.whl.metadata (5.3 kB)
++Collecting sqlalchemy<3,>=2.0 (from bet-pipeline==2.0.0)
++  Downloading sqlalchemy-2.0.54-cp312-cp312-macosx_11_0_arm64.whl.metadata (9.7 kB)
++Collecting cffi>=2.0.0 (from curl-cffi<1,>=0.7->bet-pipeline==2.0.0)
++  Downloading cffi-2.1.1-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.5 kB)
++Collecting certifi>=2024.2.2 (from curl-cffi<1,>=0.7->bet-pipeline==2.0.0)
++  Using cached certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
++Collecting annotated-types>=0.6.0 (from pydantic<3,>=2.10->bet-pipeline==2.0.0)
++  Using cached annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
++Collecting pydantic-core==2.46.5 (from pydantic<3,>=2.10->bet-pipeline==2.0.0)
++  Downloading pydantic_core-2.46.5-cp312-cp312-macosx_11_0_arm64.whl.metadata (6.6 kB)
++Collecting typing-extensions>=4.14.1 (from pydantic<3,>=2.10->bet-pipeline==2.0.0)
++  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
++Collecting typing-inspection>=0.4.2 (from pydantic<3,>=2.10->bet-pipeline==2.0.0)
++  Using cached typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
++Collecting charset_normalizer<4,>=2 (from requests<3,>=2.32->bet-pipeline==2.0.0)
++  Downloading charset_normalizer-3.5.1-cp312-cp312-macosx_10_13_universal2.whl.metadata (45 kB)
++     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.9/45.9 kB 1.1 MB/s eta 0:00:00
++Collecting idna<4,>=2.5 (from requests<3,>=2.32->bet-pipeline==2.0.0)
++  Using cached idna-3.19-py3-none-any.whl.metadata (9.2 kB)
++Collecting urllib3<3,>=1.26 (from requests<3,>=2.32->bet-pipeline==2.0.0)
++  Using cached urllib3-2.8.0-py3-none-any.whl.metadata (7.4 kB)
++Collecting html5lib<2.0.0,>=1.1 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached html5lib-1.1-py2.py3-none-any.whl.metadata (16 kB)
++Collecting lxml>=4.9.4 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Downloading lxml-6.1.3-cp312-cp312-macosx_10_13_universal2.whl.metadata (3.3 kB)
++Collecting pandas!=2.1.0,<4.0.0,>=2.0.0 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Downloading pandas-3.0.5-cp312-cp312-macosx_11_0_arm64.whl.metadata (79 kB)
++     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.5/79.5 kB 6.5 MB/s eta 0:00:00
++Collecting rich<16.0.0,>=14.0.0 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
++Collecting seleniumbase<6.0.0,>=4.38.2 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached seleniumbase-4.54.8-py3-none-any.whl.metadata (91 kB)
++Collecting tqdm<6.0.0,>=4.67.1 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
++Collecting unidecode<3.0.0,>=1.4.0 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached Unidecode-1.4.0-py3-none-any.whl.metadata (13 kB)
++Collecting wrapper-tls-requests<3.0.0,>=1.1.4 (from soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached wrapper_tls_requests-1.2.5-py3-none-any.whl.metadata (8.6 kB)
++Collecting pycparser (from cffi>=2.0.0->curl-cffi<1,>=0.7->bet-pipeline==2.0.0)
++  Using cached pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
++Collecting six>=1.9 (from html5lib<2.0.0,>=1.1->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
++Collecting webencodings (from html5lib<2.0.0,>=1.1->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached webencodings-0.6.1-py3-none-any.whl.metadata (3.4 kB)
++Collecting numpy>=1.26.0 (from pandas!=2.1.0,<4.0.0,>=2.0.0->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Downloading numpy-2.5.3-cp312-cp312-macosx_14_0_arm64.whl.metadata (6.6 kB)
++Collecting python-dateutil>=2.8.2 (from pandas!=2.1.0,<4.0.0,>=2.0.0->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
++Collecting markdown-it-py>=2.2.0 (from rich<16.0.0,>=14.0.0->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
++Collecting pygments<3.0.0,>=2.13.0 (from rich<16.0.0,>=14.0.0->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
++Collecting pip>=26.2.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pip-26.2.1-py3-none-any.whl.metadata (4.6 kB)
++Collecting packaging>=26.3 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
++Collecting setuptools>=84.0.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached setuptools-84.0.0-py3-none-any.whl.metadata (6.6 kB)
++Collecting wheel>=0.48.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached wheel-0.48.0-py3-none-any.whl.metadata (2.3 kB)
++Collecting attrs>=26.1.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
++Collecting exceptiongroup>=1.3.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached exceptiongroup-1.3.1-py3-none-any.whl.metadata (6.7 kB)
++Collecting websockets>=16.1.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Downloading websockets-17.1-cp312-cp312-macosx_11_0_arm64.whl.metadata (6.3 kB)
++Collecting filelock>=3.32.7 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached filelock-4.0.0-py3-none-any.whl.metadata (2.0 kB)
++Collecting fasteners>=0.20 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached fasteners-0.20-py3-none-any.whl.metadata (4.8 kB)
++Collecting mycdp>=1.4.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached mycdp-1.4.0-py3-none-any.whl.metadata (3.7 kB)
++Collecting pynose>=1.5.5 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pynose-1.5.5-py3-none-any.whl.metadata (19 kB)
++Collecting platformdirs>=4.11.9 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached platformdirs-4.11.9-py3-none-any.whl.metadata (5.5 kB)
++Collecting sbvirtualdisplay>=1.4.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached sbvirtualdisplay-1.4.0-py3-none-any.whl.metadata (4.3 kB)
++Collecting MarkupSafe>=3.0.3 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached markupsafe-3.0.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.7 kB)
++Collecting Jinja2>=3.1.6 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
++Collecting parse>=1.22.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached parse-1.22.1-py2.py3-none-any.whl.metadata (21 kB)
++Collecting parse-type>=0.6.6 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached parse_type-0.6.6-py2.py3-none-any.whl.metadata (12 kB)
++Collecting colorama>=0.4.6 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
++Collecting tabcompleter>=1.4.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached tabcompleter-1.4.1-py3-none-any.whl.metadata (3.9 kB)
++Collecting pdbp>=1.8.3 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pdbp-1.8.3-py3-none-any.whl.metadata (7.2 kB)
++Collecting sniffio==1.3.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
++Collecting h11==0.16.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
++Collecting outcome==1.3.0.post0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached outcome-1.3.0.post0-py2.py3-none-any.whl.metadata (2.6 kB)
++Collecting trio<1,>=0.34.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached trio-0.34.0-py3-none-any.whl.metadata (8.5 kB)
++Collecting trio-websocket~=0.12.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached trio_websocket-0.12.2-py3-none-any.whl.metadata (5.1 kB)
++Collecting wsproto~=1.3.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached wsproto-1.3.2-py3-none-any.whl.metadata (5.2 kB)
++Collecting websocket-client~=1.9.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached websocket_client-1.9.2-py3-none-any.whl.metadata (8.3 kB)
++Collecting selenium==4.49.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached selenium-4.49.0-py3-none-any.whl.metadata (7.4 kB)
++Collecting cssselect<2,>=1.5.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached cssselect-1.5.0-py3-none-any.whl.metadata (2.4 kB)
++Collecting sortedcontainers==2.4.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
++Collecting execnet==2.1.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached execnet-2.1.2-py3-none-any.whl.metadata (2.9 kB)
++Collecting iniconfig==2.3.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
++Collecting pluggy==1.6.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
++Collecting pytest==9.1.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
++Collecting pytest-html==4.0.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pytest_html-4.0.2-py3-none-any.whl.metadata (3.9 kB)
++Collecting pytest-metadata==3.1.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pytest_metadata-3.1.1-py3-none-any.whl.metadata (8.6 kB)
++Collecting pytest-ordering==0.6 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pytest_ordering-0.6-py3-none-any.whl.metadata (1.1 kB)
++Collecting pytest-rerunfailures==16.6.1 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pytest_rerunfailures-16.6.1-py3-none-any.whl.metadata (30 kB)
++Collecting pytest-xdist==3.8.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pytest_xdist-3.8.0-py3-none-any.whl.metadata (3.0 kB)
++Collecting parameterized==0.9.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached parameterized-0.9.0-py2.py3-none-any.whl.metadata (18 kB)
++Collecting behave==1.2.6 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached behave-1.2.6-py2.py3-none-any.whl.metadata (6.4 kB)
++Collecting soupsieve~=2.9.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached soupsieve-2.9.2-py3-none-any.whl.metadata (4.6 kB)
++Collecting beautifulsoup4~=4.15.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached beautifulsoup4-4.15.0-py3-none-any.whl.metadata (3.8 kB)
++Collecting pyotp~=2.10.0 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached pyotp-2.10.0-py3-none-any.whl.metadata (10 kB)
++Collecting mdurl==0.1.2 (from seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
++Collecting orjson (from wrapper-tls-requests<3.0.0,>=1.1.4->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Downloading orjson-3.12.0-cp312-cp312-macosx_15_0_arm64.whl.metadata (41 kB)
++     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.0/42.0 kB 3.1 MB/s eta 0:00:00
++Collecting pysocks!=1.5.7,<2.0,>=1.5.6 (from urllib3[socks]<3.0,>=2.6.3->selenium==4.49.0->seleniumbase<6.0.0,>=4.38.2->soccerdata<2,>=1.9->bet-pipeline==2.0.0)
++  Using cached PySocks-1.7.1-py3-none-any.whl.metadata (13 kB)
++Using cached curl_cffi-0.16.3-cp310-abi3-macosx_11_0_arm64.whl (2.8 MB)
++Using cached psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl (129 kB)
++Using cached pydantic-2.13.5-py3-none-any.whl (472 kB)
++Downloading pydantic_core-2.46.5-cp312-cp312-macosx_11_0_arm64.whl (1.9 MB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 18.7 MB/s eta 0:00:00
++Using cached python_dotenv-1.2.3-py3-none-any.whl (22 kB)
++Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl (173 kB)
++Downloading rapidfuzz-3.14.6-cp312-cp312-macosx_11_0_arm64.whl (1.2 MB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 25.3 MB/s eta 0:00:00
++Using cached requests-2.34.2-py3-none-any.whl (73 kB)
++Using cached soccerdata-1.9.1-py3-none-any.whl (52 kB)
++Downloading sqlalchemy-2.0.54-cp312-cp312-macosx_11_0_arm64.whl (2.2 MB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 44.1 MB/s eta 0:00:00
++Using cached annotated_types-0.8.0-py3-none-any.whl (13 kB)
++Using cached certifi-2026.7.22-py3-none-any.whl (136 kB)
++Downloading cffi-2.1.1-cp312-cp312-macosx_11_0_arm64.whl (184 kB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 184.7/184.7 kB 22.4 MB/s eta 0:00:00
++Downloading charset_normalizer-3.5.1-cp312-cp312-macosx_10_13_universal2.whl (344 kB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 344.5/344.5 kB 32.1 MB/s eta 0:00:00
++Using cached html5lib-1.1-py2.py3-none-any.whl (112 kB)
++Using cached idna-3.19-py3-none-any.whl (68 kB)
++Downloading lxml-6.1.3-cp312-cp312-macosx_10_13_universal2.whl (8.6 MB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.6/8.6 MB 51.7 MB/s eta 0:00:00
++Downloading pandas-3.0.5-cp312-cp312-macosx_11_0_arm64.whl (10.0 MB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.0/10.0 MB 50.6 MB/s eta 0:00:00
++Using cached rich-15.0.0-py3-none-any.whl (310 kB)
++Using cached seleniumbase-4.54.8-py3-none-any.whl (700 kB)
++Using cached behave-1.2.6-py2.py3-none-any.whl (136 kB)
++Using cached execnet-2.1.2-py3-none-any.whl (40 kB)
++Using cached h11-0.16.0-py3-none-any.whl (37 kB)
++Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
++Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
++Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
++Using cached outcome-1.3.0.post0-py2.py3-none-any.whl (10 kB)
++Using cached parameterized-0.9.0-py2.py3-none-any.whl (20 kB)
++Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
++Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
++Using cached pytest_html-4.0.2-py3-none-any.whl (23 kB)
++Using cached pytest_metadata-3.1.1-py3-none-any.whl (11 kB)
++Using cached pytest_ordering-0.6-py3-none-any.whl (4.6 kB)
++Using cached pytest_rerunfailures-16.6.1-py3-none-any.whl (21 kB)
++Using cached pytest_xdist-3.8.0-py3-none-any.whl (46 kB)
++Using cached selenium-4.49.0-py3-none-any.whl (11.8 MB)
++Using cached sniffio-1.3.1-py3-none-any.whl (10 kB)
++Using cached sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
++Using cached tqdm-4.70.1-py3-none-any.whl (80 kB)
++Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
++Using cached typing_inspection-0.4.4-py3-none-any.whl (14 kB)
++Using cached Unidecode-1.4.0-py3-none-any.whl (235 kB)
++Using cached urllib3-2.8.0-py3-none-any.whl (135 kB)
++Using cached wrapper_tls_requests-1.2.5-py3-none-any.whl (57 kB)
++Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
++Using cached beautifulsoup4-4.15.0-py3-none-any.whl (109 kB)
++Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)
++Using cached cssselect-1.5.0-py3-none-any.whl (20 kB)
++Using cached exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
++Using cached fasteners-0.20-py3-none-any.whl (18 kB)
++Using cached filelock-4.0.0-py3-none-any.whl (106 kB)
++Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
++Using cached markupsafe-3.0.3-cp312-cp312-macosx_11_0_arm64.whl (12 kB)
++Using cached mycdp-1.4.0-py3-none-any.whl (275 kB)
++Downloading numpy-2.5.3-cp312-cp312-macosx_14_0_arm64.whl (5.4 MB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.4/5.4 MB 53.6 MB/s eta 0:00:00
++Using cached packaging-26.3-py3-none-any.whl (129 kB)
++Using cached parse-1.22.1-py2.py3-none-any.whl (20 kB)
++Using cached parse_type-0.6.6-py2.py3-none-any.whl (27 kB)
++Using cached pdbp-1.8.3-py3-none-any.whl (21 kB)
++Using cached pip-26.2.1-py3-none-any.whl (1.8 MB)
++Using cached platformdirs-4.11.9-py3-none-any.whl (24 kB)
++Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
++Using cached pynose-1.5.5-py3-none-any.whl (130 kB)
++Using cached pyotp-2.10.0-py3-none-any.whl (13 kB)
++Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
++Using cached sbvirtualdisplay-1.4.0-py3-none-any.whl (12 kB)
++Using cached setuptools-84.0.0-py3-none-any.whl (818 kB)
++Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)
++Using cached soupsieve-2.9.2-py3-none-any.whl (37 kB)
++Using cached tabcompleter-1.4.1-py3-none-any.whl (6.9 kB)
++Using cached trio-0.34.0-py3-none-any.whl (511 kB)
++Using cached trio_websocket-0.12.2-py3-none-any.whl (21 kB)
++Using cached websocket_client-1.9.2-py3-none-any.whl (95 kB)
++Downloading websockets-17.1-cp312-cp312-macosx_11_0_arm64.whl (214 kB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.0/215.0 kB 15.0 MB/s eta 0:00:00
++Using cached wheel-0.48.0-py3-none-any.whl (33 kB)
++Using cached wsproto-1.3.2-py3-none-any.whl (24 kB)
++Downloading orjson-3.12.0-cp312-cp312-macosx_15_0_arm64.whl (123 kB)
++   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 123.7/123.7 kB 12.0 MB/s eta 0:00:00
++Using cached pycparser-3.0-py3-none-any.whl (48 kB)
++Using cached webencodings-0.6.1-py3-none-any.whl (8.7 kB)
++Using cached PySocks-1.7.1-py3-none-any.whl (16 kB)
++Building wheels for collected packages: bet-pipeline
++  Building editable for bet-pipeline (pyproject.toml): started
++  Building editable for bet-pipeline (pyproject.toml): finished with status 'done'
++  Created wheel for bet-pipeline: filename=bet_pipeline-2.0.0-py3-none-any.whl size=6880 sha256=7ae8c449f1caf37ad74f346808b69be8b7d41154505fc3f8c2b5b1b874adcaff
++  Stored in directory: /private/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/pip-ephem-wheel-cache-_o4hl2et/wheels/07/53/46/f746fc77cb609266880f8cfb950f80e3eab86c6660607a447c
++Successfully built bet-pipeline
++Installing collected packages: sortedcontainers, parse, websockets, websocket-client, webencodings, urllib3, unidecode, typing-extensions, tqdm, tabcompleter, soupsieve, sniffio, six, setuptools, sbvirtualdisplay, rapidfuzz, pyyaml, python-dotenv, pysocks, pyotp, pynose, pygments, pycparser, psutil, pluggy, platformdirs, pip, parameterized, packaging, orjson, numpy, mycdp, mdurl, MarkupSafe, lxml, iniconfig, idna, h11, filelock, fasteners, execnet, cssselect, colorama, charset_normalizer, certifi, attrs, annotated-types, wsproto, wrapper-tls-requests, wheel, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, pdbp, parse-type, outcome, markdown-it-py, Jinja2, html5lib, exceptiongroup, cffi, beautifulsoup4, trio, rich, pytest-xdist, pytest-rerunfailures, pytest-ordering, pytest-metadata, pydantic, pandas, curl-cffi, behave, trio-websocket, pytest-html, selenium, seleniumbase, soccerdata, bet-pipeline
++  Attempting uninstall: pip
++    Found existing installation: pip 24.0
++    Uninstalling pip-24.0:
++      Successfully uninstalled pip-24.0
++Successfully installed Jinja2-3.1.6 MarkupSafe-3.0.3 annotated-types-0.8.0 attrs-26.1.0 beautifulsoup4-4.15.0 behave-1.2.6 bet-pipeline-2.0.0 certifi-2026.7.22 cffi-2.1.1 charset_normalizer-3.5.1 colorama-0.4.6 cssselect-1.5.0 curl-cffi-0.16.3 exceptiongroup-1.3.1 execnet-2.1.2 fasteners-0.20 filelock-4.0.0 h11-0.16.0 html5lib-1.1 idna-3.19 iniconfig-2.3.0 lxml-6.1.3 markdown-it-py-4.2.0 mdurl-0.1.2 mycdp-1.4.0 numpy-2.5.3 orjson-3.12.0 outcome-1.3.0.post0 packaging-26.3 pandas-3.0.5 parameterized-0.9.0 parse-1.22.1 parse-type-0.6.6 pdbp-1.8.3 pip-26.2.1 platformdirs-4.11.9 pluggy-1.6.0 psutil-7.2.2 pycparser-3.0 pydantic-2.13.5 pydantic-core-2.46.5 pygments-2.21.0 pynose-1.5.5 pyotp-2.10.0 pysocks-1.7.1 pytest-9.1.1 pytest-html-4.0.2 pytest-metadata-3.1.1 pytest-ordering-0.6 pytest-rerunfailures-16.6.1 pytest-xdist-3.8.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.3 pyyaml-6.0.3 rapidfuzz-3.14.6 requests-2.34.2 rich-15.0.0 sbvirtualdisplay-1.4.0 selenium-4.49.0 seleniumbase-4.54.8 setuptools-84.0.0 six-1.17.0 sniffio-1.3.1 soccerdata-1.9.1 sortedcontainers-2.4.0 soupsieve-2.9.2 sqlalchemy-2.0.54 tabcompleter-1.4.1 tqdm-4.70.1 trio-0.34.0 trio-websocket-0.12.2 typing-extensions-4.16.0 typing-inspection-0.4.4 unidecode-1.4.0 urllib3-2.8.0 webencodings-0.6.1 websocket-client-1.9.2 websockets-17.1 wheel-0.48.0 wrapper-tls-requests-1.2.5 wsproto-1.3.2
+diff --git a/docs/sofascore-api/evidence/impl_e0_pytest.txt b/docs/sofascore-api/evidence/impl_e0_pytest.txt
+new file mode 100644
+index 00000000..e28d897e
+--- /dev/null
++++ b/docs/sofascore-api/evidence/impl_e0_pytest.txt
+@@ -0,0 +1,23 @@
++============================= test session starts ==============================
++platform darwin -- Python 3.12.4, pytest-9.1.1, pluggy-1.6.0
++rootdir: /Users/mkoziol/projects/bet
++configfile: pyproject.toml
++plugins: html-4.0.2, xdist-3.8.0, metadata-3.1.1, rerunfailures-16.6.1, ordering-0.6, seleniumbase-4.54.8
++collected 2 items
++
++tests/sofa/test_config.py .                                              [ 50%]
++tests/sofa/test_isolation.py .                                           [100%]
++
++=============================== warnings summary ===============================
++.venv_sofa/lib/python3.12/site-packages/_pytest/config/__init__.py:1464
++  /Users/mkoziol/projects/bet/.venv_sofa/lib/python3.12/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
++  
++    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
++
++.venv_sofa/lib/python3.12/site-packages/_pytest/config/__init__.py:1464
++  /Users/mkoziol/projects/bet/.venv_sofa/lib/python3.12/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode
++  
++    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
++
++-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
++======================== 2 passed, 2 warnings in 0.97s =========================
+diff --git a/pyproject.toml b/pyproject.toml
+index b737ec0e..4f731b21 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.14"
+ readme = "README.md"
+ license = { text = "Proprietary" }
+ dependencies = [
++    "curl_cffi>=0.7,<1",
+     "psutil>=5.9,<8",
+     "pydantic>=2.10,<3",
+     "python-dotenv>=1.0,<2",
+@@ -41,6 +42,7 @@ addopts = "--strict-markers"
+ markers = [
+     "api_sports_live: live API-Sports certification tests requiring explicit opt-in",
+     "espn_live: live ESPN integration tests requiring network access and explicit opt-in",
++    "sofa_live: live Sofascore calls, opt-in, never in CI",
+ ]
+ 
+ [tool.ruff]
+diff --git a/src/bet/sofa/__init__.py b/src/bet/sofa/__init__.py
+new file mode 100644
+index 00000000..c3ad1309
+--- /dev/null
++++ b/src/bet/sofa/__init__.py
+@@ -0,0 +1 @@
++"""Sofa pipeline package."""
+diff --git a/src/bet/sofa/config.py b/src/bet/sofa/config.py
+new file mode 100644
+index 00000000..25074f7d
+--- /dev/null
++++ b/src/bet/sofa/config.py
+@@ -0,0 +1,31 @@
++import os
++from dataclasses import dataclass
++
++
++@dataclass(frozen=True)
++class SofaConfig:
++    db_path: str = "data/sofa.db"
++    runs_dir: str = "runs/sofa"
++    target_rps: int = 10
++    max_concurrency: int = 8
++    breaker_threshold: int = 3
++    events_ttl_min: int = 360
++    sample_n: int = 10
++    min_sample: int = 5
++    price_max_age_min: int = 45
++    shrink_k: int = 10
++
++    @classmethod
++    def from_env(cls) -> "SofaConfig":
++        return cls(
++            db_path=os.environ.get("SOFA_DB_PATH", "data/sofa.db"),
++            runs_dir=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"),
++            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "10")),
++            max_concurrency=int(os.environ.get("SOFA_MAX_CONCURRENCY", "8")),
++            breaker_threshold=int(os.environ.get("SOFA_BREAKER_THRESHOLD", "3")),
++            events_ttl_min=int(os.environ.get("SOFA_EVENTS_TTL_MIN", "360")),
++            sample_n=int(os.environ.get("SOFA_SAMPLE_N", "10")),
++            min_sample=int(os.environ.get("SOFA_MIN_SAMPLE", "5")),
++            price_max_age_min=int(os.environ.get("SOFA_PRICE_MAX_AGE_MIN", "45")),
++            shrink_k=int(os.environ.get("SOFA_SHRINK_K", "10")),
++        )
+diff --git a/src/bet/sofa/errors.py b/src/bet/sofa/errors.py
+new file mode 100644
+index 00000000..6a535564
+--- /dev/null
++++ b/src/bet/sofa/errors.py
+@@ -0,0 +1,11 @@
++class SofaError(Exception):
++    """Base class for Sofa pipeline errors."""
++    pass
++
++class ProviderError(SofaError):
++    """Error from the provider."""
++    pass
++
++class CircuitOpenError(SofaError):
++    """Circuit breaker is open."""
++    pass
+diff --git a/src/bet/sofa/timeutil.py b/src/bet/sofa/timeutil.py
+new file mode 100644
+index 00000000..ff154a38
+--- /dev/null
++++ b/src/bet/sofa/timeutil.py
+@@ -0,0 +1,6 @@
++from datetime import UTC, datetime
++
++
++def now() -> datetime:
++    """Get current UTC time. Centralized for easy mocking in tests."""
++    return datetime.now(UTC)
+diff --git a/tests/sofa/conftest.py b/tests/sofa/conftest.py
+new file mode 100644
+index 00000000..1270138a
+--- /dev/null
++++ b/tests/sofa/conftest.py
+@@ -0,0 +1,24 @@
++import pytest
++
++
++@pytest.fixture(autouse=True)
++def _guard_network(monkeypatch: pytest.MonkeyPatch) -> None:
++    """Block network access in unit tests."""
++    import socket
++
++    import requests  # type: ignore
++    from curl_cffi import requests as cffi_requests
++
++    def guard(*args, **kwargs) -> None:  # type: ignore
++        raise RuntimeError("network access in unit test")
++
++    monkeypatch.setattr(socket, "socket", guard)
++    monkeypatch.setattr(cffi_requests, "get", guard)
++    monkeypatch.setattr(cffi_requests, "post", guard)
++    monkeypatch.setattr(cffi_requests, "request", guard)
++    monkeypatch.setattr(cffi_requests.Session, "request", guard)
++    monkeypatch.setattr(requests, "get", guard)
++    monkeypatch.setattr(requests, "post", guard)
++    monkeypatch.setattr(requests, "request", guard)
++    monkeypatch.setattr(requests.Session, "request", guard)
++
+diff --git a/tests/sofa/test_config.py b/tests/sofa/test_config.py
+new file mode 100644
+index 00000000..cdfb3203
+--- /dev/null
++++ b/tests/sofa/test_config.py
+@@ -0,0 +1,26 @@
++import os
++
++from bet.sofa.config import SofaConfig
++
++
++def test_config_defaults() -> None:
++    # Clear env vars that might affect tests
++    for key in [
++        "SOFA_DB_PATH", "SOFA_RUNS_DIR", "SOFA_TARGET_RPS", "SOFA_MAX_CONCURRENCY",
++        "SOFA_BREAKER_THRESHOLD", "SOFA_EVENTS_TTL_MIN", "SOFA_SAMPLE_N",
++        "SOFA_MIN_SAMPLE", "SOFA_PRICE_MAX_AGE_MIN", "SOFA_SHRINK_K"
++    ]:
++        if key in os.environ:
++            del os.environ[key]
++
++    config = SofaConfig.from_env()
++    assert config.db_path == "data/sofa.db"
++    assert config.runs_dir == "runs/sofa"
++    assert config.target_rps == 10
++    assert config.max_concurrency == 8
++    assert config.breaker_threshold == 3
++    assert config.events_ttl_min == 360
++    assert config.sample_n == 10
++    assert config.min_sample == 5
++    assert config.price_max_age_min == 45
++    assert config.shrink_k == 10
+diff --git a/tests/sofa/test_isolation.py b/tests/sofa/test_isolation.py
+new file mode 100644
+index 00000000..f89ec22d
+--- /dev/null
++++ b/tests/sofa/test_isolation.py
+@@ -0,0 +1,84 @@
++import ast
++from pathlib import Path
++
++import pytest
++
++FORBIDDEN_PREFIXES = (
++    "bet.simple_stats",
++    "bet.discovery",
++    "bet.api_clients",
++    "bet.db",
++    "bet.stats",
++    "bet.enrichment",
++    "scripts.simple",
++)
++
++def check_file(path: Path) -> list[str]:
++    violations = []
++    try:
++        content = path.read_text(encoding="utf-8")
++        tree = ast.parse(content, filename=str(path))
++    except Exception as e:
++        return [f"Failed to parse {path}: {e}"]
++
++    for node in ast.walk(tree):
++        if isinstance(node, ast.Import):
++            for name in node.names:
++                for prefix in FORBIDDEN_PREFIXES:
++                    if name.name == prefix or name.name.startswith(prefix + "."):
++                        violations.append(f"Forbidden import '{name.name}' in {path}")
++        elif isinstance(node, ast.ImportFrom):
++            if node.module:
++                for prefix in FORBIDDEN_PREFIXES:
++                    if node.module == prefix or node.module.startswith(prefix + "."):
++                        violations.append(
++                            f"Forbidden from-import '{node.module}' in {path}"
++                        )
++        elif isinstance(node, ast.Call):
++            if (
++                isinstance(node.func, ast.Attribute)
++                and node.func.attr == "import_module"
++            ):
++                if (
++                    node.args
++                    and isinstance(node.args[0], ast.Constant)
++                    and isinstance(node.args[0].value, str)
++                ):
++                    val = node.args[0].value
++                    for prefix in FORBIDDEN_PREFIXES:
++                        if val == prefix or val.startswith(prefix + "."):
++                            violations.append(
++                                f"Forbidden import_module('{val}') in {path}"
++                            )
++            elif isinstance(node.func, ast.Name) and node.func.id == "import_module":
++                if (
++                    node.args
++                    and isinstance(node.args[0], ast.Constant)
++                    and isinstance(node.args[0].value, str)
++                ):
++                    val = node.args[0].value
++                    for prefix in FORBIDDEN_PREFIXES:
++                        if val == prefix or val.startswith(prefix + "."):
++                            violations.append(
++                                f"Forbidden import_module('{val}') in {path}"
++                            )
++
++    return violations
++
++def test_isolation() -> None:
++    root = Path(__file__).parent.parent.parent
++    sofa_src = root / "src" / "bet" / "sofa"
++    sofa_scripts = root / "scripts" / "sofa"
++
++    paths_to_check: list[Path] = []
++    if sofa_src.exists():
++        paths_to_check.extend(sofa_src.rglob("*.py"))
++    if sofa_scripts.exists():
++        paths_to_check.extend(sofa_scripts.rglob("*.py"))
++
++    all_violations = []
++    for p in paths_to_check:
++        all_violations.extend(check_file(p))
++
++    if all_violations:
++        pytest.fail("\n".join(all_violations))

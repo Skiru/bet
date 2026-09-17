@@ -19,14 +19,20 @@ MATCH_NAME_SEPARATOR = "·"
 SPORT_IDS = {"football": 5, "tennis": 2}
 SPORT_BY_ID = {value: key for key, value in SPORT_IDS.items()}
 
-_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
 
 class SuperbetClient:
     def __init__(self, base_url: str = DEFAULT_BASE_URL) -> None:
         self.base_url = base_url.strip().rstrip("/")
-        self.session = requests.Session(impersonate="chrome124")
+        self.session: requests.Session[Any] = requests.Session(
+            impersonate="chrome124"
+        )
         self.session.headers.update({"User-Agent": _USER_AGENT})
-        
+
         config = SofaConfig.from_env()
         self.log_path = Path(config.runs_dir) / "run.log.jsonl"
         self._log_lock = threading.Lock()
@@ -72,15 +78,15 @@ class SuperbetClient:
                 status = status.status_code
             self._log("BOARD", "GET", url, status, elapsed, False, "CLOSED")
             raise
-        
+
         try:
             body = response.json()
         except ValueError:
             return None
-            
+
         if not isinstance(body, dict):
             return body
-            
+
         if "data" in body:
             return body["data"]
         return body
@@ -93,7 +99,7 @@ class SuperbetClient:
         offer_state: str = "prematch",
     ) -> list[dict[str, Any]]:
         fmt = "%Y-%m-%d %H:%M:%S"
-        
+
         # Superbet expects the dates as strings like '2026-09-17 00:00:00'
         def format_window(d: datetime) -> str:
             if not d.tzinfo:
@@ -116,6 +122,7 @@ class SuperbetClient:
             return None
         first = data[0] if isinstance(data, list) else data
         return first if isinstance(first, dict) else None
+
 
 def split_match_name(match_name: str | None) -> tuple[str, str]:
     if not match_name:

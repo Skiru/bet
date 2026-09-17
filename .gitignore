@@ -63,3 +63,8 @@ docs/pipeline/*local*.json
 # Local token files
 .bzzoiro_token
 *.token
+
+# sofa pipeline working data (never committed)
+.venv_sofa/
+data/
+runs/sofa/

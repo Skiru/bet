@@ -8,6 +8,7 @@ from bet.sofa.config import SofaConfig
 
 logging.basicConfig(level=logging.INFO)
 
+
 def main() -> None:
     config = SofaConfig(
         runs_dir="docs/sofascore-api/evidence",
@@ -42,7 +43,7 @@ def main() -> None:
             success += 1
         except Exception as e:
             failures += 1
-            print(f"Req {i+1}: {e}")
+            print(f"Req {i + 1}: {e}")
 
     # analyze log file
     with open(client.log_path) as f:
@@ -61,6 +62,7 @@ def main() -> None:
     print(f"Total Logged Requests: {len(times)}")
     print(f"Status Distribution: {status_dist}")
     print(f"Median Elapsed Time: {median_time} ms")
+
 
 if __name__ == "__main__":
     main()
