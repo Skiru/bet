@@ -144,10 +144,11 @@ class SheetRow(BaseModel):
 class Veto(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     sofascore_event_id: int
-    market: str
-    subject: str
-    line: float
-    direction: Direction
+    market: str | None
+    subject: str | None
+    line: float | None
+    direction: Direction | None
+    reason_class: Literal["SAMPLE_UNINFORMATIVE", "CONTEXT", "PRICE", "OTHER"]
     reason: str
 
 class CouponRow(BaseModel):
@@ -160,9 +161,14 @@ class CouponRow(BaseModel):
     subject: str
     line: float
     direction: Direction
+    sample_size: int
+    centre: float
+    p_central: float
+    market_p: float | None
+    p_bar: float
     offered_odds: float
     required_odds: float
-    edge: float
+    edge: float | None
     surplus: float
 
 class Coupon(BaseModel):

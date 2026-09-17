@@ -1,11 +1,12 @@
 import pytest
 
-
 @pytest.fixture(autouse=True)
-def _guard_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Block network access in unit tests."""
+def _guard_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Block network access in unit tests unless marked with @pytest.mark.sofa_live."""
+    if "sofa_live" in request.node.keywords:
+        return
+        
     import socket
-
     import requests  # type: ignore
     from curl_cffi import requests as cffi_requests
 
@@ -21,4 +22,3 @@ def _guard_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(requests, "post", guard)
     monkeypatch.setattr(requests, "request", guard)
     monkeypatch.setattr(requests.Session, "request", guard)
-

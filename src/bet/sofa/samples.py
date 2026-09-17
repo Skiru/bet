@@ -23,9 +23,9 @@ def fetch_available_metrics(fixture: Fixture, superbet_client: SuperbetClient) -
         odds = odds_data.get("odds") or []
         for item in odds:
             market_name = item.get("marketName")
-            metric = classify_market(market_name)
-            if metric:
-                available_metrics.add(metric)
+            classified = classify_market(market_name)
+            if classified:
+                available_metrics.add(classified[0])
     return available_metrics
 
 

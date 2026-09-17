@@ -1,0 +1,11 @@
+{
+  "K_CENTRE": {
+    "value": 10.0,
+    "curve": {}
+  },
+  "K_PRICE": {
+    "value": 10.0,
+    "curve": {}
+  },
+  "MAX_LADDER_SIGMA": 1.25
+}

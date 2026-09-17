@@ -1,18 +1,16 @@
 import argparse
 import json
-import logging
 import sys
-from datetime import datetime, UTC, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from pydantic import RootModel
 
 from bet.sofa.config import SofaConfig
-from bet.sofa.contracts import Fixture, SheetRow, FixtureOffer, Veto, Coupon, CouponRow
+from bet.sofa.contracts import Fixture, SheetRow, FixtureOffer, Veto
 from bet.sofa.timeutil import now
-from bet.sofa.market_mapper import get_mechanism_family
-
-logger = logging.getLogger(__name__)
+from bet.sofa.coupon import build_coupon
+from bet.sofa.veto import find_unmatched_vetoes
 
 def read_file(path: Path) -> bytes | None:
     if not path.exists():
@@ -50,91 +48,25 @@ def main():
     if vetoes_data:
         vetoes = RootModel[list[Veto]].model_validate_json(vetoes_data).root
         
-    veto_keys = {(v.sofascore_event_id, v.market, v.subject, v.line, v.direction) for v in vetoes}
-    
-    fixtures_by_id = {f.sofascore_event_id: f for f in fixtures}
-    
-    # Map price fetched_at_utc
-    fetched_at_by_key = {}
-    for offer in offers:
-        for rung in offer.rungs:
-            key_base = (offer.sofascore_event_id, rung.market, rung.subject, rung.line)
-            if rung.over_odds is not None:
-                fetched_at_by_key[key_base + ("OVER",)] = rung.fetched_at_utc
-            if rung.under_odds is not None:
-                fetched_at_by_key[key_base + ("UNDER",)] = rung.fetched_at_utc
-                
+    unmatched_vetoes = find_unmatched_vetoes(sheet_rows, vetoes)
+    if unmatched_vetoes:
+        # T27: veto, które nie pasuje do żadnego wiersza, jest raportowane jako UNMATCHED_VETO
+        print(f"WARNING: UNMATCHED_VETO: Found {len(unmatched_vetoes)} unmatched vetoes:", file=sys.stderr)
+        for v in unmatched_vetoes:
+            print(f"  - {v}", file=sys.stderr)
+            
     current_time = now()
+    min_kickoff = current_time + timedelta(minutes=15)
+    max_price_age = timedelta(minutes=config.price_max_age_min)
     
-    candidates = []
-    
-    for row in sheet_rows:
-        if row.verdict != "VALUE":
-            continue
-            
-        fixture = fixtures_by_id.get(row.sofascore_event_id)
-        if not fixture:
-            continue
-            
-        if fixture.kickoff_utc <= current_time + timedelta(minutes=15):
-            continue
-            
-        if row.offered_odds is None or row.offered_odds < 1.25:
-            continue
-            
-        key = (row.sofascore_event_id, row.market, row.subject, row.line, row.direction)
-        if key in veto_keys:
-            continue
-            
-        fetched_at = fetched_at_by_key.get(key)
-        if not fetched_at or current_time - fetched_at > timedelta(minutes=config.price_max_age_min):
-            continue
-            
-        candidates.append((row, fixture))
-        
-    # Sort candidates by surplus descending
-    candidates.sort(key=lambda x: x[0].surplus if x[0].surplus is not None else 0.0, reverse=True)
-    
-    selected_singles = []
-    selected_per_fixture = {}
-    selected_families_per_fixture = {}
-    
-    for row, fixture in candidates:
-        if len(selected_singles) >= 40: # MAX_SINGLES
-            break
-            
-        fid = row.sofascore_event_id
-        if selected_per_fixture.get(fid, 0) >= 3: # MAX_PER_FIXTURE
-            continue
-            
-        family = get_mechanism_family(row.market)
-        families = selected_families_per_fixture.get(fid, set())
-        
-        if family in families:
-            continue
-            
-        selected_singles.append(CouponRow(
-            sofascore_event_id=row.sofascore_event_id,
-            match_name=f"{fixture.home_name} - {fixture.away_name}",
-            kickoff_utc=fixture.kickoff_utc,
-            sport=row.sport,
-            market=row.market,
-            subject=row.subject,
-            line=row.line,
-            direction=row.direction,
-            offered_odds=row.offered_odds,
-            required_odds=row.required_odds,
-            edge=row.edge,
-            surplus=row.surplus
-        ))
-        
-        selected_per_fixture[fid] = selected_per_fixture.get(fid, 0) + 1
-        families.add(family)
-        selected_families_per_fixture[fid] = families
-        
-    coupon = Coupon(
-        created_at_utc=current_time,
-        singles=selected_singles
+    coupon = build_coupon(
+        sheet_rows=sheet_rows,
+        fixtures=fixtures,
+        offers=offers,
+        vetoes=vetoes,
+        current_time=current_time,
+        min_kickoff=min_kickoff,
+        max_price_age=max_price_age
     )
     
     coupon_json_path = runs_dir / "06_coupon.json"
@@ -145,18 +77,18 @@ def main():
         
     with open(coupon_md_path, "w", encoding="utf-8") as f:
         f.write(f"# Kupon ({current_time.strftime('%Y-%m-%d %H:%M:%S')} UTC)\n\n")
-        if not selected_singles:
+        if not coupon.singles:
             f.write("Brak zakładów (pusty slate lub wszystkie odrzucone).\n")
         else:
             f.write("## Single\n\n")
-            f.write("| Mecz | Kickoff | Rynek | Linia | Kurs | Nadwyżka |\n")
-            f.write("|---|---|---|---|---|---|\n")
-            for r in selected_singles:
+            f.write("| Mecz | Kickoff | Rynek | Linia | n | Środek | p_central | market_p | p_bar | req_odds | off_odds | Nadwyżka |\n")
+            f.write("|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+            for r in coupon.singles:
                 subject_str = f" ({r.subject})" if r.subject else ""
                 market_display = f"{r.market}{subject_str} {r.line} {r.direction}"
-                f.write(f"| {r.match_name} | {r.kickoff_utc.strftime('%H:%M')} | {market_display} | {r.line} | **{r.offered_odds:.2f}** | +{r.surplus:.4f} |\n")
+                mp_str = f"{r.market_p:.3f}" if r.market_p is not None else "-"
+                f.write(f"| {r.match_name} | {r.kickoff_utc.strftime('%H:%M')} | {market_display} | {r.line} | {r.sample_size} | {r.centre:.2f} | {r.p_central:.3f} | {mp_str} | {r.p_bar:.3f} | {r.required_odds:.2f} | **{r.offered_odds:.2f}** | +{r.surplus:.4f} |\n")
                 
-    # Also write a template vetoes.json if it doesn't exist (to establish VETO_V1)
     if not vetoes_path.exists():
         with open(vetoes_path, "w", encoding="utf-8") as f:
             f.write("[]\n")
@@ -165,8 +97,8 @@ def main():
         "stage": "COUPON",
         "verdict": "OK",
         "metrics": {
-            "candidates": len(candidates),
-            "selected": len(selected_singles)
+            "selected": len(coupon.singles),
+            "unmatched_vetoes": len(unmatched_vetoes)
         },
         "output_path": str(coupon_json_path)
     }

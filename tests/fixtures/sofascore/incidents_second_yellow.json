@@ -1,0 +1,20 @@
+{
+  "incidents": [
+    {
+      "incidentType": "card",
+      "incidentClass": "yellow",
+      "isHome": true,
+      "rescinded": false,
+      "time": 34,
+      "playerName": "Sergio Ramos"
+    },
+    {
+      "incidentType": "card",
+      "incidentClass": "yellowRed",
+      "isHome": true,
+      "rescinded": false,
+      "time": 75,
+      "playerName": "Sergio Ramos"
+    }
+  ]
+}

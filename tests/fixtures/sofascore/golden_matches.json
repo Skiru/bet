@@ -1,0 +1,58 @@
+[
+  {
+    "superbet_match_name": "Inter Miami·Cruz Azul",
+    "kickoff_utc": "2026-09-17T00:00:00Z",
+    "sport": "football",
+    "expected": "match",
+    "expected_sofascore_id": 16640655,
+    "home_team_name": "Inter Miami CF",
+    "away_team_name": "Cruz Azul",
+    "tournament_name": "Campeones Cup"
+  },
+  {
+    "superbet_match_name": "Chiny (K)·Wietnam (K)",
+    "kickoff_utc": "2026-09-17T12:00:00Z",
+    "sport": "football",
+    "expected": "match",
+    "expected_sofascore_id": 999999,
+    "home_team_name": "China W",
+    "away_team_name": "Vietnam W",
+    "tournament_name": "Friendly"
+  },
+  {
+    "superbet_match_name": "Francja U20·Brazylia U20",
+    "kickoff_utc": "2026-09-17T15:00:00Z",
+    "sport": "football",
+    "expected": "match",
+    "expected_sofascore_id": 888888,
+    "home_team_name": "France U20",
+    "away_team_name": "Brazil U20",
+    "tournament_name": "World Cup U20"
+  },
+  {
+    "superbet_match_name": "Real Madrid II·Barcelona B",
+    "kickoff_utc": "2026-09-17T18:00:00Z",
+    "sport": "football",
+    "expected": "match",
+    "expected_sofascore_id": 777777,
+    "home_team_name": "Real Madrid Castilla",
+    "away_team_name": "Barcelona Atlètic",
+    "tournament_name": "Primera RFEF"
+  },
+  {
+    "superbet_match_name": "Real Madrid·Barcelona",
+    "kickoff_utc": "2026-09-17T20:00:00Z",
+    "sport": "football",
+    "expected": "match",
+    "expected_sofascore_id": 15345277,
+    "home_team_name": "Real Madrid",
+    "away_team_name": "Barcelona",
+    "tournament_name": "LaLiga"
+  },
+  {
+    "superbet_match_name": "Fake Team·Another Fake",
+    "kickoff_utc": "2026-09-17T20:00:00Z",
+    "sport": "football",
+    "expected": "no_match"
+  }
+]
