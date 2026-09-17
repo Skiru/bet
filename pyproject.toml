@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = { text = "Proprietary" }
 dependencies = [
+    "curl_cffi>=0.7,<1",
     "psutil>=5.9,<8",
     "pydantic>=2.10,<3",
     "python-dotenv>=1.0,<2",
@@ -41,6 +42,7 @@ addopts = "--strict-markers"
 markers = [
     "api_sports_live: live API-Sports certification tests requiring explicit opt-in",
     "espn_live: live ESPN integration tests requiring network access and explicit opt-in",
+    "sofa_live: live Sofascore calls, opt-in, never in CI",
 ]
 
 [tool.ruff]
