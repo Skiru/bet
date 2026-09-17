@@ -108,6 +108,14 @@ class PricedRung(BaseModel):
     under_odds: float | None
     fetched_at_utc: datetime
 
+
+class FixtureOffer(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    sofascore_event_id: int
+    status: Literal["PRICED", "NO_PRICE"] | None = None
+    rungs: list[PricedRung]
+    unmapped_markets: list[str]
+
 class SheetRow(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     sofascore_event_id: int
@@ -132,3 +140,32 @@ class SheetRow(BaseModel):
     surplus: float | None
     verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"]
     notes: list[str]
+
+class Veto(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    sofascore_event_id: int
+    market: str
+    subject: str
+    line: float
+    direction: Direction
+    reason: str
+
+class CouponRow(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    sofascore_event_id: int
+    match_name: str
+    kickoff_utc: datetime
+    sport: Sport
+    market: str
+    subject: str
+    line: float
+    direction: Direction
+    offered_odds: float
+    required_odds: float
+    edge: float
+    surplus: float
+
+class Coupon(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    created_at_utc: datetime
+    singles: list[CouponRow]

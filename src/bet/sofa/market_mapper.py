@@ -38,13 +38,28 @@ TEAM_MARKET_PATTERNS = [
     (re.compile(r"^(?P<team>.+?) - liczba gemow$"), "games_won_for"),
 ]
 
-def classify_market(market_name: str | None) -> str | None:
+def get_mechanism_family(market: str) -> str:
+    if market in ("goals_total", "goals_for", "goals_1h_total", "goals_1h_for", "goals_2h_total", "goals_2h_for", "xg_total", "xg_for"):
+        return "scoring"
+    if market in ("shots_total", "shots_for", "shots_on_target_total", "shots_on_target_for", "corners_total", "corners_for", "offsides_total", "offsides_for", "blocked_shots_total"):
+        return "attacking"
+    if market in ("cards_total", "cards_for", "cards_points_total", "cards_points_for", "fouls_total", "fouls_for"):
+        return "discipline"
+    if market in ("games_total", "games_won_for", "sets_total", "tiebreaks_total"):
+        return "tennis_length"
+    if market in ("aces_total", "aces_for", "double_faults_total", "double_faults_for"):
+        return "tennis_serve"
+    return "other"
+
+def classify_market(market_name: str | None) -> tuple[str, str] | None:
+
     folded = fold(market_name)
     if not folded:
         return None
     if folded in MATCH_MARKET_NAMES:
-        return MATCH_MARKET_NAMES[folded]
+        return (MATCH_MARKET_NAMES[folded], "")
     for pattern, market in TEAM_MARKET_PATTERNS:
-        if pattern.match(folded):
-            return market
+        m = pattern.match(folded)
+        if m:
+            return (market, m.group("team"))
     return None

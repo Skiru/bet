@@ -56,6 +56,8 @@ def migrate(db_path: str) -> None:
             line               REAL    NOT NULL,
             direction          TEXT    NOT NULL,
             sample_size        INTEGER NOT NULL,
+            sample_mean        REAL    NOT NULL,
+            sample_sd          REAL    NOT NULL,
             p_central          REAL    NOT NULL,
             p_bar              REAL    NOT NULL,
             market_p           REAL,
