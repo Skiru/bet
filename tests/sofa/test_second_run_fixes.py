@@ -166,3 +166,108 @@ def test_f18_pipeline_prints_a_verdict_for_every_stage_not_only_failures(
         "a stage that succeeded passed in silence; only FAILED was ever printed"
     )
     assert "--- HANG ---" in text, "the next stage's marker must already be visible"
+
+
+# --------------------------------------------------------------------------
+# F13 — the run id must exist before the stages that log under it
+# --------------------------------------------------------------------------
+
+
+def test_f13_every_stage_sees_the_same_non_empty_run_id_and_it_differs_per_run(
+    tmp_path: Path,
+) -> None:
+    """Stages log under the run id, so it has to exist before they run.
+
+    Fails on the old code for the right reason: the id was minted *after* the
+    stage loop, so every stage read "" from the environment, and ``setdefault``
+    meant a second run inherited the first one's id instead of minting one.
+    """
+    driver = tmp_path / "driver.py"
+    driver.write_text(
+        textwrap.dedent(
+            """
+            import json, sys, types
+            import scripts.sofa.run_pipeline as rp
+            from bet.sofa.config import SofaConfig
+
+            seen = []
+            mod = types.ModuleType("probe_stage")
+            mod.main = lambda: seen.append(SofaConfig.from_env().run_id) or 0
+            sys.modules["probe_stage"] = mod
+
+            rp.STAGE_MODULES = {"A": "probe_stage", "B": "probe_stage"}
+            rp.DEFAULT_SEQUENCE = [("A", "A"), ("B", "B")]
+
+            ids = []
+            for _ in range(2):
+                seen.clear()
+                sys.argv = ["run_pipeline", "--date", "2026-01-01"]
+                rp.main()
+                ids.append(list(seen))
+            print("PROBE: " + json.dumps(ids))
+            """
+        ),
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(REPO)
+    env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
+    # A stale id in the environment is exactly what setdefault used to honour.
+    env["SOFA_RUN_ID"] = "stale-from-shell"
+
+    proc = subprocess.run(
+        [sys.executable, str(driver)],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(REPO),
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    line = next(ln for ln in proc.stdout.splitlines() if ln.startswith("PROBE: "))
+    first, second = json.loads(line.removeprefix("PROBE: "))
+
+    assert all(first), "a stage saw an empty run id"
+    assert len(set(first)) == 1, "stages of one run must share an id"
+    assert first[0] != "stale-from-shell", "an inherited id merges two runs in the log"
+    assert set(first).isdisjoint(second), "a second run must mint a new id"
+
+
+def test_f13_run_id_option_is_honoured_and_reaches_the_summary(tmp_path: Path) -> None:
+    """Guard, not proof: --run-id did not exist before, so it cannot regress."""
+    driver = tmp_path / "driver.py"
+    driver.write_text(
+        textwrap.dedent(
+            """
+            import sys, types
+            import scripts.sofa.run_pipeline as rp
+            from bet.sofa.config import SofaConfig
+
+            mod = types.ModuleType("probe_stage")
+            mod.main = lambda: print("STAGE_SAW: " + SofaConfig.from_env().run_id) or 0
+            sys.modules["probe_stage"] = mod
+            rp.STAGE_MODULES = {"A": "probe_stage"}
+            rp.DEFAULT_SEQUENCE = [("A", "A")]
+            sys.argv = ["run_pipeline", "--date", "2026-01-01", "--run-id", "chosen1"]
+            rp.main()
+            """
+        ),
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(REPO)
+    env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
+
+    proc = subprocess.run(
+        [sys.executable, str(driver)],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(REPO),
+        timeout=60,
+    )
+    assert "STAGE_SAW: chosen1" in proc.stdout
+    summary_line = next(
+        ln for ln in proc.stdout.splitlines() if ln.startswith("SOFA_SUMMARY: ")
+    )
+    assert json.loads(summary_line.removeprefix("SOFA_SUMMARY: "))["run_id"] == "chosen1"

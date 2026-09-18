@@ -95,7 +95,19 @@ def main() -> int:
         action="store_true",
         help="abort the run at the first FAILED stage instead of continuing",
     )
+    parser.add_argument(
+        "--run-id",
+        help="reuse this run id instead of minting a new one (for resuming)",
+    )
     args = parser.parse_args()
+
+    # One id for the whole sequence, minted *before* the stages run — it used
+    # to be set after the loop, so every log row from a pipeline run carried
+    # run_id "" and F8 was inert (F13). Assignment, not setdefault: an id
+    # inherited from a previous run's shell would silently merge two runs in
+    # the log, which is the same defect with the sign flipped.
+    run_id = args.run_id or uuid.uuid4().hex[:12]
+    os.environ["SOFA_RUN_ID"] = run_id
 
     sequence = DEFAULT_SEQUENCE
     if args.from_stage:
@@ -124,14 +136,11 @@ def main() -> int:
     worst = max((r.exit_code for r in results), default=0)
     verdict = {0: "OK", 1: "PARTIAL"}.get(worst, "FAILED")
 
-    # One id for the whole sequence, so a single run's rows can be pulled
-    # out of the log without guessing timestamps (F8).
-    os.environ.setdefault("SOFA_RUN_ID", uuid.uuid4().hex[:12])
-
     config = SofaConfig.from_env()
     summary = {
         "stage": "PIPELINE",
         "verdict": verdict,
+        "run_id": run_id,
         "metrics": {
             "stages": [
                 {"stage": r.stage, "label": r.label, "verdict": r.verdict}
