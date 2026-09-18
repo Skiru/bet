@@ -199,17 +199,35 @@ class SofaResolver:
             return None
 
         if superbet_side_a or superbet_side_b:
-            expected = (
-                "W"
-                if "W"
-                in (
-                    superbet_gender(superbet_side_a),
-                    superbet_gender(superbet_side_b),
+            # Gender: football only, and that is not caution, it is what the
+            # two sources make possible. In football both sides of the gate
+            # name a *team*, and Superbet marks a women's team "(K)" — 285
+            # agreeing men, 4 agreeing women, one caught mismatch.
+            #
+            # In tennis Superbet's side is a *person*, and a person's name
+            # carries no marker: "Yidi Yang" reads male to any rule built on
+            # the name. Sofascore puts the marker on the tournament instead
+            # ("ITF W15 Monastir 25 Women"). So the comparison is not merely
+            # unreliable there, it mismatches on **every** women's match by
+            # construction — measured: it removed women's tennis entirely,
+            # recall 84.3% -> 58.4%, and all 133 surviving fixtures were male.
+            #
+            # F25's evidence was football and only football; applying it to
+            # tennis was my over-generalisation, not the finding's.
+            if sport == "football":
+                expected = (
+                    "W"
+                    if "W"
+                    in (
+                        superbet_gender(superbet_side_a),
+                        superbet_gender(superbet_side_b),
+                    )
+                    else "M"
                 )
-                else "M"
-            )
-            if sofascore_gender(event) != expected:
-                return None
+                if sofascore_gender(event) != expected:
+                    return None
+            # Orientation applies to both sports: it compares the two names to
+            # the two names, so it needs no marker anywhere.
             if orientation_is_reversed(event, superbet_side_a, superbet_side_b):
                 return None
 

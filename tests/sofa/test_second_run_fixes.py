@@ -2504,3 +2504,79 @@ def test_f33_without_a_cache_the_behaviour_is_unchanged(tmp_path: Path) -> None:
             {"id": 555, "startTimestamp": 1789740000}, "football", ["1"], client
         )  # type: ignore[arg-type]
     assert client.calls == 2
+
+
+# --------------------------------------------------------------------------
+# F25 regression — the gender gate is a football gate, measured the hard way
+# --------------------------------------------------------------------------
+
+
+def _womens_tennis_event() -> dict:  # type: ignore[type-arg]
+    """A real shape: the marker is on the tournament, never on the player."""
+    return {
+        "id": 900,
+        "startTimestamp": 1789725600,  # 2026-09-18T10:00:00Z
+        "homeTeam": {"name": "Yidi Yang"},
+        "awayTeam": {"name": "Sijia Wei"},
+        "tournament": {
+            "name": "ITF W15 Monastir 25 Women",
+            "category": {"name": "ITF Women"},
+        },
+    }
+
+
+def test_f25_womens_tennis_is_not_rejected_by_the_gender_gate() -> None:
+    """Fails on the first version of my F25 fix for the right reason.
+
+    Applying the gender gate to tennis removed women's tennis entirely:
+    recall 84.3% -> 58.4%, and all 133 surviving fixtures were male. In tennis
+    Superbet's side is a person's name, which carries no marker, while
+    Sofascore puts the marker on the tournament — so the comparison mismatches
+    on every women's match by construction.
+    """
+    from datetime import UTC, datetime
+
+    quality = _resolver().match_quality(
+        _womens_tennis_event(),
+        datetime(2026, 9, 18, 1, 4, tzinfo=UTC),
+        "sijia wei",
+        sport="tennis",
+        superbet_side_a="Yidi Yang",
+        superbet_side_b="Sijia Wei",
+    )
+    assert quality is not None, "a women's tennis match must still resolve"
+
+
+def test_f25_the_football_gender_gate_is_untouched_by_that() -> None:
+    """The gate that caught a real error must keep catching it."""
+    from datetime import UTC, datetime
+
+    assert (
+        _resolver().match_quality(
+            _gnistan_womens_event(),
+            datetime(2026, 9, 18, 16, 0, tzinfo=UTC),
+            "hjk helsinki",
+            sport="football",
+            superbet_side_a="IF Gnistan",
+            superbet_side_b="HJK Helsinki",
+        )
+        is None
+    )
+
+
+def test_f25_orientation_still_applies_to_tennis() -> None:
+    """Orientation compares two names to two names, so it needs no marker and
+    works for both sports — per-participant tennis markets are positional too."""
+    from datetime import UTC, datetime
+
+    event = _womens_tennis_event()
+    event["homeTeam"], event["awayTeam"] = event["awayTeam"], event["homeTeam"]
+    quality = _resolver().match_quality(
+        event,
+        datetime(2026, 9, 18, 1, 4, tzinfo=UTC),
+        "sijia wei",
+        sport="tennis",
+        superbet_side_a="Yidi Yang",
+        superbet_side_b="Sijia Wei",
+    )
+    assert quality is None
