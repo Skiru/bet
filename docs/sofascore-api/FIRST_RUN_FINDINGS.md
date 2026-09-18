@@ -2716,3 +2716,68 @@ SHEET: 12258 → 10960 wierszy, 1298 rungów odrzuconych jako
 **Test:** `test_f35_a_tail_rung_produces_no_priced_row` w `test_sheet.py`, na
 ścieżce produkcyjnej. Na starym kodzie failuje z właściwym powodem:
 `p_central=0.05, surplus=119.07`.
+
+---
+
+## F36 — `surplus` jest miarą skali, nie jakości; kupon sortuje po 1/p
+
+**Status: ZMIERZONE, NIENAPRAWIONE** — zmiana dotyczy tego, co kupon
+optymalizuje, więc to decyzja operatora, nie poprawka.
+
+Po naprawie F35 kupon nadal składa się **wyłącznie** ze skrajnych kursów.
+Wszystkie 40 wierszy ma `surplus > +0.40`, a najmniejszy wynosi **+2.647** —
+nawet najskromniejszy wiersz obiecuje +265%.
+
+### Mechanizm
+
+`surplus = offered − margin / p_bar`. Drugi człon skaluje się jak `1/p`, więc
+przy **tej samej jakości okazji** mały `p` daje wielokrotnie większy `surplus`.
+Zmierzone na 920 wierszach VALUE z 2026-09-18:
+
+| pasmo `p_bar` | n | mediana `surplus` | mediana surplusu względnego |
+|---|---|---|---|
+| 0.05–0.15 | 102 | **2.369** | 0.235 |
+| 0.15–0.30 | 247 | 0.712 | 0.138 |
+| 0.30–0.50 | 324 | 0.345 | 0.120 |
+| 0.50–0.75 | 234 | 0.106 | 0.057 |
+| 0.75–0.95 | 13 | **0.030** | 0.021 |
+
+`surplus` spada w poprzek pasm **79-krotnie**, surplus względny
+(`offered/required − 1`) tylko **11-krotnie**. Reszta to czysta skala.
+
+Skutek na wyborze: top-40 po `surplus` ma medianę `p_bar` **0.129**, top-40 po
+surplusie względnym — **0.225**. Wspólnych jest tylko **27 z 40** wierszy.
+
+### Dlaczego to nie jest samo przez się usterka ceny
+
+Sortowanie po skali byłoby nieszkodliwe, gdyby `p` było nieobciążone. Nie jest.
+Porównanie `p` modelu z **własną częstością próbki** przy tej samej granicy,
+na 9710 wierszach:
+
+| koszyk | n | średnie `p` modelu | średnia częstość empiryczna | różnica |
+|---|---|---|---|---|
+| `p < 0.15` | 756 | 0.0997 | 0.0717 | **+0.0280** |
+| `0.15–0.85` | 8198 | 0.5000 | 0.5000 | +0.0000 |
+| `p > 0.85` | 756 | 0.9003 | 0.9283 | **−0.0280** |
+
+Środkowy koszyk trafia co do czwartego miejsca po przecinku, więc metoda
+pomiaru jest zdrowa. W dolnym ogonie model zawyża o 2.8pp przy `p ≈ 0.10` — to
+**39% zawyżenia względnego**, i dokładnie tyle wystarcza, by wyprodukować
+obserwowane surplusy przy kursach 10–15.
+
+Zastrzeżenie: częstość empiryczna jest liczona **na tej samej próbce**, z której
+model liczy środek, więc to pomiar wewnątrzpróbkowy. Kierunek jest
+informatywny, wielkość należy traktować jako dolne oszacowanie obciążenia,
+nie jako skalibrowaną poprawkę.
+
+Przybliżenie normalne rozkładu **zliczeń** jest w dolnym ogonie po prostu złym
+modelem — rozkład liczby goli czy rożnych nie jest symetryczny i ma inny ogon.
+Dwa mechanizmy składają się więc na jedno: model zawyża małe `p`, a sortowanie
+po `surplus` celuje dokładnie w te wiersze.
+
+### Czego **nie** zrobiono i dlaczego
+
+Nie podmieniono estymatora na rozkład zliczeń i nie wprowadzono korekty
+kalibracyjnej na podstawie tego jednego dnia. Obie zmiany dopasowałyby model do
+pojedynczej próbki bez szansy na weryfikację poza nią — ten sam błąd, przez
+który rynki długości meczu w tenisie zostały zmierzone i świadomie nietknięte.
