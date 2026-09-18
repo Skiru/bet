@@ -11,7 +11,7 @@ from curl_cffi import requests
 from curl_cffi.requests.errors import RequestsError
 
 from bet.sofa.config import SofaConfig
-from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.errors import CircuitOpenError, ProviderError, TransportError
 from bet.sofa.stage import current_stage
 from bet.sofa.timeutil import now
 
@@ -229,14 +229,22 @@ class SofascoreClient:
 
         try:
             resp = self.transport.get(url, timeout=timeout)
-        except RequestsError:
-            # Timeout or connection error -> 1 retry with backoff
+        except (TransportError, RequestsError):
+            # Timeout or connection error -> 1 retry with backoff.
+            #
+            # This caught only RequestsError, which comes from curl_cffi and so
+            # only the direct transport ever raised. The browser bridge has been
+            # the only working transport since 2026-09-17 and raised
+            # ProviderError for everything, which fell to the catch-all below —
+            # so this branch was unreachable and there were no retries at all
+            # (F21). Both transports now raise TransportError for a request
+            # that did not complete, and that is what gets another try.
             time.sleep(1.0)
             self.bucket.consume()
             start_t = time.monotonic()
             try:
                 resp = self.transport.get(url, timeout=timeout)
-            except RequestsError as e:
+            except (TransportError, RequestsError) as e:
                 self.breaker.record_failure()
                 elapsed = int((time.monotonic() - start_t) * 1000)
                 state = "OPEN" if self.breaker.is_open else "CLOSED"

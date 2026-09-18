@@ -1262,3 +1262,158 @@ def test_f30_sheet_and_settle_share_one_estimator_policy() -> None:
         source = inspect.getsource(module)
         assert "uses_poisson_floor" in source, module.__name__
         assert "uses_empirical_frequency" in source, module.__name__
+
+
+# --------------------------------------------------------------------------
+# F21 — the retry has been unreachable since the bridge became the transport
+# --------------------------------------------------------------------------
+
+
+def test_f21_a_transport_failure_is_retried_once(tmp_path: Path) -> None:
+    """Fails on the old code for the right reason: the retry caught only
+    curl_cffi's RequestsError, which the bridge never raises, so the bridge's
+    failure fell to the catch-all and was re-raised on the first attempt.
+    Measured in the log as 30.3 s between rows instead of ~61 s."""
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.errors import TransportError
+    from tests.sofa.test_client import MockResponse
+
+    class FlakyTransport:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def get(self, url: str, timeout: float = 10.0):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            if self.calls == 1:
+                raise TransportError("bridge HTTP 504: bridge timeout")
+            return MockResponse(200, {"ok": 1})
+
+    transport = FlakyTransport()
+    client = SofascoreClient(
+        SofaConfig(runs_dir=str(tmp_path), target_rps=1000), transport
+    )
+    import bet.sofa.client as client_module
+
+    original_sleep = client_module.time.sleep
+    client_module.time.sleep = lambda _s: None  # type: ignore[assignment]
+    try:
+        data = client.event_statistics(1)
+    finally:
+        client_module.time.sleep = original_sleep
+
+    assert data == {"ok": 1}, "the retry must return the second attempt's data"
+    assert transport.calls == 2, "exactly one retry, not zero and not a storm"
+
+
+def test_f21_a_transport_failure_that_repeats_becomes_a_provider_error(
+    tmp_path: Path,
+) -> None:
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.errors import ProviderError, TransportError
+
+    class DeadTransport:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def get(self, url: str, timeout: float = 10.0):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            raise TransportError("bridge unreachable")
+
+    transport = DeadTransport()
+    client = SofascoreClient(
+        SofaConfig(runs_dir=str(tmp_path), target_rps=1000), transport
+    )
+    import bet.sofa.client as client_module
+
+    original_sleep = client_module.time.sleep
+    client_module.time.sleep = lambda _s: None  # type: ignore[assignment]
+    try:
+        with pytest.raises(ProviderError):
+            client.event_statistics(1)
+    finally:
+        client_module.time.sleep = original_sleep
+
+    assert transport.calls == 2
+
+
+def test_f21_a_semantic_provider_error_is_not_retried(tmp_path: Path) -> None:
+    """403 is an answer, not a failed delivery. Asking again immediately is
+    how a rate limit becomes a ban."""
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.errors import ProviderError
+    from tests.sofa.test_client import MockResponse
+
+    class ForbiddenTransport:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def get(self, url: str, timeout: float = 10.0):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            return MockResponse(403, {})
+
+    transport = ForbiddenTransport()
+    client = SofascoreClient(
+        SofaConfig(runs_dir=str(tmp_path), target_rps=1000), transport
+    )
+    with pytest.raises(ProviderError):
+        client.event_statistics(1)
+    assert transport.calls == 1, "a 403 must not be retried"
+
+
+def test_f21_the_bridge_raises_transport_error_not_provider_error() -> None:
+    """The bridge is the only working transport; if it raises the wrong class
+    the retry goes dead again silently."""
+    import inspect
+
+    from bet.sofa import bridge_transport
+    from bet.sofa.errors import SofaError, TransportError
+
+    assert issubclass(TransportError, SofaError)
+    source = inspect.getsource(bridge_transport.BrowserBridgeTransport.get)
+    assert "TransportError" in source
+    assert "raise ProviderError" not in source, (
+        "a delivery failure raised as ProviderError is unreachable by the retry"
+    )
+
+
+def test_f21_the_real_bridge_transports_failure_is_retried_end_to_end(
+    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """The behavioural proof, with the actual transport the pipeline uses.
+
+    Fails on the old code for the right reason, and not because a name is
+    missing: the bridge raised ProviderError, ``_execute``'s retry branch only
+    caught curl_cffi's RequestsError, so the failure went to the catch-all and
+    the request was attempted exactly once. Here it must be attempted twice.
+    """
+    from urllib.error import URLError
+
+    import bet.sofa.bridge_transport as bt
+    import bet.sofa.client as client_module
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.errors import ProviderError
+
+    attempts = {"n": 0}
+
+    def dead_urlopen(*args: object, **kwargs: object) -> object:
+        attempts["n"] += 1
+        raise URLError("connection refused")
+
+    monkeypatch.setattr(bt, "urlopen", dead_urlopen)
+    monkeypatch.setattr(client_module.time, "sleep", lambda _s: None)
+
+    client = SofascoreClient(
+        SofaConfig(runs_dir=str(tmp_path), target_rps=1000),
+        bt.BrowserBridgeTransport("http://127.0.0.1:1"),
+    )
+    with pytest.raises(ProviderError):
+        client.event_statistics(1)
+
+    assert attempts["n"] == 2, (
+        f"the bridge's failure was attempted {attempts['n']} time(s); "
+        "the retry has been dead since 2026-09-17"
+    )

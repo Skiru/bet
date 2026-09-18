@@ -16,7 +16,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from bet.sofa.errors import ProviderError
+from bet.sofa.errors import TransportError
 
 DEFAULT_BRIDGE_URL = "http://127.0.0.1:8787"
 
@@ -50,7 +50,14 @@ class BrowserBridgeTransport:
         # The browser leg adds its own pacing on top of the client's token
         # bucket, so the round trip can outlast the caller's nominal timeout.
         # Give the bridge headroom rather than abandoning jobs it will still run.
-        bridge_timeout = max(timeout, 30.0)
+        #
+        # 12 s, not 30 s. The median /statistics response is ~150 ms, and the
+        # worst observed case — a backgrounded tab, throttled by Chrome — is
+        # ~2 s (F23), so 12 s is still six times the bad case. 30 s only made
+        # sense while the retry above it was dead: waiting 200x the median
+        # once is worse than waiting 80x the median twice, and the retry
+        # actually works now (F21).
+        bridge_timeout = max(timeout, 12.0)
         payload = json.dumps({"url": url, "timeout": bridge_timeout}).encode("utf-8")
         req = Request(
             self.bridge_url + "/fetch",
@@ -69,19 +76,19 @@ class BrowserBridgeTransport:
                 detail = json.loads(e.read().decode("utf-8")).get("error", "")
             except Exception:
                 detail = ""
-            raise ProviderError(f"bridge HTTP {e.code}: {detail or e.reason}")
+            raise TransportError(f"bridge HTTP {e.code}: {detail or e.reason}")
         except URLError as e:
-            raise ProviderError(
+            raise TransportError(
                 f"sofa bridge unreachable at {self.bridge_url} "
                 f"(start scripts/sofa/bridge_server.py): {e}"
             )
 
         if data.get("error"):
-            raise ProviderError(f"bridge error: {data['error']}")
+            raise TransportError(f"bridge error: {data['error']}")
 
         status = data.get("status")
         if not isinstance(status, int):
-            raise ProviderError(f"bridge returned no status: {data!r}")
+            raise TransportError(f"bridge returned no status: {data!r}")
 
         return BridgeResponse(status, data.get("body") or "")
 
