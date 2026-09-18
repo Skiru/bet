@@ -172,7 +172,7 @@ def build_coupon(
 
     selected: list[CouponRow] = []
     per_fixture: dict[int, int] = {}
-    families_per_fixture: dict[int, set[str]] = {}
+    families_per_fixture: dict[int, dict[str, int]] = {}
 
     for row, fixture in candidates:
         fid = row.sofascore_event_id
@@ -188,19 +188,35 @@ def build_coupon(
             continue
 
         family = get_mechanism_family(row.market)
-        families = families_per_fixture.setdefault(fid, set())
-        if family in families:
+        families = families_per_fixture.setdefault(fid, {})
+        # The constant is read, not decorative. It used to be defined and never
+        # referenced, with "one" hardcoded in `if family in families` — so
+        # changing it did nothing while looking as though it would (F31).
+        if families.get(family, 0) >= MAX_PER_MECHANISM_FAMILY_PER_FIXTURE:
             dropped.append(
                 DroppedRow(
                     row,
                     "FAMILY_SLOT_TAKEN",
-                    f"family '{family}' already filled by a higher-surplus row",
+                    f"family '{family}' already has "
+                    f"{MAX_PER_MECHANISM_FAMILY_PER_FIXTURE} row(s) with more "
+                    f"surplus",
                 )
             )
             continue
 
-        assert row.offered_odds is not None  # guaranteed by the ODDS_TOO_LOW gate
-        assert row.surplus is not None
+        # An explicit refusal, not an assert. A VALUE row with no surplus would
+        # sort as 0.0, pass every gate, and then bring down the whole COUPON
+        # stage here — and asserts vanish under -O, so the guard was
+        # conditional on how the process was started. Every other exclusion in
+        # this stage says why; so does this one (F31).
+        if row.offered_odds is None:
+            dropped.append(DroppedRow(row, "NO_ODDS", "VALUE row carries no price"))
+            continue
+        if row.surplus is None:
+            dropped.append(
+                DroppedRow(row, "NO_SURPLUS", "VALUE row carries no surplus")
+            )
+            continue
         selected.append(
             CouponRow(
                 sofascore_event_id=row.sofascore_event_id,
@@ -224,7 +240,7 @@ def build_coupon(
         )
 
         per_fixture[fid] = per_fixture.get(fid, 0) + 1
-        families.add(family)
+        families[family] = families.get(family, 0) + 1
 
     return CouponResult(
         coupon=Coupon(created_at_utc=current_time, singles=selected),

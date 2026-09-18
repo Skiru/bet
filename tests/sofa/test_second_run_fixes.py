@@ -1962,3 +1962,96 @@ def test_f19_metrics_come_from_the_offers_priced_rungs() -> None:
     )
     assert metrics_from_offer(offer) == {"goals_total", "corners_total"}
     assert metrics_from_offer(None) == set()
+
+
+# --------------------------------------------------------------------------
+# F31 — a constant nobody reads, and an assert on the production path
+# --------------------------------------------------------------------------
+
+
+def test_f31_a_value_row_without_a_surplus_is_dropped_not_fatal() -> None:
+    """Fails on the old code for the right reason: `assert row.surplus is not
+    None` brought down the whole COUPON stage, and vanished entirely under -O,
+    so the guard depended on how the process was started."""
+    from datetime import UTC, datetime, timedelta
+
+    from bet.sofa.contracts import FixtureOffer, PricedRung
+    from bet.sofa.coupon import build_coupon
+
+    row = _sheet_row(1)
+    row.surplus = None
+
+    now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+    fixture = _fixture(1, ["x"])
+    fixture.sport = "tennis"
+    fixture.kickoff_utc = datetime(2026, 9, 18, 18, 0, tzinfo=UTC)
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        status="PRICED",
+        rungs=[
+            PricedRung(
+                market="games_total", subject="", line=20.5, over_odds=2.50,
+                under_odds=1.55, fetched_at_utc=now,
+            )
+        ],
+        unmapped_markets=[],
+    )
+
+    result = build_coupon(
+        [row], [fixture], [offer], [], now, now + timedelta(minutes=15),
+        timedelta(minutes=45),
+    )
+    assert not result.coupon.singles
+    assert "NO_SURPLUS" in [d.reason for d in result.dropped], (
+        "the row must be refused with a reason, like every other exclusion here"
+    )
+
+
+def test_f31_the_family_cap_constant_is_actually_read() -> None:
+    """Fails on the old code for the right reason: the constant was defined and
+    never referenced — "one" was hardcoded in `if family in families`, so
+    changing it did nothing while looking as though it would."""
+    import inspect
+
+    from bet.sofa import coupon as coupon_module
+
+    source = inspect.getsource(coupon_module)
+    uses = source.count("MAX_PER_MECHANISM_FAMILY_PER_FIXTURE")
+    assert uses >= 2, f"the constant is referenced {uses} time(s): definition only"
+
+
+def test_f31_one_family_per_fixture_still_holds() -> None:
+    """Behaviour is unchanged at the current value; only the wiring is real."""
+    from datetime import UTC, datetime, timedelta
+
+    from bet.sofa.contracts import FixtureOffer, PricedRung
+    from bet.sofa.coupon import build_coupon
+
+    now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+    fixture = _fixture(1, ["x"])
+    fixture.sport = "tennis"
+    fixture.kickoff_utc = datetime(2026, 9, 18, 18, 0, tzinfo=UTC)
+
+    rows = []
+    rungs = []
+    for i, line in enumerate((20.5, 21.5)):
+        r = _sheet_row(1)
+        r.line = line
+        r.surplus = 0.60 - i * 0.1
+        rows.append(r)
+        rungs.append(
+            PricedRung(
+                market="games_total", subject="", line=line, over_odds=2.50,
+                under_odds=1.55, fetched_at_utc=now,
+            )
+        )
+
+    result = build_coupon(
+        rows, [fixture],
+        [FixtureOffer(
+            sofascore_event_id=1, status="PRICED", rungs=rungs, unmapped_markets=[],
+        )],
+        [], now, now + timedelta(minutes=15), timedelta(minutes=45),
+    )
+    assert len(result.coupon.singles) == 1
+    assert "FAMILY_SLOT_TAKEN" in [d.reason for d in result.dropped]
