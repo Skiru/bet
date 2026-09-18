@@ -231,7 +231,7 @@ def main() -> int:
         },
         "output_path": str(run_dir / "06_coupon.json"),
     }
-    print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+    print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
     return 1 if unmatched_vetoes else 0
 
 

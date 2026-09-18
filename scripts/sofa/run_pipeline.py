@@ -109,13 +109,17 @@ def main() -> int:
 
     results: list[StageResult] = []
     for stage, label in sequence:
-        print(f"--- {label} ---", file=sys.stderr)
+        print(f"--- {label} ---", file=sys.stderr, flush=True)
         code = run_stage(stage, args.date)
-        results.append(StageResult(stage, label, code))
-        if code >= 2:
-            print(f"{label}: FAILED (exit {code})", file=sys.stderr)
-            if args.stop_on_failure:
-                break
+        result = StageResult(stage, label, code)
+        results.append(result)
+        # Every stage reports its verdict, not just the failures (F18). A
+        # verdict is information you need *during* the run; the second live
+        # run spent three hours on SAMPLES after OFFER had already decided
+        # there would be no coupon, and the log said nothing.
+        print(f"{label}: {result.verdict} (exit {code})", file=sys.stderr, flush=True)
+        if code >= 2 and args.stop_on_failure:
+            break
 
     worst = max((r.exit_code for r in results), default=0)
     verdict = {0: "OK", 1: "PARTIAL"}.get(worst, "FAILED")
@@ -136,7 +140,7 @@ def main() -> int:
         },
         "output_path": str(Path(config.runs_dir) / args.date),
     }
-    print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+    print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
     return 0 if verdict == "OK" else (1 if verdict == "PARTIAL" else 2)
 
 

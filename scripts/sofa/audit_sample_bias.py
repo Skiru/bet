@@ -447,7 +447,7 @@ def main() -> int:
         },
         "output_path": str(report_path),
     }
-    print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+    print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
     return 1 if flagged else 0
 
 

@@ -160,7 +160,7 @@ def main() -> int:
         "metrics": metrics,
         "output_path": str(out_path),
     }
-    print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+    print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
     return {"OK": 0, "PARTIAL": 1, "FAILED": 2}[verdict]
 
 

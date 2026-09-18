@@ -70,7 +70,7 @@ def main() -> int:
         "output_path": out_path,
     }
 
-    print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+    print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
     return 0 if verdict == "OK" else 1
 
 

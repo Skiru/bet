@@ -43,7 +43,7 @@ def main() -> int:
             "metrics": {"error": str(e)},
             "output_path": None,
         }
-        print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+        print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
         return 2
 
     out_path = Path(config.runs_dir) / args.date / "04_offer.json"
@@ -87,7 +87,7 @@ def main() -> int:
         "output_path": str(out_path),
     }
 
-    print(f"SOFA_SUMMARY: {json.dumps(summary)}")
+    print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
     return {"OK": 0, "PARTIAL": 1, "FAILED": 2}[verdict]
 
 
