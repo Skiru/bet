@@ -42,19 +42,51 @@ przebieg opisany w F1 i F11.
 
 ## Otwarte
 
-### F9 · P3 · 62% tablicy Superbetu to dyscypliny bez nazwy w kodzie
+### F12 · P2 · Slate schodzi do lig, w których nie ma danych
 
-`SPORT_IDS` w `superbet.py` zna dwa id: 5 (piłka), 2 (tenis). Pomiar surowej
-tablicy z 2026-09-18: **3 945 wydarzeń**, z czego brane 669 (po odrzuceniu
-52 debli i wierszy bez kickoffu w dobie → 613).
+Tablica Superbetu zawiera U17, U19 i czwarte/szóste ligi. Sofascore nie
+prowadzi dla nich statystyk połówkowych: `period1` brakuje w **100%** meczów
+Liga 4 Teleorman, Liga Elitelor U17, Campionatul Național U19, w ~95% fińskiej
+Nelonen i w 46 z 60 IV ligi kujawsko-pomorskiej.
 
-Trzy największe odrzucone kubełki nie mają w kodzie nawet nazwy:
-`sportId=75` (960), `sportId=24` (826), `sportId=190` (654) — razem 2 440,
-czyli 62% tablicy.
+Kod obsługuje to poprawnie (`STAT_KEY_ABSENT`, nigdy zero), więc to nie jest
+usterka danych. Ale pipeline płaci pełną cenę w zapytaniach za fixture'y,
+z których nie da się zbudować połowy rynków.
 
-Nie twierdzę, że należy je obstawiać. Twierdzę, że **nie wiemy, co
-odrzucamy**, a to jest pięć minut roboty. Punkt wyjścia, gdyby kiedyś padło
-pytanie o rozszerzenie `sofa` o kolejną dyscyplinę.
+**Decyzja operatora, nie poprawka.** Opcje: próg poziomu rozgrywek w BOARD,
+lista wykluczeń, albo świadome zostawienie tak jak jest.
+
+---
+
+## Zamknięte — F9 (2026-09-18)
+
+Nazwane wszystkie duże kubełki `sportId` z tablicy Superbetu (4 108 zdarzeń
+tego dnia). Potwierdzone próbką nazw meczów, nie zgadywane:
+
+| sportId | co to jest | n | dowód | brane? |
+|---|---|---|---|---|
+| 75 | **e-piłka (FIFA)** | 1 034 | 100% nazw ma nick gracza: `Maroko (Lumix)·Belgia (Tesla)` | nie, słusznie |
+| 24 | **tenis stołowy** | 862 | czeskie Liga Pro, mecze co kilkanaście minut | nie, poza zakresem |
+| **190** | **piłka nożna KOBIET** | **646** | **100% nazw ma sufiks `(W)`**: `Arsenal (W)·Liverpool (W)` | **nie — i to jest do przemyślenia** |
+| 5 | piłka mężczyzn | 395 | — | tak |
+| 2 | tenis | 283 | — | tak |
+| 70 | **e-koszykówka (NBA2K)** | 245 | `New York Knicks (ARACHNE)·…` | nie, słusznie |
+| 3 | hokej | 97 | — | nie |
+| 4 | koszykówka | 87 | — | nie |
+
+**Najważniejsze: piłka kobiet to 646 zdarzeń — więcej niż piłka mężczyzn (395)**
+— a `sofa` pomija ją w całości. To nie są dane gorszej jakości ani e-sport:
+Sofascore prowadzi WSL i inne ligi kobiece tak samo jak męskie. Cały aparat
+(metryki, drabiny, silnik) zadziałałby bez zmian; `SPORT_IDS` w `superbet.py`
+zna po prostu dwa id.
+
+Reszta odrzuconego wolumenu broni się sama: 1 279 zdarzeń to e-sport
+(symulacje, nie mecze), 862 to tenis stołowy, którego `sofa` nie modeluje.
+
+**Do decyzji: czy dodać `sportId=190`.** Koszt to jedna linia w `SPORT_IDS`
+plus weryfikacja, że RESOLVE trafia w nazwy z sufiksem `(W)` — bo
+`normalize_name` może go zjeść i pomylić drużynę kobiet z męską. **Tego nie
+sprawdziłem i to jest realne ryzyko**, nie formalność.
 
 ---
 
