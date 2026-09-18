@@ -34,6 +34,13 @@ class BoardFixture(BaseModel):
     side_a: str
     side_b: str
     kickoff_utc: datetime
+    # Superbet's own competition ids. It sends no competition *name* at all, so
+    # these are the only handle the board has on "which competition is this"
+    # before RESOLVE. Kept so the question "is this slate descending into
+    # competitions with no data" can be answered from the artifact instead of
+    # a live probe, and so BOARD can exclude by id (F12).
+    tournament_id: int | None = None
+    category_id: int | None = None
 
 
 class RefereeRecord(BaseModel):

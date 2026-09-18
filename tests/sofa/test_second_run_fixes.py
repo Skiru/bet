@@ -2136,3 +2136,87 @@ def test_a_retirement_or_walkover_is_still_excluded_entirely() -> None:
         assert not is_completed_event({"status": {"type": "finished", "code": code}})
     assert is_completed_event({"status": {"type": "finished", "code": 100}})
     assert is_completed_event({"status": {"type": "finished", "code": 110}})
+
+
+# --------------------------------------------------------------------------
+# F12 — operator decision: an exclusion list in BOARD, keyed on what Superbet
+# actually sends (ids, never names)
+# --------------------------------------------------------------------------
+
+
+def _board_row(event_id: int, tournament_id: int, name: str = "A · B"):  # type: ignore[no-untyped-def]
+    return {
+        "eventId": event_id,
+        "sportId": 5,
+        "matchName": name,
+        "utcDate": "2026-09-18T18:00:00Z",
+        "tournamentId": tournament_id,
+        "categoryId": 70,
+    }
+
+
+def test_f12_board_records_the_competition_ids_superbet_sends(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    """Superbet sends no competition name at all, only ids. Without them the
+    question "is this slate descending into competitions with no data" can only
+    be answered by a live probe. Fails on the old code: the fields did not
+    exist and the ids were discarded."""
+    from bet.sofa import board as board_module
+
+    class Client:
+        def events_by_date(self, *a: object, **k: object) -> list[dict[str, object]]:
+            return [_board_row(1, 91283)]
+
+    monkeypatch.setattr(board_module, "load_excluded_tournament_ids", lambda: set())
+    fixtures = board_module.fetch_board("2026-09-18", Client())  # type: ignore[arg-type]
+    assert len(fixtures) == 1
+    assert fixtures[0].tournament_id == 91283
+    assert fixtures[0].category_id == 70
+
+
+def test_f12_an_excluded_tournament_never_reaches_the_board(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    from bet.sofa import board as board_module
+
+    class Client:
+        def events_by_date(self, *a: object, **k: object) -> list[dict[str, object]]:
+            return [_board_row(1, 91283), _board_row(2, 1656, "C · D")]
+
+    monkeypatch.setattr(
+        board_module, "load_excluded_tournament_ids", lambda: {91283}
+    )
+    fixtures = board_module.fetch_board("2026-09-18", Client())  # type: ignore[arg-type]
+    assert [f.superbet_event_id for f in fixtures] == ["2"]
+
+
+def test_f12_the_shipped_exclusion_list_is_empty_and_that_is_deliberate() -> None:
+    """The measurement did not support any exclusion, so none is shipped.
+
+    Of 290 football fixtures on the 2026-09-18 board, 256 were in competitions
+    with >=90% half coverage and none at 0%. The zero-coverage competitions the
+    finding named appear in opponents' historical samples, not on the board.
+    An exclusion nobody measured is a coverage cut wearing the costume of a
+    saving — if this list ever grows, it grows with evidence behind it.
+    """
+    config = json.loads(
+        (REPO / "config" / "sofa_board_exclusions.json").read_text(encoding="utf-8")
+    )
+    assert config["superbet_tournament_ids"] == []
+    assert "_doc" in config, "the reason it is empty must travel with the file"
+
+
+def test_f12_a_missing_or_broken_config_excludes_nothing(
+    monkeypatch: "pytest.MonkeyPatch", tmp_path: Path
+) -> None:
+    """Degrading to "exclude nothing" is the safe direction: a config that
+    cannot be read must not silently delete the slate."""
+    from bet.sofa import board as board_module
+
+    monkeypatch.chdir(tmp_path)
+    assert board_module.load_excluded_tournament_ids() == set()
+
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "sofa_board_exclusions.json").write_text("{ broken")
+    assert board_module.load_excluded_tournament_ids() == set()

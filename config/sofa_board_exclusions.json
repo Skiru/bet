@@ -1,0 +1,4 @@
+{
+  "_doc": "Superbet tournament ids BOARD will not fetch (F12). Empty on purpose: measured on the 2026-09-18 board, 256 of 290 football fixtures were in competitions with >=90% half-time coverage and none at 0%, so there is nothing here that evidence supports excluding. Add an id only with a measurement behind it - an unmeasured exclusion is a coverage cut wearing the costume of a saving. BoardFixture now records tournament_id, so the measurement can be repeated from 01_board.json offline.",
+  "superbet_tournament_ids": []
+}
