@@ -40,6 +40,70 @@ przebieg opisany w F1 i F11.
 
 ---
 
+## Zamknięte — drugi przebieg (F13–F32), 2026-09-18
+
+Wszystkie dziewiętnaście wpisów naprawione, każdy osobnym commitem z numerem F
+w tytule, testy w `tests/sofa/test_second_run_fixes.py`. Suite: **229 → 326**
+przechodzących, `ruff` i `mypy --strict` czyste na `src/bet/sofa` i `scripts/sofa`.
+
+| # | co zrobiono | test failuje na starym kodzie? |
+|---|---|---|
+| **F13** | `SOFA_RUN_ID` bity **przed** pętlą etapów, przypisaniem nie `setdefault`, opcja `--run-id`, id w `SOFA_SUMMARY` | tak — etapy widziały `""` |
+| **F14** | `migrate()` w konstruktorze `SofaCache`; strażnik „każda tabela z `migrate()` istnieje" | tak — `no such table` |
+| **F15** | `run_stage` łapie `Exception` → 2; zapis artefaktu RESOLVE w `finally` | tak — wyjątek wychodził z `main()`, artefakt nie powstawał |
+| **F16** | `(K)/(W)/(F)/Women/Kobiety` → jedna postać `(w)`, zostaje w kluczu | tak — `'millonarios w' != 'millonarios (w)'` |
+| **F17** | `sofa_listing_miss` z TTL 12 h; dla tenisa tylko `events/last` | tak — liczba żądań |
+| **F18** | `flush=True` na każdym `SOFA_SUMMARY`; werdykt **każdego** etapu na `stderr` | tak — plik pusty / brak werdyktu |
+| **F19** | SAMPLES czyta `04_offer.json`; docstring A4 poprawiony (wariant 2) | tak — SAMPLES pytał Superbet ponownie |
+| **F20+F22** | `stage` z kontekstu wywołującego (`contextvars`), nie z metody; strażnik na literały | tak — 6 literałów |
+| **F21** | `TransportError` z obu transportów, ponawiany; timeout mostu 30 s → 12 s | tak — 1 próba zamiast 2 (dowód end-to-end) |
+| **F24** | 8 nagłówków diagnostycznych: userscript 2.4.0 → serwer → transport → wiersz logu | tak |
+| **F25** | płeć z `competition_name`, orientacja stron, okno **per sport** (piłka 6 h, tenis 24 h) | tak — `CONFIRMED` zamiast odrzucenia |
+| **F26** | bramka czasowa kuponu na zegarze Superbetu; `kickoff_disagreement_h` w artefakcie | tak |
+| **F27** | kolizja cen rozstrzygana jawnie (ostrożniejsza), zapisana w `price_collisions` | tak — wynik zależał od kolejności |
+| **F28** | `abs(total − base) <= hitWoodwork` zamiast równości | tak — realny payload `13531730` |
+| **F29** | `_SINGLETONS` przed NFD; wzorce `goals_1h_for`/`goals_2h_for`; bramka zakresu w `determine_side` | tak — 12 z 14 |
+| **F30** | podłoga Poissona wyłączona dla nie-liczników; `sets_total` z **częstości empirycznej** (decyzja operatora) | tak |
+| **F31** | stała rodziny faktycznie czytana; `assert` → jawny `DroppedRow` | tak |
+| **F32** | `odds_items()` — jedna funkcja dla `offer.py` i `samples.py` | tak — `TypeError` na `offer.py:25` |
+
+Decyzje operatora, wykonane przy okazji:
+
+| pytanie | decyzja | co wyszło |
+|---|---|---|
+| `sets_total` | częstość empiryczna | błąd 16 pp → **0** (estymator z definicji trafia w próbkę) |
+| `cards_total`/`cards_for` | „dorobić rynek" | **rynku nie ma** — wyliczone na żywej tablicy; metryki usunięte, 30 → 28 zadeklarowanych |
+| F12 (niskie ligi) | lista wykluczeń w BOARD | mechanizm jest, **lista pusta** — pomiar nie uzasadnia ani jednego wykluczenia |
+| `AET`/`AP` | odzyskać gole z `normaltime` | 775 z 824 meczów odzyskanych, metryki zliczające nadal odrzucane |
+| `has_xg`/`best_of` | usunąć / przezwać | `has_xg` usunięte, `best_of` → `default_period_count` |
+
+### Pomiary przed/po (Część 2 promptu)
+
+| co | było | jest |
+|---|---|---|
+| metryk powstających z zadeklarowanych | 15 z 30 | **25 z 28** |
+| meczów blokowanych przez tożsamość strzałów | 21,2% (1 797 meczów) | **2,0%** |
+| obciążenie odrzuconych: strzały / narożne | 25 vs 24 · 10 vs 9 | 22,5 vs 24 · **9 vs 9** |
+| `p_central` OVER 2,5 setów (prawda 0,3251) | 0,4597 | **0,3251** |
+| rozjazd płci przechodzący jako `CONFIRMED` | 1 | **0** |
+| odwrócenia stron przechodzące | 1 | **0** |
+| `events/next` dla tenisa | 179, same 404 | **0** |
+| przeciek z przyszłości / duplikaty / self-reference | 0 | **0** (870 próbek, mediana 10) |
+| arytmetyka `engine.py` | dokładna | dokładna (`required_odds × p` z błędem 3e-05) |
+
+Trzy metryki, których nadal nie da się wyprodukować — **i nie są usterką**:
+`xg_total`, `xg_for` (Superbet nie wycenia xG) oraz `tiebreaks_total`
+(Superbet nie wystawia takiego rynku).
+
+**Korekty własnych liczb**, zostawione świadomie: skala F28 (patrz wpis),
+oraz pierwotne twierdzenie tego dokumentu, że tablica schodzi do lig bez
+danych — na samej tablicy 256 z 290 fixture'ów piłkarskich jest w
+rozgrywkach z ≥90% pokryciem połówek, a **żaden** nie ma 0%. Rozgrywki z
+zerowym pokryciem, które wpis wymienia, pojawiają się w **próbkach
+historycznych przeciwników**, nie na tablicy.
+
+---
+
 ## Otwarte
 
 ### F12 · P2 · Slate schodzi do lig, w których nie ma danych
