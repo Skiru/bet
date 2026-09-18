@@ -513,3 +513,169 @@ def test_f14_every_table_migrate_declares_exists_after_the_cache_is_built(
             for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     assert declared <= live, f"tables never created: {sorted(declared - live)}"
+
+
+# --------------------------------------------------------------------------
+# F15 — a stage that raises fails that stage, not the run
+# --------------------------------------------------------------------------
+
+
+def test_f15_a_raising_stage_does_not_stop_the_stages_after_it(
+    tmp_path: Path,
+) -> None:
+    """One stage's exception must not take the rest of the sequence with it.
+
+    Fails on the old code for the right reason: run_stage had no ``except
+    Exception``, so a sqlite3.OperationalError in RESOLVE escaped main() and
+    killed the whole pipeline — five stages never ran, and --stop-on-failure
+    had not been asked for.
+    """
+    driver = tmp_path / "driver.py"
+    driver.write_text(
+        textwrap.dedent(
+            """
+            import json, sys, types
+            import scripts.sofa.run_pipeline as rp
+
+            ran = []
+            boom = types.ModuleType("boom_stage")
+            def _boom():
+                ran.append("BOOM")
+                raise RuntimeError("no such table: sofa_entity_miss")
+            boom.main = _boom
+            sys.modules["boom_stage"] = boom
+
+            after = types.ModuleType("after_stage")
+            def _after():
+                ran.append("AFTER")
+                return 0
+            after.main = _after
+            sys.modules["after_stage"] = after
+
+            rp.STAGE_MODULES = {"BOOM": "boom_stage", "AFTER": "after_stage"}
+            rp.DEFAULT_SEQUENCE = [("BOOM", "BOOM"), ("AFTER", "AFTER")]
+            sys.argv = ["run_pipeline", "--date", "2026-01-01"]
+            code = rp.main()
+            print("PROBE: " + json.dumps({"ran": ran, "code": code}))
+            """
+        ),
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(REPO)
+    env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
+
+    proc = subprocess.run(
+        [sys.executable, str(driver)],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(REPO),
+        timeout=60,
+    )
+    assert proc.returncode == 0, (
+        f"the exception escaped main() and killed the run:\n{proc.stderr}"
+    )
+    line = next(ln for ln in proc.stdout.splitlines() if ln.startswith("PROBE: "))
+    probe = json.loads(line.removeprefix("PROBE: "))
+    assert probe["ran"] == ["BOOM", "AFTER"], "the stage after the failure never ran"
+    assert probe["code"] == 2, "the run's verdict must be FAILED"
+    assert "STAGE_EXCEPTION" in proc.stderr, "the failure must name itself and the run"
+    assert "run_id=" in proc.stderr
+
+
+def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
+    tmp_path: Path,
+) -> None:
+    """F5 held only for CircuitOpenError, because the write sat after the loop.
+
+    Fails on the old code for the right reason: 02_resolve/02_fixtures.json did
+    not exist after the second run died, so the fixtures already resolved were
+    lost along with the ones that never got a turn.
+    """
+    runs = tmp_path / "runs"
+    (runs / "2026-01-01").mkdir(parents=True)
+    board = [
+        {
+            "superbet_event_id": str(i),
+            "sport": "football",
+            "match_name": f"Team A{i} · Team B{i}",
+            "side_a": f"Team A{i}",
+            "side_b": f"Team B{i}",
+            "kickoff_utc": "2026-01-01T18:00:00Z",
+        }
+        for i in (1, 2, 3)
+    ]
+    (runs / "2026-01-01" / "01_board.json").write_text(
+        json.dumps(board), encoding="utf-8"
+    )
+
+    driver = tmp_path / "driver.py"
+    driver.write_text(
+        textwrap.dedent(
+            """
+            import sqlite3, sys
+            import bet.sofa.resolve as R
+            import scripts.sofa.run_resolve as run_resolve
+
+            calls = {"n": 0}
+            def fake_resolve(self, sport, side, kickoff, opponent):
+                calls["n"] += 1
+                if calls["n"] > 2:
+                    # Not a ProviderError: the F14 failure was local, which is
+                    # exactly why none of the three defences caught it.
+                    raise sqlite3.OperationalError("no such table: sofa_entity_miss")
+                return 10 + calls["n"], {"id": 100 + calls["n"]}, False
+
+            def fake_quality(self, event, kickoff, opponent):
+                return 100.0
+
+            R.SofaResolver.resolve_entity = fake_resolve
+            R.SofaResolver.match_quality = fake_quality
+            from datetime import UTC, datetime
+            from bet.sofa.contracts import Fixture
+
+            def fake_parse(event, sport, ids, client, identity):
+                return Fixture(
+                    sofascore_event_id=event["id"],
+                    superbet_event_ids=ids,
+                    sport=sport,
+                    kickoff_utc=datetime(2026, 1, 1, 18, 0, tzinfo=UTC),
+                    home_name="a", away_name="b",
+                    home_entity_id=1, away_entity_id=2,
+                    competition_name="C", competition_id=1, season_id=1,
+                    category_name="X", identity=identity,
+                    round_number=None, round_name=None, cup_round_type=None,
+                    previous_leg_event_id=None, venue_name=None, referee=None,
+                    has_xg=False, ground_type=None, best_of=None,
+                )
+
+            run_resolve.parse_fixture = fake_parse
+            sys.argv = ["run_resolve", "--date", "2026-01-01"]
+            run_resolve.main()
+            """
+        ),
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(REPO)
+    env["SOFA_RUNS_DIR"] = str(runs)
+    env["SOFA_DB_PATH"] = str(tmp_path / "t.db")
+
+    proc = subprocess.run(
+        [sys.executable, str(driver)],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(REPO),
+        timeout=60,
+    )
+    assert proc.returncode != 0, "the driver is meant to die; that is the scenario"
+    assert "OperationalError" in proc.stderr, proc.stderr[-3000:]
+
+    artifact = runs / "2026-01-01" / "02_fixtures.json"
+    assert artifact.exists(), "the stage died and left no artifact at all"
+    resolved = json.loads(artifact.read_text(encoding="utf-8"))
+    assert len(resolved) == 2, (
+        "the fixtures that had already resolved must survive the failure"
+    )

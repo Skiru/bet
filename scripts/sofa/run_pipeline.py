@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import sys
+import traceback
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -77,6 +78,21 @@ def run_stage(stage: str, date: str) -> int:
     except SystemExit as exc:  # stages that still exit rather than return
         code = exc.code
         return code if isinstance(code, int) else 0
+    except Exception as exc:
+        # A stage that raises fails *that stage*, not the run (F15). The lazy
+        # import above only ever defended against a broken module; an exception
+        # at execution time — the likelier one — went straight through main()
+        # and took the five remaining stages with it, even though
+        # --stop-on-failure had not been asked for.
+        run_id = os.environ.get("SOFA_RUN_ID", "")
+        print(
+            f"STAGE_EXCEPTION run_id={run_id} stage={stage}: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        traceback.print_exc()
+        return 2
     finally:
         sys.argv = argv
     return result if isinstance(result, int) else 0

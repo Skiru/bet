@@ -52,86 +52,95 @@ def main() -> int:
     gaps: dict[GapReason, int] = defaultdict(int)
     breaker_open = False
 
-    for bf in fixtures:
-        try:
-            side_a, side_b = split_match_name(bf.match_name)
-            if not side_a or not side_b:
-                side_a, side_b = bf.side_a, bf.side_b
+    try:
+        for bf in fixtures:
+            try:
+                side_a, side_b = split_match_name(bf.match_name)
+                if not side_a or not side_b:
+                    side_a, side_b = bf.side_a, bf.side_b
 
-            if not side_a or not side_b:
-                gaps[GapReason.NO_ENTITY_FOUND] += 1
-                continue
+                if not side_a or not side_b:
+                    gaps[GapReason.NO_ENTITY_FOUND] += 1
+                    continue
 
-            # Try resolve side_a first
-            opponent = side_b
-            entity_id, event, is_ambig = resolver.resolve_entity(
-                bf.sport, side_a, bf.kickoff_utc, side_b
-            )
-
-            if is_ambig:
-                gaps[GapReason.AMBIGUOUS_ENTITY] += 1
-                continue
-
-            if not event:
-                # Fallback to side_b
-                opponent = side_a
+                # Try resolve side_a first
+                opponent = side_b
                 entity_id, event, is_ambig = resolver.resolve_entity(
-                    bf.sport, side_b, bf.kickoff_utc, side_a
+                    bf.sport, side_a, bf.kickoff_utc, side_b
                 )
+
                 if is_ambig:
                     gaps[GapReason.AMBIGUOUS_ENTITY] += 1
                     continue
 
-            if not event:
-                gaps[GapReason.NO_MATCHING_EVENT] += 1
-                continue
-
-            sf_id = event["id"]
-            if sf_id in resolved_fixtures:
-                # A2/L12: two board entries pointing at one Sofascore event are one
-                # fixture with two superbet ids, not two fixtures.
-                existing_ids = resolved_fixtures[sf_id].superbet_event_ids
-                if bf.superbet_event_id not in existing_ids:
-                    resolved_fixtures[sf_id].superbet_event_ids.append(
-                        bf.superbet_event_id
+                if not event:
+                    # Fallback to side_b
+                    opponent = side_a
+                    entity_id, event, is_ambig = resolver.resolve_entity(
+                        bf.sport, side_b, bf.kickoff_utc, side_a
                     )
-                duplicates += 1
-            else:
-                # The opponent's name cleared the fuzzy threshold but may not have
-                # matched exactly; recording which it was keeps `identity` a fact
-                # rather than a constant.
-                quality = resolver.match_quality(
-                    event, bf.kickoff_utc, normalize_name(opponent)
-                )
-                identity: Literal["CONFIRMED", "FUZZY"] = (
-                    "CONFIRMED"
-                    if quality is not None and quality >= NAME_EXACT_THRESHOLD
-                    else "FUZZY"
-                )
-                resolved_fixtures[sf_id] = parse_fixture(
-                    event, bf.sport, [bf.superbet_event_id], client, identity=identity
-                )
-        except CircuitOpenError:
-            # The breaker gave up on the provider. Every remaining
-            # fixture would fail the same way, so stop asking - but
-            # fall through to write what we already have.
-            gaps[GapReason.PROVIDER_ERROR] += 1
-            breaker_open = True
-            break
-        except ProviderError as e:
-            # One fixture's provider failure is a gap in the slate, not
-            # the end of the stage. Losing 613 fixtures to a single
-            # timeout is what this replaces.
-            print(f'PROVIDER_ERROR {bf.match_name}: {e}', file=sys.stderr)
-            gaps[GapReason.PROVIDER_ERROR] += 1
-            continue
+                    if is_ambig:
+                        gaps[GapReason.AMBIGUOUS_ENTITY] += 1
+                        continue
 
-    out_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+                if not event:
+                    gaps[GapReason.NO_MATCHING_EVENT] += 1
+                    continue
 
-    dumped = [f.model_dump(mode="json") for f in resolved_fixtures.values()]
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(dumped, f, indent=2)
+                sf_id = event["id"]
+                if sf_id in resolved_fixtures:
+                    # A2/L12: two board entries pointing at one Sofascore event are one
+                    # fixture with two superbet ids, not two fixtures.
+                    existing_ids = resolved_fixtures[sf_id].superbet_event_ids
+                    if bf.superbet_event_id not in existing_ids:
+                        resolved_fixtures[sf_id].superbet_event_ids.append(
+                            bf.superbet_event_id
+                        )
+                    duplicates += 1
+                else:
+                    # The opponent's name cleared the fuzzy threshold but may not have
+                    # matched exactly; recording which it was keeps `identity` a fact
+                    # rather than a constant.
+                    quality = resolver.match_quality(
+                        event, bf.kickoff_utc, normalize_name(opponent)
+                    )
+                    identity: Literal["CONFIRMED", "FUZZY"] = (
+                        "CONFIRMED"
+                        if quality is not None and quality >= NAME_EXACT_THRESHOLD
+                        else "FUZZY"
+                    )
+                    resolved_fixtures[sf_id] = parse_fixture(
+                        event,
+                        bf.sport,
+                        [bf.superbet_event_id],
+                        client,
+                        identity=identity,
+                    )
+            except CircuitOpenError:
+                # The breaker gave up on the provider. Every remaining
+                # fixture would fail the same way, so stop asking - but
+                # fall through to write what we already have.
+                gaps[GapReason.PROVIDER_ERROR] += 1
+                breaker_open = True
+                break
+            except ProviderError as e:
+                # One fixture's provider failure is a gap in the slate, not
+                # the end of the stage. Losing 613 fixtures to a single
+                # timeout is what this replaces.
+                print(f"PROVIDER_ERROR {bf.match_name}: {e}", file=sys.stderr)
+                gaps[GapReason.PROVIDER_ERROR] += 1
+                continue
+    finally:
+        # F5 only held for CircuitOpenError, because the write sat after the
+        # loop: any other exception — the sqlite3.OperationalError of F14, say
+        # — left no artifact at all, and with it no record of the fixtures that
+        # had already resolved. The write belongs in finally (F15).
+        out_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        dumped = [f.model_dump(mode="json") for f in resolved_fixtures.values()]
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(dumped, f, indent=2)
 
     fuzzy = sum(1 for f in resolved_fixtures.values() if f.identity == "FUZZY")
     recall = len(resolved_fixtures) / len(fixtures) if fixtures else 0.0
