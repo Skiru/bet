@@ -131,6 +131,27 @@ class SuperbetClient:
         return first if isinstance(first, dict) else None
 
 
+def odds_items(odds_data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """The priced markets in a Superbet event payload, or an empty list.
+
+    Superbet describes a match it no longer prices as ``{"odds": null}`` — the
+    key is present and its value is None. That is the *dominant* shape, not an
+    edge case: 68 of the first 69 fixtures on 2026-09-18. A gate that asks
+    whether the key exists therefore lets None through, and ``for item in
+    None`` took the whole day's coupon down on the first finished match (F32).
+
+    This lives in one place because it used to live in two, and only one of the
+    copies was right (samples.py had ``.get("odds") or []`` all along). The
+    wrong copy is the one that cost the day.
+    """
+    if not odds_data:
+        return []
+    items = odds_data.get("odds")
+    if not items:
+        return []
+    return [item for item in items if isinstance(item, dict)]
+
+
 def split_match_name(match_name: str | None) -> tuple[str, str]:
     if not match_name:
         return ("", "")

@@ -679,3 +679,103 @@ def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
     assert len(resolved) == 2, (
         "the fixtures that had already resolved must survive the failure"
     )
+
+
+# --------------------------------------------------------------------------
+# F32 — "odds": null is the normal shape, not an edge case
+# --------------------------------------------------------------------------
+
+
+def _fixture(sofascore_event_id: int, superbet_ids: list[str]):  # type: ignore[no-untyped-def]
+    from datetime import UTC, datetime
+
+    from bet.sofa.contracts import Fixture
+
+    return Fixture(
+        sofascore_event_id=sofascore_event_id,
+        superbet_event_ids=superbet_ids,
+        sport="football",
+        kickoff_utc=datetime(2026, 1, 1, 18, 0, tzinfo=UTC),
+        home_name="Home",
+        away_name="Away",
+        home_entity_id=1,
+        away_entity_id=2,
+        competition_name="C",
+        competition_id=1,
+        season_id=1,
+        category_name="X",
+        identity="CONFIRMED",
+        round_number=None,
+        round_name=None,
+        cup_round_type=None,
+        previous_leg_event_id=None,
+        venue_name=None,
+        referee=None,
+        has_xg=False,
+        ground_type=None,
+        best_of=None,
+    )
+
+
+def test_f32_a_match_that_is_no_longer_priced_does_not_take_the_board_with_it() -> None:
+    """One finished match must cost one offer, not the whole day's coupon.
+
+    Fails on the old code for the right reason: the gate asked whether the
+    "odds" key existed, Superbet sends the key with a null value, and ``for
+    item in None`` raised TypeError on the first fixture of the artifact —
+    before reaching any match that still had a price.
+    """
+    from bet.sofa.offer import OfferFetcher
+
+    class Client:
+        def event_odds(self, event_id: str):  # type: ignore[no-untyped-def]
+            if event_id == "dead":
+                return {"odds": None}  # the dominant shape: 68 of 69 fixtures
+            return {
+                "odds": [
+                    {
+                        "marketName": "Liczba goli",
+                        "specialBetValue": "2.5",
+                        "name": "powyżej",
+                        "price": 1.85,
+                    },
+                    {
+                        "marketName": "Liczba goli",
+                        "specialBetValue": "2.5",
+                        "name": "poniżej",
+                        "price": 1.95,
+                    },
+                ]
+            }
+
+    offers = OfferFetcher(Client()).fetch_offers(
+        [_fixture(1, ["dead"]), _fixture(2, ["live"])]
+    )
+
+    assert len(offers) == 2
+    assert offers[0].status == "NO_PRICE"
+    assert offers[0].rungs == [], "an unpriced match is zero rungs, not an exception"
+    assert offers[1].status == "PRICED"
+    assert len(offers[1].rungs) == 1, "the rest of the board must still be priced"
+    assert offers[1].rungs[0].over_odds == 1.85
+
+
+def test_f32_the_gate_is_one_function_shared_by_offer_and_samples() -> None:
+    """The defect was two copies of one intention, only one of them correct.
+
+    Fails on the old code for the right reason: offer.py had its own inline
+    gate, spelled differently from the correct one in samples.py.
+    """
+    from bet.sofa import offer, samples
+    from bet.sofa.superbet import odds_items
+
+    assert offer.odds_items is odds_items
+    assert samples.odds_items is odds_items
+
+    # And the function itself covers every shape Superbet actually sends.
+    assert odds_items(None) == []
+    assert odds_items({}) == []
+    assert odds_items({"odds": None}) == []
+    assert odds_items({"odds": []}) == []
+    assert odds_items({"marketName": "x"}) == []  # key absent
+    assert odds_items({"odds": [{"marketName": "x"}]}) == [{"marketName": "x"}]

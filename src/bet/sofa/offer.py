@@ -2,6 +2,7 @@ from typing import Any
 
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
 from bet.sofa.market_mapper import classify_market
+from bet.sofa.superbet import odds_items
 from bet.sofa.timeutil import now
 
 
@@ -16,13 +17,13 @@ class OfferFetcher:
             unmapped = set()
 
             for su_id in fixture.superbet_event_ids:
-                odds_data = self.client.event_odds(su_id)
-                if not odds_data or "odds" not in odds_data:
+                items = odds_items(self.client.event_odds(su_id))
+                if not items:
                     continue
 
                 fetched_at = now()
 
-                for item in odds_data["odds"]:
+                for item in items:
                     market_name = item.get("marketName")
                     if not market_name:
                         continue

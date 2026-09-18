@@ -33,7 +33,7 @@ from bet.sofa.metrics import (
     infer_best_of,
 )
 from bet.sofa.settle import is_completed_event
-from bet.sofa.superbet import SuperbetClient
+from bet.sofa.superbet import SuperbetClient, odds_items
 
 _FRIENDLIES_PATH = (
     Path(__file__).resolve().parents[3] / "config" / "sofa_friendly_competitions.json"
@@ -73,11 +73,7 @@ def fetch_available_metrics(
     """Canonical metric names Superbet prices for this fixture (A5)."""
     available_metrics: set[str] = set()
     for s_id in fixture.superbet_event_ids:
-        odds_data = superbet_client.event_odds(s_id)
-        if not odds_data:
-            continue
-        odds = odds_data.get("odds") or []
-        for item in odds:
+        for item in odds_items(superbet_client.event_odds(s_id)):
             classified = classify_market(item.get("marketName"))
             if classified:
                 available_metrics.add(classified[0])
