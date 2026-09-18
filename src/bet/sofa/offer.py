@@ -69,15 +69,36 @@ class OfferFetcher:
                             "over_odds": None,
                             "under_odds": None,
                             "fetched_at_utc": fetched_at,
+                            "collisions": [],
                         }
 
-                    if direction == "OVER":
-                        combined_odds[key]["over_odds"] = float(price)
-                    else:
-                        combined_odds[key]["under_odds"] = float(price)
+                    # Two listings of one match must not silently overwrite
+                    # each other's price (F27). 20 of 484 fixtures carried two
+                    # superbet_event_ids; merging by union is right and
+                    # recovers a listing that is still live, but a *collision*
+                    # decided by arrival order is not a merge, it is a coin
+                    # flip on the only number the whole decision rests on. A
+                    # higher price invents an edge that is not there; a lower
+                    # one hides value that is.
+                    #
+                    # Take the more conservative quote — the lower one, for the
+                    # side being priced — and record the disagreement.
+                    field = "over_odds" if direction == "OVER" else "under_odds"
+                    new_price = float(price)
+                    existing = combined_odds[key][field]
+                    if existing is not None and existing != new_price:
+                        combined_odds[key]["collisions"].append(
+                            f"{direction} {market} {subject or '-'} @ {line}: "
+                            f"{existing} vs {new_price}, taking "
+                            f"{min(existing, new_price)}"
+                        )
+                        new_price = min(existing, new_price)
+                    combined_odds[key][field] = new_price
 
             rungs = []
+            price_collisions: list[str] = []
             for (market, subject, line), odds_dict in combined_odds.items():
+                price_collisions.extend(odds_dict["collisions"])
                 rungs.append(
                     PricedRung(
                         market=market,
@@ -95,6 +116,7 @@ class OfferFetcher:
                     status="PRICED" if rungs else "NO_PRICE",
                     rungs=rungs,
                     unmapped_markets=sorted(list(unmapped)),
+                    price_collisions=sorted(price_collisions),
                 )
             )
 

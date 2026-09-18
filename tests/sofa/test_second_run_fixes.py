@@ -1645,3 +1645,101 @@ def test_f26_the_disagreement_is_recorded_on_the_fixture() -> None:
     assert fixture.kickoff_disagreement_h is not None
     assert abs(fixture.kickoff_disagreement_h - 8.93) < 0.05
     assert fixture.superbet_kickoff_utc == datetime(2026, 9, 18, 1, 4, tzinfo=UTC)
+
+
+# --------------------------------------------------------------------------
+# F27 — two listings of one match, and the price decided by arrival order
+# --------------------------------------------------------------------------
+
+
+def test_f27_a_price_collision_is_resolved_not_overwritten() -> None:
+    """Fails on the old code for the right reason: the second listing's price
+    was assigned over the first with no comparison and no trace, so which
+    number reached the coupon depended on the order of superbet_event_ids."""
+    from bet.sofa.offer import OfferFetcher
+
+    prices = {"a": 1.80, "b": 1.95}
+
+    class TwoListings:
+        def event_odds(self, event_id: str):  # type: ignore[no-untyped-def]
+            return {
+                "odds": [
+                    {
+                        "marketName": "Liczba goli",
+                        "specialBetValue": "2.5",
+                        "name": "powyżej",
+                        "price": prices[event_id],
+                    },
+                    {
+                        "marketName": "Liczba goli",
+                        "specialBetValue": "2.5",
+                        "name": "poniżej",
+                        "price": 2.00,
+                    },
+                ]
+            }
+
+    offers = OfferFetcher(TwoListings()).fetch_offers([_fixture(1, ["a", "b"])])
+    rung = offers[0].rungs[0]
+
+    assert rung.over_odds == 1.80, "the conservative quote, not the last one seen"
+    assert offers[0].price_collisions, "the disagreement must be recorded"
+    assert "1.8 vs 1.95" in offers[0].price_collisions[0]
+
+
+def test_f27_the_outcome_does_not_depend_on_the_order_of_the_listings() -> None:
+    """This is the actual defect: a coin flip on the only number that matters."""
+    from bet.sofa.offer import OfferFetcher
+
+    prices = {"a": 1.80, "b": 1.95}
+
+    class TwoListings:
+        def event_odds(self, event_id: str):  # type: ignore[no-untyped-def]
+            return {
+                "odds": [
+                    {
+                        "marketName": "Liczba goli",
+                        "specialBetValue": "2.5",
+                        "name": "powyżej",
+                        "price": prices[event_id],
+                    }
+                ]
+            }
+
+    forward = OfferFetcher(TwoListings()).fetch_offers([_fixture(1, ["a", "b"])])
+    backward = OfferFetcher(TwoListings()).fetch_offers([_fixture(1, ["b", "a"])])
+    assert forward[0].rungs[0].over_odds == backward[0].rungs[0].over_odds == 1.80
+
+
+def test_f27_the_union_of_two_listings_is_still_taken() -> None:
+    """Merging by union is right and recovers a listing that is still live.
+
+    Only the collision was the problem, so this must not regress: 20 fixtures
+    carried two ids, and one pair was 0 priced markets against 8.
+    """
+    from bet.sofa.offer import OfferFetcher
+
+    class Complementary:
+        def event_odds(self, event_id: str):  # type: ignore[no-untyped-def]
+            if event_id == "dead":
+                return {"odds": None}
+            return {
+                "odds": [
+                    {
+                        "marketName": "Liczba goli",
+                        "specialBetValue": "2.5",
+                        "name": "powyżej",
+                        "price": 1.85,
+                    },
+                    {
+                        "marketName": "Liczba rzutów rożnych",
+                        "specialBetValue": "9.5",
+                        "name": "poniżej",
+                        "price": 1.90,
+                    },
+                ]
+            }
+
+    offers = OfferFetcher(Complementary()).fetch_offers([_fixture(1, ["dead", "live"])])
+    assert {r.market for r in offers[0].rungs} == {"goals_total", "corners_total"}
+    assert not offers[0].price_collisions

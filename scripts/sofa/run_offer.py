@@ -63,6 +63,7 @@ def main() -> int:
         if r.over_odds is not None and r.under_odds is not None
     )
     total_unmapped = sum(len(o.unmapped_markets) for o in offers)
+    total_collisions = sum(len(o.price_collisions) for o in offers)
     empty_offers = sum(1 for o in offers if not o.rungs)
 
     metrics: dict[str, Any] = {
@@ -70,6 +71,7 @@ def main() -> int:
         "output_offers": len(offers),
         "total_two_way_rungs": total_two_way,
         "total_unmapped": total_unmapped,
+        "price_collisions": total_collisions,
         "empty_offers": empty_offers,
     }
 
@@ -78,7 +80,7 @@ def main() -> int:
     # market Superbet added should surface as unmapped, not vanish (T16).
     if fixtures and empty_offers == len(offers):
         verdict = "FAILED"
-    elif empty_offers or total_unmapped:
+    elif empty_offers or total_unmapped or total_collisions:
         verdict = "PARTIAL"
     else:
         verdict = "OK"

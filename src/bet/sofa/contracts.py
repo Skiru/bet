@@ -131,6 +131,10 @@ class FixtureOffer(BaseModel):
     status: Literal["PRICED", "NO_PRICE"] | None = None
     rungs: list[PricedRung]
     unmapped_markets: list[str]
+    # Where two Superbet listings of the same match quoted one rung
+    # differently. Empty is the normal case; a non-empty list means the price
+    # we used was chosen, not inherited from whichever listing came last (F27).
+    price_collisions: list[str] = []
 
 
 class SheetRow(BaseModel):
