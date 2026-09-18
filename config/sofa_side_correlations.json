@@ -1,0 +1,64 @@
+{
+  "_provenance": "`correlation` is the RESIDUAL Pearson correlation between the two sides of one match, after each side's own mean is removed - that is the quantity bet.sofa.joint consumes, because each side's marginal already carries its own level. `raw_correlation` is the unadjusted figure, kept so the double count stays visible. Measured over every finished match cached in sofa.db. Regenerate with scripts/sofa/measure_side_correlations.py.",
+  "_min_pairs": 200,
+  "aces": {
+    "correlation": 0.1304,
+    "raw_correlation": 0.3232,
+    "pairs": 1945,
+    "residual_pairs": 232
+  },
+  "cards_points": {
+    "correlation": null,
+    "raw_correlation": 0.1615,
+    "pairs": 618,
+    "residual_pairs": 99
+  },
+  "corners": {
+    "correlation": -0.1452,
+    "raw_correlation": -0.1978,
+    "pairs": 2796,
+    "residual_pairs": 909
+  },
+  "double_faults": {
+    "correlation": 0.2412,
+    "raw_correlation": 0.2182,
+    "pairs": 1945,
+    "residual_pairs": 232
+  },
+  "fouls": {
+    "correlation": 0.044,
+    "raw_correlation": 0.2238,
+    "pairs": 2424,
+    "residual_pairs": 781
+  },
+  "games": {
+    "correlation": null,
+    "raw_correlation": 0.0056,
+    "pairs": 1279,
+    "residual_pairs": 148
+  },
+  "goals": {
+    "correlation": -0.0118,
+    "raw_correlation": -0.1002,
+    "pairs": 62770,
+    "residual_pairs": 53755
+  },
+  "offsides": {
+    "correlation": 0.0139,
+    "raw_correlation": -0.0215,
+    "pairs": 2452,
+    "residual_pairs": 779
+  },
+  "shots": {
+    "correlation": -0.0928,
+    "raw_correlation": -0.3043,
+    "pairs": 1847,
+    "residual_pairs": 701
+  },
+  "shots_on_target": {
+    "correlation": -0.0027,
+    "raw_correlation": -0.1387,
+    "pairs": 2222,
+    "residual_pairs": 776
+  }
+}

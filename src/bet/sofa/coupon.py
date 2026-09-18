@@ -21,7 +21,12 @@ from bet.sofa.contracts import (
 from bet.sofa.market_mapper import get_mechanism_family
 from bet.sofa.veto import match_vetoes
 
-MAX_SINGLES = 40
+# The day's row cap. `None` means no cap, which is the default: a cap that
+# binds does not trim the worst rows, it trims whichever rows sort last, and
+# on 2026-09-18 it dropped 738 of 920 VALUE rows across 131 fixtures that the
+# sheet had already passed. Callers that want a portfolio-sized coupon pass
+# one explicitly.
+MAX_SINGLES: int | None = None
 MAX_PER_FIXTURE = 3
 MAX_PER_MECHANISM_FAMILY_PER_FIXTURE = 1
 MIN_ODDS_FLOOR = 1.25
@@ -55,6 +60,7 @@ def build_coupon(
     min_kickoff: datetime,
     max_price_age: timedelta,
     min_odds_floor: float = MIN_ODDS_FLOOR,
+    max_singles: int | None = MAX_SINGLES,
 ) -> CouponResult:
     """Select singles from VALUE rows, reporting every exclusion."""
     fixtures_by_id = {f.sofascore_event_id: f for f in fixtures}
@@ -183,15 +189,33 @@ def build_coupon(
 
     candidates.sort(key=_price_advantage, reverse=True)
 
+    # Breadth before depth. Ranking rows globally and cutting at a cap means a
+    # fixture's second and third rows outrank another fixture's *only* row, so
+    # the cap removes whole matches while leaving three rows on one of them.
+    # Ordering by (how many rows this fixture already has, rank) makes every
+    # fixture's best row compete before any fixture's second, so a cap — if
+    # one is set at all — trims depth and never breadth.
+    depth_of: dict[int, int] = {}
+    ranked: list[tuple[int, float, SheetRow, Fixture]] = []
+    for row, fixture in candidates:
+        fid = row.sofascore_event_id
+        depth = depth_of.get(fid, 0)
+        depth_of[fid] = depth + 1
+        ranked.append((depth, -_price_advantage((row, fixture)), row, fixture))
+    ranked.sort(key=lambda item: (item[0], item[1]))
+    ordered = [(row, fixture) for _, _, row, fixture in ranked]
+
     selected: list[CouponRow] = []
     per_fixture: dict[int, int] = {}
     families_per_fixture: dict[int, dict[str, int]] = {}
 
-    for row, fixture in candidates:
+    for row, fixture in ordered:
         fid = row.sofascore_event_id
 
-        if len(selected) >= MAX_SINGLES:
-            dropped.append(DroppedRow(row, "MAX_SINGLES", f"cap {MAX_SINGLES} reached"))
+        if max_singles is not None and len(selected) >= max_singles:
+            dropped.append(
+                DroppedRow(row, "MAX_SINGLES", f"cap {max_singles} reached")
+            )
             continue
 
         if per_fixture.get(fid, 0) >= MAX_PER_FIXTURE:

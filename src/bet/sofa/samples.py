@@ -25,7 +25,11 @@ from bet.sofa.contracts import (
     Readiness,
 )
 from bet.sofa.errors import CircuitOpenError, ProviderError
-from bet.sofa.market_mapper import classify_market
+from bet.sofa.market_mapper import (
+    DERIVED_BASE_TO_SIDE_METRIC,
+    classify_market,
+    derived_base,
+)
 from bet.sofa.metrics import (
     check_halves_identity,
     check_identities,
@@ -79,7 +83,22 @@ def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
     """
     if offer is None:
         return set()
-    return {rung.market for rung in offer.rungs}
+    wanted: set[str] = set()
+    for rung in offer.rungs:
+        # A derived market is named for the question it asks
+        # ("handicap_games"), not for the sample it needs
+        # ("games_won_for"). Passing the market name through means SAMPLES
+        # never builds the metric, SHEET then reports STAT_KEY_ABSENT, and the
+        # whole family goes unpriced while looking like a provider gap. 863
+        # tennis rungs were lost exactly this way on 2026-09-18 (F40).
+        base = derived_base(rung.market)
+        if base is not None:
+            side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(base)
+            if side_metric:
+                wanted.add(side_metric)
+            continue
+        wanted.add(rung.market)
+    return wanted
 
 
 def fetch_available_metrics(

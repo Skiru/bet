@@ -21,8 +21,11 @@ from bet.sofa.contracts import (
     SheetRow,
     Veto,
 )
+from bet.sofa.derived import load_side_correlations, price_derived_rungs
 from bet.sofa.engine import (
     MAX_LADDER_SIGMA,
+    MAX_SPREAD_RATIO,
+    MIN_SPREAD_RATIO,
     P_CEILING,
     P_FLOOR,
     bar_probability,
@@ -31,6 +34,7 @@ from bet.sofa.engine import (
     devig,
     get_required_odds,
     ladder_centre,
+    ladder_implied_sd,
     outside_model_resolution,
     p_empirical_raw,
     predictive_sd,
@@ -38,7 +42,7 @@ from bet.sofa.engine import (
     uses_poisson_floor,
     winning_boundary,
 )
-from bet.sofa.market_mapper import fold
+from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
@@ -221,6 +225,7 @@ def process_fixture(
     engine_constants: dict[str, Any],
     vetoes: list[Veto],
     config: SofaConfig,
+    side_correlations: dict[str, float | None] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
@@ -248,12 +253,15 @@ def process_fixture(
     # Group rungs by (market, subject) to find ladder_centre
     rungs_by_market_subject: dict[tuple[str, str], list[PricedRung]] = {}
     for rung in offer.rungs:
+        if is_derived(rung.market):
+            continue
         key = (rung.market, rung.subject)
         if key not in rungs_by_market_subject:
             rungs_by_market_subject[key] = []
         rungs_by_market_subject[key].append(rung)
 
     ladder_centres: dict[tuple[str, str], float | None] = {}
+    ladder_sds: dict[tuple[str, str], float | None] = {}
     market_ps: dict[tuple[str, str, float, str], float] = {}
 
     for key, rung_list in rungs_by_market_subject.items():
@@ -268,9 +276,15 @@ def process_fixture(
 
         lc = ladder_centre(devigged)
         ladder_centres[key] = lc
+        ladder_sds[key] = ladder_implied_sd(devigged)
 
     # Now evaluate each rung and direction
     for rung in offer.rungs:
+        # A derived market is about both sides at once and has no marginal
+        # sample to be priced against. derived.py handles it below; falling
+        # through here would silently drop it as "metric not in samples".
+        if is_derived(rung.market):
+            continue
         # Check if metric exists in samples
         if rung.market not in samples.metrics:
             continue
@@ -419,6 +433,12 @@ def process_fixture(
             )  # Hardcoded LEAN tier margin for E8
 
             lc = ladder_centres.get((rung.market, rung.subject))
+            market_sd = ladder_sds.get((rung.market, rung.subject))
+            spread_ratio = (
+                pred_sd / market_sd
+                if market_sd is not None and market_sd > 0
+                else None
+            )
             l_sigma = None
             if lc is not None and sample_sd > 0:
                 l_sigma = abs(centre - lc) / sample_sd
@@ -459,14 +479,28 @@ def process_fixture(
                         f"(rungs={len(ladder_rungs)}, "
                         f"sample_sd={sample_sd:.4f}); VALUE withheld"
                     )
-                elif l_sigma <= max_ladder_sigma:
-                    verdict = "VALUE"
-                else:
+                elif l_sigma > max_ladder_sigma:
                     verdict = "LEAN"
                     notes.append(
                         f"LADDER_DISAGREES: ladder_sigma {l_sigma:.3f} > "
                         f"{max_ladder_sigma:.3f}"
                     )
+                elif spread_ratio is not None and not (
+                    MIN_SPREAD_RATIO <= spread_ratio <= MAX_SPREAD_RATIO
+                ):
+                    # The centre agrees and the width does not. A distribution
+                    # of the right centre and the wrong spread is wrong at
+                    # every rung at once, in the direction that makes the bar
+                    # easiest to beat.
+                    verdict = "LEAN"
+                    notes.append(
+                        f"LADDER_SPREAD_DISAGREES: our predictive sd is "
+                        f"{spread_ratio:.2f}x the market's implied spread "
+                        f"(band {MIN_SPREAD_RATIO}-{MAX_SPREAD_RATIO}); "
+                        "VALUE withheld"
+                    )
+                else:
+                    verdict = "VALUE"
 
             if unfitted:
                 notes.append(f"UNFITTED_CONSTANTS: {', '.join(unfitted)}")
@@ -500,6 +534,20 @@ def process_fixture(
                 notes=notes,
             )
             rows.append(row)
+
+    derived_rows, derived_skipped = price_derived_rungs(
+        fixture=fixture,
+        samples=samples,
+        offer=offer,
+        correlations=side_correlations or {},
+        vetoes=vetoes,
+        min_sample=config.min_sample,
+        max_ladder_sigma=max_ladder_sigma,
+        k_price=k_price,
+        unfitted=unfitted,
+    )
+    rows.extend(derived_rows)
+    skipped.extend(derived_skipped)
 
     for rung, reason, detail in skipped:
         logger.info(
@@ -552,6 +600,7 @@ def main() -> int:
         if vetoes_data:
             vetoes = RootModel[list[Veto]].model_validate_json(vetoes_data).root
 
+    side_correlations = load_side_correlations()
     baselines = load_baselines(config)
     reliability = load_reliability(config)
     engine_constants = load_engine_constants(config)
@@ -582,6 +631,7 @@ def main() -> int:
                 engine_constants,
                 vetoes,
                 config,
+                side_correlations,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

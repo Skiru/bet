@@ -177,6 +177,52 @@ def ladder_centre(rungs: list[tuple[float, float]]) -> float | None:
     return None
 
 
+# How far our predictive spread may sit from the one the market's own ladder
+# implies before the row's tail probabilities stop being credible.
+#
+# The ladder gate compares *centres*. Nothing compared spreads, and a
+# distribution of the right centre but the wrong width is mispriced at every
+# rung at once while passing the centre check: too wide and both tails are
+# overstated, which is precisely where the bar is easiest to beat. On
+# 2026-09-18, 12 coupon rows sat on ladders where *every* rung came back
+# VALUE, and games_won_for ran at 2.69x the market's implied spread because a
+# player's games-won sample mixes two-set and three-set matches against
+# different opponents while the price is for one specific match.
+#
+# The band is deliberately loose. Measured over 314 ladders the ratio ran
+# p05=0.77 to p95=1.83, so [0.5, 2.0] refuses 3.8% - a genuine outlier band,
+# not a constant fitted to one day.
+MIN_SPREAD_RATIO = 0.5
+MAX_SPREAD_RATIO = 2.0
+
+
+def ladder_implied_sd(rungs: list[tuple[float, float]]) -> float | None:
+    """The spread the market's own ladder implies, from its quartiles.
+
+    `rungs` is (line, devigged P(over line)), as for `ladder_centre`. Returns
+    None when the ladder does not reach both quartiles, which is the common
+    case for a short or one-sided ladder and must not be read as agreement.
+    """
+    points = sorted(rungs)
+    if len(points) < 3:
+        return None
+
+    def quantile(target: float) -> float | None:
+        for (line_a, p_a), (line_b, p_b) in zip(points, points[1:], strict=False):
+            if (p_a >= target >= p_b) or (p_a <= target <= p_b):
+                if p_a == p_b:
+                    return (line_a + line_b) / 2.0
+                return line_a + (target - p_a) * (line_b - line_a) / (p_b - p_a)
+        return None
+
+    upper = quantile(0.75)
+    lower = quantile(0.25)
+    if upper is None or lower is None or lower <= upper:
+        return None
+    # The interquartile range of a normal is 1.349 standard deviations.
+    return (lower - upper) / 1.3490
+
+
 def calculate_p_low(
     centre: float, sample_sd: float, n: int, boundary: float, direction: Direction
 ) -> float:

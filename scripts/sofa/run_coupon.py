@@ -147,6 +147,17 @@ def main() -> int:
     set_stage("COUPON")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", default=now().strftime("%Y-%m-%d"), help="YYYY-MM-DD")
+    parser.add_argument(
+        "--max-singles",
+        type=int,
+        default=None,
+        help=(
+            "cap the number of singles. Omitted means no cap: selection is "
+            "breadth-first, so a cap trims a fixture's second and third rows "
+            "before it ever drops a fixture, but it still drops rows the "
+            "sheet passed."
+        ),
+    )
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
@@ -184,6 +195,7 @@ def main() -> int:
         current_time=current_time,
         min_kickoff=current_time + timedelta(minutes=15),
         max_price_age=timedelta(minutes=config.price_max_age_min),
+        max_singles=args.max_singles,
     )
 
     run_dir.mkdir(parents=True, exist_ok=True)

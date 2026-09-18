@@ -16,7 +16,13 @@ from pydantic import RootModel
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
-from bet.sofa.contracts import Fixture, FixtureOffer
+from bet.sofa.contracts import (
+    Fixture,
+    FixtureOffer,
+    FixtureSamples,
+    GapEntry,
+    GapReason,
+)
 from bet.sofa.coverage import check_coverage_floor
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
@@ -26,6 +32,66 @@ from bet.sofa.samples import (
 from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.timeutil import now
+
+# Gaps that mean "we could not ask", as opposed to "we asked and there is
+# nothing there". Only the first kind may be repaired from a previous run.
+_PROVIDER_FAULT_GAPS = {GapReason.CIRCUIT_OPEN, GapReason.PROVIDER_ERROR}
+
+
+def load_previous_samples(path: Path) -> dict[int, FixtureSamples]:
+    if not path.exists():
+        return {}
+    try:
+        previous = (
+            RootModel[list[FixtureSamples]]
+            .model_validate_json(path.read_bytes())
+            .root
+        )
+    except (OSError, ValueError):
+        return {}
+    return {s.sofascore_event_id: s for s in previous}
+
+
+def carry_over_on_provider_fault(
+    fresh: FixtureSamples, previous: FixtureSamples | None
+) -> tuple[FixtureSamples, bool]:
+    """Keep what the last run knew when this run could not reach the provider.
+
+    Deliberately narrow. It only fires when the fresh result has **no**
+    metrics at all and **every** gap is a provider fault, and it never
+    resurrects a fixture whose metrics are simply absent from the source or
+    whose markets are no longer priced — a match that kicked off must drop off
+    the day, and NO_PRICE is not a fault to repair.
+    """
+    if previous is None or not previous.metrics:
+        return fresh, False
+    if fresh.metrics:
+        return fresh, False
+    if not fresh.gaps:
+        return fresh, False
+    if not all(gap.reason in _PROVIDER_FAULT_GAPS for gap in fresh.gaps):
+        return fresh, False
+
+    return (
+        fresh.model_copy(
+            update={
+                "metrics": previous.metrics,
+                "readiness": previous.readiness,
+                "gaps": [
+                    *fresh.gaps,
+                    GapEntry(
+                        reason=GapReason.PROVIDER_ERROR,
+                        metric="all",
+                        detail=(
+                            "provider unreachable this run; sample carried "
+                            "over from the previous run of this date"
+                        ),
+                    ),
+                ],
+            }
+        ),
+        True,
+    )
 
 
 def main() -> int:
@@ -98,6 +164,16 @@ def main() -> int:
         flush=True,
     )
 
+    # What this date already knew. A sample is history — the corners a team
+    # took last month do not change because the provider timed out today — so
+    # a run that cannot reach Sofascore must not *delete* them. Re-running
+    # SAMPLES on 2026-09-18 to pick up a newly mapped metric dropped 13
+    # fixtures off the day for exactly this reason: the circuit breaker
+    # opened, every metric came back empty, and the artifact was overwritten
+    # with the emptiness (F41).
+    previous_by_id = load_previous_samples(run_dir / "03_samples.json")
+    carried_over = 0
+
     for fixture in fixtures:
         samples = process_fixture_samples(
             fixture,
@@ -107,6 +183,11 @@ def main() -> int:
             config,
             offer=offers_by_id.get(fixture.sofascore_event_id),
         )
+        samples, carried = carry_over_on_provider_fault(
+            samples, previous_by_id.get(fixture.sofascore_event_id)
+        )
+        if carried:
+            carried_over += 1
         all_samples.append(samples)
 
         readiness_counts[samples.readiness] += 1
@@ -171,6 +252,7 @@ def main() -> int:
         "metrics": {
             "input_fixtures": len(fixtures),
             "output_samples": len(all_samples),
+            "carried_over_on_provider_fault": carried_over,
             "total_metrics_extracted": total_metrics,
             "readiness": dict(readiness_counts),
             "readiness_by_sport": {k: dict(v) for k, v in readiness_by_sport.items()},

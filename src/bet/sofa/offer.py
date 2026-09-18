@@ -1,7 +1,7 @@
 from typing import Any
 
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
-from bet.sofa.market_mapper import classify_market
+from bet.sofa.market_mapper import classify_derived_market, classify_market
 from bet.sofa.superbet import odds_items
 from bet.sofa.timeutil import now
 
@@ -28,36 +28,51 @@ class OfferFetcher:
                     if not market_name:
                         continue
 
-                    classified = classify_market(market_name)
-                    if not classified:
-                        unmapped.add(market_name)
-                        continue
-
-                    market, subject = classified
-
-                    # A market with no line (or a null one) is not a rung on a
-                    # ladder. Reading it as 0.0 invents a line nobody quoted;
-                    # letting the TypeError escape takes the whole day's OFFER
-                    # down over one malformed market.
                     raw_line = item.get("specialBetValue")
-                    if raw_line is None or raw_line == "":
-                        unmapped.add(f"{market_name} (no line)")
-                        continue
-                    try:
-                        line = float(raw_line)
-                    except (TypeError, ValueError):
-                        unmapped.add(f"{market_name} (unparseable line: {raw_line!r})")
-                        continue
+                    selection_name = item.get("name")
 
-                    name_lower = str(item.get("name") or "").lower()
-                    direction = None
-                    if "poniżej" in name_lower or "under" in name_lower:
-                        direction = "UNDER"
-                    elif "powyżej" in name_lower or "over" in name_lower:
-                        direction = "OVER"
+                    classified = classify_market(market_name)
+                    if classified:
+                        market, subject = classified
 
-                    if not direction:
-                        continue
+                        # A market with no line (or a null one) is not a rung
+                        # on a ladder. Reading it as 0.0 invents a line nobody
+                        # quoted; letting the TypeError escape takes the whole
+                        # day's OFFER down over one malformed market.
+                        if raw_line is None or raw_line == "":
+                            unmapped.add(f"{market_name} (no line)")
+                            continue
+                        try:
+                            line = float(raw_line)
+                        except (TypeError, ValueError):
+                            unmapped.add(
+                                f"{market_name} (unparseable line: {raw_line!r})"
+                            )
+                            continue
+
+                        name_lower = str(selection_name or "").lower()
+                        direction = None
+                        if "poniżej" in name_lower or "under" in name_lower:
+                            direction = "UNDER"
+                        elif "powyżej" in name_lower or "over" in name_lower:
+                            direction = "OVER"
+
+                        if not direction:
+                            continue
+                    else:
+                        # The both-teams, comparative and handicap families.
+                        # They carry their line and their side on the
+                        # *selection*, not on a shared specialBetValue, so they
+                        # cannot go through the branch above (F39).
+                        derived = classify_derived_market(
+                            market_name,
+                            selection_name,
+                            str(raw_line) if raw_line not in (None, "") else None,
+                        )
+                        if not derived:
+                            unmapped.add(market_name)
+                            continue
+                        market, subject, line, direction = derived
 
                     price = item.get("price")
                     if price is None:
