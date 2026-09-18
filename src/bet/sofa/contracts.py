@@ -173,6 +173,12 @@ class SheetRow(BaseModel):
     ladder_sigma: float | None
     p_bar: float
     bar_reason: str | None
+    # F48. The calibration correction subtracted from p_central before the
+    # price blend. Without it published, p_bar cannot be re-derived from this
+    # row's own fields and audit_coupon reports an arithmetic failure — which
+    # is exactly what happened the moment the correction stopped being dead
+    # code. A row has to describe its own arithmetic.
+    calibration_correction: float = 0.0
     required_odds: float
     offered_odds: float | None
     edge: float | None

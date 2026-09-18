@@ -154,8 +154,15 @@ def get_historical_events(
             break
 
         for event in page_events:
-            if len(events) >= config.sample_n:
-                break
+            # No early break on len(events). Sofascore returns each page
+            # **ascending** — oldest first — measured 296 of 296 cached page-0
+            # listings. Taking the first `sample_n` therefore took the ten
+            # *oldest* of the thirty most recent, which is how a player was
+            # priced off matches from thirteen months earlier while three
+            # matches from the same tournament that week sat unread in the
+            # same payload (F46). The page is bounded at ~30 events, so
+            # scanning all of it costs nothing; the recency cut happens once,
+            # after the loop.
 
             # A walkover or retirement is `finished` but did not produce a
             # comparable result; it must not enter a sample (L31).
@@ -208,9 +215,17 @@ def get_historical_events(
 
             events.append(event)
 
+        # Pages go backwards in time (page 0 is the most recent block), so
+        # another page can only add older matches. Stop as soon as this page
+        # has produced enough candidates — the request count is unchanged
+        # from before the fix.
         page += 1
+        if len(events) >= config.sample_n:
+            break
 
-    return events
+    # The sample is the most recent `sample_n`, newest first.
+    events.sort(key=lambda e: e.get("startTimestamp") or 0, reverse=True)
+    return events[: config.sample_n]
 
 
 def process_historical_event(

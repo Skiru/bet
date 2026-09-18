@@ -2,29 +2,33 @@
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
     "db_path": "data/sofa.db",
-    "settled_rows": 1523054,
-    "distinct_competitions": 1030
+    "settled_rows": 1869648,
+    "distinct_competitions": 1068
   },
   "K_CENTRE": {
-    "value": 8.0,
+    "value": 25.0,
+    "by_sport": {
+      "football": 25.0,
+      "tennis": 2.0
+    },
     "curve": {
-      "0.0": 0.27857,
-      "2.0": 0.27686,
-      "5.0": 0.274017,
-      "8.0": 0.272479,
-      "10.0": 0.271904,
-      "15.0": 0.271209,
-      "25.0": 0.271152,
-      "1000.0": 0.273695
+      "0.0": 0.172781,
+      "2.0": 0.17022,
+      "5.0": 0.168442,
+      "8.0": 0.167694,
+      "10.0": 0.167452,
+      "15.0": 0.167229,
+      "25.0": 0.167281,
+      "1000.0": 0.168708
     },
     "status": "FITTED",
-    "criterion": "smallest K within 0.002 of the minimum median |p_central - outcome|"
+    "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid"
   },
   "K_PRICE": {
     "value": null,
     "curve": {},
     "status": "NOT_FITTED",
-    "criterion": "as K_CENTRE, on rows carrying a devigged market price"
+    "criterion": "as K_CENTRE (Brier), on rows carrying a devigged market price"
   },
   "MAX_LADDER_SIGMA": {
     "value": null,

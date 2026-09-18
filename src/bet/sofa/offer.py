@@ -6,6 +6,55 @@ from bet.sofa.superbet import odds_items
 from bet.sofa.timeutil import now
 
 
+
+def parse_line(raw_line: object, market: str) -> float:
+    """The number Superbet quoted, for markets that scope a line to a period.
+
+    A plain market sends ``specialBetValue`` as "4.5". A set-scoped one sends
+    **"1-4.5"** — the set number, a dash, then the line. Reading that with
+    ``float`` raises, and every per-set aces, double-faults and combined rung
+    on the 2026-09-18 board landed in unmapped_markets as "unparseable line:
+    '1-1.5'" (F45). The market name and the prefix carry the same scope, so
+    the prefix is not information — but it is a *check*, and a rung whose
+    prefix disagrees with its own market name would be a set-1 price on a
+    set-2 ladder, which is worse than no rung at all.
+
+    Raises ValueError with the text that goes into unmapped_markets.
+    """
+    if isinstance(raw_line, int | float):
+        return float(raw_line)
+
+    text = str(raw_line).strip()
+    try:
+        return float(text)
+    except ValueError:
+        pass
+
+    prefix, _, rest = text.partition("-")
+    if rest:
+        try:
+            line = float(rest)
+        except ValueError:
+            raise ValueError(f"unparseable line: {raw_line!r}") from None
+
+        scope = None
+        for token, name in (("set1", "1"), ("set2", "2"), ("set3", "3")):
+            if token in market:
+                scope = name
+        for token, name in (("_1h", "1"), ("_2h", "2")):
+            if token in market:
+                scope = name
+        if scope is not None and prefix.strip() != scope:
+            raise ValueError(
+                f"scope prefix {prefix.strip()!r} disagrees with market {market!r}"
+            )
+        if scope is None:
+            # An unscoped market has no business carrying a scope prefix.
+            raise ValueError(f"unexpected scope prefix on {market!r}: {raw_line!r}")
+        return line
+
+    raise ValueError(f"unparseable line: {raw_line!r}")
+
 class OfferFetcher:
     def __init__(self, client: Any) -> None:
         self.client = client
@@ -43,11 +92,9 @@ class OfferFetcher:
                             unmapped.add(f"{market_name} (no line)")
                             continue
                         try:
-                            line = float(raw_line)
-                        except (TypeError, ValueError):
-                            unmapped.add(
-                                f"{market_name} (unparseable line: {raw_line!r})"
-                            )
+                            line = parse_line(raw_line, market)
+                        except ValueError as exc:
+                            unmapped.add(f"{market_name} ({exc})")
                             continue
 
                         name_lower = str(selection_name or "").lower()

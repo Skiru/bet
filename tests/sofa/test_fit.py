@@ -421,11 +421,21 @@ def test_max_ladder_sigma_is_null_without_ladder_rows(db: str) -> None:
 # --------------------------------------------------------------------------
 
 
-def test_plateau_pick_prefers_the_smaller_k_on_a_flat_curve() -> None:
+def test_plateau_pick_prefers_the_larger_k_on_a_flat_curve() -> None:
+    """Among values the data cannot tell apart, shrink more, not less.
+
+    This asserted ``== 2.0`` until F42. The rule's own docstring argued that
+    trusting the sample too much is the error that has already cost money and
+    that a smaller K trusts the sample more, and then returned the smallest K
+    on the plateau — the most sample-trusting value available. The test
+    encoded the behaviour rather than the reasoning, so it held the
+    contradiction in place.
+    """
     curve = {0.0: 0.4100, 2.0: 0.3500, 5.0: 0.3495, 10.0: 0.3490, 25.0: 0.3489}
-    # The point minimum is 25.0; everything from 2.0 up is within tolerance.
+    # The point minimum is 25.0; everything from 2.0 up is within tolerance,
+    # and 0.0 is measurably worse, so the band is not the whole grid.
     assert min(curve, key=lambda k: curve[k]) == 25.0
-    assert _pick_plateau_k(curve) == 2.0
+    assert _pick_plateau_k(curve) == 25.0
 
 
 def test_plateau_pick_respects_a_genuine_minimum() -> None:

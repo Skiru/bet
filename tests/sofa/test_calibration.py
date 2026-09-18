@@ -100,16 +100,52 @@ class TestShippedCurve:
                 if isinstance(value, dict) and "correction" in value:
                     assert value["correction"] >= 0.0, f"{market} {bucket}"
 
-    def test_corrections_concentrate_below_the_middle(self) -> None:
-        """Measured shape: overconfident low, underconfident high.
+    def test_no_correction_is_large_enough_to_be_doing_the_model_s_job(
+        self,
+    ) -> None:
+        """The curve trims a residual; it must never carry the estimate.
 
-        The estimator overstates small probabilities and understates large
-        ones, antisymmetrically — it must, since OVER and UNDER of one rung are
-        complements. Since only overconfidence is corrected, every non-zero
-        correction in the pooled curve has to sit in the lower half. A curve
-        that corrected the top half would mean the sign had been inverted.
+        This replaced an assertion that every non-zero correction sits below
+        p = 0.5. That held while the estimator was badly miscalibrated low —
+        corrections of 0.0196-0.0243 across 0.1-0.4 and nothing above — and it
+        stopped holding once F41/F44 landed. The measured curve is now near
+        calibrated on both sides (largest pooled correction 0.0108, most
+        buckets exactly zero), and small residuals of either sign are what a
+        well-fitted model looks like, not a sign inversion.
+
+        What is worth pinning is the magnitude. A correction is a trim: if one
+        ever grew past a few points of probability, the curve would be
+        substituting for an estimator that needs fixing, and everything
+        downstream would rest on the fit rather than on the sample.
         """
-        pooled = self._curve().get("_pooled", {})
-        for bucket, value in pooled.items():
-            if value.get("correction", 0.0) > 0:
-                assert float(bucket.split("-")[0]) < 0.5, bucket
+        curve = self._curve()
+
+        # Pooled: the estimator across everything. This one has to be small,
+        # or the model is wrong in a way no per-market trim can excuse.
+        pooled = curve.get("_pooled", {})
+        pooled_largest = max(
+            (float(v.get("correction", 0.0)) for v in pooled.values()),
+            default=0.0,
+        )
+        assert pooled_largest <= 0.02, f"pooled correction {pooled_largest}"
+
+        # Per market and per direction the residual is genuinely larger, and
+        # naming the ceiling is the point. Once the direction layer landed
+        # (F48) the largest are games_total|OVER at 0.1548/0.1499 on n=643/722
+        # and goals_for|OVER at 0.1315 on n=31,681 — real, well-evidenced
+        # biases that the pooled curve cancelled to nothing because OVER and
+        # UNDER are exact complements. Those are markets to distrust, not
+        # curve noise, and if any ever passes this bound the estimator has
+        # drifted somewhere new.
+        largest = 0.0
+        where = ""
+        for market, buckets in curve.items():
+            if not isinstance(buckets, dict):
+                continue
+            for bucket, value in buckets.items():
+                if not isinstance(value, dict):
+                    continue
+                correction = float(value.get("correction", 0.0))
+                if correction > largest:
+                    largest, where = correction, f"{market} {bucket}"
+        assert largest <= 0.20, f"{where} corrects by {largest}"

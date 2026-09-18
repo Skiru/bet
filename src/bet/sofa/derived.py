@@ -320,7 +320,7 @@ def price_derived_rungs(
     max_ladder_sigma: float,
     k_price: float,
     unfitted: list[str],
-    correction_for: Callable[[str, float], float] | None = None,
+    correction_for: Callable[[str, float, str], float] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
@@ -506,7 +506,9 @@ def price_derived_rungs(
                 # against an actual 0.3054, so the overstatement is real and
                 # in the same direction.
                 correction = (
-                    correction_for(market, p_raw) if correction_for else 0.0
+                    correction_for(market, p_raw, direction)
+                    if correction_for
+                    else 0.0
                 )
 
                 p_bar, bar_reason = bar_probability(
@@ -644,6 +646,12 @@ def price_derived_rungs(
                         ladder_sigma=round(l_sigma, 4) if l_sigma is not None else None,
                         p_bar=round(p_bar, 4),
                         bar_reason=bar_reason,
+                        # F48. Published for the same reason the direct path
+                        # publishes it: without this term the row does not
+                        # determine its own p_bar. 162 derived rows on the
+                        # 2026-09-18 sheet carried a correction the artifact
+                        # did not mention.
+                        calibration_correction=round(correction, 4),
                         required_odds=req_odds,
                         offered_odds=offered,
                         edge=edge,

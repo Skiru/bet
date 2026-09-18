@@ -35,7 +35,28 @@ NON_COUNT_METRICS = frozenset(
 # For these the sample's own frequency above the winning boundary is the
 # honest estimator, and it is available for free — run_sheet and settle both
 # already count hits for the Laplace cap.
-EMPIRICAL_FREQUENCY_METRICS = frozenset({"sets_total"})
+EMPIRICAL_FREQUENCY_METRICS = frozenset({"sets_total", "games_won_for"})
+
+# games_won_for joined the set on 2026-09-18 (F49). It is not few-valued like
+# sets_total, but it is violently **bimodal**, and for the same reason: in a
+# best-of-three a player who wins in straight sets has won at least twelve
+# games, so the distribution has a loser mode spread over 0-11 and a winner
+# mode stacked on 12+. Across 570 observations in one day's samples the counts
+# run ... 10:17, 11:10, **12:159**, 13:84 ... — a trough at eleven and a wall
+# at twelve.
+#
+# Superbet's line sits at 11.5, in the trough. A normal CDF puts smooth
+# density exactly where the real distribution has almost none, and it does so
+# in one direction: measured on 7,926 settled rows, UNDER at the lines
+# straddling the cliff ran predicted 0.404 against realised 0.320 (n=862) and
+# 0.569 against 0.505 (n=837).
+#
+# Replayed out of the cache, 1,293 rungs, the two estimators score:
+#
+#     normal CDF   OVER 1.07   UNDER 0.93
+#     empirical    OVER 1.01   UNDER 0.98
+#
+# Better on both sides, which is what a real fix looks like as against noise.
 
 
 def predictive_sd(
@@ -103,30 +124,106 @@ def winning_boundary(line: float, direction: Direction) -> float:
     return line
 
 
+# A count of k occupies the interval [k-0.5, k+0.5] under a continuous
+# approximation, so the support of a non-negative count starts at -0.5, not at
+# 0.0. The difference is not pedantry: it is the whole outcome "exactly zero".
+#
+# Both were measured against 516,883 settled rows out of the cache, scoring
+# each rung the way run_sheet does. In the tail the coupon actually selects
+# (p < 0.10), predicted vs realised came out:
+#
+#     no floor      0.0738 vs 0.0684   ratio 0.93
+#     floor  0.0    0.0741 vs 0.1083   ratio 1.46   <- worse than no floor
+#     floor -0.5    0.0729 vs 0.0724   ratio 0.99
+#
+# Clamping at 0.0 was the obvious fix and it is the wrong one: it deletes the
+# mass below zero that, for a low-mean count, was standing in for the atom at
+# zero, and the low tail goes from mildly overconfident to badly
+# underconfident. -0.5 removes the impossible region *and* keeps the atom.
+COUNT_SUPPORT_FLOOR = -0.5
+
+
+def support_floor_for(market: str) -> float | None:
+    """The smallest value the quantity can take, or None if unconstrained.
+
+    A corner count cannot be negative, and the normal CDF does not know that.
+    See calc_p_central_raw and COUNT_SUPPORT_FLOOR. The non-count metrics are
+    left alone — sets_total is priced from its own empirical frequency
+    (EMPIRICAL_FREQUENCY_METRICS) and the xG pair has never produced a sample
+    — so this changes nothing for them and the measurement does not extend
+    there.
+    """
+    return COUNT_SUPPORT_FLOOR if uses_poisson_floor(market) else None
+
+
 def calc_p_central_raw(
-    centre: float, sd: float, boundary: float, direction: Direction
+    centre: float,
+    sd: float,
+    boundary: float,
+    direction: Direction,
+    support_floor: float | None = None,
 ) -> float:
-    """The normal-CDF estimate, unclamped. See outside_model_resolution."""
+    """The normal-CDF estimate, unclamped. See outside_model_resolution.
+
+    ``support_floor`` conditions the estimate on the quantity being at least
+    that value. Without it the normal puts mass on
+    a negative number of corners, and the rung at line 0.5 UNDER collects
+    every bit of it: Ruch Chorzow on 2026-09-18 had a centre of 5.30 and a
+    predictive sd of 4.25, so the model claimed P(zero corners) = 0.1294 of
+    which **0.1062 — 82% — was the mass below zero**. The observed ten
+    matches were [5,7,7,5,2,7,3,16,3,3]; the event had never once happened.
+    Priced at 30.00 that row won the top slot of the coupon (F41).
+
+    The floor is -0.5 rather than 0.0 because the quantity is a count and a
+    count of zero occupies [-0.5, 0.5); see COUNT_SUPPORT_FLOOR for the
+    measurement that settled it.
+
+    This is the same defect outside_model_resolution was written to refuse
+    "the way an all-zero sample is refused", but that guard only sees it for
+    the one metric priced from its empirical frequency; for every count the
+    CDF hands it a number well above P_FLOOR and the guard waves it through.
+    """
     if sd == 0.0:
         # Degenerate case, e.g. variance and mean are 0
         if direction == "OVER":
             p = 1.0 if centre > boundary else 0.0
         else:
             p = 1.0 if centre < boundary else 0.0
-    else:
-        z = (boundary - centre) / sd
-        if direction == "OVER":
-            z = -z
-        p = normal_cdf(z)
+        return p
 
-    return p
+    z = (boundary - centre) / sd
+    p_below_boundary = normal_cdf(z)
+
+    if support_floor is not None:
+        p_below_floor = normal_cdf((support_floor - centre) / sd)
+        mass_in_support = 1.0 - p_below_floor
+        if mass_in_support <= 1e-12:
+            # The model puts essentially everything below the floor. It has no
+            # opinion left to renormalise; say so rather than divide by noise.
+            # outside_model_resolution refuses whatever comes back.
+            return 0.0 if direction == "UNDER" else 1.0
+        # Condition on the quantity being inside its own support. A boundary
+        # at or below the floor leaves nothing under it: an UNDER 0.5 rung on
+        # a count is "exactly zero", not "zero or fewer".
+        p_below_boundary = max(0.0, p_below_boundary - p_below_floor)
+        p_below_boundary /= mass_in_support
+
+    return 1.0 - p_below_boundary if direction == "OVER" else p_below_boundary
 
 
 def calc_p_central(
-    centre: float, sd: float, boundary: float, direction: Direction
+    centre: float,
+    sd: float,
+    boundary: float,
+    direction: Direction,
+    support_floor: float | None = None,
 ) -> float:
     return max(
-        P_FLOOR, min(P_CEILING, calc_p_central_raw(centre, sd, boundary, direction))
+        P_FLOOR,
+        min(
+            P_CEILING,
+            calc_p_central_raw(centre, sd, boundary, direction, support_floor),
+        ),
     )
 
 
@@ -224,7 +321,12 @@ def ladder_implied_sd(rungs: list[tuple[float, float]]) -> float | None:
 
 
 def calculate_p_low(
-    centre: float, sample_sd: float, n: int, boundary: float, direction: Direction
+    centre: float,
+    sample_sd: float,
+    n: int,
+    boundary: float,
+    direction: Direction,
+    support_floor: float | None = None,
 ) -> float:
     if n == 0:
         raise ValueError("n must be greater than 0")
@@ -241,7 +343,9 @@ def calculate_p_low(
     shifted_var_sample = max(sample_sd**2, shifted_centre)
     shifted_sd = math.sqrt(shifted_var_sample * (1.0 + 1.0 / n))
 
-    return calc_p_central(shifted_centre, shifted_sd, boundary, direction)
+    return calc_p_central(
+        shifted_centre, shifted_sd, boundary, direction, support_floor
+    )
 
 
 def bar_probability(

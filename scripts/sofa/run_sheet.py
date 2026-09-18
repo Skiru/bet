@@ -36,6 +36,7 @@ from bet.sofa.engine import (
     ladder_centre,
     ladder_implied_sd,
     outside_model_resolution,
+    support_floor_for,
     p_empirical_raw,
     predictive_sd,
     uses_empirical_frequency,
@@ -116,11 +117,26 @@ UNFITTED_K_PRICE = 10.0
 
 
 def read_constant(
-    engine_constants: dict[str, Any], name: str, fallback: float
+    engine_constants: dict[str, Any], name: str, fallback: float, sport: str = ""
 ) -> tuple[float, bool]:
-    """Return (value, was_fitted). A null or missing entry is NOT fitted."""
+    """Return (value, was_fitted). A null or missing entry is NOT fitted.
+
+    A constant may be fitted per sport, and K_CENTRE has to be: it weighs the
+    league prior against the sample, and the priors are not comparable between
+    the two sports. Football carries 419 per-competition baselines; tennis
+    carries one global mean for the whole of tennis, ATP to ITF. Fitted on the
+    pooled history — 98% of which is football — K_CENTRE came out 25, and on
+    tennis alone 25 scores a Brier of 0.2049 against 0.1887 at K = 2 (F46).
+    One number was quietly asking a UTR PTT group match to be two-thirds
+    "the average tennis match".
+    """
     entry = engine_constants.get(name)
     if isinstance(entry, dict):
+        by_sport = entry.get("by_sport")
+        if sport and isinstance(by_sport, dict):
+            value = by_sport.get(sport)
+            if isinstance(value, int | float) and not isinstance(value, bool):
+                return float(value), True
         value = entry.get("value")
         if isinstance(value, int | float) and not isinstance(value, bool):
             return float(value), True
@@ -131,7 +147,7 @@ def read_constant(
 
 
 def get_calibration_correction(
-    reliability: dict[str, Any], market: str, p: float
+    reliability: dict[str, Any], market: str, p: float, direction: str = ""
 ) -> float:
     """§6.5 step 2. The market's own measured curve, else the pooled one.
 
@@ -146,11 +162,18 @@ def get_calibration_correction(
     bucket = f"{bucket_index / 10.0:.1f}-{(bucket_index + 1) / 10.0:.1f}"
 
     bucket_entry: Any = None
-    market_entry = reliability.get(market)
-    if isinstance(market_entry, dict):
-        candidate = market_entry.get(bucket)
-        if isinstance(candidate, dict) and candidate.get("status") == "MEASURED":
-            bucket_entry = candidate
+    # Most specific first: this market, this direction (F48). OVER and UNDER
+    # are exact complements, so a bias toward one cancels exactly when the two
+    # are pooled — the pooled curve cannot see it, and on tennis it is worth
+    # 20-40% relative.
+    keys = [f"{market}|{direction}", market] if direction else [market]
+    for key in keys:
+        market_entry = reliability.get(key)
+        if isinstance(market_entry, dict):
+            candidate = market_entry.get(bucket)
+            if isinstance(candidate, dict) and candidate.get("status") == "MEASURED":
+                bucket_entry = candidate
+                break
 
     if bucket_entry is None:
         pooled = reliability.get("_pooled")
@@ -249,7 +272,7 @@ def process_fixture(
     skipped: list[tuple[Any, GapReason, str]] = []
 
     k_centre, k_centre_fitted = read_constant(
-        engine_constants, "K_CENTRE", UNFITTED_K_CENTRE
+        engine_constants, "K_CENTRE", UNFITTED_K_CENTRE, fixture.sport
     )
     k_price, k_price_fitted = read_constant(
         engine_constants, "K_PRICE", UNFITTED_K_PRICE
@@ -391,7 +414,13 @@ def process_fixture(
             if uses_empirical_frequency(rung.market):
                 p_raw = p_empirical_raw(hits, n)
             else:
-                p_raw = calc_p_central_raw(centre, pred_sd, boundary, direction)
+                p_raw = calc_p_central_raw(
+                    centre,
+                    pred_sd,
+                    boundary,
+                    direction,
+                    support_floor_for(rung.market),
+                )
 
             # F35: a rung whose estimate falls outside the clamp band is not a
             # rung the model has an opinion about, and the clamped value is not
@@ -413,11 +442,23 @@ def process_fixture(
 
             p_cent = p_raw
 
+            # Deliberately without a support floor, unlike p_central above.
+            # calculate_p_low shifts the centre 1.96 SE *against* the bet, and
+            # that shifted centre is an artificial device, not a mean the
+            # quantity could have. Conditioning it on the support is not
+            # meaningful and measurably backfires: at centre 0.3, sd 2.5,
+            # n = 5, the OVER shift lands at -1.89, and renormalising a
+            # distribution centred below its own support inflates the upper
+            # tail from 0.191 to 0.626. p_low is only ever used to cap p
+            # downward (see apply_caps), so no floor is the strictly more
+            # protective choice, and it keeps this agreeing with settle.py.
             p_low_val = calculate_p_low(centre, sample_sd, n, boundary, direction)
 
             m_p = market_ps.get((rung.market, rung.subject, rung.line, direction))
 
-            corr = get_calibration_correction(reliability, rung.market, p_cent)
+            corr = get_calibration_correction(
+                reliability, rung.market, p_cent, direction
+            )
 
             force_weight_0 = False
             for veto in vetoes:
@@ -544,6 +585,7 @@ def process_fixture(
                 ladder_sigma=round(l_sigma, 4) if l_sigma is not None else None,
                 p_bar=round(p_bar, 4),
                 bar_reason=bar_reason,
+                calibration_correction=round(corr, 4),
                 required_odds=req_odds_out,
                 offered_odds=offered_odds,
                 edge=edge,
@@ -563,8 +605,8 @@ def process_fixture(
         max_ladder_sigma=max_ladder_sigma,
         k_price=k_price,
         unfitted=unfitted,
-        correction_for=lambda market, p: get_calibration_correction(
-            reliability, market, p
+        correction_for=lambda market, p, direction="": get_calibration_correction(
+            reliability, market, p, direction
         ),
     )
     rows.extend(derived_rows)

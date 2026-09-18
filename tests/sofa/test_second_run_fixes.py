@@ -30,7 +30,9 @@ def _run_driver(source: str, tmp_path: Path, env_extra: dict[str, str]) -> Path:
     out = tmp_path / "stdout.txt"
 
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(REPO / "src"), str(REPO / "scripts"), str(REPO)]
+    )
     env.pop("PYTHONUNBUFFERED", None)  # the fix must not depend on the incantation
     env.update(env_extra)
 
@@ -140,7 +142,9 @@ def test_f18_pipeline_prints_a_verdict_for_every_stage_not_only_failures(
     )
     err = tmp_path / "stderr.txt"
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(REPO / "src"), str(REPO / "scripts"), str(REPO)]
+    )
     env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
 
     with open(err, "wb") as handle:
@@ -210,7 +214,9 @@ def test_f13_every_stage_sees_the_same_non_empty_run_id_and_it_differs_per_run(
         encoding="utf-8",
     )
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(REPO / "src"), str(REPO / "scripts"), str(REPO)]
+    )
     env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
     # A stale id in the environment is exactly what setdefault used to honour.
     env["SOFA_RUN_ID"] = "stale-from-shell"
@@ -255,7 +261,9 @@ def test_f13_run_id_option_is_honoured_and_reaches_the_summary(tmp_path: Path) -
         encoding="utf-8",
     )
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(REPO / "src"), str(REPO / "scripts"), str(REPO)]
+    )
     env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
 
     proc = subprocess.run(
@@ -564,7 +572,9 @@ def test_f15_a_raising_stage_does_not_stop_the_stages_after_it(
         encoding="utf-8",
     )
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(REPO / "src"), str(REPO / "scripts"), str(REPO)]
+    )
     env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
 
     proc = subprocess.run(
@@ -660,7 +670,9 @@ def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
         encoding="utf-8",
     )
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(REPO / "src"), str(REPO / "scripts"), str(REPO)]
+    )
     env["SOFA_RUNS_DIR"] = str(runs)
     env["SOFA_DB_PATH"] = str(tmp_path / "t.db")
 

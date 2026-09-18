@@ -175,11 +175,22 @@ def check_arithmetic(
             if reason == "none":
                 n = row["sample_size"]
                 w = n / (n + K_PRICE)
-                expect = w * row["p_central"] + (1 - w) * row["market_p"]
+                # The calibration correction is subtracted from p_central
+                # before the blend, so the row publishes it (F48). While the
+                # correction was dead code this term was always zero and the
+                # identity happened to hold without it; the first day it fired
+                # the audit reported two arithmetic failures on rows whose
+                # arithmetic was correct.
+                corrected = max(
+                    0.01, row["p_central"] - max(0.0, src.get(
+                        "calibration_correction", 0.0
+                    ) or 0.0)
+                )
+                expect = w * corrected + (1 - w) * row["market_p"]
                 if abs(expect - p_bar) > TOL:
                     findings.append(
                         f"ARITHMETIC [{label}]: p_bar {p_bar:.4f} != "
-                        f"w*p_central + (1-w)*market_p = {expect:.4f} "
+                        f"w*(p_central-correction) + (1-w)*market_p = {expect:.4f} "
                         f"(n={n}, w={w:.3f})"
                     )
 

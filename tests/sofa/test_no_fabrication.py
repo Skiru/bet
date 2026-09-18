@@ -53,7 +53,23 @@ def test_t11_no_fabrication():
 
             # A key absent from the payload must produce STAT_KEY_ABSENT,
             # never a fabricated 0.0.
-            is_present = "ALL" in flat and sofascore_key in flat["ALL"]
+            #
+            # Presence is asked of the period the metric declares, not always
+            # "ALL" (F43), and of every underlying key for a metric that is a
+            # sum of two (F45) — half of "aces + double faults" is not a
+            # smaller version of the market, it is a different number.
+            period = metrics[metric].get("period", "ALL")
+            underlying = (
+                ["aces", "doubleFaults"]
+                if sofascore_key == "aces_plus_double_faults"
+                else [sofascore_key]
+            )
+
+            if period not in flat:
+                assert val == GapReason.NO_STATISTICS
+                continue
+
+            is_present = all(key in flat[period] for key in underlying)
 
             if not is_present:
                 assert val == GapReason.STAT_KEY_ABSENT

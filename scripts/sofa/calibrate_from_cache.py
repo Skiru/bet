@@ -50,6 +50,7 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.engine import (
     calc_p_central_raw,
     outside_model_resolution,
+    support_floor_for,
     predictive_sd,
     uses_poisson_floor,
     winning_boundary,
@@ -96,9 +97,53 @@ def market_name(base: str, suffix: str) -> str:
     return MARKET_NAME_OVERRIDES.get((base, suffix), f"{base}_{suffix}")
 
 
+# The fallback, used only when nothing has been fitted yet. The shipped value
+# is read from config/sofa_engine_constants.json — see k_centre_for.
 K_CENTRE = 10.0
 SAMPLE_N = 10
 MIN_SAMPLE = 8
+
+
+def k_centre_for(sport: str, constants: dict[str, Any] | None = None) -> float:
+    """The K_CENTRE this sport actually ships with.
+
+    This module's docstring promises it mirrors run_sheet "exactly so that what
+    is measured is what ships", and until 2026-09-18 it did not: run_sheet read
+    the fitted constant while this replayed every row at a hardcoded 10.0. The
+    gap became material the moment K was fitted per sport — football ships 25
+    and tennis 2 — so the reliability curve was describing a model nobody runs
+    (F47, the same family as the two naming breaks this file already records).
+
+    Order matters: the K fit itself recomputes the centre for every K on the
+    grid from (sample_mean, sample_size, prior) and never reads the stored
+    p_central, so it is unaffected by this. Only the reliability curve is, and
+    it is fitted from these rows. Run calibrate -> fit_constants; if K moves,
+    run the pair again so the curve describes the new K.
+    """
+    if constants is None:
+        constants = _load_engine_constants()
+    entry = constants.get("K_CENTRE")
+    if isinstance(entry, dict):
+        by_sport = entry.get("by_sport")
+        if isinstance(by_sport, dict):
+            value = by_sport.get(sport)
+            if isinstance(value, int | float) and not isinstance(value, bool):
+                return float(value)
+        value = entry.get("value")
+        if isinstance(value, int | float) and not isinstance(value, bool):
+            return float(value)
+    return K_CENTRE
+
+
+def _load_engine_constants() -> dict[str, Any]:
+    path = Path("config/sofa_engine_constants.json")
+    if not path.exists():
+        return {}
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
 
 
 @dataclass(frozen=True)
@@ -262,6 +307,8 @@ class SettledRow:
 
 
 def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
+    # Read once: the constant is per sport and must be the one that ships.
+    engine_constants = _load_engine_constants()
     # team -> base -> chronological list of (timestamp, own value, total value)
     history: dict[tuple[int, str], list[tuple[int, float, float]]] = (
         collections.defaultdict(list)
@@ -279,7 +326,16 @@ def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
                 past = history[(team, base)]
                 if len(past) >= MIN_SAMPLE:
                     rows.extend(
-                        _settle_side(match, base, team, own, total, past, baselines)
+                        _settle_side(
+                            match,
+                            base,
+                            team,
+                            own,
+                            total,
+                            past,
+                            baselines,
+                            engine_constants,
+                        )
                     )
 
         # Only after settling: a match may never contribute to its own sample.
@@ -303,6 +359,7 @@ def _settle_side(
     total_value: float,
     past: list[tuple[int, float, float]],
     baselines: dict[str, Any],
+    engine_constants: dict[str, Any],
 ) -> list[SettledRow]:
     out: list[SettledRow] = []
     recent = past[-SAMPLE_N:]
@@ -321,7 +378,8 @@ def _settle_side(
 
         prior = prior_for(baselines, market, match.competition_id)
         if prior is not None:
-            weight = n / (n + K_CENTRE)
+            k_centre = k_centre_for(match.sport, engine_constants)
+            weight = n / (n + k_centre)
             centre = weight * mean + (1.0 - weight) * prior
         else:
             centre = mean
@@ -333,7 +391,9 @@ def _settle_side(
         for line in lines_for(centre):
             for direction in ("OVER", "UNDER"):
                 boundary = winning_boundary(line, direction)
-                p_raw = calc_p_central_raw(centre, spread, boundary, direction)
+                p_raw = calc_p_central_raw(
+                    centre, spread, boundary, direction, support_floor_for(market)
+                )
                 if outside_model_resolution(p_raw):
                     continue
                 # settle.py owns this vocabulary. Writing "WON"/"LOST" here

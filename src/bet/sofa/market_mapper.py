@@ -43,8 +43,35 @@ MATCH_MARKET_NAMES = {
     "1. polowa - liczba goli": "goals_1h_total",
     "2.polowa - liczba goli": "goals_2h_total",
     "2. polowa - liczba goli": "goals_2h_total",
+    # F43. Superbet writes the half with and without the space after the dot,
+    # and both forms appear on the same board, so both are keys — the same
+    # reason the goal lines above are doubled.
+    "1.polowa - liczba rzutow roznych": "corners_1h_total",
+    "1. polowa - liczba rzutow roznych": "corners_1h_total",
+    "2.polowa - liczba rzutow roznych": "corners_2h_total",
+    "2. polowa - liczba rzutow roznych": "corners_2h_total",
+    "1.polowa - liczba fauli": "fouls_1h_total",
+    "1. polowa - liczba fauli": "fouls_1h_total",
+    "1.polowa - liczba strzalow": "shots_1h_total",
+    "1. polowa - liczba strzalow": "shots_1h_total",
+    "1.polowa - liczba celnych strzalow": "shots_on_target_1h_total",
+    "1. polowa - liczba celnych strzalow": "shots_on_target_1h_total",
     "liczba asow": "aces_total",
     "liczba podwojnych bledow": "double_faults_total",
+    # F45. One quantity with one ladder, not an aces row plus a faults row.
+    "liczba asow + podwojnych bledow": "serve_points_total",
+    "1. set - liczba asow": "aces_set1_total",
+    "1.set - liczba asow": "aces_set1_total",
+    "2. set - liczba asow": "aces_set2_total",
+    "2.set - liczba asow": "aces_set2_total",
+    "1. set - liczba podwojnych bledow": "double_faults_set1_total",
+    "1.set - liczba podwojnych bledow": "double_faults_set1_total",
+    "2. set - liczba podwojnych bledow": "double_faults_set2_total",
+    "2.set - liczba podwojnych bledow": "double_faults_set2_total",
+    "1. set - liczba asow + podwojnych bledow": "serve_points_set1_total",
+    "1.set - liczba asow + podwojnych bledow": "serve_points_set1_total",
+    "2. set - liczba asow + podwojnych bledow": "serve_points_set2_total",
+    "2.set - liczba asow + podwojnych bledow": "serve_points_set2_total",
     "liczba gemow": "games_total",
     "liczba setow": "sets_total",
 }
@@ -57,6 +84,24 @@ TEAM_MARKET_PATTERNS = [
     # already existed in FOOTBALL_METRICS and had no way of being reached.
     (re.compile(r"^1\.\s?polowa - (?P<team>.+?) - liczba goli$"), "goals_1h_for"),
     (re.compile(r"^2\.\s?polowa - (?P<team>.+?) - liczba goli$"), "goals_2h_for"),
+    # F43. No dash before the metric on these — Superbet sends
+    # "1. polowa - Brentford liczba rzutow roznych". Same one-character trap
+    # that hid games_won_for for the life of the pipeline (F38), so the
+    # pattern is written against the strings the board actually carries.
+    (
+        re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba rzutow roznych$"),
+        "corners_1h_for",
+    ),
+    (
+        re.compile(r"^2\.\s?polowa - (?P<team>.+?) liczba rzutow roznych$"),
+        "corners_2h_for",
+    ),
+    (re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba fauli$"), "fouls_1h_for"),
+    (re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba strzalow$"), "shots_1h_for"),
+    (
+        re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba celnych strzalow$"),
+        "shots_on_target_1h_for",
+    ),
     (re.compile(r"^(?P<team>.+?) - liczba rzutow roznych$"), "corners_for"),
     (re.compile(r"^(?P<team>.+?) - liczba kartek$"), "cards_points_for"),
     (re.compile(r"^(?P<team>.+?) - liczba goli$"), "goals_for"),
@@ -64,8 +109,45 @@ TEAM_MARKET_PATTERNS = [
     (re.compile(r"^liczba strzalow (?P<team>.+?)$"), "shots_for"),
     (re.compile(r"^liczba fauli - (?P<team>.+?)$"), "fouls_for"),
     (re.compile(r"^spalone - (?P<team>.+?)$"), "offsides_for"),
+    # F45. Set-scoped serve markets, before the generic ones below — the
+    # unscoped pattern happily reads "1. set - Ben Shelton" as the player.
+    # Superbet uses a dash before "liczba podwojnych bledow" and none before
+    # "liczba asow", on the same screen, so both shapes are written out.
+    (
+        re.compile(
+            r"^1\.\s?set - (?P<team>.+?) -? ?liczba asow \+ podwojnych bledow$"
+        ),
+        "serve_points_set1_for",
+    ),
+    (
+        re.compile(
+            r"^2\.\s?set - (?P<team>.+?) -? ?liczba asow \+ podwojnych bledow$"
+        ),
+        "serve_points_set2_for",
+    ),
+    (
+        re.compile(r"^1\.\s?set - (?P<team>.+?) -? ?liczba asow$"),
+        "aces_set1_for",
+    ),
+    (
+        re.compile(r"^2\.\s?set - (?P<team>.+?) -? ?liczba asow$"),
+        "aces_set2_for",
+    ),
+    (
+        re.compile(r"^1\.\s?set - (?P<team>.+?) -? ?liczba podwojnych bledow$"),
+        "double_faults_set1_for",
+    ),
+    (
+        re.compile(r"^2\.\s?set - (?P<team>.+?) -? ?liczba podwojnych bledow$"),
+        "double_faults_set2_for",
+    ),
+    (
+        re.compile(r"^(?P<team>.+?) -? ?liczba asow \+ podwojnych bledow$"),
+        "serve_points_for",
+    ),
     (re.compile(r"^(?P<team>.+?) liczba asow$"), "aces_for"),
     (re.compile(r"^(?P<team>.+?) liczba podwojnych bledow$"), "double_faults_for"),
+    (re.compile(r"^(?P<team>.+?) - liczba podwojnych bledow$"), "double_faults_for"),
     # No dash. Superbet sends "Adrian Andreev liczba gemow", not
     # "Adrian Andreev - liczba gemow", so the dashed pattern matched nothing
     # and games_won_for — a declared metric with a working extractor — was
@@ -87,6 +169,26 @@ def get_mechanism_family(market: str) -> str:
         return get_mechanism_family(
             DERIVED_BASE_TO_SIDE_METRIC.get(base, f"{base}_for")
         )
+
+    # F43. A half is a scope, not a mechanism: the corners of the first half
+    # and the corners of the match are one fact about one match, so they share
+    # a family and MAX_PER_MECHANISM_FAMILY_PER_FIXTURE gives the slot to
+    # whichever expresses the claim better. Falling through to "other" would
+    # have let both onto a coupon as independent evidence — the failure the
+    # derived-market branch above exists to prevent.
+    # F43/F45. A half and a set are *scopes*, not mechanisms: first-set aces
+    # and match aces are one fact about one match, so they share a family and
+    # MAX_PER_MECHANISM_FAMILY_PER_FIXTURE gives the slot to one of them.
+    # Falling through to "other" would put both on a coupon as independent
+    # evidence — the failure the derived branch above exists to prevent.
+    scope_stripped = market
+    for scope in ("_1h_", "_2h_", "_set1_", "_set2_"):
+        scope_stripped = scope_stripped.replace(scope, "_")
+    for suffix in ("_1h", "_2h", "_set1", "_set2"):
+        if scope_stripped.endswith(suffix):
+            scope_stripped = scope_stripped[: -len(suffix)]
+    if scope_stripped != market:
+        return get_mechanism_family(scope_stripped)
 
     if market in (
         "goals_total",
@@ -120,7 +222,17 @@ def get_mechanism_family(market: str) -> str:
         return "discipline"
     if market in ("games_total", "games_won_for", "sets_total", "tiebreaks_total"):
         return "tennis_length"
-    if market in ("aces_total", "aces_for", "double_faults_total", "double_faults_for"):
+    if market in (
+        "aces_total",
+        "aces_for",
+        "double_faults_total",
+        "double_faults_for",
+        # F45. Aces + double faults is the same mechanism said a third way:
+        # what happened on serve. It must not win a second slot on a fixture
+        # that already has an aces or a faults row.
+        "serve_points_total",
+        "serve_points_for",
+    ):
         return "tennis_serve"
     return "other"
 
@@ -193,6 +305,12 @@ _DERIVED_METRIC_NAMES = {
     "goli": "goals",
     "gola": "goals",
     "gemow": "games",
+    # F45. Longest-key-first matching in _derived_metric means
+    # "asow + podwojnych bledow" beats both "asow" and "podwojnych bledow".
+    "asow + podwojnych bledow": "serve_points",
+    "asow serwisowych": "aces",
+    "asow": "aces",
+    "podwojnych bledow": "double_faults",
 }
 
 # "Każda z drużyn powyżej X rzutów rożnych" -> both_over_corners.
@@ -205,6 +323,14 @@ _BTTS_LINE = re.compile(r"^obie druzyny strzela powyzej (?P<line>[\d.]+) gola$")
 
 # "Najwięcej kartek", and the corner version Superbet calls a head-to-head.
 _MOST = re.compile(r"^najwiecej (?P<metric>.+)$")
+# F45. Superbet also scopes the who-takes-more question to a set or a half:
+# "1. set - najwiecej asow", "1. polowa - najwiecej rzutow roznych". The scope
+# is captured so it can be carried onto the metric name, because
+# "most aces in set 1" and "most aces in the match" are different questions
+# with different samples.
+_MOST_SCOPED = re.compile(
+    r"^(?P<scope>[12])\.\s?(?P<unit>set|polowa) - najwiecej (?P<metric>.+)$"
+)
 _MOST_H2H = re.compile(r"^liczba (?P<metric>.+) - h2h$")
 
 # "Rzuty rożne handicap", "Liczba kartek - handicap", "Handicap gemy".
@@ -230,6 +356,24 @@ _HANDICAP_SELECTION = re.compile(r"^(?P<team>.+?)\s*\((?P<line>[+-]?[\d.]+)\)\s*
 _DRAW_TOKENS = {"remis", "x"}
 
 DERIVED_DRAW_SUBJECT = "__draw__"
+
+
+def _scope_metric(side_metric: str, scope: str) -> str | None:
+    """`aces_for` + `set1` -> `aces_set1`, if that metric actually exists.
+
+    Returns None when the scoped metric is not declared, so a scoped market we
+    cannot sample stays in unmapped_markets and is visible there, rather than
+    becoming a row with no sample behind it.
+    """
+    from bet.sofa.metrics import FOOTBALL_METRICS, TENNIS_METRICS
+
+    if not side_metric.endswith("_for"):
+        return None
+    stem = side_metric[: -len("_for")]
+    candidate = f"{stem}_{scope}"
+    if f"{candidate}_for" in TENNIS_METRICS or f"{candidate}_for" in FOOTBALL_METRICS:
+        return candidate
+    return None
 
 
 def _derived_metric(raw: str) -> str | None:
@@ -298,6 +442,25 @@ def classify_derived_market(
             return None
         return ("both_over_goals", "", float(match.group("line")), direction)
 
+    scoped = _MOST_SCOPED.match(folded)
+    if scoped:
+        metric = _derived_metric(scoped.group("metric"))
+        if metric is None:
+            return None
+        side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(metric, f"{metric}_for")
+        n = scoped.group("scope")
+        # The declared names are `aces_set1_for` and `corners_1h_for`: the
+        # scope sits after the stem in both, but tennis writes "set1" and
+        # football writes "1h".
+        scope = f"set{n}" if scoped.group("unit") == "set" else f"{n}h"
+        scoped_metric = _scope_metric(side_metric, scope)
+        if scoped_metric is None:
+            return None
+        subject = DERIVED_DRAW_SUBJECT if selection in _DRAW_TOKENS else selection
+        if _SUBJECT_IS_COMBINATION.search(subject):
+            return None
+        return (f"most_{scoped_metric}", subject, 0.0, "OVER")
+
     match = _MOST.match(folded) or _MOST_H2H.match(folded)
     if match:
         metric = _derived_metric(match.group("metric"))
@@ -344,6 +507,9 @@ DERIVED_BASE_TO_SIDE_METRIC = {
     "offsides": "offsides_for",
     "goals": "goals_for",
     "games": "games_won_for",
+    "aces": "aces_for",
+    "double_faults": "double_faults_for",
+    "serve_points": "serve_points_for",
 }
 
 

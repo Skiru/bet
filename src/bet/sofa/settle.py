@@ -22,6 +22,7 @@ from bet.sofa.engine import (
     calc_p_central_raw,
     calculate_p_low,
     outside_model_resolution,
+    support_floor_for,
     p_empirical_raw,
     predictive_sd,
     uses_empirical_frequency,
@@ -270,7 +271,9 @@ def settle_metric(
             if uses_empirical_frequency(metric):
                 p_raw = p_empirical_raw(hits, n)
             else:
-                p_raw = calc_p_central_raw(centre, pred_sd, boundary, direction)
+                p_raw = calc_p_central_raw(
+                    centre, pred_sd, boundary, direction, support_floor_for(metric)
+                )
 
             # F35: the same refusal as SHEET. If the backtest kept scoring the
             # rungs the sheet will no longer produce, it would be measuring a

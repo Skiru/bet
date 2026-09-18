@@ -62,6 +62,83 @@ FOOTBALL_METRICS = {
     "shots_on_target_for": {"sofascore": "shotsOnGoal", "is_total": False},
     "xg_total": {"sofascore": "expectedGoals", "is_total": True},
     "xg_for": {"sofascore": "expectedGoals", "is_total": False},
+    # Per-half counting metrics (F43). Sofascore keys /statistics by period —
+    # "1ST", "2ND", "ALL" — and the flattener has always preserved that, but
+    # extract_metric read `flat_stats["ALL"]` unconditionally, so the only
+    # per-half metrics that existed were the three goal pairs, which come from
+    # the listing score and never touch /statistics. Live-verified on
+    # 2026-09-18 against event 16950627: cornerKicks ALL=(5,7), 1ST=(2,2),
+    # 2ND=(3,5); fouls, offsides, shots and shots on target likewise.
+    #
+    # Superbet prices these: "1. polowa - liczba rzutow roznych" appeared on
+    # 92 fixtures of the 2026-09-18 board and its per-team form on ~100 more,
+    # every one of them landing in unmapped_markets.
+    #
+    # Cards are deliberately absent from this block. cards_points comes from
+    # /incidents, not /statistics, and scoping it to a half means deciding
+    # what a second-yellow dismissal is worth when the first yellow was in the
+    # other half. That is a real modelling question, not a period key, and
+    # guessing it would fabricate the number this pipeline exists to refuse.
+    "corners_1h_total": {
+        "sofascore": "cornerKicks",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "corners_1h_for": {
+        "sofascore": "cornerKicks",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "corners_2h_total": {
+        "sofascore": "cornerKicks",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "corners_2h_for": {
+        "sofascore": "cornerKicks",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "fouls_1h_total": {
+        "sofascore": "fouls",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "fouls_1h_for": {
+        "sofascore": "fouls",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "shots_1h_total": {
+        "sofascore": "totalShotsOnGoal",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "shots_1h_for": {
+        "sofascore": "totalShotsOnGoal",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "shots_on_target_1h_total": {
+        "sofascore": "shotsOnGoal",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "shots_on_target_1h_for": {
+        "sofascore": "shotsOnGoal",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
 }
 
 TENNIS_METRICS = {
@@ -73,6 +150,64 @@ TENNIS_METRICS = {
     "double_faults_total": {"sofascore": "doubleFaults", "is_total": True},
     "double_faults_for": {"sofascore": "doubleFaults", "is_total": False},
     "tiebreaks_total": {"sofascore": "tiebreaks", "is_total": True},
+    # F45 — the serve markets Superbet prices and this pipeline could not read.
+    #
+    # "Liczba asow + podwojnych bledow" is a market in its own right, match and
+    # per player, and it is NOT the sum of an aces row and a double-faults row:
+    # those are two separate claims with two separate ladders, while this is one
+    # quantity with one. Summing the two metrics per observation is the only way
+    # to get its sample.
+    "serve_points_total": {"sofascore": "aces_plus_double_faults", "is_total": True},
+    "serve_points_for": {"sofascore": "aces_plus_double_faults", "is_total": False},
+    # Per set. Sofascore keys /statistics by set for every serve statistic —
+    # 1,291 of the 1,992 cached tennis events carry both "1ST" and "2ND", and
+    # 434 reach "3RD". No `period_complement` is declared on purpose: sets do
+    # not partition a match the way halves do, so the 1ST + 2ND == ALL check
+    # that guards the football metrics would refuse every three-set match.
+    "aces_set1_total": {"sofascore": "aces", "is_total": True, "period": "1ST"},
+    "aces_set1_for": {"sofascore": "aces", "is_total": False, "period": "1ST"},
+    "aces_set2_total": {"sofascore": "aces", "is_total": True, "period": "2ND"},
+    "aces_set2_for": {"sofascore": "aces", "is_total": False, "period": "2ND"},
+    "double_faults_set1_total": {
+        "sofascore": "doubleFaults",
+        "is_total": True,
+        "period": "1ST",
+    },
+    "double_faults_set1_for": {
+        "sofascore": "doubleFaults",
+        "is_total": False,
+        "period": "1ST",
+    },
+    "double_faults_set2_total": {
+        "sofascore": "doubleFaults",
+        "is_total": True,
+        "period": "2ND",
+    },
+    "double_faults_set2_for": {
+        "sofascore": "doubleFaults",
+        "is_total": False,
+        "period": "2ND",
+    },
+    "serve_points_set1_total": {
+        "sofascore": "aces_plus_double_faults",
+        "is_total": True,
+        "period": "1ST",
+    },
+    "serve_points_set1_for": {
+        "sofascore": "aces_plus_double_faults",
+        "is_total": False,
+        "period": "1ST",
+    },
+    "serve_points_set2_total": {
+        "sofascore": "aces_plus_double_faults",
+        "is_total": True,
+        "period": "2ND",
+    },
+    "serve_points_set2_for": {
+        "sofascore": "aces_plus_double_faults",
+        "is_total": False,
+        "period": "2ND",
+    },
 }
 
 
@@ -412,6 +547,32 @@ def extract_metric(
         h, a = pts
         return float(h + a) if is_total else float(h if is_home else a)
 
+    if sofascore_key == "gamesWon":
+        # F46. `gamesWon` is missing from /statistics on **689 of the 1,992**
+        # cached tennis events — 35% — while the set scores that define it sit
+        # in the listing on every one of them. The old code read the statistic
+        # or nothing, so a third of every games sample was burnt on slots that
+        # produced no observation and were never refilled.
+        #
+        # The listing is not a second-best source here, it is the *same*
+        # number: check_internal_consistency has always asserted
+        # sum(period1..5) == gamesWon and refuses the event when they disagree,
+        # so this branch is the quantity that invariant validates. Prefer the
+        # statistic when present, so nothing that worked before changes.
+        stats_all = flat_stats.get("ALL", {})
+        if "gamesWon" in stats_all:
+            h, a = stats_all["gamesWon"]
+        else:
+            home_score = listing_event.get("homeScore", {})
+            away_score = listing_event.get("awayScore", {})
+            set_keys = [f"period{i}" for i in range(1, 6)]
+            played = [k for k in set_keys if k in home_score and k in away_score]
+            if not played:
+                return GapReason.STAT_KEY_ABSENT
+            h = float(sum(home_score[k] for k in played))
+            a = float(sum(away_score[k] for k in played))
+        return float(h + a) if is_total else float(h if is_home else a)
+
     if sofascore_key == "sets_from_listing":
         # Both players contest the same sets, so "sets played" is the count of
         # period keys either score carries — not a per-side figure.
@@ -426,13 +587,62 @@ def extract_metric(
     if sofascore_key == "expectedGoals" and not listing_event.get("hasXg", False):
         return GapReason.STAT_KEY_ABSENT
 
-    # Default stats lookup
-    if "ALL" not in flat_stats:
+    # Default stats lookup, in the period the metric declares. "ALL" for
+    # everything that does not say otherwise, which is how it always behaved.
+    period = str(config.get("period", "ALL"))
+
+    if sofascore_key == "aces_plus_double_faults":
+        if period not in flat_stats:
+            return GapReason.NO_STATISTICS
+        bucket = flat_stats[period]
+        # Both halves of the sum, or none of it. Defaulting the missing one to
+        # zero would invent a serve statistic (L1/L2), and it would do it in
+        # the direction that makes UNDER look good.
+        if "aces" not in bucket or "doubleFaults" not in bucket:
+            return GapReason.STAT_KEY_ABSENT
+        ace_h, ace_a = bucket["aces"]
+        df_h, df_a = bucket["doubleFaults"]
+        h, a = ace_h + df_h, ace_a + df_a
+        return float(h + a) if is_total else float(h if is_home else a)
+    if period not in flat_stats:
+        # A half nobody reported is missing data, not a nil first half.
         return GapReason.NO_STATISTICS
 
-    stats = flat_stats["ALL"]
+    stats = flat_stats[period]
     if sofascore_key not in stats:
         return GapReason.STAT_KEY_ABSENT
+
+    if period != "ALL":
+        # The halves must add up to the match. Sofascore mostly agrees with
+        # itself — measured across 2,174 cached events carrying all three
+        # periods, 1ST + 2ND == ALL held for 1757/1766 corner sides, 1746/1766
+        # total shots, 1731/1742 fouls, 1735/1766 shots on target, 1693/1710
+        # yellow cards, 1657/1680 offsides — but on 1-2% it does not, and
+        # there is no way to tell which of the two figures is the wrong one.
+        #
+        # Refuse that single observation rather than the event: the same
+        # match's ALL-period metrics are unaffected and keep their sample.
+        # This is the per-statistic twin of the period1 + period2 ==
+        # normaltime check in check_internal_consistency, which has guarded
+        # the *score* since before any per-half statistic existed.
+        # Only when the declared periods actually partition the match.
+        # Football's two halves do. Tennis sets do NOT: set 1 + set 2 is the
+        # whole match only when the match went two sets, so applying this to
+        # aces_set1 would refuse every three-set match — 434 of the 1,992
+        # cached tennis events reach a third set. A metric that cannot name
+        # its complement is not checked.
+        complement = config.get("period_complement")
+        whole = flat_stats.get("ALL", {}).get(sofascore_key)
+        other = (
+            flat_stats.get(str(complement), {}).get(sofascore_key)
+            if complement
+            else None
+        )
+        if whole is not None and other is not None:
+            this = stats[sofascore_key]
+            for side in (0, 1):
+                if abs(whole[side] - (this[side] + other[side])) > 1e-9:
+                    return GapReason.INTERNAL_INCONSISTENT
 
     h, a = stats[sofascore_key]
     return float(h + a) if is_total else float(h if is_home else a)
