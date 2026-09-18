@@ -17,6 +17,19 @@ DIACRITICS_FOLD = {
 _ALIASES_CACHE: dict[str, str] = {}
 _ALIASES_LOADED = False
 
+# Every spelling of "this is the women's team" either source uses, collapsed to
+# one. Anchored at the end because it is a suffix; "Women's United" is a club
+# name, not a marker.
+_GENDER_MARKER = re.compile(
+    r"\s*(?:\((?:k|w|f)\)|\bkobiety\b|\bwomen\b|\bfemale\b)\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_womens_name(name: str) -> bool:
+    """True when the normalised name carries the women's marker."""
+    return normalize_name(name).endswith("(w)")
+
 
 def get_aliases() -> dict[str, str]:
     global _ALIASES_LOADED
@@ -47,10 +60,21 @@ def normalize_name(name: str) -> str:
 
     name = name.lower()
 
-    # 3. Polish team/country names & specific suffixes
-    # " (k)" -> " w"
-    # " u20" -> " u20" etc (already standard, but ensure we don't mess it up)
-    name = name.replace(" (k)", " w")
+    # 3. Gender marker — normalised to one form, "(w)", and KEPT.
+    #
+    # It used to map " (k)" to " w", dropping the brackets, while Superbet's
+    # English "(w)" kept them. So "Millonarios (K)" became "millonarios w" and
+    # Sofascore's own "Arsenal (W)" became "arsenal (w)": two strings that can
+    # never be equal, and 47 of the 54 marked names on the board went to
+    # sofa_entity_miss. Resolution for women's football fell from the slate's
+    # ~78% to 13% (F16).
+    #
+    # The marker stays in the name, and therefore in the cache key, on purpose.
+    # A women's side and a men's side of the same club are two different teams
+    # with one name; keeping the marker is what stops them sharing an entity
+    # even when their kickoffs agree, which is the residual risk F25 leaves
+    # open.
+    name = _GENDER_MARKER.sub(" (w)", name)
 
     aliases = get_aliases()
 

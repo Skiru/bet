@@ -1029,3 +1029,63 @@ def test_f25_gender_is_read_from_the_competition_not_the_team_name() -> None:
     assert superbet_gender("Millonarios (K)") == "W"
     assert superbet_gender("Arsenal (W)") == "W"
     assert superbet_gender("Arsenal") == "M"
+
+
+# --------------------------------------------------------------------------
+# F16 — Superbet's (K) and Sofascore's (W) could never be equal
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "polish",
+    ["Millonarios (K)", "LD Alajuelense (K)", "Azzurri United FC (K)", "Moravia (K)"],
+)
+def test_f16_polish_and_english_gender_markers_produce_one_key(polish: str) -> None:
+    """Fails on the old code for the right reason: " (k)" became " w" without
+    brackets while "(W)" kept them, so the keys could never be equal — 47 of
+    the 54 marked names on the board went to sofa_entity_miss."""
+    from bet.sofa.names import normalize_name
+
+    english = polish.replace("(K)", "(W)")
+    assert normalize_name(polish) == normalize_name(english)
+    assert normalize_name(polish).endswith(" (w)")
+
+
+@pytest.mark.parametrize(
+    ("womens", "mens"),
+    [
+        ("Millonarios (K)", "Millonarios"),
+        ("Arsenal (W)", "Arsenal"),
+        ("Chelsea Women", "Chelsea"),
+        ("HJK Helsinki Kobiety", "HJK Helsinki"),
+    ],
+)
+def test_f16_a_womens_team_never_shares_a_key_with_the_mens_team(
+    womens: str, mens: str
+) -> None:
+    """The marker stays in the key on purpose: two teams, one club name.
+
+    This is what closes the residual risk F25 leaves — a men's and a women's
+    side cannot share a cached entity even if their kickoffs agree.
+    """
+    from bet.sofa.names import normalize_name
+
+    assert normalize_name(womens) != normalize_name(mens)
+
+
+def test_f16_every_marker_spelling_collapses_to_the_same_form() -> None:
+    from bet.sofa.names import is_womens_name, normalize_name
+
+    forms = ["Arsenal (K)", "Arsenal (W)", "Arsenal (F)", "Arsenal Women", "Arsenal Kobiety"]
+    assert {normalize_name(f) for f in forms} == {"arsenal (w)"}
+    assert all(is_womens_name(f) for f in forms)
+    assert not is_womens_name("Arsenal")
+
+
+def test_f16_the_marker_does_not_eat_a_club_whose_name_contains_the_word() -> None:
+    """Anchored at the end because it is a suffix, not a word to hunt for."""
+    from bet.sofa.names import normalize_name
+
+    assert normalize_name("Women's United FC") == "women's united fc"
+    # And the reserves marker still works next to it.
+    assert normalize_name("Boca Juniors II") == "boca juniors (r)"
