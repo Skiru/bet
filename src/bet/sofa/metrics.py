@@ -2,6 +2,27 @@ from typing import Any
 
 from bet.sofa.contracts import GapReason
 
+# Finished after extra time (110 = AET) or penalties (120 = AP). 366 such
+# matches sat in the cache, all rejected. Rejecting them is *right* for the
+# counting metrics — a 120-minute match has a third more corners, cards and
+# fouls, and letting it into the sample shifts the mean up, which is the F28
+# error with the sign flipped. But the goals are recoverable, because Sofascore
+# records the 90-minute score separately in homeScore.normaltime, and 90
+# minutes is what Superbet's goal markets settle on.
+#
+# So these events are admitted to the sample and refused per metric in
+# extract_metric: goals read normaltime, everything else gets
+# EVENT_NOT_FINISHED.
+EXTRA_TIME_STATUS_CODES = frozenset({110, 120})
+
+
+def is_extra_time_event(event: dict[str, Any]) -> bool:
+    status = event.get("status")
+    if not isinstance(status, dict):
+        return False
+    return status.get("code") in EXTRA_TIME_STATUS_CODES
+
+
 FOOTBALL_METRICS = {
     "goals_total": {"sofascore": "goals_from_listing", "is_total": True},
     "goals_for": {"sofascore": "goals_from_listing", "is_total": False},
@@ -337,9 +358,22 @@ def extract_metric(
     sofascore_key = config["sofascore"]
     is_total = config["is_total"]
 
+    # A match that went to extra time or penalties lasted 120 minutes, so its
+    # corners, cards, fouls and shots describe a different game and must not
+    # join a 90-minute sample. Its *goals* are recoverable: Sofascore records
+    # the 90-minute score in homeScore.normaltime, which is what Superbet's
+    # goal markets settle on. Admitted in the sample, refused here.
+    if is_extra_time_event(listing_event) and not str(sofascore_key).startswith(
+        "goals"
+    ):
+        return GapReason.EVENT_NOT_FINISHED
+
     if sofascore_key == "goals_from_listing":
-        h = listing_event.get("homeScore", {}).get("current")
-        a = listing_event.get("awayScore", {}).get("current")
+        # normaltime for an extra-time match, current otherwise. A 2-1 after
+        # extra time that was 1-1 at 90 minutes contributes 2, not 3.
+        field = "normaltime" if is_extra_time_event(listing_event) else "current"
+        h = listing_event.get("homeScore", {}).get(field)
+        a = listing_event.get("awayScore", {}).get(field)
         if h is None or a is None:
             return GapReason.STAT_KEY_ABSENT
         return float(h + a) if is_total else float(h if is_home else a)

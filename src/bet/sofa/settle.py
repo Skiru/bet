@@ -28,6 +28,7 @@ from bet.sofa.engine import (
     winning_boundary,
 )
 from bet.sofa.metrics import (
+    EXTRA_TIME_STATUS_CODES,
     check_identities,
     extract_flat_statistics,
     extract_metric,
@@ -78,7 +79,11 @@ def is_completed_event(event: dict[str, Any]) -> bool:
         # A finished event without a code: accept, since `type == "finished"`
         # is the contract the rest of the pipeline already relies on.
         return True
-    return bool(code == NORMAL_FINISH_STATUS_CODE)
+    if code == NORMAL_FINISH_STATUS_CODE:
+        return True
+    # Extra time and penalties: admitted so their goals can be recovered from
+    # normaltime, and refused metric by metric in extract_metric.
+    return bool(code in EXTRA_TIME_STATUS_CODES)
 
 
 @dataclass(frozen=True)

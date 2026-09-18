@@ -2055,3 +2055,84 @@ def test_f31_one_family_per_fixture_still_holds() -> None:
     )
     assert len(result.coupon.singles) == 1
     assert "FAMILY_SLOT_TAKEN" in [d.reason for d in result.dropped]
+
+
+# --------------------------------------------------------------------------
+# AET/AP — operator decision: recover the goals, keep refusing the counts
+# --------------------------------------------------------------------------
+
+
+def _aet_event(code: int = 110):  # type: ignore[no-untyped-def]
+    """A match level at 1-1 after 90 minutes, won 2-1 in extra time."""
+    return {
+        "id": 1,
+        "status": {"type": "finished", "code": code},
+        "homeScore": {"current": 2, "normaltime": 1},
+        "awayScore": {"current": 1, "normaltime": 1},
+    }
+
+
+@pytest.mark.parametrize("code", [110, 120])
+def test_aet_goals_come_from_normaltime_not_the_final_score(code: int) -> None:
+    """Fails on the old code for the right reason: the match was excluded
+    entirely, so it contributed nothing to any metric."""
+    from bet.sofa.metrics import extract_metric
+
+    event = _aet_event(code)
+    assert extract_metric("goals_total", "football", {}, None, event, True) == 2.0, (
+        "90 minutes is what Superbet's goal markets settle on, so 2 not 3"
+    )
+    assert extract_metric("goals_for", "football", {}, None, event, True) == 1.0
+
+
+def test_aet_counting_metrics_are_still_refused() -> None:
+    """A 120-minute match has a third more corners; admitting it would be the
+    F28 error with the sign flipped."""
+    from bet.sofa.contracts import GapReason
+    from bet.sofa.metrics import extract_metric
+
+    event = _aet_event()
+    stats = {"ALL": {"cornerKicks": (7.0, 6.0), "fouls": (14.0, 12.0)}}
+    for metric in ("corners_total", "corners_for", "fouls_total"):
+        assert (
+            extract_metric(metric, "football", stats, None, event, True)
+            == GapReason.EVENT_NOT_FINISHED
+        ), metric
+
+
+def test_aet_without_normaltime_is_absent_not_wrong() -> None:
+    """49 of the 824 cached AET matches have no normaltime; they must report
+    absence rather than fall back to the 120-minute score."""
+    from bet.sofa.contracts import GapReason
+    from bet.sofa.metrics import extract_metric
+
+    event = _aet_event()
+    del event["homeScore"]["normaltime"]
+    assert (
+        extract_metric("goals_total", "football", {}, None, event, True)
+        == GapReason.STAT_KEY_ABSENT
+    )
+
+
+def test_a_normal_match_is_untouched_by_the_extra_time_path() -> None:
+    from bet.sofa.metrics import extract_metric
+
+    normal = {
+        "id": 2,
+        "status": {"type": "finished", "code": 100},
+        "homeScore": {"current": 3, "normaltime": 3},
+        "awayScore": {"current": 1, "normaltime": 1},
+    }
+    assert extract_metric("goals_total", "football", {}, None, normal, True) == 4.0
+    stats = {"ALL": {"cornerKicks": (7.0, 6.0)}}
+    assert extract_metric("corners_total", "football", stats, None, normal, True) == 13.0
+
+
+def test_a_retirement_or_walkover_is_still_excluded_entirely() -> None:
+    """Widening the admission must not let the real exclusions back in."""
+    from bet.sofa.settle import is_completed_event
+
+    for code in (91, 92, 93, 98):
+        assert not is_completed_event({"status": {"type": "finished", "code": code}})
+    assert is_completed_event({"status": {"type": "finished", "code": 100}})
+    assert is_completed_event({"status": {"type": "finished", "code": 110}})
