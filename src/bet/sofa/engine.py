@@ -12,12 +12,60 @@ def normal_cdf(x: float) -> float:
     return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
 
-def predictive_sd(variance: float, mean: float, n: int) -> float:
+# Metrics that are NOT counts of independent events. The Poisson variance floor
+# max(variance, mean) is a sensible guard against an over-tight sample of a
+# count; for these it is nonsense. Measured over all 30 metrics at n=10: the
+# floor never binds once for the 26 where it is justified — football and tennis
+# event counts are overdispersed, so max() never picks the mean — and binds hard
+# only where it makes no sense. sets_total's sd was inflated 3.34x, xg_total's
+# 1.53x (F30).
+NON_COUNT_METRICS = frozenset(
+    {
+        "sets_total",  # bounded: on BO3 it is 2 or 3, nothing else
+        "tiebreaks_total",
+        "xg_total",  # continuous, not a count
+        "xg_for",
+    }
+)
+
+# Metrics that take a handful of distinct values, where integrating a bell
+# curve is the wrong model no matter what its width is. Removing the floor
+# takes sets_total's error from +16.0 pp to +4.0 pp; the remaining 4 pp are the
+# normal CDF itself, applied to a variable with two bars and no shoulders.
+# For these the sample's own frequency above the winning boundary is the
+# honest estimator, and it is available for free — run_sheet and settle both
+# already count hits for the Laplace cap.
+EMPIRICAL_FREQUENCY_METRICS = frozenset({"sets_total"})
+
+
+def predictive_sd(
+    variance: float, mean: float, n: int, *, apply_poisson_floor: bool = True
+) -> float:
     if n == 0:
         raise ValueError("n must be greater than 0")
-    var_sample = max(variance, mean)
+    var_sample = max(variance, mean) if apply_poisson_floor else variance
     var_pred = var_sample * (1.0 + 1.0 / n)
     return math.sqrt(var_pred)
+
+
+def uses_poisson_floor(market: str) -> bool:
+    return market not in NON_COUNT_METRICS
+
+
+def uses_empirical_frequency(market: str) -> bool:
+    return market in EMPIRICAL_FREQUENCY_METRICS
+
+
+def p_empirical(hits: int, n: int) -> float:
+    """The sample's own frequency above the winning boundary.
+
+    For a variable with two possible values this is the estimator with the
+    right shape. It is clamped to the same [0.05, 0.95] band as calc_p_central,
+    so a sample of ten that happens to be unanimous does not claim certainty.
+    """
+    if n <= 0:
+        raise ValueError("n must be greater than 0")
+    return max(0.05, min(0.95, hits / n))
 
 
 def winning_boundary(line: float, direction: Direction) -> float:

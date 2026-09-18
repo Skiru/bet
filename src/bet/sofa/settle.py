@@ -21,7 +21,10 @@ from bet.sofa.engine import (
     bar_probability,
     calc_p_central,
     calculate_p_low,
+    p_empirical,
     predictive_sd,
+    uses_empirical_frequency,
+    uses_poisson_floor,
     winning_boundary,
 )
 from bet.sofa.metrics import (
@@ -239,7 +242,12 @@ def settle_metric(
     else:
         centre = mean
 
-    pred_sd = predictive_sd(variance, mean, n)
+    # The same estimator policy as run_sheet, from the same place: a backtest
+    # that measures a different estimator than the one that ships measures
+    # nothing (F30).
+    pred_sd = predictive_sd(
+        variance, mean, n, apply_poisson_floor=uses_poisson_floor(metric)
+    )
     settled_at = datetime.now(UTC).isoformat()
     competition_id = event.get("tournament", {}).get("uniqueTournament", {}).get("id")
 
@@ -247,12 +255,16 @@ def settle_metric(
     for line in line_grid(centre, sample_sd):
         for direction in ("OVER", "UNDER"):
             boundary = winning_boundary(line, direction)
-            p_central = calc_p_central(centre, pred_sd, boundary, direction)
             p_low = calculate_p_low(centre, sample_sd, n, boundary, direction)
             if direction == "OVER":
                 hits = sum(1 for v in sample_values if v > line)
             else:
                 hits = sum(1 for v in sample_values if v < line)
+
+            if uses_empirical_frequency(metric):
+                p_central = p_empirical(hits, n)
+            else:
+                p_central = calc_p_central(centre, pred_sd, boundary, direction)
 
             # No historical Superbet price exists, so there is nothing to shrink
             # toward: market_p is NULL backwards, by construction (A9).

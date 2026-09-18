@@ -1183,3 +1183,82 @@ def test_f28_a_payload_without_the_woodwork_key_keeps_the_exact_identity() -> No
     stats = _shot_stats((8.0, 8.0), (3.0, 3.0), (3.0, 3.0), (1.0, 1.0), (0.0, 0.0))
     del stats["ALL"]["hitWoodwork"]
     assert check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT
+
+
+# --------------------------------------------------------------------------
+# F30 — the Poisson floor, and the normal CDF, on a variable with two values
+# --------------------------------------------------------------------------
+
+
+def test_f30_the_poisson_floor_does_not_apply_to_sets_total() -> None:
+    """Fails on the old code for the right reason: predictive_sd returned 1.586
+    for a sample whose real sd is 0.475, inflating it 3.34x."""
+    import statistics
+
+    from bet.sofa.engine import predictive_sd
+
+    values = [2.0] * 626 + [3.0] * 252  # the finding's measured distribution
+    mean = statistics.mean(values)
+    variance = statistics.variance(values)
+
+    floored = predictive_sd(variance, mean, 10, apply_poisson_floor=True)
+    honest = predictive_sd(variance, mean, 10, apply_poisson_floor=False)
+    assert floored > 1.5, "this is the old behaviour, kept reachable on purpose"
+    assert honest < 0.5, f"sets_total sd must stay near the sample's own, got {honest}"
+    assert floored / honest > 3.0
+
+
+def test_f30_the_floor_still_applies_to_the_26_metrics_that_justify_it() -> None:
+    """It never binds for them anyway — counts are overdispersed — but removing
+    it wholesale would drop a real guard against an over-tight sample."""
+    from bet.sofa.engine import uses_poisson_floor
+
+    for market in ("goals_total", "corners_total", "cards_points_total", "fouls_total",
+                   "shots_total", "aces_total", "games_total", "offsides_total"):
+        assert uses_poisson_floor(market), market
+    for market in ("sets_total", "tiebreaks_total", "xg_total", "xg_for"):
+        assert not uses_poisson_floor(market), market
+
+
+def test_f30_sets_total_is_priced_from_the_samples_own_frequency() -> None:
+    """The remaining 4 pp are the normal CDF, not its width.
+
+    Integrating a bell curve over a variable with two bars is wrong whatever
+    sd you give it. Fails on the old code for the right reason: p_central for
+    OVER 2.5 came out 0.4466 against an empirical truth of 0.2870, so the model
+    accepted 2.46 where the honest bar is 3.83.
+    """
+    from bet.sofa.engine import p_empirical, uses_empirical_frequency
+
+    assert uses_empirical_frequency("sets_total")
+    assert not uses_empirical_frequency("goals_total")
+
+    # 252 of 878 matches went to a third set.
+    assert abs(p_empirical(252, 878) - 0.2870) < 0.001
+    # Required odds at a 10% margin: 3.83, not 2.46.
+    assert abs(1.10 / p_empirical(252, 878) - 3.83) < 0.01
+
+
+def test_f30_the_empirical_estimator_is_clamped_like_the_cdf() -> None:
+    """A unanimous sample of ten is not certainty."""
+    from bet.sofa.engine import p_empirical
+
+    assert p_empirical(10, 10) == 0.95
+    assert p_empirical(0, 10) == 0.05
+    assert p_empirical(3, 10) == 0.3
+
+
+def test_f30_sheet_and_settle_share_one_estimator_policy() -> None:
+    """A backtest measuring a different estimator than the one that ships
+    measures nothing. Both read the policy from engine.py."""
+    import inspect
+
+    from bet.sofa import settle
+
+    sys.path.insert(0, str(REPO / "scripts"))
+    from scripts.sofa import run_sheet
+
+    for module in (settle, run_sheet):
+        source = inspect.getsource(module)
+        assert "uses_poisson_floor" in source, module.__name__
+        assert "uses_empirical_frequency" in source, module.__name__

@@ -29,7 +29,10 @@ from bet.sofa.engine import (
     devig,
     get_required_odds,
     ladder_centre,
+    p_empirical,
     predictive_sd,
+    uses_empirical_frequency,
+    uses_poisson_floor,
     winning_boundary,
 )
 from bet.sofa.market_mapper import fold
@@ -326,7 +329,9 @@ def process_fixture(
         else:
             centre = mean
 
-        pred_sd = predictive_sd(variance, mean, n)
+        pred_sd = predictive_sd(
+            variance, mean, n, apply_poisson_floor=uses_poisson_floor(rung.market)
+        )
 
         for direction in ("OVER", "UNDER"):
             # A rung quoted on one side only still gets a row: the forecast is
@@ -335,7 +340,6 @@ def process_fixture(
             offered_odds = rung.over_odds if direction == "OVER" else rung.under_odds
 
             boundary = winning_boundary(rung.line, direction)
-            p_cent = calc_p_central(centre, pred_sd, boundary, direction)
 
             # Count hits against the *winning boundary*, not the raw line, so
             # a push is neither a hit nor a miss. Counting it as a hit is how a
@@ -345,6 +349,14 @@ def process_fixture(
                 hits = sum(1 for v in values if v > boundary)
             else:
                 hits = sum(1 for v in values if v < boundary)
+
+            # For a variable with two possible values the normal CDF is the
+            # wrong model whatever its width, so the sample's own frequency is
+            # what gets used (F30). Everything else keeps the CDF.
+            if uses_empirical_frequency(rung.market):
+                p_cent = p_empirical(hits, n)
+            else:
+                p_cent = calc_p_central(centre, pred_sd, boundary, direction)
 
             p_low_val = calculate_p_low(centre, sample_sd, n, boundary, direction)
 
