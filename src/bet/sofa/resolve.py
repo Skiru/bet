@@ -8,15 +8,51 @@ from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, RefereeRecord, Sport
-from bet.sofa.names import normalize_name
+from bet.sofa.names import levels_compatible, normalize_name
 
 logger = logging.getLogger(__name__)
 
 # Fuzzy threshold for the opponent's name (E4 step 6).
-NAME_MATCH_THRESHOLD = 85.0
+#
+# 82 with `name_score` below, not 85 with a bare `fuzz.ratio`. The pair was
+# measured together, on the 982 (board side -> Sofascore side) pairs of the
+# 2026-09-18 slate, against every other team name of the same sport that day
+# as the negative set — 496,058 comparisons:
+#
+#     fuzz.ratio            @85   recall 87.3%   11 false pairs (0.22 / 10k)
+#     name_score + level    @82   recall 97.1%   11 false pairs (0.22 / 10k)
+#     name_score + level    @85   recall 96.2%    6 false pairs (0.12 / 10k)
+#
+# (Both rows are measured through the shipped `normalize_name`, so the alias
+# table's contribution is in the baseline too; the 9.8 pp is the scorer and the
+# threshold alone.) So this is +9.8 pp of recall at exactly the false-positive
+# rate production already ran at. What the old threshold was actually
+# rejecting was club
+# affixes, because `fuzz.ratio` is whole-string: "lens" against "rc lens"
+# scores 72.7, "monaco" against "as monaco" 80.0. Two Ligue 1 and Bundesliga
+# fixtures — Monaco·Lens and Bayern Monachium·Union Berlin — were dropped from
+# the 2026-09-18 slate for exactly that, with the right event found, in
+# window, and refused on the name (F50).
+NAME_MATCH_THRESHOLD = 82.0
 # At or above this, the two names are the same string after folding, so the
-# identity is CONFIRMED rather than FUZZY.
+# identity is CONFIRMED rather than FUZZY. Compared on `fuzz.ratio` alone, and
+# deliberately: a token-set score of 100 means "one name's words are a subset
+# of the other's", which is a good reason to accept a match and no reason at
+# all to call the two strings equal. "Lens" is not the string "RC Lens".
 NAME_EXACT_THRESHOLD = 99.0
+
+
+def name_score(a: str, b: str) -> float:
+    """How alike two team names are, ignoring club affixes.
+
+    `fuzz.ratio` measures the whole string, so every "FC", "AS", "RC", "1." and
+    "SC" that one source prints and the other does not is charged as a
+    difference — and on a short name that is most of the string. `token_set`
+    compares the word sets instead, which is exactly the right question for
+    "RC Lens" vs "Lens" and the wrong one for "Real Madrid" vs "Real Sociedad"
+    (58.3 either way). Taking the larger keeps both readings.
+    """
+    return max(fuzz.ratio(a, b), fuzz.token_set_ratio(a, b))
 
 # How far the two sources' kickoffs may differ and still be the same match.
 #
@@ -234,11 +270,32 @@ class SofaResolver:
         home = normalize_name(event.get("homeTeam", {}).get("name", ""))
         away = normalize_name(event.get("awayTeam", {}).get("name", ""))
 
-        best = max(
-            fuzz.ratio(expected_opponent, home),
-            fuzz.ratio(expected_opponent, away),
+        # Squad level, on the same footing as gender and orientation, and for
+        # the same reason: it is the one distinction a token-set score cannot
+        # make. A senior club's name is a strict subset of its academy side's
+        # — "Flamengo" inside "Flamengo de Guarulhos U20", "US Chaouia" inside
+        # "US Chaouia U20" — so the subset reading scores those 100.0. Of the
+        # 25 false pairs `name_score` admits on the 2026-09-18 slate, this gate
+        # removes 14, taking the rate back to what `fuzz.ratio` alone ran at.
+        candidates = [
+            side
+            for side in (home, away)
+            if levels_compatible(expected_opponent, side)
+        ]
+        if not candidates:
+            return None
+
+        best_side = max(
+            candidates, key=lambda side: name_score(expected_opponent, side)
         )
-        return float(best) if best > NAME_MATCH_THRESHOLD else None
+        if name_score(expected_opponent, best_side) <= NAME_MATCH_THRESHOLD:
+            return None
+
+        # Report the STRICT similarity of the side that matched, not the score
+        # that let it through. This number's only consumer is the CONFIRMED /
+        # FUZZY field, which claims the two strings are the same; answering it
+        # with a subset score would mark "Lens" ~ "RC Lens" as CONFIRMED.
+        return float(fuzz.ratio(expected_opponent, best_side))
 
     def _is_match(
         self,

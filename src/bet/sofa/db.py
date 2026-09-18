@@ -107,6 +107,12 @@ def migrate(db_path: str) -> None:
         ("sofa_settled_row", "ladder_sigma", "REAL"),
         # Which version of the matching logic recorded this miss (F34).
         ("sofa_entity_miss", "match_logic_version", "INTEGER"),
+        # What the row was offered at, and what the sheet called it. Without
+        # the price a settled row answers "was the forecast right" and cannot
+        # answer "was the bet worth taking", which is the only question the
+        # coupon actually asks (F53).
+        ("sofa_settled_row", "offered_odds", "REAL"),
+        ("sofa_settled_row", "verdict", "TEXT"),
     ]
 
     with get_connection(db_path) as conn:

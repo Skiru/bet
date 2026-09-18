@@ -52,6 +52,36 @@ def main() -> int:
     gaps: dict[GapReason, int] = defaultdict(int)
     breaker_open = False
 
+    # What a previous run of this stage, for this date, already resolved.
+    #
+    # A re-run after kickoff is not a repeat of the morning's run, because the
+    # two listing routes stop covering the match: `events/next` drops a fixture
+    # once it starts and `events/last` does not pick it up until Sofascore
+    # marks it finished, so a live or just-finished match is in NEITHER.
+    # Measured on 2026-09-18 by replaying RESOLVE at 21:30 against the same
+    # board the 12:20 run used: Wisła Kraków's `next/0` began 2026-10-11 and
+    # its `last/0` ended 2026-09-11, with that evening's fixture in the hole.
+    # 131 of the morning's 491 fixtures vanished — every one of them a match
+    # that had already kicked off, including Espanyol·Elche and Wisła·Śląsk.
+    #
+    # So the stage is additive within a date: a second run may correct and may
+    # add, and cannot silently narrow the slate. Newly resolved events win, and
+    # anything the new pass could not see is carried forward (F54).
+    out_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
+    previous: dict[int, Fixture] = {}
+    if out_path.exists():
+        try:
+            with open(out_path, encoding="utf-8") as f:
+                previous = {
+                    fixture.sofascore_event_id: fixture
+                    for fixture in RootModel[list[Fixture]]
+                    .model_validate_json(json.dumps(json.load(f)))
+                    .root
+                }
+        except Exception as exc:  # a corrupt artifact must not kill the stage
+            print(f"PREVIOUS_ARTIFACT_UNREADABLE {out_path}: {exc}", file=sys.stderr)
+            previous = {}
+
     try:
         for bf in fixtures:
             try:
@@ -154,20 +184,34 @@ def main() -> int:
         # loop: any other exception — the sqlite3.OperationalError of F14, say
         # — left no artifact at all, and with it no record of the fixtures that
         # had already resolved. The write belongs in finally (F15).
-        out_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+        carried = 0
+        for event_id, fixture in previous.items():
+            if event_id in resolved_fixtures:
+                # Both passes saw it; keep the fresh one, but never lose a
+                # board entry the earlier pass had already bridged to it.
+                bridged = resolved_fixtures[event_id].superbet_event_ids
+                for superbet_id in fixture.superbet_event_ids:
+                    if superbet_id not in bridged:
+                        bridged.append(superbet_id)
+                continue
+            resolved_fixtures[event_id] = fixture
+            carried += 1
 
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         dumped = [f.model_dump(mode="json") for f in resolved_fixtures.values()]
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(dumped, f, indent=2)
 
     fuzzy = sum(1 for f in resolved_fixtures.values() if f.identity == "FUZZY")
     recall = len(resolved_fixtures) / len(fixtures) if fixtures else 0.0
+    # `carried` is bound in the finally block above, which always runs first.
 
     metrics = {
         "input_board": len(fixtures),
         "breaker_open": breaker_open,
         "output_fixtures": len(resolved_fixtures),
+        "carried_from_previous_run": carried,
+        "resolved_this_run": len(resolved_fixtures) - carried,
         "duplicate_board_entries_merged": duplicates,
         "identity_fuzzy": fuzzy,
         "recall": round(recall, 4),

@@ -22,9 +22,9 @@ from bet.sofa.engine import (
     calc_p_central_raw,
     calculate_p_low,
     outside_model_resolution,
-    support_floor_for,
     p_empirical_raw,
     predictive_sd,
+    support_floor_for,
     uses_empirical_frequency,
     uses_poisson_floor,
     winning_boundary,
@@ -109,6 +109,9 @@ class SettledRow:
     actual_value: float
     outcome: Outcome
     settled_at: str
+    ladder_sigma: float | None = None
+    offered_odds: float | None = None
+    verdict: str | None = None
 
 
 def historical_sample(
@@ -330,8 +333,8 @@ def insert_settled_rows(conn: Any, rows: list[SettledRow]) -> int:
                 run_date, sofascore_event_id, sport, competition_id,
                 market, subject, line, direction, sample_size, sample_mean,
                 sample_sd, p_central, p_bar, market_p, actual_value, outcome,
-                settled_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                settled_at, ladder_sigma, offered_odds, verdict
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row.run_date,
@@ -351,6 +354,9 @@ def insert_settled_rows(conn: Any, rows: list[SettledRow]) -> int:
                 row.actual_value,
                 row.outcome,
                 row.settled_at,
+                row.ladder_sigma,
+                row.offered_odds,
+                row.verdict,
             ),
         )
         inserted += cursor.rowcount if cursor.rowcount > 0 else 0

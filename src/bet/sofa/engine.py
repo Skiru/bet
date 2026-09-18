@@ -227,8 +227,85 @@ def calc_p_central(
     )
 
 
+# How the bookmaker's margin is taken back out of a two-sided price.
+#
+# "proportional" divides both implied probabilities by their sum, which assumes
+# the margin is spread evenly in *relative* terms. Bookmakers do not price that
+# way, and the consequence is not small. Measured on the 2,354 rungs of
+# 2026-09-18 that were both priced and settled:
+#
+#     devigged band   proportional says   actually won
+#       0.10-0.20          0.158             0.087
+#       0.20-0.30          0.250             0.179
+#       0.70-0.80          0.750             0.822
+#       0.80-0.90          0.842             0.913
+#
+# Seven points of overstatement on the long shot and seven of understatement on
+# the favourite — the classic favourite-longshot bias, and perfectly
+# antisymmetric because the two sides of a rung are complements.
+#
+# That bias is not cosmetic here, because `market_p` is (a) what `bar_probability`
+# shrinks the sample toward and (b) what `edge` is measured against. Inflating
+# the long shot's market probability pulls its `p_bar` up and its bar down,
+# while deflating the favourite's does the reverse. It is one defect producing
+# both halves of the 2026-09-18 complaint: a coupon made only of long shots,
+# and no short-priced row able to qualify at all (F51).
+#
+# "power" solves q_over^k + q_under^k = 1. Scored against the same settled
+# rungs, lower is better on all three:
+#
+#     method           Brier     log loss   |calibration error|
+#     proportional    0.17115     0.51899        0.0595
+#     additive/Shin   0.16845     0.51000        0.0316
+#     power           0.16768     0.50820        0.0203
+#
+# and it wins on both sports, on both halves of an event-id split, and on the
+# four largest market families taken separately.
+DEVIG_METHOD = "power"
+
+
+def devig_many(implied: list[float], method: str | None = None) -> list[float] | None:
+    """Take the margin out of a complete market of any width.
+
+    The same estimator as the two-sided `devig`, and deliberately the same: a
+    three-way market is not a different kind of price, and devigging "who takes
+    more corners" proportionally while devigging "over/under" by power would
+    leave the favourite-longshot bias in exactly the family that has no ladder
+    check to catch it.
+
+    Measured only on two-way rungs so far — that is what 2026-09-18 settled —
+    so this generalisation rests on the estimator being the same one, not on
+    its own measurement. SETTLE now records derived rows with their price, so
+    the next fits can check it separately.
+    """
+    if len(implied) < 2 or any(q <= 0.0 or q >= 1.0 for q in implied):
+        return None
+    if (method or DEVIG_METHOD) != "power":
+        total = sum(implied)
+        if total <= 0.0:
+            return None
+        return [q / total for q in implied]
+
+    lo, hi = 0.05, 20.0
+    for _ in range(200):
+        k = (lo + hi) / 2.0
+        if sum(q**k for q in implied) > 1.0:
+            lo = k
+        else:
+            hi = k
+    k = (lo + hi) / 2.0
+    powered = [q**k for q in implied]
+    # Bisection cannot land exactly on 1; renormalise the residual (~1e-12) so
+    # the result is a distribution to the last bit. It cannot reintroduce the
+    # bias it is applied on top of.
+    total = sum(powered)
+    return [q / total for q in powered]
+
+
 def devig(
-    over_odds: float | None, under_odds: float | None
+    over_odds: float | None,
+    under_odds: float | None,
+    method: str | None = None,
 ) -> tuple[float, float] | None:
     if over_odds is None or under_odds is None:
         return None
@@ -237,9 +314,11 @@ def devig(
 
     implied_over = 1.0 / over_odds
     implied_under = 1.0 / under_odds
-    overround = implied_over + implied_under
 
-    return implied_over / overround, implied_under / overround
+    pair = devig_many([implied_over, implied_under], method)
+    if pair is None:
+        return None
+    return pair[0], pair[1]
 
 
 def ladder_centre(rungs: list[tuple[float, float]]) -> float | None:
@@ -396,3 +475,41 @@ def bar_probability(
 def get_required_odds(p_bar: float, tier: Literal["CALL", "LEAN"] = "LEAN") -> float:
     margin = 1.05 if tier == "CALL" else 1.10
     return round(margin / p_bar, 4)
+
+
+def bar_is_unreachable(
+    offered_odds: float | None,
+    market_p: float | None,
+    n: int,
+    *,
+    k_price: float = K_PRICE,
+    tier: Literal["CALL", "LEAN"] = "LEAN",
+) -> bool:
+    """True when NO sample could make this rung VALUE, at this price.
+
+    `p_bar` is a blend of our estimate and the market's, and our estimate is
+    capped at `P_CEILING`. So the largest bar probability this rung can carry,
+    whatever the sample says, is
+
+        w * P_CEILING + (1 - w) * market_p,    w = n / (n + k_price)
+
+    and if the offered price is below `margin` over that, the row is refused by
+    arithmetic rather than by evidence. On 2026-09-18 that was 1,546 of
+    football's 7,379 priced rows (21.0%) and 135 of tennis's 1,148 (11.8%) —
+    every short-priced favourite on the board, including all eight legs the
+    operator asked about.
+
+    This is not a defect to be tuned away: at 1.07 there is no sample on earth
+    that justifies a 10% expected-value margin, because the book's own margin
+    on a favourite is smaller than the edge we would have to have. It is a
+    defect to let it look like a near miss. BELOW_BAR on a row that missed by
+    2% and BELOW_BAR on a row that could not have qualified are different
+    facts, and the operator has to be able to tell them apart (F52).
+    """
+    if offered_odds is None or market_p is None or n <= 0:
+        return False
+    w = n / (n + k_price)
+    max_p_bar = w * P_CEILING + (1.0 - w) * market_p
+    if max_p_bar <= 0.0:
+        return False
+    return offered_odds < get_required_odds(max_p_bar, tier)

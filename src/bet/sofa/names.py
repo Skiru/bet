@@ -76,22 +76,7 @@ def normalize_name(name: str) -> str:
     # open.
     name = _GENDER_MARKER.sub(" (w)", name)
 
-    aliases = get_aliases()
-
-    # Extract prefixes to map if they exist in aliases
-    words = name.split()
-    if words:
-        # Check first word
-        if words[0] in aliases:
-            words[0] = aliases[words[0]]
-        # Check first two words (e.g., "stany zjednoczone")
-        elif len(words) >= 2:
-            two_words = f"{words[0]} {words[1]}"
-            if two_words in aliases:
-                words[0] = aliases[two_words]
-                del words[1]
-
-        name = " ".join(words)
+    name = apply_aliases(name)
 
     # 4. Reserves marker — normalised to an explicit "(r)", never removed.
     #
@@ -108,3 +93,74 @@ def normalize_name(name: str) -> str:
     name = re.sub(r"(?:\s*\(r\))+\s*$", " (r)", name)
 
     return re.sub(r"\s+", " ", name).strip()
+
+
+def apply_aliases(name: str) -> str:
+    """Rewrite known exonyms and abbreviations anywhere in the name.
+
+    It used to look only at the FIRST word, and only there. That is right for
+    the country names the table was built for — "Polska·Niemcy" — and wrong
+    for every club, because a club's exonym sits where the city sits, which is
+    rarely the front: "Bayern Monachium", "Rapid Wieden", "Obolon Kijow",
+    "Sporting Lizbona". Superbet writes the Polish city, Sofascore writes the
+    local one, and no fuzzy scorer bridges "monachium" to "munchen" — measured
+    66.7, against a threshold of 82 (F50).
+
+    Two-token keys are matched before single tokens so "stany zjednoczone" and
+    "papua nowa gwinea" still collapse to one word.
+    """
+    aliases = get_aliases()
+    if not aliases:
+        return name
+
+    words = name.split()
+    out: list[str] = []
+    i = 0
+    while i < len(words):
+        three = " ".join(words[i : i + 3]) if i + 2 < len(words) else None
+        two = " ".join(words[i : i + 2]) if i + 1 < len(words) else None
+        if three is not None and three in aliases:
+            out.append(aliases[three])
+            i += 3
+        elif two is not None and two in aliases:
+            out.append(aliases[two])
+            i += 2
+        elif words[i] in aliases:
+            out.append(aliases[words[i]])
+            i += 1
+        else:
+            out.append(words[i])
+            i += 1
+    return " ".join(out)
+
+
+# Age-group and reserve markers, as they appear once normalise has run.
+#
+# The reserve suffix rule in `normalize_name` turns a trailing "II"/"B"/
+# "U21" into "(r)", but
+# an age marker in the MIDDLE of a name survives — "Flamengo de Guarulhos U20"
+# — and a senior club's name is a strict token subset of it. Under a token-set
+# scorer that scores 100.0, which is how a senior side and an under-20 side of
+# the same club become one team.
+_AGE_MARKER = re.compile(r"\bu ?-?(14|15|16|17|18|19|20|21|22|23)\b")
+_RESERVE_MARKER = re.compile(r"(?:\(r\)|\bii\b|\breserves?\b)")
+
+
+def team_levels(name: str) -> frozenset[str]:
+    """Which squads this name could denote: {"S"}, {"R"}, {"U20"}, ...
+
+    A *set*, not a value, because a name may legitimately carry both — Panama's
+    "Plaza Amador Reserves U20" is the reserve side and the under-20 side at
+    once, and the board calls it "Plaza Amador (R)". Requiring the two sets to
+    intersect keeps that pair together while still separating "Flamengo" from
+    "Flamengo de Guarulhos U20".
+    """
+    found = {"U" + m for m in _AGE_MARKER.findall(name)}
+    if _RESERVE_MARKER.search(name):
+        found.add("R")
+    return frozenset(found) if found else frozenset({"S"})
+
+
+def levels_compatible(a: str, b: str) -> bool:
+    """True when two names could denote the same squad of the same club."""
+    return bool(team_levels(a) & team_levels(b))

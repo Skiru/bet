@@ -38,6 +38,15 @@ from pathlib import Path
 from bet.sofa.config import SofaConfig
 from bet.sofa.timeutil import now
 
+# Stages are imported as `scripts.sofa.*`, which needs the repository root on
+# the path. Running a file puts *its own directory* there, not the root, so
+# `python scripts/sofa/run_pipeline.py` only worked when the caller had already
+# arranged PYTHONPATH. Putting the root on explicitly means the command in this
+# module's docstring is the command that runs.
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 # Stage entry points are imported lazily inside run_stage so that a broken
 # stage module fails that stage, not the whole run.
 STAGE_MODULES: dict[str, str] = {
@@ -47,6 +56,16 @@ STAGE_MODULES: dict[str, str] = {
     "SAMPLES": "scripts.sofa.run_samples",
     "SHEET": "scripts.sofa.run_sheet",
     "COUPON": "scripts.sofa.run_coupon",
+    # Not in DEFAULT_SEQUENCE, and that is the whole design: SETTLE grades a
+    # day that is over, so running it against today's date would find every
+    # fixture unfinished. Invoke it for D-1:
+    #
+    #     python scripts/sofa/run_pipeline.py --date 2026-09-18 --only SETTLE
+    #
+    # It is the only writer that puts a Superbet price next to an outcome, and
+    # therefore the only source `fit_k_price` and MAX_LADDER_SIGMA can ever fit
+    # from (F53).
+    "SETTLE": "scripts.sofa.run_settle",
 }
 
 # (stage, label) — OFFER appears twice by design.
@@ -110,6 +129,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", default=now().strftime("%Y-%m-%d"), help="YYYY-MM-DD")
     parser.add_argument(
+        "--only",
+        help="run just this stage, whether or not it is in the daily sequence",
+    )
+    parser.add_argument(
         "--from-stage",
         choices=list(STAGE_MODULES),
         help="resume at this stage, reusing the artifacts already on disk",
@@ -134,7 +157,12 @@ def main() -> int:
     os.environ["SOFA_RUN_ID"] = run_id
 
     sequence = DEFAULT_SEQUENCE
-    if args.from_stage:
+    if args.only:
+        if args.only not in STAGE_MODULES:
+            print(f"unknown stage {args.only}", file=sys.stderr)
+            return 2
+        sequence = [(args.only, args.only)]
+    elif args.from_stage:
         start = next(
             (i for i, (s, _) in enumerate(sequence) if s == args.from_stage), None
         )

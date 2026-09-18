@@ -12,7 +12,7 @@ from dataclasses import dataclass
 # byte-identical artifact because it never asked again. Stamping the misses
 # with the version of the logic that produced them makes a fix invalidate them
 # automatically (F34).
-MATCH_LOGIC_VERSION = 2
+MATCH_LOGIC_VERSION = 3
 
 
 @dataclass(frozen=True)

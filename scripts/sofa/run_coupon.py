@@ -30,6 +30,84 @@ def read_file(path: Path) -> bytes | None:
     return path.read_bytes()
 
 
+
+# How many closest-refused rows to show, per sport.
+NEAR_MISSES_PER_SPORT = 12
+
+
+def _near_miss_section(
+    result: CouponResult, sheet_rows: list[SheetRow]
+) -> list[str]:
+    """The rows that came closest to the bar without clearing it.
+
+    A coupon that lists only what it took cannot answer the question the
+    operator actually asks the morning after, which is "why was *that* not on
+    it". On 2026-09-18 the answer for eight short-priced legs was spread across
+    9,462 sheet rows, all of them saying the same two words, BELOW_BAR.
+
+    Rows whose bar is UNREACHABLE are excluded on purpose: they did not come
+    close, they could not have. Listing them here would be the same conflation
+    with a friendlier name.
+
+    Nothing here is a recommendation. These rows did not clear the bar, and the
+    surplus column says by how much they missed — a negative number in every
+    row, printed so it can be judged rather than guessed at.
+    """
+    taken = {
+        (r.sofascore_event_id, r.market, r.subject, r.line, r.direction)
+        for r in result.coupon.singles
+    }
+    by_sport: dict[str, list[SheetRow]] = {}
+    for row in sheet_rows:
+        if row.verdict != "BELOW_BAR" or row.offered_odds is None:
+            continue
+        if row.surplus is None or row.required_odds is None:
+            continue
+        if any(note.startswith("UNREACHABLE_BAR") for note in row.notes):
+            continue
+        key = (row.sofascore_event_id, row.market, row.subject, row.line, row.direction)
+        if key in taken:
+            continue
+        by_sport.setdefault(row.sport, []).append(row)
+
+    if not by_sport:
+        return []
+
+    lines = ["## Najbliżej poprzeczki (nie na kuponie)", ""]
+    lines.append(
+        "Wiersze, którym zabrakło najmniej — mierzone względnie, "
+        "`nadwyżka / wymagany kurs`, żeby długi strzał nie wygrywał na samej "
+        "skali. Żaden z nich nie przeszedł poprzeczki; kolumna nadwyżki mówi "
+        "o ile."
+    )
+    lines.append("")
+    for sport in sorted(by_sport):
+        rows = sorted(
+            by_sport[sport],
+            key=lambda r: r.surplus / r.required_odds,
+            reverse=True,
+        )[:NEAR_MISSES_PER_SPORT]
+        lines += [
+            f"### {sport} ({len(by_sport[sport])} wierszy poniżej poprzeczki, "
+            f"osiągalnych)",
+            "",
+            "| Mecz (event) | Rynek | Kier. | p_central | market_p | "
+            "wymagany | oferta | brakuje |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        for r in rows:
+            subject = f" ({r.subject})" if r.subject else ""
+            market_p = f"{r.market_p:.3f}" if r.market_p is not None else "—"
+            lines.append(
+                f"| {r.sofascore_event_id} | {r.market}{subject} {r.line:g} "
+                f"| {r.direction} | {r.p_central:.3f} | {market_p} "
+                f"| {r.required_odds:.2f} | **{r.offered_odds:.2f}** "
+                f"| {r.surplus:+.3f} |"
+            )
+        lines.append("")
+    return lines
+
+
 def render_markdown(
     result: CouponResult,
     sheet_rows: list[SheetRow],
@@ -123,6 +201,8 @@ def render_markdown(
                 f"| `{d.reason}` | {d.detail} |"
             )
         lines.append("")
+
+    lines += _near_miss_section(result, sheet_rows)
 
     if unmatched_vetoes:
         lines += [f"## UNMATCHED_VETO ({len(unmatched_vetoes)})", ""]

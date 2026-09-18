@@ -28,6 +28,7 @@ from bet.sofa.engine import (
     MIN_SPREAD_RATIO,
     P_CEILING,
     P_FLOOR,
+    bar_is_unreachable,
     bar_probability,
     calc_p_central_raw,
     calculate_p_low,
@@ -36,9 +37,9 @@ from bet.sofa.engine import (
     ladder_centre,
     ladder_implied_sd,
     outside_model_resolution,
-    support_floor_for,
     p_empirical_raw,
     predictive_sd,
+    support_floor_for,
     uses_empirical_frequency,
     uses_poisson_floor,
     winning_boundary,
@@ -560,6 +561,24 @@ def process_fixture(
                     )
                 else:
                     verdict = "VALUE"
+
+            if verdict == "BELOW_BAR" and bar_is_unreachable(
+                offered_odds, m_p_out, n, k_price=k_price
+            ):
+                # Not "this row missed the bar" but "no sample could have
+                # cleared it at this price". The two used to read the same,
+                # and 1,578 of the 2026-09-18 sheet's rows were the second
+                # kind — every short-priced favourite on the board (F52).
+                sample_weight = n / (n + k_price)
+                best_p_bar = (
+                    sample_weight * P_CEILING + (1.0 - sample_weight) * m_p_out
+                )
+                notes.append(
+                    "UNREACHABLE_BAR: no sample could clear this price "
+                    f"(market_p {m_p_out:.4f}, best possible required odds "
+                    f"{get_required_odds(best_p_bar):.4f} > "
+                    f"offered {offered_odds:.2f})"
+                )
 
             if unfitted:
                 notes.append(f"UNFITTED_CONSTANTS: {', '.join(unfitted)}")

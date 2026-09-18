@@ -52,6 +52,7 @@ from bet.sofa.contracts import (
 from bet.sofa.engine import (
     bar_probability,
     devig,
+    devig_many,
     get_required_odds,
     ladder_centre,
     outside_model_resolution,
@@ -274,10 +275,16 @@ def _market_probabilities(
             for r in rungs
             if r.over_odds and r.over_odds > 1.0
         ]
-        total = sum(p for _, p in implied)
-        if len(implied) >= 2 and total > 0:
-            for subject, p in implied:
-                out[(subject, 0.0, "OVER")] = p / total
+        # `devig_many`, not `p / total`: the three selections are a complete
+        # market, so they get the same treatment as the two sides of a rung.
+        # Dividing by the sum is the proportional devig, which on 2026-09-18's
+        # settled two-way rungs overstated the long shot by 7 points — and
+        # "who takes more corners" is mostly long shots, with no ladder check
+        # behind it to catch the consequence (F51).
+        devigged = devig_many([p for _, p in implied])
+        if devigged is not None:
+            for (subject, _), p in zip(implied, devigged, strict=True):
+                out[(subject, 0.0, "OVER")] = p
         return out
 
     if market.startswith("handicap_"):
