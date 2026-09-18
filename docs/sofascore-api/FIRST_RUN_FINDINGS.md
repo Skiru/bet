@@ -169,3 +169,53 @@ raz 2026-09-18 i objawiło się jako `Connection refused` w środku smoke testu
   **96668**. Sprawdzone: nigdzie w `src`/`scripts`/`config` nie ma
   zahardkodowanych id sezonów. Brać je zawsze z
   `/unique-tournament/{id}/seasons`, nigdy z plików dowodowych.
+
+---
+
+## Pomiary architektoniczne (żeby nie powtarzać)
+
+### Gdzie idzie czas — RESOLVE, 2026-09-18
+
+| | |
+|---|---|
+| żądań | 2 258 |
+| zegar ścienny | 1 135,6 s |
+| czas w sieci | 458,9 s (40,4%) |
+| **podłoga z limitu 2 req/s** | **1 129 s** |
+| wszystko poza siecią (pacing + obliczenia) | **6,6 s — 0,6%** |
+
+**Wniosek: 99,4% czasu przebiegu to limit tempa, który sami narzuciliśmy.**
+Zrównoleglenie obliczeń przyspieszyłoby go o pół procenta. Wąskim gardłem jest
+most przeglądarkowy (jedna karta, szeregowo, 2 req/s), i to jest wybór, nie
+ograniczenie techniczne — patrz `sofascore-rate-limit-hygiene`.
+
+Jedyny etap naprawdę ograniczony procesorem to **masowe przeliczenie metryk
+z cache'u** (20 000 meczów, zero sieci) po zmianie kodu. Wtedy, i tylko wtedy:
+WAL + `ProcessPoolExecutor` po `event_id`. Nadal SQLite.
+
+### Rozmiar bazy
+
+180 MB po 1 400 listingach (śr. 125 KB na listing). Projekcja po pełnym
+backfillu: **~1 GB**. SQLite tego nie zauważy.
+
+Postgres nie rozwiązuje tu żadnego istniejącego problemu: baza jest cache'em
+niezmiennych payloadów, kluczowanym po id, z **jednym procesem piszącym**,
+dławionym siecią do 2 zapisów na sekundę. Jedyna realna słabość SQLite —
+współbieżny zapis z wielu procesów — nie występuje.
+
+`journal_mode=delete` + `synchronous=FULL` zostaje. Przy 2 zapisach/s koszt
+jest niemierzalny, a to właśnie te ustawienia sprawiają, że zacommitowane dane
+przeżywają ubicie procesu.
+
+### Podział baza vs JSON — zamierzony, zostaje
+
+- **JSON to przepływ.** Sześć artefaktów, każdy wejściem następnego. SHEET da
+  się przeliczyć na wczorajszych próbkach bez sieci i bazy, a każdy wiersz
+  kuponu jest odtwarzalny za pół roku. W pipelinie zakładowym odpowiedź na
+  „skąd wziął się ten zakład" jest warta więcej niż wydajność.
+- **Baza to cache i historia.** Drogie payloady (wieczne dla zakończonych
+  meczów) plus `sofa_settled_row` do zapytań przekrojowych.
+
+Trzymanie **surowych** payloadów wygląda na marnotrawstwo miejsca, a jest
+ubezpieczeniem: pozwala przeliczyć metryki od nowa po zmianie kodu bez ani
+jednego zapytania. Przy tak kruchym dostępie do Sofascore to jest tego warte.
