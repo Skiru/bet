@@ -19,10 +19,13 @@ from bet.sofa.resolve import (
     parse_fixture,
     split_match_name,
 )
+from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("RESOLVE")
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD", default=now().strftime("%Y-%m-%d"))
     args = parser.parse_args()

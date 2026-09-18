@@ -8,10 +8,13 @@ from collections import Counter
 
 from bet.sofa.board import fetch_board
 from bet.sofa.config import SofaConfig
+from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("BOARD")
     parser = argparse.ArgumentParser(description="Fetch Superbet board fixtures")
     parser.add_argument(
         "--date",

@@ -9,11 +9,14 @@ from pydantic import RootModel
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
 from bet.sofa.offer import OfferFetcher
+from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.timeutil import now
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("OFFER")
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD", default=now().strftime("%Y-%m-%d"))
     args = parser.parse_args()

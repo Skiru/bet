@@ -41,6 +41,7 @@ from bet.sofa.settle import (
     is_completed_event,
     settle_metric,
 )
+from bet.sofa.stage import set_stage
 
 # Markets worth settling backwards: the counting markets Superbet actually
 # prices. Props are excluded on purpose (L30).
@@ -263,6 +264,8 @@ def already_settled_event_ids(db_path: str) -> set[int]:
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("BACKFILL")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--plan", help="JSON file of {unique_tournament_id, season_id, sport}"

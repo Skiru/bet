@@ -19,6 +19,7 @@ from pydantic import RootModel
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
 from bet.sofa.coupon import CouponResult, build_coupon
+from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
 from bet.sofa.veto import find_unmatched_vetoes
 
@@ -142,6 +143,8 @@ def render_markdown(
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("COUPON")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", default=now().strftime("%Y-%m-%d"), help="YYYY-MM-DD")
     args = parser.parse_args()

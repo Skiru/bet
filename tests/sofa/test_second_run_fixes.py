@@ -271,3 +271,140 @@ def test_f13_run_id_option_is_honoured_and_reaches_the_summary(tmp_path: Path) -
         ln for ln in proc.stdout.splitlines() if ln.startswith("SOFA_SUMMARY: ")
     )
     assert json.loads(summary_line.removeprefix("SOFA_SUMMARY: "))["run_id"] == "chosen1"
+
+
+# --------------------------------------------------------------------------
+# F22 / F20 — the stage belongs to the caller, not to the client method
+# --------------------------------------------------------------------------
+
+
+def test_f22_entity_events_is_logged_under_the_stage_that_called_it(
+    tmp_path: Path,
+) -> None:
+    """SAMPLES calls entity_events too, and its cost must not read as RESOLVE.
+
+    Fails on the old code for the right reason: ``entity_events`` passed the
+    literal "RESOLVE" to ``_execute``, so 146 listing requests made by SAMPLES
+    were filed under RESOLVE — 8.2% of that stage's cost, and the reason three
+    claims in the audit were wrong.
+    """
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.stage import stage
+    from tests.sofa.test_client import MockResponse, MockTransport
+
+    config = SofaConfig(runs_dir=str(tmp_path), target_rps=1000)
+    transport = MockTransport()
+    transport.responses = [MockResponse(200, {"events": []}) for _ in range(2)]
+    client = SofascoreClient(config, transport)
+
+    with stage("RESOLVE"):
+        client.entity_events(1, "last", 0)
+    with stage("SAMPLES"):
+        client.entity_events(2, "last", 0)
+
+    rows = [
+        json.loads(ln)
+        for ln in client.log_path.read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
+    assert [r["stage"] for r in rows] == ["RESOLVE", "SAMPLES"], (
+        "the same method was called from two stages and must be logged as two"
+    )
+
+
+def test_f20_superbet_requests_are_logged_under_the_calling_stage(
+    tmp_path: Path,
+) -> None:
+    """Every Superbet request said "BOARD", including OFFER's and SAMPLES'.
+
+    Fails on the old code for the right reason: ``_get_json`` passed the literal
+    "BOARD", so all 95 Superbet rows of the run read BOARD and the stages could
+    only be told apart by the 30-minute gap between their timestamps.
+    """
+    import threading
+    from typing import Any
+
+    from bet.sofa.stage import stage
+    from bet.sofa.superbet import SuperbetClient
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> Any:
+            return {"data": []}
+
+    class FakeSession:
+        headers: dict[str, str] = {}
+
+        def get(self, url: str, params: Any = None, timeout: float = 0.0) -> Any:
+            return FakeResponse()
+
+    client = SuperbetClient.__new__(SuperbetClient)
+    client.base_url = "https://example.invalid"
+    client.log_path = tmp_path / "run.log.jsonl"
+    client.run_id = "t"
+    client.session = FakeSession()  # type: ignore[assignment]
+    client._log_lock = threading.Lock()
+
+    # The real request path, from two different stages.
+    with stage("OFFER"):
+        client.event_odds(1)
+    with stage("SAMPLES"):
+        client.event_odds(2)
+
+    rows = [
+        json.loads(ln)
+        for ln in client.log_path.read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
+    assert [r["stage"] for r in rows] == ["OFFER", "SAMPLES"], (
+        "Superbet requests were all filed under BOARD regardless of caller"
+    )
+
+
+def test_f22_no_client_method_hardcodes_a_stage_literal() -> None:
+    """Guard: the next method added must not reintroduce the defect.
+
+    Fails on the old code for the right reason: six methods passed a literal.
+    """
+    import ast
+    import inspect
+
+    from bet.sofa import client as client_module
+
+    tree = ast.parse(inspect.getsource(client_module))
+    offenders: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "_execute"):
+            continue
+        for kw in node.keywords:
+            if kw.arg == "stage" and isinstance(kw.value, ast.Constant):
+                offenders.append(str(kw.value.value))
+    assert not offenders, (
+        f"client methods still name their own stage: {sorted(set(offenders))}"
+    )
+
+
+def test_f22_an_undeclared_caller_is_labelled_client_not_a_real_stage() -> None:
+    """An unlabelled request must be visible, not misfiled under a real stage.
+
+    Read in a fresh thread, because a thread starts with an empty context and
+    so observes the declared default rather than whatever the last stage in
+    this process happened to set.
+    """
+    import threading
+
+    from bet.sofa.stage import current_stage
+
+    seen: list[str] = []
+    t = threading.Thread(target=lambda: seen.append(current_stage()))
+    t.start()
+    t.join()
+    assert seen == ["CLIENT"]

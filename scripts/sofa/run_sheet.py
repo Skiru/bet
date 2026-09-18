@@ -32,6 +32,7 @@ from bet.sofa.engine import (
     winning_boundary,
 )
 from bet.sofa.names import normalize_name
+from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
 
 logger = logging.getLogger(__name__)
@@ -463,6 +464,8 @@ def process_fixture(
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("SHEET")
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD", default=now().strftime("%Y-%m-%d"))
     args = parser.parse_args()

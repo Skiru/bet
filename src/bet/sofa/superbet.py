@@ -10,6 +10,7 @@ from typing import Any
 from curl_cffi import requests
 
 from bet.sofa.config import SofaConfig
+from bet.sofa.stage import current_stage
 from bet.sofa.timeutil import now
 
 DEFAULT_BASE_URL = "https://production-superbet-offer-pl.freetls.fastly.net"
@@ -75,14 +76,14 @@ class SuperbetClient:
             response = self.session.get(url, params=params, timeout=25.0)
             elapsed = int((time.monotonic() - start_t) * 1000)
             status = response.status_code
-            self._log("BOARD", "GET", url, status, elapsed, False, "CLOSED")
+            self._log(current_stage(), "GET", url, status, elapsed, False, "CLOSED")
             response.raise_for_status()
         except Exception as e:
             elapsed = int((time.monotonic() - start_t) * 1000)
             status = getattr(e, "response", None)
             if status is not None:
                 status = status.status_code
-            self._log("BOARD", "GET", url, status, elapsed, False, "CLOSED")
+            self._log(current_stage(), "GET", url, status, elapsed, False, "CLOSED")
             raise
 
         try:

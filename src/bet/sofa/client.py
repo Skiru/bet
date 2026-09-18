@@ -12,6 +12,7 @@ from curl_cffi.requests.errors import RequestsError
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.stage import current_stage
 from bet.sofa.timeutil import now
 
 logger = logging.getLogger(__name__)
@@ -214,8 +215,12 @@ class SofascoreClient:
                 f.write(json.dumps(row) + "\n")
 
     def _execute(
-        self, url: str, stage: str = "CLIENT", timeout: float = 10.0
+        self, url: str, stage: str | None = None, timeout: float = 10.0
     ) -> Any | None:
+        # The stage comes from the caller's context, not from the method that
+        # happens to build the URL (F22). An explicit argument still wins, for
+        # the caller that knows better than its own context.
+        stage = stage or current_stage()
         if not self.breaker.allow():
             raise CircuitOpenError("Circuit breaker is open")
 
@@ -283,13 +288,13 @@ class SofascoreClient:
         # and pasting them raw into the query string silently searches for
         # something else.
         url = "https://api.sofascore.com/api/v1/search/all?q=" + quote(q, safe="")
-        return self._execute(url, stage="RESOLVE")
+        return self._execute(url)
 
     def entity_events(
         self, entity_id: int, kind: Literal["last", "next"], page: int
     ) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/team/{entity_id}/events/{kind}/{page}"
-        return self._execute(url, stage="RESOLVE")
+        return self._execute(url)
 
     def season_events(
         self,
@@ -303,16 +308,16 @@ class SofascoreClient:
             f"https://api.sofascore.com/api/v1/unique-tournament/"
             f"{unique_tournament_id}/season/{season_id}/events/{kind}/{page}"
         )
-        return self._execute(url, stage="BACKFILL")
+        return self._execute(url)
 
     def event(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}"
-        return self._execute(url, stage="RESOLVE")
+        return self._execute(url)
 
     def event_statistics(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}/statistics"
-        return self._execute(url, stage="SAMPLES")
+        return self._execute(url)
 
     def event_incidents(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}/incidents"
-        return self._execute(url, stage="SAMPLES")
+        return self._execute(url)

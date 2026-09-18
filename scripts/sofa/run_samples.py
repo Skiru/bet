@@ -23,11 +23,14 @@ from bet.sofa.samples import (
     compute_readiness,
     process_fixture_samples,
 )
+from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.timeutil import now
 
 
 def main() -> int:
+    # Every request underneath this call is this stage's cost (F22).
+    set_stage("SAMPLES")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", default=now().strftime("%Y-%m-%d"), help="YYYY-MM-DD")
     args = parser.parse_args()

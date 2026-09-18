@@ -7,6 +7,7 @@ from curl_cffi.requests.errors import RequestsError
 
 from bet.sofa.client import SofascoreClient, TransportResponse
 from bet.sofa.config import SofaConfig
+from bet.sofa.stage import stage
 from bet.sofa.errors import CircuitOpenError, ProviderError
 
 
@@ -209,7 +210,10 @@ def test_log_format(config: SofaConfig, monkeypatch: Any) -> None:
     transport.responses = [MockResponse(200, {"ok": 1})]
     client = SofascoreClient(config, transport)
 
-    client.search("test")
+    # The stage is the caller's, not the method's (F22): search() is used
+    # by RESOLVE and by SAMPLES both.
+    with stage("RESOLVE"):
+        client.search("test")
 
     log_file = client.log_path
     assert log_file.exists()
