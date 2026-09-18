@@ -105,6 +105,8 @@ def migrate(db_path: str) -> None:
         # sigma, and the backfill cannot produce one (there are no historical
         # Superbet ladders). Live settlement can, so the column exists for it.
         ("sofa_settled_row", "ladder_sigma", "REAL"),
+        # Which version of the matching logic recorded this miss (F34).
+        ("sofa_entity_miss", "match_logic_version", "INTEGER"),
     ]
 
     with get_connection(db_path) as conn:

@@ -2580,3 +2580,62 @@ def test_f25_orientation_still_applies_to_tennis() -> None:
         superbet_side_b="Sijia Wei",
     )
     assert quality is None
+
+
+# --------------------------------------------------------------------------
+# F34 — a negative cache records the bug, and outlives the fix
+# --------------------------------------------------------------------------
+
+
+def test_f34_a_miss_from_older_matching_logic_is_ignored(tmp_path: Path) -> None:
+    """Fails on the old code for the right reason: the miss had no version, so
+    a name that failed because of a bug stayed unresolvable for seven days
+    after the bug was fixed.
+
+    Measured on 2026-09-18: a wrong gender gate made 175 women's tennis players
+    fail, recorded every one as a miss, and after the gate was fixed RESOLVE
+    produced a byte-identical artifact — 99 of 99 unresolved tennis fixtures
+    had their side in sofa_entity_miss, and resolve_entity returns before it
+    can ask again.
+    """
+    import bet.sofa.cache as cache_module
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import MATCH_LOGIC_VERSION, SofaConfig
+    from bet.sofa.db import get_connection
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"))
+    cache = SofaCache(config)
+
+    cache.save_entity_miss("tennis", "anna siskova")
+    assert cache.get_entity_miss("tennis", "anna siskova") is True
+
+    # The matching logic changes; the miss is now evidence about old code.
+    monkey = MATCH_LOGIC_VERSION + 1
+    original = cache_module.MATCH_LOGIC_VERSION
+    cache_module.MATCH_LOGIC_VERSION = monkey
+    try:
+        assert cache.get_entity_miss("tennis", "anna siskova") is False, (
+            "a fix must take effect on the next run, not in seven days"
+        )
+    finally:
+        cache_module.MATCH_LOGIC_VERSION = original
+
+    with get_connection(str(tmp_path / "t.db")) as conn:
+        row = conn.execute(
+            "SELECT match_logic_version FROM sofa_entity_miss "
+            "WHERE sport='tennis' AND query_key='anna siskova'"
+        ).fetchone()
+    assert row["match_logic_version"] == MATCH_LOGIC_VERSION
+
+
+def test_f34_a_miss_from_the_current_logic_still_saves_the_lookup(
+    tmp_path: Path,
+) -> None:
+    """The version stamp must not disable F4: a genuine miss is still a fact
+    worth remembering, and it was ~20% of the request budget."""
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+
+    cache = SofaCache(SofaConfig(db_path=str(tmp_path / "t.db")))
+    cache.save_entity_miss("football", "no such club")
+    assert cache.get_entity_miss("football", "no such club") is True

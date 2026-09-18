@@ -1,6 +1,19 @@
 import os
 from dataclasses import dataclass
 
+# Bump whenever the entity-matching logic changes in a way that could turn a
+# miss into a hit: the gates in match_quality, the kickoff window, normalize_name.
+#
+# A negative cache remembers "we looked and found nothing". That is only a fact
+# about the world if the looking was correct. When it was not, the miss records
+# the *bug*, and F4's seven-day TTL then outlives the fix — measured on
+# 2026-09-18: a wrong gender gate made 175 women's tennis players unresolvable,
+# recorded them all as misses, and after the gate was fixed RESOLVE produced a
+# byte-identical artifact because it never asked again. Stamping the misses
+# with the version of the logic that produced them makes a fix invalidate them
+# automatically (F34).
+MATCH_LOGIC_VERSION = 2
+
 
 @dataclass(frozen=True)
 class SofaConfig:

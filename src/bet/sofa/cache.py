@@ -3,7 +3,7 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from bet.sofa.config import SofaConfig
+from bet.sofa.config import MATCH_LOGIC_VERSION, SofaConfig
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.timeutil import now
 
@@ -209,11 +209,17 @@ class SofaCache:
         """
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
-                "SELECT missed_at FROM sofa_entity_miss "
+                "SELECT missed_at, match_logic_version FROM sofa_entity_miss "
                 "WHERE sport = ? AND query_key = ?",
                 (sport, query_key),
             ).fetchone()
             if not row:
+                return False
+            # A miss recorded by older matching logic is not evidence about the
+            # world, it is evidence about the code that recorded it. Ignore it,
+            # so fixing a matching bug takes effect on the next run instead of
+            # in seven days' time (F34).
+            if row["match_logic_version"] != MATCH_LOGIC_VERSION:
                 return False
             missed_at = datetime.fromisoformat(row["missed_at"])
             return now() - missed_at <= timedelta(
@@ -311,12 +317,14 @@ class SofaCache:
         with get_connection(self.config.db_path) as conn:
             conn.execute(
                 """
-                INSERT INTO sofa_entity_miss (sport, query_key, missed_at)
-                VALUES (?, ?, ?)
+                INSERT INTO sofa_entity_miss
+                (sport, query_key, missed_at, match_logic_version)
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT(sport, query_key) DO UPDATE SET
-                    missed_at = excluded.missed_at
+                    missed_at = excluded.missed_at,
+                    match_logic_version = excluded.match_logic_version
                 """,
-                (sport, query_key, now().isoformat()),
+                (sport, query_key, now().isoformat(), MATCH_LOGIC_VERSION),
             )
             conn.commit()
 
