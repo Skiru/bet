@@ -779,3 +779,80 @@ def test_f32_the_gate_is_one_function_shared_by_offer_and_samples() -> None:
     assert odds_items({"odds": []}) == []
     assert odds_items({"marketName": "x"}) == []  # key absent
     assert odds_items({"odds": [{"marketName": "x"}]}) == [{"marketName": "x"}]
+
+
+# --------------------------------------------------------------------------
+# F29 — one letter with no NFD decomposition killed eight mappings
+# --------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    ("market_name", "expected"),
+    [
+        # The eight mappings that could not be reached at all.
+        ("1.połowa - liczba goli", ("goals_1h_total", "")),
+        ("2.połowa - liczba goli", ("goals_2h_total", "")),
+        ("Liczba strzałów", ("shots_total", "")),
+        ("Liczba celnych strzałów", ("shots_on_target_total", "")),
+        ("Liczba podwójnych błędów", ("double_faults_total", "")),
+        ("Liczba strzałów Wolfsburg", ("shots_for", "wolfsburg")),
+        ("Liczba celnych strzałów - Wolfsburg", ("shots_on_target_for", "wolfsburg")),
+        ("Djokovic liczba podwójnych błędów", ("double_faults_for", "djokovic")),
+        # Per-team halves: the metrics existed in FOOTBALL_METRICS with no
+        # pattern that could produce them.
+        ("1.połowa - Hapoel Tel Aviv - liczba goli", ("goals_1h_for", "hapoel tel aviv")),
+        ("2. połowa - Wolfsburg - liczba goli", ("goals_2h_for", "wolfsburg")),
+        # Unchanged, so the half patterns cannot have stolen the whole-match one.
+        ("Liczba goli", ("goals_total", "")),
+        ("Hapoel Tel Aviv - liczba goli", ("goals_for", "hapoel tel aviv")),
+    ],
+)
+def test_f29_market_names_with_l_stroke_classify(
+    market_name: str, expected: tuple[str, str]
+) -> None:
+    """Fails on the old code for the right reason: eight of these returned None
+    or, worse, routed a half-time line to the whole-match metric."""
+    from bet.sofa.market_mapper import classify_market
+
+    assert classify_market(market_name) == expected
+
+
+def test_f29_fold_removes_the_letters_nfd_cannot_decompose() -> None:
+    from bet.sofa.market_mapper import fold
+
+    assert fold("połowa") == "polowa"
+    assert fold("strzałów") == "strzalow"
+    assert fold("błędów") == "bledow"
+    assert fold("Đorđević") == "dordevic"
+    assert fold("Ødegaard") == "odegaard"
+    assert fold("Işık") == "isik"
+    # The ones that already worked must keep working.
+    assert fold("ŁKS Łomża") == "lks lomza"
+    assert fold("Świt Skolwin") == "swit skolwin"
+
+
+def test_f29_determine_side_refuses_a_subject_that_is_really_a_market_scope() -> None:
+    """The threshold leaked on long team names; this is the last line of defence.
+
+    Fails on the old code for the right reason: "1.połowa - Hapoel Tel Aviv"
+    scored 73.2 against a threshold of 70 and was attributed to side_a, so a
+    half-time line was priced off a whole-match sample. Whether a row leaked
+    depended on how long the club's name was — 678 of 1160 combinations did.
+    """
+    sys.path.insert(0, str(REPO / "scripts"))
+    from scripts.sofa.run_sheet import determine_side
+
+    fixture = _fixture(1, ["x"])
+    fixture.home_name = "Hapoel Tel Aviv"
+    fixture.away_name = "Maccabi Haifa"
+
+    assert determine_side("1.połowa - Hapoel Tel Aviv", fixture) is None
+    assert determine_side("2. połowa - Hapoel Tel Aviv", fixture) is None
+    assert determine_side(
+        "1.połowa - ACS Academia de Fotbal Viitorul Cluj", fixture
+    ) is None
+    # A real team name still resolves, so the guard is not a blanket refusal.
+    assert determine_side("Hapoel Tel Aviv", fixture) == "side_a"
+    assert determine_side("Maccabi Haifa", fixture) == "side_b"

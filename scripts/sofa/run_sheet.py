@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -31,6 +32,7 @@ from bet.sofa.engine import (
     predictive_sd,
     winning_boundary,
 )
+from bet.sofa.market_mapper import fold
 from bet.sofa.names import normalize_name
 from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
@@ -168,6 +170,10 @@ def get_prior(
 # this ratio, or on a tie, we do not know which side it is.
 SIDE_MATCH_THRESHOLD = 70.0
 
+# A leading market scope, folded: "1.polowa", "2. polowa". These describe which
+# part of the match the line covers, not who it is about.
+_SCOPE_PREFIX = re.compile(r"^[12]\.\s?polowa\b")
+
 
 def determine_side(subject: str, fixture: Fixture) -> str | None:
     """Which side a per-participant market belongs to, or None if unclear.
@@ -176,6 +182,17 @@ def determine_side(subject: str, fixture: Fixture) -> str | None:
     subject that matches nothing would otherwise land quietly on side_a and be
     priced against the wrong team's sample.
     """
+    # A subject that still carries a market scope is not a team name, whatever
+    # it scores. "1.połowa - Hapoel Tel Aviv" reached 73.2 against a threshold
+    # of 70 purely because the long team name diluted the prefix — 678 of 1160
+    # side/half combinations leaked this way, and whether a row leaked depended
+    # on how long the club's name was. F29's fold() fixes this at the source by
+    # classifying the market as half-time; this is the last line of defence,
+    # and it has to hold for the scopes that have no metric of their own
+    # (half-time cards, half-time corners), which still arrive here (F29b).
+    if _SCOPE_PREFIX.match(fold(subject)):
+        return None
+
     subject_norm = normalize_name(subject)
     home_score = fuzz.token_sort_ratio(subject_norm, normalize_name(fixture.home_name))
     away_score = fuzz.token_sort_ratio(subject_norm, normalize_name(fixture.away_name))
