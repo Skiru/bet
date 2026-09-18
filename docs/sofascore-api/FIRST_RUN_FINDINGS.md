@@ -2808,3 +2808,40 @@ Ranking bezwymiarowy usuwa wzmocnienie, nie usuwa przyczyny. Dopóki punkt 2 nie
 zostanie skalibrowany na danych **spoza jednego dnia**, wiersze z `p_bar < 0.15`
 należy traktować jako niezweryfikowane — i są one wymienione z nazwy na liście
 odrzuceń w raporcie Części 4.
+
+---
+
+## F37 — trzy timeouty w odstępach co do sekundy równych 61 minutom
+
+**Status: PODEJRZENIE — zaobserwowane, nierozpoznane, nienaprawione.**
+
+Na 20 072 requestów z 2026-09-18 trzy mają `status: null` i `elapsed_ms ≈ 30000`
+(timeout):
+
+```
+08:53:50.845  RESOLVE  /team/200078/events/last/1   30038 ms
+09:54:51.535  SAMPLES  /event/16779467/statistics   30003 ms
+10:55:52.212  SAMPLES  /event/14083156/statistics   30115 ms
+```
+
+Odstępy: **61 min 00.690 s** i **61 min 00.677 s**. Ta regularność wyklucza
+przypadkowy zbieg — coś cyklicznego po stronie mostka albo karty Chrome (sesja,
+token, timer userscriptu) zawiesza dokładnie jeden request na godzinę.
+
+Czego to **nie** dowodzi: nie wiadomo, czy to wina mostka, karty, czy
+Sofascore. Trzy zdarzenia to za mało, żeby cokolwiek rozstrzygnąć, i nie
+próbowano tego odtworzyć.
+
+Znaczenie praktyczne jest dziś małe — każdy z trzech był pojedynczym timeoutem,
+breaker pozostał `CLOSED`, przebieg nie ucierpiał. Znaczenie diagnostyczne jest
+większe: to **jedyne** zaobserwowane w tym dniu zachowanie awaryjne transportu,
+więc jest to też jedyny ślad, po którym da się kiedykolwiek sprawdzić obsługę
+błędów na żywych danych.
+
+**Korekta wcześniejszego zapisu:** w notatce do Części 4.4 napisano „2355
+requestów, zero awarii jakiegokolwiek rodzaju". Dla dwóch mierzonych tam
+przebiegów (`df72150396e6`, `47ee3ac813cf`) to nadal prawda, i dla trzeciego
+(`7f2b96dff237`, 1569 requestów, wyłącznie 200 i 404) również. Ale **dla całego
+dnia było to zdanie za mocne** — trzy awarie wystąpiły w przebiegu
+`72b141f347fc` i we wcześniejszym, nieoznaczonym. Wniosek o F1/F2/F11 się nie
+zmienia (patrz niżej), zmienia się podstawa liczbowa.
