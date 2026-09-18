@@ -7,8 +7,8 @@ from curl_cffi.requests.errors import RequestsError
 
 from bet.sofa.client import SofascoreClient, TransportResponse
 from bet.sofa.config import SofaConfig
-from bet.sofa.stage import stage
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.stage import stage
 
 
 class MockResponse:

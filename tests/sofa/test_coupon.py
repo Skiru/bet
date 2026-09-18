@@ -57,9 +57,8 @@ def base_fixture():
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=True,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
 
 

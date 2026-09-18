@@ -73,9 +73,19 @@ class Fixture(BaseModel):
     previous_leg_event_id: int | None
     venue_name: str | None
     referee: RefereeRecord | None
-    has_xg: bool
     ground_type: str | None
-    best_of: int | None
+    # Sofascore's defaultPeriodCount. For tennis this is the real best-of
+    # (3 or 5) and is worth having; for football it is the number of halves,
+    # which is why the old name `best_of` said something untrue about every
+    # football fixture in the artifact. Renamed rather than removed because the
+    # tennis value is correct and becomes load-bearing at a Grand Slam.
+    #
+    # `has_xg` is gone. It read hasXg off a match that had not been played, so
+    # it was False for the whole of the Bundesliga, and nothing consumed it —
+    # the xG gate lives in metrics.py and asks the right question of each
+    # historical match separately. A field that lies and nobody reads is a trap
+    # for whoever reads it next.
+    default_period_count: int | None
     # Superbet's own kickoff, and how far it is from Sofascore's.
     #
     # The two sources disagree by a whole timezone for ITF tournaments —

@@ -47,9 +47,8 @@ def make_fixture(**overrides: object) -> Fixture:
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=True,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
     base.update(overrides)
     return Fixture(**base)  # type: ignore[arg-type]

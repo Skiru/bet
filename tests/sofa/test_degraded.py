@@ -106,9 +106,8 @@ def test_degraded_empty_statistics(config: SofaConfig) -> None:
             previous_leg_event_id=None,
             venue_name=None,
             referee=None,
-            has_xg=False,
             ground_type=None,
-            best_of=None,
+            default_period_count=None,
         )
     ]
 
@@ -172,9 +171,8 @@ def test_a_provider_error_blocks_one_fixture_not_the_whole_day(tmp_path):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
 
     superbet = MagicMock()

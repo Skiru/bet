@@ -174,8 +174,8 @@ def get_historical_events(
                 # defaultPeriodCount is NOT on the listing, so the format is
                 # derived from sets won. None means "cannot tell" — and an
                 # unknown format is not a match for a known one.
-                if fixture.best_of is not None:
-                    if infer_best_of(event) != fixture.best_of:
+                if fixture.default_period_count is not None:
+                    if infer_best_of(event) != fixture.default_period_count:
                         continue
             else:
                 comp_id = _competition_id(event)

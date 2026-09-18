@@ -50,9 +50,8 @@ def test_t12_no_future_leak(mock_clients):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
 
     # Mock entity events: one past, one future (leak)
@@ -116,9 +115,8 @@ def test_t13_cache_hit_zero_requests(mock_clients):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
 
     superbet.event_odds.return_value = {"odds": [{"marketName": "Liczba goli"}]}
@@ -200,9 +198,8 @@ def test_t14_readiness_both_sports(mock_clients):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
     superbet.event_odds.return_value = {"odds": [{"marketName": "Liczba goli"}]}
 
@@ -230,9 +227,8 @@ def test_t14_readiness_both_sports(mock_clients):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type="Hardcourt outdoor",
-        best_of=3,
+        default_period_count=3,
     )
     # tennis needs games_total mapping. "liczba gemow" maps to "games_total"
     superbet.event_odds.return_value = {"odds": [{"marketName": "Liczba gemow"}]}
@@ -281,9 +277,8 @@ def test_h2h_deduplication(mock_clients):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
 
     superbet.event_odds.return_value = {"odds": [{"marketName": "Liczba goli"}]}
@@ -348,9 +343,8 @@ def test_tennis_sample_filtering(mock_clients):
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type="Hardcourt outdoor",
-        best_of=3,
+        default_period_count=3,
     )
 
     superbet.event_odds.return_value = {"odds": [{"marketName": "Liczba gemow"}]}

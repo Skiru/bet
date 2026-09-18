@@ -270,7 +270,9 @@ def test_f13_run_id_option_is_honoured_and_reaches_the_summary(tmp_path: Path) -
     summary_line = next(
         ln for ln in proc.stdout.splitlines() if ln.startswith("SOFA_SUMMARY: ")
     )
-    assert json.loads(summary_line.removeprefix("SOFA_SUMMARY: "))["run_id"] == "chosen1"
+    assert (
+        json.loads(summary_line.removeprefix("SOFA_SUMMARY: "))["run_id"] == "chosen1"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -647,7 +649,7 @@ def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
                     category_name="X", identity=identity,
                     round_number=None, round_name=None, cup_round_type=None,
                     previous_leg_event_id=None, venue_name=None, referee=None,
-                    has_xg=False, ground_type=None, best_of=None,
+                    ground_type=None, default_period_count=None,
                 )
 
             run_resolve.parse_fixture = fake_parse
@@ -711,9 +713,8 @@ def _fixture(sofascore_event_id: int, superbet_ids: list[str]):  # type: ignore[
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
 
 
@@ -802,7 +803,10 @@ import pytest  # noqa: E402
         ("Djokovic liczba podwójnych błędów", ("double_faults_for", "djokovic")),
         # Per-team halves: the metrics existed in FOOTBALL_METRICS with no
         # pattern that could produce them.
-        ("1.połowa - Hapoel Tel Aviv - liczba goli", ("goals_1h_for", "hapoel tel aviv")),
+        (
+            "1.połowa - Hapoel Tel Aviv - liczba goli",
+            ("goals_1h_for", "hapoel tel aviv"),
+        ),
         ("2. połowa - Wolfsburg - liczba goli", ("goals_2h_for", "wolfsburg")),
         # Unchanged, so the half patterns cannot have stolen the whole-match one.
         ("Liczba goli", ("goals_total", "")),
@@ -850,9 +854,10 @@ def test_f29_determine_side_refuses_a_subject_that_is_really_a_market_scope() ->
 
     assert determine_side("1.połowa - Hapoel Tel Aviv", fixture) is None
     assert determine_side("2. połowa - Hapoel Tel Aviv", fixture) is None
-    assert determine_side(
-        "1.połowa - ACS Academia de Fotbal Viitorul Cluj", fixture
-    ) is None
+    assert (
+        determine_side("1.połowa - ACS Academia de Fotbal Viitorul Cluj", fixture)
+        is None
+    )
     # A real team name still resolves, so the guard is not a blanket refusal.
     assert determine_side("Hapoel Tel Aviv", fixture) == "side_a"
     assert determine_side("Maccabi Haifa", fixture) == "side_b"
@@ -1076,7 +1081,13 @@ def test_f16_a_womens_team_never_shares_a_key_with_the_mens_team(
 def test_f16_every_marker_spelling_collapses_to_the_same_form() -> None:
     from bet.sofa.names import is_womens_name, normalize_name
 
-    forms = ["Arsenal (K)", "Arsenal (W)", "Arsenal (F)", "Arsenal Women", "Arsenal Kobiety"]
+    forms = [
+        "Arsenal (K)",
+        "Arsenal (W)",
+        "Arsenal (F)",
+        "Arsenal Women",
+        "Arsenal Kobiety",
+    ]
     assert {normalize_name(f) for f in forms} == {"arsenal (w)"}
     assert all(is_womens_name(f) for f in forms)
     assert not is_womens_name("Arsenal")
@@ -1137,7 +1148,9 @@ def test_f28_a_real_transcription_error_is_still_blocked() -> None:
     from bet.sofa.metrics import check_identities
 
     stats = _shot_stats((10.0, 24.0), (2.0, 12.0), (4.0, 10.0), (3.0, 2.0), (0.0, 0.0))
-    assert check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT
+    assert (
+        check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT
+    )
 
 
 def test_f28_the_obvious_repair_would_have_been_wrong() -> None:
@@ -1151,16 +1164,26 @@ def test_f28_the_obvious_repair_would_have_been_wrong() -> None:
     from bet.sofa.metrics import check_identities
 
     # Convention A: the woodwork shot is extra. base = 7, total = 8, wood = 1.
-    assert check_identities(
-        _shot_stats((8.0, 8.0), (3.0, 3.0), (3.0, 3.0), (1.0, 1.0), (1.0, 1.0)),
-        None, {}, "football",
-    ) is None
+    assert (
+        check_identities(
+            _shot_stats((8.0, 8.0), (3.0, 3.0), (3.0, 3.0), (1.0, 1.0), (1.0, 1.0)),
+            None,
+            {},
+            "football",
+        )
+        is None
+    )
     # Convention B: it is already counted. base = 8, total = 8, wood = 1.
     # "base + hitWoodwork == total" would reject this one.
-    assert check_identities(
-        _shot_stats((8.0, 8.0), (4.0, 4.0), (3.0, 3.0), (1.0, 1.0), (1.0, 1.0)),
-        None, {}, "football",
-    ) is None
+    assert (
+        check_identities(
+            _shot_stats((8.0, 8.0), (4.0, 4.0), (3.0, 3.0), (1.0, 1.0), (1.0, 1.0)),
+            None,
+            {},
+            "football",
+        )
+        is None
+    )
 
 
 def test_f28_a_discrepancy_larger_than_the_woodwork_count_still_blocks() -> None:
@@ -1169,10 +1192,15 @@ def test_f28_a_discrepancy_larger_than_the_woodwork_count_still_blocks() -> None
     from bet.sofa.metrics import check_identities
 
     # base = 5, total = 8, only 1 woodwork shot to explain a gap of 3.
-    assert check_identities(
-        _shot_stats((8.0, 8.0), (2.0, 2.0), (2.0, 2.0), (1.0, 1.0), (1.0, 1.0)),
-        None, {}, "football",
-    ) == GapReason.INTERNAL_INCONSISTENT
+    assert (
+        check_identities(
+            _shot_stats((8.0, 8.0), (2.0, 2.0), (2.0, 2.0), (1.0, 1.0), (1.0, 1.0)),
+            None,
+            {},
+            "football",
+        )
+        == GapReason.INTERNAL_INCONSISTENT
+    )
 
 
 def test_f28_a_payload_without_the_woodwork_key_keeps_the_exact_identity() -> None:
@@ -1182,7 +1210,9 @@ def test_f28_a_payload_without_the_woodwork_key_keeps_the_exact_identity() -> No
 
     stats = _shot_stats((8.0, 8.0), (3.0, 3.0), (3.0, 3.0), (1.0, 1.0), (0.0, 0.0))
     del stats["ALL"]["hitWoodwork"]
-    assert check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT
+    assert (
+        check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT
+    )
 
 
 # --------------------------------------------------------------------------
@@ -1213,8 +1243,16 @@ def test_f30_the_floor_still_applies_to_the_26_metrics_that_justify_it() -> None
     it wholesale would drop a real guard against an over-tight sample."""
     from bet.sofa.engine import uses_poisson_floor
 
-    for market in ("goals_total", "corners_total", "cards_points_total", "fouls_total",
-                   "shots_total", "aces_total", "games_total", "offsides_total"):
+    for market in (
+        "goals_total",
+        "corners_total",
+        "cards_points_total",
+        "fouls_total",
+        "shots_total",
+        "aces_total",
+        "games_total",
+        "offsides_total",
+    ):
         assert uses_poisson_floor(market), market
     for market in ("sets_total", "tiebreaks_total", "xg_total", "xg_for"):
         assert not uses_poisson_floor(market), market
@@ -1380,7 +1418,7 @@ def test_f21_the_bridge_raises_transport_error_not_provider_error() -> None:
 
 
 def test_f21_the_real_bridge_transports_failure_is_retried_end_to_end(
-    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The behavioural proof, with the actual transport the pipeline uses.
 
@@ -1456,7 +1494,7 @@ def test_f17_a_404_listing_is_not_rediscovered_within_the_ttl(tmp_path: Path) ->
 
 
 def test_f17_the_negative_cache_expires_so_it_cannot_become_a_silent_gap(
-    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Remembering a 404 forever trades waste for missing data, which is worse.
 
@@ -1566,7 +1604,12 @@ def test_f26_a_match_superbet_says_has_started_cannot_reach_the_coupon() -> None
 
     now = datetime(2026, 9, 18, 4, 0, tzinfo=UTC)
     result = build_coupon(
-        [_sheet_row(1)], [fixture], [], [], now, now + timedelta(minutes=15),
+        [_sheet_row(1)],
+        [fixture],
+        [],
+        [],
+        now,
+        now + timedelta(minutes=15),
         timedelta(minutes=45),
     )
     assert not result.coupon.singles, "a started match reached the coupon"
@@ -1607,7 +1650,12 @@ def test_f26_a_fixture_both_sources_agree_is_upcoming_still_passes() -> None:
         unmapped_markets=[],
     )
     result = build_coupon(
-        [_sheet_row(1)], [fixture], [offer], [], now, now + timedelta(minutes=15),
+        [_sheet_row(1)],
+        [fixture],
+        [offer],
+        [],
+        now,
+        now + timedelta(minutes=15),
         timedelta(minutes=45),
     )
     assert len(result.coupon.singles) == 1, [
@@ -1639,7 +1687,10 @@ def test_f26_the_disagreement_is_recorded_on_the_fixture() -> None:
             return None
 
     fixture = parse_fixture(
-        event, "tennis", ["1"], NoClient(),  # type: ignore[arg-type]
+        event,
+        "tennis",
+        ["1"],
+        NoClient(),  # type: ignore[arg-type]
         superbet_kickoff_utc=datetime(2026, 9, 18, 1, 4, tzinfo=UTC),
     )
     assert fixture.kickoff_disagreement_h is not None
@@ -1953,7 +2004,11 @@ def test_f19_metrics_come_from_the_offers_priced_rungs() -> None:
         status="PRICED",
         rungs=[
             PricedRung(
-                market=m, subject="", line=2.5, over_odds=1.9, under_odds=1.9,
+                market=m,
+                subject="",
+                line=2.5,
+                over_odds=1.9,
+                under_odds=1.9,
                 fetched_at_utc=real_now(),
             )
             for m in ("goals_total", "corners_total", "goals_total")
@@ -1990,15 +2045,24 @@ def test_f31_a_value_row_without_a_surplus_is_dropped_not_fatal() -> None:
         status="PRICED",
         rungs=[
             PricedRung(
-                market="games_total", subject="", line=20.5, over_odds=2.50,
-                under_odds=1.55, fetched_at_utc=now,
+                market="games_total",
+                subject="",
+                line=20.5,
+                over_odds=2.50,
+                under_odds=1.55,
+                fetched_at_utc=now,
             )
         ],
         unmapped_markets=[],
     )
 
     result = build_coupon(
-        [row], [fixture], [offer], [], now, now + timedelta(minutes=15),
+        [row],
+        [fixture],
+        [offer],
+        [],
+        now,
+        now + timedelta(minutes=15),
         timedelta(minutes=45),
     )
     assert not result.coupon.singles
@@ -2041,17 +2105,30 @@ def test_f31_one_family_per_fixture_still_holds() -> None:
         rows.append(r)
         rungs.append(
             PricedRung(
-                market="games_total", subject="", line=line, over_odds=2.50,
-                under_odds=1.55, fetched_at_utc=now,
+                market="games_total",
+                subject="",
+                line=line,
+                over_odds=2.50,
+                under_odds=1.55,
+                fetched_at_utc=now,
             )
         )
 
     result = build_coupon(
-        rows, [fixture],
-        [FixtureOffer(
-            sofascore_event_id=1, status="PRICED", rungs=rungs, unmapped_markets=[],
-        )],
-        [], now, now + timedelta(minutes=15), timedelta(minutes=45),
+        rows,
+        [fixture],
+        [
+            FixtureOffer(
+                sofascore_event_id=1,
+                status="PRICED",
+                rungs=rungs,
+                unmapped_markets=[],
+            )
+        ],
+        [],
+        now,
+        now + timedelta(minutes=15),
+        timedelta(minutes=45),
     )
     assert len(result.coupon.singles) == 1
     assert "FAMILY_SLOT_TAKEN" in [d.reason for d in result.dropped]
@@ -2125,7 +2202,9 @@ def test_a_normal_match_is_untouched_by_the_extra_time_path() -> None:
     }
     assert extract_metric("goals_total", "football", {}, None, normal, True) == 4.0
     stats = {"ALL": {"cornerKicks": (7.0, 6.0)}}
-    assert extract_metric("corners_total", "football", stats, None, normal, True) == 13.0
+    assert (
+        extract_metric("corners_total", "football", stats, None, normal, True) == 13.0
+    )
 
 
 def test_a_retirement_or_walkover_is_still_excluded_entirely() -> None:
@@ -2156,7 +2235,7 @@ def _board_row(event_id: int, tournament_id: int, name: str = "A · B"):  # type
 
 
 def test_f12_board_records_the_competition_ids_superbet_sends(
-    monkeypatch: "pytest.MonkeyPatch",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Superbet sends no competition name at all, only ids. Without them the
     question "is this slate descending into competitions with no data" can only
@@ -2176,7 +2255,7 @@ def test_f12_board_records_the_competition_ids_superbet_sends(
 
 
 def test_f12_an_excluded_tournament_never_reaches_the_board(
-    monkeypatch: "pytest.MonkeyPatch",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from bet.sofa import board as board_module
 
@@ -2184,9 +2263,7 @@ def test_f12_an_excluded_tournament_never_reaches_the_board(
         def events_by_date(self, *a: object, **k: object) -> list[dict[str, object]]:
             return [_board_row(1, 91283), _board_row(2, 1656, "C · D")]
 
-    monkeypatch.setattr(
-        board_module, "load_excluded_tournament_ids", lambda: {91283}
-    )
+    monkeypatch.setattr(board_module, "load_excluded_tournament_ids", lambda: {91283})
     fixtures = board_module.fetch_board("2026-09-18", Client())  # type: ignore[arg-type]
     assert [f.superbet_event_id for f in fixtures] == ["2"]
 
@@ -2208,7 +2285,7 @@ def test_f12_the_shipped_exclusion_list_is_empty_and_that_is_deliberate() -> Non
 
 
 def test_f12_a_missing_or_broken_config_excludes_nothing(
-    monkeypatch: "pytest.MonkeyPatch", tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Degrading to "exclude nothing" is the safe direction: a config that
     cannot be read must not silently delete the slate."""
@@ -2275,3 +2352,43 @@ def test_a_half_time_scope_is_unmapped_not_a_phantom_per_team_row(
     from bet.sofa.market_mapper import classify_market
 
     assert classify_market(market_name) is None
+
+
+# --------------------------------------------------------------------------
+# has_xg / best_of — operator decision: drop the first, rename the second
+# --------------------------------------------------------------------------
+
+
+def test_has_xg_is_gone_from_the_fixture_contract() -> None:
+    """It read hasXg off a match that had not been played, so it was False for
+    the whole Bundesliga, and nothing consumed it. A field that lies and nobody
+    reads is a trap for the next reader."""
+    from bet.sofa.contracts import Fixture
+
+    assert "has_xg" not in Fixture.model_fields
+
+
+def test_the_xg_gate_still_asks_the_right_question_in_the_right_place() -> None:
+    """Removing the field must not disturb the gate that actually works:
+    metrics.py checks hasXg on each historical match separately."""
+    from bet.sofa.contracts import GapReason
+    from bet.sofa.metrics import extract_metric
+
+    stats = {"ALL": {"expectedGoals": (1.4, 1.1)}}
+    with_xg = {"id": 1, "status": {"type": "finished", "code": 100}, "hasXg": True}
+    without = {"id": 2, "status": {"type": "finished", "code": 100}, "hasXg": False}
+
+    assert extract_metric("xg_total", "football", stats, None, with_xg, True) == 2.5
+    assert (
+        extract_metric("xg_total", "football", stats, None, without, True)
+        == GapReason.STAT_KEY_ABSENT
+    ), "absent, never 0.0"
+
+
+def test_best_of_is_renamed_to_what_it_actually_holds() -> None:
+    """defaultPeriodCount. For football that is the number of halves, which is
+    why `best_of: 2` appeared on all 290 football fixtures."""
+    from bet.sofa.contracts import Fixture
+
+    assert "best_of" not in Fixture.model_fields
+    assert "default_period_count" in Fixture.model_fields

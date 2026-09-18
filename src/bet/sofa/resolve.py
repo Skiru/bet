@@ -363,7 +363,7 @@ def parse_fixture(
     superbet_kickoff_utc: datetime | None = None,
 ) -> Fixture:
     # /event/{id} carries what the listing does not: referee, round_number,
-    # ground_type, best_of.
+    # ground_type, default_period_count.
     details = client.event(event["id"])
     if details and "event" in details:
         event = details["event"]
@@ -411,9 +411,8 @@ def parse_fixture(
         previous_leg_event_id=event.get("previousLegEventId"),
         venue_name=venue,
         referee=referee,
-        has_xg=event.get("hasXg", False),
         ground_type=event.get("groundType"),
-        best_of=event.get("defaultPeriodCount"),
+        default_period_count=event.get("defaultPeriodCount"),
         superbet_kickoff_utc=superbet_kickoff_utc,
         kickoff_disagreement_h=(
             None

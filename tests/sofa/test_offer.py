@@ -81,9 +81,8 @@ def test_offer_fetcher_combines_odds():
             previous_leg_event_id=None,
             venue_name=None,
             referee=None,
-            has_xg=False,
             ground_type=None,
-            best_of=None,
+            default_period_count=None,
         ),
         Fixture(
             sofascore_event_id=2,
@@ -105,9 +104,8 @@ def test_offer_fetcher_combines_odds():
             previous_leg_event_id=None,
             venue_name=None,
             referee=None,
-            has_xg=False,
             ground_type=None,
-            best_of=None,
+            default_period_count=None,
         ),
     ]
 

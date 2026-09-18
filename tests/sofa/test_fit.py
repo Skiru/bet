@@ -297,9 +297,8 @@ def _sheet_rows_at_scale(scale: float) -> list[Any]:
         previous_leg_event_id=None,
         venue_name=None,
         referee=None,
-        has_xg=False,
         ground_type=None,
-        best_of=None,
+        default_period_count=None,
     )
     raw_values = [2.0, 3.0, 4.0, 2.0, 5.0, 3.0]
 

@@ -291,15 +291,14 @@ def test_f11_resolve_loop_isolates_provider_errors(tmp_path: Any) -> None:
             return None, None, False
 
         R.SofaResolver.resolve_entity = fake_resolve
-        sys.argv = ["run_resolve", "--date", "%s"]
+        sys.argv = ["run_resolve", "--date", "__DATE__"]
         import runpy
         try:
             runpy.run_path("scripts/sofa/run_resolve.py", run_name="__main__")
         except SystemExit as e:
             print("EXIT", e.code)
         """
-        % date
-    )
+    ).replace("__DATE__", date)
     script = tmp_path / "harness.py"
     script.write_text(harness, encoding="utf-8")
 
