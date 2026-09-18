@@ -284,7 +284,7 @@ def test_f11_resolve_loop_isolates_provider_errors(tmp_path: Any) -> None:
         import bet.sofa.resolve as R
 
         calls = {"n": 0}
-        def fake_resolve(self, sport, side, kickoff, opponent):
+        def fake_resolve(self, sport, side, kickoff, opponent, **kw):
             calls["n"] += 1
             if "A1" in side or "B1" in side:
                 raise ProviderError("bridge HTTP 504: bridge timeout")

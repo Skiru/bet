@@ -66,7 +66,12 @@ def main() -> int:
                 # Try resolve side_a first
                 opponent = side_b
                 entity_id, event, is_ambig = resolver.resolve_entity(
-                    bf.sport, side_a, bf.kickoff_utc, side_b
+                    bf.sport,
+                    side_a,
+                    bf.kickoff_utc,
+                    side_b,
+                    board_side_a=side_a,
+                    board_side_b=side_b,
                 )
 
                 if is_ambig:
@@ -76,8 +81,15 @@ def main() -> int:
                 if not event:
                     # Fallback to side_b
                     opponent = side_a
+                    # side_a/side_b swap for the retry; the board's order
+                    # does not, and the F25 gates need the board's order.
                     entity_id, event, is_ambig = resolver.resolve_entity(
-                        bf.sport, side_b, bf.kickoff_utc, side_a
+                        bf.sport,
+                        side_b,
+                        bf.kickoff_utc,
+                        side_a,
+                        board_side_a=side_a,
+                        board_side_b=side_b,
                     )
                     if is_ambig:
                         gaps[GapReason.AMBIGUOUS_ENTITY] += 1
@@ -102,7 +114,12 @@ def main() -> int:
                     # matched exactly; recording which it was keeps `identity` a fact
                     # rather than a constant.
                     quality = resolver.match_quality(
-                        event, bf.kickoff_utc, normalize_name(opponent)
+                        event,
+                        bf.kickoff_utc,
+                        normalize_name(opponent),
+                        sport=bf.sport,
+                        superbet_side_a=side_a,
+                        superbet_side_b=side_b,
                     )
                     identity: Literal["CONFIRMED", "FUZZY"] = (
                         "CONFIRMED"

@@ -18,6 +18,94 @@ NAME_MATCH_THRESHOLD = 85.0
 # identity is CONFIRMED rather than FUZZY.
 NAME_EXACT_THRESHOLD = 99.0
 
+# How far the two sources' kickoffs may differ and still be the same match.
+#
+# Per sport, and that is not tidiness. In football the median disagreement is
+# 0 minutes, so ±24 h buys nothing and costs the F25 defect directly: 23 h was
+# exactly the gap that let "the same two clubs, tomorrow, in the women's
+# league" look like today's men's fixture. In tennis eight-hour disagreements
+# are legal and routine — Sofascore publishes ITF kickoffs in the tournament's
+# local time as though it were UTC (F26) — so the wide window has to stay
+# there. Cutting it globally would have closed F25 and opened a bigger hole.
+MATCH_WINDOW_S: dict[str, float] = {
+    "football": 6 * 3600,
+    "tennis": 24 * 3600,
+}
+DEFAULT_MATCH_WINDOW_S = 24 * 3600
+
+# A reversal this clear is not a near-miss. Measured over the whole 2026-09-18
+# artifact: 483 of 484 fixtures agreed on orientation, zero were ambiguous, and
+# the single reversal scored 54.5 direct against 200.0 crossed.
+ORIENTATION_MARGIN = 20.0
+
+# Markers Superbet uses for a women's team, in the side name.
+_WOMEN_SUPERBET_MARKERS = (
+    "(k)",
+    "(w)",
+    "(f)",
+    " kobiety",
+    " women",
+)
+# Markers Sofascore uses for a women's competition, in the competition name.
+# The competition is the reliable carrier: entity 296052 is called plainly
+# "IF Gnistan" and plays exclusively in women's competitions, so the team name
+# says nothing (F25).
+_WOMEN_COMPETITION_MARKERS = (
+    "women",
+    "kobiet",
+    "feminin",
+    "femenin",
+    "femminil",
+    "frauen",
+    "damen",
+    "girls",
+)
+
+
+def superbet_gender(name: str) -> str:
+    """ "W" if Superbet marks this side as a women's team, else "M"."""
+    lowered = f" {(name or '').lower().strip()}"
+    return "W" if any(m in lowered for m in _WOMEN_SUPERBET_MARKERS) else "M"
+
+
+def sofascore_gender(event: dict[str, Any]) -> str:
+    """ "W" if this event's competition is a women's competition, else "M"."""
+    tournament = event.get("tournament") or {}
+    unique = tournament.get("uniqueTournament") or {}
+    category = tournament.get("category") or {}
+    text = " ".join(
+        str(part or "").lower()
+        for part in (
+            tournament.get("name"),
+            tournament.get("slug"),
+            unique.get("name"),
+            unique.get("slug"),
+            category.get("name"),
+        )
+    )
+    return "W" if any(m in text for m in _WOMEN_COMPETITION_MARKERS) else "M"
+
+
+def orientation_is_reversed(
+    event: dict[str, Any], superbet_side_a: str, superbet_side_b: str
+) -> bool:
+    """True when Superbet's (side_a, side_b) maps to Sofascore's (away, home).
+
+    This has value of its own, beyond identity: per-team markets — a side's
+    corners, a side's cards, every `*_for` — are attributed by position, so a
+    reversal prices the wrong team's sample even when the match is right.
+    """
+    home = normalize_name((event.get("homeTeam") or {}).get("name", ""))
+    away = normalize_name((event.get("awayTeam") or {}).get("name", ""))
+    if not home or not away or not superbet_side_a or not superbet_side_b:
+        return False
+
+    a = normalize_name(superbet_side_a)
+    b = normalize_name(superbet_side_b)
+    direct = fuzz.ratio(a, home) + fuzz.ratio(b, away)
+    crossed = fuzz.ratio(a, away) + fuzz.ratio(b, home)
+    return crossed - direct > ORIENTATION_MARGIN
+
 
 def split_match_name(match_name: str) -> tuple[str, str]:
     parts = match_name.split("·")
@@ -50,21 +138,55 @@ class SofaResolver:
         return events
 
     def match_quality(
-        self, event: dict[str, Any], kickoff_utc: datetime, expected_opponent: str
+        self,
+        event: dict[str, Any],
+        kickoff_utc: datetime,
+        expected_opponent: str,
+        *,
+        sport: str = "tennis",
+        superbet_side_a: str = "",
+        superbet_side_b: str = "",
     ) -> float | None:
         """How well this event matches, or None if it does not.
 
-        Both conditions are required (E4 step 6): the kickoff within an aware
-        ±24 h window, AND the opponent's name clearing the fuzzy threshold.
-        Either alone matches another fixture of the same team.
+        Kickoff and opponent were the two original conditions (E4 step 6), and
+        both were satisfied by a match that was the wrong day, the wrong gender
+        and the wrong way round: IF Gnistan · HJK Helsinki of the men's
+        Veikkausliiga matched the women's Kansallinen Liiga fixture 23 h later,
+        and was recorded CONFIRMED (F25). Two clubs that field both a men's and
+        a women's side make the opponent's name useless on its own, and the
+        window was wide enough to reach the next day.
+
+        Two further conditions close it, either of which catches that case
+        alone, and both cheap:
+
+        - the gender implied by the competition must agree with the gender
+          Superbet marks on the side name;
+        - Superbet's (side_a, side_b) must not map to Sofascore's (away, home).
         """
         start_ts = event.get("startTimestamp")
         if not start_ts:
             return None
 
+        window = MATCH_WINDOW_S.get(sport, DEFAULT_MATCH_WINDOW_S)
         event_time = datetime.fromtimestamp(start_ts, UTC)
-        if abs((event_time - kickoff_utc).total_seconds()) > 24 * 3600:
+        if abs((event_time - kickoff_utc).total_seconds()) > window:
             return None
+
+        if superbet_side_a or superbet_side_b:
+            expected = (
+                "W"
+                if "W"
+                in (
+                    superbet_gender(superbet_side_a),
+                    superbet_gender(superbet_side_b),
+                )
+                else "M"
+            )
+            if sofascore_gender(event) != expected:
+                return None
+            if orientation_is_reversed(event, superbet_side_a, superbet_side_b):
+                return None
 
         home = normalize_name(event.get("homeTeam", {}).get("name", ""))
         away = normalize_name(event.get("awayTeam", {}).get("name", ""))
@@ -76,15 +198,44 @@ class SofaResolver:
         return float(best) if best > NAME_MATCH_THRESHOLD else None
 
     def _is_match(
-        self, event: dict[str, Any], kickoff_utc: datetime, expected_opponent: str
+        self,
+        event: dict[str, Any],
+        kickoff_utc: datetime,
+        expected_opponent: str,
+        *,
+        sport: str = "tennis",
+        superbet_side_a: str = "",
+        superbet_side_b: str = "",
     ) -> bool:
-        return self.match_quality(event, kickoff_utc, expected_opponent) is not None
+        return (
+            self.match_quality(
+                event,
+                kickoff_utc,
+                expected_opponent,
+                sport=sport,
+                superbet_side_a=superbet_side_a,
+                superbet_side_b=superbet_side_b,
+            )
+            is not None
+        )
 
     def resolve_entity(
-        self, sport: str, side: str, kickoff_utc: datetime, expected_opponent: str
+        self,
+        sport: str,
+        side: str,
+        kickoff_utc: datetime,
+        expected_opponent: str,
+        *,
+        board_side_a: str = "",
+        board_side_b: str = "",
     ) -> tuple[int | None, dict[str, Any] | None, bool]:
         """
         Returns (sofascore_id, matching_event, is_ambiguous).
+
+        ``board_side_a``/``board_side_b`` are the board's sides in their
+        original order, which ``side``/``expected_opponent`` lose because the
+        caller retries with them swapped. The gender and orientation gates need
+        the original order (F25).
         """
         norm_side = normalize_name(side)
         norm_opp = normalize_name(expected_opponent)
@@ -100,7 +251,14 @@ class SofaResolver:
             # Just verify event exists
             events = self._fetch_events(cached["sofascore_id"])
             for e in events:
-                if self._is_match(e, kickoff_utc, norm_opp):
+                if self._is_match(
+                    e,
+                    kickoff_utc,
+                    norm_opp,
+                    sport=sport,
+                    superbet_side_a=board_side_a,
+                    superbet_side_b=board_side_b,
+                ):
                     return cached["sofascore_id"], e, False
 
         # Miss -> search/all
@@ -124,7 +282,14 @@ class SofaResolver:
         for cand in candidates:
             events = self._fetch_events(cand["id"])
             for e in events:
-                if self._is_match(e, kickoff_utc, norm_opp):
+                if self._is_match(
+                    e,
+                    kickoff_utc,
+                    norm_opp,
+                    sport=sport,
+                    superbet_side_a=board_side_a,
+                    superbet_side_b=board_side_b,
+                ):
                     matching_events.append((cand, e))
 
         if len(matching_events) == 1:

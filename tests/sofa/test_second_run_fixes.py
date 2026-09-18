@@ -619,7 +619,7 @@ def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
             import scripts.sofa.run_resolve as run_resolve
 
             calls = {"n": 0}
-            def fake_resolve(self, sport, side, kickoff, opponent):
+            def fake_resolve(self, sport, side, kickoff, opponent, **kw):
                 calls["n"] += 1
                 if calls["n"] > 2:
                     # Not a ProviderError: the F14 failure was local, which is
@@ -627,7 +627,7 @@ def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
                     raise sqlite3.OperationalError("no such table: sofa_entity_miss")
                 return 10 + calls["n"], {"id": 100 + calls["n"]}, False
 
-            def fake_quality(self, event, kickoff, opponent):
+            def fake_quality(self, event, kickoff, opponent, **kw):
                 return 100.0
 
             R.SofaResolver.resolve_entity = fake_resolve
@@ -856,3 +856,176 @@ def test_f29_determine_side_refuses_a_subject_that_is_really_a_market_scope() ->
     # A real team name still resolves, so the guard is not a blanket refusal.
     assert determine_side("Hapoel Tel Aviv", fixture) == "side_a"
     assert determine_side("Maccabi Haifa", fixture) == "side_b"
+
+
+# --------------------------------------------------------------------------
+# F25 — the men's fixture that matched a women's match, CONFIRMED
+# --------------------------------------------------------------------------
+
+
+def _gnistan_womens_event() -> dict:  # type: ignore[type-arg]
+    """Sofascore 16681087, as the artifact recorded it: 09-19 15:00, sides reversed."""
+    return {
+        "id": 16681087,
+        "startTimestamp": 1789830000,  # 2026-09-19T15:00:00Z
+        "homeTeam": {"name": "HJK Helsinki"},
+        "awayTeam": {"name": "IF Gnistan"},
+        "tournament": {
+            "name": "Kansallinen Liiga, Women, Championship group",
+            "category": {"name": "Finland"},
+            "uniqueTournament": {"name": "Kansallinen Liiga, Women"},
+        },
+    }
+
+
+def _gnistan_mens_event() -> dict:  # type: ignore[type-arg]
+    """The fixture Superbet actually listed: men's, same day, same orientation."""
+    return {
+        "id": 16681000,
+        "startTimestamp": 1789740000,  # 2026-09-18T14:00:00Z
+        "homeTeam": {"name": "IF Gnistan"},
+        "awayTeam": {"name": "HJK Helsinki"},
+        "tournament": {
+            "name": "Veikkausliiga",
+            "category": {"name": "Finland"},
+            "uniqueTournament": {"name": "Veikkausliiga"},
+        },
+    }
+
+
+def _resolver():  # type: ignore[no-untyped-def]
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import SofaResolver
+
+    return SofaResolver(SofaConfig(), None, None)  # type: ignore[arg-type]
+
+
+def test_f25_a_womens_match_does_not_match_a_mens_fixture(tmp_path: Path) -> None:
+    """The exact case from the artifact must not resolve at all.
+
+    Fails on the old code for the right reason: kickoff (23 h, inside ±24 h)
+    and opponent ("hjk helsinki" exact, both clubs field both sides) were the
+    only two conditions, and both passed — the row was written CONFIRMED.
+    """
+    from datetime import UTC, datetime
+
+    kickoff = datetime(2026, 9, 18, 16, 0, tzinfo=UTC)  # Superbet's time
+    quality = _resolver().match_quality(
+        _gnistan_womens_event(),
+        kickoff,
+        "hjk helsinki",
+        sport="football",
+        superbet_side_a="IF Gnistan",
+        superbet_side_b="HJK Helsinki",
+    )
+    assert quality is None, "a women's match was accepted for a men's fixture"
+
+
+def test_f25_the_real_mens_fixture_still_resolves() -> None:
+    """The gates must not be a blanket refusal — 285 men's fixtures agreed."""
+    from datetime import UTC, datetime
+
+    kickoff = datetime(2026, 9, 18, 16, 0, tzinfo=UTC)
+    quality = _resolver().match_quality(
+        _gnistan_mens_event(),
+        kickoff,
+        "hjk helsinki",
+        sport="football",
+        superbet_side_a="IF Gnistan",
+        superbet_side_b="HJK Helsinki",
+    )
+    assert quality is not None and quality > 99.0
+
+
+def test_f25_a_womens_fixture_matches_a_womens_match() -> None:
+    """Superbet's (K) marker and a Women competition agree: 4 such fixtures."""
+    from datetime import UTC, datetime
+
+    event = _gnistan_womens_event()
+    event["homeTeam"], event["awayTeam"] = event["awayTeam"], event["homeTeam"]
+    quality = _resolver().match_quality(
+        event,
+        datetime(2026, 9, 19, 15, 0, tzinfo=UTC),
+        "hjk helsinki",
+        sport="football",
+        superbet_side_a="IF Gnistan (K)",
+        superbet_side_b="HJK Helsinki (K)",
+    )
+    assert quality is not None
+
+
+def test_f25_reversed_sides_are_refused_even_when_gender_agrees() -> None:
+    """The orientation gate has value of its own: per-team markets are positional.
+
+    Fails on the old code for the right reason: nothing checked orientation, so
+    a reversed event was accepted and every `*_for` market on it would have
+    been priced off the other team's sample.
+    """
+    from datetime import UTC, datetime
+
+    event = _gnistan_mens_event()
+    event["homeTeam"], event["awayTeam"] = event["awayTeam"], event["homeTeam"]
+    quality = _resolver().match_quality(
+        event,
+        datetime(2026, 9, 18, 16, 0, tzinfo=UTC),
+        "hjk helsinki",
+        sport="football",
+        superbet_side_a="IF Gnistan",
+        superbet_side_b="HJK Helsinki",
+    )
+    assert quality is None
+
+
+def test_f25_the_match_window_is_per_sport_not_cut_globally() -> None:
+    """Cutting ±24 h globally would close F25 and open a bigger hole (F26).
+
+    Tennis ITF kickoffs disagree by a whole timezone, legally and in bulk, so
+    the wide window has to stay there.
+    """
+    from datetime import UTC, datetime
+
+    from bet.sofa.resolve import MATCH_WINDOW_S
+
+    assert MATCH_WINDOW_S["football"] == 6 * 3600
+    assert MATCH_WINDOW_S["tennis"] == 24 * 3600
+
+    resolver = _resolver()
+    # A nine-hour disagreement: routine for ITF, impossible for football.
+    itf = {
+        "id": 1,
+        "startTimestamp": 1789725600,  # 2026-09-18T10:00:00Z
+        "homeTeam": {"name": "Yidi Yang"},
+        "awayTeam": {"name": "Sijia Wei"},
+        "tournament": {"name": "ITF W35 Kyoto", "category": {"name": "Japan"}},
+    }
+    superbet_time = datetime(2026, 9, 18, 1, 4, tzinfo=UTC)
+    assert (
+        resolver.match_quality(itf, superbet_time, "sijia wei", sport="tennis")
+        is not None
+    )
+
+    football = dict(itf)
+    football["tournament"] = {"name": "Veikkausliiga", "category": {"name": "Finland"}}
+    assert (
+        resolver.match_quality(football, superbet_time, "sijia wei", sport="football")
+        is None
+    )
+
+
+def test_f25_gender_is_read_from_the_competition_not_the_team_name() -> None:
+    """Entity 296052 is called "IF Gnistan" and plays only women's football.
+
+    This is the assumption F9 got wrong, and the reason a team-name suffix
+    cannot be the fix.
+    """
+    from bet.sofa.resolve import sofascore_gender, superbet_gender
+
+    assert sofascore_gender(_gnistan_womens_event()) == "W"
+    assert sofascore_gender(_gnistan_mens_event()) == "M"
+    # The team name carries nothing: same name, both genders.
+    assert _gnistan_womens_event()["awayTeam"]["name"] == "IF Gnistan"
+    assert _gnistan_mens_event()["homeTeam"]["name"] == "IF Gnistan"
+
+    assert superbet_gender("Millonarios (K)") == "W"
+    assert superbet_gender("Arsenal (W)") == "W"
+    assert superbet_gender("Arsenal") == "M"
