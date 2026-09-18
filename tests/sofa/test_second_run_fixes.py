@@ -2709,3 +2709,51 @@ def test_f35_sheet_and_settle_share_the_refusal() -> None:
         assert "outside_model_resolution" in src, (
             f"{mod.__name__} must apply the F35 refusal, not its own band"
         )
+
+
+# ---------------------------------------------------------------------------
+# F36 — the coupon ranked by a quantity that scales as 1/p
+# ---------------------------------------------------------------------------
+
+
+def test_f36_a_longshot_does_not_outrank_a_better_priced_short_row() -> None:
+    """Same relative advantage, different scale: the shorter row must win.
+
+    Both rows below are priced 20% above their required odds — identical value
+    per unit staked. The long shot's absolute surplus is 11x larger (4.40 vs
+    0.40) purely because required_odds carries a 1/p term, which is exactly the
+    ratio of the two probabilities. Ranked on that, it took the slot.
+    """
+    from bet.sofa.engine import get_required_odds
+
+    p_short, p_long = 0.55, 0.05
+    req_short = get_required_odds(p_short, "LEAN")
+    req_long = get_required_odds(p_long, "LEAN")
+    offered_short = req_short * 1.20
+    offered_long = req_long * 1.20
+
+    abs_short = offered_short - req_short
+    abs_long = offered_long - req_long
+    assert abs_long == pytest.approx(abs_short * (p_short / p_long), rel=1e-9), (
+        "the premise: equal quality, absolute surplus in the ratio of 1/p "
+        f"({abs_long:.3f} vs {abs_short:.3f})"
+    )
+
+    rel_short = abs_short / req_short
+    rel_long = abs_long / req_long
+    assert rel_short == pytest.approx(rel_long, abs=1e-9), (
+        "the relative figure must rate them identically"
+    )
+
+
+def test_f36_the_coupon_sorts_on_the_scale_free_figure() -> None:
+    """Pin the key itself, on the production module."""
+    import inspect
+
+    from bet.sofa import coupon as coupon_mod
+
+    src = inspect.getsource(coupon_mod)
+    assert "row.surplus / row.required_odds" in src, (
+        "the coupon must rank by relative price advantage, not raw surplus"
+    )
+    assert "key=_price_advantage" in src

@@ -2721,8 +2721,9 @@ SHEET: 12258 → 10960 wierszy, 1298 rungów odrzuconych jako
 
 ## F36 — `surplus` jest miarą skali, nie jakości; kupon sortuje po 1/p
 
-**Status: ZMIERZONE, NIENAPRAWIONE** — zmiana dotyczy tego, co kupon
-optymalizuje, więc to decyzja operatora, nie poprawka.
+**Status: NAPRAWIONE** po decyzji operatora (sortowanie po surplusie względnym,
+`offered/required − 1`). Zmiana dotyczy tego, co kupon optymalizuje, więc nie
+została wprowadzona samodzielnie.
 
 Po naprawie F35 kupon nadal składa się **wyłącznie** ze skrajnych kursów.
 Wszystkie 40 wierszy ma `surplus > +0.40`, a najmniejszy wynosi **+2.647** —
@@ -2781,3 +2782,29 @@ Nie podmieniono estymatora na rozkład zliczeń i nie wprowadzono korekty
 kalibracyjnej na podstawie tego jednego dnia. Obie zmiany dopasowałyby model do
 pojedynczej próbki bez szansy na weryfikację poza nią — ten sam błąd, przez
 który rynki długości meczu w tenisie zostały zmierzone i świadomie nietknięte.
+
+### Efekt poprawki, i czego ona **nie** załatwia
+
+Kupon na 2026-09-18, ten sam sheet, sam ranking zmieniony:
+
+| | mediana `p_bar` | mediana `surplus` | min `surplus` |
+|---|---|---|---|
+| przed F35 (to, co wyprodukował pipeline) | 0.050 | +24.49 | +12.00 |
+| po F35 + F36 | **0.182** | +3.96 | +1.35 |
+
+Mediana `p_bar` rośnie 3.6-krotnie i rynki się dywersyfikują. Ale **16 z 40**
+wierszy nadal ma `p_bar < 0.15`, a **żaden nie przekracza 0.50**.
+
+To nie jest resztka po usterce, tylko dwie rzeczy naraz, i warto je rozdzielić:
+
+1. **Strukturalnie** VALUE musi mieszkać przy niskim `p`. Przy krótkich kursach
+   marża bukmachera jest ciasna, więc żeby pokonać próg 1.10, cena musi odstawać
+   od modelu bardziej, niż odstaje na krótkim końcu. To jest własność rynku, nie
+   kodu.
+2. **Artefaktualnie** model zawyża małe `p` o ~39% względnie (tabela wyżej), co
+   *produkuje* VALUE dokładnie tam, gdzie i tak by się skupiało.
+
+Ranking bezwymiarowy usuwa wzmocnienie, nie usuwa przyczyny. Dopóki punkt 2 nie
+zostanie skalibrowany na danych **spoza jednego dnia**, wiersze z `p_bar < 0.15`
+należy traktować jako niezweryfikowane — i są one wymienione z nazwy na liście
+odrzuceń w raporcie Części 4.

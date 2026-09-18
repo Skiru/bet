@@ -162,13 +162,26 @@ def build_coupon(
 
         candidates.append((row, fixture))
 
-    # L18: within a family the slot goes to the biggest price surplus, not to
+    # L18: within a family the slot goes to the biggest price advantage, not to
     # the biggest probability gap. A row that does not clear the bar must never
     # evict one that does.
-    candidates.sort(
-        key=lambda pair: pair[0].surplus if pair[0].surplus is not None else 0.0,
-        reverse=True,
-    )
+    #
+    # F36: that advantage is measured *relatively*. The absolute surplus,
+    # offered - margin/p_bar, carries a 1/p term, so at equal opportunity
+    # quality a long shot scores many times higher: across one day's 920 VALUE
+    # rows the median surplus fell 79x from the lowest p band to the highest,
+    # while the relative figure fell only 11x. The rest was scale. Ranking on
+    # it made the coupon a longshot scanner — median p_bar 0.129, against 0.225
+    # on this key — which matters because p is overstated in precisely that
+    # tail. Dividing removes the scale so a row at p=0.55 competes on level
+    # terms with one at p=0.08.
+    def _price_advantage(pair: tuple[SheetRow, Fixture]) -> float:
+        row = pair[0]
+        if row.surplus is None or not row.required_odds:
+            return 0.0
+        return row.surplus / row.required_odds
+
+    candidates.sort(key=_price_advantage, reverse=True)
 
     selected: list[CouponRow] = []
     per_fixture: dict[int, int] = {}
