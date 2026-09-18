@@ -9,6 +9,14 @@ so the price the bar is compared against is fresh. Leaving that to "whoever runs
 the stages in the right order" is how a morning price ends up on an evening
 coupon, so the order lives in code.
 
+The first half of that sentence was untrue until F19. SAMPLES built its own
+SuperbetClient and asked Superbet again, once per fixture, so the pre-sample
+OFFER had no reader at all: it wrote 04_offer.json, nothing opened it, and the
+second call overwrote it. Its only effects were ~600 requests a day and the
+ability to fail the run — which is exactly what happened on 2026-09-18. SAMPLES
+now reads the artifact, and falls back to a live call only for a fixture the
+artifact does not cover.
+
 Each stage is still runnable on its own against the artifact on disk; this
 script only sequences them.
 

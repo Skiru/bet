@@ -16,7 +16,7 @@ from pydantic import RootModel
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
-from bet.sofa.contracts import Fixture
+from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.coverage import check_coverage_floor
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
@@ -77,9 +77,35 @@ def main() -> int:
     )
     total_metrics = 0
 
+    # The pre-sample OFFER's artifact, if it ran. Reading it here is what
+    # turns that stage from a dead one into the gate A4 always described:
+    # SAMPLES used to ask Superbet again, once per fixture, ~600 requests a
+    # day to re-learn what this file already says (F19). A fixture the artifact
+    # does not cover still falls back to a live call, so a missing or partial
+    # offer costs requests rather than coverage.
+    offer_path = run_dir / "04_offer.json"
+    offers_by_id: dict[int, FixtureOffer] = {}
+    if offer_path.exists():
+        offers_by_id = {
+            o.sofascore_event_id: o
+            for o in RootModel[list[FixtureOffer]]
+            .model_validate_json(offer_path.read_bytes())
+            .root
+        }
+    print(
+        f"offer artifact covers {len(offers_by_id)} of {len(fixtures)} fixtures",
+        file=sys.stderr,
+        flush=True,
+    )
+
     for fixture in fixtures:
         samples = process_fixture_samples(
-            fixture, client, cache, superbet_client, config
+            fixture,
+            client,
+            cache,
+            superbet_client,
+            config,
+            offer=offers_by_id.get(fixture.sofascore_event_id),
         )
         all_samples.append(samples)
 

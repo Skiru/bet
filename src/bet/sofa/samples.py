@@ -16,6 +16,7 @@ from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
     Fixture,
+    FixtureOffer,
     FixtureSamples,
     GapEntry,
     GapReason,
@@ -67,10 +68,28 @@ def _load_friendly_ids() -> frozenset[int]:
 FRIENDLY_COMPETITION_IDS: frozenset[int] = _load_friendly_ids()
 
 
+def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
+    """Canonical metric names the pre-sample OFFER already found a price for.
+
+    This is what makes the pre-sample OFFER a gate rather than a dead stage
+    (F19). The A4 docstring claimed the offer was read twice "so we only pay
+    for metrics somebody actually prices", but nothing read the artifact:
+    SAMPLES built its own SuperbetClient and asked Superbet again, once per
+    fixture, ~600 requests a day to re-learn what 04_offer.json already said.
+    """
+    if offer is None:
+        return set()
+    return {rung.market for rung in offer.rungs}
+
+
 def fetch_available_metrics(
     fixture: Fixture, superbet_client: SuperbetClient
 ) -> set[str]:
-    """Canonical metric names Superbet prices for this fixture (A5)."""
+    """Ask Superbet directly which metrics it prices for this fixture.
+
+    The fallback for a fixture the offer artifact does not cover. Prefer
+    metrics_from_offer: it costs nothing.
+    """
     available_metrics: set[str] = set()
     for s_id in fixture.superbet_event_ids:
         for item in odds_items(superbet_client.event_odds(s_id)):
@@ -285,6 +304,7 @@ def process_fixture_samples(
     cache: SofaCache,
     superbet_client: SuperbetClient,
     config: SofaConfig,
+    offer: FixtureOffer | None = None,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -295,7 +315,7 @@ def process_fixture_samples(
     """
     try:
         return _process_fixture_samples(
-            fixture, client, cache, superbet_client, config
+            fixture, client, cache, superbet_client, config, offer
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -318,8 +338,14 @@ def _process_fixture_samples(
     cache: SofaCache,
     superbet_client: SuperbetClient,
     config: SofaConfig,
+    offer: FixtureOffer | None = None,
 ) -> FixtureSamples:
-    metrics_to_collect = fetch_available_metrics(fixture, superbet_client)
+    # The offer artifact if the pre-sample OFFER covered this fixture, and only
+    # otherwise a live call. This is the saving A4 always claimed (F19).
+    if offer is not None:
+        metrics_to_collect = metrics_from_offer(offer)
+    else:
+        metrics_to_collect = fetch_available_metrics(fixture, superbet_client)
 
     if not metrics_to_collect:
         return FixtureSamples(

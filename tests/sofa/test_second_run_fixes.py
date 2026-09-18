@@ -1840,3 +1840,125 @@ def test_f24_the_bridge_transport_carries_headers_from_the_browser() -> None:
 
     resp = BridgeResponse(200, "{}", {"retry-after": "5"})
     assert resp.headers == {"retry-after": "5"}
+
+
+# --------------------------------------------------------------------------
+# F19 — the pre-sample OFFER had no reader
+# --------------------------------------------------------------------------
+
+
+def test_f19_samples_reads_the_offer_artifact_instead_of_asking_superbet_again(
+    tmp_path: Path,
+) -> None:
+    """Fails on the old code for the right reason: SAMPLES asked Superbet once
+    per fixture even though 04_offer.json already held the answer — ~600
+    requests a day to re-learn it, and the A4 docstring claimed otherwise."""
+    from bet.sofa.contracts import FixtureOffer, PricedRung
+    from bet.sofa.samples import process_fixture_samples
+    from bet.sofa.timeutil import now as real_now
+
+    class CountingSuperbet:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def event_odds(self, event_id: str):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            return {"odds": None}
+
+    class NoSofascore:
+        def entity_events(self, *a: object, **k: object) -> None:
+            return None
+
+        def event_statistics(self, *a: object, **k: object) -> None:
+            return None
+
+        def event_incidents(self, *a: object, **k: object) -> None:
+            return None
+
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"), runs_dir=str(tmp_path))
+    superbet = CountingSuperbet()
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        status="PRICED",
+        rungs=[
+            PricedRung(
+                market="goals_total",
+                subject="",
+                line=2.5,
+                over_odds=1.85,
+                under_odds=1.95,
+                fetched_at_utc=real_now(),
+            )
+        ],
+        unmapped_markets=[],
+    )
+
+    process_fixture_samples(
+        _fixture(1, ["a"]),
+        NoSofascore(),  # type: ignore[arg-type]
+        SofaCache(config),
+        superbet,  # type: ignore[arg-type]
+        config,
+        offer=offer,
+    )
+    assert superbet.calls == 0, (
+        f"SAMPLES asked Superbet {superbet.calls} time(s) for what the offer "
+        "artifact already said"
+    )
+
+
+def test_f19_a_fixture_the_offer_does_not_cover_still_falls_back(
+    tmp_path: Path,
+) -> None:
+    """A missing or partial offer must cost requests, not coverage."""
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.samples import process_fixture_samples
+
+    class CountingSuperbet:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def event_odds(self, event_id: str):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            return {"odds": None}
+
+    class NoSofascore:
+        def entity_events(self, *a: object, **k: object) -> None:
+            return None
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"), runs_dir=str(tmp_path))
+    superbet = CountingSuperbet()
+    process_fixture_samples(
+        _fixture(1, ["a"]),
+        NoSofascore(),  # type: ignore[arg-type]
+        SofaCache(config),
+        superbet,  # type: ignore[arg-type]
+        config,
+        offer=None,
+    )
+    assert superbet.calls == 1
+
+
+def test_f19_metrics_come_from_the_offers_priced_rungs() -> None:
+    from bet.sofa.contracts import FixtureOffer, PricedRung
+    from bet.sofa.samples import metrics_from_offer
+    from bet.sofa.timeutil import now as real_now
+
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        status="PRICED",
+        rungs=[
+            PricedRung(
+                market=m, subject="", line=2.5, over_odds=1.9, under_odds=1.9,
+                fetched_at_utc=real_now(),
+            )
+            for m in ("goals_total", "corners_total", "goals_total")
+        ],
+        unmapped_markets=[],
+    )
+    assert metrics_from_offer(offer) == {"goals_total", "corners_total"}
+    assert metrics_from_offer(None) == set()
