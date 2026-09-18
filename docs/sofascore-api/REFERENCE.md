@@ -3,14 +3,51 @@
 ## Kontekst i Metodologia
 Dokumentacja powstała na bazie reverse-engineeringu oficjalnego API Sofascore (v1). Wszystkie ustalenia pochodzą ze świeżych (live) requestów z 17 września 2026. Pełne logi request/response znajdują się w `docs/sofascore-api/evidence/`.
 
-**Najważniejszy wniosek techniczny:** API nie weryfikuje tokenów uwierzytelniających dla standardowych endpointów statystycznych czy historycznych. Kluczem do bezproblemowego pobierania danych jest użycie klienta obsługującego TLS impersonation.
+> **NIEAKTUALNE OD 2026-09-17 ok. 11:00 lokalnego.** Wszystko poniżej opisuje stan
+> API sprzed edge-challenge'u, który Sofascore włączył na prefiksie `/api/v1/`.
+> Od tego momentu każde zapytanie z `curl_cffi` — niezależnie od odcisku,
+> nagłówków, ciastek i IP — zwraca `403 {"error":{"code":403,"reason":"challenge"}}`
+> z `server: Varnish`. Mapa endpointów, kształty payloadów i pokrycie lig
+> pozostają prawdziwe i użyteczne; **sekcja o rate limitingu i teza o TLS
+> impersonation są obalone.** Szczegóły: sekcja "Rate Limiting" niżej.
+
+**Wniosek techniczny (stan na 2026-09-17 rano, już nieaktualny):** API nie weryfikuje tokenów uwierzytelniających dla standardowych endpointów statystycznych czy historycznych. Wydawało się, że kluczem do bezproblemowego pobierania danych jest użycie klienta obsługującego TLS impersonation — dziś wiemy, że impersonacja przechodzi pierwszą bramkę i ginie na drugiej.
 
 ## Rate Limiting i Bezpieczeństwo
 Podczas drugiej rundy audytu przeprowadzono precyzyjne testy obciążeniowe na kilkuset **różnych**, unikalnych zasobach (różne URL-e eventów, statystyk, składów), by uniknąć ryzyka zafałszowania wyników przez pamięć podręczną (Edge Cache) Cloudflare, co miało miejsce w pierwszej rundzie.
 
 * **Wyniki testu współbieżności:** Przy uderzaniu w ~1000 różnych URL-i z użyciem 100 workerów (współbieżnych połączeń), API obsłużyło ruch z prędkością **~550 req/s** (przeliczone bezpośrednio z `evidence/rate_limit_test_log_100w.jsonl` — min/max timestamp na 1000 zapytań, spójne ze średnim `elapsed_seconds`; wcześniejsza wersja tego dokumentu podawała błędnie ~87 req/s, sprzecznie z własnym logiem). 941/1000 to 200, 56 to uzasadnione 404 (mecze w przyszłości), 3 to timeout połączenia (0.3%, nie 403/429/Cloudflare Challenge — traktuj jako szum sieciowy, nie sygnał blokady).
 * **Wyniki testu ciągłego (sustained):** Przy stałym tempie 15 req/s przez 90 sekund (łącznie niemal 1300 zapytań), nie odnotowano żadnych spowolnień ani blokad. Dowód znajduje się w `evidence/rate_limit_sustained_log.jsonl`.
-* **Rekomendacja dla produkcyjnego pipeline'u:** Możemy bezpiecznie ustawić concurrency na poziomie 20-50 workerów i utrzymywać stałe tempo kilkunastu zapytań na sekundę. Przy użyciu `curl_cffi` z parametrem `impersonate="chrome124"` API Sofascore za maską Cloudflare jest obecnie w pełni przepuszczalne bez konieczności rotacji IP czy żonglowania sesjami.
+* **Trzy "timeouty połączenia" NIE były szumem sieciowym.** Zdanie wyżej jest
+  najprawdopodobniej błędne i zostawione tu jako zapis tego, co myśleliśmy —
+  z perspektywy osi czasu to pierwszy sygnał, że edge zaczyna nas odrzucać.
+
+* **CO SIĘ STAŁO POTEM (dopisane 2026-09-18).** Powyższe testy zużyły ~2800
+  żądań w 15 minut (09:55–10:30 lokalnego 2026-09-17) ze szczytem 550 req/s
+  z jednego IP. Ostatni udany payload w `evidence/` ma znacznik 10:30.
+  Pierwsze `403 challenge` jest o 11:49 (`evidence/impl_e1_smoke.jsonl`,
+  30/30 403). Od tej pory `/api/v1/` jest zamknięte na stałe dla każdego
+  klienta HTTP, jakim dysponujemy. Związek przyczynowy nie jest dowiedziony,
+  ale zbieżność jest na tyle mocna, że **ten dokument należy czytać jako
+  ostrzeżenie, nie jako instrukcję.**
+
+* **Rekomendacja (zastąpiona).** Poprzednia wersja tego akapitu zalecała
+  concurrency 20–50 workerów i stwierdzała, że API jest "w pełni przepuszczalne
+  bez konieczności rotacji IP". Nie stosować. Obowiązująca zasada dla każdego
+  reverse-engineered API bez SLA: **sekwencyjnie, ≤1 req/s, z backoffem, i nigdy
+  testy przepustowości na produkcyjnym endpoincie cudzego serwisu.** Przepustowość
+  zmierzona raz, kosztem utraty dostępu, nie jest wiedzą wartą swojej ceny.
+
+* **Stan dostępu:** zablokowany. Zweryfikowane empirycznie: 18 odcisków
+  `curl_cffi`, 9 publicznych implementacji z GitHuba, macierz 7 wariantów
+  nagłówków, odtworzony 1:1 token `x-requested-with`, dosłowny replay
+  działającego requestu z przeglądarki (ten sam `x-captcha`, ciastka, IP, okno
+  ważności), Playwright headless i headed z prawdziwym Chrome — wszystko 403.
+  Token `x-captcha` niesie claim `f` = odcisk *połączenia*, przeliczany przez
+  serwer na żywo, więc nie da się go przenieść do innego klienta.
+  Co nadal działa: `img.sofascore.com` (200, Cloudflare) i `/mobile/v4/`
+  (dociera do origin, `server: nginx`). Gate jest przypięty do prefiksu
+  ścieżki `/api/v1/` na warstwie Fastly.
 
 ## Pokrycie lig (Football)
 Przetestowano ~12 kluczowych lig z naszego wewnętrznego mappingu. Wszystkie dają się łatwo odnaleźć i posiadają spójne `uniqueTournament.id`.
@@ -170,4 +207,4 @@ API jest spójne:
 
 ## Podsumowanie Architektoniczne
 W ~15 zdaniach:
-Sofascore jest fenomenalnym kandydatem na całkowite zastąpienie Bzzoiro i częściowo ESPN. Dostarcza wielokrotnie bogatsze i głębsze dane niż obecne API Bzzoiro (szczególnie distance covered, touches, sprints, czy pełne xG per gracz) oraz potężnie rozwija analizę Tenisa, na którym nam mocno zależało (serwisy, asy, break pointy). Testy obciążeniowe z uzyciem `curl_cffi` wykazały zupełny brak agresywnego zabezpieczenia po stronie Cloudflare (bez problemu trzyma >2000 req/s), co czyni go niemal darmowym i skalowalnym providerem. Największym mankamentem i tzw. "twardym blokerem" dla trywialnej integracji był brak endpointu z meczami dla danej daty (discovery po dacie), ale problem ten jest łatwo i pewnie omijany przez mechanizmy wyszukiwania na osi turniej -> sezon -> runda lub przez historię meczów zespołu. Najmniejszym pierwszym krokiem do integracji w pipeline byłoby zbudowanie w klasie Discovery nowego flow w pythonie (za pomocą `curl_cffi`), które odczytuje ligi z `sportdb_competition_map.json`, wywołuje listę rund i pobiera zaplanowane eventy, a następnie dla nich pobiera `event/{id}/lineups` oraz `/event/{id}/statistics`, by zserializować te dane w istniejący schemat i zwalidować jakość na historycznych betach.
+Sofascore jest fenomenalnym kandydatem na całkowite zastąpienie Bzzoiro i częściowo ESPN. Dostarcza wielokrotnie bogatsze i głębsze dane niż obecne API Bzzoiro (szczególnie distance covered, touches, sprints, czy pełne xG per gracz) oraz potężnie rozwija analizę Tenisa, na którym nam mocno zależało (serwisy, asy, break pointy). Testy obciążeniowe z uzyciem `curl_cffi` sugerowały brak agresywnego zabezpieczenia, co zdawało się czynić go niemal darmowym i skalowalnym providerem — **teza obalona 2026-09-17: te właśnie testy zbiegły się w czasie z trwałą blokadą `/api/v1/` (patrz sekcja Rate Limiting).** Liczba ">2000 req/s" nie ma pokrycia w żadnym logu w `evidence/`; najwyższa zmierzona wartość to ~550 req/s. Największym mankamentem i tzw. "twardym blokerem" dla trywialnej integracji był brak endpointu z meczami dla danej daty (discovery po dacie), ale problem ten jest łatwo i pewnie omijany przez mechanizmy wyszukiwania na osi turniej -> sezon -> runda lub przez historię meczów zespołu. Najmniejszym pierwszym krokiem do integracji w pipeline byłoby zbudowanie w klasie Discovery nowego flow w pythonie (za pomocą `curl_cffi`), które odczytuje ligi z `sportdb_competition_map.json`, wywołuje listę rund i pobiera zaplanowane eventy, a następnie dla nich pobiera `event/{id}/lineups` oraz `/event/{id}/statistics`, by zserializować te dane w istniejący schemat i zwalidować jakość na historycznych betach.

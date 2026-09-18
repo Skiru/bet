@@ -12,8 +12,11 @@ logging.basicConfig(level=logging.INFO)
 def main() -> None:
     config = SofaConfig(
         runs_dir="docs/sofascore-api/evidence",
-        target_rps=10,
-        breaker_threshold=100,  # don't break during smoke test if 403s happen
+        target_rps=2,
+        # Was 100, which meant a blocked API got hammered 100 times before the
+        # breaker noticed. A smoke test that cannot reach the provider should
+        # say so after a few tries, not keep knocking.
+        breaker_threshold=5,
     )
 
     # overriding log path manually for the smoke test requirement

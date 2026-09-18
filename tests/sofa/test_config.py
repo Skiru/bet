@@ -23,8 +23,9 @@ def test_config_defaults() -> None:
     config = SofaConfig.from_env()
     assert config.db_path == "data/sofa.db"
     assert config.runs_dir == "runs/sofa"
-    assert config.target_rps == 10
-    assert config.max_concurrency == 8
+    # Deliberately low: see SofaConfig for why these dropped from 10/8.
+    assert config.target_rps == 2
+    assert config.max_concurrency == 2
     assert config.breaker_threshold == 3
     assert config.events_ttl_min == 360
     assert config.sample_n == 10

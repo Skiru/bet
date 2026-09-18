@@ -33,7 +33,24 @@ class Transport(Protocol):
 class CurlCffiTransport:
     def __init__(self) -> None:
         self.session: Any = requests.Session(impersonate="chrome124")
-        self.session.headers.update({"Referer": "https://www.sofascore.com/"})
+        # These headers match the XHR the Sofascore SPA makes, but be clear about
+        # what that buys: since 2026-09-17 this transport gets 403 on every
+        # /api/v1/ path regardless of headers, impersonation profile, cookies or
+        # IP. Verified against 18 curl_cffi fingerprints and a literal replay of
+        # a working browser request. The SPA's x-captcha token carries an `f`
+        # claim - a fingerprint of the live connection, recomputed server-side -
+        # so no header set reproducible here can pass. Use
+        # BrowserBridgeTransport. This class is kept for the day the gate lifts.
+        self.session.headers.update(
+            {
+                "Accept": "application/json, text/plain, */*",
+                "Referer": "https://www.sofascore.com/",
+                "Origin": "https://www.sofascore.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+            }
+        )
 
     def get(self, url: str, timeout: float = 10.0) -> TransportResponse:
         return self.session.get(url, timeout=timeout)  # type: ignore
@@ -90,7 +107,11 @@ class CircuitBreaker:
 class SofascoreClient:
     def __init__(self, config: SofaConfig, transport: Transport | None = None) -> None:
         self.config = config
-        self.transport = transport or CurlCffiTransport()
+        if transport is None:
+            from bet.sofa.bridge_transport import make_transport
+
+            transport = make_transport()
+        self.transport = transport
         self.bucket = TokenBucket(config.target_rps)
         self.breaker = CircuitBreaker(config.breaker_threshold)
         self.log_path = Path(config.runs_dir) / "run.log.jsonl"
