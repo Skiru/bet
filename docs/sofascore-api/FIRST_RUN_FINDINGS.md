@@ -106,6 +106,55 @@ historycznych przeciwników**, nie na tablicy.
 
 ## Otwarte
 
+### F33 · P2 · `/event/{id}` nie jest cache'owany wcale — ~45% żądań RESOLVE przy trzecim przebiegu
+
+**POTWIERDZONE** pomiarem na żywym przebiegu (2026-09-18, `run_id=df72150396e6`),
+zgłoszone przez operatora pytaniem „przecież już to mamy".
+
+`parse_fixture` woła `client.event(event["id"])` dla **każdego przyjętego
+fixture'u**, żeby dobrać to, czego nie ma w listingu — sędziego, `round_number`,
+`ground_type`, `defaultPeriodCount`. Ta trasa nie ma cache'u w żadnej postaci:
+ani tabeli, ani TTL, ani negatywów.
+
+Zmierzone po 615 żądaniach tego przebiegu:
+
+| trasa | żądań | udział |
+|---|---|---|
+| **`event/{id}`** | **282** | **45,9%** |
+| `search/all` | 153 | 24,9% |
+| `team/{id}/events/last` | 151 | 24,6% |
+| `team/{id}/events/next` | 28 | 4,6% |
+
+Dla porównania, co cache **oszczędza** w tym samym przebiegu: 6 731
+zbuforowanych statystyk meczowych (nie pobierane w ogóle), 4 351 listingów
+w TTL, 491 encji bez `search/all`. Czyli wszystko inne jest już oszczędzane —
+`event/{id}` jest **jedyną** trasą płaconą w całości przy każdym przebiegu.
+
+**Dlaczego to nie jest trywialne do naprawienia i dlaczego nie robię tego dziś:**
+payload `/event/{id}` meczu **jeszcze nierozegranego** legalnie się zmienia —
+sędzia jest ogłaszany późno (F-pomiar: `referee` wypełnione w 9% fixture'ów,
+co jest właśnie objawem późnego ogłoszenia). Wieczny cache zamroziłby pustego
+sędziego. To jest dokładnie ta pułapka, którą F17 opisał dla `events/next`:
+**zamiana marnotrawstwa na cichą lukę jest gorszym błędem.**
+
+Właściwy kształt to najpewniej krótki TTL, zależny od tego, czy mecz się już
+odbył: dla `status.type == "finished"` payload jest niezmienny i może być
+wieczny (tak jak `sofa_event_stats`), dla nierozpoczętego — TTL rzędu
+kilkudziesięciu minut. Tego **nie zmierzyłem**: nie wiem, jak często
+`referee`/`round_name` faktycznie zmieniają się między przebiegami tego samego
+dnia, więc dobór TTL oznaczam `PODEJRZENIE` i zostawiam do decyzji.
+
+**Oszczędność, gdyby to zrobić:** przy dzisiejszym slate'cie rzędu 500 żądań
+na przebieg, czyli ~4 minuty przy 2 req/s — porównywalnie z F17 (242) i F19
+(~600) razem wziętymi.
+
+**Test (kiedy będzie naprawiane):** dwa wywołania `parse_fixture` dla tego
+samego zakończonego meczu → drugie zero żądań; dla meczu nierozpoczętego po
+przesunięciu zegara za TTL → jedno żądanie.
+
+---
+
+
 ### F12 · P2 · Slate schodzi do lig, w których nie ma danych
 
 Tablica Superbetu zawiera U17, U19 i czwarte/szóste ligi. Sofascore nie
