@@ -220,6 +220,43 @@ class SofaCache:
                 minutes=self.config.entity_miss_ttl_min
             )
 
+    def get_listing_miss(self, entity_id: int, kind: str, page: int) -> bool:
+        """Did this listing 404 recently?
+
+        Same reasoning as get_entity_miss, applied to the thing nobody applied
+        it to: 242 of RESOLVE's ~870 requests — 28% — were spent rediscovering
+        404s, 225 of them already known from the previous run (F17). A 404 does
+        not look like a cost in the log, which is why it went uncounted.
+
+        The TTL is short on purpose. events/next changes by nature, so
+        remembering a miss forever would convert waste into a silent gap.
+        """
+        with get_connection(self.config.db_path) as conn:
+            row = conn.execute(
+                "SELECT missed_at FROM sofa_listing_miss "
+                "WHERE sofascore_entity_id = ? AND kind = ? AND page = ?",
+                (entity_id, kind, page),
+            ).fetchone()
+            if not row:
+                return False
+            missed_at = datetime.fromisoformat(row["missed_at"])
+            return now() - missed_at <= timedelta(
+                minutes=self.config.listing_miss_ttl_min
+            )
+
+    def save_listing_miss(self, entity_id: int, kind: str, page: int) -> None:
+        """Remember that this listing returned nothing."""
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO sofa_listing_miss
+                (sofascore_entity_id, kind, page, missed_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (entity_id, kind, page, now().isoformat()),
+            )
+            conn.commit()
+
     def save_entity_miss(self, sport: str, query_key: str) -> None:
         """Remember that this name resolved to nothing."""
         with get_connection(self.config.db_path) as conn:

@@ -38,6 +38,20 @@ DEFAULT_MATCH_WINDOW_S = 24 * 3600
 # the single reversal scored 54.5 direct against 200.0 crossed.
 ORIENTATION_MARGIN = 20.0
 
+# Which listing routes exist, per sport.
+#
+# team/{id}/events/next/ does not exist for tennis entities. Not "no upcoming
+# matches" — the route itself: 179 requests, 179 404s, a clean 100% (F17).
+# Nothing is lost by not asking, because events/last for tennis carries
+# notstarted matches too (179 of them in the cache), so the fallback already
+# covered it. For football next works and is kept: 48 of 53 came back 200.
+ListingKind = Literal["last", "next"]
+LISTING_KINDS_BY_SPORT: dict[str, tuple[ListingKind, ...]] = {
+    "football": ("next", "last"),
+    "tennis": ("last",),
+}
+DEFAULT_LISTING_KINDS: tuple[ListingKind, ...] = ("next", "last")
+
 # Markers Superbet uses for a women's team, in the side name.
 _WOMEN_SUPERBET_MARKERS = (
     "(k)",
@@ -120,15 +134,26 @@ class SofaResolver:
         self.client = client
         self.cache = cache
 
-    def _fetch_events(self, entity_id: int) -> list[dict[str, Any]]:
+    def _fetch_events(
+        self, entity_id: int, sport: str = "football"
+    ) -> list[dict[str, Any]]:
         events = []
-        for kind in ("next", "last"):
+        for kind in LISTING_KINDS_BY_SPORT.get(sport, DEFAULT_LISTING_KINDS):
             for page in range(3):
                 data = self.cache.get_entity_events(entity_id, kind, page)
                 if not data:
+                    # A 404 is a fact worth remembering for the day. It was the
+                    # one cost nobody counted, because a 404 does not look like
+                    # a cost in the log: 242 of RESOLVE's ~870 requests, 28%,
+                    # went on rediscovering the same absence — 225 of them
+                    # already known from the previous run (F17).
+                    if self.cache.get_listing_miss(entity_id, kind, page):
+                        break
                     data = self.client.entity_events(entity_id, kind, page)
                     if data:
                         self.cache.save_entity_events(entity_id, kind, page, data)
+                    else:
+                        self.cache.save_listing_miss(entity_id, kind, page)
                 if data and "events" in data:
                     events.extend(data["events"])
                     if not data.get("hasNextPage"):
@@ -249,7 +274,7 @@ class SofaResolver:
         cached = self.cache.get_entity(sport, norm_side)
         if cached and cached["status"] == "verified":
             # Just verify event exists
-            events = self._fetch_events(cached["sofascore_id"])
+            events = self._fetch_events(cached["sofascore_id"], sport)
             for e in events:
                 if self._is_match(
                     e,
@@ -280,7 +305,7 @@ class SofaResolver:
         matching_events = []
 
         for cand in candidates:
-            events = self._fetch_events(cand["id"])
+            events = self._fetch_events(cand["id"], sport)
             for e in events:
                 if self._is_match(
                     e,

@@ -1417,3 +1417,97 @@ def test_f21_the_real_bridge_transports_failure_is_retried_end_to_end(
         f"the bridge's failure was attempted {attempts['n']} time(s); "
         "the retry has been dead since 2026-09-17"
     )
+
+
+# --------------------------------------------------------------------------
+# F17 — a 404 does not look like a cost in the log, so nobody counted it
+# --------------------------------------------------------------------------
+
+
+class _CountingClient:
+    def __init__(self) -> None:
+        self.calls: list[tuple[int, str, int]] = []
+
+    def entity_events(self, entity_id: int, kind: str, page: int):  # type: ignore[no-untyped-def]
+        self.calls.append((entity_id, kind, page))
+        return None  # 404
+
+
+def test_f17_a_404_listing_is_not_rediscovered_within_the_ttl(tmp_path: Path) -> None:
+    """Fails on the old code for the right reason: only non-empty responses were
+    cached, so a 404 was paid for again every time — 242 of RESOLVE's ~870
+    requests, 225 of them already known from the previous run."""
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import SofaResolver
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"))
+    client = _CountingClient()
+    resolver = SofaResolver(config, client, SofaCache(config))  # type: ignore[arg-type]
+
+    resolver._fetch_events(42, "football")
+    first = len(client.calls)
+    assert first >= 1
+
+    resolver._fetch_events(42, "football")
+    assert len(client.calls) == first, (
+        "the same absence was rediscovered; this is the 28% of the budget"
+    )
+
+
+def test_f17_the_negative_cache_expires_so_it_cannot_become_a_silent_gap(
+    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """Remembering a 404 forever trades waste for missing data, which is worse.
+
+    A team with no upcoming match today has one next week.
+    """
+    from datetime import timedelta
+
+    import bet.sofa.cache as cache_module
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import SofaResolver
+    from bet.sofa.timeutil import now as real_now
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"), listing_miss_ttl_min=720)
+    client = _CountingClient()
+    resolver = SofaResolver(config, client, SofaCache(config))  # type: ignore[arg-type]
+
+    resolver._fetch_events(42, "football")
+    first = len(client.calls)
+    resolver._fetch_events(42, "football")
+    assert len(client.calls) == first
+
+    base = real_now()
+    monkeypatch.setattr(cache_module, "now", lambda: base + timedelta(minutes=721))
+    resolver._fetch_events(42, "football")
+    assert len(client.calls) > first, "after the TTL we must ask again"
+
+
+def test_f17_tennis_never_asks_for_a_route_that_does_not_exist(tmp_path: Path) -> None:
+    """team/{id}/events/next/ 404s for every tennis entity: 179 of 179.
+
+    Fails on the old code for the right reason: _fetch_events iterated
+    ("next", "last") regardless of sport, so every tennis entity bought one
+    guaranteed failure — 179 requests, about 1.5 minutes at 2 req/s.
+    """
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import SofaResolver
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"))
+    client = _CountingClient()
+    resolver = SofaResolver(config, client, SofaCache(config))  # type: ignore[arg-type]
+
+    resolver._fetch_events(42, "tennis")
+    assert client.calls, "tennis must still fetch something"
+    assert all(kind == "last" for _, kind, _ in client.calls), (
+        f"tennis asked for a route that does not exist: {client.calls}"
+    )
+
+    client.calls.clear()
+    resolver._fetch_events(43, "football")
+    assert any(kind == "next" for _, kind, _ in client.calls), (
+        "football's next listing works (48 of 53 returned 200) and is kept"
+    )

@@ -7428,6 +7428,282 @@
                   "shortNameTranslation": {}
                 }
               },
+              "userCount": 33948,
+              "groundType": "Hardcourt outdoor",
+              "tennisPoints": 2000,
+              "hasRounds": true,
+              "hasPerformanceGraphFeature": false,
+              "country": {},
+              "id": 2363,
+              "hasEventPlayerStatistics": false,
+              "displayInverseHomeAwayTeams": false,
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "az": "Australian Open, Kişilər",
+                  "de": "Australian Open Herreneinzel",
+                  "el": "Αυστραλιανό Όπεν, απλό ανδρών",
+                  "es": "Abierto de Australia, masculino",
+                  "es-la": "Abierto de Australia, Varonil",
+                  "fr": "Open d'Australie simple messieurs",
+                  "hr": "Australian Open (M)",
+                  "hu": "Australian Open, férfi egyes",
+                  "id": "Australia Open, Tunggal (Pa)",
+                  "it": "Australian Open (M)",
+                  "ja": "全豪オープン、男子",
+                  "ko": "호주 오픈 남자 단식",
+                  "nl": "Australian Open mannenenkelspel",
+                  "no": "Australian Open, menn",
+                  "pl": "Australian Open, singiel mężczyzn",
+                  "tr": "Avustralya Açık, Tek Erkekler",
+                  "pt": "Australian Open masculino",
+                  "pt-pt": "Australian Open (M)",
+                  "ro": "Australian Open, simplu masculin",
+                  "sr": "Аустралијан опен, појединачно (М)",
+                  "sv": "Australian Open, herrsingel",
+                  "th": "ออสเตรเลียนโอเพน ชายเดี่ยว",
+                  "vi": "Úc Mở rộng, đơn nam",
+                  "ar": "بطولة أستراليا المفتوحة، فردي الرجال",
+                  "bn": "অস্ট্রেলিয়ান ওপেন, পুরুষ একক",
+                  "hi": "ऑस्ट्रेलियन ओपन, पुरुष",
+                  "ru": "Australian Open, мужской одиночный разряд"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "priority": 0,
+            "isGroup": false,
+            "competitionType": 2,
+            "id": 172867,
+            "endTimestamp": 1769904000,
+            "startTimestamp": 1768694400,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "بطولة أستراليا المفتوحة للتنس، ملبورن، أستراليا",
+                "ru": "Открытый чемпионат Австралии, Мельбурн, Австралия"
+              },
+              "shortNameTranslation": {}
+            }
+          },
+          "season": {
+            "name": "Australian Open Men Singles 2026",
+            "year": "2026",
+            "editor": false,
+            "id": 80012
+          },
+          "roundInfo": {
+            "round": 5,
+            "name": "Round of 16",
+            "slug": "round-of-16",
+            "cupRoundType": 8
+          },
+          "customId": "Wvfbsytkc",
+          "status": {
+            "code": 0,
+            "type": "notstarted",
+            "description": "Not started"
+          },
+          "winnerCode": 1,
+          "venue": {
+            "city": {
+              "name": "Melbourne",
+              "country": {
+                "alpha2": "AU",
+                "alpha3": "AUS",
+                "name": "Australia",
+                "slug": "australia"
+              },
+              "id": 17959
+            },
+            "venueCoordinates": {
+              "latitude": -37.821583103718,
+              "longitude": 144.9786958493
+            },
+            "hidden": false,
+            "slug": "rod-laver-arena",
+            "name": "Rod Laver Arena",
+            "capacity": 14820,
+            "country": {
+              "alpha2": "AU",
+              "alpha3": "AUS",
+              "name": "Australia",
+              "slug": "australia"
+            },
+            "id": 20122,
+            "fieldTranslations": {
+              "nameTranslation": {
+                "ar": "بيغن أرينا رود لافر",
+                "hi": "रॉड लेवर एरिना",
+                "bn": "রড লেভার এরিনা"
+              },
+              "shortNameTranslation": {}
+            },
+            "stadium": {
+              "name": "Rod Laver Arena",
+              "capacity": 14820
+            }
+          },
+          "homeTeam": {
+            "id": 275923,
+            "name": "Carlos Alcaraz"
+          },
+          "awayTeam": {
+            "id": 900004,
+            "name": "Tommy Paul"
+          },
+          "homeScore": {
+            "current": 3,
+            "display": 3,
+            "period1": 7,
+            "period2": 6,
+            "period3": 7,
+            "period1TieBreak": 8,
+            "point": "40",
+            "normaltime": 3
+          },
+          "awayScore": {
+            "current": 0,
+            "display": 0,
+            "period1": 6,
+            "period2": 4,
+            "period3": 5,
+            "period1TieBreak": 6,
+            "point": "15",
+            "normaltime": 0
+          },
+          "time": {
+            "period1": 4303,
+            "period2": 2451,
+            "period3": 3111,
+            "currentPeriodStartTimestamp": 1769315858
+          },
+          "changes": {
+            "changes": [
+              "time.currentPeriodStart",
+              "time.period3"
+            ],
+            "changeTimestamp": 1769319004
+          },
+          "hasGlobalHighlights": true,
+          "crowdsourcingDataDisplayEnabled": false,
+          "id": 15900001,
+          "defaultPeriodCount": 5,
+          "slug": "carlos-alcaraz-tommy-paul",
+          "currentPeriodStartTimestamp": 1769315858,
+          "startTimestamp": 1789675200,
+          "periods": {
+            "point": "Game",
+            "current": "Match",
+            "period1": "1st set",
+            "period2": "2nd set",
+            "period3": "3rd set",
+            "period4": "4th set",
+            "period5": "5th set"
+          },
+          "finalResultOnly": false,
+          "hasBet365LiveStream": true,
+          "bet365ExcludedCountryCodes": [
+            "09",
+            "28",
+            "29",
+            "31",
+            "33",
+            "36",
+            "39",
+            "43",
+            "49",
+            "56",
+            "61",
+            "AA",
+            "AB",
+            "AC",
+            "BM",
+            "CA",
+            "IA",
+            "NZ",
+            "OH",
+            "ON",
+            "PR",
+            "VR",
+            "IR",
+            "GR",
+            "RU",
+            "CH"
+          ],
+          "feedLocked": false,
+          "groundType": "Hardcourt outdoor",
+          "showTotoPromo": true,
+          "isEditor": false,
+          "eventFilters": {
+            "category": [
+              "singles"
+            ],
+            "level": [
+              "pro"
+            ],
+            "tournament": [
+              "grand-slam"
+            ],
+            "gender": [
+              "M"
+            ]
+          }
+        },
+        {
+          "firstToServe": 1,
+          "homeTeamSeed": "1",
+          "awayTeamSeed": "19",
+          "tournament": {
+            "name": "Australian Open, Melbourne, Australia",
+            "slug": "australian-open-melbourne-australia",
+            "category": {
+              "name": "ATP",
+              "slug": "atp",
+              "sport": {
+                "name": "Tennis",
+                "slug": "tennis",
+                "id": 5
+              },
+              "priority": 8,
+              "country": {},
+              "id": 3,
+              "flag": "atp",
+              "fieldTranslations": {
+                "nameTranslation": {
+                  "bn": "এটিপি",
+                  "hi": "डब्ल्यूटीए",
+                  "ar": "رابطة محترفي التنس",
+                  "ru": "ATP"
+                },
+                "shortNameTranslation": {}
+              }
+            },
+            "uniqueTournament": {
+              "name": "Australian Open, Men",
+              "slug": "australian-open",
+              "primaryColorHex": "#d0d830",
+              "secondaryColorHex": "#2294dc",
+              "category": {
+                "name": "ATP",
+                "slug": "atp",
+                "sport": {
+                  "name": "Tennis",
+                  "slug": "tennis",
+                  "id": 5
+                },
+                "priority": 8,
+                "country": {},
+                "id": 3,
+                "flag": "atp",
+                "fieldTranslations": {
+                  "nameTranslation": {
+                    "bn": "এটিপি",
+                    "hi": "डब्ल्यूटीए",
+                    "ar": "رابطة محترفي التنس",
+                    "ru": "ATP"
+                  },
+                  "shortNameTranslation": {}
+                }
+              },
               "userCount": 33843,
               "groundType": "Hardcourt outdoor",
               "tennisPoints": 2000,
@@ -37868,286 +38144,6 @@
         }
       }
     },
-    "team/275923/events/next/0": {
-      "events": [
-        {
-          "firstToServe": 1,
-          "homeTeamSeed": "1",
-          "awayTeamSeed": "19",
-          "tournament": {
-            "name": "Australian Open, Melbourne, Australia",
-            "slug": "australian-open-melbourne-australia",
-            "category": {
-              "name": "ATP",
-              "slug": "atp",
-              "sport": {
-                "name": "Tennis",
-                "slug": "tennis",
-                "id": 5
-              },
-              "priority": 8,
-              "country": {},
-              "id": 3,
-              "flag": "atp",
-              "fieldTranslations": {
-                "nameTranslation": {
-                  "bn": "এটিপি",
-                  "hi": "डब्ल्यूटीए",
-                  "ar": "رابطة محترفي التنس",
-                  "ru": "ATP"
-                },
-                "shortNameTranslation": {}
-              }
-            },
-            "uniqueTournament": {
-              "name": "Australian Open, Men",
-              "slug": "australian-open",
-              "primaryColorHex": "#d0d830",
-              "secondaryColorHex": "#2294dc",
-              "category": {
-                "name": "ATP",
-                "slug": "atp",
-                "sport": {
-                  "name": "Tennis",
-                  "slug": "tennis",
-                  "id": 5
-                },
-                "priority": 8,
-                "country": {},
-                "id": 3,
-                "flag": "atp",
-                "fieldTranslations": {
-                  "nameTranslation": {
-                    "bn": "এটিপি",
-                    "hi": "डब्ल्यूटीए",
-                    "ar": "رابطة محترفي التنس",
-                    "ru": "ATP"
-                  },
-                  "shortNameTranslation": {}
-                }
-              },
-              "userCount": 33948,
-              "groundType": "Hardcourt outdoor",
-              "tennisPoints": 2000,
-              "hasRounds": true,
-              "hasPerformanceGraphFeature": false,
-              "country": {},
-              "id": 2363,
-              "hasEventPlayerStatistics": false,
-              "displayInverseHomeAwayTeams": false,
-              "fieldTranslations": {
-                "nameTranslation": {
-                  "az": "Australian Open, Kişilər",
-                  "de": "Australian Open Herreneinzel",
-                  "el": "Αυστραλιανό Όπεν, απλό ανδρών",
-                  "es": "Abierto de Australia, masculino",
-                  "es-la": "Abierto de Australia, Varonil",
-                  "fr": "Open d'Australie simple messieurs",
-                  "hr": "Australian Open (M)",
-                  "hu": "Australian Open, férfi egyes",
-                  "id": "Australia Open, Tunggal (Pa)",
-                  "it": "Australian Open (M)",
-                  "ja": "全豪オープン、男子",
-                  "ko": "호주 오픈 남자 단식",
-                  "nl": "Australian Open mannenenkelspel",
-                  "no": "Australian Open, menn",
-                  "pl": "Australian Open, singiel mężczyzn",
-                  "tr": "Avustralya Açık, Tek Erkekler",
-                  "pt": "Australian Open masculino",
-                  "pt-pt": "Australian Open (M)",
-                  "ro": "Australian Open, simplu masculin",
-                  "sr": "Аустралијан опен, појединачно (М)",
-                  "sv": "Australian Open, herrsingel",
-                  "th": "ออสเตรเลียนโอเพน ชายเดี่ยว",
-                  "vi": "Úc Mở rộng, đơn nam",
-                  "ar": "بطولة أستراليا المفتوحة، فردي الرجال",
-                  "bn": "অস্ট্রেলিয়ান ওপেন, পুরুষ একক",
-                  "hi": "ऑस्ट्रेलियन ओपन, पुरुष",
-                  "ru": "Australian Open, мужской одиночный разряд"
-                },
-                "shortNameTranslation": {}
-              }
-            },
-            "priority": 0,
-            "isGroup": false,
-            "competitionType": 2,
-            "id": 172867,
-            "endTimestamp": 1769904000,
-            "startTimestamp": 1768694400,
-            "fieldTranslations": {
-              "nameTranslation": {
-                "ar": "بطولة أستراليا المفتوحة للتنس، ملبورن، أستراليا",
-                "ru": "Открытый чемпионат Австралии, Мельбурн, Австралия"
-              },
-              "shortNameTranslation": {}
-            }
-          },
-          "season": {
-            "name": "Australian Open Men Singles 2026",
-            "year": "2026",
-            "editor": false,
-            "id": 80012
-          },
-          "roundInfo": {
-            "round": 5,
-            "name": "Round of 16",
-            "slug": "round-of-16",
-            "cupRoundType": 8
-          },
-          "customId": "Wvfbsytkc",
-          "status": {
-            "code": 0,
-            "type": "notstarted",
-            "description": "Not started"
-          },
-          "winnerCode": 1,
-          "venue": {
-            "city": {
-              "name": "Melbourne",
-              "country": {
-                "alpha2": "AU",
-                "alpha3": "AUS",
-                "name": "Australia",
-                "slug": "australia"
-              },
-              "id": 17959
-            },
-            "venueCoordinates": {
-              "latitude": -37.821583103718,
-              "longitude": 144.9786958493
-            },
-            "hidden": false,
-            "slug": "rod-laver-arena",
-            "name": "Rod Laver Arena",
-            "capacity": 14820,
-            "country": {
-              "alpha2": "AU",
-              "alpha3": "AUS",
-              "name": "Australia",
-              "slug": "australia"
-            },
-            "id": 20122,
-            "fieldTranslations": {
-              "nameTranslation": {
-                "ar": "بيغن أرينا رود لافر",
-                "hi": "रॉड लेवर एरिना",
-                "bn": "রড লেভার এরিনা"
-              },
-              "shortNameTranslation": {}
-            },
-            "stadium": {
-              "name": "Rod Laver Arena",
-              "capacity": 14820
-            }
-          },
-          "homeTeam": {
-            "id": 275923,
-            "name": "Carlos Alcaraz"
-          },
-          "awayTeam": {
-            "id": 900004,
-            "name": "Tommy Paul"
-          },
-          "homeScore": {
-            "current": 3,
-            "display": 3,
-            "period1": 7,
-            "period2": 6,
-            "period3": 7,
-            "period1TieBreak": 8,
-            "point": "40",
-            "normaltime": 3
-          },
-          "awayScore": {
-            "current": 0,
-            "display": 0,
-            "period1": 6,
-            "period2": 4,
-            "period3": 5,
-            "period1TieBreak": 6,
-            "point": "15",
-            "normaltime": 0
-          },
-          "time": {
-            "period1": 4303,
-            "period2": 2451,
-            "period3": 3111,
-            "currentPeriodStartTimestamp": 1769315858
-          },
-          "changes": {
-            "changes": [
-              "time.currentPeriodStart",
-              "time.period3"
-            ],
-            "changeTimestamp": 1769319004
-          },
-          "hasGlobalHighlights": true,
-          "crowdsourcingDataDisplayEnabled": false,
-          "id": 15900001,
-          "defaultPeriodCount": 5,
-          "slug": "carlos-alcaraz-tommy-paul",
-          "currentPeriodStartTimestamp": 1769315858,
-          "startTimestamp": 1789675200,
-          "periods": {
-            "point": "Game",
-            "current": "Match",
-            "period1": "1st set",
-            "period2": "2nd set",
-            "period3": "3rd set",
-            "period4": "4th set",
-            "period5": "5th set"
-          },
-          "finalResultOnly": false,
-          "hasBet365LiveStream": true,
-          "bet365ExcludedCountryCodes": [
-            "09",
-            "28",
-            "29",
-            "31",
-            "33",
-            "36",
-            "39",
-            "43",
-            "49",
-            "56",
-            "61",
-            "AA",
-            "AB",
-            "AC",
-            "BM",
-            "CA",
-            "IA",
-            "NZ",
-            "OH",
-            "ON",
-            "PR",
-            "VR",
-            "IR",
-            "GR",
-            "RU",
-            "CH"
-          ],
-          "feedLocked": false,
-          "groundType": "Hardcourt outdoor",
-          "showTotoPromo": true,
-          "isEditor": false,
-          "eventFilters": {
-            "category": [
-              "singles"
-            ],
-            "level": [
-              "pro"
-            ],
-            "tournament": [
-              "grand-slam"
-            ],
-            "gender": [
-              "M"
-            ]
-          }
-        }
-      ],
-      "hasNextPage": false
-    }
+    "team/275923/events/next/0": null
   }
 }

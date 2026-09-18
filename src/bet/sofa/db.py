@@ -79,6 +79,15 @@ def migrate(db_path: str) -> None:
             PRIMARY KEY (sport, query_key)
         );
         """,
+        """
+        CREATE TABLE IF NOT EXISTS sofa_listing_miss (
+            sofascore_entity_id INTEGER NOT NULL,
+            kind                TEXT    NOT NULL,
+            page                INTEGER NOT NULL,
+            missed_at           TEXT    NOT NULL,
+            PRIMARY KEY (sofascore_entity_id, kind, page)
+        );
+        """,
     ]
 
     # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is

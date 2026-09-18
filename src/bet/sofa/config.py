@@ -23,6 +23,11 @@ class SofaConfig:
     # teams get added. A week is long enough to stop paying for the lookup
     # every day, short enough that a newly listed team is found eventually.
     entity_miss_ttl_min: int = 10080
+    # A listing that 404s is worth remembering, but only for the day. A team
+    # with no upcoming match today has one next week, so an eternal memory
+    # would trade 28% of the request budget for a silent hole in the data —
+    # the worse of the two errors (F17).
+    listing_miss_ttl_min: int = 720
     sample_n: int = 10
     min_sample: int = 5
     price_max_age_min: int = 45
@@ -46,6 +51,9 @@ class SofaConfig:
             events_ttl_min=int(os.environ.get("SOFA_EVENTS_TTL_MIN", "360")),
             entity_miss_ttl_min=int(
                 os.environ.get("SOFA_ENTITY_MISS_TTL_MIN", "10080")
+            ),
+            listing_miss_ttl_min=int(
+                os.environ.get("SOFA_LISTING_MISS_TTL_MIN", "720")
             ),
             sample_n=int(os.environ.get("SOFA_SAMPLE_N", "10")),
             min_sample=int(os.environ.get("SOFA_MIN_SAMPLE", "5")),
