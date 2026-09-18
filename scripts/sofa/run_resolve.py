@@ -133,6 +133,7 @@ def main() -> int:
                         client,
                         identity=identity,
                         superbet_kickoff_utc=bf.kickoff_utc,
+                        cache=cache,
                     )
             except CircuitOpenError:
                 # The breaker gave up on the provider. Every remaining

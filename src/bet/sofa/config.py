@@ -28,6 +28,12 @@ class SofaConfig:
     # would trade 28% of the request budget for a silent hole in the data —
     # the worse of the two errors (F17).
     listing_miss_ttl_min: int = 720
+    # /event/{id} for a match that has not been played yet. Short, because
+    # the payload legitimately changes — the referee is announced late, which
+    # is why that field is filled for only 9% of fixtures, so an eternal cache
+    # would freeze an empty referee in place. A finished match is immutable and
+    # is cached permanently regardless of this value (F33).
+    event_detail_ttl_min: int = 60
     sample_n: int = 10
     min_sample: int = 5
     price_max_age_min: int = 45
@@ -54,6 +60,9 @@ class SofaConfig:
             ),
             listing_miss_ttl_min=int(
                 os.environ.get("SOFA_LISTING_MISS_TTL_MIN", "720")
+            ),
+            event_detail_ttl_min=int(
+                os.environ.get("SOFA_EVENT_DETAIL_TTL_MIN", "60")
             ),
             sample_n=int(os.environ.get("SOFA_SAMPLE_N", "10")),
             min_sample=int(os.environ.get("SOFA_MIN_SAMPLE", "5")),

@@ -2392,3 +2392,115 @@ def test_best_of_is_renamed_to_what_it_actually_holds() -> None:
 
     assert "best_of" not in Fixture.model_fields
     assert "default_period_count" in Fixture.model_fields
+
+
+# --------------------------------------------------------------------------
+# F33 — /event/{id} had no cache at all: 46% of a RESOLVE stage's requests
+# --------------------------------------------------------------------------
+
+
+class _CountingEventClient:
+    def __init__(self, status_type: str = "finished") -> None:
+        self.calls = 0
+        self.status_type = status_type
+
+    def event(self, event_id: int):  # type: ignore[no-untyped-def]
+        self.calls += 1
+        return {
+            "event": {
+                "id": event_id,
+                "startTimestamp": 1789740000,
+                "homeTeam": {"name": "Home", "id": 1},
+                "awayTeam": {"name": "Away", "id": 2},
+                "tournament": {"name": "T", "category": {"name": "C"}},
+                "season": {"id": 1},
+                "status": {"type": self.status_type, "code": 100},
+                "roundInfo": {"round": 7},
+            }
+        }
+
+
+def _parse_twice(tmp_path: Path, status_type: str, ttl_min: int = 60):  # type: ignore[no-untyped-def]
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import parse_fixture
+
+    config = SofaConfig(db_path=str(tmp_path / "t.db"), event_detail_ttl_min=ttl_min)
+    cache = SofaCache(config)
+    client = _CountingEventClient(status_type)
+    event = {"id": 555, "startTimestamp": 1789740000}
+    for _ in range(2):
+        parse_fixture(event, "football", ["1"], client, cache=cache)  # type: ignore[arg-type]
+    return client, cache, config
+
+
+def test_f33_a_finished_matchs_detail_is_fetched_once(tmp_path: Path) -> None:
+    """Fails on the old code for the right reason: there was no cache, so the
+    payload was re-fetched on every run — 282 of 615 requests in the live run
+    that raised this."""
+    client, _, _ = _parse_twice(tmp_path, "finished")
+    assert client.calls == 1, (
+        f"fetched {client.calls} times; a finished match cannot change"
+    )
+
+
+def test_f33_an_unplayed_matchs_detail_expires(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The referee is announced late — filled for only 9% of fixtures — so an
+    eternal cache would freeze an empty referee in place. That is the F17 trap:
+    waste turned into a silent gap is the worse error."""
+    from datetime import timedelta
+
+    import bet.sofa.cache as cache_module
+    from bet.sofa.resolve import parse_fixture
+    from bet.sofa.timeutil import now as real_now
+
+    client, cache, _ = _parse_twice(tmp_path, "notstarted", ttl_min=60)
+    assert client.calls == 1, "within the TTL it must be reused"
+
+    base = real_now()
+    monkeypatch.setattr(cache_module, "now", lambda: base + timedelta(minutes=61))
+    parse_fixture(
+        {"id": 555, "startTimestamp": 1789740000},
+        "football",
+        ["1"],
+        client,
+        cache=cache,
+    )  # type: ignore[arg-type]
+    assert client.calls == 2, "after the TTL an unplayed match must be asked again"
+
+
+def test_f33_a_finished_match_is_kept_past_the_ttl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Immutable payloads have no reason to expire, like sofa_event_stats."""
+    from datetime import timedelta
+
+    import bet.sofa.cache as cache_module
+    from bet.sofa.resolve import parse_fixture
+    from bet.sofa.timeutil import now as real_now
+
+    client, cache, _ = _parse_twice(tmp_path, "finished", ttl_min=60)
+    base = real_now()
+    monkeypatch.setattr(cache_module, "now", lambda: base + timedelta(days=30))
+    parse_fixture(
+        {"id": 555, "startTimestamp": 1789740000},
+        "football",
+        ["1"],
+        client,
+        cache=cache,
+    )  # type: ignore[arg-type]
+    assert client.calls == 1
+
+
+def test_f33_without_a_cache_the_behaviour_is_unchanged(tmp_path: Path) -> None:
+    """Callers that pass no cache — the backfill — must be unaffected."""
+    from bet.sofa.resolve import parse_fixture
+
+    client = _CountingEventClient("finished")
+    for _ in range(2):
+        parse_fixture(
+            {"id": 555, "startTimestamp": 1789740000}, "football", ["1"], client
+        )  # type: ignore[arg-type]
+    assert client.calls == 2

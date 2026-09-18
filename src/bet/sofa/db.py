@@ -80,6 +80,14 @@ def migrate(db_path: str) -> None:
         );
         """,
         """
+        CREATE TABLE IF NOT EXISTS sofa_event_detail (
+            sofascore_event_id INTEGER PRIMARY KEY,
+            fetched_at         TEXT    NOT NULL,
+            status_type        TEXT,
+            detail_json        TEXT    NOT NULL
+        );
+        """,
+        """
         CREATE TABLE IF NOT EXISTS sofa_listing_miss (
             sofascore_entity_id INTEGER NOT NULL,
             kind                TEXT    NOT NULL,

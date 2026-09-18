@@ -361,10 +361,25 @@ def parse_fixture(
     client: SofascoreClient,
     identity: Literal["CONFIRMED", "FUZZY"] = "CONFIRMED",
     superbet_kickoff_utc: datetime | None = None,
+    cache: SofaCache | None = None,
 ) -> Fixture:
     # /event/{id} carries what the listing does not: referee, round_number,
     # ground_type, default_period_count.
-    details = client.event(event["id"])
+    #
+    # Through the cache when one is supplied (F33). This was the only route in
+    # the pipeline with no cache at all — one call per fixture, every run, 46%
+    # of a whole RESOLVE stage's requests. A finished match's payload is kept
+    # permanently; an unplayed one expires, because the referee is announced
+    # late and a frozen empty referee is worse than the requests it saves.
+    details = cache.get_event_detail(event["id"]) if cache else None
+    if details is None:
+        details = client.event(event["id"])
+        if cache and details:
+            cache.save_event_detail(
+                event["id"],
+                details,
+                ((details.get("event") or {}).get("status") or {}).get("type"),
+            )
     if details and "event" in details:
         event = details["event"]
 

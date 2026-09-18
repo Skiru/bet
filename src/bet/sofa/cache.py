@@ -220,6 +220,55 @@ class SofaCache:
                 minutes=self.config.entity_miss_ttl_min
             )
 
+    def get_event_detail(self, sofascore_event_id: int) -> dict[str, Any] | None:
+        """The cached /event/{id} payload, or None.
+
+        This route had no cache of any kind and was 46% of a whole RESOLVE
+        stage's requests — one call per fixture, every run, forever (F33).
+
+        Two lifetimes, because the payload has two. A **finished** match cannot
+        change, so it is kept permanently, like sofa_event_stats. A match that
+        has not been played can and does change — the referee is announced
+        late, which is exactly why that field is filled for only 9% of
+        fixtures — so it expires. Caching it forever would turn waste into a
+        frozen empty referee, which is the trap F17 named and the worse error.
+        """
+        with get_connection(self.config.db_path) as conn:
+            row = conn.execute(
+                "SELECT fetched_at, status_type, detail_json "
+                "FROM sofa_event_detail WHERE sofascore_event_id = ?",
+                (sofascore_event_id,),
+            ).fetchone()
+            if not row:
+                return None
+            if row["status_type"] != "finished":
+                fetched_at = datetime.fromisoformat(row["fetched_at"])
+                if now() - fetched_at > timedelta(
+                    minutes=self.config.event_detail_ttl_min
+                ):
+                    return None
+            return cast(dict[str, Any], json.loads(row["detail_json"]))
+
+    def save_event_detail(
+        self, sofascore_event_id: int, detail: dict[str, Any], status_type: str | None
+    ) -> None:
+        """Remember one /event/{id} payload, with the status that dates it."""
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO sofa_event_detail
+                (sofascore_event_id, fetched_at, status_type, detail_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    sofascore_event_id,
+                    now().isoformat(),
+                    status_type,
+                    json.dumps(detail),
+                ),
+            )
+            conn.commit()
+
     def get_listing_miss(self, entity_id: int, kind: str, page: int) -> bool:
         """Did this listing 404 recently?
 
