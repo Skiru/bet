@@ -408,3 +408,108 @@ def test_f22_an_undeclared_caller_is_labelled_client_not_a_real_stage() -> None:
     t.start()
     t.join()
     assert seen == ["CLIENT"]
+
+
+# --------------------------------------------------------------------------
+# F14 — the schema has to exist before anything reads it
+# --------------------------------------------------------------------------
+
+
+def test_f14_a_cache_on_a_fresh_database_can_read_and_write_every_table(
+    tmp_path: Path,
+) -> None:
+    """The pipeline must start from nothing, on a database file that is not there.
+
+    Fails on the old code for the right reason: nothing in production called
+    migrate(), so the first statement raised ``no such table: sofa_entity``.
+    The live database only worked because a table set had been created by hand
+    once, which is why sofa_entity_miss — added later by F4 — was missing and
+    killed RESOLVE on its first fixture.
+    """
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.db import get_connection
+    from bet.sofa.settle import SettledRow, insert_settled_rows
+
+    db = tmp_path / "does_not_exist_yet.db"
+    assert not db.exists()
+    cache = SofaCache(SofaConfig(db_path=str(db)))
+
+    # sofa_entity
+    assert cache.get_entity("football", "anything") is None
+    cache.save_entity("football", "arsenal", 42, "Arsenal", "team", "ENG", "verified")
+    assert (cache.get_entity("football", "arsenal") or {})["sofascore_id"] == 42
+
+    # sofa_entity_miss — the table F4 added and the live database never got
+    assert cache.get_entity_miss("football", "nosuchteam") is False
+    cache.save_entity_miss("football", "nosuchteam")
+    assert cache.get_entity_miss("football", "nosuchteam") is True
+
+    # sofa_entity_events
+    assert cache.get_entity_events(42, "last", 0) is None
+    cache.save_entity_events(42, "last", 0, {"events": []})
+    assert cache.get_entity_events(42, "last", 0) == {"events": []}
+
+    # sofa_event_stats
+    assert cache.get_event_stats(7) is None
+    cache.save_event_stats(7, {"a": 1}, None, "finished")
+    assert (cache.get_event_stats(7) or (None,))[0] == {"a": 1}
+
+    # sofa_settled_row
+    with get_connection(str(db)) as conn:
+        rows = conn.execute("SELECT COUNT(*) AS n FROM sofa_settled_row").fetchone()
+        assert rows["n"] == 0
+        assert (
+            insert_settled_rows(
+                conn,
+                [
+                    SettledRow(
+                        run_date="2026-01-01",
+                        sofascore_event_id=7,
+                        sport="football",
+                        competition_id=1,
+                        market="goals_total",
+                        subject="",
+                        line=2.5,
+                        direction="OVER",
+                        sample_size=10,
+                        sample_mean=3.0,
+                        sample_sd=1.1,
+                        p_central=0.5,
+                        p_bar=0.5,
+                        market_p=0.5,
+                        actual_value=3.0,
+                        outcome="WIN",
+                        settled_at="2026-01-02T00:00:00Z",
+                    )
+                ],
+            )
+            == 1
+        )
+
+
+def test_f14_every_table_migrate_declares_exists_after_the_cache_is_built(
+    tmp_path: Path,
+) -> None:
+    """Guard: the next table added to migrate() must reach the live database.
+
+    This is the check that would have caught F4's table going missing.
+    """
+    import re
+
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.db import get_connection
+
+    source = (REPO / "src" / "bet" / "sofa" / "db.py").read_text(encoding="utf-8")
+    declared = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", source))
+    assert declared, "migrate() declares no tables; the guard would pass vacuously"
+
+    db = tmp_path / "fresh.db"
+    SofaCache(SofaConfig(db_path=str(db)))
+    with get_connection(str(db)) as conn:
+        live = {
+            row["name"]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    assert declared <= live, f"tables never created: {sorted(declared - live)}"

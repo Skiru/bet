@@ -4,13 +4,22 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 
 from bet.sofa.config import SofaConfig
-from bet.sofa.db import get_connection
+from bet.sofa.db import get_connection, migrate
 from bet.sofa.timeutil import now
 
 
 class SofaCache:
     def __init__(self, config: SofaConfig) -> None:
         self.config = config
+        # The schema is created here, in the constructor, because there is no
+        # way into the cache that bypasses it (F14). Nothing in production code
+        # called migrate() before: the live database only had its tables
+        # because someone once ran it by hand, so every table added afterwards
+        # — sofa_entity_miss, added by F4 — never reached it, and the second
+        # live run died on the first fixture of RESOLVE. On a clean machine
+        # the pipeline would not start at all. migrate() is idempotent and
+        # costs one no-op transaction after the first call.
+        migrate(config.db_path)
 
     def get_event_stats(
         self, sofascore_event_id: int
