@@ -115,3 +115,59 @@ przeżywają ubicie procesu.
 Trzymanie **surowych** payloadów wygląda na marnotrawstwo miejsca, a jest
 ubezpieczeniem: pozwala przeliczyć metryki od nowa po zmianie kodu bez ani
 jednego zapytania. Przy tak kruchym dostępie do Sofascore to jest tego warte.
+
+
+---
+
+## Audyt semantyczny pobranych danych (2026-09-18)
+
+Wykonany na tym, co RESOLVE zdążył pobrać przed przerwaniem: **271 encji,
+1 748 listingów, 43 985 zdarzeń**. Bez sieci — wyłącznie na cache'u i plikach
+dowodowych.
+
+### Czysto
+
+| Sprawdzenie | Wynik |
+|---|---|
+| Tożsamość encji | **0** id osiągalnych z więcej niż jednej nazwy, **0** nazw wskazujących więcej niż jedno id. Mapowanie 1:1. |
+| Klucze metryk | Wszystkie **30** zadeklarowanych metryk (22 piłka, 8 tenis) mają realne źródło. 13 to klucze ze `statistics`, reszta wyprowadzana z listingu/incydentów. **Zero literówek.** |
+| Pola listingu | `id`, `startTimestamp`, `homeTeam`, `awayTeam`, `homeScore`, `awayScore`, `status.type` — **100%** obecności. `winnerCode` 99,9%. |
+| Spójność listing↔encja (piłka) | **0** zdarzeń zapisanych pod encją, której nie dotyczą, z 28 876. |
+| Najgorsze dopasowania nazw | Skróty i diakrytyki (`NuPS → Nummelan Palloseura`, `ŁKS Łomża`, `Świt Skolwin Szczecin`, `plaza amador (r) → Plaza Amador Reserves U20`), nie pomyłki. Dodatkowo RESOLVE przyjmuje encję dopiero po znalezieniu meczu zgodnego co do kickoffu i przeciwnika, więc sama podobność nazwy nie wystarcza. |
+
+### Dwie rzeczy warte wiedzy (obie obsłużone poprawnie)
+
+**Deble rozcieńczają listing tenisisty.** 24,7% zbuforowanych zdarzeń
+tenisowych (3 737 z 15 109) to mecze deblowe, w których `homeTeam` to para
+o własnym id. Kod je odrzuca bramką `home_id != entity_id and away_id !=
+entity_id`, więc do próbki nie wchodzą — i dobrze, bo `gamesWon` z debla nie
+opisuje singla, a atrybucja strony byłaby odwrócona. Zmierzone skutki
+rozcieńczenia: **mediana 61 dostępnych meczów singlowych** na encję, tylko
+3,2% encji poniżej 10, **zero** encji bez singli. Nie zagłodzi próbki.
+
+**Połówki nie istnieją w 16% meczów piłkarskich.** `homeScore.period1`
+występuje w 84,4% zakończonych meczów, `period2` w 83,0%. Kod zwraca
+`STAT_KEY_ABSENT`, **nigdy zera** — czyli bez pułapki „zero znaczy brak".
+Mediana meczów z `period1` w próbce last-10 to **10,0**, a poniżej progu
+`min_sample=5` wpada 15,9% encji.
+
+Kluczowe jest **gdzie** brakuje: brak jest skoncentrowany w młodzieży
+i najniższych ligach, gdzie sięga 100%.
+
+| Rozgrywki | Brak `period1` |
+|---|---|
+| Liga Elitelor - Seria Vest U17 | 21/21 |
+| Liga 4 Teleorman / Ilfov / Alba U19 | 100% |
+| Campionatul Național U19 (Seria 3, 9) | 100% |
+| Liga de Tineret - Seria Vest | 76/80 |
+| Nelonen (fińska 4. liga) | ~95% |
+| IV. Liga Kujawsko-pomorska | 46/60 |
+
+To nie jest usterka danych, tylko sygnał o poziomie rozgrywek — i argument
+za tym, żeby `sofa` w ogóle nie schodziła do tych lig. Wiąże się z F9: tablica
+Superbetu zawiera mecze U17 i czwartych lig, dla których połówkowe rynki nie
+mają pokrycia. **Do decyzji operatora**, nie do naprawy w kodzie.
+
+**Wniosek dla RESOLVE:** na tym, co pobrał, nie widać ani jednego błędu
+dopasowania. Problem tego etapu był wyłącznie operacyjny (F11), nie
+semantyczny.
