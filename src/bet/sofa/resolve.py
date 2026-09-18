@@ -360,6 +360,7 @@ def parse_fixture(
     superbet_event_ids: list[str],
     client: SofascoreClient,
     identity: Literal["CONFIRMED", "FUZZY"] = "CONFIRMED",
+    superbet_kickoff_utc: datetime | None = None,
 ) -> Fixture:
     # /event/{id} carries what the listing does not: referee, round_number,
     # ground_type, best_of.
@@ -413,6 +414,14 @@ def parse_fixture(
         has_xg=event.get("hasXg", False),
         ground_type=event.get("groundType"),
         best_of=event.get("defaultPeriodCount"),
+        superbet_kickoff_utc=superbet_kickoff_utc,
+        kickoff_disagreement_h=(
+            None
+            if superbet_kickoff_utc is None
+            else round(
+                abs((kickoff_utc - superbet_kickoff_utc).total_seconds()) / 3600.0, 2
+            )
+        ),
     )
 
 

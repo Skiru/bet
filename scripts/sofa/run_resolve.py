@@ -132,6 +132,7 @@ def main() -> int:
                         [bf.superbet_event_id],
                         client,
                         identity=identity,
+                        superbet_kickoff_utc=bf.kickoff_utc,
                     )
             except CircuitOpenError:
                 # The breaker gave up on the provider. Every remaining

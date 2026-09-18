@@ -635,7 +635,7 @@ def test_f15_resolve_writes_its_artifact_even_when_the_stage_raises(
             from datetime import UTC, datetime
             from bet.sofa.contracts import Fixture
 
-            def fake_parse(event, sport, ids, client, identity):
+            def fake_parse(event, sport, ids, client, identity, **kw):
                 return Fixture(
                     sofascore_event_id=event["id"],
                     superbet_event_ids=ids,
@@ -1511,3 +1511,137 @@ def test_f17_tennis_never_asks_for_a_route_that_does_not_exist(tmp_path: Path) -
     assert any(kind == "next" for _, kind, _ in client.calls), (
         "football's next listing works (48 of 53 returned 200) and is kept"
     )
+
+
+# --------------------------------------------------------------------------
+# F26 — the coupon's time gate was fed by the wrong clock
+# --------------------------------------------------------------------------
+
+
+def _sheet_row(event_id: int, odds: float = 2.50):  # type: ignore[no-untyped-def]
+    from bet.sofa.contracts import SheetRow
+
+    return SheetRow(
+        sofascore_event_id=event_id,
+        sport="tennis",
+        market="games_total",
+        subject="",
+        line=20.5,
+        direction="OVER",
+        sample_size=10,
+        sample_mean=21.0,
+        sample_sd=2.0,
+        centre=21.0,
+        p_central=0.60,
+        market_p=0.50,
+        ladder_centre=21.0,
+        ladder_sigma=0.1,
+        p_bar=0.58,
+        bar_reason=None,
+        required_odds=1.90,
+        offered_odds=odds,
+        edge=0.10,
+        surplus=0.60,
+        verdict="VALUE",
+        notes=[],
+    )
+
+
+def test_f26_a_match_superbet_says_has_started_cannot_reach_the_coupon() -> None:
+    """Fails on the old code for the right reason: the gate read Sofascore's
+    kickoff, which for ITF runs 7-9 h late, so a finished match looked
+    upcoming. Six fixtures on 2026-09-18 would have passed with the result
+    already known; only the bookmaker delisting them prevented it, which does
+    nothing for a match being played live and still priced."""
+    from datetime import UTC, datetime, timedelta
+
+    from bet.sofa.coupon import build_coupon
+
+    fixture = _fixture(1, ["x"])
+    fixture.sport = "tennis"
+    # Yidi Yang vs Sijia Wei: really 02:30, Sofascore said 10:30.
+    fixture.superbet_kickoff_utc = datetime(2026, 9, 18, 2, 30, tzinfo=UTC)
+    fixture.kickoff_utc = datetime(2026, 9, 18, 10, 30, tzinfo=UTC)
+    fixture.kickoff_disagreement_h = 8.0
+
+    now = datetime(2026, 9, 18, 4, 0, tzinfo=UTC)
+    result = build_coupon(
+        [_sheet_row(1)], [fixture], [], [], now, now + timedelta(minutes=15),
+        timedelta(minutes=45),
+    )
+    assert not result.coupon.singles, "a started match reached the coupon"
+    reasons = [d.reason for d in result.dropped]
+    assert "KICKOFF_TOO_SOON" in reasons
+    detail = next(d.detail for d in result.dropped if d.reason == "KICKOFF_TOO_SOON")
+    assert "disagree by 8.0 h" in (detail or ""), (
+        "the disagreement must leave a trace, not vanish"
+    )
+
+
+def test_f26_a_fixture_both_sources_agree_is_upcoming_still_passes() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from bet.sofa.coupon import build_coupon
+
+    fixture = _fixture(1, ["x"])
+    fixture.superbet_kickoff_utc = datetime(2026, 9, 18, 18, 0, tzinfo=UTC)
+    fixture.kickoff_utc = datetime(2026, 9, 18, 18, 0, tzinfo=UTC)
+    fixture.kickoff_disagreement_h = 0.0
+
+    now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+    from bet.sofa.contracts import FixtureOffer, PricedRung
+
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        status="PRICED",
+        rungs=[
+            PricedRung(
+                market="games_total",
+                subject="",
+                line=20.5,
+                over_odds=2.50,
+                under_odds=1.55,
+                fetched_at_utc=now,
+            )
+        ],
+        unmapped_markets=[],
+    )
+    result = build_coupon(
+        [_sheet_row(1)], [fixture], [offer], [], now, now + timedelta(minutes=15),
+        timedelta(minutes=45),
+    )
+    assert len(result.coupon.singles) == 1, [
+        (d.reason, d.detail) for d in result.dropped
+    ]
+
+
+def test_f26_the_disagreement_is_recorded_on_the_fixture() -> None:
+    """A disagreement between sources must leave a trace, not disappear.
+
+    Fails on the old code for the right reason: the field did not exist and a
+    23-hour disagreement passed without a mark.
+    """
+    from datetime import UTC, datetime
+
+    from bet.sofa.resolve import parse_fixture
+
+    event = {
+        "id": 1,
+        "startTimestamp": int(datetime(2026, 9, 18, 10, 0, tzinfo=UTC).timestamp()),
+        "homeTeam": {"name": "Yidi Yang", "id": 1},
+        "awayTeam": {"name": "Sijia Wei", "id": 2},
+        "tournament": {"name": "ITF W35 Kyoto", "category": {"name": "Japan"}},
+        "season": {"id": 1},
+    }
+
+    class NoClient:
+        def event(self, _id: int) -> None:
+            return None
+
+    fixture = parse_fixture(
+        event, "tennis", ["1"], NoClient(),  # type: ignore[arg-type]
+        superbet_kickoff_utc=datetime(2026, 9, 18, 1, 4, tzinfo=UTC),
+    )
+    assert fixture.kickoff_disagreement_h is not None
+    assert abs(fixture.kickoff_disagreement_h - 8.93) < 0.05
+    assert fixture.superbet_kickoff_utc == datetime(2026, 9, 18, 1, 4, tzinfo=UTC)

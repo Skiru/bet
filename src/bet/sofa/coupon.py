@@ -96,13 +96,31 @@ def build_coupon(
             continue
 
         # L19: a finished or imminent match must not top the sheet.
-        if fixture.kickoff_utc <= min_kickoff:
+        #
+        # Superbet's clock, not Sofascore's (F26). Superbet is who accepts the
+        # bet, and its clock is what decides whether the market is open. For
+        # ITF tournaments Sofascore's kickoff runs 7-9 h late — a finished
+        # match looks upcoming — and on 2026-09-18 six fixtures would have
+        # passed this gate with the result already known. They were saved only
+        # by the bookmaker delisting them, which is protection by accident:
+        # it does nothing for a match being played live and still priced.
+        # The most conservative available clock is the right one here.
+        effective_kickoff = min(
+            [t for t in (fixture.kickoff_utc, fixture.superbet_kickoff_utc) if t]
+        )
+        if effective_kickoff <= min_kickoff:
             dropped.append(
                 DroppedRow(
                     row,
                     "KICKOFF_TOO_SOON",
-                    f"kickoff {fixture.kickoff_utc.isoformat()} is not after "
-                    f"{min_kickoff.isoformat()}",
+                    f"kickoff {effective_kickoff.isoformat()} is not after "
+                    f"{min_kickoff.isoformat()}"
+                    + (
+                        ""
+                        if not fixture.kickoff_disagreement_h
+                        else f" (sources disagree by "
+                        f"{fixture.kickoff_disagreement_h:.1f} h)"
+                    ),
                 )
             )
             continue

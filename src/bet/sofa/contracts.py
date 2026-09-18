@@ -69,6 +69,16 @@ class Fixture(BaseModel):
     has_xg: bool
     ground_type: str | None
     best_of: int | None
+    # Superbet's own kickoff, and how far it is from Sofascore's.
+    #
+    # The two sources disagree by a whole timezone for ITF tournaments —
+    # Sofascore appears to publish the tournament's local time as though it
+    # were UTC, a signature confirmed on 12 of 12 cases where the city's offset
+    # could be assigned. The error runs the wrong way: a finished match looks
+    # upcoming. Superbet's clock is the one that decides whether a market is
+    # open, because Superbet is who accepts the bet (F26).
+    superbet_kickoff_utc: datetime | None = None
+    kickoff_disagreement_h: float | None = None
 
 
 class Observation(BaseModel):
