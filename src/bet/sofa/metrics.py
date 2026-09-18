@@ -32,8 +32,21 @@ FOOTBALL_METRICS = {
     "goals_2h_for": {"sofascore": "goals_2h_from_listing", "is_total": False},
     "corners_total": {"sofascore": "cornerKicks", "is_total": True},
     "corners_for": {"sofascore": "cornerKicks", "is_total": False},
-    "cards_total": {"sofascore": "yellowCards", "is_total": True},
-    "cards_for": {"sofascore": "yellowCards", "is_total": False},
+    # cards_total / cards_for are deliberately absent.
+    #
+    # They measured yellowCards only, and Superbet prices no yellow-only
+    # market. Enumerated against the live board on 2026-09-18 for
+    # Brentford-Chelsea, which carries the full card screen: every countable
+    # card market is "liczba kartek" — match, per team, per half — and Superbet
+    # settles those in booking *points*, counting a red as more than a yellow.
+    # The only red-specific markets are "liczba czerwonych kartek", which is a
+    # different quantity again, not a yellow count.
+    #
+    # So there is no market to build for a yellow-only metric, and a metric
+    # nothing can price is a number that looks like coverage without being any.
+    # cards_points_total / cards_points_for are the right pair and are below.
+    # This also takes the declared-metric count from 30 to 28, which makes
+    # "15 of 30 metrics never materialised" an honest denominator.
     "cards_points_total": {
         "sofascore": "cards_points_from_incidents",
         "is_total": True,

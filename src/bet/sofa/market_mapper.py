@@ -95,8 +95,6 @@ def get_mechanism_family(market: str) -> str:
     ):
         return "attacking"
     if market in (
-        "cards_total",
-        "cards_for",
         "cards_points_total",
         "cards_points_for",
         "fouls_total",
@@ -110,8 +108,20 @@ def get_mechanism_family(market: str) -> str:
     return "other"
 
 
-def classify_market(market_name: str | None) -> tuple[str, str] | None:
+# A captured "team" that is really a market scope. Superbet prices half-time
+# versions of markets we have no half-time metric for — "1. polowa - liczba
+# kartek", "2. polowa - liczba rzutow roznych" — and the per-team patterns
+# below match them happily, reading the scope as the name of a team. The row
+# then carries a half-time price against a whole-match sample, which is F29's
+# defect in a market family F29 did not reach.
+#
+# Returning None sends these to `unmapped_markets`, where they are visible as
+# markets we do not price, instead of becoming a phantom per-team row that
+# determine_side has to catch downstream.
+_SUBJECT_IS_SCOPE = re.compile(r"^[12]\.\s?polowa\b")
 
+
+def classify_market(market_name: str | None) -> tuple[str, str] | None:
     folded = fold(market_name)
     if not folded:
         return None
@@ -120,5 +130,8 @@ def classify_market(market_name: str | None) -> tuple[str, str] | None:
     for pattern, market in TEAM_MARKET_PATTERNS:
         m = pattern.match(folded)
         if m:
-            return (market, m.group("team"))
+            team = m.group("team")
+            if _SUBJECT_IS_SCOPE.match(team):
+                return None
+            return (market, team)
     return None

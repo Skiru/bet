@@ -2220,3 +2220,58 @@ def test_f12_a_missing_or_broken_config_excludes_nothing(
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "sofa_board_exclusions.json").write_text("{ broken")
     assert board_module.load_excluded_tournament_ids() == set()
+
+
+# --------------------------------------------------------------------------
+# cards — operator decision: build the market. There is no market to build.
+# --------------------------------------------------------------------------
+
+
+def test_cards_yellow_only_metrics_are_gone_because_nothing_prices_them() -> None:
+    """Enumerated against the live board: every countable card market Superbet
+    offers is "liczba kartek", settled in booking points with a red worth more
+    than a yellow. There is no yellow-only market, so a yellowCards metric is
+    coverage that cannot be bet."""
+    from bet.sofa.metrics import FOOTBALL_METRICS
+
+    assert "cards_total" not in FOOTBALL_METRICS
+    assert "cards_for" not in FOOTBALL_METRICS
+    assert FOOTBALL_METRICS["cards_points_total"]["is_total"] is True
+    assert FOOTBALL_METRICS["cards_points_for"]["is_total"] is False
+
+
+def test_cards_the_real_superbet_names_map_to_the_points_metrics() -> None:
+    """The names below are verbatim from Brentford-Chelsea on 2026-09-18."""
+    from bet.sofa.market_mapper import classify_market
+
+    assert classify_market("Liczba kartek") == ("cards_points_total", "")
+    assert classify_market("Brentford - liczba kartek") == (
+        "cards_points_for",
+        "brentford",
+    )
+    assert classify_market("Chelsea - liczba kartek") == ("cards_points_for", "chelsea")
+
+
+@pytest.mark.parametrize(
+    "market_name",
+    [
+        "1. połowa - liczba kartek",
+        "2. połowa - liczba kartek",
+        "1. połowa - Brentford liczba kartek",
+        "2. połowa - Chelsea liczba kartek",
+    ],
+)
+def test_a_half_time_scope_is_unmapped_not_a_phantom_per_team_row(
+    market_name: str,
+) -> None:
+    """Fails on the old code for the right reason: the per-team pattern matched
+    these with team="1. polowa", producing a row that prices a half-time line
+    off a whole-match sample — F29's defect in a market family F29 did not
+    reach. Verbatim names from the live board.
+
+    None sends them to unmapped_markets, where a market we do not price is
+    visible as exactly that.
+    """
+    from bet.sofa.market_mapper import classify_market
+
+    assert classify_market(market_name) is None

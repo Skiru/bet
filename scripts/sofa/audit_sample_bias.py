@@ -37,7 +37,6 @@ TOTAL_FOR_PAIRS = [
     ("goals_1h_total", "goals_1h_for"),
     ("goals_2h_total", "goals_2h_for"),
     ("corners_total", "corners_for"),
-    ("cards_total", "cards_for"),
     ("cards_points_total", "cards_points_for"),
     ("fouls_total", "fouls_for"),
     ("offsides_total", "offsides_for"),
