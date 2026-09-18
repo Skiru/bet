@@ -56,6 +56,34 @@ def uses_empirical_frequency(market: str) -> bool:
     return market in EMPIRICAL_FREQUENCY_METRICS
 
 
+P_FLOOR = 0.05
+P_CEILING = 0.95
+
+
+def outside_model_resolution(p_raw: float) -> bool:
+    """True when an estimate lands outside the band this model can resolve.
+
+    The [0.05, 0.95] clamp was introduced so that a unanimous sample of ten
+    could not claim certainty. That is a sound reason to refuse to *report* a
+    number, and an unsound reason to report the nearest one instead: a clamped
+    value is not an estimate, it is the model saying the question is past its
+    resolution. Priced as though it were an estimate it becomes a claim that
+    every impossible thing happens one time in twenty, and since the coupon
+    ranks by surplus, those are precisely the rows it selects (F35).
+
+    So the clamp is kept as a guard for callers that need a number in band,
+    and this predicate is what decides whether a rung may be priced at all.
+    """
+    return p_raw < P_FLOOR or p_raw > P_CEILING
+
+
+def p_empirical_raw(hits: int, n: int) -> float:
+    """The sample's own frequency, unclamped. See outside_model_resolution."""
+    if n <= 0:
+        raise ValueError("n must be greater than 0")
+    return hits / n
+
+
 def p_empirical(hits: int, n: int) -> float:
     """The sample's own frequency above the winning boundary.
 
@@ -63,9 +91,7 @@ def p_empirical(hits: int, n: int) -> float:
     right shape. It is clamped to the same [0.05, 0.95] band as calc_p_central,
     so a sample of ten that happens to be unanimous does not claim certainty.
     """
-    if n <= 0:
-        raise ValueError("n must be greater than 0")
-    return max(0.05, min(0.95, hits / n))
+    return max(P_FLOOR, min(P_CEILING, p_empirical_raw(hits, n)))
 
 
 def winning_boundary(line: float, direction: Direction) -> float:
@@ -77,9 +103,10 @@ def winning_boundary(line: float, direction: Direction) -> float:
     return line
 
 
-def calc_p_central(
+def calc_p_central_raw(
     centre: float, sd: float, boundary: float, direction: Direction
 ) -> float:
+    """The normal-CDF estimate, unclamped. See outside_model_resolution."""
     if sd == 0.0:
         # Degenerate case, e.g. variance and mean are 0
         if direction == "OVER":
@@ -92,7 +119,15 @@ def calc_p_central(
             z = -z
         p = normal_cdf(z)
 
-    return max(0.05, min(0.95, p))
+    return p
+
+
+def calc_p_central(
+    centre: float, sd: float, boundary: float, direction: Direction
+) -> float:
+    return max(
+        P_FLOOR, min(P_CEILING, calc_p_central_raw(centre, sd, boundary, direction))
+    )
 
 
 def devig(

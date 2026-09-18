@@ -245,6 +245,22 @@ def main() -> int:
         print(f"missing artifacts in {run_dir}", file=sys.stderr)
         return 2
 
+    # The drops are written to their own artifact, not into 06_coupon.json.
+    # Reading only the coupon made every dropped row look like it had vanished
+    # in silence — 1015 false findings, which is exactly the failure this
+    # harness exists to detect, so it has to read where the reasons actually
+    # live before it is allowed to claim one is missing.
+    if coupon.get("dropped") is None:
+        dropped = _load(run_dir / "06_dropped.json")
+        if dropped is None:
+            print(
+                f"neither 06_coupon.json nor 06_dropped.json records drops in "
+                f"{run_dir} — cannot tell a silent loss from an unread file",
+                file=sys.stderr,
+            )
+            return 2
+        coupon["dropped"] = dropped
+
     if isinstance(sheet, dict):
         sheet = sheet.get("rows", [])
     singles = coupon.get("singles", [])

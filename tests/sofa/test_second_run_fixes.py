@@ -2639,3 +2639,73 @@ def test_f34_a_miss_from_the_current_logic_still_saves_the_lookup(
     cache = SofaCache(SofaConfig(db_path=str(tmp_path / "t.db")))
     cache.save_entity_miss("football", "no such club")
     assert cache.get_entity_miss("football", "no such club") is True
+
+
+# ---------------------------------------------------------------------------
+# F35 — the clamp became a value claim in the tail
+#
+# Found by the Part-4 coupon audit, not by a test: 33 of the 40 coupon rows had
+# p_central pinned at exactly 0.05, and the top row was Elche to score seven
+# goals at odds of 150, which the sheet read as a surplus of +128. The clamp
+# exists so that a unanimous sample of ten cannot claim certainty. That is a
+# reason to refuse to publish a number, not a reason to publish 0.05 instead.
+#
+# The concentration is the whole point, and it is a property of the mechanism
+# rather than of this day: clamped rows were 5.3% of the sheet, 12.8% of VALUE,
+# and 82.5% of the coupon. The coupon ranks by surplus, surplus grows as p is
+# overstated, and a floor overstates p by the largest margin available.
+#
+# Note the asymmetry, which is the tell that this is a defect and not a slate:
+# the 0.95 ceiling produced zero VALUE rows, because a ceiling *understates*
+# surplus. Symmetric in form, one-sided in consequence.
+# ---------------------------------------------------------------------------
+
+
+def test_f35_a_tail_rung_is_refused_rather_than_floored() -> None:
+    """A boundary five sigma out must not come back as "one time in twenty"."""
+    from bet.sofa.engine import calc_p_central_raw, outside_model_resolution
+
+    # A team averaging 1.3 goals, sd 1.1, asked for more than 6.5.
+    p_raw = calc_p_central_raw(1.3, 1.1, 6.5, "OVER")
+
+    assert p_raw < 0.001, f"the tail estimate should be tiny, got {p_raw}"
+    assert outside_model_resolution(p_raw), (
+        "a rung this far out must be refused, not priced at the floor"
+    )
+
+
+def test_f35_the_floor_would_have_manufactured_the_surplus() -> None:
+    """Pin the arithmetic that put the worst row at the top of the coupon."""
+    from bet.sofa.engine import P_FLOOR, get_required_odds
+
+    # This is what shipped: p floored to 0.05, no market_p to shrink toward.
+    required_at_floor = get_required_odds(P_FLOOR, "LEAN")
+    offered = 150.0
+
+    assert required_at_floor == pytest.approx(22.0, abs=0.01)
+    assert offered - required_at_floor > 100.0, (
+        "the floor turns an unpriceable rung into a three-figure surplus"
+    )
+
+
+def test_f35_a_central_rung_is_still_priced() -> None:
+    """The refusal must not swallow the rows the model is actually for."""
+    from bet.sofa.engine import calc_p_central_raw, outside_model_resolution
+
+    p_raw = calc_p_central_raw(2.7, 1.4, 2.5, "OVER")
+    assert not outside_model_resolution(p_raw)
+    assert 0.05 < p_raw < 0.95
+
+
+def test_f35_sheet_and_settle_share_the_refusal() -> None:
+    """F30's lesson: a policy the backtest does not share measures a fiction."""
+    import inspect
+
+    import bet.sofa.settle as settle_mod
+    import scripts.sofa.run_sheet as sheet_mod
+
+    for mod in (sheet_mod, settle_mod):
+        src = inspect.getsource(mod)
+        assert "outside_model_resolution" in src, (
+            f"{mod.__name__} must apply the F35 refusal, not its own band"
+        )

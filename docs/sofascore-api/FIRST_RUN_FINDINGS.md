@@ -2650,3 +2650,69 @@ o największym zwrocie w całym dokumencie — jeden słownik znaków.
 
 **Test (rozszerzony):** parametryzowany po ośmiu nazwami z tabeli; każda musi
 dać właściwą metrykę. Dziś **wszystkie osiem failuje z właściwego powodu**.
+
+---
+
+## F35 — clamp `[0.05, 0.95]` stał się roszczeniem wartości w ogonie
+
+**Status: NAPRAWIONE** (`OUTSIDE_MODEL_RESOLUTION`). Znalezione przez audyt
+kuponu z Części 4, **nie przez test** — i to jest tu najważniejsze. Każdy test
+jednostkowy `calc_p_central` przechodził, bo funkcja robiła dokładnie to, co
+obiecywała w docstringu.
+
+### Dowód
+
+Na kuponie z 2026-09-18 **33 z 40** wierszy miały `p_central` przyklejone
+dokładnie do 0.05. Wiersz na szczycie:
+
+```
+Espanyol - Elche: goals_for elche 6.5 OVER @ 150.0
+  p_central = 0.05, market_p = None, p_bar = 0.05
+  required_odds = 1.10 / 0.05 = 22.0
+  surplus = 150.0 - 22.0 = +128.0
+```
+
+Model twierdzi, że Elche strzela siedem goli **raz na dwadzieścia meczów**.
+
+### Mechanizm, nie dzień
+
+Clamp powstał, żeby jednomyślna próbka dziesięciu nie ogłaszała pewności. To
+jest dobry powód, żeby **odmówić podania liczby** — i zły powód, żeby podać
+zamiast niej 0.05. Wartość po clampie nie jest tańszym oszacowaniem; jest
+komunikatem „to pytanie jest poza moją rozdzielczością". Wyceniona, staje się
+twierdzeniem, że każda niemożliwość zdarza się raz na dwadzieścia razy.
+
+Kupon sortuje po `surplus`, a `surplus` rośnie wraz z zawyżeniem `p`. Podłoga
+zawyża `p` o największą dostępną marżę, więc trafia na szczyt listy. Zagęszczenie
+zmierzone na trzech etapach:
+
+| etap | wiersze z clampem |
+|---|---|
+| cały sheet | 649 / 12258 = **5.3%** |
+| VALUE | 135 / 1055 = **12.8%** |
+| kupon | 33 / 40 = **82.5%** |
+
+Rozstrzygająca jest **asymetria**: sufit 0.95 dał **0** wierszy VALUE, podłoga
+dała 135. Clamp jest symetryczny w formie i jednostronny w skutkach, bo sufit
+*zaniża* surplus. To odróżnia usterkę od dnia z dobrymi okazjami.
+
+### Dlaczego nie obniżenie podłogi
+
+Obniżenie clampu do np. 0.001 jest poprawką pozornie oczywistą i gorszą:
+pozwoliłoby rozkładowi normalnemu wyceniać skrajny ogon rozkładu **zliczeń**,
+gdzie przybliżenie normalne jest bezwartościowe. Zamieniłoby liczbę widocznie
+absurdalną na niewidocznie błędną. Rung poza pasmem jest **odrzucany**, tak jak
+odrzucana jest próbka samych zer (`ALL_ZERO_SAMPLE`) — z zapisanym powodem.
+
+Ta sama polityka obowiązuje w `settle.py`, inaczej backtest mierzyłby populację,
+która nie trafia na kupon (lekcja z F30).
+
+### Efekt
+
+SHEET: 12258 → 10960 wierszy, 1298 rungów odrzuconych jako
+`OUTSIDE_MODEL_RESOLUTION`. VALUE 1055 → 920. Z kuponu zniknęło całe
+`goals_1h_total 4.5 OVER` (11 wierszy — pięć goli do przerwy).
+
+**Test:** `test_f35_a_tail_rung_produces_no_priced_row` w `test_sheet.py`, na
+ścieżce produkcyjnej. Na starym kodzie failuje z właściwym powodem:
+`p_central=0.05, surplus=119.07`.

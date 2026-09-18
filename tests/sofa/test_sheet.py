@@ -272,3 +272,44 @@ def test_push_is_not_counted_as_a_hit_for_the_laplace_cap() -> None:
     rows, _ = run(samples, make_offer([rung(3.0, 1.9, 1.9)]))
     assert rows
     assert all(r.bar_reason != "laplace_cap" for r in rows)
+
+
+# --------------------------------------------------------------------------
+# F35: a rung past the model's resolution is refused, not floored.
+#
+# On the production path, because the defect was invisible to every unit test
+# of the estimator — calc_p_central returned 0.05 exactly as documented. What
+# it could not see is that 0.05 then travelled on as a *claim* and, ranked by
+# surplus, took 33 of the coupon's 40 slots.
+# --------------------------------------------------------------------------
+
+
+def test_f35_a_tail_rung_produces_no_priced_row() -> None:
+    """A team averaging ~1.3 goals, asked for 6.5+, at odds of 150."""
+    samples = make_samples(
+        "goals_total", [1, 2, 1, 0, 2, 1, 1, 2, 1, 1], [1, 1, 2, 1, 0, 1, 2, 1, 1, 1]
+    )
+    rows, skipped = run(samples, make_offer([rung(6.5, 150.0, 1.01)]))
+
+    over_rows = [r for r in rows if r.direction == "OVER" and r.line == 6.5]
+    assert over_rows == [], (
+        "the tail rung must not be priced at all; before F35 it produced a row "
+        f"with p_central=0.05 and a surplus of +128: {over_rows}"
+    )
+
+    reasons = {str(reason) for _rung, reason, _detail in skipped}
+    assert "OUTSIDE_MODEL_RESOLUTION" in reasons, (
+        f"the refusal must be recorded with a reason, got {reasons}"
+    )
+
+
+def test_f35_the_central_rung_of_the_same_ladder_survives() -> None:
+    """The refusal is a tail rule; it must not empty the ladder it sits on."""
+    samples = make_samples(
+        "goals_total", [1, 2, 1, 0, 2, 1, 1, 2, 1, 1], [1, 1, 2, 1, 0, 1, 2, 1, 1, 1]
+    )
+    rows, _ = run(samples, make_offer([rung(2.5, 2.10, 1.75), rung(6.5, 150.0, 1.01)]))
+
+    assert [r for r in rows if r.line == 2.5], (
+        "a rung the model can resolve must still be priced"
+    )

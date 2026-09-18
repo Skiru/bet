@@ -23,13 +23,16 @@ from bet.sofa.contracts import (
 )
 from bet.sofa.engine import (
     MAX_LADDER_SIGMA,
+    P_CEILING,
+    P_FLOOR,
     bar_probability,
-    calc_p_central,
+    calc_p_central_raw,
     calculate_p_low,
     devig,
     get_required_odds,
     ladder_centre,
-    p_empirical,
+    outside_model_resolution,
+    p_empirical_raw,
     predictive_sd,
     uses_empirical_frequency,
     uses_poisson_floor,
@@ -354,9 +357,29 @@ def process_fixture(
             # wrong model whatever its width, so the sample's own frequency is
             # what gets used (F30). Everything else keeps the CDF.
             if uses_empirical_frequency(rung.market):
-                p_cent = p_empirical(hits, n)
+                p_raw = p_empirical_raw(hits, n)
             else:
-                p_cent = calc_p_central(centre, pred_sd, boundary, direction)
+                p_raw = calc_p_central_raw(centre, pred_sd, boundary, direction)
+
+            # F35: a rung whose estimate falls outside the clamp band is not a
+            # rung the model has an opinion about, and the clamped value is not
+            # a cheaper opinion — it is a floor of 0.05 wearing the costume of
+            # a probability. Priced, it says a team scoring seven goals happens
+            # once in twenty matches, which at odds of 150 reads as a surplus
+            # of +128 and wins the top coupon slot on merit it does not have.
+            # Refuse the rung instead, the way an all-zero sample is refused.
+            if outside_model_resolution(p_raw):
+                skipped.append(
+                    (
+                        rung,
+                        GapReason.OUTSIDE_MODEL_RESOLUTION,
+                        f"p={p_raw:.4g} for {direction} is outside "
+                        f"[{P_FLOOR}, {P_CEILING}]",
+                    )
+                )
+                continue
+
+            p_cent = p_raw
 
             p_low_val = calculate_p_low(centre, sample_sd, n, boundary, direction)
 

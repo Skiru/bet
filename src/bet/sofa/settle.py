@@ -19,9 +19,10 @@ from typing import Any, Literal
 from bet.sofa.contracts import Direction, GapReason
 from bet.sofa.engine import (
     bar_probability,
-    calc_p_central,
+    calc_p_central_raw,
     calculate_p_low,
-    p_empirical,
+    outside_model_resolution,
+    p_empirical_raw,
     predictive_sd,
     uses_empirical_frequency,
     uses_poisson_floor,
@@ -267,9 +268,17 @@ def settle_metric(
                 hits = sum(1 for v in sample_values if v < line)
 
             if uses_empirical_frequency(metric):
-                p_central = p_empirical(hits, n)
+                p_raw = p_empirical_raw(hits, n)
             else:
-                p_central = calc_p_central(centre, pred_sd, boundary, direction)
+                p_raw = calc_p_central_raw(centre, pred_sd, boundary, direction)
+
+            # F35: the same refusal as SHEET. If the backtest kept scoring the
+            # rungs the sheet will no longer produce, it would be measuring a
+            # population that never ships — the F30 mistake, repeated.
+            if outside_model_resolution(p_raw):
+                continue
+
+            p_central = p_raw
 
             # No historical Superbet price exists, so there is nothing to shrink
             # toward: market_p is NULL backwards, by construction (A9).
