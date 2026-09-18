@@ -2,13 +2,22 @@
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
     "db_path": "data/sofa.db",
-    "settled_rows": 0,
-    "distinct_competitions": 0
+    "settled_rows": 1523054,
+    "distinct_competitions": 1030
   },
   "K_CENTRE": {
-    "value": null,
-    "curve": {},
-    "status": "NOT_FITTED",
+    "value": 8.0,
+    "curve": {
+      "0.0": 0.27857,
+      "2.0": 0.27686,
+      "5.0": 0.274017,
+      "8.0": 0.272479,
+      "10.0": 0.271904,
+      "15.0": 0.271209,
+      "25.0": 0.271152,
+      "1000.0": 0.273695
+    },
+    "status": "FITTED",
     "criterion": "smallest K within 0.002 of the minimum median |p_central - outcome|"
   },
   "K_PRICE": {

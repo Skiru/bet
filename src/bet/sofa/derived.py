@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import math
 import statistics
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -319,6 +320,7 @@ def price_derived_rungs(
     max_ladder_sigma: float,
     k_price: float,
     unfitted: list[str],
+    correction_for: Callable[[str, float], float] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
@@ -495,6 +497,18 @@ def price_derived_rungs(
 
                 force_weight_0 = _vetoed(vetoes, fixture, rung, direction)
 
+                # The same measured overconfidence correction the marginal
+                # path takes. A derived row is built from the same marginals
+                # by the same estimator, and leaving it uncorrected while
+                # correcting everything else would make the joint families
+                # look systematically cheaper than they are. Measured on
+                # 48,644 replayed matches the goals joint predicts 0.3157
+                # against an actual 0.3054, so the overstatement is real and
+                # in the same direction.
+                correction = (
+                    correction_for(market, p_raw) if correction_for else 0.0
+                )
+
                 p_bar, bar_reason = bar_probability(
                     p_central=p_raw,
                     hits=0,
@@ -502,7 +516,7 @@ def price_derived_rungs(
                     p_low_val=p_low,
                     market_p=m_p,
                     k_price=k_price,
-                    correction=0.0,
+                    correction=correction,
                     force_weight_0=force_weight_0,
                 )
 

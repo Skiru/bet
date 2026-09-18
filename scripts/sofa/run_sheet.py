@@ -133,14 +133,32 @@ def read_constant(
 def get_calibration_correction(
     reliability: dict[str, Any], market: str, p: float
 ) -> float:
-    """§6.5 step 2. Zero until E11 has measured this market's own curve."""
-    market_entry = reliability.get(market)
-    if not isinstance(market_entry, dict):
-        return 0.0
+    """§6.5 step 2. The market's own measured curve, else the pooled one.
 
+    A market with too few settled rows of its own used to get a correction of
+    exactly zero, which is not the neutral choice it looks like: it asserts
+    the estimator is calibrated for that market while the pooled measurement
+    says it is not. The overconfidence being corrected is mostly a property of
+    the estimator — a normal approximation over ten observations — so the
+    pooled curve is the better fallback, and `_pooled` exists for that.
+    """
     bucket_index = min(9, int(p * 10))
     bucket = f"{bucket_index / 10.0:.1f}-{(bucket_index + 1) / 10.0:.1f}"
-    bucket_entry = market_entry.get(bucket)
+
+    bucket_entry: Any = None
+    market_entry = reliability.get(market)
+    if isinstance(market_entry, dict):
+        candidate = market_entry.get(bucket)
+        if isinstance(candidate, dict) and candidate.get("status") == "MEASURED":
+            bucket_entry = candidate
+
+    if bucket_entry is None:
+        pooled = reliability.get("_pooled")
+        if isinstance(pooled, dict):
+            candidate = pooled.get(bucket)
+            if isinstance(candidate, dict) and candidate.get("status") == "MEASURED":
+                bucket_entry = candidate
+
     if not isinstance(bucket_entry, dict):
         return 0.0
 
@@ -545,6 +563,9 @@ def process_fixture(
         max_ladder_sigma=max_ladder_sigma,
         k_price=k_price,
         unfitted=unfitted,
+        correction_for=lambda market, p: get_calibration_correction(
+            reliability, market, p
+        ),
     )
     rows.extend(derived_rows)
     skipped.extend(derived_skipped)

@@ -149,6 +149,41 @@ def fit_reliability(conn: sqlite3.Connection) -> dict[str, Any]:
             }
         if entry:
             reliability[market] = entry
+
+    # The same measurement with every market pooled. A market whose own
+    # bucket is too thin used to get a correction of exactly zero, and zero is
+    # not the neutral choice it looks like — it asserts the estimator is
+    # calibrated there, while the pooled figure says it is not. The
+    # overconfidence is mostly a property of the estimator (a normal
+    # approximation over ten observations), not of the market, so this is the
+    # better fallback and `run_sheet.get_calibration_correction` reads it as
+    # one.
+    pooled_buckets: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    for market in buckets:
+        for bucket, pairs in buckets[market].items():
+            pooled_buckets[bucket].extend(pairs)
+
+    pooled: dict[str, Any] = {}
+    for bucket in sorted(pooled_buckets):
+        pairs = pooled_buckets[bucket]
+        n = len(pairs)
+        if n < MIN_BUCKET_ROWS:
+            continue
+        diffs = [declared - realised for declared, realised in pairs]
+        mean_diff = statistics.mean(diffs)
+        std_diff = statistics.stdev(diffs) if n > 1 else 0.0
+        lower = mean_diff - 1.96 * (std_diff / math.sqrt(n))
+        pooled[bucket] = {
+            "realised": round(
+                statistics.mean([realised for _, realised in pairs]), 4
+            ),
+            "n": n,
+            "correction": round(mean_diff, 4) if lower > 0 else 0.0,
+            "ci_lower": round(lower, 4),
+        }
+    if pooled:
+        reliability["_pooled"] = pooled
+
     return reliability
 
 
