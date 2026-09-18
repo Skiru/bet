@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -117,6 +119,10 @@ def main() -> int:
 
     worst = max((r.exit_code for r in results), default=0)
     verdict = {0: "OK", 1: "PARTIAL"}.get(worst, "FAILED")
+
+    # One id for the whole sequence, so a single run's rows can be pulled
+    # out of the log without guessing timestamps (F8).
+    os.environ.setdefault("SOFA_RUN_ID", uuid.uuid4().hex[:12])
 
     config = SofaConfig.from_env()
     summary = {

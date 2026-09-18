@@ -16,6 +16,10 @@ def test_config_defaults() -> None:
         "SOFA_MIN_SAMPLE",
         "SOFA_PRICE_MAX_AGE_MIN",
         "SOFA_SHRINK_K",
+        "SOFA_BREAKER_COOLDOWN_S",
+        "SOFA_BREAKER_MAX_COOLDOWN_S",
+        "SOFA_ENTITY_MISS_TTL_MIN",
+        "SOFA_RUN_ID",
     ]:
         if key in os.environ:
             del os.environ[key]
@@ -27,8 +31,12 @@ def test_config_defaults() -> None:
     assert config.target_rps == 2
     assert config.max_concurrency == 2
     assert config.breaker_threshold == 3
+    assert config.breaker_cooldown_s == 30
+    assert config.breaker_max_cooldown_s == 300
     assert config.events_ttl_min == 360
+    assert config.entity_miss_ttl_min == 10080
     assert config.sample_n == 10
     assert config.min_sample == 5
     assert config.price_max_age_min == 45
     assert config.shrink_k == 10
+    assert config.run_id == ""

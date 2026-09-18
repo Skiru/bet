@@ -245,6 +245,23 @@ def load_plan(args: argparse.Namespace) -> list[dict[str, Any]]:
     ]
 
 
+def already_settled_event_ids(db_path: str) -> set[int]:
+    """Events this backfill has already settled.
+
+    The checkpoint is the settled table itself rather than a separate state
+    file: a state file can disagree with reality, whereas a row in
+    ``sofa_settled_row`` is the very thing the run exists to produce. A 3-hour
+    backfill interrupted at hour 2 resumes instead of starting over.
+    """
+    with get_connection(db_path) as conn:
+        return {
+            int(row["sofascore_event_id"])
+            for row in conn.execute(
+                "SELECT DISTINCT sofascore_event_id FROM sofa_settled_row"
+            )
+        }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -256,6 +273,11 @@ def main() -> int:
     parser.add_argument("--seasons", default="", help="comma-separated season ids")
     parser.add_argument("--sport", default="football", choices=["football", "tennis"])
     parser.add_argument("--max-events", type=int, default=0, help="0 = no limit")
+    parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="re-settle events that already have rows (default: skip them)",
+    )
     parser.add_argument(
         "--report", default="docs/sofascore-api/evidence/e10_backfill.md"
     )
@@ -278,6 +300,13 @@ def main() -> int:
     months: set[str] = set()
     events_seen = 0
     failures = 0
+    resumed = 0
+
+    done_ids: set[int] = set() if args.no_resume else already_settled_event_ids(
+        config.db_path
+    )
+    if done_ids:
+        print(f"resuming: {len(done_ids)} events already settled", file=sys.stderr)
 
     for target in targets:
         ut_id = int(target["unique_tournament_id"])
@@ -299,6 +328,12 @@ def main() -> int:
         for event in events:
             if args.max_events and events_seen >= args.max_events:
                 break
+
+            event_id = event.get("id")
+            if event_id is not None and int(event_id) in done_ids:
+                resumed += 1
+                continue
+
             events_seen += 1
             try:
                 rows = backfill_event(
@@ -379,6 +414,7 @@ def main() -> int:
                     "leagues": db_leagues,
                     "months": len(months),
                     "events": events_seen,
+                    "events_skipped_already_settled": resumed,
                     "failures": failures,
                     "meets_ac": meets_ac,
                 },

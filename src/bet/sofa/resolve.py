@@ -89,6 +89,12 @@ class SofaResolver:
         norm_side = normalize_name(side)
         norm_opp = normalize_name(expected_opponent)
 
+        # A name we recently failed to resolve costs a search plus up to three
+        # listings. Paying that again every run, forever, was ~20% of the
+        # request budget spent re-learning the same negative fact.
+        if self.cache.get_entity_miss(sport, norm_side):
+            return None, None, False
+
         cached = self.cache.get_entity(sport, norm_side)
         if cached and cached["status"] == "verified":
             # Just verify event exists
@@ -100,6 +106,7 @@ class SofaResolver:
         # Miss -> search/all
         search_data = self.client.search(norm_side)
         if not search_data or "results" not in search_data:
+            self.cache.save_entity_miss(sport, norm_side)
             return None, None, False
 
         candidates = []
@@ -131,6 +138,7 @@ class SofaResolver:
                 country=cand.get("country", {}).get("name"),
                 status="verified",
             )
+            self.cache.clear_entity_miss(sport, norm_side)
             return cand["id"], evt, False
         elif len(matching_events) > 1:
             # Check if all matching events are the SAME event (duplicate candidates)
@@ -149,6 +157,10 @@ class SofaResolver:
                 return cand["id"], evt, False
             return None, None, True
 
+        # Nothing matched. Note this is only reached when the fixture was not
+        # ambiguous: an ambiguous name may disambiguate tomorrow, so caching it
+        # as a miss would suppress a resolution that is still possible.
+        self.cache.save_entity_miss(sport, norm_side)
         return None, None, False
 
 

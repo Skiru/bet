@@ -4,7 +4,7 @@ import logging
 import statistics
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import RootModel
 from rapidfuzz import fuzz
@@ -387,7 +387,9 @@ def process_fixture(
             )
 
             notes: list[str] = []
-            verdict = "BELOW_BAR"
+            verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"] = (
+                "BELOW_BAR"
+            )
             if offered_odds is None:
                 verdict = "NO_PRICE"
             elif surplus is not None and surplus > 0:

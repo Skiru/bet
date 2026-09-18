@@ -26,6 +26,10 @@ _USER_AGENT = (
 
 
 class SuperbetClient:
+    # Class-level default so a client built without a configured run id -
+    # tests stub __init__ - still logs a well-formed row.
+    run_id: str = ""
+
     def __init__(self, base_url: str = DEFAULT_BASE_URL) -> None:
         self.base_url = base_url.strip().rstrip("/")
         self.session: requests.Session[Any] = requests.Session(
@@ -35,6 +39,7 @@ class SuperbetClient:
 
         config = SofaConfig.from_env()
         self.log_path = Path(config.runs_dir) / "run.log.jsonl"
+        self.run_id = config.run_id
         self._log_lock = threading.Lock()
 
     def _log(
@@ -50,6 +55,7 @@ class SuperbetClient:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         row = {
             "ts_utc": now().isoformat().replace("+00:00", "Z"),
+            "run_id": self.run_id,
             "stage": stage,
             "method": method,
             "url": url,

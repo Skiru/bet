@@ -67,6 +67,18 @@ def migrate(db_path: str) -> None:
             UNIQUE(sofascore_event_id, market, subject, line, direction)
         );
         """,
+        # A name Sofascore has no match for. Deliberately NOT a row in
+        # sofa_entity with status='rejected': a miss has no id, no name and no
+        # country, and forcing it into that table would mean a sentinel id in a
+        # NOT NULL column. Kept separate and honest, with its own TTL.
+        """
+        CREATE TABLE IF NOT EXISTS sofa_entity_miss (
+            sport     TEXT NOT NULL,
+            query_key TEXT NOT NULL,
+            missed_at TEXT NOT NULL,
+            PRIMARY KEY (sport, query_key)
+        );
+        """,
     ]
 
     # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is

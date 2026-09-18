@@ -60,7 +60,7 @@ def main() -> int:
             network_requests += 1
         return result
 
-    cache.get_event_stats = tracked_get_event_stats  # type: ignore[method-assign]
+    cache.get_event_stats = tracked_get_event_stats  # type: ignore[method-assign,assignment]
 
     all_samples = []
     gap_counts: dict[str, int] = defaultdict(int)
@@ -110,9 +110,11 @@ def main() -> int:
 
     # T40: the coverage floor, per sport, against this pipeline's own history.
     coverage = check_coverage_floor(config.runs_dir, args.date)
-    for verdict in coverage:
-        if verdict.status == "PARTIAL":
-            print(f"COVERAGE_FLOOR {verdict.sport}: {verdict.detail}", file=sys.stderr)
+    # Not `verdict`: that name is the stage's own verdict a few lines below,
+    # and one name for two things is how a type error hides in plain sight.
+    for cov in coverage:
+        if cov.status == "PARTIAL":
+            print(f"COVERAGE_FLOOR {cov.sport}: {cov.detail}", file=sys.stderr)
 
     median_sizes = {
         m: statistics.median(sizes) for m, sizes in metric_sizes.items() if sizes

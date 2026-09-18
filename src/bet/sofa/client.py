@@ -2,6 +2,7 @@ import json
 import logging
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, Protocol
 from urllib.parse import quote
@@ -85,26 +86,90 @@ class TokenBucket:
 
 
 class CircuitBreaker:
-    def __init__(self, threshold: int) -> None:
+    """Opens after `threshold` consecutive failures, then heals on its own.
+
+    The first version had no way back: once it opened it stayed open for the
+    life of the client. That turned any blip - the browser tab reloading to
+    mint a fresh x-captcha, which happens roughly hourly by design - into a
+    dead client for the rest of a multi-hour run.
+
+    Now an open circuit goes half-open after `cooldown_s` and lets exactly one
+    request through to test the water. Success closes it; failure reopens it
+    and doubles the wait, capped at `max_cooldown_s`, so a provider that is
+    genuinely down is not hammered while a provider that merely hiccuped is
+    picked up within seconds.
+
+    `clock` is injectable so the half-open timing can be tested without
+    sleeping.
+    """
+
+    def __init__(
+        self,
+        threshold: int,
+        cooldown_s: float = 30.0,
+        max_cooldown_s: float = 300.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self.threshold = threshold
+        self.base_cooldown_s = cooldown_s
+        self.max_cooldown_s = max_cooldown_s
         self.failures = 0
+        self._clock = clock
         self._lock = threading.Lock()
+        self._opened_at: float | None = None
+        self._cooldown_s = cooldown_s
+        # True while a half-open probe is in flight, so two threads cannot both
+        # decide they are the one trial request.
+        self._probe_in_flight = False
+
+    def allow(self) -> bool:
+        """May a request go out right now? Marks the half-open probe as taken."""
+        with self._lock:
+            if self._opened_at is None:
+                return True
+            if self._clock() - self._opened_at < self._cooldown_s:
+                return False
+            if self._probe_in_flight:
+                return False
+            self._probe_in_flight = True
+            return True
 
     def record_failure(self) -> None:
         with self._lock:
             self.failures += 1
+            if self._probe_in_flight:
+                # The probe failed: reopen, and wait longer next time.
+                self._probe_in_flight = False
+                self._opened_at = self._clock()
+                self._cooldown_s = min(self._cooldown_s * 2, self.max_cooldown_s)
+            elif self.failures >= self.threshold and self._opened_at is None:
+                self._opened_at = self._clock()
 
     def record_success(self) -> None:
         with self._lock:
             self.failures = 0
+            self._opened_at = None
+            self._probe_in_flight = False
+            self._cooldown_s = self.base_cooldown_s
 
     @property
     def is_open(self) -> bool:
+        """Whether the circuit is currently refusing traffic.
+
+        False once the cooldown has elapsed, because at that point the next
+        caller will be let through as the probe.
+        """
         with self._lock:
-            return self.failures >= self.threshold
+            if self._opened_at is None:
+                return False
+            return self._clock() - self._opened_at < self._cooldown_s
 
 
 class SofascoreClient:
+    # See SuperbetClient: a stubbed constructor must still produce a valid
+    # log row rather than an AttributeError deep inside _log.
+    run_id: str = ""
+
     def __init__(self, config: SofaConfig, transport: Transport | None = None) -> None:
         self.config = config
         if transport is None:
@@ -113,8 +178,13 @@ class SofascoreClient:
             transport = make_transport()
         self.transport = transport
         self.bucket = TokenBucket(config.target_rps)
-        self.breaker = CircuitBreaker(config.breaker_threshold)
+        self.breaker = CircuitBreaker(
+            config.breaker_threshold,
+            cooldown_s=config.breaker_cooldown_s,
+            max_cooldown_s=config.breaker_max_cooldown_s,
+        )
         self.log_path = Path(config.runs_dir) / "run.log.jsonl"
+        self.run_id = config.run_id
         self._log_lock = threading.Lock()
 
     def _log(
@@ -130,6 +200,7 @@ class SofascoreClient:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         row = {
             "ts_utc": now().isoformat().replace("+00:00", "Z"),
+            "run_id": self.run_id,
             "stage": stage,
             "method": method,
             "url": url,
@@ -145,7 +216,7 @@ class SofascoreClient:
     def _execute(
         self, url: str, stage: str = "CLIENT", timeout: float = 10.0
     ) -> Any | None:
-        if self.breaker.is_open:
+        if not self.breaker.allow():
             raise CircuitOpenError("Circuit breaker is open")
 
         self.bucket.consume()

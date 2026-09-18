@@ -35,6 +35,8 @@ def main() -> int:
     except URLError as e:
         print(f"FAIL  bridge server not listening on {base} ({e})")
         print("      start it:  python scripts/sofa/bridge_server.py")
+        print("      it dies with the terminal that launched it, so for a")
+        print("      long run detach it:  nohup ... &")
         return 1
     print(f"OK    bridge server listening on {base}")
 

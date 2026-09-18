@@ -1,6 +1,6 @@
 import json
 from collections.abc import Iterator
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, cast
 
 from bet.sofa.config import SofaConfig
@@ -189,6 +189,50 @@ class SofaCache:
                     "status": row["status"],
                 }
         return None
+
+    def get_entity_miss(self, sport: str, query_key: str) -> bool:
+        """Did we recently look this name up and find nothing?
+
+        A miss is as much a fact as a hit, and far cheaper to remember than to
+        rediscover: an unknown name costs a search plus up to three listings,
+        every single run, forever. Expires so that a team Sofascore adds later
+        is eventually found.
+        """
+        with get_connection(self.config.db_path) as conn:
+            row = conn.execute(
+                "SELECT missed_at FROM sofa_entity_miss "
+                "WHERE sport = ? AND query_key = ?",
+                (sport, query_key),
+            ).fetchone()
+            if not row:
+                return False
+            missed_at = datetime.fromisoformat(row["missed_at"])
+            return now() - missed_at <= timedelta(
+                minutes=self.config.entity_miss_ttl_min
+            )
+
+    def save_entity_miss(self, sport: str, query_key: str) -> None:
+        """Remember that this name resolved to nothing."""
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO sofa_entity_miss (sport, query_key, missed_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(sport, query_key) DO UPDATE SET
+                    missed_at = excluded.missed_at
+                """,
+                (sport, query_key, now().isoformat()),
+            )
+            conn.commit()
+
+    def clear_entity_miss(self, sport: str, query_key: str) -> None:
+        """Forget a miss, because the name just resolved after all."""
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                "DELETE FROM sofa_entity_miss WHERE sport = ? AND query_key = ?",
+                (sport, query_key),
+            )
+            conn.commit()
 
     def save_entity(
         self,

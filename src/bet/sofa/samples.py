@@ -96,6 +96,7 @@ def get_historical_events(
     sport: str,
     fixture: Fixture,
     config: SofaConfig,
+    gaps: list[GapEntry] | None = None,
 ) -> list[dict[str, Any]]:
     """The last ``sample_n`` finished events for ``entity_id`` before kickoff.
 
@@ -125,6 +126,22 @@ def get_historical_events(
             # A walkover or retirement is `finished` but did not produce a
             # comparable result; it must not enter a sample (L31).
             if not is_completed_event(event):
+                # L14: a gate nobody can see looks like missing data. An event
+                # dropped because it never produced a comparable result is a
+                # known reason, so say so instead of silently shortening the
+                # sample.
+                if gaps is not None:
+                    status = event.get("status", {}).get("type", "unknown")
+                    gaps.append(
+                        GapEntry(
+                            reason=GapReason.EVENT_NOT_FINISHED,
+                            metric="all",
+                            detail=(
+                                f"event {event.get('id')} status={status} "
+                                f"excluded from entity {entity_id} sample"
+                            ),
+                        )
+                    )
                 continue
 
             start_ts = event.get("startTimestamp")
@@ -322,11 +339,24 @@ def _process_fixture_samples(
             ],
         )
 
+    sample_gaps: list[GapEntry] = []
     side_a_events = get_historical_events(
-        client, cache, fixture.home_entity_id, fixture.sport, fixture, config
+        client,
+        cache,
+        fixture.home_entity_id,
+        fixture.sport,
+        fixture,
+        config,
+        sample_gaps,
     )
     side_b_events = get_historical_events(
-        client, cache, fixture.away_entity_id, fixture.sport, fixture, config
+        client,
+        cache,
+        fixture.away_entity_id,
+        fixture.sport,
+        fixture,
+        config,
+        sample_gaps,
     )
 
     side_a_results = [
@@ -355,7 +385,7 @@ def _process_fixture_samples(
     ]
 
     metric_samples: dict[str, MetricSample] = {}
-    gaps: list[GapEntry] = []
+    gaps: list[GapEntry] = list(sample_gaps)
 
     for metric in sorted(metrics_to_collect):
         obs_a: list[Observation] = []

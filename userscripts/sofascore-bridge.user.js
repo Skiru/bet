@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sofascore bridge (bet pipeline)
 // @namespace    bet.sofa
-// @version      2.2.0
+// @version      2.3.0
 // @description  Serves the local bet pipeline's Sofascore requests from inside a real sofascore.com tab.
 // @match        https://www.sofascore.com/*
 // @match        https://sofascore.com/*
@@ -60,6 +60,8 @@
   // A stale x-captcha shows up as 403. Reloading makes the SPA mint a fresh one,
   // but a reload loop against a hard block would be its own kind of abuse.
   const RELOAD_COOLDOWN_MS = 120000;
+  // How long to wait for the SPA to mint a fresh token before retrying a 403.
+  const RETRY_AFTER_403_MS = 3000;
 
   let capturedHeaders = null;
   let lastRequestAt = 0;
@@ -147,6 +149,11 @@
     );
   }
 
+  function doFetch(url) {
+    const headers = Object.assign({ Accept: 'application/json' }, capturedHeaders || {});
+    return origFetch(sameOrigin(url), { headers: headers, credentials: 'include' });
+  }
+
   async function runJob(job) {
     if (!/^https:\/\/(www|api)\.sofascore\.com\//.test(job.url)) {
       await bridgeRequest('POST', '/push', {
@@ -164,8 +171,20 @@
     }
     let payload;
     try {
-      const headers = Object.assign({ Accept: 'application/json' }, capturedHeaders || {});
-      const res = await origFetch(sameOrigin(job.url), { headers: headers, credentials: 'include' });
+      let res = await doFetch(job.url);
+
+      // A 403 here is usually our x-captcha going stale, not a refusal of this
+      // resource. Handing it straight to the pipeline made the fixture a
+      // permanent gap for a transient reason, so give the token one chance to
+      // refresh and ask again before reporting failure.
+      if (res.status === 403) {
+        maybeReload(403);
+        await sleep(RETRY_AFTER_403_MS);
+        if (capturedHeaders) {
+          res = await doFetch(job.url);
+        }
+      }
+
       const body = await res.text();
       payload = { id: job.id, status: res.status, body: body };
       maybeReload(res.status);

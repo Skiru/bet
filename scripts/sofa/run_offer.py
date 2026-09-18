@@ -2,6 +2,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from pydantic import RootModel
 
@@ -61,7 +62,7 @@ def main() -> int:
     total_unmapped = sum(len(o.unmapped_markets) for o in offers)
     empty_offers = sum(1 for o in offers if not o.rungs)
 
-    metrics = {
+    metrics: dict[str, Any] = {
         "input_fixtures": len(fixtures),
         "output_offers": len(offers),
         "total_two_way_rungs": total_two_way,

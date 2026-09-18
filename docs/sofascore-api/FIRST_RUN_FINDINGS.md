@@ -12,122 +12,35 @@ Legenda wagi: **P0** blokuje backfill · **P1** psuje dzień pracy ·
 
 ---
 
+## Zamknięte
+
+Wszystkie naprawione 2026-09-18, każda z testem w
+`tests/sofa/test_first_run_fixes.py` (14 testów).
+
+Uczciwie o sile tych testów: `test_f4_resolver_skips_the_network_for_a_known_miss`,
+`test_f11_*`, `test_f6_*` i `test_f8_*` failują na kodzie sprzed poprawki
+**z właściwego powodu** — liczą zapytania, sprawdzają obecność artefaktu, luki
+i pola. Testy `test_f1_*` failowałyby na starym kodzie przez `TypeError`
+(`CircuitBreaker` nie przyjmował `cooldown_s`), więc pilnują zachowania na
+przyszłość, ale nie są dowodem, że stary kod był zepsuty — tym dowodem jest
+przebieg opisany w F1 i F11.
+
+| # | Co zrobiono | Test |
+|---|---|---|
+| **F1** | `CircuitBreaker` ma stan half-open: po `breaker_cooldown_s` (30 s) przepuszcza **jedną** próbę; sukces zamyka obwód, porażka otwiera ponownie i podwaja odstęp do `breaker_max_cooldown_s` (300 s). Zegar wstrzykiwany, więc test nie śpi. | `test_f1_*` (5) |
+| **F2** | Userscript 2.3.0: 403 nie jest już wynikiem końcowym — most czeka na odświeżenie tokenu i ponawia raz, zanim odda błąd. | ręczny (patrz niżej) |
+| **F3** | Backfill wznawia się. Checkpointem jest **sama tabela `sofa_settled_row`**, nie osobny plik stanu — plik stanu może kłamać, wiersz w tabeli jest tym, co przebieg ma wyprodukować. `--no-resume` wymusza przeliczenie. | `test_f3_*` |
+| **F4** | Tabela `sofa_entity_miss` z własnym TTL (7 dni). Nietrafiona nazwa kosztuje teraz jedno zapytanie na tydzień, nie cztery dziennie. Trafienie kasuje wpis. | `test_f4_*` (5) |
+| **F5** | Artefakt powstaje także po przerwaniu — pętla nie wyrzuca już wyjątku poza siebie (patrz F11). | `test_f11_*` |
+| **F6** | `EVENT_NOT_FINISHED` jest emitowane przy odrzuceniu meczu z próbki, ze statusem i id w `detail`. | `test_f6_*` |
+| **F7** | `mypy --strict` przechodzi na **39 plikach** — `src/bet/sofa` **i** `scripts/sofa`. 76 „błędów" okazało się brakiem `py.typed`; realnych było 14 i wszystkie naprawione. Jeden z nich był prawdziwą kolizją: w `run_samples.py` `verdict` był jednocześnie zmienną pętli po `CoverageVerdict` i werdyktem etapu. | `mypy --strict` |
+| **F8** | Każdy wiersz logu niesie `run_id`; `run_pipeline.py` bije jeden identyfikator na całą sekwencję. Koniec ze zgadywaniem momentu startu. | `test_f8_*` |
+| **F10** | `check_bridge.py` mówi wprost, że serwer ginie z terminalem i podpowiada `nohup`. | — |
+| **F11** | `run_resolve.py` łapie `ProviderError` **per fixture** — luka w slate'cie zamiast końca etapu. `CircuitOpenError` przerywa pętlę (dalsze próby nie mają sensu), ale artefakt i tak zostaje zapisany, a werdykt to `PARTIAL`. | `test_f11_*` |
+
+---
+
 ## Otwarte
-
-### F1 · P0 · Bezpiecznik nie ma powrotu
-
-`CircuitBreaker` (`src/bet/sofa/client.py`) otwiera się po
-`breaker_threshold` błędach i **nie zamyka się nigdy** — nie ma stanu
-half-open ani resetu po czasie. `record_success()` zeruje licznik, ale
-`is_open` blokuje wywołanie, zanim do sukcesu w ogóle dojdzie. Obwód raz
-otwarty jest martwy do końca życia obiektu klienta.
-
-**Dowód.** Smoke test E1 z 2026-09-18: most padł na kilkanaście sekund,
-5 żądań dało błąd, a pozostałe 25 zakończyło się `Circuit breaker is open`
-mimo że most wrócił kilka sekund później. Wynik: `{None: 5}` zamiast 30 × 200.
-
-**Skutek.** Backfill na 20 000 wierszy (~3 h) zginie przy pierwszym
-mignięciu mostu — na przykład przy przeładowaniu karty odnawiającym
-`x-captcha`, które zdarza się z definicji co ~godzinę.
-
-**Poprawka.** Stan half-open: po `breaker_cooldown_s` przepuść jedno żądanie
-próbne; sukces zamyka obwód, porażka otwiera ponownie i wydłuża odstęp.
-
----
-
-### F2 · P1 · Most gubi zadanie trafiające w przeładowanie karty
-
-Gdy userscript wykryje trzy kolejne 403 i przeładuje stronę, żądania
-wykonywane w tym oknie kończą się 403 i **przepadają** — kolejka nie ponawia,
-oddaje 403 do pipeline'u, a ten liczy je jako błąd providera (i dokłada do
-bezpiecznika, patrz F1).
-
-**Dowód.** RESOLVE 2026-09-18, 18 × 403 skupione w wąskim oknie wokół
-jednego eventu (`event/16640655` siedmiokrotnie) i trzech wyszukiwań; przed
-i po — zero. Reszta przebiegu: 1 301 × 200, 0 × 403.
-
-**Skutek.** ~2% fixture'ów wypada ze slate'u bez powodu merytorycznego.
-Przy backfillu ten sam mechanizm zostawia dziury w historii.
-
-**Poprawka.** W `bridge_server.py`: 403 nie jest wynikiem końcowym — odczekaj
-na przeładowanie i ponów raz. Dopiero drugie 403 idzie do pipeline'u.
-
----
-
-### F3 · P0 · Backfill nie jest wznawialny
-
-`scripts/sofa/run_backfill.py` nie zapisuje checkpointu. Przebieg AC E10
-(20 000 wierszy, 8 lig, 3 miesiące) trwa przy 2 req/s około 3 godzin i po
-przerwaniu zaczyna od zera.
-
-**Status: PODEJRZENIE** — wywnioskowane z braku checkpointu w kodzie, nie
-zmierzone przebiegiem. Zweryfikować przed pierwszym backfillem.
-
-**Łagodzące.** Cache statystyk meczów jest wieczny (patrz F4), więc powtórka
-nie płaci drugi raz za pobrane mecze. Traci się czas na przejście listy, nie
-same dane.
-
----
-
-### F4 · P2 · Cache negatywny zaprojektowany, nigdy nie podłączony
-
-`resolve.py` wywołuje `cache.save_entity(...)` **wyłącznie po sukcesie**.
-Gdy nic nie pasuje, zwraca `None, None, False` i nie zostawia śladu. Ta sama
-drużyna będzie odpytywana co dzień, w nieskończoność.
-
-**Dowód, że to przeoczenie, a nie decyzja.** Docstring `cache.get_entity`
-brzmi: *„Pobiera encję z bazy (trafienie w cache, **w tym 'rejected'**)"* —
-schemat przewiduje status odrzucenia, którego nikt nie zapisuje. W bazie po
-1 522 żądaniach: 179 encji, **wszystkie `verified`**, zero `rejected`.
-
-**Skutek.** ~15% odpowiedzi to 404. Każda nierozpoznana drużyna kosztuje
-wyszukanie plus do trzech listingów, codziennie. Szacunkowo 20–25% budżetu
-żądań idzie na ustalanie w kółko tego samego negatywnego faktu.
-
-**Poprawka.** `save_entity(status="rejected")` w gałęzi „nie znaleziono",
-z własnym, krótszym TTL (tydzień?), żeby drużyna dodana do Sofascore później
-dostała drugą szansę.
-
----
-
-### F5 · P2 · Artefakt RESOLVE powstaje dopiero na końcu
-
-`run_resolve.py:111` zapisuje `02_fixtures.json` po przejściu całej pętli.
-Przerwanie w 59. minucie nie zostawia artefaktu.
-
-**Łagodzące i zmierzone.** Wywołania API **nie** przepadają: SQLite działa
-w `journal_mode=delete`, `synchronous=FULL`, a dane są zacommitowane na
-bieżąco — odczytywałem je z osobnego procesu w trakcie przebiegu. Ponowny
-start w ciągu 6 h (TTL listingów) odtworzy artefakt z cache'u w minuty.
-Traci się minuty, nie godzinę.
-
----
-
-### F6 · P2 · `EVENT_NOT_FINISHED` nigdy nie jest emitowane
-
-Wartość istnieje w `GapReason` i nie jest nigdzie ustawiana. Enum obiecuje
-diagnostykę, której nie ma. (Przeniesione z `AUDIT_RESPONSE.md` §5 poz. 8.)
-
----
-
-### F7 · P3 · `mypy --strict` nie obejmuje `scripts/sofa/**`
-
-Czysty jest `src/bet/sofa`. Ze skryptów dociągnięty tylko `run_sheet.py`.
-AC planu mówi o `src`, więc formalnie spełnione — ale skrypty to jedyne,
-co uruchamia operator. (Przeniesione z `AUDIT_RESPONSE.md` §5 poz. 9.)
-
----
-
-### F8 · P3 · `run.log.jsonl` jest kumulatywny i nierotowany
-
-Jeden plik zbiera żądania ze wszystkich dni i wszystkich etapów. Analiza
-pojedynczego przebiegu wymaga ręcznego filtrowania po `ts_utc` — robiłem to
-dziś trzy razy, za każdym razem zgadując moment startu.
-
-**Poprawka.** Katalog na dzień (`runs/sofa/<data>/run.log.jsonl`) albo pole
-`run_id` w wierszu.
-
----
 
 ### F9 · P3 · 62% tablicy Superbetu to dyscypliny bez nazwy w kodzie
 
@@ -142,23 +55,6 @@ czyli 62% tablicy.
 Nie twierdzę, że należy je obstawiać. Twierdzę, że **nie wiemy, co
 odrzucamy**, a to jest pięć minut roboty. Punkt wyjścia, gdyby kiedyś padło
 pytanie o rozszerzenie `sofa` o kolejną dyscyplinę.
-
----
-
-### F10 · P3 · Serwer mostu nie ma nadzoru
-
-`bridge_server.py` uruchamiany w terminalu ginie razem z nim. Zdarzyło się
-raz 2026-09-18 i objawiło się jako `Connection refused` w środku smoke testu
-(patrz F1, które to spotęgowało).
-
-**Poprawka.** `launchd`/`nohup` z restartem albo jawny komunikat w
-`check_bridge.py`, że serwer powinien żyć poza sesją terminala.
-
----
-
-## Zamknięte
-
-*(puste — dopisujemy po naprawie, z datą i commitem)*
 
 ---
 

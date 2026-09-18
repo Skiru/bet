@@ -364,7 +364,7 @@ def main() -> int:
         json.dumps(reliability, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
-    constants = {
+    constants: dict[str, Any] = {
         "_doc": (
             "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. "
             "A null value means NOT FITTED — the engine falls back to its "
