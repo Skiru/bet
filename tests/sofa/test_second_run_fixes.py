@@ -1089,3 +1089,97 @@ def test_f16_the_marker_does_not_eat_a_club_whose_name_contains_the_word() -> No
     assert normalize_name("Women's United FC") == "women's united fc"
     # And the reserves marker still works next to it.
     assert normalize_name("Boca Juniors II") == "boca juniors (r)"
+
+
+# --------------------------------------------------------------------------
+# F28 — the shot identity omitted the woodwork, and rejected directionally
+# --------------------------------------------------------------------------
+
+
+def _shot_stats(
+    total: tuple[float, float],
+    on: tuple[float, float],
+    off: tuple[float, float],
+    blocked: tuple[float, float],
+    woodwork: tuple[float, float],
+):  # type: ignore[no-untyped-def]
+    return {
+        "ALL": {
+            "totalShotsOnGoal": total,
+            "shotsOnGoal": on,
+            "shotsOffGoal": off,
+            "blockedScoringAttempt": blocked,
+            "hitWoodwork": woodwork,
+        }
+    }
+
+
+def test_f28_a_woodwork_shot_does_not_block_the_match() -> None:
+    """Real payload, event 13531730: away side 8 = 3 + 3 + 1, plus 1 off the post.
+
+    Fails on the old code for the right reason: the sum omitted hitWoodwork, so
+    a perfectly transcribed match was thrown out — and with it that match's
+    corners, cards, fouls and offsides, since one failed shot count blocks
+    every metric of the fixture.
+    """
+    from bet.sofa.metrics import check_identities
+
+    stats = _shot_stats((8.0, 8.0), (5.0, 3.0), (1.0, 3.0), (2.0, 1.0), (0.0, 1.0))
+    assert check_identities(stats, None, {}, "football") is None
+
+
+def test_f28_a_real_transcription_error_is_still_blocked() -> None:
+    """Real payload, event 14195525: home side 10 != 2 + 4 + 3, woodwork 0.
+
+    This is the 1.4% the gate exists for, and it must keep firing.
+    """
+    from bet.sofa.contracts import GapReason
+    from bet.sofa.metrics import check_identities
+
+    stats = _shot_stats((10.0, 24.0), (2.0, 12.0), (4.0, 10.0), (3.0, 2.0), (0.0, 0.0))
+    assert check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT
+
+
+def test_f28_the_obvious_repair_would_have_been_wrong() -> None:
+    """Sofascore is inconsistent about double-counting the woodwork.
+
+    Adding hitWoodwork to the sum outright leaves matches with *negative*
+    residuals blocked — there the post is already inside one of the three
+    categories. Both conventions have to pass, which is why the rule is a
+    bound and not an equality.
+    """
+    from bet.sofa.metrics import check_identities
+
+    # Convention A: the woodwork shot is extra. base = 7, total = 8, wood = 1.
+    assert check_identities(
+        _shot_stats((8.0, 8.0), (3.0, 3.0), (3.0, 3.0), (1.0, 1.0), (1.0, 1.0)),
+        None, {}, "football",
+    ) is None
+    # Convention B: it is already counted. base = 8, total = 8, wood = 1.
+    # "base + hitWoodwork == total" would reject this one.
+    assert check_identities(
+        _shot_stats((8.0, 8.0), (4.0, 4.0), (3.0, 3.0), (1.0, 1.0), (1.0, 1.0)),
+        None, {}, "football",
+    ) is None
+
+
+def test_f28_a_discrepancy_larger_than_the_woodwork_count_still_blocks() -> None:
+    """The bound is the woodwork count, not a free pass."""
+    from bet.sofa.contracts import GapReason
+    from bet.sofa.metrics import check_identities
+
+    # base = 5, total = 8, only 1 woodwork shot to explain a gap of 3.
+    assert check_identities(
+        _shot_stats((8.0, 8.0), (2.0, 2.0), (2.0, 2.0), (1.0, 1.0), (1.0, 1.0)),
+        None, {}, "football",
+    ) == GapReason.INTERNAL_INCONSISTENT
+
+
+def test_f28_a_payload_without_the_woodwork_key_keeps_the_exact_identity() -> None:
+    """Absent means zero tolerance, not unlimited tolerance."""
+    from bet.sofa.contracts import GapReason
+    from bet.sofa.metrics import check_identities
+
+    stats = _shot_stats((8.0, 8.0), (3.0, 3.0), (3.0, 3.0), (1.0, 1.0), (0.0, 0.0))
+    del stats["ALL"]["hitWoodwork"]
+    assert check_identities(stats, None, {}, "football") == GapReason.INTERNAL_INCONSISTENT

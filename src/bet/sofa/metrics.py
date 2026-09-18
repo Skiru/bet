@@ -249,12 +249,30 @@ def check_identities(
             and "shotsOffGoal" in stats
             and "blockedScoringAttempt" in stats
         ):
+            # Shots in the woodwork are a fourth category this sum omitted, and
+            # the gate blocked 30.5% of matches where the real transcription
+            # error rate is 1.4% — 22 times more than it should (F28). Worse,
+            # it blocked them *directionally*: a shot off the post correlates
+            # with shooting a lot, so the rejected matches had median shots 25
+            # against 23 and median corners 10 against 9. The sample lost
+            # attacking matches systematically, and a one-way shift is exactly
+            # the kind that does not come out in the wash.
+            #
+            # "base + hitWoodwork == total" is the obvious repair and it is
+            # also wrong: it still blocks 70 matches, and their residuals are
+            # *negative* (-1 in 62 cases, -2 in 11), meaning the woodwork shot
+            # is already counted inside one of the three categories there.
+            # Sofascore is not consistent about double-counting, so no exact
+            # identity is universally true. Bounding the discrepancy by the
+            # number of woodwork shots admits both conventions and still
+            # catches the genuine 1.4%.
+            woodwork = stats.get("hitWoodwork", (0.0, 0.0))
             for side in (0, 1):
                 s_on = stats["shotsOnGoal"][side]
                 s_off = stats["shotsOffGoal"][side]
                 s_blk = stats["blockedScoringAttempt"][side]
                 s_tot = stats["totalShotsOnGoal"][side]
-                if s_on + s_off + s_blk != s_tot:
+                if abs(s_tot - (s_on + s_off + s_blk)) > woodwork[side]:
                     return GapReason.INTERNAL_INCONSISTENT
 
     if sport == "football" and incidents is not None:

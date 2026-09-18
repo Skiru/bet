@@ -1582,6 +1582,35 @@ Sprawdziłem trzy sformułowania na tych samych 580 meczach:
 | `base + hitWoodwork == total` | 70 | 12,1% |
 | **tolerancja**: `abs(total − base) <= hitWoodwork` | **8** | **1,4%** |
 
+**KOREKTA (2026-09-18, przy naprawie).** Powtórzyłem ten pomiar na
+**1 797** zbuforowanych meczach zamiast 580 i liczby wyszły inne. Wniosek
+się nie zmienia — wzmacnia się:
+
+| reguła | zablokowanych | odsetek |
+|---|---|---|
+| dzisiejsza: `base == total` | 381 | **21,2%** |
+| `base + hitWoodwork == total` | 391 | **21,8%** |
+| tolerancja: `abs(total − base) <= hitWoodwork` | **36** | **2,0%** |
+
+Dwie poprawki do wpisu powyżej. Po pierwsze, skala przesady to **10×**,
+nie 22× (21,2% wobec 2,0%). Po drugie — i to jest ważniejsze —
+**„plus poprzeczka" jest na tej próbce *gorsze* od dzisiejszego kodu**
+(391 zablokowanych wobec 381), a nie dwa i pół raza lepsze. Teza wpisu
+(„oczywista poprawka też jest zła") okazuje się mocniejsza, niż była
+napisana: ta reguła nie poprawia niczego, tylko przenosi blokady z jednych
+meczów na inne. Rozkład reszt na tej próbce: `{-2: 1, -1: 23, 0: 3165,
++1: 347, +2: 52, +3: 5, +4: 1}` — ujemne reszty istnieją i potwierdzają
+niekonsekwencję Sofascore co do podwójnego liczenia.
+
+Obciążenie kierunkowe potwierdzone i **usunięte przez poprawkę**:
+
+| | przed (mediana) | po (mediana) |
+|---|---|---|
+| strzały: zablokowane vs zachowane | **25,0 vs 24,0** | 22,5 vs 24,0 (n=36) |
+| narożne: zablokowane vs zachowane | **10,0 vs 9,0** | **9,0 vs 9,0** |
+
+Czyli systematyczne wypadanie meczów ofensywnych zniknęło.
+
 Dodanie poprzeczki na sztywno zostawia 70 zablokowanych z resztami
 **ujemnymi** (−1 w 62 przypadkach, −2 w 11) — czyli tam poprzeczka jest
 **już wliczona** w jedną z trzech kategorii (najpewniej w strzały niecelne).
