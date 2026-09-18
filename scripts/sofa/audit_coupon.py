@@ -40,6 +40,9 @@ from bet.sofa.market_mapper import get_mechanism_family
 MARGIN_LEAN = 1.10
 MARGIN_CALL = 1.05
 TOL = 5e-3
+# p_bar is written to four decimals, so any comparison against a quantity
+# derived from it inherits a half-ulp of 5e-5. Allow twice that.
+P_ROUNDING_TOL = 1e-4
 
 
 def _load(path: Path) -> Any:
@@ -133,12 +136,19 @@ def check_arithmetic(
         req = row["required_odds"]
         # The bar is 1.10 unless the row says otherwise; check both and report
         # which one it matches, rather than assuming.
-        matches = [m for m in (MARGIN_LEAN, MARGIN_CALL) if abs(req - m / p_bar) < TOL]
-        if not matches:
+        #
+        # Compare in probability space, not in odds space. p_bar is stored to
+        # four decimals, and odds are 1/p, so the half-ulp of that rounding is
+        # magnified by 1/p**2 — at p_bar = 0.058 a difference of 2.5e-5 in p
+        # becomes 0.008 in odds, which an absolute odds tolerance reports as a
+        # broken row. Five such rows were reported before this was checked, and
+        # every one of them was arithmetically exact.
+        implied = [m / req for m in (MARGIN_LEAN, MARGIN_CALL)]
+        if not any(abs(i - p_bar) < P_ROUNDING_TOL for i in implied):
             findings.append(
-                f"ARITHMETIC [{label}]: required_odds {req:.4f} is neither "
-                f"{MARGIN_LEAN}/p_bar ({MARGIN_LEAN / p_bar:.4f}) nor "
-                f"{MARGIN_CALL}/p_bar ({MARGIN_CALL / p_bar:.4f})"
+                f"ARITHMETIC [{label}]: p_bar {p_bar:.6f} matches neither "
+                f"{MARGIN_LEAN}/required_odds ({implied[0]:.6f}) nor "
+                f"{MARGIN_CALL}/required_odds ({implied[1]:.6f})"
             )
 
         surplus = row["offered_odds"] - req
