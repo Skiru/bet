@@ -86,6 +86,37 @@ class TokenBucket:
                 time.sleep(max(sleep_time, 0.001))
 
 
+# The response headers worth keeping. When latency jumped 13x on 2026-09-18,
+# the one place that could have said outright whether Sofascore was throttling
+# us was discarded, and the diagnosis had to be made sideways — ping, load
+# average, process list (F24).
+DIAGNOSTIC_HEADERS = (
+    "retry-after",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
+    "server-timing",
+    "age",
+    "x-cache",
+    "x-served-by",
+)
+
+
+def _diagnostic_headers(resp: Any) -> dict[str, str]:
+    raw = getattr(resp, "headers", None)
+    if not raw:
+        return {}
+    out: dict[str, str] = {}
+    for name in DIAGNOSTIC_HEADERS:
+        try:
+            value = raw.get(name)
+        except Exception:
+            value = None
+        if value is not None:
+            out[name] = str(value)
+    return out
+
+
 class CircuitBreaker:
     """Opens after `threshold` consecutive failures, then heals on its own.
 
@@ -197,9 +228,10 @@ class SofascoreClient:
         elapsed_ms: int,
         cache_hit: bool,
         breaker_state: str,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
-        row = {
+        row: dict[str, Any] = {
             "ts_utc": now().isoformat().replace("+00:00", "Z"),
             "run_id": self.run_id,
             "stage": stage,
@@ -210,6 +242,11 @@ class SofascoreClient:
             "cache_hit": cache_hit,
             "breaker_state": breaker_state,
         }
+        # Only when the provider actually said something. An empty dict in
+        # every row is noise; a present one is the provider telling us about
+        # its limits instead of making us guess (F24).
+        if headers:
+            row["headers"] = headers
         with self._log_lock:
             with self.log_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
@@ -269,7 +306,12 @@ class SofascoreClient:
         if status in (403, 429) or 500 <= status < 600:
             self.breaker.record_failure()
             state = "OPEN" if self.breaker.is_open else "CLOSED"
-            self._log(stage, "GET", url, status, elapsed, False, state)
+            # Exactly the case the headers exist for: Retry-After and
+            # X-RateLimit-* say how long to wait instead of leaving us to guess.
+            self._log(
+                stage, "GET", url, status, elapsed, False, state,
+                _diagnostic_headers(resp),
+            )
             raise ProviderError(f"HTTP {status}")
 
         if status == 200:
@@ -282,7 +324,10 @@ class SofascoreClient:
                 raise ProviderError("HTML instead of JSON")
 
             self.breaker.record_success()
-            self._log(stage, "GET", url, status, elapsed, False, "CLOSED")
+            self._log(
+                stage, "GET", url, status, elapsed, False, "CLOSED",
+                _diagnostic_headers(resp),
+            )
             return data
 
         # Unhandled status

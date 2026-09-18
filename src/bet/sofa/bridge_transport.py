@@ -24,9 +24,16 @@ DEFAULT_BRIDGE_URL = "http://127.0.0.1:8787"
 class BridgeResponse:
     """Mirrors the slice of the curl_cffi response that the client actually uses."""
 
-    def __init__(self, status_code: int, text: str) -> None:
+    def __init__(
+        self, status_code: int, text: str, headers: dict[str, str] | None = None
+    ) -> None:
         self._status_code = status_code
         self._text = text
+        self._headers = headers or {}
+
+    @property
+    def headers(self) -> dict[str, str]:
+        return self._headers
 
     @property
     def status_code(self) -> int:
@@ -90,7 +97,12 @@ class BrowserBridgeTransport:
         if not isinstance(status, int):
             raise TransportError(f"bridge returned no status: {data!r}")
 
-        return BridgeResponse(status, data.get("body") or "")
+        raw_headers = data.get("headers")
+        return BridgeResponse(
+            status,
+            data.get("body") or "",
+            raw_headers if isinstance(raw_headers, dict) else {},
+        )
 
 
 def make_transport() -> Any:

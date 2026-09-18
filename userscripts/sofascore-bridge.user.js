@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sofascore bridge (bet pipeline)
 // @namespace    bet.sofa
-// @version      2.3.0
+// @version      2.4.0
 // @description  Serves the local bet pipeline's Sofascore requests from inside a real sofascore.com tab.
 // @match        https://www.sofascore.com/*
 // @match        https://sofascore.com/*
@@ -56,6 +56,12 @@
   // 550 req/s) coincided with Sofascore closing /api/v1/ on 2026-09-17. The
   // Python client paces too; this is the floor that holds even if it does not.
   const MIN_INTERVAL_MS = 350;
+  // The headers that say something about rate limiting or caching. Anything
+  // else is noise in the log (F24).
+  const DIAGNOSTIC_HEADERS = [
+    'retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining',
+    'x-ratelimit-reset', 'server-timing', 'age', 'x-cache', 'x-served-by',
+  ];
 
   // A stale x-captcha shows up as 403. Reloading makes the SPA mint a fresh one,
   // but a reload loop against a hard block would be its own kind of abuse.
@@ -186,7 +192,17 @@
       }
 
       const body = await res.text();
-      payload = { id: job.id, status: res.status, body: body };
+      // Forward the headers that answer "are they throttling us" (F24). When
+      // latency jumped 13x on 2026-09-18 the only place that could have said
+      // so outright was thrown away here, so the diagnosis had to go the long
+      // way round - ping, load average, process list. Only the diagnostic
+      // ones, so the log row does not bloat.
+      const headers = {};
+      DIAGNOSTIC_HEADERS.forEach(function (name) {
+        const value = res.headers.get(name);
+        if (value !== null && value !== undefined) { headers[name] = value; }
+      });
+      payload = { id: job.id, status: res.status, body: body, headers: headers };
       maybeReload(res.status);
     } catch (e) {
       payload = { id: job.id, status: null, error: String(e) };

@@ -48,7 +48,9 @@ PULL_WAIT_S = 20.0
 
 
 class Job:
-    __slots__ = ("id", "url", "done", "status", "body", "error", "created")
+    __slots__ = (
+        "id", "url", "done", "status", "body", "headers", "error", "created",
+    )
 
     def __init__(self, url: str) -> None:
         self.id = uuid.uuid4().hex
@@ -56,6 +58,9 @@ class Job:
         self.done = threading.Event()
         self.status: int | None = None
         self.body: str | None = None
+        # The diagnostic response headers, if the userscript sent any. The
+        # only place a provider says outright that it is throttling us (F24).
+        self.headers: dict[str, str] = {}
         self.error: str | None = None
         self.created = time.monotonic()
 
@@ -89,7 +94,12 @@ class JobQueue:
             return self._pending.pop(0)
 
     def complete(
-        self, job_id: str, status: int | None, body: str | None, error: str | None
+        self,
+        job_id: str,
+        status: int | None,
+        body: str | None,
+        error: str | None,
+        headers: dict[str, str] | None = None,
     ) -> bool:
         with self._lock:
             job = self._by_id.pop(job_id, None)
@@ -97,6 +107,7 @@ class JobQueue:
             return False
         job.status = status
         job.body = body
+        job.headers = headers or {}
         job.error = error
         job.done.set()
         return True
@@ -204,11 +215,19 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path.startswith("/push"):
+            raw_headers = data.get("headers")
             ok = QUEUE.complete(
                 str(data.get("id")),
                 data.get("status"),
                 data.get("body"),
                 data.get("error"),
+                {
+                    str(k): str(v)
+                    for k, v in raw_headers.items()
+                    if isinstance(raw_headers, dict)
+                }
+                if isinstance(raw_headers, dict)
+                else {},
             )
             self._reply(200, {"accepted": ok})
             return
@@ -234,7 +253,13 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             self._reply(
-                200, {"status": job.status, "body": job.body, "error": job.error}
+                200,
+                {
+                    "status": job.status,
+                    "body": job.body,
+                    "headers": job.headers,
+                    "error": job.error,
+                },
             )
             return
 

@@ -1743,3 +1743,100 @@ def test_f27_the_union_of_two_listings_is_still_taken() -> None:
     offers = OfferFetcher(Complementary()).fetch_offers([_fixture(1, ["dead", "live"])])
     assert {r.market for r in offers[0].rungs} == {"goals_total", "corners_total"}
     assert not offers[0].price_collisions
+
+
+# --------------------------------------------------------------------------
+# F24 — the bridge threw away the headers that answer "are we being throttled"
+# --------------------------------------------------------------------------
+
+
+def test_f24_a_retry_after_header_reaches_the_log_row(tmp_path: Path) -> None:
+    """Fails on the old code for the right reason: there was nowhere to put it.
+
+    When latency jumped 13x the only source that could have answered directly
+    was discarded, so the diagnosis went via ping and load average instead.
+    """
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.stage import stage
+
+    class HeaderResponse:
+        status_code = 200
+        headers = {
+            "retry-after": "30",
+            "x-ratelimit-remaining": "4",
+            "server-timing": "cdn-cache; desc=HIT",
+            "set-cookie": "should-not-be-logged",
+        }
+
+        def json(self) -> dict[str, int]:
+            return {"ok": 1}
+
+    class HeaderTransport:
+        def get(self, url: str, timeout: float = 10.0) -> HeaderResponse:
+            return HeaderResponse()
+
+    client = SofascoreClient(
+        SofaConfig(runs_dir=str(tmp_path), target_rps=1000), HeaderTransport()
+    )
+    with stage("SAMPLES"):
+        client.event_statistics(1)
+
+    row = json.loads(client.log_path.read_text(encoding="utf-8").splitlines()[0])
+    assert row["headers"]["retry-after"] == "30"
+    assert row["headers"]["x-ratelimit-remaining"] == "4"
+    assert "set-cookie" not in row["headers"], "only the diagnostic ones"
+
+
+def test_f24_a_429_carries_its_headers_too(tmp_path: Path) -> None:
+    """The case the headers exist for."""
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.errors import ProviderError
+
+    class Throttled:
+        status_code = 429
+        headers = {"retry-after": "120"}
+
+        def json(self) -> dict[str, int]:
+            return {}
+
+    class T:
+        def get(self, url: str, timeout: float = 10.0) -> Throttled:
+            return Throttled()
+
+    client = SofascoreClient(SofaConfig(runs_dir=str(tmp_path), target_rps=1000), T())
+    with pytest.raises(ProviderError):
+        client.event_statistics(1)
+
+    row = json.loads(client.log_path.read_text(encoding="utf-8").splitlines()[0])
+    assert row["status"] == 429
+    assert row["headers"]["retry-after"] == "120"
+
+
+def test_f24_a_response_without_diagnostic_headers_adds_no_noise(
+    tmp_path: Path,
+) -> None:
+    """An empty headers dict in every row would be noise, not diagnostics."""
+    from bet.sofa.client import SofascoreClient
+    from bet.sofa.config import SofaConfig
+    from tests.sofa.test_client import MockResponse, MockTransport
+
+    transport = MockTransport()
+    transport.responses = [MockResponse(200, {"ok": 1})]
+    client = SofascoreClient(
+        SofaConfig(runs_dir=str(tmp_path), target_rps=1000), transport
+    )
+    client.event_statistics(1)
+
+    row = json.loads(client.log_path.read_text(encoding="utf-8").splitlines()[0])
+    assert "headers" not in row
+
+
+def test_f24_the_bridge_transport_carries_headers_from_the_browser() -> None:
+    """The browser is the only place these headers exist; the bridge must pass
+    them on rather than keeping status and body alone."""
+    from bet.sofa.bridge_transport import BridgeResponse
+
+    resp = BridgeResponse(200, "{}", {"retry-after": "5"})
+    assert resp.headers == {"retry-after": "5"}
