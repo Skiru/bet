@@ -35,17 +35,21 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from bet.sofa.config import SofaConfig
-from bet.sofa.timeutil import now
+# Before any first-party import, because this is what makes them resolvable.
+#
+# Running a file puts *its own directory* on sys.path — here `scripts/sofa` —
+# and neither the package root (`src`, where `bet` lives) nor the repository
+# root (where `scripts` lives, and stages are imported as `scripts.sofa.*`).
+# So the command in this module's docstring only ever worked for a caller who
+# had already arranged PYTHONPATH, and failed with a bare ModuleNotFoundError
+# for anyone who took the docstring at its word.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 
-# Stages are imported as `scripts.sofa.*`, which needs the repository root on
-# the path. Running a file puts *its own directory* there, not the root, so
-# `python scripts/sofa/run_pipeline.py` only worked when the caller had already
-# arranged PYTHONPATH. Putting the root on explicitly means the command in this
-# module's docstring is the command that runs.
-_REPO_ROOT = str(Path(__file__).resolve().parents[2])
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.timeutil import now  # noqa: E402
 
 # Stage entry points are imported lazily inside run_stage so that a broken
 # stage module fails that stage, not the whole run.
