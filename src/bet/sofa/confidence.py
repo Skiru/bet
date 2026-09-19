@@ -47,6 +47,21 @@ DEFAULT_CALIBRATION = Path("config/sofa_confidence_calibration.json")
 # Accepting the book's shading and ignoring this are different decisions.
 MAX_DISAGREEMENT = 0.10
 
+# Markets that are a FUNCTION of two sides rather than a count of one thing.
+# They carry 2-252 settled rows each — both_over_shots has 26, both_over_fouls
+# 18 — so no market-specific curve can be fitted, and the pooled curve they
+# would otherwise fall back to was measured on 1.87M single-quantity counts.
+# Nothing in the artifacts can check them either: no per-side sample reaches a
+# joint, which is why every one of them also carries ONE_SIDED_LADDER and
+# NO_MARKET_MARGINAL on the sheet. A confidence view exists to say how often a
+# thing happens; for these the honest answer is that we have not measured it.
+DERIVED_PREFIXES = ("both_over_", "handicap_", "most_")
+
+
+def is_derived(market: str) -> bool:
+    """True for a joint/comparative market. See DERIVED_PREFIXES."""
+    return market.startswith(DERIVED_PREFIXES)
+
 # Independence holds ACROSS quantities and fails WITHIN one, and the
 # difference decides whether multiplying leg probabilities is arithmetic or
 # fiction. Measured on 608 specific rung pairs out of the settled cache —

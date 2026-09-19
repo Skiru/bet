@@ -33,6 +33,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_LEGS,
     MAX_DISAGREEMENT,
     Calibration,
+    is_derived,
     combined_probability,
     fair_odds,
     quantity_family,
@@ -114,6 +115,12 @@ def main() -> int:
             row["market"]
         ):
             refused["NOT_IN_CALIBRATION_FIT"] += 1
+            continue
+        # See DERIVED_PREFIXES. A joint of two sides is not a count of one
+        # thing, has 2-252 settled rows of its own, and no sample in the
+        # artifacts can check it.
+        if is_derived(row["market"]):
+            refused["DERIVED_NOT_CALIBRATABLE"] += 1
             continue
 
         hit = cal.realised(row["market"], row["p_central"])
@@ -219,6 +226,19 @@ def main() -> int:
             )
     builders.sort(key=lambda b: (-b["ev_if_product_priced"], -b["combined_probability"]))
 
+    # A fixture emits a 2-, 3- and 4-leg builder off the same ranked pool, so
+    # the smaller ones are SUBSETS of the larger. Staking all three is staking
+    # one opinion three times at three stakes, and on 2026-09-19 that dressed
+    # 54 fixtures up as 79 independent bets with 46 of 148 legs repeated.
+    # Every builder stays in the artifact because comparing 2 against 4 on one
+    # fixture is exactly how the operator picks; only one per fixture is
+    # marked as stakeable.
+    best_seen: set[int] = set()
+    for b in builders:
+        eid = b["sofascore_event_id"]
+        b["best_for_fixture"] = eid not in best_seen
+        best_seen.add(eid)
+
     out = {
         "created_at_utc": now.isoformat().replace("+00:00", "Z"),
         "confidence_floor": args.floor,
@@ -262,7 +282,7 @@ def main() -> int:
         "| legs | combined p | fair odds | odds if product | EV at that price | match | selection |",
         "|---|---|---|---|---|---|---|",
     ]
-    for b in builders[:40]:
+    for b in [x for x in builders if x["best_for_fixture"]][:40]:
         sel = " + ".join(
             f"{x['market']} {x['line']} {x['direction']}" for x in b["legs"]
         )
@@ -276,7 +296,7 @@ def main() -> int:
     print(json.dumps({
         "stage": "CONFIDENCE", "verdict": "OK",
         "metrics": {
-            "legs": len(legs), "builders": len(builders),
+            "legs": len(legs), "builders": len(builders), "stakeable_builders": sum(1 for b in builders if b["best_for_fixture"]),
             "fixtures_with_legs": len(by_fixture), "refused": dict(refused),
         },
         "output_path": str(run_dir / "08_confidence.json"),

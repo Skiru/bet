@@ -110,3 +110,53 @@ def test_the_builder_leg_cap_is_small_for_a_reason() -> None:
     """Legs multiply: at a realised ceiling near 0.92, five legs is a coin flip."""
     assert MAX_BUILDER_LEGS <= 4
     assert combined_probability([0.92] * 5) < 0.67
+
+
+def test_only_one_builder_per_fixture_is_stakeable() -> None:
+    """The 2-, 3- and 4-leg builders off one fixture are nested, not distinct.
+
+    They come from the same ranked pool, so the 2-leg is a subset of the
+    4-leg. Marking them all stakeable turned 54 fixtures into 79 "bets" on
+    2026-09-19, with 46 of 148 legs repeated across slips — one opinion sold
+    at three stakes.
+    """
+    from pathlib import Path
+
+    src = (
+        Path(__file__).resolve().parents[2] / "scripts" / "sofa" / "run_confidence.py"
+    ).read_text()
+    assert "best_for_fixture" in src
+
+    run = Path("runs/sofa/2026-09-19/08_confidence.json")
+    if not run.exists():
+        pytest.skip("no live artifact in this checkout")
+    doc = json.loads(run.read_text(encoding="utf-8"))
+    stakeable = [b for b in doc["builders"] if b.get("best_for_fixture")]
+    seen = [b["sofascore_event_id"] for b in stakeable]
+    assert len(seen) == len(set(seen)), "a fixture may be staked at most once"
+
+
+def test_joint_markets_are_refused_not_pooled() -> None:
+    """both_over_* / handicap_* / most_* carry 2-252 settled rows each.
+
+    They are a function of two sides, not a count of one thing, so the pooled
+    curve — fitted on 1.87M single-quantity counts — says nothing about them,
+    and no per-side sample in the artifacts can check them. both_over_shots
+    has 26 settled rows and was reaching the top of the builder list.
+    """
+    from bet.sofa.confidence import is_derived
+
+    for market in ("both_over_shots", "both_over_goals", "handicap_corners",
+                   "most_cards_points"):
+        assert is_derived(market)
+    for market in ("goals_total", "corners_for", "goals_1h_total"):
+        assert not is_derived(market)
+
+    run = Path("runs/sofa/2026-09-19/08_confidence.json")
+    if not run.exists():
+        pytest.skip("no live artifact in this checkout")
+    doc = json.loads(run.read_text(encoding="utf-8"))
+    assert not [l for l in doc["legs"] if is_derived(l["market"])]
+    assert not [
+        x for b in doc["builders"] for x in b["legs"] if is_derived(x["market"])
+    ]
