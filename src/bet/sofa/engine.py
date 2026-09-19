@@ -59,6 +59,136 @@ EMPIRICAL_FREQUENCY_METRICS = frozenset({"sets_total", "games_won_for"})
 # Better on both sides, which is what a real fix looks like as against noise.
 
 
+# Counts are right-skewed, and the normal CDF is symmetric. Integrating a bell
+# curve over a skewed count overstates the upper tail near the centre, where
+# almost every posted line sits, and it does so in ONE direction: every OVER
+# rung is inflated and every UNDER rung is deflated by the same amount.
+#
+# Replayed over all 1,868,474 settled count rows out of the cache, scoring each
+# rung the way run_sheet does and against `actual_value`:
+#
+#                        Brier     mean p   realised   bias
+#     normal            0.17278    0.5000    0.5000   +0.0469  (OVER)
+#     negative binomial 0.16865    0.5000    0.5000   -0.0055  (OVER)
+#
+# The bias is what matters more than the Brier: +4.7 pp on every OVER rung on
+# the board is not noise, it is the reason a coupon comes out 88.8% OVER. On
+# 2026-09-19 the shipping model claimed 0.4371 across its 428 OVER positions
+# where those positions' own samples said 0.3465.
+#
+# A negative binomial with the same mean and predictive variance is the natural
+# fix: it is discrete, supported on 0,1,2,..., and overdispersed by
+# construction. Being discrete it also needs no support floor and no continuity
+# fudge — the atom at zero is an atom, not a sliver of a bell curve.
+#
+# It is NOT applied everywhere. Measured per metric at n>=2000 and validated on
+# an event-id split half, it wins on twelve metrics and loses on the high-mean
+# shot and foul families, whose distributions are near enough symmetric that
+# added skew is a cost. A metric not on this list keeps the normal: an unlisted
+# metric must not silently change behaviour.
+#
+#     metric                  n        dBrier    half A     half B
+#     goals_for          676040      -0.00818  -0.00806  -0.00830
+#     goals_total        782237      -0.00239  -0.00212  -0.00266
+#     corners_for         41950      -0.00251  -0.00270  -0.00232
+#     offsides_total      23312      -0.00198  -0.00130  -0.00272
+#     ... and, against it:
+#     shots_on_target_total 35969   +0.00188  +0.00199  +0.00177
+#     shots_total         34152      +0.00142  +0.00134  +0.00151
+#
+# The per-half variants carry only 190-352 settled rows each, too few for the
+# n>=2000 bar, so they are listed on their own measurement from the one live
+# settled day, where every one of them with n>=150 improved — most of all
+# goals_1h_for at -0.03612, the largest gain in the whole study. That is the
+# expected direction: a shorter window means a lower mean and more skew.
+NEGATIVE_BINOMIAL_METRICS = frozenset(
+    {
+        # full match: n >= 2000, sign stable across an event-id split half
+        "goals_for",
+        "goals_total",
+        "corners_for",
+        "offsides_for",
+        "offsides_total",
+        "cards_points_for",
+        "cards_points_total",
+        "aces_for",
+        "aces_total",
+        "double_faults_for",
+        "double_faults_total",
+        "games_total",
+        # per half: measured on the live settled day at n >= 150
+        "goals_1h_total",
+        "goals_1h_for",
+        "goals_2h_total",
+        "goals_2h_for",
+        "corners_1h_total",
+        "corners_1h_for",
+    }
+)
+
+
+def uses_negative_binomial(market: str) -> bool:
+    """True when this metric is priced from a negative binomial, not a normal.
+
+    See NEGATIVE_BINOMIAL_METRICS. Unlisted metrics keep the normal CDF, so a
+    metric nobody has measured cannot change behaviour by being added upstream.
+    """
+    return market in NEGATIVE_BINOMIAL_METRICS
+
+
+def nb_survival(mean: float, variance: float, k: int) -> float:
+    """P(X > k) for a count with this mean and variance, k an integer.
+
+    Negative binomial when the variance exceeds the mean, which is the case
+    that matters — football and tennis counts are overdispersed, which is why
+    the Poisson floor in `predictive_sd` never binds for them. When it does
+    not, the distribution is Poisson and this returns that instead of solving
+    for a negative r.
+
+    Summed rather than evaluated through a regularised incomplete beta: the
+    counts here are small (lines run to about 30) so the sum is short and
+    exact, and it needs no dependency this project does not already have.
+    """
+    if mean <= 0.0:
+        return 0.0
+    if k < 0:
+        return 1.0
+    if variance <= mean * (1.0 + 1e-9):
+        # Poisson: P(X<=k) = e^-m sum_{i<=k} m^i / i!
+        term = math.exp(-mean)
+        acc = term
+        for i in range(1, k + 1):
+            term *= mean / i
+            acc += term
+        return max(0.0, 1.0 - min(acc, 1.0))
+
+    r = mean * mean / (variance - mean)
+    p = r / (r + mean)
+    log_p = math.log(p)
+    log_1mp = math.log1p(-p)
+    lgamma_r = math.lgamma(r)
+    acc = 0.0
+    for i in range(0, k + 1):
+        acc += math.exp(
+            math.lgamma(i + r) - lgamma_r - math.lgamma(i + 1) + r * log_p + i * log_1mp
+        )
+        if acc >= 1.0:
+            break
+    return max(0.0, 1.0 - min(acc, 1.0))
+
+
+def calc_p_central_nb_raw(
+    centre: float, sd: float, boundary: float, direction: Direction
+) -> float:
+    """The negative-binomial estimate, unclamped. See nb_survival.
+
+    `boundary` is the winning boundary, so OVER at line 2.5 asks for P(X >= 3)
+    and the integer below the boundary is the last losing count.
+    """
+    survival = nb_survival(centre, sd * sd, math.floor(boundary))
+    return survival if direction == "OVER" else 1.0 - survival
+
+
 def predictive_sd(
     variance: float, mean: float, n: int, *, apply_poisson_floor: bool = True
 ) -> float:

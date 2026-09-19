@@ -588,9 +588,25 @@ def price_derived_rungs(
                 if offered is None:
                     verdict = "NO_PRICE"
                 elif surplus is not None and surplus > 0:
-                    if p_marginal is not None and offered <= get_required_odds(
-                        p_marginal, "LEAN"
-                    ):
+                    if p_marginal is None:
+                        # No measurement means no check — the same rule the
+                        # marginal-disagreement branch below applies when the
+                        # marginals DO disagree, for the same reason. Without
+                        # per-side ladders at this line there is no price to
+                        # test the joint against and no way to isolate the
+                        # dependence, so the row is selected by our own sample
+                        # alone. On 2026-09-19 that let 23 both_over_* rows
+                        # into the coupon at a median price of 12.0, carrying
+                        # NO_MARKET_MARGINAL and ONE_SIDED_LADDER at once and
+                        # with no per-side sample that could check either.
+                        verdict = "LEAN"
+                        notes.append(
+                            "NO_MARKET_MARGINAL_CHECK: the market's own "
+                            "marginals are not quoted at this line, so the "
+                            "joint cannot be checked against a price; "
+                            "VALUE withheld"
+                        )
+                    elif offered <= get_required_odds(p_marginal, "LEAN"):
                         verdict = "LEAN"
                         notes.append(
                             "MARGINAL_DISAGREEMENT: clears the bar on our "

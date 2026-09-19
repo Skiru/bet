@@ -30,6 +30,7 @@ from bet.sofa.engine import (
     P_FLOOR,
     bar_is_unreachable,
     bar_probability,
+    calc_p_central_nb_raw,
     calc_p_central_raw,
     calculate_p_low,
     devig,
@@ -41,6 +42,7 @@ from bet.sofa.engine import (
     predictive_sd,
     support_floor_for,
     uses_empirical_frequency,
+    uses_negative_binomial,
     uses_poisson_floor,
     winning_boundary,
 )
@@ -414,6 +416,14 @@ def process_fixture(
             # what gets used (F30). Everything else keeps the CDF.
             if uses_empirical_frequency(rung.market):
                 p_raw = p_empirical_raw(hits, n)
+            elif uses_negative_binomial(rung.market):
+                # A count is right-skewed and the normal CDF is not. See
+                # NEGATIVE_BINOMIAL_METRICS: symmetric tails put +4.7 pp on
+                # every OVER rung, which is what makes a coupon come out
+                # 88.8% OVER. No support floor here — the distribution is
+                # discrete on 0,1,2,... so there is no mass below zero to
+                # condition away.
+                p_raw = calc_p_central_nb_raw(centre, pred_sd, boundary, direction)
             else:
                 p_raw = calc_p_central_raw(
                     centre,
@@ -532,7 +542,26 @@ def process_fixture(
                 # reason recorded. Letting an unmeasurable row through would
                 # promote exactly the thin ladders (one rung, or a ladder
                 # entirely on one side of 0.5) that carry the least information.
-                if l_sigma is None:
+                if m_p is None:
+                    # The same rule as the ladder gate below, for the same
+                    # reason. `market_p` is what `bar_probability` shrinks the
+                    # sample toward and what `edge` is measured against; with
+                    # no complement price quoted there is nothing to devig, so
+                    # p_bar falls back to the raw model at w=1 and
+                    # `bar_is_unreachable` cannot fire either. The row is then
+                    # selected by the model alone, unchecked by any price —
+                    # and the model is the thing the settled record says loses.
+                    # On 2026-09-19 those 71 rows carried a median surplus of
+                    # 4.95 against 0.24 for the anchored ones, at median odds
+                    # of 12.0 against 3.10. That is not an edge, it is the
+                    # absence of a check.
+                    verdict = "LEAN"
+                    notes.append(
+                        "NO_PRICE_ANCHOR: only one side of this rung is "
+                        "quoted, so market_p could not be devigged and the "
+                        "bar is unchecked by any price; VALUE withheld"
+                    )
+                elif l_sigma is None:
                     verdict = "LEAN"
                     notes.append(
                         "NO_LADDER_CHECK: ladder_sigma unmeasurable "
