@@ -15,10 +15,10 @@
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2668,
-      "n": 776,
+      "realised": 0.2664,
+      "n": 777,
       "correction": 0.0,
-      "ci_lower": -0.0493,
+      "ci_lower": -0.0489,
       "status": "MEASURED"
     },
     "0.3-0.4": {
@@ -29,17 +29,17 @@
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4418,
-      "n": 627,
+      "realised": 0.4404,
+      "n": 629,
       "correction": 0.0,
-      "ci_lower": -0.0324,
+      "ci_lower": -0.0309,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5582,
-      "n": 627,
+      "realised": 0.5596,
+      "n": 629,
       "correction": 0.0,
-      "ci_lower": -0.0455,
+      "ci_lower": -0.0468,
       "status": "MEASURED"
     },
     "0.6-0.7": {
@@ -50,10 +50,10 @@
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7332,
-      "n": 776,
+      "realised": 0.7336,
+      "n": 777,
       "correction": 0.0,
-      "ci_lower": -0.0128,
+      "ci_lower": -0.0132,
       "status": "MEASURED"
     },
     "0.8-0.9": {
@@ -94,10 +94,10 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3588,
-      "n": 1101,
+      "realised": 0.359,
+      "n": 1103,
       "correction": 0.0,
-      "ci_lower": -0.0365,
+      "ci_lower": -0.0367,
       "status": "MEASURED"
     },
     "0.4-0.5": {
@@ -115,10 +115,10 @@
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6412,
-      "n": 1101,
+      "realised": 0.641,
+      "n": 1103,
       "correction": 0.0,
-      "ci_lower": -0.0202,
+      "ci_lower": -0.02,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -152,10 +152,10 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.2641,
-      "n": 549,
-      "correction": 0.0885,
-      "ci_lower": 0.0516,
+      "realised": 0.2636,
+      "n": 550,
+      "correction": 0.089,
+      "ci_lower": 0.0521,
       "status": "MEASURED"
     },
     "0.4-0.5": {
@@ -173,10 +173,10 @@
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.5471,
-      "n": 552,
-      "correction": 0.1042,
-      "ci_lower": 0.0626,
+      "realised": 0.5461,
+      "n": 553,
+      "correction": 0.1051,
+      "ci_lower": 0.0636,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -210,10 +210,10 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.4529,
-      "n": 552,
+      "realised": 0.4539,
+      "n": 553,
       "correction": 0.0,
-      "ci_lower": -0.1458,
+      "ci_lower": -0.1467,
       "status": "MEASURED"
     },
     "0.4-0.5": {
@@ -231,10 +231,10 @@
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.7359,
-      "n": 549,
+      "realised": 0.7364,
+      "n": 550,
       "correction": 0.0,
-      "ci_lower": -0.1253,
+      "ci_lower": -0.1258,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -247,655 +247,655 @@
   },
   "cards_points_for": {
     "0.0-0.1": {
-      "realised": 0.0566,
-      "n": 618,
-      "correction": 0.019,
-      "ci_lower": 0.0008,
+      "realised": 0.0564,
+      "n": 621,
+      "correction": 0.0194,
+      "ci_lower": 0.0012,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1306,
-      "n": 1064,
+      "realised": 0.131,
+      "n": 1076,
       "correction": 0.0,
-      "ci_lower": -0.0233,
+      "ci_lower": -0.0236,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2622,
-      "n": 698,
-      "correction": 0.0,
-      "ci_lower": -0.033,
-      "status": "MEASURED"
-    },
-    "0.3-0.4": {
-      "realised": 0.3375,
-      "n": 646,
-      "correction": 0.0,
-      "ci_lower": -0.0353,
-      "status": "MEASURED"
-    },
-    "0.4-0.5": {
-      "realised": 0.4213,
-      "n": 527,
-      "correction": 0.0,
-      "ci_lower": -0.0063,
-      "status": "MEASURED"
-    },
-    "0.5-0.6": {
-      "realised": 0.5787,
-      "n": 527,
-      "correction": 0.0,
-      "ci_lower": -0.0777,
-      "status": "MEASURED"
-    },
-    "0.6-0.7": {
-      "realised": 0.6625,
-      "n": 646,
-      "correction": 0.0,
-      "ci_lower": -0.0383,
-      "status": "MEASURED"
-    },
-    "0.7-0.8": {
-      "realised": 0.7378,
-      "n": 698,
+      "realised": 0.2613,
+      "n": 708,
       "correction": 0.0,
       "ci_lower": -0.0317,
       "status": "MEASURED"
     },
-    "0.8-0.9": {
-      "realised": 0.8694,
-      "n": 1064,
+    "0.3-0.4": {
+      "realised": 0.3363,
+      "n": 669,
       "correction": 0.0,
-      "ci_lower": -0.0174,
+      "ci_lower": -0.0332,
+      "status": "MEASURED"
+    },
+    "0.4-0.5": {
+      "realised": 0.4219,
+      "n": 538,
+      "correction": 0.0,
+      "ci_lower": -0.0064,
+      "status": "MEASURED"
+    },
+    "0.5-0.6": {
+      "realised": 0.5781,
+      "n": 538,
+      "correction": 0.0,
+      "ci_lower": -0.0768,
+      "status": "MEASURED"
+    },
+    "0.6-0.7": {
+      "realised": 0.6637,
+      "n": 669,
+      "correction": 0.0,
+      "ci_lower": -0.039,
+      "status": "MEASURED"
+    },
+    "0.7-0.8": {
+      "realised": 0.7387,
+      "n": 708,
+      "correction": 0.0,
+      "ci_lower": -0.0326,
+      "status": "MEASURED"
+    },
+    "0.8-0.9": {
+      "realised": 0.869,
+      "n": 1076,
+      "correction": 0.0,
+      "ci_lower": -0.0168,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9434,
-      "n": 618,
+      "realised": 0.9436,
+      "n": 621,
       "correction": 0.0,
-      "ci_lower": -0.0373,
+      "ci_lower": -0.0376,
       "status": "MEASURED"
     }
   },
   "cards_points_for|OVER": {
     "0.1-0.2": {
-      "realised": 0.1111,
-      "n": 531,
-      "correction": 0.034,
-      "ci_lower": 0.0073,
+      "realised": 0.1119,
+      "n": 536,
+      "correction": 0.0331,
+      "ci_lower": 0.0066,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8499,
-      "n": 533,
+      "realised": 0.85,
+      "n": 540,
       "correction": 0.0397,
-      "ci_lower": 0.0094,
+      "ci_lower": 0.0096,
       "status": "MEASURED"
     }
   },
   "cards_points_for|UNDER": {
     "0.1-0.2": {
-      "realised": 0.1501,
-      "n": 533,
+      "realised": 0.15,
+      "n": 540,
       "correction": 0.0,
-      "ci_lower": -0.0701,
+      "ci_lower": -0.0698,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8889,
-      "n": 531,
+      "realised": 0.8881,
+      "n": 536,
       "correction": 0.0,
-      "ci_lower": -0.0606,
+      "ci_lower": -0.0597,
       "status": "MEASURED"
     }
   },
   "cards_points_total": {
     "0.0-0.1": {
-      "realised": 0.0769,
-      "n": 1067,
+      "realised": 0.0764,
+      "n": 1074,
       "correction": 0.0,
-      "ci_lower": -0.0198,
+      "ci_lower": -0.0192,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1336,
-      "n": 1332,
+      "realised": 0.1332,
+      "n": 1344,
       "correction": 0.0,
-      "ci_lower": -0.0046,
+      "ci_lower": -0.004,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2328,
-      "n": 958,
+      "realised": 0.2338,
+      "n": 971,
       "correction": 0.0,
-      "ci_lower": -0.0181,
+      "ci_lower": -0.0189,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.346,
-      "n": 974,
+      "realised": 0.3475,
+      "n": 990,
       "correction": 0.0,
-      "ci_lower": -0.0289,
+      "ci_lower": -0.0301,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4543,
-      "n": 810,
+      "realised": 0.4558,
+      "n": 825,
       "correction": 0.0,
-      "ci_lower": -0.0372,
+      "ci_lower": -0.0384,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5457,
-      "n": 810,
+      "realised": 0.5442,
+      "n": 825,
       "correction": 0.0,
-      "ci_lower": -0.0313,
+      "ci_lower": -0.0294,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.654,
-      "n": 974,
+      "realised": 0.6525,
+      "n": 990,
       "correction": 0.0,
-      "ci_lower": -0.0308,
+      "ci_lower": -0.0291,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7672,
-      "n": 958,
+      "realised": 0.7662,
+      "n": 971,
       "correction": 0.0,
-      "ci_lower": -0.0355,
+      "ci_lower": -0.0344,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8664,
-      "n": 1332,
+      "realised": 0.8668,
+      "n": 1344,
       "correction": 0.0,
-      "ci_lower": -0.0318,
+      "ci_lower": -0.0321,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9231,
-      "n": 1067,
+      "realised": 0.9236,
+      "n": 1074,
       "correction": 0.0,
-      "ci_lower": -0.0121,
+      "ci_lower": -0.0125,
       "status": "MEASURED"
     }
   },
   "cards_points_total|OVER": {
     "0.0-0.1": {
-      "realised": 0.0767,
-      "n": 587,
+      "realised": 0.0763,
+      "n": 590,
       "correction": 0.0,
-      "ci_lower": -0.0282,
+      "ci_lower": -0.0277,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1155,
-      "n": 710,
-      "correction": 0.0296,
-      "ci_lower": 0.0062,
+      "realised": 0.1145,
+      "n": 716,
+      "correction": 0.0305,
+      "ci_lower": 0.0073,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.1921,
-      "n": 531,
-      "correction": 0.0528,
+      "realised": 0.1922,
+      "n": 536,
+      "correction": 0.0527,
       "ci_lower": 0.0193,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6211,
-      "n": 512,
+      "realised": 0.62,
+      "n": 521,
       "correction": 0.0,
-      "ci_lower": -0.0081,
+      "ci_lower": -0.0068,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8457,
-      "n": 622,
+      "realised": 0.8455,
+      "n": 628,
       "correction": 0.0,
-      "ci_lower": -0.0236,
+      "ci_lower": -0.0234,
       "status": "MEASURED"
     }
   },
   "cards_points_total|UNDER": {
     "0.1-0.2": {
-      "realised": 0.1543,
-      "n": 622,
+      "realised": 0.1545,
+      "n": 628,
       "correction": 0.0,
-      "ci_lower": -0.033,
+      "ci_lower": -0.0329,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3789,
-      "n": 512,
+      "realised": 0.38,
+      "n": 521,
       "correction": 0.0,
-      "ci_lower": -0.0757,
+      "ci_lower": -0.0763,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.8079,
-      "n": 531,
+      "realised": 0.8078,
+      "n": 536,
       "correction": 0.0,
-      "ci_lower": -0.0864,
+      "ci_lower": -0.0861,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8845,
-      "n": 710,
+      "realised": 0.8855,
+      "n": 716,
       "correction": 0.0,
-      "ci_lower": -0.053,
+      "ci_lower": -0.0537,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9233,
-      "n": 587,
+      "realised": 0.9237,
+      "n": 590,
       "correction": 0.0,
-      "ci_lower": -0.0148,
+      "ci_lower": -0.0151,
       "status": "MEASURED"
     }
   },
   "corners_for": {
     "0.0-0.1": {
-      "realised": 0.0913,
-      "n": 3580,
+      "realised": 0.0924,
+      "n": 3613,
       "correction": 0.0,
-      "ci_lower": -0.028,
+      "ci_lower": -0.0291,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1583,
-      "n": 5687,
+      "realised": 0.1581,
+      "n": 5742,
       "correction": 0.0,
-      "ci_lower": -0.0186,
+      "ci_lower": -0.0184,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2602,
-      "n": 4147,
+      "realised": 0.2605,
+      "n": 4195,
       "correction": 0.0,
-      "ci_lower": -0.0222,
+      "ci_lower": -0.0225,
       "status": "MEASURED"
     },
     "0.3-0.4": {
       "realised": 0.3567,
-      "n": 3773,
+      "n": 3815,
       "correction": 0.0,
       "ci_lower": -0.0251,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4523,
-      "n": 3566,
+      "realised": 0.4526,
+      "n": 3610,
       "correction": 0.0,
-      "ci_lower": -0.0183,
+      "ci_lower": -0.0185,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5477,
-      "n": 3566,
+      "realised": 0.5474,
+      "n": 3610,
       "correction": 0.0,
-      "ci_lower": -0.0143,
+      "ci_lower": -0.0139,
       "status": "MEASURED"
     },
     "0.6-0.7": {
       "realised": 0.6433,
-      "n": 3773,
+      "n": 3815,
       "correction": 0.0,
-      "ci_lower": -0.0054,
+      "ci_lower": -0.0053,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7398,
-      "n": 4147,
+      "realised": 0.7395,
+      "n": 4195,
       "correction": 0.0,
-      "ci_lower": -0.0044,
+      "ci_lower": -0.004,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8417,
-      "n": 5687,
+      "realised": 0.8419,
+      "n": 5742,
       "correction": 0.0,
-      "ci_lower": -0.0003,
+      "ci_lower": -0.0004,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9087,
-      "n": 3580,
-      "correction": 0.0186,
-      "ci_lower": 0.0092,
+      "realised": 0.9076,
+      "n": 3613,
+      "correction": 0.0197,
+      "ci_lower": 0.0102,
       "status": "MEASURED"
     }
   },
   "corners_for|OVER": {
     "0.0-0.1": {
-      "realised": 0.0951,
-      "n": 1482,
+      "realised": 0.0965,
+      "n": 1502,
       "correction": 0.0,
-      "ci_lower": -0.0365,
+      "ci_lower": -0.0378,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1393,
-      "n": 2800,
+      "realised": 0.1395,
+      "n": 2825,
       "correction": 0.0,
       "ci_lower": -0.0038,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2108,
-      "n": 2253,
-      "correction": 0.0377,
-      "ci_lower": 0.0209,
+      "realised": 0.2115,
+      "n": 2279,
+      "correction": 0.0371,
+      "ci_lower": 0.0203,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.2867,
-      "n": 1950,
-      "correction": 0.0636,
-      "ci_lower": 0.0436,
+      "realised": 0.2871,
+      "n": 1968,
+      "correction": 0.0631,
+      "ci_lower": 0.0432,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.3601,
-      "n": 1680,
-      "correction": 0.0885,
-      "ci_lower": 0.0656,
+      "realised": 0.3596,
+      "n": 1702,
+      "correction": 0.0891,
+      "ci_lower": 0.0663,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4655,
-      "n": 1886,
-      "correction": 0.0827,
-      "ci_lower": 0.0602,
+      "realised": 0.4644,
+      "n": 1908,
+      "correction": 0.0838,
+      "ci_lower": 0.0614,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.5683,
-      "n": 1823,
-      "correction": 0.0885,
-      "ci_lower": 0.0658,
+      "realised": 0.569,
+      "n": 1847,
+      "correction": 0.0878,
+      "ci_lower": 0.0652,
       "status": "MEASURED"
     },
     "0.7-0.8": {
       "realised": 0.6811,
-      "n": 1894,
+      "n": 1916,
       "correction": 0.0643,
-      "ci_lower": 0.0433,
+      "ci_lower": 0.0435,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8233,
-      "n": 2887,
-      "correction": 0.0268,
-      "ci_lower": 0.0129,
+      "realised": 0.8238,
+      "n": 2917,
+      "correction": 0.0263,
+      "ci_lower": 0.0125,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9113,
-      "n": 2098,
-      "correction": 0.0165,
-      "ci_lower": 0.0044,
+      "realised": 0.9105,
+      "n": 2111,
+      "correction": 0.0174,
+      "ci_lower": 0.0052,
       "status": "MEASURED"
     }
   },
   "corners_for|UNDER": {
     "0.0-0.1": {
-      "realised": 0.0887,
-      "n": 2098,
+      "realised": 0.0895,
+      "n": 2111,
       "correction": 0.0,
-      "ci_lower": -0.0287,
+      "ci_lower": -0.0296,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1767,
-      "n": 2887,
+      "realised": 0.1762,
+      "n": 2917,
       "correction": 0.0,
-      "ci_lower": -0.0406,
+      "ci_lower": -0.0401,
       "status": "MEASURED"
     },
     "0.2-0.3": {
       "realised": 0.3189,
-      "n": 1894,
+      "n": 1916,
       "correction": 0.0,
-      "ci_lower": -0.0852,
+      "ci_lower": -0.0851,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.4317,
-      "n": 1823,
+      "realised": 0.431,
+      "n": 1847,
       "correction": 0.0,
-      "ci_lower": -0.1112,
+      "ci_lower": -0.1103,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.5345,
-      "n": 1886,
+      "realised": 0.5356,
+      "n": 1908,
       "correction": 0.0,
-      "ci_lower": -0.1052,
+      "ci_lower": -0.1062,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.6399,
-      "n": 1680,
+      "realised": 0.6404,
+      "n": 1702,
       "correction": 0.0,
-      "ci_lower": -0.1114,
+      "ci_lower": -0.1118,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.7133,
-      "n": 1950,
+      "realised": 0.7129,
+      "n": 1968,
       "correction": 0.0,
-      "ci_lower": -0.0836,
+      "ci_lower": -0.0831,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7892,
-      "n": 2253,
+      "realised": 0.7885,
+      "n": 2279,
       "correction": 0.0,
-      "ci_lower": -0.0545,
+      "ci_lower": -0.0538,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8607,
-      "n": 2800,
+      "realised": 0.8605,
+      "n": 2825,
       "correction": 0.0,
-      "ci_lower": -0.0219,
+      "ci_lower": -0.0217,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9049,
-      "n": 1482,
-      "correction": 0.0215,
-      "ci_lower": 0.0066,
+      "realised": 0.9035,
+      "n": 1502,
+      "correction": 0.0229,
+      "ci_lower": 0.0079,
       "status": "MEASURED"
     }
   },
   "corners_total": {
     "0.0-0.1": {
-      "realised": 0.0996,
-      "n": 894,
+      "realised": 0.0965,
+      "n": 933,
       "correction": 0.0,
-      "ci_lower": -0.0372,
+      "ci_lower": -0.0338,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1392,
-      "n": 5911,
-      "correction": 0.0111,
-      "ci_lower": 0.0023,
+      "realised": 0.1399,
+      "n": 5977,
+      "correction": 0.0104,
+      "ci_lower": 0.0017,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2256,
-      "n": 4844,
-      "correction": 0.0237,
-      "ci_lower": 0.0119,
+      "realised": 0.2264,
+      "n": 4907,
+      "correction": 0.023,
+      "ci_lower": 0.0113,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3407,
-      "n": 4253,
+      "realised": 0.3414,
+      "n": 4309,
       "correction": 0.0,
-      "ci_lower": -0.0054,
+      "ci_lower": -0.0059,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4442,
-      "n": 3919,
+      "realised": 0.4443,
+      "n": 3977,
       "correction": 0.0,
       "ci_lower": -0.0096,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5558,
-      "n": 3919,
+      "realised": 0.5557,
+      "n": 3977,
       "correction": 0.0,
-      "ci_lower": -0.0214,
+      "ci_lower": -0.0212,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6593,
-      "n": 4253,
+      "realised": 0.6585,
+      "n": 4310,
       "correction": 0.0,
-      "ci_lower": -0.023,
+      "ci_lower": -0.0221,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7744,
-      "n": 4844,
+      "realised": 0.7736,
+      "n": 4907,
       "correction": 0.0,
-      "ci_lower": -0.0354,
+      "ci_lower": -0.0346,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8608,
-      "n": 5911,
+      "realised": 0.8601,
+      "n": 5977,
       "correction": 0.0,
-      "ci_lower": -0.0199,
+      "ci_lower": -0.0192,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9004,
-      "n": 894,
+      "realised": 0.9035,
+      "n": 933,
       "correction": 0.0,
-      "ci_lower": -0.0021,
+      "ci_lower": -0.0042,
       "status": "MEASURED"
     }
   },
   "corners_total|OVER": {
     "0.1-0.2": {
-      "realised": 0.1421,
-      "n": 2675,
+      "realised": 0.1426,
+      "n": 2706,
       "correction": 0.0,
-      "ci_lower": -0.0039,
+      "ci_lower": -0.0045,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2062,
-      "n": 2449,
-      "correction": 0.0426,
-      "ci_lower": 0.0266,
+      "realised": 0.206,
+      "n": 2481,
+      "correction": 0.0429,
+      "ci_lower": 0.027,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.313,
-      "n": 2147,
-      "correction": 0.0364,
-      "ci_lower": 0.0169,
+      "realised": 0.3116,
+      "n": 2176,
+      "correction": 0.0379,
+      "ci_lower": 0.0185,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4008,
-      "n": 1951,
-      "correction": 0.0493,
-      "ci_lower": 0.0276,
+      "realised": 0.3996,
+      "n": 1977,
+      "correction": 0.0504,
+      "ci_lower": 0.0289,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5127,
-      "n": 1968,
-      "correction": 0.0371,
-      "ci_lower": 0.0151,
+      "realised": 0.5115,
+      "n": 2000,
+      "correction": 0.0383,
+      "ci_lower": 0.0165,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6311,
-      "n": 2106,
-      "correction": 0.0,
-      "ci_lower": -0.0012,
+      "realised": 0.6282,
+      "n": 2133,
+      "correction": 0.0222,
+      "ci_lower": 0.0018,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7545,
-      "n": 2395,
+      "realised": 0.7527,
+      "n": 2426,
       "correction": 0.0,
-      "ci_lower": -0.0214,
+      "ci_lower": -0.0196,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8631,
-      "n": 3236,
+      "realised": 0.8624,
+      "n": 3271,
       "correction": 0.0,
-      "ci_lower": -0.0244,
+      "ci_lower": -0.0237,
       "status": "MEASURED"
     }
   },
   "corners_total|UNDER": {
     "0.1-0.2": {
-      "realised": 0.1369,
-      "n": 3236,
-      "correction": 0.0126,
-      "ci_lower": 0.0007,
+      "realised": 0.1376,
+      "n": 3271,
+      "correction": 0.0119,
+      "ci_lower": 0.0001,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2455,
-      "n": 2395,
+      "realised": 0.2473,
+      "n": 2426,
       "correction": 0.0,
-      "ci_lower": -0.0129,
+      "ci_lower": -0.0146,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3689,
-      "n": 2106,
+      "realised": 0.3718,
+      "n": 2133,
       "correction": 0.0,
-      "ci_lower": -0.0399,
+      "ci_lower": -0.0426,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4873,
-      "n": 1968,
+      "realised": 0.4885,
+      "n": 2000,
       "correction": 0.0,
-      "ci_lower": -0.0591,
+      "ci_lower": -0.0601,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5992,
-      "n": 1951,
+      "realised": 0.6004,
+      "n": 1977,
       "correction": 0.0,
-      "ci_lower": -0.0709,
+      "ci_lower": -0.0719,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.687,
-      "n": 2147,
+      "realised": 0.6881,
+      "n": 2177,
       "correction": 0.0,
-      "ci_lower": -0.056,
+      "ci_lower": -0.057,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7938,
-      "n": 2449,
+      "realised": 0.794,
+      "n": 2481,
       "correction": 0.0,
-      "ci_lower": -0.0586,
+      "ci_lower": -0.0588,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8579,
-      "n": 2675,
+      "realised": 0.8574,
+      "n": 2706,
       "correction": 0.0,
-      "ci_lower": -0.0225,
+      "ci_lower": -0.0218,
       "status": "MEASURED"
     }
   },
@@ -915,17 +915,17 @@
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.253,
-      "n": 838,
+      "realised": 0.2539,
+      "n": 839,
       "correction": 0.0,
-      "ci_lower": -0.0354,
+      "ci_lower": -0.0362,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3753,
-      "n": 762,
+      "realised": 0.377,
+      "n": 764,
       "correction": 0.0,
-      "ci_lower": -0.061,
+      "ci_lower": -0.0626,
       "status": "MEASURED"
     },
     "0.4-0.5": {
@@ -943,17 +943,17 @@
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6247,
-      "n": 762,
+      "realised": 0.623,
+      "n": 764,
       "correction": 0.0,
-      "ci_lower": -0.0077,
+      "ci_lower": -0.0061,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.747,
-      "n": 838,
+      "realised": 0.7461,
+      "n": 839,
       "correction": 0.0,
-      "ci_lower": -0.0233,
+      "ci_lower": -0.0225,
       "status": "MEASURED"
     },
     "0.8-0.9": {
@@ -1019,17 +1019,17 @@
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2602,
-      "n": 1303,
+      "realised": 0.26,
+      "n": 1304,
       "correction": 0.0,
-      "ci_lower": -0.0346,
+      "ci_lower": -0.0344,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3439,
-      "n": 1204,
+      "realised": 0.3436,
+      "n": 1205,
       "correction": 0.0,
-      "ci_lower": -0.0217,
+      "ci_lower": -0.0213,
       "status": "MEASURED"
     },
     "0.4-0.5": {
@@ -1047,17 +1047,17 @@
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6561,
-      "n": 1204,
+      "realised": 0.6564,
+      "n": 1205,
       "correction": 0.0,
-      "ci_lower": -0.0318,
+      "ci_lower": -0.0321,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7398,
-      "n": 1303,
+      "realised": 0.74,
+      "n": 1304,
       "correction": 0.0,
-      "ci_lower": -0.0128,
+      "ci_lower": -0.013,
       "status": "MEASURED"
     },
     "0.8-0.9": {
@@ -1091,10 +1091,10 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.2657,
-      "n": 591,
-      "correction": 0.0837,
-      "ci_lower": 0.048,
+      "realised": 0.2652,
+      "n": 592,
+      "correction": 0.0842,
+      "ci_lower": 0.0486,
       "status": "MEASURED"
     },
     "0.4-0.5": {
@@ -1119,10 +1119,10 @@
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.6938,
-      "n": 676,
-      "correction": 0.059,
-      "ci_lower": 0.0245,
+      "realised": 0.6942,
+      "n": 677,
+      "correction": 0.0585,
+      "ci_lower": 0.024,
       "status": "MEASURED"
     },
     "0.8-0.9": {
@@ -1142,10 +1142,10 @@
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.3062,
-      "n": 676,
+      "realised": 0.3058,
+      "n": 677,
       "correction": 0.0,
-      "ci_lower": -0.0936,
+      "ci_lower": -0.093,
       "status": "MEASURED"
     },
     "0.3-0.4": {
@@ -1170,10 +1170,10 @@
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.7343,
-      "n": 591,
+      "realised": 0.7348,
+      "n": 592,
       "correction": 0.0,
-      "ci_lower": -0.1193,
+      "ci_lower": -0.1198,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -1214,29 +1214,29 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3452,
-      "n": 4708,
+      "realised": 0.3451,
+      "n": 4711,
       "correction": 0.0,
       "ci_lower": -0.0097,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4433,
-      "n": 4358,
+      "realised": 0.4438,
+      "n": 4365,
       "correction": 0.0,
-      "ci_lower": -0.0082,
+      "ci_lower": -0.0086,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5567,
-      "n": 4358,
+      "realised": 0.5562,
+      "n": 4365,
       "correction": 0.0,
-      "ci_lower": -0.0213,
+      "ci_lower": -0.0209,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6548,
-      "n": 4708,
+      "realised": 0.6549,
+      "n": 4711,
       "correction": 0.0,
       "ci_lower": -0.0174,
       "status": "MEASURED"
@@ -1286,22 +1286,22 @@
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4299,
-      "n": 2184,
+      "realised": 0.4303,
+      "n": 2187,
       "correction": 0.0,
-      "ci_lower": -0.0009,
+      "ci_lower": -0.0012,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5432,
-      "n": 2174,
+      "realised": 0.5427,
+      "n": 2178,
       "correction": 0.0,
-      "ci_lower": -0.0141,
+      "ci_lower": -0.0136,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6387,
-      "n": 2339,
+      "realised": 0.6388,
+      "n": 2342,
       "correction": 0.0,
       "ci_lower": -0.0076,
       "status": "MEASURED"
@@ -1337,24 +1337,24 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3613,
-      "n": 2339,
+      "realised": 0.3612,
+      "n": 2342,
       "correction": 0.0,
       "ci_lower": -0.0312,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4568,
-      "n": 2174,
+      "realised": 0.4573,
+      "n": 2178,
       "correction": 0.0,
-      "ci_lower": -0.0277,
+      "ci_lower": -0.0282,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5701,
-      "n": 2184,
+      "realised": 0.5697,
+      "n": 2187,
       "correction": 0.0,
-      "ci_lower": -0.0406,
+      "ci_lower": -0.0403,
       "status": "MEASURED"
     },
     "0.6-0.7": {
@@ -1388,43 +1388,43 @@
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.259,
-      "n": 5850,
+      "realised": 0.2589,
+      "n": 5851,
       "correction": 0.0,
-      "ci_lower": -0.0154,
+      "ci_lower": -0.0153,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3339,
-      "n": 6001,
+      "realised": 0.334,
+      "n": 6006,
       "correction": 0.0145,
       "ci_lower": 0.0026,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4496,
-      "n": 5265,
+      "realised": 0.4497,
+      "n": 5272,
       "correction": 0.0,
-      "ci_lower": -0.0137,
+      "ci_lower": -0.0139,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5504,
-      "n": 5265,
+      "realised": 0.5503,
+      "n": 5272,
       "correction": 0.0,
-      "ci_lower": -0.0131,
+      "ci_lower": -0.013,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6661,
-      "n": 6001,
+      "realised": 0.666,
+      "n": 6006,
       "correction": 0.0,
       "ci_lower": -0.0264,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.741,
-      "n": 5850,
+      "realised": 0.7411,
+      "n": 5851,
       "correction": 0.0,
       "ci_lower": -0.0071,
       "status": "MEASURED"
@@ -1446,75 +1446,75 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3285,
-      "n": 2947,
-      "correction": 0.02,
-      "ci_lower": 0.003,
+      "realised": 0.3282,
+      "n": 2949,
+      "correction": 0.0202,
+      "ci_lower": 0.0033,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.435,
-      "n": 2625,
+      "realised": 0.4349,
+      "n": 2628,
       "correction": 0.0,
-      "ci_lower": -0.0045,
+      "ci_lower": -0.0043,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.536,
-      "n": 2640,
+      "realised": 0.5356,
+      "n": 2644,
       "correction": 0.0,
-      "ci_lower": -0.004,
+      "ci_lower": -0.0036,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6608,
-      "n": 3054,
+      "realised": 0.6605,
+      "n": 3057,
       "correction": 0.0,
-      "ci_lower": -0.026,
+      "ci_lower": -0.0257,
       "status": "MEASURED"
     },
     "0.7-0.8": {
       "realised": 0.7439,
-      "n": 3049,
+      "n": 3050,
       "correction": 0.0,
-      "ci_lower": -0.0136,
+      "ci_lower": -0.0137,
       "status": "MEASURED"
     }
   },
   "fouls_total|UNDER": {
     "0.2-0.3": {
       "realised": 0.2561,
-      "n": 3049,
+      "n": 3050,
       "correction": 0.0,
-      "ci_lower": -0.0174,
+      "ci_lower": -0.0173,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3392,
-      "n": 3054,
+      "realised": 0.3395,
+      "n": 3057,
       "correction": 0.0,
-      "ci_lower": -0.0075,
+      "ci_lower": -0.0078,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.464,
-      "n": 2640,
+      "realised": 0.4644,
+      "n": 2644,
       "correction": 0.0,
-      "ci_lower": -0.034,
+      "ci_lower": -0.0344,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.565,
-      "n": 2625,
+      "realised": 0.5651,
+      "n": 2628,
       "correction": 0.0,
-      "ci_lower": -0.0334,
+      "ci_lower": -0.0335,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6715,
-      "n": 2947,
+      "realised": 0.6718,
+      "n": 2949,
       "correction": 0.0,
-      "ci_lower": -0.0369,
+      "ci_lower": -0.0371,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -1526,227 +1526,220 @@
     }
   },
   "games_total": {
-    "0.1-0.2": {
-      "realised": 0.1585,
-      "n": 82,
-      "correction": 0.0,
-      "ci_lower": -0.0545,
-      "status": "MEASURED"
-    },
     "0.2-0.3": {
-      "realised": 0.2914,
-      "n": 1057,
+      "realised": 0.2919,
+      "n": 1079,
       "correction": 0.0,
-      "ci_lower": -0.0596,
+      "ci_lower": -0.06,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3791,
-      "n": 1406,
+      "realised": 0.3768,
+      "n": 1428,
       "correction": 0.0,
-      "ci_lower": -0.0561,
+      "ci_lower": -0.0534,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4678,
-      "n": 1306,
+      "realised": 0.4669,
+      "n": 1330,
       "correction": 0.0,
-      "ci_lower": -0.0454,
+      "ci_lower": -0.0442,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5322,
-      "n": 1306,
+      "realised": 0.5331,
+      "n": 1330,
       "correction": 0.0,
-      "ci_lower": -0.0086,
+      "ci_lower": -0.0093,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6209,
-      "n": 1406,
-      "correction": 0.0307,
-      "ci_lower": 0.0054,
+      "realised": 0.6232,
+      "n": 1428,
+      "correction": 0.0283,
+      "ci_lower": 0.0032,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7086,
-      "n": 1057,
-      "correction": 0.0322,
-      "ci_lower": 0.0048,
-      "status": "MEASURED"
-    },
-    "0.8-0.9": {
-      "realised": 0.8415,
-      "n": 82,
-      "correction": 0.0,
-      "ci_lower": -0.1068,
+      "realised": 0.7081,
+      "n": 1079,
+      "correction": 0.0329,
+      "ci_lower": 0.0058,
       "status": "MEASURED"
     }
   },
   "games_total|OVER": {
     "0.2-0.3": {
-      "realised": 0.2486,
-      "n": 535,
+      "realised": 0.2505,
+      "n": 543,
       "correction": 0.0,
-      "ci_lower": -0.0271,
+      "ci_lower": -0.0288,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.2676,
-      "n": 695,
-      "correction": 0.0811,
-      "ci_lower": 0.0481,
+      "realised": 0.267,
+      "n": 704,
+      "correction": 0.0818,
+      "ci_lower": 0.0491,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.3364,
-      "n": 651,
-      "correction": 0.1131,
-      "ci_lower": 0.0768,
+      "realised": 0.3348,
+      "n": 663,
+      "correction": 0.1147,
+      "ci_lower": 0.0788,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4015,
-      "n": 655,
-      "correction": 0.149,
-      "ci_lower": 0.1115,
+      "realised": 0.4018,
+      "n": 667,
+      "correction": 0.1488,
+      "ci_lower": 0.1116,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.512,
-      "n": 711,
-      "correction": 0.14,
-      "ci_lower": 0.1034,
+      "realised": 0.5166,
+      "n": 724,
+      "correction": 0.1354,
+      "ci_lower": 0.0991,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.6648,
-      "n": 522,
-      "correction": 0.0751,
-      "ci_lower": 0.0347,
+      "realised": 0.666,
+      "n": 536,
+      "correction": 0.0741,
+      "ci_lower": 0.0343,
       "status": "MEASURED"
     }
   },
   "games_total|UNDER": {
     "0.2-0.3": {
-      "realised": 0.3352,
-      "n": 522,
-      "correction": 0.0,
-      "ci_lower": -0.1155,
-      "status": "MEASURED"
-    },
-    "0.3-0.4": {
-      "realised": 0.488,
-      "n": 711,
-      "correction": 0.0,
-      "ci_lower": -0.1767,
-      "status": "MEASURED"
-    },
-    "0.4-0.5": {
-      "realised": 0.5985,
-      "n": 655,
-      "correction": 0.0,
-      "ci_lower": -0.1865,
-      "status": "MEASURED"
-    },
-    "0.5-0.6": {
-      "realised": 0.6636,
-      "n": 651,
-      "correction": 0.0,
-      "ci_lower": -0.1493,
-      "status": "MEASURED"
-    },
-    "0.6-0.7": {
-      "realised": 0.7324,
-      "n": 695,
+      "realised": 0.334,
+      "n": 536,
       "correction": 0.0,
       "ci_lower": -0.114,
       "status": "MEASURED"
     },
-    "0.7-0.8": {
-      "realised": 0.7514,
-      "n": 535,
+    "0.3-0.4": {
+      "realised": 0.4834,
+      "n": 724,
       "correction": 0.0,
-      "ci_lower": -0.0465,
+      "ci_lower": -0.1717,
+      "status": "MEASURED"
+    },
+    "0.4-0.5": {
+      "realised": 0.5982,
+      "n": 667,
+      "correction": 0.0,
+      "ci_lower": -0.1859,
+      "status": "MEASURED"
+    },
+    "0.5-0.6": {
+      "realised": 0.6652,
+      "n": 663,
+      "correction": 0.0,
+      "ci_lower": -0.1506,
+      "status": "MEASURED"
+    },
+    "0.6-0.7": {
+      "realised": 0.733,
+      "n": 704,
+      "correction": 0.0,
+      "ci_lower": -0.1144,
+      "status": "MEASURED"
+    },
+    "0.7-0.8": {
+      "realised": 0.7495,
+      "n": 543,
+      "correction": 0.0,
+      "ci_lower": -0.0444,
       "status": "MEASURED"
     }
   },
   "games_won_for": {
     "0.1-0.2": {
-      "realised": 0.1684,
-      "n": 843,
+      "realised": 0.1735,
+      "n": 859,
       "correction": 0.0,
-      "ci_lower": -0.0327,
+      "ci_lower": -0.0389,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2397,
-      "n": 1185,
+      "realised": 0.239,
+      "n": 1209,
       "correction": 0.0,
-      "ci_lower": -0.0147,
+      "ci_lower": -0.0145,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3199,
-      "n": 994,
-      "correction": 0.0295,
-      "ci_lower": 0.0006,
+      "realised": 0.322,
+      "n": 1003,
+      "correction": 0.0,
+      "ci_lower": -0.0019,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4498,
-      "n": 967,
+      "realised": 0.4517,
+      "n": 983,
       "correction": 0.0,
-      "ci_lower": -0.0316,
+      "ci_lower": -0.0339,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5502,
-      "n": 967,
+      "realised": 0.5482,
+      "n": 976,
       "correction": 0.0,
-      "ci_lower": -0.0308,
+      "ci_lower": -0.0289,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6801,
-      "n": 994,
+      "realised": 0.6769,
+      "n": 1009,
       "correction": 0.0,
-      "ci_lower": -0.0585,
+      "ci_lower": -0.0558,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7603,
-      "n": 1185,
+      "realised": 0.7594,
+      "n": 1201,
       "correction": 0.0,
-      "ci_lower": -0.0338,
+      "ci_lower": -0.033,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8316,
-      "n": 843,
+      "realised": 0.8285,
+      "n": 863,
       "correction": 0.0,
-      "ci_lower": -0.0179,
+      "ci_lower": -0.0151,
       "status": "MEASURED"
     }
   },
   "games_won_for|OVER": {
     "0.2-0.3": {
-      "realised": 0.2203,
-      "n": 590,
+      "realised": 0.2198,
+      "n": 596,
       "correction": 0.0,
-      "ci_lower": -0.0041,
+      "ci_lower": -0.0038,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3214,
-      "n": 504,
+      "realised": 0.3262,
+      "n": 512,
       "correction": 0.0,
-      "ci_lower": -0.0129,
+      "ci_lower": -0.0182,
+      "status": "MEASURED"
+    },
+    "0.4-0.5": {
+      "realised": 0.504,
+      "n": 502,
+      "correction": 0.0,
+      "ci_lower": -0.0982,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7412,
-      "n": 595,
+      "realised": 0.7413,
+      "n": 603,
       "correction": 0.0,
       "ci_lower": -0.0252,
       "status": "MEASURED"
@@ -1754,95 +1747,95 @@
   },
   "games_won_for|UNDER": {
     "0.2-0.3": {
-      "realised": 0.2588,
-      "n": 595,
+      "realised": 0.2577,
+      "n": 613,
       "correction": 0.0,
-      "ci_lower": -0.0452,
+      "ci_lower": -0.0444,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6786,
-      "n": 504,
+      "realised": 0.6725,
+      "n": 513,
       "correction": 0.0,
-      "ci_lower": -0.0684,
+      "ci_lower": -0.0628,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7797,
-      "n": 590,
+      "realised": 0.7776,
+      "n": 598,
       "correction": 0.0,
-      "ci_lower": -0.0626,
+      "ci_lower": -0.0608,
       "status": "MEASURED"
     }
   },
   "goals_for": {
     "0.0-0.1": {
       "realised": 0.0823,
-      "n": 52151,
+      "n": 52184,
       "correction": 0.0,
       "ci_lower": -0.0132,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1815,
-      "n": 112229,
+      "realised": 0.1816,
+      "n": 112404,
       "correction": 0.0,
-      "ci_lower": -0.0343,
+      "ci_lower": -0.0345,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2432,
-      "n": 56168,
+      "realised": 0.2433,
+      "n": 56259,
       "correction": 0.0,
       "ci_lower": -0.0012,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3604,
-      "n": 57108,
+      "realised": 0.3605,
+      "n": 57203,
       "correction": 0.0,
-      "ci_lower": -0.0124,
+      "ci_lower": -0.0125,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4614,
-      "n": 59844,
+      "realised": 0.4613,
+      "n": 59969,
       "correction": 0.0,
-      "ci_lower": -0.0163,
+      "ci_lower": -0.0162,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5386,
-      "n": 59844,
-      "correction": 0.0123,
-      "ci_lower": 0.0083,
+      "realised": 0.5387,
+      "n": 59969,
+      "correction": 0.0122,
+      "ci_lower": 0.0082,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6396,
-      "n": 57110,
-      "correction": 0.0085,
-      "ci_lower": 0.0046,
+      "realised": 0.6394,
+      "n": 57205,
+      "correction": 0.0086,
+      "ci_lower": 0.0047,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7568,
-      "n": 56168,
+      "realised": 0.7567,
+      "n": 56259,
       "correction": 0.0,
       "ci_lower": -0.0059,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8185,
-      "n": 112229,
-      "correction": 0.0321,
-      "ci_lower": 0.0298,
+      "realised": 0.8184,
+      "n": 112404,
+      "correction": 0.0322,
+      "ci_lower": 0.03,
       "status": "MEASURED"
     },
     "0.9-1.0": {
       "realised": 0.9177,
-      "n": 52151,
-      "correction": 0.0108,
+      "n": 52184,
+      "correction": 0.0109,
       "ci_lower": 0.0085,
       "status": "MEASURED"
     }
@@ -1850,142 +1843,142 @@
   "goals_for|OVER": {
     "0.0-0.1": {
       "realised": 0.0723,
-      "n": 47396,
+      "n": 47426,
       "correction": 0.0,
       "ci_lower": -0.0043,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1179,
-      "n": 51283,
-      "correction": 0.0281,
-      "ci_lower": 0.0253,
+      "realised": 0.118,
+      "n": 51371,
+      "correction": 0.028,
+      "ci_lower": 0.0252,
       "status": "MEASURED"
     },
     "0.2-0.3": {
       "realised": 0.1824,
-      "n": 36565,
+      "n": 36622,
       "correction": 0.0658,
       "ci_lower": 0.0619,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.2482,
-      "n": 30263,
-      "correction": 0.1003,
+      "realised": 0.2481,
+      "n": 30315,
+      "correction": 0.1004,
       "ci_lower": 0.0955,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.3288,
-      "n": 28151,
-      "correction": 0.1218,
-      "ci_lower": 0.1163,
+      "realised": 0.3286,
+      "n": 28223,
+      "correction": 0.122,
+      "ci_lower": 0.1166,
       "status": "MEASURED"
     },
     "0.5-0.6": {
       "realised": 0.4207,
-      "n": 31692,
-      "correction": 0.1314,
-      "ci_lower": 0.126,
+      "n": 31745,
+      "correction": 0.1315,
+      "ci_lower": 0.1261,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.513,
-      "n": 26847,
-      "correction": 0.1312,
-      "ci_lower": 0.1252,
+      "realised": 0.5127,
+      "n": 26890,
+      "correction": 0.1315,
+      "ci_lower": 0.1255,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.6433,
-      "n": 19603,
-      "correction": 0.116,
+      "realised": 0.6432,
+      "n": 19637,
+      "correction": 0.1161,
       "ci_lower": 0.1094,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.7651,
-      "n": 60946,
-      "correction": 0.0827,
-      "ci_lower": 0.0794,
+      "realised": 0.7649,
+      "n": 61033,
+      "correction": 0.0829,
+      "ci_lower": 0.0795,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.8185,
-      "n": 4755,
-      "correction": 0.0996,
-      "ci_lower": 0.0887,
+      "realised": 0.8182,
+      "n": 4758,
+      "correction": 0.1,
+      "ci_lower": 0.089,
       "status": "MEASURED"
     }
   },
   "goals_for|UNDER": {
     "0.0-0.1": {
-      "realised": 0.1815,
-      "n": 4755,
+      "realised": 0.1818,
+      "n": 4758,
       "correction": 0.0,
-      "ci_lower": -0.1106,
+      "ci_lower": -0.1109,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.2349,
-      "n": 60946,
+      "realised": 0.2351,
+      "n": 61033,
       "correction": 0.0,
-      "ci_lower": -0.0861,
+      "ci_lower": -0.0862,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.3567,
-      "n": 19603,
+      "realised": 0.3568,
+      "n": 19637,
       "correction": 0.0,
-      "ci_lower": -0.1227,
+      "ci_lower": -0.1228,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.487,
-      "n": 26845,
+      "realised": 0.4873,
+      "n": 26888,
       "correction": 0.0,
-      "ci_lower": -0.1372,
+      "ci_lower": -0.1374,
       "status": "MEASURED"
     },
     "0.4-0.5": {
       "realised": 0.5793,
-      "n": 31693,
+      "n": 31746,
       "correction": 0.0,
       "ci_lower": -0.1369,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.6712,
-      "n": 28152,
+      "realised": 0.6714,
+      "n": 28224,
       "correction": 0.0,
-      "ci_lower": -0.1273,
+      "ci_lower": -0.1275,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.7518,
-      "n": 30263,
+      "realised": 0.7519,
+      "n": 30315,
       "correction": 0.0,
       "ci_lower": -0.1052,
       "status": "MEASURED"
     },
     "0.7-0.8": {
       "realised": 0.8176,
-      "n": 36565,
+      "n": 36622,
       "correction": 0.0,
       "ci_lower": -0.0698,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8821,
-      "n": 51283,
+      "realised": 0.882,
+      "n": 51371,
       "correction": 0.0,
-      "ci_lower": -0.0309,
+      "ci_lower": -0.0308,
       "status": "MEASURED"
     },
     "0.9-1.0": {
       "realised": 0.9277,
-      "n": 47396,
+      "n": 47426,
       "correction": 0.0,
       "ci_lower": -0.0004,
       "status": "MEASURED"
@@ -1993,71 +1986,71 @@
   },
   "goals_total": {
     "0.0-0.1": {
-      "realised": 0.0604,
-      "n": 101087,
-      "correction": 0.0093,
+      "realised": 0.0605,
+      "n": 101161,
+      "correction": 0.0092,
       "ci_lower": 0.0078,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1377,
-      "n": 96527,
-      "correction": 0.0113,
+      "realised": 0.1378,
+      "n": 96628,
+      "correction": 0.0112,
       "ci_lower": 0.0091,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2353,
-      "n": 69930,
-      "correction": 0.0138,
-      "ci_lower": 0.0107,
+      "realised": 0.2354,
+      "n": 70029,
+      "correction": 0.0137,
+      "ci_lower": 0.0106,
       "status": "MEASURED"
     },
     "0.3-0.4": {
       "realised": 0.3406,
-      "n": 64207,
+      "n": 64296,
       "correction": 0.0074,
       "ci_lower": 0.0037,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4449,
-      "n": 58908,
-      "correction": 0.0054,
-      "ci_lower": 0.0014,
+      "realised": 0.4448,
+      "n": 59004,
+      "correction": 0.0055,
+      "ci_lower": 0.0015,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5551,
-      "n": 58907,
+      "realised": 0.5552,
+      "n": 59003,
       "correction": 0.0,
-      "ci_lower": -0.0094,
+      "ci_lower": -0.0096,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6593,
-      "n": 64208,
+      "realised": 0.6594,
+      "n": 64298,
       "correction": 0.0,
       "ci_lower": -0.011,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7647,
-      "n": 69930,
+      "realised": 0.7646,
+      "n": 70028,
       "correction": 0.0,
       "ci_lower": -0.0169,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8623,
-      "n": 96527,
+      "realised": 0.8622,
+      "n": 96629,
       "correction": 0.0,
       "ci_lower": -0.0134,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9396,
-      "n": 101087,
+      "realised": 0.9395,
+      "n": 101161,
       "correction": 0.0,
       "ci_lower": -0.0107,
       "status": "MEASURED"
@@ -2066,142 +2059,142 @@
   "goals_total|OVER": {
     "0.0-0.1": {
       "realised": 0.0669,
-      "n": 48859,
+      "n": 48892,
       "correction": 0.0045,
       "ci_lower": 0.0023,
       "status": "MEASURED"
     },
     "0.1-0.2": {
       "realised": 0.1186,
-      "n": 53591,
-      "correction": 0.0274,
+      "n": 53652,
+      "correction": 0.0273,
       "ci_lower": 0.0246,
       "status": "MEASURED"
     },
     "0.2-0.3": {
       "realised": 0.1909,
-      "n": 38213,
+      "n": 38264,
       "correction": 0.0569,
       "ci_lower": 0.053,
       "status": "MEASURED"
     },
     "0.3-0.4": {
       "realised": 0.2707,
-      "n": 32034,
+      "n": 32082,
       "correction": 0.0785,
       "ci_lower": 0.0737,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.3664,
-      "n": 30657,
-      "correction": 0.0836,
-      "ci_lower": 0.0782,
+      "realised": 0.3662,
+      "n": 30704,
+      "correction": 0.0838,
+      "ci_lower": 0.0784,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4698,
-      "n": 28251,
-      "correction": 0.0794,
-      "ci_lower": 0.0736,
+      "realised": 0.4699,
+      "n": 28300,
+      "correction": 0.0793,
+      "ci_lower": 0.0735,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.5897,
-      "n": 32173,
+      "realised": 0.5898,
+      "n": 32214,
       "correction": 0.0635,
       "ci_lower": 0.0581,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7111,
-      "n": 31717,
-      "correction": 0.0381,
-      "ci_lower": 0.0332,
+      "realised": 0.711,
+      "n": 31764,
+      "correction": 0.0382,
+      "ci_lower": 0.0333,
       "status": "MEASURED"
     },
     "0.8-0.9": {
       "realised": 0.8384,
-      "n": 42936,
+      "n": 42977,
       "correction": 0.0088,
       "ci_lower": 0.0054,
       "status": "MEASURED"
     },
     "0.9-1.0": {
       "realised": 0.9456,
-      "n": 52228,
+      "n": 52269,
       "correction": 0.0,
-      "ci_lower": -0.0157,
+      "ci_lower": -0.0156,
       "status": "MEASURED"
     }
   },
   "goals_total|UNDER": {
     "0.0-0.1": {
       "realised": 0.0544,
-      "n": 52228,
+      "n": 52269,
       "correction": 0.0137,
-      "ci_lower": 0.0118,
+      "ci_lower": 0.0117,
       "status": "MEASURED"
     },
     "0.1-0.2": {
       "realised": 0.1616,
-      "n": 42936,
+      "n": 42976,
       "correction": 0.0,
       "ci_lower": -0.0123,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2889,
-      "n": 31717,
+      "realised": 0.289,
+      "n": 31765,
       "correction": 0.0,
-      "ci_lower": -0.0431,
+      "ci_lower": -0.0432,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.4103,
-      "n": 32173,
+      "realised": 0.4102,
+      "n": 32214,
       "correction": 0.0,
-      "ci_lower": -0.0689,
+      "ci_lower": -0.0688,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.5302,
-      "n": 28251,
+      "realised": 0.5301,
+      "n": 28300,
       "correction": 0.0,
-      "ci_lower": -0.0852,
+      "ci_lower": -0.0851,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.6336,
-      "n": 30656,
+      "realised": 0.6338,
+      "n": 30703,
       "correction": 0.0,
-      "ci_lower": -0.089,
+      "ci_lower": -0.0892,
       "status": "MEASURED"
     },
     "0.6-0.7": {
       "realised": 0.7292,
-      "n": 32035,
+      "n": 32084,
       "correction": 0.0,
       "ci_lower": -0.0834,
       "status": "MEASURED"
     },
     "0.7-0.8": {
       "realised": 0.8091,
-      "n": 38213,
+      "n": 38264,
       "correction": 0.0,
       "ci_lower": -0.0608,
       "status": "MEASURED"
     },
     "0.8-0.9": {
       "realised": 0.8814,
-      "n": 53591,
+      "n": 53652,
       "correction": 0.0,
-      "ci_lower": -0.0301,
+      "ci_lower": -0.03,
       "status": "MEASURED"
     },
     "0.9-1.0": {
       "realised": 0.9331,
-      "n": 48859,
+      "n": 48892,
       "correction": 0.0,
       "ci_lower": -0.0067,
       "status": "MEASURED"
@@ -2230,31 +2223,31 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3624,
-      "n": 2006,
+      "realised": 0.3629,
+      "n": 2009,
       "correction": 0.0,
-      "ci_lower": -0.0312,
+      "ci_lower": -0.0316,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4892,
-      "n": 1441,
+      "realised": 0.4876,
+      "n": 1448,
       "correction": 0.0,
-      "ci_lower": -0.0732,
+      "ci_lower": -0.0715,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5108,
-      "n": 1441,
-      "correction": 0.0474,
-      "ci_lower": 0.0215,
+      "realised": 0.5124,
+      "n": 1448,
+      "correction": 0.0457,
+      "ci_lower": 0.0199,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6376,
-      "n": 2006,
+      "realised": 0.6371,
+      "n": 2009,
       "correction": 0.0,
-      "ci_lower": -0.0107,
+      "ci_lower": -0.0103,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -2309,17 +2302,17 @@
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4346,
-      "n": 971,
-      "correction": 0.1258,
-      "ci_lower": 0.0946,
+      "realised": 0.4365,
+      "n": 976,
+      "correction": 0.124,
+      "ci_lower": 0.0929,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.513,
-      "n": 1041,
-      "correction": 0.1285,
-      "ci_lower": 0.0983,
+      "realised": 0.5125,
+      "n": 1044,
+      "correction": 0.129,
+      "ci_lower": 0.0988,
       "status": "MEASURED"
     },
     "0.8-0.9": {
@@ -2339,17 +2332,17 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.487,
-      "n": 1041,
+      "realised": 0.4875,
+      "n": 1044,
       "correction": 0.0,
-      "ci_lower": -0.1588,
+      "ci_lower": -0.1592,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.5654,
-      "n": 971,
+      "realised": 0.5635,
+      "n": 976,
       "correction": 0.0,
-      "ci_lower": -0.1569,
+      "ci_lower": -0.155,
       "status": "MEASURED"
     },
     "0.6-0.7": {
@@ -2404,31 +2397,31 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3449,
-      "n": 1873,
+      "realised": 0.3445,
+      "n": 1875,
       "correction": 0.0,
-      "ci_lower": -0.0274,
+      "ci_lower": -0.0271,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4487,
-      "n": 1841,
+      "realised": 0.449,
+      "n": 1844,
       "correction": 0.0,
-      "ci_lower": -0.0155,
+      "ci_lower": -0.0158,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5513,
-      "n": 1841,
+      "realised": 0.551,
+      "n": 1844,
       "correction": 0.0,
-      "ci_lower": -0.0299,
+      "ci_lower": -0.0295,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6551,
-      "n": 1873,
+      "realised": 0.6555,
+      "n": 1875,
       "correction": 0.0,
-      "ci_lower": -0.0156,
+      "ci_lower": -0.016,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -2490,17 +2483,17 @@
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4798,
-      "n": 940,
-      "correction": 0.0617,
-      "ci_lower": 0.0299,
+      "realised": 0.4793,
+      "n": 943,
+      "correction": 0.0623,
+      "ci_lower": 0.0304,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.5896,
-      "n": 904,
-      "correction": 0.0771,
-      "ci_lower": 0.0451,
+      "realised": 0.5905,
+      "n": 906,
+      "correction": 0.0763,
+      "ci_lower": 0.0443,
       "status": "MEASURED"
     },
     "0.7-0.8": {
@@ -2548,17 +2541,17 @@
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.4104,
-      "n": 904,
+      "realised": 0.4095,
+      "n": 906,
       "correction": 0.0,
-      "ci_lower": -0.1092,
+      "ci_lower": -0.1083,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.5202,
-      "n": 940,
+      "realised": 0.5207,
+      "n": 943,
       "correction": 0.0,
-      "ci_lower": -0.0936,
+      "ci_lower": -0.0941,
       "status": "MEASURED"
     },
     "0.5-0.6": {
@@ -2598,125 +2591,111 @@
     }
   },
   "shots_for": {
-    "0.0-0.1": {
-      "realised": 0.1697,
-      "n": 165,
-      "correction": 0.0,
-      "ci_lower": -0.1404,
-      "status": "MEASURED"
-    },
     "0.1-0.2": {
-      "realised": 0.2198,
-      "n": 3121,
+      "realised": 0.2199,
+      "n": 3124,
       "correction": 0.0,
-      "ci_lower": -0.0762,
+      "ci_lower": -0.0763,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2575,
-      "n": 5838,
+      "realised": 0.2572,
+      "n": 5855,
       "correction": 0.0,
-      "ci_lower": -0.0178,
+      "ci_lower": -0.0175,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3564,
-      "n": 5446,
+      "realised": 0.3565,
+      "n": 5476,
       "correction": 0.0,
       "ci_lower": -0.0202,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4608,
-      "n": 5074,
+      "realised": 0.4611,
+      "n": 5109,
       "correction": 0.0,
-      "ci_lower": -0.0248,
+      "ci_lower": -0.0251,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5392,
-      "n": 5074,
+      "realised": 0.5389,
+      "n": 5109,
       "correction": 0.0,
-      "ci_lower": -0.0026,
+      "ci_lower": -0.0022,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6436,
-      "n": 5446,
+      "realised": 0.6435,
+      "n": 5476,
       "correction": 0.0,
-      "ci_lower": -0.0053,
+      "ci_lower": -0.0052,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7425,
-      "n": 5838,
+      "realised": 0.7428,
+      "n": 5855,
       "correction": 0.0,
-      "ci_lower": -0.0046,
+      "ci_lower": -0.0048,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.7802,
-      "n": 3121,
-      "correction": 0.0616,
-      "ci_lower": 0.0471,
-      "status": "MEASURED"
-    },
-    "0.9-1.0": {
-      "realised": 0.8303,
-      "n": 165,
-      "correction": 0.083,
-      "ci_lower": 0.0257,
+      "realised": 0.7801,
+      "n": 3124,
+      "correction": 0.0617,
+      "ci_lower": 0.0472,
       "status": "MEASURED"
     }
   },
   "shots_for|OVER": {
     "0.1-0.2": {
-      "realised": 0.1944,
-      "n": 1188,
+      "realised": 0.1948,
+      "n": 1191,
       "correction": 0.0,
-      "ci_lower": -0.058,
+      "ci_lower": -0.0583,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2441,
-      "n": 2466,
+      "realised": 0.2442,
+      "n": 2473,
       "correction": 0.0,
-      "ci_lower": -0.0084,
+      "ci_lower": -0.0085,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3299,
-      "n": 2698,
-      "correction": 0.02,
-      "ci_lower": 0.0022,
+      "realised": 0.3305,
+      "n": 2711,
+      "correction": 0.0193,
+      "ci_lower": 0.0016,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4142,
-      "n": 2540,
-      "correction": 0.0363,
-      "ci_lower": 0.0172,
+      "realised": 0.4154,
+      "n": 2559,
+      "correction": 0.0351,
+      "ci_lower": 0.016,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4925,
-      "n": 2534,
-      "correction": 0.0586,
-      "ci_lower": 0.0392,
+      "realised": 0.4929,
+      "n": 2550,
+      "correction": 0.0582,
+      "ci_lower": 0.0388,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6175,
-      "n": 2748,
-      "correction": 0.0344,
-      "ci_lower": 0.0162,
+      "realised": 0.6181,
+      "n": 2765,
+      "correction": 0.0338,
+      "ci_lower": 0.0157,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7328,
-      "n": 3372,
-      "correction": 0.0176,
-      "ci_lower": 0.0027,
+      "realised": 0.7333,
+      "n": 3382,
+      "correction": 0.0172,
+      "ci_lower": 0.0023,
       "status": "MEASURED"
     },
     "0.8-0.9": {
@@ -2736,700 +2715,700 @@
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2672,
-      "n": 3372,
+      "realised": 0.2667,
+      "n": 3382,
       "correction": 0.0,
-      "ci_lower": -0.0325,
+      "ci_lower": -0.032,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3825,
-      "n": 2748,
+      "realised": 0.3819,
+      "n": 2765,
       "correction": 0.0,
-      "ci_lower": -0.0525,
+      "ci_lower": -0.0519,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.5075,
-      "n": 2534,
+      "realised": 0.5071,
+      "n": 2550,
       "correction": 0.0,
-      "ci_lower": -0.0781,
+      "ci_lower": -0.0776,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5858,
-      "n": 2540,
+      "realised": 0.5846,
+      "n": 2559,
       "correction": 0.0,
-      "ci_lower": -0.0554,
+      "ci_lower": -0.0541,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6701,
-      "n": 2698,
+      "realised": 0.6695,
+      "n": 2711,
       "correction": 0.0,
-      "ci_lower": -0.0377,
+      "ci_lower": -0.037,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7559,
-      "n": 2466,
+      "realised": 0.7558,
+      "n": 2473,
       "correction": 0.0,
-      "ci_lower": -0.0255,
+      "ci_lower": -0.0254,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8056,
-      "n": 1188,
-      "correction": 0.0355,
-      "ci_lower": 0.013,
+      "realised": 0.8052,
+      "n": 1191,
+      "correction": 0.0359,
+      "ci_lower": 0.0134,
       "status": "MEASURED"
     }
   },
   "shots_on_target_for": {
     "0.0-0.1": {
-      "realised": 0.0764,
-      "n": 3702,
+      "realised": 0.0763,
+      "n": 3710,
       "correction": 0.0,
-      "ci_lower": -0.0117,
+      "ci_lower": -0.0115,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1548,
-      "n": 4659,
+      "realised": 0.1549,
+      "n": 4680,
       "correction": 0.0,
-      "ci_lower": -0.0146,
+      "ci_lower": -0.0148,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2486,
-      "n": 3118,
+      "realised": 0.2482,
+      "n": 3139,
       "correction": 0.0,
-      "ci_lower": -0.0158,
+      "ci_lower": -0.0153,
       "status": "MEASURED"
     },
     "0.3-0.4": {
       "realised": 0.3494,
-      "n": 3286,
+      "n": 3303,
       "correction": 0.0,
-      "ci_lower": -0.0207,
+      "ci_lower": -0.0206,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4509,
-      "n": 2768,
+      "realised": 0.4507,
+      "n": 2787,
       "correction": 0.0,
-      "ci_lower": -0.0146,
+      "ci_lower": -0.0144,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5491,
-      "n": 2768,
+      "realised": 0.5493,
+      "n": 2787,
       "correction": 0.0,
-      "ci_lower": -0.0224,
+      "ci_lower": -0.0225,
       "status": "MEASURED"
     },
     "0.6-0.7": {
       "realised": 0.6506,
-      "n": 3286,
+      "n": 3303,
       "correction": 0.0,
       "ci_lower": -0.0119,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7514,
-      "n": 3118,
+      "realised": 0.7518,
+      "n": 3139,
       "correction": 0.0,
-      "ci_lower": -0.0145,
+      "ci_lower": -0.0149,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8452,
-      "n": 4659,
+      "realised": 0.8451,
+      "n": 4680,
       "correction": 0.0,
-      "ci_lower": -0.0061,
+      "ci_lower": -0.0059,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9236,
-      "n": 3702,
+      "realised": 0.9237,
+      "n": 3710,
       "correction": 0.0,
-      "ci_lower": -0.0054,
+      "ci_lower": -0.0056,
       "status": "MEASURED"
     }
   },
   "shots_on_target_for|OVER": {
     "0.0-0.1": {
-      "realised": 0.0894,
-      "n": 1610,
+      "realised": 0.0893,
+      "n": 1612,
       "correction": 0.0,
-      "ci_lower": -0.0299,
+      "ci_lower": -0.0298,
       "status": "MEASURED"
     },
     "0.1-0.2": {
       "realised": 0.1386,
-      "n": 2381,
+      "n": 2389,
       "correction": 0.0,
-      "ci_lower": -0.0055,
+      "ci_lower": -0.0054,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2203,
-      "n": 1784,
-      "correction": 0.0285,
-      "ci_lower": 0.0093,
+      "realised": 0.2201,
+      "n": 1795,
+      "correction": 0.0288,
+      "ci_lower": 0.0096,
       "status": "MEASURED"
     },
     "0.3-0.4": {
       "realised": 0.2989,
-      "n": 1559,
-      "correction": 0.05,
-      "ci_lower": 0.0273,
+      "n": 1569,
+      "correction": 0.0501,
+      "ci_lower": 0.0275,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.3928,
-      "n": 1367,
-      "correction": 0.0594,
-      "ci_lower": 0.0336,
+      "realised": 0.393,
+      "n": 1374,
+      "correction": 0.0591,
+      "ci_lower": 0.0333,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.4925,
-      "n": 1401,
-      "correction": 0.0502,
-      "ci_lower": 0.0241,
+      "realised": 0.4933,
+      "n": 1413,
+      "correction": 0.0495,
+      "ci_lower": 0.0234,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6051,
-      "n": 1727,
-      "correction": 0.0536,
-      "ci_lower": 0.0306,
+      "realised": 0.605,
+      "n": 1734,
+      "correction": 0.0537,
+      "ci_lower": 0.0308,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7136,
-      "n": 1334,
-      "correction": 0.0396,
-      "ci_lower": 0.0155,
+      "realised": 0.7143,
+      "n": 1344,
+      "correction": 0.0389,
+      "ci_lower": 0.0148,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8284,
-      "n": 2278,
-      "correction": 0.0176,
-      "ci_lower": 0.0022,
+      "realised": 0.828,
+      "n": 2291,
+      "correction": 0.0179,
+      "ci_lower": 0.0025,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9336,
-      "n": 2092,
+      "realised": 0.9337,
+      "n": 2098,
       "correction": 0.0,
-      "ci_lower": -0.0174,
+      "ci_lower": -0.0175,
       "status": "MEASURED"
     }
   },
   "shots_on_target_for|UNDER": {
     "0.0-0.1": {
-      "realised": 0.0664,
-      "n": 2092,
+      "realised": 0.0663,
+      "n": 2098,
       "correction": 0.0,
-      "ci_lower": -0.004,
+      "ci_lower": -0.0037,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1716,
-      "n": 2278,
+      "realised": 0.172,
+      "n": 2291,
       "correction": 0.0,
-      "ci_lower": -0.0329,
+      "ci_lower": -0.0332,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2864,
-      "n": 1334,
+      "realised": 0.2857,
+      "n": 1344,
       "correction": 0.0,
-      "ci_lower": -0.0638,
+      "ci_lower": -0.0629,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3949,
-      "n": 1727,
+      "realised": 0.395,
+      "n": 1734,
       "correction": 0.0,
-      "ci_lower": -0.0766,
+      "ci_lower": -0.0767,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.5075,
-      "n": 1401,
+      "realised": 0.5067,
+      "n": 1413,
       "correction": 0.0,
-      "ci_lower": -0.0764,
+      "ci_lower": -0.0755,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.6072,
-      "n": 1367,
+      "realised": 0.607,
+      "n": 1374,
       "correction": 0.0,
-      "ci_lower": -0.0852,
+      "ci_lower": -0.0848,
       "status": "MEASURED"
     },
     "0.6-0.7": {
       "realised": 0.7011,
-      "n": 1559,
+      "n": 1569,
       "correction": 0.0,
       "ci_lower": -0.0728,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7797,
-      "n": 1784,
+      "realised": 0.7799,
+      "n": 1795,
       "correction": 0.0,
-      "ci_lower": -0.0477,
+      "ci_lower": -0.0479,
       "status": "MEASURED"
     },
     "0.8-0.9": {
       "realised": 0.8614,
-      "n": 2381,
+      "n": 2389,
       "correction": 0.0,
-      "ci_lower": -0.0223,
+      "ci_lower": -0.0224,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9106,
-      "n": 1610,
-      "correction": 0.016,
-      "ci_lower": 0.002,
+      "realised": 0.9107,
+      "n": 1612,
+      "correction": 0.0159,
+      "ci_lower": 0.0019,
       "status": "MEASURED"
     }
   },
   "shots_on_target_total": {
     "0.0-0.1": {
-      "realised": 0.091,
-      "n": 1791,
-      "correction": 0.0,
-      "ci_lower": -0.0229,
-      "status": "MEASURED"
-    },
-    "0.1-0.2": {
-      "realised": 0.1293,
-      "n": 5075,
-      "correction": 0.019,
-      "ci_lower": 0.0097,
-      "status": "MEASURED"
-    },
-    "0.2-0.3": {
-      "realised": 0.2337,
-      "n": 4215,
-      "correction": 0.0,
-      "ci_lower": -0.0004,
-      "status": "MEASURED"
-    },
-    "0.3-0.4": {
-      "realised": 0.3377,
-      "n": 3548,
-      "correction": 0.0,
-      "ci_lower": -0.0049,
-      "status": "MEASURED"
-    },
-    "0.4-0.5": {
-      "realised": 0.444,
-      "n": 3288,
-      "correction": 0.0,
-      "ci_lower": -0.0112,
-      "status": "MEASURED"
-    },
-    "0.5-0.6": {
-      "realised": 0.556,
-      "n": 3288,
+      "realised": 0.0909,
+      "n": 1794,
       "correction": 0.0,
       "ci_lower": -0.0228,
       "status": "MEASURED"
     },
+    "0.1-0.2": {
+      "realised": 0.1292,
+      "n": 5093,
+      "correction": 0.019,
+      "ci_lower": 0.0098,
+      "status": "MEASURED"
+    },
+    "0.2-0.3": {
+      "realised": 0.2336,
+      "n": 4229,
+      "correction": 0.0,
+      "ci_lower": -0.0003,
+      "status": "MEASURED"
+    },
+    "0.3-0.4": {
+      "realised": 0.3374,
+      "n": 3565,
+      "correction": 0.0,
+      "ci_lower": -0.0046,
+      "status": "MEASURED"
+    },
+    "0.4-0.5": {
+      "realised": 0.4438,
+      "n": 3303,
+      "correction": 0.0,
+      "ci_lower": -0.0109,
+      "status": "MEASURED"
+    },
+    "0.5-0.6": {
+      "realised": 0.5562,
+      "n": 3303,
+      "correction": 0.0,
+      "ci_lower": -0.0229,
+      "status": "MEASURED"
+    },
     "0.6-0.7": {
-      "realised": 0.6623,
-      "n": 3548,
+      "realised": 0.6624,
+      "n": 3566,
       "correction": 0.0,
       "ci_lower": -0.0262,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7663,
-      "n": 4215,
+      "realised": 0.7664,
+      "n": 4229,
       "correction": 0.0,
-      "ci_lower": -0.0251,
+      "ci_lower": -0.0252,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8707,
-      "n": 5075,
+      "realised": 0.8708,
+      "n": 5093,
       "correction": 0.0,
-      "ci_lower": -0.0282,
+      "ci_lower": -0.0283,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.909,
-      "n": 1791,
+      "realised": 0.9091,
+      "n": 1794,
       "correction": 0.0,
-      "ci_lower": -0.0037,
+      "ci_lower": -0.0039,
       "status": "MEASURED"
     }
   },
   "shots_on_target_total|OVER": {
     "0.0-0.1": {
-      "realised": 0.1023,
-      "n": 694,
+      "realised": 0.1022,
+      "n": 695,
       "correction": 0.0,
-      "ci_lower": -0.042,
+      "ci_lower": -0.0418,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1414,
-      "n": 2390,
+      "realised": 0.1418,
+      "n": 2398,
       "correction": 0.0,
-      "ci_lower": -0.0061,
+      "ci_lower": -0.0065,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2291,
-      "n": 2091,
-      "correction": 0.0189,
-      "ci_lower": 0.0009,
+      "realised": 0.2288,
+      "n": 2098,
+      "correction": 0.0192,
+      "ci_lower": 0.0012,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3282,
-      "n": 1758,
-      "correction": 0.0,
-      "ci_lower": -0.0005,
+      "realised": 0.3273,
+      "n": 1766,
+      "correction": 0.0223,
+      "ci_lower": 0.0005,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4307,
-      "n": 1667,
+      "realised": 0.4302,
+      "n": 1676,
       "correction": 0.0,
-      "ci_lower": -0.0037,
+      "ci_lower": -0.0031,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5423,
-      "n": 1621,
+      "realised": 0.5421,
+      "n": 1627,
       "correction": 0.0,
-      "ci_lower": -0.0154,
+      "ci_lower": -0.0152,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6531,
-      "n": 1790,
+      "realised": 0.6522,
+      "n": 1800,
       "correction": 0.0,
-      "ci_lower": -0.0222,
+      "ci_lower": -0.0213,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7618,
-      "n": 2124,
+      "realised": 0.7616,
+      "n": 2131,
       "correction": 0.0,
-      "ci_lower": -0.024,
+      "ci_lower": -0.0239,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8816,
-      "n": 2685,
+      "realised": 0.882,
+      "n": 2695,
       "correction": 0.0,
-      "ci_lower": -0.0411,
+      "ci_lower": -0.0415,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9161,
-      "n": 1097,
+      "realised": 0.9163,
+      "n": 1099,
       "correction": 0.0,
-      "ci_lower": -0.013,
+      "ci_lower": -0.0132,
       "status": "MEASURED"
     }
   },
   "shots_on_target_total|UNDER": {
     "0.0-0.1": {
-      "realised": 0.0839,
-      "n": 1097,
+      "realised": 0.0837,
+      "n": 1099,
       "correction": 0.0,
-      "ci_lower": -0.0198,
+      "ci_lower": -0.0196,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1184,
-      "n": 2685,
-      "correction": 0.0288,
-      "ci_lower": 0.0166,
+      "realised": 0.118,
+      "n": 2695,
+      "correction": 0.0293,
+      "ci_lower": 0.0171,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2382,
-      "n": 2124,
+      "realised": 0.2384,
+      "n": 2131,
       "correction": 0.0,
-      "ci_lower": -0.0122,
+      "ci_lower": -0.0123,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3469,
-      "n": 1790,
+      "realised": 0.3474,
+      "n": 1799,
       "correction": 0.0,
-      "ci_lower": -0.0219,
+      "ci_lower": -0.0223,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4577,
-      "n": 1621,
+      "realised": 0.4579,
+      "n": 1627,
       "correction": 0.0,
-      "ci_lower": -0.0331,
+      "ci_lower": -0.0332,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5693,
-      "n": 1667,
+      "realised": 0.5698,
+      "n": 1676,
       "correction": 0.0,
-      "ci_lower": -0.0437,
+      "ci_lower": -0.0442,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6718,
-      "n": 1758,
+      "realised": 0.6727,
+      "n": 1766,
       "correction": 0.0,
-      "ci_lower": -0.0433,
+      "ci_lower": -0.0442,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7709,
-      "n": 2091,
+      "realised": 0.7712,
+      "n": 2098,
       "correction": 0.0,
-      "ci_lower": -0.0369,
+      "ci_lower": -0.0372,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8586,
-      "n": 2390,
+      "realised": 0.8582,
+      "n": 2398,
       "correction": 0.0,
-      "ci_lower": -0.0219,
+      "ci_lower": -0.0215,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.8977,
-      "n": 694,
+      "realised": 0.8978,
+      "n": 695,
       "correction": 0.0,
-      "ci_lower": -0.0031,
+      "ci_lower": -0.0033,
       "status": "MEASURED"
     }
   },
   "shots_total": {
     "0.1-0.2": {
-      "realised": 0.2488,
-      "n": 434,
+      "realised": 0.2506,
+      "n": 435,
       "correction": 0.0,
-      "ci_lower": -0.1019,
+      "ci_lower": -0.1037,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.257,
-      "n": 5665,
+      "realised": 0.2574,
+      "n": 5677,
       "correction": 0.0,
-      "ci_lower": -0.0135,
+      "ci_lower": -0.0138,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3381,
-      "n": 5773,
+      "realised": 0.3376,
+      "n": 5796,
       "correction": 0.0,
-      "ci_lower": -0.0021,
+      "ci_lower": -0.0016,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4432,
-      "n": 5142,
+      "realised": 0.4431,
+      "n": 5168,
       "correction": 0.0,
-      "ci_lower": -0.0072,
+      "ci_lower": -0.0071,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5568,
-      "n": 5142,
+      "realised": 0.5569,
+      "n": 5168,
       "correction": 0.0,
       "ci_lower": -0.0199,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6619,
-      "n": 5773,
+      "realised": 0.6624,
+      "n": 5796,
       "correction": 0.0,
-      "ci_lower": -0.0222,
+      "ci_lower": -0.0227,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.743,
-      "n": 5665,
+      "realised": 0.7426,
+      "n": 5677,
       "correction": 0.0,
-      "ci_lower": -0.0093,
+      "ci_lower": -0.0089,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.7512,
-      "n": 434,
-      "correction": 0.0612,
-      "ci_lower": 0.0205,
+      "realised": 0.7494,
+      "n": 435,
+      "correction": 0.0629,
+      "ci_lower": 0.0222,
       "status": "MEASURED"
     }
   },
   "shots_total|OVER": {
     "0.2-0.3": {
-      "realised": 0.2651,
-      "n": 2267,
+      "realised": 0.2664,
+      "n": 2275,
       "correction": 0.0,
-      "ci_lower": -0.0271,
+      "ci_lower": -0.0283,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3466,
-      "n": 2715,
+      "realised": 0.347,
+      "n": 2726,
       "correction": 0.0,
-      "ci_lower": -0.0158,
+      "ci_lower": -0.0162,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4374,
-      "n": 2522,
+      "realised": 0.4375,
+      "n": 2537,
       "correction": 0.0,
       "ci_lower": -0.0074,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5511,
-      "n": 2620,
+      "realised": 0.5515,
+      "n": 2631,
       "correction": 0.0,
-      "ci_lower": -0.0198,
+      "ci_lower": -0.0201,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6694,
-      "n": 3058,
+      "realised": 0.6707,
+      "n": 3070,
       "correction": 0.0,
-      "ci_lower": -0.0337,
+      "ci_lower": -0.035,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7484,
-      "n": 3398,
+      "realised": 0.7487,
+      "n": 3402,
       "correction": 0.0,
-      "ci_lower": -0.017,
+      "ci_lower": -0.0173,
       "status": "MEASURED"
     }
   },
   "shots_total|UNDER": {
     "0.2-0.3": {
-      "realised": 0.2516,
-      "n": 3398,
+      "realised": 0.2513,
+      "n": 3402,
       "correction": 0.0,
-      "ci_lower": -0.0122,
+      "ci_lower": -0.0119,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3306,
-      "n": 3058,
-      "correction": 0.0171,
-      "ci_lower": 0.0005,
+      "realised": 0.3293,
+      "n": 3070,
+      "correction": 0.0184,
+      "ci_lower": 0.0018,
       "status": "MEASURED"
     },
     "0.4-0.5": {
-      "realised": 0.4489,
-      "n": 2620,
+      "realised": 0.4485,
+      "n": 2631,
       "correction": 0.0,
-      "ci_lower": -0.0181,
+      "ci_lower": -0.0178,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5626,
-      "n": 2522,
+      "realised": 0.5625,
+      "n": 2537,
       "correction": 0.0,
-      "ci_lower": -0.0313,
+      "ci_lower": -0.0311,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6534,
-      "n": 2715,
+      "realised": 0.653,
+      "n": 2726,
       "correction": 0.0,
-      "ci_lower": -0.0199,
+      "ci_lower": -0.0195,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7349,
-      "n": 2267,
+      "realised": 0.7336,
+      "n": 2275,
       "correction": 0.0,
-      "ci_lower": -0.0092,
+      "ci_lower": -0.008,
       "status": "MEASURED"
     }
   },
   "_pooled": {
     "0.0-0.1": {
-      "realised": 0.0695,
-      "n": 171982,
+      "realised": 0.0696,
+      "n": 172329,
       "correction": 0.0,
       "ci_lower": -0.0001,
       "status": "MEASURED"
     },
     "0.1-0.2": {
-      "realised": 0.1607,
-      "n": 254087,
+      "realised": 0.1608,
+      "n": 254898,
       "correction": 0.0,
-      "ci_lower": -0.0126,
+      "ci_lower": -0.0128,
       "status": "MEASURED"
     },
     "0.2-0.3": {
-      "realised": 0.2416,
-      "n": 176489,
-      "correction": 0.007,
-      "ci_lower": 0.005,
+      "realised": 0.2417,
+      "n": 177217,
+      "correction": 0.0069,
+      "ci_lower": 0.0049,
       "status": "MEASURED"
     },
     "0.3-0.4": {
-      "realised": 0.3489,
-      "n": 169787,
+      "realised": 0.3491,
+      "n": 170573,
       "correction": 0.0,
-      "ci_lower": -0.0019,
+      "ci_lower": -0.002,
       "status": "MEASURED"
     },
     "0.4-0.5": {
       "realised": 0.4523,
-      "n": 162478,
+      "n": 163320,
       "correction": 0.0,
-      "ci_lower": -0.0049,
+      "ci_lower": -0.0048,
       "status": "MEASURED"
     },
     "0.5-0.6": {
-      "realised": 0.5477,
-      "n": 162477,
-      "correction": 0.0025,
-      "ci_lower": 0.0,
+      "realised": 0.5478,
+      "n": 163309,
+      "correction": 0.0,
+      "ci_lower": -0.0,
       "status": "MEASURED"
     },
     "0.6-0.7": {
-      "realised": 0.6511,
-      "n": 169790,
+      "realised": 0.6509,
+      "n": 170578,
       "correction": 0.0,
-      "ci_lower": -0.0026,
+      "ci_lower": -0.0025,
       "status": "MEASURED"
     },
     "0.7-0.8": {
-      "realised": 0.7584,
-      "n": 176489,
+      "realised": 0.7583,
+      "n": 177201,
       "correction": 0.0,
-      "ci_lower": -0.009,
+      "ci_lower": -0.0089,
       "status": "MEASURED"
     },
     "0.8-0.9": {
-      "realised": 0.8393,
-      "n": 254087,
-      "correction": 0.0112,
-      "ci_lower": 0.0098,
+      "realised": 0.8392,
+      "n": 254869,
+      "correction": 0.0113,
+      "ci_lower": 0.0099,
       "status": "MEASURED"
     },
     "0.9-1.0": {
-      "realised": 0.9305,
-      "n": 171982,
+      "realised": 0.9304,
+      "n": 172318,
       "correction": 0.0,
       "ci_lower": -0.0023,
       "status": "MEASURED"

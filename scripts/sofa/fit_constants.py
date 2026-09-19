@@ -29,14 +29,35 @@ from typing import Any
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.db import get_connection
-from bet.sofa.engine import calc_p_central, support_floor_for, winning_boundary
+from bet.sofa.engine import (
+    P_CEILING,
+    P_FLOOR,
+    calc_p_central,
+    calc_p_central_nb_raw,
+    support_floor_for,
+    uses_negative_binomial,
+    winning_boundary,
+)
 
 K_GRID = [0.0, 2.0, 5.0, 8.0, 10.0, 15.0, 25.0, 1000.0]
 
 # A league baseline below this many observations is noise wearing a prior.
 MIN_BASELINE_OBSERVATIONS = 30
 # A reliability bucket below this many rows cannot support a correction.
-MIN_BUCKET_ROWS = 10
+#
+# Was 10, which is a count, not evidence. The ci_lower > 0 gate that decides
+# whether a correction is emitted at all clears easily when the measured gap
+# is large, and a large gap is exactly what a tiny bucket produces by chance:
+# after the estimator changed, goals_1h_for 0.6-0.7 emitted a correction of
+# 0.2105 off 42 rows — larger than any well-evidenced bias in the table, and
+# larger than the bound test_no_correction_is_large_enough_to_be_doing_the_
+# model_s_job exists to hold. The per-half markets carry only 190-352 settled
+# rows in total, so at 10 their buckets were always going to be noise.
+#
+# 200 is the same argument MIN_DIRECTION_BUCKET_ROWS makes at 500 for a
+# narrower claim: a correction has to be better evidenced than the thing it
+# corrects, not worse.
+MIN_BUCKET_ROWS = 200
 
 # A direction-keyed bucket is a narrower claim than a market-keyed one, so it
 # has to be better evidenced, not worse. At MIN_BUCKET_ROWS the layer emitted
@@ -310,13 +331,25 @@ def _k_centre_curve(
             var_sample = max(row["sample_sd"] ** 2, mean)
             pred_sd = math.sqrt(var_sample * (1.0 + 1.0 / n))
             boundary = winning_boundary(row["line"], row["direction"])
-            p = calc_p_central(
-                centre,
-                pred_sd,
-                boundary,
-                row["direction"],
-                support_floor_for(market),
-            )
+            # Must be the estimator run_sheet actually ships, or the curve is
+            # fitted on one model and applied to another. See
+            # NEGATIVE_BINOMIAL_METRICS.
+            if uses_negative_binomial(market):
+                p = max(
+                    P_FLOOR,
+                    min(
+                        P_CEILING,
+                        calc_p_central_nb_raw(centre, pred_sd, boundary, row["direction"]),
+                    ),
+                )
+            else:
+                p = calc_p_central(
+                    centre,
+                    pred_sd,
+                    boundary,
+                    row["direction"],
+                    support_floor_for(market),
+                )
             # Brier, not |p - outcome|. Median absolute error is not a proper
             # scoring rule: it is insensitive to the tails and it rewards a
             # blunt forecast, so it is minimised by throwing the sample away.

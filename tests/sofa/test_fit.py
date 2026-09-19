@@ -208,14 +208,20 @@ def test_thin_league_falls_back_to_the_global_pool(db: str) -> None:
 def test_reliability_emits_no_correction_when_the_interval_straddles_zero(
     db: str,
 ) -> None:
-    """A correction that fires in both directions fits noise it has not measured."""
+    """A correction that fires in both directions fits noise it has not measured.
+
+    Seeds MIN_BUCKET_ROWS worth of rows on purpose: the rule under test is the
+    straddling interval, and a bucket thinner than the row floor never reaches
+    it. At 100 this asserted the floor instead, which is a different test that
+    already exists.
+    """
     rows = [
         base_row(
             sofascore_event_id=i,
             p_central=0.55,
             outcome="WIN" if i % 2 else "LOSS",
         )
-        for i in range(100)
+        for i in range(200)
     ]
     seed_rows(db, rows)
 
