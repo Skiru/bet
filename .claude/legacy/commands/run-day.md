@@ -3,6 +3,13 @@ description: Run a betting day end to end, unattended, and produce the coupons f
 argument-hint: dzisiaj | jutro | YYYY-MM-DD
 ---
 
+> **LEGACY — this is the `simple` pipeline, not `sofa`.**
+> It runs `scripts/simple/*` and talks about DISCOVER / ENRICH / ANALYZE.
+> The pipeline in current use is **`sofa`** (BOARD → RESOLVE → OFFER →
+> SAMPLES → OFFER → SHEET → COUPON → CONFIDENCE → PDF); use **`/sofa-day`**.
+> Reach for this one only when the operator names `simple` explicitly.
+
+
 Run one betting day from nothing to a finished coupons file. The operator passes
 only the day and walks away. **Do not stop to ask permission between steps** —
 the whole point of this command is that it completes unattended. Stop only for

@@ -1,91 +1,75 @@
-# Football event protocol — the fifteen steps and the report they produce
+# Football event protocol — the steps, and the report they produce
 
-Method §34 prescribes fifteen iterations per top event. This maps each to the
-artifact or tool that answers it here, and to the Polish section it becomes.
-Steps are ordered by the evidence hierarchy (§64); a hard fail early ends the
-analysis with `NO BET` and no later step may reopen it.
+Steps are ordered by the evidence hierarchy. A hard fail early ends the
+analysis with `NO BET`; no later step may reopen it.
 
-## Selection: which fixtures get the full protocol
+## Which fixtures get the full protocol
 
-1. Every fixture with at least one `VALUE` row in
-   `<date>_superbet_comparison.json` (your sport).
-2. Every fixture whose rows you intend to VETO or DOWNGRADE.
-3. Fixtures with a `CALL` row priced within 5% of its bar (a refreshed offer
-   may put them over) — one paragraph, not the full protocol.
-4. Everything else: one line in *Pozostałe mecze*.
+1. Every football fixture with at least one `verdict == "VALUE"` row in
+   `05_sheet.json`.
+2. Every football fixture appearing in `08_confidence.json` — as a leg, and
+   especially as a builder. **These are the ones actually staked.**
+3. Every fixture you intend to veto.
+4. Rows in `06_dropped.json` whose reason surprises you.
+5. Everything else: one line in *Pozostałe mecze*.
 
-## The fifteen steps
+## The steps
 
-| # | Step (method §) | Where the answer is | What you write |
+| # | Step | Where the answer is | What you write |
 |---|---|---|---|
-| I1 | Event, competition, stage (§34.1, §96) | `event_list` (competition, start_time UTC, source_ids) + `get_match_detail` (`status`, `event_date`, `round_name`, `previous_leg_event_id`). Live day: anything but `notstarted` → VETO all lines. Past-day re-read: `finished` is expected, not a veto, and the result is off-limits | one line: "Liga X, kolejka N / Puchar, 1/4 finału, **rewanż**, pierwszy mecz 0-0 (587786)"; `[BZZOIRO-MCP]` tag; kickoff in UTC and Europe/Warsaw |
-| I2 | Season baseline (§11) | `season_form` (`xgf/xga/xg_games/position/form`); when it is `[]` (cups have no table; some READY dossiers still arrive empty) fall back to `get_standings(league_id)` for the sides' league rows, tagged; `market_priors` via `shrunk_mean` | both sides' xG per game with `xg_games`; position (group?) |
-| I3 | Recent form L10 (§11, §25) | dossier buckets `team_a_l10 / team_b_l10` per metric, `sample_excluded` | retained observations per side after scoping; what was excluded and why |
-| I4 | Venue split (§11) | `row.venue`, observation `venue` fields, prior's home/away | sample venue mix vs tonight |
-| I5 | Opponent adjustment (§11, §67) | opponent's own `*_for`, `goals_against`, model xG per side (`market_context`) | proxy statement, labelled as proxy; opponent class of the sample's matches (`opponent` field) |
-| I6 | Distribution (§15, §16) | `mean/median/mode/min/max/dispersion`; raw values from the dossier | "typowo Q25–Q75, ogon do max; linia względem mody i maksimum"; when `mean ≫ median`, name the observations and opponents that make the gap |
-| I7 | Current form / stakes (§25, §22) | `form` string, `get_standings`, `get_team_fixtures` | table stakes, congestion, rotation risk |
-| I8 | Squad / lineup / injury / fatigue (§20–§22) | `squad_availability`, `lineup_status`, `get_match_lineups`, `get_team_squad` | per side: count, names that matter, unknown count; props: confirmed vs predicted, expected minutes |
-| I9 | Tactical / matchup (§17) | style from the metrics (shots vs SOT ratio, corners vs shots, fouls), manager (`get_manager_detail`) | one paragraph on mechanism: who has the ball, who blocks, who fouls |
-| I10 | Game script A/B/C/D (§24) | 1X2 + xG from `market_context` / `compare_odds` / `get_predictions` | `SCENARIO ROBUSTNESS: A … B … C … D …` per market, and which is modal |
-| I11 | Independent models (§27, §30, §71) | `market_signal` (corners/goals only), bzzoiro model, `cross_provider_agreement` | how many *independent* signals agree; label DERIVED where they share inputs |
-| I12 | Expert consensus (§29) | `tipster` column, `tipster_signal.json`, `tipster_claims.json` | `agree/oppose/exact/considered`, records; a sentence, never a number in the read |
-| I13 | Exact Superbet line, odds, value (§4, §26, §38, §89) | `row.superbet` (`availability`, `price`), comparison `min_acceptable_odds`, `generated_at` | ladder table: rung / p_low / p_central / hits / bar / price / verdict; probability quality vs value quality separately |
-| I14 | Correlation / contradiction / tail (§16, §39–§42, §76, §91–§93) | the fixture's other rows; `bet_builder_draft.py` output | shared mechanism, the killing scenario, tail both ways; no product |
-| I15 | Fresh eyes (§79) | the 15 questions | `KEEP / WATCH / NO BET`, §32 grade, veto entry |
+| I1 | Identity and both clocks | `02_fixtures.json`: `identity`, `kickoff_utc`, `superbet_kickoff_utc`, `kickoff_disagreement_h`. Then `get_match_detail(match_id=…)` by id for `status`. | "Liga X, kolejka N; start 20:00Z (Superbet 20:00Z); `CONFIRMED`; `notstarted` `[BZZOIRO-MCP: get_match_detail, fetched …]`". Anything but `notstarted` on a live day → veto, all lines. |
+| I2 | Stakes and round | `round_name`, `cup_round_type`, `previous_leg_event_id` in the fixture; aggregate and table from MCP/web | round, whether it is a second leg and what the first leg did, table position, dead rubber |
+| I3 | The sample, per side | `03_samples.json` → `metrics[<metric>].side_a / side_b / h2h` | n per bucket, date range, opponents, venues. Name anything that makes the mean. |
+| I4 | Shrinkage share | `n/(n+25)` | "n=10 → the sample owns 29% of the centre; 71% is the league baseline" |
+| I5 | Distribution | the observations themselves | min, max, median, **mode**, where the line sits. Flag a line on the mode, and a line beyond the sample's extreme. |
+| I6 | Venue and opponent class | observation `venue`, `opponent`, `competition_id` | sample's home/away mix vs tonight; whether the sample's opponents are this opponent's class |
+| I7 | Estimand check | compare `X_for(A)+X_for(B)` against `X_total`'s mean; check the metric's definition | "`cards_points` is booking points, not cards"; "`totalShotsOnGoal` is all shots" |
+| I8 | Referee (cards/fouls only) | `RefereeRecord` — present on ~9% | `games`, yellow rate, red rate, **or** "brak sędziego" and what that costs. Not blended into the centre in `sofa`. |
+| I9 | Absences and lineup | not in the artifacts — `get_match_lineups`, web | per side: count, the names that matter, and how you checked |
+| I10 | Game script A–D | not in the artifacts; `compare_odds` is ~88 books, none of them Superbet | which scenario is modal and whether the market survives it |
+| I11 | The ladder | every rung of this market in `04_offer.json` + its sheet rows | rung table with `p_central`, `p_bar`, `offered`, `required`, `surplus`; note `NO_LADDER_CHECK` where it appears |
+| I12 | Correlation | the mechanism, if this may become a builder leg | the one scenario that kills every leg at once. **Never multiply.** |
+| I13 | Price, last | `offered_odds`, `required_odds`, `surplus`, the rung's `fetched_at_utc` | value statement, and "surplus +0.52 — suspect by definition" where it applies |
+| I14 | Buy case / kill case | | strongest fact for, strongest fact against, which wins |
+| I15 | Verdict | | `KEEP / WATCH / NO BET` + the veto entry |
 
-Buy case / kill case (§69) and the data-conflict matrix (§70) sit between I13
-and I15: write the single strongest fact each way and say which wins.
-
-## Report template (Polish)
+## The fixture section, in Polish
 
 ```markdown
-### === <Gospodarz> – <Gość> | <liga / puchar, runda, rewanż?> | <HH:MM UTC (HH:MM PL)> ===
+### <Gospodarz> – <Gość> — <rozgrywki>, <runda>
+**Start:** 2026-09-21 20:00Z (Superbet 20:00Z; rozjazd 0.0 h) · **identity:** CONFIRMED
+**Status:** notstarted `[BZZOIRO-MCP: get_match_detail, fetched 2026-09-21T09:12Z]`
 
-**Status:** `notstarted`, `event_date` zgodne z artefaktem `[BZZOIRO-MCP: get_match_detail, fetched <UTC>]`
-**Stawka:** <kolejka / runda / rewanż z wynikiem pierwszego meczu / tabela / derby (flaga vs dystans) / zagęszczenie>
-**Sędzia:** <nazwisko>, <n> meczów w sezonie: <ż>/mecz, <cz>/mecz, <faule>/mecz (kariera <n>) — <co to znaczy dla linii>; `centre_note` <jeśli kod już wmieszał>
-**Kadry:** <A: k/n niedostępnych (kto ważny), nieznanych m> · <B: …> · składy: <confirmed|predicted>
-**Forma sezonowa:** <A: xGF/xGA na <xg_games> meczach, poz. <p>, <form>> · <B: …> · <luka gole–xG, jeśli istotna>
-**Okoliczności:** <tylko gdy ważą: neutralny teren, przejazd, wiatr, pogoda>
-**Rynek 1X2 / xG (odniesienie, nie Superbet):** <fav p, xG a–b, najbardziej prawdopodobny wynik> `[BZZOIRO-ODDS: <ts>]`
+**Stawka.** <round, second leg + aggregate, table position, or "brak">
 
-#### <rynek> <linia> <kierunek> — <werdykt §32>
-FACT: <n, trafienia, podział a/b/h2h, wykluczenia, rozkład Q25–Q75/moda/min/max>
-CALCULATION: <p_low, p_central, shrunk_mean vs mean, gdzie linia względem mody i maksimum, estymand>
-IMPLICATION: <co to mówi o tym meczu>
-RISK: <największy scenariusz przeciw; ogon; korelacja>
-SCENARIO ROBUSTNESS: A <…> · B <…> · C <…> · D <…> · modalny: <…>
-Drabinka Superbetu:
-| szczebel | p_low | p_central | traf. | próg | Superbet | ocena |
-BUY CASE: <jeden najsilniejszy fakt za>
-KILL CASE: <jeden najsilniejszy fakt przeciw>
-→ **<KEEP | WATCH | NO BET>** · probability = <HIGH/MEDIUM/LOW> · value = <HIGH/MEDIUM/LOW/brak> · <VETO/DOWNGRADE + reason_class, jeśli dotyczy>
+**Próbka.** corners_total: side_a n=10 (2026-07-14 … 2026-09-14), side_b n=10,
+h2h n=3. Wartości side_a: 6 8 8 9 9 10 11 11 12 15 (mediana 9, moda 8/9/11,
+zakres 6–15). Trzy najwyższe przeciw <opponents>.
+**Udział próbki w centrum:** n=10 → 10/35 = 29%; 71% to baza ligowa.
 
-#### <rynek 2> …
+**Rozkład.** <mode, tails, where the line sits>
 
-**Pozostałe wiersze tego meczu:** <jedna linia każdy: prawidłowy odczyt, brak zakładu / brak linii / cena>
+**Kontekst.** Sędzia: <name>, <games> meczów, <yellow rate>/mecz — albo „brak".
+Braki kadrowe: <…> `[WEB: domain, fetched …]`. Scenariusz modalny: <A/B/C/D>.
+
+**Drabina.**
+| linia | kier. | p_central | p_bar | oferta | próg | nadwyżka | uwagi |
+|---|---|---|---|---|---|---|---|
+
+**Cena.** <offered vs required, fetched_at, surplus and its suspicion>
+
+**Za:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
+**Przeciw:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
+
+**Werdykt:** KEEP / WATCH / NO BET — <one sentence>
 ```
 
-## Verdict → action mapping
+## Rules for the section
 
-| Finding | Verdict | Veto entry |
-|---|---|---|
-| fixture not `notstarted` / moved / venue switched | NO BET | `VETO`, line null, direction null, `OTHER` |
-| the *hits themselves* are not about this fixture: misses are the h2h, one side ≤3 retained, the sample's matches are a different competition or opponent class **and the conditional record disagrees with the pooled one** | NO BET / WATCH | `DOWNGRADE`, line null, `SAMPLE_NOT_REPRESENTATIVE` (zero weight) |
-| the median describes the fixture but the *centre/tier* is one step too generous: a few outliers against weak opposition inflate `shrunk_mean`/`p_central`, `RUNG_SEPARATED_BY_MODEL` carrying the price | WATCH | `DOWNGRADE`, line null, `OTHER` (one tier step) |
-| market settles a different quantity than the sample (yellows vs points, pooled vs own) | NO BET | `DOWNGRADE`, line null, `ESTIMAND_WRONG` |
-| `DISAGREE` and the disagreement is on the rung | WATCH | `DOWNGRADE`, line null (or the rung), `DATA_CONFLICT` |
-| card row, no referee, league spread ≥ a card | WATCH | `DOWNGRADE`, line null, direction null, `MISSING_REFEREE` |
-| this rung sits on the mode / sample has crossed it twice, other rungs fine | WATCH on that rung | `DOWNGRADE`, **that line**, `LINE_ON_MODE` |
-| stakes/derby/second-leg argument the code's flags missed | WATCH | `DOWNGRADE`, line null, `OTHER`, say the flag that did not fire |
-| price below bar, sample fine | WATCH (state the price that would make it) | none |
-| everything holds, price clears | KEEP (`HIGH`/`MEDIUM`/`VALUE` per §32) | none |
-
-## Fresh-eyes questions (§79), answered in one line each for every KEEP
-
-1 strongest fact for · 2 strongest fact against · 3 what changed my mind ·
-4 what is stale · 5 what is correlated · 6 what kills the builder · 7 safest
-rung · 8 best-value rung · 9 still a bet ignoring the odds? · 10 ignoring h2h?
-· 11 ignoring the table? · 12 independently supported? · 13 Superbet posts it?
-· 14 what would make me reject it now? · 15 KEEP / WATCH / NO BET.
+- Every non-artifact statement carries a source tag and a fetch time.
+- Never present a `FUZZY` identity as confirmed.
+- Never quote a combined price you computed. `confidence.py` owns that number.
+- Do not repeat a gate the code already applied as if it were your finding;
+  say "kod już to odrzucił jako `MODE_LOSES`" and move on.
+- When you could not check something, it goes in **NIE PODANO** — never
+  silently omitted. Silence about a skipped check reads as a passed check.

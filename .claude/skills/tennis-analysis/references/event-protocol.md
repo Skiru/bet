@@ -1,108 +1,72 @@
-# Tennis event protocol — master matrix, scenario matrix, template, verdict mapping
+# Tennis event protocol — the steps, and the report they produce
 
-Method §34's fifteen iterations, §81's master matrix and §82's scenario
-matrix, mapped to what this pipeline holds and to the Polish section they
-become. Order follows §64 and §113: data integrity → market definition →
-surface → format → recent quality-adjusted form → serve/return → distribution
-→ opponent quality → fatigue → H2H (decayed) → ranking → price.
+## Which matches get the full protocol
 
-## Selection
+1. Every tennis fixture with a `verdict == "VALUE"` row in `05_sheet.json`.
+2. Every tennis fixture appearing in `08_confidence.json` — especially as a
+   builder. **These are the ones actually staked.**
+3. Every fixture you intend to veto.
+4. Everything else: one line in *Pozostałe mecze*.
 
-1. Every tennis fixture with a `VALUE` row in `<date>_superbet_comparison.json`.
-2. Every fixture whose rows you intend to VETO or DOWNGRADE.
-3. Fixtures with a `LEAN` row priced within 5% of its bar — one paragraph.
-4. Everything else — one line in *Pozostałe mecze*.
+Tennis is usually two thirds of the board, so the triage matters more here than
+in football. Order the queue by what is staked, not by surplus.
 
-## The fifteen steps
+## The steps
 
-| # | Step (method §) | Where the answer is | What you write |
+| # | Step | Where the answer is | What you write |
 |---|---|---|---|
-| I1 | Event, surface, competition, stage, format (§34.1, §66, §96) | `event_list.competition` (pin → surface/format), WebFetch order of play ×2 domains | tour, BO3/BO5, surface (pinned/unknown), round, verified time (or "godzina sporna: X vs Y") |
-| I2 | Season baseline (§11) | none in artifacts beyond the scoped sample; web season record on surface | one line, tagged, or "brak" |
-| I3 | Recent form L10/L5 (§11, §72) | dossier buckets per player: dates, `surface`, `match_level`, `opponent`, values | retained-on-surface n per player; the scorelines behind them (web) |
-| I4 | Surface split (§66) | observation `surface`; `sample_excluded.SURFACE_MISMATCH` | fraction of each sample on tonight's surface; whether the competition is pinned |
-| I5 | Opponent quality of the sample (§67–§68) | `opponent` names → WebFetch rankings | `LOW / MEDIUM / HIGH` for the sample vs tonight's opponent |
-| I6 | Distribution (§15, §16, §88) | `mean/median/mode/min/max/dispersion`, raw values | Q25–Q75, tail, where each rung sits; scoreline arithmetic |
-| I7 | Current tournament / form (§25) | web: results in this event | R1/R2 scores, minutes, sets |
-| I8 | Fitness / fatigue (§22, §73) | web: previous match duration, date; retirements last 30 d | asymmetry statement; void risk |
-| I9 | Serve / return interaction (§18, §84–§86) | `aces_for`, `double_faults_for`, `first_serve_pct`, `break_points_faced` in the dossier + web hold/return/TB on surface | hold support vs break risk; which over-path (high hold or breaks+3 sets) |
-| I10 | Scenario matrix A/B/C/D + §82 | book's match odds (`result_market_lines`); when empty, the games-ladder median per player as a proxy | `A faworyt odjeżdża · B underdog trzyma serwis · C oba serwisy działają · D tie-break/decider`, modal scenario, each market's survival |
-| I11 | Independent models (§27, §71) | none for tennis (no model, no market signal, no MCP) | say "brak niezależnego modelu; jedyny sygnał to próba" — once |
-| I12 | Expert consensus (§29) | `tipster` column / `tipster_signal.json` | agree/oppose/exact, records; a sentence |
-| I13 | Exact Superbet line, odds, value (§4, §26, §38, §89) | `row.superbet`, comparison `min_acceptable_odds`, offer `generated_at`, `match_quality` | full ladder table; probability vs value separately |
-| I14 | Correlation / contradiction / tail (§40–§42, §76, §91–§93) | the fixture's other rows | shared length mechanism; the killing scoreline; tail both ways |
-| I15 | Fresh eyes (§79) | the 15 questions | `KEEP / WATCH / NO BET`, §32 grade, veto entry |
+| T1 | Format and surface | `default_period_count` (**the real best-of**), `ground_type` | "BO3, mączka" — or **"format/nawierzchnia nieznana, zakres próbki nie zadziałał"**. Null here means the scope silently did nothing. |
+| T2 | Both clocks | `kickoff_utc`, `superbet_kickoff_utc`, `kickoff_disagreement_h` | both times and the gap. On ITF a gap of hours is normal and `CONFIRMED`; take the **earlier**. |
+| T3 | Order of play | web, two domains | round, court, and whether the match has started `[WEB: domain, fetched …]`. One domain alone is "unconfirmed". Qualifying is BO3 even at a slam. |
+| T4 | Sample, per side | `03_samples.json` → `side_a` / `side_b` / `h2h` | scoped n per side, date range, opponents. **A side at 0–3 is not a sample. A total with one side at zero is one player's history wearing a match's name.** |
+| T5 | Shrinkage share | `n/(n+2)` | at n=10 the sample owns 83% of the centre |
+| T6 | Opponent class | the `opponent` names, looked up | the class of the sample's opposition against tonight's opponent |
+| T7 | Serve / return | `aces_for`, `double_faults_for`, `serve_points_for` + web hold% | high-hold competitive OVER, breaks-and-three-sets OVER, or one-sided UNDER. Aces ≠ tie-breaks. |
+| T8 | Distribution | the observations | min, max, median, **mode**; for `games_won_for` say explicitly where the 12-wall sits relative to the line |
+| T9 | Scoreline arithmetic | by hand | the concrete scorelines that settle each rung: `6-3 6-4` = 19; `7-6 6-7 7-6` = 39; a player's games in `6-2 6-3` = 5. **Which rung does the modal scoreline land on?** |
+| T10 | Schedule and fatigue | web | previous match score, date, duration; back-to-back days; a qualifier's extra matches; a recent retirement |
+| T11 | Scenario matrix | | favourite pulls away / underdog holds / both first serves work / tie-break or deciding set. Which is modal, which kills the market. **No match-odds price exists in the artifacts.** |
+| T12 | Ladder and tail | `04_offer.json` + the sheet | every rung with `p_central`, `p_bar`, `offered`, `required`, `surplus`. A third set adds 12–15 games — the tail is huge and one-sided. |
+| T13 | Price, last | | and often nothing checks it: a one-sided rung has `market_p` null and `p_bar` is just `p`. Say so. |
+| T14 | Buy / kill | | strongest fact for, strongest against, which wins |
+| T15 | Verdict | | `KEEP / WATCH / NO BET` + veto entry |
 
-Buy case / kill case (§69) and the data-conflict matrix (§70) between I13 and
-I15.
-
-## Master matrix (§81) — fill what you can, mark the rest `n/d`
-
-```
-| kategoria                | A | B | przewaga | źródło |
-| rekord 2026 na nawierzchni |   |   |          | [WEB]  |
-| obecny turniej (wyniki)   |   |   |          | [WEB]  |
-| L10 (na nawierzchni, n)   |   |   |          | dossier|
-| jakość rywali w próbie    |   |   |          | [WEB]  |
-| hold % (nawierzchnia)     |   |   |          | [WEB] lub n/d |
-| 1. serwis %               |   |   |          | dossier first_serve_pct |
-| asy / mecz (mediana)      |   |   |          | dossier aces_for |
-| DF / mecz (mediana)       |   |   |          | dossier double_faults_for |
-| BP faced / mecz           |   |   |          | dossier break_points_faced |
-| TB częstość               |   |   |          | [WEB] lub n/d |
-| 20+ / 22+ / 24+ gemów (%) |   |   |          | dossier total_games bucket |
-| 3-set rate                |   |   |          | dossier total_sets bucket |
-| zmęczenie / ostatni mecz  |   |   |          | [WEB] |
-| H2H (ważone)              |   |   |          | dossier h2h + decay |
-```
-
-## Report template (Polish)
+## The match section, in Polish
 
 ```markdown
-### === <Gracz A> – <Gracz B> | <WTA/ATP turniej, runda, BO3/BO5, nawierzchnia> | <HH:MM UTC (HH:MM PL)> — <zweryfikowane 2 źródła | godzina sporna> ===
+### <Zawodnik A> – <Zawodnik B> — <turniej>, <runda>
+**Format:** BO3 (`default_period_count = 3`) · **Nawierzchnia:** hard (`ground_type`)
+**Start:** 2026-09-21 11:00Z (Superbet 11:00Z; rozjazd 0.0 h) · **identity:** CONFIRMED
+**Weryfikacja:** on order of play `[WEB: itftennis.com, fetched …]` + `[WEB: …]`
 
-**Weryfikacja:** brak źródła wzorcowego (bzzoiro-tennis 402) — order of play `[WEB: <domena>, fetched <UTC>]`, korroboracja `[WEB: <domena 2>]`
-**Kurs meczu Superbet (opinia bukmachera, nie konsensus):** <A x.xx – B y.yy> ⇒ faworyt <kto>, siła <mocny/umiarkowany/wyrównany>. Gdy `result_market_lines` jest puste (zdarza się — nie każdy mecz ma wystawiony zakład na zwycięzcę), odczytaj siłę faworyta z **drabinki gemów**: mediana szczebla, przy którym `over`/`under` się równoważą, dla obu graczy, i powiedz, że to zastępczy odczyt, nie kurs meczu.
-**Próba po zawężeniu:** A: <n> na <nawierzchnia> (wykluczono <k> SURFACE_MISMATCH / MATCH_FORMAT_*), rywale: <LOW/MED/HIGH, przykłady> · B: <…> · h2h: <n, daty, wagi>
-**Serwis/return:** <hold, 1. serwis %, asy, DF, BP faced — z tagami> ⇒ <profil meczu: wysokie holdy / przełamania / jednostronny>
-**Ostatni mecz / zmęczenie:** A: <wynik, data, czas> · B: <…> · ryzyko krecza: <tak/nie, dlaczego>
-**Macierz §81:** <skrót: kto ma przewagę w ilu kategoriach, gdzie konflikt>
+**Próbka.** games_total: A n=8 po zakresie (2026-06-02 … 2026-09-14),
+B n=10. Wartości A: 17 19 20 20 21 22 23 26 (mediana 20,5, moda 20).
+Rywale A: <names, class>. **Udział próbki w centrum:** 10/12 = 83%.
 
-#### <rynek> <linia> <kierunek> — <werdykt §32>
-FACT: <n, trafienia, rozkład, centre_note (own+own), estymand>
-CALCULATION: <p_low, p_central, shrunk_mean vs mean; wyniki setowe, które rozliczają szczebel>
-IMPLICATION: <co to mówi o tym meczu>
-RISK: <scenariusz zabijający; ogon; krecz>
-SCENARIO ROBUSTNESS: A <…> · B <…> · C <…> · D <…> · modalny: <…, np. 6-3 6-4 = 19>
-Drabinka Superbetu:
-| szczebel | p_low | p_central | traf. | próg | Superbet | ocena |
-BUY CASE: <…>
-KILL CASE: <…>
-→ **<KEEP | WATCH | NO BET>** · probability = <…> · value = <…> · <VETO/DOWNGRADE + reason_class>
+**Serw i return.** <aces, DF, serve points per side; hold% from the web, tagged>
 
-**Pozostałe wiersze tego meczu:** <jedna linia każdy>
+**Arytmetyka wyników.** 6-3 6-4 = 19 · 6-4 7-5 = 22 · 7-6 6-7 7-6 = 39.
+Modalny wynik <…> ląduje na szczeblu <…>.
+
+**Drabina.**
+| linia | kier. | p_central | p_bar | oferta | próg | nadwyżka | uwagi |
+|---|---|---|---|---|---|---|---|
+
+**Za / Przeciw:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
+
+**Werdykt:** KEEP / WATCH / NO BET — <one sentence>
 ```
 
-## Verdict → action mapping
+## Rules for the section
 
-| Finding | Verdict | Veto entry |
-|---|---|---|
-| match not on today's order of play at that time (two domains) / walkover / withdrawal | NO BET | `VETO`, line null, direction null, `OTHER` |
-| total's split shows one side with 0 scoped observations; `total_games` pooled centre leading the sheet | NO BET | `DOWNGRADE`, line null, `ESTIMAND_WRONG` |
-| sample opposition class ≠ tonight's opponent (games_won, aces_for) | NO BET / WATCH | `DOWNGRADE`, line null, `ESTIMAND_WRONG` (or `SAMPLE_NOT_REPRESENTATIVE` when the issue is level/surface mix) |
-| competition unpinned and the sample is mixed-surface; ≤3 retained on surface for a side | WATCH | `DOWNGRADE`, line null, `SAMPLE_NOT_REPRESENTATIVE` |
-| format gate evidently inert (BO3 tautology under BO5 prices) | NO BET | `VETO`, line null, direction null, `OTHER`, and report the gate failure |
-| providers disagree on a match on the rung | WATCH | `DOWNGRADE`, `DATA_CONFLICT` |
-| rung on the sample's mode / modal scoreline lands on it, other rungs sound | WATCH on that rung | `DOWNGRADE`, **that line**, `LINE_ON_MODE` |
-| fatigue asymmetry / retirement risk / old H2H conflicting with surface form | WATCH | `DOWNGRADE`, line null, `OTHER` |
-| price below bar, sample sound | WATCH, name the price | none |
-| everything holds, price clears | KEEP (`MEDIUM`/`VALUE` — tennis has no `CALL`, so `HIGH` needs a specific justification) | none |
-
-## Fresh-eyes questions (§79), one line each for every KEEP
-
-1 strongest fact for · 2 strongest fact against · 3 what changed my mind ·
-4 what is stale · 5 what is correlated · 6 which scoreline kills it · 7 safest
-rung · 8 best-value rung · 9 still a bet ignoring the odds? · 10 ignoring
-H2H? · 11 ignoring ranking? · 12 independently supported (no — say what that
-costs)? · 13 Superbet posts it, at this rung, `OFFERED`? · 14 what would make
-me reject it now? · 15 KEEP / WATCH / NO BET.
+- State **once** in the day's header that tennis has no source of record — not
+  once per match.
+- Never present a `FUZZY` tennis identity as confirmed. Names collide.
+- When `ground_type` or `default_period_count` is null, say the scope did not
+  run. That is a fact about the sample, and it is the single most common way a
+  tennis row is quietly wrong.
+- On any `games_won_for` row, say where 11.5 sits relative to the wall at 12.
+- On any confident `games_won_for` row, say that the market has no measured
+  calibration bucket above 0.825.
+- A two-UNDER tennis builder is one bet with two prices. Say so.
+- What you could not verify goes in **NIE PODANO**, never silently omitted.

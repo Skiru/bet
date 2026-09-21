@@ -3,6 +3,13 @@ description: Rebuild one day's coupons file from the artifacts already on disk �
 argument-hint: dzisiaj | jutro | YYYY-MM-DD
 ---
 
+> **LEGACY — this is the `simple` pipeline, not `sofa`.**
+> It runs `scripts/simple/*` and talks about DISCOVER / ENRICH / ANALYZE.
+> The pipeline in current use is **`sofa`** (BOARD → RESOLVE → OFFER →
+> SAMPLES → OFFER → SHEET → COUPON → CONFIDENCE → PDF); use **`/sofa-day`**.
+> Reach for this one only when the operator names `simple` explicitly.
+
+
 Rebuild `runs/<date>/<date>_kupony.md` from artifacts that already exist. This is
 the last mile of `/run-day` on its own: ANALYZE's sheet in, the operator's file
 out. **Nothing here re-discovers or re-enriches a day**, because both cost quota

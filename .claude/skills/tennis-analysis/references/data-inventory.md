@@ -1,165 +1,143 @@
-# Tennis data inventory — what is measured, by whom, at which rungs, and what is missing
+# Tennis data inventory — exactly what `sofa` measures, and what it does not
 
-Read from `src/bet/simple_stats/{providers,analyze,enrich,contracts}.py`,
-`src/bet/api_clients/{tennis_abstract,tennis_score,espn}.py`,
-`config/tennis_match_format.json`, `config/tennis_surface_map.json`,
-`config/tennis_tournament_map.json`, `config/market_priors.json` and the
-2026-09-04 artifacts.
+One statistics provider: **Sofascore**. No second feed, no agreement field, no
+model, no consensus. Superbet supplies the prices and nothing else.
 
-## Providers (both keyless and unmetered since 2026-09-02)
+## Metrics collected (`TENNIS_METRICS` in `src/bet/sofa/metrics.py`)
 
-| Provider | Serves | Per observation | Does not serve |
-|---|---|---|---|
-| `tennis-abstract` | `aces_for/total`, `double_faults_for/total`, `games_won`; **surface per match** (`surf`), draw level (`level`: G = slam incl. qualifying, separated by round pattern), the opponent's line for the same match; a whole career per page, no season/competition id | `surface`, `match_level` (`GRAND_SLAM / GRAND_SLAM_QUALIFYING / TOUR`), `opponent`, `match_date` | rankings (the client parses `orank` and it is **dropped before the dossier**), round (parsed, dropped), the score string (parsed, dropped), hold %, return %, tie-break counts, duration, `first_serve_pct`/`break_points_faced` (dropped from the alias table 2026-09-04: neither is an offered market, so both had reached zero rows on the sheet regardless) |
-| `espn-tennis` | `total_games`, `total_sets`, and (since 2026-09-04) the queried player's own `games_won` read off the published set score; tournament id + season; a rolling year of the daily scoreboard (~41 matches a player) | `competition_id`, `season_id`, `surface`/`match_level` via `config/tennis_tournament_map.json` keyed by ESPN's own tournamentId (~100% of espn-tennis rows, up from 37% when it only had the 4-slam name table) | serve statistics, opponent rank, round |
-| `bzzoiro-tennis` | **nothing** — `402 addon_required` (Sports Addon $5/mo), withdrawn 2026-09-02, re-confirmed 2026-09-04 | — | everything (rankings, h2h, predictions, odds) |
-
-Only the fixture currently being priced (the "left side" of the surface/format
-comparison in `scope_values`) still resolves by name from
-`config/tennis_surface_map.json` / `tennis_match_format.json` — still just the
-four Slams, unchanged by the tournamentId table above. That table only fixed
-espn-tennis's *historical* rows (the "right side"); an unpinned tonight's
-competition still filters nothing, on both sides, exactly as before.
-
-Both compute games and sets from the published score, so an `AGREE` on
-`total_games` means the two read the same match (before 2026-09-02
-tennis-abstract ran one game low on every 7-6 set).
-
-`READY` in tennis only means the two providers agreed — there is no primary,
-hence `NO_REFERENCE_SOURCE` on every row and a `LEAN` ceiling always.
-
-## Metrics per fixture (dossier `metrics`)
+Whole match:
 
 ```
-total_games, total_sets           # both sides pooled in the buckets; PRICED as own + own (framed centre)
-games_won                         # per player (team_name = player); tennis-abstract + espn-tennis since 2026-09-04
-aces_for, aces_total              # per player / framed total
-double_faults_for, double_faults_total
+games_total          games_won_for
+sets_total           tiebreaks_total
+aces_total           aces_for
+double_faults_total  double_faults_for
+serve_points_total   serve_points_for
 ```
 
-`first_serve_pct` and `break_points_faced` no longer reach the dossier at
-all (dropped from `_TENNIS_MATCH_STAT_ALIASES` 2026-09-04): neither was ever
-an offered market, so removing them changed zero stats-sheet rows. If you
-need either for qualitative context, read tennis-abstract's page directly.
+Per set (set 1 and set 2 only):
 
-`h2h` buckets exist for totals (meetings from both providers); per-player
-rows use the player's own bucket only. There is **no** `breaks_total` any
-more (bzzoiro-tennis was the only source of service games lost; break-*points*
-are a different quantity and are not priced).
+```
+aces_set1_*  aces_set2_*
+double_faults_set1_*  double_faults_set2_*
+serve_points_set1_*   serve_points_set2_*
+```
 
-## Priced markets and rungs
+Derived, priced but not sampled (`src/bet/sofa/derived.py`):
 
-| Market | Static lines (fallback) | Superbet 2026-09-03 ladder | Superbet name |
-|---|---|---|---|
-| `total_games` | 19.5, 21.5, 22.5, 23.5 | 12.5 … 36.5 (BO3 ~16.5–26.5; BO5 24.5–36.5) | Liczba gemów |
-| `total_sets` | 2.5 | 2.5 (BO3); 3.5, 4.5 (BO5) | Liczba setów |
-| `games_won` | 8.5, 10.5, 12.5 | 2.5 … 23.5 per player | `<Player> liczba gemów` |
-| `aces_total` | 8.5, 10.5, 12.5 | 1.5 … 25.5 | Liczba asów |
-| `aces_for` | 3.5 … 6.5 | 0.5 … 16.5 | `<Player> - liczba asów` |
-| `double_faults_total` | 3.5, 5.5, 7.5 | 4.5 … 16.5 | Liczba podwójnych błędów |
-| `double_faults_for` | 1.5 … 3.5 | 0.5 … 9.5 | `<Player> - liczba podwójnych błędów` |
+```
+most_aces  most_games  most_serve_points  handicap_games
+```
 
-Offer-driven ladders are trimmed to the rungs nearest the sample median
-(`select_lines`) and to the sides the book posts. **No first-set market, no
-tie-break market, no break market, no set-winner** on the sheet — the data to
-price them is not collected (method §83: never infer a first-set read from
-whole-match form).
+`_total` is the match, `_for` is one player, and `subject` names which.
 
-## Scoping applied before counting (`sample_excluded`)
+On a Monday board (2026-09-21) tennis produced 25 markets and 3,026 rows;
+`games_won_for` alone was **1,084** of them, `games_total` 688,
+`handicap_games` 581, `sets_total` 168.
 
-| Key | Rule | Config |
+## Which estimator each market uses — this decides how to read `p_central`
+
+| market | estimator | so `p_central` … |
 |---|---|---|
-| `SURFACE_MISMATCH` | observation's surface ≠ tonight's pinned surface | tonight's fixture: `config/tennis_surface_map.json` by name, four slams only, unpinned = **no filter**. An espn-tennis observation's own surface: `config/tennis_tournament_map.json` by tournamentId, ~22 tournaments (the four slams plus the tour/Masters events a real slate touches) |
-| `MATCH_FORMAT_MISMATCH` | BO3 observation in a BO5 fixture's sample (length markets only) | `config/tennis_match_format.json` — men's slam main draws are BO5; slam qualifying is BO3 |
-| `MATCH_FORMAT_UNKNOWN` | observation states no draw, fixture is BO5 | same |
-| `STALE_H2H` | meeting older than 12 months | — |
-| `CONFLICT_ON_LINE` | providers straddle the rung | — |
+| `sets_total` | **empirical frequency** (`EMPIRICAL_FREQUENCY_METRICS`) | **equals** the sample's hit rate |
+| `games_won_for` | **empirical frequency** | **equals** the sample's hit rate |
+| `games_total`, `aces_*`, `double_faults_*`, `serve_points_*`, `handicap_games`, `most_*` | count model | will **not** equal the hit rate, and should not |
+| `tiebreaks_total` | non-count | refused by CONFIDENCE (`NOT_IN_CALIBRATION_FIT`) |
 
-When the scoped sample of one side is empty, `analyze.suppressed_markets_for`
-withholds the length-dependent markets (sets, games, aces, DFs) for that
-fixture; a total whose framed centre cannot be computed (one side empty) is
-no longer emitted from the pooled centre (fix of 2026-09-03). If you still
-see a total with `a=0` or `b=0` in the dossier split, treat it as
-`ESTIMAND_WRONG`.
+`sets_total` is bounded — on a best-of-three it is 2 or 3 and nothing else.
+Integrating a bell curve over two bars took its error from +16.0 pp to +4.0 pp
+when removed.
 
-## `centre_note` is a football field. On tennis it is always `null`.
+`games_won_for` is **bimodal**, and this is the single most important
+distributional fact in tennis here. A straight-sets winner has won at least
+twelve games, so the distribution is a loser mode spread over 0–11 and a
+winner mode stacked on 12+. One day's 570 observations: 10:17, 11:10,
+**12:159**, 13:84 — a trough at eleven and a wall at twelve. **Superbet's line
+is 11.5, in the trough.**
 
-Verified in code (`analyze.py`): the framed centre (`_framed_tennis_total_centre`)
-feeds in as `centre_override`, and `centre_note` is written only by
-`_blend_referee`, which returns `None` for every market outside
-`_CARD_TOTAL_MARKETS` — i.e. always, for tennis. **A `null` `centre_note` on a
-tennis total is not evidence the row still uses the pooled centre** — it tells
-you nothing either way. The only way to check which centre a row used is the
-arithmetic in "The framed centre" below: sum each side's own scoped mean and
-compare it with the row's `mean`.
+Replayed over 1,293 rungs the two estimators scored: normal CDF OVER 1.07 /
+UNDER 0.93; empirical OVER 1.01 / UNDER 0.98.
 
-## The framed centre (`centre_note` on tennis totals)
+## The calibration ceiling — read this before trusting a confident tennis row
 
-`analyze._framed_tennis_total_centre`: the match total's centre is `own_A +
-own_B` from the two players' scoped `*_for` samples, not the pooled mean of
-"player + whoever they played". Pooled means target `(X+Y)/2 + μ_opponents`,
-which is a different quantity (memory
-`pooled-estimator-targets-wrong-quantity`). `total_sets` still uses the
-pooled centre (no per-player sets metric) — say so when a `total_sets` row
-tops the sheet.
+The empirical frequency is honest in the middle and **overconfident at the
+top**. On 9,286 settled `games_won_for` rows a claimed 0.95 realises **0.728**,
+and the market has **no measured bucket above 0.825** (its best realises
+0.756).
 
-## Priors (`config/market_priors.json`)
+`Calibration.realised` therefore refuses to let a market with its own curve
+borrow the pooled curve above the top of its own measured range: silence above
+a market's measured range is evidence, not a gap — it says the model never
+produces a confident prediction there that verifies. Letting it fall through
+produced 12 tennis legs at a claimed 0.905 that the market has never once been
+observed to deliver.
 
-`aces_total` 8.07 (1,262 obs), others per market; no venue split (tennis has
-no venue). Shrinkage `n/(n+10)` toward these. `shrunk_mean` beside `mean`
-shows how much of a row is prior. The config still carries a
-`break_points_faced` entry -- dead since 2026-09-04, no provider emits that
-metric any more, ignore it.
+Tennis also has its own pooled curve (`pooled:<sport>`), used before the global
+one, because tennis has 56,581 settled rows of its own and the global pool is
+almost entirely football counts.
 
-## Context available and not
+## Sample scoping — and where it silently does nothing
 
-| Need (method §) | Available? | Where |
-|---|---|---|
-| surface (§66) | yes, per observation + fixture pin | observation `surface`; `event_list.competition` |
-| format BO3/BO5 (§8) | yes via pin | `competition` |
-| round / stage (§22) | **no** in artifacts | WebFetch order of play / draw |
-| ranking, opponent rank (§67) | **no** | WebFetch (atptour.com / wtatennis.com / tennisabstract.com player pages) |
-| previous match length, rest, duration (§73) | **no** | WebFetch (tournament results, flashscore-type pages — two domains) |
-| retirement / injury / MTO (§22) | partial: `RET` matches dropped with a `data_gap` | WebFetch |
-| hold %, return %, BP conversion, TB record (§18, §81) | **no** (only aces, DFs -- `first_serve_pct`/`break_points_faced` never reached a market and were dropped from the pipeline 2026-09-04) | WebFetch (tennisabstract.com serve/return tables by surface) |
-| tie-break frequency (§86) | **no** | infer from scores you fetch; never from ace counts |
-| match odds / favourite strength (§24 weights) | Superbet's own match odds in `superbet_offer.events[].result_market_lines` | label as the book's opinion; no consensus, no devig target for totals |
-| h2h (§65) | yes: `h2h` buckets on totals, `STALE_H2H` >12 months | decay by hand: 1.0/0.75/0.50/0.25 |
+`samples.py` keeps a past match only when:
 
-## Verification without a source of record
+- `event.groundType == fixture.ground_type` — **tonight's surface**
+- `infer_best_of(event) == fixture.default_period_count` — **tonight's format**
 
-1. **"Official"** means, in order of preference: the tournament's own site
-   (`usopen.org`, `ausopen.com`, `rolandgarros.com`, `wimbledon.com`) **or**,
-   when that times out or is unreachable (it does, routinely), the ATP/WTA
-   tour site (`atptour.com`, `wtatennis.com`) — either counts as the primary
-   domain, and you should say which one you actually used.
-2. One further independent domain (a results aggregator, a tennis news site)
-   to corroborate. One domain total → "unconfirmed"; two agreeing → verified;
-   two disagreeing → report both and mark the fixture *godzina sporna*, do
-   not pick one.
-3. If the primary domain is unreachable after one retry, say so and proceed
-   on the secondary plus one more — never on a single aggregator alone.
-3. `verify_tennis_providers.py` (run by the orchestrator, exit 0/1) tells
-   you whether the providers resolved real people today; `MISIDENTIFIED`
-   gaps in the dossier are payloads dropped for naming someone else.
+Both come off the fixture rather than from a competition-name pin, which is
+what made the retired pipeline's surface scoping inert.
 
-Tag every web statement `[WEB: domain, fetched <UTC>]`. Never quote a tennis
-figure from before 2026-08-28.
+**The failure mode is a null.** At Challenger and ITF level `ground_type` is
+the thinnest part of Sofascore's data; when it is absent the comparison cannot
+match and the scope does not protect you. Check the field before trusting a
+surface claim, and say "surface unknown" when it is.
 
-## Known limits to state, not discover
+`sample_n = 10` per side, `min_sample = 5`. Pages read **descending**.
 
-- **`tennis-abstract`'s `match_date` is the tournament's start date, not the
-  match date** — every round of one event carries the same date (e.g. every
-  Prague WTA 250 match dated `2026-07-20`). It is fine for surface/format
-  scoping and for "how many matches ago" ordering within one tournament, but
-  it **cannot** answer a schedule/fatigue/rest question ("3 days ago") —
-  those need `espn-tennis` (`match_date` is real) or the web.
-- Per-player form is ~10 matches from tennis-abstract (`n ≤ 10` before h2h);
-  espn-tennis adds ~41 per player for games/sets only.
-- ATP players served off the `jsmatches` fallback carry a 2018-vintage sample
-  with no guard — check dates.
-- No tennis row can be `CALL`; no `market_signal`; no MCP; Superbet's
-  `match_quality` for tennis is usually `FUZZY` (published times disagree) or
-  `ID_MATCHED` (Betradar id).
-- Tennis is **not settled** by `backtest_slate.py`; no calibration evidence
-  exists for tennis `p_low`. Say it when asked how well tennis reads have done.
+Three buckets per metric: `side_a`, `side_b`, `h2h`. **`h2h` never reaches a
+`*_for` row** — a head-to-head is a fact about a pairing.
+
+## Per-fixture context (`02_fixtures.json`)
+
+| field | tennis meaning |
+|---|---|
+| `default_period_count` | **the real best-of, 3 or 5.** Load-bearing at a slam. Null means the format scope did not run. |
+| `ground_type` | the surface. Null at the thin end of the calendar. |
+| `competition_name`, `category_name` | ATP / WTA / Challenger / ITF, and the event |
+| `kickoff_utc` vs `superbet_kickoff_utc` | **disagree by up to 11 h on ITF**, and the error makes a finished match look upcoming. Take the earlier. |
+| `identity` | `FUZZY` on a tennis name is a real risk — take it seriously |
+| `round_number` / `round_name` | often null for tennis |
+| `referee`, `venue_name` | not meaningful here |
+
+## What is NOT in the artifacts
+
+- **rankings**, either player's or any sample opponent's
+- the round, and whether it is qualifying (**qualifying is best-of-three even
+  at a slam**)
+- the previous match's length, date or duration; hours of rest
+- retirement risk, walkovers, withdrawals
+- indoor vs outdoor, altitude, ball type, wind
+- **any match-odds price** — there is no favourite strength anywhere in the
+  artifacts, and no consensus to devig against
+- doubles: BOARD filters out any tennis match name containing `/`
+
+## Where the centre comes from
+
+```
+w_c    = n / (n + 2)              K_CENTRE for tennis
+centre = w_c·sample_mean + (1 − w_c)·prior
+```
+
+At n=10 the sample owns **83%** of the centre against football's 29%. There is
+very little prior holding a tennis row up — which cuts both ways: a clean
+sample is respected, and a bad one is not corrected.
+
+## Measured, and worth carrying
+
+- `sets_total` has **202** settled rows — too few for its own market curve,
+  which is why the sport pool exists.
+- `sets_total` and `aces_*` ladders were **0%** checkable; overall only 52.4%
+  of ladders can be checked at all.
+- Tennis length markets were measured overconfident by ~25 pp on 2026-09-06 and
+  **deliberately not corrected** — the fix risked overfitting.
+- `games_*`, `sets_*` and `handicap_games` are **one quantity family** in
+  `confidence.py`, so a builder takes at most one of them.

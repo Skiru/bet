@@ -1,121 +1,109 @@
 # Tennis market playbook — drivers, scoreline arithmetic, kill cases
 
-Every market below is a function of match length, so first decide the match:
-**format** (BO3/BO5), **surface**, **favourite strength** (book's match odds),
-**hold profile** of both (web), **fatigue asymmetry**. Then read the rows.
+Every market here is a function of **match length**. That is the single
+mechanism, and it is why a tennis slip of two UNDERs is one bet charged twice
+— `confidence.py` puts `games_*`, `sets_*` and `handicap_games` in one quantity
+family for exactly that reason.
 
-## Scoreline arithmetic (memorise)
+## `games_total` — total games in the match
 
-| Scoreline | games | winner's games | loser's games |
-|---|---|---|---|
-| 6-0 6-0 | 12 | 12 | 0 |
-| 6-2 6-3 | 17 | 12 | 5 |
-| 6-3 6-4 | 19 | 12 | 7 |
-| 6-4 6-4 | 20 | 12 | 8 |
-| 7-5 6-4 | 22 | 13 | 9 |
-| 7-6 6-4 | 23 | 13 | 10 |
-| 7-6 7-6 | 26 | 14 | 12 |
-| 6-3 3-6 6-4 | 28 | 15 | 13 |
-| 6-4 4-6 6-4 | 30 | 16 | 14 |
-| 7-6 6-7 7-6 | 39 | 20 | 19 |
+- **Drivers:** both players' hold percentage (two big servers produce long
+  close sets *and* fast ones — the variance is the point), return strength,
+  surface speed, format.
+- **Arithmetic:** `6-3 6-4` = 19. `6-4 6-4` = 20. `6-4 7-5` = 22.
+  `7-6 6-4` = 23. `7-6 6-7 7-6` = 39. A best-of-three straight-sets match is
+  typically 17–23; a third set adds **12–15**.
+- **The tail is one-sided and enormous.** The distance from the modal
+  straight-sets outcome to a three-set outcome is bigger than anything else in
+  the sample, so an OVER's upside and an UNDER's downside are not symmetric.
+- **Kill cases:** a sample mixing surfaces because `ground_type` was null; a
+  sample of a player who has since changed level; an UNDER whose modal
+  scoreline lands exactly on the line.
 
-BO5 adds 12–26 games per extra set pair; 3-0 in BO5 is 36–39 games at the
-tightest, 18 at 6-0 6-0 6-0.
+## `games_won_for` — one player's games
 
-## Total games (`total_games`)
+**Read `data-inventory.md` on this market before grading one.** It is 1,084 of
+3,026 tennis rows on a Monday board and it is the most dangerous market here.
 
-- **Measures:** games in the match, framed as own + own from each side's
-  scoped `games_won`-type history (centre) with the pooled buckets for hits.
-- **Drivers:** both hold rates on this surface (high+high ⇒ 7-6s and 20+;
-  high+low ⇒ 6-3 6-4 ≈ 19; low+low ⇒ breaks, possibly three sets ⇒ 28+),
-  favourite strength (a 1.20 favourite ⇒ modal 6-3 6-4), competitiveness of
-  the sample's opposition, format.
-- **Ladder:** Superbet 12.5–36.5. The sheet's rung is one of many — read the
-  whole ladder; BO3 rungs of interest are 18.5–23.5, BO5 27.5–36.5.
-- **Kill cases:** an OVER on a mean of 22.5 with median 19.5 (three-setters
-  carry the mean); an OVER 16.5 at 1.04–1.14 (certainty, not value); a sample
-  whose 20+ matches were all against peers while tonight is a 1.15 favourite;
-  fatigue asymmetry (one side played 3h yesterday) on a competitiveness OVER;
-  a retirement risk (void).
-- **Good read:** "hold ~84%/~78% na twardym [WEB]; faworytka 1.30 ⇒ modalny
-  6-3 6-4 = 19; O18.5 przeżywa A/B/C/D, O20.5 tylko B/D; 20.5 leży na modzie
-  próby (6 z 14 obserwacji 19–21)".
+- **Bimodal by construction.** A straight-sets winner has ≥ 12 games; a loser
+  is spread over 0–11. One day's 570 observations: 10:17, 11:10, **12:159**,
+  13:84.
+- **Superbet's line is 11.5 — in the trough**, between the loser mode and the
+  wall.
+- Priced by the **sample's own frequency**, so `p_central` equals the hit rate.
+- **The frequency is overconfident at the top:** a claimed 0.95 realises 0.728
+  over 9,286 settled rows, and the market has no measured bucket above 0.825.
+  A confident `games_won_for` row is the number to trust least on the sheet.
+- **Arithmetic:** in `6-2 6-3` the loser has 5 games. In `6-4 6-4`, 8. In
+  `7-6 6-7 7-6`, 19.
+- **Kill case:** a mode of 12 built against much weaker fields, priced against
+  a far stronger opponent tonight.
 
-## Total sets (`total_sets`)
+## `sets_total`
 
-- **Measures:** 2 or 3 (BO3) / 3–5 (BO5). **Pooled centre still** (no
-  per-player sets metric) — a `total_sets` row is the one tennis total not
-  framed own+own; say so.
-- **Drivers:** favourite strength above all; closeness of hold rates; both
-  players' three-set rates on this surface (web); fatigue.
-- **Rungs:** 2.5 in BO3 (`OVER` = three sets, base ~35% ATP / ~33% WTA — check
-  the sample's own three-set share); 3.5/4.5 in BO5.
-- **Kill cases:** UNDER 3.5 in BO3 (tautology — the format gate should have
-  removed it); OVER 2.5 on a 1.15 favourite's sample of competitive matches;
-  a `total_sets` row leading the sheet on `p_low` alone.
+- **Bounded:** 2 or 3 on a best-of-three, 3/4/5 on a best-of-five. Priced by
+  empirical frequency because a bell curve over two bars is the wrong model
+  (error +16.0 pp → +4.0 pp when the floor was removed).
+- **`default_period_count` decides everything.** A BO3 sample priced against a
+  BO5 event is a tautology sold at 2.40, and a null here means the format scope
+  did not run.
+- `UNDER 3.5` on a best-of-three is a tautology. Never lead with one.
+- Only **202** settled rows, so it has no market curve of its own and falls to
+  the tennis pool.
 
-## Player games won (`games_won`)
+## `aces_total` / `aces_for`, `double_faults_total` / `double_faults_for`
 
-- **Measures:** one player's own games. Conditional on nothing about the
-  opponent. Per-player bucket only.
-- **Drivers:** the player's hold rate vs tonight's opponent's return; whether
-  the player wins (winner's games ≥ 12 in straight sets; loser's 0–12);
-  three-set probability (adds 4–7).
-- **Ladder:** 2.5–23.5 per player. The **underdog's** games line is the
-  sharpest read in tennis: `UNDER 9.5` for a 4.00 underdog means "straight
-  sets with at most 6-4 6-4 or 6-3 6-4 plus change" — write the scorelines.
-- **Kill cases:** the Tagger case — mode 12 built against WTA-125 fields,
-  facing a slam finalist; identical `p_low` on 7.5/8.5/9.5; sample of nine
-  with one three-set outlier at 19 carrying the mean; a `games_won` row on
-  the wrong player (check `team_name`).
-- **Good read:** classify each sample opponent (rank band) and tonight's;
-  state the modal scoreline per scenario and the player's games in it.
+- **Drivers:** serve speed and placement, surface and ball, altitude, the
+  returner's court position, and above all **match length** — more service
+  games is more of everything.
+- **Aces ≠ tie-breaks, and a big serve does not mean over games.** A dominant
+  server holds quickly, which shortens the match.
+- Double faults rise with pressure and with second-serve aggression; they are
+  the noisier of the two.
+- **Kill cases:** a grass sample on a hard court (medians 9.0/11.0 against
+  6.0/5.0) where `ground_type` was null; a total whose split shows one side at
+  zero after scoping — that is one player's history, not a total.
+- Ladders for `aces_*` were **0% checkable**, so `NO_LADDER_CHECK` on these
+  rows is the norm, not a passed test.
 
-## Aces (`aces_total`, `aces_for`)
+## `serve_points_*`
 
-- **Measures:** aces; framed own+own for the total.
-- **Drivers:** serve quality on **this surface** (grass ≫ hard ≫ clay), the
-  opponent's return quality (aces are conceded as much as served), match
-  length (more games ⇒ more aces — a three-setter can double a count), height
-  and first-serve % (`first_serve_pct` in the dossier), conditions (altitude,
-  balls, wind — web).
-- **Kill cases:** Boulter–Muchová (grass sample on hard); Oliynykova–Eala
-  (pooled 5.23 vs own+own 2.25); an OVER built on a mean the three-setters
-  made; an UNDER ignoring that a long match is the modal scenario for two big
-  servers; `aces_for` 0.5/1.5 UNDER at 1.1 (certainty, not value).
-- **Good read:** each player's hard-court aces per match (median, not mean),
-  opponent's return rank, expected games from the total_games read, then the
-  rung: aces scale with games.
+Almost purely a length market wearing a serve name: more games is more serve
+points. Grade it as `games_total` with extra variance, and never treat it as an
+independent second leg alongside a games market.
 
-## Double faults (`double_faults_total`, `double_faults_for`)
+## Per-set markets — `*_set1_*`, `*_set2_*`
 
-- **Measures:** DFs; framed own+own for the total.
-- **Drivers:** second-serve risk appetite, return pressure from the opponent
-  (a punishing returner induces DFs), nerves in a tight match (DFs cluster at
-  6-6 and in deciders), match length, surface (clay lengthens matches ⇒ more
-  DFs per match even with fewer per game).
-- **Kill cases:** Badosa–Gauff (one side scoped to zero, n=9 was one player);
-  an UNDER a half-point above a one-sided sample's maximum; a player whose
-  own sample is clay-only (`[4,4,6,6,6,7,9,10,12]`) priced on hard; a
-  notoriously DF-prone player (some top players average 5+) on the other side.
-- **Good read:** both players' on-surface DF medians, sum, compare with the
-  rung; the one direct meeting's count; the returner's pressure profile.
+Set 1 and set 2 only. Thin, and a `set2` market does not exist if the match
+ends in straight sets in a way the book voids — **check the settlement rule
+before grading one**. Small counts of rows on any board.
 
-## What is *not* on the sheet and must not be inferred
+## `tiebreaks_total`
 
-First-set games, first-set winner, set betting, tie-break yes/no, break
-counts, match winner. Method §83 forbids "strong overall form ⇒ first-set
-over"; the data is not collected, so any such read is invention. If the
-operator asks, say the market is not priced here and why.
+Collected and classified **non-count**, so CONFIDENCE refuses it
+(`NOT_IN_CALIBRATION_FIT`). It can never be a builder leg. Treat it as
+reporting only.
 
-## Tennis Bet Builder (method §76, §91–§93, §114)
+## Derived — `most_aces`, `most_games`, `most_serve_points`, `handicap_games`
 
-`bet_builder_draft.py` marks any two length legs `correlation_risk HIGH`
-(sets, games, aces, DFs move together). By hand: a concrete scoreline that
-satisfies every leg (`7-6 6-4`: 23 games, winner 13, loser 10 — does it pass
-O21.5 + winner O12.5 + loser U10.5? yes; `6-3 6-4` fails the winner's 12.5),
-the breadth of the common region (`ROBUST / MODERATE / FRAGILE`), the one
-scenario that kills all legs (a 6-2 6-2 rout, or a retirement), and the
-fragility grade. Preferred constructions (§114) pair a set/player thesis
-with a games thesis that *share the modal scenario*; never
-winner + unrelated prop + unrelated prop. Never a combined price.
+- Functions of two sides, computed from `config/sofa_side_correlations.json`,
+  **not sampled**. Every such row carries `ONE_SIDED_LADDER` and
+  `NO_MARKET_MARGINAL`.
+- `most_*` are refused by CONFIDENCE (`DERIVED_NOT_CALIBRATABLE`) and can never
+  be a leg.
+- `handicap_games` is **not** in the derived-prefix ban but **is** in the
+  `games` quantity family, so it competes with `games_total` and
+  `games_won_for` for the one slot a builder allows. It was 581 rows on a
+  Monday board — a large, weakly-checked part of the tennis sheet.
+
+## Tennis Bet Builders
+
+Two legs on one tennis match are almost always **one bet**: sets, games, aces,
+double faults and serve points all resolve through match length, and a short
+match settles every UNDER at once. `confidence.py`'s quantity families stop the
+worst of it, but `aces` and `double_faults` are separate families from `games`
+and will combine. Say plainly when they share the mechanism anyway.
+
+Tennis length markets were measured overconfident by ~25 pp on 2026-09-06 and
+deliberately left uncorrected, because the fix risked overfitting. Carry that
+into every tennis read.

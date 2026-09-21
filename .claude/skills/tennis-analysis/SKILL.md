@@ -1,154 +1,155 @@
 ---
 name: tennis-analysis
-description: How to analyse one tennis match's length and serve markets (total games, total sets, a player's games won, aces and double faults, match and per player) from this pipeline's artifacts the way the tennis-modelling literature and the operator's method say it should be done - surface first, format (best-of-three vs best-of-five) second, opponent quality, serve/return decomposition, hold vs break, tie-break frequency, fatigue and schedule, H2H decay, distribution over mean, scoreline arithmetic for every rung, price last. Use when reading a tennis stats sheet, grading VALUE rows, writing analyst vetoes, or judging a tennis Bet Builder. Preloaded into bet-analyst-tennis.
+description: How to analyse one tennis match's length and serve markets in the sofa pipeline (total games, a player's games won, total sets, aces, double faults, serve points, per-set variants, and the derived most_/handicap_ markets) - surface first, format second, opponent quality of the sample, serve/return decomposition, hold vs break, scoreline arithmetic for every rung, schedule and fatigue, price last. Use when reading a sofa tennis sheet, grading VALUE rows, judging a tennis Bet Builder leg, or writing vetoes. Preloaded into sofa-analyst-tennis.
 ---
 
-# Tennis analysis — the method, mapped to what this pipeline actually holds
+# Tennis analysis — the method, mapped to what `sofa` actually holds
 
-Read `bet-analysis-core` first (preloaded with you). Tennis differs from
-football in three ways that change everything below: **there is no source of
-record** (bzzoiro-tennis answers `402 addon_required`; no MCP, no market
-signal, no model), so every row is `NO_REFERENCE_SOURCE` and can never be
-`CALL`; the sample is **two individuals**, each with their own surface,
-format and schedule history; and every market is a function of **match
-length**, so a short match settles every UNDER at once.
+`sofa-pipeline` and `sofa-analysis-core` are preloaded with you. Tennis differs
+from football in four ways that change everything below.
 
-**`cross_provider_agreement` on a tennis row means something as of
-2026-09-08, and it did not before.** Corroboration was bucketed by calendar
-day while tennis match identity deliberately discards the date —
-tennis-abstract stamps a match with its tournament's start, 10–11 days before
-espn-tennis' match date — so every tennis row ever written by this pipeline
-reported `SINGLE_SOURCE` with `corroborated_matches: 0`. On the 2026-09-07
-slate that was 448 of 448 rows, including samples where both feeds had seen 7
-of 10 matches and agreed to within a game. Read the field now: `AGREE` says
-two independent transcriptions of the same match match, `PARTIAL_AGREE` gives
-you the share, `DISAGREE` is a reason to distrust the sample outright. It buys
-no tier — `NO_REFERENCE_SOURCE` still caps every tennis row at `LEAN` — so
-what it changes is what you may *say*: a corroborated tennis sample is no
-longer to be described as uncorroborated. Note also what it deliberately
-refuses: where the two feeds report a different number of meetings with one
-opponent, the rows cannot be lined up and the slot is left unjudged rather
-than guessed at, so it neither corroborates nor conflicts.
+1. **There is no source of record.** `bzzoiro-tennis` answers
+   `402 addon_required`. No MCP, no model, no consensus. Verification is web,
+   two domains, tagged — and **game-level ITF statistics are not available
+   free**, so "unverified" is often the honest answer and you must say it
+   rather than manufacture a source.
+2. **The sample is two individuals**, each with their own surface, format and
+   schedule history.
+3. **Every market is a function of match length.** A short match settles every
+   UNDER at once, so a two-leg tennis slip is usually one bet with two prices.
+4. **`K_CENTRE` for tennis is 2**, against football's 25. A tennis row is
+   almost entirely its own sample — at n=10 the sample owns **83%** of the
+   centre. There is far less league prior propping it up, in both directions.
 
-Reference files — open at the step that needs them:
+Tennis is usually about two thirds of the board.
 
-| File | Open when |
+| reference | open it when |
 |---|---|
-| `references/data-inventory.md` | what is measured, from which provider, which rungs Superbet posts, what is scoped out, what is *not* carried (opponent rank, round, hold %, tie-breaks) |
-| `references/methodology.md` | the model behind a claim (point-based hierarchy, serve/return combination, surface and format effects, Elo, H2H decay, fatigue, retirements) |
-| `references/market-playbook.md` | grading a specific market — drivers, scoreline arithmetic, kill cases |
-| `references/event-protocol.md` | writing a match section — the master matrix, scenario matrix, template, verdict mapping |
+| `references/data-inventory.md` | what is measured, which rungs exist, how the sample is scoped, what is *not* carried |
+| `references/methodology.md` | the model behind a claim — point-based hierarchy, serve/return, surface and format effects, H2H decay, fatigue, retirements |
+| `references/market-playbook.md` | grading a specific market: drivers, scoreline arithmetic, kill cases |
+| `references/event-protocol.md` | writing a match section |
 
-The operator's method: `docs/SUPERBET_BET_BUILDER_METHOD_v3.md` — for tennis
-open §7, §18, §24 (tennis A–D), §50, §65–§69, §72–§76, §81–§88, §101, §113–
-§114 in this run and say so.
+The operator's method: `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`.
 
-## What a tennis analyst here is *for*
+## What the code already does
 
-The code already: scopes each side's sample to tonight's **surface**
-(`SURFACE_MISMATCH`) and **format** (`MATCH_FORMAT_*`, best-of-five only for
-men's slam main draw), collapses duplicates, prices `p_low`/`p_central`,
-frames every match total as **own + own** (never the pooled mean) and
-suppresses a total when one side has no scoped observation, shrinks toward a
-market prior, picks the rung, prices against Superbet. **It cannot** see who
-the opponent was in each observation (only a name), the player's ranking or
-the opponent's, the round, the previous match's length or hours of rest, a
-retirement risk, a qualifier's route, whether the ten hard-court matches were
-at 250 level or slams. That is your job.
+`samples.py` scopes each side's observations to tonight's **surface**
+(`event.groundType == fixture.ground_type`) and **format**
+(`infer_best_of(event) == fixture.default_period_count`). Both come off the
+fixture, so both are real rather than inferred from a competition-name pin —
+which is a genuine improvement over the retired pipeline, where surface never
+reached the scoping at all.
 
-## The protocol — surface first, format second, price last (method §66, §113)
+`sets_total` and `games_won_for` are priced by the **sample's own frequency**,
+not by a bell curve. `sets_total` is bounded (2 or 3 on a best-of-three) and
+`games_won_for` is violently bimodal — a straight-sets winner has at least
+twelve games, so the distribution has a loser mode spread over 0–11 and a
+winner mode stacked on 12+. Across 570 observations in one day: 10:17, 11:10,
+**12:159**, 13:84. Superbet's line sits at **11.5, in the trough.** A normal
+CDF puts smooth density exactly where the real distribution has almost none.
 
-For every fixture with a `VALUE` row in `<date>_superbet_comparison.json`
-(sport tennis) and any fixture you intend to veto:
+For every other tennis metric `p_central` comes from a count model, so it will
+**not** equal the sample hit rate.
 
-1. **Identity, time, format, surface.** `event_list.competition` (`ATP …` /
-   `WTA …`) decides BO5/BO3 and surface through the pins; if the competition
-   is not pinned, say the sample is **unscoped**. Verify the match is on the
-   order of play at the artifact's time via WebFetch (official tournament
-   site + one independent domain); a time disagreement of hours is common and
-   must be reported, not resolved by guessing. Round from the web (R1/R2/QF;
-   qualifying is BO3 even at a slam).
-2. **Sample integrity.** Per side: retained observations after
-   `sample_excluded`, their surfaces and levels (`surface`, `match_level` on
-   each observation), their dates, the `opponent` names. A side with 0–3
-   retained on tonight's surface is not a sample. `data_gaps` names retired
-   matches (`RET`) and identity refusals (`MISIDENTIFIED`). Estimand: is the
-   total framed own+own (`centre_note`)? Does `games_won` name the player you
-   mean?
-3. **Opponent quality of the sample** (method §67–§68). The `opponent` field
-   is a name; look the names up (rankings via WebFetch) and classify the
-   sample's opposition `LOW / MEDIUM / HIGH`; compare with tonight's opponent.
-   A 12-game `games_won` mode built against WTA-125 fields says nothing about
-   a slam finalist.
-4. **Serve / return decomposition** (method §18, §84–§86). From
-   `aces_for`, `double_faults_for`, `first_serve_pct`, `break_points_faced`
-   (dossier-only, per player) and the web (hold %, return points won, tie-break
-   record on this surface): is the match a high-hold/competitive OVER, a
-   breaks-and-three-sets OVER, or a one-sided UNDER? Aces ≠ tie-breaks; big
-   serve ≠ over games.
-5. **Distribution and scoreline arithmetic.** Q25–Q75, mode, min, max of the
-   scoped sample; then the concrete scorelines that settle each rung
-   (`6-3 6-4 = 19`; `7-6 6-7 7-6 = 39`; a player's games in `6-2 6-3` is 5).
-   Which rung does the modal scoreline land on?
-6. **Schedule and fatigue** (method §73). Previous match: sets, games,
-   duration, date; back-to-back days; retirement in the last month;
-   qualifiers with three extra matches. Web-sourced, tagged.
-7. **H2H with decay** (method §65): weight 1.0 (<90 d), 0.75, 0.50, 0.25
-   (>365 d); surface-matched or not. Supporting prior, never the primary
-   signal; `STALE_H2H` already drops >12 months from the sample.
-8. **Scenario matrix** (method §24 tennis A–D, §82): favourite pulls away /
-   underdog holds serve / both first serves work / tie-break or deciding set —
-   weighted by the price-implied favourite strength (Superbet's own match
-   odds are in the offer's `result_market_lines`; label them as the book's
-   opinion). Which scenario is modal; which kills the market.
-9. **Ladder and tail** — every rung Superbet posts (total games 12.5–36.5,
-   games_won per player, aces, DFs), `p_low`/`p_central`/price per rung,
-   `RUNG_SEPARATED_BY_MODEL`, tail both ways (a 3-set match adds 12–15 games
-   to a 2-set one).
-10. **Price** — last, and there is **no consensus** to devig: `p_*` is all
-    there is, it is weaker, say so. `min_acceptable_odds` vs `superbet.price`
-    from the comparison; probability quality and value quality separately.
-11. **Buy case / kill case → fresh eyes → verdict** `KEEP / WATCH / NO BET`,
-    §32 grade, veto entry with the right `reason_class`.
+## What the code cannot see
+
+- the round (R1/QF/final), and that **qualifying is best-of-three even at a slam**
+- either player's ranking, or the ranking of any opponent in the sample — the
+  `opponent` field is a name and nothing more
+- the previous match: its length, its date, hours of rest, a three-match
+  qualifying route
+- retirement risk, a walkover, a late withdrawal
+- indoor versus outdoor, altitude, ball type, wind
+- whether the competition's surface pin is right at Challenger/ITF level, where
+  coverage is thinnest
+
+## The protocol — surface first, format second, price last
+
+For every tennis fixture with a `VALUE` row, every fixture appearing in
+`08_confidence.json`, and any fixture you intend to veto.
+
+1. **Identity, both clocks, format, surface.** From `02_fixtures.json`:
+   `competition_name`, `ground_type`, `default_period_count` (for tennis this
+   **is** the real best-of), `identity`, `kickoff_utc`,
+   `superbet_kickoff_utc`, `kickoff_disagreement_h`.
+   **The clock disagreement is structural and reaches 11 h on ITF** — Superbet
+   posts a nominal "not before", Sofascore appears to publish the tournament's
+   local time as UTC, and the error runs the wrong way: a finished match looks
+   upcoming. Take the **earlier** clock. Then verify against the tournament's
+   order of play, tagged, before spending anything else.
+2. **Sample integrity, per side.** `03_samples.json`: how many observations
+   survived the surface and format scope, their dates, their opponents. **A
+   side with 0–3 scoped observations is not a sample.** If a total's split
+   shows one side at zero, the "total" is one player's history wearing a
+   match's name — veto it `SAMPLE_UNINFORMATIVE`.
+3. **Opponent quality of the sample.** Look the `opponent` names up and
+   classify the sample's opposition. A `games_won_for` mode of 12 built
+   against ITF fields says nothing about tonight's seed.
+4. **Serve / return decomposition.** From `aces_for`, `double_faults_for`,
+   `serve_points_for`, plus the web for hold %, return points won, tie-break
+   record on this surface. Is this a high-hold competitive OVER, a
+   breaks-and-three-sets OVER, or a one-sided UNDER? **Aces ≠ tie-breaks. A big
+   serve does not mean over games** — it often means the opposite, because
+   holds are quick.
+5. **Distribution and scoreline arithmetic.** The sample's min, max, median,
+   mode; then the concrete scorelines that settle each rung. `6-3 6-4` is 19
+   games. `7-6 6-7 7-6` is 39. A player's games in `6-2 6-3` is 5. Which rung
+   does the **modal** scoreline land on?
+6. **Schedule and fatigue.** Previous match: sets, games, duration, date;
+   back-to-back days; a qualifier carrying three extra matches; a retirement
+   in the last month. Web, tagged.
+7. **H2H with decay.** A supporting prior, never the primary signal.
+   **`h2h` observations never reach a `*_for` row** by design.
+8. **Scenario matrix.** Favourite pulls away / underdog holds serve / both
+   first serves work / tie-break or deciding set. Which is modal, which kills
+   the market. **`sofa` carries no match-odds price**, so the favourite's
+   strength is not in the artifacts — say so or source it and label it.
+9. **Ladder and tail.** Every rung Superbet posts for this market with
+   `p_central` / `p_bar` / `offered` / `required` / `surplus`. A third set adds
+   12–15 games to a two-set match — the tail is huge and one-sided.
+10. **Price — last, and there is often nothing to check it against.** When the
+    rung is one-sided, `market_p` is null, the bar is unanchored
+    (`NO_MARKET_MARGINAL`), and `p_bar` is just `p`. Say so.
+11. **Buy case / kill case → verdict** `KEEP / WATCH / NO BET` + the veto entry.
 
 ## Kill cases this repo has already paid for
 
-- **Pooled total priced absent third parties.** Oliynykova–Eala `aces_total`
-  1.5 OVER at 13/13 from a pooled mean of 5.23 when own+own was 2.25; the
-  book's 2.42 was right. Fixed in code; when `centre_note` is missing on a
-  total, check the frame by hand.
-- **One side scoped to zero.** Badosa–Gauff `double_faults_total` n=9 was
-  100% Gauff after `SURFACE_MISMATCH` removed all of Badosa's clay matches.
-  Code now suppresses one-sided totals; if a total's split shows `a=0` or
-  `b=0`, `ESTIMAND_WRONG`.
-- **Grass sample on a hard court.** Boulter–Muchová aces 5.5 OVER from
-  Wimbledon/Bad Homburg observations at the US Open; hard-court medians were
-  6.0/5.0 against a grass 9.0/11.0. Surface scoping now removes these; an
-  unpinned competition does not — say when the surface is unknown.
-- **Opponent class not conditioned.** Tagger `games_won` 9.5 OVER: mode 12
-  against WTA-125 fields, tonight a two-time slam finalist; scenario A gives
-  7 games. `ESTIMAND_WRONG`, line null.
-- **Best-of-three tautologies under best-of-five prices.** Molcan–Bonzi
-  `total_sets UNDER 3.5` at 15/15 from a BO3 sample vs a BO5 event priced at
-  2.40. The format gate needs `--event-list`; if ATP slam rows show
-  `total_sets 2.5` at 0.78+, the gate did not run — say it.
-- **Identical `p_low` across three rungs** (7.5/8.5/9.5 at 8/9): no
-  observation between them; the model, not the sample, separates the prices.
-- **Fallback sample from 2018.** ATP players served off the `jsmatches` route
-  carry an eight-year-old sample with no guard (memory
-  `jsmatches-fallback-is-2018-vintage`) — check observation dates.
-- **Wrong human.** Before 2026-08-28 tennis-abstract served Benoît Paire's
-  page for 72 WTA names and espn-tennis recorded players as their own
-  opponents. Never compare against a tennis number from before that date;
-  `MISIDENTIFIED` gaps are the guard working.
-- **Short match settles every UNDER at once.** Sets, games, aces, DFs are one
-  mechanism; a two-leg tennis slip is one bet with two prices.
+- **One side scoped to zero.** A `double_faults_total` with n=9, all of it one
+  player, because the surface scope removed every one of the other's matches.
+  Check the `side_a` / `side_b` split on **every** total.
+- **A sample from the wrong surface.** Aces 5.5 OVER built on grass
+  observations for a hard-court match; the hard-court medians were 6.0/5.0
+  against grass 9.0/11.0. `sofa` scopes on `ground_type` — but at Challenger
+  and ITF level that field is the thinnest part of the data. When it is
+  missing, the scope silently does nothing. **Check it.**
+- **Opponent class not conditioned.** A `games_won_for` 9.5 OVER with a mode of
+  12 against much weaker fields, against a far stronger opponent tonight.
+- **Best-of-three tautologies priced as best-of-five.** `sets_total UNDER 3.5`
+  at 15/15 from a BO3 sample on a BO5 event. `default_period_count` is the
+  guard; if it is null, the scope did not run.
+- **The line in the trough.** `games_won_for` 11.5 sits between the loser mode
+  and the wall at twelve. The empirical estimator handles it; a normal one did
+  not, and it ran predicted 0.404 against realised 0.320 on 862 settled rows.
+- **Identical `p_central` across three rungs.** No observation falls between
+  them, so the model and not the sample separates the prices.
+- **Certainty for free.** A `sets_total UNDER 3.5` on a best-of-three is a
+  tautology. CONFIDENCE refuses anything under 1.0867 and `outside_model_resolution`
+  refuses a `p_raw` outside [0.05, 0.95] — but check the rung yourself.
+- **The empirical frequency is overconfident at the top.** On 9,286 settled
+  `games_won_for` rows a claimed 0.95 realises **0.728**, and that market has
+  no measured bucket above 0.825. A high `p_central` on this market is the one
+  number you should trust least.
+- **A short match settles every UNDER at once.** Sets, games, aces and double
+  faults are one mechanism. A tennis Bet Builder of two UNDERs is one bet
+  charged twice — and `confidence.py`'s quantity families put `games_*`,
+  `sets_*` and `handicap_games` in the **same** family for exactly that reason.
 
-## Output additions specific to tennis
+## Tennis-specific output requirements
 
-Per match, always state: tour and format (BO3/BO5), surface (pinned or
-unknown), round and time as verified (two domains or "unconfirmed"), each
-side's retained-on-surface `n` and the opposition class of those
-observations, the previous match (score, date, duration when found), the
-framed centre (`centre_note`) for every total, and that the row is
-`NO_REFERENCE_SOURCE` **once**, not per row.
+Per match, always state: tour and format from `default_period_count`; surface
+from `ground_type`, **or explicitly that it is unknown**; round and start time
+as verified, on both clocks, with the disagreement in hours; each side's
+scoped `n` and the class of the opposition behind it; the previous match where
+you found it; and once, in the header, that tennis has **no source of record**
+— not once per row.

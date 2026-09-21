@@ -1,6 +1,6 @@
 ---
 name: bet-slip-audit
-description: Price a Superbet leg, Bet Builder or SUPERBETS slip against the bzzoiro consensus before recommending it, and refuse the ones that cannot be worth their price. Use when reviewing a proposed coupon, a Bet Builder draft, a slip the operator screenshotted, or any single where a price is known - especially "drużyna - liczba goli powyżej 0.5", "gole 1-3 w każdej połowie", per-team corners/fouls/shots lines, and player props. Built from the 2026-08-30/31 ledger, where nine of twenty placed bets lost and only two of the thirteen priceable ones were ever worth taking.
+description: Price a Superbet leg, Bet Builder or SUPERBETS slip before recommending it, and refuse the ones that cannot be worth their price - using sofa's own p_bar and confidence curve where the row exists, and the ~88-book bzzoiro consensus as an independent second opinion where it does not. Use when reviewing a slip the operator screenshotted, a boosted SUPERBETS price, a Bet Builder draft, or any single where a price is known - especially "drużyna - liczba goli powyżej 0.5", "gole 1-3 w każdej połowie", per-team corners/fouls/shots lines, and player props. Built from the 2026-08-30/31 ledger, where nine of twenty placed bets lost and only two of the thirteen priceable ones were ever worth taking.
 ---
 
 # Audit the price before you audit the fixture
@@ -12,12 +12,37 @@ description: Price a Superbet leg, Bet Builder or SUPERBETS slip against the bzz
 > *not* the product of the leg probabilities. A slip that is correctly priced
 > and internally contradictory is still not a bet.
 
+## Where this sits relative to `sofa`
+
+This skill is about a price on a screen, and it applies whether or not the
+pipeline generated a row for it.
+
+- **The row exists in `05_sheet.json`.** Then `sofa` has already answered the
+  worth-the-price question: `required_odds = 1.10 / p_bar`, and `surplus` is the
+  gap. Use that first. What this skill adds is the second opinion the pipeline
+  does not have — Superbet's price devigged against ~88 other books rather than
+  against its own other side — and the structural refusals below, which need no
+  fixture at all.
+- **The row does not exist.** `unmapped_markets` ran to 21,290 on one day; we
+  classify roughly a tenth of Superbet's screen. Then this skill is the only
+  arithmetic available, and it must label itself as outside the pipeline.
+- **It is a Bet Builder.** `sofa`'s own answer is in `08_confidence.json`:
+  `combined_probability`, `odds_after_haircut` and `ev_after_haircut`, where the
+  haircut is the **measured** 8.8–19.6% correlation markup Superbet takes on a
+  slip. **If the operator has the screen price, it wins outright over that
+  estimate** — a measurement beats an estimate — and the whole question becomes
+  `combined_probability × screen_odds − 1`.
+- **`scripts/simple/audit_slip.py` belongs to the archived `simple` pipeline**
+  and still runs. It is the consensus-fitting tool below. Nothing in `sofa`
+  calls it, and nothing in it reads a `sofa` artifact.
+
 ## What this is for
 
-`analyze.py` answers *how often has this happened*. `bet_builder_draft` answers
-*which legs are worth assembling*. Neither answers the question that decided the
-2026-08-30/31 results: **is the number on the Superbet screen bigger than the
-number this bet is worth?**
+`sofa`'s SHEET answers *is this worth its price, against Superbet's own other
+side*. CONFIDENCE answers *how often does this actually happen*. Neither answers
+the question that decided the 2026-08-30/31 results, because neither has a
+second book to compare against: **is the number on the Superbet screen bigger
+than the number this bet is worth, measured somewhere other than at Superbet?**
 
 Twenty bets were placed across those two days. Nine lost. Thirteen are football
 fixtures bzzoiro prices, and reconstructing all thirteen against its consensus
@@ -154,17 +179,22 @@ against a 41.1% product — a real +5pp lift, carried entirely by shots-and-goal
 The Monaco slip's corners-plus-BTTS legs land 20.7% against a 21.1% product —
 independent, no lift at all.
 
-`bet_builder_draft.py`, `coupons.py`, `build_coupons.py` and `run-day.md` all
-carry the same sentence: "corners, cards, fouls and shots in one match are
-strongly positively correlated". For **shots and goals** that is right and then
-some. For **corners** it is not true in this sample, and for **fouls** it points
-the wrong way. Cards were not sampled, so the card half of the claim is
-untested here, not refuted.
+The loose claim that "corners, cards, fouls and shots in one match are strongly
+positively correlated" is right for **shots and goals** and then some, not true
+for **corners** in this sample, and points the wrong way for **fouls**. Cards
+were not sampled, so the card half is untested here, not refuted.
 
-Their shared *conclusion* — never print a combined price — stands regardless,
-so the wording has been left alone rather than edited across eight files on the
-strength of 700 matches. Treat the r-table above as the number to quote when
-the question is which legs actually move together.
+`sofa` handles the part that matters structurally: `confidence.py` takes at
+most one leg per **quantity family**, because a team's goals and the match
+total are one quantity counted twice (measured lambda 2.165, up to 8.37), and
+it refuses a builder whose legs disagree about tempo — `goals UNDER` with
+`corners OVER` is negatively correlated, so the product *overstates* the joint
+and the slip's EV would be reported too high. What it does not do is claim the
+product is the price: that is the 12% haircut's job.
+
+The shared conclusion — never print a combined price of your own — stands.
+Treat the r-table above as the number to quote when the question is which legs
+actually move together.
 
 ### 4. Where the edge is not, and the one place it is
 
@@ -241,8 +271,11 @@ it. Specifically:
   draws. It is anchored on the observed 1X2 *and* totals, so the bias lands in
   the fitted rates rather than in the answers — but a fit with no totals line
   barely pins the match rate, and the tool says so when you give it one.
-- Nothing here overrides the existing hard rules in `bet-analyst.md`: no
-  combined price, no stake sizing, no automated placement.
+- Nothing here overrides the hard rules in `sofa-analysis-core`: no combined
+  price of your own, no stake sizing, no automated placement.
+- The r-table and the base rates were measured on the archived pipeline's
+  sample. They are orders of magnitude, **not priors you may substitute for a
+  `sofa` row's `centre`**.
 
 ## Reference
 
@@ -253,4 +286,8 @@ it. Specifically:
 - [`reference/coverage.md`](reference/coverage.md) — what bzzoiro can and cannot
   price, and how to say so.
 - `src/bet/simple_stats/slip_audit.py` — the arithmetic, with tests in
-  `tests/simple_stats/test_slip_audit.py` that carry the ledger as a regression.
+  `tests/simple_stats/test_slip_audit.py` that carry the ledger as a
+  regression. Archived pipeline, still runnable, reads no `sofa` artifact.
+- `src/bet/sofa/confidence.py` — `sofa`'s own answer for a Bet Builder:
+  `BUILDER_CORRELATION_HAIRCUT`, `QUANTITY_FAMILIES`, `builder_odds` (where a
+  known screen price beats the estimate), and `is_stakeable`.

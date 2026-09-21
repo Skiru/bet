@@ -1,136 +1,160 @@
 ---
 name: football-analysis
-description: How to analyse one football fixture's counting markets (corners, cards as booking points, fouls, shots, shots on target, goals and halves, offsides, per-team lines, player props) from this pipeline's artifacts the way the literature and the operator's method say it should be done - stakes and round, second legs, derbies, referee, absences, season xG, venue, game script, distribution over mean, ladder choice, price last. Use when reading a football stats sheet, grading VALUE rows, writing analyst vetoes, or judging a Bet Builder draft. Preloaded into bet-analyst-football.
+description: How to analyse one football fixture's counting markets in the sofa pipeline (goals, corners, cards as booking points, fouls, shots, shots on target, offsides, per-team and per-half lines, and the derived both_over/handicap/most markets) - round and stakes, second legs, derbies, referee, absences, venue, opponent class, game script, distribution over mean, which rung, price last. Use when reading a sofa football sheet, grading VALUE rows, judging a Bet Builder leg, or writing vetoes. Preloaded into sofa-analyst-football.
 ---
 
-# Football analysis — the method, mapped to what this pipeline actually holds
+# Football analysis — the method, mapped to what `sofa` actually holds
 
-Read `bet-analysis-core` first (it is preloaded with you). This skill answers
-one question the core does not: *given these rows, how does a competent
-football analyst decide whether the sample describes tonight's match?*
+`sofa-pipeline` (the contract) and `sofa-analysis-core` (the analyst's rules)
+are preloaded with you. This skill answers the one question neither does:
+*given these rows, how does a competent football analyst decide whether the
+sample describes tonight's match?*
 
-Reference files — open them at the step that needs them, not all at once:
-
-| File | Open when |
+| reference | open it when |
 |---|---|
-| `references/data-inventory.md` | you need to know exactly what is measured, at which lines, what is context, what is missing |
-| `references/methodology.md` | you need the model behind a claim (Poisson/Dixon–Coles, overdispersion, referee bias, game state, congestion, two-legged ties, shrinkage) |
-| `references/market-playbook.md` | you are grading a specific market — drivers, kill cases, base rates, what settles it |
-| `references/event-protocol.md` | you are writing a fixture section — the 15-step protocol and the report template |
+| `references/data-inventory.md` | you need to know exactly what is measured, from which Sofascore field, and what is simply absent |
+| `references/methodology.md` | you need the model behind a claim — Poisson/Dixon–Coles, overdispersion, referee bias, game state, congestion, two-legged ties, shrinkage |
+| `references/market-playbook.md` | you are grading a specific market: drivers, kill cases, what settles it |
+| `references/event-protocol.md` | you are writing a fixture section |
 
-The operator's method: `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`. Open the
-sections you use in this run — §15–§17, §22–§25, §32, §37–§44, §49, §64,
-§69–§70, §76–§78, §88–§93, §99–§101, §108 — and say in the report that you did.
-Do not restate its rules; cite the section.
+The operator's method is `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`. Cite the
+sections you used; do not restate them.
 
-## What a football analyst here is *for*
+## What is different about `sofa`, and you must not forget it
 
-The code already: scopes the sample (drops friendlies, last season, stale h2h),
-collapses duplicates, prices `p_low`/`p_central`, shrinks toward a market prior
-with a venue split, blends the referee into card totals, flags derby /
-second-leg / missing-referee / xG gap / ≥4 unavailable / wind, chooses the rung,
-prices against Superbet, and gates by ladder σ. **It cannot** read a cup round,
-an aggregate score, a table position, a manager change, a suspension announced
-this morning, an opponent's style, or whether the four matches that make a mean
-of 29 shots were all against Bolivian sides. That is the whole job: the
-fixture-specific read the code cannot make, expressed as `KEEP / WATCH / NO
-BET` per market and as vetoes the coupon can act on.
+`sofa` carries **far less context than the pipeline this method was written
+for**. There is no season-form table, no xG summary per team, no squad
+availability list, no standings, no bookmaker consensus, no referee blend into
+the centre, no derby flag, no tier system, and no cross-provider agreement.
+What exists is: the fixture's identity and round, a referee on ~9% of fixtures,
+a venue name, and **the raw observations**.
 
-## The protocol, in the order the evidence hierarchy demands
+Two consequences, both load-bearing:
 
-For every fixture with a `VALUE` row in `<date>_superbet_comparison.json`, and
-for any fixture whose rows you intend to veto (full template:
-`references/event-protocol.md`):
+1. **The context half of this method has to come from outside the artifacts** —
+   bzzoiro MCP (by id) and the web. That is legitimate here precisely because
+   `sofa` does not sample from bzzoiro: it is an independent check, not a
+   second helping of the same number.
+2. **Your leverage is higher, not lower.** Every context fact the old pipeline
+   encoded as a flag is now a fact only you can supply.
 
-1. **Identity & clock.** `get_match_detail(match_id=source_ids.bzzoiro)` →
-   `status`, `event_date`, `round_name`, `previous_leg_event_id`, referee,
-   venue. Anything but `notstarted` at the artifact's time → VETO (all lines).
-2. **Stakes.** League round or cup? Which round? Second leg — read the first
-   leg (`get_match_detail` on `previous_leg_event_id`; aggregate; whether extra
-   time applies in this competition — it changes what "90 minutes" means for
-   every UNDER). Table: `get_standings` — title/relegation/dead rubber.
-   Derby: `is_local_derby` **or** `travel_distance_km < 25`. Congestion:
-   `get_team_fixtures` — third match in seven days, continental tie midweek.
-3. **Sample integrity** (core §"Sample integrity"): a/b/h2h split from the
-   dossier, `sample_excluded`, `observation_flags`, `DISAGREE` on the line,
-   h2h observations that are the *misses*, one side ≤3 retained. Then the
-   estimand: does `fouls_for A + fouls_for B ≈ fouls_total mean`? Does the
-   cards row use `cards_points_*`? Is a `*_for` row on the side you mean?
-4. **Distribution.** Q25–Q75, mode, min, max, `mean` vs `median`; where the
-   rung sits relative to the mode and to the sample's extreme; which
-   observations make a skew and against whom.
-5. **Opponent & venue.** Tonight's venue (`row.venue`) vs the sample's mix;
-   opponent's own `*_for` / `goals_against` profile (we hold no `*_against`
-   except goals — say so rather than invent an "allowed" number); style clash
-   (a low block generates corners for the attacker and shots-against for
-   itself).
-6. **Season form.** `season_form.xgf/xga` with `xg_games`; the gap between
-   goals and xG is the regression argument against a shots/goals lean built on
-   results. Position and `form` string.
-7. **Referee** (cards, fouls): `matches` first; `avg_yellow_per_match` vs the
-   line; `avg_red_per_match`; `centre_note` tells you whether code already
-   blended him in. Null referee on a card row = `MISSING_REFEREE` (code has
-   capped the tier; you decide whether the league's spread makes it a
-   DOWNGRADE).
-8. **Squads & lineups.** `squad_availability` both sides (count, who,
-   `availability_unknown_count`); `get_match_lineups` if within ~1h; props on a
-   `predicted` XI stay `LEAN`; method §21 expected minutes < 70 forbids HIGH.
-9. **Game script A–D** (method §24) weighted by the fixture's 1X2 from
-   `market_context` / `compare_odds`: favourite ahead, underdog ahead, 0-0 to
-   60', level. Say which scenario is modal and whether the market survives it.
-10. **Ladder & tail.** All rungs Superbet posts, `p_low`/`p_central`/price per
-    rung, `RUNG_SEPARATED_BY_MODEL`, the rung a half-point beyond the sample's
-    extreme, tail both ways (method §16, §37, §88).
-11. **Correlation** for anything the operator may combine: mechanism, direction,
-    the one scenario that kills every leg (method §39–§42, §91–§93). Never a
-    product.
-12. **Price** — last. `min_acceptable_odds` vs `superbet.price` from the
-    comparison; probability quality and value quality separately (§38); for
-    goals markets also the devigged consensus via `audit_slip.py`.
-13. **Buy case / kill case** (method §69): the strongest fact for, the strongest
-    fact against, and which wins. `BUY ≈ KILL` → WATCH at most.
-14. **Regression-test library** (method §108 + `references/market-playbook.md`
-    kill cases): does this read resemble a known failure class?
-15. **Fresh eyes → verdict** `KEEP / WATCH / NO BET`, the §32 grade, and the
-    veto entry with the right `reason_class`.
+## What the code already does — do not re-derive or veto for it
 
-## Kill cases this repo has already paid for (check each read against them)
+Shrinks the sample toward a fitted league baseline at `K_CENTRE = 25`; prices
+football counts through a negative binomial (overdispersion is in the model);
+power-devigs the offered price; blends toward it at `w = n/(n+10)`; checks the
+book's whole ladder where it can (only 52.4% of ladders are checkable);
+enforces price age 45 min, sample age 60 days, kickoff 15 min on the earlier
+clock, odds floors, one mechanism family per fixture; and for builder legs
+enforces sample ≥ 10 observations, ≤ 180 days, mode-must-not-lose,
+line-inside-sample, tempo coherence and the 12% correlation haircut.
 
-- **Team-corner OVER + total-corner UNDER without a tail test** (Porto–Arouca
-  12–2). One side can destroy the total alone.
-- **The misses are the h2h.** Grenal fouls: 19/21 pooled, 1/3 conditional on
-  the fixture. `SAMPLE_NOT_REPRESENTATIVE`, line null.
-- **Line on the mode.** Grenal cards 7.5 with five 7s and two 8s in twenty;
-  8.5 was the rung. `LINE_ON_MODE`, that line only.
-- **DISAGREE on the line.** Náutico cards 6.5: 6 vs 8 on one match decided
-  20/21 vs 19/21 and the bar. `DATA_CONFLICT`.
-- **No referee on a card row in a high-spread league.** América–Alianza;
-  `MISSING_REFEREE`, line null — a specific line let 7.5 through last time.
-- **Mean pulled by four outliers against a different class of opponent.**
-  Grêmio shots 29.6 mean / 26 median from Bolívar ×2, Chapecoense, Bragantino.
-- **Sample centre far from the book's ladder centre.** Sheffield United
-  corners mean 2.80 vs ladder median 5.76 — the sample described a different
-  team-state; code now demotes at 1.25σ, you name why.
-- **Past frequency read as an edge.** Brommapojkarna scored in 12 straight;
-  the devigged consensus said 64% against a price asking 70%. Compare, then
-  speak.
-- **A short-priced 0.5 UNDER / 5.5 goals UNDER at 1.01–1.05** on top of the
-  sheet by `p_low`. Certainty for free is not a bet; do not lead with it.
-- **`both_teams_over`** has no sample; `min(p_A, p_B)` is a ceiling, not a
-  floor. Report two `*_for` rows and forbid the multiplication.
-- **Extra time / penalties in a cup second leg.** Check the competition's rule
-  before trusting any counting UNDER; Copa do Brasil goes straight to
-  penalties from R16, UEFA ties play 30 minutes.
-- **Predicted XI props on a morning run.** All `LEAN`; substitutes' box scores
-  with minutes are in the sample, unused subs are not; rotation makes `n`
-  small for a reason.
-- **`possession` is 100.0 in every observation** — a constant, not data.
+## The protocol
 
-## Output additions specific to football
+For every fixture carrying a `VALUE` row, every fixture with a leg in
+`08_confidence.json`, and any fixture you intend to veto. Full template:
+`references/event-protocol.md`.
 
-Per fixture, always state (even when the answer is "none"): round/stakes and
-where you read them, referee with `matches`, absences per side with the
-unknown count, `season_form` xG with `xg_games`, derby/neutral/travel/weather
-only when they weigh, the modal game-script scenario, and which rows the code
-already stepped down (`context_flags`, `lean_ceiling_reasons`) so you do not
-double-count them in a DOWNGRADE.
+1. **Identity & both clocks.** From `02_fixtures.json`: `identity`
+   (`FUZZY` is never "confirmed"), `kickoff_utc`, `superbet_kickoff_utc`,
+   `kickoff_disagreement_h`. Then
+   `mcp__bzzoiro__get_match_detail(match_id=...)` by id for `status` — anything
+   but `notstarted` at the artifact's time is a veto on all lines. Tag it.
+2. **Stakes.** `round_name`, `cup_round_type`, `previous_leg_event_id` are in
+   the fixture. The *aggregate* is not — read the first leg. League position,
+   dead rubber, promotion play-off: `get_standings`. Congestion: third match in
+   seven days, a midweek continental tie — `get_team_fixtures`. Derby: name it
+   and say how you know.
+3. **Sample integrity.** Open `03_samples.json` for this fixture and metric.
+   Count `side_a` / `side_b` / `h2h` separately. Read every observation's
+   `match_date_utc`, `opponent`, `venue`, `competition_id`. Then ask:
+   - does the sample span a manager change, a promotion, a transfer window?
+   - are the h2h observations *the misses*? (a pooled 19/21 that goes 1/3
+     conditional on this fixture)
+   - is one side thin while the other carries the mean?
+   - do `X_for(A) + X_for(B)` land near `X_total`'s mean? If not, the two rows
+     are not measuring the same match.
+   - does `subject` resolve to the side you think? This is the most fragile
+     join in the pipeline.
+4. **Shrinkage share.** `w_c = n/(n+25)`. State it. At n=10 the league prior
+   owns **71%** of the centre. For any `*_1h_*` / `*_2h_*` row state it twice
+   — half-match baselines are fitted on a smaller, different population, and a
+   stale baselines file has already shipped corners priors 24–32% too high.
+5. **Distribution.** From the observations: min, max, median, mode, and where
+   the line sits inside that range. A line beyond the sample's extreme is an
+   extrapolation into a region with zero observations, whatever the hit rate
+   says. A line on the mode is a coin flip dressed as a lean.
+6. **Opponent & venue.** Tonight's venue against the sample's home/away mix;
+   the opponent's own `*_for` profile. **We hold no `*_against` metric** — say
+   so rather than inventing an "allowed" number. Style clash: a low block
+   generates corners for the attacker and shots-against for itself.
+7. **Referee** (cards, fouls only). `RefereeRecord` gives `games`,
+   `yellow_cards`, `red_cards`, `yellow_red_cards` — a rate, not an
+   observation of tonight. It is present on ~9% of fixtures and **is not
+   blended into the centre in `sofa`**. Absence is the default; say what the
+   league's spread makes of that.
+8. **Absences & lineups.** Not in the artifacts at all. `get_match_lineups`
+   within ~1 h of kickoff, otherwise the web. Four starters out is a
+   `CONTEXT` veto candidate; a rested XI in a cup tie likewise.
+9. **Game script A–D** (method §24): favourite ahead, underdog ahead, 0-0 to
+   60', level. Say which is modal and whether the market survives it. The 1X2
+   is not in the artifacts — `compare_odds` over MCP is a reference across ~88
+   books, **none of which is Superbet**.
+10. **The ladder.** All rungs in `04_offer.json` for this market, with
+    `p_central` / `p_bar` / `offered_odds` / `surplus` per rung. Note
+    `NO_LADDER_CHECK` where it appears: that row passed *without* the ladder
+    test, which is not the same as passing it.
+11. **Correlation**, for anything that may become a builder leg: the mechanism,
+    the direction, and the one scenario that kills every leg at once. Never
+    multiply. `confidence.py` owns the combined number.
+12. **Price — last.** `required_odds` against `offered_odds`; `surplus` and its
+    suspicion threshold (+0.40); the price's own `fetched_at_utc`.
+13. **Buy case / kill case.** The strongest fact for, the strongest fact
+    against, which wins. `BUY ≈ KILL` → WATCH at most.
+14. **Verdict** `KEEP / WATCH / NO BET`, and the veto entry if any.
+
+## Kill cases this repo has already paid for
+
+Check every read against these.
+
+- **Team-corner OVER plus total-corner UNDER without a tail test.**
+  Porto–Arouca went 12–2: one side can destroy the total alone.
+- **The misses are the h2h.** A fouls line at 19/21 pooled, 1/3 conditional on
+  this fixture. `SAMPLE_UNINFORMATIVE`, `line: null`.
+- **Line on the mode.** Cards at 7.5 with five 7s and two 8s in twenty
+  observations. Veto that line; 8.5 may still be fine.
+- **A single conflicting observation deciding the bar.** 6 vs 8 on one match
+  moved a row from 19/21 to 20/21 and across the bar.
+- **No referee on a card row in a high-spread league.** In `sofa` this is the
+  *normal* state (~9% coverage), so it is not automatically a veto — but on a
+  card row where the league's spread is wide, say what the absence costs.
+- **A mean pulled by four outliers against a different class of opponent.**
+  Shots mean 29.6 against median 26, the four highest all against continental
+  opposition.
+- **Sample centre far from the book's ladder centre.** Corners mean 2.80
+  against a ladder median of 5.76 — the sample described a different
+  team-state. Look for `LADDER_DISAGREES` / `LADDER_SPREAD_DISAGREES`.
+- **Past frequency read as an edge.** A team scoring in twelve straight is not
+  a 92% claim; devig the price and compare before speaking.
+- **Certainty for free.** A 0.5 UNDER or 5.5 goals UNDER at 1.01–1.05 tops a
+  sheet by hit rate and is not a bet. Never lead with one. CONFIDENCE refuses
+  anything under 1.0867 for exactly this reason.
+- **`both_over_*` has no sample.** It is a function of two sides, carries
+  2–252 settled rows in total, and *every* such row also carries
+  `ONE_SIDED_LADDER` and `NO_MARKET_MARGINAL`. Report the two `*_for` rows and
+  refuse the multiplication. CONFIDENCE will not build a leg from one.
+- **Extra time and penalties in a cup second leg.** Check the competition's
+  rule before trusting any counting UNDER: some go straight to penalties, some
+  play 30 minutes, and "90 minutes" means different things.
+- **Half-match rows on a thin sample.** `corners_2h_*` has 62 matches in the
+  entire settled history. At n=8 the row is 76% league prior.
+- **A high surplus.** Above +0.40 is suspect *by definition*; the selector sorts
+  on exactly the quantity that grows when `p` is wrong.
+
+## Football-specific output requirements
+
+Per fixture, always state — even when the answer is "none": round and stakes
+and where you read them; the referee with `games`, or explicitly that there is
+none; absences per side with how you checked; the venue; the modal game-script
+scenario; the shrinkage share `n/(n+25)`; and which gates the code already
+applied, so a veto of yours does not silently duplicate one.

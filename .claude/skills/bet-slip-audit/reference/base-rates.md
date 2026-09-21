@@ -106,12 +106,17 @@ Consequences:
   goals" is not a coherent story about a chaotic match; it is two legs pulling in
   opposite directions.
 
-**Cards were not sampled** — `/events/{id}/stats/` carries `yellow_cards` but
-the 700-match pull did not retain it, so nothing here speaks to the
-"foul-heavy match is a card-heavy match" claim in `bet_builder_draft.py`. What
-this sample does say is that the *corners* and *fouls* halves of that same
-sentence do not hold against goals. Re-pull with `yellow_cards` before treating
-the card claim as either confirmed or broken.
+**Cards were not sampled** — the 700-match pull carried `yellow_cards` in the
+payload and did not retain it, so nothing here speaks to the standing
+"foul-heavy match is a card-heavy match" claim. What this sample does say is
+that the *corners* and *fouls* halves of that same sentence do not hold against
+goals. Re-pull with `yellow_cards` before treating the card claim as either
+confirmed or broken.
+
+In `sofa` the structural version of this question is settled differently: a
+builder takes at most one leg per **quantity family** (`cards` and `fouls` are
+separate families), and a builder whose legs disagree about tempo is refused
+outright. See `src/bet/sofa/confidence.py`.
 
 ## Reproducing all of this
 

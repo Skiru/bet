@@ -1,5 +1,13 @@
 # Tennis methodology — the models behind each claim, and how they map to our data
 
+**Mapped to `sofa`.** Where an older version of this file pointed at
+`config/tennis_surface_map.json`, `config/tennis_match_format.json`,
+`SURFACE_MISMATCH`, `p_low` or a tier system, those belong to the retired
+`simple` pipeline. `sofa` scopes the sample on the fixture's own
+`ground_type` and `default_period_count`, ranks by `p_central` → `p_bar`, and
+has no tiers. What it does not hold is named at each step, because that is
+where your contribution is.
+
 ## 1. Tennis is a hierarchy of nearly-independent points
 
 - **Klaassen & Magnus (2001, *JASA*)**, ~90,000 Wimbledon points: points are
@@ -32,12 +40,15 @@
 - Aces and "free points" fall on clay; double faults are not surface-neutral
   either (players take more second-serve risk when the return is punishing).
 - *Implication:* a sample from another surface describes another regime.
-  `SURFACE_MISMATCH` removes it when the competition is pinned; when it is
-  not, you must read `surface` on each observation and say what fraction
-  matches tonight (Boulter–Muchová: grass medians 9.0/11.0 aces vs hard
-  6.0/5.0 — the row was an artefact of a surface neither would play on).
-  Method §66's order — current surface → current tournament → recent form →
-  opponent quality → season → H2H → ranking — is the analyst's order here.
+  `sofa` scopes on the fixture's own `ground_type`
+  (`event.groundType == fixture.ground_type` in `samples.py`), which is a real
+  improvement on a competition-name pin. **The failure mode is a null:** at
+  Challenger and ITF level `ground_type` is often absent, the comparison
+  cannot match, and the scope silently does nothing. Check the field and say
+  "surface unknown" when it is. Grass medians of 9.0/11.0 aces against hard
+  6.0/5.0 is what an unscoped sample costs. The analyst's order remains:
+  current surface → current tournament → recent form → opponent quality →
+  season → H2H → ranking.
 
 ## 3. Format: best-of-five is a different sport for every length market
 
@@ -46,11 +57,13 @@
   sets; a BO3 runs 12–39 games and 2–3 sets. `total_sets UNDER 3.5` is a
   tautology in BO3 and a real bet in BO5; a book pricing a BO5 event posts
   2.40 for the same words.
-- *Implication:* the format gate (`config/tennis_match_format.json`) needs the
-  competition name; if it did not run, men's slam rows appear at the top of the
-  sheet with `p_low` 0.78–0.84 and are worthless. Slam qualifying is BO3 and
-  tennis-abstract files it under the same level "G" — the code separates by
-  round; you should confirm the round on the web.
+- *Implication:* `sofa` scopes on `default_period_count`, which for tennis is
+  Sofascore's real best-of, taken from the fixture rather than inferred from a
+  competition name. A **null** there means the format scope did not run, and
+  men's slam rows then reach the top of the sheet as tautologies worth nothing.
+  **Slam qualifying is best-of-three** even though it carries the slam's name —
+  confirm the round on the web, because `round_name` is frequently null for
+  tennis.
 
 ## 4. Ratings, form and opponent quality
 
@@ -108,21 +121,40 @@ the mean; the median is the two-set world.
 
 ## 9. Small samples and identity (method §87, §98)
 
-Per-player form is ten matches; on-surface it is often 3–7. Wilson and the
-count model already shrink, but identical `p_low` across neighbouring rungs
-means the sample has no observation between them. And a wrong human is worse
-than a small sample: before 2026-08-28 one provider served Benoît Paire's page
-under 72 WTA names. `MISIDENTIFIED` gaps are the guard; never reconcile with
-older tennis numbers.
+Per-player form is ten matches; after the surface and format scope it is often
+3–7, and **a side with 0–3 is not a sample**. Identical `p_central` across
+neighbouring rungs means the sample has no observation between them — the model
+separates the prices, not the evidence.
+
+`K_CENTRE = 2` for tennis, so shrinkage barely helps: at n=10 the sample owns
+83% of the centre against football's 29%. A clean sample is respected and a bad
+one is not corrected.
+
+A wrong human is worse than a small sample. `identity: FUZZY` on a tennis name
+is a real risk — names collide — and it must never be reported as confirmed.
 
 ## 10. Price, with no consensus to lean on (method §26, §89–§90, §104)
 
-There is no odds feed, no model and no MCP for tennis here, so `p_low`/
-`p_central` are the only probabilities and are weaker than a football row's
-(nothing corroborates them; the sport is not settled by the backtest, so no
-calibration exists). Decide the rung blind, then look at the price. Superbet
-is a soft book; its tennis totals ladders are wide (12.5–36.5) so the rung the
-sheet chose is one of many — read the whole ladder and say why that rung.
+There is no odds feed, no model and no MCP for tennis here. The only reference
+price is Superbet's own other side, power-devigged into `market_p`, and when
+the rung is one-sided there is none at all (`NO_MARKET_MARGINAL`, `p_bar = p`).
+Decide the rung blind, then look at the price.
+
+Tennis **is** settled and calibrated now: 56,581 settled rows, its own pooled
+curve (`pooled:tennis`), and per-market curves where the row count allows. Two
+measured facts must travel with every confident tennis row:
+
+- `games_won_for`'s empirical frequency is **overconfident at the top** — a
+  claimed 0.95 realises 0.728 over 9,286 rows, and the market has no measured
+  bucket above 0.825. `Calibration.realised` refuses to let it borrow the
+  pooled curve above its own measured ceiling, which is why silence there is
+  evidence rather than a gap.
+- tennis length markets were measured overconfident by ~25 pp on 2026-09-06 and
+  **deliberately left uncorrected**, because the fix risked overfitting.
+
+Superbet is a soft book and its tennis ladders are wide (12.5–36.5), so the
+rung the sheet ranked is one of many — read the whole ladder and say why that
+rung.
 
 ## Sources
 
@@ -135,4 +167,4 @@ sheet chose is one of many — read the whole ladder and say why that rung.
 - Sackmann, J. Tennis Abstract — surface Elo, tie-break frequency (ATP ~1/5 sets, WTA ~1/8). http://www.tennisabstract.com/blog/category/tiebreaks/
 - Smarkets. French Open tennis trading strategy (returner break chance by surface). https://help.smarkets.com/hc/en-gb/articles/115003425649
 - Tennisbettingforum. Tennis surface betting strategy (games per BO3 by surface). https://tennisbettingforum.com/tennis-surface-betting-strategy/
-- In-repo: memory notes `pooled-estimator-targets-wrong-quantity`, `tennis-total-measured-the-wrong-quantity`, `surface-contamination-and-friendly-leak`, `bo5-gate-suppressed-the-market-not-the-sample`, `tennis-sources-consolidated`, `jsmatches-fallback-is-2018-vintage`; `config/tennis_surface_map.json` `_why`.
+- In-repo: `src/bet/sofa/engine.py` (`EMPIRICAL_FREQUENCY_METRICS`, and the measured bimodality of `games_won_for`); `src/bet/sofa/confidence.py` (`Calibration.realised`, the measured-ceiling rule, the sport pool); `src/bet/sofa/samples.py` (the surface and format scope); `docs/sofascore-api/RUNBOOK.md`.
