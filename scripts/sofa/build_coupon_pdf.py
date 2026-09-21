@@ -37,7 +37,11 @@ from reportlab.platypus import (  # noqa: E402
     TableStyle,
 )
 
-from bet.sofa.confidence import quantity_family  # noqa: E402
+from bet.sofa.confidence import (  # noqa: E402
+    displayed_ev,
+    is_stakeable,
+    quantity_family,
+)
 from bet.sofa.contracts import Fixture  # noqa: E402
 from pydantic import RootModel  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
@@ -150,10 +154,25 @@ def main() -> int:
         age = (now - datetime.datetime.fromisoformat(newest.replace("Z", "+00:00"))).days
         return hits, len(vals), wilson_lo(hits, len(vals)), age, sorted(vals)
 
-    picks = [
-        b for b in doc_json["builders"] if b["best_for_fixture"] and b["ev_if_product_priced"] > 0
-    ]
-    picks.sort(key=lambda b: -b["ev_if_product_priced"])
+    # Selected on the price the operator can actually get, not on the product
+    # of the leg prices. Superbet's correlation markup was measured at 9-20%
+    # on 2026-09-20, and at the smallest of those only 2 of that week's 37
+    # slips stayed positive — so `ev_if_product_priced` was admitting slips
+    # that were already negative when the screen quoted them.
+    # Named `ev_key`, not `key`: the per-leg loop below binds a tuple called
+    # `key`, and a loop variable outlives its loop. The summary row then read
+    # `b.get(<tuple>, b.get("ev_if_product_priced"))` and always fell through
+    # to the product EV — so every pick on the staked PDF printed an EV that
+    # ignored the 12% correlation haircut, on a page whose own text says "EV
+    # liczone jest od tej ceny". Selection was right; only the printed number
+    # was wrong, which is the harder kind to notice.
+    ev_key = (
+        "ev_after_haircut"
+        if "ev_after_haircut" in (doc_json["builders"][0] if doc_json["builders"] else {})
+        else "ev_if_product_priced"
+    )
+    picks = [b for b in doc_json["builders"] if is_stakeable(b)]
+    picks.sort(key=lambda b: -b[ev_key])
 
     ss = getSampleStyleSheet()
     H1 = ParagraphStyle("H1", parent=ss["Title"], fontName=BOLD, fontSize=19,
@@ -192,6 +211,14 @@ def main() -> int:
         "prognoza ceny Bet Buildera w Superbecie — bukmacher stosuje własną korektę korelacji. "
         "Porównaj z ekranem.", BODY))
     S.append(Paragraph(
+        "<b>Po narzucie</b> to iloczyn kursów nóg pomniejszony o <b>12%</b> — tyle Superbet bierze "
+        "za korelację. Zmierzone 2026-09-20 na trzech slipach z ekranu: 8,8% (2 nogi), 15,8% "
+        "(2 nogi zagnieżdżone), 19,6% (4 nogi). <b>EV liczone jest od tej ceny</b>, nie od iloczynu. "
+        "Wcześniej kupon wybierał po iloczynie, czyli po cenie, której bukmacher nigdy nie podał: "
+        "z 37 slipów z 2026-09-19 nawet najmniejszy zmierzony narzut zostawiał dodatnie <b>dwa</b>. "
+        "Jeśli ekran pokazuje więcej niż „po narzucie”, slip jest lepszy niż tu napisano; jeśli "
+        "mniej — gorszy, i wtedy go nie bierz.", BODY))
+    S.append(Paragraph(
         "<b>Zaniżenie kursu</b> wynosi płasko ok. 5,4 pkt proc. niezależnie od pewności i "
         "<b>kumuluje się</b> przy dokładaniu nóg: mediana EV to −0,058 przy jednej nodze, −0,082 "
         "przy trzech, −0,118 przy czterech. Dokładanie „pewniaków” nie poprawia kuponu. "
@@ -225,9 +252,12 @@ def main() -> int:
                  "własna próbka", "kalibracja"]]
         caveats: list[str] = []
         for j, x in enumerate(b["legs"], 1):
-            key = (b["sofascore_event_id"], x["market"], x["subject"], x["line"], x["direction"])
-            leg = legs_idx[key]
-            osp = own_sample(*key)
+            leg_key = (
+                b["sofascore_event_id"], x["market"], x["subject"],
+                x["line"], x["direction"],
+            )
+            leg = legs_idx[leg_key]
+            osp = own_sample(*leg_key)
             if osp:
                 hits, nobs, lo, age, vals = osp
                 emp = hits / nobs
@@ -268,14 +298,20 @@ def main() -> int:
         block.append(t)
         block.append(Spacer(1, 4))
 
+        after = b.get("odds_after_haircut")
+        ev = displayed_ev(b)
         summ = [[
             Paragraph(f"<b>{b['n_legs']} nogi</b>", BODY),
             Paragraph(f"łączne p <b>{b['combined_probability']:.3f}</b>", BODY),
             Paragraph(f"kurs uczciwy <b>{b['fair_odds']}</b>", BODY),
-            Paragraph(f"iloczyn kursów {b['odds_if_product']}", BODY),
-            Paragraph(f"<font color='#1b7f4b'><b>EV {b['ev_if_product_priced']:+.3f}</b></font>", BODY),
+            Paragraph(
+                f"iloczyn {b['odds_if_product']} → po narzucie <b>{after}</b>"
+                if after else f"iloczyn kursów {b['odds_if_product']}",
+                BODY,
+            ),
+            Paragraph(f"<font color='#1b7f4b'><b>EV {ev:+.3f}</b></font>", BODY),
         ]]
-        ts = Table(summ, colWidths=[22*mm, 34*mm, 34*mm, 38*mm, 53*mm])
+        ts = Table(summ, colWidths=[20*mm, 31*mm, 31*mm, 50*mm, 49*mm])
         ts.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), BAND),
             ("TOPPADDING", (0, 0), (-1, -1), 4),

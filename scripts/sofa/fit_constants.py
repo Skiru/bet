@@ -24,6 +24,7 @@ import sqlite3
 import statistics
 import sys
 from collections import defaultdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,17 @@ K_GRID = [0.0, 2.0, 5.0, 8.0, 10.0, 15.0, 25.0, 1000.0]
 
 # A league baseline below this many observations is noise wearing a prior.
 MIN_BASELINE_OBSERVATIONS = 30
+
+# How far 1H + 2H may sit from the full-match baseline before it is reported.
+SUM_TOLERANCE = 0.10
+
+# What fraction of a match's counting events may fall in the second half.
+#
+# Measured on this repo's own settled rows: corners 53.7%, goals 55.6%. An
+# independent 141,316-match study puts corners at 52.8%. Football's halves are
+# close to even with a slight second-half lean, so the band is generous in both
+# directions and still catches the 61.5% that shipped on 2026-09-21.
+SECOND_HALF_SHARE_BAND = (0.45, 0.60)
 # A reliability bucket below this many rows cannot support a correction.
 #
 # Was 10, which is a count, not evidence. The ci_lower > 0 gate that decides
@@ -130,13 +142,90 @@ def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
                     "mean": round(statistics.mean(values), 4),
                     "n": len(values),
                 }
-        if pooled:
-            # L11: the global fallback exists, but a league-blind prior was
-            # once the whole edge, so the per-league entries are the point.
-            entry["global"] = round(statistics.mean(pooled), 4)
+        # L11: the global fallback exists, but a league-blind prior was
+        # once the whole edge, so the per-league entries are the point.
+        #
+        # The pool is held to the SAME evidence bar as a league entry, and it
+        # records its own `n`. Until 2026-09-21 it did neither, and the two
+        # omissions compounded: `corners_2h_for` carried a bare 3.4286 fitted
+        # from a handful of rows, nothing on the entry said how few, and at
+        # K_CENTRE=25 that constant took 76% of the centre for any football
+        # sample of n=8. A team averaging 1.12 second-half corners was priced
+        # at 62% to go over 2.5. Refusing the pool is safe: `get_prior`
+        # returns None and run_sheet falls back to `centre = mean`, which is
+        # the sample speaking for itself rather than a constant nobody could
+        # audit.
+        if len(pooled) >= MIN_BASELINE_OBSERVATIONS:
+            entry["global"] = {
+                "mean": round(statistics.mean(pooled), 4),
+                "n": len(pooled),
+            }
         if entry:
             baselines[market] = entry
     return baselines
+
+
+def check_half_match_coherence(baselines: dict[str, Any]) -> list[str]:
+    """First half + second half must add up to the whole match.
+
+    Two things are checked, and the second is the one that bit.
+
+    1. The halves should roughly add up to the whole match.
+    2. The SHARE taken by the second half must be plausible. This is the
+       quantity that was wrong on 2026-09-21 and the sum test would have
+       missed it: `corners_1h_total` 4.08 + `corners_2h_total` 6.50 = 10.58
+       against a full-match 9.90, only 6.8% adrift and well inside any sane
+       sum tolerance — while the split it implied put **61.5%** of a match's
+       corners in the second half. Measured on this repo's own settled rows
+       the share is 53.7% for corners and 55.6% for goals; 141k matches
+       elsewhere put corners at 52.8%. Both halves of football are close to
+       even, slightly favouring the second, and anything outside SECOND_HALF_
+       SHARE_BAND is a fit artifact rather than a fact about football.
+
+    The arithmetic downstream was internally perfect at every step, which is
+    exactly why no other gate caught it: the number was consistent, just wrong.
+    """
+    findings: list[str] = []
+    for full in sorted(baselines):
+        if "_1h_" in full or "_2h_" in full:
+            continue
+        h1 = baselines.get(full.replace("_", "_1h_", 1))
+        h2 = baselines.get(full.replace("_", "_2h_", 1))
+        if not (isinstance(h1, dict) and isinstance(h2, dict)):
+            continue
+        whole = _pooled_mean(baselines[full])
+        a = _pooled_mean(h1)
+        b = _pooled_mean(h2)
+        if whole is None or a is None or b is None:
+            continue
+        if whole <= 0 or (a + b) <= 0:
+            continue
+
+        drift = (a + b) / whole - 1.0
+        if abs(drift) > SUM_TOLERANCE:
+            findings.append(
+                f"{full}: 1H {a:.3f} + 2H {b:.3f} = {a + b:.3f} vs "
+                f"full {whole:.3f} ({drift:+.1%})"
+            )
+
+        share = b / (a + b)
+        low, high = SECOND_HALF_SHARE_BAND
+        if not low <= share <= high:
+            findings.append(
+                f"{full}: second half is {share:.1%} of 1H+2H, outside "
+                f"{low:.0%}-{high:.0%} (1H {a:.3f}, 2H {b:.3f})"
+            )
+    return findings
+
+
+def _pooled_mean(entry: dict[str, Any]) -> float | None:
+    """The market-wide mean of a baseline entry, whatever shape it is in."""
+    g = entry.get("global")
+    if isinstance(g, dict) and isinstance(g.get("mean"), int | float):
+        return float(g["mean"])
+    if isinstance(g, int | float) and not isinstance(g, bool):
+        return float(g)
+    return None
 
 
 def fit_reliability(conn: sqlite3.Connection) -> dict[str, Any]:
@@ -313,12 +402,18 @@ def _k_centre_curve(
         for row in rows:
             market = row["market"]
             comp_id = str(row["competition_id"])
+            # Same precedence as run_sheet.get_prior, and the same tolerance
+            # of both pool shapes: `{"mean": x, "n": k}` since 2026-09-21,
+            # a bare float in every file written before it. K_CENTRE is
+            # fitted against these priors, so reading them differently here
+            # than the sheet does would fit a constant for a model that does
+            # not ship.
             prior = None
             if market in baselines:
                 if comp_id in baselines[market]:
                     prior = baselines[market][comp_id]["mean"]
-                elif "global" in baselines[market]:
-                    prior = baselines[market]["global"]
+                else:
+                    prior = _pooled_mean(baselines[market])
 
             mean = row["sample_mean"]
             n = row["sample_size"]
@@ -556,8 +651,37 @@ def main() -> int:
         k_price, k_price_curve = fit_k_price(conn)
         max_sigma, sigma_report = fit_max_ladder_sigma(conn)
 
+    # Metadata first, so a reader can tell how old the file is and what it was
+    # built from. Until 2026-09-21 this file carried none at all: the copy in
+    # config was written 2026-09-19 against a settled table that had since
+    # grown by 88,185 rows and 120 competitions, and nothing on disk said so.
+    # `sofa_engine_constants.json` had `fitted_from` from the start; this one
+    # is the file the centre actually comes from.
+    coherence = check_half_match_coherence(baselines)
+    baselines_out: dict[str, Any] = {
+        "_doc": (
+            "Per-competition mean of each market's realised value, fitted by "
+            "scripts/sofa/fit_constants.py from sofa_settled_row. An entry "
+            "below MIN_BASELINE_OBSERVATIONS is not written — including the "
+            "`global` pool, which is held to the same bar and records its own "
+            "`n`. No entry means no prior, and run_sheet then uses the "
+            "sample's own mean as the centre."
+        ),
+        "fitted_from": {
+            "db_path": str(db_path),
+            "settled_rows": total_rows,
+            "distinct_competitions": leagues,
+            "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+            "min_baseline_observations": MIN_BASELINE_OBSERVATIONS,
+        },
+        "half_match_coherence": coherence or "OK",
+        **baselines,
+    }
+    if coherence:
+        for line in coherence:
+            print(f"BASELINE_INCOHERENT {line}", file=sys.stderr, flush=True)
     (config_dir / "sofa_league_baselines.json").write_text(
-        json.dumps(baselines, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(baselines_out, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     (config_dir / "sofa_market_reliability.json").write_text(
         json.dumps(reliability, indent=2, ensure_ascii=False), encoding="utf-8"

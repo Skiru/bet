@@ -274,6 +274,12 @@ def main() -> int:
                     "current": v.current,
                     "median": v.median,
                     "history_runs": v.history_runs,
+                    # The quantity the verdict is actually decided on. `median`
+                    # above is back-projected into counts for readability and
+                    # is NOT what was compared — reporting only it is how a
+                    # quiet Monday read as a matching regression.
+                    "current_share": v.current_share,
+                    "median_share": v.median_share,
                     "detail": v.detail,
                 }
                 for v in coverage

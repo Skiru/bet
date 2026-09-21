@@ -139,6 +139,8 @@ def get_historical_events(
     """
     events: list[dict[str, Any]] = []
     page = 0
+    # Reported once per entity, not once per rejected event.
+    surface_unknown_reported = False
     while len(events) < config.sample_n and page < 5:
         cached = cache.get_entity_events(entity_id, "last", page)
         if cached is not None:
@@ -195,6 +197,39 @@ def get_historical_events(
             if sport == "tennis":
                 # groundType IS on the listing (30/30 in the recorded payload);
                 # a clay match does not describe a hard-court match (§5.7).
+                #
+                # When OUR fixture's surface is unknown the `!=` below is not
+                # a surface filter at all — it keeps only past matches whose
+                # surface is also unknown, which is almost none, and empties
+                # the sample without saying why. That is the L14 failure the
+                # block above exists to prevent, so it gets the same
+                # treatment: refuse the comparison and record the reason.
+                #
+                # 2026-09-21, corrected after review: six fixtures had no
+                # surface (all UTR Pro Tennis Tour Norfolk). Five were blocked
+                # upstream for NO_PRICE, but 17132335 was PRICED and did reach
+                # sampling — so the case is live, not hypothetical. It still
+                # recorded no SURFACE_UNKNOWN that day, because
+                # `is_completed_event` above rejected every candidate first
+                # and the loop never got here. The guard is therefore correct
+                # but UNPROVEN on live data: a fixture can still report
+                # THIN_SAMPLE when the real reason is that its surface is
+                # unknown.
+                if fixture.ground_type is None:
+                    if gaps is not None and not surface_unknown_reported:
+                        gaps.append(
+                            GapEntry(
+                                reason=GapReason.SURFACE_UNKNOWN,
+                                metric="all",
+                                detail=(
+                                    "fixture has no groundType; a sample "
+                                    "cannot be checked for surface "
+                                    "comparability"
+                                ),
+                            )
+                        )
+                        surface_unknown_reported = True
+                    continue
                 if event.get("groundType") != fixture.ground_type:
                     continue
                 # defaultPeriodCount is NOT on the listing, so the format is

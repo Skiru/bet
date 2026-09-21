@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from bet.sofa.confidence import MAX_DISAGREEMENT, Calibration
 from bet.sofa.contracts import (
     Coupon,
     CouponRow,
@@ -30,6 +31,26 @@ MAX_SINGLES: int | None = None
 MAX_PER_FIXTURE = 3
 MAX_PER_MECHANISM_FAMILY_PER_FIXTURE = 1
 MIN_ODDS_FLOOR = 1.25
+
+# How old the freshest match behind a row may be.
+#
+# The price had a 45-minute limit from the start; the sample had none at all,
+# and the two are the same kind of claim — "this number still describes the
+# thing I am betting on". Measured on 2026-09-21: the highest-surplus single
+# of the day (+2.741, at odds of 5.90) rested on a sample whose most recent
+# match was 105 days old, and one row reached the coupon on a sample last
+# updated 193 days earlier. This is not incidental. A sample that has stopped
+# tracking a player disagrees with the current price more often than a fresh
+# one does, and `coupon.py` ranks on exactly that disagreement, so staleness
+# is actively selected for.
+#
+# 60 days is deliberately looser than the 180-day builder guard is tight: it
+# has to survive an off-season gap in a minor league without emptying the
+# board, while still refusing a sample that predates a player's current form.
+# A row with no usable date is kept — unknown is not the same as stale, and
+# refusing it would silently drop whole markets whose observations carry no
+# match date.
+MAX_SAMPLE_AGE_DAYS = 60
 
 
 @dataclass(frozen=True)
@@ -61,6 +82,8 @@ def build_coupon(
     max_price_age: timedelta,
     min_odds_floor: float = MIN_ODDS_FLOOR,
     max_singles: int | None = MAX_SINGLES,
+    max_sample_age_days: int = MAX_SAMPLE_AGE_DAYS,
+    calibration: Calibration | None = None,
 ) -> CouponResult:
     """Select singles from VALUE rows, reporting every exclusion."""
     fixtures_by_id = {f.sofascore_event_id: f for f in fixtures}
@@ -162,6 +185,80 @@ def build_coupon(
                     "STALE_PRICE",
                     f"price is {age.total_seconds() / 60:.0f} min old, limit "
                     f"{max_price_age.total_seconds() / 60:.0f} min",
+                )
+            )
+            continue
+
+        # How far the model sits ABOVE the devigged price.
+        #
+        # This gate existed only on the staked path until 2026-09-21, so the
+        # singles file — the one that is NOT staked — was the more permissive
+        # of the two products while reading the same sheet and the same
+        # samples. Measured on 6,187 rows carrying a real price
+        # (confidence.py:37-51):
+        #
+        #     model - price     n     model says   realised
+        #     +0.10-0.15      441       0.609        0.444
+        #     +0.20-0.30      255       0.677        0.400
+        #     +0.30 and up    328       0.800        0.451
+        #
+        # Past +0.10 the realised rate drops BELOW a coin flip while the
+        # claim keeps climbing. And `surplus`, which this stage sorts on,
+        # grows with exactly that gap — so the selector concentrates in the
+        # measured-negative region by construction. On 2026-09-21 all 22
+        # tennis singles sat above +0.177, six of them above +0.30.
+        if row.market_p is not None:
+            disagreement = row.p_central - row.market_p
+            if disagreement > MAX_DISAGREEMENT:
+                dropped.append(
+                    DroppedRow(
+                        row,
+                        "DISAGREES_WITH_PRICE",
+                        f"model {row.p_central:.3f} is {disagreement:+.3f} "
+                        f"above the devigged price {row.market_p:.3f}, "
+                        f"limit {MAX_DISAGREEMENT:.2f}",
+                    )
+                )
+                continue
+
+        # A row may not claim more than its market has ever been observed to
+        # deliver.
+        #
+        # CONFIDENCE has refused this since 2026-09-21; the coupon did not,
+        # and the two paths disagreeing about the same measured fact is how a
+        # market ends up banned from one and dominant in the other.
+        # `games_won_for` has 9,286 settled rows and no bucket above 0.825 —
+        # its best measured bucket realises 0.756 — yet 7 coupon rows that day
+        # carried p_central 0.900. That is not an optimistic estimate, it is a
+        # claim about a region the data refuses to describe.
+        #
+        # Only markets that HAVE a curve are gated. One with no curve at all
+        # is unmeasured rather than contradicted, and falls to the other
+        # gates.
+        if calibration is not None:
+            ceiling = calibration.measured_ceiling(row.market)
+            if ceiling is not None and row.p_central >= ceiling:
+                dropped.append(
+                    DroppedRow(
+                        row,
+                        "ABOVE_MEASURED_CEILING",
+                        f"p_central {row.p_central:.3f} is at or above "
+                        f"{row.market}'s measured ceiling of {ceiling:.3f}",
+                    )
+                )
+                continue
+
+        # The same question as the price gate, asked of the evidence.
+        if (
+            row.sample_newest_days is not None
+            and row.sample_newest_days > max_sample_age_days
+        ):
+            dropped.append(
+                DroppedRow(
+                    row,
+                    "STALE_SAMPLE",
+                    f"newest observation is {row.sample_newest_days} days old, "
+                    f"limit {max_sample_age_days}",
                 )
             )
             continue
@@ -268,6 +365,8 @@ def build_coupon(
                 centre=row.centre,
                 p_central=row.p_central,
                 market_p=row.market_p,
+                calibration_correction=row.calibration_correction,
+                sample_newest_days=row.sample_newest_days,
                 p_bar=row.p_bar,
                 offered_odds=row.offered_odds,
                 required_odds=row.required_odds,

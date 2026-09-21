@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
+from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung, SheetRow, Veto
 from bet.sofa.coupon import build_coupon
 from bet.sofa.veto import find_unmatched_vetoes, match_vetoes
 
@@ -21,7 +21,12 @@ def base_sheet_row():
         sample_sd=1.0,
         centre=2.2,
         p_central=0.7,
-        market_p=0.5,
+        # Was 0.5. A +0.20 model-minus-price gap is in the measured-negative
+        # band (realised 0.400 against a claimed 0.677), so every test using
+        # this fixture was silently exercising DISAGREES_WITH_PRICE once that
+        # gate reached the coupon. The fixture is meant to be an ordinary
+        # passing row.
+        market_p=0.66,
         ladder_centre=None,
         ladder_sigma=None,
         p_bar=0.6,
@@ -258,3 +263,253 @@ def test_t29_kickoff_and_stale_price(base_sheet_row, base_fixture, current_time)
     reasons = {d.reason for d in result.dropped}
     assert "KICKOFF_TOO_SOON" in reasons
     assert "STALE_PRICE" in reasons
+
+
+def test_a_stale_sample_is_refused_the_way_a_stale_price_is(
+    base_sheet_row, base_fixture, current_time
+):
+    """The price had a freshness limit from the start; the evidence had none.
+
+    Measured 2026-09-21: the day's highest-surplus single (+2.741 at odds of
+    5.90) rested on a sample whose newest match was 105 days old, and one row
+    reached the coupon on a sample last updated 193 days earlier. Nothing in
+    the artifact said so, and staleness is selected *for* — a sample that has
+    stopped tracking a player disagrees with the price more often, and the
+    coupon ranks on that disagreement.
+    """
+    stale = base_sheet_row.model_copy(update={"sample_newest_days": 105})
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        rungs=[
+            PricedRung(
+                market=stale.market,
+                subject=stale.subject,
+                line=stale.line,
+                over_odds=2.0,
+                under_odds=1.8,
+                fetched_at_utc=current_time,
+            )
+        ],
+        unmapped_markets=[],
+    )
+    result = build_coupon(
+        sheet_rows=[stale],
+        fixtures=[base_fixture],
+        offers=[offer],
+        vetoes=[],
+        current_time=current_time,
+        min_kickoff=current_time + timedelta(minutes=15),
+        max_price_age=timedelta(minutes=45),
+    )
+    assert result.coupon.singles == []
+    assert [d.reason for d in result.dropped] == ["STALE_SAMPLE"]
+    assert "105 days old" in result.dropped[0].detail
+
+
+def test_a_fresh_sample_still_reaches_the_coupon(
+    base_sheet_row, base_fixture, current_time
+):
+    fresh = base_sheet_row.model_copy(update={"sample_newest_days": 5})
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        rungs=[
+            PricedRung(
+                market=fresh.market,
+                subject=fresh.subject,
+                line=fresh.line,
+                over_odds=2.0,
+                under_odds=1.8,
+                fetched_at_utc=current_time,
+            )
+        ],
+        unmapped_markets=[],
+    )
+    result = build_coupon(
+        sheet_rows=[fresh],
+        fixtures=[base_fixture],
+        offers=[offer],
+        vetoes=[],
+        current_time=current_time,
+        min_kickoff=current_time + timedelta(minutes=15),
+        max_price_age=timedelta(minutes=45),
+    )
+    assert len(result.coupon.singles) == 1
+
+
+def test_a_sample_with_no_date_is_kept_because_unknown_is_not_stale(
+    base_sheet_row, base_fixture, current_time
+):
+    """Refusing undated samples would drop whole markets, not fix one."""
+    undated = base_sheet_row.model_copy(update={"sample_newest_days": None})
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        rungs=[
+            PricedRung(
+                market=undated.market,
+                subject=undated.subject,
+                line=undated.line,
+                over_odds=2.0,
+                under_odds=1.8,
+                fetched_at_utc=current_time,
+            )
+        ],
+        unmapped_markets=[],
+    )
+    result = build_coupon(
+        sheet_rows=[undated],
+        fixtures=[base_fixture],
+        offers=[offer],
+        vetoes=[],
+        current_time=current_time,
+        min_kickoff=current_time + timedelta(minutes=15),
+        max_price_age=timedelta(minutes=45),
+    )
+    assert len(result.coupon.singles) == 1
+
+
+def test_the_coupon_row_can_re_derive_its_own_p_bar(
+    base_sheet_row, base_fixture, current_time
+):
+    """F48 put `calibration_correction` on the sheet row; the coupon row
+    dropped it again, so three of 2026-09-21's 63 rows could not be checked
+    from the file the operator actually opens."""
+    row = base_sheet_row.model_copy(
+        update={"calibration_correction": 0.0069, "sample_newest_days": 3}
+    )
+    offer = FixtureOffer(
+        sofascore_event_id=1,
+        rungs=[
+            PricedRung(
+                market=row.market,
+                subject=row.subject,
+                line=row.line,
+                over_odds=2.0,
+                under_odds=1.8,
+                fetched_at_utc=current_time,
+            )
+        ],
+        unmapped_markets=[],
+    )
+    result = build_coupon(
+        sheet_rows=[row],
+        fixtures=[base_fixture],
+        offers=[offer],
+        vetoes=[],
+        current_time=current_time,
+        min_kickoff=current_time + timedelta(minutes=15),
+        max_price_age=timedelta(minutes=45),
+    )
+    single = result.coupon.singles[0]
+    assert single.calibration_correction == 0.0069
+    assert single.sample_newest_days == 3
+
+
+def test_a_row_above_its_market_measured_ceiling_is_refused(
+    base_sheet_row, base_fixture, current_time
+):
+    """CONFIDENCE refused these; the coupon did not, and the two paths
+    disagreeing about one measured fact is how `games_won_for` ended up
+    banned from the PDF and dominant in the singles. 9,286 settled rows, no
+    bucket above 0.825, best measured bucket realising 0.756 — and 7 coupon
+    rows on 2026-09-21 claiming p_central 0.900."""
+    from bet.sofa.confidence import Calibration
+
+    cal = Calibration(
+        pooled={},
+        by_market={
+            "games_won_for": {"0.800-0.825": {"realised_lo95": 0.7159, "n": 480}}
+        },
+    )
+    # market_p tracks p_central so this test isolates the ceiling gate from
+    # DISAGREES_WITH_PRICE, which sits in front of it and would otherwise be
+    # the reason reported.
+    row = base_sheet_row.model_copy(
+        update={
+            "market": "games_won_for",
+            "p_central": 0.90,
+            "market_p": 0.88,
+            "sample_newest_days": 3,
+        }
+    )
+    def run(r, **extra):
+        rung = PricedRung(
+            market=r.market,
+            subject=r.subject,
+            line=r.line,
+            over_odds=2.0,
+            under_odds=1.8,
+            fetched_at_utc=current_time,
+        )
+        return build_coupon(
+            sheet_rows=[r],
+            fixtures=[base_fixture],
+            offers=[FixtureOffer(
+                sofascore_event_id=1, rungs=[rung], unmapped_markets=[]
+            )],
+            vetoes=[],
+            current_time=current_time,
+            min_kickoff=current_time + timedelta(minutes=15),
+            max_price_age=timedelta(minutes=45),
+            **extra,
+        )
+
+    result = run(row, calibration=cal)
+    assert result.coupon.singles == []
+    assert result.dropped[0].reason == "ABOVE_MEASURED_CEILING"
+
+    # Inside the measured range the same row is fine.
+    inside = row.model_copy(update={"p_central": 0.81, "market_p": 0.79})
+    assert len(run(inside, calibration=cal).coupon.singles) == 1
+
+    # A market with no curve at all is unmeasured, not contradicted.
+    uncurved = row.model_copy(update={"market": "shots_on_target_for"})
+    assert len(run(uncurved, calibration=cal).coupon.singles) == 1
+
+    # And with no calibration passed the gate is inert, as before.
+    assert len(run(row).coupon.singles) == 1
+
+
+def test_the_unstaked_path_is_not_looser_than_the_staked_one(
+    base_sheet_row, base_fixture, current_time
+):
+    """MAX_DISAGREEMENT lived only in CONFIDENCE until 2026-09-21.
+
+    Both products read the same sheet and the same samples, but only the
+    staked one refused a row whose model sat far above the devigged price —
+    the region measured at 0.451 realised against a claimed 0.800. On
+    2026-09-21 all 22 tennis singles sat above +0.177 and six above +0.30.
+    """
+    from bet.sofa.confidence import MAX_DISAGREEMENT
+
+    row = base_sheet_row.model_copy(
+        update={"p_central": 0.80, "market_p": 0.40, "sample_newest_days": 3}
+    )
+    rung = PricedRung(
+        market=row.market,
+        subject=row.subject,
+        line=row.line,
+        over_odds=2.0,
+        under_odds=1.8,
+        fetched_at_utc=current_time,
+    )
+    kwargs = dict(
+        fixtures=[base_fixture],
+        offers=[FixtureOffer(
+            sofascore_event_id=1, rungs=[rung], unmapped_markets=[]
+        )],
+        vetoes=[],
+        current_time=current_time,
+        min_kickoff=current_time + timedelta(minutes=15),
+        max_price_age=timedelta(minutes=45),
+    )
+    result = build_coupon(sheet_rows=[row], **kwargs)
+    assert result.coupon.singles == []
+    assert result.dropped[0].reason == "DISAGREES_WITH_PRICE"
+
+    # At the limit itself the row survives — the gate is on "more than".
+    at_limit = row.model_copy(update={"market_p": 0.80 - MAX_DISAGREEMENT})
+    assert len(build_coupon(sheet_rows=[at_limit], **kwargs).coupon.singles) == 1
+
+    # A row with no devigged price cannot disagree with one.
+    no_price = row.model_copy(update={"market_p": None})
+    assert len(build_coupon(sheet_rows=[no_price], **kwargs).coupon.singles) == 1

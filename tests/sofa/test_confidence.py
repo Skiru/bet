@@ -160,3 +160,37 @@ def test_joint_markets_are_refused_not_pooled() -> None:
     assert not [
         x for b in doc["builders"] for x in b["legs"] if is_derived(x["market"])
     ]
+
+
+def test_coupon_selects_on_a_price_the_book_actually_quotes() -> None:
+    """`ev_if_product_priced` must not decide what reaches the coupon.
+
+    Superbet's correlation markup was measured at 8.8-19.6% on 2026-09-20.
+    At the smallest of those, 2 of the 300 builders generated on 2026-09-19
+    stayed positive — so ranking and filtering on the undiscounted product
+    admitted slips that were already negative when the screen quoted them.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    conf = (root / "scripts" / "sofa" / "run_confidence.py").read_text()
+    assert 'builders.sort(key=lambda b: (-b["ev_after_haircut"]' in conf
+
+    pdf = (root / "scripts" / "sofa" / "build_coupon_pdf.py").read_text()
+    assert '"ev_after_haircut"' in pdf
+
+
+def test_builder_internals_do_not_reach_the_artifact() -> None:
+    """The per-leg match map is working state, not a published field."""
+    from pathlib import Path
+
+    src = (
+        Path(__file__).resolve().parents[2] / "scripts" / "sofa" / "run_confidence.py"
+    ).read_text()
+    assert 'leg.pop("_obs_by_match", None)' in src
+
+    run = Path("runs/sofa/2026-09-19/08_confidence.json")
+    if not run.exists():
+        pytest.skip("no live artifact in this checkout")
+    doc = json.loads(run.read_text(encoding="utf-8"))
+    assert all("_obs_by_match" not in leg for leg in doc["legs"])

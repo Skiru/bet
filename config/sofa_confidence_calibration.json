@@ -1,192 +1,308 @@
 {
- "_doc": "What the model's probability turns into in practice. Fitted by scripts/sofa/fit_confidence.py. A market with too few rows in a bucket falls back to the pooled curve; a bucket absent from both means the confidence view refuses the row rather than guessing.",
+ "_doc": "What the model's probability turns into in practice. Fitted by scripts/sofa/fit_confidence.py. A market with too few rows in a bucket falls back to its SPORT's pooled curve, then the global one; a bucket absent from all three means the confidence view refuses the row rather than guessing. A market is never served from a pool ABOVE the top of its own measured range - see Calibration.realised.",
  "fitted_from": {
   "db_path": "data/sofa.db",
-  "scored_rows": 1868474
+  "scored_rows": 1964797
  },
  "min_market_bucket": 400,
  "pooled": {
   "0.000-0.600": {
-   "n": 1094070,
-   "realised": 0.2894,
-   "realised_lo95": 0.2886
+   "n": 1152400,
+   "realised": 0.2924,
+   "realised_lo95": 0.2916
   },
   "0.600-0.700": {
-   "n": 166627,
-   "realised": 0.6567,
-   "realised_lo95": 0.6545
+   "n": 177810,
+   "realised": 0.6547,
+   "realised_lo95": 0.6525
   },
   "0.700-0.750": {
-   "n": 96309,
-   "realised": 0.7267,
-   "realised_lo95": 0.7239
+   "n": 102178,
+   "realised": 0.7239,
+   "realised_lo95": 0.7211
   },
   "0.750-0.800": {
-   "n": 98472,
-   "realised": 0.7777,
-   "realised_lo95": 0.775
+   "n": 103851,
+   "realised": 0.7754,
+   "realised_lo95": 0.7729
   },
   "0.800-0.825": {
-   "n": 56944,
-   "realised": 0.8142,
-   "realised_lo95": 0.811
+   "n": 59792,
+   "realised": 0.812,
+   "realised_lo95": 0.8088
   },
   "0.825-0.850": {
-   "n": 58674,
-   "realised": 0.839,
-   "realised_lo95": 0.836
+   "n": 61223,
+   "realised": 0.8371,
+   "realised_lo95": 0.8341
   },
   "0.850-0.875": {
-   "n": 62383,
-   "realised": 0.8607,
-   "realised_lo95": 0.8579
+   "n": 64790,
+   "realised": 0.8591,
+   "realised_lo95": 0.8564
   },
   "0.875-0.900": {
-   "n": 68983,
-   "realised": 0.8861,
-   "realised_lo95": 0.8837
+   "n": 71031,
+   "realised": 0.885,
+   "realised_lo95": 0.8827
   },
   "0.900-0.925": {
-   "n": 72386,
-   "realised": 0.9083,
-   "realised_lo95": 0.9062
+   "n": 74574,
+   "realised": 0.9073,
+   "realised_lo95": 0.9052
   },
   "0.925-0.950": {
-   "n": 59444,
+   "n": 61293,
    "realised": 0.9083,
    "realised_lo95": 0.906
   },
   "0.950-1.010": {
-   "n": 34182,
-   "realised": 0.9202,
-   "realised_lo95": 0.9172
+   "n": 35855,
+   "realised": 0.9166,
+   "realised_lo95": 0.9136
+  }
+ },
+ "pooled_by_sport": {
+  "football": {
+   "0.000-0.600": {
+    "n": 1118295,
+    "realised": 0.2912,
+    "realised_lo95": 0.2904
+   },
+   "0.600-0.700": {
+    "n": 171385,
+    "realised": 0.6548,
+    "realised_lo95": 0.6526
+   },
+   "0.700-0.750": {
+    "n": 98638,
+    "realised": 0.7241,
+    "realised_lo95": 0.7213
+   },
+   "0.750-0.800": {
+    "n": 100739,
+    "realised": 0.7757,
+    "realised_lo95": 0.7731
+   },
+   "0.800-0.825": {
+    "n": 58120,
+    "realised": 0.8129,
+    "realised_lo95": 0.8097
+   },
+   "0.825-0.850": {
+    "n": 59759,
+    "realised": 0.8375,
+    "realised_lo95": 0.8345
+   },
+   "0.850-0.875": {
+    "n": 63416,
+    "realised": 0.8595,
+    "realised_lo95": 0.8567
+   },
+   "0.875-0.900": {
+    "n": 69706,
+    "realised": 0.8858,
+    "realised_lo95": 0.8834
+   },
+   "0.900-0.925": {
+    "n": 73244,
+    "realised": 0.9083,
+    "realised_lo95": 0.9062
+   },
+   "0.925-0.950": {
+    "n": 60233,
+    "realised": 0.9085,
+    "realised_lo95": 0.9062
+   },
+   "0.950-1.010": {
+    "n": 34681,
+    "realised": 0.9176,
+    "realised_lo95": 0.9147
+   }
+  },
+  "tennis": {
+   "0.000-0.600": {
+    "n": 34105,
+    "realised": 0.3309,
+    "realised_lo95": 0.3259
+   },
+   "0.600-0.700": {
+    "n": 6425,
+    "realised": 0.6509,
+    "realised_lo95": 0.6392
+   },
+   "0.700-0.750": {
+    "n": 3540,
+    "realised": 0.7161,
+    "realised_lo95": 0.701
+   },
+   "0.750-0.800": {
+    "n": 3112,
+    "realised": 0.7667,
+    "realised_lo95": 0.7515
+   },
+   "0.800-0.825": {
+    "n": 1672,
+    "realised": 0.7823,
+    "realised_lo95": 0.7619
+   },
+   "0.825-0.850": {
+    "n": 1464,
+    "realised": 0.8204,
+    "realised_lo95": 0.7999
+   },
+   "0.850-0.875": {
+    "n": 1374,
+    "realised": 0.8421,
+    "realised_lo95": 0.8218
+   },
+   "0.875-0.900": {
+    "n": 1325,
+    "realised": 0.846,
+    "realised_lo95": 0.8256
+   },
+   "0.900-0.925": {
+    "n": 1330,
+    "realised": 0.8511,
+    "realised_lo95": 0.831
+   },
+   "0.925-0.950": {
+    "n": 1060,
+    "realised": 0.8972,
+    "realised_lo95": 0.8774
+   },
+   "0.950-1.010": {
+    "n": 1174,
+    "realised": 0.8859,
+    "realised_lo95": 0.8664
+   }
   }
  },
  "by_market": {
   "goals_total": {
    "0.000-0.600": {
-    "n": 450749,
-    "realised": 0.2641,
-    "realised_lo95": 0.2629
+    "n": 457597,
+    "realised": 0.2648,
+    "realised_lo95": 0.2636
    },
    "0.600-0.700": {
-    "n": 63478,
+    "n": 64710,
     "realised": 0.6651,
-    "realised_lo95": 0.6614
+    "realised_lo95": 0.6615
    },
    "0.700-0.750": {
-    "n": 35558,
-    "realised": 0.7383,
-    "realised_lo95": 0.7337
+    "n": 36194,
+    "realised": 0.7381,
+    "realised_lo95": 0.7335
    },
    "0.750-0.800": {
-    "n": 39869,
-    "realised": 0.7903,
-    "realised_lo95": 0.7863
+    "n": 40498,
+    "realised": 0.7901,
+    "realised_lo95": 0.7861
    },
    "0.800-0.825": {
-    "n": 23361,
-    "realised": 0.8366,
-    "realised_lo95": 0.8318
+    "n": 23660,
+    "realised": 0.8364,
+    "realised_lo95": 0.8317
    },
    "0.825-0.850": {
-    "n": 23587,
-    "realised": 0.8533,
-    "realised_lo95": 0.8487
+    "n": 23884,
+    "realised": 0.853,
+    "realised_lo95": 0.8485
    },
    "0.850-0.875": {
-    "n": 27718,
-    "realised": 0.8784,
-    "realised_lo95": 0.8745
+    "n": 28021,
+    "realised": 0.8783,
+    "realised_lo95": 0.8744
    },
    "0.875-0.900": {
-    "n": 31991,
-    "realised": 0.8947,
+    "n": 32296,
+    "realised": 0.8946,
     "realised_lo95": 0.8912
    },
    "0.900-0.925": {
-    "n": 34361,
-    "realised": 0.9201,
-    "realised_lo95": 0.9171
+    "n": 34695,
+    "realised": 0.9202,
+    "realised_lo95": 0.9173
    },
    "0.925-0.950": {
-    "n": 30038,
-    "realised": 0.9187,
-    "realised_lo95": 0.9156
+    "n": 30345,
+    "realised": 0.9189,
+    "realised_lo95": 0.9157
    },
    "0.950-1.010": {
-    "n": 21527,
-    "realised": 0.9398,
-    "realised_lo95": 0.9365
+    "n": 21671,
+    "realised": 0.9401,
+    "realised_lo95": 0.9368
    }
   },
   "goals_for": {
    "0.000-0.600": {
-    "n": 395276,
-    "realised": 0.2931,
-    "realised_lo95": 0.2917
+    "n": 401369,
+    "realised": 0.2934,
+    "realised_lo95": 0.292
    },
    "0.600-0.700": {
-    "n": 58277,
-    "realised": 0.6563,
-    "realised_lo95": 0.6524
+    "n": 59286,
+    "realised": 0.6567,
+    "realised_lo95": 0.6529
    },
    "0.700-0.750": {
-    "n": 37452,
-    "realised": 0.7218,
-    "realised_lo95": 0.7172
+    "n": 38144,
+    "realised": 0.7222,
+    "realised_lo95": 0.7177
    },
    "0.750-0.800": {
-    "n": 35388,
+    "n": 35916,
     "realised": 0.7735,
-    "realised_lo95": 0.7691
+    "realised_lo95": 0.7692
    },
    "0.800-0.825": {
-    "n": 21955,
-    "realised": 0.8033,
-    "realised_lo95": 0.798
+    "n": 22267,
+    "realised": 0.8024,
+    "realised_lo95": 0.7972
    },
    "0.825-0.850": {
-    "n": 23553,
-    "realised": 0.8334,
-    "realised_lo95": 0.8286
+    "n": 23879,
+    "realised": 0.8335,
+    "realised_lo95": 0.8288
    },
    "0.850-0.875": {
-    "n": 23339,
-    "realised": 0.8507,
-    "realised_lo95": 0.8461
+    "n": 23640,
+    "realised": 0.8505,
+    "realised_lo95": 0.8459
    },
    "0.875-0.900": {
-    "n": 26114,
+    "n": 26368,
     "realised": 0.8879,
     "realised_lo95": 0.884
    },
    "0.900-0.925": {
-    "n": 27845,
-    "realised": 0.9044,
-    "realised_lo95": 0.9009
+    "n": 28096,
+    "realised": 0.9042,
+    "realised_lo95": 0.9007
    },
    "0.925-0.950": {
-    "n": 20932,
-    "realised": 0.9012,
-    "realised_lo95": 0.897
+    "n": 21217,
+    "realised": 0.9015,
+    "realised_lo95": 0.8974
    },
    "0.950-1.010": {
-    "n": 5909,
-    "realised": 0.8704,
-    "realised_lo95": 0.8616
+    "n": 6082,
+    "realised": 0.8716,
+    "realised_lo95": 0.8629
    }
   },
   "double_faults_for": {
    "0.000-0.600": {
-    "n": 5083,
-    "realised": 0.2748,
-    "realised_lo95": 0.2627
+    "n": 5090,
+    "realised": 0.2752,
+    "realised_lo95": 0.2631
    },
    "0.600-0.700": {
-    "n": 767,
-    "realised": 0.6545,
-    "realised_lo95": 0.6201
+    "n": 769,
+    "realised": 0.6541,
+    "realised_lo95": 0.6198
    },
    "0.750-0.800": {
     "n": 458,
@@ -196,7 +312,7 @@
   },
   "aces_total": {
    "0.000-0.600": {
-    "n": 6000,
+    "n": 6005,
     "realised": 0.3212,
     "realised_lo95": 0.3095
    },
@@ -211,145 +327,145 @@
     "realised_lo95": 0.6717
    },
    "0.750-0.800": {
-    "n": 538,
-    "realised": 0.7416,
-    "realised_lo95": 0.703
+    "n": 539,
+    "realised": 0.7421,
+    "realised_lo95": 0.7036
    }
   },
   "corners_for": {
    "0.000-0.600": {
-    "n": 24554,
-    "realised": 0.3007,
-    "realised_lo95": 0.295
+    "n": 28365,
+    "realised": 0.3056,
+    "realised_lo95": 0.3002
    },
    "0.600-0.700": {
-    "n": 3862,
-    "realised": 0.6466,
-    "realised_lo95": 0.6313
+    "n": 4519,
+    "realised": 0.6422,
+    "realised_lo95": 0.6281
    },
    "0.700-0.750": {
-    "n": 2140,
-    "realised": 0.7262,
-    "realised_lo95": 0.7069
+    "n": 2477,
+    "realised": 0.7243,
+    "realised_lo95": 0.7063
    },
    "0.750-0.800": {
-    "n": 2334,
-    "realised": 0.7562,
-    "realised_lo95": 0.7384
+    "n": 2687,
+    "realised": 0.7544,
+    "realised_lo95": 0.7377
    },
    "0.800-0.825": {
-    "n": 1221,
-    "realised": 0.8026,
-    "realised_lo95": 0.7794
+    "n": 1407,
+    "realised": 0.7989,
+    "realised_lo95": 0.7771
    },
    "0.825-0.850": {
-    "n": 1362,
-    "realised": 0.8326,
-    "realised_lo95": 0.8118
+    "n": 1532,
+    "realised": 0.8257,
+    "realised_lo95": 0.8059
    },
    "0.850-0.875": {
-    "n": 1395,
-    "realised": 0.8416,
-    "realised_lo95": 0.8215
+    "n": 1579,
+    "realised": 0.8391,
+    "realised_lo95": 0.8202
    },
    "0.875-0.900": {
-    "n": 1346,
-    "realised": 0.8529,
-    "realised_lo95": 0.833
+    "n": 1517,
+    "realised": 0.8523,
+    "realised_lo95": 0.8336
    },
    "0.900-0.925": {
-    "n": 1378,
-    "realised": 0.8868,
-    "realised_lo95": 0.869
+    "n": 1549,
+    "realised": 0.887,
+    "realised_lo95": 0.8703
    },
    "0.925-0.950": {
-    "n": 1286,
-    "realised": 0.8857,
-    "realised_lo95": 0.8671
+    "n": 1436,
+    "realised": 0.8816,
+    "realised_lo95": 0.8639
    },
    "0.950-1.010": {
-    "n": 1072,
-    "realised": 0.9132,
-    "realised_lo95": 0.8949
+    "n": 1206,
+    "realised": 0.9121,
+    "realised_lo95": 0.8948
    }
   },
   "shots_on_target_for": {
    "0.000-0.600": {
-    "n": 20429,
-    "realised": 0.2854,
-    "realised_lo95": 0.2792
+    "n": 21947,
+    "realised": 0.2899,
+    "realised_lo95": 0.284
    },
    "0.600-0.700": {
-    "n": 3012,
-    "realised": 0.6454,
-    "realised_lo95": 0.6282
+    "n": 3291,
+    "realised": 0.6451,
+    "realised_lo95": 0.6286
    },
    "0.700-0.750": {
-    "n": 1706,
-    "realised": 0.7192,
-    "realised_lo95": 0.6974
+    "n": 1843,
+    "realised": 0.7173,
+    "realised_lo95": 0.6963
    },
    "0.750-0.800": {
-    "n": 1812,
-    "realised": 0.7627,
-    "realised_lo95": 0.7426
+    "n": 1941,
+    "realised": 0.7609,
+    "realised_lo95": 0.7415
    },
    "0.800-0.825": {
-    "n": 917,
-    "realised": 0.7895,
-    "realised_lo95": 0.762
+    "n": 982,
+    "realised": 0.7821,
+    "realised_lo95": 0.7552
    },
    "0.825-0.850": {
-    "n": 1087,
-    "realised": 0.8464,
-    "realised_lo95": 0.8237
+    "n": 1163,
+    "realised": 0.8444,
+    "realised_lo95": 0.8224
    },
    "0.850-0.875": {
-    "n": 1141,
-    "realised": 0.8466,
-    "realised_lo95": 0.8246
+    "n": 1210,
+    "realised": 0.8421,
+    "realised_lo95": 0.8205
    },
    "0.875-0.900": {
-    "n": 1212,
-    "realised": 0.8812,
-    "realised_lo95": 0.8618
+    "n": 1279,
+    "realised": 0.8819,
+    "realised_lo95": 0.8631
    },
    "0.900-0.925": {
-    "n": 1324,
-    "realised": 0.9056,
-    "realised_lo95": 0.8886
+    "n": 1384,
+    "realised": 0.9003,
+    "realised_lo95": 0.8834
    },
    "0.925-0.950": {
-    "n": 1332,
-    "realised": 0.9032,
-    "realised_lo95": 0.8861
+    "n": 1379,
+    "realised": 0.9036,
+    "realised_lo95": 0.8868
    },
    "0.950-1.010": {
-    "n": 1266,
-    "realised": 0.9131,
-    "realised_lo95": 0.8963
+    "n": 1305,
+    "realised": 0.9103,
+    "realised_lo95": 0.8936
    }
   },
   "offsides_total": {
    "0.000-0.600": {
-    "n": 13459,
-    "realised": 0.2696,
-    "realised_lo95": 0.2621
+    "n": 13618,
+    "realised": 0.2721,
+    "realised_lo95": 0.2647
    },
    "0.600-0.700": {
-    "n": 1976,
-    "realised": 0.6503,
-    "realised_lo95": 0.629
+    "n": 2008,
+    "realised": 0.6469,
+    "realised_lo95": 0.6257
    },
    "0.700-0.750": {
-    "n": 1053,
-    "realised": 0.7407,
-    "realised_lo95": 0.7134
+    "n": 1060,
+    "realised": 0.7425,
+    "realised_lo95": 0.7153
    },
    "0.750-0.800": {
-    "n": 1161,
-    "realised": 0.8062,
-    "realised_lo95": 0.7825
+    "n": 1167,
+    "realised": 0.8055,
+    "realised_lo95": 0.7818
    },
    "0.800-0.825": {
     "n": 719,
@@ -362,14 +478,14 @@
     "realised_lo95": 0.84
    },
    "0.850-0.875": {
-    "n": 789,
-    "realised": 0.8695,
-    "realised_lo95": 0.8441
+    "n": 792,
+    "realised": 0.8674,
+    "realised_lo95": 0.842
    },
    "0.875-0.900": {
-    "n": 902,
-    "realised": 0.8858,
-    "realised_lo95": 0.8634
+    "n": 903,
+    "realised": 0.8859,
+    "realised_lo95": 0.8635
    },
    "0.900-0.925": {
     "n": 898,
@@ -389,247 +505,252 @@
   },
   "corners_total": {
    "0.000-0.600": {
-    "n": 24095,
-    "realised": 0.3167,
-    "realised_lo95": 0.3109
+    "n": 28107,
+    "realised": 0.319,
+    "realised_lo95": 0.3136
    },
    "0.600-0.700": {
-    "n": 4270,
-    "realised": 0.6574,
-    "realised_lo95": 0.643
+    "n": 5002,
+    "realised": 0.6553,
+    "realised_lo95": 0.6421
    },
    "0.700-0.750": {
-    "n": 2328,
-    "realised": 0.7414,
-    "realised_lo95": 0.7232
+    "n": 2656,
+    "realised": 0.7364,
+    "realised_lo95": 0.7194
    },
    "0.750-0.800": {
-    "n": 2502,
-    "realised": 0.7854,
-    "realised_lo95": 0.7689
+    "n": 2843,
+    "realised": 0.7833,
+    "realised_lo95": 0.7678
    },
    "0.800-0.825": {
-    "n": 1306,
-    "realised": 0.8224,
-    "realised_lo95": 0.8007
+    "n": 1467,
+    "realised": 0.8221,
+    "realised_lo95": 0.8017
    },
    "0.825-0.850": {
-    "n": 1316,
-    "realised": 0.8366,
-    "realised_lo95": 0.8157
+    "n": 1480,
+    "realised": 0.8345,
+    "realised_lo95": 0.8147
    },
    "0.850-0.875": {
-    "n": 1257,
-    "realised": 0.8544,
-    "realised_lo95": 0.8338
+    "n": 1446,
+    "realised": 0.8541,
+    "realised_lo95": 0.8349
    },
    "0.875-0.900": {
-    "n": 1176,
-    "realised": 0.8682,
-    "realised_lo95": 0.8477
+    "n": 1347,
+    "realised": 0.8671,
+    "realised_lo95": 0.8479
    },
    "0.900-0.925": {
-    "n": 926,
-    "realised": 0.8747,
-    "realised_lo95": 0.8518
+    "n": 1115,
+    "realised": 0.8798,
+    "realised_lo95": 0.8594
    },
    "0.925-0.950": {
-    "n": 635,
-    "realised": 0.8646,
-    "realised_lo95": 0.8357
+    "n": 789,
+    "realised": 0.8796,
+    "realised_lo95": 0.855
+   },
+   "0.950-1.010": {
+    "n": 475,
+    "realised": 0.8779,
+    "realised_lo95": 0.8454
    }
   },
   "shots_for": {
    "0.000-0.600": {
-    "n": 24772,
-    "realised": 0.3763,
-    "realised_lo95": 0.3703
+    "n": 26424,
+    "realised": 0.3813,
+    "realised_lo95": 0.3754
    },
    "0.600-0.700": {
-    "n": 5086,
-    "realised": 0.6335,
-    "realised_lo95": 0.6202
+    "n": 5452,
+    "realised": 0.6267,
+    "realised_lo95": 0.6138
    },
    "0.700-0.750": {
-    "n": 2496,
-    "realised": 0.6979,
-    "realised_lo95": 0.6796
+    "n": 2644,
+    "realised": 0.6925,
+    "realised_lo95": 0.6747
    },
    "0.750-0.800": {
-    "n": 2411,
-    "realised": 0.7316,
-    "realised_lo95": 0.7136
+    "n": 2544,
+    "realised": 0.7264,
+    "realised_lo95": 0.7088
    },
    "0.800-0.825": {
-    "n": 1017,
-    "realised": 0.7493,
-    "realised_lo95": 0.7217
+    "n": 1073,
+    "realised": 0.7465,
+    "realised_lo95": 0.7196
    },
    "0.825-0.850": {
-    "n": 880,
-    "realised": 0.767,
-    "realised_lo95": 0.738
+    "n": 926,
+    "realised": 0.757,
+    "realised_lo95": 0.7284
    },
    "0.850-0.875": {
-    "n": 767,
-    "realised": 0.7653,
-    "realised_lo95": 0.7341
+    "n": 801,
+    "realised": 0.7578,
+    "realised_lo95": 0.7269
    },
    "0.875-0.900": {
-    "n": 599,
-    "realised": 0.7997,
-    "realised_lo95": 0.7657
+    "n": 630,
+    "realised": 0.7952,
+    "realised_lo95": 0.762
    },
    "0.900-0.925": {
-    "n": 527,
-    "realised": 0.8292,
-    "realised_lo95": 0.7947
+    "n": 547,
+    "realised": 0.8282,
+    "realised_lo95": 0.7943
    },
    "0.925-0.950": {
-    "n": 414,
-    "realised": 0.8213,
-    "realised_lo95": 0.7814
+    "n": 430,
+    "realised": 0.8116,
+    "realised_lo95": 0.772
    },
    "0.950-1.010": {
-    "n": 489,
-    "realised": 0.818,
-    "realised_lo95": 0.7814
+    "n": 501,
+    "realised": 0.8044,
+    "realised_lo95": 0.7674
    }
   },
   "shots_total": {
    "0.000-0.600": {
-    "n": 22142,
-    "realised": 0.3965,
-    "realised_lo95": 0.3901
+    "n": 23374,
+    "realised": 0.3986,
+    "realised_lo95": 0.3924
    },
    "0.600-0.700": {
-    "n": 5035,
-    "realised": 0.6336,
-    "realised_lo95": 0.6202
+    "n": 5336,
+    "realised": 0.6327,
+    "realised_lo95": 0.6197
    },
    "0.700-0.750": {
-    "n": 2283,
-    "realised": 0.7017,
-    "realised_lo95": 0.6826
+    "n": 2396,
+    "realised": 0.6982,
+    "realised_lo95": 0.6796
    },
    "0.750-0.800": {
-    "n": 1859,
-    "realised": 0.7127,
+    "n": 1940,
+    "realised": 0.7124,
     "realised_lo95": 0.6918
    },
    "0.800-0.825": {
-    "n": 755,
-    "realised": 0.7219,
-    "realised_lo95": 0.6888
+    "n": 779,
+    "realised": 0.7176,
+    "realised_lo95": 0.685
    },
    "0.825-0.850": {
-    "n": 626,
-    "realised": 0.7572,
-    "realised_lo95": 0.7221
+    "n": 642,
+    "realised": 0.7601,
+    "realised_lo95": 0.7256
    },
    "0.850-0.875": {
-    "n": 506,
-    "realised": 0.7648,
-    "realised_lo95": 0.726
+    "n": 519,
+    "realised": 0.7572,
+    "realised_lo95": 0.7185
    }
   },
   "shots_on_target_total": {
    "0.000-0.600": {
-    "n": 21262,
-    "realised": 0.3055,
-    "realised_lo95": 0.2994
+    "n": 22464,
+    "realised": 0.3078,
+    "realised_lo95": 0.3018
    },
    "0.600-0.700": {
-    "n": 3555,
-    "realised": 0.6537,
-    "realised_lo95": 0.6379
+    "n": 3781,
+    "realised": 0.6527,
+    "realised_lo95": 0.6374
    },
    "0.700-0.750": {
-    "n": 1912,
-    "realised": 0.7275,
-    "realised_lo95": 0.7071
+    "n": 2011,
+    "realised": 0.725,
+    "realised_lo95": 0.7051
    },
    "0.750-0.800": {
-    "n": 2181,
-    "realised": 0.7932,
-    "realised_lo95": 0.7757
+    "n": 2306,
+    "realised": 0.7918,
+    "realised_lo95": 0.7748
    },
    "0.800-0.825": {
-    "n": 1173,
-    "realised": 0.8269,
-    "realised_lo95": 0.8042
+    "n": 1211,
+    "realised": 0.8241,
+    "realised_lo95": 0.8017
    },
    "0.825-0.850": {
-    "n": 1094,
-    "realised": 0.8282,
-    "realised_lo95": 0.8047
+    "n": 1149,
+    "realised": 0.8268,
+    "realised_lo95": 0.8038
    },
    "0.850-0.875": {
-    "n": 1290,
-    "realised": 0.8667,
-    "realised_lo95": 0.847
+    "n": 1356,
+    "realised": 0.8658,
+    "realised_lo95": 0.8466
    },
    "0.875-0.900": {
-    "n": 1156,
-    "realised": 0.8555,
-    "realised_lo95": 0.8341
+    "n": 1190,
+    "realised": 0.8563,
+    "realised_lo95": 0.8352
    },
    "0.900-0.925": {
-    "n": 1024,
-    "realised": 0.877,
-    "realised_lo95": 0.8554
+    "n": 1076,
+    "realised": 0.881,
+    "realised_lo95": 0.8603
    },
    "0.925-0.950": {
-    "n": 760,
-    "realised": 0.8921,
-    "realised_lo95": 0.868
+    "n": 782,
+    "realised": 0.8939,
+    "realised_lo95": 0.8703
    },
    "0.950-1.010": {
-    "n": 562,
-    "realised": 0.8612,
-    "realised_lo95": 0.8302
+    "n": 573,
+    "realised": 0.8639,
+    "realised_lo95": 0.8334
    }
   },
   "fouls_for": {
    "0.000-0.600": {
-    "n": 24635,
-    "realised": 0.3355,
-    "realised_lo95": 0.3297
+    "n": 24940,
+    "realised": 0.3372,
+    "realised_lo95": 0.3314
    },
    "0.600-0.700": {
-    "n": 4585,
-    "realised": 0.6449,
-    "realised_lo95": 0.631
+    "n": 4655,
+    "realised": 0.6427,
+    "realised_lo95": 0.6289
    },
    "0.700-0.750": {
-    "n": 2350,
-    "realised": 0.7226,
-    "realised_lo95": 0.7041
+    "n": 2368,
+    "realised": 0.7221,
+    "realised_lo95": 0.7037
    },
    "0.750-0.800": {
-    "n": 2469,
-    "realised": 0.7704,
+    "n": 2477,
+    "realised": 0.7703,
     "realised_lo95": 0.7533
    },
    "0.800-0.825": {
-    "n": 1252,
-    "realised": 0.8043,
-    "realised_lo95": 0.7814
+    "n": 1253,
+    "realised": 0.8045,
+    "realised_lo95": 0.7816
    },
    "0.825-0.850": {
-    "n": 1219,
-    "realised": 0.8253,
-    "realised_lo95": 0.8029
+    "n": 1222,
+    "realised": 0.8232,
+    "realised_lo95": 0.8008
    },
    "0.850-0.875": {
-    "n": 1154,
-    "realised": 0.8276,
-    "realised_lo95": 0.8047
+    "n": 1155,
+    "realised": 0.8277,
+    "realised_lo95": 0.8048
    },
    "0.875-0.900": {
-    "n": 1009,
-    "realised": 0.8494,
-    "realised_lo95": 0.826
+    "n": 1011,
+    "realised": 0.8497,
+    "realised_lo95": 0.8263
    },
    "0.900-0.925": {
     "n": 776,
@@ -637,171 +758,213 @@
     "realised_lo95": 0.821
    },
    "0.925-0.950": {
-    "n": 555,
-    "realised": 0.8739,
-    "realised_lo95": 0.8437
+    "n": 557,
+    "realised": 0.8743,
+    "realised_lo95": 0.8442
    },
    "0.950-1.010": {
-    "n": 544,
-    "realised": 0.8879,
-    "realised_lo95": 0.8586
+    "n": 546,
+    "realised": 0.8883,
+    "realised_lo95": 0.8591
    }
   },
   "fouls_total": {
    "0.000-0.600": {
-    "n": 22776,
-    "realised": 0.3924,
-    "realised_lo95": 0.3861
+    "n": 23102,
+    "realised": 0.3939,
+    "realised_lo95": 0.3876
    },
    "0.600-0.700": {
-    "n": 4987,
-    "realised": 0.6379,
-    "realised_lo95": 0.6244
+    "n": 5050,
+    "realised": 0.6366,
+    "realised_lo95": 0.6233
    },
    "0.700-0.750": {
-    "n": 2319,
-    "realised": 0.6938,
-    "realised_lo95": 0.6748
+    "n": 2334,
+    "realised": 0.6932,
+    "realised_lo95": 0.6742
    },
    "0.750-0.800": {
-    "n": 1999,
-    "realised": 0.7179,
-    "realised_lo95": 0.6977
+    "n": 2010,
+    "realised": 0.7159,
+    "realised_lo95": 0.6958
    },
    "0.800-0.825": {
-    "n": 821,
-    "realised": 0.7393,
-    "realised_lo95": 0.7082
+    "n": 824,
+    "realised": 0.7367,
+    "realised_lo95": 0.7055
    },
    "0.825-0.850": {
-    "n": 729,
-    "realised": 0.7449,
-    "realised_lo95": 0.712
+    "n": 732,
+    "realised": 0.7445,
+    "realised_lo95": 0.7117
    },
    "0.850-0.875": {
-    "n": 550,
-    "realised": 0.7618,
-    "realised_lo95": 0.7245
+    "n": 551,
+    "realised": 0.7623,
+    "realised_lo95": 0.725
    },
    "0.875-0.900": {
-    "n": 470,
-    "realised": 0.7723,
-    "realised_lo95": 0.7323
+    "n": 472,
+    "realised": 0.7712,
+    "realised_lo95": 0.7312
    }
   },
   "offsides_for": {
    "0.000-0.600": {
-    "n": 10827,
-    "realised": 0.2939,
-    "realised_lo95": 0.2854
+    "n": 11053,
+    "realised": 0.2976,
+    "realised_lo95": 0.2891
    },
    "0.600-0.700": {
-    "n": 1604,
-    "realised": 0.669,
-    "realised_lo95": 0.6455
+    "n": 1670,
+    "realised": 0.6635,
+    "realised_lo95": 0.6405
    },
    "0.700-0.750": {
-    "n": 1008,
-    "realised": 0.7113,
-    "realised_lo95": 0.6826
+    "n": 1025,
+    "realised": 0.7112,
+    "realised_lo95": 0.6827
    },
    "0.750-0.800": {
-    "n": 1015,
-    "realised": 0.7714,
-    "realised_lo95": 0.7446
+    "n": 1021,
+    "realised": 0.7689,
+    "realised_lo95": 0.742
    },
    "0.800-0.825": {
-    "n": 650,
-    "realised": 0.8015,
-    "realised_lo95": 0.7691
+    "n": 654,
+    "realised": 0.8012,
+    "realised_lo95": 0.7689
    },
    "0.825-0.850": {
-    "n": 641,
-    "realised": 0.8346,
-    "realised_lo95": 0.8039
+    "n": 649,
+    "realised": 0.8305,
+    "realised_lo95": 0.7997
    },
    "0.850-0.875": {
-    "n": 687,
-    "realised": 0.8559,
-    "realised_lo95": 0.8277
+    "n": 689,
+    "realised": 0.8549,
+    "realised_lo95": 0.8266
    },
    "0.875-0.900": {
-    "n": 703,
-    "realised": 0.8748,
-    "realised_lo95": 0.8483
+    "n": 704,
+    "realised": 0.875,
+    "realised_lo95": 0.8485
    },
    "0.900-0.925": {
-    "n": 752,
-    "realised": 0.8989,
-    "realised_lo95": 0.8753
+    "n": 755,
+    "realised": 0.8967,
+    "realised_lo95": 0.8729
    },
    "0.925-0.950": {
-    "n": 519,
-    "realised": 0.8844,
-    "realised_lo95": 0.854
+    "n": 520,
+    "realised": 0.8846,
+    "realised_lo95": 0.8543
    }
   },
   "cards_points_total": {
    "0.000-0.600": {
-    "n": 6054,
-    "realised": 0.278,
-    "realised_lo95": 0.2669
+    "n": 7141,
+    "realised": 0.291,
+    "realised_lo95": 0.2806
    },
    "0.600-0.700": {
-    "n": 926,
-    "realised": 0.6739,
-    "realised_lo95": 0.643
+    "n": 1134,
+    "realised": 0.6649,
+    "realised_lo95": 0.6369
    },
    "0.700-0.750": {
-    "n": 489,
-    "realised": 0.6933,
-    "realised_lo95": 0.651
+    "n": 598,
+    "realised": 0.6906,
+    "realised_lo95": 0.6525
    },
    "0.750-0.800": {
-    "n": 527,
-    "realised": 0.8102,
-    "realised_lo95": 0.7746
+    "n": 604,
+    "realised": 0.803,
+    "realised_lo95": 0.7694
+   },
+   "0.875-0.900": {
+    "n": 425,
+    "realised": 0.88,
+    "realised_lo95": 0.8457
    },
    "0.900-0.925": {
-    "n": 409,
-    "realised": 0.9046,
-    "realised_lo95": 0.8723
+    "n": 445,
+    "realised": 0.9011,
+    "realised_lo95": 0.8699
    }
   },
   "aces_for": {
    "0.000-0.600": {
-    "n": 4342,
-    "realised": 0.2856,
-    "realised_lo95": 0.2723
+    "n": 4348,
+    "realised": 0.2854,
+    "realised_lo95": 0.2722
    },
    "0.600-0.700": {
-    "n": 656,
-    "realised": 0.6402,
-    "realised_lo95": 0.6028
+    "n": 660,
+    "realised": 0.6424,
+    "realised_lo95": 0.6051
    }
   },
   "cards_points_for": {
    "0.000-0.600": {
-    "n": 4203,
-    "realised": 0.2779,
-    "realised_lo95": 0.2646
+    "n": 5081,
+    "realised": 0.297,
+    "realised_lo95": 0.2846
    },
    "0.600-0.700": {
-    "n": 597,
-    "realised": 0.6315,
-    "realised_lo95": 0.5921
+    "n": 750,
+    "realised": 0.6413,
+    "realised_lo95": 0.6064
+   },
+   "0.700-0.750": {
+    "n": 437,
+    "realised": 0.6957,
+    "realised_lo95": 0.651
+   },
+   "0.750-0.800": {
+    "n": 450,
+    "realised": 0.8044,
+    "realised_lo95": 0.7653
+   }
+  },
+  "games_won_for": {
+   "0.000-0.600": {
+    "n": 5664,
+    "realised": 0.3489,
+    "realised_lo95": 0.3366
+   },
+   "0.600-0.700": {
+    "n": 1122,
+    "realised": 0.68,
+    "realised_lo95": 0.6522
+   },
+   "0.700-0.750": {
+    "n": 738,
+    "realised": 0.6978,
+    "realised_lo95": 0.6637
+   },
+   "0.750-0.800": {
+    "n": 615,
+    "realised": 0.7805,
+    "realised_lo95": 0.7461
+   },
+   "0.800-0.825": {
+    "n": 480,
+    "realised": 0.7562,
+    "realised_lo95": 0.7159
    }
   },
   "double_faults_total": {
    "0.000-0.600": {
-    "n": 6557,
-    "realised": 0.3187,
-    "realised_lo95": 0.3076
+    "n": 6561,
+    "realised": 0.3189,
+    "realised_lo95": 0.3077
    },
    "0.600-0.700": {
-    "n": 1193,
-    "realised": 0.6815,
-    "realised_lo95": 0.6545
+    "n": 1194,
+    "realised": 0.6817,
+    "realised_lo95": 0.6548
    },
    "0.700-0.750": {
     "n": 686,
@@ -816,19 +979,150 @@
   },
   "games_total": {
    "0.000-0.600": {
-    "n": 5272,
-    "realised": 0.4156,
-    "realised_lo95": 0.4024
+    "n": 6003,
+    "realised": 0.42,
+    "realised_lo95": 0.4075
    },
    "0.600-0.700": {
-    "n": 1378,
-    "realised": 0.6306,
-    "realised_lo95": 0.6048
+    "n": 1524,
+    "realised": 0.6227,
+    "realised_lo95": 0.5981
    },
    "0.700-0.750": {
-    "n": 673,
-    "realised": 0.7043,
-    "realised_lo95": 0.6687
+    "n": 730,
+    "realised": 0.6932,
+    "realised_lo95": 0.6588
+   },
+   "0.750-0.800": {
+    "n": 441,
+    "realised": 0.7256,
+    "realised_lo95": 0.6822
+   }
+  },
+  "goals_1h_total": {
+   "0.000-0.600": {
+    "n": 2983,
+    "realised": 0.294,
+    "realised_lo95": 0.2779
+   },
+   "0.600-0.700": {
+    "n": 594,
+    "realised": 0.6818,
+    "realised_lo95": 0.6433
+   }
+  },
+  "goals_1h_for": {
+   "0.000-0.600": {
+    "n": 2692,
+    "realised": 0.3666,
+    "realised_lo95": 0.3486
+   },
+   "0.600-0.700": {
+    "n": 454,
+    "realised": 0.5485,
+    "realised_lo95": 0.5025
+   }
+  },
+  "goals_2h_total": {
+   "0.000-0.600": {
+    "n": 3322,
+    "realised": 0.3025,
+    "realised_lo95": 0.2871
+   },
+   "0.600-0.700": {
+    "n": 519,
+    "realised": 0.6493,
+    "realised_lo95": 0.6073
+   },
+   "0.750-0.800": {
+    "n": 401,
+    "realised": 0.798,
+    "realised_lo95": 0.756
+   }
+  },
+  "goals_2h_for": {
+   "0.000-0.600": {
+    "n": 3097,
+    "realised": 0.3775,
+    "realised_lo95": 0.3606
+   },
+   "0.600-0.700": {
+    "n": 488,
+    "realised": 0.5348,
+    "realised_lo95": 0.4905
+   }
+  },
+  "corners_1h_total": {
+   "0.000-0.600": {
+    "n": 2176,
+    "realised": 0.3336,
+    "realised_lo95": 0.3141
+   },
+   "0.600-0.700": {
+    "n": 421,
+    "realised": 0.6746,
+    "realised_lo95": 0.6284
+   }
+  },
+  "corners_1h_for": {
+   "0.000-0.600": {
+    "n": 1709,
+    "realised": 0.3546,
+    "realised_lo95": 0.3323
+   }
+  },
+  "both_over_corners": {
+   "0.000-0.600": {
+    "n": 1391,
+    "realised": 0.3084,
+    "realised_lo95": 0.2847
+   }
+  },
+  "both_over_goals": {
+   "0.000-0.600": {
+    "n": 2200,
+    "realised": 0.4155,
+    "realised_lo95": 0.395
+   },
+   "0.600-0.700": {
+    "n": 563,
+    "realised": 0.5773,
+    "realised_lo95": 0.5361
+   }
+  },
+  "both_over_cards_points": {
+   "0.000-0.600": {
+    "n": 424,
+    "realised": 0.3915,
+    "realised_lo95": 0.3462
+   }
+  },
+  "corners_2h_total": {
+   "0.000-0.600": {
+    "n": 531,
+    "realised": 0.3183,
+    "realised_lo95": 0.2801
+   }
+  },
+  "corners_2h_for": {
+   "0.000-0.600": {
+    "n": 570,
+    "realised": 0.3737,
+    "realised_lo95": 0.3349
+   }
+  },
+  "both_over_shots": {
+   "0.000-0.600": {
+    "n": 496,
+    "realised": 0.4577,
+    "realised_lo95": 0.4143
+   }
+  },
+  "both_over_shots_on_target": {
+   "0.000-0.600": {
+    "n": 538,
+    "realised": 0.368,
+    "realised_lo95": 0.3283
    }
   }
  }

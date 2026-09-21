@@ -279,7 +279,13 @@ def prior_for(
         league = entry.get(str(competition_id))
         if isinstance(league, dict) and isinstance(league.get("mean"), int | float):
             return float(league["mean"])
+    # Both pool shapes: `{"mean": x, "n": k}` since 2026-09-21, a bare float
+    # in every file written before it. Reading only one of them would not
+    # error — it would silently return None and recalibrate against a model
+    # with no prior at all, which is the worst of the three outcomes.
     overall = entry.get("global")
+    if isinstance(overall, dict) and isinstance(overall.get("mean"), int | float):
+        return float(overall["mean"])
     if isinstance(overall, int | float) and not isinstance(overall, bool):
         return float(overall)
     return None

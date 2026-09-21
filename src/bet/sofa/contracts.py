@@ -21,6 +21,7 @@ class GapReason(StrEnum):
     OUTSIDE_MODEL_RESOLUTION = "OUTSIDE_MODEL_RESOLUTION"
     INTERNAL_INCONSISTENT = "INTERNAL_INCONSISTENT"
     THIN_SAMPLE = "THIN_SAMPLE"
+    SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"
     STALE_PRICE = "STALE_PRICE"
     PROVIDER_ERROR = "PROVIDER_ERROR"
@@ -179,6 +180,14 @@ class SheetRow(BaseModel):
     # is exactly what happened the moment the correction stopped being dead
     # code. A row has to describe its own arithmetic.
     calibration_correction: float = 0.0
+    # Age in days of the NEWEST observation behind this row, or None when the
+    # sample carried no usable date. The coupon gates on it: until 2026-09-21
+    # only the price had a freshness limit, so the day's highest-surplus
+    # single rested on a sample whose most recent match was 105 days old, and
+    # nothing said so. Staleness and surplus are not independent — a sample
+    # that has stopped tracking a player disagrees with the current price more
+    # often, and the coupon sorts on exactly that disagreement.
+    sample_newest_days: int | None = None
     required_odds: float
     offered_odds: float | None
     edge: float | None
@@ -212,6 +221,12 @@ class CouponRow(BaseModel):
     centre: float
     p_central: float
     market_p: float | None
+    # Carried through from the sheet so the coupon row describes its own
+    # arithmetic. `p_bar = w·(p_central − calibration_correction) + (1−w)·
+    # market_p`, and without the correction three of 2026-09-21's 63 rows
+    # could not be re-derived from the file the operator actually opens.
+    calibration_correction: float = 0.0
+    sample_newest_days: int | None = None
     p_bar: float
     offered_odds: float
     required_odds: float

@@ -12,6 +12,10 @@ dependencies = [
     "python-dotenv>=1.0,<2",
     "PyYAML>=6.0,<7",
     "rapidfuzz>=3.0,<4",
+    # scripts/sofa/build_coupon_pdf.py — the PDF *is* the coupon, so this is a
+    # runtime dependency of the deliverable, not a reporting extra. It was
+    # undeclared until 2026-09-21, when the day's coupon could not be built.
+    "reportlab>=4,<6",
     "requests>=2.32,<3",
     "soccerdata>=1.9,<2",
     "SQLAlchemy>=2.0,<3",

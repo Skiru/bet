@@ -151,3 +151,66 @@ def test_offer_fetcher_combines_odds():
     assert len(offer2.rungs) == 0
     assert offer2.status == "NO_PRICE"
     assert offer2.unmapped_markets == []
+
+
+def test_a_filtered_offer_refresh_must_not_shrink_the_artifact(tmp_path, monkeypatch):
+    """A late refresh prices only what can still be bet — and keeps the rest.
+
+    OFFER costs ~90 minutes over a full board, so a refresh at 18:00 that
+    re-prices all 1,078 fixtures spends almost all of it on matches already
+    played while the ones still open keep kicking off. `--min-minutes-to-kickoff`
+    cuts that. But the stage overwrites `04_offer.json`, and SHEET prices what
+    it finds there, so a filtered write would delete the rest of the day —
+    which is how `simple`'s `--refresh-offer` lost Betis–Madrid and PSG–Monaco.
+
+    This pins the merge: refreshed fixtures win, untouched fixtures survive.
+
+    It calls the production function. An earlier version of this test
+    reimplemented the same four lines in its own body, so deleting the merge
+    from `run_offer` left it green — a regression test that cannot fail on the
+    regression it names.
+    """
+    import json
+
+    from scripts.sofa.run_offer import merge_with_previous
+
+    previous = [
+        {"sofascore_event_id": 1, "status": "OK", "rungs": [{"line": 2.5}],
+         "unmapped_markets": [], "price_collisions": []},
+        {"sofascore_event_id": 2, "status": "OK", "rungs": [],
+         "unmapped_markets": [], "price_collisions": []},
+    ]
+    fresh = [
+        {"sofascore_event_id": 2, "status": "OK", "rungs": [{"line": 9.5}],
+         "unmapped_markets": [], "price_collisions": []},
+    ]
+
+    merged, carried_forward = merge_with_previous(fresh, previous)
+
+    by_id = {o["sofascore_event_id"]: o for o in merged}
+    assert set(by_id) == {1, 2}, "the untouched fixture must survive the refresh"
+    assert by_id[2]["rungs"] == [{"line": 9.5}], "the refreshed price must win"
+    assert by_id[1]["rungs"] == [{"line": 2.5}], "the carried price must be unchanged"
+    assert len(merged) >= len(previous), "a refresh may never shrink the artifact"
+    assert carried_forward == 1, "the count the stage reports must match what it kept"
+    json.dumps(merged)
+
+
+def test_a_refresh_that_touches_nothing_still_keeps_the_whole_day():
+    """The degenerate case, which is the one that deletes a day.
+
+    If the filter excludes every fixture — a refresh run after the last
+    kickoff — `fresh` is empty. Returning it unchanged would write an empty
+    `04_offer.json` and SHEET would price nothing, reporting a day with no
+    prices rather than a refresh with no work to do.
+    """
+    from scripts.sofa.run_offer import merge_with_previous
+
+    previous = [
+        {"sofascore_event_id": i, "status": "OK", "rungs": [{"line": 2.5}],
+         "unmapped_markets": [], "price_collisions": []}
+        for i in range(1, 6)
+    ]
+    merged, carried_forward = merge_with_previous([], previous)
+    assert len(merged) == 5
+    assert carried_forward == 5

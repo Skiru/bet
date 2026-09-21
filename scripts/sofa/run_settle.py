@@ -241,10 +241,36 @@ def _handicap_side(subject: str, row: dict, event: dict) -> str | None:
     return "home" if score_home > score_away else "away"
 
 
+def rows_to_consider(sheet: list[dict], *, include_unpriced: bool) -> list[dict]:
+    """Which sheet rows this run will try to grade.
+
+    Priced-only by default: a row with no price cannot answer the question
+    this stage exists for, since K_PRICE is fitted on ``market_p`` and
+    ``market_p`` comes from the offer. ``include_unpriced`` widens it to the
+    whole board — those rows are real forecasts we made and stand behind, and
+    grading them is the only way a backfill can account for every market
+    considered rather than only the part that carried a price.
+    """
+    if include_unpriced:
+        return list(sheet)
+    return [r for r in sheet if r.get("offered_odds")]
+
+
 def main() -> int:
     set_stage("SETTLE")
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD", default=now().strftime("%Y-%m-%d"))
+    parser.add_argument(
+        "--include-unpriced",
+        action="store_true",
+        help=(
+            "Also settle rows Superbet never quoted (verdict NO_PRICE). They "
+            "cannot reach the K_PRICE fitter — market_p is NULL for them by "
+            "construction — but they are real forecasts we made, and grading "
+            "them is the only way a backfill can say what the day's whole "
+            "board did rather than just the part that carried a price."
+        ),
+    )
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
@@ -264,10 +290,13 @@ def main() -> int:
     with open(fixtures_path, encoding="utf-8") as f:
         fixtures = {x["sofascore_event_id"]: x for x in json.load(f)}
 
-    # A row with no price cannot answer the question this stage exists for.
-    priced = [r for r in sheet if r.get("offered_odds")]
+    # A row with no price cannot answer the question this stage exists for —
+    # K_PRICE needs market_p, and market_p comes from the offer. So the
+    # default is priced-only. --include-unpriced widens it to the whole
+    # board, for a backfill that has to account for every market considered.
+    considered = rows_to_consider(sheet, include_unpriced=args.include_unpriced)
     by_event: dict[int, list[dict]] = {}
-    for row in priced:
+    for row in considered:
         by_event.setdefault(row["sofascore_event_id"], []).append(row)
 
     settled_at = datetime.now(UTC).isoformat()
@@ -374,7 +403,10 @@ def main() -> int:
     )
 
     metrics = {
-        "priced_rows_in_sheet": len(priced),
+        "rows_in_sheet": len(sheet),
+        "rows_considered": len(considered),
+        "include_unpriced": args.include_unpriced,
+        "priced_rows_in_sheet": sum(1 for r in sheet if r.get("offered_odds")),
         "events_settled": events_settled,
         "events_in_sheet": len(by_event),
         "rows_settled": len(rows),
@@ -393,6 +425,30 @@ def main() -> int:
         verdict = "PARTIAL"
     else:
         verdict = "OK"
+
+    # The skip counter, in full and on disk. SOFA_SUMMARY carries the top
+    # twelve, which is enough to see whether the stage worked and not enough
+    # to audit it: the reason a row went ungraded is the whole answer to "why
+    # did it not come in", and reconstructing it later from the artifacts
+    # means guessing. A guess collapses "the match was postponed" and "the
+    # provider has no reading of that statistic" into one bucket, and those
+    # two are not the same fact about the day.
+    skips_path = run_dir / "07_settle_skips.json"
+    with open(skips_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "date": args.date,
+                "include_unpriced": args.include_unpriced,
+                "rows_considered": len(considered),
+                "rows_settled": len(rows),
+                "events_in_sheet": len(by_event),
+                "events_settled": events_settled,
+                "breaker_open": breaker_open,
+                "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])),
+            },
+            f,
+            indent=2,
+        )
 
     out_path = run_dir / "07_settled.json"
     with open(out_path, "w", encoding="utf-8") as f:
@@ -415,6 +471,7 @@ def main() -> int:
                 "verdict": verdict,
                 "metrics": metrics,
                 "output_path": str(out_path),
+                "skips_path": str(skips_path),
             }
         ),
         flush=True,

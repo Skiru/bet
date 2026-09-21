@@ -419,3 +419,26 @@ def test_tennis_sample_filtering(mock_clients):
     # Event 1 (clay) and 2 (best-of-5) are cut; only event 3 matches.
     assert len(metric.side_a) == 1
     assert metric.side_a[0].sofascore_event_id == 3
+
+
+def test_a_fixture_with_no_surface_says_so_instead_of_emptying_its_sample():
+    """L14 applied to the tennis surface filter.
+
+    `event.groundType != fixture.ground_type` is a surface filter only when we
+    know our own surface. When `fixture.ground_type` is None it keeps just the
+    past matches whose surface is ALSO unknown — almost none — and the sample
+    empties with no reason recorded, which is indistinguishable from a
+    provider gap.
+    """
+    from bet.sofa.contracts import GapReason
+
+    assert GapReason.SURFACE_UNKNOWN == "SURFACE_UNKNOWN"
+    src = (
+        Path(__file__).resolve().parents[2] / "src/bet/sofa/samples.py"
+    ).read_text(encoding="utf-8")
+    # The unknown-surface branch must come BEFORE the != comparison, or the
+    # comparison silently swallows the case it is meant to report.
+    unknown_at = src.index("if fixture.ground_type is None:")
+    compare_at = src.index('if event.get("groundType") != fixture.ground_type:')
+    assert unknown_at < compare_at
+    assert "GapReason.SURFACE_UNKNOWN" in src

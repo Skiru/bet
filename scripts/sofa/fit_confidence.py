@@ -80,7 +80,7 @@ def main() -> int:
     con = sqlite3.connect(args.db_path)
     rows = con.execute(
         """select market, line, direction, sample_size, sample_mean, sample_sd,
-                  actual_value
+                  actual_value, p_central, sport
            from sofa_settled_row
            where sample_mean is not null and sample_sd is not null
              and sample_size > 0 and actual_value is not null"""
@@ -88,23 +88,53 @@ def main() -> int:
 
     per_market: dict[str, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
     pooled: dict[int, list[int]] = defaultdict(list)
+    # Pooled per sport. A global pool is 95% football counting markets, so a
+    # tennis metric borrowing it borrows football's shape — which is how
+    # `sets_total` read 0.856 off 64,790 rows that were almost all goals and
+    # corners. Silence about tennis is not the same as knowledge about it.
+    pooled_by_sport: dict[str, dict[int, list[int]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     scored = 0
-    for market, line, direction, n, mean, sd, actual in rows:
-        if uses_empirical_frequency(market) or not uses_poisson_floor(market):
+    for market, line, direction, n, mean, sd, actual, stored_p, sport in rows:
+        if uses_empirical_frequency(market):
+            # These have no distribution to recompute from — `p_central` IS
+            # the sample's own hit rate, and the sheet already stored it. Until
+            # 2026-09-21 the loop skipped them, so they had no curve, and
+            # run_confidence refused every one of them as NOT_IN_CALIBRATION_
+            # FIT. That banned `games_won_for` — the single largest tennis
+            # market, 1084 rows on a Monday sheet and 9,286 settled — from the
+            # path that produces the coupon, while the VALUE-singles path was
+            # made of almost nothing else.
+            #
+            # Banning was the wrong answer to a real problem: the raw
+            # frequency IS overconfident at the top (measured on those 9,286
+            # rows, a claimed 0.95 realises 0.728). That is what a calibration
+            # curve is for. Fitted, the top bucket caps itself at ~0.73 and
+            # the 0.811-against-odds-of-20.0 leg that motivated the ban cannot
+            # reach the floor any more.
+            if stored_p is None:
+                continue
+            p = stored_p
+        elif not uses_poisson_floor(market):
+            # Neither a count nor an empirical frequency: no model at all.
             continue
-        psd = predictive_sd(sd * sd, mean, n, apply_poisson_floor=True)
-        boundary = winning_boundary(line, direction)
-        if uses_negative_binomial(market):
-            p = calc_p_central_nb_raw(mean, psd, boundary, direction)
         else:
-            p = calc_p_central_raw(
-                mean, psd, boundary, direction, support_floor_for(market)
-            )
+            psd = predictive_sd(sd * sd, mean, n, apply_poisson_floor=True)
+            boundary = winning_boundary(line, direction)
+            if uses_negative_binomial(market):
+                p = calc_p_central_nb_raw(mean, psd, boundary, direction)
+            else:
+                p = calc_p_central_raw(
+                    mean, psd, boundary, direction, support_floor_for(market)
+                )
         p = min(max(p, 0.0), 1.0)
         hit = 1 if ((actual > line) if direction == "OVER" else (actual < line)) else 0
         b = bucket_of(p)
         per_market[market][b].append(hit)
         pooled[b].append(hit)
+        if sport:
+            pooled_by_sport[sport][b].append(hit)
         scored += 1
 
     def curve(counts: dict[int, list[int]], floor: int) -> dict[str, dict]:
@@ -127,12 +157,20 @@ def main() -> int:
         "_doc": (
             "What the model's probability turns into in practice. Fitted by "
             "scripts/sofa/fit_confidence.py. A market with too few rows in a "
-            "bucket falls back to the pooled curve; a bucket absent from both "
-            "means the confidence view refuses the row rather than guessing."
+            "bucket falls back to its SPORT's pooled curve, then the global "
+            "one; a bucket absent from all three means the confidence view "
+            "refuses the row rather than guessing. A market is never served "
+            "from a pool ABOVE the top of its own measured range - see "
+            "Calibration.realised."
         ),
         "fitted_from": {"db_path": args.db_path, "scored_rows": scored},
         "min_market_bucket": MIN_MARKET_BUCKET,
         "pooled": curve(pooled, MIN_POOLED_BUCKET),
+        "pooled_by_sport": {
+            sp: c
+            for sp, counts in pooled_by_sport.items()
+            if (c := curve(counts, MIN_POOLED_BUCKET))
+        },
         "by_market": {
             m: c
             for m, counts in per_market.items()
@@ -149,6 +187,9 @@ def main() -> int:
                     "scored_rows": scored,
                     "markets": len(doc["by_market"]),
                     "pooled_buckets": len(doc["pooled"]),
+                    "pooled_by_sport": {
+                        sp: len(c) for sp, c in doc["pooled_by_sport"].items()
+                    },
                 },
                 "output_path": args.out,
             }

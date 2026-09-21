@@ -18,6 +18,7 @@ from pydantic import RootModel
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
+from bet.sofa.confidence import Calibration
 from bet.sofa.coupon import CouponResult, build_coupon
 from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
@@ -276,6 +277,9 @@ def main() -> int:
         min_kickoff=current_time + timedelta(minutes=15),
         max_price_age=timedelta(minutes=config.price_max_age_min),
         max_singles=args.max_singles,
+        # The same measured ceiling CONFIDENCE enforces. Both paths read one
+        # calibration so they cannot disagree about what has been observed.
+        calibration=Calibration.load(),
     )
 
     run_dir.mkdir(parents=True, exist_ok=True)

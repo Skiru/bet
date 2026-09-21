@@ -214,7 +214,16 @@ def get_prior(
     ):
         return float(league_entry["mean"])
 
+    # The pool carries its own `n` since 2026-09-21, so it reads like a league
+    # entry. The bare-float shape is what every baselines file written before
+    # that date holds, and one of those is still on disk in any checkout that
+    # has not re-fitted — reading only the new shape would silently drop every
+    # prior rather than fix one.
     global_entry = metric_entry.get("global")
+    if isinstance(global_entry, dict) and isinstance(
+        global_entry.get("mean"), int | float
+    ):
+        return float(global_entry["mean"])
     if isinstance(global_entry, int | float) and not isinstance(global_entry, bool):
         return float(global_entry)
     return None
@@ -371,6 +380,14 @@ def process_fixture(
                 (rung, GapReason.ALL_ZERO_SAMPLE, f"all {n} observations are 0.0")
             )
             continue
+
+        # How stale the freshest match behind this row is. Computed here
+        # because this is the last place the observations exist as objects;
+        # the sheet row is all the coupon ever sees.
+        sample_newest_days: int | None = None
+        dates = [o.match_date_utc for o in obs if o.match_date_utc is not None]
+        if dates:
+            sample_newest_days = (now() - max(dates)).days
 
         mean = statistics.mean(values)
         if n > 1:
@@ -634,6 +651,7 @@ def process_fixture(
                 p_bar=round(p_bar, 4),
                 bar_reason=bar_reason,
                 calibration_correction=round(corr, 4),
+                sample_newest_days=sample_newest_days,
                 required_odds=req_odds_out,
                 offered_odds=offered_odds,
                 edge=edge,

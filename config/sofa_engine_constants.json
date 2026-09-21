@@ -2,8 +2,8 @@
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
     "db_path": "data/sofa.db",
-    "settled_rows": 1876612,
-    "distinct_competitions": 1068
+    "settled_rows": 1964797,
+    "distinct_competitions": 1188
   },
   "K_CENTRE": {
     "value": 15.0,
@@ -12,14 +12,14 @@
       "tennis": 2.0
     },
     "curve": {
-      "0.0": 0.168687,
-      "2.0": 0.165505,
-      "5.0": 0.163619,
-      "8.0": 0.163027,
-      "10.0": 0.162925,
-      "15.0": 0.163056,
-      "25.0": 0.163693,
-      "1000.0": 0.167272
+      "0.0": 0.170287,
+      "2.0": 0.167131,
+      "5.0": 0.165246,
+      "8.0": 0.164642,
+      "10.0": 0.16453,
+      "15.0": 0.164641,
+      "25.0": 0.165249,
+      "1000.0": 0.168763
     },
     "status": "FITTED",
     "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid"
@@ -27,14 +27,14 @@
   "K_PRICE": {
     "value": null,
     "curve": {
-      "0.0": 0.209313,
-      "2.0": 0.202433,
-      "5.0": 0.196498,
-      "8.0": 0.193033,
-      "10.0": 0.191447,
-      "15.0": 0.188843,
-      "25.0": 0.186282,
-      "1000.0": 0.182431
+      "0.0": 0.199388,
+      "2.0": 0.195394,
+      "5.0": 0.192074,
+      "8.0": 0.19021,
+      "10.0": 0.18938,
+      "15.0": 0.188061,
+      "25.0": 0.186841,
+      "1000.0": 0.185451
     },
     "status": "NOT_FITTED",
     "criterion": "as K_CENTRE (Brier), on rows carrying a devigged market price"
@@ -42,87 +42,87 @@
   "MAX_LADDER_SIGMA": {
     "value": null,
     "status": "NO_DIVERGENCE",
-    "rows_available": 5743,
+    "rows_available": 80148,
     "bands": [
       {
-        "lo": 0.0007,
-        "hi": 0.0397,
-        "n": 592,
-        "declared": 0.5003,
-        "realised": 0.4932,
-        "gap": 0.0071
-      },
-      {
-        "lo": 0.0397,
-        "hi": 0.0792,
-        "n": 598,
+        "lo": 0.0001,
+        "hi": 0.0375,
+        "n": 8018,
         "declared": 0.4998,
-        "realised": 0.4983,
-        "gap": 0.0014
+        "realised": 0.4999,
+        "gap": -0.0001
       },
       {
-        "lo": 0.0792,
-        "hi": 0.1295,
-        "n": 592,
-        "declared": 0.4995,
-        "realised": 0.5084,
-        "gap": -0.0089
+        "lo": 0.0375,
+        "hi": 0.0764,
+        "n": 8036,
+        "declared": 0.5,
+        "realised": 0.4996,
+        "gap": 0.0004
       },
       {
-        "lo": 0.1295,
-        "hi": 0.1754,
-        "n": 584,
-        "declared": 0.4997,
-        "realised": 0.4966,
-        "gap": 0.0031
-      },
-      {
-        "lo": 0.1754,
-        "hi": 0.227,
-        "n": 586,
+        "lo": 0.0764,
+        "hi": 0.118,
+        "n": 8033,
         "declared": 0.4999,
-        "realised": 0.4983,
-        "gap": 0.0016
+        "realised": 0.5006,
+        "gap": -0.0006
       },
       {
-        "lo": 0.227,
-        "hi": 0.3012,
-        "n": 588,
-        "declared": 0.5012,
-        "realised": 0.5085,
-        "gap": -0.0074
+        "lo": 0.118,
+        "hi": 0.164,
+        "n": 8053,
+        "declared": 0.5003,
+        "realised": 0.4997,
+        "gap": 0.0006
       },
       {
-        "lo": 0.3012,
-        "hi": 0.3926,
-        "n": 592,
-        "declared": 0.5014,
-        "realised": 0.4949,
-        "gap": 0.0065
+        "lo": 0.164,
+        "hi": 0.2108,
+        "n": 8027,
+        "declared": 0.5001,
+        "realised": 0.4981,
+        "gap": 0.002
       },
       {
-        "lo": 0.3926,
-        "hi": 0.5015,
-        "n": 580,
-        "declared": 0.4978,
-        "realised": 0.4966,
-        "gap": 0.0012
+        "lo": 0.2108,
+        "hi": 0.2644,
+        "n": 8057,
+        "declared": 0.5,
+        "realised": 0.4999,
+        "gap": 0.0001
       },
       {
-        "lo": 0.5015,
-        "hi": 0.7105,
-        "n": 583,
-        "declared": 0.4966,
-        "realised": 0.506,
-        "gap": -0.0094
+        "lo": 0.2644,
+        "hi": 0.3366,
+        "n": 8020,
+        "declared": 0.4999,
+        "realised": 0.5015,
+        "gap": -0.0016
       },
       {
-        "lo": 0.7105,
-        "hi": 2.2937,
-        "n": 584,
-        "declared": 0.4962,
-        "realised": 0.4966,
-        "gap": -0.0004
+        "lo": 0.3366,
+        "hi": 0.4241,
+        "n": 8026,
+        "declared": 0.4998,
+        "realised": 0.4999,
+        "gap": -0.0001
+      },
+      {
+        "lo": 0.4241,
+        "hi": 0.5822,
+        "n": 8036,
+        "declared": 0.4992,
+        "realised": 0.5014,
+        "gap": -0.0021
+      },
+      {
+        "lo": 0.5822,
+        "hi": 3.195,
+        "n": 8022,
+        "declared": 0.4979,
+        "realised": 0.5002,
+        "gap": -0.0023
       }
     ]
   }

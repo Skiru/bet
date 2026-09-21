@@ -251,3 +251,33 @@ def test_a_crash_partway_keeps_the_rows_already_graded(tmp_path, monkeypatch):
     assert [r["sofascore_event_id"] for r in rows] == [11]
     assert rows[0]["actual_value"] == pytest.approx(11.0)
     assert rows[0]["outcome"] == "WIN"
+
+
+def test_a_backfill_can_grade_the_rows_that_carried_no_price():
+    """--include-unpriced widens SETTLE from the priced part to the whole board.
+
+    The default is priced-only because K_PRICE is fitted on `market_p`, which
+    only a quoted row has. But on 2026-09-19 the sheet held 56,528 rows and
+    only 54,834 carried a price: 1,694 forecasts we made and stand behind were
+    unaccounted for by construction. An audit that has to say what happened to
+    every market considered cannot be run off the priced subset.
+    """
+    from scripts.sofa.run_settle import rows_to_consider
+
+    sheet = [
+        {"market": "corners_total", "offered_odds": 1.85},
+        {"market": "cards_total", "offered_odds": None},
+        {"market": "goals_total"},
+    ]
+
+    assert len(rows_to_consider(sheet, include_unpriced=False)) == 1
+    assert len(rows_to_consider(sheet, include_unpriced=True)) == 3
+
+
+def test_widening_the_selection_does_not_reorder_or_mutate_the_sheet():
+    from scripts.sofa.run_settle import rows_to_consider
+
+    sheet = [{"market": "a", "offered_odds": 2.0}, {"market": "b"}]
+    got = rows_to_consider(sheet, include_unpriced=True)
+    assert [r["market"] for r in got] == ["a", "b"]
+    assert got is not sheet
