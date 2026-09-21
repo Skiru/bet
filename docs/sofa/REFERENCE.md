@@ -1,7 +1,7 @@
 # Sofascore API Reference Documentation
 
 ## Kontekst i Metodologia
-Dokumentacja powstała na bazie reverse-engineeringu oficjalnego API Sofascore (v1). Wszystkie ustalenia pochodzą ze świeżych (live) requestów z 17 września 2026. Pełne logi request/response znajdują się w `docs/sofascore-api/evidence/`.
+Dokumentacja powstała na bazie reverse-engineeringu oficjalnego API Sofascore (v1). Wszystkie ustalenia pochodzą ze świeżych (live) requestów z 17 września 2026. Pełne logi request/response znajdują się w `docs/sofa/evidence/`.
 
 > **NIEAKTUALNE OD 2026-09-17 ok. 11:00 lokalnego.** Wszystko poniżej opisuje stan
 > API sprzed edge-challenge'u, który Sofascore włączył na prefiksie `/api/v1/`.

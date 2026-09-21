@@ -150,8 +150,8 @@ def test_handoff_schema_and_happy_path():
 def test_documentation_compliance():
     # 7. daily session prompt docs mention tipsters as mandatory evidence.
     # 8. docs forbid EV/stake/coupon/final bet/Superbet combined odds.
-    contract_path = Path("docs/pipeline/Today Session Tipster Evidence Contract.md")
-    runbook_path = Path("docs/pipeline/Full Day Session Runbook.md")
+    contract_path = Path("docs/legacy/pipeline/Today Session Tipster Evidence Contract.md")
+    runbook_path = Path("docs/legacy/pipeline/Full Day Session Runbook.md")
 
     assert contract_path.exists()
     assert runbook_path.exists()

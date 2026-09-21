@@ -46,8 +46,9 @@ So your two jobs, in order:
 
 `sofa` produces two objects and they disagree about the day:
 
-- `06_coupon.json` — VALUE singles, ranked by surplus, **measured −20.4%** on
-  2026-09-20 and structurally anti-selective.
+- `06_coupon.json` — VALUE singles, ranked on relative price advantage
+  (`surplus / required_odds`), **measured −20.4%** on 2026-09-20 and
+  structurally anti-selective.
 - `08_confidence.json` → `KUPON_<date>.pdf` — the Bet Builders the operator
   actually stakes, **+8.2%** the same day.
 

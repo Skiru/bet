@@ -180,6 +180,7 @@ Gates, in order, each with its own `06_dropped.json` reason:
 | `ODDS_TOO_LOW` | below `MIN_ODDS_FLOOR = 1.25` |
 | `VETOED` | matched an entry in `vetoes.json` |
 | `STALE_PRICE` | no `fetched_at`, or older than `price_max_age_min` (45) |
+| `DISAGREES_WITH_PRICE` | `p_central − market_p > MAX_DISAGREEMENT = 0.10`. **Measured, not cautious**: past +0.10 the realised rate falls BELOW a coin flip while the claim keeps climbing (+0.30 and up: claims 0.800, realises 0.451 over 328 rows). Until 2026-09-21 this gate existed only on the staked path, so the singles file was the *more permissive* of the two products. It is now routinely the largest single reason a day's coupon is empty — 84 of 118 VALUE rows on 2026-09-21. |
 | `ABOVE_MEASURED_CEILING` | `p_central` is at or above the top of this market's **own measured** calibration range. Only markets that *have* a curve are gated — one with no curve is unmeasured rather than contradicted. `games_won_for` has 9,286 settled rows and no bucket above 0.825, yet seven coupon rows one day claimed 0.900: not an optimistic estimate, a claim about a region the data refuses to describe. |
 | `STALE_SAMPLE` | newest observation older than `MAX_SAMPLE_AGE_DAYS = 60` |
 | `MAX_SINGLES` / `MAX_PER_FIXTURE` (3) | caps |
@@ -215,7 +216,10 @@ cannot have positive EV under this curve, whatever the fixture), `NO_FIXTURE`,
 `NOT_IN_CALIBRATION_FIT`, `DERIVED_NOT_CALIBRATABLE`, `NOT_CALIBRATED`,
 `BELOW_CONFIDENCE_FLOOR`, `DISAGREES_WITH_PRICE`, `NEGATIVE_LEG_EV`,
 `LINE_BEYOND_SAMPLE`, `MODE_LOSES`, `THIN_SAMPLE_FOR_BUILDER`,
-`SAMPLE_CROSSES_SEASON`, `BUILDER_LEGS_INCOHERENT`.
+`SAMPLE_CROSSES_SEASON` (oldest observation over 180 days), `STALE_SAMPLE`
+(newest over `MAX_SAMPLE_AGE_DAYS = 60` — **the same constant COUPON uses**,
+shared since 2026-09-21 so the staked path can never again be the more
+permissive one), `BUILDER_LEGS_INCOHERENT`.
 
 `NOT_CALIBRATED` is the big one and it is the honest refusal: neither the
 market's own curve nor the pooled one covers that bucket, so the leg is
@@ -263,7 +267,11 @@ can ever fit from.
 
 ```
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
---include-unpriced     also grade rows Superbet never quoted
+
+# --include-unpriced belongs to run_settle.py, not to run_pipeline.py, so it is
+# only reachable by invoking the stage script directly:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-1> --include-unpriced
+#     also grades rows Superbet never quoted
 ```
 
 `PARTIAL` is the normal verdict — unfinished matches and provider stat gaps.

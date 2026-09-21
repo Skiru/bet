@@ -15,14 +15,14 @@
       "competition_id": 853,
       "name": "Club Friendly Games",
       "category": "World",
-      "evidence": "docs/sofascore-api/evidence/team_2829_events_last_10.json",
+      "evidence": "docs/sofa/evidence/team_2829_events_last_10.json",
       "source": "verified_payload"
     },
     {
       "competition_id": 1794,
       "name": "MLS All Star Game",
       "category": "USA",
-      "evidence": "docs/sofascore-api/evidence/search_league_liga_mx.json",
+      "evidence": "docs/sofa/evidence/search_league_liga_mx.json",
       "source": "verified_payload"
     }
   ],

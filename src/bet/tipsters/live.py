@@ -56,7 +56,7 @@ PARSER_VERSION = "tipster_parser_v2.3_final_source_specific"
 # anything when run from anywhere else -- a PRECONDITION_FAILED that looked like
 # a missing file rather than a missing cwd.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_REVIEW_PATH = _REPO_ROOT / "docs/pipeline/tipster_terms_review.local.json"
+DEFAULT_REVIEW_PATH = _REPO_ROOT / "docs/legacy/pipeline/tipster_terms_review.local.json"
 
 # Sources whose live parser is verified against a live run. Everything else stays
 # out of the default set even when its attestation would allow a fetch: an

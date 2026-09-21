@@ -450,7 +450,7 @@ def test_zawodtyper_daily_url_target_for_runner():
 
 def test_zawodtyper_review_template_exists():
     import json
-    path = Path(__file__).resolve().parents[2] / "docs/pipeline/tipster_terms_review.example.json"
+    path = Path(__file__).resolve().parents[2] / "docs/legacy/pipeline/tipster_terms_review.example.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     reviews = data.get("source_reviews", {})
     assert "zawodtyper" in reviews

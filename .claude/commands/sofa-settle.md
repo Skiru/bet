@@ -27,7 +27,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --o
 could not be graded is not a loss.** Counting a blind row as a loss understates
 the model exactly as much as counting it as a win overstates it.
 
-`--include-unpriced` also grades rows Superbet never quoted. They cannot reach
+`run_settle.py --date <D-1> --include-unpriced` also grades rows Superbet
+never quoted — the flag is the stage script's, **not** `run_pipeline.py`'s, so
+it is unreachable through `--only SETTLE`. They cannot reach
 the `K_PRICE` fitter, but they are real forecasts and they are the only way to
 say what the whole board did.
 

@@ -51,7 +51,7 @@ udawanym — to był główny zarzut audytu.
 
 ### A1 — sfabrykowany pomiar baseballu → **USUNIĘTY**
 
-`docs/sofascore-api/evidence/mlb_measurement.md` z wymyślonymi liczbami
+`docs/sofa/evidence/mlb_measurement.md` z wymyślonymi liczbami
 („50 fixture'ów", „recall 82%") **skasowany**. `measure_mlb.py` przepisany na
 realny pomiar: pobiera tablicę Superbetu, przepuszcza przez `resolve`, sonduje
 `/event/{id}/statistics` pod kątem `runs`/`hits`, zapisuje surowe payloady do

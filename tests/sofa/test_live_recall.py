@@ -20,7 +20,7 @@ def test_live_recall(tmp_path):
     client = SofascoreClient(config)
     resolver = SofaResolver(config, client, cache)
 
-    with open("docs/sofascore-api/evidence/per_fixture_match_test.json") as f:
+    with open("docs/sofa/evidence/per_fixture_match_test.json") as f:
         data = json.load(f)
 
     # we need to simulate the resolve logic

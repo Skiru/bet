@@ -41,7 +41,7 @@ BASEBALL_SPORT_ID = 3
 # Keys that would carry run scoring if Sofascore published it for baseball.
 RUN_KEYS = ("runs", "hits", "errors", "runsScored", "totalRuns", "totalHits")
 
-EVIDENCE_DIR = Path("docs/sofascore-api/evidence")
+EVIDENCE_DIR = Path("docs/sofa/evidence")
 REPORT_PATH = EVIDENCE_DIR / "mlb_measurement.md"
 RAW_PATH = EVIDENCE_DIR / "mlb_measurement_raw.json"
 

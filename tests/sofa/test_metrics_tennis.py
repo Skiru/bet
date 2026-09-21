@@ -48,7 +48,7 @@ def test_t09_tennis_metrics():
 def test_best_of_is_inferred_from_the_recorded_listing() -> None:
     """`defaultPeriodCount` is absent from every listing event.
 
-    Verified against docs/sofascore-api/evidence/team_275923_events_last_0.json:
+    Verified against docs/sofa/evidence/team_275923_events_last_0.json:
     30 of 30 events carry `groundType`, 0 of 30 carry `defaultPeriodCount`.
     Filtering a sample on that field therefore rejects every historical match
     and leaves tennis with no sample — a gate nobody can pass, which reads as
@@ -59,7 +59,7 @@ def test_best_of_is_inferred_from_the_recorded_listing() -> None:
     from bet.sofa.metrics import infer_best_of
 
     body = _json.load(
-        open("docs/sofascore-api/evidence/team_275923_events_last_0.json")
+        open("docs/sofa/evidence/team_275923_events_last_0.json")
     )["response"]["body"]
     events = {e["id"]: e for e in body["events"]}
 
@@ -90,7 +90,7 @@ def test_every_recorded_tennis_event_resolves_to_three_or_five() -> None:
     from bet.sofa.metrics import infer_best_of
 
     body = _json.load(
-        open("docs/sofascore-api/evidence/team_275923_events_last_0.json")
+        open("docs/sofa/evidence/team_275923_events_last_0.json")
     )["response"]["body"]
     resolved = [infer_best_of(e) for e in body["events"]]
     decided = [r for r in resolved if r is not None]

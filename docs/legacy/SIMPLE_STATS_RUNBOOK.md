@@ -68,7 +68,7 @@ scrollback.
 ## Agent contract
 
 Every step speaks the repo's standard contract from
-[agent_output.py](scripts/agent_output.py) — the same one `AgentOutput.validate_summary()`
+[agent_output.py](../../scripts/agent_output.py) — the same one `AgentOutput.validate_summary()`
 checks:
 
 ```json
@@ -715,7 +715,7 @@ project `.env`. There is no third source: the former silent fallbacks to
 `config/api_keys.json` and `config/odds_api_key.txt` were removed, because one
 secret in several files drifts and a quiet fallback turns that drift into odd
 provider behaviour instead of a config error. Parsing is `python-dotenv`, so
-quoting and `export` behave normally. See [.env.example](.env.example).
+quoting and `export` behave normally. See [.env.example](../../.env.example).
 
 ```bash
 HIGHLIGHTLY_API_KEY=...     # also accepts RAPIDAPI_KEY

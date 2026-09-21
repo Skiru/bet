@@ -1,7 +1,7 @@
 # Raport z etapu E11 — Fit własnych stałych
 
 ## 1. Diff
-Szczegółowy diff zmian znajduje się w pliku: `docs/sofascore-api/reports/E11_diff.diff`.
+Szczegółowy diff zmian znajduje się w pliku: `docs/sofa/reports/E11_diff.diff`.
 Zmienione / dodane pliki:
 - `src/bet/sofa/db.py` – zmiana schematu (dodanie brakujących kolumn).
 - `scripts/sofa/fit_constants.py` – implementacja generowania stałych (nowy plik).
@@ -9,7 +9,7 @@ Zmienione / dodane pliki:
 - `tests/sofa/test_fit.py` – testy T33, T34, T35 (nowy plik).
 
 ## 2. Output pytest
-Log uruchomienia `pytest tests/sofa/test_fit.py` zapisany do pliku: `docs/sofascore-api/reports/E11_pytest_output.txt`. 
+Log uruchomienia `pytest tests/sofa/test_fit.py` zapisany do pliku: `docs/sofa/reports/E11_pytest_output.txt`. 
 Wszystkie testy w pliku przechodzą pomyślnie.
 
 ## 3. Parametry, pliki konfiguracyjne i komendy

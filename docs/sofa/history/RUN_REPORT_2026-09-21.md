@@ -492,7 +492,7 @@ To pytanie na pomiar, nie na opinię.
 
 # 12. Przegląd procesu i naprawy (na żądanie operatora)
 
-Przegląd architektury wylądował w nowym `docs/sofascore-api/RUNBOOK.md`;
+Przegląd architektury wylądował w nowym `docs/sofa/RUNBOOK.md`;
 procedura operacyjna w `.claude/commands/sofa-day.md` (`/sofa-day`).
 
 ## 12.1 Przyczyna problemu „jak ostatnio"

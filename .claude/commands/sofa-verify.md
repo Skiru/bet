@@ -4,7 +4,7 @@ argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 
 Take a built day apart. Protocol:
-`docs/sofascore-api/PROMPT_FIX_VERIFY_COUPON.md` part 4.
+`docs/sofa/VERIFY_PROTOCOL.md`.
 
 Hand this to `sofa-verifier`, which carries the full method. This command is
 the short form and the checklist the report must satisfy.
@@ -67,7 +67,9 @@ limit, not a finding.
 
 ## 3 — anti-selection, the most important test
 
-`coupon.py` sorts by surplus and surplus grows as `p` is overstated. Count:
+`coupon.py` ranks on relative price advantage (`surplus / required_odds`,
+breadth-first across fixtures), and every measure of surplus grows as `p` is
+overstated. Count:
 
 - VALUE **by market** — concentration in the weakest measurement (thin samples,
   uncheckable ladders, no market curve) is an artifact, not an edge;

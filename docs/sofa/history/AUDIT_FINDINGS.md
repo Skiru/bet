@@ -42,7 +42,7 @@ To twierdzenie **nie ma pliku evidence** (jedyne z całego audytu bez
 odpowiadającego dowodu na dysku), mimo wyraźnej instrukcji żeby każdy wynik
 miał zapisaną surową parę request→response.
 
-Co więcej, skrypt który to policzył (`docs/sofascore-api/scripts/sofa_test.py`,
+Co więcej, skrypt który to policzył (`docs/sofa/scripts/sofa_test.py`,
 funkcja `test_rate_limit`) **uderza 3000 razy w JEDEN i ten sam URL** przez
 jedną współdzieloną sesję curl_cffi. Kilka endpointów w evidence pokazuje
 nagłówek `cache-control: public, s-maxage=...` — to prawie na pewno oznacza,
@@ -69,7 +69,7 @@ hipotezą, nie wynikiem pomiaru. Nie wdrażaj jej do pipeline'u bez powtórki.**
    challenge zamiast JSON-a.
 3. **Zapisz surowy log per-request** do pliku (timestamp, url, status,
    czas odpowiedzi) — nie tylko podsumowanie w prozie. Np.
-   `docs/sofascore-api/evidence/rate_limit_test_log.jsonl`, jedna linia na
+   `docs/sofa/evidence/rate_limit_test_log.jsonl`, jedna linia na
    request.
 4. Utrzymaj sesję przez dłużej niż 1-2 sekundy — zrób też test "sustained":
    stałe tempo (np. 10 req/s) przez 5-10 minut, żeby złapać ewentualny
@@ -182,7 +182,7 @@ dniu 2026-09-17).
 ## Porządek w repo
 
 Skrypty audytowe (`sofa_test.py`, `fetch_evidence_1.py`...`fetch_evidence_13.py`)
-zostały przeniesione z root repo do `docs/sofascore-api/scripts/` — trzymaj
+zostały przeniesione z root repo do `docs/sofa/scripts/` — trzymaj
 się tej lokalizacji w kolejnej rundzie (dopisuj kolejne `fetch_evidence_N.py`
 tam, albo jeden większy skrypt), nie zostawiaj plików roboczych w root.
 

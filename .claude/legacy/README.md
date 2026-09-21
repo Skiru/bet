@@ -11,7 +11,7 @@ agents in `.claude/agents/`, commands in `.claude/commands/` and skills in
 The pipeline in current use is **`sofa`** (`scripts/sofa/`, `src/bet/sofa/`):
 BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON, then CONFIDENCE and
 the PDF. It shares **zero code** with `simple` and none of its stage names. See
-`docs/sofascore-api/RUNBOOK.md`.
+`docs/sofa/RUNBOOK.md`.
 
 ## What was parked, and what replaced it
 

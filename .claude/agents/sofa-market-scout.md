@@ -100,9 +100,11 @@ probability, you have crossed into the engine's job.
 Three discounts a positive `surplus` does not show, and you must state each
 when it applies:
 
-1. **Anti-selection.** `coupon.py` sorts by surplus, and surplus grows as `p`
-   is overstated. **Above +0.40 is suspect by definition** — on a liquid market
-   there is no free 40%.
+1. **Anti-selection.** `coupon.py` ranks on the **relative** price advantage
+   `surplus / required_odds` (F36 — the raw surplus carries a `1/p` term and
+   made the coupon a longshot scanner), and every measure of surplus grows as
+   `p` is overstated. **Above +0.40 is suspect by definition** — on a liquid
+   market there is no free 40%.
 2. **An unanchored bar.** One-sided rung → no devig → `p_bar = p` → the
    "surplus" is the model arguing with itself.
 3. **An unchecked ladder.** Only **52.4%** of ladders can be checked at all;

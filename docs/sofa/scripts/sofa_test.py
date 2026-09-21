@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from curl_cffi import requests
 
 BASE_URL = "https://api.sofascore.com/api/v1"
-EVIDENCE_DIR = "docs/sofascore-api/evidence"
+EVIDENCE_DIR = "docs/sofa/evidence"
 
 def make_request(path, method="GET", params=None, save_as=None):
     s = requests.Session(impersonate="chrome124")

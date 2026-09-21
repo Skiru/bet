@@ -37,7 +37,8 @@ settle_log.txt
 var/local-llm/
 
 # Local operator-only tipster review attestation
-docs/pipeline/tipster_terms_review.local.json
+docs/legacy/pipeline/tipster_terms_review.local.json
+docs/legacy/pipeline/*.local.json
 
 # Models
 models/

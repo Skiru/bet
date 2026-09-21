@@ -28,7 +28,7 @@ class MockClient:
 
 
 def test_resolve_league_disambiguation():
-    with open("docs/sofascore-api/evidence/league_search_disambiguation.json") as f:
+    with open("docs/sofa/evidence/league_search_disambiguation.json") as f:
         data = json.load(f)
 
     client = MockClient(data)

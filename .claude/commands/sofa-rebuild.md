@@ -136,7 +136,11 @@ ZMIANA:   <what moved and why — code, vetoes, or the price>
 ## Hard rules
 
 - A thin rebuild is not fixed by re-running it. If the day produced nothing,
-  say so and say which gate emptied it.
+  say so and **say which gate emptied it** — read `06_dropped.json` and count
+  by reason. The two that dominate are `DISAGREES_WITH_PRICE` (the model sits
+  more than 0.10 above the devigged price — measured negative, not cautious)
+  and `KICKOFF_TOO_SOON` (the *earlier* of the two clocks). On 2026-09-21 they
+  were 84 and 34 of 118 VALUE rows, and the coupon was correctly empty.
 - `06_coupon.json` is not the coupon. The PDF is.
 - Never invent a price; never re-run SAMPLES here.
 - Never read, echo or log `.env` values.

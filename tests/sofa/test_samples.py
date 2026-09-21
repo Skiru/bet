@@ -10,7 +10,7 @@ from bet.sofa.contracts import Fixture
 from bet.sofa.samples import get_historical_events, process_fixture_samples
 
 EVIDENCE_DIR = (
-    Path(__file__).parent.parent.parent / "docs" / "sofascore-api" / "evidence"
+    Path(__file__).parent.parent.parent / "docs" / "sofa" / "evidence"
 )
 
 
@@ -56,7 +56,7 @@ def test_t12_no_future_leak(mock_clients):
 
     # Mock entity events: one past, one future (leak)
     # The real payload is the envelope Sofascore sends, not a bare list:
-    # docs/sofascore-api/evidence/team_2829_events_last_0.json is
+    # docs/sofa/evidence/team_2829_events_last_0.json is
     # {"events": [...], "hasNextPage": true}.
     client.entity_events.side_effect = lambda eid, kind, p: (
         {

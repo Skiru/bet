@@ -29,7 +29,9 @@ SETTLE is **not** in `DEFAULT_SEQUENCE`, by design: run it against today and it
 finds every fixture unfinished. It needs the bridge, so it competes with a live
 run — settle before today starts.
 
-`--include-unpriced` also grades rows Superbet never quoted. They cannot reach
+`run_settle.py --date <D-1> --include-unpriced` also grades rows Superbet
+never quoted — the flag is the stage script's, **not** `run_pipeline.py`'s, so
+it is unreachable through `--only SETTLE`. They cannot reach
 the `K_PRICE` fitter (`market_p` is NULL for them by construction), but they
 are real forecasts, and grading them is the only way a backfill can say what
 the whole board did rather than just the priced part.

@@ -14,10 +14,10 @@ właściwej** (F25, F28, F30) — dlatego każda ma jawne ostrzeżenie.
 
 ## Źródło prawdy
 
-`docs/sofascore-api/FIRST_RUN_FINDINGS.md` — przeczytaj **w całości**, zanim
+`docs/sofa/FIRST_RUN_FINDINGS.md` — przeczytaj **w całości**, zanim
 cokolwiek zmienisz. Na końcu jest tabela triage'u; zacznij od niej, ale nie
 poprzestawaj na niej, bo w pełnych wpisach są zastrzeżenia, które decydują
-o kształcie poprawki. Plan to `docs/sofascore-api/PLAN_SOFA_PIPELINE.md`.
+o kształcie poprawki. Plan to `docs/sofa/PLAN_SOFA_PIPELINE.md`.
 
 Nie ufaj pamięci ani podsumowaniom — wszystko poniżej ma oparcie we wpisach
 F13–F32 i tam są dowody.

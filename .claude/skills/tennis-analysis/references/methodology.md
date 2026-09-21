@@ -87,8 +87,16 @@ where your contribution is.
 
 Weights 1.0 (0–90 d), 0.75 (91–180), 0.50 (181–365), 0.25 (>365), and
 surface-matched or not. An old H2H that contradicts current surface form is a
-**conflict → downgrade**, never a tiebreaker toward the H2H side. The pipeline
-already drops >12-month meetings (`STALE_H2H`) from totals samples.
+**conflict → downgrade**, never a tiebreaker toward the H2H side.
+
+**`sofa` does not filter H2H by age.** `STALE_H2H` was the retired pipeline's
+gate and has no equivalent here: `samples.py` builds an `h2h` bucket with no
+age rule, and a `*_total` rung pools `side_a + side_b + h2h`, deduplicated by
+event id, so an eight-year-old meeting counts exactly as much as last month's.
+Only the coupon-level age gates apply afterwards (`MAX_SAMPLE_AGE_DAYS = 60` on
+the freshest observation, 180 days on the oldest for a builder leg), and they
+judge the *bucket*, not the meeting. A `*_for` rung never sees h2h at all —
+it reads only the side it names. Check the observation dates yourself.
 
 ## 6. Fatigue, schedule, retirements (method §73)
 
@@ -167,4 +175,4 @@ rung.
 - Sackmann, J. Tennis Abstract — surface Elo, tie-break frequency (ATP ~1/5 sets, WTA ~1/8). http://www.tennisabstract.com/blog/category/tiebreaks/
 - Smarkets. French Open tennis trading strategy (returner break chance by surface). https://help.smarkets.com/hc/en-gb/articles/115003425649
 - Tennisbettingforum. Tennis surface betting strategy (games per BO3 by surface). https://tennisbettingforum.com/tennis-surface-betting-strategy/
-- In-repo: `src/bet/sofa/engine.py` (`EMPIRICAL_FREQUENCY_METRICS`, and the measured bimodality of `games_won_for`); `src/bet/sofa/confidence.py` (`Calibration.realised`, the measured-ceiling rule, the sport pool); `src/bet/sofa/samples.py` (the surface and format scope); `docs/sofascore-api/RUNBOOK.md`.
+- In-repo: `src/bet/sofa/engine.py` (`EMPIRICAL_FREQUENCY_METRICS`, and the measured bimodality of `games_won_for`); `src/bet/sofa/confidence.py` (`Calibration.realised`, the measured-ceiling rule, the sport pool); `src/bet/sofa/samples.py` (the surface and format scope); `docs/sofa/RUNBOOK.md`.

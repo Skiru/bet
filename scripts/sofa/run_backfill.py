@@ -282,7 +282,7 @@ def main() -> int:
         help="re-settle events that already have rows (default: skip them)",
     )
     parser.add_argument(
-        "--report", default="docs/sofascore-api/evidence/e10_backfill.md"
+        "--report", default="docs/sofa/evidence/e10_backfill.md"
     )
     args = parser.parse_args()
 

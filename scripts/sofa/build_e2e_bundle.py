@@ -4,7 +4,7 @@
 Provenance, stated up front because it decides what the e2e can be trusted for:
 
 * The **shapes** are real. Every listing, event and statistics payload in the
-  bundle is derived from a response recorded in `docs/sofascore-api/evidence/`
+  bundle is derived from a response recorded in `docs/sofa/evidence/`
   on 2026-09-17, so field names, nesting and types are the provider's, not ours.
 * The **cast** is partly derived. Only two entities were ever recorded with a
   full listing (Real Madrid 2829, Carlos Alcaraz 275923). A three-fixture day
@@ -33,7 +33,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-EVIDENCE = Path("docs/sofascore-api/evidence")
+EVIDENCE = Path("docs/sofa/evidence")
 OUT_PATH = Path("tests/fixtures/sofascore/e2e_bundle.json")
 
 RUN_DATE = "2026-09-17"
@@ -248,7 +248,7 @@ def main() -> int:
             "Frozen payload bundle for the offline e2e (T36).",
             "",
             "Shapes are real: every body is derived from a response recorded in",
-            "docs/sofascore-api/evidence/ on 2026-09-17.",
+            "docs/sofa/evidence/ on 2026-09-17.",
             "",
             "The cast is partly derived: only entities 2829 (Real Madrid) and",
             "275923 (Carlos Alcaraz) were ever recorded with a full listing. The",
@@ -270,12 +270,12 @@ def main() -> int:
             {
                 "entity_id": FOOTBALL_HOME[0],
                 "name": FOOTBALL_HOME[1],
-                "source": "docs/sofascore-api/evidence/team_2829_events_last_0.json",
+                "source": "docs/sofa/evidence/team_2829_events_last_0.json",
             },
             {
                 "entity_id": TENNIS_HOME[0],
                 "name": TENNIS_HOME[1],
-                "source": "docs/sofascore-api/evidence/team_275923_events_last_0.json",
+                "source": "docs/sofa/evidence/team_275923_events_last_0.json",
             },
         ],
         "superbet": {"events_by_date": board, "event_odds": superbet_events},

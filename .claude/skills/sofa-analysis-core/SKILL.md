@@ -24,10 +24,10 @@ everything on *facts*. When they disagree, say which you followed.
 `sofa` produces two different objects and an analyst who reads only the first
 has audited the wrong file:
 
-1. **`06_coupon.json`** — VALUE singles, ranked by surplus. Measured **−20.4%**
-   on 2026-09-20. Structurally anti-selective: surplus grows as `p` is
-   overstated, so the rows most likely to be wrong are the ones most likely to
-   be picked.
+1. **`06_coupon.json`** — VALUE singles, ranked on relative price advantage
+   (`surplus / required_odds`). Measured **−20.4%** on 2026-09-20. Structurally
+   anti-selective: surplus grows as `p` is overstated, so the rows most likely
+   to be wrong are the ones most likely to be picked.
 2. **`08_confidence.json` → `KUPON_<date>.pdf`** — the Bet Builders the
    operator actually stakes. **+8.2%** the same day.
 

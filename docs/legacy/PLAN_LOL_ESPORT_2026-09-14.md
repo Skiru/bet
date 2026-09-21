@@ -87,9 +87,9 @@ Punkty rozszerzenia, w kolejności, w jakiej trzeba je dotknąć:
    sezonu (Riot API śledzi gracza po koncie, nie po drużynie — trzeba
    osobno śledzić rosters, bo PUUID nie mówi "gra teraz dla X").
 5. **Nowy analityk**: wzorem `bet-analyst-football.md`/`bet-analyst-tennis.md`
-   ([.claude/agents/](../.claude/agents/)) — `bet-analyst-lol.md` + skill
+   ([.claude/agents/](../../.claude/agents/)) — `bet-analyst-lol.md` + skill
    `lol-analysis` (wzorem `football-analysis`/`tennis-analysis` w
-   [.claude/skills/](../.claude/skills/)), bo `bet-simple` deleguje czytanie
+   [.claude/skills/](../../.claude/skills/)), bo `bet-simple` deleguje czytanie
    per-sport do dedykowanych analityków, nie robi tego samo.
 6. **Rozliczenie (`settle.py`)**: LoL potrzebuje własnej logiki
    rozstrzygania wyniku (kto wygrał mapę/mecz Bo1/Bo3/Bo5 — formaty różnią

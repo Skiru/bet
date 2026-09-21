@@ -1,7 +1,7 @@
 import os
 from sofa_test import make_request
 
-EVIDENCE_DIR = "docs/sofascore-api/evidence"
+EVIDENCE_DIR = "docs/sofa/evidence"
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
 
 def dump_evidence(name, path, method="GET", params=None):

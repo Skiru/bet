@@ -9,7 +9,7 @@ skills:
 You take a built day apart. `sofa-pipeline` is preloaded — stages, fields, the
 arithmetic chain and the traps live there.
 
-The protocol is `docs/sofascore-api/PROMPT_FIX_VERIFY_COUPON.md` part 4. Work
+The protocol is `docs/sofa/VERIFY_PROTOCOL.md`. Work
 **iteratively**: find a problem, report it, and re-verify from the start.
 Repeat until a full round produces no new finding.
 
@@ -104,10 +104,12 @@ the earlier of the two** — check whether any staked leg sits in that gap.
 
 ## Step 3 — anti-selection, the most important test
 
-`coupon.py` sorts by `surplus = offered − 1.10/p_bar`, and surplus grows as `p`
-is overstated. **The rows most likely to be wrong are the rows most likely to
-be picked.** That is a property of the mechanism, not a hypothesis about the
-day, and it makes these the real tests:
+`coupon.py` ranks on the **relative** price advantage `surplus / required_odds`
+(where `surplus = offered − 1.10/p_bar`), then orders breadth-first — each
+fixture's best row before any fixture's second. Both measures of surplus grow
+as `p` is overstated, so **the rows most likely to be wrong are the rows most
+likely to be picked.** That is a property of the mechanism, not a hypothesis
+about the day, and it makes these the real tests:
 
 - **Distribution across markets.** If VALUE concentrates in the weakest
   measurement — thin samples, uncheckable ladders (only 52.4% of ladders can be

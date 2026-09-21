@@ -30,7 +30,9 @@ Tennis is usually about two thirds of the board.
 | `references/market-playbook.md` | grading a specific market: drivers, scoreline arithmetic, kill cases |
 | `references/event-protocol.md` | writing a match section |
 
-The operator's method: `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`.
+The operator's method: `docs/legacy/SUPERBET_BET_BUILDER_METHOD_v3.md` — a
+pre-`sofa` document. The method outlived the pipeline it was written for; its
+claims about *code* did not. Cite sections, take no behaviour from it.
 
 ## What the code already does
 

@@ -199,4 +199,4 @@ yesterday's bet). Use them on a class of read, never on one row.
 - Page, L. & Page, K. (2007). The second leg home advantage. *Journal of Sports Sciences*.
 - Efron, B. & Morris, C. (1975). Data analysis using Stein's estimator. *JASA*.
 - Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference. *JASA*.
-- In-repo measurements: `.claude/skills/bet-slip-audit/reference/base-rates.md`; `src/bet/sofa/confidence.py` (the disagreement table, the quantity-family lambdas, the correlation markup); `config/sofa_engine_constants.json` (K_CENTRE, and why K_PRICE is NOT_FITTED); `docs/sofascore-api/RUNBOOK.md`.
+- In-repo measurements: `.claude/skills/bet-slip-audit/reference/base-rates.md`; `src/bet/sofa/confidence.py` (the disagreement table, the quantity-family lambdas, the correlation markup); `config/sofa_engine_constants.json` (K_CENTRE, and why K_PRICE is NOT_FITTED); `docs/sofa/RUNBOOK.md`.

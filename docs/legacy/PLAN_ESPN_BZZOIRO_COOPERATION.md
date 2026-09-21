@@ -59,7 +59,7 @@ number are in §6.
 
 - **Identity infrastructure.** `TeamSourceAliasRepo` /
   `resolve_provider_team_id()` / `build_provider_team_variants()`
-  ([provider_identity.py](../src/bet/provider_identity.py)) back espn-football's
+  ([provider_identity.py](../../src/bet/provider_identity.py)) back espn-football's
   name-driven path. Bzzoiro is native-id-driven
   ([providers.py:91](../src/bet/simple_stats/providers.py#L91)) and needs none
   of it. **No new identity subsystem is needed for either provider.**

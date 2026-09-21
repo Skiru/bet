@@ -31,8 +31,9 @@ fixtures up as 79 independent bets with 46 of 148 legs repeated.
 
 ## Selection
 
-**Anti-selection is structural.** `surplus = offered − 1.10/p_bar` grows as `p`
-is overstated, so the rows most likely to be wrong sort to the top. **A surplus
+**Anti-selection is structural.** The coupon ranks on `surplus /
+required_odds`, and `surplus = offered − 1.10/p_bar` grows as `p` is
+overstated, so the rows most likely to be wrong sort to the top. **A surplus
 above +0.40 is suspect by definition.** Check the distribution of VALUE across
 markets, leagues and `sample_size`: if it concentrates in the weakest
 measurement, it is an artifact, not an edge. An over-representation of fourth

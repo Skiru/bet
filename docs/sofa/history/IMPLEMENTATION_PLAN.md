@@ -1,7 +1,7 @@
 # Plan implementacji: Sofascore jako provider
 
 Status audytu wejściowego: 3 rundy zamknięte, zweryfikowane wobec surowych
-logów w `docs/sofascore-api/evidence/` (nie na słowo agenta — zobacz
+logów w `docs/sofa/evidence/` (nie na słowo agenta — zobacz
 weryfikację throttlingu, search disambiguation i match-rate w historii tej
 sesji). Jedna poprawka do zrobienia przed startem: `REFERENCE.md` sekcja
 "Rate Limiting" podaje "~87 req/s" dla testu ze 100 workerami; policzone
@@ -159,7 +159,7 @@ src/bet/api_clients/sofascore.py       # SofascoreClient, curl_cffi, HTTPTranspo
 src/bet/simple_stats/providers.py      # fetch_sofascore_* funkcje, wzorzec fetch_bzzoiro_*
 src/bet/simple_stats/sofascore_match.py  # Algorytm B: team resolve + fixture match + cache read/write
 config/sofascore_team_aliases_seed.json  # opcjonalny ręczny seed dla największych klubów (przyspiesza cold start)
-docs/sofascore-api/                    # już istnieje — REFERENCE.md, evidence/, ten plan
+docs/sofa/                    # już istnieje — REFERENCE.md, evidence/, ten plan
 tests/fixtures/sofascore/              # nowy — kopie realnych evidence/*.json jako fixtures testowe
 tests/simple_stats/test_sofascore_match.py
 tests/simple_stats/test_fetch_sofascore.py
@@ -189,7 +189,7 @@ której unikamy (patrz zasady sesji).
    `tests/simple_stats/test_superbet_offer.py`), test na status 200/404/timeout,
    test że circuit breaker się aktywuje po N błędach non-200/404 pod rząd.
 2. **Unit: dopasowanie fixture'u** — użyj **realnych** plików z
-   `docs/sofascore-api/evidence/per_fixture_match_test.json` jako fixture
+   `docs/sofa/evidence/per_fixture_match_test.json` jako fixture
    testowego (143 piłka + 234 tenis, już mamy oczekiwany wynik per wpis) —
    to jest gotowy regression test, nie trzeba wymyślać nowych przypadków.
    Test przechodzi jeśli match-rate nie spadnie poniżej zmierzonych 80%/98%

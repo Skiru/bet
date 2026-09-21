@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 def main() -> None:
     config = SofaConfig(
-        runs_dir="docs/sofascore-api/evidence",
+        runs_dir="docs/sofa/evidence",
         target_rps=2,
         # Was 100, which meant a blocked API got hammered 100 times before the
         # breaker noticed. A smoke test that cannot reach the provider should
@@ -21,7 +21,7 @@ def main() -> None:
 
     # overriding log path manually for the smoke test requirement
     client = SofascoreClient(config)
-    client.log_path = Path("docs/sofascore-api/evidence/impl_e1_smoke.jsonl")
+    client.log_path = Path("docs/sofa/evidence/impl_e1_smoke.jsonl")
 
     # remove existing file
     if client.log_path.exists():

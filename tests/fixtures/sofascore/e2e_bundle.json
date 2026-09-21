@@ -3,7 +3,7 @@
     "Frozen payload bundle for the offline e2e (T36).",
     "",
     "Shapes are real: every body is derived from a response recorded in",
-    "docs/sofascore-api/evidence/ on 2026-09-17.",
+    "docs/sofa/evidence/ on 2026-09-17.",
     "",
     "The cast is partly derived: only entities 2829 (Real Madrid) and",
     "275923 (Carlos Alcaraz) were ever recorded with a full listing. The",
@@ -40,12 +40,12 @@
     {
       "entity_id": 2829,
       "name": "Real Madrid",
-      "source": "docs/sofascore-api/evidence/team_2829_events_last_0.json"
+      "source": "docs/sofa/evidence/team_2829_events_last_0.json"
     },
     {
       "entity_id": 275923,
       "name": "Carlos Alcaraz",
-      "source": "docs/sofascore-api/evidence/team_275923_events_last_0.json"
+      "source": "docs/sofa/evidence/team_275923_events_last_0.json"
     }
   ],
   "superbet": {

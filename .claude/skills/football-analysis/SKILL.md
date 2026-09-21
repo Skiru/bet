@@ -17,8 +17,10 @@ sample describes tonight's match?*
 | `references/market-playbook.md` | you are grading a specific market: drivers, kill cases, what settles it |
 | `references/event-protocol.md` | you are writing a fixture section |
 
-The operator's method is `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`. Cite the
-sections you used; do not restate them.
+The operator's method is `docs/legacy/SUPERBET_BET_BUILDER_METHOD_v3.md` — a
+pre-`sofa` document, kept because the *method* (what to look at in a fixture)
+outlived the pipeline it was written for. Cite the sections you used; do not
+restate them, and never take pipeline behaviour from it.
 
 ## What is different about `sofa`, and you must not forget it
 

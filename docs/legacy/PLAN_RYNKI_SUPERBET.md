@@ -8,7 +8,7 @@ Stan na 2026-09-01. Wszystkie liczby poniżej są zmierzone na runie
 
 Publiczne API oferty prematch — to samo, które czyta przeglądarka na
 superbet.pl. **Bez logowania, bez konta, bez sesji.** Kod:
-[`src/bet/api_clients/superbet.py`](../src/bet/api_clients/superbet.py).
+[`src/bet/api_clients/superbet.py`](../../src/bet/api_clients/superbet.py).
 
 | | |
 |---|---|
@@ -37,7 +37,7 @@ Run 2026-08-31, pełna ścieżka:
 Trzy niezależne przyczyny, w kolejności wielkości:
 
 **1. 20 852 wiersze (69%) to propsy zawodników, których nie da się wycenić.**
-`PLAYER_SCOPE_MARKETS` w [`superbet_offer.py`](../src/bet/simple_stats/superbet_offer.py)
+`PLAYER_SCOPE_MARKETS` w [`superbet_offer.py`](../../src/bet/simple_stats/superbet_offer.py)
 zwraca `SCOPE_NOT_SUPPORTED` dla każdego z nich. Uzasadnienie w docstringu —
 „joining them to our player ids would be a guess rather than a lookup" — było
 słuszne przy dopasowywaniu po całym dniu, ale **wewnątrz dopasowanego meczu to

@@ -52,7 +52,7 @@ Full per-stage detail, arguments and failure shapes: `references/stages.md`.
 
 ### 1. `06_coupon.json` is not the coupon. The PDF is.
 
-`06_coupon.json` holds VALUE singles, selected by surplus. That selector's
+`06_coupon.json` holds VALUE singles, selected on price advantage. That selector's
 measured record is bad — **−20.4% on 2026-09-20**, the same day the PDF's Bet
 Builders returned **+8.2%**. Reporting `06_coupon` as "the coupon" inverts the
 day. Three files on disk call themselves a coupon; only `KUPON_<date>.pdf` is
@@ -60,11 +60,15 @@ staked.
 
 ### 2. Selection is anti-selective against error in `p`.
 
-`coupon.py` sorts by `surplus = offered − 1.10/p_bar`, and surplus grows as `p`
-is overstated. So the rows most likely to be wrong are the rows most likely to
-be picked. This is a property of the mechanism, not a hypothesis about a
-particular day. **A surplus above +0.40 is suspect by definition** — on a
-liquid market there is no free 40%. Take every one apart by hand.
+`coupon.py` ranks on `surplus / required_odds` — the **relative** price
+advantage, not the raw `surplus = offered − 1.10/p_bar`, which carries a `1/p`
+term and ranked the day as a longshot scanner (F36) — and then breadth-first,
+so each fixture's best row competes before any fixture's second. Every measure
+of surplus still grows as `p` is overstated, so the rows most likely to be
+wrong are the rows most likely to be picked. This is a property of the
+mechanism, not a hypothesis about a particular day. **A surplus above +0.40 is
+suspect by definition** — on a liquid market there is no free 40%. Take every
+one apart by hand.
 
 ### 3. A stage saying `PARTIAL` is the normal shape of a healthy run.
 
@@ -183,3 +187,22 @@ age. **Never raise `SOFA_TARGET_RPS`**: 550 req/s closed the API on
   it. Never let "it won" into the reasoning for the next one.
 
 The traps that have actually cost something: `references/traps.md`.
+
+## Deeper documentation in the repository
+
+This skill is the contract. The repository carries the long form, and it is
+kept in step with the code:
+
+| | |
+|---|---|
+| `docs/sofa/PIPELINE.md` | every stage, field, gate and constant, with the file each lives in |
+| `docs/sofa/RUNBOOK.md` | the operator's sequence, timings, and "what to do when…" |
+| `docs/sofa/AGENTIC_FLOW.md` | commands, agents, skills, handoffs and the veto contract |
+| `docs/sofa/VERIFY_PROTOCOL.md` | the adversarial verification protocol |
+| `docs/sofa/CONFIG.md` | config files, fitted constants, the settle→fit loop |
+| `docs/sofa/REFERENCE.md` | the Sofascore API and why the bridge exists |
+| `docs/sofa/history/` | dated run reports and findings — historical, may be stale |
+
+Those documents are Polish, this configuration is English, and that boundary
+is deliberate. `docs/legacy/` describes the retired `simple` pipeline: take no
+stage name, quantity or artifact name from it.

@@ -39,7 +39,7 @@ from bet.sofa.metrics import (
 Outcome = Literal["WIN", "LOSS", "PUSH"]
 
 # The one status code that means "played to a normal end", read off real
-# payloads: docs/sofascore-api/evidence/* carries code 100 "Ended" on 130
+# payloads: docs/sofa/evidence/* carries code 100 "Ended" on 130
 # events and code 91 "Walkover" on one. Everything else that still calls
 # itself `finished` — walkover, retirement, default — ended abnormally and
 # its statistics do not describe a completed contest.

@@ -8,7 +8,7 @@
     "                     request->response payloads embedded. ONLY a file with this kind",
     "                     may be quoted as the E4 precision measurement.",
     "'partial_measured' — every entry below is backed by a raw payload recorded in",
-    "                     docs/sofascore-api/evidence/, but there are far fewer than 60 and",
+    "                     docs/sofa/evidence/, but there are far fewer than 60 and",
     "                     tennis's search half is uncovered. Precision computed here is a",
     "                     regression guard, NOT the AC of E4.",
     "'synthetic'        — hand-written; proves behaviour, measures nothing.",
@@ -41,7 +41,7 @@
       "payloads": {
         "search": {
           "query_contains": "real madrid",
-          "source": "docs/sofascore-api/evidence/search_all_real_madrid.json",
+          "source": "docs/sofa/evidence/search_all_real_madrid.json",
           "body": {
             "results": [
               {
@@ -1127,7 +1127,7 @@
         },
         "entity_events": {
           "entity_id": 2829,
-          "source": "docs/sofascore-api/evidence/team_2829_events_last_0.json",
+          "source": "docs/sofa/evidence/team_2829_events_last_0.json",
           "body": {
             "events": [
               {
@@ -8349,7 +8349,7 @@
       "payloads": {
         "search": {
           "query_contains": "real madrid",
-          "source": "docs/sofascore-api/evidence/search_all_real_madrid.json",
+          "source": "docs/sofa/evidence/search_all_real_madrid.json",
           "body": {
             "results": [
               {
@@ -9435,7 +9435,7 @@
         },
         "entity_events": {
           "entity_id": 2829,
-          "source": "docs/sofascore-api/evidence/team_2829_events_last_0.json",
+          "source": "docs/sofa/evidence/team_2829_events_last_0.json",
           "body": {
             "events": [
               {
@@ -16657,7 +16657,7 @@
       "payloads": {
         "search": {
           "query_contains": "real madrid",
-          "source": "docs/sofascore-api/evidence/search_all_real_madrid.json",
+          "source": "docs/sofa/evidence/search_all_real_madrid.json",
           "body": {
             "results": [
               {
@@ -17743,7 +17743,7 @@
         },
         "entity_events": {
           "entity_id": 2829,
-          "source": "docs/sofascore-api/evidence/team_2829_events_last_0.json",
+          "source": "docs/sofa/evidence/team_2829_events_last_0.json",
           "body": {
             "events": [
               {
@@ -24965,7 +24965,7 @@
         "search": null,
         "entity_events": {
           "entity_id": 275923,
-          "source": "docs/sofascore-api/evidence/team_275923_events_last_0.json",
+          "source": "docs/sofa/evidence/team_275923_events_last_0.json",
           "body": {
             "events": [
               {
@@ -33223,7 +33223,7 @@
         "search": null,
         "entity_events": {
           "entity_id": 275923,
-          "source": "docs/sofascore-api/evidence/team_275923_events_last_0.json",
+          "source": "docs/sofa/evidence/team_275923_events_last_0.json",
           "body": {
             "events": [
               {

@@ -1,98 +1,97 @@
-# Architecture Contract — Current State
+# Architecture
 
-This document defines the authoritative architectural contract and design constraints of the active production betting pipeline.
+What runs, where it lives, and what is kept only as a record.
 
-## 1. Current Package Layering
+## 1. One pipeline is in service
 
-The codebase is organized as a clean, single-package architecture under `src/bet/`:
+**`sofa`** — Sofascore statistics, Superbet prices, football and tennis, one
+PDF per day. It imports **nothing** from the older trees; that was a decision,
+not an accident: the knowledge transferred, the code did not.
 
-- `src/bet/core/`: Application settings, configurations, custom exceptions, and the core Orchestrator.
-- `src/bet/domain/`: Pure domain models, Pydantic/SQLAlchemy schemas, and core services like name-matching and risk evaluation.
-- `src/bet/infrastructure/`: Low-level data details including provider api clients, HTML scrapers, database connections, and migrations.
-- `src/bet/pipeline/`: Pipeline state tracking and stage runners.
-- `src/bet/utils/`: Shared utilities (fuzzy matching, resilience wrappers, logging, and metrics).
+| | in service | retired |
+|---|---|---|
+| library | `src/bet/sofa/` | `src/bet/simple_stats/`, `src/bet/tipsters/`, `src/bet/enrichment/`, `src/bet/discovery/`, `legacy/` |
+| entry points | `scripts/sofa/` | `scripts/simple/`, `legacy/pipeline_steps/` |
+| stages | BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (+ CONFIDENCE, PDF; SETTLE and FIT outside the sequence) | DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE; S0–S10 |
+| stats sources | Sofascore only | bzzoiro, ESPN, highlightly, OddsPapi, api-football, sportdb |
+| fixture key | `sofascore_event_id` (int) | `event_id` (64-char hash) |
+| ranking quantity | `p_central` → `p_bar`; legs by measured `confidence` | `p_low`, tiers CALL/LEAN/WEAK/DROP |
+| product | `runs/sofa/<date>/KUPON_<date>.pdf` | `runs/<date>/<date>_kupony.md` |
+| tests | `tests/sofa/` (699, offline) | `tests/simple_stats/`, `tests/tipsters/`, … |
+| agentic config | `.claude/agents`, `.claude/commands`, `.claude/skills` | `.claude/legacy/`, `.kilo/legacy/` |
+| docs | `docs/sofa/` | `docs/legacy/` |
 
-All CLI entrypoints reside in `scripts/`, referencing the library package rather than containing standalone domain logic.
+The retired code is not deleted because the artifacts and the database rows it
+produced are still on disk and still read. `legacy/` does not even import — 16
+files there carry unresolved merge markers. Nothing in this document below the
+line above describes it further; see `docs/legacy/README.md`.
 
-## 2. Canonical Runner and Manifest
+## 2. Modules of `src/bet/sofa/`
 
-The sole entrypoint for orchestrating a daily run is:
-`scripts/simple/run_pipeline.py`
+| module | responsibility |
+|---|---|
+| `board.py` | the day's fixtures off Superbet's board; sport, doubles and tournament filters |
+| `resolve.py` | board fixture → `sofascore_event_id`; name/gender/orientation matching, both clocks |
+| `offer.py` | which rungs Superbet actually prices, with `fetched_at_utc` per rung |
+| `market_mapper.py` | Superbet's market names → our metric vocabulary; records `unmapped_markets` |
+| `samples.py` | last N finished matches per side per metric; scoping, gaps, readiness |
+| `metrics.py` | what a metric *is* in a Sofascore payload (30 football, 22 tennis) |
+| `engine.py` | the pricing chain: prior → centre → `p_central` → `p_bar` → verdict |
+| `derived.py`, `joint.py` | markets about both sides at once, via a Gaussian copula over measured correlations |
+| `coupon.py` | VALUE-singles selection and every exclusion, with a reason |
+| `confidence.py` | legs ranked by measured realised rate; Bet Builders; `is_stakeable` |
+| `settle.py` | grade a finished day against Sofascore, with the price |
+| `veto.py` | matching and unmatched-veto reporting for `vetoes.json` |
+| `coverage.py` | run-over-run coverage floor (weekday-blind — see the runbook) |
+| `client.py`, `bridge_transport.py`, `cache.py`, `stage.py`, `errors.py` | transport, the browser bridge, caching with TTLs, stage-scoped logging, circuit breaker |
+| `superbet.py` | Superbet client and `SPORT_IDS` |
+| `contracts.py` | every artifact's Pydantic model — the actual interface between stages |
+| `config.py` | `SofaConfig` and its environment variables |
+| `db.py` | `data/sofa.db` — settled rows, cache, run log |
+| `names.py`, `timeutil.py`, `canonical`-helpers | name folding/aliases, UTC handling |
 
-It runs DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE,
-then the two tails of ANALYZE (the Superbet comparison and FORECAST), and
-writes its artifacts to `runs/<date>/`.
+## 3. Data flow and state
 
-The former runner, `scripts/pipeline_steps/run_daily_pipeline.py`, drove the
-S0–S10 stack described in the rest of this section. **That stack is
-quarantined**: it now lives under `legacy/` and does not import — 16 files
-there still carry unresolved merge markers — so nothing below this line
-describes code that currently runs. It is kept because the artifacts and the
-database rows it produced are still on disk and still read.
+```
+Superbet ─► 01_board.json ─► (bridge) 02_fixtures.json ─┐
+Superbet ─► 04_offer.json ──────────────────────────────┼─► 05_sheet.json ─┬─► 06_coupon.* + 06_dropped.json
+             (bridge) 03_samples.json ──────────────────┘     ▲            └─► 08_confidence.* ─► KUPON_<date>.pdf
+                                                 config/sofa_*.json
+                                                              ▲
+         D-1: 05_sheet + results ─► 07_settled.json ─► data/sofa.db ─► fit_constants.py
+```
 
-The quarantined runner was fully driven by the canonical manifest:
-`config/pipeline_manifest.json`
+**`data/sofa.db` plus `config/sofa_*.json` are the only state carried between
+days.** Everything else is a per-day directory that can be deleted and rebuilt
+from the artifacts above it. That is why a stale config file is both silent and
+expensive, and why re-fitting mid-day is an error rather than a wasted minute.
 
-The manifest governs:
-- Detailed sequence definitions (S0, S1, S1e, S2, S2.3, S2.5, S2.7, S2.9, S3, S4, S5, S6, S7, S7b, S8, S9, S10).
-- Step phases (`DATA`, `ANALYSIS_BUILD`, `EXECUTION`, `POST_EVENT`).
-- Strict linear step execution modes and their inputs/outputs.
-- Global and step-level hard verification rules.
+## 4. Constraints that shape the design
 
-## 3. Artifact, Lock and Resume Infrastructure
+- **Sofascore answers 403 to every non-browser client** (since 2026-09-17). The
+  pipeline talks to `scripts/sofa/bridge_server.py`, a real browser tab polls
+  it through `userscripts/sofascore-bridge.user.js`, and the answers come back.
+  Rate: 2 req/s configured, ~0.5–2 observed. Raising it is how the API was
+  closed in the first place.
+- **Superbet is the only price that matters** — it is where the bet is placed.
+  Any other book is a reference, never a price.
+- **Nothing may vanish silently.** Every dropped row carries a reason, every
+  sample gap a `GapReason`, every unfitted constant a note on every row that
+  used it. `scripts/sofa/audit_coupon.py` enforces the first of those
+  mechanically.
+- **A constant with no data is `null` with a status**, never a borrowed
+  default. `K_PRICE` is `NOT_FITTED` because its Brier curve has no interior
+  optimum: the model loses to the price, and saying so is information.
+- **Two products, and they disagree.** `06_coupon.json` (VALUE singles,
+  measured −20.4% on 2026-09-20) and the PDF (Bet Builders, +8.2% the same
+  day). Only the PDF is staked.
 
-- **Artifact Persistence**: Steps produce explicit JSON-serialized artifacts saved inside directories configured at runtime (`BET_PIPELINE_ARTIFACT_DIR`).
-- **State and Checkpoints**: The pipeline utilizes structured checkpoints to save execution states under `.kilo/state/`. Checkpoints contain branch, HEAD, active RUN_ID, and progress metrics.
-- **Lock Infrastructure**: Process safety is enforced by a file lease lock with process start identity to prevent overlapping or concurrent execution.
-- **Resume Capabilities**: Runs may resume from any valid state if the previous step's output is verified. Unresolved command requests block a resume to guarantee strict run integrity.
+## 5. Where to read further
 
-## 4. DB Schema, Migration Authority, and Historical Migration versus Active Schema Distinction
-
-- **DB Schema Authority**: Database structure is governed strictly by SQLite WAL schemas (`src/bet/db/schema.sql`).
-- **Historical Migration versus Active Schema Distinction**: All retired operator code and old tables (such as Betclic) have been permanently retired.
-- **Migration Isolation**: Migration `010_betclic_markets.sql` is retained as an immutable historical artifact. Migration `021_retire_betclic_schema.sql` cleans up and retires those tables during database bootstrap/upgrade. No active Python code import or runtime query references retired tables or views. Fresh bootstraps produce zero retired objects.
-
-## 5. Provider Registry
-
-Governed strictly by `config/provider_registry.json`. There are exactly four registered providers:
-1. `oddspapi`
-2. `the-odds-api`
-3. `odds-api-io`
-4. `api-football-odds`
-
-All client adapters map to this registry for timeouts, total deadlines, retry counts, backoff policies, and credential redactions.
-
-## 6. Seven-Agent and Four-Skill Control Plane
-
-The agentic plane is configured statically in `.kilo/agents/` and `.kilo/skills/`:
-
-### Agents (7 Consolidated Power Agents):
-1. `bet-executor`: Pipeline script orchestrator with bash permission; no business mutation.
-2. `bet-researcher`: Fixture/tipster/enrichment specialist (S0, S1, S1e, S2, S2.3, S2.5, S2.7, S2.9); no bash, no picks.
-3. `bet-modeler`: Calibration & probability specialist (S3, S4); no bash.
-4. `bet-risk-gatekeeper`: Motivation (S5), portfolio repeat guard (S6), and hard gate (S7) specialist; no bash.
-5. `bet-builder`: Coupon pack & idea grouping generator (S8); no bash.
-6. `bet-auditor`: Independent verification auditor (S7b); bash allowed for targeted tests only.
-7. `bet-settler-postevent`: Historical settlement & post-match learning (S10); no bash.
-
-All agents deny explicit model pins, inheriting the active Kilo UI model.
-
-### Skills (4 Consolidated Skills):
-1. `betting-pipeline-contract`
-2. `betting-evidence-contract`
-3. `betting-pipeline-runtime`
-4. `context-safe-agentics`
-
-## 7. Hard Boundaries (S7b / S8 / S9)
-
-- **S7b Boundary**: Market availability validation maps names/lines only. Under no circumstances are manual operator quote values entered, scraped, or computed.
-- **S8 Boundary**: Step S8 creates manual quote card coupon idea groups. It strictly warns about correlations but never computes combined Bet Builder odds.
-- **S9 Boundary**: Strictly human-only. Synthetic, simulated, or automated approvals are invalid.
-- **Generated-Data Policy**: Real-world factual evidence is never synthesized. Numbers, rosters, stats, or odds are never invented.
-
-## 8. Run Lifecycle
-
-The betting pipeline maintains a strict separation of concerns across its run lifecycle:
-1. **Infrastructure Static Certification** (This task): Verifies static truth, validation graphs, filesystems, and configurations before any process starts.
-2. **Bounded Runtime Preflight**: Validates connectivity, active database status, and transport layers.
-3. **Full Pipeline Run**: Executes S0-S10 daily sequence.
+| | |
+|---|---|
+| the flow, in full detail | [`docs/sofa/PIPELINE.md`](docs/sofa/PIPELINE.md) |
+| running a day | [`docs/sofa/RUNBOOK.md`](docs/sofa/RUNBOOK.md) |
+| agents and handoffs | [`docs/sofa/AGENTIC_FLOW.md`](docs/sofa/AGENTIC_FLOW.md) |
+| constants and calibration | [`docs/sofa/CONFIG.md`](docs/sofa/CONFIG.md) |
+| the Sofascore API itself | [`docs/sofa/REFERENCE.md`](docs/sofa/REFERENCE.md) |

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_DIR = ROOT / "docs" / "pipeline" / "superbet_full_day_v3" / "schemas"
+SCHEMA_DIR = ROOT / "docs" / "legacy" / "pipeline" / "superbet_full_day_v3" / "schemas"
 
 
 def load(name: str) -> dict:

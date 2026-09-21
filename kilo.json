@@ -1,6 +1,6 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
-  "default_agent": "bet-simple",
+  "_doc": "The `simple` pipeline this project's Kilo agents drove is retired; they are parked in .kilo/legacy/ and no longer load. The current pipeline is `sofa` and its agentic configuration lives in .claude/ (Claude Code). The MCP servers below are still used \u2014 bzzoiro is the football analyst's independent source of record, and bzzoiro-tennis answers 402 addon_required, which is why it is off.",
   "mcp": {
     "bzzoiro": {
       "type": "remote",

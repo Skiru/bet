@@ -2,7 +2,7 @@
 
 **Dla:** agenta implementującego (Gemini 3.1 Pro Preview) pracującego w repo `bet`.
 **Status:** plan finalny, zatwierdzony kierunek z 2026-09-17.
-**Zastępuje:** `docs/sofascore-api/IMPLEMENTATION_PLAN.md` — tamten opisywał
+**Zastępuje:** `docs/sofa/IMPLEMENTATION_PLAN.md` — tamten opisywał
 Sofascore jako dodatkowy provider wewnątrz `simple_stats`. Nie realizuj go.
 **Wejście faktograficzne:** `REFERENCE.md`, `AUDIT_FINDINGS.md`, `evidence/`.
 Każde twierdzenie o API, którego nie ma w `evidence/`, jest hipotezą.
@@ -1002,7 +1002,7 @@ normalnym porannym slate'cie.
 - Test tempa z fake-clockiem: 30 żądań przy `TARGET_RPS=10` zajmuje ≥ 2,9 s.
 - Każde żądanie pisze wiersz do `run.log.jsonl` — test na kształt wiersza.
 - **Live smoke:** 30 żądań na realne id z `evidence/`, log zapisany do
-  `docs/sofascore-api/evidence/impl_e1_smoke.jsonl`. Raportuj rozkład statusów
+  `docs/sofa/evidence/impl_e1_smoke.jsonl`. Raportuj rozkład statusów
   i median czasu.
 
 ---

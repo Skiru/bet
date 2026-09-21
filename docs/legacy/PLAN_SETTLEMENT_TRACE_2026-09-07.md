@@ -3,7 +3,7 @@
 Status: **draft, not implemented**. Written 2026-09-07 after confirming current
 state: DISCOVER/ENRICH/ANALYZE already persist predictions to
 `betting/data/betting.db` (`fixtures`, `fixture_sources`, `analysis_raw_data`,
-`analysis_results` via [persistence.py](../src/bet/simple_stats/persistence.py)),
+`analysis_results` via [persistence.py](../../src/bet/simple_stats/persistence.py)),
 and `scripts/simple/backtest_slate.py` already knows how to fetch real
 outcomes and settle rows against them — but only when run by hand, and its
 output never goes back into the DB. This plan wires those two together.
@@ -17,7 +17,7 @@ output never goes back into the DB. This plan wires those two together.
   `run_analyze.py` each call `persist_pipeline_run` / `persist_stats_sheet`
   unconditionally (not behind a flag). `fixtures.score_home` /
   `fixtures.score_away` columns exist in
-  [models.py:72-73](../src/bet/db/models.py) but nothing ever writes them.
+  [models.py:72-73](../../src/bet/db/models.py) but nothing ever writes them.
 - `scripts/simple/backtest_slate.py` — fetches real outcomes from bzzoiro
   (`/events/{id}/stats/`, `/events/{id}/`) and ESPN (tennis), caches them in
   `runs/_backtest_actuals.json` (pure JSON, no DB), and settles each coupon

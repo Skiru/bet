@@ -153,7 +153,7 @@ reported since 2026-09-21 precisely because they disagree.
 ## Step 5 — verify, and do not skip this
 
 Hand the day to `sofa-verifier`. Its protocol is
-`docs/sofascore-api/PROMPT_FIX_VERIFY_COUPON.md` part 4, and it starts with:
+`docs/sofa/VERIFY_PROTOCOL.md`, and it starts with:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
@@ -169,10 +169,11 @@ anti-selection.
 ## Traps that have actually cost something
 
 - **`06_coupon.json` is not the coupon.** The PDF is.
-- **Anti-selection is structural.** `coupon.py` sorts by surplus and surplus
-  grows as `p` is overstated, so the rows most likely to be wrong are the
-  rows most likely to be picked. A surplus above +0.40 is suspect *by
-  definition*. Take every one apart by hand.
+- **Anti-selection is structural.** `coupon.py` ranks on relative price
+  advantage (`surplus / required_odds`), and surplus grows as `p` is
+  overstated, so the rows most likely to be wrong are the rows most likely to
+  be picked. A surplus above +0.40 is suspect *by definition*. Take every one
+  apart by hand.
 - **Half-match football rows lean on a global prior.** At `K_CENTRE = 25` a
   sample of n=8 contributes 24% of its own centre. Before trusting a
   `*_1h_*` / `*_2h_*` row, compute `n/(n+25)`.
