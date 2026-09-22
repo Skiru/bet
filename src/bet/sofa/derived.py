@@ -64,9 +64,9 @@ from bet.sofa.joint import (
     latent_rho,
 )
 from bet.sofa.market_mapper import (
-    DERIVED_BASE_TO_SIDE_METRIC,
     DERIVED_DRAW_SUBJECT,
     derived_base,
+    derived_side_metric,
     is_derived,
 )
 from bet.sofa.names import normalize_name
@@ -116,9 +116,7 @@ def market_marginal_tails(
     Read off the per-team ladder of the underlying metric ("Brentford -
     liczba rzutow roznych"), devigged. Returns {"side_a": {line: P(> line)}}.
     """
-    side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(base)
-    if side_metric is None:
-        return {}
+    side_metric = derived_side_metric(base)
     out: dict[str, dict[float, float]] = {}
     for rung in offer.rungs:
         if rung.market != side_metric or not rung.subject:
@@ -343,8 +341,8 @@ def price_derived_rungs(
         base = derived_base(market)
         if base is None:
             continue
-        side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(base)
-        if side_metric is None or side_metric not in samples.metrics:
+        side_metric = derived_side_metric(base)
+        if side_metric not in samples.metrics:
             for rung in rungs:
                 skipped.append(
                     (rung, GapReason.STAT_KEY_ABSENT, f"no {side_metric} sample")

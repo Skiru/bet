@@ -442,3 +442,121 @@ def test_a_fixture_with_no_surface_says_so_instead_of_emptying_its_sample():
     compare_at = src.index('if event.get("groundType") != fixture.ground_type:')
     assert unknown_at < compare_at
     assert "GapReason.SURFACE_UNKNOWN" in src
+
+
+def _bare_fixture(**overrides):
+    base = dict(
+        sofascore_event_id=900,
+        superbet_event_ids=["9001"],
+        sport="tennis",
+        kickoff_utc=datetime(2026, 9, 21, 18, 0, tzinfo=UTC),
+        home_name="A",
+        away_name="B",
+        home_entity_id=10,
+        away_entity_id=20,
+        competition_name="ITF",
+        competition_id=1,
+        season_id=1,
+        category_name="Cat",
+        identity="CONFIRMED",
+        round_number=None,
+        round_name=None,
+        cup_round_type=None,
+        previous_leg_event_id=None,
+        venue_name=None,
+        referee=None,
+        ground_type=None,
+        default_period_count=3,
+    )
+    base.update(overrides)
+    return Fixture(**base)
+
+
+class TestEmptyOfferEntryIsNotAnAnswer:
+    """An offer entry naming no market must not stand in for asking.
+
+    `metrics_from_offer` returning an empty set is the *absence* of an answer,
+    true only of the moment it was fetched. On 2026-09-21 the 08:05Z OFFER
+    found eight fixtures unpriced, Superbet posted their ladders during the
+    day, and the 16:29Z SAMPLES read that stale emptiness and blocked all
+    eight with NO_PRICE — 116 rungs, every fixture still hours from kickoff,
+    and zero Superbet requests made to check (verified in run.log.jsonl: the
+    stage called none of their event ids).
+    """
+
+    def _offer(self, rungs):
+        from bet.sofa.contracts import FixtureOffer
+
+        return FixtureOffer(
+            sofascore_event_id=900,
+            status="PRICED" if rungs else "NO_PRICE",
+            rungs=rungs,
+            unmapped_markets=[],
+        )
+
+    def test_empty_offer_entry_still_asks_superbet(self, mock_clients):
+        client, cache, superbet = mock_clients
+        superbet.event_odds.return_value = {
+            "odds": [{"marketName": "Liczba gemów", "odds": []}]
+        }
+        client.entity_events.return_value = {"events": [], "hasNextPage": False}
+
+        process_fixture_samples(
+            _bare_fixture(),
+            client,
+            cache,
+            superbet,
+            SofaConfig(sample_n=10),
+            offer=self._offer([]),
+        )
+        assert superbet.event_odds.called, (
+            "an empty offer entry must fall through to the live call, "
+            "exactly like a missing one"
+        )
+
+    def test_no_price_is_only_concluded_after_asking(self, mock_clients):
+        client, cache, superbet = mock_clients
+        superbet.event_odds.return_value = {"odds": None}
+        client.entity_events.return_value = {"events": [], "hasNextPage": False}
+
+        samples = process_fixture_samples(
+            _bare_fixture(),
+            client,
+            cache,
+            superbet,
+            SofaConfig(sample_n=10),
+            offer=self._offer([]),
+        )
+        assert samples.readiness == "BLOCKED"
+        assert [g.reason.value for g in samples.gaps] == ["NO_PRICE"]
+        assert superbet.event_odds.called
+
+    def test_a_populated_offer_entry_still_costs_no_request(self, mock_clients):
+        """The F19 saving must survive the fix."""
+        from bet.sofa.contracts import PricedRung
+        from bet.sofa.timeutil import now
+
+        client, cache, superbet = mock_clients
+        client.entity_events.return_value = {"events": [], "hasNextPage": False}
+
+        process_fixture_samples(
+            _bare_fixture(),
+            client,
+            cache,
+            superbet,
+            SofaConfig(sample_n=10),
+            offer=self._offer(
+                [
+                    PricedRung(
+                        market="games_total",
+                        subject="",
+                        line=20.5,
+                        over_odds=1.9,
+                        under_odds=1.9,
+                        fetched_at_utc=now(),
+                    )
+                ]
+            ),
+        )
+        assert not superbet.event_odds.called
+

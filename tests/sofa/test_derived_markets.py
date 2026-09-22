@@ -23,7 +23,12 @@ from bet.sofa.derived import (
     price_derived_rungs,
     resolve_subject,
 )
-from bet.sofa.market_mapper import classify_derived_market, classify_market
+from bet.sofa.market_mapper import (
+    DERIVED_DRAW_SUBJECT,
+    classify_derived_market,
+    classify_market,
+    derived_side_metric,
+)
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.timeutil import now
 
@@ -591,3 +596,170 @@ class TestSamplesKnowsWhatDerivedMarketsNeed:
             "corners_for",
             "goals_total",
         }
+
+
+class TestScopedDerivedBases:
+    """A scoped derived market must reach the sample the mapper proved exists.
+
+    `classify_derived_market` only emits `most_corners_1h` after `_scope_metric`
+    has confirmed `corners_1h_for` is a declared metric. `derived.py` and
+    `samples.py` then looked the base up in `DERIVED_BASE_TO_SIDE_METRIC` with a
+    bare `.get`, which lists only the twelve unscoped bases — so every market
+    that branch created was guaranteed to be dropped as "no None sample", while
+    `run_settle` (which already used the `<base>_for` fallback) would have
+    settled it. On 2026-09-21 that silently cost 78 rungs, 75 of them with the
+    per-side sample sitting in `03_samples.json`.
+    """
+
+    SCOPED = [
+        ("corners_1h", "corners_1h_for"),
+        ("corners_2h", "corners_2h_for"),
+        ("aces_set1", "aces_set1_for"),
+        ("aces_set2", "aces_set2_for"),
+        ("double_faults_set1", "double_faults_set1_for"),
+        ("double_faults_set2", "double_faults_set2_for"),
+        ("serve_points_set1", "serve_points_set1_for"),
+        ("serve_points_set2", "serve_points_set2_for"),
+        ("goals_1h", "goals_1h_for"),
+        ("goals_2h", "goals_2h_for"),
+    ]
+
+    @pytest.mark.parametrize("base,side_metric", SCOPED)
+    def test_scoped_base_resolves_to_its_side_metric(
+        self, base: str, side_metric: str
+    ) -> None:
+        assert derived_side_metric(base) == side_metric
+
+    def test_irregular_base_still_wins_over_the_regular_rule(self) -> None:
+        """`games` is measured as `games_won_for`, not `games_for`."""
+        assert derived_side_metric("games") == "games_won_for"
+
+    def test_every_base_the_mapper_can_emit_has_a_sampleable_side_metric(
+        self,
+    ) -> None:
+        """The two halves must not drift apart again.
+
+        Whatever `classify_derived_market` is willing to name, the pricer must
+        be able to look up. Checked against the declared metric vocabulary,
+        which is the same gate `_scope_metric` applies.
+        """
+        from bet.sofa.metrics import FOOTBALL_METRICS, TENNIS_METRICS
+
+        declared = set(FOOTBALL_METRICS) | set(TENNIS_METRICS)
+        for base, _ in self.SCOPED:
+            assert derived_side_metric(base) in declared
+
+    def test_scoped_most_market_produces_rows(self) -> None:
+        """The end-to-end symptom: rows, where there were none."""
+        samples = make_samples(
+            "corners_1h_for",
+            [3, 2, 4, 3, 1, 2, 3, 4, 2, 3],
+            [2, 3, 1, 2, 2, 4, 3, 2, 1, 3],
+        )
+        rungs = [
+            PricedRung(
+                market="most_corners_1h",
+                subject=subject,
+                line=0.0,
+                over_odds=price,
+                under_odds=None,
+                fetched_at_utc=now(),
+            )
+            for subject, price in (
+                ("brentford", 2.1),
+                ("chelsea", 2.6),
+                (DERIVED_DRAW_SUBJECT, 4.2),
+            )
+        ]
+        rows, skipped = price_derived_rungs(
+            fixture=make_fixture(),
+            samples=samples,
+            offer=FixtureOffer(
+                sofascore_event_id=1,
+                status="PRICED",
+                rungs=rungs,
+                unmapped_markets=[],
+            ),
+            correlations={"corners_1h": -0.1},
+            vetoes=[],
+            min_sample=5,
+            max_ladder_sigma=1.5,
+            k_price=10.0,
+            unfitted=[],
+        )
+        assert rows, "a scoped most_ market with its sample on disk must price"
+        assert all(r.market == "most_corners_1h" for r in rows)
+        assert not [s for s in skipped if "no None sample" in s[2]]
+        # The three selections partition the market, so the devigged
+        # probabilities the rows were built against must sum to one.
+        assert sum(r.market_p for r in rows if r.market_p is not None) == pytest.approx(
+            1.0, abs=1e-6
+        )
+
+    def test_samples_requests_the_scoped_side_metric(self) -> None:
+        """SAMPLES must collect what the pricer will later ask for."""
+        from bet.sofa.samples import metrics_from_offer
+
+        offer = FixtureOffer(
+            sofascore_event_id=1,
+            status="PRICED",
+            rungs=[
+                PricedRung(
+                    market="most_corners_1h",
+                    subject="brentford",
+                    line=0.0,
+                    over_odds=2.1,
+                    under_odds=None,
+                    fetched_at_utc=now(),
+                )
+            ],
+            unmapped_markets=[],
+        )
+        assert metrics_from_offer(offer) == {"corners_1h_for"}
+
+
+class TestSubjectIsNotAProposition:
+    """A loose team pattern must not read the question's shape as a competitor.
+
+    `^(?P<team>.+?) liczba gemow$` has no dash because Superbet sends none
+    (F38), and that looseness made `classify_market` return
+    ("games_won_for", "nieparzysta/parzysta") on all 96 tennis fixtures
+    carrying the odd/even games market on 2026-09-21. It built no rung only
+    because Superbet sends no line for odd/even, so `offer.py` diverted it to
+    "(no line)" — an accident of the payload, not a guard.
+    """
+
+    def test_odd_even_games_is_not_a_player(self) -> None:
+        assert classify_market("Nieparzysta/parzysta liczba gemów") is None
+
+    def test_odd_even_corners_is_not_a_team(self) -> None:
+        assert classify_market("Nieparzysta/parzysta liczba rzutów rożnych") is None
+
+    def test_a_real_player_still_maps(self) -> None:
+        assert classify_market("Adrian Andreev liczba gemów") == (
+            "games_won_for",
+            "adrian andreev",
+        )
+
+    def test_a_player_whose_name_contains_the_word_still_maps(self) -> None:
+        """The guard is anchored, so it may not eat a name that merely rhymes."""
+        assert classify_market("Parzysty Kowalski liczba gemów") == (
+            "games_won_for",
+            "parzysty kowalski",
+        )
+
+
+class TestTiebreaksLadder:
+    """`tiebreaks_total` was declared, extractable, and unreachable."""
+
+    def test_tiebreak_count_maps_to_the_declared_metric(self) -> None:
+        assert classify_market("Liczba tiebreaków") == ("tiebreaks_total", "")
+
+    def test_the_metric_it_maps_to_is_declared(self) -> None:
+        from bet.sofa.metrics import TENNIS_METRICS
+
+        assert "tiebreaks_total" in TENNIS_METRICS
+
+    def test_the_yes_no_sibling_stays_unmapped(self) -> None:
+        """It carries no line, so it cannot become a rung."""
+        assert classify_market("Czy będzie tiebreak") is None

@@ -111,10 +111,17 @@ jak twierdzi artefakt, i że mecz nadal jest na tablicy.
 
 ### 2d. Czy mecz naprawdę się nie zaczął — na wcześniejszym zegarze
 
-COUPON bierze `min(kickoff_utc, superbet_kickoff_utc)`. **CONFIDENCE czyta sam
-zegar Sofascore.** Na ITF oba rozjeżdżają się do 11 h, a błąd biegnie w złą
-stronę: mecz zakończony wygląda na nadchodzący. Sprawdź, czy któraś
-postawiona noga nie siedzi dokładnie w tej szczelinie.
+**Oba stopnie biorą `min(kickoff_utc, superbet_kickoff_utc)`** — COUPON od
+dawna, CONFIDENCE od commita `3f1136bc` (2026-09-21); wcześniej czytał sam
+zegar Sofascore i to właśnie ścieżka postawiona czytała zły zegar. Na ITF oba
+rozjeżdżają się do 11 h. Reguła jest bezpieczna, ale **nie darmowa i nie
+jednokierunkowa**: zwykle to Sofascore spóźnia się o 7–9 h i mecz zakończony
+wygląda na nadchodzący, ale bywa odwrotnie — 2026-09-21 dla ITF W50 Berkeley
+to Sofascore niósł czas *wcześniejszy* i fałszywy (12:00Z = 05:00 lokalnie),
+więc `min()` odrzucał mecze realnie jeszcze przed startem. Tamtego dnia
+kosztowało to 0 wierszy, bo wszystkie 10 takich fixture'ów miało `NO_PRICE`.
+Sprawdź jedno i drugie: czy postawiona noga nie siedzi w szczelinie, i ile
+wierszy reguła odrzuciła na zegarze, który był tym błędnym.
 
 ---
 

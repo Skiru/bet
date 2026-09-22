@@ -26,9 +26,9 @@ from bet.sofa.contracts import (
 )
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.market_mapper import (
-    DERIVED_BASE_TO_SIDE_METRIC,
     classify_market,
     derived_base,
+    derived_side_metric,
 )
 from bet.sofa.metrics import (
     check_halves_identity,
@@ -93,9 +93,7 @@ def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
         # tennis rungs were lost exactly this way on 2026-09-18 (F40).
         base = derived_base(rung.market)
         if base is not None:
-            side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(base)
-            if side_metric:
-                wanted.add(side_metric)
+            wanted.add(derived_side_metric(base))
             continue
         wanted.add(rung.market)
     return wanted
@@ -411,9 +409,21 @@ def _process_fixture_samples(
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
+    #
+    # An offer entry that names NO market is not that saving, though: it is the
+    # absence of an answer, and it is only a fact about the moment it was
+    # fetched. On 2026-09-21 the morning OFFER (08:05Z) found eight fixtures
+    # unpriced, Superbet posted their ladders during the day, and the evening
+    # SAMPLES read the stale emptiness and blocked all eight with "No priced
+    # markets on Superbet" — 116 rungs, every fixture still hours from
+    # kickoff, and not one Superbet request made to check. Same shape as F17:
+    # remembering "nothing here" for too long buys requests with a silent hole.
+    # So an empty entry falls through to the live call exactly like a missing
+    # one; only a live call may conclude NO_PRICE.
+    metrics_to_collect: set[str] = set()
     if offer is not None:
         metrics_to_collect = metrics_from_offer(offer)
-    else:
+    if not metrics_to_collect:
         metrics_to_collect = fetch_available_metrics(fixture, superbet_client)
 
     if not metrics_to_collect:

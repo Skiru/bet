@@ -74,6 +74,15 @@ MATCH_MARKET_NAMES = {
     "2.set - liczba asow + podwojnych bledow": "serve_points_set2_total",
     "liczba gemow": "games_total",
     "liczba setow": "sets_total",
+    # `tiebreaks_total` was declared in metrics.py with a working extractor and
+    # no way of being reached: the name was simply absent from this table, so
+    # `metrics_from_offer` never requested the metric, SAMPLES never built it,
+    # and the resulting hole read as a provider gap rather than a mapping one.
+    # Superbet sends it in the ordinary ladder shape (specialBetValue carries
+    # the line, selections say poniżej/powyżej, both sides quoted), 54 fixtures
+    # on 2026-09-21. The yes/no sibling "czy bedzie tiebreak" has no line and
+    # is deliberately NOT mapped — offer.py builds a rung from a direction.
+    "liczba tiebreakow": "tiebreaks_total",
 }
 
 TEAM_MARKET_PATTERNS = [
@@ -166,9 +175,7 @@ def get_mechanism_family(market: str) -> str:
     # fixture as though they were independent evidence.
     base = derived_base(market)
     if base is not None:
-        return get_mechanism_family(
-            DERIVED_BASE_TO_SIDE_METRIC.get(base, f"{base}_for")
-        )
+        return get_mechanism_family(derived_side_metric(base))
 
     # F43. A half is a scope, not a mechanism: the corners of the first half
     # and the corners of the match are one fact about one match, so they share
@@ -261,6 +268,18 @@ _SUBJECT_IS_SCOPE = re.compile(
 )
 _SUBJECT_IS_COMBINATION = re.compile(r"[&;]")
 
+# Phrases that describe the *shape of the question*, not a competitor. The
+# team patterns are deliberately loose — "<player> liczba gemow" has no dash,
+# because Superbet sends none (F38) — and that looseness reads the words
+# "nieparzysta/parzysta" as a player name: `classify_market` returned
+# ("games_won_for", "nieparzysta/parzysta") for all 96 tennis fixtures
+# carrying that market on 2026-09-21. Nothing downstream would have caught it
+# on merit; the only reason no phantom rung was built is that Superbet sends
+# no specialBetValue for odd/even, so offer.py diverted it to "(no line)".
+# A market that gains a line later would have become a rung priced off a
+# sample belonging to neither player, so the guard is here and not there.
+_SUBJECT_IS_PROPOSITION = re.compile(r"^(?:nieparzysta|parzysta)\b|/parzysta\b")
+
 
 def classify_market(market_name: str | None) -> tuple[str, str] | None:
     folded = fold(market_name)
@@ -275,6 +294,8 @@ def classify_market(market_name: str | None) -> tuple[str, str] | None:
             if _SUBJECT_IS_SCOPE.match(team):
                 return None
             if _SUBJECT_IS_COMBINATION.search(team):
+                return None
+            if _SUBJECT_IS_PROPOSITION.search(team):
                 return None
             return (market, team)
     return None
@@ -447,7 +468,7 @@ def classify_derived_market(
         metric = _derived_metric(scoped.group("metric"))
         if metric is None:
             return None
-        side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(metric, f"{metric}_for")
+        side_metric = derived_side_metric(metric)
         n = scoped.group("scope")
         # The declared names are `aces_set1_for` and `corners_1h_for`: the
         # scope sits after the stem in both, but tennis writes "set1" and
@@ -495,9 +516,9 @@ def classify_derived_market(
     return None
 
 
-# Metric bases that carry a `_for` sample per side, which is what derived.py
-# needs to build a joint. A derived market on a base not listed here has no
-# way to be priced and must stay unmapped.
+# Bases whose per-side sample is NOT simply `<base>_for` — `games` is measured
+# as `games_won_for`. Everything else follows the regular rule, so read this
+# table through `derived_side_metric`, never with a bare `.get(base)`.
 DERIVED_BASE_TO_SIDE_METRIC = {
     "corners": "corners_for",
     "cards_points": "cards_points_for",
@@ -511,6 +532,25 @@ DERIVED_BASE_TO_SIDE_METRIC = {
     "double_faults": "double_faults_for",
     "serve_points": "serve_points_for",
 }
+
+
+def derived_side_metric(base: str) -> str:
+    """The per-side metric a derived market's base is built from.
+
+    The regular rule is `<base>_for`; the table above holds only the bases
+    that break it. Reading the table with a bare `.get(base)` silently
+    excludes every *scoped* base — `corners_1h`, `aces_set1`, `serve_points_set2` —
+    because none of them is listed, and the scoped bases are exactly the ones
+    `_scope_metric` has already proved to be declared before it will emit the
+    market at all.
+
+    That contradiction was live: the mapper created 78 scoped `most_*` rungs
+    on 2026-09-21, `derived.price_derived_rungs` dropped all of them as
+    "no None sample", and `run_settle` — which already used the fallback —
+    would have settled them. 75 of the 78 had the per-side sample sitting in
+    `03_samples.json`. One helper, so the two halves cannot drift again.
+    """
+    return DERIVED_BASE_TO_SIDE_METRIC.get(base, f"{base}_for")
 
 
 def derived_base(market: str) -> str | None:
