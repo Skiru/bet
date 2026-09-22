@@ -58,13 +58,24 @@ class BrowserBridgeTransport:
         # bucket, so the round trip can outlast the caller's nominal timeout.
         # Give the bridge headroom rather than abandoning jobs it will still run.
         #
-        # 12 s, not 30 s. The median /statistics response is ~150 ms, and the
-        # worst observed case — a backgrounded tab, throttled by Chrome — is
-        # ~2 s (F23), so 12 s is still six times the bad case. 30 s only made
-        # sense while the retry above it was dead: waiting 200x the median
-        # once is worse than waiting 80x the median twice, and the retry
-        # actually works now (F21).
-        bridge_timeout = max(timeout, 12.0)
+        # This floor must clear the userscript's poll window, and 12 s did not.
+        # bridge_server holds a /fetch open for exactly the timeout the client
+        # sends (bridge_server.py:242), and a tab can only take work when it is
+        # inside /pull, which blocks for PULL_WAIT_S = 20 s. So a job submitted
+        # while every tab sits between polls was killed by our own deadline
+        # before any tab could possibly claim it - a 504 we caused.
+        #
+        # Measured 2026-09-22 on a bridge that was provably healthy: six
+        # concurrent jobs completed in two groups of three, 0.35 s apart
+        # (10.7 req/s), while the ramp through this transport aborted at a
+        # target of 4 on exactly that 504. Single requests from idle took
+        # 20.1 s, 20.1 s and 40.1 s - one and two poll cycles.
+        #
+        # 45 s is two poll cycles plus slack, and still well inside the
+        # server's own JOB_TIMEOUT_S of 60. The earlier note argued 12 s beat
+        # 30 s because "the worst observed case is ~2 s (F23)"; that number
+        # described a request already claimed, not the wait to be claimed.
+        bridge_timeout = max(timeout, 45.0)
         payload = json.dumps({"url": url, "timeout": bridge_timeout}).encode("utf-8")
         req = Request(
             self.bridge_url + "/fetch",
