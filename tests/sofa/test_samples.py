@@ -560,3 +560,157 @@ class TestEmptyOfferEntryIsNotAnAnswer:
         )
         assert not superbet.event_odds.called
 
+
+# --- the predictable 404 on /event/{id}/statistics ------------------------
+#
+# 3,806 of one run's 26,493 live Sofascore requests were a 404 on this route
+# (measured 2026-09-22). 1,241 of them sat in tournaments that have never once
+# served statistics across 35,815 cached events, so they are predictable from
+# a payload we already hold.
+
+
+def _historical_event(event_id: int, tournament_id: int, **extra):
+    return {
+        "id": event_id,
+        "startTimestamp": int(datetime(2026, 9, 1, 12, 0, tzinfo=UTC).timestamp()),
+        "status": {"type": "finished"},
+        "homeTeam": {"id": 1, "name": "Home"},
+        "awayTeam": {"id": 2, "name": "Away"},
+        "tournament": {
+            "name": "T",
+            "uniqueTournament": {"id": tournament_id, "name": "T"},
+        },
+        **extra,
+    }
+
+
+def _skip_fixture():
+    return Fixture(
+        sofascore_event_id=999,
+        superbet_event_ids=["1"],
+        sport="football",
+        kickoff_utc=datetime(2026, 9, 22, 18, 0, tzinfo=UTC),
+        home_name="Home",
+        away_name="Away",
+        home_entity_id=1,
+        away_entity_id=2,
+        competition_name="T",
+        competition_id=35308,
+        season_id=1,
+        category_name="Cat",
+        identity="CONFIRMED",
+        round_number=1,
+        round_name=None,
+        cup_round_type=None,
+        previous_leg_event_id=None,
+        venue_name=None,
+        referee=None,
+        ground_type=None,
+        default_period_count=None,
+    )
+
+
+def _call_process(monkeypatch, cache, event, listed_ids):
+    from bet.sofa import samples as samples_mod
+
+    monkeypatch.setattr(samples_mod, "NO_STATS_TOURNAMENT_IDS", frozenset(listed_ids))
+    client = MagicMock()
+    client.event_statistics.return_value = None
+    client.event_incidents.return_value = None
+    fixture = _skip_fixture()
+    samples_mod.process_historical_event(
+        client, cache, event, 1, "football", set(), fixture
+    )
+    return client
+
+
+def test_statistics_skipped_for_a_tournament_that_never_serves_them(
+    mock_clients, monkeypatch
+):
+    """The saving: a listed tournament costs zero requests, not one 404."""
+    _, cache, _ = mock_clients
+    client = _call_process(
+        monkeypatch, cache, _historical_event(500, 35308), {35308}
+    )
+    assert client.event_statistics.call_count == 0
+
+
+def test_statistics_still_fetched_for_an_unlisted_tournament(
+    mock_clients, monkeypatch
+):
+    """The guard: the gate is the list, not "lower division" by vibes."""
+    _, cache, _ = mock_clients
+    client = _call_process(
+        monkeypatch, cache, _historical_event(501, 17), {35308}
+    )
+    assert client.event_statistics.call_count == 1
+
+
+def test_event_payload_overrides_the_list(mock_clients, monkeypatch):
+    """The valve: a tournament that starts publishing is not locked out.
+
+    hasEventPlayerStatistics is True for 11,574 cached events, of which only
+    20 lacked statistics (0.2%), and for none of the 1,241 events the list
+    skips — so honouring it costs nothing today.
+    """
+    _, cache, _ = mock_clients
+    client = _call_process(
+        monkeypatch,
+        cache,
+        _historical_event(502, 35308, hasEventPlayerStatistics=True),
+        {35308},
+    )
+    assert client.event_statistics.call_count == 1
+
+
+def test_a_skip_is_not_written_to_the_cache(mock_clients, monkeypatch):
+    """A prediction must not read back as an observation.
+
+    A row with NULL statistics is indistinguishable from "asked, got 404", and
+    that row stops the next run from asking at all. If the list is ever wrong,
+    a later run still being free to ask is the only thing that corrects it.
+    """
+    _, cache, _ = mock_clients
+    _call_process(monkeypatch, cache, _historical_event(503, 35308), {35308})
+    assert cache.get_event_stats(503) is None
+
+
+def test_incidents_are_still_fetched_when_statistics_are_skipped(
+    mock_clients, monkeypatch
+):
+    """29 of the 1,241 skipped events carry incidents despite no statistics,
+    and card points have no other source, so the saving stops at /statistics."""
+    from bet.sofa import samples as samples_mod
+
+    _, cache, _ = mock_clients
+    monkeypatch.setattr(samples_mod, "NO_STATS_TOURNAMENT_IDS", frozenset({35308}))
+    client = MagicMock()
+    client.event_incidents.return_value = {"incidents": []}
+    fixture = _skip_fixture()
+    samples_mod.process_historical_event(
+        client,
+        cache,
+        _historical_event(504, 35308),
+        1,
+        "football",
+        {"cards_points_total"},
+        fixture,
+    )
+    assert client.event_statistics.call_count == 0
+    assert client.event_incidents.call_count == 1
+
+
+def test_the_shipped_list_is_a_fit_not_a_hand_edit():
+    """config/sofa_no_stats_tournaments.json must carry its own provenance."""
+    import json
+
+    from bet.sofa.samples import _NO_STATS_PATH
+
+    raw = json.loads(_NO_STATS_PATH.read_text(encoding="utf-8"))
+    assert raw["min_events"] >= 10
+    assert raw["fitted_at_utc"].endswith("Z")
+    assert raw["events_examined"] > 0
+    assert all(
+        isinstance(entry["id"], int) and entry["events"] >= raw["min_events"]
+        for entry in raw["tournaments"]
+    )

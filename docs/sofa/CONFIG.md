@@ -23,6 +23,7 @@ w złym momencie jest błędem, nie stratą minuty.
 | `sofa_side_correlations.json` | `measure_side_correlations.py` | `joint.py`, `derived.py` | `correlation` (**residual**, nie `raw_correlation`), `residual_pairs` |
 | `sofa_friendly_competitions.json` | ręcznie, z dowodem | `samples.py` | każdy wpis wskazuje plik dowodowy; id, nigdy nazwa |
 | `sofa_board_exclusions.json` | ręcznie, z pomiarem | `board.py` | **pusty jest poprawny** — wykluczenie bez pomiaru to cięcie pokrycia w przebraniu oszczędności |
+| `sofa_no_stats_tournaments.json` | `fit_no_stats_tournaments.py` (poza sekwencją) | `samples.py` | `fitted_at_utc`, `min_events` ≥ 10, `events_examined`; każdy wpis to turniej, który **ani razu** nie oddał `/event/{id}/statistics` |
 | `sofa_name_aliases.json` | ręcznie | `names.py` | aliasy PL→EN (111 wpisów): `anglia → england` itd. |
 
 ### Zmienne środowiskowe (`SofaConfig.from_env`, `src/bet/sofa/config.py`)

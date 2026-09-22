@@ -71,6 +71,63 @@ def _load_friendly_ids() -> frozenset[int]:
 
 FRIENDLY_COMPETITION_IDS: frozenset[int] = _load_friendly_ids()
 
+_NO_STATS_PATH = (
+    Path(__file__).resolve().parents[3] / "config" / "sofa_no_stats_tournaments.json"
+)
+
+
+def _load_no_stats_tournament_ids() -> frozenset[int]:
+    """Tournaments for which /event/{id}/statistics has never answered 200.
+
+    These are not on the board — they are the lower divisions, regional cups
+    and friendlies that turn up in an *opponent's historical sample*, which is
+    exactly where `board.load_excluded_tournament_ids` predicted they would be
+    and why that list correctly ships empty. Measured on 2026-09-22 over one
+    run's log: 3,806 of 26,493 live Sofascore requests were a 404 on this
+    route, and 1,241 of them sat in tournaments that have never once served
+    statistics across 35,815 cached events.
+
+    Skipping is behaviourally identical to the 404 it replaces:
+    ``extract_flat_statistics(None)`` returns ``{}`` either way, so the event
+    contributes no observation. Nothing is defaulted to zero and nothing is
+    written to the cache — a skip must not become a fact we claim to have
+    measured.
+
+    A missing or malformed config degrades to "skip nothing": the pipeline
+    pays what it pays today, which is the safe direction.
+    """
+    try:
+        raw = json.loads(_NO_STATS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    entries = raw.get("tournaments", []) if isinstance(raw, dict) else []
+    ids: set[int] = set()
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("id"), int):
+            ids.add(entry["id"])
+        elif isinstance(entry, int):
+            ids.add(entry)
+    return frozenset(ids)
+
+
+NO_STATS_TOURNAMENT_IDS: frozenset[int] = _load_no_stats_tournament_ids()
+
+
+def statistics_are_hopeless(event: dict[str, Any]) -> bool:
+    """True when this event's tournament has never served statistics.
+
+    The event's own payload wins over the list. ``hasEventPlayerStatistics``
+    is True for 11,574 cached events and only 20 of those lacked statistics
+    (0.2%), and it is True for *none* of the 1,241 events this list skips — so
+    honouring it costs nothing today and is the valve that lets a tournament
+    which starts publishing back in before the next fit.
+    """
+    if event.get("hasEventPlayerStatistics") is True:
+        return False
+    tournament = event.get("tournament") or {}
+    unique = tournament.get("uniqueTournament") or {}
+    return unique.get("id") in NO_STATS_TOURNAMENT_IDS
+
 
 def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
     """Canonical metric names the pre-sample OFFER already found a price for.
@@ -276,7 +333,16 @@ def process_historical_event(
     if cached_stats:
         statistics_json, incidents_json, _ = cached_stats
     else:
-        statistics_json = client.event_statistics(event_id)
+        # A 404 we can predict from a payload we already hold. `/incidents` is
+        # still asked for, though: 29 of these 1,241 events carry incidents
+        # despite having no statistics, and card points have no other source —
+        # so the saving stops at the route that was actually measured empty.
+        # Not cached as a result either: we did not observe this one, and if
+        # the list is ever wrong a later run must be free to ask.
+        skipped_statistics = statistics_are_hopeless(event)
+        statistics_json = (
+            None if skipped_statistics else client.event_statistics(event_id)
+        )
         incidents_json = None
         needs_incidents = sport == "football" and bool(
             metrics_to_collect & INCIDENT_METRICS
@@ -284,8 +350,16 @@ def process_historical_event(
         if needs_incidents:
             incidents_json = client.event_incidents(event_id)
 
-        status_type = event.get("status", {}).get("type", "finished")
-        cache.save_event_stats(event_id, statistics_json, incidents_json, status_type)
+        # A row whose statistics are NULL is read back as "asked, got 404", and
+        # `get_event_stats` returning it stops the next run from asking at all.
+        # A prediction must not be written into the cache wearing that costume:
+        # if the list is ever wrong, the only thing that can correct it is a
+        # later run still being free to ask.
+        if not skipped_statistics or incidents_json is not None:
+            status_type = event.get("status", {}).get("type", "finished")
+            cache.save_event_stats(
+                event_id, statistics_json, incidents_json, status_type
+            )
 
     flat_stats = extract_flat_statistics(statistics_json)
     ident_gap = check_identities(flat_stats, incidents_json, event, sport)
