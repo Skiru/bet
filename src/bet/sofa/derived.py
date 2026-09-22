@@ -76,6 +76,95 @@ CORRELATIONS_PATH = Path("config/sofa_side_correlations.json")
 # Same threshold the marginal path uses for attributing a per-side market.
 SIDE_MATCH_THRESHOLD = 70.0
 
+# How hard a handicap centre is pulled onto the bookmaker's own ladder.
+#
+# The marginal path shrinks its centre toward a league baseline at line 405 of
+# run_sheet.py. The derived path never shrank at all: `centre` came out equal
+# to `sample_mean` on 17,496 of 17,496 derived rows written across
+# 2026-09-18..22, while a `ladder_centre` was computed and discarded on 58.1%
+# of them.
+#
+# That is not a cosmetic difference, because a handicap centre is a difference
+# of two marginals taken over *different* opponents. In tennis both players'
+# `games_won_for` means sit in roughly [6, 13] whatever their strength — the
+# loser of a BO3 still wins six or seven games — so the difference of the two
+# carries almost no signal about the margin. Measured on 313 unique
+# subject-fixtures that settled:
+#
+#     centre                        MAE        corr with realised margin
+#     our sample                    4.93            +0.137
+#     Superbet's handicap ladder    3.86            +0.516
+#
+# On 2026-09-21 that shipped three tennis handicap legs whose centre had the
+# wrong SIGN — Ostapenkov +0.40 (ladder -4.82, actual -8.0), Dinev +3.43
+# (ladder -6.27, actual -8.0), Villanueva +2.60 (ladder -1.79, actual -4.0).
+# All three lost.
+#
+# K is fitted by minimising the residual sd of the realised margin, in the
+# same n/(n+K) form the marginal path uses. The curve is flat from K=20 to
+# K=60 (sd 4.813 -> 4.813, optimum 4.801 at K=32.5) and leave-one-day-out
+# refits it at 30.0, 32.5 and 35.0 with the held-out day improving every time:
+#
+#     held out      fitted K     test sd      test sd at today's K=0
+#     2026-09-19      35.0         4.208            5.069
+#     2026-09-20      32.5         5.048            5.878
+#     2026-09-21      30.0         4.901            5.703
+#
+# Caveat kept deliberately: every sample behind this fit has n in [5, 10], so
+# the n-dependence of the n/(n+K) form is barely exercised. Over that range it
+# is indistinguishable from a flat weight of 0.25 on our own sample.
+K_DERIVED_CENTRE = 30.0
+
+
+def _ladder_diff_centre(
+    handicap_ladders: dict[str, float | None],
+    fixture: Fixture,
+) -> float | None:
+    """The market's own centre for (side A - side B), in the metric's units.
+
+    `handicap_ladders` holds, per subject, the handicap line at which the
+    ladder crosses P = 0.5. A subject on side A covering `+L` at even money
+    means the median of A - B is `-L`; the same reading on side B is `+L`.
+    Both sides are used when both are quoted, which also averages out the
+    half-rung granularity of the ladder.
+    """
+    implied: list[float] = []
+    for subject, centre in handicap_ladders.items():
+        if centre is None:
+            continue
+        side = resolve_subject(subject, fixture)
+        if side == "side_a":
+            implied.append(-centre)
+        elif side == "side_b":
+            implied.append(centre)
+    if not implied:
+        return None
+    return statistics.mean(implied)
+
+
+def _shrink_sides_to_diff(
+    stats_a: SideStats,
+    stats_b: SideStats,
+    diff_target: float,
+) -> tuple[SideStats, SideStats]:
+    """Move the two means until their difference is `diff_target`.
+
+    The shift is split evenly between the sides, which leaves A + B untouched.
+    That matters: for tennis the total is the match length, it is a real
+    quantity priced by `games_total` on its own ladder, and it is not the one
+    measured to be broken. Only the margin moves.
+    """
+    diff_model = stats_a.mean - stats_b.mean
+    delta = (diff_target - diff_model) / 2.0
+    mean_a = max(1e-6, stats_a.mean + delta)
+    mean_b = max(1e-6, stats_b.mean - delta)
+    return (
+        SideStats(n=stats_a.n, mean=mean_a, variance=stats_a.variance,
+                  sd=stats_a.sd),
+        SideStats(n=stats_b.n, mean=mean_b, variance=stats_b.variance,
+                  sd=stats_b.sd),
+    )
+
 
 def load_side_correlations(
     path: Path = CORRELATIONS_PATH,
@@ -454,6 +543,33 @@ def price_derived_rungs(
                         handicap_one_sided.add(subject)
                 handicap_ladders[subject] = centre
 
+        # See K_DERIVED_CENTRE. The handicap family — and only it, because it
+        # is the only derived family whose centre has been measured against a
+        # realised outcome — is repriced off a joint whose margin has been
+        # pulled onto the ladder. The cached joint is left alone: the same
+        # base metric also feeds both_over_* and most_*, which are not in
+        # scope and must keep seeing the unshifted distribution.
+        centre_shrunk_to: float | None = None
+        raw_diff_mean = stats_a.mean - stats_b.mean
+        if market.startswith("handicap_"):
+            diff_ladder = _ladder_diff_centre(handicap_ladders, fixture)
+            if diff_ladder is not None:
+                diff_model = stats_a.mean - stats_b.mean
+                w = n / (n + K_DERIVED_CENTRE)
+                diff_target = w * diff_model + (1.0 - w) * diff_ladder
+                if abs(diff_target - diff_model) > 1e-9:
+                    stats_a, stats_b = _shrink_sides_to_diff(
+                        stats_a, stats_b, diff_target
+                    )
+                    joint = build_joint(
+                        stats_a.mean,
+                        stats_a.variance,
+                        stats_b.mean,
+                        stats_b.variance,
+                        rho_used,
+                    )
+                    centre_shrunk_to = diff_target
+
         # The scale a disagreement is measured in has to be the spread of the
         # variable the ladder is actually on: min(A, B) for a both-teams
         # ladder, A - B for a handicap. Using the sum's spread understates
@@ -537,16 +653,24 @@ def price_derived_rungs(
 
                 if market.startswith("both_over_"):
                     scale_mean, scale_sd = min_mean, min_sd
+                    raw_scale_mean = min_mean
                     family_ladder = lc
                     one_sided_here = ladder_is_one_sided
                 elif market.startswith("handicap_"):
+                    # `scale_mean` is the centre actually priced; on this
+                    # family it may have been pulled onto the ladder above, so
+                    # the raw sample difference is reported separately and the
+                    # row can be read against its own p_central.
                     scale_mean, scale_sd = diff_mean, diff_sd
+                    raw_scale_mean = raw_diff_mean
                     if side == "side_b":
                         scale_mean = -scale_mean
+                        raw_scale_mean = -raw_scale_mean
                     family_ladder = handicap_ladders.get(rung.subject)
                     one_sided_here = rung.subject in handicap_one_sided
                 else:
                     scale_mean, scale_sd = diff_mean, diff_sd
+                    raw_scale_mean = diff_mean
                     family_ladder = None
                     one_sided_here = False
 
@@ -560,6 +684,12 @@ def price_derived_rungs(
                     f"DERIVED: joint of both sides, rho={rho_used:+.3f}"
                     + ("" if rho is not None else " (UNMEASURED, independent)")
                 ]
+                if centre_shrunk_to is not None:
+                    notes.append(
+                        "CENTRE_SHRUNK_TO_LADDER: sample difference "
+                        f"{raw_diff_mean:+.2f} pulled to {centre_shrunk_to:+.2f} "
+                        f"(K_DERIVED_CENTRE={K_DERIVED_CENTRE:g}, n={n})"
+                    )
                 if one_sided_here and l_sigma is not None:
                     notes.append(
                         "ONE_SIDED_LADDER: centre read off quoted side only, "
@@ -654,7 +784,7 @@ def price_derived_rungs(
                         line=rung.line,
                         direction=direction,
                         sample_size=n,
-                        sample_mean=round(scale_mean, 4),
+                        sample_mean=round(raw_scale_mean, 4),
                         sample_sd=round(scale_sd, 4),
                         centre=round(scale_mean, 4),
                         p_central=p_cent_out,

@@ -19,7 +19,10 @@ from bet.sofa.contracts import (
     PricedRung,
 )
 from bet.sofa.derived import (
+    K_DERIVED_CENTRE,
+    SideStats,
     _market_probabilities,
+    _shrink_sides_to_diff,
     price_derived_rungs,
     resolve_subject,
 )
@@ -763,3 +766,189 @@ class TestTiebreaksLadder:
     def test_the_yes_no_sibling_stays_unmapped(self) -> None:
         """It carries no line, so it cannot become a rung."""
         assert classify_market("Czy będzie tiebreak") is None
+
+
+class TestDerivedCentreShrinksToLadder:
+    """The derived path used no centre shrinkage at all.
+
+    `centre` came out equal to `sample_mean` on 17,496 of 17,496 derived rows
+    written across 2026-09-18..22, while a `ladder_centre` was computed and
+    thrown away on 58.1% of them. On 313 settled subject-fixtures our sample
+    centre carried MAE 4.93 / corr +0.137 against the realised margin and the
+    ladder carried MAE 3.86 / corr +0.516, so the discarded number was the
+    better one. See K_DERIVED_CENTRE.
+    """
+
+    def _offer(self, rungs: list[PricedRung]) -> FixtureOffer:
+        return FixtureOffer(
+            sofascore_event_id=1, status="PRICED", rungs=rungs, unmapped_markets=[]
+        )
+
+    def _handicap_ladder(
+        self, subject: str = "chelsea"
+    ) -> list[PricedRung]:
+        """Three one-sided rungs, so `ladder_centre` has something to fit.
+
+        Priced to cross even money near -4.5, i.e. the market makes Chelsea
+        the side giving away four and a half corners.
+        """
+        return [
+            PricedRung(
+                market="handicap_corners",
+                subject=subject,
+                line=line,
+                over_odds=price,
+                under_odds=None,
+                fetched_at_utc=now(),
+            )
+            for line, price in ((-5.5, 2.30), (-4.5, 2.00), (-3.5, 1.75))
+        ]
+
+    def _price(self, samples: FixtureSamples, rungs: list[PricedRung]):
+        return price_derived_rungs(
+            fixture=make_fixture(),
+            samples=samples,
+            offer=self._offer(rungs),
+            correlations={"corners": -0.1452},
+            vetoes=[],
+            min_sample=5,
+            max_ladder_sigma=1.5,
+            k_price=10.0,
+            unfitted=[],
+        )
+
+    def test_centre_is_pulled_off_the_sample_and_onto_the_ladder(self) -> None:
+        # Brentford average 9 corners, Chelsea 5: our sample says A - B = +4.
+        # The ladder says Chelsea is the one giving corners away.
+        samples = make_samples(
+            "corners_for",
+            [9, 10, 8, 9, 10, 8, 9, 10, 8, 9],
+            [5, 4, 5, 6, 5, 4, 5, 6, 5, 5],
+        )
+        rows, _ = self._price(samples, self._handicap_ladder())
+        assert rows
+        row = rows[0]
+        assert row.ladder_centre is not None
+
+        # Every number below is in the ROW's own frame: the subject's margin.
+        # The subject is Chelsea, the away side, so our sample — Brentford 9
+        # corners to Chelsea's 5 — reads as -4 from here.
+        assert row.sample_mean == pytest.approx(-4.0, abs=1e-6)
+        assert row.centre != pytest.approx(row.sample_mean)
+
+        # A Chelsea handicap crossing even money at -4.5 is the market saying
+        # Chelsea wins the count by 4.5, so the ladder's claim about the
+        # subject's margin is the negated ladder centre.
+        ladder_margin = -row.ladder_centre
+        assert ladder_margin > 0
+
+        # n = 10, so the sample keeps 10 / (10 + 30) = 0.25 of the weight.
+        w = 10 / (10 + K_DERIVED_CENTRE)
+        expected = w * (-4.0) + (1 - w) * ladder_margin
+        assert row.centre == pytest.approx(expected, abs=1e-3)
+
+        # The centre ends up strictly between the two claims.
+        assert -4.0 < row.centre < ladder_margin
+        assert any("CENTRE_SHRUNK_TO_LADDER" in n for n in row.notes)
+
+    def test_the_shift_moves_the_margin_and_not_the_total(self) -> None:
+        """A + B is the match length. It is priced on its own ladder and it is
+        not the quantity measured to be broken, so the shift splits evenly."""
+        a = SideStats(n=10, mean=11.9, variance=4.0, sd=2.0)
+        b = SideStats(n=10, mean=11.5, variance=4.0, sd=2.0)
+        new_a, new_b = _shrink_sides_to_diff(a, b, -4.8)
+        assert new_a.mean - new_b.mean == pytest.approx(-4.8, abs=1e-9)
+        assert new_a.mean + new_b.mean == pytest.approx(a.mean + b.mean, abs=1e-9)
+
+    def test_no_ladder_means_no_shrink(self) -> None:
+        """Two rungs cannot fit a centre, so there is nothing to shrink to and
+        the row must come out exactly as it did before."""
+        samples = make_samples(
+            "corners_for",
+            [9, 10, 8, 9, 10, 8, 9, 10, 8, 9],
+            [5, 4, 5, 6, 5, 4, 5, 6, 5, 5],
+        )
+        # Lines the unshrunk model can still resolve inside [0.05, 0.95], so
+        # the rows are refused for having no ladder and nothing else.
+        rungs = [
+            PricedRung(
+                market="handicap_corners",
+                subject="chelsea",
+                line=line,
+                over_odds=price,
+                under_odds=None,
+                fetched_at_utc=now(),
+            )
+            for line, price in ((3.5, 1.85), (4.5, 1.70))
+        ]
+        rows, _ = self._price(samples, rungs)
+        assert rows
+        for row in rows:
+            assert row.centre == pytest.approx(row.sample_mean)
+            assert not any("CENTRE_SHRUNK_TO_LADDER" in n for n in row.notes)
+
+    def test_the_other_derived_families_are_out_of_scope(self) -> None:
+        """The joint is cached per base metric and shared. Shrinking the
+        handicap must not reach both_over_* or most_*, whose centres have not
+        been measured against a realised outcome."""
+        samples = make_samples(
+            "corners_for",
+            [9, 10, 8, 9, 10, 8, 9, 10, 8, 9],
+            [5, 4, 5, 6, 5, 4, 5, 6, 5, 5],
+        )
+        rungs = self._handicap_ladder() + [
+            PricedRung(
+                market="most_corners",
+                subject="chelsea",
+                line=0.0,
+                over_odds=2.12,
+                under_odds=None,
+                fetched_at_utc=now(),
+            )
+        ]
+        rows, _ = self._price(samples, rungs)
+        most = [r for r in rows if r.market == "most_corners"]
+        assert most
+        for row in most:
+            assert row.centre == pytest.approx(row.sample_mean)
+            assert not any("CENTRE_SHRUNK_TO_LADDER" in n for n in row.notes)
+
+    def test_regression_the_three_legs_that_lost_on_2026_09_21(self) -> None:
+        """Ostapenkov +5.5 shipped at p_central 0.885 against a market price of
+        0.579, because our centre said he would win the game count by 0.40
+        while the ladder said he would lose it by 4.82. He lost by 8.
+
+        The sample below is the shape that produced it: two tennis players
+        whose own `games_won_for` means are nearly equal, because the loser of
+        a BO3 still wins six or seven games.
+        """
+        samples = make_samples(
+            "games_won_for",
+            [12, 12, 11, 12, 12, 12, 11, 12, 12, 11],   # Legout, mean 11.7
+            [12, 11, 12, 12, 11, 12, 12, 11, 12, 12],   # Ostapenkov, mean 11.7
+        )
+        # The market makes Ostapenkov a heavy underdog on games.
+        rungs = [
+            PricedRung(
+                market="handicap_games",
+                subject="chelsea",  # resolves to side_b, as Ostapenkov did
+                line=line,
+                over_odds=price,
+                under_odds=None,
+                fetched_at_utc=now(),
+            )
+            for line, price in ((3.5, 2.52), (4.5, 1.97), (5.5, 1.58))
+        ]
+        rows, _ = self._price(samples, rungs)
+        by_line = {r.line: r for r in rows if r.direction == "OVER"}
+        assert 5.5 in by_line
+        row = by_line[5.5]
+
+        # The sample alone says the two are level.
+        assert row.sample_mean == pytest.approx(0.0, abs=1e-6)
+        # The ladder says the subject is the underdog, and the centre follows
+        # it rather than the sample.
+        assert row.ladder_centre is not None
+        assert row.centre < -1.0
+        # Which is the whole point: the leg is no longer a near-certainty.
+        assert row.p_central < 0.85
