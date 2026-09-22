@@ -313,3 +313,88 @@ def test_f35_the_central_rung_of_the_same_ladder_survives() -> None:
     assert [r for r in rows if r.line == 2.5], (
         "a rung the model can resolve must still be priced"
     )
+
+
+# --------------------------------------------------------------------------
+# Tennis shrinks its centre onto the ladder. See K_TENNIS_LADDER_CENTRE.
+#
+# `config/sofa_league_baselines.json` holds 451 per-competition entries for
+# `goals_for` and exactly one for `games_won_for`, so the tennis shrink target
+# was a single global mean spanning ATP to ITF and the shrunk centre came out
+# indistinguishable from the raw sample (corr +0.198 against +0.199 over 327
+# settled player-fixtures). Superbet's ladder is twice as correlated (+0.388).
+# --------------------------------------------------------------------------
+
+
+def _tennis_fixture() -> Fixture:
+    return make_fixture(
+        sport="tennis",
+        home_name="Timo Legout",
+        away_name="Daniil Ostapenkov",
+        competition_name="ITF M25",
+    )
+
+
+def _games_ladder(market: str = "games_total") -> list[PricedRung]:
+    """A two-sided ladder whose even-money crossing sits near 21.5 games."""
+    return [
+        rung(line, over, under, market=market)
+        for line, over, under in (
+            (19.5, 1.36, 3.10),
+            (20.5, 1.57, 2.38),
+            (21.5, 1.95, 1.89),
+            (22.5, 2.50, 1.53),
+            (23.5, 3.30, 1.33),
+        )
+    ]
+
+
+def test_tennis_centre_is_pulled_onto_the_ladder() -> None:
+    # A sample that says 17 games against a ladder that says about 21.5.
+    samples = make_samples(
+        "games_total", [17, 16, 18, 17, 17, 16, 18, 17, 17, 17], []
+    )
+    rows, _ = run(samples, make_offer(_games_ladder()), _tennis_fixture())
+    assert rows
+    row = rows[0]
+    assert row.sample_mean == pytest.approx(17.0, abs=1e-6)
+    assert row.ladder_centre is not None
+    # n = 10, so the sample keeps 10 / (10 + 30) = 0.25 of the weight.
+    expected = 0.25 * 17.0 + 0.75 * row.ladder_centre
+    assert row.centre == pytest.approx(expected, abs=1e-3)
+    assert 17.0 < row.centre < row.ladder_centre
+    assert any("CENTRE_SHRUNK_TO_LADDER" in n for n in row.notes)
+
+
+def test_football_is_not_in_scope() -> None:
+    """Football is already calibrated to within 0.027 and has real baselines.
+
+    With no baseline supplied the football path must fall through to the raw
+    mean, exactly as before — never to the ladder.
+    """
+    samples = make_samples(
+        "goals_total", [1, 2, 1, 2, 1, 2, 1, 2, 1, 2], []
+    )
+    rungs = [
+        rung(line, over, under)
+        for line, over, under in (
+            (2.5, 1.36, 3.10), (3.5, 1.95, 1.89), (4.5, 3.30, 1.33),
+        )
+    ]
+    rows, _ = run(samples, make_offer(rungs), make_fixture())
+    assert rows
+    for row in rows:
+        assert row.centre == pytest.approx(row.sample_mean)
+        assert not any("CENTRE_SHRUNK_TO_LADDER" in n for n in row.notes)
+
+
+def test_tennis_without_a_ladder_keeps_the_old_path() -> None:
+    """A one-sided ladder fits no centre, so there is nothing to shrink to."""
+    samples = make_samples(
+        "games_total", [17, 16, 18, 17, 17, 16, 18, 17, 17, 17], []
+    )
+    rungs = [rung(21.5, 1.95, None), rung(22.5, 2.50, None)]
+    rows, _ = run(samples, make_offer(rungs), _tennis_fixture())
+    for row in rows:
+        assert row.centre == pytest.approx(row.sample_mean)
+        assert not any("CENTRE_SHRUNK_TO_LADDER" in n for n in row.notes)

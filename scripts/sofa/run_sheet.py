@@ -115,6 +115,42 @@ def load_engine_constants(config: SofaConfig) -> dict[str, Any]:
 # with one says so in `notes`, so an unfitted engine cannot be mistaken for a
 # calibrated one (T35: missing config degrades to documented behaviour, it does
 # not crash and it does not invent).
+# Tennis shrinks its centre toward the bookmaker's ladder, not toward a league
+# baseline, because tennis does not have league baselines. `config/
+# sofa_league_baselines.json` carries 451 per-competition entries for
+# `goals_for` and exactly ONE for `games_won_for` — a single global mean for
+# the whole of tennis, ATP to ITF — which is what the comment on
+# `read_constant` below already says. The consequence is measurable: over 327
+# settled player-fixtures the shrunk centre is indistinguishable from the raw
+# sample (corr +0.198 against +0.199, MAE 3.22 against 3.24), while Superbet's
+# own ladder is twice as correlated with the realised value:
+#
+#     centre for games_won_for      corr     MAE
+#     raw sample                   +0.199    3.24
+#     ours, after K_CENTRE         +0.198    3.22
+#     Superbet's ladder            +0.388    2.73
+#
+#     centre for games_total        corr     MAE
+#     ours, after K_CENTRE         +0.118    5.01
+#     Superbet's ladder            +0.354    4.31
+#
+# This is the same defect as K_DERIVED_CENTRE in derived.py and it is fixed
+# the same way. Fitted on 535 settled tennis marginal rows carrying a ladder,
+# errors scaled per market so one market's units cannot dominate: the curve is
+# flat from K=15 to K=100 (0.9515 -> 0.9514) with a minimum of 0.9483 at
+# K=32.5, against 1.0097 for today's behaviour. Leave-one-day-out improves the
+# held-out day every time (0.8154/0.9536, 1.0057/1.0515, 0.9996/1.0262) but
+# refits K at 17.5, 32.5 and 117.5 — a much wider spread than the handicap
+# fit, so 30.0 is chosen as the middle of the flat region and because it is
+# the value derived.py already uses, not because the data pins it.
+#
+# Football is NOT in scope. Football is already well calibrated — across
+# 10 buckets and 4,457-12,449 rows each, its largest deviation between claimed
+# and realised probability is 0.027 — and it has real per-competition
+# baselines to shrink to. Tennis is flat over the same range: it claims 0.05
+# and realises 0.207, claims 0.95 and realises 0.724.
+K_TENNIS_LADDER_CENTRE = 30.0
+
 UNFITTED_K_CENTRE = 10.0
 UNFITTED_K_PRICE = 10.0
 
@@ -400,12 +436,21 @@ def process_fixture(
         hits = 0  # Not calculated yet, need logic for hits for OVER/UNDER.
 
         # 6.2 Środek
-        prior = get_prior(baselines, rung.market, fixture.competition_id)
-        if prior is not None:
-            w_c = n / (n + k_centre)  # K_CENTRE
-            centre = w_c * mean + (1 - w_c) * prior
+        # See K_TENNIS_LADDER_CENTRE. For tennis the ladder replaces the league
+        # baseline as the shrink target, because tennis has no league baseline
+        # worth the name. Where a rung is one-sided and no ladder could be
+        # fitted, the old path still runs — there is nothing better to use.
+        ladder_target = ladder_centres.get((rung.market, rung.subject))
+        if fixture.sport == "tennis" and ladder_target is not None:
+            w_c = n / (n + K_TENNIS_LADDER_CENTRE)
+            centre = w_c * mean + (1 - w_c) * ladder_target
         else:
-            centre = mean
+            prior = get_prior(baselines, rung.market, fixture.competition_id)
+            if prior is not None:
+                w_c = n / (n + k_centre)  # K_CENTRE
+                centre = w_c * mean + (1 - w_c) * prior
+            else:
+                centre = mean
 
         pred_sd = predictive_sd(
             variance, mean, n, apply_poisson_floor=uses_poisson_floor(rung.market)
@@ -547,6 +592,16 @@ def process_fixture(
             )
 
             notes: list[str] = []
+            if (
+                fixture.sport == "tennis"
+                and ladder_target is not None
+                and abs(centre - mean) > 1e-9
+            ):
+                notes.append(
+                    f"CENTRE_SHRUNK_TO_LADDER: sample {mean:.2f} pulled to "
+                    f"{centre:.2f} (ladder {ladder_target:.2f}, "
+                    f"K_TENNIS_LADDER_CENTRE={K_TENNIS_LADDER_CENTRE:g}, n={n})"
+                )
             verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"] = (
                 "BELOW_BAR"
             )
