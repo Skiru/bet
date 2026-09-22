@@ -54,9 +54,19 @@ goes through a real browser tab.
 .venv/bin/python scripts/sofa/check_bridge.py
 ```
 
-Three OK lines required. `ok: true` alone is not enough — a dead tab still
-reports ok, so the line that matters is the poll age. If the tab is dead,
-stop and tell the operator: nothing downstream of BOARD can run.
+Four checks now, and the fourth is advisory. The first three must be OK;
+`ok: true` alone is not enough — a dead tab still reports ok, so the line that
+matters is the poll age. If the tab is dead, stop and tell the operator:
+nothing downstream of BOARD can run.
+
+The fourth measures a concurrent burst and may say WARN. That is a
+**suspicion, not a verdict**: the tabs wake under continuous load and Chrome
+throttles them in the gaps, so three back-to-back 12-job bursts on 2026-09-22
+gave 4.26, 0.28 and 0.52 req/s with every request returning 200. Settle it
+with `scripts/sofa/measure_bridge_capacity.py`. If that comes back low or
+aborts, **stop and ask the operator to bring every sofascore.com window to the
+front** — the run would crawl and hit 504s, which the breaker turns into
+gaps.
 
 **Set `SOFA_TARGET_RPS` from `scripts/sofa/measure_bridge_capacity.py`, never
 above the plateau it reports** — 3.9 req/s on three tabs (2026-09-22, 360

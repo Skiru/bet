@@ -31,14 +31,24 @@ the offline stages goes through a real browser tab.
 .venv/bin/python scripts/sofa/check_bridge.py
 ```
 
-Three OK lines required. **`ok: true` alone is not enough** — a dead tab still
-reports ok, so the line that matters is the poll age. If the tab is dead, stop
-and tell the operator: nothing downstream of BOARD can run. Do not attempt a
-workaround. Set `SOFA_TARGET_RPS` only from the plateau reported by
-`scripts/sofa/measure_bridge_capacity.py`, never above it, and never lower
-`MIN_INTERVAL_MS`. If `check_bridge.py` warns that the round trip is above
-600 ms, say so before starting: the tabs are throttled and the run will take
-roughly four times as long for no benefit.
+Four checks now, and the fourth is advisory. The first three must be OK;
+`ok: true` alone is not enough — a dead tab still reports ok, so the line that
+matters is the poll age. The fourth measures a concurrent burst and may say
+WARN: that is a **suspicion, not a verdict**, because the tabs wake under
+continuous load and Chrome throttles them in the gaps (measured 2026-09-22:
+three back-to-back 12-job bursts gave 4.26, 0.28 and 0.52 req/s with every
+request returning 200). Settle a WARN with
+`scripts/sofa/measure_bridge_capacity.py` before deciding anything. If that
+also comes back low, or aborts, **stop and tell the operator to bring every
+sofascore.com window to the front** — the run would crawl and time out. If the
+tab is dead, stop too — nothing downstream of BOARD can run, and there is no
+workaround to attempt.
+
+Do not change the rate to compensate. `SOFA_TARGET_RPS` and
+`SOFA_MAX_CONCURRENCY` already default to the measured plateau (4 and 3); set
+them only from `measure_bridge_capacity.py`, never above it, and **never lower
+`MIN_INTERVAL_MS`** — that is the per-connection pace. A slow bridge is a tab
+problem, and it is the operator's to fix, not yours.
 
 Use `.venv/bin/python`. `.venv/bin/pip` belongs to a different interpreter and
 installs where nothing can import.
