@@ -42,7 +42,8 @@ The day is **UTC**. Datetimes in these files are UTC ISO with `Z`.
 
 ```
 sofascore_event_id, readiness: READY|PARTIAL|BLOCKED,
-metrics: { "<metric>": MetricSample }, gaps: GapEntry[]
+metrics: { "<metric>": MetricSample }, gaps: GapEntry[],
+players: { "<metric>|<player>": PlayerSample }
 ```
 
 `MetricSample`: `metric`, `side_a[]`, `side_b[]`, `h2h[]` — each an
@@ -54,7 +55,29 @@ metrics: { "<metric>": MetricSample }, gaps: GapEntry[]
 | `match_date_utc` | drives `sample_newest_days` and the builder's age guard |
 | `opponent` | who the sample was collected against — the quality question |
 | `value` | float |
+| `minutes` | float or null. Set **only** on a per-player observation (F54); null for every team and tennis metric, where it has no meaning. |
 | `competition_id`, `season_id`, `venue` (`home`/`away`/null) | |
+
+`PlayerSample` (F54) is the third axis, alongside `_total` and `_for`. Its
+subject is neither side — it is one footballer — so it cannot live in
+`metrics`, whose two buckets *are* the two sides. Keyed
+`"<metric>|<player as Superbet writes him>"`, which is exactly the
+`(market, subject)` pair a rung carries, so SHEET and CONFIDENCE look it up
+without re-running the name match (`players.player_sample_key`).
+
+| field | note |
+|---|---|
+| `metric` | `player_shots_for`, `player_shots_on_target_for`, `player_assists_for` |
+| `player` | the name Superbet wrote, e.g. `"Tolo, Nouhou"` |
+| `matched_name` | the normalised Sofascore squad name it was matched to |
+| `side` | `side_a` / `side_b` — which squad he was found in, more often |
+| `squad_matches` | how many of that side's sampled matches carried a squad list at all. The honest denominator: without it a six-match sample from a ten-match history is indistinguishable from one from a six-match history. |
+| `observations` | `Observation[]`, newest first, **appearances only** |
+
+An appearance is `minutesPlayed` being present. A squad member who did not
+take the pitch carries `totalShots: 0` and no minutes, and that zero is not an
+observation — Superbet *voids* a player market when the player does not play,
+it does not settle it at zero.
 
 `GapEntry`: `reason` (a `GapReason`), `metric`, `detail`. **Every gap has a
 named reason.** Nothing disappears in silence; if you cannot find why a metric

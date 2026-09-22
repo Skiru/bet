@@ -94,6 +94,60 @@ class SofaCache:
             )
             conn.commit()
 
+    def get_event_lineups(
+        self, sofascore_event_id: int
+    ) -> dict[str, Any] | None:
+        """Per-player statistics for a finished event, or None if never asked.
+
+        F54. Deliberately NOT folded into `get_event_stats`'s tuple: seven
+        call sites unpack that tuple by position, one of them a test that
+        monkeypatches the method, and widening it would make a player feature
+        able to break the team pipeline.
+
+        ``{}`` means asked and got nothing back — a 404, or a match Sofascore
+        publishes no squad for — and it is a *fact*, so the next run does not
+        pay for it again. ``None`` means nobody has asked.
+        """
+        with get_connection(self.config.db_path) as conn:
+            row = conn.execute(
+                "SELECT lineups_json FROM sofa_event_stats "
+                "WHERE sofascore_event_id = ?",
+                (sofascore_event_id,),
+            ).fetchone()
+        if not row or row["lineups_json"] is None:
+            return None
+        return cast(dict[str, Any], json.loads(row["lineups_json"]))
+
+    def save_event_lineups(
+        self,
+        sofascore_event_id: int,
+        lineups: dict[str, Any] | None,
+        status_type: str,
+    ) -> None:
+        """Persist per-player statistics. ``None`` records the empty answer.
+
+        Same terminal-status guard as `save_event_stats`, for the same reason:
+        a squad list for a match still in progress is not a fact about a
+        finished match.
+        """
+        if status_type not in ("finished", "canceled", "abandoned"):
+            raise ValueError(
+                f"Cannot save event lineups for non-terminal status: {status_type}"
+            )
+        payload = json.dumps(lineups if lineups is not None else {})
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO sofa_event_stats
+                (sofascore_event_id, fetched_at, lineups_json, status_type)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(sofascore_event_id) DO UPDATE SET
+                    lineups_json = excluded.lineups_json
+                """,
+                (sofascore_event_id, now().isoformat(), payload, status_type),
+            )
+            conn.commit()
+
     def get_entity_events(
         self, sofascore_entity_id: int, kind: str, page: int
     ) -> dict[str, Any] | None:

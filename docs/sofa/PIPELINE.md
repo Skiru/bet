@@ -40,8 +40,8 @@ i jest powodem, dla którego ten akapit stoi na początku.
 | pojęcie | znaczenie |
 |---|---|
 | **fixture** | jeden mecz, klucz `sofascore_event_id` (int) |
-| **metric** | mierzona wielkość, np. `corners_total`, `games_won_for` (30 piłkarskich w `FOOTBALL_METRICS`, 22 tenisowe w `TENNIS_METRICS`, `src/bet/sofa/metrics.py`) |
-| **subject** | czyja to wielkość; `""` dla metryk `*_total`, nazwa strony dla `*_for` |
+| **metric** | mierzona wielkość, np. `corners_total`, `games_won_for` (30 piłkarskich w `FOOTBALL_METRICS`, 25 tenisowych w `TENNIS_METRICS`, 3 zawodnicze w `PLAYER_METRICS` z `src/bet/sofa/players.py`) |
+| **subject** | czyja to wielkość; `""` dla metryk `*_total`, nazwa strony dla `*_for`, **nazwisko zawodnika** dla `player_*_for` |
 | **rung / szczebel** | jedna linia rynku: (market, subject, line, direction) |
 | **ladder / drabina** | wszystkie linie tego samego rynku wystawione przez Superbet |
 | **p_central** | prawdopodobieństwo z naszej próbki |
@@ -335,7 +335,8 @@ w_c     = n / (n + K_CENTRE)                           (piłka 25, tenis 2)
 centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gdy brak bazy)
 
 p_central:
-    metryki empiryczne (sets_total, games_won_for)  → częstość trafień w próbce
+    metryki empiryczne (sets_total, games_won_for,
+                        games_won_set{1,2,3}_for)   → częstość trafień w próbce
     liczniki piłkarskie (NEGATIVE_BINOMIAL_METRICS) → ujemny dwumianowy wokół centre
     reszta                                          → normalny, podłoga nośnika −0.5
                                                       (COUNT_SUPPORT_FLOOR)
@@ -364,7 +365,8 @@ startu `K_PRICE = 10.0` z `engine.py`, a **każdy wiersz niesie o tym notkę
    z surową średnią próbki zawsze pokaże „rozjazd" — to `K_CENTRE` przy pracy.
 2. `ladder_centre` / `ladder_sigma` opisują **drabinę bukmachera**, nie nasz
    rozkład. `ladder_sigma` rzędu 0,003 jest normalne.
-3. Tenis (`sets_total`, `games_won_for`) używa częstości empirycznej, więc
+3. Tenis (`sets_total`, `games_won_for`, `games_won_set{1,2,3}_for`) używa
+   częstości empirycznej, więc
    `p_central` **równa się** trafieniom w próbce. Piłka idzie przez ujemny
    dwumianowy i różnić się **musi**; rozjazd powyżej ~15 pp znaczy, że pracuje
    baza ligowa, a nie drużyna — `n/(n+25)` mówi, ile naprawdę waży próbka.
@@ -404,6 +406,65 @@ Ograniczenie podane wprost: rynki porównawcze **nie mają drabiny**, więc przy
 działającej bramce drabiny nie mogą dziś trafić do kuponu. To sufit, nie błąd.
 Notki: `DERIVED` (1002), `MARKET_MARGINAL_JOINT`, `NO_MARKET_MARGINAL`,
 `NO_MARKET_MARGINAL_CHECK`, `MARGINAL_DISAGREEMENT`.
+
+### 7.4a Rynki zawodnicze — podmiotem jest człowiek
+
+Dwie rodziny, które wyglądają podobnie i podobne **nie są**.
+
+**Tenis — `games_won_set{1,2,3}_for`.** „1. set - Kenta Kawada liczba gemów".
+Zawodnik w tenisie zawsze był stroną, brakowało tylko metryki na **pojedynczy
+set**; bez niej `_SUBJECT_IS_SCOPE` słusznie odrzucał te rynki, bo jedyne, co
+mogłyby wtedy dostać, to próbka z całego meczu (to defekt F29). Źródłem nie
+jest `/statistics` — `gamesWon` nie ma tam klucza per set i brakuje go na 35%
+meczów — tylko **wynik setowy z listingu** (`homeScore.periodN`), czyli składnik
+niezmiennika, który `check_identities` i tak już egzekwuje. Zero dodatkowych
+zapytań.
+
+Rynek jest **dwustronny** (poniżej/powyżej na każdym szczeblu), więc daje się
+odvigować, przechodzi bramkę drabiny i **może trafić do kuponu**.
+2026-09-22: 827 wycenionych rynków na 166 meczach tenisowych, wszystkie
+wcześniej lądowały w `unmapped_markets`.
+
+Rozkład jest bimodalny — dolina na 5 (4,4%), ściana na 6 (45,6%), zmierzone na
+80 149 meczach z cache'u (`docs/sofa/evidence/games_won_per_set_distribution.md`)
+— a Superbet stawia szczebel na 5,5, dokładnie na urwisku. Dlatego te trzy
+metryki od pierwszego dnia liczą się z **częstości empirycznej**, nie z krzywej
+normalnej. To jest F49 powtórzone o jeden set niżej.
+
+**Piłka — `player_shots_for`, `player_shots_on_target_for`,
+`player_assists_for`.** „Zawodnik - liczba strzałów". To trzecia oś obok
+`*_total` i `*_for`: podmiot nie jest żadną ze stron, a próbką są **występy
+jednego człowieka**. Źródło to `/event/{id}/lineups` — jedno zapytanie na mecz
+historyczny obsługuje cały skład (alternatywa, `/player/{id}/statistics`, to
+200 zapytań na jeden mecz). Pobierane **tylko** wtedy, gdy oferta faktycznie
+niesie szczebel zawodniczy: 2026-09-22 dotyczyło to 4 z 182 meczów piłkarskich.
+
+Trzy pułapki, każda zamknięta w kodzie:
+
+- Zawodnik z ławki, który nie wszedł, ma w payloadzie `totalShots: 0` i **nie
+  ma** `minutesPlayed`. To nie jest zero — Superbet taki zakład **zwraca**,
+  nie rozlicza. Bramką wejścia jest `minutesPlayed`.
+- `onTargetScoringAttempt` bywa **pominięte**, gdy wynosi zero (6 z 31
+  grających w nagranym payloadzie). Zero bierzemy tylko wtedy, gdy zamyka się
+  tożsamość `totalShots == celne + niecelne + zablokowane + słupek`
+  (31/31 w nagranym payloadzie); gdy się nie zamyka — `INTERNAL_INCONSISTENT`.
+- `totalOffside` też bywa pominięte, ale **nie ma** tożsamości, która
+  udowodniłaby zero, więc `player_offsides_for` **nie istnieje**, mimo że
+  Superbet ten rynek wycenia.
+
+I ograniczenie, które decyduje o wartości całej rodziny: **Superbet kwotuje te
+rynki jednostronnie**. 437 selekcji „powyżej" i **0** „poniżej" na tablicy
+2026-09-22. Bez drugiej strony nie ma czego odvigować, `market_p` jest `None`,
+więc `NO_PRICE_ANCHOR` zatrzymuje wiersz na `LEAN` i **żaden zakład
+zawodniczy w piłce nie może dziś trafić do kuponu**. To jest zamierzone:
+2026-09-19 nieukotwione wiersze miały medianę nadwyżki 4,95 wobec 0,24 dla
+ukotwionych — to nie przewaga, to brak kontroli. Rodzina jedzie jako prognoza,
+dopóki nie zmierzymy marży tych rynków na rozliczonych dniach.
+
+Wiersz zawodniczy niesie notkę `PLAYER_MINUTES` (mediana minut, ile występów
+60'+, ile z ilu meczów próbki) — bo próbka złożona z wejść na 12 minut i
+próbka złożona ze startów to nie jest ta sama wielkość, a nic innego w wierszu
+nie umiałoby tego powiedzieć.
 
 ### 7.5 Werdykty
 

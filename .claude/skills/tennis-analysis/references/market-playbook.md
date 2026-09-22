@@ -78,6 +78,35 @@ Set 1 and set 2 only. Thin, and a `set2` market does not exist if the match
 ends in straight sets in a way the book voids — **check the settlement rule
 before grading one**. Small counts of rows on any board.
 
+## `games_won_set{1,2,3}_for` — one player's games in ONE set
+
+New 2026-09-22 (F54), and the biggest per-player family on the tennis board:
+**827 priced markets across 166 fixtures** in one day, all of which used to
+land in `unmapped_markets`. Superbet writes it
+`"1. set - Kenta Kawada liczba gemów"` and quotes it **two-sided**, so unlike
+football's player props it devigs, clears the ladder gate and can be staked.
+
+The value comes off the **set score in the listing**, not `/statistics`, so a
+row exists wherever the match history does.
+
+What to check, in this order:
+
+- **The line is almost always 5.5, and 5.5 is a cliff.** Measured over 80,149
+  cached matches, a player's games in a set run 4 → 10.8%, **5 → 4.4%**,
+  **6 → 45.6%**. Five is only reachable as the loser of a 7-5. So `p_central`
+  here moves in big steps and a one-observation change in a ten-match sample
+  moves it 10 points. Treat 0.6 and 0.7 as the same claim.
+- **Set 3 is conditional and the sample is short.** A `set3` row only settles
+  if the match reaches a third set — the book voids it otherwise — and the
+  sample is only the player's three-set matches, typically 4-5 observations
+  against 10 for set 1. Check `sample_size` before anything else.
+- **Set 1 and set 2 are not independent of the match total.** They share the
+  `games` quantity family, so a builder takes one of them, not both, and not
+  alongside `games_total` or `games_won_for`.
+- **A set line is a scoreline claim.** "Over 5.5 games in set 1" is "wins the
+  set, or loses it 7-5 / 6-7" — run the scoreline arithmetic the way you would
+  for `games_won_for`, but over one set.
+
 ## `tiebreaks_total`
 
 Collected and classified **non-count**, so CONFIDENCE refuses it

@@ -89,6 +89,36 @@ screen and that is a known state, not a fault.
 quoted one rung differently. Empty is normal; non-empty means the price used
 was *chosen*, not inherited from whichever listing came last.
 
+**Three classifiers, tried in this order** (`market_mapper.py`), because the
+three families put the subject in different places:
+
+1. `classify_market` — the subject is in the **market name**
+   (`"Criciúma - liczba goli"`, `"1. set - Kenta Kawada liczba gemów"`), the
+   line in `specialBetValue`, the direction in the selection.
+2. `classify_derived_market` — both-teams / comparative / handicap. The
+   subject and the line are on the **selection**.
+3. `classify_player_market` (F54) — football player counts. One market name
+   (`"Zawodnik - liczba strzałów"`) covers the whole squad; the player, the
+   line and the direction are all on the selection, and `specialBetValue`
+   reads `sr:player:<sportradar id>-<Name>-<line>`. The line is parsed from
+   the **end** so a hyphenated surname cannot be read as the separator. That
+   Sportradar id maps to nothing we hold — the player is identified by name
+   (`players.match_player`, threshold 85 with a margin of 5).
+
+Player market names are matched **exactly**, never by prefix. Superbet prices
+eight body-part and location variants of the same quantity
+(`"liczba strzałów lewą nogą"`, `"liczba celnych strzałów spoza pola karnego"`)
+and Sofascore's `/lineups` reports none of them; a prefix rule would price a
+left-footed shot line off a total-shots sample.
+
+**Football player markets are quoted on ONE side only** — 437 "powyżej" and
+**0** "poniżej" across the whole 2026-09-22 board. So the rung carries
+`over_odds` and no `under_odds`, nothing devigs, `market_p` is `None`, and
+SHEET stops the row at `LEAN` with `NO_PRICE_ANCHOR`. **No football player
+prop can reach the coupon today, and that is deliberate** — it is the family
+the settled record calls unchecked, not a gate to tune away. Tennis's
+per-player set games *are* two-sided and can reach it.
+
 ## SAMPLES (E6) — `src/bet/sofa/samples.py`
 
 Each side's last N matches per metric. **Through the bridge, ~12 requests per
@@ -229,7 +259,8 @@ range** — silence above a market's ceiling is evidence, not a gap. The sport's
 own pool (`pooled:tennis`) is tried before the global one, because the global
 pool is almost entirely football counts.
 
-Empirical-frequency metrics (`sets_total`, `games_won_for`) are **no longer
+Empirical-frequency metrics (`sets_total`, `games_won_for`,
+`games_won_set{1,2,3}_for`) are **no longer
 banned** from the fit: they carry measured curves, capped at their own ceiling.
 They were banned once, and the ban deleted tennis from the good path while
 `games_won_for` — 1,084 of a Monday sheet's 3,026 tennis rows — remained the

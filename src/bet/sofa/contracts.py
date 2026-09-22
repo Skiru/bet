@@ -106,6 +106,15 @@ class Observation(BaseModel):
     match_date_utc: datetime
     opponent: str
     value: float
+    # Minutes the subject was on the pitch, for a per-player observation only
+    # (F54); None for every team and tennis metric, where it has no meaning.
+    #
+    # Carried because a substitute's twelve minutes and a starter's ninety are
+    # not the same observation of the same quantity, and the sheet has no
+    # other way to say so. It does not filter anything here — Superbet pays a
+    # player market out on a cameo — but the row reports the profile so a
+    # sample made of cameos cannot look like a sample made of starts.
+    minutes: float | None = None
     competition_id: int | None
     season_id: int | None
     venue: Literal["home", "away"] | None
@@ -117,6 +126,34 @@ class MetricSample(BaseModel):
     side_a: list[Observation]
     side_b: list[Observation]
     h2h: list[Observation]
+
+
+class PlayerSample(BaseModel):
+    """F54. One footballer's own history of one metric.
+
+    A third axis, alongside `_total` and `_for`. It cannot be folded into
+    MetricSample: that model's two buckets are the two *sides*, and a fixture
+    carries as many player samples as Superbet quotes players — 47 on one
+    2026-09-24 MLS fixture.
+
+    `side` is which of the two squads the player was matched in, kept so a row
+    can be checked against the side it claims without re-running the name
+    match, and so a coupon can say whose player it is.
+
+    `appearances` is len(observations) by construction, but `squad_matches` is
+    not: it is how many of the side's sampled matches carried a squad list at
+    all. The difference is the honest denominator for "he played 6 of the last
+    10", and without it a six-match sample from a ten-match history is
+    indistinguishable from a six-match sample from a six-match one.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    metric: str
+    player: str
+    matched_name: str
+    side: Literal["side_a", "side_b"]
+    squad_matches: int
+    observations: list[Observation]
 
 
 class GapEntry(BaseModel):
@@ -132,6 +169,10 @@ class FixtureSamples(BaseModel):
     readiness: Readiness
     metrics: dict[str, MetricSample]
     gaps: list[GapEntry]
+    # F54. Keyed "<metric>|<player as Superbet writes him>", which is exactly
+    # the (market, subject) pair a rung carries, so SHEET looks a player rung
+    # up without re-running the name match SAMPLES already did.
+    players: dict[str, PlayerSample] = {}
 
 
 class PricedRung(BaseModel):

@@ -195,9 +195,22 @@ def test_who_takes_more_family() -> None:
 
 
 def test_a_scoped_market_we_cannot_sample_stays_unmapped() -> None:
-    """Better visible in unmapped_markets than a row with no sample behind it."""
-    assert "games_set1_for" not in TENNIS_METRICS
-    assert classify_derived_market("1. set - najwięcej gemów", "Ben Shelton", None) is None
+    """Better visible in unmapped_markets than a row with no sample behind it.
+
+    `_scope_metric` gates on the scoped metric being declared, so this test
+    tracks the declaration rather than a fixed answer. Set-scoped games
+    became sampleable in F54 and the market followed; per-half games never
+    will, because a half is not a unit of tennis.
+    """
+    assert "games_won_set1_for" in TENNIS_METRICS
+    assert classify_derived_market(
+        "1. set - najwięcej gemów", "Ben Shelton", None
+    ) == ("most_games_won_set1", "ben shelton", 0.0, "OVER")
+
+    # Aces have no third set declared, so the third-set comparative has no
+    # sample and must stay unmapped.
+    assert "aces_set3_for" not in TENNIS_METRICS
+    assert classify_derived_market("1. połowa - najwięcej gemów", "Ben Shelton", None) is None
 
 
 # --------------------------------------------------------------------------

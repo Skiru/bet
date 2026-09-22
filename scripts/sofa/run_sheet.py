@@ -48,6 +48,7 @@ from bet.sofa.engine import (
 )
 from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
+from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
 
@@ -374,32 +375,73 @@ def process_fixture(
         # through here would silently drop it as "metric not in samples".
         if is_derived(rung.market):
             continue
-        # Check if metric exists in samples
-        if rung.market not in samples.metrics:
-            continue
-
-        metric_sample = samples.metrics[rung.market]
         ladder_rungs = rungs_by_market_subject.get((rung.market, rung.subject), [])
+        extra_notes: list[str] = []
 
-        # A _total market pools both histories; one historical match still
-        # contributes one observation (L13). A per-side market uses only the
-        # side it names.
-        if not rung.subject:
-            obs = deduplicate_observations(
-                [metric_sample.side_a, metric_sample.side_b, metric_sample.h2h]
+        # F54. A player market's subject is a person, and its sample is that
+        # person's own appearances — SAMPLES already did the name match
+        # against each historical squad, so SHEET looks it up by the exact
+        # (market, subject) pair the rung carries and never re-guesses.
+        if is_player_metric(rung.market):
+            player_sample = samples.players.get(
+                player_sample_key(rung.market, rung.subject)
             )
-        else:
-            side = determine_side(rung.subject, fixture)
-            if side is None:
+            if player_sample is None:
                 skipped.append(
                     (
                         rung,
-                        GapReason.NO_MATCHING_EVENT,
-                        f"subject {rung.subject!r} matches neither side",
+                        GapReason.NO_ENTITY_FOUND,
+                        f"player {rung.subject!r} has no sample for "
+                        f"{rung.market}",
                     )
                 )
                 continue
-            obs = metric_sample.side_a if side == "side_a" else metric_sample.side_b
+            obs = player_sample.observations
+            # A starter's ninety minutes and a substitute's twelve are not
+            # two observations of the same quantity, and nothing else in the
+            # row can say so. Reported, never blocking: Superbet pays a
+            # player market out on a cameo, so a cameo is a real observation
+            # of a real bet — it is just a weaker one, and the operator has
+            # to be able to see that before staking.
+            minutes = [o.minutes for o in obs if o.minutes is not None]
+            if minutes:
+                median_minutes = statistics.median(minutes)
+                full = sum(1 for m in minutes if m >= 60.0)
+                extra_notes.append(
+                    f"PLAYER_MINUTES: median {median_minutes:.0f}', "
+                    f"{full}/{len(minutes)} appearances of 60'+, "
+                    f"played {len(obs)} of {player_sample.squad_matches} "
+                    f"sampled matches"
+                )
+        # Check if metric exists in samples
+        elif rung.market not in samples.metrics:
+            continue
+        else:
+            metric_sample = samples.metrics[rung.market]
+
+            # A _total market pools both histories; one historical match still
+            # contributes one observation (L13). A per-side market uses only the
+            # side it names.
+            if not rung.subject:
+                obs = deduplicate_observations(
+                    [metric_sample.side_a, metric_sample.side_b, metric_sample.h2h]
+                )
+            else:
+                side = determine_side(rung.subject, fixture)
+                if side is None:
+                    skipped.append(
+                        (
+                            rung,
+                            GapReason.NO_MATCHING_EVENT,
+                            f"subject {rung.subject!r} matches neither side",
+                        )
+                    )
+                    continue
+                obs = (
+                    metric_sample.side_a
+                    if side == "side_a"
+                    else metric_sample.side_b
+                )
 
         n = len(obs)
         if n < config.min_sample:
@@ -591,7 +633,7 @@ def process_fixture(
                 else None
             )
 
-            notes: list[str] = []
+            notes: list[str] = list(extra_notes)
             if (
                 fixture.sport == "tennis"
                 and ladder_target is not None

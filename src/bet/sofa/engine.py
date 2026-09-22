@@ -35,7 +35,32 @@ NON_COUNT_METRICS = frozenset(
 # For these the sample's own frequency above the winning boundary is the
 # honest estimator, and it is available for free — run_sheet and settle both
 # already count hits for the Laplace cap.
-EMPIRICAL_FREQUENCY_METRICS = frozenset({"sets_total", "games_won_for"})
+EMPIRICAL_FREQUENCY_METRICS = frozenset(
+    {
+        "sets_total",
+        "games_won_for",
+        # F54. A player's games in ONE set, and the F49 shape one set down.
+        # Measured over 80,149 cached tennis events, both players counted
+        # (docs/sofa/evidence/games_won_per_set_distribution.md):
+        #
+        #     games   0     1     2     3     4      5      6      7
+        #     set 1  2.8%  6.4%  8.9% 11.0% 10.8%  *4.4%* *45.6%* 10.3%
+        #     set 2  3.2%  6.9%  9.5% 10.6% 10.5%  *4.1%* *45.8%*  9.4%
+        #
+        # A trough at five and a wall at six: the set winner takes at least
+        # six games and the loser at most five, so five is only reachable as
+        # the loser of a 7-5. Superbet's ladder is 3.5 / 4.5 / **5.5** / 6.5,
+        # and the 5.5 rung sits exactly on that cliff, where a normal CDF puts
+        # smooth density across a 4.4% trough and a 45.6% wall.
+        #
+        # Listed on the measurement of the quantity itself, before the first
+        # settled day, rather than after one — this is F49 repeated on a new
+        # metric, not extrapolated onto it.
+        "games_won_set1_for",
+        "games_won_set2_for",
+        "games_won_set3_for",
+    }
+)
 
 # games_won_for joined the set on 2026-09-18 (F49). It is not few-valued like
 # sets_total, but it is violently **bimodal**, and for the same reason: in a

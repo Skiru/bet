@@ -119,6 +119,10 @@ def migrate(db_path: str) -> None:
         # coupon actually asks (F53).
         ("sofa_settled_row", "offered_odds", "REAL"),
         ("sofa_settled_row", "verdict", "TEXT"),
+        # F54. Per-player statistics, one payload for both squads. Lives
+        # alongside statistics and incidents because it is the same fact about
+        # the same finished event and expires on the same schedule: never.
+        ("sofa_event_stats", "lineups_json", "TEXT"),
     ]
 
     with get_connection(db_path) as conn:

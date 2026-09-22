@@ -44,7 +44,14 @@ from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import extract_flat_statistics, extract_metric
 from bet.sofa.names import normalize_name
+from bet.sofa.players import (
+    extract_player_metric,
+    is_player_metric,
+    match_player,
+    squad_statistics,
+)
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD, name_score
+from bet.sofa.samples import fetch_lineups
 from bet.sofa.settle import (
     SettledRow,
     insert_settled_rows,
@@ -225,6 +232,44 @@ def _settle_derived(
         return float(margin), ("WIN" if margin > -line else "LOSS")
 
     return "NOT_DERIVED"
+
+
+def _settle_player(
+    row: dict[str, Any], squads: dict[bool, dict[str, Any] | None] | None
+) -> tuple[float, str] | str:
+    """Grade one player row against the fixture's own squad lists (F54).
+
+    Returns (value, outcome) or a skip reason. The player is matched against
+    each squad exactly the way SAMPLES matched him against the historical
+    ones — same function, same threshold — so a row that could be sampled and
+    a row that can be settled are the same set. A different matcher here
+    would settle a subject the sheet never priced.
+
+    A player who did not take the pitch is PLAYER_DID_NOT_PLAY, not a zero:
+    Superbet voids that bet, so settling it as a loss would invent a result
+    the operator never had.
+    """
+    if not squads:
+        return "PLAYER_NO_LINEUPS"
+    subject = (row["subject"] or "").strip()
+    if not subject:
+        return "SUBJECT_NOT_MATCHED"
+
+    for squad in (squads.get(True), squads.get(False)):
+        if not squad:
+            continue
+        matched = match_player(subject, squad)
+        if matched is None:
+            continue
+        value = extract_player_metric(row["market"], squad[matched])
+        if value is GapReason.EVENT_NOT_FINISHED:
+            return "PLAYER_DID_NOT_PLAY"
+        if isinstance(value, GapReason):
+            return f"{row['market']}:{value.value}"
+        return float(value), settle_value(
+            float(value), row["line"], row["direction"]
+        )
+    return "PLAYER_NOT_MATCHED"
 
 
 def _handicap_side(subject: str, row: dict, event: dict) -> str | None:
@@ -442,7 +487,38 @@ def main() -> int:
             ).get("id")
             events_settled += 1
 
+            # F54. One squad list grades every player row on this fixture.
+            # Fetched lazily, and only when the sheet actually carries one:
+            # on 2026-09-22 that was 4 fixtures of 270, so SETTLE's cost per
+            # day is four requests, not one per event.
+            squads: dict[bool, dict[str, Any] | None] | None = None
+            if any(is_player_metric(r["market"]) for r in event_rows):
+                lineups = fetch_lineups(client, cache, event)
+                squads = {
+                    True: squad_statistics(lineups, is_home=True),
+                    False: squad_statistics(lineups, is_home=False),
+                }
+
             for row in event_rows:
+                if is_player_metric(row["market"]):
+                    graded = _settle_player(row, squads)
+                    if isinstance(graded, str):
+                        skipped[graded] += 1
+                        continue
+                    value, outcome = graded
+                    rows.append(
+                        _settled(
+                            row,
+                            args.date,
+                            event_id,
+                            competition_id,
+                            value,
+                            outcome,
+                            settled_at,
+                        )
+                    )
+                    continue
+
                 if is_derived(row["market"]):
                     graded = _settle_derived(row, row["sport"], flat, incidents, event)
                     if isinstance(graded, str):

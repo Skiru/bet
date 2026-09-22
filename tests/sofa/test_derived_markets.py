@@ -121,20 +121,46 @@ class TestMapperRegressions:
         assert classify_market("liczba gemów") == ("games_total", "")
 
     @pytest.mark.parametrize(
-        "name",
+        ("name", "expected"),
         [
-            "1. set - Adrian Andreev liczba gemów",
-            "2 set - Oleg Prihodko liczba gemów",
-            "X. set - Adrian Andreev liczba gemów",
+            ("1. set - Adrian Andreev liczba gemów", "games_won_set1_for"),
+            ("2. set - Oleg Prihodko liczba gemów", "games_won_set2_for"),
+            ("3. set - Alina Charaeva liczba gemów", "games_won_set3_for"),
         ],
     )
-    def test_set_scoped_games_market_is_refused(self, name: str) -> None:
-        """A set line priced against a whole-match sample is F29 in tennis.
+    def test_set_scoped_games_market_gets_its_own_metric(
+        self, name: str, expected: str
+    ) -> None:
+        """F54. These used to be refused, and the refusal used to be right.
 
-        268 of these were quoted on 2026-09-18 against 139 whole-match ones,
-        so the no-dash pattern without this guard would have mispriced twice
-        as many markets as it recovered.
+        A set line priced against a whole-match sample is F29 in tennis, and
+        until `games_won_set{1,2,3}_for` existed that was the only thing this
+        pattern could have produced, so `_SUBJECT_IS_SCOPE` sent all 268 of
+        the 2026-09-18 quotes to unmapped_markets.
+
+        The metric exists now, sourced from the set score in the listing, so
+        the scope is carried onto the market name instead of being thrown
+        away with the market. What must NOT change is the thing the old
+        guard protected: the subject is the player alone, never the scope.
         """
+        classified = classify_market(name)
+        assert classified is not None
+        market, subject = classified
+        assert market == expected
+        assert "set" not in subject
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            # No set number to carry onto a metric name, so there is no
+            # metric to price it against and it stays visible as unmapped.
+            "X. set - Adrian Andreev liczba gemów",
+            # The set TOTAL, which is a different quantity and has no metric.
+            "1. set - liczba gemów",
+            "1. set - liczba gemów nieparzysta/parzysta",
+        ],
+    )
+    def test_set_scoped_games_market_is_still_refused(self, name: str) -> None:
         assert classify_market(name) is None
 
     def test_combination_market_is_not_a_participant(self) -> None:

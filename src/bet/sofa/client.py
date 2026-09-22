@@ -374,3 +374,14 @@ class SofascoreClient:
     def event_incidents(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}/incidents"
         return self._execute(url)
+
+    def event_lineups(self, id: int) -> Any | None:
+        """Both squads with their per-player statistics (F54).
+
+        One request per match for the whole of both squads. The alternative,
+        `/event/{id}/player/{playerId}/statistics`, is one request per player
+        per match — 200 for a single fixture's ten-match shot sample, against
+        a bridge that serves 11.7 req/s in total.
+        """
+        url = f"https://api.sofascore.com/api/v1/event/{id}/lineups"
+        return self._execute(url)

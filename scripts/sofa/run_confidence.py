@@ -54,6 +54,10 @@ from bet.sofa.confidence import (  # noqa: E402
     line_is_beyond_sample,
     mode_loses,
 )
+from bet.sofa.players import (  # noqa: E402
+    is_player_metric,
+    player_observations,
+)
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 from pydantic import RootModel  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
@@ -138,9 +142,19 @@ def main() -> int:
         builder's empirical joint has to intersect legs on
         `sofascore_event_id` — which match a number came from is the point.
         """
-        mv = (samples.get(row["sofascore_event_id"], {}).get("metrics") or {}).get(
-            row["market"]
-        )
+        fixture_samples = samples.get(row["sofascore_event_id"], {})
+
+        # F54. A player row's sample is not on the metrics axis at all — it is
+        # one person's appearances, keyed exactly as the rung is. Without this
+        # the row reached the builder pool with NO observations, so every
+        # shape gate that reads the distribution (extremum, mode, freshness)
+        # was answering a question about an empty list.
+        if is_player_metric(row["market"]):
+            return player_observations(
+                fixture_samples, row["market"], row.get("subject") or ""
+            )
+
+        mv = (fixture_samples.get("metrics") or {}).get(row["market"])
         if not mv:
             return []
         subject = row.get("subject") or ""

@@ -1,7 +1,11 @@
 from typing import Any
 
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
-from bet.sofa.market_mapper import classify_derived_market, classify_market
+from bet.sofa.market_mapper import (
+    classify_derived_market,
+    classify_market,
+    classify_player_market,
+)
 from bet.sofa.superbet import odds_items
 from bet.sofa.timeutil import now
 
@@ -116,10 +120,22 @@ class OfferFetcher:
                             selection_name,
                             str(raw_line) if raw_line not in (None, "") else None,
                         )
-                        if not derived:
-                            unmapped.add(market_name)
-                            continue
-                        market, subject, line, direction = derived
+                        if derived:
+                            market, subject, line, direction = derived
+                        else:
+                            # F54. Player markets are the same shape as the
+                            # derived ones — one market name, the subject and
+                            # the line both on the selection — and are tried
+                            # last so nothing above changes behaviour.
+                            player = classify_player_market(
+                                market_name,
+                                selection_name,
+                                str(raw_line) if raw_line not in (None, "") else None,
+                            )
+                            if not player:
+                                unmapped.add(market_name)
+                                continue
+                            market, subject, line, direction = player
 
                     price = item.get("price")
                     if price is None:

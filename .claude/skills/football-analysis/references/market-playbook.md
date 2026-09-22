@@ -138,11 +138,41 @@ read an absent xG as zero.
 - **No `*_against` metric exists.** Use the opponent's `*_for` and label it a
   proxy.
 
-## Player props
+## Player props — `player_shots_for`, `player_shots_on_target_for`, `player_assists_for`
 
-**`sofa` prices no football player props.** There are no `player_*` metrics in
-`FOOTBALL_METRICS`. If Superbet's screen shows them, they are in
-`unmapped_markets` and we have not looked at them. Say that; do not grade one.
+New 2026-09-22 (F54). Three metrics, read per player out of
+`/event/{id}/lineups`, living on their own axis in `03_samples.json`
+(`players`, keyed `"<metric>|<player as Superbet writes him>"`) rather than in
+`metrics`. Everything else Superbet prices on a footballer — "strzeli gola",
+"otrzyma kartkę", and the eight body-part and location variants of shots —
+stays in `unmapped_markets`, because Sofascore reports none of those splits
+and a yes/no proposition is not a rung on a ladder. Do not grade one of those.
+
+**A player prop cannot reach the coupon, and you should not argue for one.**
+Superbet quotes these on ONE side only — 437 "powyżej" and 0 "poniżej" on the
+whole 2026-09-22 board — so `market_p` is `None`, `NO_PRICE_ANCHOR` fires and
+the row stops at `LEAN`. That is the row being selected by our model with no
+price checking it, which is the population the settled record calls the worst
+one on the sheet. Read these as forecasts.
+
+What to check when one is on the sheet:
+
+- **`PLAYER_MINUTES`.** Every player row carries it: median minutes, how many
+  appearances of 60'+, and how many of the side's sampled matches he played
+  at all. A sample made of substitute cameos and a sample made of starts are
+  not the same quantity, and the row's mean does not distinguish them. "6 of
+  10 sampled matches, median 22'" is a veto-worthy sample for a line priced
+  as though he starts.
+- **Is he starting at all?** The sample is his past *appearances*; the bet is
+  about this one. A rotation risk, a suspension or an injury doubt is
+  exactly the `CONTEXT` veto this family needs most, and nothing in the code
+  can see it.
+- **The sample is his club's last ten matches, not his own.** A player who
+  transferred in during the window has a short sample with no note saying
+  why; compare `sample_size` against `squad_matches`.
+- **Do not pair one with his team's line.** A player's shots and the team's
+  shots are one quantity counted twice; `confidence.py` enforces this
+  (`quantity_family`) but say so if you see it proposed.
 
 ## Bet Builders
 

@@ -161,9 +161,20 @@ about them instead is what they carry:
 - the measured correlation between the two teams' corners is **r = −0.279**,
   which is the opposite sign from what "both over" intuition assumes.
 
-`sofa` also prices **no football player props at all** — there are no
-`player_*` metrics in `FOOTBALL_METRICS`. Anything the screen shows there is in
-the blind spot, unread.
+Football **player** markets changed on 2026-09-22 (F54) and the change is
+mostly about what they still cannot do. Three are now read —
+`player_shots_for`, `player_shots_on_target_for`, `player_assists_for`, keyed
+off `/event/{id}/lineups` — and they answer "can it be bet" with yes. They
+answer "is it worth the price" with **not decidably**: Superbet quotes them on
+one side only (437 "powyżej" and **0** "poniżej" across the whole 2026-09-22
+board), so there is nothing to devig, `market_p` is `None`, and every one of
+them stops at `LEAN` under `NO_PRICE_ANCHOR`. Report them on axis 1 and say
+plainly on axis 2 that no surplus computed for them is checked by a price.
+
+Everything else on the player screen — "strzeli gola", "otrzyma kartkę", the
+eight body-part and location splits of shots, and `liczba spalonych` — is
+still in the blind spot, and for a stated reason each: no line, or no
+Sofascore statistic, or no identity that proves an omitted key is a zero.
 
 ---
 

@@ -87,11 +87,24 @@ def is_derived(market: str) -> bool:
 # So a builder takes at most one leg per QUANTITY family, not per market.
 QUANTITY_FAMILIES: dict[str, str] = {}
 for _family, _prefixes in {
-    "goals": ("goals_",),
     "corners": ("corners_",),
     "fouls": ("fouls_",),
     "cards": ("cards_points_", "most_cards_points"),
-    "shots": ("shots_", "shots_on_target_"),
+    # F54. A player's shots are part of his team's shots are part of the
+    # match's. Without these prefixes a player row would be its own family
+    # (the fallback in `quantity_family`) and a builder could multiply
+    # "Romarinho over 1.5 shots" by "Criciuma over 11.5 shots" as though they
+    # were two independent facts. They are one fact counted twice, which is
+    # the exact error this table exists to prevent.
+    "shots": (
+        "shots_",
+        "shots_on_target_",
+        "player_shots_",
+        "player_shots_on_target_",
+    ),
+    # An assist is a goal seen from one pass earlier: it cannot happen without
+    # the goal, so it is not independent of the scoring family.
+    "goals": ("goals_", "player_assists_"),
     "offsides": ("offsides_",),
     "games": ("games_", "handicap_games", "sets_"),
     "aces": ("aces_",),

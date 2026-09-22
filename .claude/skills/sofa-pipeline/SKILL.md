@@ -114,7 +114,8 @@ Derivation rules, the confidence chain and what cannot be re-derived:
 runs/sofa/<date>/
   01_board.json        BoardFixture[]    superbet_event_id, sport, side_a/b, kickoff_utc
   02_fixtures.json     Fixture[]         sofascore_event_id, identity, BOTH clocks, referee, round
-  03_samples.json      FixtureSamples[]  per metric: side_a / side_b / h2h observations, gaps
+  03_samples.json      FixtureSamples[]  per metric: side_a / side_b / h2h observations, gaps;
+                                         players: per-footballer samples (F54)
   04_offer.json        FixtureOffer[]    priced rungs + fetched_at_utc, unmapped_markets
   05_sheet.json        SheetRow[]        every rung priced, with verdict and notes
   06_coupon.json/.md   Coupon            VALUE singles — NOT the coupon

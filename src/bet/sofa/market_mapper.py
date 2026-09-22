@@ -157,6 +157,27 @@ TEAM_MARKET_PATTERNS = [
     (re.compile(r"^(?P<team>.+?) liczba asow$"), "aces_for"),
     (re.compile(r"^(?P<team>.+?) liczba podwojnych bledow$"), "double_faults_for"),
     (re.compile(r"^(?P<team>.+?) - liczba podwojnych bledow$"), "double_faults_for"),
+    # F54. Set-scoped per-player games, and they must sit ABOVE the no-dash
+    # whole-match pattern below for exactly the reason the serve markets do:
+    # the unscoped pattern reads "1. set - Kenta Kawada" as the player, which
+    # `_SUBJECT_IS_SCOPE` then refuses, and 827 priced markets on 166 of
+    # 2026-09-22's tennis fixtures went to unmapped_markets that way.
+    #
+    # The whole-match total "1. set - liczba gemow" cannot match these: the
+    # `.+?` needs at least one character before " liczba gemow" and that
+    # string has none.
+    (
+        re.compile(r"^1\.\s?set - (?P<team>.+?) liczba gemow$"),
+        "games_won_set1_for",
+    ),
+    (
+        re.compile(r"^2\.\s?set - (?P<team>.+?) liczba gemow$"),
+        "games_won_set2_for",
+    ),
+    (
+        re.compile(r"^3\.\s?set - (?P<team>.+?) liczba gemow$"),
+        "games_won_set3_for",
+    ),
     # No dash. Superbet sends "Adrian Andreev liczba gemow", not
     # "Adrian Andreev - liczba gemow", so the dashed pattern matched nothing
     # and games_won_for — a declared metric with a working extractor — was
@@ -164,6 +185,110 @@ TEAM_MARKET_PATTERNS = [
     # to unmapped_markets over one character (F38).
     (re.compile(r"^(?P<team>.+?) liczba gemow$"), "games_won_for"),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Player markets — the ones whose subject is one footballer
+# ---------------------------------------------------------------------------
+#
+# F54. These cannot go through `classify_market`: the market name does not
+# carry the subject and the selection does. Superbet sends
+#
+#     marketName       "Zawodnik - liczba celnych strzalow"
+#     name             "Castan, Luciano - powyzej 0.5"
+#     specialBetValue  "sr:player:1011725-Castan, Luciano-0.5"
+#
+# so one market name covers the whole squad and every rung of every ladder on
+# it, which is the same shape the derived family has and the reason this is a
+# third classifier rather than another pattern in the table above.
+#
+# The mapping is by EXACT folded name, never a prefix. Superbet prices eight
+# body-part and location variants of the same quantity — "liczba strzalow lewa
+# noga", "liczba celnych strzalow spoza pola karnego" — and Sofascore's
+# `/lineups` reports none of them. A prefix rule would quietly price a
+# left-footed shot line off a total-shots sample.
+PLAYER_MARKET_NAMES = {
+    "zawodnik - liczba strzalow": "player_shots_for",
+    "zawodnik - liczba celnych strzalow": "player_shots_on_target_for",
+    "zawodnik - liczba asyst": "player_assists_for",
+}
+
+# "sr:player:1011725-Castan, Luciano-0.5". The id is Sportradar's, not
+# Sofascore's, and there is no table between them — the player is identified
+# by name downstream (players.match_player). The line is read from the END so
+# a hyphenated surname cannot be mistaken for the separator.
+_PLAYER_SBV = re.compile(
+    r"^sr:player:(?P<pid>\d+)-(?P<name>.+)-(?P<line>-?\d+(?:\.\d+)?)$"
+)
+
+# The fallback, for a selection whose specialBetValue is not in that shape:
+# "Castan, Luciano - powyzej 0.5". Matched against the RAW selection, not the
+# folded one, so the player's name keeps its accents and its capitals — the
+# subject travels all the way to the coupon the operator reads.
+_PLAYER_SELECTION = re.compile(
+    r"^(?P<name>.+?)\s*-\s*(?:powy[żz]ej|poni[żz]ej)\s+(?P<line>-?\d+(?:\.\d+)?)$",
+    re.IGNORECASE,
+)
+
+
+def classify_player_market(
+    market_name: str | None,
+    selection_name: str | None,
+    special_bet_value: str | None,
+) -> tuple[str, str, float, str] | None:
+    """Map one Superbet selection to (market, player, line, direction).
+
+    Returns None for anything this module does not price, which keeps it in
+    `unmapped_markets` where it stays visible.
+
+    The direction is read from the selection text and is **not** defaulted to
+    OVER, even though every one of the 437 player selections enumerated on
+    2026-09-22 said "powyzej" and none said "ponizej". A family that is
+    one-sided today is not one-sided by definition, and a defaulted direction
+    would price the first UNDER Superbet posts as its own complement.
+    """
+    folded = fold(market_name)
+    market = PLAYER_MARKET_NAMES.get(folded)
+    if market is None:
+        return None
+
+    selection = fold(selection_name)
+    direction: str | None = None
+    if "ponizej" in selection:
+        direction = "UNDER"
+    elif "powyzej" in selection:
+        direction = "OVER"
+    if direction is None:
+        return None
+
+    player: str | None = None
+    line: float | None = None
+
+    sbv = _PLAYER_SBV.match(str(special_bet_value or "").strip())
+    if sbv:
+        player = sbv.group("name").strip()
+        try:
+            line = float(sbv.group("line"))
+        except ValueError:
+            line = None
+
+    if player is None or line is None:
+        fallback = _PLAYER_SELECTION.match(str(selection_name or "").strip())
+        if not fallback:
+            return None
+        player = fallback.group("name").strip()
+        try:
+            line = float(fallback.group("line"))
+        except ValueError:
+            return None
+
+    if not player or _SUBJECT_IS_COMBINATION.search(fold(player)):
+        return None
+    return (market, player, line, direction)
+
+
+def is_player_market(market: str) -> bool:
+    return market in set(PLAYER_MARKET_NAMES.values())
 
 
 def get_mechanism_family(market: str) -> str:
@@ -189,9 +314,9 @@ def get_mechanism_family(market: str) -> str:
     # Falling through to "other" would put both on a coupon as independent
     # evidence — the failure the derived branch above exists to prevent.
     scope_stripped = market
-    for scope in ("_1h_", "_2h_", "_set1_", "_set2_"):
+    for scope in ("_1h_", "_2h_", "_set1_", "_set2_", "_set3_"):
         scope_stripped = scope_stripped.replace(scope, "_")
-    for suffix in ("_1h", "_2h", "_set1", "_set2"):
+    for suffix in ("_1h", "_2h", "_set1", "_set2", "_set3"):
         if scope_stripped.endswith(suffix):
             scope_stripped = scope_stripped[: -len(suffix)]
     if scope_stripped != market:
@@ -208,7 +333,14 @@ def get_mechanism_family(market: str) -> str:
         "xg_for",
     ):
         return "scoring"
+    # F54. A player's shots and his team's shots are the same mechanism seen
+    # at two resolutions, and a coupon must not take both off one fixture as
+    # though they were independent evidence — which is exactly what
+    # MAX_PER_MECHANISM_FAMILY_PER_FIXTURE exists to stop.
     if market in (
+        "player_shots_for",
+        "player_shots_on_target_for",
+        "player_assists_for",
         "shots_total",
         "shots_for",
         "shots_on_target_total",

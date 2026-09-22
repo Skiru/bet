@@ -208,6 +208,44 @@ TENNIS_METRICS = {
         "is_total": False,
         "period": "2ND",
     },
+    # F54 — a player's games in one set. THE per-player tennis market, and the
+    # largest single family this pipeline was not reading: 827 priced markets
+    # across 166 of 2026-09-22's tennis fixtures, every one of them dropped.
+    #
+    # They were not dropped for want of a mapping. `classify_market` matched
+    # "1. set - Kenta Kawada liczba gemow" on the no-dash games pattern (F38),
+    # read the subject as "1. set - Kenta Kawada", and `_SUBJECT_IS_SCOPE`
+    # then refused it — correctly, because at that point the only metric on
+    # offer was the whole-match `games_won_for` and pricing a set line off a
+    # whole-match sample is F29's defect. The guard was right and the metric
+    # was missing; this is the metric.
+    #
+    # The source is NOT /statistics. `gamesWon` is absent there on 35% of
+    # cached tennis events (F46) and is never keyed by set — checked over the
+    # cache, tennis periods carry `aces` and `doubleFaults` and nothing else.
+    # The set score in the listing *is* the quantity: `homeScore.periodN` is
+    # how many games that player won in set N, and `check_identities` has
+    # always asserted sum(period1..5) == gamesWon, so the per-set figure is a
+    # term of an invariant this pipeline already enforces.
+    #
+    # A set that was not played has no `periodN` key, so it produces no
+    # observation rather than a zero (L1/L2) — which is also what Superbet
+    # does with the bet: an unplayed third set voids, it does not settle at 0.
+    "games_won_set1_for": {
+        "sofascore": "games_from_listing",
+        "is_total": False,
+        "set_index": 1,
+    },
+    "games_won_set2_for": {
+        "sofascore": "games_from_listing",
+        "is_total": False,
+        "set_index": 2,
+    },
+    "games_won_set3_for": {
+        "sofascore": "games_from_listing",
+        "is_total": False,
+        "set_index": 3,
+    },
 }
 
 
@@ -571,6 +609,20 @@ def extract_metric(
                 return GapReason.STAT_KEY_ABSENT
             h = float(sum(home_score[k] for k in played))
             a = float(sum(away_score[k] for k in played))
+        return float(h + a) if is_total else float(h if is_home else a)
+
+    if sofascore_key == "games_from_listing":
+        # See games_won_set{1,2,3}_for. The set score is the games, and a set
+        # with no score in the listing was not played — that is missing data,
+        # not a nil set.
+        set_index = config.get("set_index")
+        if not isinstance(set_index, int):
+            return GapReason.STAT_KEY_ABSENT
+        key = f"period{set_index}"
+        h = listing_event.get("homeScore", {}).get(key)
+        a = listing_event.get("awayScore", {}).get(key)
+        if h is None or a is None:
+            return GapReason.STAT_KEY_ABSENT
         return float(h + a) if is_total else float(h if is_home else a)
 
     if sofascore_key == "sets_from_listing":

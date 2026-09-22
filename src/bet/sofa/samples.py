@@ -22,6 +22,7 @@ from bet.sofa.contracts import (
     GapReason,
     MetricSample,
     Observation,
+    PlayerSample,
     Readiness,
 )
 from bet.sofa.errors import CircuitOpenError, ProviderError
@@ -36,6 +37,13 @@ from bet.sofa.metrics import (
     extract_flat_statistics,
     extract_metric,
     infer_best_of,
+)
+from bet.sofa.players import (
+    extract_player_metric,
+    is_player_metric,
+    match_player,
+    player_sample_key,
+    squad_statistics,
 )
 from bet.sofa.settle import is_completed_event
 from bet.sofa.superbet import SuperbetClient, odds_items
@@ -142,6 +150,13 @@ def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
         return set()
     wanted: set[str] = set()
     for rung in offer.rungs:
+        # F54. A player metric is not read from /statistics and has no
+        # reading in `extract_metric`; asking for it there would return
+        # STAT_KEY_ABSENT once per historical event per player and bury the
+        # real gaps under thousands of invented ones.
+        # `players_from_offer` collects these instead.
+        if is_player_metric(rung.market):
+            continue
         # A derived market is named for the question it asks
         # ("handicap_games"), not for the sample it needs
         # ("games_won_for"). Passing the market name through means SAMPLES
@@ -153,6 +168,26 @@ def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
             wanted.add(derived_side_metric(base))
             continue
         wanted.add(rung.market)
+    return wanted
+
+
+def players_from_offer(offer: FixtureOffer | None) -> dict[str, set[str]]:
+    """``{metric: {player as Superbet writes him}}`` for the player rungs.
+
+    The companion to `metrics_from_offer`, and separate from it for the same
+    reason the family needed its own classifier: the subject is a person, not
+    a side, and a fixture carries as many of them as Superbet chose to quote.
+
+    Only what is priced (A5). A squad list is one request per historical
+    event; paying it for players nobody offers a line on would be the whole
+    squad's worth of calls for nothing.
+    """
+    wanted: dict[str, set[str]] = {}
+    if offer is None:
+        return wanted
+    for rung in offer.rungs:
+        if is_player_metric(rung.market) and rung.subject:
+            wanted.setdefault(rung.market, set()).add(rung.subject)
     return wanted
 
 
@@ -318,6 +353,27 @@ def get_historical_events(
     return events[: config.sample_n]
 
 
+def fetch_lineups(
+    client: SofascoreClient, cache: SofaCache, event: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Per-player statistics for one historical event, cached forever (F54).
+
+    ``{}`` — asked, nothing there — is cached like any other answer, so a
+    tournament that publishes no squads costs one request per event once and
+    never again.
+    """
+    event_id = int(event["id"])
+    cached = cache.get_event_lineups(event_id)
+    if cached is not None:
+        return cached or None
+    fetched = client.event_lineups(event_id)
+    payload = fetched if isinstance(fetched, dict) else None
+    status_type = event.get("status", {}).get("type", "finished")
+    if status_type in ("finished", "canceled", "abandoned"):
+        cache.save_event_lineups(event_id, payload, status_type)
+    return payload
+
+
 def process_historical_event(
     client: SofascoreClient,
     cache: SofaCache,
@@ -326,6 +382,7 @@ def process_historical_event(
     sport: str,
     metrics_to_collect: set[str],
     fixture: Fixture,
+    want_lineups: bool = False,
 ) -> dict[str, Any]:
     event_id = event["id"]
 
@@ -402,12 +459,133 @@ def process_historical_event(
     away_id = away_team.get("id")
     is_h2h = {home_id, away_id} == {fixture.home_entity_id, fixture.away_entity_id}
 
+    # F54. One squad list per event serves every player Superbet quotes on
+    # this side. Only fetched when a player market asked for it, so a day
+    # with no player rungs pays nothing.
+    squad: dict[str, dict[str, Any]] | None = None
+    if want_lineups:
+        squad = squad_statistics(fetch_lineups(client, cache, event), is_home=is_home)
+
     return {
         "event_id": event_id,
         "collected": collected,
         "is_h2h": is_h2h,
         "halves_divergences": halves_divergences,
+        "squad": squad,
+        "match_date_utc": match_dt,
+        "opponent": opponent_name,
+        "competition_id": comp_id,
+        "season_id": season_id,
+        "venue": venue,
     }
+
+
+def build_player_samples(
+    wanted: dict[str, set[str]],
+    side_results: dict[str, list[dict[str, Any]]],
+    gaps: list[GapEntry],
+) -> dict[str, PlayerSample]:
+    """One sample per (player metric, player Superbet quoted) — F54.
+
+    `side_results` is ``{"side_a": [...], "side_b": [...]}`` of
+    `process_historical_event` results, each carrying that side's squad for
+    that match.
+
+    The player is matched **per match**, against that match's squad, not once
+    against a current roster. Squads change between a sample's oldest match
+    and its newest, and a name matched once and then assumed would follow a
+    departed player's number onto his replacement.
+
+    Which side he belongs to is decided by where he was found more often, and
+    a tie is refused rather than broken: a name that matches in both squads is
+    two different people or one we cannot place, and pricing a shots line
+    against the wrong squad is the F31 defect with a smaller subject.
+    """
+    samples: dict[str, PlayerSample] = {}
+    for metric, players in sorted(wanted.items()):
+        for player in sorted(players):
+            per_side: dict[str, list[Observation]] = {"side_a": [], "side_b": []}
+            per_side_matched: dict[str, str] = {}
+            squad_matches = 0
+
+            for side, results in side_results.items():
+                for res in results:
+                    squad = res.get("squad")
+                    if not squad:
+                        continue
+                    if side == "side_a":
+                        squad_matches += 1
+                    matched = match_player(player, squad)
+                    if matched is None:
+                        continue
+                    per_side_matched.setdefault(side, matched)
+                    value = extract_player_metric(metric, squad[matched])
+                    if isinstance(value, GapReason):
+                        # EVENT_NOT_FINISHED here means "named in the squad,
+                        # never came on" — the normal case, and not worth a
+                        # gap entry per player per match. Everything else is.
+                        if value is not GapReason.EVENT_NOT_FINISHED:
+                            gaps.append(
+                                GapEntry(
+                                    reason=value,
+                                    metric=metric,
+                                    detail=(
+                                        f"player {player!r} event "
+                                        f"{res['event_id']} gap"
+                                    ),
+                                )
+                            )
+                        continue
+                    per_side[side].append(
+                        Observation(
+                            sofascore_event_id=res["event_id"],
+                            match_date_utc=res["match_date_utc"],
+                            opponent=res["opponent"],
+                            value=value,
+                            minutes=squad[matched].get("minutesPlayed"),
+                            competition_id=res["competition_id"],
+                            season_id=res["season_id"],
+                            venue=res["venue"],
+                        )
+                    )
+
+            n_a, n_b = len(per_side["side_a"]), len(per_side["side_b"])
+            if n_a == 0 and n_b == 0:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.NO_ENTITY_FOUND,
+                        metric=metric,
+                        detail=f"player {player!r} matched no squad member",
+                    )
+                )
+                continue
+            if n_a == n_b:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.AMBIGUOUS_ENTITY,
+                        metric=metric,
+                        detail=(
+                            f"player {player!r} matched both squads equally "
+                            f"({n_a} each); refusing to guess the side"
+                        ),
+                    )
+                )
+                continue
+            side = "side_a" if n_a > n_b else "side_b"
+            observations = sorted(
+                per_side[side], key=lambda o: o.match_date_utc, reverse=True
+            )
+            samples[player_sample_key(metric, player)] = PlayerSample(
+                metric=metric,
+                player=player,
+                matched_name=per_side_matched[side],
+                side=side,  # type: ignore[arg-type]
+                squad_matches=squad_matches
+                if side == "side_a"
+                else sum(1 for r in side_results["side_b"] if r.get("squad")),
+                observations=observations,
+            )
+    return samples
 
 
 def compute_readiness(
@@ -495,12 +673,20 @@ def _process_fixture_samples(
     # So an empty entry falls through to the live call exactly like a missing
     # one; only a live call may conclude NO_PRICE.
     metrics_to_collect: set[str] = set()
+    wanted_players: dict[str, set[str]] = {}
     if offer is not None:
         metrics_to_collect = metrics_from_offer(offer)
-    if not metrics_to_collect:
+        wanted_players = players_from_offer(offer)
+    if not metrics_to_collect and not wanted_players:
         metrics_to_collect = fetch_available_metrics(fixture, superbet_client)
 
-    if not metrics_to_collect:
+    # F54. A squad list is only ever fetched for football, and only when the
+    # offer already carries a player rung for this fixture. On 2026-09-22 that
+    # was 4 of 182 football fixtures, so the whole family costs ~80 extra
+    # requests a day rather than the ~3,600 an unconditional fetch would.
+    want_lineups = fixture.sport == "football" and bool(wanted_players)
+
+    if not metrics_to_collect and not wanted_players:
         return FixtureSamples(
             sofascore_event_id=fixture.sofascore_event_id,
             readiness="BLOCKED",
@@ -543,6 +729,7 @@ def _process_fixture_samples(
             fixture.sport,
             metrics_to_collect,
             fixture,
+            want_lineups,
         )
         for e in side_a_events
     ]
@@ -555,6 +742,7 @@ def _process_fixture_samples(
             fixture.sport,
             metrics_to_collect,
             fixture,
+            want_lineups,
         )
         for e in side_b_events
     ]
@@ -602,6 +790,28 @@ def _process_fixture_samples(
             metric=metric, side_a=obs_a, side_b=obs_b, h2h=obs_h2h
         )
 
+    player_samples: dict[str, PlayerSample] = {}
+    if want_lineups:
+        player_samples = build_player_samples(
+            wanted_players,
+            {"side_a": side_a_results, "side_b": side_b_results},
+            gaps,
+        )
+        for key, sample in sorted(player_samples.items()):
+            if len(sample.observations) < config.min_sample:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.THIN_SAMPLE,
+                        metric=sample.metric,
+                        detail=(
+                            f"player {sample.player!r} appeared in "
+                            f"{len(sample.observations)} of "
+                            f"{sample.squad_matches} sampled matches, below "
+                            f"min_sample={config.min_sample} ({key})"
+                        ),
+                    )
+                )
+
     readiness, per_metric = compute_readiness(metric_samples, config.min_sample)
     for name, state in sorted(per_metric.items()):
         if state == "BLOCKED":
@@ -625,9 +835,22 @@ def _process_fixture_samples(
                 )
             )
 
+    # A fixture whose only priced family is a player market has no team
+    # metric and would otherwise report BLOCKED with a full sample behind it.
+    if not metric_samples and player_samples:
+        readiness = (
+            "READY"
+            if any(
+                len(sample.observations) >= config.min_sample
+                for sample in player_samples.values()
+            )
+            else "PARTIAL"
+        )
+
     return FixtureSamples(
         sofascore_event_id=fixture.sofascore_event_id,
         readiness=readiness,
         metrics=metric_samples,
         gaps=gaps,
+        players=player_samples,
     )
