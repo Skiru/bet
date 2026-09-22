@@ -29,8 +29,11 @@ import json
 import math
 import sys
 from collections import Counter
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, NamedTuple
 
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
@@ -48,7 +51,7 @@ from bet.sofa.settle import (
     is_completed_event,
 )
 from bet.sofa.settle import settle as settle_value
-from bet.sofa.stage import set_stage
+from bet.sofa.stage import current_stage, set_stage
 from bet.sofa.timeutil import now
 
 # /statistics is only fetched for a terminal event, so the cache entry is
@@ -241,6 +244,97 @@ def _handicap_side(subject: str, row: dict, event: dict) -> str | None:
     return "home" if score_home > score_away else "away"
 
 
+# (listing event, statistics, incidents) - what `_event_payload` returns when
+# it could read the event at all.
+EventPayload = tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None]
+
+
+class EventFetch(NamedTuple):
+    """One event's fetch outcome, separated from grading it.
+
+    Grading is pure arithmetic over a payload; fetching is three bridge
+    requests. Keeping them in one loop is what made SETTLE serial, so the two
+    phases are now distinct types rather than two halves of one body.
+
+    Exactly one of ``payload`` and ``reason`` is set. ``circuit_open`` is not
+    a reason of its own: it means the breaker tripped, which ends the stage,
+    where a plain ``PROVIDER_ERROR`` skips one event and carries on.
+    """
+
+    event_id: int
+    payload: EventPayload | None = None
+    reason: str | None = None
+    circuit_open: bool = False
+    error: str | None = None
+
+
+def _fetch_one(
+    event_id: int, client: SofascoreClient, cache: SofaCache, stage: str
+) -> EventFetch:
+    # `stage` is a ContextVar and a fresh thread starts from the default, so
+    # without this every request a worker makes would be billed to stage
+    # "CLIENT" and the per-stage cost accounting would stop working silently.
+    set_stage(stage)
+    try:
+        payload = _event_payload(client, cache, event_id)
+    except CircuitOpenError:
+        return EventFetch(event_id, reason="PROVIDER_ERROR", circuit_open=True)
+    except ProviderError as exc:
+        return EventFetch(event_id, reason="PROVIDER_ERROR", error=str(exc))
+    if isinstance(payload, str):
+        return EventFetch(event_id, reason=payload)
+    return EventFetch(event_id, payload=payload)
+
+
+def fetch_events_concurrently(
+    event_ids: list[int],
+    client: SofascoreClient,
+    cache: SofaCache,
+    config: SofaConfig,
+) -> Iterator[EventFetch]:
+    """One EventFetch per event, in the input's order, yielded as it lands.
+
+    Why a pool: the browser bridge serves K tabs at once - the queue in
+    `bridge_server.claim()` is not bound to a tab - and each tab paces itself
+    at MIN_INTERVAL_MS. A serial caller therefore has at most one job in
+    flight, so every tab goes idle between jobs and roughly half the requests
+    pay a full 20 s /pull poll cycle to be claimed again. Measured on
+    2026-09-22: SETTLE ran at 0.094 req/s with p50 latency 20,020 ms - the
+    poll window, not the network - against a bridge measured at 8.64 req/s,
+    and the bridge reported in_flight 1, pending 0 for all 272 requests with
+    zero non-200s. Nothing was being refused; the work never queued deep
+    enough to keep one tab busy.
+
+    Order is part of the contract, not a nicety: 07_settled.json is read by a
+    human and diffed between runs, so the artifact must not depend on which
+    worker finished first. `ThreadPoolExecutor.map` yields in submission
+    order, which gives us that for free.
+
+    All events are submitted, including the ones after a breaker trip. That
+    costs nothing: once the breaker is open `SofascoreClient` raises
+    CircuitOpenError without a request, and the caller still stops at the
+    first `circuit_open` it reaches in order, exactly as the serial loop did.
+
+    A generator, not a list, and that is the F15 guarantee rather than a
+    style choice: the caller grades each event as it lands and inserts what
+    it has in a `finally`. Materialising the whole fetch first would mean an
+    unexpected exception anywhere in it threw away every row already graded
+    and left the day looking unsettled rather than partly settled - which is
+    the exact defect F15 was raised for. `Executor.map` cancels the
+    not-yet-started futures when this generator is closed, so a crash still
+    only waits out the handful of requests already in flight.
+    """
+    workers = max(1, config.max_concurrency)
+    stage = current_stage()
+    if workers == 1 or len(event_ids) < 2:
+        for event_id in event_ids:
+            yield _fetch_one(event_id, client, cache, stage)
+        return
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        yield from pool.map(lambda e: _fetch_one(e, client, cache, stage), event_ids)
+
+
 def rows_to_consider(sheet: list[dict], *, include_unpriced: bool) -> list[dict]:
     """Which sheet rows this run will try to grade.
 
@@ -311,27 +405,35 @@ def main() -> int:
     # settlement is worth exactly as much as it says it is; none is worth
     # nothing, and costs the fetches again.
     inserted = 0
+    # An event with no fixture is never fetched: the skip is decided from
+    # local state, and asking the bridge for it would spend a request to
+    # learn nothing.
+    to_fetch: list[int] = []
+    for event_id, event_rows in sorted(by_event.items()):
+        if event_id in fixtures:
+            to_fetch.append(event_id)
+        else:
+            skipped["NO_FIXTURE"] += len(event_rows)
+
     try:
-        for event_id, event_rows in sorted(by_event.items()):
-            fixture = fixtures.get(event_id)
-            if not fixture:
-                skipped["NO_FIXTURE"] += len(event_rows)
-                continue
-            try:
-                payload = _event_payload(client, cache, event_id)
-            except CircuitOpenError:
+        for fetched in fetch_events_concurrently(to_fetch, client, cache, config):
+            event_id = fetched.event_id
+            event_rows = by_event[event_id]
+            fixture = fixtures[event_id]
+            if fetched.circuit_open:
                 skipped["PROVIDER_ERROR"] += len(event_rows)
                 breaker_open = True
                 break
-            except ProviderError as exc:
-                print(f"PROVIDER_ERROR event={event_id}: {exc}", file=sys.stderr)
-                skipped["PROVIDER_ERROR"] += len(event_rows)
+            if fetched.reason is not None:
+                if fetched.error:
+                    print(
+                        f"PROVIDER_ERROR event={event_id}: {fetched.error}",
+                        file=sys.stderr,
+                    )
+                skipped[fetched.reason] += len(event_rows)
                 continue
-            if isinstance(payload, str):
-                skipped[payload] += len(event_rows)
-                continue
-
-            event, statistics, incidents = payload
+            assert fetched.payload is not None
+            event, statistics, incidents = fetched.payload
             flat = extract_flat_statistics(statistics) if statistics else {}
             if isinstance(flat, GapReason):
                 flat = {}
