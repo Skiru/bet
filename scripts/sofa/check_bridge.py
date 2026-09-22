@@ -37,16 +37,19 @@ PROBE_URL = "https://api.sofascore.com/api/v1/sport/football/events/live"
 #
 # The threshold sits well above the fast mode's p99 and well below the slow
 # mode's p10 (1,889 ms), so it cannot fire on ordinary variance.
-# A cheap burst that raises a SUSPICION; measure_bridge_capacity.py settles it.
+# This is CONNECTIVITY, not capacity, and the distinction is load-bearing.
 #
-# The bridge is state-dependent in a way a short probe cannot see through. The
-# tabs stay awake under continuous load - the ramp held 3.9 req/s over 360
-# requests - and Chrome throttles them in the gaps, so three back-to-back
-# 12-job bursts on 2026-09-22 gave 4.26, 0.28 and 0.52 req/s with every
-# request returning 200. This check therefore reports what it saw and names
-# the sustained measurement, rather than pronouncing the bridge broken.
-EXPECTED_PLATEAU_RPS = 3.9
-HEALTHY_BURST_RPS = 1.5
+# A short burst from idle cannot reach the regime a run works in. Measured
+# 2026-09-22 with three visible windows: the bridge sustains 8.6 req/s once
+# the tabs are saturated, but a tab that finishes a job and finds nothing
+# waiting goes back into a 20 s /pull and pays that cycle to be claimed again.
+# So four probes from idle read 0.10-0.20 req/s on exactly the bridge that
+# then did 8.64 req/s over 360 requests with zero non-200.
+#
+# This check therefore REPORTS the number and refuses to grade it. Earlier
+# versions graded it and cried wolf on a healthy bridge, which is worse than
+# saying nothing - CLAUDE.md runs this first.
+EXPECTED_PLATEAU_RPS = 8.6
 BURST_SAMPLES = 4
 
 # The FIRST request after a quiet period is not a latency measurement, it is a
@@ -164,30 +167,17 @@ def main() -> int:
         return 0
 
     rate = served / elapsed
-    if rate < HEALTHY_BURST_RPS:
-        print(f"WARN  bridge served {rate:.2f} req/s in a {BURST_SAMPLES}-request "
-              f"burst (plateau under sustained load is ~{EXPECTED_PLATEAU_RPS:.1f})")
-        print("      SUSPICION, not a verdict: the tabs wake up under continuous")
-        print("      load and Chrome throttles them in the gaps, so a short burst")
-        print("      from idle is a noisy predictor - measured 2026-09-22, three")
-        print("      back-to-back 12-job bursts gave 4.26, 0.28 and 0.52 req/s")
-        print("      with every request returning 200.")
-        print("      Settle it with the sustained measurement before believing")
-        print("      either number:")
-        print("        PYTHONPATH=src:. .venv/bin/python \\")
-        print("          scripts/sofa/measure_bridge_capacity.py")
-        print("      If that also comes back low, bring every sofascore.com")
-        print("      window to the front, or relaunch Chrome with")
-        print("      --disable-background-timer-throttling")
-        print("      --disable-backgrounding-occluded-windows")
-        print("      --disable-renderer-backgrounding")
-    else:
-        print(
-            f"OK    bridge served {rate:.2f} req/s "
-            f"in a {BURST_SAMPLES}-request burst"
-        )
+    print(f"INFO  bridge served {rate:.2f} req/s in a {BURST_SAMPLES}-request "
+          f"burst from idle")
+    print(f"      Not a capacity reading: a run sustains ~{EXPECTED_PLATEAU_RPS:.1f} "
+          f"req/s once the tabs")
+    print("      are saturated, and an idle burst pays a 20 s poll cycle. For the")
+    print("      real number:  PYTHONPATH=src:. .venv/bin/python \\")
+    print("                      scripts/sofa/measure_bridge_capacity.py")
     if failures:
-        print(f"WARN  {failures} of {BURST_SAMPLES} burst probes failed")
+        print(f"WARN  {failures} of {BURST_SAMPLES} burst probes FAILED - that is a")
+        print("      real fault, unlike a low rate. Check every sofascore.com")
+        print("      window is open and visible.")
     return 0
 
 

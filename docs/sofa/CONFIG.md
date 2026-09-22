@@ -67,8 +67,8 @@ widoczną i maszynę obudzoną.
 |---|---|---|
 | `SOFA_DB_PATH` | `data/sofa.db` | |
 | `SOFA_RUNS_DIR` | `runs/sofa` | |
-| `SOFA_TARGET_RPS` | **2** | ustaw z plateau `measure_bridge_capacity.py`, **nigdy powyżej** — 3,9 req/s na 3 kartach (2026-09-22); wyżej rośnie kolejka, nie tempo |
-| `SOFA_MAX_CONCURRENCY` | 2 | pula wątków w SAMPLES. **Martwa konfiguracja do 2026-09-22** — czytana i nieużywana. Sama nic nie przyspiesza: kubełek `SOFA_TARGET_RPS` jest globalny, więc bez podniesienia tempa pula czeka na tokeny |
+| `SOFA_TARGET_RPS` | **14** | ma leżeć **powyżej** pojemności kart, nie na niej — zagłodzony kubełek daje 2,0 req/s, nasycony 8,6 (2026-09-22, 3 karty, powtórzone 2×) |
+| `SOFA_MAX_CONCURRENCY` | **3** | pula wątków w SAMPLES; **jedno zadanie na kartę**. Martwa konfiguracja do 2026-09-22. Przy celu 14: 3 wątki 8,62 req/s przy p50 357 ms, 24 wątki **1,88** req/s — nadmiar nie daje nic i pogłębia kolejkę |
 | `SOFA_BREAKER_THRESHOLD` | 3 | trzy porażki **pod rząd**; sukces zeruje licznik |
 | `SOFA_BREAKER_COOLDOWN_S` / `_MAX_` | 30 / 300 | bez nich obwód nigdy się nie zamykał |
 | `SOFA_EVENTS_TTL_MIN` | 360 | |

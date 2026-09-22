@@ -59,14 +59,17 @@ Four checks now, and the fourth is advisory. The first three must be OK;
 matters is the poll age. If the tab is dead, stop and tell the operator:
 nothing downstream of BOARD can run.
 
-The fourth measures a concurrent burst and may say WARN. That is a
-**suspicion, not a verdict**: the tabs wake under continuous load and Chrome
-throttles them in the gaps, so three back-to-back 12-job bursts on 2026-09-22
-gave 4.26, 0.28 and 0.52 req/s with every request returning 200. Settle it
-with `scripts/sofa/measure_bridge_capacity.py`. If that comes back low or
-aborts, **stop and ask the operator to bring every sofascore.com window to the
-front** — the run would crawl and hit 504s, which the breaker turns into
-gaps.
+The fourth is **INFO and must not be read as a health grade.** It bursts four
+requests from idle, and that cannot reach the regime a run works in: measured
+2026-09-22, four idle probes read 0.10 req/s on exactly the bridge that then
+sustained 8.64 req/s over 360 requests with zero non-200. A tab that finishes
+a job and finds nothing waiting goes back into a 20 s `/pull`. Only a
+`WARN ... burst probes FAILED` line is a real fault.
+
+If you need the capacity number, `scripts/sofa/measure_bridge_capacity.py`
+gives it. A genuinely low sustained figure means the windows are not visible —
+three tabs in ONE window is one working tab, since only the active tab counts
+as visible.
 
 **Set `SOFA_TARGET_RPS` from `scripts/sofa/measure_bridge_capacity.py`, never
 above the plateau it reports** — 3.9 req/s on three tabs (2026-09-22, 360

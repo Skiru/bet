@@ -8,19 +8,29 @@ it. Above the plateau the only thing that grows is the queue: measured
 2026-09-22 with three tabs, asking for 14 req/s delivered the same 3.9 req/s
 as asking for 4, and took the bridge round trip from 605 ms to 5,603 ms.
 
-Result on 2026-09-22, three tabs, 360 requests, zero non-200 and no 403:
+Result on 2026-09-22 with three *visible* sofascore.com windows, 360
+requests, zero non-200 and no 403, reproduced twice within 0.03 req/s:
 
-    target  achieved   bridge p50
-         2     2.01/s        522ms
-         4     3.78/s        605ms
-         6     3.87/s       2797ms
-         8     3.88/s       3581ms
-        10     3.94/s       4920ms
-        14     3.93/s       5603ms
+    target  achieved
+         2     2.01/s
+         4     3.97/s
+         6     2.00/s
+         8     2.17/s
+        10     2.23/s
+        14     8.64/s
 
-Three tabs served 3.9 req/s, not the 8.6 the userscript floor allows, because
-the browser throttles hidden tabs - see check_bridge.py. Sofascore refused
-nothing.
+The shape is bimodal, not a plateau. Below the tabs' own capacity the bucket
+starves them: a tab that finishes its job and finds no work goes back into a
+20 s /pull, and pays that cycle to be claimed again. Above it they stay
+saturated and deliver 3 x 2.86 = 8.6 req/s, which is exactly three tabs each
+honouring MIN_INTERVAL_MS. So read the PEAK here, and set SOFA_TARGET_RPS
+above the tabs' capacity rather than at it.
+
+Worker count, measured separately at target 14: 3 workers 8.62 req/s at p50
+357 ms, 6 workers 8.72 at 707 ms, 12 workers 8.59 at 1378 ms, 24 workers
+1.88 at 2714 ms. One worker per tab is both the fastest and the cheapest.
+
+Sofascore refused nothing in any of it.
 
 Not the 2026-09-17 shape: that was ONE curl_cffi client, 100 workers, peaking
 at 550 req/s. Here the per-connection pace stays at the userscript's 350 ms

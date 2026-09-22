@@ -27,9 +27,10 @@ def test_config_defaults() -> None:
     config = SofaConfig.from_env()
     assert config.db_path == "data/sofa.db"
     assert config.runs_dir == "runs/sofa"
-    # Fitted, not guessed: measure_bridge_capacity.py put the bridge plateau
-    # at 3.9 req/s on three tabs (2026-09-22), reached at a target of 4.
-    assert config.target_rps == 4
+    # Fitted, not guessed, and deliberately ABOVE the tabs' own capacity:
+    # starving the bucket collapses throughput to ~2 req/s, saturating it
+    # delivers 8.6 (2026-09-22, three tabs, reproduced twice).
+    assert config.target_rps == 14
     assert config.max_concurrency == 3
     assert config.breaker_threshold == 3
     assert config.breaker_cooldown_s == 30

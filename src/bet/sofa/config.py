@@ -19,25 +19,34 @@ MATCH_LOGIC_VERSION = 3
 class SofaConfig:
     db_path: str = "data/sofa.db"
     runs_dir: str = "runs/sofa"
-    # Fitted to the bridge, not guessed. scripts/sofa/measure_bridge_capacity.py
-    # ramped the rate on 2026-09-22 with three tabs open: the plateau is
-    # 3.9 req/s and it arrives at a target of 4. Asking for 14 delivered the
-    # same 3.9 and took the bridge round trip from 605 ms to 5,603 ms, so
-    # anything above this buys queue, not speed - and queue costs STALE_PRICE.
-    # 360 requests, zero non-200, no 403.
+    # Fitted to the bridge, not guessed - and the direction is the opposite of
+    # what "pace like a guest" suggests, so read this before lowering it.
     #
-    # This is NOT the 2026-09-17 shape. That burst was one curl_cffi client
-    # with 100 workers peaking at 550 req/s and no browser in the path. Here
-    # the per-connection pace is still the userscript's MIN_INTERVAL_MS = 350,
-    # which is why a single tab stays safe at this setting: the bucket simply
-    # stops being the binding constraint and the tab's own floor takes over.
+    # The real limiter is the userscript's MIN_INTERVAL_MS = 350 per TAB. That
+    # is the number that keeps each connection human-paced, and it is never
+    # relaxed. This bucket is a global gate in front of it, and starving it is
+    # actively worse than opening it: measured 2026-09-22 with three tabs,
     #
-    # Re-run measure_bridge_capacity.py when the number of tabs changes. Never
-    # set this above the plateau it reports.
-    target_rps: int = 4
-    # One in-flight job per tab. bridge_server.claim() is not bound to a tab,
-    # so three tabs can serve three jobs at once; with fewer tabs the extra
-    # jobs simply queue, bounded by this number.
+    #     target_rps  6  ->  2.00 req/s     tabs go idle between jobs and pay
+    #     target_rps  8  ->  2.17 req/s     a 20 s poll cycle to be claimed
+    #     target_rps 10  ->  2.23 req/s
+    #     target_rps 14  ->  8.64 req/s     tabs never idle, full speed
+    #
+    # reproduced twice within 0.03 req/s, 360 requests each, zero non-200. The
+    # behaviour is bimodal: either the tabs stay saturated and deliver
+    # 3 x 2.86 = 8.6 req/s, or they idle and collapse to ~2. So the bucket has
+    # to sit ABOVE the tabs' own capacity and let them be the limiter.
+    target_rps: int = 14
+    # One in-flight job per tab, and no more. At target_rps 14 with three tabs:
+    #
+    #     3 workers ->  8.62 req/s, p50  357 ms   <- 357 ms IS MIN_INTERVAL_MS
+    #     6 workers ->  8.72 req/s, p50  707 ms
+    #    12 workers ->  8.59 req/s, p50 1378 ms
+    #    24 workers ->  1.88 req/s, p50 2714 ms   <- collapses
+    #
+    # Extra workers buy no throughput and only deepen the queue, which costs
+    # STALE_PRICE. Raise this only alongside the number of open tabs, and
+    # re-run scripts/sofa/measure_bridge_capacity.py when you do.
     max_concurrency: int = 3
     breaker_threshold: int = 3
     # How long an open circuit waits before letting one probe through, and
@@ -74,7 +83,7 @@ class SofaConfig:
         return cls(
             db_path=os.environ.get("SOFA_DB_PATH", "data/sofa.db"),
             runs_dir=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"),
-            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "4")),
+            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "14")),
             max_concurrency=int(os.environ.get("SOFA_MAX_CONCURRENCY", "3")),
             breaker_threshold=int(os.environ.get("SOFA_BREAKER_THRESHOLD", "3")),
             breaker_cooldown_s=int(os.environ.get("SOFA_BREAKER_COOLDOWN_S", "30")),

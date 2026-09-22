@@ -28,17 +28,29 @@ def check_bridge():
     return module
 
 
-def test_the_burst_threshold_sits_between_the_two_observed_regimes(check_bridge):
-    """Measured 2026-09-22, three back-to-back 12-job bursts, all 200:
-    4.26 req/s when the tabs were awake, 0.28 and 0.52 when Chrome had
-    throttled them. The threshold has to separate those, or it says nothing."""
-    assert 0.52 < check_bridge.HEALTHY_BURST_RPS < 4.26
+def test_the_preflight_does_not_grade_the_burst(check_bridge):
+    """A burst from idle cannot see the regime a run works in, so grading it
+    cries wolf on a healthy bridge - and CLAUDE.md runs this check first.
+
+    Measured 2026-09-22 on three visible windows: four probes from idle read
+    0.10-0.20 req/s on exactly the bridge that then sustained 8.64 req/s over
+    360 requests with zero non-200. The rate is reported, never judged; only
+    an outright probe FAILURE is a fault.
+    """
+    import inspect
+
+    src = inspect.getsource(check_bridge.main)
+    assert not hasattr(check_bridge, "HEALTHY_BURST_RPS"), (
+        "a pass/fail threshold on the idle burst is the bug this removed"
+    )
+    assert "INFO  bridge served" in src
+    assert "burst probes FAILED" in src
 
 
 def test_the_expected_plateau_is_the_sustained_measurement(check_bridge):
-    """The number quoted to the operator must be the one the ramp measured
-    over 360 requests, not a burst reading."""
-    assert check_bridge.EXPECTED_PLATEAU_RPS == 3.9
+    """The number quoted to the operator must be the saturated one measured
+    over 360 requests, reproduced twice within 0.03 req/s - not a burst."""
+    assert check_bridge.EXPECTED_PLATEAU_RPS == 8.6
 
 
 def test_the_probe_stays_tiny(check_bridge):

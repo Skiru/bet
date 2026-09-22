@@ -78,25 +78,38 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   sequence on purpose; re-fitting breaks comparability with yesterday.
 - **Never strip `UNFITTED_CONSTANTS`** from a row or a report to make it read
   better.
-- **Set `SOFA_TARGET_RPS` from a measurement, never above it.** The old rule
-  here was "never raise", written after a burst peaking at 550 req/s coincided
-  with Sofascore closing `/api/v1/` on 2026-09-17. That burst was **one**
-  `curl_cffi` client with 100 workers and no browser. It is not the shape the
-  bridge produces, so the rule is now the measurement:
-  `scripts/sofa/measure_bridge_capacity.py` ramps the rate and reports the
-  plateau. Measured 2026-09-22 with three tabs: **3.9 req/s**, reached already
-  at a target of 4, with zero non-200 in 360 requests. Asking for 14 delivered
-  the same 3.9 and took the bridge round trip from 605 ms to 5,603 ms — above
-  the plateau you buy queue, not speed, and queue costs `STALE_PRICE`.
-- **Never lower `MIN_INTERVAL_MS`** in `userscripts/sofascore-bridge.user.js`.
-  That is the *per-connection* pace, and it is the one number that makes a tab
-  look like a person. Capacity comes from opening more tabs, not from making
-  one tab faster.
-- **The browser, not Sofascore, is the binding limit.** Three tabs served
-  3.9 req/s, not the 8.6 the 350 ms floor allows, because Chrome throttles
-  hidden tabs; a throttled tab takes ~40 s to claim one job and answers the
-  same routes in ~2,000 ms instead of ~175 ms. `check_bridge.py` warns above
-  600 ms. Keep the tabs visible before touching any rate.
+- **`MIN_INTERVAL_MS = 350` in the userscript is the safety mechanism, and it
+  is never lowered.** It paces each *connection*, which is what keeps a tab
+  looking like a person. Capacity comes from opening more tabs, never from
+  making one tab faster. The 2026-09-17 incident was one `curl_cffi` client
+  with 100 workers peaking at 550 req/s and no browser in the path; the bridge
+  cannot produce that shape.
+- **`SOFA_TARGET_RPS` is a gate in front of that, and starving it is worse
+  than opening it.** This corrects the "never raise" rule, which was written
+  before anyone measured the bridge. Measured 2026-09-22, three tabs, 360
+  requests a step, zero non-200, reproduced twice within 0.03 req/s:
+
+  | `SOFA_TARGET_RPS` | achieved |
+  |---|---|
+  | 6 | 2.00 req/s |
+  | 8 | 2.17 req/s |
+  | 10 | 2.23 req/s |
+  | **14** | **8.64 req/s** |
+
+  The behaviour is bimodal. Below the tabs' own capacity they go idle between
+  jobs and pay a 20 s poll cycle to be claimed again; above it they stay
+  saturated and deliver 3 x 2.86 = 8.6 req/s. So the bucket must sit **above**
+  tab capacity and let the tabs be the limiter. Defaults are 14 and 3.
+- **`SOFA_MAX_CONCURRENCY` is one in-flight job per tab, and no more.** At
+  target 14: 3 workers gave 8.62 req/s at p50 357 ms (which *is*
+  `MIN_INTERVAL_MS`), 12 workers the same throughput at 1378 ms, and 24
+  workers collapsed to 1.88 req/s. Extra workers buy nothing and deepen the
+  queue, which costs `STALE_PRICE`. Re-run
+  `scripts/sofa/measure_bridge_capacity.py` whenever the tab count changes.
+- **The browser is the binding limit, not Sofascore.** Nothing measured today
+  was ever refused by Sofascore. Tabs must be **visible**: three tabs in one
+  window is one working tab, because only the active tab is visible. Three
+  separate non-overlapping windows work; `check_bridge.py` reports what it saw.
 - A settled result is a fact about the day, **not about the decision that made
   it**. "It won" never enters the reasoning for the next one.
 
