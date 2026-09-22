@@ -252,6 +252,14 @@ def main() -> int:
         "krótsza, za każdym razem, i różnica rośnie z pewnością (2 pkt proc. "
         "przy 0,811, 10 pkt proc. przy 0,906).", BODY))
     S.append(Paragraph(
+        "<b>x</b> to <b>pewność × kurs</b> — jedyny test, który decyduje. "
+        "Powyżej <b>1,00</b> cena płaci za ryzyko, poniżej nie. Zdarzenie na "
+        "70% wymaga kursu <b>1,43</b>, na 80% wymaga <b>1,25</b>: samo wysokie "
+        "prawdopodobieństwo nie wystarcza. Marża bukmachera jest rozłożona na "
+        "<b>obie</b> strony rynku, więc nie każda noga jest ujemna — wiersze "
+        "przy p 0,85–0,95 wycenione 1,20–1,35 zwróciły <b>+1,94%</b> (n=94).",
+        BODY))
+    S.append(Paragraph(
         f"<b>marża</b> to narzut Superbeta na tej drabinie, policzony z ceny "
         f"dwustronnej. Powyżej <b>{MAX_OVERROUND:.1%}</b> noga nie trafia na tę "
         "listę — to jedyny próg, na którym wyniki się rozdzielają (poniżej "
@@ -265,8 +273,8 @@ def main() -> int:
     S.append(Spacer(1, 5))
 
     if singles:
-        shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "marża",
-                 "próbka")
+        shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "x",
+                 "marża", "próbka")
         srows = [[Paragraph(h, SMALL) for h in shead]]
         for i, leg in enumerate(singles[:30], 1):
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
@@ -278,11 +286,12 @@ def main() -> int:
                 Paragraph(f"{leg['line']} {leg['direction']}", SMALL),
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", SMALL),
                 Paragraph(f"<b>{leg['offered_odds']}</b>", SMALL),
+                Paragraph(f"<b>{leg['leg_ev'] + 1.0:.2f}</b>", SMALL),
                 Paragraph(f"{leg['overround']:.1%}", SMALL),
                 Paragraph(f"n={leg['sample_size']}", SMALL),
             ])
         st_ = Table(srows, colWidths=[
-            6*mm, 44*mm, 38*mm, 20*mm, 17*mm, 14*mm, 15*mm, 14*mm])
+            6*mm, 40*mm, 34*mm, 18*mm, 16*mm, 13*mm, 12*mm, 14*mm, 13*mm])
         st_.setStyle(TableStyle([
             ("FONT", (0, 0), (-1, 0), BOLD, 7.6),
             ("TEXTCOLOR", (0, 0), (-1, 0), MUTED),
@@ -290,7 +299,7 @@ def main() -> int:
             ("LINEBELOW", (0, 0), (-1, 0), 0.5, RULE),
             ("LINEBELOW", (0, 1), (-1, -2), 0.25, RULE),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (4, 1), (7, -1), "RIGHT"),
+            ("ALIGN", (4, 1), (8, -1), "RIGHT"),
             ("TOPPADDING", (0, 0), (-1, -1), 3.5),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
         ]))

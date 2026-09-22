@@ -66,7 +66,37 @@ from bet.sofa.veto import load_vetoes, veto_matches  # noqa: E402
 
 # A leg below this is not what the operator means by a strong read. The floor
 # is on the measured LOWER bound, not on what the model claims.
-DEFAULT_FLOOR = 0.80
+#
+# Lowered from 0.80 to 0.70 on 2026-09-22, as a deliberate operator decision
+# rather than a fitted one. Replayed over the three settled days, football
+# legs that also clear the ladder-margin filter:
+#
+#     floor    legs    hit     ROI
+#     0.85      111   0.820   -4.01%
+#     0.80      339   0.788   -2.96%
+#     0.75      623   0.754   -2.41%
+#     0.70     1010   0.719   -2.75%
+#     0.65     1467   0.680   -3.00%
+#     0.60     2217   0.634   -4.84%
+#
+# Read that as "costs nothing down to about 0.70, and triples the volume",
+# NOT as "0.70 is optimal" — 0.75 scored marginally better and 0.65 marginally
+# worse, all three inside the noise. Below 0.65 it degrades for real.
+#
+# The honest caveat is large: 09-19 carries
+# n=298-1940 per floor, 09-20 carries n=17-253 and 09-21 carries n=1-24, so
+# the table is effectively one slate. Leave-one-day-out picked 0.75, 0.70,
+# 0.75 and "won" 2 of 3 days on held-out samples of 6 and 9 legs, which is not
+# evidence of anything.
+#
+# What does NOT move with it is `leg_is_ev_positive`. The floor asks how
+# likely the event is; that gate asks whether the price pays for it, and it is
+# the only thing that finds the one mispriced side of a two-sided market. The
+# bookmaker's 8.6-10.2% margin is spread ACROSS both sides, so it does not
+# make every leg negative — measured, rows at p_bar 0.85-0.95 priced 1.20-1.35
+# returned +1.94%. Lowering the floor buys volume; lowering the EV gate would
+# just buy the wrong side more often.
+DEFAULT_FLOOR = 0.70
 # Superbet's own shading is accepted, but a price below this is not a shaded
 # price, it is a rounding error with a stake attached.
 #
@@ -552,13 +582,15 @@ def main() -> int:
         "**−4.0%** przy trafialności 87.1% — i niemal wszystko to jeden dzień "
         "(5 220 z 5 285 nóg to 2026-09-19).",
         "",
-        "| conf | kurs | marża | próbka | rynek | linia | mecz | start |",
-        "|---|---|---|---|---|---|---|---|",
+        "| conf | kurs | x | marża | próbka | rynek | linia | mecz |"
+        " start |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for leg in singles[:40]:
         subj = f" {leg['subject']}" if leg["subject"] else ""
         lines.append(
             f"| {leg['confidence']:.3f} | {leg['offered_odds']} | "
+            f"{leg['leg_ev'] + 1.0:.2f} | "
             f"{leg['overround']:.1%} | {leg['sample_size']} | "
             f"{leg['market']}{subj} | {leg['line']} {leg['direction']} | "
             f"{leg['match']} | {leg['kickoff_utc'][11:16]}Z |"
