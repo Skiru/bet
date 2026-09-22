@@ -39,6 +39,7 @@ from reportlab.platypus import (  # noqa: E402
 
 from bet.sofa.confidence import (  # noqa: E402
     displayed_ev,
+    MAX_OVERROUND,
     is_stakeable,
     quantity_family,
 )
@@ -172,6 +173,11 @@ def main() -> int:
         else "ev_if_product_priced"
     )
     picks = [b for b in doc_json["builders"] if is_stakeable(b)]
+    # Singles. Present since 2026-09-22: on a day where no Bet Builder forms —
+    # which needs two legs of DIFFERENT quantity families in the SAME match —
+    # this renderer used to emit a blank page while the confidence artifact
+    # held dozens of qualifying legs. 2026-09-22 had 37 legs and 0 builders.
+    singles = doc_json.get("singles", [])
     picks.sort(key=lambda b: -b[ev_key])
 
     ss = getSampleStyleSheet()
@@ -195,7 +201,8 @@ def main() -> int:
     S.append(Paragraph(f"Kupon — {args.date}", H1))
     S.append(Paragraph(
         f"Zbudowany {doc_json['created_at_utc']} &nbsp;•&nbsp; "
-        f"{len(picks)} zakładów, jeden na mecz &nbsp;•&nbsp; "
+        f"{len(picks)} zakładów łączonych, {len(singles)} pojedynczych "
+        f"&nbsp;•&nbsp; "
         f"próg pewności {doc_json['confidence_floor']}", SUB))
     S.append(Spacer(1, 7))
 
@@ -234,6 +241,64 @@ def main() -> int:
         "Model <b>nie</b> bije ceny (Brier 0,2067 vs 0,1845 dla rynku). Ten kupon nie twierdzi, że "
         "znajduje value — twierdzi, że wie, jak często dane zdarzenie zachodzi. Rentowność nie jest "
         "wykazana; potrzeba kilku dni rozliczeń.", SMALL))
+    S.append(PageBreak())
+
+    S.append(Paragraph("Zakłady pojedyncze", H2))
+    S.append(Paragraph(
+        "Uszeregowane po <b>pewności</b>, nie po EV. To celowe: <b>EV nogi jest "
+        "zmierzone jako odwrócone</b>. `confidence` jest funkcją schodkową, więc "
+        "wewnątrz jednego kubełka kalibracji EV rośnie wyłącznie z kursem — a "
+        "dłużej wyceniona jedna trzecia kubełka trafia <b>rzadziej</b> niż "
+        "krótsza, za każdym razem, i różnica rośnie z pewnością (2 pkt proc. "
+        "przy 0,811, 10 pkt proc. przy 0,906).", BODY))
+    S.append(Paragraph(
+        f"<b>marża</b> to narzut Superbeta na tej drabinie, policzony z ceny "
+        f"dwustronnej. Powyżej <b>{MAX_OVERROUND:.1%}</b> noga nie trafia na tę "
+        "listę — to jedyny próg, na którym wyniki się rozdzielają (poniżej "
+        "zwrot jest płaski ok. −3,5%, powyżej spada do −5,7%). Rogi wyceniane "
+        "są medianowo na 8,6%, gole na 10,2%.", BODY))
+    S.append(Paragraph(
+        "<b>To nie jest obietnica zysku.</b> Ta populacja nóg rozliczyła się na "
+        "−4,0% przy trafialności 87,1%, i niemal całość tego pomiaru to jeden "
+        "dzień (5 220 z 5 285 nóg to 2026-09-19). Lista mówi: to jest prawdopodobne "
+        "i nie jest to zdzierstwo. Nie mówi, że to wygrywa.", SMALL))
+    S.append(Spacer(1, 5))
+
+    if singles:
+        shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "marża",
+                 "próbka")
+        srows = [[Paragraph(h, SMALL) for h in shead]]
+        for i, leg in enumerate(singles[:30], 1):
+            subj = f" ({leg['subject']})" if leg.get("subject") else ""
+            srows.append([
+                Paragraph(str(i), SMALL),
+                Paragraph(f"{leg['match']}<br/><font size=6.5>"
+                          f"{leg['kickoff_utc'][11:16]}Z</font>", SMALL),
+                Paragraph(f"{leg['market']}{subj}", SMALL),
+                Paragraph(f"{leg['line']} {leg['direction']}", SMALL),
+                Paragraph(f"<b>{leg['confidence']:.3f}</b>", SMALL),
+                Paragraph(f"<b>{leg['offered_odds']}</b>", SMALL),
+                Paragraph(f"{leg['overround']:.1%}", SMALL),
+                Paragraph(f"n={leg['sample_size']}", SMALL),
+            ])
+        st_ = Table(srows, colWidths=[
+            6*mm, 44*mm, 38*mm, 20*mm, 17*mm, 14*mm, 15*mm, 14*mm])
+        st_.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, 0), BOLD, 7.6),
+            ("TEXTCOLOR", (0, 0), (-1, 0), MUTED),
+            ("BACKGROUND", (0, 0), (-1, 0), BAND),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.5, RULE),
+            ("LINEBELOW", (0, 1), (-1, -2), 0.25, RULE),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (4, 1), (7, -1), "RIGHT"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+        ]))
+        S.append(st_)
+    else:
+        S.append(Paragraph(
+            "Dziś żadna noga nie stoi na drabinie tańszej niż "
+            f"{MAX_OVERROUND:.1%}. To nie jest awaria — to odmowa.", BODY))
     S.append(PageBreak())
 
     for i, b in enumerate(picks, 1):
@@ -329,7 +394,7 @@ def main() -> int:
     pdf.build(S)
     print(json.dumps({
         "stage": "COUPON_PDF", "verdict": "OK",
-        "metrics": {"picks": len(picks),
+        "metrics": {"picks": len(picks), "singles": len(singles),
                     "fixtures": len({b["sofascore_event_id"] for b in picks}),
                     "legs": sum(b["n_legs"] for b in picks)},
         "output_path": str(out_path),

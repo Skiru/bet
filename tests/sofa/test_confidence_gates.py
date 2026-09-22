@@ -14,6 +14,8 @@ from bet.sofa.confidence import (
     leg_is_ev_positive,
     line_is_beyond_sample,
     mode_loses,
+    overround,
+    single_is_fairly_priced,
 )
 
 
@@ -323,3 +325,58 @@ def test_both_paths_share_one_sample_freshness_rule():
     assert rc.MAX_SAMPLE_AGE_DAYS is MAX_SAMPLE_AGE_DAYS
     # And they measure different things, so both still exist.
     assert MAX_SAMPLE_AGE_DAYS < MAX_BUILDER_SAMPLE_AGE_DAYS
+
+
+class TestOverroundAndSingles:
+    """Singles exist because the PDF could not render one.
+
+    `build_coupon_pdf.py` staked only Bet Builders, which need two legs of
+    DIFFERENT quantity families in the SAME match. On 2026-09-22 the day held
+    37 qualifying legs and produced 0 builders, so the operator got a blank
+    page. They are ranked by confidence rather than by `leg_ev` because that
+    ordering is measured to be inverted — see MAX_OVERROUND.
+    """
+
+    def test_overround_is_the_two_sided_margin(self) -> None:
+        # A perfectly fair two-way market prices both sides at 2.00.
+        assert overround(2.0, 2.0) == pytest.approx(0.0, abs=1e-9)
+        # Superbet's typical corners ladder sits near 8.6%.
+        assert overround(1.28, 3.25) == pytest.approx(0.08894, abs=1e-4)
+
+    def test_a_one_sided_rung_cannot_be_measured(self) -> None:
+        """The missing side is exactly where the margin would show, so it is
+        refused rather than assumed fair."""
+        assert overround(1.28, None) is None
+        assert overround(None, 3.25) is None
+        assert overround(1.28, 1.0) is None
+        assert not single_is_fairly_priced(overround(1.28, None))
+
+    def test_the_threshold_is_the_one_place_outcomes_separate(self) -> None:
+        assert single_is_fairly_priced(0.086) is True
+        assert single_is_fairly_priced(0.105) is True
+        assert single_is_fairly_priced(0.106) is False
+        # Superbet's goals ladders run to 11.8% and are meant to fall out.
+        assert single_is_fairly_priced(0.118) is False
+
+    def test_singles_are_not_ranked_by_leg_ev(self) -> None:
+        """The regression this whole section exists for.
+
+        `confidence` is a step function, so within one calibration bucket
+        `leg_ev = confidence * odds - 1` is a strictly increasing function of
+        the price. Ranking by it puts the longest price first, and the
+        longest-priced third of a bucket is measured to hit LESS often. The
+        two legs below share a bucket; EV prefers the 1.30, confidence and the
+        tie-break prefer the 1.10.
+        """
+        cheap = {"confidence": 0.90, "offered_odds": 1.10, "overround": 0.085}
+        dear = {"confidence": 0.90, "offered_odds": 1.30, "overround": 0.085}
+        cheap["leg_ev"] = cheap["confidence"] * cheap["offered_odds"] - 1
+        dear["leg_ev"] = dear["confidence"] * dear["offered_odds"] - 1
+        assert dear["leg_ev"] > cheap["leg_ev"]
+
+        by_ev = sorted([cheap, dear], key=lambda r: -r["leg_ev"])
+        by_singles = sorted(
+            [cheap, dear], key=lambda r: (-r["confidence"], r["offered_odds"])
+        )
+        assert by_ev[0] is dear
+        assert by_singles[0] is cheap, "singles must not inherit the EV ordering"

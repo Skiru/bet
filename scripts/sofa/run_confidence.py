@@ -35,6 +35,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_LEGS,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
     MAX_DISAGREEMENT,
+    MAX_OVERROUND,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     Calibration,
@@ -48,6 +49,8 @@ from bet.sofa.confidence import (  # noqa: E402
     fair_odds,
     joint_probability,
     leg_is_ev_positive,
+    overround,
+    single_is_fairly_priced,
     line_is_beyond_sample,
     mode_loses,
 )
@@ -142,13 +145,21 @@ def main() -> int:
 
     offers = json.loads((run_dir / "04_offer.json").read_text(encoding="utf-8"))
     fetched: dict[tuple, str] = {}
+    # The ladder's own margin, per rung. It is a property of the two-sided
+    # price, so it is the same for OVER and UNDER of one rung.
+    margins: dict[tuple[int, str, str, float, str], float | None] = {}
     for o in offers:
         for r in o.get("rungs", []):
+            rung_margin = overround(r.get("over_odds"), r.get("under_odds"))
             for d in ("OVER", "UNDER"):
                 fetched[
                     (o["sofascore_event_id"], r["market"], r.get("subject", ""),
                      r["line"], d)
                 ] = r.get("fetched_at_utc")
+                margins[
+                    (o["sofascore_event_id"], r["market"], r.get("subject", ""),
+                     r["line"], d)
+                ] = rung_margin
 
     cal = Calibration.load()
     now = datetime.now(timezone.utc)
@@ -217,6 +228,7 @@ def main() -> int:
         key = (row["sofascore_event_id"], row["market"], row.get("subject", ""),
                row["line"], row["direction"])
         ts = fetched.get(key)
+        rung_overround = margins.get(key)
         if ts is None:
             refused["NO_FETCHED_AT"] += 1
             continue
@@ -340,6 +352,12 @@ def main() -> int:
                 "shading": round(realised_lo - 1.0 / odds, 4),
                 "leg_ev": round(realised_lo * odds - 1.0, 4),
                 "market_p": row.get("market_p"),
+                # See MAX_OVERROUND. What share of this ladder's price is the
+                # bookmaker's own margin — the operator's "is this robbery"
+                # question, answered from the two-sided price and nothing else.
+                "overround": (
+                    round(rung_overround, 4) if rung_overround is not None else None
+                ),
                 # Not serialised: the builder needs to intersect legs on the
                 # matches they came from. Stripped before the artifact is
                 # written.
@@ -348,6 +366,16 @@ def main() -> int:
         )
 
     legs.sort(key=lambda r: (-r["leg_ev"], -r["confidence"]))
+
+    # Singles. Deliberately NOT ranked by `leg_ev` — see MAX_OVERROUND for why
+    # that ordering is inverted against the settled outcomes. A single is
+    # selected on the two questions the operator actually asks: is it likely,
+    # and is the ladder cheap. Ties break on the shorter price, because within
+    # a calibration bucket the shorter price is measured to hit more often.
+    singles = sorted(
+        (leg for leg in legs if single_is_fairly_priced(leg.get("overround"))),
+        key=lambda r: (-r["confidence"], r["offered_odds"]),
+    )
 
     # Bet Builders: same fixture, one leg per market family, 2-4 legs.
     builders: list[dict] = []
@@ -478,6 +506,9 @@ def main() -> int:
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         "legs": legs,
+        "singles": [
+            {k: v for k, v in s_.items() if not k.startswith("_")} for s_ in singles
+        ],
         "builders": builders,
     }
     (run_dir / "08_confidence.json").write_text(
@@ -506,6 +537,34 @@ def main() -> int:
             f"{leg['market']}{subj} | {leg['line']} {leg['direction']} | "
             f"{leg['match']} | {leg['kickoff_utc'][11:16]}Z |"
         )
+    lines += [
+        "",
+        "## Pojedyncze zakłady",
+        "",
+        "Uszeregowane po **pewności**, nie po `leg EV` — to drugie jest zmierzone "
+        "jako odwrócone (patrz `MAX_OVERROUND`): wewnątrz jednego kubełka "
+        "kalibracji `leg EV` rośnie wyłącznie z kursem, a dłużej wyceniona "
+        "jedna trzecia kubełka trafia **rzadziej**. `marża` to narzut Superbeta "
+        f"na tej drabinie; powyżej {MAX_OVERROUND:.1%} noga nie trafia na tę "
+        "listę w ogóle.",
+        "",
+        "To nie jest obietnica zysku. Ta populacja nóg rozliczyła się na "
+        "**−4.0%** przy trafialności 87.1% — i niemal wszystko to jeden dzień "
+        "(5 220 z 5 285 nóg to 2026-09-19).",
+        "",
+        "| conf | kurs | marża | próbka | rynek | linia | mecz | start |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for leg in singles[:40]:
+        subj = f" {leg['subject']}" if leg["subject"] else ""
+        lines.append(
+            f"| {leg['confidence']:.3f} | {leg['offered_odds']} | "
+            f"{leg['overround']:.1%} | {leg['sample_size']} | "
+            f"{leg['market']}{subj} | {leg['line']} {leg['direction']} | "
+            f"{leg['match']} | {leg['kickoff_utc'][11:16]}Z |"
+        )
+    if not singles:
+        lines.append("| — | — | — | — | brak nóg na uczciwej drabinie | — | — | — |")
     lines += [
         "",
         "## Bet Builders (same match)",
@@ -543,7 +602,8 @@ def main() -> int:
     print(json.dumps({
         "stage": "CONFIDENCE", "verdict": "OK",
         "metrics": {
-            "legs": len(legs), "builders": len(builders),
+            "legs": len(legs), "singles": len(singles),
+            "builders": len(builders),
             # Both halves of the PDF's own gate, separately, because reporting
             # only the first one made CONFIDENCE contradict the coupon it
             # feeds: on 2026-09-21 this said "3 stakeable" on a day the PDF

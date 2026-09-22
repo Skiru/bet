@@ -159,6 +159,62 @@ MIN_BUILDER_SAMPLE = 10
 MAX_BUILDER_SAMPLE_AGE_DAYS = 180
 
 
+# How much of the ladder's price may be the bookmaker's own margin before the
+# leg is called robbery and refused.
+#
+# Ranking legs by `leg_ev` is measured to be INVERTED, and the reason is
+# structural rather than statistical. `confidence` is a step function: every
+# leg landing in the same calibration bucket is handed the same number. So
+# within a bucket `leg_ev = confidence * odds - 1` is a strictly increasing
+# function of the price alone, and ranking by it ranks by "longest price in
+# this bucket" — which is the book telling us the event is less likely than
+# its bucket-mates. Measured inside each bucket, the longest-priced third
+# hits less often than the shortest-priced third, every time, and the gap
+# widens as the bucket rises:
+#
+#     bucket    n     short third    long third
+#     0.811    527       0.817         0.794
+#     0.836    456       0.875         0.822
+#     0.858    449       0.899         0.779
+#     0.884    354       0.924         0.847
+#     0.906    291       0.928         0.825
+#
+# The devigged market price also beats our own curve outright (Brier 0.10880
+# against 0.11161, on a constant-0.871 baseline of 0.11267).
+#
+# So singles are ranked by `confidence` and filtered on the ladder's margin
+# instead. The threshold is the one place the outcomes separate: below 10.5%
+# the return is flat, above it it falls by about two points.
+#
+#     ladder margin      n      hit      ROI
+#     <= 8.0%          1683    0.905    -3.55%
+#     8.0 - 9.0%       2411    0.854    -3.55%
+#     9.0 - 10.5%       102    0.843    -3.38%
+#     > 10.5%          1089    0.857    -5.69%
+#
+# Read all of the above as ONE slate: 5,220 of the 5,285 settled legs behind
+# these tables are 2026-09-19. The mechanism is certain because it follows
+# from the code; the magnitudes are not, and this constant should be refitted
+# once a second day of legs has settled.
+MAX_OVERROUND = 0.105
+
+
+def overround(over_odds: float | None, under_odds: float | None) -> float | None:
+    """The bookmaker's margin on a two-sided rung, or None if it is one-sided.
+
+    A one-sided rung cannot be measured — the missing side is exactly where
+    the margin would show — so it is refused rather than assumed fair.
+    """
+    if not over_odds or not under_odds or over_odds <= 1.0 or under_odds <= 1.0:
+        return None
+    return 1.0 / over_odds + 1.0 / under_odds - 1.0
+
+
+def single_is_fairly_priced(leg_overround: float | None) -> bool:
+    """Is this leg's ladder cheap enough to be worth showing on its own?"""
+    return leg_overround is not None and leg_overround <= MAX_OVERROUND
+
+
 def leg_is_ev_positive(confidence: float, odds: float) -> bool:
     """Does this leg clear its own price, using its own number?
 
