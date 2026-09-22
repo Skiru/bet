@@ -122,20 +122,28 @@ any row as corroborated.
 
 External verification, when you do it:
 
-- **Football:** bzzoiro MCP is an independent source of record and is by-id.
-  It is *not* what `sofa` samples from, so it can confirm a fixture's status,
-  kickoff and lineup without contaminating the model. Tag
-  `[BZZOIRO-MCP: <tool>, fetched <UTC>]`. On a live day anything but
-  `notstarted` is a veto.
-- **Tennis:** there is no MCP source. `bzzoiro-tennis` answers
-  `402 addon_required`. Verification is WebFetch against the tournament's
+- **There is no MCP source of record, for either sport.** `sofa` reads
+  Sofascore statistics and Superbet prices and nothing else. **bzzoiro must
+  never be called** — not for football, not for status, not for odds. It is a
+  provider from the retired `simple` pipeline; pulling it back in launders a
+  number `sofa` never sampled into a read that is supposed to rest on those two
+  sources.
+- **Football:** a fixture's status and both clocks are already in
+  `02_fixtures.json` (`identity`, `kickoff_utc`, `superbet_kickoff_utc`,
+  `kickoff_disagreement_h`). On a live day a fixture that has already started
+  is a veto on all lines. For context the artifacts do not carry — standings,
+  congestion, absences, derby status — use the web on the same terms as tennis
+  below, and mark `UNVERIFIED` where it cannot be established.
+- **Tennis:** verification is WebFetch against the tournament's
   official order of play plus one independent domain, tagged
   `[WEB: domain, fetched <UTC>]`; one domain alone is "unconfirmed". Game-level
   ITF statistics are not available free — say **unverified** rather than
   manufacturing a source.
-- Never fetch odds off the open web. bzzoiro's `compare_odds` / `get_best_odds`
-  span ~88 books, **none of which is Superbet**; they are a reference, not a
-  price. Tag `[BZZOIRO-ODDS: fetched <ts>]`.
+- **Never fetch odds off the open web, and never from another book's feed.**
+  The only price that exists for `sofa` is Superbet's, in `04_offer.json`; a
+  price from anywhere else is not the price this coupon is measured against.
+  If a live re-quote is needed, it goes through the same `OfferFetcher` the
+  pipeline used — that is `sofa-market-scout`'s job, not yours.
 - If a tool returns `requires re-authorization`, stop retrying and list the
   checks you therefore did not make. Silence about a skipped check reads as a
   passed check.

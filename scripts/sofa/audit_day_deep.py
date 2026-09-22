@@ -43,6 +43,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     builder_legs_are_coherent,
+    is_stakeable,
     leg_is_ev_positive,
     line_is_beyond_sample,
     mode_loses,
@@ -119,8 +120,13 @@ def main() -> int:
         return vals, (now - oldest).days
 
     # ---- the day's real coupon: the PDF's builder picks ------------------
-    picks = [b for b in conf["builders"]
-             if b["best_for_fixture"] and b["ev_if_product_priced"] > 0]
+    # `is_stakeable` is the one predicate the PDF itself uses. This used to be
+    # a fourth, inline copy testing `ev_if_product_priced`, which ignores the
+    # measured 12% correlation haircut — so on 2026-09-21 it reported "1 slip,
+    # ROI -100.0%" for a builder the PDF had correctly refused to stake
+    # (ev_if_product_priced +0.043, ev_after_haircut -0.0821). A deep audit
+    # that invents a bet inverts the day it is meant to grade.
+    picks = [b for b in conf["builders"] if is_stakeable(b)]
     leg_index = {(l["sofascore_event_id"], l["market"], l["subject"], l["line"],
                   l["direction"]): l for l in conf["legs"]}
 
@@ -177,6 +183,27 @@ def main() -> int:
     graded = [p for p in positions if p["outcome"] in ("WIN", "LOSS")]
     A(f"{len(picks)} slipów, {len(positions)} nóg, rozliczonych {len(graded)}.")
     A("")
+    if not graded:
+        # Sections 1-4 all divide by the settled population. A day on which the
+        # PDF staked nothing — 2026-09-22 shipped 0 picks, and 2026-09-21 also
+        # staked nothing — used to crash here: first TypeError formatting a None
+        # ROI, then ZeroDivisionError on len(graded). The script exits 1 for
+        # "findings found", so the crash was indistinguishable from a result.
+        # An absence of bets is not a 0% day and must not be rendered as one.
+        A("**Brak rozliczonych nóg — ten dzień nie postawił nic.**")
+        A("")
+        A("To nie jest wynik 0% ani strata. Sekcje 1-4 mierzą populację "
+          "rozliczonych pozycji, a ta jest pusta, więc żadnego ROI, żadnej "
+          "klasyfikacji przegranych i żadnej kontrfaktycznej oceny bramek nie "
+          "da się dla tego dnia policzyć. Bramek nie testowano — dzień bez "
+          "zakładu nie jest sprawdzianem dla żadnej z nich.")
+        A("")
+        out = (Path(args.out) if args.out
+               else Path("reports") / f"sofa_audyt_glaboki_{args.date}.md")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text("\n".join(lines), encoding="utf-8")
+        print(f"WROTE {out}")
+        return 0
     by_market = defaultdict(list)
     for p in graded:
         by_market[p["market"]].append(p)
@@ -311,9 +338,18 @@ def main() -> int:
         return len(group), ret, 100.0 * ret / len(group)
 
     pop_n, pop_ret, pop_roi = roi_of(population)
-    A(f"Kolumna rozstrzygająca to **cały dzień**: {pop_n} rozliczonych nóg "
-      f"listy pewnościowej, nie {len(graded)} z kuponu. Punkt odniesienia dla "
-      f"całej populacji: **{pop_roi:+.1f}%**.")
+    if pop_n is None:
+        # A day on which nothing settled is a legitimate day — 2026-09-22 shipped
+        # a PDF with zero picks. Formatting None here raised TypeError and the
+        # script exited 1, which is also its "findings found" code, so a crash
+        # was indistinguishable from a result. An absence of bets is not an ROI
+        # of zero and must not be printed as one.
+        A("Brak rozliczonych nóg listy pewnościowej dla tego dnia — "
+          "**nie ma ROI populacji**. To nie jest wynik 0%, tylko brak zakładów.")
+    else:
+        A(f"Kolumna rozstrzygająca to **cały dzień**: {pop_n} rozliczonych nóg "
+          f"listy pewnościowej, nie {len(graded)} z kuponu. Punkt odniesienia dla "
+          f"całej populacji: **{pop_roi:+.1f}%**.")
     A("")
     # Minimum n below which this audit refuses to pronounce. Twenty legs of
     # one day flip on a single result; the earlier draft of this table called

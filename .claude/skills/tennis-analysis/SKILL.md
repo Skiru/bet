@@ -8,11 +8,12 @@ description: How to analyse one tennis match's length and serve markets in the s
 `sofa-pipeline` and `sofa-analysis-core` are preloaded with you. Tennis differs
 from football in four ways that change everything below.
 
-1. **There is no source of record.** `bzzoiro-tennis` answers
-   `402 addon_required`. No MCP, no model, no consensus. Verification is web,
-   two domains, tagged — and **game-level ITF statistics are not available
-   free**, so "unverified" is often the honest answer and you must say it
-   rather than manufacture a source.
+1. **There is no source of record.** `sofa` reads Sofascore and Superbet only;
+   no other provider is a source, and bzzoiro in particular must never be
+   called. No MCP, no model, no consensus. Verification is web, two domains,
+   tagged — and **game-level ITF statistics are not available free**, so
+   "unverified" is often the honest answer and you must say it rather than
+   manufacture a source.
 2. **The sample is two individuals**, each with their own surface, format and
    schedule history.
 3. **Every market is a function of match length.** A short match settles every

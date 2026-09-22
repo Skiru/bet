@@ -12,7 +12,9 @@
 | `reason_class` | enum | yes | `SAMPLE_UNINFORMATIVE \| CONTEXT \| PRICE \| OTHER` |
 | `reason` | str | yes | free text. The operator reads this; write it for them. |
 
-All six keys must be present. `extra="forbid"` means an invented key
+All seven keys must be present (`sofascore_event_id`, `market`, `subject`,
+`line`, `direction`, `reason_class`, `reason`) — including the ones you are
+setting to `null`; an omitted key is a validation failure, not a default. `extra="forbid"` means an invented key
 (`action`, `player`, `event_id`) fails validation and takes the whole file with
 it — the stage then runs with **no** vetoes at all, and reports zero.
 

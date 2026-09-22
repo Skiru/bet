@@ -34,9 +34,12 @@ a venue name, and **the raw observations**.
 Two consequences, both load-bearing:
 
 1. **The context half of this method has to come from outside the artifacts** —
-   bzzoiro MCP (by id) and the web. That is legitimate here precisely because
-   `sofa` does not sample from bzzoiro: it is an independent check, not a
-   second helping of the same number.
+   and the only source available is the open web, read as two independent
+   domains and tagged. **bzzoiro is not a `sofa` source and must never be
+   called.** `sofa` is Sofascore statistics and Superbet prices; reaching for
+   another provider launders a number the pipeline never sampled into a read
+   that is supposed to rest on those two. Where the web cannot answer either,
+   write `UNVERIFIED` — that is a real answer, not a gap to be filled.
 2. **Your leverage is higher, not lower.** Every context fact the old pipeline
    encoded as a flag is now a fact only you can supply.
 
@@ -59,14 +62,15 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
 
 1. **Identity & both clocks.** From `02_fixtures.json`: `identity`
    (`FUZZY` is never "confirmed"), `kickoff_utc`, `superbet_kickoff_utc`,
-   `kickoff_disagreement_h`. Then
-   `mcp__bzzoiro__get_match_detail(match_id=...)` by id for `status` — anything
-   but `notstarted` at the artifact's time is a veto on all lines. Tag it.
+   `kickoff_disagreement_h` — all of it from Sofascore and Superbet, which is
+   the whole of what `sofa` reads. A fixture that has already started at the
+   artifact's time is a veto on all lines.
 2. **Stakes.** `round_name`, `cup_round_type`, `previous_leg_event_id` are in
    the fixture. The *aggregate* is not — read the first leg. League position,
-   dead rubber, promotion play-off: `get_standings`. Congestion: third match in
-   seven days, a midweek continental tie — `get_team_fixtures`. Derby: name it
-   and say how you know.
+   dead rubber, promotion play-off, congestion (third match in seven days, a
+   midweek continental tie) and derby status are **not** in the artifacts: take
+   them from the web, tag each one, and mark `UNVERIFIED` where you cannot.
+   Derby: name it and say how you know.
 3. **Sample integrity.** Open `03_samples.json` for this fixture and metric.
    Count `side_a` / `side_b` / `h2h` separately. Read every observation's
    `match_date_utc`, `opponent`, `venue`, `competition_id`. Then ask:
