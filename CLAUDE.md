@@ -84,32 +84,46 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   making one tab faster. The 2026-09-17 incident was one `curl_cffi` client
   with 100 workers peaking at 550 req/s and no browser in the path; the bridge
   cannot produce that shape.
-- **`SOFA_TARGET_RPS` is a gate in front of that, and starving it is worse
-  than opening it.** This corrects the "never raise" rule, which was written
-  before anyone measured the bridge. Measured 2026-09-22, three tabs, 360
-  requests a step, zero non-200, reproduced twice within 0.03 req/s:
+- **Open the windows with `launch_bridge_browser.py`, and they do NOT have to
+  be visible.** Chrome clamps `setTimeout` in a hidden page to >=1000 ms, and
+  the userscript's `pace()` waits on exactly that to hold `MIN_INTERVAL_MS`.
+  So a background tab silently ran at ~1 req/s instead of 2.86, and the only
+  symptom was a run that took four times as long. Three launch flags remove
+  it; with five **minimised** windows the round trip p90 went from 9,436 ms to
+  224 ms. They are process-creation flags, so Chrome must be fully quit first
+  — the script refuses to launch rather than open a window whose flags were
+  silently dropped. The old "tabs must be visible, three non-overlapping
+  windows" rule was a workaround for this bug and is retired.
+- **`SOFA_MAX_CONCURRENCY` is the window count — not a tuning knob, and never
+  below it.** Measured 2026-09-22, five windows, 60 requests a step, zero
+  non-200:
 
-  | `SOFA_TARGET_RPS` | achieved |
-  |---|---|
-  | 6 | 2.00 req/s |
-  | 8 | 2.17 req/s |
-  | 10 | 2.23 req/s |
-  | **14** | **8.64 req/s** |
+  | `SOFA_MAX_CONCURRENCY` | achieved | p50 | p90 |
+  |---|---|---|---|
+  | 3 | 0.15 req/s | 20,138 ms | 20,162 ms |
+  | **5** | **11.67 req/s** | **354 ms** | **620 ms** |
+  | 8 | 11.72 req/s | 668 ms | 704 ms |
+  | 12 | 11.66 req/s | 1,010 ms | 1,056 ms |
 
-  The behaviour is bimodal. Below the tabs' own capacity they go idle between
-  jobs and pay a 20 s poll cycle to be claimed again; above it they stay
-  saturated and deliver 3 x 2.86 = 8.6 req/s. So the bucket must sit **above**
-  tab capacity and let the tabs be the limiter. Defaults are 14 and 3.
-- **`SOFA_MAX_CONCURRENCY` is one in-flight job per tab, and no more.** At
-  target 14: 3 workers gave 8.62 req/s at p50 357 ms (which *is*
-  `MIN_INTERVAL_MS`), 12 workers the same throughput at 1378 ms, and 24
-  workers collapsed to 1.88 req/s. Extra workers buy nothing and deepen the
-  queue, which costs `STALE_PRICE`. Re-run
-  `scripts/sofa/measure_bridge_capacity.py` whenever the tab count changes.
-- **The browser is the binding limit, not Sofascore.** Nothing measured today
-  was ever refused by Sofascore. Tabs must be **visible**: three tabs in one
-  window is one working tab, because only the active tab is visible. Three
-  separate non-overlapping windows work; `check_bridge.py` reports what it saw.
+  Throughput saturates at the window count and never moves again; only latency
+  grows, which is queue depth and costs `STALE_PRICE`. Below it the failure is
+  not gradual — two idle tabs fall back into a 20 s `/pull` and the bridge
+  collapses 78x. `p50 = 354 ms` at five *is* `MIN_INTERVAL_MS`: the tab is
+  pacing itself and nothing else is the limit. Change it together with
+  `--windows`, and re-run `measure_bridge_capacity.py`.
+- **`SOFA_TARGET_RPS` must sit above what the tabs can serve.** Five windows
+  at 350 ms is 5 x 2.86 = 14.3 req/s, so the bucket is 20. Starving it is
+  worse than opening it: if the bucket is the limiter the tabs idle between
+  jobs and pay the same poll cycle. Defaults are 20 and 5.
+- **The browser is the binding limit, not Sofascore.** Nothing measured across
+  2026-09-22 was ever refused by Sofascore — every collapse that day was our
+  own configuration or our own measurement.
+- **Measure the round trip, not the wall clock around the client.** The token
+  bucket sits *inside* `client.event_statistics()`, so timing that call
+  reports our own rate limiting as if it were browser latency — it read a flat
+  ~2,050 ms while the bridge was answering in 216 ms, and sent a whole
+  diagnosis the wrong way. `measure_bridge_capacity.py` now reports `p50 net`
+  from the request log, and gives every ramp its own `run_id`.
 - A settled result is a fact about the day, **not about the decision that made
   it**. "It won" never enters the reasoning for the next one.
 

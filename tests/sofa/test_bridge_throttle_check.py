@@ -104,3 +104,41 @@ def test_a_transport_failure_is_diagnosed_not_raised(check_bridge, monkeypatch, 
     assert rc == 1
     assert "FAIL" in out
     assert "504" in out
+
+
+def test_the_throttled_tab_check_exists_again(check_bridge):
+    """Regression guard for the gap that cost 2026-09-22.
+
+    740b5d3f shipped this check at 08:55. 7318e08a removed it two hours later
+    while fixing a real and different bug - the preflight was grading the
+    *rate* of an idle burst and failing a healthy bridge. The latency grade
+    went out with it, so at 10:47 check_bridge.py reported 3/3 OK on tabs that
+    were clamped to ~2,000 ms, and the morning was spent finding that by hand.
+
+    The two are not the same measurement and only one of them is safe to
+    grade. Rate from idle says nothing; round trip says everything.
+    """
+    assert check_bridge.HEALTHY_ROUND_TRIP_MS == 600.0
+
+
+def test_the_round_trip_threshold_separates_the_two_measured_modes(check_bridge):
+    """Measured over 80,964 requests: fast p50 175 ms, slow p10 1,889 ms. The
+    threshold must sit above the userscript's own 350 ms pacing floor - or a
+    healthy back-to-back tab gets called throttled - and below the slow p10."""
+    assert 350.0 < check_bridge.HEALTHY_ROUND_TRIP_MS < 1889.0
+
+
+def test_the_grade_is_the_minimum_not_the_median(check_bridge):
+    """BURST_SAMPLES exceeds max_concurrency, so at least one probe always
+    queues behind a busy tab and measures the queue rather than the tab. The
+    minimum is the only sample guaranteed to have been served immediately.
+
+    Grading a sequential probe is what got this check deleted: a request from
+    idle pays the 20 s /pull cycle to be claimed, so it measures the poll
+    window and reads as 20,000 ms on a perfectly healthy bridge.
+    """
+    import inspect
+
+    source = inspect.getsource(check_bridge.main)
+    assert "min(latencies_ms)" in source
+    assert "statistics.median" not in source

@@ -123,12 +123,23 @@ pipeline ──HTTP──► bridge_server.py (127.0.0.1:8787) ◄──polling�
 - Kontrola: `.venv/bin/python scripts/sofa/check_bridge.py` — **`ok: true` to
   za mało.** Martwa karta nadal raportuje `ok`. Liczy się **wiek ostatniego
   pobrania** (`last_pull_age_s`).
-- Tempo: `SOFA_TARGET_RPS` domyślnie **2**, `SOFA_MAX_CONCURRENCY` **2**.
-  **Ustawiaj z pomiaru, nigdy powyżej.** `scripts/sofa/measure_bridge_capacity.py`
-  robi rampę i podaje plateau: **3,9 req/s na trzech kartach** (2026-09-22, 360
-  żądań, zero non-200), osiągane już przy celu 4. Cel 14 dał to samo 3,9 i
-  wydłużył obieg mostu z 605 ms do 5603 ms — powyżej plateau kupujesz kolejkę,
-  nie tempo. Seria z 2026-09-17 (szczyt 550 req/s) to był **jeden** klient
+- Okna: otwieraj je **`scripts/sofa/launch_bridge_browser.py`** (domyślnie 5).
+  Karty **nie muszą być widoczne** — dawna reguła „trzy nienachodzące się okna
+  na wierzchu" była obejściem błędu, nie wymogiem. Chrome klamruje `setTimeout`
+  w ukrytej karcie do ≥1000 ms, a `pace()` w userscripcie właśnie na nim czeka,
+  więc karta w tle chodziła ~1 req/s zamiast 2,86. Flagi startowe to usuwają:
+  p90 obiegu spadł z 9 436 ms do 224 ms przy oknach **zminimalizowanych**.
+  Chrome musi być przedtem całkiem zamknięty — to flagi tworzenia procesu.
+- Tempo: `SOFA_TARGET_RPS` domyślnie **20**, `SOFA_MAX_CONCURRENCY` **5**.
+  `SOFA_MAX_CONCURRENCY` **równa się liczbie okien** i nigdy nie schodzi
+  poniżej: pomiar 2026-09-22 na pięciu oknach dał 3 → 0,15 req/s (p50
+  20 138 ms), 5 → **11,67 req/s** (p50 354 ms), 8 → 11,72 (668 ms), 12 → 11,66
+  (1010 ms). Powyżej liczby okien rośnie wyłącznie kolejka; poniżej most
+  zapada się 78-krotnie, bo bezczynne karty wracają do 20 s `/pull`.
+  Bucket musi stać **powyżej** pojemności kart (5 × 2,86 = 14,3 req/s).
+  Wcześniejsze „plateau 3,9 req/s" było artefaktem przyrządu: skrypt rampował
+  tylko `target_rps`, `max_concurrency` trzymał na 3, i mierzył jako latencję
+  czas obejmujący własny token bucket. Oba błędy naprawione. Seria z 2026-09-17 (szczyt 550 req/s) to był **jeden** klient
   `curl_cffi` ze 100 workerami, bez przeglądarki — most takiego kształtu nie
   produkuje. **`MIN_INTERVAL_MS` nigdy nie obniżaj**: to tempo pojedynczego
   połączenia. Przepustowość bierze się z liczby kart.

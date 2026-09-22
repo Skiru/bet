@@ -51,6 +51,19 @@ PROBE_URL = "https://api.sofascore.com/api/v1/sport/football/events/live"
 # saying nothing - CLAUDE.md runs this first.
 EXPECTED_PLATEAU_RPS = 8.6
 BURST_SAMPLES = 4
+# The fast/slow split, measured over 80,964 live requests (740b5d3f): fast mode
+# p50 175 ms, slow mode p10 1,889 / p50 1,997 ms. 600 ms sits above the
+# userscript's own 350 ms pacing floor - so a healthy back-to-back tab is never
+# called throttled - and far below the slow mode's p10.
+#
+# This is graded on the MINIMUM round trip inside the concurrent burst, and
+# both halves of that matter. Sequentially, a probe from idle pays the 20 s
+# /pull cycle to be claimed, so it measures the poll window and not the tab;
+# grading that is what made this preflight FAIL on a healthy bridge and got
+# the whole check deleted in 7318e08a. Inside the burst the tabs are already
+# awake, and the minimum drops the probe that queued behind a busy tab
+# (BURST_SAMPLES exceeds max_concurrency, so one always does).
+HEALTHY_ROUND_TRIP_MS = 600.0
 
 # The FIRST request after a quiet period is not a latency measurement, it is a
 # poll cycle. The userscript long-polls /pull for PULL_WAIT_S = 20 s; a job
@@ -136,13 +149,20 @@ def main() -> int:
     # healthy bridge, and CLAUDE.md says to run it first.
     transport = BrowserBridgeTransport()
     failures = 0
+    latencies_ms: list[float] = []
+    latency_lock = threading.Lock()
 
     def probe() -> None:
         nonlocal failures
+        started = time.monotonic()
         try:
             transport.get(PROBE_URL, timeout=COLD_PROBE_TIMEOUT_S)
         except (ProviderError, TransportError):
             failures += 1
+            return
+        elapsed_ms = (time.monotonic() - started) * 1000.0
+        with latency_lock:
+            latencies_ms.append(elapsed_ms)
 
     def burst() -> float:
         started = time.monotonic()
@@ -159,6 +179,7 @@ def main() -> int:
     # pays this once at the start of a stage and then flows.
     burst()
     failures = 0
+    latencies_ms.clear()
     elapsed = burst()
 
     served = BURST_SAMPLES - failures
@@ -178,6 +199,21 @@ def main() -> int:
         print(f"WARN  {failures} of {BURST_SAMPLES} burst probes FAILED - that is a")
         print("      real fault, unlike a low rate. Check every sofascore.com")
         print("      window is open and visible.")
+
+    # 5. Is the browser clamping our own pacing timer? This is the one number
+    # in this preflight that IS graded, and it is graded on the minimum.
+    if latencies_ms:
+        fastest_ms = min(latencies_ms)
+        if fastest_ms >= HEALTHY_ROUND_TRIP_MS:
+            print(f"WARN  fastest round trip {fastest_ms:.0f} ms — the browser is "
+                  f"throttling")
+            print("      the tab's timer (healthy is ~175 ms). The run will take "
+                  "roughly")
+            print(f"      {fastest_ms / 175:.0f}x longer for no benefit to anyone. "
+                  "Launch the")
+            print("      windows with:  scripts/sofa/launch_bridge_browser.py")
+        else:
+            print(f"OK    fastest round trip {fastest_ms:.0f} ms (timer not clamped)")
     return 0
 
 

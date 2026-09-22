@@ -19,35 +19,35 @@ MATCH_LOGIC_VERSION = 3
 class SofaConfig:
     db_path: str = "data/sofa.db"
     runs_dir: str = "runs/sofa"
-    # Fitted to the bridge, not guessed - and the direction is the opposite of
-    # what "pace like a guest" suggests, so read this before lowering it.
+    # Fitted to the bridge, not guessed, and re-fitted 2026-09-22 after the
+    # browser's background throttling was removed (launch_bridge_browser.py).
     #
-    # The real limiter is the userscript's MIN_INTERVAL_MS = 350 per TAB. That
-    # is the number that keeps each connection human-paced, and it is never
-    # relaxed. This bucket is a global gate in front of it, and starving it is
-    # actively worse than opening it: measured 2026-09-22 with three tabs,
+    # This bucket is a global gate in front of the userscript's per-tab
+    # MIN_INTERVAL_MS = 350, which is never relaxed. It has to sit ABOVE the
+    # tabs' own capacity and let them be the limiter: five windows at 350 ms
+    # is 5 x 2.86 = 14.3 req/s, so a bucket at or under that starves the tabs
+    # and they go idle between jobs, paying a 20 s /pull cycle to be claimed
+    # again. Starving it is far worse than opening it.
+    target_rps: int = 20
+    # One in-flight job per tab - and this must EQUAL the number of open
+    # windows, not sit under it. Measured 2026-09-22 against five windows,
+    # 60 requests a step, zero non-200:
     #
-    #     target_rps  6  ->  2.00 req/s     tabs go idle between jobs and pay
-    #     target_rps  8  ->  2.17 req/s     a 20 s poll cycle to be claimed
-    #     target_rps 10  ->  2.23 req/s
-    #     target_rps 14  ->  8.64 req/s     tabs never idle, full speed
+    #     conc  achieved   p50 net   p90 net
+    #        3    0.15/s   20138 ms  20162 ms   <- two tabs idle, poll cycle
+    #        5   11.67/s     354 ms    620 ms   <- 354 ms IS MIN_INTERVAL_MS
+    #        8   11.72/s     668 ms    704 ms
+    #       12   11.66/s    1010 ms   1056 ms
     #
-    # reproduced twice within 0.03 req/s, 360 requests each, zero non-200. The
-    # behaviour is bimodal: either the tabs stay saturated and deliver
-    # 3 x 2.86 = 8.6 req/s, or they idle and collapse to ~2. So the bucket has
-    # to sit ABOVE the tabs' own capacity and let them be the limiter.
-    target_rps: int = 14
-    # One in-flight job per tab, and no more. At target_rps 14 with three tabs:
+    # Throughput saturates at five and never moves again; only latency grows,
+    # which is pure queue depth and costs STALE_PRICE. Below the window count
+    # it does not degrade gracefully - it collapses 78x, because a tab that
+    # finishes and finds nothing waiting goes back into a 20 s /pull.
     #
-    #     3 workers ->  8.62 req/s, p50  357 ms   <- 357 ms IS MIN_INTERVAL_MS
-    #     6 workers ->  8.72 req/s, p50  707 ms
-    #    12 workers ->  8.59 req/s, p50 1378 ms
-    #    24 workers ->  1.88 req/s, p50 2714 ms   <- collapses
-    #
-    # Extra workers buy no throughput and only deepen the queue, which costs
-    # STALE_PRICE. Raise this only alongside the number of open tabs, and
-    # re-run scripts/sofa/measure_bridge_capacity.py when you do.
-    max_concurrency: int = 3
+    # So this is not a free tuning knob: it is the window count. Change it
+    # together with launch_bridge_browser.py --windows, and re-run
+    # scripts/sofa/measure_bridge_capacity.py.
+    max_concurrency: int = 5
     breaker_threshold: int = 3
     # How long an open circuit waits before letting one probe through, and
     # the ceiling that repeated failures escalate to. Without these the
@@ -83,8 +83,8 @@ class SofaConfig:
         return cls(
             db_path=os.environ.get("SOFA_DB_PATH", "data/sofa.db"),
             runs_dir=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"),
-            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "14")),
-            max_concurrency=int(os.environ.get("SOFA_MAX_CONCURRENCY", "3")),
+            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "20")),
+            max_concurrency=int(os.environ.get("SOFA_MAX_CONCURRENCY", "5")),
             breaker_threshold=int(os.environ.get("SOFA_BREAKER_THRESHOLD", "3")),
             breaker_cooldown_s=int(os.environ.get("SOFA_BREAKER_COOLDOWN_S", "30")),
             breaker_max_cooldown_s=int(

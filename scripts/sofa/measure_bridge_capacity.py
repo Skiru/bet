@@ -44,8 +44,9 @@ Design constraints, on purpose:
   - hard abort on anything that is not 200/404, on a circuit-breaker open,
     or on latency blowing out - and the ramp stops, it does not "retry".
 """
+import json
+import pathlib
 import sqlite3
-import statistics as st
 import sys
 import threading
 import time
@@ -56,7 +57,20 @@ from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
 
-STEPS = [2, 4, 6, 8, 10, 14]
+# The steps have to straddle what the tabs can serve, or the ramp measures
+# starvation and nothing else. Five windows at MIN_INTERVAL_MS = 350 is
+# 5 x 2.86 = 14.3 req/s, so a ramp that stops at 14 sits entirely BELOW the
+# ceiling: every step leaves tabs idle between jobs, paying a 20 s /pull, and
+# the run reports a "plateau" that is purely its own starvation. The old fixed
+# [2, 4, 6, 8, 10, 14] was fitted to three windows and became misleading the
+# moment a fourth was opened.
+_TAB_CEILING = SofaConfig().max_concurrency * (1000.0 / 350.0)
+# and the ramp starts AT the ceiling, never below it. Below it the tabs idle,
+# a job outlives the client deadline, and the step dies on a 504 - so a ramp
+# with sub-ceiling steps does not measure a slow bridge, it guarantees its own
+# abort. That starvation is documented in CLAUDE.md and does not need
+# re-measuring on every run.
+STEPS = [max(2, round(_TAB_CEILING * f)) for f in (1.0, 1.4, 2.0, 3.0, 4.0)]
 PER_STEP = 60
 
 db = sqlite3.connect("data/sofa.db")
@@ -75,10 +89,10 @@ def next_id() -> int:
         return v
 
 abort = threading.Event()
-abort_reason = []
+abort_reason: list[str] = []
 
 def run_step(rps: int) -> tuple[float, list[float], list[int], float]:
-    cfg = SofaConfig(run_id=f"ramp{rps}", target_rps=rps)
+    cfg = SofaConfig(run_id=f"ramp{rps}-{RAMP_STAMP}", target_rps=rps)
     client = SofascoreClient(cfg)
     lat: list[float] = []
     statuses: list[int] = []
@@ -104,23 +118,65 @@ def run_step(rps: int) -> tuple[float, list[float], list[int], float]:
             statuses.append(code)
 
     t0 = time.monotonic()
-    with ThreadPoolExecutor(max_workers=min(rps * 2, 24)) as pool:
+    # One worker per tab, matching SofaConfig.max_concurrency. More threads
+    # than the client's semaphore allows do not add throughput - they queue
+    # behind it, and a request that waits there long enough outlives the job
+    # deadline and comes back 504, killing the whole step. The instrument was
+    # breaking the same rule it exists to measure (min(rps*2, 24) meant 24
+    # threads against a semaphore of 5).
+    with ThreadPoolExecutor(max_workers=cfg.max_concurrency) as pool:
         list(pool.map(one, range(PER_STEP)))
     el = time.monotonic() - t0
     done = len(statuses)
     return done / el if el else 0, lat, statuses, el
 
+# Every invocation gets its own run_id suffix. Without it a ramp reads back
+# every previous ramp's rows too, and a step that ran in 216 ms reports a p90
+# of 9,870 ms inherited from a run hours earlier.
+RAMP_STAMP = time.strftime("%H%M%S")
+
+
+def bridge_round_trip_ms(run_id: str) -> list[float]:
+    """The browser's own latency, read back from the request log.
+
+    The timer around `client.event_statistics()` spans the token bucket as
+    well as the request, and with `max_workers` threads all starting at once
+    the bucket wait dominates and is roughly constant. Reporting that as
+    latency reads as "every step is equally slow" no matter what the browser
+    is doing - on 2026-09-22 it showed a flat ~2,050 ms while the bridge was
+    in fact answering in 216 ms, and sent a whole diagnosis the wrong way.
+
+    The log records the round trip alone, which is the number that says
+    whether a tab is throttled.
+    """
+    path = pathlib.Path("runs/sofa/run.log.jsonl")
+    if not path.exists():
+        return []
+    out = []
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if row.get("run_id") == run_id and not row.get("cache_hit"):
+                out.append(row["elapsed_ms"])
+    return out
+
+
 print(
-    f"{'target':>7s} {'achieved':>9s} {'p50 lat':>9s} "
+    f"{'target':>7s} {'achieved':>9s} {'p50 net':>9s} {'p90 net':>9s} "
     f"{'n':>5s} {'non-200':>8s} {'wall':>7s}"
 )
 results = []
 for rps in STEPS:
     achieved, lat, statuses, el = run_step(rps)
     bad = sum(1 for s in statuses if s != 200)
-    p50 = st.median(lat) if lat else 0
+    net = sorted(bridge_round_trip_ms(f"ramp{rps}-{RAMP_STAMP}"))
+    p50 = net[len(net) // 2] if net else 0
+    p90 = net[int(len(net) * 0.9)] if net else 0
     print(
-        f"{rps:7d} {achieved:8.2f}/s {p50:8.0f}ms "
+        f"{rps:7d} {achieved:8.2f}/s {p50:8.0f}ms {p90:8.0f}ms "
         f"{len(statuses):5d} {bad:8d} {el:6.1f}s"
     )
     results.append((rps, achieved))

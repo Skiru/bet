@@ -28,10 +28,13 @@ def test_config_defaults() -> None:
     assert config.db_path == "data/sofa.db"
     assert config.runs_dir == "runs/sofa"
     # Fitted, not guessed, and deliberately ABOVE the tabs' own capacity:
-    # starving the bucket collapses throughput to ~2 req/s, saturating it
-    # delivers 8.6 (2026-09-22, three tabs, reproduced twice).
-    assert config.target_rps == 14
-    assert config.max_concurrency == 3
+    # starving the bucket leaves tabs idle between jobs, paying a 20 s /pull
+    # cycle. Re-fitted 2026-09-22 against FIVE windows, once Chrome's
+    # background throttling was removed by launch_bridge_browser.py:
+    # max_concurrency is the window count (conc 3 measured 0.15 req/s against
+    # conc 5's 11.67), and the bucket sits above 5 x 2.86 = 14.3 req/s.
+    assert config.target_rps == 20
+    assert config.max_concurrency == 5
     assert config.breaker_threshold == 3
     assert config.breaker_cooldown_s == 30
     assert config.breaker_max_cooldown_s == 300
