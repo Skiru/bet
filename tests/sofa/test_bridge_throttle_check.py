@@ -49,3 +49,41 @@ def test_the_probe_stays_tiny(check_bridge):
     """This measures our own latency. It must never grow into a throughput
     test against someone else's production API."""
     assert check_bridge.LATENCY_SAMPLES <= 5
+
+
+def test_a_transport_failure_is_diagnosed_not_raised(check_bridge, monkeypatch, capsys):
+    """A 504 from the bridge must print a diagnosis and return 1, not raise.
+
+    A tab Chrome has put into intensive throttling takes ~40 s to claim a job.
+    The bridge then answers 504 and `bridge_transport.get` raises
+    TransportError - which is not a ProviderError, so this preflight died with
+    a stack trace instead of the one sentence it exists to print. Observed
+    live 2026-09-22 straight after a capacity ramp.
+    """
+    import contextlib
+    import json
+
+    from bet.sofa.errors import TransportError
+
+    class FakeHealth:
+        def read(self):
+            return json.dumps({"ok": True, "last_pull_age_s": 5.0}).encode()
+
+    @contextlib.contextmanager
+    def fake_urlopen(*_a, **_k):
+        yield FakeHealth()
+
+    class Throttled:
+        def get(self, *_a, **_k):
+            raise TransportError("bridge HTTP 504: bridge timeout")
+
+    monkeypatch.setattr(check_bridge, "urlopen", fake_urlopen)
+    monkeypatch.setattr(check_bridge, "BrowserBridgeTransport", lambda: Throttled())
+    monkeypatch.setattr(check_bridge.sys, "argv", ["check_bridge.py"])
+
+    rc = check_bridge.main()
+
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "FAIL" in out
+    assert "504" in out

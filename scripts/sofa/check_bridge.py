@@ -24,7 +24,7 @@ from bet.sofa.bridge_transport import (  # noqa: E402
     DEFAULT_BRIDGE_URL,
     BrowserBridgeTransport,
 )
-from bet.sofa.errors import ProviderError  # noqa: E402
+from bet.sofa.errors import ProviderError, TransportError  # noqa: E402
 
 PROBE_URL = "https://api.sofascore.com/api/v1/sport/football/events/live"
 
@@ -67,8 +67,16 @@ def main() -> int:
 
     try:
         resp = BrowserBridgeTransport().get(PROBE_URL, timeout=30.0)
-    except ProviderError as e:
+    except (ProviderError, TransportError) as e:
+        # TransportError, not just ProviderError. A tab the browser has put
+        # into intensive throttling takes ~40 s to claim a job, the bridge
+        # answers 504, and `bridge_transport.get` raises TransportError -
+        # which is not a ProviderError, so this preflight died with a
+        # traceback instead of the diagnosis it exists to print.
         print(f"FAIL  bridge could not serve the request: {e}")
+        print("      a 504 here means no tab claimed the job in time - the")
+        print("      tab is open but the browser has throttled it. Bring the")
+        print("      sofascore.com window to the front and try again.")
         return 1
 
     if resp.status_code != 200:
@@ -95,7 +103,7 @@ def main() -> int:
         started = time.monotonic()
         try:
             transport.get(PROBE_URL, timeout=30.0)
-        except ProviderError:
+        except (ProviderError, TransportError):
             break
         samples.append((time.monotonic() - started) * 1000.0)
     if not samples:

@@ -58,10 +58,14 @@ Three OK lines required. `ok: true` alone is not enough — a dead tab still
 reports ok, so the line that matters is the poll age. If the tab is dead,
 stop and tell the operator: nothing downstream of BOARD can run.
 
-**Never raise `SOFA_TARGET_RPS`.** 550 req/s closed the API on 2026-09-17, and
-the real ceiling is in the userscript anyway (`MIN_INTERVAL_MS = 350`).
-Expect ~0.5–2 req/s in practice; Sofascore's own latency is ~2 s per request
-and the bridge is serial.
+**Set `SOFA_TARGET_RPS` from `scripts/sofa/measure_bridge_capacity.py`, never
+above the plateau it reports** — 3.9 req/s on three tabs (2026-09-22, 360
+requests, zero non-200). Above the plateau the queue grows, not the throughput.
+**Never lower `MIN_INTERVAL_MS`**: that is the per-connection pace.
+
+Check the tabs before blaming the rate. A tab Chrome has throttled answers the
+same routes in ~2,000 ms instead of ~175 ms and takes ~40 s to claim a job;
+`check_bridge.py` warns above 600 ms. One overnight run paid ~5.3 hours for it.
 
 ## Step 0b — use the right interpreter
 

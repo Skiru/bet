@@ -133,10 +133,23 @@ success and the import still fails. Use `.venv/bin/python -m pip`.
 and the offline stages needs the browser bridge. `ok: true` is not enough — a
 dead tab still reports ok; read the poll age.
 
-**Never raise `SOFA_TARGET_RPS`.** An unpaced burst (~2800 requests in 15
-minutes, peaking at 550 req/s) coincided with Sofascore closing `/api/v1/` on
-2026-09-17. The default is 2 and the real ceiling is in the userscript
-(`MIN_INTERVAL_MS = 350`). We are a guest on someone else's production API.
+**Set `SOFA_TARGET_RPS` from a measurement, never above it.** The burst that
+coincided with Sofascore closing `/api/v1/` on 2026-09-17 (~2800 requests in 15
+minutes, peaking at 550 req/s) was **one** `curl_cffi` client with 100 workers
+and no browser — not a shape the bridge can produce.
+`scripts/sofa/measure_bridge_capacity.py` ramps the rate and reports the
+plateau: **3.9 req/s on three tabs** (2026-09-22, 360 requests, zero non-200),
+reached already at a target of 4. Asking for 14 delivered the same 3.9 and took
+the bridge round trip from 605 ms to 5,603 ms — above the plateau you buy
+queue, not speed.
+
+**Never lower `MIN_INTERVAL_MS`.** That is the *per-connection* pace and the one
+number that makes a tab look like a person. Capacity comes from more tabs.
+
+**The browser is the binding limit, not Sofascore.** Three tabs served 3.9 req/s
+and not the 8.6 the 350 ms floor allows, because Chrome throttles hidden tabs: a
+throttled tab takes ~40 s to claim a job and answers the same routes in ~2,000 ms
+instead of ~175 ms. `check_bridge.py` warns above 600 ms.
 
 **Never re-fit constants mid-day.** `fit_constants.py` is outside
 `DEFAULT_SEQUENCE` on purpose; re-fitting breaks comparability with yesterday.

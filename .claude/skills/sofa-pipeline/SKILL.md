@@ -168,9 +168,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 Sofascore answers **403 to every non-browser client**. Everything except BOARD
 and the offline stages goes through a real browser tab (`check_bridge.py`).
 `ok: true` alone is not enough — a dead tab still reports ok; read the poll
-age. **Never raise `SOFA_TARGET_RPS`**: 550 req/s closed the API on
-2026-09-17, and the real ceiling is in the userscript anyway
-(`MIN_INTERVAL_MS = 350`). Expect 0.5–2 req/s.
+age. **Set `SOFA_TARGET_RPS` from `measure_bridge_capacity.py`, never above
+its plateau** — 3.9 req/s on three tabs (2026-09-22); above it you buy queue,
+not speed. **Never lower `MIN_INTERVAL_MS`**: that is the per-connection pace.
+The binding limit is the browser, not Sofascore — a hidden, throttled tab drops
+a run to ~0.5 req/s and `check_bridge.py` now names it.
 
 ## Hard rules
 

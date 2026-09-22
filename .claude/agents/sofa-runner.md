@@ -34,7 +34,11 @@ the offline stages goes through a real browser tab.
 Three OK lines required. **`ok: true` alone is not enough** — a dead tab still
 reports ok, so the line that matters is the poll age. If the tab is dead, stop
 and tell the operator: nothing downstream of BOARD can run. Do not attempt a
-workaround, and **never raise `SOFA_TARGET_RPS`**.
+workaround. Set `SOFA_TARGET_RPS` only from the plateau reported by
+`scripts/sofa/measure_bridge_capacity.py`, never above it, and never lower
+`MIN_INTERVAL_MS`. If `check_bridge.py` warns that the round trip is above
+600 ms, say so before starting: the tabs are throttled and the run will take
+roughly four times as long for no benefit.
 
 Use `.venv/bin/python`. `.venv/bin/pip` belongs to a different interpreter and
 installs where nothing can import.

@@ -124,10 +124,14 @@ pipeline ──HTTP──► bridge_server.py (127.0.0.1:8787) ◄──polling�
   za mało.** Martwa karta nadal raportuje `ok`. Liczy się **wiek ostatniego
   pobrania** (`last_pull_age_s`).
 - Tempo: `SOFA_TARGET_RPS` domyślnie **2**, `SOFA_MAX_CONCURRENCY` **2**.
-  **Nigdy tego nie podnoś.** Nieopanowana seria z tej maszyny (~2800 żądań
-  w 15 minut, szczyt 550 req/s) zbiegła się w czasie z zamknięciem API
-  2026-09-17. Realny sufit i tak siedzi w userscripcie (`MIN_INTERVAL_MS = 350`),
-  a praktyka to 0,5–2 req/s.
+  **Ustawiaj z pomiaru, nigdy powyżej.** `scripts/sofa/measure_bridge_capacity.py`
+  robi rampę i podaje plateau: **3,9 req/s na trzech kartach** (2026-09-22, 360
+  żądań, zero non-200), osiągane już przy celu 4. Cel 14 dał to samo 3,9 i
+  wydłużył obieg mostu z 605 ms do 5603 ms — powyżej plateau kupujesz kolejkę,
+  nie tempo. Seria z 2026-09-17 (szczyt 550 req/s) to był **jeden** klient
+  `curl_cffi` ze 100 workerami, bez przeglądarki — most takiego kształtu nie
+  produkuje. **`MIN_INTERVAL_MS` nigdy nie obniżaj**: to tempo pojedynczego
+  połączenia. Przepustowość bierze się z liczby kart.
 - Bezpiecznik: 3 porażki pod rząd otwierają obwód (`breaker_threshold`),
   cooldown 30 s rosnąco do 300 s. `record_success` zeruje licznik — dlatego
   przebieg bez zakłóceń **nie testuje** bezpiecznika i nie wolno raportować,
