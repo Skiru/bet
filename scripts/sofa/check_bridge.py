@@ -2,16 +2,19 @@
 
     python scripts/sofa/check_bridge.py
 
-Checks three things in order, and says which one broke:
+Checks four things in order, and says which one broke:
   1. the bridge server is listening
   2. a browser tab is polling it
   3. a real /api/v1/ request comes back 200 with JSON
+  4. the tab is answering at full speed, not throttled by the browser
 """
 
 from __future__ import annotations
 
 import json
+import statistics
 import sys
+import time
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -24,6 +27,18 @@ from bet.sofa.bridge_transport import (  # noqa: E402
 from bet.sofa.errors import ProviderError  # noqa: E402
 
 PROBE_URL = "https://api.sofascore.com/api/v1/sport/football/events/live"
+
+# A healthy bridge round trip is ~175 ms, measured over 15,949 requests. A tab
+# the browser has throttled answers the *same routes* in ~1,997 ms, and the
+# only signal today is that the run takes four times as long for no stated
+# reason. Confirmed not to be Sofascore and not to be the clock: hour 21 UTC
+# contains both modes on different runs (161 ms vs 1,997 ms), and one overnight
+# run paid the slow mode on 10,544 requests - about 5.3 hours.
+#
+# The threshold sits well above the fast mode's p99 and well below the slow
+# mode's p10 (1,889 ms), so it cannot fire on ordinary variance.
+HEALTHY_ROUND_TRIP_MS = 600.0
+LATENCY_SAMPLES = 3
 
 
 def main() -> int:
@@ -70,6 +85,34 @@ def main() -> int:
 
     events = data.get("events", []) if isinstance(data, dict) else []
     print(f"OK    Sofascore returned 200 with {len(events)} live football events")
+
+    # 4. Is the tab answering at full speed? The request count here is
+    # deliberately tiny - this measures our own latency, it is not a
+    # throughput test against someone else's production API.
+    transport = BrowserBridgeTransport()
+    samples = []
+    for _ in range(LATENCY_SAMPLES):
+        started = time.monotonic()
+        try:
+            transport.get(PROBE_URL, timeout=30.0)
+        except ProviderError:
+            break
+        samples.append((time.monotonic() - started) * 1000.0)
+    if not samples:
+        print("WARN  could not measure round-trip latency")
+        return 0
+
+    median_ms = statistics.median(samples)
+    if median_ms >= HEALTHY_ROUND_TRIP_MS:
+        print(f"WARN  bridge round trip {median_ms:.0f} ms — the browser is "
+              f"throttling the tab (healthy is ~175 ms)")
+        print("      the run will take roughly "
+              f"{median_ms / 175:.0f}x longer for no benefit to anyone.")
+        print("      keep the sofascore.com tab visible and the machine awake:")
+        print("      a backgrounded or occluded tab has its timers clamped, and")
+        print("      one overnight run paid ~5.3 hours for exactly this.")
+    else:
+        print(f"OK    bridge round trip {median_ms:.0f} ms (tab not throttled)")
     return 0
 
 
