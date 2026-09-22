@@ -20,10 +20,6 @@ import pytest
 
 SCRIPT = Path(__file__).parent.parent.parent / "scripts" / "sofa" / "check_bridge.py"
 
-FAST_MODE_P99_MS = 250.0
-SLOW_MODE_P10_MS = 1889.0
-
-
 @pytest.fixture(scope="module")
 def check_bridge():
     spec = importlib.util.spec_from_file_location("check_bridge", SCRIPT)
@@ -32,23 +28,32 @@ def check_bridge():
     return module
 
 
-def test_threshold_separates_the_two_measured_modes(check_bridge):
-    """A threshold inside either mode is worse than none: it would fire on
-    ordinary variance, or never fire at all."""
-    assert FAST_MODE_P99_MS < check_bridge.HEALTHY_ROUND_TRIP_MS < SLOW_MODE_P10_MS
+def test_the_burst_threshold_sits_between_the_two_observed_regimes(check_bridge):
+    """Measured 2026-09-22, three back-to-back 12-job bursts, all 200:
+    4.26 req/s when the tabs were awake, 0.28 and 0.52 when Chrome had
+    throttled them. The threshold has to separate those, or it says nothing."""
+    assert 0.52 < check_bridge.HEALTHY_BURST_RPS < 4.26
 
 
-def test_threshold_clears_the_userscript_floor(check_bridge):
-    """Back-to-back probes are paced by MIN_INTERVAL_MS = 350 in the
-    userscript, so a threshold at or below 350 ms would call a perfectly
-    healthy tab throttled. Measured live 2026-09-22: 349 ms."""
-    assert check_bridge.HEALTHY_ROUND_TRIP_MS > 350.0
+def test_the_expected_plateau_is_the_sustained_measurement(check_bridge):
+    """The number quoted to the operator must be the one the ramp measured
+    over 360 requests, not a burst reading."""
+    assert check_bridge.EXPECTED_PLATEAU_RPS == 3.9
 
 
 def test_the_probe_stays_tiny(check_bridge):
     """This measures our own latency. It must never grow into a throughput
-    test against someone else's production API."""
-    assert check_bridge.LATENCY_SAMPLES <= 5
+    test against someone else's production API: two bursts are sent, one
+    discarded as the wake-up."""
+    assert check_bridge.BURST_SAMPLES <= 6
+
+
+def test_a_cold_probe_is_given_more_than_one_poll_cycle(check_bridge):
+    """The userscript long-polls /pull for 20 s. A first request that lands
+    while every tab is mid-poll waits for the next cycle - measured 20.1 s,
+    20.1 s and 40.1 s on a bridge that was provably healthy. A timeout at or
+    under one cycle turns that into a FAIL, and CLAUDE.md runs this first."""
+    assert check_bridge.COLD_PROBE_TIMEOUT_S > 2 * 20.0
 
 
 def test_a_transport_failure_is_diagnosed_not_raised(check_bridge, monkeypatch, capsys):

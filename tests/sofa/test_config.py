@@ -27,9 +27,10 @@ def test_config_defaults() -> None:
     config = SofaConfig.from_env()
     assert config.db_path == "data/sofa.db"
     assert config.runs_dir == "runs/sofa"
-    # Deliberately low: see SofaConfig for why these dropped from 10/8.
-    assert config.target_rps == 2
-    assert config.max_concurrency == 2
+    # Fitted, not guessed: measure_bridge_capacity.py put the bridge plateau
+    # at 3.9 req/s on three tabs (2026-09-22), reached at a target of 4.
+    assert config.target_rps == 4
+    assert config.max_concurrency == 3
     assert config.breaker_threshold == 3
     assert config.breaker_cooldown_s == 30
     assert config.breaker_max_cooldown_s == 300
@@ -40,3 +41,37 @@ def test_config_defaults() -> None:
     assert config.price_max_age_min == 45
     assert config.shrink_k == 10
     assert config.run_id == ""
+
+
+def test_from_env_defaults_match_the_dataclass_defaults():
+    """`from_env` repeats every default as a string, so the two can drift.
+
+    They did: raising `SofaConfig.target_rps` to 4 changed nothing for the
+    pipeline, because every stage builds its config through `from_env`, whose
+    own literal still said "2" - and `test_env_defaults` passed throughout,
+    because it asserts on `from_env`. This guard compares the two directly, so
+    the next edit cannot silently apply to only one of them.
+    """
+    import dataclasses
+    import os
+
+    from bet.sofa.config import SofaConfig
+
+    saved = {k: v for k, v in os.environ.items() if k.startswith("SOFA_")}
+    for key in list(saved):
+        del os.environ[key]
+    try:
+        from_env = SofaConfig.from_env()
+    finally:
+        os.environ.update(saved)
+
+    plain = SofaConfig()
+    drifted = {
+        field.name: (getattr(plain, field.name), getattr(from_env, field.name))
+        for field in dataclasses.fields(SofaConfig)
+        # run_id is genuinely different: the dataclass default is empty and
+        # the environment supplies it per run.
+        if field.name != "run_id"
+        and getattr(plain, field.name) != getattr(from_env, field.name)
+    }
+    assert not drifted, f"dataclass default != from_env default: {drifted}"

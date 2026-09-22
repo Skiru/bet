@@ -19,12 +19,26 @@ MATCH_LOGIC_VERSION = 3
 class SofaConfig:
     db_path: str = "data/sofa.db"
     runs_dir: str = "runs/sofa"
-    # 2 req/s, not the 10 this used to default to. An unpaced burst from this
-    # machine (~2800 requests in 15 minutes, peaking at 550 req/s) coincided
-    # with Sofascore closing /api/v1/ on 2026-09-17. We are a guest on someone
-    # else's production API; pace like one.
-    target_rps: int = 2
-    max_concurrency: int = 2
+    # Fitted to the bridge, not guessed. scripts/sofa/measure_bridge_capacity.py
+    # ramped the rate on 2026-09-22 with three tabs open: the plateau is
+    # 3.9 req/s and it arrives at a target of 4. Asking for 14 delivered the
+    # same 3.9 and took the bridge round trip from 605 ms to 5,603 ms, so
+    # anything above this buys queue, not speed - and queue costs STALE_PRICE.
+    # 360 requests, zero non-200, no 403.
+    #
+    # This is NOT the 2026-09-17 shape. That burst was one curl_cffi client
+    # with 100 workers peaking at 550 req/s and no browser in the path. Here
+    # the per-connection pace is still the userscript's MIN_INTERVAL_MS = 350,
+    # which is why a single tab stays safe at this setting: the bucket simply
+    # stops being the binding constraint and the tab's own floor takes over.
+    #
+    # Re-run measure_bridge_capacity.py when the number of tabs changes. Never
+    # set this above the plateau it reports.
+    target_rps: int = 4
+    # One in-flight job per tab. bridge_server.claim() is not bound to a tab,
+    # so three tabs can serve three jobs at once; with fewer tabs the extra
+    # jobs simply queue, bounded by this number.
+    max_concurrency: int = 3
     breaker_threshold: int = 3
     # How long an open circuit waits before letting one probe through, and
     # the ceiling that repeated failures escalate to. Without these the
@@ -60,8 +74,8 @@ class SofaConfig:
         return cls(
             db_path=os.environ.get("SOFA_DB_PATH", "data/sofa.db"),
             runs_dir=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"),
-            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "2")),
-            max_concurrency=int(os.environ.get("SOFA_MAX_CONCURRENCY", "2")),
+            target_rps=int(os.environ.get("SOFA_TARGET_RPS", "4")),
+            max_concurrency=int(os.environ.get("SOFA_MAX_CONCURRENCY", "3")),
             breaker_threshold=int(os.environ.get("SOFA_BREAKER_THRESHOLD", "3")),
             breaker_cooldown_s=int(os.environ.get("SOFA_BREAKER_COOLDOWN_S", "30")),
             breaker_max_cooldown_s=int(
