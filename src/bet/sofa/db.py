@@ -2,7 +2,13 @@ import sqlite3
 
 
 def get_connection(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
+    # `timeout` is what a writer waits for another writer's lock instead of
+    # raising "database is locked" immediately. It was the default 5 s while
+    # the pipeline was single-threaded and nothing ever contended; SAMPLES now
+    # runs a thread pool, and every worker writes cached statistics. 30 s is
+    # far longer than any write here takes and turns a lost fixture into a
+    # pause nobody notices.
+    conn = sqlite3.connect(db_path, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn
 

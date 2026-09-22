@@ -7,7 +7,9 @@ import argparse
 import json
 import statistics
 import sys
+import threading
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +31,7 @@ from bet.sofa.samples import (
     compute_readiness,
     process_fixture_samples,
 )
-from bet.sofa.stage import set_stage
+from bet.sofa.stage import current_stage, set_stage
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.timeutil import now
 
@@ -94,6 +96,84 @@ def carry_over_on_provider_fault(
     )
 
 
+# One Superbet client per worker thread. `SuperbetClient` wraps a curl_cffi
+# Session, which is not documented thread-safe, and the fallback path in
+# SAMPLES does reach it — an offer entry that names no market falls through to
+# a live call. Sharing one session across the pool is the kind of defect that
+# shows up as a corrupted response weeks later, so each thread gets its own.
+_THREAD_LOCAL = threading.local()
+
+
+def superbet_for_thread() -> SuperbetClient:
+    client = getattr(_THREAD_LOCAL, "superbet", None)
+    if client is None:
+        client = SuperbetClient()
+        _THREAD_LOCAL.superbet = client
+    return client
+
+
+def sample_fixtures_concurrently(
+    fixtures: list[Fixture],
+    client: SofascoreClient,
+    cache: SofaCache,
+    config: SofaConfig,
+    offers_by_id: dict[int, FixtureOffer],
+) -> list[FixtureSamples]:
+    """One FixtureSamples per fixture, in the input's order.
+
+    Order is part of the contract, not a nicety: 03_samples.json is diffed
+    against the previous run and read by a human, so the artifact must not
+    depend on which worker happened to finish first. `ThreadPoolExecutor.map`
+    yields in submission order, which is what gives us that for free.
+
+    Why a pool at all: the bridge round trip is ~175 ms and the userscript
+    paces each *tab* at 350 ms, so one tab tops out near 2.9 req/s no matter
+    what the Python side does. The queue in bridge_server.claim() is not bound
+    to a tab — every /pull pops a different job — so K tabs serve K jobs at
+    once, each still pacing itself. Concurrency here is what lets the pipeline
+    actually have K jobs in flight to give them.
+
+    It is not, on its own, a speed-up: `SofascoreClient` still holds one global
+    token bucket at SOFA_TARGET_RPS, so with the default of 2 this pool will
+    sit idle waiting for tokens. The rate and the tab count have to move
+    together, and that is deliberately the operator's decision - see
+    docs/sofa/CONFIG.md.
+    """
+    workers = max(1, config.max_concurrency)
+    if workers == 1 or len(fixtures) < 2:
+        return [
+            process_fixture_samples(
+                fixture,
+                client,
+                cache,
+                superbet_for_thread(),
+                config,
+                offer=offers_by_id.get(fixture.sofascore_event_id),
+            )
+            for fixture in fixtures
+        ]
+
+    # `stage` is a ContextVar, and a fresh thread starts from the default
+    # context - so without this every request a worker makes would log
+    # stage "CLIENT" and the per-stage cost accounting (F8, F22) would
+    # quietly stop working the moment the pool was switched on.
+    stage = current_stage()
+
+    def one(fixture: Fixture) -> FixtureSamples:
+        set_stage(stage)
+        return process_fixture_samples(
+            fixture,
+            client,
+            cache,
+            superbet_for_thread(),
+            config,
+            offer=offers_by_id.get(fixture.sofascore_event_id),
+        )
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(one, fixtures))
+
+
 def main() -> int:
     # Every request underneath this call is this stage's cost (F22).
     set_stage("SAMPLES")
@@ -104,7 +184,6 @@ def main() -> int:
     config = SofaConfig.from_env()
     client = SofascoreClient(config)
     cache = SofaCache(config)
-    superbet_client = SuperbetClient()
 
     run_dir = Path(config.runs_dir) / args.date
     fixtures_path = run_dir / "02_fixtures.json"
@@ -119,14 +198,20 @@ def main() -> int:
     cache_hits = 0
     network_requests = 0
     original_get_event_stats = cache.get_event_stats
+    # `x += 1` is load/add/store, so several workers can read the same value
+    # and one increment is lost. These two numbers go into the run summary and
+    # into the cache-efficiency argument; a counter that silently undercounts
+    # is worse than no counter.
+    counter_lock = threading.Lock()
 
     def tracked_get_event_stats(event_id: int) -> Any:
         nonlocal cache_hits, network_requests
         result = original_get_event_stats(event_id)
-        if result:
-            cache_hits += 1
-        else:
-            network_requests += 1
+        with counter_lock:
+            if result:
+                cache_hits += 1
+            else:
+                network_requests += 1
         return result
 
     cache.get_event_stats = tracked_get_event_stats  # type: ignore[method-assign,assignment]
@@ -174,15 +259,11 @@ def main() -> int:
     previous_by_id = load_previous_samples(run_dir / "03_samples.json")
     carried_over = 0
 
-    for fixture in fixtures:
-        samples = process_fixture_samples(
-            fixture,
-            client,
-            cache,
-            superbet_client,
-            config,
-            offer=offers_by_id.get(fixture.sofascore_event_id),
-        )
+    sampled = sample_fixtures_concurrently(
+        fixtures, client, cache, config, offers_by_id
+    )
+
+    for fixture, samples in zip(fixtures, sampled, strict=True):
         samples, carried = carry_over_on_provider_fault(
             samples, previous_by_id.get(fixture.sofascore_event_id)
         )

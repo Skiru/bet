@@ -26,6 +26,41 @@ w złym momencie jest błędem, nie stratą minuty.
 | `sofa_no_stats_tournaments.json` | `fit_no_stats_tournaments.py` (poza sekwencją) | `samples.py` | `fitted_at_utc`, `min_events` ≥ 10, `events_examined`; każdy wpis to turniej, który **ani razu** nie oddał `/event/{id}/statistics` |
 | `sofa_name_aliases.json` | ręcznie | `names.py` | aliasy PL→EN (111 wpisów): `anglia → england` itd. |
 
+### Tempo, zakładki i współbieżność — co z czym chodzi w parze
+
+Zmierzone 2026-09-22, most na żywo:
+
+| warstwa | zmierzone | sufit |
+|---|---|---|
+| round-trip mostu | **175 ms** | **5,7 req/s** na zakładkę |
+| `MIN_INTERVAL_MS` w userscripcie | 350 ms | 2,86 req/s |
+| kubełek przy `SOFA_TARGET_RPS=2` | 500 ms | **2,0 req/s — dziś to wiąże** |
+
+Stąd dwa wnioski, które trzeba trzymać razem:
+
+1. **20 req/s przez jedną zakładkę jest nieosiągalne.** Nawet przy
+   `MIN_INTERVAL_MS = 0` sufit to 5,7 req/s, bo tyle trwa obieg.
+2. **`SOFA_MAX_CONCURRENCY` bez `SOFA_TARGET_RPS` nic nie daje.** Kubełek jest
+   globalny. Pula wątków ma sens dopiero, gdy pracy jest komu dać — czyli przy
+   **wielu zakładkach** `sofascore.com`. `bridge_server.claim()` nie jest
+   związany z zakładką: każdy `/pull` zdejmuje inne zadanie, a `lastRequestAt`
+   w userscripcie żyje per zakładka, więc K zakładek to K równoległych żądań,
+   **każda nadal we własnym rytmie 350 ms**.
+
+To jest istotne rozróżnienie wobec 2026-09-17: wtedy było jedno połączenie
+`curl_cffi` ze 100 workerami i szczytem 550 req/s. Tutaj rośnie liczba
+połączeń, a nie tempo połączenia — Sofascore widzi użytkownika z kilkoma
+kartami. **Decyzja o podniesieniu jednego i drugiego należy do operatora** i
+nie zapada w trakcie dnia.
+
+### Zakładka zdławiona przez przeglądarkę
+
+`check_bridge.py` mierzy obieg i ostrzega powyżej 600 ms. Zdrowo jest ~175 ms;
+zdławiona zakładka odpowiada na **tych samych trasach** w ~1997 ms. To nie
+Sofascore i nie pora doby — godzina 21 UTC zawiera oba tryby na różnych
+przebiegach. Jeden nocny przebieg zapłacił za to ~5,3 godziny. Trzymaj kartę
+widoczną i maszynę obudzoną.
+
 ### Zmienne środowiskowe (`SofaConfig.from_env`, `src/bet/sofa/config.py`)
 
 | zmienna | domyślnie | uwaga |
@@ -33,7 +68,7 @@ w złym momencie jest błędem, nie stratą minuty.
 | `SOFA_DB_PATH` | `data/sofa.db` | |
 | `SOFA_RUNS_DIR` | `runs/sofa` | |
 | `SOFA_TARGET_RPS` | **2** | **nigdy nie podnoś** — 550 req/s zamknęło API 2026-09-17 |
-| `SOFA_MAX_CONCURRENCY` | 2 | |
+| `SOFA_MAX_CONCURRENCY` | 2 | pula wątków w SAMPLES. **Martwa konfiguracja do 2026-09-22** — czytana i nieużywana. Sama nic nie przyspiesza: kubełek `SOFA_TARGET_RPS` jest globalny, więc bez podniesienia tempa pula czeka na tokeny |
 | `SOFA_BREAKER_THRESHOLD` | 3 | trzy porażki **pod rząd**; sukces zeruje licznik |
 | `SOFA_BREAKER_COOLDOWN_S` / `_MAX_` | 30 / 300 | bez nich obwód nigdy się nie zamykał |
 | `SOFA_EVENTS_TTL_MIN` | 360 | |
