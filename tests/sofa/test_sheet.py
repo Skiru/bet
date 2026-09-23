@@ -351,8 +351,9 @@ def _games_ladder(market: str = "games_total") -> list[PricedRung]:
 
 def test_tennis_centre_is_pulled_onto_the_ladder() -> None:
     # A sample that says 17 games against a ladder that says about 21.5.
+    # Both players' histories: a total needs both sides since 2026-09-23.
     samples = make_samples(
-        "games_total", [17, 16, 18, 17, 17, 16, 18, 17, 17, 17], []
+        "games_total", [17, 16, 18, 17, 17], [16, 18, 17, 17, 17]
     )
     rows, _ = run(samples, make_offer(_games_ladder()), _tennis_fixture())
     assert rows
@@ -373,7 +374,7 @@ def test_football_is_not_in_scope() -> None:
     mean, exactly as before — never to the ladder.
     """
     samples = make_samples(
-        "goals_total", [1, 2, 1, 2, 1, 2, 1, 2, 1, 2], []
+        "goals_total", [1, 2, 1, 2, 1], [2, 1, 2, 1, 2]
     )
     rungs = [
         rung(line, over, under)

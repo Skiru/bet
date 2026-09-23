@@ -4,6 +4,7 @@ import logging
 import re
 import statistics
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Literal
 
@@ -268,6 +269,160 @@ def get_prior(
     return None
 
 
+# The same evidence bar fit_constants.py holds a league entry to
+# (MIN_BASELINE_OBSERVATIONS); a test pins the two together.
+MIN_DAY_LEAGUE_OBSERVATIONS = 30
+
+# metric -> competition id -> (match id, owner) -> value
+DayLeagueObservations = dict[str, dict[str, dict[tuple[int, str], float]]]
+
+
+def _is_half_metric(metric: str) -> bool:
+    return "_1h_" in metric or "_2h_" in metric
+
+
+def day_league_observations(
+    fixtures: list[Fixture], samples: list[FixtureSamples]
+) -> DayLeagueObservations:
+    """Every league match already in the day's sample, per metric and league.
+
+    `config/sofa_league_baselines.json` only carries a league once SETTLE has
+    graded thirty of its rows, so a league new to the board was shrunk toward
+    the *global* pool - every league on earth, youth and women's blowouts
+    included. On 2026-09-23 that put Gaucho Serie A2 at 3.29 goals a match
+    while the 72 Gaucho A2 matches in that day's own 03_samples.json averaged
+    2.10, Superbet's ladders sat at 2.08-2.10, and both staked OVER 1.5 legs
+    existed only because of the gap. The day already held the league's
+    history; this collects it.
+
+    Football only: a tennis tournament id is one week of one event, and tennis
+    shrinks toward the ladder, not a league. Half-match metrics are left out:
+    Sofascore's period split can be wrong while the full-time total is right -
+    Nigeria's NPFL put every goal of Kano Pillars 3-2 Niger Tornadoes (2-0 at
+    the break) in the second half, which sums correctly and so passes the
+    period1 + period2 == normaltime check - and a prior built on it moved all
+    24 of that day's goals_2h_total rows away from the price.
+
+    Match totals are keyed by match; a per-side metric by (match, the team the
+    history belongs to), so two teams' counts in one match are two
+    observations of "a team's count in this league".
+    """
+    fixture_by_id = {f.sofascore_event_id: f for f in fixtures}
+    out: DayLeagueObservations = {}
+    for fs in samples:
+        fx = fixture_by_id.get(fs.sofascore_event_id)
+        if fx is None or fx.sport != "football":
+            continue
+        for metric, ms in fs.metrics.items():
+            if _is_half_metric(metric):
+                continue
+            if metric.endswith("_total"):
+                lists = [("", ms.side_a), ("", ms.side_b), ("", ms.h2h)]
+            elif "_for" in metric:
+                lists = [(f"{fs.sofascore_event_id}:a", ms.side_a),
+                         (f"{fs.sofascore_event_id}:b", ms.side_b)]
+            else:
+                continue
+            per_comp = out.setdefault(metric, {})
+            for owner, obs_list in lists:
+                for o in obs_list:
+                    if o.competition_id is None:
+                        continue
+                    per_comp.setdefault(str(o.competition_id), {})[
+                        (o.sofascore_event_id, owner)] = o.value
+    return out
+
+
+def day_league_prior(
+    day_obs: DayLeagueObservations,
+    metric: str,
+    competition_id: int | None,
+    exclude_events: set[int],
+) -> tuple[float, int] | None:
+    """The league's day mean over matches that are NOT this fixture's sample.
+
+    Leaving the fixture's own matches out keeps the prior an independent
+    number: in Goiano Acesso on 2026-09-23 half the pool was the priced
+    match's own sample, which then counted twice - once as the sample and
+    once as the target it shrinks toward.
+    """
+    if competition_id is None:
+        return None
+    pool = day_obs.get(metric, {}).get(str(competition_id), {})
+    values = [v for (eid, _), v in pool.items() if eid not in exclude_events]
+    if len(values) < MIN_DAY_LEAGUE_OBSERVATIONS:
+        return None
+    return statistics.mean(values), len(values)
+
+
+def home_competition(observations: list[Observation]) -> int | None:
+    """The competition a side actually plays in: the one holding most of its
+    sample, and at least half of it. None when the sample has no majority."""
+    comps = [o.competition_id for o in observations if o.competition_id is not None]
+    if not comps:
+        return None
+    comp, count = Counter(comps).most_common(1)[0]
+    return comp if count * 2 >= len(observations) else None
+
+
+def _fitted_league_mean(
+    baselines: dict[str, Any], metric: str, competition_id: int
+) -> float | None:
+    entry = (baselines.get(metric) or {}).get(str(competition_id))
+    if isinstance(entry, dict) and isinstance(entry.get("mean"), int | float):
+        return float(entry["mean"])
+    return None
+
+
+def resolve_prior(
+    baselines: dict[str, Any],
+    day_obs: DayLeagueObservations,
+    metric: str,
+    fixture: Fixture,
+    own_sides: list[list[Observation]],
+    own_events: set[int],
+) -> tuple[float | None, str | None]:
+    """The shrink target for one row, and a note saying where it came from.
+
+    In order: the fitted league entry; the league measured on the day's
+    sample; the leagues the sides actually play in; the global pool. The third
+    exists for cups: KNVB beker and Copa Uruguay carry their own competition
+    id, so both staked cup legs of 2026-09-23 were shrunk toward the global
+    pool while the teams' own leagues were measured on the same page.
+    """
+    comp = fixture.competition_id
+    fitted = _fitted_league_mean(baselines, metric, comp)
+    if fitted is not None:
+        return fitted, None
+    day = day_league_prior(day_obs, metric, comp, own_events)
+    if day is not None:
+        mean, n = day
+        return mean, (f"PRIOR_FROM_DAY_SAMPLES: competition {comp} mean {mean:.4g} "
+                      f"over {n} matches in this day's samples, this match's own "
+                      "sample excluded (no fitted league baseline)")
+    parts: list[str] = []
+    means: list[float] = []
+    for side in own_sides:
+        home = home_competition(side)
+        if home is None or home == comp:
+            continue
+        league = _fitted_league_mean(baselines, metric, home)
+        source = "fitted"
+        if league is None:
+            measured = day_league_prior(day_obs, metric, home, own_events)
+            league, source = (measured[0], f"day n={measured[1]}") if measured else (
+                None, "")
+        if league is not None:
+            means.append(league)
+            parts.append(f"{home}={league:.4g} ({source})")
+    if means and len(means) == len(own_sides):
+        prior = statistics.mean(means)
+        return prior, (f"PRIOR_FROM_TEAMS_LEAGUES: competition {comp} has no "
+                       f"baseline; the sides' own leagues {', '.join(parts)} "
+                       f"-> {prior:.4g}")
+    return get_prior(baselines, metric, comp), None
+
+
 # A per-side market must be attributed to a side we can actually name. Below
 # this ratio, or on a tie, we do not know which side it is.
 SIDE_MATCH_THRESHOLD = 70.0
@@ -348,6 +503,7 @@ def process_fixture(
     vetoes: list[Veto],
     config: SofaConfig,
     side_correlations: dict[str, float | None] | None = None,
+    day_obs: DayLeagueObservations | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
@@ -411,6 +567,10 @@ def process_fixture(
             continue
         ladder_rungs = rungs_by_market_subject.get((rung.market, rung.subject), [])
         extra_notes: list[str] = []
+        # The histories behind this row, for the prior: which leagues the
+        # sides play in, and which matches the prior must leave out.
+        own_sides: list[list[Observation]] = []
+        own_events: set[int] = set()
 
         # F54. A player market's subject is a person, and its sample is that
         # person's own appearances — SAMPLES already did the name match
@@ -452,14 +612,41 @@ def process_fixture(
             continue
         else:
             metric_sample = samples.metrics[rung.market]
+            own_events = {
+                o.sofascore_event_id
+                for lst in (metric_sample.side_a, metric_sample.side_b,
+                            metric_sample.h2h)
+                for o in lst
+            }
 
             # A _total market pools both histories; one historical match still
             # contributes one observation (L13). A per-side market uses only the
             # side it names.
             if not rung.subject:
+                # A match total pools both histories, so it is only a match
+                # total when BOTH histories are there. With one side thin the
+                # pool is the other side's matches wearing this match's name:
+                # on 2026-09-23 UE Sant Andreu - Real Madrid Castilla priced
+                # corners OVER 7.5 from 2 Sant Andreu matches (5 and 5, both
+                # losing the bet) and 9 of Castilla's. SAMPLES had already
+                # written THIN_SAMPLE for it; SHEET only counted the pool.
+                thin = [
+                    f"{name}={len(side)}"
+                    for name, side in (("side_a", metric_sample.side_a),
+                                       ("side_b", metric_sample.side_b))
+                    if len(side) < config.min_sample
+                ]
+                if thin:
+                    skipped.append(
+                        (rung, GapReason.THIN_SAMPLE,
+                         f"total pools both sides and {', '.join(thin)} "
+                         f"< min_sample={config.min_sample}")
+                    )
+                    continue
                 obs = deduplicate_observations(
                     [metric_sample.side_a, metric_sample.side_b, metric_sample.h2h]
                 )
+                own_sides = [metric_sample.side_a, metric_sample.side_b]
             else:
                 side = determine_side(rung.subject, fixture)
                 if side is None:
@@ -476,6 +663,7 @@ def process_fixture(
                     if side == "side_a"
                     else metric_sample.side_b
                 )
+                own_sides = [obs]
 
         n = len(obs)
         if n < config.min_sample:
@@ -526,7 +714,13 @@ def process_fixture(
             w_c = n / (n + K_TENNIS_LADDER_CENTRE)
             centre = w_c * mean + (1 - w_c) * ladder_target
         else:
-            prior = get_prior(baselines, rung.market, fixture.competition_id)
+            if day_obs is not None and own_sides:
+                prior, prior_note = resolve_prior(
+                    baselines, day_obs, rung.market, fixture, own_sides, own_events)
+                if prior_note:
+                    extra_notes.append(prior_note)
+            else:
+                prior = get_prior(baselines, rung.market, fixture.competition_id)
             if prior is not None:
                 w_c = n / (n + k_centre)  # K_CENTRE
                 centre = w_c * mean + (1 - w_c) * prior
@@ -942,6 +1136,7 @@ def main() -> int:
 
     side_correlations = load_side_correlations()
     baselines = load_baselines(config)
+    day_obs = day_league_observations(fixtures, samples)
     reliability = load_reliability(config)
     engine_constants = load_engine_constants(config)
 
@@ -972,6 +1167,7 @@ def main() -> int:
                 vetoes,
                 config,
                 side_correlations,
+                day_obs,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

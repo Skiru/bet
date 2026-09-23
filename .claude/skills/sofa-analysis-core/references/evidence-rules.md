@@ -54,6 +54,21 @@ file has already shipped corners priors 24–32% too high for two days.
 Tennis at `K_CENTRE = 2` is nearly all sample, which is why tennis
 `p_central` equals the sample's own hit rate.
 
+**Where the football prior came from** is on the row since 2026-09-23. In
+order: the fitted league entry (no note); `PRIOR_FROM_DAY_SAMPLES` - the
+league's mean over the day's own sampled matches, this fixture's sample
+excluded, n >= 30; `PRIOR_FROM_TEAMS_LEAGUES` - a cup tie priced on the leagues
+its sides actually play in; otherwise the **global** pool, which is every
+league on earth (3.29 goals). A row with no PRIOR note and no fitted league is
+on the global pool - say so, because at n=10 that pool owns 71% of the centre
+and it is the defect that put Gaucho A2 OVER 1.5 legs on the 2026-09-23 PDF.
+Half-match metrics never take a day or teams' prior (Sofascore's period split
+is wrong in some leagues while the full time is right).
+
+A `_total` row exists only when **both** sides have at least `min_sample` own
+observations; a pool that is one side's history is refused as `THIN_SAMPLE`,
+so a veto for "one player's history wearing a match's name" is no longer needed.
+
 ## Context available in `02_fixtures.json`
 
 | field | what it lets you say | limits |
