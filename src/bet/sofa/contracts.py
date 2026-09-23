@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 Sport = Literal["football", "tennis"]
 Direction = Literal["OVER", "UNDER"]
@@ -244,6 +244,16 @@ class SheetRow(BaseModel):
     notes: list[str]
 
 
+ContextSignal = Literal[
+    "MOTIVATION",  # stakes: dead rubber, must-win, relegation, points to defend
+    "ROTATION",  # a rested or reserve XI, a cup tie between two league fixtures
+    "ABSENCES",  # named starters out, injury or suspension
+    "DERBY",  # rivalry, grudge or revenge match
+    "SCHEDULE",  # fatigue, travel, back-to-back days, a long previous match
+    "CONDITIONS",  # weather, pitch, altitude, indoor/outdoor switch
+]
+
+
 class Veto(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     sofascore_event_id: int
@@ -253,6 +263,21 @@ class Veto(BaseModel):
     direction: Direction | None
     reason_class: Literal["SAMPLE_UNINFORMATIVE", "CONTEXT", "PRICE", "OTHER"]
     reason: str
+    # Which kind of CONTEXT, so the settlement audit can ask whether one kind
+    # of read removes losers and another removes winners. Until 2026-09-23 a
+    # "the world has changed" veto carried only free text, and 93 of the 102
+    # vetoes of 2026-09-22 were filed as OTHER: nothing could say whether the
+    # analysts' context read was worth anything.
+    context: ContextSignal | None = None
+
+    @model_validator(mode="after")
+    def _context_only_on_context(self) -> "Veto":
+        if self.context is not None and self.reason_class != "CONTEXT":
+            raise ValueError(
+                f"context={self.context!r} needs reason_class='CONTEXT', "
+                f"got {self.reason_class!r}"
+            )
+        return self
 
 
 class CouponRow(BaseModel):

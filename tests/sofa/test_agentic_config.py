@@ -143,6 +143,12 @@ def test_the_veto_schema_in_the_config_matches_the_contract() -> None:
         assert reason_class in text, (
             f"veto-contract.md omits reason_class {reason_class!r}"
         )
+    from bet.sofa.contracts import ContextSignal
+
+    for tag in get_args(ContextSignal):
+        assert tag in text, f"veto-contract.md omits context tag {tag!r}"
+    sources = CLAUDE / "skills/sofa-analysis-core/references/context-sources.md"
+    assert sources.exists(), "veto-contract.md points at context-sources.md"
 
 
 CRITICAL_CONSTANTS = {

@@ -101,7 +101,9 @@ For every tennis fixture with a `VALUE` row, every fixture appearing in
    does the **modal** scoreline land on?
 6. **Schedule and fatigue.** Previous match: sets, games, duration, date;
    back-to-back days; a qualifier carrying three extra matches; a retirement
-   in the last month. Web, tagged.
+   in the last month. Web, tagged. A veto on it is `CONTEXT` with
+   `context: SCHEDULE`; ranking points to defend are `MOTIVATION`. Where to
+   look: `sofa-analysis-core` `references/context-sources.md`.
 7. **H2H with decay.** A supporting prior, never the primary signal.
    **`h2h` observations never reach a `*_for` row** by design.
 8. **Scenario matrix.** Favourite pulls away / underdog holds serve / both

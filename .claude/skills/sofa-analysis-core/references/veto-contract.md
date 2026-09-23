@@ -11,8 +11,9 @@
 | `direction` | `"OVER" \| "UNDER"` \| null | yes | `null` = both |
 | `reason_class` | enum | yes | `SAMPLE_UNINFORMATIVE \| CONTEXT \| PRICE \| OTHER` |
 | `reason` | str | yes | free text. The operator reads this; write it for them. |
+| `context` | enum \| null | no (defaults to null) | **only with `reason_class: "CONTEXT"`**, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS`. Any other class with a `context` fails validation. |
 
-All seven keys must be present (`sofascore_event_id`, `market`, `subject`,
+All seven required keys must be present (`sofascore_event_id`, `market`, `subject`,
 `line`, `direction`, `reason_class`, `reason`) — including the ones you are
 setting to `null`; an omitted key is a validation failure, not a default. `extra="forbid"` means an invented key
 (`action`, `player`, `event_id`) fails validation and takes the whole file with
@@ -90,8 +91,33 @@ manual WATCH in prose and say it was not applied.
 | `PRICE` | the rung is unbettable as priced: one-sided ladder, price older than it looks, a rung that exists on our sheet and not on the screen | "the OVER side is not quoted; `market_p` is null and the bar is unanchored" |
 | `OTHER` | what the list cannot express. Say why in `reason`. | |
 
-`reason_class` is recorded and read; it does **not** change the arithmetic.
-Every class removes the row outright. There is no downgrade in `sofa` — the
+### `context` — which kind of CONTEXT
+
+Set it on every `CONTEXT` veto. It exists so the settlement audit can grade
+each kind separately (`audit_settlement` section 7e, `audit_vetoes.py` across
+days): the context read is the one thing Superbet's statistics do not carry,
+and until 2026-09-23 there was no way to say whether it removed losers or
+winners — 93 of 2026-09-22's 102 vetoes were filed as `OTHER`.
+
+| `context` | use when | example |
+|---|---|---|
+| `MOTIVATION` | what the result is worth to one side: dead rubber, must-win, title or relegation, second leg already decided, ranking points to defend | "aggregate 4-0; nothing to play for" |
+| `ROTATION` | a rested or reserve XI, a league match between two cup ties | "Champions League on Wednesday; the manager said he will rotate" |
+| `ABSENCES` | named starters out, injury, suspension | "both first-choice centre-backs suspended" |
+| `DERBY` | rivalry, grudge or revenge match, where the sample's normal fixtures do not describe tonight | "city derby; last three meetings 7, 8 and 9 cards" |
+| `SCHEDULE` | fatigue, travel, back-to-back days, a long previous match, a qualifier's extra rounds | "3h40 five-setter yesterday, 11 pm finish" |
+| `CONDITIONS` | weather, pitch, altitude, indoor/outdoor switch | "heavy rain forecast, waterlogged pitch reported" |
+
+A `CONTEXT` veto's `reason` names **the source domain and its publication time**,
+and that time is before the decision point: `"[sportsmole.co.uk, 2026-09-22
+09:14 UTC] predicted XI rests five starters"`. A veto written after its fixture
+started is excluded from the grade — the audit cannot tell a read from a
+leak — so a late rebuild costs the measurement, not only the bet. Where to
+look: `context-sources.md`.
+
+`reason_class` is recorded and read; it does **not** change the arithmetic
+(except `SAMPLE_UNINFORMATIVE`, which SHEET also reads to price the rung at
+the market alone). Every class removes the row outright. There is no downgrade in `sofa` — the
 retired pipeline had tiers and this one does not.
 
 ## What a veto may never be

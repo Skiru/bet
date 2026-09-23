@@ -154,6 +154,11 @@ After the markdown report, return **one** fenced ```json block: a bare array,
   **all of them**. That is the normal shape: a sample that does not describe
   the fixture is broken at every rung, not at one of them.
 - `reason_class` ∈ `SAMPLE_UNINFORMATIVE | CONTEXT | PRICE | OTHER`.
+- A `CONTEXT` veto also sets `context` ∈ `MOTIVATION | ROTATION | ABSENCES |
+  DERBY | SCHEDULE | CONDITIONS`, and its `reason` names the source domain and
+  publication time. The settlement audit grades every tag separately
+  (section 7e); an untagged one is graded as bare `CONTEXT` and says nothing
+  about which read worked. Sources: `references/context-sources.md`.
 - `sofascore_event_id` is an **integer**.
 - A veto matching nothing prints `UNMATCHED_VETO` and is counted in both
   stages' summaries. It is never silently swallowed — but it also did nothing,

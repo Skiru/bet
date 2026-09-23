@@ -147,7 +147,8 @@ the Bet Builder the PDF stakes). Write it **after SHEET, before COUPON**.
 `market`/`subject`/`line`/`direction` are all nullable and `null` means **all
 of them** — the normal shape, because a sample that does not describe the
 fixture is broken at every rung. `reason_class` ∈ `SAMPLE_UNINFORMATIVE |
-CONTEXT | PRICE | OTHER`. A veto that matches no row is printed as
+CONTEXT | PRICE | OTHER`; a `CONTEXT` veto also carries `context` (which
+kind), graded separately in `audit_settlement` section 7e. A veto that matches no row is printed as
 `UNMATCHED_VETO` by both stages and counted in their summaries; it is never
 swallowed.
 

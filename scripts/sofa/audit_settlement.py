@@ -31,7 +31,6 @@ from typing import Any
 
 sys.path.insert(0, "src")
 
-from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
     PDF_MAX_SINGLES,
@@ -40,6 +39,9 @@ from bet.sofa.confidence import (  # noqa: E402
     confidence_artifact,
     is_stakeable,
 )
+from bet.sofa.config import SofaConfig  # noqa: E402
+from scripts.sofa.audit_vetoes import audit_day  # noqa: E402
+from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 
 # A settled row's natural key, as the UNIQUE constraint defines it.
 Key = tuple[int, str, str, float, str]
@@ -664,6 +666,18 @@ def main() -> int:
                 A("Brak `08_confidence.json` z tego dnia, więc nie da się "
                   "powiedzieć, co wariant dokłada ponad oficjalny kupon.")
         A("")
+
+    # ---- 7e. the analysts' vetoes, graded ---------------------------------
+    #
+    # Every vetoed row is still on the sheet and still settled, so what a veto
+    # removed has a result. Until 2026-09-23 no report read it: whether the
+    # analysts' read - above all the CONTEXT read, the one thing Superbet's
+    # statistics do not carry - removes losers or winners was never measured.
+    if (run_dir / "vetoes.json").exists():
+        veto_audit, known = audit_day(run_dir, settled_db)
+        lines.extend(render_vetoes(
+            veto_audit, heading="## 7e. Weta analityków — co wycięły",
+            written_at_known=known))
 
     # ---- 8. kalibracja ---------------------------------------------------
     A("## 8. Kalibracja — czy 70% znaczy 70%")

@@ -175,7 +175,12 @@ The product. Only `is_stakeable` slips — `best_for_fixture` **and**
 `sofascore_event_id` (int, required), `market`, `subject`, `line`,
 `direction` (all nullable, `null` = all), `reason_class`
 (`SAMPLE_UNINFORMATIVE | CONTEXT | PRICE | OTHER`), `reason` (free text, and
-the operator reads it).
+the operator reads it), `context` (optional; only with `CONTEXT`:
+`MOTIVATION | ROTATION | ABSENCES | DERBY | SCHEDULE | CONDITIONS`).
+
+Every vetoed row is still settled; `audit_settlement` section 7e and
+`scripts/sofa/audit_vetoes.py --from --to` grade what the vetoes removed, per
+class and tag, against the rest of the board at the same price bands.
 
 Read by **COUPON and CONFIDENCE both**. Write it after SHEET and before either.
 

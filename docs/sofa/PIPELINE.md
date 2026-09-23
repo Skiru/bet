@@ -503,6 +503,16 @@ czyli w produkcie, który się stawia).
   „wszystkie"** — i to jest normalny kształt, bo próbka, która nie opisuje
   meczu, jest zepsuta na każdym szczeblu.
 - `reason_class` ∈ `SAMPLE_UNINFORMATIVE | CONTEXT | PRICE | OTHER`.
+- Weto `CONTEXT` ma dodatkowo `context` — **jaki** kontekst: `MOTIVATION`
+  (stawka meczu, punkty do obrony), `ROTATION` (rezerwowy skład), `ABSENCES`
+  (brak podstawowych), `DERBY` (derby, rewanż), `SCHEDULE` (zmęczenie,
+  terminarz), `CONDITIONS` (pogoda, boisko). Pole istnieje tylko przy
+  `CONTEXT`; przy innej klasie plik nie przejdzie walidacji. W `reason` weto
+  kontekstowe podaje domenę źródła i czas publikacji.
+- Każdy zawetowany wiersz i tak jest rozliczany. `audit_settlement` (sekcja
+  7e) i `scripts/sofa/audit_vetoes.py --from <d> --to <d>` pokazują, co weta
+  wycięły — osobno dla każdej klasy i tagu, wobec reszty tablicy w tych samych
+  przedziałach kursu. Weto zapisane po starcie meczu jest wyłączone z oceny.
 - Model ma `extra="forbid"`: **wymyślony klucz** (`action`, `player`,
   `event_id`) wywraca **cały plik**, a etap rusza wtedy z **zerem** wet
   i melduje zero. Dlatego walidacja przed zapisem jest obowiązkowa.

@@ -102,7 +102,9 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
 8. **Absences & lineups.** Not in the artifacts at all — the web, two
    independent domains, tagged; within ~1 h of kickoff the club's or the
    league's own lineup page. Four starters out is a
-   `CONTEXT` veto candidate; a rested XI in a cup tie likewise.
+   `CONTEXT` veto candidate (`context: ABSENCES`); a rested XI in a cup tie
+   likewise (`ROTATION`). Where to look: `sofa-analysis-core`
+   `references/context-sources.md`.
 9. **Game script A–D** (method §24): favourite ahead, underdog ahead, 0-0 to
    60', level. Say which is modal and whether the market survives it. There is
    no 1X2 price in the artifacts and no other source for one: read the
