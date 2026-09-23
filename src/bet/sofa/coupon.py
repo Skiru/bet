@@ -66,6 +66,16 @@ class DroppedRow:
     detail: str = ""
 
 
+def effective_kickoff(fixture: Fixture) -> datetime:
+    """The EARLIER of Sofascore's and Superbet's clocks (F26).
+
+    Superbet is who accepts the bet, and for ITF Sofascore's kickoff runs 7-9 h
+    late, so a finished match looks upcoming on it. The conservative clock is
+    the only one a gate may read - OFFER, COUPON and CONFIDENCE all use this.
+    """
+    return min(t for t in (fixture.kickoff_utc, fixture.superbet_kickoff_utc) if t)
+
+
 @dataclass(frozen=True)
 class CouponResult:
     coupon: Coupon
@@ -134,15 +144,13 @@ def build_coupon(
         # by the bookmaker delisting them, which is protection by accident:
         # it does nothing for a match being played live and still priced.
         # The most conservative available clock is the right one here.
-        effective_kickoff = min(
-            [t for t in (fixture.kickoff_utc, fixture.superbet_kickoff_utc) if t]
-        )
-        if effective_kickoff <= min_kickoff:
+        kickoff = effective_kickoff(fixture)
+        if kickoff <= min_kickoff:
             dropped.append(
                 DroppedRow(
                     row,
                     "KICKOFF_TOO_SOON",
-                    f"kickoff {effective_kickoff.isoformat()} is not after "
+                    f"kickoff {kickoff.isoformat()} is not after "
                     f"{min_kickoff.isoformat()}"
                     + (
                         ""
@@ -208,13 +216,21 @@ def build_coupon(
         # measured-negative region by construction. On 2026-09-21 all 22
         # tennis singles sat above +0.177, six of them above +0.30.
         if row.market_p is not None:
-            disagreement = row.p_central - row.market_p
+            # The sample's own frequency where the row has one: a tennis
+            # empirical row's p_central is already 75% price at n=10, so it
+            # shows a quarter of the disagreement this limit was measured on.
+            claim = (
+                row.sample_frequency
+                if row.sample_frequency is not None
+                else row.p_central
+            )
+            disagreement = claim - row.market_p
             if disagreement > MAX_DISAGREEMENT:
                 dropped.append(
                     DroppedRow(
                         row,
                         "DISAGREES_WITH_PRICE",
-                        f"model {row.p_central:.3f} is {disagreement:+.3f} "
+                        f"model {claim:.3f} is {disagreement:+.3f} "
                         f"above the devigged price {row.market_p:.3f}, "
                         f"limit {MAX_DISAGREEMENT:.2f}",
                     )

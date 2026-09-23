@@ -439,7 +439,7 @@ def test_a_fixture_with_no_surface_says_so_instead_of_emptying_its_sample():
     # The unknown-surface branch must come BEFORE the != comparison, or the
     # comparison silently swallows the case it is meant to report.
     unknown_at = src.index("if fixture.ground_type is None:")
-    compare_at = src.index('if event.get("groundType") != fixture.ground_type:')
+    compare_at = src.index('event.get("groundType"), fixture.ground_type')
     assert unknown_at < compare_at
     assert "GapReason.SURFACE_UNKNOWN" in src
 
@@ -714,3 +714,34 @@ def test_the_shipped_list_is_a_fit_not_a_hand_edit():
         isinstance(entry["id"], int) and entry["events"] >= raw["min_events"]
         for entry in raw["tournaments"]
     )
+
+
+def test_a_generic_surface_label_samples_its_whole_family():
+    """2026-09-23: 111 of 316 tennis fixtures carried "Hard" or "Clay".
+
+    Compared literally, a fixture on "Hard" was scoped to the few past matches
+    labelled "Hard" and never to "Hardcourt outdoor" - the ITF W35 Sharm El
+    Sheikh draw came out at 0-3 observations a side.
+    """
+    from bet.sofa.settle import surfaces_comparable
+
+    assert surfaces_comparable("Hardcourt outdoor", "Hard")
+    assert surfaces_comparable("Hardcourt indoor", "Hard")
+    assert surfaces_comparable("Hard", "Hardcourt outdoor")
+    assert surfaces_comparable("Red clay", "Clay")
+    assert surfaces_comparable("Clay", "Green clay")
+    # Two specific labels must still agree: indoor and outdoor stay apart.
+    assert not surfaces_comparable("Hardcourt indoor", "Hardcourt outdoor")
+    assert not surfaces_comparable("Red clay", "Hardcourt outdoor")
+    assert not surfaces_comparable("Grass", "Hard")
+    assert not surfaces_comparable(None, "Hard")
+
+
+def test_a_retirement_is_not_described_as_status_finished():
+    """2026-09-23: "EVENT_NOT_FINISHED ... status=finished" read as a
+    contradiction; a finished event refused by is_completed_event is a
+    retirement or walkover and the gap has to say which code it carried."""
+    src = (
+        Path(__file__).resolve().parents[2] / "src/bet/sofa/samples.py"
+    ).read_text(encoding="utf-8")
+    assert "finished abnormally (status code {code}" in src

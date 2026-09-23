@@ -15,6 +15,7 @@ from bet.sofa.confidence import has_unreachable_bar_note
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung, SheetRow
 from bet.sofa.coupon import build_coupon
 from bet.sofa.engine import (
+    _tilted_weights,
     p_empirical_centred_raw,
     p_empirical_raw,
     uses_empirical_frequency,
@@ -51,48 +52,49 @@ def test_the_shrunk_centre_changes_the_priced_number():
     raw = p_empirical_centred_raw(values, boundary, "OVER", 0.0)
     shrunk = p_empirical_centred_raw(values, boundary, "OVER", centre - 3.4)
 
-    # Three observations clear 4.5 where the sample sits. The shrink moves
-    # every one up by 1.8316: the 4 crosses whole, and each 3 - the interval
-    # [2.5, 3.5] moved to [4.33, 5.33] - puts 0.8316 of itself over. It used
-    # to count both 3s as whole hits (0.6), which is the point-shift defect
-    # test_a_fractional_shift_moves_mass_not_whole_observations pins down.
     assert raw == 0.3
-    assert abs(shrunk - (4 + 2 * 0.8316) / 10) < 1e-9
     assert shrunk > raw, "a centre pulled UP must not lower an OVER"
+    # Only the three sixes clear 4.5, so the tilt must have put its whole
+    # extra probability on them - it may not invent a five.
+    w = _tilted_weights(values, centre)
+    assert w is not None
+    assert abs(sum(wi * v for wi, v in zip(w, values)) - centre) < 1e-6
+    assert abs(shrunk - sum(wi for wi, v in zip(w, values) if v == 6.0)) < 1e-12
 
 
-def test_a_fractional_shift_moves_mass_not_whole_observations():
+def test_a_value_the_sample_never_produced_gets_no_weight():
     """Rojas, games_won_set2_for OVER 6.5, runs/sofa/2026-09-23.
 
-    Sample cleared the line 0/10 times; a +0.53 shift turned every 6 into 6.53
-    and the row priced 0.60. Each six is [5.5, 6.5]; moved +0.53 it puts 0.53
-    of itself over 6.5.
+    The sample never reached seven. Sliding it +0.53 priced 0.60 (points) and
+    then 0.318 (intervals); a reweighting cannot put mass on a seven that is
+    not there, so the rung is 0 and SHEET refuses it as outside resolution.
     """
     values = [6.0, 6.0, 0.0, 1.0, 6.0, 6.0, 6.0, 5.0, 3.0, 6.0]
-    boundary = winning_boundary(6.5, "OVER")
-    p = p_empirical_centred_raw(values, boundary, "OVER", 0.53)
-    assert abs(p - 6 * 0.53 / 10) < 1e-9
+    over = p_empirical_centred_raw(values, winning_boundary(6.5, "OVER"), "OVER", 0.53)
     under = p_empirical_centred_raw(
         values, winning_boundary(6.5, "UNDER"), "UNDER", 0.53
     )
-    assert abs(p + under - 1.0) < 1e-9
+    assert over == 0.0
+    assert abs(under - 1.0) < 1e-12
 
 
-def test_an_integer_shift_equals_moving_the_points():
-    values = [1.0, 6.0, 2.0, 6.0, 3.0, 1.0, 6.0, 4.0, 2.0, 3.0]
+def test_the_trough_stays_empty():
+    """Jaeger, games_won_set1_for OVER 4.5, runs/sofa/2026-09-23.
+
+    The interval shift slid the lost sets' fours into five, where the real
+    distribution has 4.4% of its mass (F54). A tilt moves weight from the
+    losing mode (0-4) to the winning one (6) and leaves five empty.
+    """
+    values = [4.0, 6.0, 0.0, 6.0, 6.0, 6.0, 6.0, 4.0, 6.0, 3.0]
+    centre = 5.347
+    w = _tilted_weights(values, centre)
+    assert w is not None
     boundary = winning_boundary(4.5, "OVER")
-    for k in (-2, -1, 1, 2):
-        points = sum(1 for v in values if v + k > boundary) / len(values)
-        assert p_empirical_centred_raw(values, boundary, "OVER", float(k)) == points
-
-
-def test_the_centred_frequency_is_continuous_in_the_shift():
-    """A point shift jumps by 1/n at a hair's breadth; mass must not."""
-    values = [6.0, 6.0, 0.0, 1.0, 6.0, 6.0, 6.0, 5.0, 3.0, 6.0]
-    boundary = winning_boundary(6.5, "OVER")
-    a = p_empirical_centred_raw(values, boundary, "OVER", 0.4999)
-    b = p_empirical_centred_raw(values, boundary, "OVER", 0.5001)
-    assert abs(a - b) < 0.001
+    p = p_empirical_centred_raw(values, boundary, "OVER", centre - 4.7)
+    assert abs(p - sum(wi for wi, v in zip(w, values) if v == 6.0)) < 1e-12
+    # Tilting up raises every six's weight above 1/n and lowers every four's.
+    assert all(wi > 0.1 for wi, v in zip(w, values) if v == 6.0)
+    assert all(wi < 0.1 for wi, v in zip(w, values) if v < 5.0)
 
 
 def test_the_shift_moves_over_and_under_in_opposite_directions():
@@ -106,6 +108,53 @@ def test_the_shift_moves_over_and_under_in_opposite_directions():
     assert under < 0.7
     assert abs(over + under - 1.0) < 1e-9, "4.5 is unpushable, so the two must sum to 1"
 
+
+def test_the_centred_frequency_is_monotone_in_the_shift():
+    values = [4.0, 6.0, 0.0, 6.0, 6.0, 6.0, 6.0, 4.0, 6.0, 3.0]
+    boundary = winning_boundary(4.5, "OVER")
+    ps = [
+        p_empirical_centred_raw(values, boundary, "OVER", s / 10)
+        for s in range(-20, 13)
+    ]
+    assert all(a <= b + 1e-12 for a, b in zip(ps, ps[1:]))
+
+
+def test_a_centre_at_the_edge_of_the_sample_is_the_tilts_own_limit():
+    """No reweighting reaches a mean beyond the sample's range; the answer
+    there is all weight on the extreme value - continuous with the tilt just
+    inside (a hand-off to the interval shift jumped 0.9995 -> 0.80)."""
+    values = [6.0] * 8 + [2.0, 4.0]
+    boundary = winning_boundary(5.5, "OVER")
+    mean = sum(values) / len(values)
+    inside = p_empirical_centred_raw(values, boundary, "OVER", 5.999 - mean)
+    edge = p_empirical_centred_raw(values, boundary, "OVER", 6.0 - mean)
+    beyond = p_empirical_centred_raw(values, boundary, "OVER", 6.5 - mean)
+    assert _tilted_weights(values, 6.0) is None
+    assert edge == 1.0 and beyond == 1.0
+    assert abs(inside - edge) < 0.01
+
+
+def test_a_tennis_ladder_shrink_stays_between_the_sample_and_the_price():
+    """Fernandez set 1 OVER 5.5 and Nouchakis games_won_for UNDER 6.5,
+    2026-09-23: tilting onto the ladder MEDIAN priced 0.908 (raw 0.8, market
+    0.727) and 0.82 (raw 0.3, market 0.602). In probability space neither can
+    leave [raw, market_p]."""
+    from bet.sofa.engine import p_empirical_shrunk_to_price
+
+    for hits, mp in ((8, 0.727), (3, 0.602)):
+        p = p_empirical_shrunk_to_price(hits, 10, mp, 30.0)
+        lo, hi = sorted((hits / 10, mp))
+        assert lo <= p <= hi
+        assert abs(p - (0.25 * hits / 10 + 0.75 * mp)) < 1e-12
+    assert p_empirical_shrunk_to_price(7, 10, None, 30.0) == 0.7
+
+
+def test_the_sheet_prices_tennis_ladder_rows_in_probability_space():
+    import scripts.sofa.run_sheet as sheet_mod
+
+    src = inspect.getsource(sheet_mod)
+    assert "p_empirical_shrunk_to_price(" in src
+    assert "P_SHRUNK_TO_PRICE" in src
 
 def test_a_shrink_toward_the_sample_is_a_no_op():
     """centre == mean means no shrink happened, and nothing may move."""

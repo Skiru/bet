@@ -9,6 +9,7 @@ from pydantic import RootModel
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
+from bet.sofa.coupon import effective_kickoff
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
@@ -80,7 +81,10 @@ def main() -> int:
     skipped_kicked_off = 0
     if args.min_minutes_to_kickoff is not None:
         cutoff = datetime.now(UTC) + timedelta(minutes=args.min_minutes_to_kickoff)
-        kept = [f for f in fixtures if f.kickoff_utc > cutoff]
+        # The earlier clock, as COUPON reads it. Filtering on Sofascore's
+        # alone re-priced 22 ITF fixtures already in play on 2026-09-23: it
+        # runs 7-9 h late there, so a started match looked upcoming.
+        kept = [f for f in fixtures if effective_kickoff(f) > cutoff]
         skipped_kicked_off = len(fixtures) - len(kept)
         fixtures = kept
 

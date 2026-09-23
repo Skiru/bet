@@ -45,7 +45,7 @@ from bet.sofa.players import (
     player_sample_key,
     squad_statistics,
 )
-from bet.sofa.settle import is_completed_event
+from bet.sofa.settle import is_completed_event, surfaces_comparable
 from bet.sofa.superbet import SuperbetClient, odds_items
 
 _FRIENDLIES_PATH = (
@@ -265,12 +265,21 @@ def get_historical_events(
                 # sample.
                 if gaps is not None:
                     status = event.get("status", {}).get("type", "unknown")
+                    code = event.get("status", {}).get("code")
+                    # "status=finished" under a reason called NOT_FINISHED read
+                    # as a contradiction; it is a retirement or walkover.
+                    what = (
+                        f"finished abnormally (status code {code}: retirement, "
+                        "walkover or similar)"
+                        if str(status).lower() == "finished"
+                        else f"status={status}"
+                    )
                     gaps.append(
                         GapEntry(
                             reason=GapReason.EVENT_NOT_FINISHED,
                             metric="all",
                             detail=(
-                                f"event {event.get('id')} status={status} "
+                                f"event {event.get('id')} {what} "
                                 f"excluded from entity {entity_id} sample"
                             ),
                         )
@@ -320,7 +329,9 @@ def get_historical_events(
                         )
                         surface_unknown_reported = True
                     continue
-                if event.get("groundType") != fixture.ground_type:
+                if not surfaces_comparable(
+                    event.get("groundType"), fixture.ground_type
+                ):
                     continue
                 # defaultPeriodCount is NOT on the listing, so the format is
                 # derived from sets won. None means "cannot tell" — and an

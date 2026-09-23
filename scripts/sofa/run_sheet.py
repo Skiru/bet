@@ -21,6 +21,7 @@ from bet.sofa.contracts import (
     SheetRow,
     Veto,
 )
+from bet.sofa.coupon import effective_kickoff
 from bet.sofa.derived import load_side_correlations, price_derived_rungs
 from bet.sofa.engine import (
     MAX_LADDER_SIGMA,
@@ -39,6 +40,7 @@ from bet.sofa.engine import (
     ladder_implied_sd,
     outside_model_resolution,
     p_empirical_centred_raw,
+    p_empirical_shrunk_to_price,
     predictive_sd,
     support_floor_for,
     uses_empirical_frequency,
@@ -306,6 +308,36 @@ def determine_side(subject: str, fixture: Fixture) -> str | None:
     return "side_a" if home_score > away_score else "side_b"
 
 
+def strip_in_play_prices(
+    offer: FixtureOffer, fixture: Fixture
+) -> tuple[FixtureOffer, set[tuple[str, str, float]]]:
+    """Drop the odds of every rung fetched at or after the fixture's kickoff.
+
+    A filtered OFFER refresh carries forward the previous file's rungs for
+    fixtures it skipped as started, and some of those were fetched after the
+    start: on 2026-09-23 Taro Daniel UNDER 12.5 sat at 50.0, fetched 05:49Z on
+    a 04:00Z match. Once a tennis row is priced mostly FROM the price
+    (p_empirical_shrunk_to_price), an in-play price is not just a bad bar, it
+    is the number itself - and it flows into SETTLE's population and every fit
+    after it. The rung keeps its row, as NO_PRICE, so the day still settles.
+    The earlier of the two clocks decides, as at every other kickoff gate.
+    """
+    kickoff = effective_kickoff(fixture)
+    kept: list[PricedRung] = []
+    stripped: set[tuple[str, str, float]] = set()
+    for r in offer.rungs:
+        if r.fetched_at_utc >= kickoff and (
+            r.over_odds is not None or r.under_odds is not None
+        ):
+            kept.append(r.model_copy(update={"over_odds": None, "under_odds": None}))
+            stripped.add((r.market, r.subject, r.line))
+        else:
+            kept.append(r)
+    if not stripped:
+        return offer, stripped
+    return offer.model_copy(update={"rungs": kept}), stripped
+
+
 def process_fixture(
     fixture: Fixture,
     samples: FixtureSamples,
@@ -319,6 +351,8 @@ def process_fixture(
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
+
+    offer, in_play_keys = strip_in_play_prices(offer, fixture)
 
     k_centre, k_centre_fitted = read_constant(
         engine_constants, "K_CENTRE", UNFITTED_K_CENTRE, fixture.sport
@@ -483,7 +517,12 @@ def process_fixture(
         # worth the name. Where a rung is one-sided and no ladder could be
         # fitted, the old path still runs — there is nothing better to use.
         ladder_target = ladder_centres.get((rung.market, rung.subject))
+        # K_TENNIS_LADDER_CENTRE was chosen on centre MAE, "not because the
+        # data pins it" (above) - never fitted on probability. A row priced
+        # through it says so, like any other constant nobody fitted.
+        row_unfitted = list(unfitted)
         if fixture.sport == "tennis" and ladder_target is not None:
+            row_unfitted.append("K_TENNIS_LADDER_CENTRE")
             w_c = n / (n + K_TENNIS_LADDER_CENTRE)
             centre = w_c * mean + (1 - w_c) * ladder_target
         else:
@@ -523,9 +562,26 @@ def process_fixture(
                 # shrink above is not advisory: a note that says "pulled to
                 # 5.23" beside a number computed at 3.40 describes a row the
                 # stage did not price (F55).
-                p_raw = p_empirical_centred_raw(
-                    values, boundary, direction, centre - mean
+                rung_price = market_ps.get(
+                    (rung.market, rung.subject, rung.line, direction)
                 )
+                if fixture.sport == "tennis" and (
+                    rung_price is not None or ladder_target is not None
+                ):
+                    # The ladder shrink in probability space, not on the
+                    # centre: the ladder centre is a median, and moving a
+                    # bimodal sample onto it overshot both the sample and the
+                    # price (see p_empirical_shrunk_to_price). Keyed on the
+                    # RUNG's price, not on a fitted ladder: a one-rung ladder
+                    # has no centre and still has a price (476 sets_total rows
+                    # on 2026-09-23 went round this path otherwise).
+                    p_raw = p_empirical_shrunk_to_price(
+                        hits, n, rung_price, K_TENNIS_LADDER_CENTRE
+                    )
+                else:
+                    p_raw = p_empirical_centred_raw(
+                        values, boundary, direction, centre - mean
+                    )
             elif uses_negative_binomial(rung.market):
                 # A count is right-skewed and the normal CDF is not. See
                 # NEGATIVE_BINOMIAL_METRICS: symmetric tails put +4.7 pp on
@@ -550,6 +606,22 @@ def process_fixture(
             # once in twenty matches, which at odds of 150 reads as a surplus
             # of +128 and wins the top coupon slot on merit it does not have.
             # Refuse the rung instead, the way an all-zero sample is refused.
+            # F35 applies to the SAMPLE, not to a number the price has
+            # already pulled inside the band: an 18/18 sample shrunk 75% toward
+            # the price reads 0.72 and would be priced as though the sample had
+            # said anything at this line.
+            if uses_empirical_frequency(rung.market) and outside_model_resolution(
+                hits / n
+            ):
+                skipped.append(
+                    (
+                        rung,
+                        GapReason.OUTSIDE_MODEL_RESOLUTION,
+                        f"sample {hits}/{n} for {direction} is outside "
+                        f"[{P_FLOOR}, {P_CEILING}]",
+                    )
+                )
+                continue
             if outside_model_resolution(p_raw):
                 skipped.append(
                     (
@@ -640,7 +712,38 @@ def process_fixture(
             )
 
             notes: list[str] = list(extra_notes)
+            if (rung.market, rung.subject, rung.line) in in_play_keys:
+                notes.append(
+                    "IN_PLAY_PRICE_DROPPED: this rung was fetched at or after "
+                    "kickoff; its odds are not a pre-match price"
+                )
+            tennis_price_shrink = (
+                fixture.sport == "tennis"
+                and uses_empirical_frequency(rung.market)
+                and (m_p is not None or ladder_target is not None)
+            )
+            # The constant is used only when there is a price to shrink toward.
             if (
+                tennis_price_shrink
+                and m_p is not None
+                and "K_TENNIS_LADDER_CENTRE" not in row_unfitted
+            ):
+                row_unfitted = [*row_unfitted, "K_TENNIS_LADDER_CENTRE"]
+            if tennis_price_shrink:
+                # The number was shrunk in probability space, so that is what
+                # the note says - a note describing a centre the row was not
+                # priced from is the F55 mistake.
+                w_p = n / (n + K_TENNIS_LADDER_CENTRE)
+                notes.append(
+                    f"P_SHRUNK_TO_PRICE: sample {hits}/{n} = {hits / n:.3f}, "
+                    + (
+                        f"market_p {m_p:.4f}, weight {w_p:.3f} "
+                        if m_p is not None
+                        else "no price on this rung, raw frequency "
+                    )
+                    + f"(K_TENNIS_LADDER_CENTRE={K_TENNIS_LADDER_CENTRE:g})"
+                )
+            elif (
                 fixture.sport == "tennis"
                 and ladder_target is not None
                 and abs(centre - mean) > 1e-9
@@ -729,8 +832,8 @@ def process_fixture(
                     f"offered {offered_odds:.2f})"
                 )
 
-            if unfitted:
-                notes.append(f"UNFITTED_CONSTANTS: {', '.join(unfitted)}")
+            if row_unfitted:
+                notes.append(f"UNFITTED_CONSTANTS: {', '.join(row_unfitted)}")
 
             if edge is not None and abs(edge) >= 0.15:
                 # L16: a price disagreement annotates, it never demotes.
@@ -755,6 +858,11 @@ def process_fixture(
                 bar_reason=bar_reason,
                 calibration_correction=round(corr, 4),
                 sample_newest_days=sample_newest_days,
+                sample_frequency=(
+                    round(hits / n, 4)
+                    if uses_empirical_frequency(rung.market)
+                    else None
+                ),
                 required_odds=req_odds_out,
                 offered_odds=offered_odds,
                 edge=edge,

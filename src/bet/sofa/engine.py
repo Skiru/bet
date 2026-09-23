@@ -1,4 +1,5 @@
 import math
+import statistics
 from collections.abc import Sequence
 from typing import Literal
 
@@ -149,6 +150,28 @@ NEGATIVE_BINOMIAL_METRICS = frozenset(
         "goals_2h_for",
         "corners_1h_total",
         "corners_1h_for",
+        # per set, tennis: replayed 2026-09-23 over the 10,229 cached tennis
+        # events with statistics (scripts/sofa/measure_per_set_nb.py), sample
+        # = last 10 surface/format-scoped matches, centre = sample mean. The
+        # normal put ~+8 pp on every per-set OVER; the NB lands within 0.4 pp.
+        #
+        #     metric                    n    dBrier   even id   odd id
+        #     aces_set1_for         12400  -0.00753  -0.00511  -0.00981
+        #     aces_set2_for         12512  -0.00958  -0.00947  -0.00968
+        #     double_faults_set1_for 13520 -0.00590  -0.00551  -0.00628
+        #     double_faults_set2_for 12836 -0.00732  -0.00782  -0.00685
+        #     serve_points_set2_for 18794  -0.00214  -0.00300  -0.00134
+        #   NOT listed:
+        #     serve_points_set1_for 19150  -0.00075  +0.00107  -0.00246
+        #
+        # Fernandez aces_set1_for OVER 0.5 on 2026-09-23 (sample mean 1.2)
+        # is the case: at sample means 1.0-1.4 the normal claimed 0.776, the
+        # NB 0.623, and 0.610 happened (n=264).
+        "aces_set1_for",
+        "aces_set2_for",
+        "double_faults_set1_for",
+        "double_faults_set2_for",
+        "serve_points_set2_for",
     }
 )
 
@@ -261,13 +284,45 @@ def p_empirical_raw(hits: int, n: int) -> float:
     return hits / n
 
 
+def _tilted_weights(values: Sequence[float], target: float) -> list[float] | None:
+    """Weights w_i proportional to exp(theta * v_i) whose weighted mean is target.
+
+    The exponential tilt is the reweighting of the sample that moves its mean
+    onto `target` while staying closest to it (minimum KL divergence). It puts
+    no weight on a value the sample never produced. None when the target is
+    not strictly inside the sample's range, where no tilt can reach it.
+    """
+    lo, hi = min(values), max(values)
+    if not lo < target < hi:
+        return None
+
+    def weighted(theta: float) -> tuple[float, list[float]]:
+        top = max(theta * v for v in values)
+        w = [math.exp(theta * v - top) for v in values]
+        z = sum(w)
+        return sum(wi * v for wi, v in zip(w, values, strict=True)) / z, w
+
+    # Monotone in theta, so bisection. A span of 1 in theta already moves a
+    # set-games sample from its minimum to its maximum; +-50 is generous.
+    a, b = -50.0, 50.0
+    for _ in range(100):
+        mid = (a + b) / 2
+        if weighted(mid)[0] < target:
+            a = mid
+        else:
+            b = mid
+    _, w = weighted((a + b) / 2)
+    z = sum(w)
+    return [x / z for x in w]
+
+
 def p_empirical_centred_raw(
     values: Sequence[float],
     boundary: float,
     direction: Direction,
     shift: float,
 ) -> float:
-    """The sample's own frequency, counted after relocating it onto the centre.
+    """The sample's own frequency, after moving its mean onto the shrunk centre.
 
     p_empirical_raw takes only (hits, n), so it cannot see the shrunk centre
     the caller computed one block earlier. The shrink was therefore written to
@@ -276,41 +331,118 @@ def p_empirical_centred_raw(
     a row whose note read "sample 3.40 pulled to 5.23 (ladder 5.84)" priced
     4/10 = 0.40 — the raw sample, at the location the shrink had just rejected.
 
-    Shifting the observations is what a shrunk mean means for a frequency: the
-    sample keeps its shape, which is the entire reason this estimator exists
-    (F49 — a wall at six games and a trough at five, where a normal CDF puts
-    smooth density), and only its location moves onto the target. Reweighting
-    the frequency toward a prior instead would destroy the shape and leave the
-    CDF's problem behind under a different name.
+    `shift` is centre - mean; shift == 0.0 reproduces p_empirical_raw exactly.
 
-    `shift` is centre - mean, so shift == 0.0 reproduces p_empirical_raw
-    exactly and an unshrunk caller is unaffected.
+    HOW the mean moves is the whole question, because these metrics are here
+    for their shape (F49/F54: a wall at six games and a trough at five, a wall
+    at twelve and a trough at eleven). Two ways of sliding the sample were
+    tried on 2026-09-23 and both were wrong:
 
-    A count is moved as the interval it occupies, [k-0.5, k+0.5] (the same
-    convention as COUNT_SUPPORT_FLOOR), not as a point. Moving points let a
-    fractional shift carry a whole observation across an x.5 boundary: Rojas,
-    games_won_set2_for OVER 6.5 on 2026-09-23, sample [6,6,0,1,6,6,6,5,3,6],
-    shift +0.53 - every 6 became 6.53 and the row priced 6/10 = 0.60 on a
-    sample that cleared the line 0/10 times. The interval puts 0.53 of each
-    six over the line, 0.318. An integer shift still equals the point shift
-    exactly, and shift == 0.0 still equals the raw count, because the boundary
-    is always half-integer (winning_boundary). Non-integer samples keep the
-    point shift: they have no interval to move.
+      * moving the points let a fractional shift carry a whole observation
+        across x.5 — Rojas games_won_set2_for OVER 6.5, sample
+        [6,6,0,1,6,6,6,5,3,6], shift +0.53, priced 0.60 on 0/10;
+      * moving each count as its interval [k-0.5, k+0.5] fixed that, and
+        still slid lost sets' fours into the empty five: 36 of 170 shifted
+        singles came out above BOTH the raw frequency and market_p.
+
+    Sliding is the wrong operation on a bimodal quantity. A player expected to
+    take more games is a player more likely to be in the WINNING mode, not a
+    player whose every score is 0.6 higher. So the sample is reweighted
+    instead - the exponential tilt, see _tilted_weights - which shifts mass
+    between the observed values and invents none.
+
+    Scored against settled outcomes on the rows the ladder shrink actually
+    moved (games_won_for, the only empirical metric with settlements; sheets,
+    samples and settled rows of the day, scratchpad measure_shift.py):
+
+                      2026-09-22 (n=2013)       2026-09-21 (n=1280)
+        estimator     Brier    p>=.70 claim/real   Brier
+        no shift      0.24986  0.785 / 0.632       0.25129
+        points        0.23306  0.757 / 0.676       0.24956
+        intervals     0.23171  0.763 / 0.686       0.24806
+        tilt          0.21984  0.781 / 0.744       0.24811
+
+    Best on the day the ladder shrink ran, tied on the day it barely did.
+
+    SUPERSEDED for the tennis LADDER shrink the same day: the ladder centre
+    is a median, not a mean, and tilting onto it overshot both the sample and
+    the price on per-set games; those rows go through
+    p_empirical_shrunk_to_price instead. This function is what remains for a
+    shrink toward a MEAN (a league baseline), where the tilt's target is the
+    quantity it assumes.
     """
     n = len(values)
     if n <= 0:
         raise ValueError("n must be greater than 0")
-    if all(float(v).is_integer() for v in values):
-        if direction == "OVER":
-            mass = sum(min(1.0, max(0.0, v + shift + 0.5 - boundary)) for v in values)
-        else:
-            mass = sum(min(1.0, max(0.0, boundary - (v + shift - 0.5))) for v in values)
-        return mass / n
-    if direction == "OVER":
-        hits = sum(1 for v in values if v + shift > boundary)
-    else:
-        hits = sum(1 for v in values if v + shift < boundary)
-    return hits / n
+
+    def wins(v: float) -> bool:
+        return v > boundary if direction == "OVER" else v < boundary
+
+    if shift == 0.0:
+        return sum(1 for v in values if wins(v)) / n
+    target = statistics.fmean(values) + shift
+    weights = _tilted_weights(values, target)
+    if weights is not None:
+        return sum(w for w, v in zip(weights, values, strict=True) if wins(v))
+    # The tilt's own limit at the edge of the sample's range: all weight on
+    # the extreme value. Continuous with the tilt just inside the range (a
+    # hand-off to a different estimator here jumped 0.9995 -> 0.80 between
+    # centres 5.999 and 6.0), and it lands on 0 or 1, which SHEET refuses as
+    # outside resolution - the honest answer for a centre the sample never
+    # reached.
+    edge = max(values) if target >= max(values) else min(values)
+    return 1.0 if wins(edge) else 0.0
+
+
+def p_empirical_shrunk_to_price(
+    hits: int, n: int, market_p: float | None, k: float
+) -> float:
+    """A tennis empirical row's probability, shrunk toward the rung's price.
+
+    The ladder shrink (K_TENNIS_LADDER_CENTRE) was applied to the CENTRE and
+    the sample then moved onto it, which needs the ladder centre to be a mean.
+    It is not: `ladder_centre` is where P(over) crosses 0.5, a median, and on
+    the bimodal per-set games ladders it sits ~+0.34 games above the market's
+    own mean. Tilting a sample onto it put 154 of 216 printed singles on
+    2026-09-23 above BOTH their raw frequency and market_p - Fernandez set 1
+    OVER 5.5, 8/10 raw, 0.727 market, priced 0.908. Moving the sample across
+    a gap in its values did the same from the other side (Nouchakis
+    games_won_for UNDER 6.5, 3/10 raw, 0.602 market, priced 0.82).
+
+    Shrinking in probability space, at the same weight n/(n+k), needs no
+    notion of where the centre is and cannot leave the [raw, market_p]
+    interval. Scored against settled games_won_for, rows with a price, same
+    subset for every estimator (scratchpad measure_shift2.py):
+
+                          2026-09-22 n=1958    2026-09-21 n=1270
+        interval shift        0.23449             0.24792
+        tilt onto median      0.22280             0.24803
+        this                  0.21595             0.21397
+        market_p alone        0.21699             0.21281
+
+    Those subsets include rungs whose price was fetched AFTER kickoff (928 of
+    1958 and 372 of 1270). On pre-kickoff prices only it ties the market and
+    does not beat it, while still beating the raw sample clearly:
+
+                          2026-09-22 n=1030    2026-09-21 n=898
+        raw sample            0.24803             0.24397
+        this                  0.22173             0.21141
+        market_p alone        0.22185             0.20897
+
+    So this is the least-wrong way to use the sample, not evidence of an edge
+    (see "the model loses to the price"). In-play prices no longer reach it:
+    run_sheet.strip_in_play_prices.
+
+    No price on this rung: the raw frequency, since there is nothing to
+    shrink toward that describes this line.
+    """
+    if n <= 0:
+        raise ValueError("n must be greater than 0")
+    raw = hits / n
+    if market_p is None:
+        return raw
+    w = n / (n + k)
+    return w * raw + (1.0 - w) * market_p
 
 
 def p_empirical(hits: int, n: int) -> float:

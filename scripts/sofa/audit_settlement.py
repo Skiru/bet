@@ -27,6 +27,7 @@ import sqlite3
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, "src")
 
@@ -34,6 +35,7 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
     builder_odds,
+    is_stakeable,
 )
 
 # A settled row's natural key, as the UNIQUE constraint defines it.
@@ -99,6 +101,45 @@ def _outcome_block(title: str, rows: list[dict]) -> str:
     return (f"**{title}** — rozliczonych {len(rows)}: "
             f"weszło {w} ({_pct(w, decided)} z rozstrzygniętych), "
             f"nie weszło {lo}, zwrot {p}")
+
+
+def settle_singles(singles: list[dict], by_key: dict) -> dict[str, Any]:
+    """Grade the PDF's printed singles at their printed odds."""
+    won = lost = unsettled = 0
+    units = 0.0
+    conf_sum = 0.0
+    for sgl in singles:
+        g = by_key.get((sgl["sofascore_event_id"], sgl["market"], sgl["subject"] or "",
+                        float(sgl["line"]), sgl["direction"]))
+        if g is None or g["outcome"] == "PUSH":
+            unsettled += 1
+            continue
+        conf_sum += sgl["confidence"]
+        if g["outcome"] == "WIN":
+            won += 1
+            units += sgl["offered_odds"] - 1.0
+        else:
+            lost += 1
+            units -= 1.0
+    settled = won + lost
+    return {"won": won, "lost": lost, "unsettled": unsettled, "settled": settled,
+            "units": units,
+            "mean_confidence": conf_sum / settled if settled else 0.0}
+
+
+def slip_status(outcomes: list[str | None]) -> str:
+    """A slip's result from its legs' outcomes (None = not settled).
+
+    One lost leg loses the slip whatever the others did. Until 2026-09-23 an
+    unsettled leg was checked first, so the 2026-09-22 Accrington slip - one
+    leg LOSS in 07_settled.json - was reported as unsettled and left out of
+    the day's ROI, which then read -17.7% instead of about -34%.
+    """
+    if any(o == "LOSS" for o in outcomes):
+        return "NIE WESZŁO"
+    if any(o is None or o == "PUSH" for o in outcomes):
+        return "NIEROZLICZONY"
+    return "WESZŁO"
 
 
 def main() -> int:
@@ -314,10 +355,13 @@ def main() -> int:
     A("")
 
     # ---- 7. kupon --------------------------------------------------------
-    A("## 7. Kupon — co faktycznie poszło na typ")
+    # Not "the coupon": 06_coupon.json holds the VALUE singles, and the PDF
+    # is what gets staked (7c). The old heading said the opposite.
+    A("## 7. Pojedyncze VALUE (06_coupon.json) — materiał wejściowy, nie kupon")
     A("")
     if not coupon:
-        A("Brak pliku kuponu.")
+        A("06_coupon.json nie ma ani jednej pozycji (albo pliku brak). "
+          "Kupon z PDF jest w sekcji 7c.")
     else:
         graded_legs, ungraded_legs = [], []
         for leg in coupon:
@@ -438,11 +482,7 @@ def main() -> int:
         screen_path = run_dir / "09_screen_prices.json"
         screen = (json.loads(screen_path.read_text(encoding="utf-8"))
                   if screen_path.exists() else {})
-        ev_key = ("ev_after_haircut"
-                  if conf["builders"] and "ev_after_haircut" in conf["builders"][0]
-                  else "ev_if_product_priced")
-        picks = [b for b in conf["builders"]
-                 if b["best_for_fixture"] and b[ev_key] > 0]
+        picks = [b for b in conf["builders"] if is_stakeable(b)]
 
         def slip_odds(b: dict) -> tuple[float, bool]:
             """What this slip really paid, and whether we measured it."""
@@ -466,15 +506,16 @@ def main() -> int:
                     lw += 1
                 else:
                     ll += 1
-            if any(g is None or g["outcome"] == "PUSH" for _, g in outs):
-                status, su = "NIEROZLICZONY", su + 1
-            elif all(g["outcome"] == "WIN" for _, g in outs):
-                status, sw, sn = "WESZŁO", sw + 1, sn + 1
+            status = slip_status([None if g is None else g["outcome"] for _, g in outs])
+            if status == "NIEROZLICZONY":
+                su += 1
+            elif status == "WESZŁO":
+                sw, sn = sw + 1, sn + 1
                 odds, measured = slip_odds(b)
                 n_measured += measured
                 sret += odds - 1.0
             else:
-                status, sl, sn = "NIE WESZŁO", sl + 1, sn + 1
+                sl, sn = sl + 1, sn + 1
                 sret -= 1.0
             slip_rows.append((b, status, outs))
         A(_table(["", "liczba"],
@@ -525,6 +566,33 @@ def main() -> int:
         A(_table(["mecz", "nóg", "iloczyn", "kurs użyty", "p slipa", "wynik",
                   "co położyło slip"], rows))
         A("")
+
+        # The PDF prints singles too (since 2026-09-22), and on 2026-09-23 it
+        # printed 216 singles and no builder - a day this section would have
+        # reported as "0 slips" without one word about what was on the page.
+        singles = conf.get("singles") or []
+        A("### Zakłady pojedyncze z PDF")
+        A("")
+        if not singles:
+            A("PDF nie drukował pojedynczych.")
+            A("")
+        else:
+            res = settle_singles(singles, by_key)
+            A(_table(["", "liczba"],
+                     [["pojedynczych na kuponie", len(singles)],
+                      ["rozliczonych", res["settled"]],
+                      ["weszło / nie weszło", f"{res['won']} / {res['lost']}"],
+                      ["nierozliczonych", res["unsettled"]],
+                      ["% trafionych", _pct(res["won"], res["settled"])],
+                      ["deklarowana pewność (śr.)", f"{res['mean_confidence']:.3f}"
+                       if res["settled"] else "—"],
+                      ["wynik przy 1 j. na pozycję", f"{res['units']:+.2f} j."],
+                      ["ROI", f"{100.0 * res['units'] / res['settled']:+.1f}%"
+                       if res["settled"] else "—"]]))
+            A("")
+            A("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
+              "nich operator wziął. Kurs to `offered_odds` z artefaktu.")
+            A("")
 
     # ---- 8. kalibracja ---------------------------------------------------
     A("## 8. Kalibracja — czy 70% znaczy 70%")

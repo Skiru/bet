@@ -806,7 +806,12 @@ def test_a_tennis_per_set_player_rung_can_reach_value() -> None:
         for line, over, under in (
             (3.5, 1.41, 2.57),
             (4.5, 1.60, 2.20),
-            (5.5, 2.60, 1.45),
+            # 3.00, not the 2.60 this test used until 2026-09-23. A tennis
+            # empirical row is now shrunk toward the rung's own price in
+            # probability space (p_empirical_shrunk_to_price), so it takes a
+            # larger disagreement to clear the bar: 9/10 against a devigged
+            # 0.29 does, 9/10 against 0.34 no longer does.
+            (5.5, 3.00, 1.36),
         )
     ]
     offer = FixtureOffer(

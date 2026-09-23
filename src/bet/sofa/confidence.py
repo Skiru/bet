@@ -29,6 +29,7 @@ import json
 import statistics
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -595,3 +596,48 @@ def is_stakeable(builder: Mapping[str, Any]) -> bool:
     )
     ev = builder.get(key)
     return ev is not None and ev > 0
+
+
+# How close to the start a position may still be offered. One number for
+# COUPON and CONFIDENCE: until 2026-09-23 only COUPON had it, and CONFIDENCE
+# built a PDF builder five minutes before its fixture's kickoff.
+MIN_MINUTES_TO_KICKOFF = 15
+
+
+def too_close_to_kickoff(clocks: list[datetime], now: datetime) -> bool:
+    """True when the EARLIER clock is inside COUPON's kickoff margin.
+
+    The same margin COUPON keeps (MIN_MINUTES_TO_KICKOFF), not merely "not
+    started": without it, on 2026-09-23 a builder was printed five minutes
+    before the kickoff in its own artifact. No clock at all is refused too.
+    """
+    if not clocks:
+        return True
+    return min(clocks) <= now + timedelta(minutes=MIN_MINUTES_TO_KICKOFF)
+
+
+def disagrees_with_price(
+    p_central: float,
+    market_p: float | None,
+    confidence: float,
+    odds: float,
+    sample_frequency: float | None = None,
+) -> bool:
+    """COUPON's MAX_DISAGREEMENT test, on the quantity it was measured on.
+
+    MAX_DISAGREEMENT was measured as p_central minus the DEVIGGED market
+    price. CONFIDENCE applied it as the calibrated lower bound minus 1/odds -
+    both sides shifted the lenient way (the lower bound sits below p_central,
+    1/odds above the devigged price) - and on 2026-09-23 159 of 216 printed
+    singles sat more than 0.10 above their devigged price, the region COUPON
+    drops as measured-negative. A rung quoted on one side only has no devigged
+    price, and keeps the old comparison.
+
+    `sample_frequency`, where the row has one, replaces p_central: a tennis
+    empirical row is priced mostly FROM the price, and its p_central carries a
+    quarter of the sample's disagreement (see SheetRow.sample_frequency).
+    """
+    if market_p is not None:
+        claim = sample_frequency if sample_frequency is not None else p_central
+        return claim - market_p > MAX_DISAGREEMENT
+    return confidence - 1.0 / odds > MAX_DISAGREEMENT

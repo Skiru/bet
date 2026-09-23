@@ -107,6 +107,29 @@ def wilson_lo(k: int, n: int, z: float = 1.2816) -> float:
     return max(0.0, c - m)
 
 
+def unfitted_constants(
+    sheet_rows: list[dict], keys: set[tuple]
+) -> list[str]:
+    """Every constant a printed row names in its UNFITTED_CONSTANTS note.
+
+    The sheet stamped it on all 16,052 rows on 2026-09-23 and the PDF - the
+    one document the operator stakes from - said it zero times. CLAUDE.md
+    forbids stripping it to make a report read better; leaving it out of the
+    page did exactly that.
+    """
+    found: set[str] = set()
+    for r in sheet_rows:
+        k = (r["sofascore_event_id"], r["market"], r["subject"], r["line"], r["direction"])
+        if k not in keys:
+            continue
+        for note in r.get("notes") or []:
+            if note.startswith("UNFITTED_CONSTANTS:"):
+                found.update(
+                    c.strip() for c in note.split(":", 1)[1].split(",") if c.strip()
+                )
+    return sorted(found)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--date", required=True)
@@ -204,6 +227,20 @@ def main() -> int:
         f"{len(picks)} zakładów łączonych, {len(singles)} pojedynczych "
         f"&nbsp;•&nbsp; "
         f"próg pewności {doc_json['confidence_floor']}", SUB))
+    sheet_doc = json.loads((run / "05_sheet.json").read_text(encoding="utf-8"))
+    sheet_rows = sheet_doc if isinstance(sheet_doc, list) else sheet_doc["rows"]
+    # A builder's legs carry no event id of their own; it is on the builder.
+    printed = {
+        (item["sofascore_event_id"], l["market"], l["subject"], l["line"], l["direction"])
+        for item in [*picks, *singles]
+        for l in (item.get("legs") or [item])
+    }
+    unfitted = unfitted_constants(sheet_rows, printed)
+    if unfitted:
+        S.append(Paragraph(
+            f"<font color='#b25b00'><b>UNFITTED_CONSTANTS: {', '.join(unfitted)}</b></font> "
+            "— te stałe nie są dopasowane do rozliczeń. Liczby w tym kuponie na nich "
+            "stoją; traktuj je jako niezmierzone.", SUB))
     S.append(Spacer(1, 7))
 
     S.append(Paragraph("Jak czytać ten kupon", H2))

@@ -16,9 +16,9 @@ from pathlib import Path
 
 from pydantic import RootModel
 
+from bet.sofa.confidence import MIN_MINUTES_TO_KICKOFF, Calibration
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
-from bet.sofa.confidence import Calibration
 from bet.sofa.coupon import CouponResult, build_coupon
 from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
@@ -274,7 +274,7 @@ def main() -> int:
         offers=offers,
         vetoes=vetoes,
         current_time=current_time,
-        min_kickoff=current_time + timedelta(minutes=15),
+        min_kickoff=current_time + timedelta(minutes=MIN_MINUTES_TO_KICKOFF),
         max_price_age=timedelta(minutes=config.price_max_age_min),
         max_singles=args.max_singles,
         # The same measured ceiling CONFIDENCE enforces. Both paths read one

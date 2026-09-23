@@ -229,6 +229,13 @@ class SheetRow(BaseModel):
     # that has stopped tracking a player disagrees with the current price more
     # often, and the coupon sorts on exactly that disagreement.
     sample_newest_days: int | None = None
+    # The sample's own frequency at this rung (hits/n), for empirical-frequency
+    # metrics only. A tennis row is priced 75% from the price at n=10
+    # (p_empirical_shrunk_to_price), so p_central - market_p shows a quarter of
+    # the disagreement MAX_DISAGREEMENT was measured on; both disagreement
+    # gates read this instead. On 2026-09-23 all 13 printed tennis singles
+    # passed the gate only because it read p_central.
+    sample_frequency: float | None = None
     required_odds: float
     offered_odds: float | None
     edge: float | None

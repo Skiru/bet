@@ -64,6 +64,43 @@ def settle(actual: float, line: float, direction: Direction) -> Outcome:
     return "WIN" if actual < line else "LOSS"
 
 
+# Sofascore labels one surface two ways. Counted over every cached tennis
+# listing on 2026-09-23: "Hardcourt outdoor" 99,066, "Hardcourt indoor"
+# 21,448 and a bare "Hard" 10,400; "Clay" 62,506 beside "Red clay" 50,266,
+# "Red clay indoor" 1,832 and "Green clay" 142. That day's board had 19
+# fixtures on "Hard" and 92 on "Clay" (111 of 316), and an exact comparison
+# scoped each of them to the few past matches carrying the same generic label -
+# the ITF W35 Sharm El Sheikh draw came out at 0-3 observations a side.
+#
+# A generic label says only the family, so it is comparable with every member
+# of that family - in BOTH directions. Two specific labels still have to agree,
+# so "Hardcourt indoor" never samples "Hardcourt outdoor". But a fixture on a
+# specific label now also accepts past matches labelled only "Hard", whose
+# indoor/outdoor is unknown: on 2026-09-23 one "Hardcourt outdoor" fixture took
+# 52 such observations. That is the price of not emptying the generic-label
+# draws, and it is not measured either way.
+#
+# settle.py is also the backfill's scoping (run_backfill.py), so the next
+# fit_constants run sees this population, not the literal one. Deliberate;
+# nothing is re-fitted mid-day.
+_GENERIC_SURFACE_FAMILY = {
+    "Hard": frozenset({"Hard", "Hardcourt outdoor", "Hardcourt indoor"}),
+    "Clay": frozenset({"Clay", "Red clay", "Red clay indoor", "Green clay"}),
+}
+
+
+def surfaces_comparable(past: str | None, ours: str) -> bool:
+    """True when a past match on `past` may sample a fixture on `ours`."""
+    if past is None:
+        return False
+    if past == ours:
+        return True
+    for generic, family in _GENERIC_SURFACE_FAMILY.items():
+        if (ours == generic and past in family) or (past == generic and ours in family):
+            return True
+    return False
+
+
 def is_completed_event(event: dict[str, Any]) -> bool:
     """Did this event run to a normal, settleable finish?
 
@@ -167,7 +204,9 @@ def historical_sample(
             continue
 
         if sport == "tennis":
-            if ground_type is not None and event.get("groundType") != ground_type:
+            if ground_type is not None and not surfaces_comparable(
+                event.get("groundType"), ground_type
+            ):
                 continue
             if best_of is not None and event.get("defaultPeriodCount") != best_of:
                 continue

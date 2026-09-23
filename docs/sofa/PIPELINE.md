@@ -270,11 +270,15 @@ Dla każdej strony meczu i każdej metryki, którą ktoś wycenia, pobiera
 Zakresy (scoping), zanim mecz historyczny wejdzie do próbki:
 - **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`);
 - **tenis:** mecz historyczny liczy się tylko, gdy
-  `event.groundType == fixture.ground_type` **i**
+  `surfaces_comparable(event.groundType, fixture.ground_type)` **i**
   `infer_best_of(event) == fixture.default_period_count`. Na poziomie
   Challengerów i ITF te pola są najcieńszą częścią danych, a **`null` znaczy,
   że porównanie nie może się udać i zakres po prostu nie zadziałał** — nie że
-  jest szeroki.
+  jest szeroki. Etykieta ogólna („Hard”, „Clay”) pasuje do każdej
+  konkretnej z tej samej rodziny („Hardcourt outdoor/indoor”; „Red clay”,
+  „Green clay”); dwie konkretne muszą się zgadzać. Do 2026-09-23 porównanie
+  było dosłowne i 111 z 316 meczów tenisowych tego dnia (etykieta „Hard” lub
+  „Clay”) miało przez to próby po 0–3 mecze.
 
 `MetricSample` trzyma trzy listy: `side_a`, `side_b`, `h2h`. Jedna
 `Observation` to `sofascore_event_id`, `match_date_utc`, `opponent`, `value`,
@@ -336,7 +340,9 @@ centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gd
 
 p_central:
     metryki empiryczne (sets_total, games_won_for,
-                        games_won_set{1,2,3}_for)   → częstość trafień w próbce
+                        games_won_set{1,2,3}_for)   → częstość trafień w próbce;
+                                                      tenis z drabiną: ściągnięta
+                                                      ku market_p wagą n/(n+30)
     liczniki piłkarskie (NEGATIVE_BINOMIAL_METRICS) → ujemny dwumianowy wokół centre
     reszta                                          → normalny, podłoga nośnika −0.5
                                                       (COUNT_SUPPORT_FLOOR)
@@ -366,8 +372,13 @@ startu `K_PRICE = 10.0` z `engine.py`, a **każdy wiersz niesie o tym notkę
 2. `ladder_centre` / `ladder_sigma` opisują **drabinę bukmachera**, nie nasz
    rozkład. `ladder_sigma` rzędu 0,003 jest normalne.
 3. Tenis (`sets_total`, `games_won_for`, `games_won_set{1,2,3}_for`) używa
-   częstości empirycznej, więc
-   `p_central` **równa się** trafieniom w próbce. Piłka idzie przez ujemny
+   częstości empirycznej. Gdy szczebel ma drabinę Superbetu, ściąganie
+   (`K_TENNIS_LADDER_CENTRE`) odbywa się **na prawdopodobieństwie**:
+   `p = w·trafienia/n + (1−w)·market_p`, `w = n/(n+30)` — więc `p_central`
+   zawsze leży między próbką a ceną (od 2026-09-23; przesuwanie próbki na
+   środek drabiny traktowało medianę jak średnią i przestrzelało obie
+   wielkości). Bez drabiny i bez przesunięcia `p_central` **równa się**
+   trafieniom w próbce. Piłka idzie przez ujemny
    dwumianowy i różnić się **musi**; rozjazd powyżej ~15 pp znaczy, że pracuje
    baza ligowa, a nie drużyna — `n/(n+25)` mówi, ile naprawdę waży próbka.
 
@@ -611,7 +622,7 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `ODDS_TOO_LOW` | poniżej `MIN_ODDS_FOR_CEILING = 1/0.9202 ≈ 1.0867` — **nie** 1,25 jak w singlach. Poniżej tej ceny noga nie może mieć dodatniego EV przy tej krzywej, niezależnie od meczu |
 | `NO_FIXTURE` | brak meczu w `02_fixtures.json` |
 | `VETOED` | trafione weto |
-| `KICKED_OFF` | **CONFIDENCE czyta sam zegar Sofascore**, a COUPON bierze wcześniejszy z dwóch. To znana szczelina: na ITF rozjazd sięga 11 h — sprawdź, czy postawiona noga w niej nie siedzi |
+| `KICKED_OFF` | wcześniejszy z dwóch zegarów jest bliżej niż `MIN_MINUTES_TO_KICKOFF` (15 min). Od 2026-09-23 OFFER, COUPON i CONFIDENCE czytają ten sam zegar (`effective_kickoff`) i ten sam margines; wcześniej CONFIDENCE nie miało marginesu, a OFFER filtrowało po samym zegarze Sofascore |
 | `NO_FETCHED_AT` | szczebel bez znacznika pobrania ceny |
 | `STALE_PRICE` | cena starsza niż 45 min |
 | `NOT_IN_CALIBRATION_FIT` | metryka nie należy do rodziny, na której fitowano krzywą |

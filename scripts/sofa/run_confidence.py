@@ -30,11 +30,12 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa.confidence import (  # noqa: E402
+    disagrees_with_price,
+    too_close_to_kickoff,
     BUILDER_CORRELATION_HAIRCUT,
     MAX_BUILDER_LEGS,
     MIN_BUILDER_LEGS,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
-    MAX_DISAGREEMENT,
     MAX_OVERROUND,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
@@ -267,7 +268,7 @@ def main() -> int:
             for t in (fx.get("kickoff_utc"), fx.get("superbet_kickoff_utc"))
             if t
         ]
-        if not clocks or min(clocks) <= now:
+        if too_close_to_kickoff(clocks, now):
             refused["KICKED_OFF"] += 1
             continue
         # The leg is GATED on the earlier clock, so it must be PRINTED on the
@@ -352,7 +353,13 @@ def main() -> int:
         # See MAX_DISAGREEMENT. Shading means the book pays us less than the
         # event is worth; this is the opposite case, where we claim far more
         # than the book does, and it is measured to end below a coin flip.
-        if realised_lo - 1.0 / odds > MAX_DISAGREEMENT:
+        if disagrees_with_price(
+            row["p_central"],
+            row.get("market_p"),
+            realised_lo,
+            odds,
+            row.get("sample_frequency"),
+        ):
             refused["DISAGREES_WITH_PRICE"] += 1
             continue
         # The leg has to clear its own price using its own number. Without
