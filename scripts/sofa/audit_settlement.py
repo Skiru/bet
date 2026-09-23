@@ -40,6 +40,8 @@ from bet.sofa.confidence import (  # noqa: E402
     is_stakeable,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
+from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
 from scripts.sofa.audit_vetoes import audit_day  # noqa: E402
 from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 
@@ -678,6 +680,15 @@ def main() -> int:
         lines.extend(render_vetoes(
             veto_audit, heading="## 7e. Weta analityków — co wycięły",
             written_at_known=known))
+
+    # ---- 7f. Superbet's boosts, graded -------------------------------------
+    #
+    # Only on days run_boosts.py snapshotted. The question is the operator's:
+    # does Superbet boost what then loses?
+    if (run_dir / "10_boosts.json").exists():
+        lines.extend(render_boosts(
+            audit_boosts_day(run_dir, settled_db),
+            "## 7f. Boosty Superbeta — czy wchodzą (nie kupon)"))
 
     # ---- 8. kalibracja ---------------------------------------------------
     A("## 8. Kalibracja — czy 70% znaczy 70%")

@@ -170,6 +170,19 @@ Two traps in this object:
 The product. Only `is_stakeable` slips — `best_for_fixture` **and**
 `ev_after_haircut > 0`.
 
+## `10_boosts.json` / `10_boosts.md` — `Boost[]` — **not the coupon**
+
+Written by `scripts/sofa/run_boosts.py --date <d>`, outside `DEFAULT_SEQUENCE`
+(like `fit_constants.py`); re-runs merge by `odd_uuid` and append to
+`observations`. One record per Superbet odd tagged `price_boost`:
+`boosted_price`, `original_price` (from `extra.originalPrice`), `combo`, and
+`legs[]` - each leg classified by `offer.classify_odd`, so it keys onto the
+same sheet row SETTLE graded. `leg_price_product` is a yardstick for
+Superbet's markup and **never a price**. Graded by `audit_boosts.py --from
+--to` and `audit_settlement` section 7f; a boost whose fixture is not on the
+day's board is `NOT_ON_BOARD`, not a loss. Superbet's offer API carries no
+results, so nothing off the board can be graded.
+
 ## `vetoes.json` — `Veto[]`
 
 `sofascore_event_id` (int, required), `market`, `subject`, `line`,

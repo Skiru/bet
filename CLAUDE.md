@@ -50,6 +50,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant    # variant, beside the coupon
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --profile wariant  # -> KUPON_<d>_WARIANT.pdf
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>        # Superbet boosts snapshot, not the coupon
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa

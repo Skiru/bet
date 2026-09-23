@@ -783,7 +783,17 @@ runs/sofa/<data>/
   08_confidence.json/.md                  legi i Bet Buildery
   KUPON_<data>.pdf                        ★ produkt — to jest kupon
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
+  10_boosts.json/.md   Boost[]            boosty Superbeta — NIE są kuponem (run_boosts.py)
 ```
+
+`10_boosts.*` pisze `scripts/sofa/run_boosts.py --date <d>`, poza
+`DEFAULT_SEQUENCE`: migawka każdego kursu z tagiem `price_boost` — kurs po
+podbiciu, kurs sprzed podbicia i nogi, sklasyfikowane tą samą funkcją co
+OFFER. Kolejne uruchomienie tego dnia dopisuje obserwacje, nie nadpisuje.
+`audit_boosts.py --from <d> --to <d>` i sekcja 7f `audit_settlement`
+sprawdzają, czy boosty trafiają częściej niż ich próg po podbiciu i przed nim.
+Ocenić da się tylko boost, którego mecz jest na tablicy `sofa`, a każda noga
+w arkuszu — API ofert Superbeta nie podaje wyników.
 
 Log całego przebiegu: `runs/sofa/run.log.jsonl` (jedna linia JSON na zdarzenie,
 `run_id` spina etapy). Baza: `data/sofa.db`.

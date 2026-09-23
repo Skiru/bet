@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
@@ -8,7 +9,6 @@ from bet.sofa.market_mapper import (
 )
 from bet.sofa.superbet import odds_items
 from bet.sofa.timeutil import now
-
 
 
 def parse_line(raw_line: object, market: str) -> float:
@@ -59,6 +59,68 @@ def parse_line(raw_line: object, market: str) -> float:
 
     raise ValueError(f"unparseable line: {raw_line!r}")
 
+# (market, subject, line, direction) - one side of one rung.
+ClassifiedOdd = tuple[str, str, float, str]
+
+
+def classify_odd(
+    item: Mapping[str, Any],
+) -> tuple[ClassifiedOdd | None, str | None]:
+    """One Superbet odd as a rung side, or the label it goes into unmapped.
+
+    Returns ``(classified, None)``, ``(None, label)`` for a market we cannot
+    read, or ``(None, None)`` for an odd that is readable but not a side of a
+    rung (a mapped market whose selection is neither over nor under).
+
+    Lifted out of `OfferFetcher` on 2026-09-23 so the boost snapshot reads a
+    boosted leg with exactly the classification OFFER used for the same odd;
+    a second copy would drift from this one, as every duplicated predicate in
+    this repo has.
+    """
+    market_name = item.get("marketName")
+    if not market_name:
+        return None, None
+    raw_line = item.get("specialBetValue")
+    selection_name = item.get("name")
+
+    classified = classify_market(market_name)
+    if classified:
+        market, subject = classified
+
+        # A market with no line (or a null one) is not a rung on a ladder.
+        # Reading it as 0.0 invents a line nobody quoted; letting the
+        # TypeError escape takes the whole day's OFFER down over one
+        # malformed market.
+        if raw_line is None or raw_line == "":
+            return None, f"{market_name} (no line)"
+        try:
+            line = parse_line(raw_line, market)
+        except ValueError as exc:
+            return None, f"{market_name} ({exc})"
+
+        name_lower = str(selection_name or "").lower()
+        if "poniżej" in name_lower or "under" in name_lower:
+            return (market, subject, line, "UNDER"), None
+        if "powyżej" in name_lower or "over" in name_lower:
+            return (market, subject, line, "OVER"), None
+        return None, None
+
+    # The both-teams, comparative and handicap families. They carry their
+    # line and their side on the *selection*, not on a shared
+    # specialBetValue, so they cannot go through the branch above (F39).
+    line_text = str(raw_line) if raw_line not in (None, "") else None
+    derived = classify_derived_market(market_name, selection_name, line_text)
+    if derived:
+        return derived, None
+    # F54. Player markets are the same shape as the derived ones - one market
+    # name, the subject and the line both on the selection - and are tried
+    # last so nothing above changes behaviour.
+    player = classify_player_market(market_name, selection_name, line_text)
+    if player:
+        return player, None
+    return None, str(market_name)
+
+
 class OfferFetcher:
     def __init__(self, client: Any) -> None:
         self.client = client
@@ -77,65 +139,12 @@ class OfferFetcher:
                 fetched_at = now()
 
                 for item in items:
-                    market_name = item.get("marketName")
-                    if not market_name:
+                    classified_odd, unmapped_label = classify_odd(item)
+                    if unmapped_label is not None:
+                        unmapped.add(unmapped_label)
+                    if classified_odd is None:
                         continue
-
-                    raw_line = item.get("specialBetValue")
-                    selection_name = item.get("name")
-
-                    classified = classify_market(market_name)
-                    if classified:
-                        market, subject = classified
-
-                        # A market with no line (or a null one) is not a rung
-                        # on a ladder. Reading it as 0.0 invents a line nobody
-                        # quoted; letting the TypeError escape takes the whole
-                        # day's OFFER down over one malformed market.
-                        if raw_line is None or raw_line == "":
-                            unmapped.add(f"{market_name} (no line)")
-                            continue
-                        try:
-                            line = parse_line(raw_line, market)
-                        except ValueError as exc:
-                            unmapped.add(f"{market_name} ({exc})")
-                            continue
-
-                        name_lower = str(selection_name or "").lower()
-                        direction = None
-                        if "poniżej" in name_lower or "under" in name_lower:
-                            direction = "UNDER"
-                        elif "powyżej" in name_lower or "over" in name_lower:
-                            direction = "OVER"
-
-                        if not direction:
-                            continue
-                    else:
-                        # The both-teams, comparative and handicap families.
-                        # They carry their line and their side on the
-                        # *selection*, not on a shared specialBetValue, so they
-                        # cannot go through the branch above (F39).
-                        derived = classify_derived_market(
-                            market_name,
-                            selection_name,
-                            str(raw_line) if raw_line not in (None, "") else None,
-                        )
-                        if derived:
-                            market, subject, line, direction = derived
-                        else:
-                            # F54. Player markets are the same shape as the
-                            # derived ones — one market name, the subject and
-                            # the line both on the selection — and are tried
-                            # last so nothing above changes behaviour.
-                            player = classify_player_market(
-                                market_name,
-                                selection_name,
-                                str(raw_line) if raw_line not in (None, "") else None,
-                            )
-                            if not player:
-                                unmapped.add(market_name)
-                                continue
-                            market, subject, line, direction = player
+                    market, subject, line, direction = classified_odd
 
                     price = item.get("price")
                     if price is None:
