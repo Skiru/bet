@@ -22,7 +22,7 @@ from bet.sofa.engine import (
     calc_p_central_raw,
     calculate_p_low,
     outside_model_resolution,
-    p_empirical_raw,
+    p_empirical_centred_raw,
     predictive_sd,
     support_floor_for,
     uses_empirical_frequency,
@@ -272,7 +272,15 @@ def settle_metric(
                 hits = sum(1 for v in sample_values if v < line)
 
             if uses_empirical_frequency(metric):
-                p_raw = p_empirical_raw(hits, n)
+                # On the shrunk centre, exactly as run_sheet does. These two
+                # call sites are the F30 pair: a backtest that scores a
+                # different estimator than the one that ships measures
+                # nothing, and the centred frequency moves EVERY empirical
+                # rung, so leaving this one raw would have silently recalibrated
+                # the curve against a model no coupon was ever built from.
+                p_raw = p_empirical_centred_raw(
+                    sample_values, boundary, direction, centre - mean
+                )
             else:
                 p_raw = calc_p_central_raw(
                     centre, pred_sd, boundary, direction, support_floor_for(metric)

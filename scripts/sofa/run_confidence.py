@@ -47,6 +47,7 @@ from bet.sofa.confidence import (  # noqa: E402
     combined_probability,
     empirical_joint,
     fair_odds,
+    has_unreachable_bar_note,
     joint_probability,
     leg_is_ev_positive,
     overround,
@@ -269,6 +270,14 @@ def main() -> int:
         if not clocks or min(clocks) <= now:
             refused["KICKED_OFF"] += 1
             continue
+        # The leg is GATED on the earlier clock, so it must be PRINTED on the
+        # earlier clock too. Until 2026-09-23 the leg carried Sofascore's,
+        # which for ITF is the later one by 7-9 h: 11 of the 30 singles on that
+        # PDF showed a start time after the one Superbet would accept a bet
+        # against, the worst by 8 h (13:00Z on the page, 05:00Z at the book).
+        # A page an operator reads to decide WHEN to place a bet cannot show a
+        # time the stage itself does not believe.
+        effective_kickoff = min(clocks)
         key = (row["sofascore_event_id"], row["market"], row.get("subject", ""),
                row["line"], row["direction"])
         ts = fetched.get(key)
@@ -302,6 +311,26 @@ def main() -> int:
             row["market"]
         ):
             refused["NOT_IN_CALIBRATION_FIT"] += 1
+            continue
+        # "This row missed the bar" and "no sample could have cleared it at
+        # this price" are different statements, and only the second one is a
+        # refusal this stage is allowed to ignore — it isn't. CONFIDENCE
+        # deliberately does not ask COUPON's question, so BELOW_BAR alone must
+        # NOT be filtered here: 9,867 of the 2026-09-23 sheet's 10,917 rows are
+        # BELOW_BAR, and banning them collapses this stage into the one it
+        # exists to complement.
+        #
+        # UNREACHABLE_BAR is the other kind. It says the offered price cannot
+        # be justified by ANY sample of this size — not that our sample failed
+        # to justify it — so no confidence number can rescue it and there is
+        # nothing left for this stage to have an opinion about. run_coupon
+        # already excludes these rows even from its near-misses list, for the
+        # same reason.
+        #
+        # On 2026-09-23 COUPON selected zero VALUE singles, so the whole PDF
+        # came from here, and 29 of the 30 printed singles carried this note.
+        if has_unreachable_bar_note(row.get("notes")):
+            refused["UNREACHABLE_BAR"] += 1
             continue
         # See DERIVED_PREFIXES. A joint of two sides is not a count of one
         # thing, has 2-252 settled rows of its own, and no sample in the
@@ -373,7 +402,9 @@ def main() -> int:
                 "match": f"{fx['home_name']} - {fx['away_name']}",
                 "competition": fx.get("competition_name"),
                 "sport": row["sport"],
-                "kickoff_utc": fx["kickoff_utc"],
+                "kickoff_utc": effective_kickoff.isoformat().replace(
+                    "+00:00", "Z"
+                ),
                 "market": row["market"],
                 "subject": row.get("subject", ""),
                 "line": row["line"],

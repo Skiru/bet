@@ -38,7 +38,7 @@ from bet.sofa.engine import (
     ladder_centre,
     ladder_implied_sd,
     outside_model_resolution,
-    p_empirical_raw,
+    p_empirical_centred_raw,
     predictive_sd,
     support_floor_for,
     uses_empirical_frequency,
@@ -519,7 +519,13 @@ def process_fixture(
             # wrong model whatever its width, so the sample's own frequency is
             # what gets used (F30). Everything else keeps the CDF.
             if uses_empirical_frequency(rung.market):
-                p_raw = p_empirical_raw(hits, n)
+                # Counted on the SHRUNK centre, not on the raw sample. The
+                # shrink above is not advisory: a note that says "pulled to
+                # 5.23" beside a number computed at 3.40 describes a row the
+                # stage did not price (F55).
+                p_raw = p_empirical_centred_raw(
+                    values, boundary, direction, centre - mean
+                )
             elif uses_negative_binomial(rung.market):
                 # A count is right-skewed and the normal CDF is not. See
                 # NEGATIVE_BINOMIAL_METRICS: symmetric tails put +4.7 pp on

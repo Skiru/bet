@@ -228,6 +228,28 @@ def single_is_fairly_priced(leg_overround: float | None) -> bool:
     return leg_overround is not None and leg_overround <= MAX_OVERROUND
 
 
+def has_unreachable_bar_note(notes: object) -> bool:
+    """Did SHEET record that NO sample could clear this row's price?
+
+    "This row missed the bar" and "no sample of this size could have cleared
+    it" are different statements, and CONFIDENCE is only entitled to ignore
+    the first. It deliberately does not ask COUPON's question — 9,867 of the
+    2026-09-23 sheet's 10,917 rows are BELOW_BAR, and refusing them all would
+    collapse this stage into the one it exists to complement.
+
+    UNREACHABLE_BAR is the other kind: the offered price is unjustifiable at
+    this sample size whatever the sample showed, so no confidence number can
+    rescue it. run_coupon already drops these rows from its near-misses list
+    on the same reasoning.
+
+    On 2026-09-23 COUPON selected zero VALUE singles, the whole PDF therefore
+    came from CONFIDENCE, and 29 of the 30 printed singles carried this note.
+    """
+    if not isinstance(notes, (list, tuple)):
+        return False
+    return any(str(note).startswith("UNREACHABLE_BAR") for note in notes)
+
+
 def leg_is_ev_positive(confidence: float, odds: float) -> bool:
     """Does this leg clear its own price, using its own number?
 

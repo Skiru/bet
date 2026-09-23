@@ -355,7 +355,19 @@ def build_coupon(
             CouponRow(
                 sofascore_event_id=row.sofascore_event_id,
                 match_name=f"{fixture.home_name} - {fixture.away_name}",
-                kickoff_utc=fixture.kickoff_utc,
+                # The earlier clock, which is the one this stage gated on
+                # sixty lines up. Printing Sofascore's instead put a start
+                # time on the page that the gate itself had rejected.
+                kickoff_utc=min(
+                    [
+                        t
+                        for t in (
+                            fixture.kickoff_utc,
+                            fixture.superbet_kickoff_utc,
+                        )
+                        if t
+                    ]
+                ),
                 sport=row.sport,
                 market=row.market,
                 subject=row.subject,

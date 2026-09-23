@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 from typing import Literal
 
 from bet.sofa.contracts import Direction
@@ -257,6 +258,41 @@ def p_empirical_raw(hits: int, n: int) -> float:
     """The sample's own frequency, unclamped. See outside_model_resolution."""
     if n <= 0:
         raise ValueError("n must be greater than 0")
+    return hits / n
+
+
+def p_empirical_centred_raw(
+    values: Sequence[float],
+    boundary: float,
+    direction: Direction,
+    shift: float,
+) -> float:
+    """The sample's own frequency, counted after relocating it onto the centre.
+
+    p_empirical_raw takes only (hits, n), so it cannot see the shrunk centre
+    the caller computed one block earlier. The shrink was therefore written to
+    the row's note and thrown away from the number. Every one of the thirty
+    singles the 2026-09-23 PDF printed was an EMPIRICAL_FREQUENCY_METRIC, and
+    a row whose note read "sample 3.40 pulled to 5.23 (ladder 5.84)" priced
+    4/10 = 0.40 — the raw sample, at the location the shrink had just rejected.
+
+    Shifting the observations is what a shrunk mean means for a frequency: the
+    sample keeps its shape, which is the entire reason this estimator exists
+    (F49 — a wall at six games and a trough at five, where a normal CDF puts
+    smooth density), and only its location moves onto the target. Reweighting
+    the frequency toward a prior instead would destroy the shape and leave the
+    CDF's problem behind under a different name.
+
+    `shift` is centre - mean, so shift == 0.0 reproduces p_empirical_raw
+    exactly and an unshrunk caller is unaffected.
+    """
+    n = len(values)
+    if n <= 0:
+        raise ValueError("n must be greater than 0")
+    if direction == "OVER":
+        hits = sum(1 for v in values if v + shift > boundary)
+    else:
+        hits = sum(1 for v in values if v + shift < boundary)
     return hits / n
 
 
