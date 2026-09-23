@@ -38,6 +38,9 @@ from reportlab.platypus import (  # noqa: E402
 )
 
 from bet.sofa.confidence import (  # noqa: E402
+    PDF_MAX_SINGLES,
+    PROFILES,
+    confidence_artifact,
     displayed_ev,
     MAX_OVERROUND,
     is_stakeable,
@@ -135,10 +138,30 @@ def main() -> int:
     ap.add_argument("--date", required=True)
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--out", default=None)
+    ap.add_argument(
+        "--profile",
+        choices=sorted(PROFILES),
+        default="standard",
+        help="wariant renders 08_confidence_wariant.json to KUPON_<date>_WARIANT.pdf",
+    )
     args = ap.parse_args()
+    profile = PROFILES[args.profile]
 
     run = Path(args.runs_dir) / args.date
-    doc_json = json.loads((run / "08_confidence.json").read_text(encoding="utf-8"))
+    doc_json = json.loads(
+        (run / confidence_artifact(profile)).read_text(encoding="utf-8")
+    )
+    # The artifact names the profile it was built with. A variant JSON renamed
+    # into the official slot (or the reverse) must not print under the wrong
+    # banner, because the banner is what tells the operator which one he holds.
+    built_with = doc_json.get("profile", "standard")
+    if built_with != profile.name:
+        print(
+            f"{confidence_artifact(profile)} was built with profile {built_with!r}, "
+            f"not {profile.name!r}",
+            file=sys.stderr,
+        )
+        return 2
     samples = {
         s["sofascore_event_id"]: s
         for s in json.loads((run / "03_samples.json").read_text(encoding="utf-8"))
@@ -196,6 +219,12 @@ def main() -> int:
         else "ev_if_product_priced"
     )
     picks = [b for b in doc_json["builders"] if is_stakeable(b)]
+    # The variant is a singles experiment. Its looser legs would admit
+    # builders the official coupon does not print, and a builder is a
+    # different bet (correlation haircut, joint probability) that the
+    # variant was never measured on - so its PDF prints none.
+    if profile.min_ev is not None:
+        picks = []
     # Singles. Present since 2026-09-22: on a day where no Bet Builder forms —
     # which needs two legs of DIFFERENT quantity families in the SAME match —
     # this renderer used to emit a blank page while the confidence artifact
@@ -214,19 +243,33 @@ def main() -> int:
     PICK = ParagraphStyle("PICK", parent=ss["Normal"], fontName=BOLD, fontSize=10.5,
                           textColor=INK, spaceAfter=1)
 
-    out_path = Path(args.out or (run / f"KUPON_{args.date}.pdf"))
+    out_path = Path(args.out or (run / f"KUPON_{args.date}{profile.pdf_suffix}.pdf"))
     pdf = SimpleDocTemplate(
         str(out_path), pagesize=A4,
         leftMargin=15 * mm, rightMargin=13 * mm, topMargin=14 * mm, bottomMargin=13 * mm,
         title=f"Kupon {args.date}", author="sofa pipeline",
     )
     S: list = []
-    S.append(Paragraph(f"Kupon — {args.date}", H1))
+    title = f"Kupon — {args.date}"
+    if profile.min_ev is not None:
+        title += " — WARIANT"
+    S.append(Paragraph(title, H1))
     S.append(Paragraph(
         f"Zbudowany {doc_json['created_at_utc']} &nbsp;•&nbsp; "
         f"{len(picks)} zakładów łączonych, {len(singles)} pojedynczych "
         f"&nbsp;•&nbsp; "
-        f"próg pewności {doc_json['confidence_floor']}", SUB))
+        f"próg pewności {doc_json['confidence_floor']}"
+        + ("" if profile.min_ev is None
+           else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"), SUB))
+    if profile.min_ev is not None:
+        S.append(Paragraph(
+            "<font color='#b25b00'><b>To nie jest oficjalny kupon.</b></font> Wariant "
+            f"przyjmuje pewność od {doc_json['confidence_floor']} i kurs do "
+            f"{1 - profile.min_ev:.0%} poniżej uczciwego (wg tej pewności). Na "
+            "rozliczonej historii 18–22.09 dał <b>−3,2%</b> na zakład (5 802 zakładów, "
+            "95% CI −5,0%…−1,6%) wobec −2,9% oficjalnego kuponu: kupuje "
+            "<b>więcej zakładów, nie przewagę</b>. Rozliczany obok oficjalnego "
+            "(sekcja 7d raportu rozliczenia).", SUB))
     sheet_doc = json.loads((run / "05_sheet.json").read_text(encoding="utf-8"))
     sheet_rows = sheet_doc if isinstance(sheet_doc, list) else sheet_doc["rows"]
     # A builder's legs carry no event id of their own; it is on the builder.
@@ -288,14 +331,25 @@ def main() -> int:
         "dłużej wyceniona jedna trzecia kubełka trafia <b>rzadziej</b> niż "
         "krótsza, za każdym razem, i różnica rośnie z pewnością (2 pkt proc. "
         "przy 0,811, 10 pkt proc. przy 0,906).", BODY))
-    S.append(Paragraph(
-        "<b>x</b> to <b>pewność × kurs</b> — jedyny test, który decyduje. "
-        "Powyżej <b>1,00</b> cena płaci za ryzyko, poniżej nie. Zdarzenie na "
-        "70% wymaga kursu <b>1,43</b>, na 80% wymaga <b>1,25</b>: samo wysokie "
-        "prawdopodobieństwo nie wystarcza. Marża bukmachera jest rozłożona na "
-        "<b>obie</b> strony rynku, więc nie każda noga jest ujemna — wiersze "
-        "przy p 0,85–0,95 wycenione 1,20–1,35 zwróciły <b>+1,94%</b> (n=94).",
-        BODY))
+    if profile.min_ev is None:
+        x_rule = (
+            "<b>x</b> to <b>pewność × kurs</b> — jedyny test, który decyduje. "
+            "Powyżej <b>1,00</b> cena płaci za ryzyko, poniżej nie. Zdarzenie na "
+            "70% wymaga kursu <b>1,43</b>, na 80% wymaga <b>1,25</b>: samo wysokie "
+            "prawdopodobieństwo nie wystarcza. Marża bukmachera jest rozłożona na "
+            "<b>obie</b> strony rynku, więc nie każda noga jest ujemna — wiersze "
+            "przy p 0,85–0,95 wycenione 1,20–1,35 zwróciły <b>+1,94%</b> (n=94)."
+        )
+    else:
+        x_rule = (
+            "<b>x</b> to <b>pewność × kurs</b>. Powyżej <b>1,00</b> cena płaci za "
+            "ryzyko; w tym wariancie przyjmowane są też pozycje od "
+            f"<b>{profile.min_ev:.2f}</b> do 1,00 — czyli kurs do "
+            f"{1 - profile.min_ev:.0%} <b>poniżej</b> uczciwego. Każda pozycja z "
+            "x &lt; 1,00 jest świadomie przepłacona: to koszt większej liczby "
+            "zakładów, nie przewaga."
+        )
+    S.append(Paragraph(x_rule, BODY))
     S.append(Paragraph(
         f"<b>marża</b> to narzut Superbeta na tej drabinie, policzony z ceny "
         f"dwustronnej. Powyżej <b>{MAX_OVERROUND:.1%}</b> noga nie trafia na tę "
@@ -313,7 +367,7 @@ def main() -> int:
         shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "x",
                  "marża", "próbka")
         srows = [[Paragraph(h, SMALL) for h in shead]]
-        for i, leg in enumerate(singles[:30], 1):
+        for i, leg in enumerate(singles[:PDF_MAX_SINGLES], 1):
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             srows.append([
                 Paragraph(str(i), SMALL),

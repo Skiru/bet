@@ -34,7 +34,10 @@ sys.path.insert(0, "src")
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
+    PDF_MAX_SINGLES,
+    PROFILES,
     builder_odds,
+    confidence_artifact,
     is_stakeable,
 )
 
@@ -125,6 +128,22 @@ def settle_singles(singles: list[dict], by_key: dict) -> dict[str, Any]:
     return {"won": won, "lost": lost, "unsettled": unsettled, "settled": settled,
             "units": units,
             "mean_confidence": conf_sum / settled if settled else 0.0}
+
+
+def singles_summary_rows(printed: int, res: dict[str, Any]) -> list[list[Any]]:
+    """The singles table, shared by the official coupon (7c) and the variant (7d)."""
+    return [
+        ["pojedynczych na kuponie", printed],
+        ["rozliczonych", res["settled"]],
+        ["weszło / nie weszło", f"{res['won']} / {res['lost']}"],
+        ["nierozliczonych", res["unsettled"]],
+        ["% trafionych", _pct(res["won"], res["settled"])],
+        ["deklarowana pewność (śr.)",
+         f"{res['mean_confidence']:.3f}" if res["settled"] else "—"],
+        ["wynik przy 1 j. na pozycję", f"{res['units']:+.2f} j."],
+        ["ROI", f"{100.0 * res['units'] / res['settled']:+.1f}%"
+         if res["settled"] else "—"],
+    ]
 
 
 def slip_status(outcomes: list[str | None]) -> str:
@@ -427,8 +446,11 @@ def main() -> int:
     # the first and calling it "the coupon" is how a losing day gets reported
     # as a winning one, or the reverse.
     conf_path = run_dir / "08_confidence.json"
+    official_singles: list[dict[str, Any]] = []
     if conf_path.exists():
         conf = json.loads(conf_path.read_text())
+        # What the PDF printed, not everything the artifact holds.
+        official_singles = (conf.get("singles") or [])[:PDF_MAX_SINGLES]
         A("## 7b. Lista pewnościowa — wszystkie nogi nad progiem")
         A("")
         legs = conf["legs"]
@@ -570,7 +592,8 @@ def main() -> int:
         # The PDF prints singles too (since 2026-09-22), and on 2026-09-23 it
         # printed 216 singles and no builder - a day this section would have
         # reported as "0 slips" without one word about what was on the page.
-        singles = conf.get("singles") or []
+        all_singles = conf.get("singles") or []
+        singles = all_singles[:PDF_MAX_SINGLES]
         A("### Zakłady pojedyncze z PDF")
         A("")
         if not singles:
@@ -578,21 +601,69 @@ def main() -> int:
             A("")
         else:
             res = settle_singles(singles, by_key)
-            A(_table(["", "liczba"],
-                     [["pojedynczych na kuponie", len(singles)],
-                      ["rozliczonych", res["settled"]],
-                      ["weszło / nie weszło", f"{res['won']} / {res['lost']}"],
-                      ["nierozliczonych", res["unsettled"]],
-                      ["% trafionych", _pct(res["won"], res["settled"])],
-                      ["deklarowana pewność (śr.)", f"{res['mean_confidence']:.3f}"
-                       if res["settled"] else "—"],
-                      ["wynik przy 1 j. na pozycję", f"{res['units']:+.2f} j."],
-                      ["ROI", f"{100.0 * res['units'] / res['settled']:+.1f}%"
-                       if res["settled"] else "—"]]))
+            A(_table(["", "liczba"], singles_summary_rows(len(singles), res)))
             A("")
             A("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
               "nich operator wziął. Kurs to `offered_odds` z artefaktu.")
+            if len(all_singles) > len(singles):
+                A(f"Artefakt miał {len(all_singles)} pojedynczych; PDF drukuje "
+                  f"pierwsze {PDF_MAX_SINGLES} po pewności i tylko te są tu "
+                  "rozliczone.")
             A("")
+
+    # ---- 7d. the operator's variant, settled beside the coupon ----------
+    #
+    # 08_confidence_wariant.json exists only on days the variant was built
+    # (run_confidence --profile wariant). It is graded here, on the same
+    # settled rows and at its own printed odds, so "65% and up to 10% below
+    # the price" is judged day by day against the official coupon rather than
+    # remembered as a good or a bad idea.
+    var_path = run_dir / confidence_artifact(PROFILES["wariant"])
+    if var_path.exists():
+        var = json.loads(var_path.read_text(encoding="utf-8"))
+        var_all = var.get("singles") or []
+        var_singles = var_all[:PDF_MAX_SINGLES]
+        A("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}) — nie kupon".format(
+            var.get("confidence_floor", PROFILES["wariant"].floor),
+            var.get("min_ev", PROFILES["wariant"].min_ev)))
+        A("")
+        A("Rozliczany obok oficjalnego kuponu, na tych samych rozliczonych "
+          "wierszach i po swoich wydrukowanych kursach. Tylko pojedyncze — PDF "
+          "wariantu nie drukuje Bet Builderów. Przed dodaniem zmierzony "
+          "na 18–22.09: −3,2% na zakład wobec −2,9% oficjalnego.")
+        A("")
+        if not var_singles:
+            A("Wariant nie wydrukował pojedynczych.")
+        else:
+            vres = settle_singles(var_singles, by_key)
+            A(_table(["", "liczba"], singles_summary_rows(len(var_singles), vres)))
+            if len(var_all) > len(var_singles):
+                A("")
+                A(f"Artefakt wariantu miał {len(var_all)} pojedynczych; PDF "
+                  f"drukuje pierwsze {PDF_MAX_SINGLES} po pewności i tylko te "
+                  "są tu rozliczone.")
+            official_keys = {
+                (o["sofascore_event_id"], o["market"], o["subject"], o["line"],
+                 o["direction"]) for o in official_singles}
+            only = [x for x in var_singles
+                    if (x["sofascore_event_id"], x["market"], x["subject"], x["line"],
+                        x["direction"]) not in official_keys]
+            ores = settle_singles(only, by_key)
+            A("")
+            if conf_path.exists():
+                A(f"Z tego **tylko w wariancie** (nie ma ich na oficjalnym kuponie): "
+                  f"{len(only)} pozycji, rozliczonych {ores['settled']}, weszło "
+                  f"{ores['won']}, wynik {ores['units']:+.2f} j."
+                  + (f", ROI {100.0 * ores['units'] / ores['settled']:+.1f}%"
+                     if ores["settled"] else "")
+                  + ". To jest dokładnie to, co wariant dokłada.")
+            else:
+                # Without the official artifact every variant single would
+                # read as "variant-only", which is a claim about a comparison
+                # that was never made.
+                A("Brak `08_confidence.json` z tego dnia, więc nie da się "
+                  "powiedzieć, co wariant dokłada ponad oficjalny kupon.")
+        A("")
 
     # ---- 8. kalibracja ---------------------------------------------------
     A("## 8. Kalibracja — czy 70% znaczy 70%")

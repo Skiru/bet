@@ -61,6 +61,21 @@ EMPIRICAL_FREQUENCY_METRICS = frozenset(
         "games_won_set1_for",
         "games_won_set2_for",
         "games_won_set3_for",
+        # Both players' games in one set: 6, 7, 8, 9, 10, 12, 13 and never 11
+        # (a set with no tiebreak at 6-6 can run longer - an 8-6 set is in the
+        # cache, ITF M15 Oslo, event 15324486 - but never to 11),
+        # so the 10.5 and 11.5 rungs are the same bet and a bell curve puts
+        # 14 pp of mass into a value no set can take. Replayed 2026-09-23 over
+        # the cache (scripts/sofa/measure_empirical_tennis_counts.py), pooled
+        # both-player sample as run_sheet builds a _total, centre = raw mean:
+        #
+        #     metric            n       Bnorm    Bemp     dB     even id  odd id
+        #     games_set1_total  265466  0.17429  0.17155 -0.00274 -0.00219 -0.00330
+        #     games_set2_total  267250  0.17242  0.16953 -0.00289 -0.00286 -0.00293
+        #
+        #     set 1 OVER 10.5:  normal 0.365  empirical 0.212  realised 0.220
+        "games_set1_total",
+        "games_set2_total",
     }
 )
 
@@ -254,6 +269,38 @@ def uses_poisson_floor(market: str) -> bool:
 
 def uses_empirical_frequency(market: str) -> bool:
     return market in EMPIRICAL_FREQUENCY_METRICS
+
+
+# Non-count metrics that DO have a model: a normal CDF with no Poisson floor,
+# which is what run_sheet prices them with. NON_COUNT_METRICS also holds the xG
+# pair, which has never produced a sample, and fit_confidence / run_confidence
+# used "not a count and not empirical" to mean "no model at all" — so
+# `tiebreaks_total`, a priced rung with a working extractor, was skipped by the
+# calibration fit and refused by CONFIDENCE as NOT_IN_CALIBRATION_FIT on every
+# row (59 on 2026-09-23), on the market with the lowest measured Superbet
+# margin on the tennis board (median 6.1%).
+#
+# The normal is the right estimator to keep here, not a placeholder. Replayed
+# 2026-09-23 (scripts/sofa/measure_empirical_tennis_counts.py): n=688, and the
+# empirical frequency beats it by -0.00051 Brier with the sign flipping across
+# an event-id split (+0.00076 / -0.00167) — no evidence to switch. Its top
+# bucket is calibrated: claimed 0.824, realised 0.841 (n=176); on the 28
+# settled rows at p >= 0.70, claimed 0.807, realised 0.786.
+NORMAL_NON_COUNT_METRICS = frozenset({"tiebreaks_total"})
+
+
+def has_calibratable_model(market: str) -> bool:
+    """True when the sheet's p_central for this market comes from a model.
+
+    Counts (normal / NB), empirical-frequency metrics, and the non-count
+    metrics priced from a floorless normal. Anything else — the xG pair — has
+    no model, and a calibration curve over it would describe nothing.
+    """
+    return (
+        uses_poisson_floor(market)
+        or uses_empirical_frequency(market)
+        or market in NORMAL_NON_COUNT_METRICS
+    )
 
 
 P_FLOOR = 0.05

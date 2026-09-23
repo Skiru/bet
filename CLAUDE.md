@@ -47,6 +47,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant    # variant, beside the coupon
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --profile wariant  # -> KUPON_<d>_WARIANT.pdf
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 
 .venv/bin/python -m pytest tests/sofa -q
@@ -67,6 +69,11 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   selector returned −20.4% on 2026-09-20 while the PDF returned +8.2% the same
   day. Reporting the wrong file inverts the day.
 - **Never invent** a number, a fixture, a price or an availability.
+- **`KUPON_<date>_WARIANT.pdf` is not the coupon either.** It is the
+  operator's variant (floor 0.65, confidence x odds >= 0.90), measured -3.2%
+  per bet against the official -2.9% before it was added. It is built into its
+  own files, settled beside the coupon (audit_settlement section 7d), and its
+  result is never pooled with the coupon's.
 - **Never print a combined / Bet Builder / parlay price** outside what
   `confidence.py` computed, and never present `odds_if_product` as a price —
   Superbet does not price a slip as the product of its legs (measured markup

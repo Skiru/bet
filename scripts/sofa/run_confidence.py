@@ -50,7 +50,8 @@ from bet.sofa.confidence import (  # noqa: E402
     fair_odds,
     has_unreachable_bar_note,
     joint_probability,
-    leg_is_ev_positive,
+    PROFILES,
+    confidence_artifact,
     overround,
     single_is_fairly_priced,
     line_is_beyond_sample,
@@ -64,8 +65,7 @@ from scripts.sofa.run_sheet import determine_side  # noqa: E402
 from pydantic import RootModel  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.engine import (  # noqa: E402
-    uses_empirical_frequency,
-    uses_poisson_floor,
+    has_calibratable_model,
 )
 from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
 from bet.sofa.veto import load_vetoes, veto_matches  # noqa: E402
@@ -102,6 +102,11 @@ from bet.sofa.veto import load_vetoes, veto_matches  # noqa: E402
 # make every leg negative — measured, rows at p_bar 0.85-0.95 priced 1.20-1.35
 # returned +1.94%. Lowering the floor buys volume; lowering the EV gate would
 # just buy the wrong side more often.
+#
+# The official profile keeps both. The `wariant` profile (confidence.PROFILES)
+# lowers both on purpose, at the operator's request, into its own artifacts -
+# measured -3.2% against the official -2.9% before it was added, i.e. the price
+# of volume, not an edge. It never writes 08_confidence.json.
 DEFAULT_FLOOR = 0.70
 # Superbet's own shading is accepted, but a price below this is not a shaded
 # price, it is a rounding error with a stake attached.
@@ -117,9 +122,28 @@ MAX_PRICE_AGE = timedelta(minutes=45)
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--date", required=True)
-    ap.add_argument("--floor", type=float, default=DEFAULT_FLOOR)
+    ap.add_argument(
+        "--profile",
+        choices=sorted(PROFILES),
+        default="standard",
+        help=(
+            "standard = the official coupon (08_confidence.json). wariant = "
+            "floor 0.65 and a price up to 10%% below fair, written to its own "
+            "08_confidence_wariant.* so the official files are untouched."
+        ),
+    )
+    ap.add_argument(
+        "--floor",
+        type=float,
+        default=None,
+        help="override the profile's floor (standard: 0.70, wariant: 0.65)",
+    )
     ap.add_argument("--runs-dir", default="runs/sofa")
     args = ap.parse_args()
+    profile = PROFILES[args.profile]
+    if args.floor is None:
+        args.floor = profile.floor
+    artifact = confidence_artifact(profile)
 
     run_dir = Path(args.runs_dir) / args.date
     sheet = json.loads((run_dir / "05_sheet.json").read_text(encoding="utf-8"))
@@ -308,9 +332,9 @@ def main() -> int:
         #
         # A market that still has no curve falls out below, on
         # `cal.realised(...) is None`, which is the honest place for it.
-        if not uses_poisson_floor(row["market"]) and not uses_empirical_frequency(
-            row["market"]
-        ):
+        # `tiebreaks_total` is neither, and has a model all the same — see
+        # NORMAL_NON_COUNT_METRICS. It was refused here on every row.
+        if not has_calibratable_model(row["market"]):
             refused["NOT_IN_CALIBRATION_FIT"] += 1
             continue
         # "This row missed the bar" and "no sample could have cleared it at
@@ -366,7 +390,9 @@ def main() -> int:
         # this the builder reported an EV it was simultaneously destroying:
         # `ev_if_product_priced` is prod(confidence * odds) - 1, so a leg
         # whose own product is below 1 drags every slip it joins.
-        if not leg_is_ev_positive(realised_lo, odds):
+        # The wariant profile relaxes exactly this gate, and says by how much
+        # (ConfidenceProfile.min_ev); the official one keeps x > 1.0.
+        if not profile.clears_price(realised_lo, odds):
             refused["NEGATIVE_LEG_EV"] += 1
             continue
 
@@ -584,7 +610,9 @@ def main() -> int:
 
     out = {
         "created_at_utc": now.isoformat().replace("+00:00", "Z"),
+        "profile": profile.name,
         "confidence_floor": args.floor,
+        "min_ev": profile.min_ev,
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         "legs": legs,
@@ -593,14 +621,22 @@ def main() -> int:
         ],
         "builders": builders,
     }
-    (run_dir / "08_confidence.json").write_text(
+    (run_dir / artifact).write_text(
         json.dumps(out, indent=1, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
     lines = [
-        f"# Confidence view — {args.date}",
+        f"# Confidence view — {args.date}"
+        + ("" if profile.min_ev is None else f" — WARIANT ({profile.name})"),
         "",
-        f"Built {out['created_at_utc']}. Floor: measured lower bound >= {args.floor}.",
+        f"Built {out['created_at_utc']}. Floor: measured lower bound >= {args.floor}. "
+        + (
+            "Price: confidence x odds > 1.00."
+            if profile.min_ev is None
+            else f"Price: confidence x odds >= {profile.min_ev:.2f} (a price up to "
+            f"{1 - profile.min_ev:.0%} below fair is accepted). NOT the official "
+            "coupon - settled beside it, measured -3.2% on 18-22.09."
+        ),
         "",
         "`confidence` is the **lower bound of the realised rate** for this market at "
         "this model probability, fitted on 1,868,474 settled rows — not the model's "
@@ -681,10 +717,12 @@ def main() -> int:
             f"{b['odds_after_haircut']} | {b['ev_after_haircut']:+.3f} | "
             f"{b['match']} | {sel} |"
         )
-    (run_dir / "08_confidence.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (run_dir / artifact.replace(".json", ".md")).write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
 
     print(json.dumps({
-        "stage": "CONFIDENCE", "verdict": "OK",
+        "stage": "CONFIDENCE", "verdict": "OK", "profile": profile.name,
         "metrics": {
             "legs": len(legs), "singles": len(singles),
             "builders": len(builders),
@@ -701,7 +739,7 @@ def main() -> int:
             "vetoes_unmatched": len(unmatched),
             "vetoed_rungs": len(vetoed_keys),
         },
-        "output_path": str(run_dir / "08_confidence.json"),
+        "output_path": str(run_dir / artifact),
     }))
     return 0
 

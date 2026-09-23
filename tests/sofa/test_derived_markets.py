@@ -155,8 +155,10 @@ class TestMapperRegressions:
             # No set number to carry onto a metric name, so there is no
             # metric to price it against and it stays visible as unmapped.
             "X. set - Adrian Andreev liczba gemów",
-            # The set TOTAL, which is a different quantity and has no metric.
-            "1. set - liczba gemów",
+            # The set TOTAL "1. set - liczba gemów" used to be listed here for
+            # having no metric. It has one since 2026-09-23
+            # (games_set1_total) - see test_tennis_set_totals_and_tiebreaks.
+            # Its odd/even sibling is a proposition, not a ladder, and stays out.
             "1. set - liczba gemów nieparzysta/parzysta",
         ],
     )

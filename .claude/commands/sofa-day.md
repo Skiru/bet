@@ -153,6 +153,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --o
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
+# the operator's variant (0.65 / price up to 10% below fair), beside the coupon, never instead of it
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
 
 Refresh OFFER first if the last one is over 45 minutes old; on a late refresh
@@ -214,6 +217,7 @@ anti-selection.
 
 ```
 KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — <n> pozycji
+WARIANT:  runs/sofa/<date>/KUPON_<date>_WARIANT.pdf — <n> pozycji (NIE kupon; 0.65 / x ≥ 0.90)
 SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania

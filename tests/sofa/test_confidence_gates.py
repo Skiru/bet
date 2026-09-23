@@ -291,10 +291,14 @@ def test_tennis_falls_back_to_tennis_not_to_football():
             "tennis": {"0.900-0.925": {"realised_lo95": 0.8310, "n": 1330}}
         },
     )
-    assert cal.realised("sets_total", 0.91, "tennis") == (0.8310, "pooled:tennis", 1330)
+    # A count market (NB): sets_total was used here until 2026-09-23, when an
+    # empirical market with no curve of its own stopped borrowing the pool
+    # above the measured empirical ceiling - see
+    # test_tennis_set_totals_and_tiebreaks::test_an_unmeasured_market_is_capped.
+    assert cal.realised("aces_total", 0.91, "tennis") == (0.8310, "pooled:tennis", 1330)
     # No sport given, or a sport with no pool: the global one, as before.
-    assert cal.realised("sets_total", 0.91) == (0.9052, "pooled", 74574)
-    assert cal.realised("sets_total", 0.91, "handball") == (0.9052, "pooled", 74574)
+    assert cal.realised("aces_total", 0.91) == (0.9052, "pooled", 74574)
+    assert cal.realised("aces_total", 0.91, "handball") == (0.9052, "pooled", 74574)
 
 
 def test_an_empirical_frequency_market_is_calibratable_not_banned():

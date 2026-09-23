@@ -34,6 +34,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa.engine import (  # noqa: E402
+    NORMAL_NON_COUNT_METRICS,
     calc_p_central_nb_raw,
     calc_p_central_raw,
     predictive_sd,
@@ -116,8 +117,21 @@ def main() -> int:
             if stored_p is None:
                 continue
             p = stored_p
+        elif market in NORMAL_NON_COUNT_METRICS:
+            # A floorless normal (no Poisson floor, no support floor), which is
+            # run_sheet's estimator for these. Centred on the raw sample mean,
+            # like every count branch below: the fit has never replayed the
+            # prior / ladder shrink, so for tennis this p is the sample's own,
+            # not the shrunk p_central the stage looks up - the same
+            # approximation the count markets have always carried. Until
+            # 2026-09-23 these fell into the branch below and were skipped.
+            psd = predictive_sd(sd * sd, mean, n, apply_poisson_floor=False)
+            p = calc_p_central_raw(
+                mean, psd, winning_boundary(line, direction), direction, None
+            )
         elif not uses_poisson_floor(market):
-            # Neither a count nor an empirical frequency: no model at all.
+            # Neither a count, an empirical frequency, nor a modelled non-count
+            # (the xG pair): no model at all.
             continue
         else:
             psd = predictive_sd(sd * sd, mean, n, apply_poisson_floor=True)

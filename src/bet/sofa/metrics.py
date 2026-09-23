@@ -246,6 +246,22 @@ TENNIS_METRICS = {
         "is_total": False,
         "set_index": 3,
     },
+    # Both players' games in one set — Superbet's "1. set - liczba gemow",
+    # quoted on 246 of 2026-09-23's tennis fixtures and sent to
+    # unmapped_markets on every one. The same listing field as the per-player
+    # metric above, summed: the set score IS the games, so the value is one of
+    # 6, 7, 8, 9, 10, 12, 13 and never 11 (rarely 14+: an advantage set with no
+    # tiebreak at 6-6 - an 8-6 set is in the cache, event 15324486).
+    "games_set1_total": {
+        "sofascore": "games_from_listing",
+        "is_total": True,
+        "set_index": 1,
+    },
+    "games_set2_total": {
+        "sofascore": "games_from_listing",
+        "is_total": True,
+        "set_index": 2,
+    },
 }
 
 

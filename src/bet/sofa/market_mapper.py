@@ -73,6 +73,14 @@ MATCH_MARKET_NAMES = {
     "2. set - liczba asow + podwojnych bledow": "serve_points_set2_total",
     "2.set - liczba asow + podwojnych bledow": "serve_points_set2_total",
     "liczba gemow": "games_total",
+    # Both players' games in one set. Checked here, before TEAM_MARKET_PATTERNS,
+    # so the per-player "1. set - <player> liczba gemow" pattern never sees it
+    # (it could not match anyway: its `.+?` needs a name). specialBetValue
+    # arrives as "1-9.5"; parse_line reads the prefix as a scope check.
+    "1. set - liczba gemow": "games_set1_total",
+    "1.set - liczba gemow": "games_set1_total",
+    "2. set - liczba gemow": "games_set2_total",
+    "2.set - liczba gemow": "games_set2_total",
     "liczba setow": "sets_total",
     # `tiebreaks_total` was declared in metrics.py with a working extractor and
     # no way of being reached: the name was simply absent from this table, so

@@ -33,7 +33,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
+
 DEFAULT_CALIBRATION = Path("config/sofa_confidence_calibration.json")
+
+# The ceiling for an empirical / non-count market with no curve of its own
+# when no empirical market has a curve either. Below the pool's 0.80-0.825
+# bucket: with nothing measured, the unmeasured market gets less room, not more.
+UNPROVEN_MARKET_CEILING = 0.80
 
 # The measured disagreement ceiling. On the 6,187 rows carrying a real price,
 # grouped by how far the model sat ABOVE the devigged market:
@@ -107,7 +114,12 @@ for _family, _prefixes in {
     # the goal, so it is not independent of the scoring family.
     "goals": ("goals_", "player_assists_"),
     "offsides": ("offsides_",),
-    "games": ("games_", "handicap_games", "sets_"),
+    # A tiebreak IS a 13-game set, and a match that reaches one is a long
+    # match: the same quantity as games and sets, as get_mechanism_family has
+    # always said ("tennis_length"). Absent here, `tiebreaks_total` became a
+    # family of its own the day CONFIDENCE stopped refusing it (2026-09-23),
+    # and a builder could multiply it with a games leg as if independent.
+    "games": ("games_", "handicap_games", "sets_", "tiebreaks_"),
     "aces": ("aces_",),
     "double_faults": ("double_faults_",),
 }.items():
@@ -260,6 +272,62 @@ def leg_is_ev_positive(confidence: float, odds: float) -> bool:
     simultaneously destroying.
     """
     return confidence * odds > 1.0
+
+
+@dataclass(frozen=True)
+class ConfidenceProfile:
+    """One setting of the two dials the operator chooses between.
+
+    `min_ev` None is the official rule, `leg_is_ev_positive` (x > 1.0,
+    strictly). A number is a price TOLERANCE: the leg is accepted while
+    confidence x odds >= min_ev, i.e. up to (1 - min_ev) below the price its
+    own confidence asks for. `suffix` names the variant's artifacts, so the
+    official coupon's files are never overwritten by a variant.
+    """
+
+    name: str
+    floor: float
+    min_ev: float | None
+    suffix: str
+    pdf_suffix: str
+
+    def clears_price(self, confidence: float, odds: float) -> bool:
+        if self.min_ev is None:
+            return leg_is_ev_positive(confidence, odds)
+        # Rounded before comparing: 0.75 x 1.20 is 0.8999999999999999 in
+        # binary, and a leg printed as x = 0.90 must not be refused at 0.90.
+        return round(confidence * odds, 9) >= self.min_ev
+
+
+# The official coupon, and the operator's variant of 2026-09-23: "65% and up to
+# 10% below the price". Measured before it was added, leave-one-day-out over
+# 18-22.09 (scripts/sofa/sweep_confidence_gates.py, stored p_central, each day
+# on a curve that never saw it):
+#
+#     profile    bets   hit    ROI     95% CI (match bootstrap)
+#     standard   1655   0.749  -2.9%   -6.6 .. +0.4
+#     wariant    5802   0.768  -3.2%   -5.0 .. -1.6     tennis -5.4% (n=136)
+#
+# About the same loss per bet on 3.5x the bets: it buys volume, not edge. It is
+# a variant to be settled beside the official coupon, never a replacement, and
+# `audit_settlement` grades both. The disagreement and overround limits are the
+# same in both - without MAX_DISAGREEMENT the variant measured -5.0%.
+PROFILES: dict[str, ConfidenceProfile] = {
+    "standard": ConfidenceProfile("standard", 0.70, None, "", ""),
+    "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT"),
+}
+
+
+# How many singles a PDF prints (by confidence, see run_confidence). Shared
+# with audit_settlement, which grades exactly the printed ones: grading every
+# single in the artifact graded rows the operator never saw - 216 in the
+# artifact against 30 on the page on 2026-09-23.
+PDF_MAX_SINGLES = 30
+
+
+def confidence_artifact(profile: ConfidenceProfile) -> str:
+    """08_confidence.json, or the variant's own file."""
+    return f"08_confidence{profile.suffix}.json"
 
 
 def line_is_beyond_sample(
@@ -425,6 +493,18 @@ class Calibration:
             ceiling = self._measured_ceiling(own)
             if ceiling is not None and p >= ceiling:
                 return None
+        elif uses_empirical_frequency(market) or market in NORMAL_NON_COUNT_METRICS:
+            # A market with NO curve of its own had no ceiling at all, and
+            # borrowed the sport pool to its very top. For an empirical
+            # frequency that is the failure above, one step removed: the raw
+            # frequency is measured to overclaim at the top (games_won_for:
+            # claimed 0.95, realised 0.73), and a market that has never been
+            # settled - games_set1_total, games_set2_total, tiebreaks_total on
+            # 2026-09-23 - cannot be assumed to be the exception. It may not
+            # claim more than the empirical markets that HAVE been measured.
+            ceiling = self._unproven_ceiling()
+            if p >= ceiling:
+                return None
 
         # The sport's own pool before the global one. `sets_total` has 202
         # settled rows — too few for a market curve — and read 0.856 off a
@@ -439,6 +519,20 @@ class Calibration:
         if entry is not None:
             return entry["realised_lo95"], "pooled", entry["n"]
         return None
+
+    def _unproven_ceiling(self) -> float:
+        """The lowest measured ceiling among empirical markets with a curve.
+
+        Falls back to UNPROVEN_MARKET_CEILING when no empirical market has a
+        curve, so the absence of evidence never widens the range.
+        """
+        tops = [
+            c
+            for m, curve in self.by_market.items()
+            if uses_empirical_frequency(m)
+            and (c := self._measured_ceiling(curve)) is not None
+        ]
+        return min(tops) if tops else UNPROVEN_MARKET_CEILING
 
     def measured_ceiling(self, market: str) -> float | None:
         """Top of the range this market has evidence for, or None if no curve.

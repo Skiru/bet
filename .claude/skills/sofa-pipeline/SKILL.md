@@ -123,6 +123,8 @@ runs/sofa/<date>/
   07_settled.json      D-1 only          graded rows; also written to data/sofa.db
   08_confidence.json/.md                 legs + Bet Builders
   KUPON_<date>.pdf                       ★ the product
+  08_confidence_wariant.json/.md         the operator's variant (--profile wariant): floor 0.65, x >= 0.90
+  KUPON_<date>_WARIANT.pdf               the variant's PDF — NOT the coupon; settled beside it (7d)
   vetoes.json          Veto[]            the analyst's only channel. `[]` on most days.
 ```
 
@@ -163,6 +165,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
+# the operator's variant (0.65 / price up to 10% below fair), beside the coupon, never instead of it
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 ```
 

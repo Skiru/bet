@@ -593,9 +593,21 @@ trzy pliki, które nazywają się kuponem; stawia się **wyłącznie
 ## 10. CONFIDENCE — legi i Bet Buildery (to jest droga do produktu)
 
 `src/bet/sofa/confidence.py`, `scripts/sofa/run_confidence.py --date <d>
-[--floor 0.80] [--runs-dir runs/sofa]` → **`08_confidence.json`**,
-**`08_confidence.md`**. `--floor` to `BELOW_CONFIDENCE_FLOOR`; domyślnie
-**0,80** (`DEFAULT_FLOOR`).
+[--profile standard|wariant] [--floor …] [--runs-dir runs/sofa]` →
+**`08_confidence.json`**, **`08_confidence.md`**. `--floor` to
+`BELOW_CONFIDENCE_FLOOR`; domyślnie **0,70** (`DEFAULT_FLOOR`, profil
+`standard`).
+
+**Wariant operatora (`--profile wariant`, od 2026-09-23).** Próg pewności
+**0,65** i kurs do **10% poniżej uczciwego** (pewność × kurs ≥ 0,90); limit
+niezgody z kursem (0,10) i marży (10,5%) bez zmian. Pisze do **własnych**
+plików — `08_confidence_wariant.json/.md` i `KUPON_<data>_WARIANT.pdf` — i nigdy
+nie nadpisuje oficjalnego kuponu. Zmierzony przed dodaniem na 18–22.09
+(`scripts/sofa/sweep_confidence_gates.py`, każdy dzień na krzywej, która go nie
+widziała): **−3,2%** na zakład przy 5 802 zakładach, wobec −2,9% oficjalnego
+przy 1 655. Kupuje więcej zakładów, nie przewagę. Rozliczany obok kuponu w
+sekcji **7d** raportu `audit_settlement.py`, z osobnym wierszem „tylko w
+wariancie” — to jest dokładnie to, co wariant dokłada.
 
 COUPON pyta „czy to warte ceny". CONFIDENCE pyta **inne pytanie**: „jak często
 to się w ogóle zdarza". Na 6187 wierszach z realną ceną model **przegrywa**
@@ -786,6 +798,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant     # wariant, obok kuponu
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --profile wariant   # → KUPON_<d>_WARIANT.pdf
 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>

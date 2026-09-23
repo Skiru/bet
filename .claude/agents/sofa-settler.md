@@ -58,6 +58,11 @@ Report the two products separately and never pool them:
 - the **VALUE singles** path (`06_coupon.json`) — measured −20.4% on 2026-09-20;
 - the **PDF** path (`08_confidence.json` → `KUPON_<date>.pdf`) — +8.2% the same
   day.
+- the operator's **variant** (`08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf`,
+  section 7d; floor 0.65, confidence x odds >= 0.90) — measured -3.2% vs the
+  official -2.9% over 18-22.09 before it was added. Report its result beside the
+  PDF's, including the "tylko w wariancie" line (what the variant adds), and
+  never pool it with the coupon.
 
 `audit_day_deep` answers the two questions that come after: per market, was the
 miss **systematic** (our centre in the wrong place) or **dispersion** (the
