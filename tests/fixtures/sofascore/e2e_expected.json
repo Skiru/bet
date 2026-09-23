@@ -22,7 +22,8 @@
   ],
   "sheet_rows": 12,
   "sheet_verdicts": [
-    "BELOW_BAR"
+    "BELOW_BAR",
+    "VALUE"
   ],
   "coupon_singles": 0
 }

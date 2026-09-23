@@ -70,6 +70,7 @@ from bet.sofa.market_mapper import (
     is_derived,
 )
 from bet.sofa.names import normalize_name
+from bet.sofa.tennis_rating import blend_with_price
 
 CORRELATIONS_PATH = Path("config/sofa_side_correlations.json")
 
@@ -415,6 +416,8 @@ def price_derived_rungs(
     k_price: float,
     unfitted: list[str],
     correction_for: Callable[[str, float, str], float] | None = None,
+    rating_p: Callable[[str, str | None, float, str], float | None] | None = None,
+    rating_note: Callable[[str | None, float, float | None], str] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
@@ -597,7 +600,20 @@ def price_derived_rungs(
             for direction in directions:
                 offered = rung.over_odds if direction == "OVER" else rung.under_odds
 
-                p_raw = probability(joint, market, rung.line, direction, side)
+                # A rating forecast (tennis_rating) replaces the joint of the
+                # two samples wherever it prices the selection.
+                p_rated = (
+                    rating_p(market, side, rung.line, direction)
+                    if rating_p is not None
+                    else None
+                )
+                p_raw = (
+                    blend_with_price(
+                        p_rated, market_ps.get((rung.subject, rung.line, direction))
+                    )
+                    if p_rated is not None
+                    else probability(joint, market, rung.line, direction, side)
+                )
                 if p_raw is None:
                     continue
                 if outside_model_resolution(p_raw):
@@ -684,7 +700,9 @@ def price_derived_rungs(
                     f"DERIVED: joint of both sides, rho={rho_used:+.3f}"
                     + ("" if rho is not None else " (UNMEASURED, independent)")
                 ]
-                if centre_shrunk_to is not None:
+                if p_rated is not None and rating_note is not None:
+                    notes.append(rating_note(side, p_rated, m_p))
+                if centre_shrunk_to is not None and p_rated is None:
                     notes.append(
                         "CENTRE_SHRUNK_TO_LADDER: sample difference "
                         f"{raw_diff_mean:+.2f} pulled to {centre_shrunk_to:+.2f} "
@@ -770,8 +788,11 @@ def price_derived_rungs(
                         "this line, dependence could not be isolated"
                     )
 
-                if unfitted:
-                    notes.append(f"UNFITTED_CONSTANTS: {', '.join(unfitted)}")
+                row_unfitted = (
+                    [*unfitted, "W_TENNIS_RATING"] if p_rated is not None else unfitted
+                )
+                if row_unfitted:
+                    notes.append(f"UNFITTED_CONSTANTS: {', '.join(row_unfitted)}")
                 if edge is not None and abs(edge) >= 0.15:
                     notes.append(f"PRICE_GAP: edge {edge:+.3f} vs market")
 

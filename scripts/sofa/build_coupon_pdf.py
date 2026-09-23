@@ -12,6 +12,7 @@ import argparse
 import datetime
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -136,7 +137,12 @@ def unfitted_constants(
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--date", required=True)
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    # The same directory every other stage reads (SofaConfig.runs_dir). A
+    # hard-coded default let a scratch rebuild under SOFA_RUNS_DIR overwrite
+    # the real day's 08_confidence.json and PDF on 2026-09-23.
+    ap.add_argument(
+        "--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa")
+    )
     ap.add_argument("--out", default=None)
     ap.add_argument(
         "--profile",

@@ -1,10 +1,13 @@
 import argparse
 import json
 import logging
+import os
 import re
 import statistics
 import sys
 from collections import Counter
+from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal
 
@@ -49,10 +52,26 @@ from bet.sofa.engine import (
     uses_poisson_floor,
     winning_boundary,
 )
+from bet.sofa.football_rating import (
+    W_FOOTBALL_RATING,
+    FootballForecast,
+    RatingBook,
+)
+from bet.sofa.football_rating import load_history as load_football_history
+from bet.sofa.football_rating import replay as replay_football
 from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.stage import set_stage
+from bet.sofa.tennis_rating import (
+    W_TENNIS_RATING,
+    MatchForecast,
+    TennisRatingModel,
+    blend_with_price,
+    build_model,
+    load_coefficients,
+    load_history,
+)
 from bet.sofa.timeutil import now
 
 logger = logging.getLogger(__name__)
@@ -493,6 +512,57 @@ def strip_in_play_prices(
     return offer.model_copy(update={"rungs": kept}), stripped
 
 
+def rating_note(
+    rating: MatchForecast, side: str | None, p_rating: float, market_p: float | None
+) -> str:
+    who = "home" if side in (None, "side_a") else "away"
+    p = rating.p_side_wins(side or "side_a")
+    blend = (
+        f"blended {W_TENNIS_RATING:g} with market_p {market_p:.4f}"
+        if market_p is not None
+        else "no price on this rung, rating alone"
+    )
+    return (
+        f"TENNIS_RATING: rating p {p_rating:.4f}, {blend} "
+        f"(W_TENNIS_RATING); {who} wins the match {p:.3f}, "
+        f"{len(rating.neighbours_home)} nearest historical matches, "
+        f"rated matches {rating.rated_home}/{rating.rated_away}"
+    )
+
+
+def load_tennis_rating(
+    config: SofaConfig, fixtures: list[Fixture], run_date: str
+) -> TennisRatingModel | None:
+    """The rating model for this day, or None when there is no tennis or no
+    fitted calibration. Ratings run over history strictly before the day."""
+    if not any(f.sport == "tennis" for f in fixtures):
+        return None
+    loaded = load_coefficients()
+    if loaded is None:
+        logger.warning("sheet: config/tennis_rating.json absent, tennis unrated")
+        return None
+    coefficients, _meta = loaded
+    cut = datetime.strptime(run_date, "%Y-%m-%d").replace(tzinfo=UTC)
+    history = load_history(config.db_path)
+    return build_model(history, coefficients, int(cut.timestamp()))
+
+
+def tennis_forecast(
+    model: TennisRatingModel | None, fixture: Fixture
+) -> MatchForecast | None:
+    if model is None or fixture.sport != "tennis":
+        return None
+    if fixture.default_period_count not in (None, 3):
+        return None  # best of five is not modelled
+    return model.forecast(
+        fixture.home_entity_id,
+        fixture.away_entity_id,
+        fixture.category_name,
+        fixture.ground_type,
+        fixture.kickoff_utc,
+    )
+
+
 def process_fixture(
     fixture: Fixture,
     samples: FixtureSamples,
@@ -504,6 +574,8 @@ def process_fixture(
     config: SofaConfig,
     side_correlations: dict[str, float | None] | None = None,
     day_obs: DayLeagueObservations | None = None,
+    rating: MatchForecast | None = None,
+    football: FootballForecast | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
@@ -726,9 +798,37 @@ def process_fixture(
                 centre = w_c * mean + (1 - w_c) * prior
             else:
                 centre = mean
+            # The opponent-adjusted rating replaces the sample's centre where
+            # it has one (bet.sofa.football_rating). The spread stays the
+            # sample's.
+            rated = (
+                football.centre(
+                    rung.market,
+                    determine_side(rung.subject, fixture) if rung.subject else None,
+                )
+                if football is not None and not is_player_metric(rung.market)
+                else None
+            )
+            if rated is not None:
+                sample_centre = centre
+                centre = W_FOOTBALL_RATING * rated[0] + (
+                    1 - W_FOOTBALL_RATING) * sample_centre
+                row_unfitted.append("W_FOOTBALL_RATING")
+                extra_notes.append(
+                    f"FOOTBALL_RATING: centre {centre:.2f} from the rating "
+                    f"({rated[1]}) at W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}, "
+                    f"sample centre was {sample_centre:.2f}"
+                )
 
         pred_sd = predictive_sd(
             variance, mean, n, apply_poisson_floor=uses_poisson_floor(rung.market)
+        )
+
+        # The rating forecast replaces the sample's estimate wherever it has
+        # one (see bet.sofa.tennis_rating). The sample still decides whether
+        # the row exists at all and is still published beside it.
+        rating_side = (
+            determine_side(rung.subject, fixture) if rung.subject else None
         )
 
         for direction in ("OVER", "UNDER"):
@@ -751,7 +851,17 @@ def process_fixture(
             # For a variable with two possible values the normal CDF is the
             # wrong model whatever its width, so the sample's own frequency is
             # what gets used (F30). Everything else keeps the CDF.
-            if uses_empirical_frequency(rung.market):
+            p_rating = (
+                rating.probability(rung.market, rating_side, rung.line, direction)
+                if rating is not None
+                else None
+            )
+            if p_rating is not None:
+                p_raw = blend_with_price(
+                    p_rating,
+                    market_ps.get((rung.market, rung.subject, rung.line, direction)),
+                )
+            elif uses_empirical_frequency(rung.market):
                 # Counted on the SHRUNK centre, not on the raw sample. The
                 # shrink above is not advisory: a note that says "pulled to
                 # 5.23" beside a number computed at 3.40 describes a row the
@@ -804,8 +914,10 @@ def process_fixture(
             # already pulled inside the band: an 18/18 sample shrunk 75% toward
             # the price reads 0.72 and would be priced as though the sample had
             # said anything at this line.
-            if uses_empirical_frequency(rung.market) and outside_model_resolution(
-                hits / n
+            if (
+                p_rating is None
+                and uses_empirical_frequency(rung.market)
+                and outside_model_resolution(hits / n)
             ):
                 skipped.append(
                     (
@@ -911,8 +1023,13 @@ def process_fixture(
                     "IN_PLAY_PRICE_DROPPED: this rung was fetched at or after "
                     "kickoff; its odds are not a pre-match price"
                 )
+            if p_rating is not None and rating is not None:
+                notes.append(rating_note(rating, rating_side, p_rating, m_p))
+                if "W_TENNIS_RATING" not in row_unfitted:
+                    row_unfitted = [*row_unfitted, "W_TENNIS_RATING"]
             tennis_price_shrink = (
-                fixture.sport == "tennis"
+                p_rating is None
+                and fixture.sport == "tennis"
                 and uses_empirical_frequency(rung.market)
                 and (m_p is not None or ladder_target is not None)
             )
@@ -938,7 +1055,8 @@ def process_fixture(
                     + f"(K_TENNIS_LADDER_CENTRE={K_TENNIS_LADDER_CENTRE:g})"
                 )
             elif (
-                fixture.sport == "tennis"
+                p_rating is None
+                and fixture.sport == "tennis"
                 and ladder_target is not None
                 and abs(centre - mean) > 1e-9
             ):
@@ -1052,9 +1170,11 @@ def process_fixture(
                 bar_reason=bar_reason,
                 calibration_correction=round(corr, 4),
                 sample_newest_days=sample_newest_days,
+                # A rated row's claim is the rating, not the sample's
+                # frequency; CONFIDENCE reads this field as the claim.
                 sample_frequency=(
                     round(hits / n, 4)
-                    if uses_empirical_frequency(rung.market)
+                    if uses_empirical_frequency(rung.market) and p_rating is None
                     else None
                 ),
                 required_odds=req_odds_out,
@@ -1078,6 +1198,10 @@ def process_fixture(
         unfitted=unfitted,
         correction_for=lambda market, p, direction="": get_calibration_correction(
             reliability, market, p, direction
+        ),
+        rating_p=(rating.probability if rating is not None else None),
+        rating_note=(
+            partial(rating_note, rating) if rating is not None else None
         ),
     )
     rows.extend(derived_rows)
@@ -1139,6 +1263,20 @@ def main() -> int:
     day_obs = day_league_observations(fixtures, samples)
     reliability = load_reliability(config)
     engine_constants = load_engine_constants(config)
+    tennis_model = (
+        load_tennis_rating(config, fixtures, args.date)
+        if os.environ.get("SOFA_TENNIS_RATING", "1") != "0"
+        else None
+    )
+    rated_fixtures = 0
+    football_book: RatingBook | None = None
+    if os.environ.get("SOFA_FOOTBALL_RATING", "1") != "0" and any(
+        f.sport == "football" for f in fixtures
+    ):
+        cut = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
+        football_book = replay_football(
+            load_football_history(config.db_path), int(cut.timestamp())
+        )
 
     all_rows = []
     skip_reasons: dict[str, int] = {}
@@ -1157,6 +1295,8 @@ def main() -> int:
             if fixture_samples.readiness == "BLOCKED":
                 continue
 
+            forecast = tennis_forecast(tennis_model, fixture)
+            rated_fixtures += forecast is not None
             rows, skipped = process_fixture(
                 fixture,
                 fixture_samples,
@@ -1168,6 +1308,17 @@ def main() -> int:
                 config,
                 side_correlations,
                 day_obs,
+                forecast,
+                (
+                    FootballForecast(
+                        football_book,
+                        fixture.competition_id,
+                        fixture.home_entity_id,
+                        fixture.away_entity_id,
+                    )
+                    if football_book is not None and fixture.sport == "football"
+                    else None
+                ),
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
@@ -1197,6 +1348,7 @@ def main() -> int:
         "verdict": "OK",
         "metrics": {
             "rows_generated": len(all_rows),
+            "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).
             "skipped_rungs": skip_reasons,
