@@ -20,9 +20,10 @@
     3,
     3
   ],
-  "sheet_rows": 12,
+  "sheet_rows": 14,
   "sheet_verdicts": [
-    "BELOW_BAR"
+    "BELOW_BAR",
+    "LEAN"
   ],
   "coupon_singles": 0
 }

@@ -66,7 +66,8 @@ BURST_SAMPLES = 4
 HEALTHY_ROUND_TRIP_MS = 600.0
 
 # The FIRST request after a quiet period is not a latency measurement, it is a
-# poll cycle. The userscript long-polls /pull for PULL_WAIT_S = 20 s; a job
+# poll cycle. The userscript long-polls /pull for PULL_WAIT_S (20 s until
+# 2026-09-23, 1 s since - see bridge_server.py); a job
 # submitted while every tab sits between polls waits for the next one. Measured
 # 2026-09-22 on a bridge that was provably healthy: single requests from idle
 # took 20.1 s, 20.1 s and 40.1 s - exact multiples of the poll window - while
@@ -115,9 +116,11 @@ def main() -> int:
         # preflight used to die with a traceback instead of the diagnosis it
         # exists to print.
         print(f"FAIL  bridge could not serve the request: {e}")
-        print(f"      no tab claimed the job in {COLD_PROBE_TIMEOUT_S:.0f}s, which is")
-        print("      longer than a poll cycle - so the tab is not merely idle.")
-        print("      Bring the sofascore.com window to the front and retry.")
+        print(f"      no answer in {COLD_PROBE_TIMEOUT_S:.0f}s. Either no tab")
+        print("      claimed the job, or a tab claimed it and its /push is stuck")
+        print("      (health 'pending: 0' after this means it WAS claimed). A stuck")
+        print("      /push was a long /pull holding the only connection to")
+        print("      127.0.0.1 (2026-09-23) - is bridge_server.py's PULL_WAIT_S short?")
         return 1
 
     if resp.status_code != 200:

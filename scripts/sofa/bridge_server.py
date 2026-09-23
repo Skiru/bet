@@ -42,9 +42,19 @@ ALLOWED_ORIGIN = "https://www.sofascore.com"
 DEFAULT_PORT = 8787
 # How long a job may sit unclaimed before the pipeline gives up on it.
 JOB_TIMEOUT_S = 60.0
-# How long /pull blocks waiting for work before answering empty. Keeps the
-# userscript's poll loop cheap without making it chatty.
-PULL_WAIT_S = 20.0
+# How long /pull blocks waiting for work before answering empty.
+#
+# Short on purpose. On 2026-09-23 every request the tabs made to 127.0.0.1 ran
+# over ONE connection, one at a time (lsof: a single ESTABLISHED socket with
+# five windows open), so a tab's /push waited behind the other tabs' /pull
+# long-polls. Every /push landed 7-17 ms after some /pull closed; a job the tab
+# had already fetched came back after 60-80 s, and the pipeline's 60 s deadline
+# turned a healthy bridge into a 504 on every request. At 20.0 the preflight
+# FAILed three times in a row; at 1.0, same browser, same tabs, it passed, and
+# measure_bridge_capacity.py sustained 14.4-14.8 req/s over 300 requests, zero
+# non-200 - the 5 x 2.86 design ceiling. An empty /pull on localhost costs
+# nothing, so a short wait is cheap even when the connections are parallel.
+PULL_WAIT_S = 1.0
 
 
 class Job:

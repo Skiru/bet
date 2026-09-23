@@ -285,10 +285,27 @@ def p_empirical_centred_raw(
 
     `shift` is centre - mean, so shift == 0.0 reproduces p_empirical_raw
     exactly and an unshrunk caller is unaffected.
+
+    A count is moved as the interval it occupies, [k-0.5, k+0.5] (the same
+    convention as COUNT_SUPPORT_FLOOR), not as a point. Moving points let a
+    fractional shift carry a whole observation across an x.5 boundary: Rojas,
+    games_won_set2_for OVER 6.5 on 2026-09-23, sample [6,6,0,1,6,6,6,5,3,6],
+    shift +0.53 - every 6 became 6.53 and the row priced 6/10 = 0.60 on a
+    sample that cleared the line 0/10 times. The interval puts 0.53 of each
+    six over the line, 0.318. An integer shift still equals the point shift
+    exactly, and shift == 0.0 still equals the raw count, because the boundary
+    is always half-integer (winning_boundary). Non-integer samples keep the
+    point shift: they have no interval to move.
     """
     n = len(values)
     if n <= 0:
         raise ValueError("n must be greater than 0")
+    if all(float(v).is_integer() for v in values):
+        if direction == "OVER":
+            mass = sum(min(1.0, max(0.0, v + shift + 0.5 - boundary)) for v in values)
+        else:
+            mass = sum(min(1.0, max(0.0, boundary - (v + shift - 0.5))) for v in values)
+        return mass / n
     if direction == "OVER":
         hits = sum(1 for v in values if v + shift > boundary)
     else:

@@ -51,12 +51,48 @@ def test_the_shrunk_centre_changes_the_priced_number():
     raw = p_empirical_centred_raw(values, boundary, "OVER", 0.0)
     shrunk = p_empirical_centred_raw(values, boundary, "OVER", centre - 3.4)
 
-    # Three observations clear 4.5 where the sample sits; the shrink moves
-    # every one of them up by 1.8316, so three more cross. The sample keeps
-    # its shape and only changes location, which is the point.
+    # Three observations clear 4.5 where the sample sits. The shrink moves
+    # every one up by 1.8316: the 4 crosses whole, and each 3 - the interval
+    # [2.5, 3.5] moved to [4.33, 5.33] - puts 0.8316 of itself over. It used
+    # to count both 3s as whole hits (0.6), which is the point-shift defect
+    # test_a_fractional_shift_moves_mass_not_whole_observations pins down.
     assert raw == 0.3
-    assert shrunk == 0.6
+    assert abs(shrunk - (4 + 2 * 0.8316) / 10) < 1e-9
     assert shrunk > raw, "a centre pulled UP must not lower an OVER"
+
+
+def test_a_fractional_shift_moves_mass_not_whole_observations():
+    """Rojas, games_won_set2_for OVER 6.5, runs/sofa/2026-09-23.
+
+    Sample cleared the line 0/10 times; a +0.53 shift turned every 6 into 6.53
+    and the row priced 0.60. Each six is [5.5, 6.5]; moved +0.53 it puts 0.53
+    of itself over 6.5.
+    """
+    values = [6.0, 6.0, 0.0, 1.0, 6.0, 6.0, 6.0, 5.0, 3.0, 6.0]
+    boundary = winning_boundary(6.5, "OVER")
+    p = p_empirical_centred_raw(values, boundary, "OVER", 0.53)
+    assert abs(p - 6 * 0.53 / 10) < 1e-9
+    under = p_empirical_centred_raw(
+        values, winning_boundary(6.5, "UNDER"), "UNDER", 0.53
+    )
+    assert abs(p + under - 1.0) < 1e-9
+
+
+def test_an_integer_shift_equals_moving_the_points():
+    values = [1.0, 6.0, 2.0, 6.0, 3.0, 1.0, 6.0, 4.0, 2.0, 3.0]
+    boundary = winning_boundary(4.5, "OVER")
+    for k in (-2, -1, 1, 2):
+        points = sum(1 for v in values if v + k > boundary) / len(values)
+        assert p_empirical_centred_raw(values, boundary, "OVER", float(k)) == points
+
+
+def test_the_centred_frequency_is_continuous_in_the_shift():
+    """A point shift jumps by 1/n at a hair's breadth; mass must not."""
+    values = [6.0, 6.0, 0.0, 1.0, 6.0, 6.0, 6.0, 5.0, 3.0, 6.0]
+    boundary = winning_boundary(6.5, "OVER")
+    a = p_empirical_centred_raw(values, boundary, "OVER", 0.4999)
+    b = p_empirical_centred_raw(values, boundary, "OVER", 0.5001)
+    assert abs(a - b) < 0.001
 
 
 def test_the_shift_moves_over_and_under_in_opposite_directions():
