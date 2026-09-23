@@ -157,7 +157,8 @@ def resolve_board_concurrently(
     `bridge_server.claim()` is not bound to a tab - and each tab paces itself
     at MIN_INTERVAL_MS. A serial caller has at most one job in flight, so
     every tab idles between jobs and roughly half the requests pay a full
-    20 s /pull poll cycle to be claimed again. Measured on 2026-09-22 against
+    /pull poll cycle (20 s then; 1 s since 663e7102) to be claimed again. Measured on
+    2026-09-22 against
     a bridge measured at 8.64 req/s: this stage held `in_flight 1, pending 0`
     for ten minutes on a 575-entry board, and SETTLE - the same shape of loop
     - ran at 0.094 req/s with a p50 latency of 20,020 ms, which is the poll

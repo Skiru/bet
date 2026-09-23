@@ -343,7 +343,8 @@ def fetch_events_concurrently(
     `bridge_server.claim()` is not bound to a tab - and each tab paces itself
     at MIN_INTERVAL_MS. A serial caller therefore has at most one job in
     flight, so every tab goes idle between jobs and roughly half the requests
-    pay a full 20 s /pull poll cycle to be claimed again. Measured on
+    pay a full /pull poll cycle (20 s then; 1 s since 663e7102) to be claimed again.
+    Measured on
     2026-09-22: SETTLE ran at 0.094 req/s with p50 latency 20,020 ms - the
     poll window, not the network - against a bridge measured at 8.64 req/s,
     and the bridge reported in_flight 1, pending 0 for all 272 requests with

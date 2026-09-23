@@ -58,23 +58,23 @@ class BrowserBridgeTransport:
         # bucket, so the round trip can outlast the caller's nominal timeout.
         # Give the bridge headroom rather than abandoning jobs it will still run.
         #
-        # This floor must clear the userscript's poll window, and 12 s did not.
-        # bridge_server holds a /fetch open for exactly the timeout the client
-        # sends (bridge_server.py:242), and a tab can only take work when it is
-        # inside /pull, which blocks for PULL_WAIT_S = 20 s. So a job submitted
-        # while every tab sits between polls was killed by our own deadline
-        # before any tab could possibly claim it - a 504 we caused.
+        # This floor must clear the time a job can wait to be claimed AND
+        # answered, and 12 s did not. bridge_server holds a /fetch open for
+        # exactly the timeout the client sends (its /fetch handler), and a tab
+        # can only take work while it is inside /pull.
         #
-        # Measured 2026-09-22 on a bridge that was provably healthy: six
-        # concurrent jobs completed in two groups of three, 0.35 s apart
-        # (10.7 req/s), while the ramp through this transport aborted at a
-        # target of 4 on exactly that 504. Single requests from idle took
-        # 20.1 s, 20.1 s and 40.1 s - one and two poll cycles.
-        #
-        # 45 s is two poll cycles plus slack, and still well inside the
-        # server's own JOB_TIMEOUT_S of 60. The earlier note argued 12 s beat
-        # 30 s because "the worst observed case is ~2 s (F23)"; that number
-        # described a request already claimed, not the wait to be claimed.
+        # History of the number. On 2026-09-22 /pull blocked for PULL_WAIT_S =
+        # 20 s, and single requests from idle took 20.1 s, 20.1 s and 40.1 s -
+        # one and two poll cycles - so 12 s killed jobs no tab could yet have
+        # claimed: a 504 we caused. 45 s was chosen as two such cycles plus
+        # slack. Since 663e7102 PULL_WAIT_S is 1 s (a browser that serialises
+        # every tab's localhost request on one connection let a 20 s /pull
+        # hold a finished job's /push for 60-80 s), so a poll cycle no longer
+        # explains the floor; it stays at 45 s as headroom for a /push queued
+        # behind the other windows' /pulls, still inside the server's own
+        # JOB_TIMEOUT_S of 60. The earlier note argued 12 s beat 30 s because
+        # "the worst observed case is ~2 s (F23)"; that number described a
+        # request already claimed, not the wait to be claimed.
         bridge_timeout = max(timeout, 45.0)
         payload = json.dumps({"url": url, "timeout": bridge_timeout}).encode("utf-8")
         req = Request(

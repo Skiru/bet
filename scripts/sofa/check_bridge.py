@@ -24,6 +24,7 @@ from bet.sofa.bridge_transport import (  # noqa: E402
     DEFAULT_BRIDGE_URL,
     BrowserBridgeTransport,
 )
+from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.errors import ProviderError, TransportError  # noqa: E402
 
 PROBE_URL = "https://api.sofascore.com/api/v1/sport/football/events/live"
@@ -40,16 +41,21 @@ PROBE_URL = "https://api.sofascore.com/api/v1/sport/football/events/live"
 # This is CONNECTIVITY, not capacity, and the distinction is load-bearing.
 #
 # A short burst from idle cannot reach the regime a run works in. Measured
-# 2026-09-22 with three visible windows: the bridge sustains 8.6 req/s once
-# the tabs are saturated, but a tab that finishes a job and finds nothing
-# waiting goes back into a 20 s /pull and pays that cycle to be claimed again.
-# So four probes from idle read 0.10-0.20 req/s on exactly the bridge that
-# then did 8.64 req/s over 360 requests with zero non-200.
+# 2026-09-22 with three visible windows and PULL_WAIT_S = 20 s: the bridge
+# sustained 8.64 req/s over 360 requests once the tabs were saturated, but a
+# tab that finished a job and found nothing waiting went back into a 20 s
+# /pull and paid that cycle to be claimed again, so four probes from idle read
+# 0.10-0.20 req/s. PULL_WAIT_S is 1 s since 663e7102, which shortens the cycle
+# but does not make an idle burst a capacity reading.
 #
 # This check therefore REPORTS the number and refuses to grade it. Earlier
 # versions graded it and cried wolf on a healthy bridge, which is worse than
 # saying nothing - CLAUDE.md runs this first.
-EXPECTED_PLATEAU_RPS = 8.6
+# A saturated tab serves one request per MIN_INTERVAL_MS = 350 ms, and
+# capacity comes from windows, never from a faster tab (CLAUDE.md). Measured:
+# 3 windows 8.64 req/s (2026-09-22), 5 windows 11.67 (2026-09-22) and
+# 14.4-14.8 (2026-09-23, after PULL_WAIT_S 20 -> 1).
+PER_WINDOW_RPS = 1000.0 / 350.0
 BURST_SAMPLES = 4
 # The fast/slow split, measured over 80,964 live requests (740b5d3f): fast mode
 # p50 175 ms, slow mode p10 1,889 / p50 1,997 ms. 600 ms sits above the
@@ -57,10 +63,11 @@ BURST_SAMPLES = 4
 # called throttled - and far below the slow mode's p10.
 #
 # This is graded on the MINIMUM round trip inside the concurrent burst, and
-# both halves of that matter. Sequentially, a probe from idle pays the 20 s
-# /pull cycle to be claimed, so it measures the poll window and not the tab;
-# grading that is what made this preflight FAIL on a healthy bridge and got
-# the whole check deleted in 7318e08a. Inside the burst the tabs are already
+# both halves of that matter. Sequentially, a probe from idle pays the /pull
+# cycle to be claimed (20 s when this was written, 1 s since 663e7102), so it
+# measures the poll window and not the tab; grading that is what made this
+# preflight FAIL on a healthy bridge and got the whole check deleted in
+# 7318e08a. Inside the burst the tabs are already
 # awake, and the minimum drops the probe that queued behind a busy tab
 # (BURST_SAMPLES exceeds max_concurrency, so one always does).
 HEALTHY_ROUND_TRIP_MS = 600.0
@@ -144,10 +151,11 @@ def main() -> int:
     #
     # On 2026-09-22, on a bridge that was provably healthy, single requests
     # from idle took 20.1 s / 20.1 s / 40.1 s - exact multiples of the
-    # userscript's PULL_WAIT_S = 20 poll window - while twelve concurrent jobs
-    # finished in 2.6 s at 4.56 req/s with a minimum latency of 0.2 s and all
-    # 200. A tab that is slow to re-enter /pull looks catastrophic one job at a
-    # time and is perfectly fine under load, so the verdict has to come from
+    # then-20 s PULL_WAIT_S poll window (1 s since 663e7102) - while twelve
+    # concurrent jobs finished in 2.6 s at 4.56 req/s with a minimum latency
+    # of 0.2 s and all 200. A tab that is slow to re-enter /pull looks
+    # catastrophic one job at a time and is perfectly fine under load, so the verdict
+    # has to come from
     # the burst. Judging it sequentially made this preflight report FAIL on a
     # healthy bridge, and CLAUDE.md says to run it first.
     transport = BrowserBridgeTransport()
@@ -193,9 +201,10 @@ def main() -> int:
     rate = served / elapsed
     print(f"INFO  bridge served {rate:.2f} req/s in a {BURST_SAMPLES}-request "
           f"burst from idle")
-    print(f"      Not a capacity reading: a run sustains ~{EXPECTED_PLATEAU_RPS:.1f} "
-          f"req/s once the tabs")
-    print("      are saturated, and an idle burst pays a 20 s poll cycle. For the")
+    windows = SofaConfig.from_env().max_concurrency
+    print(f"      Not a capacity reading: {windows} window(s) sustain "
+          f"~{windows * PER_WINDOW_RPS:.1f} req/s once saturated")
+    print("      (2.86 per window), and an idle burst pays a poll cycle. For the")
     print("      real number:  PYTHONPATH=src:. .venv/bin/python \\")
     print("                      scripts/sofa/measure_bridge_capacity.py")
     if failures:

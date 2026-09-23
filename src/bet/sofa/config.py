@@ -26,7 +26,8 @@ class SofaConfig:
     # MIN_INTERVAL_MS = 350, which is never relaxed. It has to sit ABOVE the
     # tabs' own capacity and let them be the limiter: five windows at 350 ms
     # is 5 x 2.86 = 14.3 req/s, so a bucket at or under that starves the tabs
-    # and they go idle between jobs, paying a 20 s /pull cycle to be claimed
+    # and they go idle between jobs, paying a /pull cycle (20 s then; 1 s since
+    # 663e7102) to be claimed
     # again. Starving it is far worse than opening it.
     target_rps: int = 20
     # One in-flight job per tab - and this must EQUAL the number of open
@@ -42,7 +43,8 @@ class SofaConfig:
     # Throughput saturates at five and never moves again; only latency grows,
     # which is pure queue depth and costs STALE_PRICE. Below the window count
     # it does not degrade gracefully - it collapses 78x, because a tab that
-    # finishes and finds nothing waiting goes back into a 20 s /pull.
+    # finishes and finds nothing waiting goes back into a /pull (20 s then; 1 s since
+    # 663e7102).
     #
     # So this is not a free tuning knob: it is the window count. Change it
     # together with launch_bridge_browser.py --windows, and re-run

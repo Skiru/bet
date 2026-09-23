@@ -76,8 +76,8 @@ winner and loser over a match (4.70 vs 4.78 in-repo), which is why
 goals ↔ corners is ~0 while goals ↔ SOT is +0.55. *Implication:* method §24's
 four scenarios (favourite ahead / underdog ahead / 0-0 to 60' / level) are the
 practical form of this; `sofa` carries **no 1X2 price and no
-model**, so weight them from an independent source (`compare_odds` over MCP
-spans ~88 books, none of which is Superbet) or say they are unweighted, and ask
+model**, so weight them from Superbet's own ladders in `04_offer.json` (goals,
+handicap, `most_*` rungs where offered) or say they are unweighted, and ask
 for each market which scenario kills it. A strong
 favourite at home scoring early flattens SOT-against and corners-for the
 underdog; a 0-0 to 60' inflates fouls and cards in a knockout.
@@ -101,8 +101,8 @@ underdog; a 0-0 to 60' inflates fouls and cards in a knockout.
   yourself and say how you know.
 - **Dead rubbers, relegation six-pointers, cup rotation** change the XI and
   the tempo. Neither the table nor the fixture list is in the
-  artifacts — read them over MCP (`get_standings`, `get_team_fixtures`) before
-  believing "last ten" describes tonight.
+  artifacts — read them on the web (two independent domains, tagged) before
+  believing "last ten" describes tonight, or write `UNVERIFIED`.
 
 ## 5. Fixture congestion and fatigue
 
@@ -152,8 +152,8 @@ gives you the span.
 - Implied probability = 1/odds; remove the overround before comparing.
   `sofa` uses a **power devig**, not a proportional one: proportional
   overstated long shots by ~7 pp and understated favourites by ~7 pp.
-  Superbet is a soft book and is **not** in the 88-book MCP grid, so that grid
-  is a reference and never a price.
+  Superbet is a soft book, and it is the only price `sofa` has or may quote;
+  no other bookmaker or aggregator is a reference here.
 - Edge exists only when `fair probability > implied`, with a fair estimate of
   adequate quality (method §104). Per-team "to score" and 0.5 lines are house
   markets that sit at or under consensus (ledger 2026-08-30/31: −0.1 to −5.6pp

@@ -137,16 +137,17 @@ to byłaby prośba o potwierdzenie, nie o analizę.
 1. **Inwentarz.** Mecze swojego sportu, udział READY, VALUE **policzone
    samodzielnie z `05_sheet.json`**, ile dochodzi do singli, ile do nóg, ile do
    *stakeable* buildera.
-2. **Punkt decyzyjny — przed jakimkolwiek narzędziem webowym/MCP.** Oba zegary,
+2. **Punkt decyzyjny — przed jakimkolwiek narzędziem webowym.** Oba zegary,
    `now`, różnica. Mecz, który się zaczął, wypada **tutaj**, a nie po
    researchu: tytuły i snippety wyszukiwarki **są treścią**, więc analiza
    spóźniona jest wystawiona na wynik. Jeśli wynik przecieknie — nazwij to
    i oznacz twierdzenie `CANNOT VERIFY`.
-3. **Weryfikacja tożsamości.** Piłka: `bzzoiro` MCP **po id**
-   (`get_match_detail`) — to legalne niezależne źródło właśnie dlatego, że
-   `sofa` z niego **nie próbkuje**; tag `[BZZOIRO-MCP: <tool>, fetched <UTC>]`.
-   Tenis: **nie ma źródła prawdy** (`bzzoiro-tennis` odpowiada
-   `402 addon_required`), więc web, dwie niezależne domeny, tag
+3. **Weryfikacja tożsamości.** Ani w piłce, ani w tenisie **nie ma źródła
+   prawdy** poza artefaktami: `sofa` czyta statystyki Sofascore i ceny
+   Superbet, a bzzoiro **nie jest źródłem i nie wolno go wołać** (do
+   2026-09-23 ten punkt kazał piłce pytać bzzoiro o status meczu — instrukcja
+   sprzeczna z kontraktem agenta). Tożsamość i zegary: `02_fixtures.json`
+   (`identity`, oba zegary); resztę web, dwie niezależne domeny, tag
    `[WEB: domena, fetched <UTC>]` — a „niezweryfikowane" jest często odpowiedzią
    uczciwą i tak trzeba je podać.
 4. **Protokół per mecz** z odpowiedniego skilla sportowego, w jego kolejności.
@@ -178,8 +179,8 @@ milczenie.
   `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
   `THIN_SAMPLE_FOR_BUILDER`) — to dopisuje szum, w którym giną prawdziwe powody;
 - podawać `FUZZY` jako potwierdzoną tożsamość;
-- brać ceny z otwartego webu. `bzzoiro compare_odds` to ~88 książek,
-  **żadna z nich nie jest Superbetem** — to punkt odniesienia, nie cena;
+- brać ceny z otwartego webu ani z innego bukmachera czy agregatora — jedyna
+  cena w `sofa` to Superbet (`04_offer.json`, a w arkuszu `market_p`);
 - podawać własnej ceny łączonej;
 - proponować stawki.
 

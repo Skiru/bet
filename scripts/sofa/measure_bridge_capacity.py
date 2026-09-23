@@ -21,7 +21,8 @@ requests, zero non-200 and no 403, reproduced twice within 0.03 req/s:
 
 The shape is bimodal, not a plateau. Below the tabs' own capacity the bucket
 starves them: a tab that finishes its job and finds no work goes back into a
-20 s /pull, and pays that cycle to be claimed again. Above it they stay
+/pull (20 s then; 1 s since 663e7102), and pays that cycle to be claimed again. Above
+it they stay
 saturated and deliver 3 x 2.86 = 8.6 req/s, which is exactly three tabs each
 honouring MIN_INTERVAL_MS. So read the PEAK here, and set SOFA_TARGET_RPS
 above the tabs' capacity rather than at it.
@@ -60,7 +61,7 @@ from bet.sofa.errors import CircuitOpenError, ProviderError
 # The steps have to straddle what the tabs can serve, or the ramp measures
 # starvation and nothing else. Five windows at MIN_INTERVAL_MS = 350 is
 # 5 x 2.86 = 14.3 req/s, so a ramp that stops at 14 sits entirely BELOW the
-# ceiling: every step leaves tabs idle between jobs, paying a 20 s /pull, and
+# ceiling: every step leaves tabs idle between jobs, paying a /pull (20 s then), and
 # the run reports a "plateau" that is purely its own starvation. The old fixed
 # [2, 4, 6, 8, 10, 14] was fitted to three windows and became misleading the
 # moment a fourth was opened.

@@ -147,11 +147,11 @@ as prose and say it was not applied.
   `STALE_SAMPLE`, `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`,
   `LINE_BEYOND_SAMPLE`, `THIN_SAMPLE_FOR_BUILDER`). Say the code caught it and
   move on.
-- Never fetch odds off the open web. `compare_odds` spans ~88 books, **none of
-  which is Superbet** — a reference, never a price. Tag
-  `[BZZOIRO-ODDS: fetched <ts>]`.
+- Never fetch odds off the open web, and never quote another bookmaker or an
+  odds aggregator: the only price in `sofa` is Superbet's, in `04_offer.json`
+  (and the sheet's `market_p`, its devig).
 - Never print a combined / Bet Builder price of your own.
 - No stake, no placement. Never read, echo or log `.env`.
-- If an MCP tool returns `requires re-authorization`, stop retrying and list
-  the checks you therefore did not make. Silence about a skipped check reads as
-  a passed check.
+- If a web source is unreachable or answers with nothing usable, stop
+  retrying and list the checks you therefore did not make. Silence about a
+  skipped check reads as a passed check.

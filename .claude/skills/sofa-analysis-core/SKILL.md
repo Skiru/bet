@@ -43,7 +43,7 @@ never touched a single real bet.
    report that opens with what pays has put the operator's decision before the
    analysis.
 
-1. **The decision point, before any web or MCP tool runs.** Per fixture:
+1. **The decision point, before any web tool runs.** Per fixture:
    scheduled start in UTC (**both clocks** — `kickoff_utc` and
    `superbet_kickoff_utc`), `now`, the delta. A fixture that has started is
    dropped **here**, not researched and then discarded. See *The decision
@@ -122,7 +122,7 @@ row is internally honest — that is a different act, and say which you are doin
 
 ## What may move a row, and in which direction
 
-- **Context, web, MCP, referee, absences, stakes: may remove a row. May never
+- **Context, web, referee, absences, stakes: may remove a row. May never
   promote one.** There is no promotion mechanism in `sofa` and you must not
   invent one. A blog is not a sample; a referee's average is not an observation
   of this fixture.

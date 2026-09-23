@@ -99,13 +99,15 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
    observation of tonight. It is present on ~9% of fixtures and **is not
    blended into the centre in `sofa`**. Absence is the default; say what the
    league's spread makes of that.
-8. **Absences & lineups.** Not in the artifacts at all. `get_match_lineups`
-   within ~1 h of kickoff, otherwise the web. Four starters out is a
+8. **Absences & lineups.** Not in the artifacts at all — the web, two
+   independent domains, tagged; within ~1 h of kickoff the club's or the
+   league's own lineup page. Four starters out is a
    `CONTEXT` veto candidate; a rested XI in a cup tie likewise.
 9. **Game script A–D** (method §24): favourite ahead, underdog ahead, 0-0 to
-   60', level. Say which is modal and whether the market survives it. The 1X2
-   is not in the artifacts — `compare_odds` over MCP is a reference across ~88
-   books, **none of which is Superbet**.
+   60', level. Say which is modal and whether the market survives it. There is
+   no 1X2 price in the artifacts and no other source for one: read the
+   favourite from Superbet's own ladders in `04_offer.json` (goals, handicap
+   and `most_*` rungs where offered), or say the scenarios are unweighted.
 10. **The ladder.** All rungs in `04_offer.json` for this market, with
     `p_central` / `p_bar` / `offered_odds` / `surplus` per rung. Note
     `NO_LADDER_CHECK` where it appears: that row passed *without* the ladder

@@ -48,9 +48,13 @@ def test_the_preflight_does_not_grade_the_burst(check_bridge):
 
 
 def test_the_expected_plateau_is_the_sustained_measurement(check_bridge):
-    """The number quoted to the operator must be the saturated one measured
-    over 360 requests, reproduced twice within 0.03 req/s - not a burst."""
-    assert check_bridge.EXPECTED_PLATEAU_RPS == 8.6
+    """The number quoted to the operator is the saturated one, not a burst:
+    one request per MIN_INTERVAL_MS = 350 ms per window. It used to be a
+    constant 8.6, measured on three windows (2026-09-22); with five windows the
+    bridge sustained 14.4-14.8 req/s on 2026-09-23, i.e. 5 x 2.86."""
+    assert not hasattr(check_bridge, "EXPECTED_PLATEAU_RPS")
+    assert abs(check_bridge.PER_WINDOW_RPS - 1000.0 / 350.0) < 1e-9
+    assert 14.0 < 5 * check_bridge.PER_WINDOW_RPS < 14.9
 
 
 def test_the_probe_stays_tiny(check_bridge):
