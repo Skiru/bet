@@ -33,6 +33,7 @@ sys.path.insert(0, "src")
 
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
+    MAX_OVERROUND,
     PDF_MAX_SINGLES,
     PROFILES,
     builder_odds,
@@ -627,9 +628,13 @@ def main() -> int:
         var = json.loads(var_path.read_text(encoding="utf-8"))
         var_all = var.get("singles") or []
         var_singles = var_all[:PDF_MAX_SINGLES]
-        A("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}) — nie kupon".format(
-            var.get("confidence_floor", PROFILES["wariant"].floor),
-            var.get("min_ev", PROFILES["wariant"].min_ev)))
+        # An artifact from before 2026-09-23 13:30 UTC carries no
+        # max_overround: the variant then used the official 10.5%.
+        A("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}, marża ≤ {:.1%})"
+          " — nie kupon".format(
+              var.get("confidence_floor", PROFILES["wariant"].floor),
+              var.get("min_ev", PROFILES["wariant"].min_ev),
+              var.get("max_overround", MAX_OVERROUND)))
         A("")
         A("Rozliczany obok oficjalnego kuponu, na tych samych rozliczonych "
           "wierszach i po swoich wydrukowanych kursach. Tylko pojedyncze — PDF "

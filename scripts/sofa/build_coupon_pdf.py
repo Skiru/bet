@@ -260,16 +260,18 @@ def main() -> int:
         f"&nbsp;•&nbsp; "
         f"próg pewności {doc_json['confidence_floor']}"
         + ("" if profile.min_ev is None
-           else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"), SUB))
+           else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"
+                f" &nbsp;•&nbsp; marża rynku ≤ {profile.max_overround:.0%}"), SUB))
     if profile.min_ev is not None:
         S.append(Paragraph(
             "<font color='#b25b00'><b>To nie jest oficjalny kupon.</b></font> Wariant "
             f"przyjmuje pewność od {doc_json['confidence_floor']} i kurs do "
-            f"{1 - profile.min_ev:.0%} poniżej uczciwego (wg tej pewności). Na "
-            "rozliczonej historii 18–22.09 dał <b>−3,2%</b> na zakład (5 802 zakładów, "
-            "95% CI −5,0%…−1,6%) wobec −2,9% oficjalnego kuponu: kupuje "
-            "<b>więcej zakładów, nie przewagę</b>. Rozliczany obok oficjalnego "
-            "(sekcja 7d raportu rozliczenia).", SUB))
+            f"{1 - profile.min_ev:.0%} poniżej uczciwego (wg tej pewności), przy "
+            f"marży rynku do {profile.max_overround:.0%} (oficjalny: 10,5%). "
+            "Wersja z marżą 10,5% dała na 18–22.09 <b>−3,2%</b> na zakład wobec "
+            "−2,9% oficjalnego; rynki z marżą 10,5–15% traciły tam o 1–2 pkt "
+            "proc. więcej niż tańsze. Od 23.09 mierzony w tym ustawieniu, "
+            "obok oficjalnego (sekcja 7d raportu rozliczenia).", SUB))
     sheet_doc = json.loads((run / "05_sheet.json").read_text(encoding="utf-8"))
     sheet_rows = sheet_doc if isinstance(sheet_doc, list) else sheet_doc["rows"]
     # A builder's legs carry no event id of their own; it is on the builder.

@@ -333,8 +333,23 @@ Dla **każdego** szczebla, który ma próbkę i cenę, powstaje jeden `SheetRow`
 
 ### 7.1 Łańcuch arytmetyczny
 
+Od 2026-09-23 liga bez dopasowanej bazy nie jest już ściągana do średniej
+globalnej (3,29 gola — wszystkie ligi świata), jeśli dzień ma jej własne mecze:
+Gaucho Serie A2 miała w próbkach 72 mecze po 2,10 gola, a cena mówiła 2,1.
+Punkty 2 i 3 nie dotyczą metryk połówkowych (`_1h_`/`_2h_`): Sofascore potrafi
+źle podzielić gole na połowy przy dobrym wyniku końcowym (NPFL: 2:0 do przerwy
+zapisane jako 0 + 5). Wiersz `_total` nie powstaje, gdy któraś strona ma mniej
+niż `min_sample` własnych obserwacji — pula byłaby wtedy historią jednej
+drużyny pod nazwą meczu (`THIN_SAMPLE`).
+
 ```
-prior   = baza ligowa, a gdy jej nie ma — globalna     (config/sofa_league_baselines.json)
+prior   = w tej kolejności (piłka):
+          1. baza ligowa dopasowana               (config/sofa_league_baselines.json)
+          2. średnia ligi z meczów w próbkach dnia, bez meczów wycenianego
+             spotkania, ≥30 obserwacji            notka PRIOR_FROM_DAY_SAMPLES
+          3. średnia lig, w których drużyny grają na co dzień (puchary)
+                                                  notka PRIOR_FROM_TEAMS_LEAGUES
+          4. globalna
 w_c     = n / (n + K_CENTRE)                           (piłka 25, tenis 2)
 centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gdy brak bazy)
 
@@ -610,7 +625,11 @@ trzy pliki, które nazywają się kuponem; stawia się **wyłącznie
 
 **Wariant operatora (`--profile wariant`, od 2026-09-23).** Próg pewności
 **0,65** i kurs do **10% poniżej uczciwego** (pewność × kurs ≥ 0,90); limit
-niezgody z kursem (0,10) i marży (10,5%) bez zmian. Pisze do **własnych**
+niezgody z kursem (0,10) bez zmian. **Od 2026-09-23 ~13:30 UTC marża rynku do
+15%** (oficjalny kupon: 10,5%) — decyzja operatora przy znanym pomiarze: na
+18–22.09 krótkie kursy z marżą 10,5–13% traciły −7,1% wobec −5,5% przy ≤10,5%,
+gorzej w każdym z pięciu dni. Wyniki wariantu sprzed i po tej zmianie to dwa
+różne eksperymenty i nie wolno ich łączyć. Pisze do **własnych**
 plików — `08_confidence_wariant.json/.md` i `KUPON_<data>_WARIANT.pdf` — i nigdy
 nie nadpisuje oficjalnego kuponu. Zmierzony przed dodaniem na 18–22.09
 (`scripts/sofa/sweep_confidence_gates.py`, każdy dzień na krzywej, która go nie

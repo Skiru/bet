@@ -261,6 +261,8 @@ def test_each_profile_selects_what_its_dials_say(day: Path) -> None:
         0.65,
         0.9,
     )
+    assert doc["max_overround"] == 0.15
+    assert json.loads((run / "08_confidence.json").read_text())["max_overround"] == 0.105
     assert json.loads(std.stdout.strip().splitlines()[-1])["profile"] == "standard"
 
 
@@ -499,3 +501,19 @@ def test_settlement_grades_only_the_singles_the_pdf_printed(tmp_path: Path) -> N
     # a comparison against nothing, so it is replaced, not printed.
     assert "tylko w wariancie" not in section
     assert "Brak `08_confidence.json`" in section
+
+
+def test_the_variant_accepts_a_dearer_ladder_and_the_coupon_does_not() -> None:
+    """2026-09-23: the operator's variant takes a ladder margin up to 15%; the
+    official coupon keeps 10.5%, which held on all five settled days."""
+    from bet.sofa.confidence import MAX_OVERROUND
+
+    std, var = PROFILES["standard"], PROFILES["wariant"]
+    assert std.max_overround == MAX_OVERROUND == 0.105
+    assert var.max_overround == 0.15
+    for margin, in_std, in_var in [
+        (0.0888, True, True), (0.105, True, True), (0.1117, False, True),
+        (0.15, False, True), (0.1501, False, False), (None, False, False),
+    ]:
+        assert std.single_is_fairly_priced(margin) is in_std
+        assert var.single_is_fairly_priced(margin) is in_var

@@ -290,6 +290,11 @@ class ConfidenceProfile:
     min_ev: float | None
     suffix: str
     pdf_suffix: str
+    # The ladder margin a leg may carry and still be printed as a single.
+    max_overround: float = MAX_OVERROUND
+
+    def single_is_fairly_priced(self, leg_overround: float | None) -> bool:
+        return leg_overround is not None and leg_overround <= self.max_overround
 
     def clears_price(self, confidence: float, odds: float) -> bool:
         if self.min_ev is None:
@@ -310,11 +315,20 @@ class ConfidenceProfile:
 #
 # About the same loss per bet on 3.5x the bets: it buys volume, not edge. It is
 # a variant to be settled beside the official coupon, never a replacement, and
-# `audit_settlement` grades both. The disagreement and overround limits are the
-# same in both - without MAX_DISAGREEMENT the variant measured -5.0%.
+# `audit_settlement` grades both. The disagreement limit is the same in both -
+# without MAX_DISAGREEMENT the variant measured -5.0%.
+#
+# From 2026-09-23 13:30 UTC the variant also accepts a ladder margin up to 15%
+# (the official coupon keeps MAX_OVERROUND = 10.5%). The operator's choice, made
+# knowing the measurement: over 18-22.09, short-priced (1.09-1.60) settled rows
+# returned -5.5% at <=10.5% margin (n=22,478), -7.1% at 10.5-13% (n=7,726) and
+# -6.7% at 13-16% (n=1,082); 10.5-13% was worse than <=10.5% on every one of
+# the five days. Variant results before and after this date are not the same
+# experiment and must not be pooled.
 PROFILES: dict[str, ConfidenceProfile] = {
     "standard": ConfidenceProfile("standard", 0.70, None, "", ""),
-    "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT"),
+    "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
+                                 max_overround=0.15),
 }
 
 

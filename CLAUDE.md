@@ -72,8 +72,10 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   day. Reporting the wrong file inverts the day.
 - **Never invent** a number, a fixture, a price or an availability.
 - **`KUPON_<date>_WARIANT.pdf` is not the coupon either.** It is the
-  operator's variant (floor 0.65, confidence x odds >= 0.90), measured -3.2%
-  per bet against the official -2.9% before it was added. It is built into its
+  operator's variant (floor 0.65, confidence x odds >= 0.90, and since
+  2026-09-23 13:30 UTC a ladder margin up to 15% against the coupon's 10.5%),
+  measured -3.2% per bet against the official -2.9% before it was added (with
+  the 10.5% margin - the two settings are different experiments). It is built into its
   own files, settled beside the coupon (audit_settlement section 7d), and its
   result is never pooled with the coupon's.
 - **Never print a combined / Bet Builder / parlay price** outside what

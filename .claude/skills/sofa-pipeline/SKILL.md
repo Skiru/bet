@@ -123,7 +123,7 @@ runs/sofa/<date>/
   07_settled.json      D-1 only          graded rows; also written to data/sofa.db
   08_confidence.json/.md                 legs + Bet Builders
   KUPON_<date>.pdf                       ★ the product
-  08_confidence_wariant.json/.md         the operator's variant (--profile wariant): floor 0.65, x >= 0.90
+  08_confidence_wariant.json/.md         the operator's variant (--profile wariant): floor 0.65, x >= 0.90, margin <= 15%
   KUPON_<date>_WARIANT.pdf               the variant's PDF — NOT the coupon; settled beside it (7d)
   vetoes.json          Veto[]            the analyst's only channel. `[]` on most days.
 ```

@@ -53,7 +53,6 @@ from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
     confidence_artifact,
     overround,
-    single_is_fairly_priced,
     line_is_beyond_sample,
     mode_loses,
 )
@@ -481,7 +480,8 @@ def main() -> int:
     # and is the ladder cheap. Ties break on the shorter price, because within
     # a calibration bucket the shorter price is measured to hit more often.
     singles = sorted(
-        (leg for leg in legs if single_is_fairly_priced(leg.get("overround"))),
+        (leg for leg in legs
+         if profile.single_is_fairly_priced(leg.get("overround"))),
         key=lambda r: (-r["confidence"], r["offered_odds"]),
     )
 
@@ -613,6 +613,7 @@ def main() -> int:
         "profile": profile.name,
         "confidence_floor": args.floor,
         "min_ev": profile.min_ev,
+        "max_overround": profile.max_overround,
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         "legs": legs,
@@ -634,8 +635,9 @@ def main() -> int:
             "Price: confidence x odds > 1.00."
             if profile.min_ev is None
             else f"Price: confidence x odds >= {profile.min_ev:.2f} (a price up to "
-            f"{1 - profile.min_ev:.0%} below fair is accepted). NOT the official "
-            "coupon - settled beside it, measured -3.2% on 18-22.09."
+            f"{1 - profile.min_ev:.0%} below fair is accepted), ladder margin "
+            f"<= {profile.max_overround:.1%}. NOT the official coupon - settled "
+            "beside it."
         ),
         "",
         "`confidence` is the **lower bound of the realised rate** for this market at "
