@@ -274,6 +274,13 @@ def leg_is_ev_positive(confidence: float, odds: float) -> bool:
     return confidence * odds > 1.0
 
 
+# How many singles a PDF prints (by confidence, see run_confidence). Shared
+# with audit_settlement, which grades exactly the printed ones: grading every
+# single in the artifact graded rows the operator never saw - 216 in the
+# artifact against 30 on the page on 2026-09-23.
+PDF_MAX_SINGLES = 30
+
+
 @dataclass(frozen=True)
 class ConfidenceProfile:
     """One setting of the two dials the operator chooses between.
@@ -292,6 +299,8 @@ class ConfidenceProfile:
     pdf_suffix: str
     # The ladder margin a leg may carry and still be printed as a single.
     max_overround: float = MAX_OVERROUND
+    # How many singles the PDF prints; None prints the whole artifact.
+    pdf_max_singles: int | None = PDF_MAX_SINGLES
 
     def single_is_fairly_priced(self, leg_overround: float | None) -> bool:
         return leg_overround is not None and leg_overround <= self.max_overround
@@ -328,15 +337,22 @@ class ConfidenceProfile:
 PROFILES: dict[str, ConfidenceProfile] = {
     "standard": ConfidenceProfile("standard", 0.70, None, "", ""),
     "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
-                                 max_overround=0.15),
+                                 max_overround=0.15, pdf_max_singles=None),
 }
 
 
-# How many singles a PDF prints (by confidence, see run_confidence). Shared
-# with audit_settlement, which grades exactly the printed ones: grading every
-# single in the artifact graded rows the operator never saw - 216 in the
-# artifact against 30 on the page on 2026-09-23.
-PDF_MAX_SINGLES = 30
+def printed_singles(artifact: dict[str, Any]) -> list[dict[str, Any]]:
+    """The singles the PDF built from this artifact actually prints.
+
+    Since 2026-09-24 the operator's variant prints every single in its
+    artifact (the operator asked for the whole list, not the top 30). The
+    limit is written into the artifact, so an artifact from before that
+    carries no `pdf_max_singles` and is still read as the 30 its PDF printed -
+    the settlement of 2026-09-23 must not start grading rows nobody saw.
+    """
+    singles: list[dict[str, Any]] = artifact.get("singles") or []
+    limit = artifact.get("pdf_max_singles", PDF_MAX_SINGLES)
+    return singles if limit is None else singles[:limit]
 
 
 def confidence_artifact(profile: ConfidenceProfile) -> str:

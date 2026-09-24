@@ -290,6 +290,10 @@ def test_building_the_variant_never_touches_the_official_files(day: Path) -> Non
 
     assert (run / f"KUPON_{DAY}_WARIANT.pdf").stat().st_size > 0
     assert (run / "08_confidence_wariant.md").exists()
+    # The page limit travels with the artifact, so settlement grades what printed.
+    var = json.loads((run / "08_confidence_wariant.json").read_text())
+    std = json.loads(before["08_confidence.json"])
+    assert var["pdf_max_singles"] is None and std["pdf_max_singles"] == 30
     for name, data in before.items():
         assert (run / name).read_bytes() == data, f"{name} was rewritten"
 
@@ -423,7 +427,12 @@ def test_the_variant_pdf_explains_its_own_rule_and_prints_no_builders(
     assert "poniżej nie" not in text
 
 
-def test_settlement_grades_only_the_singles_the_pdf_printed(tmp_path: Path) -> None:
+@pytest.mark.parametrize("since_0924", [False, True])
+def test_settlement_grades_only_the_singles_the_pdf_printed(
+    tmp_path: Path, since_0924: bool
+) -> None:
+    """An artifact without `pdf_max_singles` (every one before 2026-09-24)
+    printed the top 30; since then the variant writes None and prints all."""
     from bet.sofa.confidence import PDF_MAX_SINGLES
 
     run = tmp_path / DAY
@@ -449,6 +458,7 @@ def test_settlement_grades_only_the_singles_the_pdf_printed(tmp_path: Path) -> N
                 "profile": "wariant",
                 "confidence_floor": 0.65,
                 "min_ev": 0.9,
+                **({"pdf_max_singles": None} if since_0924 else {}),
                 "singles": singles,
                 "legs": [],
                 "builders": [],
@@ -494,9 +504,10 @@ def test_settlement_grades_only_the_singles_the_pdf_printed(tmp_path: Path) -> N
     )
     assert rep.returncode == 0, rep.stderr
     section = out.read_text().split("## 7d. WARIANT", 1)[1].split("## 8.", 1)[0]
-    assert f"| pojedynczych na kuponie | {PDF_MAX_SINGLES} |" in section
-    assert f"| weszło / nie weszło | {PDF_MAX_SINGLES} / 0 |" in section
-    assert f"Artefakt wariantu miał {n} pojedynczych" in section
+    printed = n if since_0924 else PDF_MAX_SINGLES
+    assert f"| pojedynczych na kuponie | {printed} |" in section
+    assert f"| weszło / nie weszło | {printed} / 0 |" in section
+    assert (f"Artefakt wariantu miał {n} pojedynczych" in section) is not since_0924
     # No official artifact that day: the "what the variant adds" line would be
     # a comparison against nothing, so it is replaced, not printed.
     assert "tylko w wariancie" not in section
@@ -517,3 +528,17 @@ def test_the_variant_accepts_a_dearer_ladder_and_the_coupon_does_not() -> None:
     ]:
         assert std.single_is_fairly_priced(margin) is in_std
         assert var.single_is_fairly_priced(margin) is in_var
+
+
+def test_the_variant_prints_its_whole_artifact_and_the_coupon_its_top_30() -> None:
+    """2026-09-24: the operator asked for every variant single on the PDF
+    (312 in the artifact, 30 on the page). The official coupon keeps 30."""
+    from bet.sofa.confidence import PDF_MAX_SINGLES, printed_singles
+
+    assert PROFILES["standard"].pdf_max_singles == PDF_MAX_SINGLES == 30
+    assert PROFILES["wariant"].pdf_max_singles is None
+    rows = [{"i": i} for i in range(PDF_MAX_SINGLES + 7)]
+    assert printed_singles({"singles": rows}) == rows[:PDF_MAX_SINGLES]
+    assert printed_singles({"singles": rows, "pdf_max_singles": None}) == rows
+    assert printed_singles({"singles": rows, "pdf_max_singles": 5}) == rows[:5]
+    assert printed_singles({}) == []

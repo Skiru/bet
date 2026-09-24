@@ -620,6 +620,7 @@ def main() -> int:
         "confidence_floor": args.floor,
         "min_ev": profile.min_ev,
         "max_overround": profile.max_overround,
+        "pdf_max_singles": profile.pdf_max_singles,
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         "legs": legs,

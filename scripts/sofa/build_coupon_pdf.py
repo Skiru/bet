@@ -21,13 +21,14 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from pydantic import RootModel  # noqa: E402
 from reportlab.lib import colors  # noqa: E402
-from reportlab.pdfbase import pdfmetrics  # noqa: E402
-from reportlab.pdfbase.ttfonts import TTFont  # noqa: E402
 from reportlab.lib.enums import TA_LEFT  # noqa: E402
 from reportlab.lib.pagesizes import A4  # noqa: E402
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet  # noqa: E402
 from reportlab.lib.units import mm  # noqa: E402
+from reportlab.pdfbase import pdfmetrics  # noqa: E402
+from reportlab.pdfbase.ttfonts import TTFont  # noqa: E402
 from reportlab.platypus import (  # noqa: E402
     KeepTogether,
     PageBreak,
@@ -39,16 +40,15 @@ from reportlab.platypus import (  # noqa: E402
 )
 
 from bet.sofa.confidence import (  # noqa: E402
-    PDF_MAX_SINGLES,
+    MAX_OVERROUND,
     PROFILES,
     confidence_artifact,
     displayed_ev,
-    MAX_OVERROUND,
     is_stakeable,
+    printed_singles,
     quantity_family,
 )
 from bet.sofa.contracts import Fixture  # noqa: E402
-from pydantic import RootModel  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 # Helvetica's built-in encoding has no Latin-2, so every Polish diacritic in
@@ -375,7 +375,7 @@ def main() -> int:
         shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "x",
                  "marża", "próbka")
         srows = [[Paragraph(h, SMALL) for h in shead]]
-        for i, leg in enumerate(singles[:PDF_MAX_SINGLES], 1):
+        for i, leg in enumerate(printed_singles(doc_json), 1):
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             srows.append([
                 Paragraph(str(i), SMALL),

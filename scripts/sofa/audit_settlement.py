@@ -34,11 +34,11 @@ sys.path.insert(0, "src")
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
     MAX_OVERROUND,
-    PDF_MAX_SINGLES,
     PROFILES,
     builder_odds,
     confidence_artifact,
     is_stakeable,
+    printed_singles,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
@@ -455,7 +455,7 @@ def main() -> int:
     if conf_path.exists():
         conf = json.loads(conf_path.read_text())
         # What the PDF printed, not everything the artifact holds.
-        official_singles = (conf.get("singles") or [])[:PDF_MAX_SINGLES]
+        official_singles = printed_singles(conf)
         A("## 7b. Lista pewnościowa — wszystkie nogi nad progiem")
         A("")
         legs = conf["legs"]
@@ -598,7 +598,7 @@ def main() -> int:
         # printed 216 singles and no builder - a day this section would have
         # reported as "0 slips" without one word about what was on the page.
         all_singles = conf.get("singles") or []
-        singles = all_singles[:PDF_MAX_SINGLES]
+        singles = printed_singles(conf)
         A("### Zakłady pojedyncze z PDF")
         A("")
         if not singles:
@@ -612,7 +612,7 @@ def main() -> int:
               "nich operator wziął. Kurs to `offered_odds` z artefaktu.")
             if len(all_singles) > len(singles):
                 A(f"Artefakt miał {len(all_singles)} pojedynczych; PDF drukuje "
-                  f"pierwsze {PDF_MAX_SINGLES} po pewności i tylko te są tu "
+                  f"pierwsze {len(singles)} po pewności i tylko te są tu "
                   "rozliczone.")
             A("")
 
@@ -627,7 +627,7 @@ def main() -> int:
     if var_path.exists():
         var = json.loads(var_path.read_text(encoding="utf-8"))
         var_all = var.get("singles") or []
-        var_singles = var_all[:PDF_MAX_SINGLES]
+        var_singles = printed_singles(var)
         # An artifact from before 2026-09-23 13:30 UTC carries no
         # max_overround: the variant then used the official 10.5%.
         A("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}, marża ≤ {:.1%})"
@@ -649,7 +649,7 @@ def main() -> int:
             if len(var_all) > len(var_singles):
                 A("")
                 A(f"Artefakt wariantu miał {len(var_all)} pojedynczych; PDF "
-                  f"drukuje pierwsze {PDF_MAX_SINGLES} po pewności i tylko te "
+                  f"drukuje pierwsze {len(var_singles)} po pewności i tylko te "
                   "są tu rozliczone.")
             official_keys = {
                 (o["sofascore_event_id"], o["market"], o["subject"], o["line"],
