@@ -139,7 +139,172 @@ FOOTBALL_METRICS = {
         "period": "1ST",
         "period_complement": "2ND",
     },
+    # Second halves and the remaining /statistics counts Superbet prices
+    # (2026-09-25 coverage audit over the 09-22..25 offers: "2. polowa -
+    # liczba fauli/strzalow/celnych strzalow/spalonych", "liczba obronionych
+    # strzalow przez bramkarza", "liczba rzutow z autu", "liczba wybic od
+    # bramki", "liczba odbiorow", each with its per-team form). Every one of
+    # them was already in the cached /statistics payload - SAMPLES stores the
+    # whole response - and nothing read it. Measured over 22,433 cached
+    # football events with statistics: goalkeeperSaves ALL on 60%, 1ST/2ND on
+    # 7,330; throwIns 78%; goalKicks 82%; totalTackle 60%. A missing key is
+    # not a zero (2,494 events lack goalkeeperSaves while the opponent put 3+
+    # shots on target), and extract_metric already reads it as a gap. Some
+    # zeros are not zeros either - see ZERO_MEANS_UNTRACKED.
+    "fouls_2h_total": {
+        "sofascore": "fouls",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "fouls_2h_for": {
+        "sofascore": "fouls",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "shots_2h_total": {
+        "sofascore": "totalShotsOnGoal",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "shots_2h_for": {
+        "sofascore": "totalShotsOnGoal",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "shots_on_target_2h_total": {
+        "sofascore": "shotsOnGoal",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "shots_on_target_2h_for": {
+        "sofascore": "shotsOnGoal",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "offsides_1h_total": {
+        "sofascore": "offsides",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "offsides_1h_for": {
+        "sofascore": "offsides",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "offsides_2h_total": {
+        "sofascore": "offsides",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "offsides_2h_for": {
+        "sofascore": "offsides",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "saves_total": {"sofascore": "goalkeeperSaves", "is_total": True},
+    "saves_for": {"sofascore": "goalkeeperSaves", "is_total": False},
+    "saves_1h_total": {
+        "sofascore": "goalkeeperSaves",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "saves_1h_for": {
+        "sofascore": "goalkeeperSaves",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "throw_ins_total": {"sofascore": "throwIns", "is_total": True},
+    "throw_ins_for": {"sofascore": "throwIns", "is_total": False},
+    "throw_ins_1h_total": {
+        "sofascore": "throwIns",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "throw_ins_1h_for": {
+        "sofascore": "throwIns",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "throw_ins_2h_total": {
+        "sofascore": "throwIns",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "throw_ins_2h_for": {
+        "sofascore": "throwIns",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "goal_kicks_total": {"sofascore": "goalKicks", "is_total": True},
+    "goal_kicks_for": {"sofascore": "goalKicks", "is_total": False},
+    "goal_kicks_1h_total": {
+        "sofascore": "goalKicks",
+        "is_total": True,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "goal_kicks_1h_for": {
+        "sofascore": "goalKicks",
+        "is_total": False,
+        "period": "1ST",
+        "period_complement": "2ND",
+    },
+    "goal_kicks_2h_total": {
+        "sofascore": "goalKicks",
+        "is_total": True,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "goal_kicks_2h_for": {
+        "sofascore": "goalKicks",
+        "is_total": False,
+        "period": "2ND",
+        "period_complement": "1ST",
+    },
+    "tackles_total": {"sofascore": "totalTackle", "is_total": True},
+    "tackles_for": {"sofascore": "totalTackle", "is_total": False},
 }
+
+# /statistics keys whose zero is sometimes "not tracked" rather than nothing.
+# A football match has ~40 throw-ins and ~18 tackles; measured over the 22,433
+# cached events with statistics, 756 carry throwIns 0-0, 1,696 goalKicks 0-0
+# and 416 totalTackle 0-0, with p50 20 / 7 / 9 per side elsewhere - the
+# provider publishing a placeholder, the same trap as L1 ("a zero that means
+# unknown"). "either": one side at zero is already impossible in a real match
+# (283 throwIns and 1,587 totalTackle events). "both": a single zero can
+# happen (a side that concedes no shot off target takes no goal kick), so only
+# 0-0 is refused. Judged on the full-match pair, and the halves inherit it:
+# an untracked match has no trustworthy half either.
+ZERO_MEANS_UNTRACKED: dict[str, str] = {
+    "throwIns": "either",
+    "totalTackle": "either",
+    "goalKicks": "both",
+}
+
+
+def stat_is_untracked(key: str, whole: tuple[float, float] | None) -> bool:
+    """True when this full-match pair is the provider's placeholder zero."""
+    rule = ZERO_MEANS_UNTRACKED.get(key)
+    if rule is None or whole is None:
+        return False
+    zeros = (whole[0] == 0) + (whole[1] == 0)
+    return zeros == 2 if rule == "both" else zeros >= 1
 
 TENNIS_METRICS = {
     "games_total": {"sofascore": "gamesWon", "is_total": True},
@@ -679,6 +844,8 @@ def extract_metric(
     stats = flat_stats[period]
     if sofascore_key not in stats:
         return GapReason.STAT_KEY_ABSENT
+    if stat_is_untracked(sofascore_key, flat_stats.get("ALL", {}).get(sofascore_key)):
+        return GapReason.NO_STATISTICS
 
     if period != "ALL":
         # The halves must add up to the match. Sofascore mostly agrees with

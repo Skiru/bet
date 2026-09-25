@@ -109,11 +109,18 @@ for _family, _prefixes in {
         "shots_on_target_",
         "player_shots_",
         "player_shots_on_target_",
+        # A save is the opponent's shot on target that did not go in, a goal
+        # kick mostly the opponent's shot that went wide: the shots family
+        # seen from the other goal (2026-09-25 coverage audit).
+        "saves_",
+        "goal_kicks_",
     ),
     # An assist is a goal seen from one pass earlier: it cannot happen without
     # the goal, so it is not independent of the scoring family.
     "goals": ("goals_", "player_assists_"),
     "offsides": ("offsides_",),
+    "throw_ins": ("throw_ins_",),
+    "tackles": ("tackles_",),
     # A tiebreak IS a 13-game set, and a match that reaches one is a long
     # match: the same quantity as games and sets, as get_mechanism_family has
     # always said ("tennis_length"). Absent here, `tiebreaks_total` became a
@@ -125,6 +132,26 @@ for _family, _prefixes in {
 }.items():
     for _p in _prefixes:
         QUANTITY_FAMILIES[_p] = _family
+
+
+# The markets added by the 2026-09-25 coverage audit (metrics.py, "Second
+# halves and the remaining"). None has a settled row yet, and without this
+# each would borrow the football pool - 74k rows of goals and corners - and
+# could reach the PDF on the next rebuild priced by a normal nobody measured
+# on it. Refused until fit_confidence gives the market a curve of its own;
+# the guard then lapses by itself, so it needs no removal. The full-match
+# saves / throw-in / goal-kick / tackle markets get that curve from the cache
+# replay (calibrate_from_cache), as every existing curve did; the per-half
+# ones only from live SETTLE, because the replay reads the ALL period.
+AWAITING_OWN_CURVE = frozenset(
+    f"{base}_{suffix}"
+    for base in (
+        "fouls_2h", "shots_2h", "shots_on_target_2h", "offsides_1h",
+        "offsides_2h", "saves", "saves_1h", "throw_ins", "throw_ins_1h",
+        "throw_ins_2h", "goal_kicks", "goal_kicks_1h", "goal_kicks_2h", "tackles",
+    )
+    for suffix in ("total", "for")
+)
 
 
 def quantity_family(market: str) -> str:
@@ -502,6 +529,10 @@ class Calibration:
         entry = self._find(own, p)
         if entry is not None:
             return entry["realised_lo95"], f"market:{market}", entry["n"]
+        # See AWAITING_OWN_CURVE: no pool may stand in for a market that has
+        # no measured curve of its own yet.
+        if not own and market in AWAITING_OWN_CURVE:
+            return None
 
         # A market with its own curve may NOT borrow the pooled one above the
         # top of its own measured range.

@@ -56,6 +56,33 @@ MATCH_MARKET_NAMES = {
     "1. polowa - liczba strzalow": "shots_1h_total",
     "1.polowa - liczba celnych strzalow": "shots_on_target_1h_total",
     "1. polowa - liczba celnych strzalow": "shots_on_target_1h_total",
+    # 2026-09-25 coverage audit: the second halves and the remaining
+    # /statistics counts (see metrics.py, "Second halves and the remaining").
+    # Written against the folded strings the 09-22..25 boards carried.
+    "2.polowa - liczba fauli": "fouls_2h_total",
+    "2. polowa - liczba fauli": "fouls_2h_total",
+    "2.polowa - liczba strzalow": "shots_2h_total",
+    "2. polowa - liczba strzalow": "shots_2h_total",
+    "2.polowa - liczba celnych strzalow": "shots_on_target_2h_total",
+    "2. polowa - liczba celnych strzalow": "shots_on_target_2h_total",
+    "1.polowa - liczba spalonych": "offsides_1h_total",
+    "1. polowa - liczba spalonych": "offsides_1h_total",
+    "2.polowa - liczba spalonych": "offsides_2h_total",
+    "2. polowa - liczba spalonych": "offsides_2h_total",
+    "liczba obronionych strzalow przez bramkarza": "saves_total",
+    "1.polowa - liczba obronionych strzalow przez bramkarza": "saves_1h_total",
+    "1. polowa - liczba obronionych strzalow przez bramkarza": "saves_1h_total",
+    "liczba rzutow z autu": "throw_ins_total",
+    "1.polowa - liczba rzutow z autu": "throw_ins_1h_total",
+    "1. polowa - liczba rzutow z autu": "throw_ins_1h_total",
+    "2.polowa - liczba rzutow z autu": "throw_ins_2h_total",
+    "2. polowa - liczba rzutow z autu": "throw_ins_2h_total",
+    "liczba wybic od bramki": "goal_kicks_total",
+    "1.polowa - liczba wybic od bramki": "goal_kicks_1h_total",
+    "1. polowa - liczba wybic od bramki": "goal_kicks_1h_total",
+    "2.polowa - liczba wybic od bramki": "goal_kicks_2h_total",
+    "2. polowa - liczba wybic od bramki": "goal_kicks_2h_total",
+    "liczba odbiorow": "tackles_total",
     "liczba asow": "aces_total",
     "liczba podwojnych bledow": "double_faults_total",
     # F45. One quantity with one ladder, not an aces row plus a faults row.
@@ -119,6 +146,41 @@ TEAM_MARKET_PATTERNS = [
         re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba celnych strzalow$"),
         "shots_on_target_1h_for",
     ),
+    # 2026-09-25 coverage audit. Halves first, for the reason given above:
+    # the whole-match patterns below would read "2. polowa - X" as the team.
+    # No dash before the metric on the half forms, as with the corners.
+    (re.compile(r"^2\.\s?polowa - (?P<team>.+?) liczba fauli$"), "fouls_2h_for"),
+    (re.compile(r"^2\.\s?polowa - (?P<team>.+?) liczba strzalow$"), "shots_2h_for"),
+    (
+        re.compile(r"^2\.\s?polowa - (?P<team>.+?) liczba celnych strzalow$"),
+        "shots_on_target_2h_for",
+    ),
+    (re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba spalonych$"), "offsides_1h_for"),
+    (re.compile(r"^2\.\s?polowa - (?P<team>.+?) liczba spalonych$"), "offsides_2h_for"),
+    (
+        re.compile(r"^1\.\s?polowa - (?P<team>.+?) liczba rzutow z autu$"),
+        "throw_ins_1h_for",
+    ),
+    (
+        re.compile(r"^2\.\s?polowa - (?P<team>.+?) liczba rzutow z autu$"),
+        "throw_ins_2h_for",
+    ),
+    # The per-team saves market carries a dash, the half one too.
+    (
+        re.compile(
+            r"^1\.\s?polowa - (?P<team>.+?) - "
+            r"liczba obronionych strzalow przez bramkarza$"
+        ),
+        "saves_1h_for",
+    ),
+    (
+        re.compile(r"^(?P<team>.+?) - liczba obronionych strzalow przez bramkarza$"),
+        "saves_for",
+    ),
+    (re.compile(r"^liczba rzutow z autu - (?P<team>.+?)$"), "throw_ins_for"),
+    # "od bramki" on the match market, "z bramki" and no dash on the team one.
+    (re.compile(r"^liczba wybic z bramki (?P<team>.+?)$"), "goal_kicks_for"),
+    (re.compile(r"^(?P<team>.+?) - liczba odbiorow$"), "tackles_for"),
     (re.compile(r"^(?P<team>.+?) - liczba rzutow roznych$"), "corners_for"),
     (re.compile(r"^(?P<team>.+?) - liczba kartek$"), "cards_points_for"),
     (re.compile(r"^(?P<team>.+?) - liczba goli$"), "goals_for"),
@@ -358,6 +420,12 @@ def get_mechanism_family(market: str) -> str:
         "offsides_total",
         "offsides_for",
         "blocked_shots_total",
+        # A save and a goal kick are the opponent's shot seen from the other
+        # goal (2026-09-25 coverage audit); halves reach here scope-stripped.
+        "saves_total",
+        "saves_for",
+        "goal_kicks_total",
+        "goal_kicks_for",
     ):
         return "attacking"
     if market in (
@@ -420,6 +488,14 @@ _SUBJECT_IS_COMBINATION = re.compile(r"[&;]")
 # sample belonging to neither player, so the guard is here and not there.
 _SUBJECT_IS_PROPOSITION = re.compile(r"^(?:nieparzysta|parzysta)\b|/parzysta\b")
 
+# Not a competitor either (2026-09-25 review). "Zawodnik - liczba odbiorow" is
+# a PLAYER market, and the team pattern read "zawodnik" as a club; the loose
+# "liczba rzutow z autu - <team>" / "liczba wybic z bramki <team>" read a
+# market's variant ("handicap", "h2h", "remis", "kto wykona wiecej") as one.
+_SUBJECT_IS_NOT_A_SIDE = re.compile(
+    r"^(?:zawodnik|zawodnicy|ktorykolwiek)\b|^-|\bhandicap\b|\bh2h\b|^remis\b|^kto\b"
+)
+
 
 def classify_market(market_name: str | None) -> tuple[str, str] | None:
     folded = fold(market_name)
@@ -436,6 +512,8 @@ def classify_market(market_name: str | None) -> tuple[str, str] | None:
             if _SUBJECT_IS_COMBINATION.search(team):
                 return None
             if _SUBJECT_IS_PROPOSITION.search(team):
+                return None
+            if _SUBJECT_IS_NOT_A_SIDE.search(team):
                 return None
             return (market, team)
     return None

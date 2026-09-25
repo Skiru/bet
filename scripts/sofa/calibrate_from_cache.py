@@ -50,12 +50,16 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.engine import (
     calc_p_central_raw,
     outside_model_resolution,
-    support_floor_for,
     predictive_sd,
+    support_floor_for,
     uses_poisson_floor,
     winning_boundary,
 )
-from bet.sofa.metrics import calculate_cards_points, extract_flat_statistics
+from bet.sofa.metrics import (
+    calculate_cards_points,
+    extract_flat_statistics,
+    stat_is_untracked,
+)
 from bet.sofa.settle import settle
 
 # Metric base -> Sofascore statistics key. Goals are not here: they come off
@@ -66,6 +70,12 @@ STAT_KEYS = {
     "shots_on_target": "shotsOnGoal",
     "fouls": "fouls",
     "offsides": "offsides",
+    # 2026-09-25 coverage audit; see metrics.py. Without these the new
+    # metrics would never get a league baseline or a confidence curve.
+    "saves": "goalkeeperSaves",
+    "throw_ins": "throwIns",
+    "goal_kicks": "goalKicks",
+    "tackles": "totalTackle",
     "aces": "aces",
     "double_faults": "doubleFaults",
     "games": "gamesWon",
@@ -77,6 +87,10 @@ SPORT_OF_BASE = {
     "shots_on_target": "football",
     "fouls": "football",
     "offsides": "football",
+    "saves": "football",
+    "throw_ins": "football",
+    "goal_kicks": "football",
+    "tackles": "football",
     "cards_points": "football",
     "goals": "football",
     "aces": "tennis",
@@ -225,7 +239,8 @@ def load_cache(db_path: Path) -> list[Played]:
             all_period = flat.get("ALL", {})
             for base, key in STAT_KEYS.items():
                 pair = all_period.get(key)
-                if pair is not None:
+                # The same placeholder-zero refusal the sheet applies.
+                if pair is not None and not stat_is_untracked(key, pair):
                     values[base] = (float(pair[0]), float(pair[1]))
         if incidents_json:
             try:

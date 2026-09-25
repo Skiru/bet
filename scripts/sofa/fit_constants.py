@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sqlite3
 import statistics
 import sys
@@ -165,6 +166,11 @@ def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
     return baselines
 
 
+def half_name(full: str, half: str) -> str:
+    """`corners_total` -> `corners_1h_total`; the scope sits before the suffix."""
+    return re.sub(r"_(total|for)$", rf"_{half}_\1", full)
+
+
 def check_half_match_coherence(baselines: dict[str, Any]) -> list[str]:
     """First half + second half must add up to the whole match.
 
@@ -189,8 +195,12 @@ def check_half_match_coherence(baselines: dict[str, Any]) -> list[str]:
     for full in sorted(baselines):
         if "_1h_" in full or "_2h_" in full:
             continue
-        h1 = baselines.get(full.replace("_", "_1h_", 1))
-        h2 = baselines.get(full.replace("_", "_2h_", 1))
+        # Scope goes before the suffix: "throw_ins_total" -> "throw_ins_1h_
+        # total". Replacing the first underscore built "throw_1h_ins_total"
+        # and skipped the check for every metric with one in its base name
+        # (shots_on_target, throw_ins, goal_kicks) - 2026-09-25 review.
+        h1 = baselines.get(half_name(full, "1h"))
+        h2 = baselines.get(half_name(full, "2h"))
         if not (isinstance(h1, dict) and isinstance(h2, dict)):
             continue
         whole = _pooled_mean(baselines[full])

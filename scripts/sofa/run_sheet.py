@@ -63,6 +63,7 @@ from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.stage import set_stage
+from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
     W_TENNIS_RATING,
     MatchForecast,
@@ -123,6 +124,20 @@ def _load_json_config(path: Path) -> dict[str, Any]:
 
 def load_baselines(config: SofaConfig) -> dict[str, Any]:
     return _load_json_config(Path("config/sofa_league_baselines.json"))
+
+
+def load_tennis_tier_baselines(config: SofaConfig) -> dict[str, Any]:
+    """bet.sofa.tennis_prior; absent until fit_tennis_tier_baselines.py ran.
+
+    SOFA_TENNIS_TIER_BASELINES points a scratch run at a candidate file, so
+    one can be exercised end to end without installing it for the real day.
+    """
+    path = os.environ.get(
+        "SOFA_TENNIS_TIER_BASELINES", "config/sofa_tennis_tier_baselines.json"
+    )
+    loaded = _load_json_config(Path(path))
+    metrics = loaded.get("metrics")
+    return metrics if isinstance(metrics, dict) else {}
 
 
 def load_reliability(config: SofaConfig) -> dict[str, Any]:
@@ -602,6 +617,7 @@ def process_fixture(
     day_obs: DayLeagueObservations | None = None,
     rating: MatchForecast | None = None,
     football: FootballForecast | None = None,
+    tennis_tiers: dict[str, Any] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
@@ -812,7 +828,25 @@ def process_fixture(
             w_c = n / (n + K_TENNIS_LADDER_CENTRE)
             centre = w_c * mean + (1 - w_c) * ladder_target
         else:
-            if day_obs is not None and own_sides:
+            # A tennis rung with no ladder - most of them - used to fall into
+            # the football lookup below, keyed on a competition id that is one
+            # week of one tournament, so it always reached the global pool or
+            # nothing. See bet.sofa.tennis_prior (measured metrics only).
+            tier = (
+                tier_prior(tennis_tiers, rung.market, fixture.category_name,
+                           fixture.ground_type)
+                # Fitted on best-of-three only, like the rating; a best-of-
+                # five pulled toward it would lose ~15 games of centre.
+                if fixture.sport == "tennis" and tennis_tiers
+                and fixture.default_period_count in (None, 3)
+                else None
+            )
+            prior: float | None
+            prior_note: str | None
+            if tier is not None:
+                prior, prior_note = tier
+                extra_notes.append(prior_note)
+            elif day_obs is not None and own_sides:
                 prior, prior_note = resolve_prior(
                     baselines, day_obs, rung.market, fixture, own_sides, own_events)
                 if prior_note:
@@ -1290,6 +1324,7 @@ def main() -> int:
 
     side_correlations = load_side_correlations()
     baselines = load_baselines(config)
+    tennis_tiers = load_tennis_tier_baselines(config)
     day_obs = day_league_observations(fixtures, samples)
     reliability = load_reliability(config)
     engine_constants = load_engine_constants(config)
@@ -1349,6 +1384,7 @@ def main() -> int:
                     if football_book is not None and fixture.sport == "football"
                     else None
                 ),
+                tennis_tiers,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
