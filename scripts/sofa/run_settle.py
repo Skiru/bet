@@ -154,6 +154,15 @@ def _event_payload(
     event = (detail or {}).get("event")
     if not event:
         return "NO_EVENT"
+    # The final score, kept. Statistics and incidents were cached and the
+    # event itself was not, so a match Sofascore publishes no statistics for
+    # (most of the ITF board) could never be re-graded from anything on disk:
+    # on 2026-09-24, 43 of the variant's 91 losses had no source a recount
+    # could reach. A finished payload cannot change, and sofa_event_detail
+    # already keeps "finished" forever - retirements included, whose status
+    # description is the answer to why they went ungraded.
+    if detail and (event.get("status") or {}).get("type") == "finished":
+        cache.save_event_detail(event_id, detail, "finished")
     if not is_completed_event(event):
         return unfinished_reason(event)
 
@@ -422,6 +431,46 @@ def fetch_events_concurrently(
         yield from pool.map(lambda e: _fetch_one(e, client, cache, stage), event_ids)
 
 
+class SkipLedger:
+    """Why rows went ungraded, counted and attributed to their event.
+
+    The counter alone said "305 FINISHED_ABNORMALLY" and not which matches:
+    on 2026-09-24 three of the variant's fixtures had no settled row and no
+    way to tell a retirement from an interruption, and five that looked the
+    same were postponed to the next day. The per-event list is what lets a
+    reader re-run SETTLE for the ones that will still be played.
+    """
+
+    def __init__(self) -> None:
+        self.counts: Counter[str] = Counter()
+        self.by_event: dict[int, Counter[str]] = {}
+
+    def add(self, event_id: int, reason: str, n: int = 1) -> None:
+        if n <= 0:
+            return
+        self.counts[reason] += n
+        self.by_event.setdefault(event_id, Counter())[reason] += n
+
+    def events(self, fixtures: dict[int, dict[str, Any]]) -> list[dict[str, Any]]:
+        """One entry per event with a skip, in event-id order."""
+        out: list[dict[str, Any]] = []
+        for event_id in sorted(self.by_event):
+            fixture = fixtures.get(event_id) or {}
+            out.append(
+                {
+                    "sofascore_event_id": event_id,
+                    "sport": fixture.get("sport"),
+                    "home_name": fixture.get("home_name"),
+                    "away_name": fixture.get("away_name"),
+                    "kickoff_utc": fixture.get("kickoff_utc"),
+                    "skipped": dict(
+                        sorted(self.by_event[event_id].items(), key=lambda kv: -kv[1])
+                    ),
+                }
+            )
+        return out
+
+
 def rows_to_consider(sheet: list[dict], *, include_unpriced: bool) -> list[dict]:
     """Which sheet rows this run will try to grade.
 
@@ -482,7 +531,7 @@ def main() -> int:
 
     settled_at = datetime.now(UTC).isoformat()
     rows: list[SettledRow] = []
-    skipped: Counter[str] = Counter()
+    skips = SkipLedger()
     events_settled = 0
     breaker_open = False
 
@@ -500,7 +549,7 @@ def main() -> int:
         if event_id in fixtures:
             to_fetch.append(event_id)
         else:
-            skipped["NO_FIXTURE"] += len(event_rows)
+            skips.add(event_id, "NO_FIXTURE", len(event_rows))
 
     try:
         for fetched in fetch_events_concurrently(to_fetch, client, cache, config):
@@ -508,7 +557,7 @@ def main() -> int:
             event_rows = by_event[event_id]
             fixture = fixtures[event_id]
             if fetched.circuit_open:
-                skipped["PROVIDER_ERROR"] += len(event_rows)
+                skips.add(event_id, "PROVIDER_ERROR", len(event_rows))
                 breaker_open = True
                 break
             if fetched.reason is not None:
@@ -517,7 +566,7 @@ def main() -> int:
                         f"PROVIDER_ERROR event={event_id}: {fetched.error}",
                         file=sys.stderr,
                     )
-                skipped[fetched.reason] += len(event_rows)
+                skips.add(event_id, fetched.reason, len(event_rows))
                 continue
             assert fetched.payload is not None
             event, statistics, incidents = fetched.payload
@@ -545,7 +594,7 @@ def main() -> int:
                 if is_player_metric(row["market"]):
                     graded = _settle_player(row, squads)
                     if isinstance(graded, str):
-                        skipped[graded] += 1
+                        skips.add(event_id, graded)
                         continue
                     value, outcome = graded
                     rows.append(
@@ -564,7 +613,7 @@ def main() -> int:
                 if is_derived(row["market"]):
                     graded = _settle_derived(row, row["sport"], flat, incidents, event)
                     if isinstance(graded, str):
-                        skipped[graded] += 1
+                        skips.add(event_id, graded)
                         continue
                     value, outcome = graded
                     rows.append(
@@ -587,17 +636,17 @@ def main() -> int:
                         if (row["subject"] or "") in _DERIVED_SUBJECTS
                         else "SUBJECT_NOT_MATCHED"
                     )
-                    skipped[reason] += 1
+                    skips.add(event_id, reason)
                     continue
                 value = extract_metric(
                     row["market"], row["sport"], flat, incidents, event, is_home
                 )
                 if isinstance(value, GapReason):
-                    skipped[f"{row['market']}:{value.value}"] += 1
+                    skips.add(event_id, f"{row['market']}:{value.value}")
                     continue
                 outcome = settle_value(float(value), row["line"], row["direction"])
                 if outcome is None:
-                    skipped["PUSH"] += 1
+                    skips.add(event_id, "PUSH")
                     continue
                 rows.append(
                     _settled(
@@ -636,12 +685,12 @@ def main() -> int:
         "value_rows_settled": len(staked),
         "value_roi": round(value_return / len(staked), 4) if staked else None,
         "breaker_open": breaker_open,
-        "skipped": dict(skipped.most_common(12)),
+        "skipped": dict(skips.counts.most_common(12)),
     }
 
     if not rows:
         verdict = "FAILED" if by_event and not breaker_open else "PARTIAL"
-    elif breaker_open or skipped:
+    elif breaker_open or skips.counts:
         verdict = "PARTIAL"
     else:
         verdict = "OK"
@@ -664,7 +713,8 @@ def main() -> int:
                 "events_in_sheet": len(by_event),
                 "events_settled": events_settled,
                 "breaker_open": breaker_open,
-                "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])),
+                "skipped": dict(sorted(skips.counts.items(), key=lambda kv: -kv[1])),
+                "skipped_events": skips.events(fixtures),
             },
             f,
             indent=2,
