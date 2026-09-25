@@ -439,7 +439,33 @@ def resolve_prior(
         return prior, (f"PRIOR_FROM_TEAMS_LEAGUES: competition {comp} has no "
                        f"baseline; the sides' own leagues {', '.join(parts)} "
                        f"-> {prior:.4g}")
-    return get_prior(baselines, metric, comp), None
+    pooled = get_prior(baselines, metric, comp)
+    return pooled, global_prior_note(baselines, metric, comp, pooled)
+
+
+def global_prior_note(
+    baselines: dict[str, Any],
+    metric: str,
+    competition_id: int,
+    prior: float | None,
+) -> str | None:
+    """Say so when a row is shrunk toward the global pool, or toward nothing.
+
+    Every other prior source leaves a note; this one did not, so a row pulled
+    toward the world average read exactly like one pulled toward its own
+    league. 5 of the 17 football singles on the 2026-09-25 PDF were priced this
+    way and nothing on them said it.
+    """
+    if _fitted_league_mean(baselines, metric, competition_id) is not None:
+        return None
+    if prior is None:
+        return (f"NO_PRIOR: no baseline for {metric} in competition "
+                f"{competition_id} or globally; centre is the sample's own")
+    entry = (baselines.get(metric) or {}).get("global")
+    n = entry.get("n") if isinstance(entry, dict) else None
+    return (f"PRIOR_GLOBAL: competition {competition_id} has no fitted baseline "
+            f"and too few day-sample matches; shrunk toward the global "
+            f"{metric} mean {prior:.4g}" + (f" (n={n})" if n else ""))
 
 
 # A per-side market must be attributed to a side we can actually name. Below
@@ -793,6 +819,10 @@ def process_fixture(
                     extra_notes.append(prior_note)
             else:
                 prior = get_prior(baselines, rung.market, fixture.competition_id)
+                prior_note = global_prior_note(
+                    baselines, rung.market, fixture.competition_id, prior)
+                if prior_note:
+                    extra_notes.append(prior_note)
             if prior is not None:
                 w_c = n / (n + k_centre)  # K_CENTRE
                 centre = w_c * mean + (1 - w_c) * prior

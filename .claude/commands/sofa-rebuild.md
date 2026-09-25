@@ -66,6 +66,21 @@ re-prices the whole board including matches already played — on 2026-09-20 tha
 was 890 finished fixtures paid for to reach the 185 still open, at ~90 minutes
 for a full pass.
 
+**After a refresh, re-run SHEET** (offline, no bridge):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET --run-id <id>
+```
+
+A row carries the price SHEET priced it at. Since 2026-09-25 COUPON and
+CONFIDENCE refuse a row whose side the refreshed offer quotes at a different
+price (`PRICE_MOVED_SINCE_SHEET`) or no longer quotes at all — they do not
+swap the new odds in, because `market_p`, `p_central` and `required_odds`
+were computed from the old ones. Before that fix they timed the fresh offer
+and printed the stale price: 16 of 351 variant legs on 2026-09-25. Skipping
+SHEET after a refresh is therefore not wrong, but it silently costs every leg
+whose price moved.
+
 If the day is **over**, do not refresh. Say the prices are historical and that
 every gate downstream will now refuse them, which is correct behaviour.
 
@@ -112,7 +127,8 @@ Both COUPON and CONFIDENCE read `vetoes.json`, so both must be re-run after a
 veto changes — rebuilding only the singles leaves the vetoed rung standing as a
 leg of the Bet Builder the PDF stakes.
 
-Do **not** re-run SHEET unless the engine or a config file changed. If it did,
+Do **not** re-run SHEET unless OFFER was refreshed (Step 1), or the engine or
+a config file changed. If the engine or a config changed,
 say which, because a rebuilt sheet is not comparable with the one before it.
 
 Never re-run `fit_constants.py` as part of a rebuild.

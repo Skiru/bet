@@ -153,3 +153,84 @@ def test_audit_day_deep_runs_clean_on_the_unsettled_day() -> None:
     )
     assert "Traceback" not in proc.stderr, proc.stderr[-1000:]
     assert proc.returncode == 0, f"exit {proc.returncode}: {proc.stderr[-600:]}"
+
+
+def test_audit_day_deep_grades_the_pdf_singles(tmp_path: Path) -> None:
+    """A singles-only coupon is a coupon.
+
+    2026-09-24 printed 0 builders and 5 singles; this audit read builders only
+    and reported "ten dzień nie postawił nic", so no gate was tested on the
+    five bets the day actually made.
+    """
+    import json
+    import shutil
+    import sqlite3
+
+    from bet.sofa.db import migrate
+    from tests.sofa.test_confidence_wariant_profile import (
+        DAY,
+        NOW,
+        ODDS_A,
+        ODDS_B,
+        _fixture,
+        _offer,
+        _run,
+        _samples,
+        _sheet_row,
+        P_A,
+        P_B,
+        UNDER_A,
+        UNDER_B,
+    )
+
+    run = tmp_path / DAY
+    run.mkdir()
+    (run / "02_fixtures.json").write_text(json.dumps([_fixture(1), _fixture(2)]))
+    (run / "03_samples.json").write_text(json.dumps([_samples(1), _samples(2)]))
+    (run / "04_offer.json").write_text(
+        json.dumps([_offer(1, ODDS_A, UNDER_A), _offer(2, ODDS_B, UNDER_B)])
+    )
+    (run / "05_sheet.json").write_text(
+        json.dumps(
+            [
+                _sheet_row(1, P_A, ODDS_A, P_A - 0.03),
+                _sheet_row(2, P_B, ODDS_B, P_B - 0.03),
+            ]
+        )
+    )
+    (run / "vetoes.json").write_text("[]")
+    var = _run(
+        "run_confidence.py", tmp_path, "--runs-dir", str(tmp_path), "--profile",
+        "wariant",
+    )
+    assert var.returncode == 0, var.stderr
+    # Two singles and no builder, standing in for the official artifact.
+    shutil.copy(run / "08_confidence_wariant.json", run / "08_confidence.json")
+
+    db = tmp_path / "s.db"
+    migrate(str(db))
+    con = sqlite3.connect(db)
+    for eid, actual, odds in ((1, 3.0, ODDS_A), (2, 1.0, ODDS_B)):
+        con.execute(
+            "insert into sofa_settled_row (run_date, sofascore_event_id, sport,"
+            " competition_id, market, subject, line, direction, sample_size,"
+            " sample_mean, sample_sd, p_central, p_bar, market_p, actual_value,"
+            " outcome, settled_at, offered_odds, verdict) values"
+            " (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (DAY, eid, "football", 9, "goals_total", "", 1.5, "OVER", 20, 2.6,
+             1.2, 0.7, 0.68, 0.65, actual, "WIN" if actual > 1.5 else "LOSS",
+             NOW.isoformat(), odds, "BELOW_BAR"),
+        )
+    con.commit()
+    con.close()
+
+    out = tmp_path / "deep.md"
+    proc = _run(
+        "audit_day_deep.py", tmp_path, "--out", str(out),
+        env={"SOFA_RUNS_DIR": str(tmp_path), "SOFA_DB_PATH": str(db)},
+    )
+    assert proc.returncode == 0, proc.stderr
+    text = out.read_text()
+    assert "2 slipów (0 builderów, 2 singli), 2 nóg, rozliczonych 2." in text
+    assert "nie postawił nic" not in text
+    assert "324" not in text

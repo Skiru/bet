@@ -317,8 +317,11 @@ def main() -> int:
         A("")
         A(_table(["powód", "wierszy"], [[k, v] for k, v in stage_skips.items()]))
         A("")
-        A("Słownik: `NOT_FINISHED` — mecz nie doszedł do normalnego końca "
-          "(przełożony, w toku, krecz, walkower); `NO_EVENT` — Sofascore nie "
+        A("Słownik: `NOT_FINISHED` — mecz jeszcze się nie skończył (w toku, "
+          "przerwany, nierozpoczęty; ponowny SETTLE może go rozliczyć); "
+          "`FINISHED_ABNORMALLY` — krecz, walkower, wynik przyznany; "
+          "`CANCELED` / `ABANDONED` / `POSTPONED` — odwołany, przerwany na "
+          "stałe, przełożony; `NO_EVENT` — Sofascore nie "
           "zna tego zdarzenia; `<rynek>:<GAP>` — mecz się odbył, ale dostawca "
           "nie ma odczytu tej statystyki; `SUBJECT_NOT_MATCHED` — wiersz "
           "dotyczy drużyny/zawodnika, którego nie dało się jednoznacznie "

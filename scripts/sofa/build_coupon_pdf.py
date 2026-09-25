@@ -235,7 +235,14 @@ def main() -> int:
     # which needs two legs of DIFFERENT quantity families in the SAME match —
     # this renderer used to emit a blank page while the confidence artifact
     # held dozens of qualifying legs. 2026-09-22 had 37 legs and 0 builders.
-    singles = doc_json.get("singles", [])
+    # What the page prints, not what the artifact holds: the official profile
+    # caps the table at PDF_MAX_SINGLES, and a header, an UNFITTED banner or a
+    # summary counting rows nobody sees describes a different coupon.
+    singles = printed_singles(doc_json)
+    # The margin the artifact was selected under. The page used to quote the
+    # global 10.5% even on the variant, whose limit is 15% and whose rows
+    # print margins above 10.5% one column over.
+    max_overround = doc_json.get("max_overround", MAX_OVERROUND)
     picks.sort(key=lambda b: -b[ev_key])
 
     ss = getSampleStyleSheet()
@@ -360,10 +367,12 @@ def main() -> int:
     S.append(Paragraph(x_rule, BODY))
     S.append(Paragraph(
         f"<b>marża</b> to narzut Superbeta na tej drabinie, policzony z ceny "
-        f"dwustronnej. Powyżej <b>{MAX_OVERROUND:.1%}</b> noga nie trafia na tę "
-        "listę — to jedyny próg, na którym wyniki się rozdzielają (poniżej "
-        "zwrot jest płaski ok. −3,5%, powyżej spada do −5,7%). Rogi wyceniane "
-        "są medianowo na 8,6%, gole na 10,2%.", BODY))
+        f"dwustronnej. Powyżej <b>{max_overround:.1%}</b> noga nie trafia na tę "
+        "listę. Próg 10,5% to jedyny, na którym wyniki się rozdzielają (poniżej "
+        "zwrot jest płaski ok. −3,5%, powyżej spada do −5,7%)"
+        + ("" if math.isclose(max_overround, MAX_OVERROUND)
+           else f"; ta lista świadomie przyjmuje marże do {max_overround:.1%}")
+        + ". Rogi wyceniane są medianowo na 8,6%, gole na 10,2%.", BODY))
     S.append(Paragraph(
         "<b>To nie jest obietnica zysku.</b> Ta populacja nóg rozliczyła się na "
         "−4,0% przy trafialności 87,1%, i niemal całość tego pomiaru to jeden "
@@ -375,7 +384,7 @@ def main() -> int:
         shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "x",
                  "marża", "próbka")
         srows = [[Paragraph(h, SMALL) for h in shead]]
-        for i, leg in enumerate(printed_singles(doc_json), 1):
+        for i, leg in enumerate(singles, 1):
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             srows.append([
                 Paragraph(str(i), SMALL),
@@ -406,7 +415,7 @@ def main() -> int:
     else:
         S.append(Paragraph(
             "Dziś żadna noga nie stoi na drabinie tańszej niż "
-            f"{MAX_OVERROUND:.1%}. To nie jest awaria — to odmowa.", BODY))
+            f"{max_overround:.1%}. To nie jest awaria — to odmowa.", BODY))
     S.append(PageBreak())
 
     for i, b in enumerate(picks, 1):

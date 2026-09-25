@@ -99,28 +99,27 @@ def build_coupon(
     fixtures_by_id = {f.sofascore_event_id: f for f in fixtures}
 
     fetched_at_by_key: dict[tuple[int, str, str, float, str], datetime] = {}
+    # The price the offer quotes for the side, so a row is timed against the
+    # price it actually carries: a rebuild refreshes OFFER without re-running
+    # SHEET, and the sheet's `offered_odds` is then the older price.
+    odds_by_key: dict[tuple[int, str, str, float, str], float] = {}
     for offer in offers:
         for rung in offer.rungs:
-            if rung.over_odds is not None:
-                fetched_at_by_key[
-                    (
-                        offer.sofascore_event_id,
-                        rung.market,
-                        rung.subject,
-                        rung.line,
-                        "OVER",
-                    )
-                ] = rung.fetched_at_utc
-            if rung.under_odds is not None:
-                fetched_at_by_key[
-                    (
-                        offer.sofascore_event_id,
-                        rung.market,
-                        rung.subject,
-                        rung.line,
-                        "UNDER",
-                    )
-                ] = rung.fetched_at_utc
+            for direction, side_odds in (
+                ("OVER", rung.over_odds),
+                ("UNDER", rung.under_odds),
+            ):
+                if side_odds is None:
+                    continue
+                side_key = (
+                    offer.sofascore_event_id,
+                    rung.market,
+                    rung.subject,
+                    rung.line,
+                    direction,
+                )
+                fetched_at_by_key[side_key] = rung.fetched_at_utc
+                odds_by_key[side_key] = side_odds
 
     candidates: list[tuple[SheetRow, Fixture]] = []
     dropped: list[DroppedRow] = []
@@ -193,6 +192,19 @@ def build_coupon(
                     "STALE_PRICE",
                     f"price is {age.total_seconds() / 60:.0f} min old, limit "
                     f"{max_price_age.total_seconds() / 60:.0f} min",
+                )
+            )
+            continue
+
+        # Refused, not re-priced: market_p, p_bar and required_odds were all
+        # computed from the sheet's price. Re-running SHEET re-prices a row.
+        fresh = odds_by_key[key]
+        if row.offered_odds != fresh:
+            dropped.append(
+                DroppedRow(
+                    row,
+                    "PRICE_MOVED_SINCE_SHEET",
+                    f"sheet priced {row.offered_odds}, offer now quotes {fresh}",
                 )
             )
             continue

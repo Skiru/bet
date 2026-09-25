@@ -228,3 +228,93 @@ def test_a_missing_statistic_is_reported_not_guessed():
         _row("both_over_corners", 3.5), "football", {"ALL": {}}, None, _event()
     )
     assert isinstance(got, str) and "corners_for" in got
+
+
+# --- named subjects (2026-09-25) -------------------------------------------
+#
+# 2026-09-24: 740 SUBJECT_NOT_MATCHED rows, every one a national team, because
+# the subject was compared un-normalised ("niemcy" 46 against "germany", 100
+# once the alias applies), and 412 `most_` rows with a named side refused as
+# DERIVED_SUBJECT although SHEET priced them through `resolve_subject`.
+
+
+def _national_event():
+    return {
+        **_event(),
+        "homeTeam": {"name": "Netherlands"},
+        "awayTeam": {"name": "Germany"},
+    }
+
+
+def test_a_polish_exonym_finds_its_side_in_a_per_team_row():
+    from scripts.sofa.run_settle import _subject_is_home
+
+    fixture = {"home_name": "Netherlands", "away_name": "Germany"}
+    assert _subject_is_home("niemcy", fixture) is False
+    assert _subject_is_home("holandia", fixture) is True
+    assert _subject_is_home("francja", fixture) is None
+
+
+@pytest.mark.parametrize(
+    ("subject", "expected"), [("niemcy", "WIN"), ("holandia", "LOSS")]
+)
+def test_a_named_side_settles_a_most_market(subject, expected):
+    value, outcome = _settle_derived(
+        _row("most_corners", 0.0, "OVER", subject),
+        "football",
+        _flat(3, 6),
+        None,
+        _national_event(),
+    )
+    assert (value, outcome) == (-3, expected)
+
+
+def test_a_named_most_subject_naming_neither_side_is_still_refused():
+    assert (
+        _settle_derived(
+            _row("most_corners", 0.0, "OVER", "francja"),
+            "football",
+            _flat(3, 6),
+            None,
+            _national_event(),
+        )
+        == "DERIVED_SUBJECT"
+    )
+
+
+def test_a_polish_exonym_finds_its_side_in_a_handicap():
+    assert _handicap_side("niemcy", {}, _national_event()) == "away"
+
+
+@pytest.mark.parametrize(
+    ("subject", "name"),
+    [
+        ("palestyna", "Palestine"),
+        ("libia", "Libya"),
+        ("katar", "Qatar"),
+        ("białoruś u21", "Belarus U21"),
+        ("bahrajn", "Bahrain"),
+    ],
+)
+def test_the_exonyms_2026_09_24_left_unsettled_have_an_alias(subject, name):
+    from bet.sofa.names import normalize_name
+
+    assert normalize_name(subject) == normalize_name(name)
+
+
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [
+        ({"type": "finished", "code": 92}, "FINISHED_ABNORMALLY"),  # retired
+        ({"type": "interrupted", "code": 80}, "NOT_FINISHED"),
+        ({"type": "notstarted", "code": 0}, "NOT_FINISHED"),
+        ({"type": "inprogress", "code": 7}, "NOT_FINISHED"),
+        ({"type": "canceled", "code": 70}, "CANCELED"),
+        ({"type": "abandoned", "code": 90}, "ABANDONED"),
+        ({"type": "postponed", "code": 60}, "POSTPONED"),
+    ],
+)
+def test_an_unsettleable_event_says_which_kind_it_is(status, reason):
+    from scripts.sofa.run_settle import unfinished_reason
+
+    assert unfinished_reason({"status": status}) == reason

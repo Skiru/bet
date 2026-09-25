@@ -214,3 +214,57 @@ def test_a_refresh_that_touches_nothing_still_keeps_the_whole_day():
     merged, carried_forward = merge_with_previous([], previous)
     assert len(merged) == 5
     assert carried_forward == 5
+
+
+def test_a_blocked_odd_is_not_an_offer():
+    """A suspended odd keeps its last price; 378 of 67,690 did on 2026-09-25."""
+    client = DummyClient(
+        {
+            "101": {
+                "odds": [
+                    {
+                        "marketName": "Liczba goli",
+                        "name": "poniżej 2.5",
+                        "specialBetValue": "2.5",
+                        "price": 1.8,
+                        "status": "block",
+                    },
+                    {
+                        "marketName": "Liczba goli",
+                        "name": "powyżej 2.5",
+                        "specialBetValue": "2.5",
+                        "price": 2.0,
+                        "status": "active",
+                    },
+                ]
+            }
+        }
+    )
+    fixture = Fixture(
+        sofascore_event_id=1,
+        superbet_event_ids=["101"],
+        sport="football",
+        kickoff_utc=now(),
+        home_name="A",
+        away_name="B",
+        home_entity_id=1,
+        away_entity_id=2,
+        competition_name="C",
+        competition_id=3,
+        season_id=4,
+        category_name="D",
+        identity="CONFIRMED",
+        round_number=None,
+        round_name=None,
+        cup_round_type=None,
+        previous_leg_event_id=None,
+        venue_name=None,
+        referee=None,
+        ground_type=None,
+        default_period_count=None,
+    )
+    [offer] = OfferFetcher(client).fetch_offers([fixture])
+    [rung] = offer.rungs
+    assert (rung.market, rung.line) == ("goals_total", 2.5)
+    assert rung.over_odds == 2.0
+    assert rung.under_odds is None

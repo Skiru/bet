@@ -133,8 +133,22 @@ def test_a_cup_tie_with_one_unknown_league_falls_back_to_global() -> None:
                                    "global": {"mean": 9.52, "n": 90000}}}
     boston = _obs(range(1, 8), 9.0, comp=278)
     unknown = _obs(range(20, 27), 8.0, comp=5555)
-    assert resolve_prior(baselines, {}, "corners_total", cup, [boston, unknown],
-                         set()) == (9.52, None)
+    prior, note = resolve_prior(baselines, {}, "corners_total", cup,
+                                [boston, unknown], set())
+    assert prior == 9.52
+    # Since 2026-09-25 the fallback says so: it was the only prior source that
+    # left no note, so a row shrunk toward the world average read like one
+    # shrunk toward its own league.
+    assert note == ("PRIOR_GLOBAL: competition 18877 has no fitted baseline and "
+                    "too few day-sample matches; shrunk toward the global "
+                    "corners_total mean 9.52 (n=90000)")
+
+
+def test_no_prior_at_all_is_named_too() -> None:
+    cup = make_fixture(competition_id=18877)
+    prior, note = resolve_prior({}, {}, "corners_total", cup, [[]], set())
+    assert prior is None
+    assert note is not None and note.startswith("NO_PRIOR: no baseline")
 
 
 def test_home_competition_needs_a_majority() -> None:

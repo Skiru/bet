@@ -149,6 +149,12 @@ class OfferFetcher:
                     price = item.get("price")
                     if price is None:
                         continue
+                    # A suspended odd still carries its last price. It cannot be
+                    # bet, so it is not an offer: 378 of 67,690 odds in the
+                    # 2026-09-25 payloads were `block`, and every one was read
+                    # as a live price. A payload without the field is kept.
+                    if item.get("status", "active") != "active":
+                        continue
 
                     key = (market, subject, line)
                     if key not in combined_odds:

@@ -43,6 +43,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     builder_legs_are_coherent,
+    printed_singles,
     is_stakeable,
     leg_is_ev_positive,
     line_is_beyond_sample,
@@ -127,13 +128,26 @@ def main() -> int:
     # (ev_if_product_priced +0.043, ev_after_haircut -0.0821). A deep audit
     # that invents a bet inverts the day it is meant to grade.
     picks = [b for b in conf["builders"] if is_stakeable(b)]
+    # And the singles the PDF prints, each a one-leg slip. Until 2026-09-25
+    # this audit read builders only, so on a singles-only coupon (09-24: 0
+    # builders, 5 singles) it reported "ten dzień nie postawił nic" about a
+    # day that staked five bets, and tested no gate on any of them.
+    picks += [
+        {
+            "sofascore_event_id": s_["sofascore_event_id"],
+            "match": s_["match"],
+            "single": True,
+            "legs": [{**s_, "odds": s_["offered_odds"]}],
+        }
+        for s_ in printed_singles(conf)
+    ]
     leg_index = {(l["sofascore_event_id"], l["market"], l["subject"], l["line"],
                   l["direction"]): l for l in conf["legs"]}
 
     # Every coupon leg, with its outcome, its evidence, and which of today's
     # gates it would now fail. One row = one staked position.
     positions = []
-    for b in picks:
+    for slip_id, b in enumerate(picks):
         for L in b["legs"]:
             k = (b["sofascore_event_id"], L["market"], L["subject"], L["line"],
                  L["direction"])
@@ -154,7 +168,8 @@ def main() -> int:
             if age is not None and age > MAX_BUILDER_SAMPLE_AGE_DAYS:
                 gates.append("SAMPLE_CROSSES_SEASON")
             positions.append({
-                "slip": b["match"], "eid": b["sofascore_event_id"],
+                "slip": b["match"] + (" (single)" if b.get("single") else ""),
+                "slip_id": slip_id, "eid": b["sofascore_event_id"],
                 "market": L["market"], "subject": L["subject"],
                 "line": L["line"], "direction": L["direction"],
                 "odds": L["odds"], "confidence": L["confidence"],
@@ -173,15 +188,17 @@ def main() -> int:
     A(f"# Głęboki audyt typowania — {args.date}")
     A("")
     A("Przedmiotem jest **kupon, który naprawdę poszedł**: buildery renderowane "
-      "do PDF (`best_for_fixture` i dodatnie EV), nie 324 pojedynki VALUE z "
-      "`06_coupon.json`, których nigdy nie postawiono.")
+      "do PDF (`best_for_fixture` i dodatnie EV) oraz single drukowane w PDF — "
+      "nie pojedynki VALUE z `06_coupon.json`.")
     A("")
 
     # ---- 1. per market, what actually happened --------------------------
     A("## 1. Każdy rynek na kuponie — wynik faktyczny")
     A("")
+    n_singles = sum(1 for b in picks if b.get("single"))
     graded = [p for p in positions if p["outcome"] in ("WIN", "LOSS")]
-    A(f"{len(picks)} slipów, {len(positions)} nóg, rozliczonych {len(graded)}.")
+    A(f"{len(picks)} slipów ({len(picks) - n_singles} builderów, {n_singles} "
+      f"singli), {len(positions)} nóg, rozliczonych {len(graded)}.")
     A("")
     if not graded:
         # Sections 1-4 all divide by the settled population. A day on which the
@@ -423,12 +440,13 @@ def main() -> int:
     A("### Efekt na poziomie slipów")
     A("")
     kept_slips, killed_slips, trimmed = [], [], []
-    for b in picks:
-        ps = [p for p in positions if p["eid"] == b["sofascore_event_id"]]
+    for slip_id, b in enumerate(picks):
+        # By slip, not by fixture: a builder and a single can share one.
+        ps = [p for p in positions if p["slip_id"] == slip_id]
         survivors = [p for p in ps if not p["gates"]]
         if len(survivors) == len(ps):
             kept_slips.append((b, ps, survivors))
-        elif len(survivors) < 2:
+        elif len(survivors) < (1 if b.get("single") else 2):
             killed_slips.append((b, ps, survivors))
         else:
             trimmed.append((b, ps, survivors))

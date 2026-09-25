@@ -91,8 +91,25 @@ def _subject_is_home(subject: str, fixture: dict) -> bool | None:
         return True  # a total: the flag is unused
     if subject in _DERIVED_SUBJECTS:
         return None
-    home = normalize_name(fixture["home_name"])
-    away = normalize_name(fixture["away_name"])
+    return _named_side(subject, fixture["home_name"], fixture["away_name"])
+
+
+def _named_side(subject: str, home_name: str, away_name: str) -> bool | None:
+    """True for home, False for away, None when the subject names neither.
+
+    The subject is normalised the way the fixture names are. Until 2026-09-25
+    it was compared raw, so a Polish exonym never had its alias applied:
+    "niemcy" scored 46 against "germany" and 100 once normalised. All 740
+    SUBJECT_NOT_MATCHED rows of 2026-09-24 were national teams - every
+    per-team market on an international was priced by SHEET (whose
+    `determine_side` does normalise) and never graded, which is a biased hole
+    in the population every fit reads.
+    """
+    subject = normalize_name(subject)
+    home = normalize_name(home_name)
+    away = normalize_name(away_name)
+    if not subject or not home or not away:
+        return None
     if subject == home:
         return True
     if subject == away:
@@ -110,6 +127,25 @@ def _subject_is_home(subject: str, fixture: dict) -> bool | None:
     return score_home > score_away
 
 
+def unfinished_reason(event: dict[str, Any]) -> str:
+    """Why an event that is not a normal finish cannot be settled.
+
+    One label used to cover all of it, so a retirement that will never be
+    graded and an interrupted match that resumes tomorrow read the same: on
+    2026-09-24 the 859 NOT_FINISHED rows were 305 retirements, 360
+    interruptions, 140 not started and 54 abandoned. Only NOT_FINISHED is worth
+    re-running SETTLE for.
+    """
+    status = event.get("status") or {}
+    kind = str(status.get("type", "")).lower()
+    if kind == "finished":
+        # Retirement, walkover, awarded: over, but not a comparable result.
+        return "FINISHED_ABNORMALLY"
+    if kind in ("canceled", "abandoned", "postponed"):
+        return kind.upper()
+    return "NOT_FINISHED"
+
+
 def _event_payload(
     client: SofascoreClient, cache: SofaCache, event_id: int
 ) -> tuple[dict, dict | None, dict | None] | str:
@@ -119,7 +155,7 @@ def _event_payload(
     if not event:
         return "NO_EVENT"
     if not is_completed_event(event):
-        return "NOT_FINISHED"
+        return unfinished_reason(event)
 
     cached = cache.get_event_stats(event_id)
     if cached:
@@ -216,7 +252,14 @@ def _settle_derived(
         elif subject == "2":
             won = away > home
         else:
-            return "DERIVED_SUBJECT"
+            # SHEET prices a named side too (derived.resolve_subject): tennis
+            # most_games/most_aces with a player, football most_corners with a
+            # club. Only "1"/"2" were read here, so 412 named rows of
+            # 2026-09-24 went unsettled while their `__draw__` leg settled.
+            side = _handicap_side(subject, row, event)
+            if side is None:
+                return "DERIVED_SUBJECT"
+            won = home > away if side == "home" else away > home
         return float(home - away), ("WIN" if won else "LOSS")
 
     if row["market"].startswith("handicap_"):
@@ -277,16 +320,14 @@ def _handicap_side(subject: str, row: dict, event: dict) -> str | None:
         return "home"
     if subject == "2":
         return "away"
-    home = normalize_name((event.get("homeTeam") or {}).get("name", ""))
-    away = normalize_name((event.get("awayTeam") or {}).get("name", ""))
-    if not subject or not home or not away:
+    is_home = _named_side(
+        subject,
+        (event.get("homeTeam") or {}).get("name", ""),
+        (event.get("awayTeam") or {}).get("name", ""),
+    )
+    if is_home is None:
         return None
-    score_home, score_away = name_score(subject, home), name_score(subject, away)
-    if max(score_home, score_away) <= NAME_MATCH_THRESHOLD:
-        return None
-    if abs(score_home - score_away) < 5.0:
-        return None
-    return "home" if score_home > score_away else "away"
+    return "home" if is_home else "away"
 
 
 # (listing event, statistics, incidents) - what `_event_payload` returns when

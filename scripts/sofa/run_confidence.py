@@ -37,7 +37,6 @@ from bet.sofa.confidence import (  # noqa: E402
     MAX_BUILDER_LEGS,
     MIN_BUILDER_LEGS,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
-    MAX_OVERROUND,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     Calibration,
@@ -67,6 +66,7 @@ from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.engine import (  # noqa: E402
     has_calibratable_model,
 )
+from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
 from bet.sofa.veto import load_vetoes, veto_matches  # noqa: E402
 
@@ -116,7 +116,17 @@ DEFAULT_FLOOR = 0.70
 # calibration whatever the fixture, so admitting it and then reporting its
 # contribution to a slip's EV was self-contradictory.
 MIN_ODDS = MIN_ODDS_FOR_CEILING
-MAX_PRICE_AGE = timedelta(minutes=45)
+
+
+def unfitted_from_notes(notes: list[str] | None) -> list[str]:
+    """The constants a sheet row names in its UNFITTED_CONSTANTS note."""
+    found: set[str] = set()
+    for note in notes or []:
+        if note.startswith("UNFITTED_CONSTANTS:"):
+            found.update(
+                c.strip() for c in note.split(":", 1)[1].split(",") if c.strip()
+            )
+    return sorted(found)
 
 
 def main() -> int:
@@ -151,6 +161,9 @@ def main() -> int:
     artifact = confidence_artifact(profile)
 
     run_dir = Path(args.runs_dir) / args.date
+    # The same limit COUPON reads. A hard-coded 45 here let
+    # SOFA_PRICE_MAX_AGE_MIN move COUPON's gate and not this one's.
+    max_price_age = timedelta(minutes=SofaConfig.from_env().price_max_age_min)
     sheet = json.loads((run_dir / "05_sheet.json").read_text(encoding="utf-8"))
     fixtures = {
         f["sofascore_event_id"]: f
@@ -220,21 +233,31 @@ def main() -> int:
 
     offers = json.loads((run_dir / "04_offer.json").read_text(encoding="utf-8"))
     fetched: dict[tuple, str] = {}
+    # The price this offer quotes for the side, so a leg is only timed against
+    # the price it actually carries. The sheet's `offered_odds` is from the
+    # OFFER that fed SHEET; a rebuild refreshes OFFER without re-running SHEET
+    # (sofa-rebuild), and until 2026-09-25 this stage then timed the fresh
+    # offer while printing the sheet's price - 16 of 351 variant legs that day
+    # printed a price the book no longer quoted, two of them failing x >= 0.90
+    # at the live price. A side the refresh no longer prices has no timestamp.
+    fresh_odds: dict[tuple[int, str, str, float, str], float] = {}
     # The ladder's own margin, per rung. It is a property of the two-sided
     # price, so it is the same for OVER and UNDER of one rung.
     margins: dict[tuple[int, str, str, float, str], float | None] = {}
     for o in offers:
         for r in o.get("rungs", []):
             rung_margin = overround(r.get("over_odds"), r.get("under_odds"))
-            for d in ("OVER", "UNDER"):
-                fetched[
-                    (o["sofascore_event_id"], r["market"], r.get("subject", ""),
-                     r["line"], d)
-                ] = r.get("fetched_at_utc")
-                margins[
-                    (o["sofascore_event_id"], r["market"], r.get("subject", ""),
-                     r["line"], d)
-                ] = rung_margin
+            for d, side_odds in (
+                ("OVER", r.get("over_odds")),
+                ("UNDER", r.get("under_odds")),
+            ):
+                if side_odds is None:
+                    continue
+                key = (o["sofascore_event_id"], r["market"], r.get("subject", ""),
+                       r["line"], d)
+                fetched[key] = r.get("fetched_at_utc")
+                fresh_odds[key] = side_odds
+                margins[key] = rung_margin
 
     cal = Calibration.load()
     now = datetime.now(timezone.utc)
@@ -315,8 +338,15 @@ def main() -> int:
         if ts is None:
             refused["NO_FETCHED_AT"] += 1
             continue
-        if now - datetime.fromisoformat(ts.replace("Z", "+00:00")) > MAX_PRICE_AGE:
+        if now - datetime.fromisoformat(ts.replace("Z", "+00:00")) > max_price_age:
             refused["STALE_PRICE"] += 1
+            continue
+        # Refused, not re-priced: market_p, p_central (tennis blends the price
+        # in) and required_odds were all computed from the sheet's price, so
+        # swapping the odds alone would pair a new price with an old
+        # probability. Re-running SHEET is what re-prices a leg.
+        if not math.isclose(fresh_odds[key], odds, abs_tol=1e-9):
+            refused["PRICE_MOVED_SINCE_SHEET"] += 1
             continue
 
         # A metric with no model at all is refused. Empirical-frequency
@@ -471,6 +501,11 @@ def main() -> int:
                 "overround": (
                     round(rung_overround, 4) if rung_overround is not None else None
                 ),
+                # CLAUDE.md: never strip UNFITTED_CONSTANTS from a row. The
+                # sheet stamps it in `notes`, which a leg does not carry, so
+                # until 2026-09-25 both confidence artifacts and their .md
+                # said it zero times - only the PDF banner re-read the sheet.
+                "unfitted_constants": unfitted_from_notes(row.get("notes")),
                 # Not serialised: the builder needs to intersect legs on the
                 # matches they came from. Stripped before the artifact is
                 # written.
@@ -538,6 +573,7 @@ def main() -> int:
                             "market": c["market"], "subject": c["subject"],
                             "line": c["line"], "direction": c["direction"],
                             "confidence": c["confidence"], "odds": c["offered_odds"],
+                            "unfitted_constants": c["unfitted_constants"],
                         }
                         for c in combo
                     ],
@@ -623,6 +659,13 @@ def main() -> int:
         "pdf_max_singles": profile.pdf_max_singles,
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
+        "unfitted_constants": sorted(
+            {
+                c
+                for item in [*singles, *(x for b in builders for x in b["legs"])]
+                for c in item.get("unfitted_constants") or []
+            }
+        ),
         "legs": legs,
         "singles": [
             {k: v for k, v in s_.items() if not k.startswith("_")} for s_ in singles
@@ -651,6 +694,16 @@ def main() -> int:
         "this model probability, fitted on 1,868,474 settled rows — not the model's "
         "own claim. The curve tops out near 0.92: there is no 98% leg.",
         "",
+        *(
+            [
+                f"**UNFITTED_CONSTANTS: {', '.join(out['unfitted_constants'])}** "
+                "- these constants are not fitted to settlements; the numbers "
+                "below stand on them.",
+                "",
+            ]
+            if out["unfitted_constants"]
+            else []
+        ),
         "## Legs",
         "",
         "| conf | odds | implied | shading | leg EV | market | line | match | kickoff |",
@@ -672,8 +725,8 @@ def main() -> int:
         "jako odwrócone (patrz `MAX_OVERROUND`): wewnątrz jednego kubełka "
         "kalibracji `leg EV` rośnie wyłącznie z kursem, a dłużej wyceniona "
         "jedna trzecia kubełka trafia **rzadziej**. `marża` to narzut Superbeta "
-        f"na tej drabinie; powyżej {MAX_OVERROUND:.1%} noga nie trafia na tę "
-        "listę w ogóle.",
+        f"na tej drabinie; powyżej {profile.max_overround:.1%} noga nie "
+        "trafia na tę listę w ogóle.",
         "",
         "To nie jest obietnica zysku. Ta populacja nóg rozliczyła się na "
         "**−4.0%** przy trafialności 87.1% — i niemal wszystko to jeden dzień "
