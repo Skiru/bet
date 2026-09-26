@@ -199,6 +199,12 @@ def check_half_match_coherence(baselines: dict[str, Any]) -> list[str]:
         # total". Replacing the first underscore built "throw_1h_ins_total"
         # and skipped the check for every metric with one in its base name
         # (shots_on_target, throw_ins, goal_kicks) - 2026-09-25 review.
+        # A name with no _total/_for suffix (both_over_*, most_*, handicap_*)
+        # has no half form: half_name returns it unchanged, and the check
+        # compared the market with itself - "+100.0%" for all 19 of them on
+        # 2026-09-26, burying the real findings. Nor are they additive.
+        if half_name(full, "1h") == full:
+            continue
         h1 = baselines.get(half_name(full, "1h"))
         h2 = baselines.get(half_name(full, "2h"))
         if not (isinstance(h1, dict) and isinstance(h2, dict)):

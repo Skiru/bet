@@ -286,3 +286,17 @@ def test_half_coherence_check_sees_bases_with_an_underscore() -> None:
         "throw_ins_2h_total": {"global": {"mean": 40.0, "n": 500}},
     }
     assert check_half_match_coherence(broken)
+
+
+def test_half_coherence_check_skips_markets_with_no_half_form() -> None:
+    """both_over_/most_ names have no _total/_for suffix, so half_name
+    returned them unchanged and the check compared each with itself:
+    "+100.0%" for 19 markets on 2026-09-26, burying the real findings."""
+    from scripts.sofa.fit_constants import check_half_match_coherence
+
+    derived = {
+        "both_over_corners": {"global": {"mean": 3.05, "n": 330}},
+        "most_corners": {"global": {"mean": 0.82, "n": 380}},
+        "handicap_games": {"global": {"mean": 0.02, "n": 100}},
+    }
+    assert check_half_match_coherence(derived) == []
