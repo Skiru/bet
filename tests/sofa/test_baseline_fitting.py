@@ -125,3 +125,18 @@ def test_an_implausible_share_is_caught_in_both_directions(share: float):
 
 def test_a_family_with_no_half_markets_is_not_invented():
     assert check_half_match_coherence({"aces_total": {"global": 5.5}}) == []
+
+
+def test_player_markets_get_no_league_baseline():
+    """A league has no typical player; the pooled prior dragged every player
+    towards a mean describing none of them (09-25: Brier 0.191 -> 0.208)."""
+    rows = [
+        (1, "player_shots_for", f"p{i % 7}", i, 1.0)
+        for i in range(MIN_BASELINE_OBSERVATIONS * 3)
+    ] + [
+        (1, "corners_total", "", i, 10.0)
+        for i in range(MIN_BASELINE_OBSERVATIONS)
+    ]
+    out = fit_baselines(_db(rows))
+    assert "player_shots_for" not in out
+    assert "corners_total" in out

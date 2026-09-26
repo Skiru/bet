@@ -129,6 +129,14 @@ def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
         lambda: defaultdict(list)
     )
     for row in cursor:
+        # A league has no "typical player": a player_ prior pools strikers,
+        # full-backs and substitutes, so it drags every player towards a mean
+        # that describes none of them. Absent until 2026-09-26 only because
+        # SETTLE had not yet produced 30 rows; the first fit that crossed the
+        # bar raised player_shots_for OVER p from 0.413 to 0.437 against a
+        # 0.365 hit rate on 09-25 (Brier 0.191 -> 0.208, n=241).
+        if row["market"].startswith("player_"):
+            continue
         by_market[row["market"]][str(row["competition_id"])].append(row["value"])
 
     baselines: dict[str, Any] = {}
