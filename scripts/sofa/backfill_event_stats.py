@@ -65,6 +65,7 @@ def select_targets(
     competitions: set[int],
     already_asked: set[int],
     since_ts: int,
+    barren: set[int] | frozenset[int] = frozenset(),
 ) -> list[dict[str, Any]]:
     """Finished football events in `competitions` since `since_ts` whose
     statistics were never asked for, newest first, one entry per event.
@@ -88,12 +89,40 @@ def select_targets(
             if sport != "football":
                 continue
             comp = (tournament.get("uniqueTournament") or {}).get("id")
-            if comp not in competitions:
+            if comp not in competitions or comp in barren:
                 continue
             if statistics_are_hopeless(event):
                 continue
             seen[event_id] = event
     return sorted(seen.values(), key=lambda e: -int(e["startTimestamp"]))
+
+
+def barren_competitions(
+    listings: Iterable[list[dict[str, Any]]],
+    asked: dict[int, bool],
+    threshold: int | None = None,
+) -> set[int]:
+    """Competitions the cache has already asked `threshold`+ times with not
+    one success - so a chunked run does not pay MAX_BARREN_MISSES again per
+    competition on every chunk. `asked` maps event id -> it had statistics."""
+    limit = MAX_BARREN_MISSES if threshold is None else threshold
+    hits: dict[int, int] = {}
+    misses: dict[int, int] = {}
+    seen: set[int] = set()
+    for events in listings:
+        for event in events:
+            event_id = event.get("id")
+            if not isinstance(event_id, int) or event_id in seen:
+                continue
+            if event_id not in asked:
+                continue
+            seen.add(event_id)
+            comp = _competition(event)
+            if comp is None:
+                continue
+            bucket = hits if asked[event_id] else misses
+            bucket[comp] = bucket.get(comp, 0) + 1
+    return {c for c, n in misses.items() if n >= limit and not hits.get(c)}
 
 
 def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
@@ -108,11 +137,15 @@ def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
                 yield events
 
 
-def _already_asked(db_path: str) -> set[int]:
+def _already_asked(db_path: str) -> dict[int, bool]:
+    """Event id -> whether the cached row carries statistics."""
     with get_connection(db_path) as conn:
         return {
-            int(r["sofascore_event_id"])
-            for r in conn.execute("SELECT sofascore_event_id FROM sofa_event_stats")
+            int(r["sofascore_event_id"]): r["has_stats"] == 1
+            for r in conn.execute(
+                "SELECT sofascore_event_id, statistics_json IS NOT NULL AS has_stats "
+                "FROM sofa_event_stats"
+            )
         }
 
 
@@ -133,9 +166,16 @@ def _competition(event: dict[str, Any]) -> int | None:
 class Backfill:
     """One event at a time, from any number of worker threads."""
 
-    def __init__(self, client: Any, cache: Any) -> None:
+    def __init__(
+        self, client: Any, cache: Any, deadline: float | None = None
+    ) -> None:
         self.client = client
         self.cache = cache
+        # time.monotonic() after which no new event is started. On 2026-09-25
+        # the bridge was refused after ~23-26 min of continuous work in each
+        # of two runs, at 11 and at 5 req/s alike, so runs are chunked by time.
+        self.deadline = deadline
+        self.timed_out = threading.Event()
         self.lock = threading.Lock()
         self.stop = threading.Event()
         self.counts = {"done": 0, "stats": 0, "no_stats": 0, "errors": 0,
@@ -149,7 +189,10 @@ class Backfill:
                     if n >= MAX_BARREN_MISSES and not self.hits.get(c)}
 
     def fetch_one(self, event: dict[str, Any]) -> None:
-        if self.stop.is_set():
+        if self.stop.is_set() or self.timed_out.is_set():
+            return
+        if self.deadline is not None and time.monotonic() >= self.deadline:
+            self.timed_out.set()
             return
         comp = _competition(event)
         if comp in self.exhausted():
@@ -188,6 +231,8 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=400)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--max-minutes", type=float, default=None,
+                    help="start no new event after this many minutes")
     args = ap.parse_args()
 
     config = SofaConfig.from_env()
@@ -199,24 +244,31 @@ def main() -> int:
 
     comps = board_competitions(config.runs_dir)
     since = int(time.time()) - args.days * 86400
+    asked = _already_asked(config.db_path)
+    barren = barren_competitions(_iter_listings(config.db_path), asked)
     targets = select_targets(
-        _iter_listings(config.db_path), comps, _already_asked(config.db_path), since
+        _iter_listings(config.db_path), comps, set(asked), since, barren
     )
     if args.limit is not None:
         targets = targets[: args.limit]
     print(json.dumps({
         "run_id": config.run_id, "competitions": len(comps),
         "targets": len(targets), "requests": 2 * len(targets),
+        "barren_competitions_skipped": len(barren),
     }), flush=True)
     if args.dry_run or not targets:
         return 0
 
-    runner = Backfill(SofascoreClient(config), SofaCache(config))
+    deadline = (
+        time.monotonic() + args.max_minutes * 60 if args.max_minutes else None
+    )
+    runner = Backfill(SofascoreClient(config), SofaCache(config), deadline)
     with ThreadPoolExecutor(max_workers=max(1, config.max_concurrency)) as pool:
         list(pool.map(runner.fetch_one, targets))
 
-    summary = {"final": True, "circuit_open": runner.stop.is_set(), **runner.counts,
-               "competitions_given_up": len(runner.exhausted())}
+    summary = {"final": True, "circuit_open": runner.stop.is_set(),
+               "timed_out": runner.timed_out.is_set(), "targets": len(targets),
+               **runner.counts, "competitions_given_up": len(runner.exhausted())}
     print(json.dumps(summary), flush=True)
     return 2 if runner.stop.is_set() else (1 if runner.counts["errors"] else 0)
 

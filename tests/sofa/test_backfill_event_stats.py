@@ -127,3 +127,29 @@ def test_a_barren_competition_is_given_up_but_one_success_keeps_it() -> None:
     for eid in range(600, 600 + MAX_BARREN_MISSES + 5):
         runner.fetch_one(_event(eid, 2000, comp=17))
     assert runner.counts["skipped_barren"] == 5  # comp 17 had a success
+
+
+def test_no_new_event_starts_after_the_deadline() -> None:
+    import time
+
+    from scripts.sofa.backfill_event_stats import Backfill
+
+    client, cache = _Client({}), _Cache()
+    runner = Backfill(client, cache, deadline=time.monotonic() - 1)
+    runner.fetch_one(_event(1, 2000))
+    assert client.asked == [] and runner.timed_out.is_set()
+    assert not runner.stop.is_set()  # a timeout is not a refusal
+
+
+def test_barren_competitions_are_remembered_across_runs_from_the_cache() -> None:
+    from scripts.sofa.backfill_event_stats import barren_competitions
+
+    listings = [[_event(i, 2000, comp=99) for i in range(30)]
+                + [_event(100 + i, 2000, comp=17) for i in range(30)]]
+    asked = {i: False for i in range(30)}  # 30 asked, every one a 404
+    asked |= {100 + i: False for i in range(29)} | {129: True}  # one success
+    assert barren_competitions(listings, asked, threshold=25) == {99}
+    # A barren competition is left out of the targets.
+    fresh = [[_event(500, 3000, comp=99), _event(501, 3000, comp=17)]]
+    got = select_targets(fresh, {17, 99}, set(asked), 0, {99})
+    assert [e["id"] for e in got] == [501]
