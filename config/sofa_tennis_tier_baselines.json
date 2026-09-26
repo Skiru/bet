@@ -1,0 +1,355 @@
+{
+  "fitted_at_utc": "2026-09-26T07:58:34.454852+00:00",
+  "fitted_before": null,
+  "fitted_from": "sofa_entity_events + sofa_event_stats (cache, no network)",
+  "metrics": {
+    "aces_for": {
+      "tennis:M:CH:clay": {
+        "mean": 2.8575,
+        "n": 2470
+      },
+      "tennis:M:CH:hard": {
+        "mean": 5.0991,
+        "n": 2342
+      },
+      "tennis:M:ITF:clay": {
+        "mean": 2.0529,
+        "n": 3818
+      },
+      "tennis:M:ITF:hard": {
+        "mean": 3.1382,
+        "n": 4420
+      },
+      "tennis:M:TOUR:clay": {
+        "mean": 3.2812,
+        "n": 128
+      },
+      "tennis:M:TOUR:hard": {
+        "mean": 5.9717,
+        "n": 1662
+      },
+      "tennis:W:CH:clay": {
+        "mean": 1.1341,
+        "n": 716
+      },
+      "tennis:W:CH:hard": {
+        "mean": 2.4365,
+        "n": 614
+      },
+      "tennis:W:ITF:clay": {
+        "mean": 0.9842,
+        "n": 2592
+      },
+      "tennis:W:ITF:hard": {
+        "mean": 1.3748,
+        "n": 4202
+      },
+      "tennis:W:TOUR:clay": {
+        "mean": 1.8882,
+        "n": 170
+      },
+      "tennis:W:TOUR:hard": {
+        "mean": 2.677,
+        "n": 1220
+      }
+    },
+    "aces_total": {
+      "tennis:M:CH:clay": {
+        "mean": 5.715,
+        "n": 1235
+      },
+      "tennis:M:CH:hard": {
+        "mean": 10.1981,
+        "n": 1171
+      },
+      "tennis:M:ITF:clay": {
+        "mean": 4.1058,
+        "n": 1909
+      },
+      "tennis:M:ITF:hard": {
+        "mean": 6.2765,
+        "n": 2210
+      },
+      "tennis:M:TOUR:clay": {
+        "mean": 6.5625,
+        "n": 64
+      },
+      "tennis:M:TOUR:hard": {
+        "mean": 11.9434,
+        "n": 831
+      },
+      "tennis:W:CH:clay": {
+        "mean": 2.2682,
+        "n": 358
+      },
+      "tennis:W:CH:hard": {
+        "mean": 4.873,
+        "n": 307
+      },
+      "tennis:W:ITF:clay": {
+        "mean": 1.9684,
+        "n": 1296
+      },
+      "tennis:W:ITF:hard": {
+        "mean": 2.7496,
+        "n": 2101
+      },
+      "tennis:W:TOUR:clay": {
+        "mean": 3.7765,
+        "n": 85
+      },
+      "tennis:W:TOUR:hard": {
+        "mean": 5.3541,
+        "n": 610
+      }
+    },
+    "double_faults_for": {
+      "tennis:M:CH:clay": {
+        "mean": 2.6887,
+        "n": 2470
+      },
+      "tennis:M:CH:hard": {
+        "mean": 3.1469,
+        "n": 2342
+      },
+      "tennis:M:ITF:clay": {
+        "mean": 2.9906,
+        "n": 3818
+      },
+      "tennis:M:ITF:hard": {
+        "mean": 3.1799,
+        "n": 4420
+      },
+      "tennis:M:TOUR:clay": {
+        "mean": 2.0391,
+        "n": 128
+      },
+      "tennis:M:TOUR:hard": {
+        "mean": 2.8454,
+        "n": 1662
+      },
+      "tennis:W:CH:clay": {
+        "mean": 3.8115,
+        "n": 716
+      },
+      "tennis:W:CH:hard": {
+        "mean": 3.8306,
+        "n": 614
+      },
+      "tennis:W:ITF:clay": {
+        "mean": 4.0154,
+        "n": 2592
+      },
+      "tennis:W:ITF:hard": {
+        "mean": 4.1033,
+        "n": 4202
+      },
+      "tennis:W:TOUR:clay": {
+        "mean": 3.1353,
+        "n": 170
+      },
+      "tennis:W:TOUR:hard": {
+        "mean": 4.3148,
+        "n": 1220
+      }
+    },
+    "double_faults_total": {
+      "tennis:M:CH:clay": {
+        "mean": 5.3773,
+        "n": 1235
+      },
+      "tennis:M:CH:hard": {
+        "mean": 6.2938,
+        "n": 1171
+      },
+      "tennis:M:ITF:clay": {
+        "mean": 5.9811,
+        "n": 1909
+      },
+      "tennis:M:ITF:hard": {
+        "mean": 6.3597,
+        "n": 2210
+      },
+      "tennis:M:TOUR:clay": {
+        "mean": 4.0781,
+        "n": 64
+      },
+      "tennis:M:TOUR:hard": {
+        "mean": 5.6907,
+        "n": 831
+      },
+      "tennis:W:CH:clay": {
+        "mean": 7.6229,
+        "n": 358
+      },
+      "tennis:W:CH:hard": {
+        "mean": 7.6612,
+        "n": 307
+      },
+      "tennis:W:ITF:clay": {
+        "mean": 8.0309,
+        "n": 1296
+      },
+      "tennis:W:ITF:hard": {
+        "mean": 8.2066,
+        "n": 2101
+      },
+      "tennis:W:TOUR:clay": {
+        "mean": 6.2706,
+        "n": 85
+      },
+      "tennis:W:TOUR:hard": {
+        "mean": 8.6295,
+        "n": 610
+      }
+    },
+    "games_total": {
+      "tennis:M:CH:clay": {
+        "mean": 22.2928,
+        "n": 6274
+      },
+      "tennis:M:CH:grass": {
+        "mean": 24.0616,
+        "n": 341
+      },
+      "tennis:M:CH:hard": {
+        "mean": 22.6483,
+        "n": 5163
+      },
+      "tennis:M:ITF:clay": {
+        "mean": 21.3302,
+        "n": 12503
+      },
+      "tennis:M:ITF:grass": {
+        "mean": 22.25,
+        "n": 204
+      },
+      "tennis:M:ITF:hard": {
+        "mean": 21.3899,
+        "n": 15691
+      },
+      "tennis:M:TOUR:clay": {
+        "mean": 23.1593,
+        "n": 1551
+      },
+      "tennis:M:TOUR:grass": {
+        "mean": 24.2794,
+        "n": 494
+      },
+      "tennis:M:TOUR:hard": {
+        "mean": 23.2133,
+        "n": 3408
+      },
+      "tennis:W:CH:clay": {
+        "mean": 21.5241,
+        "n": 1391
+      },
+      "tennis:W:CH:grass": {
+        "mean": 22.1259,
+        "n": 135
+      },
+      "tennis:W:CH:hard": {
+        "mean": 21.2819,
+        "n": 816
+      },
+      "tennis:W:ITF:clay": {
+        "mean": 20.6126,
+        "n": 10215
+      },
+      "tennis:W:ITF:grass": {
+        "mean": 20.2619,
+        "n": 84
+      },
+      "tennis:W:ITF:hard": {
+        "mean": 20.5304,
+        "n": 14234
+      },
+      "tennis:W:TOUR:clay": {
+        "mean": 21.3497,
+        "n": 1058
+      },
+      "tennis:W:TOUR:grass": {
+        "mean": 22.4578,
+        "n": 533
+      },
+      "tennis:W:TOUR:hard": {
+        "mean": 21.7766,
+        "n": 2104
+      }
+    },
+    "sets_total": {
+      "tennis:M:CH:clay": {
+        "mean": 2.3471,
+        "n": 6274
+      },
+      "tennis:M:CH:grass": {
+        "mean": 2.39,
+        "n": 341
+      },
+      "tennis:M:CH:hard": {
+        "mean": 2.3357,
+        "n": 5163
+      },
+      "tennis:M:ITF:clay": {
+        "mean": 2.2817,
+        "n": 12503
+      },
+      "tennis:M:ITF:grass": {
+        "mean": 2.3186,
+        "n": 204
+      },
+      "tennis:M:ITF:hard": {
+        "mean": 2.2775,
+        "n": 15691
+      },
+      "tennis:M:TOUR:clay": {
+        "mean": 2.3662,
+        "n": 1551
+      },
+      "tennis:M:TOUR:grass": {
+        "mean": 2.3644,
+        "n": 494
+      },
+      "tennis:M:TOUR:hard": {
+        "mean": 2.3383,
+        "n": 3408
+      },
+      "tennis:W:CH:clay": {
+        "mean": 2.3451,
+        "n": 1391
+      },
+      "tennis:W:CH:grass": {
+        "mean": 2.3481,
+        "n": 135
+      },
+      "tennis:W:CH:hard": {
+        "mean": 2.3174,
+        "n": 816
+      },
+      "tennis:W:ITF:clay": {
+        "mean": 2.2749,
+        "n": 10215
+      },
+      "tennis:W:ITF:grass": {
+        "mean": 2.2143,
+        "n": 84
+      },
+      "tennis:W:ITF:hard": {
+        "mean": 2.2656,
+        "n": 14234
+      },
+      "tennis:W:TOUR:clay": {
+        "mean": 2.3223,
+        "n": 1058
+      },
+      "tennis:W:TOUR:grass": {
+        "mean": 2.3583,
+        "n": 533
+      },
+      "tennis:W:TOUR:hard": {
+        "mean": 2.3375,
+        "n": 2104
+      }
+    }
+  }
+}
