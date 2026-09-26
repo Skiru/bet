@@ -149,9 +149,10 @@ def collect(db_path: Path) -> dict[str, list[tuple[int, int, float, float]]]:
                     stats_raw = json.loads(statistics_json)
                 except ValueError:
                     stats_raw = None
+                all_period: dict[str, Any] = {}
                 if stats_raw:
                     flat = extract_flat_statistics(stats_raw)
-                    all_period: dict[str, Any] = flat.get("ALL", {})
+                    all_period = flat.get("ALL", {})
                     for base, key in STAT_KEYS.items():
                         value = all_period.get(key)
                         if value is None:
@@ -167,7 +168,7 @@ def collect(db_path: Path) -> dict[str, list[tuple[int, int, float, float]]]:
                 except ValueError:
                     incidents_raw = None
                 if incidents_raw:
-                    points = calculate_cards_points(incidents_raw)
+                    points = calculate_cards_points(incidents_raw, all_period)
                     if not isinstance(points, str) and points is not None:
                         home_pts, away_pts = points
                         pools["cards_points"].append(

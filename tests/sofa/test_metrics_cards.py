@@ -24,8 +24,21 @@ def test_missing_payload_is_not_zero() -> None:
     assert calculate_cards_points(None) == GapReason.NO_INCIDENTS
 
 
-def test_present_payload_with_no_cards_is_a_real_zero() -> None:
-    assert calculate_cards_points({"incidents": []}) == (0.0, 0.0)
+def test_no_card_incidents_and_no_statistics_is_unknown() -> None:
+    """2026-09-26: 25,295 cached events had goal-only incidents and no
+    /statistics; reading them as zero cards pulled the prior to 2.63."""
+    assert calculate_cards_points({"incidents": []}) == GapReason.STAT_KEY_ABSENT
+
+
+def test_no_card_incidents_while_statistics_show_yellows_is_unknown() -> None:
+    """8,490 cached events: incidents carry no card, /statistics shows some."""
+    stats = {"yellowCards": (2.0, 3.0)}
+    assert calculate_cards_points({"incidents": []}, stats) == GapReason.STAT_KEY_ABSENT
+
+
+def test_no_card_incidents_confirmed_by_statistics_is_a_real_zero() -> None:
+    stats = {"yellowCards": (0.0, 0.0)}
+    assert calculate_cards_points({"incidents": []}, stats) == (0.0, 0.0)
 
 
 def test_rescinded_cards_do_not_count() -> None:

@@ -231,6 +231,7 @@ def load_cache(db_path: Path) -> list[Played]:
                 values["goals"] = score
 
         statistics_json, incidents_json = stats_by_event.get(event_id, (None, None))
+        all_period: dict[str, tuple[float, float]] = {}
         if statistics_json:
             try:
                 flat = extract_flat_statistics(json.loads(statistics_json))
@@ -244,7 +245,7 @@ def load_cache(db_path: Path) -> list[Played]:
                     values[base] = (float(pair[0]), float(pair[1]))
         if incidents_json:
             try:
-                points = calculate_cards_points(json.loads(incidents_json))
+                points = calculate_cards_points(json.loads(incidents_json), all_period)
             except ValueError:
                 points = None
             if points is not None and not isinstance(points, str):

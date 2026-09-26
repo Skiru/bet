@@ -534,6 +534,7 @@ def _incident_player_key(incident: dict[str, Any]) -> str | None:
 
 def calculate_cards_points(
     incidents: dict[str, Any] | None,
+    all_stats: dict[str, tuple[float, float]] | None = None,
 ) -> tuple[float, float] | GapReason:
     """Superbet card points from /incidents (PLAN §5.4).
 
@@ -562,6 +563,21 @@ def calculate_cards_points(
         for inc in incidents.get("incidents", [])
         if inc.get("incidentType") == "card" and not inc.get("rescinded", False)
     ]
+
+    # An incident list with no card in it is only a zero when /statistics
+    # says so. Measured on the cache 2026-09-26: of the finished events whose
+    # incidents carry no card, 8,490 had yellowCards > 0 in /statistics and
+    # 25,295 had no statistics at all (goal-only coverage), against 1,791
+    # with yellowCards 0:0 - a 4.3% zero rate among tracked matches, which is
+    # what football looks like. Reading the absence as zero cards had pulled
+    # the cards_points_total prior from ~4.5 to 2.63.
+    if not any(
+        inc.get("incidentType") == "card" for inc in incidents.get("incidents", [])
+    ):
+        yellow = (all_stats or {}).get("yellowCards")
+        if yellow is None or sum(yellow) > 0:
+            return GapReason.STAT_KEY_ABSENT
+        return 0.0, 0.0
 
     yellows_by_player: dict[str, int] = {}
     for inc in cards:
@@ -775,7 +791,7 @@ def extract_metric(
         return float(h + a) if is_total else float(h if is_home else a)
 
     if sofascore_key == "cards_points_from_incidents":
-        pts = calculate_cards_points(incidents)
+        pts = calculate_cards_points(incidents, flat_stats.get("ALL"))
         if isinstance(pts, GapReason):
             return pts
         h, a = pts
