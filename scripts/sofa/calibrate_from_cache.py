@@ -525,18 +525,37 @@ def reliability_curve(rows: list[SettledRow]) -> dict[str, Any]:
     return out
 
 
+# The unique key is (event, market, subject, line, direction) - run_date is not
+# in it - so once the backfill put recent matches in the cache, a replay row
+# shared its key with a live SETTLE row. INSERT OR REPLACE then swapped 3,154
+# live rows (3,103 of them priced, the only input K_PRICE fits from) for
+# market_p = NULL replay rows on 2026-09-26. A replay row may refresh another
+# replay row; it never touches a row SETTLE wrote.
+_ONLY_OVER_CACHE_ROWS = (
+    "ON CONFLICT(sofascore_event_id, market, subject, line, direction) DO UPDATE SET "
+    "sport=excluded.sport, competition_id=excluded.competition_id, "
+    "sample_size=excluded.sample_size, sample_mean=excluded.sample_mean, "
+    "sample_sd=excluded.sample_sd, p_central=excluded.p_central, "
+    "p_bar=excluded.p_bar, market_p=excluded.market_p, "
+    "actual_value=excluded.actual_value, outcome=excluded.outcome, "
+    "settled_at=excluded.settled_at, ladder_sigma=excluded.ladder_sigma "
+    "WHERE sofa_settled_row.run_date = 'cache-calibration'"
+)
+
+
 def write_settled(rows: list[SettledRow], db_path: Path) -> int:
     conn = sqlite3.connect(str(db_path))
     written = 0
     try:
         for row in rows:
             conn.execute(
-                "INSERT OR REPLACE INTO sofa_settled_row "
+                "INSERT INTO sofa_settled_row "
                 "(run_date, sofascore_event_id, sport, competition_id, market, "
                 " subject, line, direction, sample_size, sample_mean, "
                 " sample_sd, p_central, p_bar, market_p, actual_value, "
                 " outcome, settled_at, ladder_sigma) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+                + _ONLY_OVER_CACHE_ROWS,
                 (
                     "cache-calibration",
                     row.event_id,

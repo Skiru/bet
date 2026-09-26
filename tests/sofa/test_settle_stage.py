@@ -281,3 +281,68 @@ def test_widening_the_selection_does_not_reorder_or_mutate_the_sheet():
     got = rows_to_consider(sheet, include_unpriced=True)
     assert [r["market"] for r in got] == ["a", "b"]
     assert got is not sheet
+
+
+def _replay_row(db, **over):
+    from pathlib import Path
+
+    from scripts.sofa.calibrate_from_cache import SettledRow as ReplayRow
+    from scripts.sofa.calibrate_from_cache import write_settled
+
+    base = dict(
+        event_id=16363649,
+        sport="football",
+        competition_id=17,
+        market="corners_1h_total",
+        subject="",
+        line=3.5,
+        direction="OVER",
+        sample_size=20,
+        sample_mean=5.0,
+        sample_sd=2.0,
+        p_central=0.70,
+        actual=5.0,
+        outcome="WIN",
+    )
+    base.update(over)
+    return write_settled([ReplayRow(**base)], Path(db))
+
+
+def test_a_cache_replay_never_overwrites_a_live_row(db):
+    """2026-09-26: INSERT OR REPLACE swapped 3,154 live rows for replay rows."""
+    with get_connection(db) as conn:
+        insert_settled_rows(conn, [_row()])
+    _replay_row(db)
+    with get_connection(db) as conn:
+        got = conn.execute(
+            "SELECT run_date, market_p, offered_odds FROM sofa_settled_row"
+        ).fetchall()
+    assert len(got) == 1
+    assert got[0]["run_date"] == "2026-09-18"
+    assert got[0]["market_p"] == pytest.approx(0.7233)
+    assert got[0]["offered_odds"] == pytest.approx(1.33)
+
+
+def test_a_live_row_replaces_a_cache_replay_on_the_same_key(db):
+    _replay_row(db)
+    with get_connection(db) as conn:
+        assert insert_settled_rows(conn, [_row()]) == 1
+        got = conn.execute(
+            "SELECT run_date, market_p, verdict FROM sofa_settled_row"
+        ).fetchall()
+    assert len(got) == 1
+    assert got[0]["run_date"] == "2026-09-18"
+    assert got[0]["market_p"] == pytest.approx(0.7233)
+    assert got[0]["verdict"] == "BELOW_BAR"
+
+
+def test_a_cache_replay_still_refreshes_its_own_rows(db):
+    _replay_row(db, p_central=0.60)
+    _replay_row(db, p_central=0.65)
+    with get_connection(db) as conn:
+        got = conn.execute(
+            "SELECT run_date, p_central FROM sofa_settled_row"
+        ).fetchall()
+    assert len(got) == 1
+    assert got[0]["run_date"] == "cache-calibration"
+    assert got[0]["p_central"] == pytest.approx(0.65)

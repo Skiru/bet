@@ -371,17 +371,35 @@ def settle_metric(
 
 
 def insert_settled_rows(conn: Any, rows: list[SettledRow]) -> int:
-    """Persist settled rows. Idempotent on the row's natural key."""
+    """Persist settled rows. Idempotent on the row's natural key.
+
+    A live row replaces a cache-replay row on the same key (the key has no
+    run_date, and the replay carries no price); it never replaces another live
+    row, so settling a day twice inserts nothing new.
+    """
     inserted = 0
     for row in rows:
         cursor = conn.execute(
             """
-            INSERT OR IGNORE INTO sofa_settled_row (
+            INSERT INTO sofa_settled_row (
                 run_date, sofascore_event_id, sport, competition_id,
                 market, subject, line, direction, sample_size, sample_mean,
                 sample_sd, p_central, p_bar, market_p, actual_value, outcome,
                 settled_at, ladder_sigma, offered_odds, verdict
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(sofascore_event_id, market, subject, line, direction)
+            DO UPDATE SET
+                run_date = excluded.run_date, sport = excluded.sport,
+                competition_id = excluded.competition_id,
+                sample_size = excluded.sample_size,
+                sample_mean = excluded.sample_mean,
+                sample_sd = excluded.sample_sd, p_central = excluded.p_central,
+                p_bar = excluded.p_bar, market_p = excluded.market_p,
+                actual_value = excluded.actual_value, outcome = excluded.outcome,
+                settled_at = excluded.settled_at,
+                ladder_sigma = excluded.ladder_sigma,
+                offered_odds = excluded.offered_odds, verdict = excluded.verdict
+            WHERE sofa_settled_row.run_date = 'cache-calibration'
             """,
             (
                 row.run_date,
