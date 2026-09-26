@@ -41,7 +41,11 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.config import SofaConfig
-from bet.sofa.metrics import calculate_cards_points, extract_flat_statistics
+from bet.sofa.metrics import (
+    calculate_cards_points,
+    extract_flat_statistics,
+    regulation_score,
+)
 
 MIN_PAIRS = 200
 
@@ -209,14 +213,13 @@ def collect_goals(db_path: Path) -> list[tuple[int, int, float, float]]:
                 ).get("slug")
                 if sport != "football":
                     continue
-                home = (event.get("homeScore") or {}).get("current")
-                away = (event.get("awayScore") or {}).get("current")
+                score = regulation_score(event)
                 home_id = (event.get("homeTeam") or {}).get("id")
                 away_id = (event.get("awayTeam") or {}).get("id")
-                if home is None or away is None or not home_id or not away_id:
+                if score is None or not home_id or not away_id:
                     continue
                 seen.add(event_id)
-                pairs.append((home_id, away_id, float(home), float(away)))
+                pairs.append((home_id, away_id, score[0], score[1]))
     finally:
         conn.close()
     return pairs

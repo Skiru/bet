@@ -58,6 +58,7 @@ from bet.sofa.engine import (
 from bet.sofa.metrics import (
     calculate_cards_points,
     extract_flat_statistics,
+    regulation_score,
     stat_is_untracked,
 )
 from bet.sofa.settle import settle
@@ -225,10 +226,9 @@ def load_cache(db_path: Path) -> list[Played]:
         values: dict[str, tuple[float, float]] = {}
 
         if sport == "football":
-            home_goals = (event.get("homeScore") or {}).get("current")
-            away_goals = (event.get("awayScore") or {}).get("current")
-            if home_goals is not None and away_goals is not None:
-                values["goals"] = (float(home_goals), float(away_goals))
+            score = regulation_score(event)
+            if score is not None:
+                values["goals"] = score
 
         statistics_json, incidents_json = stats_by_event.get(event_id, (None, None))
         if statistics_json:

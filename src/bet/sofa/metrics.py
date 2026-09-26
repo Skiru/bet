@@ -23,6 +23,22 @@ def is_extra_time_event(event: dict[str, Any]) -> bool:
     return status.get("code") in EXTRA_TIME_STATUS_CODES
 
 
+def regulation_score(event: dict[str, Any]) -> tuple[float, float] | None:
+    """Home and away goals at 90 minutes - the quantity Superbet settles on.
+
+    ``current`` carries extra time AND the shootout: a J.League 2 cup tie that
+    was 2-2 at 90 minutes reads current 7-5 after penalties. SAMPLES always
+    used this rule; the cache replay read ``current`` and fitted J2's
+    goals_total baseline at 3.87 against a real ~2.46 (2026-09-26).
+    """
+    field = "normaltime" if is_extra_time_event(event) else "current"
+    home = (event.get("homeScore") or {}).get(field)
+    away = (event.get("awayScore") or {}).get(field)
+    if home is None or away is None:
+        return None
+    return float(home), float(away)
+
+
 FOOTBALL_METRICS = {
     "goals_total": {"sofascore": "goals_from_listing", "is_total": True},
     "goals_for": {"sofascore": "goals_from_listing", "is_total": False},
@@ -738,12 +754,11 @@ def extract_metric(
     if sofascore_key == "goals_from_listing":
         # normaltime for an extra-time match, current otherwise. A 2-1 after
         # extra time that was 1-1 at 90 minutes contributes 2, not 3.
-        field = "normaltime" if is_extra_time_event(listing_event) else "current"
-        h = listing_event.get("homeScore", {}).get(field)
-        a = listing_event.get("awayScore", {}).get(field)
-        if h is None or a is None:
+        score = regulation_score(listing_event)
+        if score is None:
             return GapReason.STAT_KEY_ABSENT
-        return float(h + a) if is_total else float(h if is_home else a)
+        h, a = score
+        return h + a if is_total else h if is_home else a
 
     if sofascore_key == "goals_1h_from_listing":
         h = listing_event.get("homeScore", {}).get("period1")
