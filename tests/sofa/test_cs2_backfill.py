@@ -574,6 +574,12 @@ def test_a_refusal_stops_the_run_and_cools_down(tmp_path: Path) -> None:
     from bet.sofa.errors import ProviderError
 
     class Refusing(FakeSofascore):
+        def __init__(self) -> None:
+            super().__init__()
+            # A third series in the window: one 403 per series (the first
+            # lineup ends that series), three in the run - REFUSALS_TO_STOP.
+            self.listings[1].append(cs_event(15, 1, 1, 2))
+
         def esports_game_lineups(self, game_id: int) -> dict[str, Any]:
             raise ProviderError("HTTP 403")
 
@@ -644,3 +650,21 @@ def test_a_refused_search_is_remembered_so_the_next_run_does_not_search(
         at=AT + backfill_cs2.SEARCH_COOLDOWN + timedelta(minutes=1),
     )
     assert any(c.startswith("search") for c in later.calls)  # asked again after it
+
+
+def test_a_single_403_skips_one_item_not_the_run(tmp_path: Path) -> None:
+    """20:21Z: one listing 403 (retry-after 0) among 39 answering 200 stopped
+    the run and 1,461 series with it."""
+    from bet.sofa.errors import ProviderError
+
+    class OneRefusal(FakeSofascore):
+        def entity_events(self, team_id: int, kind: str, page: int) -> dict[str, Any]:
+            if team_id == 3:
+                raise ProviderError("HTTP 403")
+            return super().entity_events(team_id, kind, page)
+
+    result = run(tmp_path, OneRefusal())
+    assert result["refused"] is False and result["refusals"] == 1
+    assert result["verdict"] == "PARTIAL"
+    assert result["metrics"]["series_stored"] >= 1
+    assert not (tmp_path / "runs" / "cs2" / "backfill_cooldown.json").exists()

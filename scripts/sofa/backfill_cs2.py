@@ -79,6 +79,11 @@ COOLDOWN_FILE = "backfill_cooldown.json"
 # parallel 403s trip the client's shared breaker, which then refuses the
 # listings too - the 20:01 run skipped 402 of them that way.
 SEARCH_COOLDOWN = timedelta(hours=6)
+# How many 403/429 in one run make it a refusal. A single one is not: at
+# 20:21Z one listing answered 403 (retry-after 0) among 39 answering 200, and
+# stopping on it cost the run 1,461 series. The one skipped item is retried
+# next run; three in a run is Sofascore saying no.
+REFUSALS_TO_STOP = 3
 SEARCH_COOLDOWN_FILE = "search_cooldown.json"
 
 
@@ -159,6 +164,8 @@ class Backfill:
         # stops the pool - the client's breaker alone may not trip when other
         # routes keep answering 200 and reset its failure count.
         self.refused = False
+        self.refusals = 0
+        self._refusal_lock = threading.Lock()
         # A 403 from /search/all alone. Seen 2026-09-28 19:41: search refused
         # while /event and the listings still answered 200. It stops further
         # searching, not the run - known teams need no search at all.
@@ -178,6 +185,13 @@ class Backfill:
         else:
             self.cache.save_listing_miss(team_id, "last", page)
         return data
+
+    def note_refusal(self) -> None:
+        """One 403/429 on a listing or a map; the third in a run stops it."""
+        with self._refusal_lock:
+            self.refusals += 1
+            if self.refusals >= REFUSALS_TO_STOP:
+                self.refused = True
 
     def stopped(self) -> bool:
         return self.breaker_open or self.refused or time.monotonic() > self.deadline
@@ -204,7 +218,7 @@ class Backfill:
                 if task == "resolve":
                     self.search_refused = True
                 else:
-                    self.refused = True
+                    self.note_refusal()
         return None
 
     def history(self, team_id: int, cutoff_ts: int) -> list[dict[str, Any]]:
@@ -227,7 +241,8 @@ class Backfill:
                 # discard the team's newer history (round 2 review).
                 self.stats.add("errors")
                 self.stats.add("listing_errors")
-                self.refused = self.refused or is_refusal(exc)
+                if is_refusal(exc):
+                    self.note_refusal()
                 break
             events = (data or {}).get("events") or []
             cs = [e for e in events if is_cs_event(e)]
@@ -345,7 +360,7 @@ class Backfill:
         except Exception as exc:
             self.stats.add("errors")
             if is_refusal(exc):
-                self.refused = True
+                self.note_refusal()
 
 
 def run(
@@ -400,6 +415,7 @@ def run(
             "breaker_open": bf.breaker_open,
             "refused": bf.refused,
             "search_refused": bf.search_refused,
+            "refusals": bf.refusals,
             **extra,
             "metrics": stats.counts,
         }
