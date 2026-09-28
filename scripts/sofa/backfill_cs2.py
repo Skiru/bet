@@ -147,6 +147,10 @@ class Backfill:
         # stops the pool - the client's breaker alone may not trip when other
         # routes keep answering 200 and reset its failure count.
         self.refused = False
+        # A 403 from /search/all alone. Seen 2026-09-28 19:41: search refused
+        # while /event and the listings still answered 200. It stops further
+        # searching, not the run - known teams need no search at all.
+        self.search_refused = False
 
     # --- listings ------------------------------------------------------------
 
@@ -185,7 +189,10 @@ class Backfill:
             self.stats.add("errors")
             self.stats.add(f"{task}_errors")
             if is_refusal(exc):
-                self.refused = True
+                if task == "resolve":
+                    self.search_refused = True
+                else:
+                    self.refused = True
         return None
 
     def history(self, team_id: int, cutoff_ts: int) -> list[dict[str, Any]]:
@@ -225,6 +232,13 @@ class Backfill:
 
     # --- teams -----------------------------------------------------------------
 
+    def cached_team(self, name: str) -> int | None:
+        """A team already verified in an earlier run - no request at all."""
+        cached = self.cache.get_entity(ENTITY_SPORT, esports_name(name))
+        if cached and cached.get("status") == "verified":
+            return int(cached["sofascore_id"])
+        return None
+
     def resolve_team(self, name: str) -> int | None:
         """Superbet's team name -> the Sofascore CS entity, or None.
 
@@ -234,9 +248,12 @@ class Backfill:
         """
         set_stage(STAGE)
         key = esports_name(name)
-        cached = self.cache.get_entity(ENTITY_SPORT, key)
-        if cached and cached.get("status") == "verified":
-            return int(cached["sofascore_id"])
+        cached = self.cached_team(name)
+        if cached is not None:
+            return cached
+        if self.search_refused:
+            self.stats.add("search_skipped")
+            return None
         if self.cache.get_entity_miss(ENTITY_SPORT, key):
             return None
         found = self.client.search(name) or {}
@@ -357,6 +374,7 @@ def run(
             "verdict": verdict,
             "breaker_open": bf.breaker_open,
             "refused": bf.refused,
+            "search_refused": bf.search_refused,
             **extra,
             "metrics": stats.counts,
         }
@@ -370,18 +388,43 @@ def run(
     # Discovery runs on the same pool width as the fetch. One request at a
     # time leaves every other bridge window idle and pays a poll cycle per
     # request - measured 2-4 s a listing page here, against ~0.35 s at width.
+    # Known teams first, with no request: those verified in earlier runs, and
+    # every team the store already holds. Only names never seen are searched.
+    unknown: list[str] = []
+    for name in names:
+        tid = bf.cached_team(name)
+        if tid is not None:
+            team_ids.add(tid)
+        else:
+            unknown.append(name)
+    stats.add("seed_cached", len(team_ids))
+    with get_connection(config.db_path) as conn:
+        stored = {
+            int(r[0])
+            for r in conn.execute(
+                "SELECT home_id FROM cs2_series UNION SELECT away_id FROM cs2_series"
+            )
+            if r[0]
+        }
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        resolved = pool.map(lambda n: bf.guarded("resolve", bf.resolve_team, n), names)
+        resolved = pool.map(
+            lambda n: bf.guarded("resolve", bf.resolve_team, n), unknown
+        )
         team_ids.update(tid for tid in resolved if tid is not None)
-        if not team_ids:
+        if not team_ids and not stored:
             why = (
                 "stopped (deadline, breaker or refusal) before a seed resolved"
-                if bf.stopped()
+                if bf.stopped() or bf.search_refused
                 else "no seed team resolved"
             )
             return finish("FAILED", error=why)
         stats.add("seed_teams", len(team_ids))
-        frontier: set[int] = set(team_ids)
+        stats.add("stored_teams", len(stored - team_ids))
+        # Opponents are added only around the seeds: the stored teams are
+        # already the earlier runs' one-hop closure, and expanding them again
+        # would walk the whole scene.
+        expand = set(team_ids)
+        frontier: set[int] = set(team_ids) | stored
         for hop in range(hops + 1):
             batch = sorted(frontier - seen)
             seen.update(batch)
@@ -389,10 +432,10 @@ def run(
             listings = pool.map(
                 lambda t: bf.guarded("listing", bf.history, t, cutoff_ts), batch
             )
-            for listed in listings:
+            for team, listed in zip(batch, listings, strict=True):
                 for e in listed or []:
                     events[int(e["id"])] = e
-                    if hop < hops:
+                    if hop < hops and team in expand:
                         for side in ("homeTeam", "awayTeam"):
                             oid = int((e.get(side) or {}).get("id") or 0)
                             if oid and oid not in seen:

@@ -590,3 +590,29 @@ def test_a_refusal_stops_the_run_and_cools_down(tmp_path: Path) -> None:
         tmp_path, FakeSofascore(), at=AT + backfill_cs2.COOLDOWN + timedelta(minutes=1)
     )
     assert later["verdict"] == "OK"
+
+
+def test_a_refused_search_does_not_stop_known_teams(tmp_path: Path) -> None:
+    """2026-09-28 19:41: /search/all answered 403 while /event and listings
+    answered 200. Known teams (cached, or already in the store) need no
+    search; the run goes on without it and is not a refusal of the run."""
+    from bet.sofa.errors import ProviderError
+
+    run(tmp_path, FakeSofascore(), hops=0)  # stores series of teams 1, 2
+
+    class SearchBlocked(FakeSofascore):
+        def search(self, q: str) -> dict[str, Any]:
+            raise ProviderError("HTTP 403")
+
+    # A new name no cache knows, next to the known ones.
+    day = tmp_path / "runs" / "cs2" / "2026-09-28"
+    day.mkdir(parents=True)
+    (day / "snapshots.jsonl").write_text(
+        json.dumps({"team1": "Nobody New", "team2": "magic", "lines": []}) + "\n"
+    )
+    blocked = SearchBlocked()
+    result = run(tmp_path, blocked, hops=0)
+    assert result["search_refused"] is True and result["refused"] is False
+    assert result["metrics"]["teams_listed"] >= 2  # 1 and 2, from cache and store
+    assert any(c.startswith("listing") for c in blocked.calls)
+    assert not (tmp_path / "runs" / "cs2" / "backfill_cooldown.json").exists()
