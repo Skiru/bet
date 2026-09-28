@@ -74,6 +74,12 @@ MAX_CANDIDATES = 5
 # full width against a service that has just said no.
 COOLDOWN = timedelta(hours=12)
 COOLDOWN_FILE = "backfill_cooldown.json"
+# /search/all alone refused (2026-09-28 19:41 and 20:01) while listings and
+# maps answered 200. Remembered so the next runs do not search at all: five
+# parallel 403s trip the client's shared breaker, which then refuses the
+# listings too - the 20:01 run skipped 402 of them that way.
+SEARCH_COOLDOWN = timedelta(hours=6)
+SEARCH_COOLDOWN_FILE = "search_cooldown.json"
 
 
 def is_refusal(exc: BaseException) -> bool:
@@ -87,8 +93,8 @@ def cooldown_path(runs_dir: str) -> Path:
     return Path(runs_dir) / "cs2" / COOLDOWN_FILE
 
 
-def cooldown_until(runs_dir: str) -> datetime | None:
-    path = cooldown_path(runs_dir)
+def cooldown_until(runs_dir: str, name: str = COOLDOWN_FILE) -> datetime | None:
+    path = Path(runs_dir) / "cs2" / name
     if not path.exists():
         return None
     try:
@@ -98,10 +104,16 @@ def cooldown_until(runs_dir: str) -> datetime | None:
         return None
 
 
-def start_cooldown(runs_dir: str, at: datetime, reason: str) -> None:
-    path = cooldown_path(runs_dir)
+def start_cooldown(
+    runs_dir: str,
+    at: datetime,
+    reason: str,
+    name: str = COOLDOWN_FILE,
+    length: timedelta = COOLDOWN,
+) -> None:
+    path = Path(runs_dir) / "cs2" / name
     path.parent.mkdir(parents=True, exist_ok=True)
-    until = (at + COOLDOWN).isoformat().replace("+00:00", "Z")
+    until = (at + length).isoformat().replace("+00:00", "Z")
     path.write_text(json.dumps({"until": until, "reason": reason}), encoding="utf-8")
 
 
@@ -367,9 +379,22 @@ def run(
     )
     cutoff_ts = int((at - timedelta(days=days)).timestamp())
 
+    search_until = cooldown_until(config.runs_dir, SEARCH_COOLDOWN_FILE)
+    if search_until is not None and at < search_until:
+        bf.search_refused = True  # known teams only this run; no search at all
+        stats.add("search_cooling_down", 1)
+
     def finish(verdict: str, **extra: Any) -> dict[str, Any]:
         if bf.refused:
             start_cooldown(config.runs_dir, at, "HTTP 403/429 from Sofascore")
+        if bf.search_refused and not stats.counts.get("search_cooling_down"):
+            start_cooldown(
+                config.runs_dir,
+                at,
+                "HTTP 403/429 from /search/all",
+                SEARCH_COOLDOWN_FILE,
+                SEARCH_COOLDOWN,
+            )
         return {
             "verdict": verdict,
             "breaker_open": bf.breaker_open,

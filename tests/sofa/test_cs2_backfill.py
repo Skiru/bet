@@ -616,3 +616,31 @@ def test_a_refused_search_does_not_stop_known_teams(tmp_path: Path) -> None:
     assert result["metrics"]["teams_listed"] >= 2  # 1 and 2, from cache and store
     assert any(c.startswith("listing") for c in blocked.calls)
     assert not (tmp_path / "runs" / "cs2" / "backfill_cooldown.json").exists()
+
+
+def test_a_refused_search_is_remembered_so_the_next_run_does_not_search(
+    tmp_path: Path,
+) -> None:
+    """20:01Z: the run searched again, five parallel 403s tripped the client's
+    shared breaker, and it refused 402 listings that would have answered 200."""
+    from bet.sofa.errors import ProviderError
+
+    class SearchBlocked(FakeSofascore):
+        def search(self, q: str) -> dict[str, Any]:
+            self.calls.append(f"search {q}")
+            raise ProviderError("HTTP 403")
+
+    run(tmp_path, SearchBlocked(), hops=0)
+    assert (tmp_path / "runs" / "cs2" / "search_cooldown.json").exists()
+    nxt = SearchBlocked()
+    result = run(tmp_path, nxt, hops=0, at=AT + timedelta(minutes=20))
+    assert not any(c.startswith("search") for c in nxt.calls)
+    assert result["metrics"]["search_cooling_down"] == 1
+    later = SearchBlocked()
+    run(
+        tmp_path,
+        later,
+        hops=0,
+        at=AT + backfill_cs2.SEARCH_COOLDOWN + timedelta(minutes=1),
+    )
+    assert any(c.startswith("search") for c in later.calls)  # asked again after it
