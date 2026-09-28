@@ -17,7 +17,12 @@ from dataclasses import dataclass
 # table because the Polish name never reached Sofascore's ("Czarnogóra" vs
 # "Montenegro" scored 30), and a miss holds for seven days - through the whole
 # international break.
-MATCH_LOGIC_VERSION = 4
+#
+# 5 (2026-09-28): search without the "(w)"/"(r)" markers, candidates filtered by
+# Sofascore's own team gender and squad level, the gender gate reads
+# team.gender. The women's and reserve misses were recorded by a search that
+# could not succeed.
+MATCH_LOGIC_VERSION = 5
 
 
 @dataclass(frozen=True)

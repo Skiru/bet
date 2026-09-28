@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -118,8 +119,29 @@ def superbet_gender(name: str) -> str:
     return "W" if any(m in lowered for m in _WOMEN_SUPERBET_MARKERS) else "M"
 
 
+def entity_gender(team: dict[str, Any]) -> str | None:
+    """Sofascore's own gender field on a team: "W", "M", or None if absent."""
+    raw = (team or {}).get("gender")
+    if raw == "F":
+        return "W"
+    if raw == "M":
+        return "M"
+    return None
+
+
 def sofascore_gender(event: dict[str, Any]) -> str:
-    """ "W" if this event's competition is a women's competition, else "M"."""
+    """ "W" if this is a women's match, else "M".
+
+    The teams carry Sofascore's own `gender` field, and it is read first. The
+    competition-name markers are only the fallback: they have no word for
+    "NWSL", "WE-League", "Liga F" or "Damallsvenskan", and so called 4,919
+    cached women's events (9.4% of them) men's - every one then failed the
+    gender gate below (2026-09-28).
+    """
+    for side in ("homeTeam", "awayTeam"):
+        gender = entity_gender(event.get(side) or {})
+        if gender is not None:
+            return gender
     tournament = event.get("tournament") or {}
     unique = tournament.get("uniqueTournament") or {}
     category = tournament.get("category") or {}
@@ -155,6 +177,42 @@ def orientation_is_reversed(
     direct = fuzz.ratio(a, home) + fuzz.ratio(b, away)
     crossed = fuzz.ratio(a, away) + fuzz.ratio(b, home)
     return crossed - direct > ORIENTATION_MARGIN
+
+
+_SQUAD_MARKER_SUFFIX = re.compile(r"(?:\s*\((?:w|r)\))+\s*$")
+
+
+def search_query(norm_side: str) -> str:
+    """The name to send to Sofascore's search: our squad markers removed.
+
+    "(w)" and "(r)" are this module's own notation, kept in the cache key so a
+    women's or reserve side never shares an entity with the senior men's one.
+    Sofascore's search does not know them and returns nothing: measured live
+    2026-09-28, "chicago red stars (w)", "pogon szczecin (w)", "rio ave (w)",
+    "club america (w)", "uks sms lodz (w)" and "ca penarol (r)" all came back
+    empty, and every one found its team without the marker. That was most of
+    the 481 women's names and 336 reserve names in sofa_entity_miss.
+    """
+    return _SQUAD_MARKER_SUFFIX.sub("", norm_side).strip()
+
+
+def candidate_fits(norm_side: str, entity: dict[str, Any], sport: str) -> bool:
+    """Can this search result be the side we are looking for at all?
+
+    Only three candidates get their listings fetched, and without the marker
+    the search ranks the senior men's club first: "rio ave" returns Rio Ave,
+    Rio Ave U23 and Rio Ave FC U19 before the women's Rio Ave FC. So a
+    candidate of the wrong gender or the wrong squad level is skipped before
+    it takes one of the three places. Gender is football only, for the reason
+    `match_quality` gives: a tennis side is a person and carries no marker.
+    """
+    if sport == "football":
+        gender = entity_gender(entity)
+        if gender is not None and gender != superbet_gender(norm_side):
+            return False
+    return levels_compatible(
+        search_query(norm_side), normalize_name(entity.get("name", ""))
+    ) or levels_compatible(norm_side, normalize_name(entity.get("name", "")))
 
 
 def split_match_name(match_name: str) -> tuple[str, str]:
@@ -362,7 +420,7 @@ class SofaResolver:
                     return cached["sofascore_id"], e, False
 
         # Miss -> search/all
-        search_data = self.client.search(norm_side)
+        search_data = self.client.search(search_query(norm_side))
         if not search_data or "results" not in search_data:
             self.cache.save_entity_miss(sport, norm_side)
             return None, None, False
@@ -372,6 +430,7 @@ class SofaResolver:
             if (
                 r.get("type") == "team"
                 and r.get("entity", {}).get("sport", {}).get("slug") == sport
+                and candidate_fits(norm_side, r["entity"], sport)
             ):
                 candidates.append(r["entity"])
             if len(candidates) == 3:
