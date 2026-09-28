@@ -33,6 +33,23 @@ REPO = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 
 
+def state_dir() -> Path:
+    import os
+
+    return REPO / os.environ.get("SOFA_RUNS_DIR", "runs/sofa") / "cs2"
+
+
+def pid_file(date: str) -> Path:
+    """Where a running day says it is alive; cs2_watchdog.py reads it."""
+    return state_dir() / f"daily_{date}.pid"
+
+
+def done_file(date: str) -> Path:
+    """Written when the day's last step has run; the watchdog then only
+    retries CS2_SETTLE, never the whole day again."""
+    return state_dir() / f"daily_{date}.done"
+
+
 def _at(date: str, hhmm: str, day_offset: int = 0) -> datetime:
     base = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC)
     hh, mm = (int(x) for x in hhmm.split(":"))
@@ -107,9 +124,19 @@ def main() -> int:
     ap.add_argument("--settle-at", default="05:00", help="HH:MM UTC the next day")
     ap.add_argument("--backfill-minutes", type=float, default=6.0)
     args = ap.parse_args()
+    import json
+    import os
+
     until = _at(args.date, args.snapshots_until)
     settle_at = _at(args.date, args.settle_at, day_offset=1)
-    return run(args.date, args.interval_min, until, settle_at, args.backfill_minutes)
+    pid_file(args.date).parent.mkdir(parents=True, exist_ok=True)
+    pid_file(args.date).write_text(str(os.getpid()), encoding="utf-8")
+    code = run(args.date, args.interval_min, until, settle_at, args.backfill_minutes)
+    done_file(args.date).write_text(
+        json.dumps({"exit": code, "at": datetime.now(UTC).isoformat()}),
+        encoding="utf-8",
+    )
+    return code
 
 
 if __name__ == "__main__":

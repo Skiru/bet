@@ -841,6 +841,13 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> \
     > runs/sofa/cs2/daily_<d>.log 2>&1 &
 ```
 
+Strażnik (`cs2_watchdog.py --dates <d1,d2> --until <UTC>`) co 5 min: wznawia
+padnięty `cs2_daily` (plik `daily_<d>.pid` bez `.done`), restartuje serwer
+bridge, gdy nie nasłuchuje, ponawia CS2_SETTLE co godzinę, dopóki są serie do
+ponowienia, i zgłasza `ALERT_TABS`, gdy karty przestały odpytywać — tego nie
+naprawi sam, bo wymaga zamknięcia Chrome. Każda linia logu zaczyna się od
+`WATCHDOG`.
+
 - **CS2** (`run_cs2.py`) pyta tylko Superbeta (sportId 55): każdą dwudrożną
   linię serii, która się jeszcze nie zaczęła, dopisuje do `snapshots.jsonl`.
 - **CS2_SETTLE** (`settle_cs2.py`) bierze ostatni kurs sprzed startu, znajduje
