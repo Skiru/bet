@@ -40,6 +40,7 @@ from bet.sofa.cs2 import (  # noqa: E402
     SETTLE_AFTER,
     SETTLED_FILE,
     SNAPSHOTS_FILE,
+    Cs2Line,
     SnapshotEvent,
     build_series,
     cs2_day_dir,
@@ -50,6 +51,14 @@ from bet.sofa.cs2 import (  # noqa: E402
     stats_missing,
     write_atomic,
 )
+from bet.sofa.cs2_engine import (  # noqa: E402
+    UNFITTED,
+    build_ratings,
+    load_history,
+    model_probability,
+)
+from bet.sofa.cs2_store import is_complete, save_series  # noqa: E402
+from bet.sofa.db import get_connection, migrate  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
@@ -61,9 +70,13 @@ from bet.sofa.timeutil import now  # noqa: E402
 # Superbet voiding the market.
 TERMINAL = {"SETTLED", "VOID", "UNUSUAL", "GAVE_UP"}
 RETRYABLE = {
-    "PENDING", "STATS_PENDING", "NOT_ON_SOFASCORE", "AMBIGUOUS", "DATA_MISMATCH",
+    "PENDING",
+    "STATS_PENDING",
+    "NOT_ON_SOFASCORE",
+    "AMBIGUOUS",
+    "DATA_MISMATCH",
     "ERROR",
-}  # fmt: skip
+}
 GIVE_UP_AFTER = timedelta(days=7)
 # Per-player rows land after the score; wait this long for them before
 # settling what can be settled without them.
@@ -116,7 +129,9 @@ def _needs_players(ev: SnapshotEvent) -> bool:
     return any(k[0].startswith("player_") or k[0] == "team_kills" for k in ev.sides)
 
 
-def settle_one(ev: SnapshotEvent, sofa: Cs2Sofascore, at: datetime) -> dict[str, Any]:
+def settle_one(
+    ev: SnapshotEvent, sofa: Cs2Sofascore, at: datetime, db_path: str | None = None
+) -> dict[str, Any]:
     kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
     record: dict[str, Any] = {
         "match_name": ev.match_name,
@@ -152,12 +167,21 @@ def settle_one(ev: SnapshotEvent, sofa: Cs2Sofascore, at: datetime) -> dict[str,
         for g in games:
             if g.get("hasCompleteStatistics"):
                 lineups[int(g["id"])] = sofa.client.esports_game_lineups(int(g["id"]))
+    if db_path is not None:
+        store_series(event, detail, games, lineups, at, kickoff, db_path, record)
     maps = build_series(detail, games, lineups, home_is_t1)
     if maps is None:
         return {**record, "state": "DATA_MISMATCH", "games": len(games)}
     if stats_missing(ev, maps) and at - kickoff < STATS_GRACE:
         return {**record, "state": "STATS_PENDING", "maps": len(maps)}
     graded, counts = settle_event(ev, maps)
+    if db_path is not None:
+        try:
+            attach_model(graded, ev, event, detail, home_is_t1, kickoff, db_path)
+        except Exception as exc:
+            # The grade stands without a model number; the audit's model
+            # section simply has fewer rows. Never the other way round.
+            record["model_error"] = f"{type(exc).__name__}: {exc}"
     return {
         **record,
         "state": "SETTLED",
@@ -168,8 +192,103 @@ def settle_one(ev: SnapshotEvent, sofa: Cs2Sofascore, at: datetime) -> dict[str,
     }
 
 
+def store_series(
+    event: dict[str, Any],
+    detail: dict[str, Any],
+    games: list[dict[str, Any]],
+    lineups: dict[int, dict[str, Any] | None],
+    at: datetime,
+    kickoff: datetime,
+    db_path: str,
+    record: dict[str, Any],
+) -> None:
+    """The graded series joins the history the backfill keeps.
+
+    Marked complete only when every finished map with statistics had its
+    lineup fetched here - settle asks for lineups only when a player line was
+    priced, and marking the rest complete would stop the backfill from ever
+    fetching them. A failed write is recorded, never turned into a failed
+    grade: the store is a by-product of settling, not its purpose.
+    """
+    fetched = {gid: rows for gid, rows in lineups.items() if rows is not None}
+    wanted = {
+        int(g["id"])
+        for g in games
+        if (g.get("status") or {}).get("type") == "finished"
+        and g.get("hasCompleteStatistics")
+    }
+    merged = {**event, **detail}
+    # None keeps whatever the store already says (a backfill's complete=1
+    # stays); only a run that fetched every lineup may set the flag itself.
+    complete: bool | None = (
+        is_complete(merged, games, fetched, at - kickoff)
+        if wanted <= set(fetched)
+        else None
+    )
+    try:
+        with get_connection(db_path) as conn:
+            save_series(
+                conn,
+                merged,
+                games,
+                fetched,
+                at.isoformat().replace("+00:00", "Z"),
+                complete,
+            )
+    except Exception as exc:
+        record["store_error"] = f"{type(exc).__name__}: {exc}"
+
+
+def attach_model(
+    graded: list[dict[str, Any]],
+    ev: SnapshotEvent,
+    event: dict[str, Any],
+    detail: dict[str, Any],
+    home_is_t1: bool,
+    kickoff: datetime,
+    db_path: str,
+) -> None:
+    """Put the engine's pre-match probability beside each graded side.
+
+    History is cut at the earlier of Superbet's kickoff and Sofascore's start,
+    and this series is excluded by id - Sofascore lists a series minutes
+    before Superbet's time, and a map of the graded series in its own history
+    would be the answer read back as a forecast.
+    """
+    sofa_start = int(event.get("startTimestamp") or kickoff.timestamp())
+    before = min(int(kickoff.timestamp()), sofa_start) - 60
+    with get_connection(db_path) as conn:
+        history = load_history(conn, before, int(event["id"]))
+    ratings = build_ratings(history)
+    home_id = int((event.get("homeTeam") or {}).get("id") or 0)
+    away_id = int((event.get("awayTeam") or {}).get("id") or 0)
+    t1_id, t2_id = (home_id, away_id) if home_is_t1 else (away_id, home_id)
+    best_of = int(detail.get("bestOf") or event.get("bestOf") or 3)
+    for row in graded:
+        line = Cs2Line(**{k: row[k] for k in Cs2Line.__dataclass_fields__})
+        mp = model_probability(
+            line,
+            t1_id,
+            t2_id,
+            ev.team1,
+            ev.team2,
+            best_of,
+            history,
+            ratings,
+            home_is_t1,
+        )
+        row["model_p"] = None if mp is None else round(mp.p, 4)
+        row["model_n"] = None if mp is None else mp.n
+        row["model"] = None if mp is None else mp.model
+        row["unfitted_constants"] = list(UNFITTED)
+
+
 def settle(
-    date: str, client: SofascoreClient, runs_dir: str, at: datetime
+    date: str,
+    client: SofascoreClient,
+    runs_dir: str,
+    at: datetime,
+    db_path: str | None = None,
 ) -> dict[str, Any]:
     day = cs2_day_dir(runs_dir, date)
     snaps_path = day / SNAPSHOTS_FILE
@@ -209,7 +328,7 @@ def settle(
             metrics["errors"] += 1
             continue
         try:
-            record = settle_one(ev, sofa, at)
+            record = settle_one(ev, sofa, at, db_path)
         except CircuitOpenError:
             breaker_open = True
             metrics["errors"] += 1
@@ -252,7 +371,10 @@ def main() -> int:
     parser.add_argument("--date", required=True)
     args = parser.parse_args()
     config = SofaConfig.from_env()
-    result = settle(args.date, SofascoreClient(config), config.runs_dir, now())
+    migrate(config.db_path)
+    result = settle(
+        args.date, SofascoreClient(config), config.runs_dir, now(), config.db_path
+    )
     print("SOFA_SUMMARY: " + json.dumps({"stage": "CS2_SETTLE", **result}), flush=True)
     return {"OK": 0, "PARTIAL": 1}.get(str(result["verdict"]), 2)
 

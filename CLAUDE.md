@@ -54,7 +54,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>        #
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2          # CS2 price snapshot, not the coupon
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE # grade D-1's CS2 lines (bridge)
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180    # CS2 history (results only; bridge)
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
@@ -135,7 +136,12 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   jobs and pay the same poll cycle. Defaults are 20 and 5.
 - **The browser is the binding limit, not Sofascore.** Nothing measured across
   2026-09-22 was ever refused by Sofascore — every collapse that day was our
-  own configuration or our own measurement.
+  own configuration or our own measurement. **First refusal on record:
+  2026-09-28, CS2_BACKFILL** — 5 × 403 on `/esports-game/*/lineups` after
+  ~8 min sustained at 13.8–14.2 req/s through five windows (per-minute p50
+  265–297 ms, ~3.1 s at the end); the breaker opened and skipped 61% of the
+  series. One event, not a measured limit — but a long single run at full
+  width is no longer known to be safe. Backfills run short and resume.
 - **Measure the round trip, not the wall clock around the client.** The token
   bucket sits *inside* `client.event_statistics()`, so timing that call
   reports our own rate limiting as if it were browser latency — it read a flat

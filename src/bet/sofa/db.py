@@ -102,6 +102,75 @@ def migrate(db_path: str) -> None:
             PRIMARY KEY (sofascore_entity_id, kind, page)
         );
         """,
+        # CS2 history (src/bet/sofa/cs2_store.py). One row per series, per map
+        # and per player-map, as Sofascore reports them - home/away as
+        # Sofascore has them, not oriented to any bookmaker. Written by
+        # backfill_cs2.py and CS2_SETTLE; read by nothing that builds a coupon.
+        """
+        CREATE TABLE IF NOT EXISTS cs2_series (
+            sofascore_event_id   INTEGER PRIMARY KEY,
+            start_ts             INTEGER NOT NULL,
+            tournament           TEXT,
+            unique_tournament_id INTEGER,
+            season_id            INTEGER,
+            home_id              INTEGER NOT NULL,
+            home_name            TEXT    NOT NULL,
+            away_id              INTEGER NOT NULL,
+            away_name            TEXT    NOT NULL,
+            home_maps            INTEGER,
+            away_maps            INTEGER,
+            best_of              INTEGER,
+            status_type          TEXT    NOT NULL,
+            status_description   TEXT,
+            complete             INTEGER NOT NULL DEFAULT 0,
+            fetched_at           TEXT    NOT NULL
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS cs2_map (
+            game_id             INTEGER PRIMARY KEY,
+            sofascore_event_id  INTEGER NOT NULL,
+            map_order           INTEGER NOT NULL,
+            map_name            TEXT,
+            start_ts            INTEGER,
+            length_s            INTEGER,
+            status_type         TEXT    NOT NULL,
+            home_rounds         INTEGER,
+            away_rounds         INTEGER,
+            home_period1        INTEGER,
+            home_period2        INTEGER,
+            home_overtime       INTEGER,
+            away_period1        INTEGER,
+            away_period2        INTEGER,
+            away_overtime       INTEGER,
+            home_starting_side  INTEGER,
+            winner_code         INTEGER,
+            has_complete_stats  INTEGER NOT NULL DEFAULT 0,
+            has_player_rows     INTEGER NOT NULL DEFAULT 0,
+            fetched_at          TEXT    NOT NULL
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS cs2_player_map (
+            game_id          INTEGER NOT NULL,
+            side             TEXT    NOT NULL,
+            player_id        INTEGER NOT NULL,
+            player_name      TEXT    NOT NULL,
+            kills            INTEGER,
+            deaths           INTEGER,
+            assists          INTEGER,
+            headshots        INTEGER,
+            flash_assists    INTEGER,
+            first_kills_diff INTEGER,
+            kd_diff          INTEGER,
+            adr              REAL,
+            kast             REAL,
+            PRIMARY KEY (game_id, side, player_id)
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS cs2_series_home ON cs2_series (home_id, start_ts);",
+        "CREATE INDEX IF NOT EXISTS cs2_series_away ON cs2_series (away_id, start_ts);",
+        "CREATE INDEX IF NOT EXISTS cs2_map_event ON cs2_map (sofascore_event_id);",
     ]
 
     # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is

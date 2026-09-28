@@ -427,3 +427,53 @@ def test_cs2_writes_beside_the_day_never_into_it(
         p.relative_to(tmp_path).parts[0] for p in tmp_path.rglob("*") if p.is_file()
     }
     assert written == {"cs2"}
+
+
+def test_audit_history_backtests_the_real_window(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first --history run scored 0 maps: its cut sat decades ahead and
+    the 365-day window behind it held nothing."""
+    import sqlite3
+    import time
+
+    from bet.sofa.cs2_store import save_series
+    from bet.sofa.db import migrate
+
+    dbp = str(tmp_path / "t.db")
+    migrate(dbp)
+    conn = sqlite3.connect(dbp)
+    now = int(time.time())
+    for i in range(40):
+        ev = {
+            "id": i + 1,
+            "startTimestamp": now - (40 - i) * 3600,
+            "homeTeam": {"id": 1, "name": "a"},
+            "awayTeam": {"id": 2, "name": "b"},
+            "homeScore": {"current": 1},
+            "awayScore": {"current": 0},
+            "status": {"type": "finished", "description": "Ended"},
+        }
+        games = [
+            {
+                "id": 1000 + i,
+                "startTimestamp": 1,
+                "status": {"type": "finished"},
+                "homeScore": {"display": 13},
+                "awayScore": {"display": 8},
+            }
+        ]
+        save_series(conn, ev, games, {}, "t", True)
+    conn.close()
+    monkeypatch.setenv("SOFA_DB_PATH", dbp)
+    monkeypatch.setenv("SOFA_RUNS_DIR", str(tmp_path))
+    monkeypatch.setattr("sys.argv", ["audit_cs2", "--history"])
+    import io
+    from contextlib import redirect_stdout
+
+    out = io.StringIO()
+    with redirect_stdout(out):
+        audit_cs2.main()
+    text = out.getvalue()
+    assert "series 40" in text
+    assert "coin): 0 maps predicted" not in text and "maps predicted" in text

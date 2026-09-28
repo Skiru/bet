@@ -20,8 +20,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,14 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import SETTLED_FILE, FamilyStats, cs2_day_dir, summarize  # noqa: E402
+from bet.sofa.cs2_engine import (  # noqa: E402
+    UNFITTED,
+    compare_to_price,
+    elo_backtest,
+    load_history,
+)
+from bet.sofa.cs2_store import history_summary  # noqa: E402
+from bet.sofa.db import get_connection, migrate  # noqa: E402
 
 
 def load(runs_dir: str, date_from: str, date_to: str) -> list[dict[str, Any]]:
@@ -100,6 +109,25 @@ def render(events: list[dict[str, Any]], date_from: str, date_to: str) -> list[s
     fav = summarize([r for r in rows if (r.get("fair_p") or 0) >= 0.5], "fair p >= 0.5")
     dog = summarize([r for r in rows if (r.get("fair_p") or 1) < 0.5], "fair p < 0.5")
     out += HEADER + [_row(s) for s in (fav, dog) if s]
+    out += ["", "## 3b. model against price (Brier, lower is better)", ""]
+    found = [compare_to_price(rs, fam) for fam, rs in by_family.items()]
+    comps = sorted((c for c in found if c is not None), key=lambda c: -c.sides)
+    overall = compare_to_price(rows, "ALL")
+    if not comps:
+        out.append("no graded side carries a model probability yet")
+    else:
+        out += [
+            "| family | series | sides | price | model | blend | model better |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for c in [*comps, *([overall] if overall else [])]:
+            out.append(
+                f"| {c.family} | {c.series} | {c.sides} | {c.brier_price:.4f} "
+                f"| {c.brier_model:.4f} | {c.brier_blend:.4f} "
+                f"| {'yes' if c.model_beats_price else 'no'} |"
+            )
+        out.append("")
+        out.append("UNFITTED_CONSTANTS: " + ", ".join(UNFITTED))
     out += [
         "",
         "ROI is flat, one unit per side, both sides of every line. The pooled",
@@ -108,13 +136,62 @@ def render(events: list[dict[str, Any]], date_from: str, date_to: str) -> list[s
     return out
 
 
+def render_history(summary: dict[str, Any]) -> list[str]:
+    """What the cs2_* tables hold: the history the CS2 engine reads."""
+
+    def day(ts: int | None) -> str:
+        return datetime.fromtimestamp(ts, UTC).strftime("%Y-%m-%d") if ts else "-"
+
+    out = [
+        "## 4. history (cs2_* in data/sofa.db)",
+        "",
+        f"series {summary['series']} (complete {summary['series_complete']}), "
+        f"{day(summary['first_ts'])}..{day(summary['last_ts'])}, "
+        f"teams {summary['teams']}",
+        f"finished maps {summary['maps_finished']}, with player rows "
+        f"{summary['maps_with_players']}, in overtime {summary['maps_overtime']}; "
+        f"player-map rows {summary['player_rows']}",
+        "",
+        "| tournament | series |",
+        "|---|---|",
+    ]
+    return out + [f"| {t} | {n} |" for t, n in summary["top_tournaments"]]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--from", dest="date_from", required=True)
-    parser.add_argument("--to", dest="date_to", required=True)
+    parser.add_argument("--from", dest="date_from")
+    parser.add_argument("--to", dest="date_to")
+    parser.add_argument(
+        "--history", action="store_true", help="also summarise the cs2_* tables"
+    )
     args = parser.parse_args()
-    events = load(SofaConfig.from_env().runs_dir, args.date_from, args.date_to)
-    print("\n".join(render(events, args.date_from, args.date_to)))
+    if not args.history and not (args.date_from and args.date_to):
+        parser.error("--from and --to, or --history")
+    config = SofaConfig.from_env()
+    lines: list[str] = []
+    if args.date_from and args.date_to:
+        events = load(config.runs_dir, args.date_from, args.date_to)
+        lines += render(events, args.date_from, args.date_to)
+    if args.history:
+        migrate(config.db_path)
+        with get_connection(config.db_path) as conn:
+            lines += ["", *render_history(history_summary(conn))]
+            # Cut at now: load_history's LOOKBACK_DAYS runs back from the cut,
+            # and a far-future cut once left the window empty ("0 maps").
+            bt = elo_backtest(load_history(conn, int(time.time()) + 1, None))
+
+        def fmt(v: float | None) -> str:
+            return f"{v:.4f}" if v is not None else "-"
+
+        lines += [
+            "",
+            f"Rating backtest (each series from the ratings at its start; 0.25 is a "
+            f"coin): {bt['maps_predicted']} maps predicted, held-out "
+            f"{bt['maps_held_out']}: raw Elo {fmt(bt['brier_raw_held_out'])}, "
+            f"calibrated {fmt(bt['brier_calibrated_held_out'])}.",
+        ]
+    print("\n".join(lines))
     return 0
 
 

@@ -843,6 +843,46 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
   kurs bez marży, trafialność, różnica, Brier, zwrot i marża; osobno faworyci
   i underdogi. Linie jednej serii są skorelowane — czytaj kolumnę `series`.
 
+**Historia i silnik.** `scripts/sofa/backfill_cs2.py --days 180` wczytuje z
+Sofascore historię CS2 do tabel `cs2_series`, `cs2_map`, `cs2_player_map` w
+`data/sofa.db`: serie, mapy (z dogrywką i połowami) i wiersze zawodników na
+mapę. Drużyny bierze z migawek Superbeta i dokłada ich rywali (jeden krok).
+Wznawialny — seria kompletna nie jest pytana ponownie; CS2_SETTLE dopisuje do
+tych tabel każdą rozliczoną serię. **Kursów historycznych nie ma** (API ofert
+Superbeta podaje tylko bieżącą tablicę), więc backfill nie przyspiesza pomiaru
+ceny — daje historię modelowi.
+
+Silnik (`src/bet/sofa/cs2_engine.py`) liczy dla każdej ocenionej linii
+prawdopodobieństwo z historii sprzed startu serii (cięcie na wcześniejszym z
+dwóch zegarów, rozliczana seria wykluczona po id):
+
+- zwycięzca mapy i meczu — Elo na mapach, skalibrowane regresją logistyczną
+  z członem gospodarza na własnych przewidywaniach „walk-forward” (tylko
+  dane sprzed cięcia), i dokładny rozkład wyniku serii (Bo1/Bo2/Bo3/Bo5);
+- zabójstwa/śmierci/asysty/headshoty zawodnika i zabójstwa drużyny —
+  rozkład ujemny dwumianowy z `engine.nb_survival` (ostatnie ≤20 map), a gdy
+  wariancja nie przekracza średniej — normalny z poprawką ciągłości;
+- rundy na mapie — sama częstość bazowa z historii; rundy drużyny na mapie —
+  częstość drużyny ściągnięta do częstości bazowej.
+
+**Liczba map, handicap map i mapy drużyny nie dostają liczby.** Model ze
+stałym p na mapę zawyżał serie trzymapowe (0,482 wobec 0,424 na 876 Bo3) —
+prawdziwe serie są bardziej jednostronne. Na linii całkowitej remis (void)
+jest wyłączany z obu stron. Zmierzone na historii 2026-09-28: zwycięzca
+meczu 0,2423 wobec 0,2462 dla stałej, statystyki zawodników ≈ moneta —
+silnik ledwo bije częstość bazową, a z ceną porównuje go dopiero CS2_SETTLE.
+
+Backfill po odmowie Sofascore (403/429) zatrzymuje się od razu i zapisuje
+`runs/sofa/cs2/backfill_cooldown.json` — kolejne uruchomienie odmawia startu
+przez 12 h (`--force`, żeby nadpisać). Domyślnie `--max-minutes 6`: jedyna
+odmowa w historii przyszła po ~8 min pełnej szerokości; backfill jest
+wznawialny, więc uruchamia się go krótko i wielokrotnie.
+
+Pozostałe rodziny nie dostają liczby (nigdy zgadywanej). Stałe silnika są
+`UNFITTED` i tak raportowane. `audit_cs2.py` sekcja 3b porównuje Brier kursu,
+modelu i ich średniej na tych samych stronach; `--history` pokazuje zawartość
+tabel i Brier Elo w teście wstecznym na historii.
+
 Oceniane rodziny: zwycięzca meczu i mapy, liczba i handicap map, rundy (mecz,
 mapa, drużyna) i handicap rund, zabójstwa drużyny na mapie oraz zabójstwa,
 śmierci, headshoty i asysty zawodnika na mapie. Pomijane: zabójstwa z AWP

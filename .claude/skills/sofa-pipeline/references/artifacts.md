@@ -203,6 +203,24 @@ Beside the day, never inside it; no coupon stage reads it. Two stages outside
   `VOID` (cancelled, or still ungraded 48 h after the start - Superbet's own
   rule). SETTLED/VOID/UNUSUAL are never asked again.
 
+**History and engine.** `scripts/sofa/backfill_cs2.py` (stage name
+CS2_BACKFILL, not in STAGE_MODULES - it takes `--days/--hops/--max-minutes`)
+fills `cs2_series` / `cs2_map` / `cs2_player_map` in `data/sofa.db` from
+Sofascore, Sofascore's home/away kept as is; CS2_SETTLE also writes each
+series it grades. Results only - Superbet's offer API has no history. Each
+graded side then carries `model_p` / `model_n` / `model` /
+`unfitted_constants` from `src/bet/sofa/cs2_engine.py`: map Elo calibrated
+by a logistic fit with a home term on its own pre-cut walk-forward
+predictions, plus an exact best-of series distribution, for map_winner and
+match_winner only; a negative binomial (`engine.nb_survival`, or a
+continuity-corrected normal when under-dispersed) for player stats and team
+kills; the history base rate for map_rounds_total and a base-rate-shrunk
+frequency for map_team_rounds. maps_total / maps_handicap / team_maps get
+`null`: the constant-p series overpredicted three-map series. P(side | no
+push) on integer lines. History cut at the earlier of the two kickoffs, the
+graded series excluded by id. A backfill that meets a 403/429 stops and
+writes `runs/sofa/cs2/backfill_cooldown.json` (12 h; `--force`).
+
 `audit_cs2.py --from --to` reports coverage and price-against-outcome per
 family. It is a measurement of Superbet's price: CS2 has no calibration curve,
 so CONFIDENCE would refuse every CS2 row (`NOT_CALIBRATED`) even if one
