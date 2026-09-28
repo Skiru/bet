@@ -166,7 +166,10 @@ def _event_payload(
     if not is_completed_event(event):
         return unfinished_reason(event)
 
-    cached = cache.get_event_stats(event_id)
+    start = event.get("startTimestamp")
+    cached = cache.get_event_stats(
+        event_id, kickoff_ts=int(start) if isinstance(start, (int, float)) else None
+    )
     if cached:
         statistics, incidents, _ = cached
         return event, statistics, incidents

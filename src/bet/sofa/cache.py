@@ -7,6 +7,60 @@ from bet.sofa.config import MATCH_LOGIC_VERSION, SofaConfig
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.timeutil import now
 
+# Sofascore publishes a lower-league match's /statistics in two steps: the
+# cards within a day of the final whistle, the full set - corners, shots,
+# fouls - days later. A finished match was cached forever, so whatever came
+# first stayed: event 15275908 was cached 2026-09-21 with 2 keys and had 31 on
+# 2026-09-28, and 27 of 2026-09-27's 33 stat-gap SETTLE skips (281 rows) sat
+# on such rows. Measured live on 2026-09-28: cards-only rows fetched within a
+# day of kick-off and 4-10 days old recovered 10/12, empty rows in a covered
+# league 5+ days old 5/6, rows only <= 2 days old 2/13 (Sofascore had not
+# filled them yet), rows fetched a week after kick-off 0/8.
+PROVISIONAL_FETCH_HOURS = 72.0
+REFETCH_AFTER_DAYS = 4.0
+_EARLY_SNAPSHOT_KEYS = frozenset({"yellowCards", "redCards"})
+
+
+def _all_period_keys(statistics_json: str | None) -> frozenset[str]:
+    if not statistics_json:
+        return frozenset()
+    try:
+        body = json.loads(statistics_json)
+    except ValueError:
+        return frozenset()
+    return frozenset(
+        item.get("key")
+        for period in body.get("statistics") or []
+        if period.get("period") == "ALL"
+        for group in period.get("groups") or []
+        for item in group.get("statisticsItems") or []
+        if isinstance(item.get("key"), str)
+    )
+
+
+def is_provisional(
+    statistics_json: str | None,
+    fetched_at: str,
+    kickoff_ts: int,
+    at: datetime,
+) -> bool:
+    """A cached row that is Sofascore's early snapshot and worth asking again.
+
+    All three: fetched within PROVISIONAL_FETCH_HOURS of kick-off; nothing or
+    cards only; the match now at least REFETCH_AFTER_DAYS old. A re-fetch
+    stamps a late fetched_at, so the row is final after one more ask - a
+    league that only ever publishes cards costs one request per match, once.
+    """
+    fetched = datetime.fromisoformat(fetched_at)
+    if fetched.tzinfo is None:
+        fetched = fetched.replace(tzinfo=at.tzinfo)
+    fetch_lag_h = (fetched.timestamp() - kickoff_ts) / 3600.0
+    if fetch_lag_h >= PROVISIONAL_FETCH_HOURS:
+        return False
+    if (at.timestamp() - kickoff_ts) / 86400.0 < REFETCH_AFTER_DAYS:
+        return False
+    return _all_period_keys(statistics_json) <= _EARLY_SNAPSHOT_KEYS
+
 
 class SofaCache:
     def __init__(self, config: SofaConfig) -> None:
@@ -22,18 +76,26 @@ class SofaCache:
         migrate(config.db_path)
 
     def get_event_stats(
-        self, sofascore_event_id: int
+        self, sofascore_event_id: int, kickoff_ts: int | None = None
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str] | None:
         """
         Zwraca krotkę (statistics, incidents, status_type) lub None jeśli brak w bazie.
         None w tuple = nie pobrano. {} = pobrano i zwróciło 404.
+
+        With ``kickoff_ts`` a provisional row reads as a miss, so the caller
+        asks again (see ``is_provisional``). Without it the row is final, as
+        it always was.
         """
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
-                "SELECT statistics_json, incidents_json, status_type "
+                "SELECT statistics_json, incidents_json, status_type, fetched_at "
                 "FROM sofa_event_stats WHERE sofascore_event_id = ?",
                 (sofascore_event_id,),
             ).fetchone()
+            if row and kickoff_ts is not None and is_provisional(
+                row["statistics_json"], row["fetched_at"], kickoff_ts, now()
+            ):
+                return None
             if row:
                 stats = (
                     cast(dict[str, Any], json.loads(row["statistics_json"]))

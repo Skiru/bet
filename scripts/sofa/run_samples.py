@@ -204,9 +204,9 @@ def main() -> int:
     # is worse than no counter.
     counter_lock = threading.Lock()
 
-    def tracked_get_event_stats(event_id: int) -> Any:
+    def tracked_get_event_stats(event_id: int, kickoff_ts: int | None = None) -> Any:
         nonlocal cache_hits, network_requests
-        result = original_get_event_stats(event_id)
+        result = original_get_event_stats(event_id, kickoff_ts=kickoff_ts)
         with counter_lock:
             if result:
                 cache_hits += 1

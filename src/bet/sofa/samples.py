@@ -461,7 +461,12 @@ def process_historical_event(
 ) -> dict[str, Any]:
     event_id = event["id"]
 
-    cached_stats = cache.get_event_stats(event_id)
+    # With the kick-off, an early cards-only snapshot is asked again once the
+    # match is old enough for Sofascore to have filled it in (see cache.py).
+    start = event.get("startTimestamp")
+    cached_stats = cache.get_event_stats(
+        event_id, kickoff_ts=int(start) if isinstance(start, (int, float)) else None
+    )
     if cached_stats:
         statistics_json, incidents_json, _ = cached_stats
     else:
