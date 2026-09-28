@@ -249,6 +249,19 @@ MAX_BUILDER_SAMPLE_AGE_DAYS = 180
 # these tables are 2026-09-19. The mechanism is certain because it follows
 # from the code; the magnitudes are not, and this constant should be refitted
 # once a second day of legs has settled.
+#
+# Re-measured 2026-09-26 on the settled confidence legs of 22-25.09, and now
+# re-measured every morning in audit_settlement section 7g:
+#
+#     legs of            margin          n     ROI
+#     the coupon       <= 10.5%         78    -4.6%
+#                     10.5 - 15%        50   -12.8%   (+32.6% on 09-25 alone)
+#     the variant      <= 10.5%        570    -3.2%
+#                     10.5 - 15%       100    -2.0%
+#
+# 09-25 on its own said "loosen" (the five legs this kept off the PDF all won:
+# -0.1% would have been +6.4%); the coupon's four days say keep, the variant's
+# three show no difference. Not enough to move it either way, so it stays.
 MAX_OVERROUND = 0.105
 
 
@@ -382,6 +395,25 @@ def printed_singles(artifact: dict[str, Any]) -> list[dict[str, Any]]:
     return singles if limit is None else singles[:limit]
 
 
+def fixture_leg_counts(singles: list[dict[str, Any]]) -> dict[int, int]:
+    """How many of these singles stand on each fixture.
+
+    Singles of one match win and lose together, so three of them are one bet
+    cut into three pieces - on 2026-09-25 Boyaca Chico - Pasto carried three
+    printed singles (1 won, 2 lost, -1.47 u of the day's -0.02) and nothing on
+    the page said they were one match. The count is shown, not enforced: a cap
+    of one leg per match, back-tested on the settled PDFs of 22-25.09, took the
+    coupon from +0.1% to -3.5% (n=54 -> 50) and the variant from -3.3% to
+    -3.8% (n=599 -> 292). It halves the variant's exposure; it does not
+    improve the return, so it is the operator's call, not a gate.
+    """
+    counts: dict[int, int] = {}
+    for leg in singles:
+        eid = int(leg["sofascore_event_id"])
+        counts[eid] = counts.get(eid, 0) + 1
+    return counts
+
+
 def confidence_artifact(profile: ConfidenceProfile) -> str:
     """08_confidence.json, or the variant's own file."""
     return f"08_confidence{profile.suffix}.json"
@@ -487,6 +519,11 @@ def displayed_ev(builder: dict) -> float | None:
     return value
 
 
+def direction_key(market: str, direction: str) -> str:
+    """`goals_for|OVER` - the key of a market's per-direction curve."""
+    return f"{market}|{direction.upper()}"
+
+
 @dataclass(frozen=True)
 class Calibration:
     pooled: dict[str, dict]
@@ -494,6 +531,17 @@ class Calibration:
     # Pooled per sport. The global pool is ~95% football counting markets, so
     # serving a tennis metric from it hands tennis football's shape.
     pooled_by_sport: dict[str, dict[str, dict[str, Any]]] = field(
+        default_factory=dict
+    )
+    # The market's curve split by direction, keyed by `direction_key`. OVER
+    # and UNDER of one rung are complements, so the market curve pools two
+    # different populations and describes neither. Measured 2026-09-26 on
+    # the live (non-cache) settled rows, the pooled lookup overstated football
+    # team OVER legs by 3.0 pp (realised 0.731, printed 0.761, n=3,940) and the
+    # per-direction lookup by 1.9 pp; goals_for OVER went from -2.8 to -1.3.
+    # A file fitted before this existed has no such section and reads exactly
+    # as it always did.
+    by_market_direction: dict[str, dict[str, dict[str, Any]]] = field(
         default_factory=dict
     )
 
@@ -504,7 +552,28 @@ class Calibration:
             pooled=doc.get("pooled", {}),
             by_market=doc.get("by_market", {}),
             pooled_by_sport=doc.get("pooled_by_sport", {}),
+            by_market_direction=doc.get("by_market_direction", {}),
         )
+
+    def _direction_entry(
+        self, market: str, direction: str | None, p: float
+    ) -> tuple[dict[str, Any], str] | None:
+        """This direction's own bucket for `p`, if the fit measured one.
+
+        Only a bucket the direction actually has. A direction curve is the
+        market's rows split in two, so its top buckets are often under
+        MIN_MARKET_BUCKET where the market's are not - that is thinness, not
+        a measurement, and must not refuse a leg the market curve describes.
+        Back-tested before this was settled: treating the direction's range
+        as a ceiling refused goals_2h_total and tiebreaks_total legs on every
+        day 22-25.09 on no evidence at all. Where the direction is silent the
+        lookup is exactly what it was before 2026-09-26.
+        """
+        if not direction:
+            return None
+        key = direction_key(market, direction)
+        entry = self._find(self.by_market_direction.get(key, {}), p)
+        return (entry, f"market:{key}") if entry is not None else None
 
     @staticmethod
     def _find(curve: dict[str, dict], p: float) -> dict | None:
@@ -515,7 +584,11 @@ class Calibration:
         return None
 
     def realised(
-        self, market: str, p: float, sport: str | None = None
+        self,
+        market: str,
+        p: float,
+        sport: str | None = None,
+        direction: str | None = None,
     ) -> tuple[float, str, int] | None:
         """The measured lower bound for this market at this claimed probability.
 
@@ -524,7 +597,15 @@ class Calibration:
         caller must refuse the leg rather than fall back to `p`. Falling back
         to the model's own number is precisely the untested claim this module
         exists to stop making.
+
+        `direction` selects the market's per-direction curve where the file
+        has a bucket for `p` (see `_direction_entry`); without one the lookup
+        is the pooled market curve, as it was before 2026-09-26.
         """
+        by_direction = self._direction_entry(market, direction, p)
+        if by_direction is not None:
+            entry, source = by_direction
+            return entry["realised_lo95"], source, entry["n"]
         own = self.by_market.get(market, {})
         entry = self._find(own, p)
         if entry is not None:

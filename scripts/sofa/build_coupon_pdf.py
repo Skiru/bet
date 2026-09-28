@@ -44,6 +44,7 @@ from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
     confidence_artifact,
     displayed_ev,
+    fixture_leg_counts,
     is_stakeable,
     printed_singles,
     quantity_family,
@@ -384,12 +385,25 @@ def main() -> int:
         shead = ("#", "mecz", "rynek", "linia", "pewność", "kurs", "x",
                  "marża", "próbka")
         srows = [[Paragraph(h, SMALL) for h in shead]]
+        # See fixture_leg_counts: singles of one match are one bet in pieces.
+        per_fixture = fixture_leg_counts(singles)
+        shared = sum(1 for n in per_fixture.values() if n > 1)
+        if shared:
+            S.append(Paragraph(
+                f"<b>{shared} mecz(e/ów) ma na tej liście więcej niż jedną "
+                "nogę</b> — oznaczone 'ten sam mecz: N nóg'. Takie nogi "
+                "wygrywają i przegrywają razem: to jeden zakład w kawałkach, "
+                "nie kilka niezależnych.", SMALL))
+            S.append(Spacer(1, 3))
         for i, leg in enumerate(singles, 1):
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
+            n_same = per_fixture[int(leg["sofascore_event_id"])]
+            same = (f"<br/><font size=6.5 color='#b23b3b'>ten sam mecz: "
+                    f"{n_same} nóg</font>" if n_same > 1 else "")
             srows.append([
                 Paragraph(str(i), SMALL),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
-                          f"{leg['kickoff_utc'][11:16]}Z</font>", SMALL),
+                          f"{leg['kickoff_utc'][11:16]}Z</font>{same}", SMALL),
                 Paragraph(f"{leg['market']}{subj}", SMALL),
                 Paragraph(f"{leg['line']} {leg['direction']}", SMALL),
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", SMALL),

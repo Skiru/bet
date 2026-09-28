@@ -26,6 +26,7 @@ import json
 import sqlite3
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,8 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
+from scripts.sofa.audit_trend import build_trend  # noqa: E402
+from scripts.sofa.audit_trend import render as render_trend  # noqa: E402
 from scripts.sofa.audit_vetoes import audit_day  # noqa: E402
 from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 
@@ -100,6 +103,19 @@ def _load_settled(db_path: str, run_date: str) -> list[dict]:
         )]
     finally:
         conn.close()
+
+
+def _settled_artifact_loader(
+    runs_dir: Path,
+) -> Callable[[str], list[dict[str, Any]]]:
+    """day -> that day's 07_settled.json rows (empty when the day is unsettled)."""
+    def load(day: str) -> list[dict[str, Any]]:
+        path = runs_dir / day / "07_settled.json"
+        if not path.exists():
+            return []
+        rows: list[dict[str, Any]] = json.loads(path.read_text(encoding="utf-8"))
+        return rows
+    return load
 
 
 def _outcome_block(title: str, rows: list[dict]) -> str:
@@ -697,6 +713,20 @@ def main() -> int:
         lines.extend(render_boosts(
             audit_boosts_day(run_dir, settled_db),
             "## 7f. Boosty Superbeta — czy wchodzą (nie kupon)"))
+
+    # ---- 7g. every settled day so far: margin bands and market classes ----
+    #
+    # One day's result proposes a conclusion several days refuse: 2026-09-25
+    # said "loosen MAX_OVERROUND" (+6.4% instead of -0.1%), 22-25.09 said the
+    # band above it returns -12.8% against -4.6%. See audit_trend.
+    #
+    # Read from each day's 07_settled.json, not the database: run_date has no
+    # index, and one query per day is a full scan of 26M cache rows. Section 9
+    # reports whether the two agree for this day.
+    lines.extend(render_trend(
+        build_trend(Path(config.runs_dir), args.date, _settled_artifact_loader(
+            Path(config.runs_dir))),
+        "## 7g. Wiele dni — marża drabiny i klasy rynku (obserwacja, nie bramka)"))
 
     # ---- 8. kalibracja ---------------------------------------------------
     A("## 8. Kalibracja — czy 70% znaczy 70%")

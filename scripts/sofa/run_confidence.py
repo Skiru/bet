@@ -48,6 +48,7 @@ from bet.sofa.confidence import (  # noqa: E402
     combined_probability,
     empirical_joint,
     fair_odds,
+    fixture_leg_counts,
     has_unreachable_bar_note,
     joint_probability,
     PROFILES,
@@ -399,7 +400,9 @@ def main() -> int:
             refused["DERIVED_NOT_CALIBRATABLE"] += 1
             continue
 
-        hit = cal.realised(row["market"], row["p_central"], row.get("sport"))
+        hit = cal.realised(
+            row["market"], row["p_central"], row.get("sport"), row["direction"]
+        )
         if hit is None:
             # No measurement for this bucket. The model's own number is not a
             # substitute for one, so the leg is refused rather than guessed.
@@ -736,14 +739,18 @@ def main() -> int:
         " start |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
+    # See fixture_leg_counts: singles of one match are one bet in pieces.
+    per_fixture = fixture_leg_counts(singles[:40])
     for leg in singles[:40]:
         subj = f" {leg['subject']}" if leg["subject"] else ""
+        n_same = per_fixture[int(leg["sofascore_event_id"])]
+        same = f" (ten sam mecz: {n_same} nóg)" if n_same > 1 else ""
         lines.append(
             f"| {leg['confidence']:.3f} | {leg['offered_odds']} | "
             f"{leg['leg_ev'] + 1.0:.2f} | "
             f"{leg['overround']:.1%} | {leg['sample_size']} | "
             f"{leg['market']}{subj} | {leg['line']} {leg['direction']} | "
-            f"{leg['match']} | {leg['kickoff_utc'][11:16]}Z |"
+            f"{leg['match']}{same} | {leg['kickoff_utc'][11:16]}Z |"
         )
     if not singles:
         lines.append("| — | — | — | — | brak nóg na uczciwej drabinie | — | — | — |")

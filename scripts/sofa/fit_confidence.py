@@ -33,6 +33,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa.confidence import direction_key  # noqa: E402
 from bet.sofa.engine import (  # noqa: E402
     NORMAL_NON_COUNT_METRICS,
     calc_p_central_nb_raw,
@@ -88,6 +89,15 @@ def main() -> int:
     )
 
     per_market: dict[str, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
+    # Per market AND direction. OVER and UNDER of one rung are complements, so
+    # a curve that pools them describes neither: measured 2026-09-25 in the
+    # 0.70-0.75 bucket, goals_for OVER realised 0.646 (n=20,396) against UNDER
+    # 0.817, and the pooled 0.7177 put "Pasto to score O0.5 @1.44" on the PDF
+    # at x=1.03 when its own direction said x~0.93. The coupon is mostly
+    # UNDER, so the pooled curve is an UNDER curve that OVER legs borrow.
+    per_market_direction: dict[str, dict[int, list[int]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     pooled: dict[int, list[int]] = defaultdict(list)
     # Pooled per sport. A global pool is 95% football counting markets, so a
     # tennis metric borrowing it borrows football's shape — which is how
@@ -146,6 +156,7 @@ def main() -> int:
         hit = 1 if ((actual > line) if direction == "OVER" else (actual < line)) else 0
         b = bucket_of(p)
         per_market[market][b].append(hit)
+        per_market_direction[direction_key(market, direction)][b].append(hit)
         pooled[b].append(hit)
         if sport:
             pooled_by_sport[sport][b].append(hit)
@@ -167,6 +178,11 @@ def main() -> int:
             }
         return out
 
+    by_direction = {
+        m: c
+        for m, counts in per_market_direction.items()
+        if (c := curve(counts, MIN_MARKET_BUCKET))
+    }
     doc = {
         "_doc": (
             "What the model's probability turns into in practice. Fitted by "
@@ -175,7 +191,9 @@ def main() -> int:
             "one; a bucket absent from all three means the confidence view "
             "refuses the row rather than guessing. A market is never served "
             "from a pool ABOVE the top of its own measured range - see "
-            "Calibration.realised."
+            "Calibration.realised. by_market_direction is the same curve "
+            "split by OVER/UNDER and is read first; the two directions of one "
+            "rung are complements, so the pooled curve describes neither."
         ),
         "fitted_from": {"db_path": args.db_path, "scored_rows": scored},
         "min_market_bucket": MIN_MARKET_BUCKET,
@@ -190,6 +208,7 @@ def main() -> int:
             for m, counts in per_market.items()
             if (c := curve(counts, MIN_MARKET_BUCKET))
         },
+        "by_market_direction": by_direction,
     }
     Path(args.out).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
     print(
@@ -200,6 +219,7 @@ def main() -> int:
                 "metrics": {
                     "scored_rows": scored,
                     "markets": len(doc["by_market"]),
+                    "market_directions": len(by_direction),
                     "pooled_buckets": len(doc["pooled"]),
                     "pooled_by_sport": {
                         sp: len(c) for sp, c in doc["pooled_by_sport"].items()
