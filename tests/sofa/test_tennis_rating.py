@@ -167,20 +167,30 @@ def test_fit_logistic_recovers_known_coefficients():
     assert w[2] == pytest.approx(-0.5, abs=0.1)
 
 
-def test_a_config_fitted_on_other_features_is_refused(tmp_path: Path):
+def test_a_config_the_book_cannot_apply_is_refused(tmp_path: Path):
+    # Applied by name, so a subset is fine - but an unknown name, a repeat or
+    # a coefficient count that does not match would weight the wrong column.
     path = tmp_path / "tennis_rating.json"
-    path.write_text(json.dumps({"features": ["lp"], "tiers": {}}))
-    with pytest.raises(ValueError):
-        load_coefficients(path)
+    for bad in (
+        {"features": ["lp", "elo_of_the_moon"],
+         "tiers": {"ITF": {"coefficients": [0, 1, 1]}}},
+        {"features": ["lp", "lp"], "tiers": {"ITF": {"coefficients": [0, 1, 1]}}},
+        {"features": ["lp", "lps"], "tiers": {"ITF": {"coefficients": [0, 1]}}},
+        {"features": [], "tiers": {}},
+    ):
+        path.write_text(json.dumps(bad))
+        with pytest.raises(ValueError):
+            load_coefficients(path)
     assert load_coefficients(tmp_path / "absent.json") is None
 
 
-def test_the_checked_in_config_matches_the_features():
+def test_the_checked_in_config_names_features_the_book_computes():
     loaded = load_coefficients()
     assert loaded is not None, "config/tennis_rating.json must be checked in"
     coefficients, meta = loaded
     assert set(coefficients) == {"ITF", "CH", "TOUR"}
-    assert all(len(c) == len(FEATURES) + 1 for c in coefficients.values())
+    assert set(meta["features"]) <= set(FEATURES)
+    assert all(len(c) == len(meta["features"]) + 1 for c in coefficients.values())
     assert meta["fitted_from"]["cut_utc"].startswith("2026-09-17")
 
 

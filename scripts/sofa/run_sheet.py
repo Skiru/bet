@@ -582,10 +582,12 @@ def load_tennis_rating(
     if loaded is None:
         logger.warning("sheet: config/tennis_rating.json absent, tennis unrated")
         return None
-    coefficients, _meta = loaded
+    coefficients, meta = loaded
     cut = datetime.strptime(run_date, "%Y-%m-%d").replace(tzinfo=UTC)
     history = load_history(config.db_path)
-    return build_model(history, coefficients, int(cut.timestamp()))
+    return build_model(
+        history, coefficients, int(cut.timestamp()), names=meta["features"]
+    )
 
 
 def tennis_forecast(

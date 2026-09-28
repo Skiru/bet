@@ -23,7 +23,20 @@ What it is, in order:
        - back from more than 21 days without a match (-4.1);
        - matches in the previous 7 days (-2.6);
        - recent Elo change - "form" - which *reverses* slightly once the
-         rating is known (-2.0).
+         rating is known (-2.0);
+       - the difference in the two players' share of matches above ITF and
+         at tour level ("dhigh", "dtour"). One Elo pool treats 1,630 earned
+         in ITF and 1,740 earned on the WTA tour as the same currency, and
+         the pools barely mix, so a player who has only ever beaten ITF
+         opposition is rated as if that were tour opposition. Measured on
+         the history before 2026-09-17: the lower-tier side of a match whose
+         profile gap is 0.7-1.0 was forecast 0.491 and won 0.255 (n=1,303),
+         +23.6 pp, and the error grew monotonically with the gap in every
+         tier group. Out of sample (2026-09-17..27, 1,933 matches), refitted
+         on the same history: 6 features 0.2073, these 8 features 0.1983
+         (the 09-23 config scores 0.2081). Found 2026-09-28 on Ruien
+         Zhang (55 of 58 matches ITF) v Storm Hunter (30 of 40 WTA): rated
+         0.409 to win, Superbet 0.044 devigged.
      Raw Elo is overconfident, least at ITF (slope 0.88) and most at
      Challenger (0.59); this layer is what corrects it. The coefficients are
      fitted by ``scripts/sofa/fit_tennis_rating.py`` into
@@ -58,7 +71,13 @@ DEFAULT_CONFIG = Path("config/tennis_rating.json")
 
 MIN_RATED = 10
 NEIGHBOURS = 600
-FEATURES: tuple[str, ...] = ("lp", "lps", "dmin78", "drest", "dn7", "dform")
+# Every feature the book can compute. A fitted config names the subset and the
+# order its coefficients were fitted on, and is applied by name - so a config
+# fitted before a feature existed keeps pricing exactly as it did until it is
+# deliberately re-fitted (never mid-day).
+FEATURES: tuple[str, ...] = (
+    "lp", "lps", "dmin78", "drest", "dn7", "dform", "dhigh", "dtour",
+)
 REST_DAYS = 21.0
 
 # The rating's weight against the devigged price, the same weight the sample
@@ -239,9 +258,21 @@ class RatingBook:
         self.n: dict[int, int] = defaultdict(int)
         self.n_surface: dict[tuple[int, str], int] = defaultdict(int)
         self.log: dict[int, _PlayerLog] = defaultdict(_PlayerLog)
+        # Every match played (retirements included), and those above ITF /
+        # at tour level: the tier profile the Elo alone cannot see.
+        self.played: dict[int, int] = defaultdict(int)
+        self.played_high: dict[int, int] = defaultdict(int)
+        self.played_tour: dict[int, int] = defaultdict(int)
 
     def rated(self, player: int) -> int:
         return self.n[player]
+
+    def _shares(self, player: int) -> tuple[float, float]:
+        """(share of matches above ITF, share at tour level); 0 if none."""
+        total = self.played[player]
+        if total == 0:
+            return 0.0, 0.0
+        return self.played_high[player] / total, self.played_tour[player] / total
 
     def _context(self, player: int, ts: int) -> tuple[float, float, int, float]:
         """(minutes in 78 h, 1 if back from > REST_DAYS, matches in 7 d, form)."""
@@ -272,6 +303,8 @@ class RatingBook:
         p_overall = 1.0 / (1.0 + 10 ** (gap / 400.0))
         mh, rh, nh, fh = self._context(home, ts)
         ma, ra, na, fa = self._context(away, ts)
+        hh, th = self._shares(home)
+        ha, ta = self._shares(away)
         return {
             "lp": _logit(p_overall),
             "lps": _logit(p_blend),
@@ -279,11 +312,16 @@ class RatingBook:
             "drest": rh - ra,
             "dn7": float(nh - na),
             "dform": (fh - fa) / 100.0,
+            "dhigh": hh - ha,
+            "dtour": th - ta,
         }
 
     def update(self, r: TennisResult) -> None:
         for player in (r.home_id, r.away_id):
             self.log[player].matches.append((r.ts, self.overall[player], r.minutes))
+            self.played[player] += 1
+            self.played_high[player] += r.tier != "ITF"
+            self.played_tour[player] += r.tier == "TOUR"
         if not r.completed:
             return
         y = 1.0 if r.home_won else 0.0
@@ -302,9 +340,14 @@ class RatingBook:
         self.n_surface[(a, s)] += 1
 
 
-def calibrated_p(coefficients: Sequence[float], features: Mapping[str, float]) -> float:
+def calibrated_p(
+    coefficients: Sequence[float],
+    features: Mapping[str, float],
+    names: Sequence[str] = FEATURES,
+) -> float:
+    """Intercept + one coefficient per named feature, in ``names`` order."""
     z = coefficients[0] + sum(
-        c * features[name] for c, name in zip(coefficients[1:], FEATURES, strict=True)
+        c * features[name] for c, name in zip(coefficients[1:], names, strict=True)
     )
     return _sigmoid(z)
 
@@ -473,9 +516,11 @@ class TennisRatingModel:
         book: RatingBook,
         coefficients: Mapping[str, Sequence[float]],
         table: list[Outcome],
+        names: Sequence[str] = FEATURES,
     ) -> None:
         self.book = book
         self.coefficients = coefficients
+        self.names = tuple(names)
         self._table = sorted(table, key=lambda o: o.p)
         self._keys = [o.p for o in self._table]
 
@@ -514,7 +559,7 @@ class TennisRatingModel:
         feats = self.book.features(
             home_id, away_id, surface_family(ground_type), int(kickoff.timestamp())
         )
-        p_home = calibrated_p(coefficients, feats)
+        p_home = calibrated_p(coefficients, feats, self.names)
         return MatchForecast(
             p_home=p_home,
             neighbours_home=self._neighbours(p_home),
@@ -546,6 +591,7 @@ def replay(
 
 def fit_coefficients(
     rated: Sequence[tuple[TennisResult, Mapping[str, float]]],
+    names: Sequence[str] = FEATURES,
 ) -> dict[str, dict[str, Any]]:
     """One logistic calibration per tier group, with the evidence it came from."""
     out: dict[str, dict[str, Any]] = {}
@@ -556,7 +602,7 @@ def fit_coefficients(
         if len(r.sets) <= 3:
             by_tier[r.tier].append((r, f))
     for tier, rows in sorted(by_tier.items()):
-        xs = [[f[name] for name in FEATURES] for _, f in rows]
+        xs = [[f[name] for name in names] for _, f in rows]
         ys = [1.0 if r.home_won else 0.0 for r, _ in rows]
         out[tier] = {"coefficients": fit_logistic(xs, ys), "n": len(rows)}
     return out
@@ -569,16 +615,28 @@ def load_coefficients(
     if not path.exists():
         return None
     data = json.loads(path.read_text())
-    if data.get("features") != list(FEATURES):
-        # A config fitted on another feature list would be applied to the
-        # wrong columns without a word.
-        raise ValueError(
-            f"{path}: features {data.get('features')} != {list(FEATURES)}"
-        )
+    # The config is applied by name, so it may name any subset of FEATURES -
+    # but a name the book cannot compute, a repeated name, or a coefficient
+    # count that does not match would put a weight on the wrong column
+    # without a word.
+    names = data.get("features")
+    if (
+        not isinstance(names, list)
+        or not names
+        or len(set(names)) != len(names)
+        or any(name not in FEATURES for name in names)
+    ):
+        raise ValueError(f"{path}: features {names} not a subset of {list(FEATURES)}")
     coefficients = {
         tier: [float(c) for c in entry["coefficients"]]
         for tier, entry in data["tiers"].items()
     }
+    for tier, c in coefficients.items():
+        if len(c) != len(names) + 1:
+            raise ValueError(
+                f"{path}: tier {tier} has {len(c)} coefficients "
+                f"for {len(names)} features"
+            )
     return coefficients, {k: v for k, v in data.items() if k != "tiers"}
 
 
@@ -586,13 +644,15 @@ def build_model(
     history: Sequence[TennisResult],
     coefficients: Mapping[str, Sequence[float]],
     cut_ts: int,
+    names: Sequence[str] = FEATURES,
 ) -> TennisRatingModel:
-    """Ratings before the cut and the neighbour table from rated matches."""
+    """Ratings before the cut and the neighbour table from rated matches.
+    ``names`` is the feature list the coefficients were fitted on."""
     book, rated = replay(history, cut_ts)
     table: list[Outcome] = []
     for r, feats in rated:
         c = coefficients.get(r.tier)
         if c is None:
             continue
-        table.extend(_outcomes(r, calibrated_p(c, feats)))
-    return TennisRatingModel(book, coefficients, table)
+        table.extend(_outcomes(r, calibrated_p(c, feats, names)))
+    return TennisRatingModel(book, coefficients, table, names)
