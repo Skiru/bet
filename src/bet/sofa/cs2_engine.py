@@ -561,13 +561,16 @@ def model_probability(
         if base is None:
             return None
         return ModelP(clamp(base if over else 1.0 - base), len(decided), "base_rate")
-    if side_team is None:
-        return None
-    if fam == "map_team_rounds":
-        base = base_rate(both_sides_rounds(history), line.line)
-        values = own_rounds(_rounds_maps(history, side_team), side_team)
-        return shrunk_frequency(values, line.line, over, base)
-    if fam == "team_kills":
+    if fam in ("map_team_rounds", "team_kills"):
+        # A team line: its subject must be one of the two teams. A player
+        # line's subject is a nickname - checking it here once returned None
+        # for every player line (found live on GamerLegion - magic).
+        if side_team is None:
+            return None
+        if fam == "map_team_rounds":
+            base = base_rate(both_sides_rounds(history), line.line)
+            values = own_rounds(_rounds_maps(history, side_team), side_team)
+            return shrunk_frequency(values, line.line, over, base)
         return count_p(team_kills(history, side_team), line.line, over)
     stat = fam.removeprefix("player_")
     for team in (team1_id, team2_id):

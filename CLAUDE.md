@@ -56,6 +56,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE # grade D-1's CS2 lines (bridge)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180    # CS2 history (results only; bridge)
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> > runs/sofa/cs2/daily_<d>.log 2>&1 &   # the whole CS2 day, unattended
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa

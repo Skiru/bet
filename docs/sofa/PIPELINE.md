@@ -832,6 +832,15 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
 ```
 
+Cały dzień CS2 bez obsługi (zapis cen co 30 min do 23:30Z, następnego dnia
+o 05:00Z CS2_SETTLE, krótki backfill z poszanowaniem karencji i audyt do
+logu):
+
+```
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> \
+    > runs/sofa/cs2/daily_<d>.log 2>&1 &
+```
+
 - **CS2** (`run_cs2.py`) pyta tylko Superbeta (sportId 55): każdą dwudrożną
   linię serii, która się jeszcze nie zaczęła, dopisuje do `snapshots.jsonl`.
 - **CS2_SETTLE** (`settle_cs2.py`) bierze ostatni kurs sprzed startu, znajduje

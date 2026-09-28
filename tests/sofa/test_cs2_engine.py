@@ -506,3 +506,30 @@ def test_complete_none_keeps_the_stored_flag(conn: sqlite3.Connection) -> None:
     save_series(conn, event, games, {}, "t2", None)  # a settle that skipped lineups
     flag = conn.execute("SELECT complete FROM cs2_series WHERE sofascore_event_id = 13")
     assert flag.fetchone() == (1,)
+
+
+def test_player_lines_get_a_number_through_model_probability(
+    conn: sqlite3.Connection,
+) -> None:
+    """Found live: a team-subject check ran before the player branch, so every
+    player line came back None. Tested end to end, not through the helper."""
+    for i in range(10):
+        store(
+            conn,
+            4000 + i,
+            1000 + i,
+            A,
+            B,
+            [(13, 9)],
+            {0: [("home", 7, "REZ", 18 + (i % 5) * 3)]},
+        )
+    hist = eng.load_history(conn, 99_999, None)
+    ratings = eng.build_ratings(hist)
+    for side in ("OVER", "UNDER"):
+        ln = Cs2Line("e", "player_kills", 1, "REZ", 23.5, side, 1.9)
+        got = eng.model_probability(
+            ln, A, B, "GamerLegion", "magic", 3, hist, ratings, True
+        )
+        assert got is not None and got.n == 10, side
+    ghost = Cs2Line("e", "player_kills", 1, "nobody", 23.5, "OVER", 1.9)
+    assert eng.model_probability(ghost, A, B, "a", "b", 3, hist, ratings, True) is None
