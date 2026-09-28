@@ -356,12 +356,76 @@ def get_historical_events(
         # has produced enough candidates — the request count is unchanged
         # from before the fix.
         page += 1
-        if len(events) >= config.sample_n:
+        if len(one_listing_per_match(events)) >= config.sample_n:
             break
 
     # The sample is the most recent `sample_n`, newest first.
+    events = one_listing_per_match(events)
     events.sort(key=lambda e: e.get("startTimestamp") or 0, reverse=True)
     return events[: config.sample_n]
+
+
+def _match_key(
+    event: dict[str, Any], field: str
+) -> tuple[str, frozenset[Any]] | None:
+    start_ts = event.get("startTimestamp")
+    home = event.get("homeTeam", {}).get(field)
+    away = event.get("awayTeam", {}).get(field)
+    if not start_ts or home is None or away is None:
+        return None
+    if field == "name":
+        home, away = str(home).casefold(), str(away).casefold()
+    day = datetime.fromtimestamp(start_ts, UTC).date().isoformat()
+    return day, frozenset((home, away))
+
+
+def _score(event: dict[str, Any]) -> tuple[Any, Any]:
+    return (
+        event.get("homeScore", {}).get("current"),
+        event.get("awayScore", {}).get("current"),
+    )
+
+
+def one_listing_per_match(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One entry per physical match: the same two sides on the same UTC day.
+
+    Sofascore lists some matches twice under two event ids - same teams, same
+    kick-off, same tournament, or a cup tie mirrored into a "friendly"
+    tournament. Measured 2026-09-26/27: 16 of 1,280 and 12 of 970 sample
+    sides carried such a pair (APS Zakynthos - APO Ellas Syrou, 17056234 and
+    17079707; the Republika Srpska league; the Japan Regional League), and
+    the sample counted the one match twice - a double weight on one result
+    and a spread that looks tighter than it is.
+
+    Copies that agree on the score collapse to the lowest event id. Copies
+    that DISAGREE (FK Zlatibor Cajetina - Jedinstvo Putevi, 3-0 in the Kup
+    OFS Uzice listing, 1-1 in the "Serbia Friendly Games" one, same
+    timestamp) cannot both be the match and nothing says which is, so neither
+    enters the sample.
+
+    Matched on the two team ids, then on the two team names: the Japan
+    Regional League lists one match in two tournaments under two different
+    entity ids for the same club (Gakunan F Mosuperio, 16365146 and
+    16189754, two hours apart on 2026-05-17), and only the names agree.
+    """
+    return _collapse(_collapse(events, "id"), "name")
+
+
+def _collapse(events: list[dict[str, Any]], field: str) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, frozenset[Any]], list[dict[str, Any]]] = {}
+    keyless: list[dict[str, Any]] = []
+    for event in events:
+        key = _match_key(event, field)
+        if key is None:
+            keyless.append(event)
+        else:
+            groups.setdefault(key, []).append(event)
+    kept = list(keyless)
+    for copies in groups.values():
+        if len({_score(e) for e in copies}) > 1:
+            continue
+        kept.append(min(copies, key=lambda e: e.get("id") or 0))
+    return kept
 
 
 def fetch_lineups(
