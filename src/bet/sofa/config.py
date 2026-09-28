@@ -12,7 +12,12 @@ from dataclasses import dataclass
 # byte-identical artifact because it never asked again. Stamping the misses
 # with the version of the logic that produced them makes a fix invalidate them
 # automatically (F34).
-MATCH_LOGIC_VERSION = 3
+#
+# 4 (2026-09-28): the country aliases. Nations League fixtures went to the miss
+# table because the Polish name never reached Sofascore's ("Czarnogóra" vs
+# "Montenegro" scored 30), and a miss holds for seven days - through the whole
+# international break.
+MATCH_LOGIC_VERSION = 4
 
 
 @dataclass(frozen=True)
