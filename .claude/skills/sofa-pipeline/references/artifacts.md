@@ -183,6 +183,31 @@ Superbet's markup and **never a price**. Graded by `audit_boosts.py --from
 day's board is `NOT_ON_BOARD`, not a loss. Superbet's offer API carries no
 results, so nothing off the board can be graded.
 
+## `runs/sofa/cs2/<date>/` — CS2 shadow measurement — **not the coupon**
+
+Beside the day, never inside it; no coupon stage reads it. Two stages outside
+`DEFAULT_SEQUENCE`, registered in `run_pipeline.STAGE_MODULES`:
+
+- **CS2** (`scripts/sofa/run_cs2.py`, Superbet only, run several times a day)
+  appends `snapshots.jsonl`: one record per not-yet-started CS2 series (sportId
+  55) with every complete two-way line - `family`, `map_nr` (0 = series),
+  `subject` (player/team), `line` (a total, or **team1's** handicap: Superbet
+  quotes both outcomes under team1's `hcp`), `side` (OVER/UNDER/T1/T2),
+  `odds`. Boosted prices, combos, AWP kills, exact scores are not parsed.
+- **CS2_SETTLE** (`scripts/sofa/settle_cs2.py`, Sofascore via the bridge, D-1)
+  writes `settled.json`: per series a `state` - `SETTLED` (with `maps`, as
+  `[team1, team2]` rounds, and `graded[]`: `actual`, `outcome`, `fair_p` by
+  the pipeline's power devig), `PENDING`, `NOT_ON_SOFASCORE`, `AMBIGUOUS`,
+  `DATA_MISMATCH` (the maps do not reproduce Sofascore's series score, so
+  nothing is graded), `UNUSUAL` (finished but not "Ended", e.g. a walkover),
+  `VOID` (cancelled, or still ungraded 48 h after the start - Superbet's own
+  rule). SETTLED/VOID/UNUSUAL are never asked again.
+
+`audit_cs2.py --from --to` reports coverage and price-against-outcome per
+family. It is a measurement of Superbet's price: CS2 has no calibration curve,
+so CONFIDENCE would refuse every CS2 row (`NOT_CALIBRATED`) even if one
+reached a sheet - which none does.
+
 ## `vetoes.json` — `Veto[]`
 
 `sofascore_event_id` (int, required), `market`, `subject`, `line`,

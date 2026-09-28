@@ -70,6 +70,13 @@ STAGE_MODULES: dict[str, str] = {
     # therefore the only source `fit_k_price` and MAX_LADDER_SIGMA can ever fit
     # from (F53).
     "SETTLE": "scripts.sofa.run_settle",
+    # The CS2 shadow measurement (src/bet/sofa/cs2.py). Neither is in
+    # DEFAULT_SEQUENCE and neither writes into the day's directory: CS2
+    # snapshots Superbet's CS2 lines (run it several times a day), CS2_SETTLE
+    # grades D-1's against Sofascore. They measure the price; they never
+    # feed or gate the coupon.
+    "CS2": "scripts.sofa.run_cs2",
+    "CS2_SETTLE": "scripts.sofa.settle_cs2",
 }
 
 # (stage, label) — OFFER appears twice by design.

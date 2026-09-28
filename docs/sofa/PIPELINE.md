@@ -803,6 +803,10 @@ runs/sofa/<data>/
   KUPON_<data>.pdf                        ★ produkt — to jest kupon
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
   10_boosts.json/.md   Boost[]            boosty Superbeta — NIE są kuponem (run_boosts.py)
+
+runs/sofa/cs2/<data>/   — obok dnia, nigdy w nim
+  snapshots.jsonl      linie CS2 Superbeta przed startem serii (run_cs2.py, etap CS2)
+  settled.json         te linie ocenione z danych Sofascore (settle_cs2.py, CS2_SETTLE)
 ```
 
 `10_boosts.*` pisze `scripts/sofa/run_boosts.py --date <d>`, poza
@@ -813,6 +817,43 @@ OFFER. Kolejne uruchomienie tego dnia dopisuje obserwacje, nie nadpisuje.
 sprawdzają, czy boosty trafiają częściej niż ich próg po podbiciu i przed nim.
 Ocenić da się tylko boost, którego mecz jest na tablicy `sofa`, a każda noga
 w arkuszu — API ofert Superbeta nie podaje wyników.
+
+### CS2 — pomiar ceny, nie kupon
+
+Od 2026-09-28 `sofa` mierzy Counter-Strike 2 obok kuponu. To **pomiar, nie
+rynek na kupon**: pytanie brzmi, czy kurs Superbeta po zdjęciu marży już zgadza
+się z tym, co się dzieje — jeśli tak, próbka nie ma czego dodać i CS2 na kupon
+nie trafia. Nic z `runs/sofa/cs2/` nie jest czytane przez etap, który buduje
+kupon.
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>   --only CS2         # kilka razy dziennie
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE  # rano, bridge musi działać
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
+```
+
+- **CS2** (`run_cs2.py`) pyta tylko Superbeta (sportId 55): każdą dwudrożną
+  linię serii, która się jeszcze nie zaczęła, dopisuje do `snapshots.jsonl`.
+- **CS2_SETTLE** (`settle_cs2.py`) bierze ostatni kurs sprzed startu, znajduje
+  serię w Sofascore (kategoria „Counter Strike”; drużyna e-sportowa jest osobna
+  dla każdej gry), odtwarza mapy po kolei i ocenia linie dopiero wtedy, gdy mapy
+  dają dokładnie wynik serii podany przez Sofascore. Seria w toku jest ponawiana;
+  po 48 h od startu to `VOID` — tak jak w Regulaminie Superbeta (5.E.1.a).
+- **audit_cs2.py**: pokrycie (stany i turnieje), potem dla każdej rodziny rynku
+  kurs bez marży, trafialność, różnica, Brier, zwrot i marża; osobno faworyci
+  i underdogi. Linie jednej serii są skorelowane — czytaj kolumnę `series`.
+
+Oceniane rodziny: zwycięzca meczu i mapy, liczba i handicap map, rundy (mecz,
+mapa, drużyna) i handicap rund, zabójstwa drużyny na mapie oraz zabójstwa,
+śmierci, headshoty i asysty zawodnika na mapie. Pomijane: zabójstwa z AWP
+(Sofascore ich nie podaje), kombinacje, boosty, dokładne wyniki, rundy
+pistoletowe.
+
+Sprawdzone 2026-09-28: `display` mapy w Sofascore zawiera dogrywkę i wiersze
+zawodników też (magic – GamerLegion, Ancient 19–17: 24 + 12 rund; sFade8 32–28,
+REZ 28–27 — tak samo jak na dust2.us). 84 z 95 serii CS2 z tego dnia to
+„Winners series 1x1” i „H2H Liga” — te same 3–4 drużyny co kilka minut —
+których Sofascore nie ma; `NOT_ON_SOFASCORE` w pokryciu to głównie one.
 
 Log całego przebiegu: `runs/sofa/run.log.jsonl` (jedna linia JSON na zdarzenie,
 `run_id` spina etapy). Baza: `data/sofa.db`.

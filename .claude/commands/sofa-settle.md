@@ -21,6 +21,7 @@ during one.
 ```bash
 .venv/bin/python scripts/sofa/check_bridge.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SETTLE
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE
 ```
 
 `PARTIAL` is the normal verdict. Read `07_settle_skips.json`: **a row that

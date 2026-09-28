@@ -385,3 +385,22 @@ class SofascoreClient:
         """
         url = f"https://api.sofascore.com/api/v1/event/{id}/lineups"
         return self._execute(url)
+
+    def esports_games(self, event_id: int) -> Any | None:
+        """The maps of an esports series: per-map score, incl. overtime.
+
+        `homeScore.display` is period1 + period2 + overtime - checked on
+        GamerLegion - SINNERS, Cache 19-17 (5+7+7 / 7+5+5), against 24
+        normaltime + 12 overtime rounds from /esports-game/{id}/rounds.
+        """
+        url = f"https://api.sofascore.com/api/v1/event/{event_id}/esports-games"
+        return self._execute(url)
+
+    def esports_game_lineups(self, game_id: int) -> Any | None:
+        """One map's per-player rows: kills, deaths, assists, headshots.
+
+        Overtime included: magic - GamerLegion Ancient 19-17 (2026-09-26) gives
+        sFade8 32-28 and REZ 28-27 here, as dust2.us's scoreboard does.
+        """
+        url = f"https://api.sofascore.com/api/v1/esports-game/{game_id}/lineups"
+        return self._execute(url)

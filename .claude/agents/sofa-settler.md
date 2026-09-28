@@ -23,6 +23,7 @@ scripts that write config, and you report. You do not hand-edit a constant.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE
 ```
 
 SETTLE is **not** in `DEFAULT_SEQUENCE`, by design: run it against today and it

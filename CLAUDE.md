@@ -52,6 +52,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>        # Superbet boosts snapshot, not the coupon
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2          # CS2 price snapshot, not the coupon
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE # grade D-1's CS2 lines (bridge)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
@@ -78,6 +81,10 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   the 10.5% margin - the two settings are different experiments). It is built into its
   own files, settled beside the coupon (audit_settlement section 7d), and its
   result is never pooled with the coupon's.
+- **CS2 is a measurement, not a coupon market.** `CS2` / `CS2_SETTLE` write
+  only `runs/sofa/cs2/<date>/` and test whether Superbet's devigged CS2 price
+  already matches the outcomes. Superbet `sportId=190` is *virtual* football
+  and `75` is e-football - neither is a real sport; never add them.
 - **Never print a combined / Bet Builder / parlay price** outside what
   `confidence.py` computed, and never present `odds_if_product` as a price —
   Superbet does not price a slip as the product of its legs (measured markup
