@@ -172,6 +172,44 @@ class Played:
     values: dict[str, tuple[float, float]]
 
 
+def match_values(
+    event: dict[str, Any],
+    sport: str,
+    statistics_json: str | None,
+    incidents_json: str | None,
+) -> dict[str, tuple[float, float]]:
+    """(home, away) per base quantity of one finished match, as the replay
+    grades it. Its own function so that scripts/sofa/regrade_settled.py
+    re-grades a cache-calibration row with exactly the code that wrote it."""
+    values: dict[str, tuple[float, float]] = {}
+
+    if sport == "football":
+        score = regulation_score(event)
+        if score is not None:
+            values["goals"] = score
+
+    all_period: dict[str, tuple[float, float]] = {}
+    if statistics_json:
+        try:
+            flat = extract_flat_statistics(json.loads(statistics_json))
+        except ValueError:
+            flat = {}
+        all_period = flat.get("ALL", {})
+        for base, key in STAT_KEYS.items():
+            pair = all_period.get(key)
+            # The same placeholder-zero refusal the sheet applies.
+            if pair is not None and not stat_is_untracked(key, pair):
+                values[base] = (float(pair[0]), float(pair[1]))
+    if incidents_json:
+        try:
+            points = calculate_cards_points(json.loads(incidents_json), all_period)
+        except ValueError:
+            points = None
+        if points is not None and not isinstance(points, str):
+            values["cards_points"] = (float(points[0]), float(points[1]))
+    return values
+
+
 def load_cache(db_path: Path) -> list[Played]:
     conn = sqlite3.connect(str(db_path))
     try:
@@ -223,33 +261,8 @@ def load_cache(db_path: Path) -> list[Played]:
             "id"
         )
 
-        values: dict[str, tuple[float, float]] = {}
-
-        if sport == "football":
-            score = regulation_score(event)
-            if score is not None:
-                values["goals"] = score
-
         statistics_json, incidents_json = stats_by_event.get(event_id, (None, None))
-        all_period: dict[str, tuple[float, float]] = {}
-        if statistics_json:
-            try:
-                flat = extract_flat_statistics(json.loads(statistics_json))
-            except ValueError:
-                flat = {}
-            all_period = flat.get("ALL", {})
-            for base, key in STAT_KEYS.items():
-                pair = all_period.get(key)
-                # The same placeholder-zero refusal the sheet applies.
-                if pair is not None and not stat_is_untracked(key, pair):
-                    values[base] = (float(pair[0]), float(pair[1]))
-        if incidents_json:
-            try:
-                points = calculate_cards_points(json.loads(incidents_json), all_period)
-            except ValueError:
-                points = None
-            if points is not None and not isinstance(points, str):
-                values["cards_points"] = (float(points[0]), float(points[1]))
+        values = match_values(event, sport, statistics_json, incidents_json)
 
         if values:
             played.append(
