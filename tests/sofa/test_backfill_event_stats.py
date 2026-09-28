@@ -153,3 +153,25 @@ def test_barren_competitions_are_remembered_across_runs_from_the_cache() -> None
     fresh = [[_event(500, 3000, comp=99), _event(501, 3000, comp=17)]]
     got = select_targets(fresh, {17, 99}, set(asked), 0, {99})
     assert [e["id"] for e in got] == [501]
+
+
+def test_tennis_takes_every_competition_and_never_football() -> None:
+    listings = [[
+        _event(1, 2000, comp=5, sport="tennis"),
+        _event(2, 2000, comp=17, sport="football"),
+        _event(3, 500, comp=6, sport="tennis"),  # before the cutoff
+    ]]
+    got = select_targets(listings, None, set(), since_ts=1000, sport="tennis")
+    assert [e["id"] for e in got] == [1]
+
+
+def test_a_tennis_backfill_asks_statistics_only() -> None:
+    from scripts.sofa.backfill_event_stats import Backfill
+
+    class _NoIncidents(_Client):
+        def event_incidents(self, event_id: int) -> Any:
+            raise AssertionError("tennis SAMPLES never reads /incidents")
+
+    client, cache = _NoIncidents({1: {"statistics": []}}), _Cache()
+    Backfill(client, cache, sport="tennis").fetch_one(_event(1, 2000, sport="tennis"))
+    assert cache.saved[1] == ({"statistics": []}, None, "finished")

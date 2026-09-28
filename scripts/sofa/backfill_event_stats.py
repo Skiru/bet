@@ -62,13 +62,19 @@ def board_competitions(runs_dir: str, sport: str = "football") -> set[int]:
 
 def select_targets(
     listings: Iterable[list[dict[str, Any]]],
-    competitions: set[int],
+    competitions: set[int] | None,
     already_asked: set[int],
     since_ts: int,
     barren: set[int] | frozenset[int] = frozenset(),
+    sport: str = "football",
 ) -> list[dict[str, Any]]:
-    """Finished football events in `competitions` since `since_ts` whose
+    """Finished `sport` events in `competitions` since `since_ts` whose
     statistics were never asked for, newest first, one entry per event.
+
+    `competitions=None` takes every competition. Tennis passes it: a tennis
+    competition id is one week of one tournament, so the board's ids say
+    nothing about next week's, and the cache only lists players that were on
+    a board anyway.
 
     An event a tournament is known never to publish statistics for is left
     out rather than asked: it is the same prediction SAMPLES makes, and the
@@ -85,11 +91,14 @@ def select_targets(
             if (event.get("startTimestamp") or 0) < since_ts:
                 continue
             tournament = event.get("tournament") or {}
-            sport = ((tournament.get("category") or {}).get("sport") or {}).get("slug")
-            if sport != "football":
+            category = tournament.get("category") or {}
+            event_sport = (category.get("sport") or {}).get("slug")
+            if event_sport != sport:
                 continue
             comp = (tournament.get("uniqueTournament") or {}).get("id")
-            if comp not in competitions or comp in barren:
+            if competitions is not None and comp not in competitions:
+                continue
+            if comp in barren:
                 continue
             if statistics_are_hopeless(event):
                 continue
@@ -167,9 +176,16 @@ class Backfill:
     """One event at a time, from any number of worker threads."""
 
     def __init__(
-        self, client: Any, cache: Any, deadline: float | None = None
+        self,
+        client: Any,
+        cache: Any,
+        deadline: float | None = None,
+        sport: str = "football",
     ) -> None:
         self.client = client
+        # Tennis SAMPLES reads /statistics only (samples.py needs_incidents is
+        # football-only), so a tennis backfill asks one route, not two.
+        self.with_incidents = sport == "football"
         self.cache = cache
         # time.monotonic() after which no new event is started. On 2026-09-25
         # the bridge was refused after ~23-26 min of continuous work in each
@@ -202,7 +218,9 @@ class Backfill:
         event_id = int(event["id"])
         try:
             stats = self.client.event_statistics(event_id)
-            incidents = self.client.event_incidents(event_id)
+            incidents = (
+                self.client.event_incidents(event_id) if self.with_incidents else None
+            )
         except CircuitOpenError:
             # Sofascore or the bridge is refusing: stop every worker, do not
             # hammer a breaker that is telling us to wait.
@@ -231,6 +249,7 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=400)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--sport", choices=("football", "tennis"), default="football")
     ap.add_argument("--max-minutes", type=float, default=None,
                     help="start no new event after this many minutes")
     args = ap.parse_args()
@@ -242,18 +261,21 @@ def main() -> int:
             run_id="backfill-stats-" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"),
         )
 
-    comps = board_competitions(config.runs_dir)
+    comps = board_competitions(config.runs_dir) if args.sport == "football" else None
     since = int(time.time()) - args.days * 86400
     asked = _already_asked(config.db_path)
     barren = barren_competitions(_iter_listings(config.db_path), asked)
     targets = select_targets(
-        _iter_listings(config.db_path), comps, set(asked), since, barren
+        _iter_listings(config.db_path), comps, set(asked), since, barren,
+        sport=args.sport,
     )
     if args.limit is not None:
         targets = targets[: args.limit]
     print(json.dumps({
-        "run_id": config.run_id, "competitions": len(comps),
-        "targets": len(targets), "requests": 2 * len(targets),
+        "run_id": config.run_id, "sport": args.sport,
+        "competitions": None if comps is None else len(comps),
+        "targets": len(targets),
+        "requests": (2 if args.sport == "football" else 1) * len(targets),
         "barren_competitions_skipped": len(barren),
     }), flush=True)
     if args.dry_run or not targets:
@@ -262,7 +284,9 @@ def main() -> int:
     deadline = (
         time.monotonic() + args.max_minutes * 60 if args.max_minutes else None
     )
-    runner = Backfill(SofascoreClient(config), SofaCache(config), deadline)
+    runner = Backfill(
+        SofascoreClient(config), SofaCache(config), deadline, sport=args.sport
+    )
     with ThreadPoolExecutor(max_workers=max(1, config.max_concurrency)) as pool:
         list(pool.map(runner.fetch_one, targets))
 
