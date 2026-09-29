@@ -180,7 +180,8 @@ _GAMES_MARKETS = ("games_won_for", "games_total", "handicap_games", "most_games"
 
 
 def match_tiebreak_events(conn: sqlite3.Connection) -> set[int]:
-    """Finished tennis events in the listing cache that had a match tiebreak."""
+    """Finished tennis events, in the listing or the /event cache, that had a
+    match tiebreak."""
     out: set[int] = set()
     for (events_json,) in conn.execute(
         "SELECT events_json FROM sofa_entity_events"
@@ -197,6 +198,20 @@ def match_tiebreak_events(conn: sqlite3.Connection) -> set[int]:
             home, away = event.get("homeScore") or {}, event.get("awayScore") or {}
             if match_tiebreak_sets(home, away):
                 out.add(eid)
+    # grade_live grades from the /event payload first, and a match can be
+    # finished there while every listing copy is still notstarted/inprogress
+    # (17175914 and four more on 25-26.09): those rows were missed.
+    for eid, detail_json in conn.execute(
+        "SELECT sofascore_event_id, detail_json FROM sofa_event_detail"
+        " WHERE status_type = 'finished'"
+    ):
+        try:
+            event = (json.loads(detail_json) or {}).get("event") or {}
+        except ValueError:
+            continue
+        home, away = event.get("homeScore") or {}, event.get("awayScore") or {}
+        if match_tiebreak_sets(home, away):
+            out.add(int(eid))
     return out
 
 

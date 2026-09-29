@@ -17,7 +17,7 @@ import pytest
 
 from bet.sofa.db import migrate
 
-EID, PLAIN = 16498311, 16498312
+EID, PLAIN, DETAIL_ONLY = 16498311, 16498312, 17175914
 DAY = "2026-09-21"
 
 
@@ -72,6 +72,36 @@ def _db(tmp_path: Path) -> Path:
         "INSERT INTO sofa_entity_events VALUES (1, 'last', 0, ?, ?)",
         ("2026-09-22T04:00:00+00:00", json.dumps({"events": events})),
     )
+    # Finished only in the /event cache: its listing copy is still upcoming
+    # (17175914 on 2026-09-25). grade_live reads the detail, so must the
+    # candidate search.
+    detail = _event(
+        DETAIL_ONLY,
+        {"period1": 6, "period2": 6, "period3": 10},
+        {"period1": 7, "period2": 4, "period3": 8},
+    )
+    conn.execute(
+        "INSERT INTO sofa_entity_events VALUES (2, 'next', 0, ?, ?)",
+        (
+            "2026-09-22T04:00:00+00:00",
+            json.dumps(
+                {
+                    "events": [
+                        {
+                            **detail,
+                            "status": {"type": "notstarted"},
+                            "homeScore": {},
+                            "awayScore": {},
+                        }
+                    ]
+                }
+            ),
+        ),
+    )
+    conn.execute(
+        "INSERT INTO sofa_event_detail VALUES (?, ?, 'finished', ?)",
+        (DETAIL_ONLY, "2026-09-22T04:00:00+00:00", json.dumps({"event": detail})),
+    )
     conn.executemany(
         "INSERT INTO sofa_settled_row (run_date, sofascore_event_id, sport,"
         " competition_id, market, subject, line, direction, sample_size,"
@@ -82,6 +112,8 @@ def _db(tmp_path: Path) -> Path:
             _row(EID, "games_total", "", 30.5, 38.0, "WIN"),
             # no match tiebreak: never a candidate, even if it were wrong
             _row(PLAIN, "games_total", "", 20.5, 99.0, "WIN"),
+            # 6-7 6-4 10-8 settled in gamesWon's convention (tiebreak = 0): 23
+            _row(DETAIL_ONLY, "games_total", "", 23.5, 23.0, "LOSS"),
         ],
     )
     conn.commit()
@@ -96,7 +128,7 @@ def _db(tmp_path: Path) -> Path:
                     "home_name": "Luca Stefan Prunescu Nita",
                     "away_name": "Ioan Alexandru Teglas",
                 }
-                for e in (EID, PLAIN)
+                for e in (EID, PLAIN, DETAIL_ONLY)
             ]
         )
     )
@@ -125,3 +157,4 @@ def test_match_tiebreak_rows_are_regraded_by_the_match(
     assert got[(EID, "games_won_for")] == (13.0, "WIN")
     assert got[(EID, "games_total")] == (24.0, "LOSS")
     assert got[(PLAIN, "games_total")] == (99.0, "WIN")
+    assert got[(DETAIL_ONLY, "games_total")] == (24.0, "WIN")
