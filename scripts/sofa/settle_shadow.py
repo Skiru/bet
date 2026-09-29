@@ -8,9 +8,10 @@ Run it for D-1, and again later - a game still pending is retried:
         --date 2026-09-29 --only SHADOW_SETTLE
 
 Per game it takes the last price seen before the start (SHADOW's snapshots),
-finds the game on Sofascore through RESOLVE's own resolver and cache (search,
-team listings, the same name / gender / squad-level gates and 6 h window; the
-orientation refusal is off and `home_is_team1` reads the orientation instead),
+finds the game on Sofascore through RESOLVE's own resolver and cache (search
+scoped to the sport, events/last page 0, the gender / squad-level gates and
+6 h window, the relaxed opponent check, no virtual games; the orientation
+refusal is off and `home_is_team1` reads the orientation instead),
 asks /event/{id} fresh, and checks the score adds up before grading a line
 (src/bet/sofa/shadow.py, build_result). Nothing it writes is read by a stage
 that builds the coupon.
@@ -115,9 +116,11 @@ def find_event(
     board's own order goes in both times. RESOLVE's orientation refusal is
     off: a listing that reads the other way round is still this game, and
     `home_is_team1` grades it from team1's side (with the refusal on, a
-    reversed game could never be graded at all). The gender, squad-level,
-    name and 6 h window gates stay. A side that is ambiguous does not stop
-    the other side from being tried.
+    reversed game could never be graded at all). The gender, squad-level
+    and 6 h window gates stay; the opponent check is the shadow sports'
+    relaxed one (resolve.shadow_opponent_agrees) and virtual games are
+    refused (resolve.is_virtual_event). A side that is ambiguous does not
+    stop the other side from being tried.
     """
     ambiguous_seen = False
     for side, opponent in ((ev.team1, ev.team2), (ev.team2, ev.team1)):

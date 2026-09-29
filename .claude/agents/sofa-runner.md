@@ -38,7 +38,8 @@ to attempt.
 
 The fourth line is **INFO, not a grade.** Four probes from idle read 0.10 req/s
 on a bridge that then sustained 8.64 req/s over 360 requests, because a tab
-that finds no work waiting goes back into a 20 s `/pull`. Do not report it as a
+that finds no work waiting went back into what was then a 20 s `/pull` (1 s
+since 2026-09-23; 50 ms while a job is out since 2026-09-29). Do not report it as a
 problem and do not act on it. Only `burst probes FAILED` is a fault. The
 capacity number, if anyone needs it, comes from
 `scripts/sofa/measure_bridge_capacity.py`.

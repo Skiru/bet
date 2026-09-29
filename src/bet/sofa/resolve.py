@@ -219,6 +219,78 @@ def orientation_is_reversed(
 _SQUAD_MARKER_SUFFIX = re.compile(r"(?:\s*\((?:w|r)\))+\s*$")
 
 
+# The shadow sports' opponent check (see `shadow_opponent_agrees`).
+SHADOW_EXACT_KICKOFF_S = 15 * 60
+# Words that name what a club is, not which one: two different clubs share them.
+_GENERIC_NAME_TOKENS = frozenset(
+    {
+        "club", "clube", "klub", "basket", "basketball", "volley", "volleyball",
+        "voley", "hockey", "team", "sport", "sports", "sporting", "city",
+        "united", "women", "ladies", "feminin", "femenino", "feminino",
+        "university", "universidad", "state", "academy", "reserves", "athletic",
+        "atletico", "deportivo", "racing", "union", "olympic", "olimpia",
+        "dynamo", "dinamo", "spartak", "lokomotiv", "real", "royal", "tenis",
+        "hapoel", "maccabi", "beitar", "metallurg", "torpedo", "volei",
+        "voleibol", "basquet", "pallavolo", "pallacanestro", "esporte",
+    }
+)  # fmt: skip
+
+
+def _name_parts(norm: str) -> list[str]:
+    """A name without its squad marker, whole and split at "/" - Sofascore
+    names a volleyball or basketball side "sponsor/club" ("Itambé/Minas Tênis
+    Clube", "Dentil/Praia Clube") where Superbet prints the club alone."""
+    bare = _SQUAD_MARKER_SUFFIX.sub("", norm).strip()
+    parts = [p.strip() for p in bare.split("/") if p.strip()]
+    return [bare, *parts] if len(parts) > 1 else [bare]
+
+
+def _distinctive_tokens(norm: str) -> set[str]:
+    return {
+        t
+        for part in _name_parts(norm)
+        for t in re.split(r"[\s/\-]+", part)
+        if len(t) >= 4 and t not in _GENERIC_NAME_TOKENS and not t.isdigit()
+    }
+
+
+def shadow_opponent_agrees(
+    expected_opponent: str,
+    side: str,
+    kickoff_gap_s: float,
+    searched: str = "",
+    searched_side: str = "",
+) -> bool:
+    """The opponent check for the shadow sports, which RESOLVE's 82-point
+    name score is too strict for.
+
+    Measured 2026-09-29 on the day's board: the game was on Sofascore and the
+    gate refused it for "Minas TC" / "Itambé/Minas Tênis Clube" (50),
+    "Wisconsin Green Bay (K)" / "Green Bay Phoenix" (69) and "Helios VS (K)" /
+    "Helios VS Basket" (81.8 - the "(w)" marker alone cost the point). The
+    event comes from the searched side's OWN listing, already gender-, level-
+    and window-gated, so the opponent only has to confirm it: the full score
+    on the marker-free name and on each "/" part, or - when both clocks agree
+    within 15 minutes - one shared distinctive word. Football and tennis never
+    reach this: a wrong football pair prices the wrong sample.
+
+    `side` is the event's OTHER side, never the one that is the searched team
+    (`searched_side`), and a word the searched team's names carry does not
+    count: "Dynamo Moscow - Spartak Moscow" must not confirm "Dynamo Moscow -
+    Lokomotiv Yaroslavl" through "moscow" (review 2026-09-29).
+    """
+    for a in _name_parts(expected_opponent):
+        for b in _name_parts(side):
+            if name_score(a, b) > NAME_MATCH_THRESHOLD:
+                return True
+    if kickoff_gap_s > SHADOW_EXACT_KICKOFF_S:
+        return False
+    own = _distinctive_tokens(searched) | _distinctive_tokens(searched_side)
+    return bool(
+        (_distinctive_tokens(expected_opponent) - own) & _distinctive_tokens(side)
+    )
+
+
 def search_query(norm_side: str) -> str:
     """The name to send to Sofascore's search: our squad markers removed.
 
@@ -231,6 +303,31 @@ def search_query(norm_side: str) -> str:
     the 481 women's names and 336 reserve names in sofa_entity_miss.
     """
     return _SQUAD_MARKER_SUFFIX.sub("", norm_side).strip()
+
+
+_VIRTUAL_NAME = re.compile(r"\((?:cyber|e-?sports?|virtual)\)", re.IGNORECASE)
+
+
+def is_virtual_event(event: dict[str, Any]) -> bool:
+    """A simulated game - Sofascore lists them beside the real sport.
+
+    Measured 2026-09-29: the basketball search for "u bt cluj" returned
+    "Cluj (Cyber)", "U-BT Cluj-Napoca (eSport)" and "U-BT Cluj-Napoca (Nerijus
+    Jakubauskas)" after the real club, and their games (tournament category
+    "virtual-basketball") run every hour - two of them in a real game's window
+    made Maxima Roma - U BT Cluj AMBIGUOUS, and one alone could have been
+    graded in the real game's place. Superbet's own e-sports twins (157, 70)
+    are never read; this keeps Sofascore's out of the result side.
+    """
+    category = ((event.get("tournament") or {}).get("category")) or {}
+    label = f"{category.get('slug') or ''} {category.get('name') or ''}".lower()
+    if any(w in label for w in ("virtual", "esport", "cyber", "ebasketball")):
+        return True
+    names = [
+        str((event.get(side) or {}).get("name") or "")
+        for side in ("homeTeam", "awayTeam")
+    ]
+    return any(_VIRTUAL_NAME.search(n) for n in names)
 
 
 def candidate_fits(norm_side: str, entity: dict[str, Any], sport: str) -> bool:
@@ -247,6 +344,9 @@ def candidate_fits(norm_side: str, entity: dict[str, Any], sport: str) -> bool:
         gender = entity_gender(entity)
         if gender is not None and gender != superbet_gender(norm_side):
             return False
+    if sport in SPORT_SCOPED_SEARCH and _VIRTUAL_NAME.search(entity.get("name") or ""):
+        # A simulated side takes none of the three places (is_virtual_event).
+        return False
     return levels_compatible(
         search_query(norm_side), normalize_name(entity.get("name", ""))
     ) or levels_compatible(norm_side, normalize_name(entity.get("name", "")))
@@ -325,6 +425,9 @@ class SofaResolver:
         if not start_ts:
             return None
 
+        if sport in SPORT_SCOPED_SEARCH and is_virtual_event(event):
+            return None
+
         window = MATCH_WINDOW_S.get(sport, DEFAULT_MATCH_WINDOW_S)
         event_time = datetime.fromtimestamp(start_ts, UTC)
         if abs((event_time - kickoff_utc).total_seconds()) > window:
@@ -387,7 +490,23 @@ class SofaResolver:
             candidates, key=lambda side: name_score(expected_opponent, side)
         )
         if name_score(expected_opponent, best_side) <= NAME_MATCH_THRESHOLD:
-            return None
+            if sport not in SPORT_SCOPED_SEARCH:
+                return None
+            gap = abs((event_time - kickoff_utc).total_seconds())
+            # The searched team is the board side that is not the opponent;
+            # its side of the event is the one nearest its name, and only the
+            # OTHER side may confirm the opponent.
+            board = [normalize_name(x) for x in (superbet_side_a, superbet_side_b)]
+            searched = [b for b in board if b and b != expected_opponent]
+            if len(searched) != 1:
+                return None
+            own_side = max((home, away), key=lambda side: name_score(searched[0], side))
+            other = away if own_side == home else home
+            if other not in candidates or not shadow_opponent_agrees(
+                expected_opponent, other, gap, searched[0], own_side
+            ):
+                return None
+            best_side = other
 
         # Report the STRICT similarity of the side that matched, not the score
         # that let it through. This number's only consumer is the CONFIRMED /

@@ -135,7 +135,10 @@ pipeline ──HTTP──► bridge_server.py (127.0.0.1:8787) ◄──polling�
   poniżej: pomiar 2026-09-22 na pięciu oknach dał 3 → 0,15 req/s (p50
   20 138 ms), 5 → **11,67 req/s** (p50 354 ms), 8 → 11,72 (668 ms), 12 → 11,66
   (1010 ms). Powyżej liczby okien rośnie wyłącznie kolejka; poniżej most
-  zapada się 78-krotnie, bo bezczynne karty wracają do 20 s `/pull`.
+  zapadł się 78-krotnie, bo bezczynne karty wracały do ówczesnego 20 s
+  `/pull` (od 2026-09-23 jest to 1 s, a od 2026-09-29 `/pull` odpowiada w
+  50 ms, gdy jakieś zadanie jest w karcie — pojedyncze żądanie zeszło z ~2 s
+  do ~145 ms).
   Bucket musi stać **powyżej** pojemności kart (5 × 2,86 = 14,3 req/s).
   Wcześniejsze „plateau 3,9 req/s" było artefaktem przyrządu: skrypt rampował
   tylko `target_rps`, `max_concurrency` trzymał na 3, i mierzył jako latencję
@@ -889,7 +892,15 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   nie ma go jeszcze w ogóle; mecze następnego dnia w horyzoncie trafiają do
   pliku tamtego dnia (późne NHL/NBA po 00:00Z).
 - **SHADOW_SETTLE** (`settle_shadow.py`): mecz znajduje resolverem RESOLVE
-  (ten sam cache, bramki nazwy, płci „(K)” i poziomu drużyny; okno 6 h), `/event/{id}` pyta świeżo i ocenia dopiero, gdy wynik się zgadza: suma
+  (ten sam cache, bramki płci „(K)” i poziomu drużyny; okno 6 h). Szukanie
+  jest zawężone do sportu (`&sport=`), czyta tylko pierwszą stronę
+  `events/last`, a mecze wirtualne / e-sportowe („(Cyber)”, „(eSport)”,
+  kategoria `virtual-*`) są odrzucane. Bramka przeciwnika jest łagodniejsza
+  niż w piłce: pełny wynik nazwy bez markera „(K)” i osobno dla każdej części
+  „sponsor/klub”, albo — gdy oba zegary zgadzają się co do 15 min — wspólne
+  wyróżniające słowo przeciwnika, którego nie ma w nazwie szukanej drużyny
+  (więc „Dynamo Moscow” nie potwierdzi sam siebie przez „moscow”).
+  `/event/{id}` pyta świeżo i ocenia dopiero, gdy wynik się zgadza: suma
   okresów = `normaltime`, dogrywka tylko z remisu, sety = `current`. Gol z
   dogrywki jest w `current`, a w żadnym okresie. Rynek bez „(z dogrywką)”
   liczy czas regulaminowy; kwarta 4. i 2. połowa w koszykówce po dogrywce są
@@ -914,7 +925,12 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   bez, wiek ceny. Sekcje 2, 2b, 4 i 5 biorą **jedną stronę każdej linii**
   (faworyta albo stałą) — obie strony razem dają średni kurs i trafialność
   0,500 z samej konstrukcji, więc różnica byłaby zawsze zerowa. Linie
-  jednego meczu są skorelowane — czytaj kolumnę `games`.
+  jednego meczu są skorelowane — czytaj kolumnę `games`. Kolumna `SE pp` to
+  błąd standardowy różnicy liczony klastrami po meczu, a `read` mówi, co
+  wolno z komórki wyczytać: `too few` (< 30 meczów), `noise` (różnica w
+  granicach 2 SE), `lead only` (poza 2 SE, ale dane z < 7 dni), `signal`.
+  Przy tylu komórkach mniej więcej co dwudziesta wygląda na sygnał
+  przypadkiem — sygnał to pytanie na kolejne tygodnie, nie zakład.
 - **shadow_daily.py**: jedna pętla na datę — druga odmawia startu (exit 2),
   gdy `daily_<d>.pid` wskazuje żywy proces `shadow_daily.py` tej daty; plik
   pid znika, gdy pętla się kończy. Pętla D łapie mecze D+1 tylko do ~07:30Z

@@ -73,28 +73,81 @@ def load(
     return list(events.values())
 
 
-def _row(s: FamilyStats) -> str:
+# When a cell may be read at all. Lines of one game are correlated, so the
+# error of a gap is clustered by game; a gap inside two of those errors is
+# noise, and even outside them a cell is only a lead until the data spans
+# enough days - one slate is one set of conditions.
+MIN_GAMES = 30
+MIN_DAYS = 7
+SIGNAL_SE = 2.0
+
+
+def gap_se(rows: list[dict[str, Any]]) -> float | None:
+    """Standard error of mean(outcome - fair p), clustered by game: the
+    sandwich estimator, centred on the mean gap, with the G/(G-1) correction."""
+    rs = [r for r in rows if r.get("fair_p") is not None]
+    if len(rs) < 2:
+        return None
+    resid: dict[str, float] = defaultdict(float)
+    count: dict[str, int] = defaultdict(int)
+    for r in rs:
+        won = 1.0 if r["outcome"] == "WIN" else 0.0
+        key = str(r["superbet_event_id"])
+        resid[key] += won - r["fair_p"]
+        count[key] += 1
+    games = len(resid)
+    if games < 2:
+        return None
+    mean = sum(resid.values()) / len(rs)
+    centred = sum((resid[g] - count[g] * mean) ** 2 for g in resid)
+    return float((games / (games - 1) * centred) ** 0.5 / len(rs))
+
+
+def read_of(s: FamilyStats, se: float | None, days: int) -> str:
+    """What a cell may be read as: never more than the data carries."""
+    if s.events < MIN_GAMES or se is None:
+        return f"too few (<{MIN_GAMES} games)"
+    gap = abs(s.hit - s.fair_p)
+    if gap <= 1e-9 or gap <= SIGNAL_SE * se:
+        # No gap is no finding, whatever its error (pooled 0.5/0.5 pairs read
+        # exactly 0 with an error of exactly 0).
+        return "noise"
+    if days < MIN_DAYS:
+        return f"lead only (<{MIN_DAYS} days)"
+    return "signal"
+
+
+def _stat(rows: list[dict[str, Any]], label: str) -> str | None:
+    s = summarize(rows, label)
+    if s is None:
+        return None
+    se = gap_se(rows)
+    days = len({r.get("day") for r in rows if r.get("day")})
+    se_txt = "-" if se is None else f"{100 * se:.1f}"
     return (
         f"| {s.family} | {s.events} | {s.sides} | {s.fair_p:.3f} | {s.hit:.3f} "
-        f"| {100 * (s.hit - s.fair_p):+.1f} | {s.brier:.3f} | {100 * s.roi:+.1f}% "
-        f"| {100 * s.margin:.1f}% |"
+        f"| {100 * (s.hit - s.fair_p):+.1f} | {se_txt} | {s.brier:.3f} "
+        f"| {100 * s.roi:+.1f}% | {100 * s.margin:.1f}% | {read_of(s, se, days)} |"
     )
 
 
 HEADER = [
-    "| family | games | sides | fair p | hit | gap pp | Brier | ROI | margin |",
-    "|---|---|---|---|---|---|---|---|---|",
+    "| family | games | sides | fair p | hit | gap pp | SE pp | Brier | ROI "
+    "| margin | read |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
 ]
+
+
+def _table(cells: list[tuple[list[dict[str, Any]], str]]) -> list[str]:
+    return HEADER + [x for rs, label in cells if (x := _stat(rs, label))]
 
 
 def _family_table(rows: list[dict[str, Any]]) -> list[str]:
     by_family: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
         by_family[r["family"]].append(r)
-    stats = [summarize(rs, fam) for fam, rs in by_family.items()]
-    table = sorted((s for s in stats if s), key=lambda s: -s.sides)
-    total = summarize(rows, "ALL")
-    return HEADER + [_row(s) for s in table] + ([_row(total)] if total else [])
+    ranked = sorted(by_family.items(), key=lambda kv: -len(kv[1]))
+    return _table([(rs, fam) for fam, rs in ranked] + [(rows, "ALL")])
 
 
 def render_sport(sport: SportKey, events: list[dict[str, Any]]) -> list[str]:
@@ -120,7 +173,11 @@ def render_sport(sport: SportKey, events: list[dict[str, Any]]) -> list[str]:
         out.append(f"| ... {len(ranked) - TOP_TOURNAMENTS} more | |")
 
     rows = [
-        dict(r, superbet_event_id=ev["superbet_event_id"])
+        dict(
+            r,
+            superbet_event_id=ev["superbet_event_id"],
+            day=str(ev.get("kickoff_utc") or "")[:10],
+        )
         for ev in events
         for r in ev.get("graded") or []
     ]
@@ -133,25 +190,43 @@ def render_sport(sport: SportKey, events: list[dict[str, Any]]) -> list[str]:
     out += _family_table(one_side_per_line(rows, "fixed"))
 
     out += ["", "### 3. by price", ""]
-    fav = summarize([r for r in rows if (r.get("fair_p") or 0) >= 0.5], "fair p >= 0.5")
-    dog = summarize([r for r in rows if (r.get("fair_p") or 1) < 0.5], "fair p < 0.5")
-    out += HEADER + [_row(s) for s in (fav, dog) if s]
+    out += _table(
+        [
+            ([r for r in rows if (r.get("fair_p") or 0) >= 0.5], "fair p >= 0.5"),
+            ([r for r in rows if (r.get("fair_p") or 1) < 0.5], "fair p < 0.5"),
+        ]
+    )
 
     out += ["", "### 4. overtime", ""]
-    ot = summarize([r for r in fav_side if r.get("overtime")], "overtime")
-    reg = summarize([r for r in fav_side if not r.get("overtime")], "no overtime")
-    out += HEADER + [_row(s) for s in (ot, reg) if s]
+    out += _table(
+        [
+            ([r for r in fav_side if r.get("overtime")], "overtime"),
+            ([r for r in fav_side if not r.get("overtime")], "no overtime"),
+        ]
+    )
 
     out += ["", "### 5. price age", ""]
-    fresh = summarize(
-        [r for r in fav_side if (r.get("minutes_before_kickoff") or 0) <= 60],
-        "<= 60 min",
+    out += _table(
+        [
+            (
+                [r for r in fav_side if (r.get("minutes_before_kickoff") or 0) <= 60],
+                "<= 60 min",
+            ),
+            (
+                [r for r in fav_side if (r.get("minutes_before_kickoff") or 0) > 60],
+                "> 60 min",
+            ),
+        ]
     )
-    old = summarize(
-        [r for r in fav_side if (r.get("minutes_before_kickoff") or 0) > 60],
-        "> 60 min",
-    )
-    out += HEADER + [_row(s) for s in (fresh, old) if s]
+    days = len({r["day"] for r in rows if r.get("day")})
+    out += [
+        "",
+        f"`read`: fewer than {MIN_GAMES} games is too few; a gap inside "
+        f"{SIGNAL_SE:g} SE (clustered by game) is noise; outside it, a lead "
+        f"until the range spans {MIN_DAYS} days (this one: {days}). With this "
+        "many cells about one in twenty reads as a signal by chance alone - "
+        "a signal is a question for the next weeks, not a bet.",
+    ]
     return out
 
 

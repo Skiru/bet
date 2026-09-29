@@ -270,6 +270,9 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
 - `audit_shadow.py` (and `audit_cs2.py` section 2) keep ONE side per line
   (`cs2.one_side_per_line`): pooled, both sides read fair p = hit = 0.500 by
   construction. Section 2 is the favourite side, 2b a fixed side (OVER / T1).
+  Every shadow row carries `SE pp` (clustered by game) and `read`: `too few`
+  (< 30 games), `noise` (gap inside 2 SE), `lead only` (outside, < 7 days of
+  data), `signal`. Quote `read`, never a bare gap.
 
 ## `vetoes.json` — `Veto[]`
 

@@ -1626,3 +1626,229 @@ def test_client_search_appends_the_sport_only_when_given() -> None:
         "https://api.sofascore.com/api/v1/search/all?q=praia%20clube",
         "https://api.sofascore.com/api/v1/search/all?q=praia%20clube&sport=volleyball",
     ]
+
+
+def _event(home: str, away: str, ko: datetime, gender: str = "M") -> dict[str, Any]:
+    return {
+        "id": 77,
+        "startTimestamp": int(ko.timestamp()),
+        "homeTeam": {"name": home, "gender": gender},
+        "awayTeam": {"name": away, "gender": gender},
+        "tournament": {"name": "Campeonato Mineiro", "category": {"name": "Brazil"}},
+    }
+
+
+@pytest.mark.parametrize(
+    ("board", "home", "away", "gender", "minutes"),
+    [
+        # Live 2026-09-29: each was on Sofascore and refused by the 82 gate.
+        (
+            ("Praia Clube", "Minas TC"),
+            "Praia Clube",
+            "Itambé/Minas Tênis Clube",
+            "M",
+            0,
+        ),
+        (
+            ("Milwaukee Panthers (K)", "Wisconsin Green Bay (K)"),
+            "Milwaukee Panthers",
+            "Green Bay Phoenix",
+            "F",
+            0,
+        ),
+        # The "(w)" marker alone cost the point: accepted at any gap in window.
+        (
+            ("Helios VS (K)", "Nyon (K)"),
+            "Helios VS Basket",
+            "Nyon Basket Féminin",
+            "F",
+            120,
+        ),
+    ],
+)
+def test_the_shadow_opponent_check_admits_sponsor_names_and_markers(
+    board: tuple[str, str], home: str, away: str, gender: str, minutes: int
+) -> None:
+    ko = datetime(2026, 9, 29, 22, 30, tzinfo=UTC)
+    event = _event(home, away, ko + timedelta(minutes=minutes), gender)
+    resolver = _resolver()
+    first = settle_shadow.normalize_name(board[0])
+    kwargs: dict[str, Any] = {"superbet_side_a": board[0], "superbet_side_b": board[1]}
+    for sport in ("volleyball", "basketball"):
+        assert (
+            resolver.match_quality(event, ko, first, sport=sport, **kwargs) is not None
+            or resolver.match_quality(
+                event, ko, settle_shadow.normalize_name(board[1]), sport=sport, **kwargs
+            )
+            is not None
+        )
+    # Football keeps RESOLVE's strict gate: a wrong pair prices the wrong sample.
+    if board[0] == "Praia Clube":
+        opp = settle_shadow.normalize_name(board[1])
+        assert (
+            resolver.match_quality(event, ko, opp, sport="football", **kwargs) is None
+        )
+
+
+def test_the_shadow_opponent_check_still_refuses() -> None:
+    from bet.sofa.resolve import shadow_opponent_agrees
+
+    n = settle_shadow.normalize_name
+    # No shared word: a different game (the women's side of the other club).
+    assert not shadow_opponent_agrees(n("Triglav Kranj"), n("ŽKK Cinkarna Celje"), 0)
+    # A shared word only counts when both clocks agree within 15 minutes.
+    assert shadow_opponent_agrees(n("Minas TC"), n("Itambé/Minas Tênis Clube"), 900)
+    assert not shadow_opponent_agrees(n("Minas TC"), n("Itambé/Minas Tênis Clube"), 901)
+    # Generic words never count.
+    assert not shadow_opponent_agrees(n("Sporting Lisboa"), n("Sporting Braga"), 0)
+    # Both sides of the event share the word: which one is the opponent is
+    # unknown, so the game is refused.
+    ko = datetime(2026, 9, 29, 18, tzinfo=UTC)
+    derby = _event("Hapoel Tel Aviv", "Maccabi Tel Aviv", ko)
+    assert (
+        _resolver().match_quality(
+            derby,
+            ko,
+            n("Tel Aviv Stars"),
+            sport="basketball",
+            superbet_side_a="Maccabi Tel Aviv",
+            superbet_side_b="Tel Aviv Stars",
+        )
+        is None
+    )
+
+
+def test_virtual_games_never_resolve_for_a_shadow_sport() -> None:
+    from bet.sofa.resolve import candidate_fits, is_virtual_event
+
+    ko = datetime(2026, 9, 29, 19, tzinfo=UTC)
+    real = _event("Maxima Roma", "U-Banca Transilvania Cluj-Napoca", ko)
+    # Live 2026-09-29: a player-named e-team, caught by its category alone.
+    virtual = {
+        **_event(
+            "Coviran Granada (eSport)", "U-BT Cluj-Napoca (Nerijus Jakubauskas)", ko
+        ),
+        "tournament": {
+            "name": "Eurocup 2K/Virtual EuroCup - Group B",
+            "category": {"name": "Virtual Basketball", "slug": "virtual-basketball"},
+        },
+    }
+    cyber = _event("Cluj (Cyber)", "Budućnost (Cyber)", ko)
+    assert not is_virtual_event(real)
+    assert is_virtual_event(virtual) and is_virtual_event(cyber)
+    resolver = _resolver()
+    kwargs: dict[str, Any] = {
+        "sport": "basketball",
+        "superbet_side_a": "Maxima Roma",
+        "superbet_side_b": "U BT Cluj",
+    }
+    assert resolver.match_quality(real, ko, "maxima roma", **kwargs) is not None
+    for fake in (virtual, cyber):
+        assert resolver.match_quality(fake, ko, "maxima roma", **kwargs) is None
+    # A simulated side takes none of the three candidate places.
+    for name in ("Cluj (Cyber)", "U-BT Cluj-Napoca (eSport)"):
+        assert not candidate_fits(
+            "u bt cluj", {"name": name, "gender": "M"}, "basketball"
+        )
+    assert candidate_fits(
+        "u bt cluj",
+        {"name": "U-Banca Transilvania Cluj-Napoca", "gender": "M"},
+        "basketball",
+    )
+
+
+def test_a_cell_reads_only_what_its_data_carries() -> None:
+    from bet.sofa.cs2 import FamilyStats
+
+    def stats(games: int, fair: float, hit: float) -> FamilyStats:
+        return FamilyStats("x", games, games, fair, hit, 0.2, 0.0, 0.05)
+
+    assert audit_shadow.read_of(stats(10, 0.5, 0.9), 0.01, 30).startswith("too few")
+    assert audit_shadow.read_of(stats(100, 0.50, 0.55), 0.04, 30) == "noise"
+    assert audit_shadow.read_of(stats(100, 0.50, 0.60), 0.04, 3).startswith("lead")
+    assert audit_shadow.read_of(stats(100, 0.50, 0.60), 0.04, 7) == "signal"
+
+
+def test_the_gap_error_is_clustered_by_game() -> None:
+    # Ten lines of ONE game that all won are one observation, not ten.
+    one_game = [
+        {"superbet_event_id": "1", "fair_p": 0.5, "outcome": "WIN"} for _ in range(10)
+    ]
+    assert audit_shadow.gap_se(one_game) is None
+    spread = [
+        {
+            "superbet_event_id": str(i),
+            "fair_p": 0.5,
+            "outcome": "WIN" if i % 2 else "LOSS",
+        }
+        for i in range(100)
+    ]
+    se = audit_shadow.gap_se(spread)
+    # Independent games: sqrt(p(1-p)/n) with the G/(G-1) correction.
+    assert se is not None and se == pytest.approx(0.05 * (100 / 99) ** 0.5)
+    # The same 100 outcomes, but ten correlated lines to a game (a game's
+    # lines all win or all lose together): a wider error.
+    ordered = sorted(spread, key=lambda r: r["outcome"])
+    packed = [dict(r, superbet_event_id=str(i // 10)) for i, r in enumerate(ordered)]
+    wide = audit_shadow.gap_se(packed)
+    assert wide is not None and wide >= se
+
+
+@pytest.mark.parametrize(
+    ("board", "event"),
+    [
+        # Review 2026-09-29: the searched team confirmed itself through a word
+        # both clubs of the board share, against a different opponent.
+        (("Dynamo Moscow", "Spartak Moscow"), ("Dynamo Moscow", "Lokomotiv Yaroslavl")),
+        (
+            ("Hapoel Tel Aviv", "Maccabi Tel Aviv"),
+            ("Hapoel Tel Aviv", "Hapoel Jerusalem"),
+        ),
+        (
+            ("Metallurg Magnitogorsk", "Metallurg Novokuznetsk"),
+            ("Metallurg Magnitogorsk", "Traktor Chelyabinsk"),
+        ),
+        # ...and a club-type word that two different clubs carry.
+        (
+            ("Maccabi Tel Aviv", "Hapoel Holon"),
+            ("Maccabi Tel Aviv", "Hapoel Galil Elyon"),
+        ),
+    ],
+)
+def test_the_relaxed_gate_never_lets_the_searched_team_confirm_itself(
+    board: tuple[str, str], event: tuple[str, str]
+) -> None:
+    ko = datetime(2026, 9, 29, 18, tzinfo=UTC)
+    game = _event(event[0], event[1], ko)
+    opponent = settle_shadow.normalize_name(board[1])
+    for sport in ("ice-hockey", "basketball", "volleyball"):
+        assert (
+            _resolver().match_quality(
+                game,
+                ko,
+                opponent,
+                sport=sport,
+                superbet_side_a=board[0],
+                superbet_side_b=board[1],
+            )
+            is None
+        )
+
+
+def test_a_zero_error_reads_as_noise_not_signal() -> None:
+    from bet.sofa.cs2 import FamilyStats
+
+    flat = FamilyStats("x", 40, 80, 0.5, 0.5, 0.25, -0.05, 0.05)
+    assert audit_shadow.read_of(flat, 0.0, 30) == "noise"
+    # A real gap with no spread at all is not noise.
+    sure = FamilyStats("x", 40, 40, 0.5, 1.0, 0.25, 0.9, 0.05)
+    assert audit_shadow.read_of(sure, 0.0, 30) == "signal"
+
+
+def test_the_clustered_error_is_centred_on_the_mean_gap() -> None:
+    # Every game's one line won at fair p 0.5: the gap is +0.5 with NO spread.
+    rows = [
+        {"superbet_event_id": str(i), "fair_p": 0.5, "outcome": "WIN"}
+        for i in range(50)
+    ]
+    assert audit_shadow.gap_se(rows) == pytest.approx(0.0)

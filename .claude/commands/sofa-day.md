@@ -63,7 +63,8 @@ The fourth is **INFO and must not be read as a health grade.** It bursts four
 requests from idle, and that cannot reach the regime a run works in: measured
 2026-09-22, four idle probes read 0.10 req/s on exactly the bridge that then
 sustained 8.64 req/s over 360 requests with zero non-200. A tab that finishes
-a job and finds nothing waiting goes back into a 20 s `/pull`. Only a
+a job and found nothing waiting went back into what was then a 20 s `/pull`
+(1 s since 2026-09-23; 50 ms while a job is out since 2026-09-29). Only a
 `WARN ... burst probes FAILED` line is a real fault.
 
 If you need the capacity number, `scripts/sofa/measure_bridge_capacity.py`

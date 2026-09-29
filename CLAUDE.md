@@ -137,8 +137,10 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
 
   Throughput saturates at the window count and never moves again; only latency
   grows, which is queue depth and costs `STALE_PRICE`. Below it the failure is
-  not gradual — two idle tabs fall back into a 20 s `/pull` and the bridge
-  collapses 78x. `p50 = 354 ms` at five *is* `MIN_INTERVAL_MS`: the tab is
+  not gradual — two idle tabs fell back into what was then a 20 s `/pull`
+  and the bridge collapsed 78x (`PULL_WAIT_S` is 1 s since 2026-09-23, and
+  `/pull` answers within 50 ms while a job is out since 2026-09-29, which
+  took a lone request from ~2 s to ~145 ms). `p50 = 354 ms` at five *is* `MIN_INTERVAL_MS`: the tab is
   pacing itself and nothing else is the limit. Change it together with
   `--windows`, and re-run `measure_bridge_capacity.py`.
 - **`SOFA_TARGET_RPS` must sit above what the tabs can serve.** Five windows

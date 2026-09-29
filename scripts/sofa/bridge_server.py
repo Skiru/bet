@@ -55,11 +55,29 @@ JOB_TIMEOUT_S = 60.0
 # non-200 - the 5 x 2.86 design ceiling. An empty /pull on localhost costs
 # nothing, so a short wait is cheap even when the connections are parallel.
 PULL_WAIT_S = 1.0
+# ...and while a claimed job is out in a tab, a /pull answers empty almost at
+# once. Measured 2026-09-29: the tabs still share ONE connection (lsof: one
+# ESTABLISHED socket, five windows), so the tab that fetched a job queued its
+# /push behind up to four other tabs' 1 s /pulls. A lone request took 2-4 s
+# (in flight at the server 4 s, claimed within 0.04 s), while 5 in parallel
+# ran at 16 req/s with p50 326 ms - pending work makes every /pull return
+# at once. Every sequential stage (SETTLE, CS2_SETTLE, SHADOW_SETTLE, the
+# resolver's search-then-listing chain) paid it on every request. This changes
+# only how long the localhost connection is held; Sofascore sees the same
+# requests, paced by MIN_INTERVAL_MS in each tab.
+BUSY_PULL_WAIT_S = 0.05
 
 
 class Job:
     __slots__ = (
-        "id", "url", "done", "status", "body", "headers", "error", "created",
+        "id",
+        "url",
+        "done",
+        "status",
+        "body",
+        "headers",
+        "error",
+        "created",
     )
 
     def __init__(self, url: str) -> None:
@@ -91,11 +109,16 @@ class JobQueue:
             self._work.notify()
         return job
 
-    def claim(self, wait: float) -> Job | None:
-        """Hand one pending job to the browser, blocking up to `wait` seconds."""
-        deadline = time.monotonic() + wait
+    def claim(self, wait: float, busy_wait: float | None = None) -> Job | None:
+        """Hand one pending job to the browser, blocking up to `wait` seconds -
+        or `busy_wait` while a claimed job has not been pushed back, so the
+        /pull does not hold the connection that /push is queued behind."""
         with self._work:
             self.last_pull = time.monotonic()
+            claimed = len(self._by_id) - len(self._pending)
+            if busy_wait is not None and claimed > 0:
+                wait = min(wait, busy_wait)
+            deadline = time.monotonic() + wait
             while not self._pending:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -180,7 +203,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path.startswith("/pull"):
-            job = QUEUE.claim(PULL_WAIT_S)
+            job = QUEUE.claim(PULL_WAIT_S, BUSY_PULL_WAIT_S)
             if job is None:
                 self._reply(200, {"job": None})
             else:
