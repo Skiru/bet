@@ -147,14 +147,20 @@ def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
     2026-09-29 - a day built the afternoon before would otherwise be printed
     again whenever the morning's CONFIDENCE failed.
     """
-    sheet, conf = run / "05_sheet.json", run / artifact
-    if not sheet.exists() or not conf.exists():
+    conf = run / artifact
+    if not conf.exists():
         return None
-    if conf.stat().st_mtime < sheet.stat().st_mtime:
-        return (
-            f"STALE_CONFIDENCE: {artifact} is older than 05_sheet.json - run "
-            "run_confidence.py for this day (and profile) before the PDF"
-        )
+    # vetoes.json too (review 2026-09-29): /sofa-analyze merged new vetoes and
+    # rebuilt only the standard profile, so the variant PDF printed legs the
+    # analysts had just vetoed. No real day 09-22..09-30 has a vetoes.json
+    # newer than its confidence artifacts.
+    for newer in ("05_sheet.json", "vetoes.json"):
+        path = run / newer
+        if path.exists() and conf.stat().st_mtime < path.stat().st_mtime:
+            return (
+                f"STALE_CONFIDENCE: {artifact} is older than {newer} - run "
+                "run_confidence.py for this day (and profile) before the PDF"
+            )
     return None
 
 

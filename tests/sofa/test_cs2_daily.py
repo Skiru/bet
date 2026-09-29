@@ -1,6 +1,9 @@
 """cs2_daily: the unattended CS2 day, on a fake clock."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
 
 from scripts.sofa import cs2_daily
 
@@ -65,3 +68,49 @@ def test_backfill_can_be_skipped_and_a_late_start_goes_straight_to_morning() -> 
     assert [c[-1] for c in calls][0] == "CS2_SETTLE"
     assert not any(c[0].endswith("backfill_cs2.py") for c in calls)
     assert clock.slept == []
+
+
+def test_a_second_cs2_loop_for_the_same_day_refuses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+    import sys
+
+    from scripts.sofa import cs2_daily
+
+    loop = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import time; time.sleep(30)",
+            "scripts/sofa/cs2_daily.py",
+            "--date",
+            "2026-09-30",
+        ]
+    )
+    other = subprocess.Popen(["sleep", "30"])
+    try:
+        pid_file = tmp_path / "daily.pid"
+        pid_file.write_text(str(loop.pid))
+        assert cs2_daily.already_running(pid_file, "2026-09-30") == loop.pid
+        # A shadow loop's pid, or another date, is not this loop.
+        assert cs2_daily.already_running(pid_file, "2026-10-01") is None
+        assert (
+            cs2_daily.already_running(pid_file, "2026-09-30", script="shadow_daily.py")
+            is None
+        )
+        pid_file.write_text(str(other.pid))  # a recycled pid
+        assert cs2_daily.already_running(pid_file, "2026-09-30") is None
+
+        monkeypatch.setattr(cs2_daily, "REPO", tmp_path)
+        monkeypatch.setenv("SOFA_RUNS_DIR", "runs")
+        cs2_daily.pid_file("2026-09-30").parent.mkdir(parents=True)
+        cs2_daily.pid_file("2026-09-30").write_text(str(loop.pid))
+        monkeypatch.setattr("sys.argv", ["cs2_daily", "--date", "2026-09-30"])
+        ran: list[object] = []
+        monkeypatch.setattr(cs2_daily, "run", lambda *a, **k: ran.append(a) or 0)
+        assert cs2_daily.main() == 2 and not ran
+    finally:
+        for p in (loop, other):
+            p.kill()
+            p.wait()

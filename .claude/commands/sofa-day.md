@@ -104,6 +104,8 @@ today's run for the bridge. Hand it to `sofa-settler`, or run it directly:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
+# the whole CS2 day unattended (snapshots to 23:30Z, settle 05:00Z D+1); a second loop for the date refuses (exit 2):
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> >> runs/sofa/cs2/daily_<today>.log 2>&1 &
 # SHADOW_SETTLE for D-1 is the D-1 loop's own 05:15Z step. Run it by hand only when no
 # D-1 loop is alive - runs/sofa/shadow/daily_<D-1>.pid is gone (the loop deletes it on
 # exit) or its pid is not running. It resumes, so a repeat is harmless; a concurrent one is not:

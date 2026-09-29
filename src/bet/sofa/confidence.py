@@ -96,7 +96,7 @@ def is_derived(market: str) -> bool:
 QUANTITY_FAMILIES: dict[str, str] = {}
 for _family, _prefixes in {
     "corners": ("corners_",),
-    "fouls": ("fouls_",),
+    "fouls": ("fouls_", "player_fouls_"),
     "cards": ("cards_points_", "most_cards_points"),
     # F54. A player's shots are part of his team's shots are part of the
     # match's. Without these prefixes a player row would be its own family
@@ -118,9 +118,11 @@ for _family, _prefixes in {
     # An assist is a goal seen from one pass earlier: it cannot happen without
     # the goal, so it is not independent of the scoring family.
     "goals": ("goals_", "player_assists_"),
-    "offsides": ("offsides_",),
+    "offsides": ("offsides_", "player_offsides_"),
     "throw_ins": ("throw_ins_",),
-    "tackles": ("tackles_",),
+    # An interception is a defensive action of the same kind as a tackle
+    # (both are the team's ball-winning count); one family, conservatively.
+    "tackles": ("tackles_", "player_tackles_", "player_interceptions_"),
     # A tiebreak IS a 13-game set, and a match that reaches one is a long
     # match: the same quantity as games and sets, as get_mechanism_family has
     # always said ("tennis_length"). Absent here, `tiebreaks_total` became a
@@ -151,6 +153,26 @@ AWAITING_OWN_CURVE = frozenset(
         "throw_ins_2h", "goal_kicks", "goal_kicks_1h", "goal_kicks_2h", "tackles",
     )
     for suffix in ("total", "for")
+) | frozenset(
+    # Football player props (players.PLAYER_METRICS, listed here to keep this
+    # module free of that import; test_player_markets checks the two agree).
+    # Measured 2026-09-29 on 3,509 settled player rows, every one priced from
+    # "pooled:football": in the band that became PDF Bet Builder legs
+    # (confidence >= 0.70, n=428) the pool claimed 0.776 and the rows
+    # realised 0.624, ROI -22.8% at Superbet's one-sided prices; shots OVER
+    # 0.430 claimed vs 0.317, on target 0.383 vs 0.236, assists 0.326 vs
+    # 0.083. The pool is not a measurement of these markets, so they wait for
+    # their own curve like every market above - and they had reached the PDF
+    # as builder legs on 09-26..09-29 (1-3 a day).
+    {
+        "player_shots_for",
+        "player_shots_on_target_for",
+        "player_assists_for",
+        "player_fouls_for",
+        "player_tackles_for",
+        "player_interceptions_for",
+        "player_offsides_for",
+    }
 )
 
 

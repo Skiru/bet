@@ -70,8 +70,12 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
         "zero_when_absent": True,
         "identity": (
             "totalShots",
-            ("onTargetScoringAttempt", "shotOffTarget", "blockedScoringAttempt",
-             "hitWoodwork"),
+            (
+                "onTargetScoringAttempt",
+                "shotOffTarget",
+                "blockedScoringAttempt",
+                "hitWoodwork",
+            ),
         ),
     },
     "player_assists_for": {
@@ -249,6 +253,7 @@ def squad_statistics(
         return None
 
     out: dict[str, dict[str, Any]] = {}
+    homonyms: set[str] = set()
     for entry in players:
         if not isinstance(entry, dict):
             continue
@@ -259,7 +264,16 @@ def squad_statistics(
         if not isinstance(name, str) or not name.strip():
             continue
         stats = entry.get("statistics")
-        out[normalize_name(name)] = dict(stats) if isinstance(stats, dict) else {}
+        key = normalize_name(name)
+        if key in out:
+            # Two squad members with one name (24 of 1,806 cached football
+            # squad-sides, 2026-09-29: "ederson", "marcos paulo"): which one
+            # Superbet means cannot be told, and the later one used to
+            # overwrite the earlier. Neither is a candidate.
+            homonyms.add(key)
+        out[key] = dict(stats) if isinstance(stats, dict) else {}
+    for key in homonyms:
+        del out[key]
     if statistics is not None:
         proven = _zero_proven(out, team_totals(statistics, is_home=is_home))
         if proven:

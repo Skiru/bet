@@ -724,7 +724,8 @@ def _squad(lineups: dict[str, Any], side: str) -> list[tuple[str, dict[str, Any]
     for entry in (lineups.get(side) or {}).get("players") or []:
         if not isinstance(entry, dict):
             continue
-        name = (entry.get("player") or {}).get("name")
+        player = entry.get("player")
+        name = player.get("name") if isinstance(player, dict) else None
         if isinstance(name, str) and name.strip():
             stats = entry.get("statistics")
             out.append((name, stats if isinstance(stats, dict) else {}))
@@ -743,9 +744,16 @@ def build_player_box(
     if not sides["home"] or not sides["away"]:
         return None
     players: dict[str, dict[str, Any]] = {}
+    homonyms: set[str] = set()
     for squad in sides.values():
         for name, stats in squad:
-            players[normalize_name(name)] = stats
+            key = normalize_name(name)
+            if key in players:
+                # Same name twice (either squad): the line cannot say whose.
+                homonyms.add(key)
+            players[key] = stats
+    for key in homonyms:
+        del players[key]
     shootout = (detail.get("status") or {}).get("description") == "AP"
     code = detail.get("winnerCode")
     for side, score_key, won in (

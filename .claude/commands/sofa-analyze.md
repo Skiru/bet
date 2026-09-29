@@ -105,12 +105,24 @@ Three things to check before you accept a veto list:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
 
+The variant is rebuilt too: it reads the same `vetoes.json`, and a variant PDF
+built before the merge prints legs the analysts just vetoed.
+`build_coupon_pdf.py` refuses (exit 2, `STALE_CONFIDENCE`) a profile whose
+confidence artifact is older than `vetoes.json` or `05_sheet.json`.
+
 If the offer is more than 45 minutes old and the day is still live, refresh it
-first (`run_offer.py --date <date> --min-minutes-to-kickoff 20`) — otherwise
-both stages will refuse every price and the empty result will look like an
-analytical conclusion.
+first and re-run SHEET before the rebuild above - a moved price is refused
+(`PRICE_MOVED_SINCE_SHEET`) otherwise, and the empty result will look like an
+analytical conclusion:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET
+```
 
 ## Step 4 — save the read and report the delta
 
@@ -120,6 +132,7 @@ Save each analyst's markdown as `runs/sofa/<date>/<date>_analiza_<sport>.md`.
 ANALIZA:  piłka <n> meczów przeczytanych z <n>; tenis <n> z <n>
 WETA:     <n> zastosowanych (<n> SAMPLE_UNINFORMATIVE / <n> CONTEXT / <n> PRICE / <n> OTHER), <n> bez dopasowania
 KUPON:    single <n> → <n>; PDF <n> → <n> pozycji
+WARIANT:  PDF <n> → <n> pozycji (NIE kupon)
 ZDJĘTE:   <which rows the vetoes removed, and from which product>
 NIE PRZECZYTANO: <fixtures neither analyst reached, and why>
 ```

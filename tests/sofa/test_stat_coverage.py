@@ -225,8 +225,11 @@ def test_cache_replay_carries_the_new_bases_and_refuses_placeholders(
 
 def test_a_new_metric_cannot_borrow_the_pool_until_it_has_its_own_curve() -> None:
     from bet.sofa.confidence import AWAITING_OWN_CURVE, Calibration
+    from bet.sofa.players import PLAYER_METRICS
 
-    assert set(NEW_METRICS) == set(AWAITING_OWN_CURVE)
+    # The coverage audit's new metrics, plus (2026-09-29) every football
+    # player prop, which the pooled curve over-read by ~15 pp.
+    assert set(NEW_METRICS) | set(PLAYER_METRICS) == set(AWAITING_OWN_CURVE)
     pool = {"0.60-0.70": {"realised_lo95": 0.66, "n": 5000}}
     cal = Calibration(pooled=pool, by_market={}, pooled_by_sport={"football": pool})
     assert cal.realised("throw_ins_total", 0.65, "football") is None

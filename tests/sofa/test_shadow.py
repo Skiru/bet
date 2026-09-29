@@ -2144,3 +2144,174 @@ def test_a_box_that_does_not_add_up_grades_no_player_line(tmp_path: Path) -> Non
     assert all(g["family"] != "player_points" for g in rec["graded"])
     # The team lines are still graded.
     assert any(g["family"] == "total" for g in rec["graded"])
+
+
+def test_a_name_in_both_squads_is_nobodys_line() -> None:
+    from bet.sofa.shadow import build_player_box, player_value
+
+    lineups = {
+        "home": {
+            "players": [
+                {
+                    "player": {"name": "Jan Kowalski"},
+                    "statistics": {"secondsPlayed": 9, "points": 25},
+                }
+            ]
+        },
+        "away": {
+            "players": [
+                {
+                    "player": {"name": "Jan Kowalski"},
+                    "statistics": {"secondsPlayed": 9, "points": 10},
+                }
+            ]
+        },
+    }
+    box = build_player_box(lineups, _score_detail(25, 10), BASKETBALL)
+    assert box is not None and box.ok  # the score still adds up
+    line = ShadowLine(
+        "e", 233565, "player_points", 0, "Kowalski, Jan", 20.5, "OVER", 1.9
+    )
+    assert player_value(line, box, BASKETBALL) == "UNMATCHED"
+
+
+def test_a_malformed_player_entry_is_skipped_not_fatal() -> None:
+    from bet.sofa.shadow import build_player_box
+
+    lineups = {
+        "home": {
+            "players": [
+                {"player": "oops"},
+                {
+                    "player": {"name": "A B"},
+                    "statistics": {"secondsPlayed": 1, "points": 2},
+                },
+            ]
+        },
+        "away": {
+            "players": [
+                {
+                    "player": {"name": "C D"},
+                    "statistics": {"secondsPlayed": 1, "points": 1},
+                }
+            ]
+        },
+    }
+    box = build_player_box(lineups, _score_detail(2, 1), BASKETBALL)
+    assert box is not None and box.ok
+
+
+def test_a_missing_box_is_asked_again_and_then_grades(tmp_path: Path) -> None:
+    snap = {**_snap("2026-09-28T15:00:00Z", 1.9)}
+    snap["lines"] = snap["lines"] + [
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, s, 1.9
+        ).as_dict()
+        for s in ("OVER", "UNDER")
+    ]
+    _write_snaps(tmp_path, [snap])
+    first = LineupsClient({**sofa_event(), **HOCKEY_AET}, None)  # not published yet
+    run_settle(tmp_path, FakeResolver(sofa_event()), first, 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "SETTLED" and rec["player_retry"] is True
+    assert any(g["family"] == "total" for g in rec["graded"])
+    lineups = {
+        "home": {
+            "players": [
+                {
+                    "player": {"name": "Home Player0"},
+                    "statistics": {"secondsPlayed": 900, "goals": 4, "points": 4},
+                }
+            ]
+        },
+        "away": {
+            "players": [
+                {
+                    "player": {"name": "Away One"},
+                    "statistics": {"secondsPlayed": 900, "goals": 3, "points": 3},
+                }
+            ]
+        },
+    }
+    later = LineupsClient({**sofa_event(), **HOCKEY_AET}, lineups)
+    run_settle(tmp_path, FakeResolver(sofa_event()), later, 8)
+    rec = settled(tmp_path)["1"]
+    assert rec["player_retry"] is False
+    assert {
+        g["side"]: g["outcome"] for g in rec["graded"] if g["family"] == "player_points"
+    } == {
+        "OVER": "WIN",
+        "UNDER": "LOSS",
+    }
+    # ...and once the box is in, the game is final: never asked a third time.
+    third = LineupsClient({**sofa_event(), **HOCKEY_AET}, lineups)
+    run_settle(tmp_path, FakeResolver(sofa_event()), third, 9)
+    assert third.lineups_asked == []
+
+
+def test_a_missing_box_stops_being_asked_after_the_give_up_window(
+    tmp_path: Path,
+) -> None:
+    snap = {**_snap("2026-09-28T15:00:00Z", 1.9)}
+    snap["lines"] = snap["lines"] + [
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, s, 1.9
+        ).as_dict()
+        for s in ("OVER", "UNDER")
+    ]
+    _write_snaps(tmp_path, [snap])
+    run_settle(
+        tmp_path,
+        FakeResolver(sofa_event()),
+        LineupsClient({**sofa_event(), **HOCKEY_AET}, None),
+        6,
+    )
+    late = LineupsClient({**sofa_event(), **HOCKEY_AET}, None)
+    run_settle(tmp_path, FakeResolver(sofa_event()), late, 24 * 8)
+    assert late.lineups_asked == [] and settled(tmp_path)["1"]["state"] == "SETTLED"
+
+
+def test_player_lines_grade_when_the_orientation_is_unclear() -> None:
+    from bet.sofa.shadow import build_player_box
+
+    ev = latest_pre_kickoff(
+        [
+            {
+                **_snap("2026-09-28T15:00:00Z", 1.9),
+                "lines": [
+                    ShadowLine(
+                        "1", 236265, "player_points", 0, "Player0, Home", 0.5, s, 1.9
+                    ).as_dict()
+                    for s in ("OVER", "UNDER")
+                ],
+            }
+        ]
+    )["1"]
+    result = build_result(HOCKEY_AET, HOCKEY, True)
+    assert result is not None
+    box = build_player_box(
+        {
+            "home": {
+                "players": [
+                    {
+                        "player": {"name": "Home Player0"},
+                        "statistics": {"secondsPlayed": 9, "goals": 4, "points": 4},
+                    }
+                ]
+            },
+            "away": {
+                "players": [
+                    {
+                        "player": {"name": "Away One"},
+                        "statistics": {"secondsPlayed": 9, "goals": 3, "points": 3},
+                    }
+                ]
+            },
+        },
+        HOCKEY_AET,
+        HOCKEY,
+    )
+    rows, counts = settle_event(ev, result, HOCKEY, totals_only=True, box=box)
+    assert {r["side"] for r in rows} == {"OVER", "UNDER"} and counts[
+        "needs_orientation"
+    ] == 0

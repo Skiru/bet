@@ -1020,3 +1020,103 @@ def test_the_proof_marker_never_leaks_into_the_source_payload() -> None:
     raw = _player("Piotr Zieliński", minutesPlayed=75)
     squad_statistics(_lineups([raw]), is_home=True, statistics=_stats_payload(0))
     assert ZERO_PROVEN_KEY not in raw["statistics"]  # the cache's dict is untouched
+
+
+def test_every_player_metric_waits_for_its_own_curve() -> None:
+    """2026-09-29: the pooled football curve claimed 0.776 where settled
+    player rows realised 0.624 (n=428, the band that became PDF legs)."""
+    from bet.sofa.confidence import AWAITING_OWN_CURVE, Calibration
+
+    assert set(PLAYER_METRICS) <= AWAITING_OWN_CURVE
+    cal = Calibration.load()
+    for metric in PLAYER_METRICS:
+        hit = cal.realised(metric, 0.85, "football", "OVER")
+        # No own curve exists for any of them today: nothing may stand in.
+        assert hit is None or not str(hit[1]).startswith("pooled"), (metric, hit)
+
+
+def test_every_player_metric_shares_its_teams_quantity_family() -> None:
+    from bet.sofa.confidence import quantity_family
+
+    team = {
+        "player_shots_for": "shots_for",
+        "player_shots_on_target_for": "shots_on_target_for",
+        "player_assists_for": "goals_for",
+        "player_fouls_for": "fouls_for",
+        "player_offsides_for": "offsides_for",
+        "player_tackles_for": "tackles_for",
+        "player_interceptions_for": "tackles_for",
+    }
+    assert set(team) == set(PLAYER_METRICS)
+    for metric, team_metric in team.items():
+        assert quantity_family(metric) == quantity_family(team_metric), metric
+
+
+def test_samples_proves_a_zero_from_the_same_events_statistics(tmp_path: Path) -> None:
+    """The team_sum proof only works if SAMPLES hands squad_statistics the
+    event's own /statistics - dropping the argument turned every proven zero
+    back into a gap with no test failing (review round 3, 2026-09-29)."""
+    from unittest.mock import MagicMock
+
+    from bet.sofa.db import migrate
+    from bet.sofa.samples import process_historical_event
+
+    db = str(tmp_path / "sofa.db")
+    migrate(db)
+    cache = SofaCache(SofaConfig(db_path=db))
+    client = MagicMock()
+    client.event_statistics.return_value = _stats_payload(3)
+    client.event_incidents.return_value = {"incidents": []}
+    client.event_lineups.return_value = _lineups(
+        [
+            _player("Jan Kowalski", minutesPlayed=90, fouls=3),
+            _player("Piotr Zieliński", minutesPlayed=80),
+        ]
+    )
+    event = {
+        "id": 555,
+        "startTimestamp": 1_790_000_000,
+        "status": {"type": "finished"},
+        "homeTeam": {"id": 1, "name": "A"},
+        "awayTeam": {"id": 2, "name": "B"},
+        "homeScore": {"current": 1},
+        "awayScore": {"current": 0},
+    }
+    res = process_historical_event(
+        client, cache, event, 1, "football", {"fouls_total"}, MagicMock(), True
+    )
+    squad = res["squad"]
+    assert squad is not None
+    assert extract_player_metric("player_fouls_for", squad["piotr zielinski"]) == 0.0
+
+
+def test_every_squad_statistics_call_passes_the_matchs_statistics() -> None:
+    import ast
+
+    root = Path(__file__).parents[2]
+    for rel in ("src/bet/sofa/samples.py", "scripts/sofa/run_settle.py"):
+        tree = ast.parse((root / rel).read_text(encoding="utf-8"))
+        calls = [
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Call)
+            and getattr(n.func, "id", getattr(n.func, "attr", "")) == "squad_statistics"
+        ]
+        assert calls, rel
+        for call in calls:
+            assert "statistics" in {k.arg for k in call.keywords}, (rel, call.lineno)
+
+
+def test_homonyms_in_one_squad_are_nobodys_sample() -> None:
+    squad = squad_statistics(
+        _lineups(
+            [
+                _player("Marcos Paulo", minutesPlayed=90, totalShots=5),
+                _player("Marcos Paulo", minutesPlayed=10, totalShots=0),
+                _player("Jan Kowalski", minutesPlayed=90, totalShots=1),
+            ]
+        ),
+        is_home=True,
+    )
+    assert squad is not None and "marcos paulo" not in squad
+    assert "jan kowalski" in squad

@@ -44,7 +44,14 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from scripts.sofa.cs2_daily import PYTHON, REPO, _at, loop  # noqa: E402
+from scripts.sofa.cs2_daily import (  # noqa: E402
+    PYTHON,
+    REPO,
+    _at,
+    _command_of,
+    loop,
+)
+from scripts.sofa.cs2_daily import already_running as _already_running  # noqa: E402
 
 
 def state_dir() -> Path:
@@ -78,47 +85,13 @@ def has_snapshots(date: str) -> bool:
     return any(state_dir().glob(f"*/{date}/snapshots.jsonl"))
 
 
-def _command_of(pid: int) -> str:
-    try:
-        return subprocess.run(
-            ["ps", "-p", str(pid), "-o", "command="],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        ).stdout
-    except (OSError, subprocess.SubprocessError):
-        return ""
-
-
 def already_running(
     pid_file: Path,
     date: str | None = None,
     command_of: Callable[[int], str] = _command_of,
 ) -> int | None:
-    """The pid of a live loop for this day, if one is running.
-
-    Two loops for one day double every Superbet snapshot and, at 05:15Z,
-    run two SHADOW_SETTLE over the same settled.json - the last writer wins.
-    A live pid is only this loop when its command line says so: after a
-    crash or a reboot the number can belong to anything, and a stale file
-    must not end the chain.
-    """
-    try:
-        pid = int(pid_file.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        return None
-    if pid == os.getpid():
-        return None
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return None
-    except PermissionError:
-        pass
-    command = command_of(pid)
-    if "shadow_daily.py" not in command or (date and date not in command):
-        return None
-    return pid
+    """The pid of a live shadow loop for this day (cs2_daily.already_running)."""
+    return _already_running(pid_file, date, command_of, "shadow_daily.py")
 
 
 def next_day(date: str) -> str:

@@ -243,6 +243,10 @@ def settle_one(
         record["player_box"] = (
             "missing" if box is None else ("ok" if box.ok else box.reason)
         )
+        # A box not published yet, or still provisional, is not a fact about
+        # the game: the game is SETTLED for its team lines, and asked again
+        # (up to GIVE_UP_AFTER) for its player lines.
+        record["player_retry"] = box is None or not box.ok
     graded, counts = settle_event(
         ev, result, sport, totals_only=orientation is None, clock=clock, box=box
     )
@@ -311,10 +315,16 @@ def settle_sport(
     breaker_open = False
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
         prev = done.get(eid)
-        if prev and prev["state"] in TERMINAL:
+        kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
+        retry_players = bool(
+            prev
+            and prev["state"] == "SETTLED"
+            and prev.get("player_retry")
+            and at - kickoff <= GIVE_UP_AFTER
+        )
+        if prev and prev["state"] in TERMINAL and not retry_players:
             metrics["kept"] += 1
             continue
-        kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
         if at - kickoff < SETTLE_AFTER:
             metrics["too_early"] += 1
             continue

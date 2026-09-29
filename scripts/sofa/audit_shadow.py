@@ -147,7 +147,16 @@ def _family_table(rows: list[dict[str, Any]]) -> list[str]:
     for r in rows:
         by_family[r["family"]].append(r)
     ranked = sorted(by_family.items(), key=lambda kv: -len(kv[1]))
-    return _table([(rs, fam) for fam, rs in ranked] + [(rows, "ALL")])
+    # Player lines outnumber team lines several times over on a game with
+    # props; pooled into one ALL they would speak for the team markets too.
+    team = [r for r in rows if not str(r["family"]).startswith("player_")]
+    players = [r for r in rows if str(r["family"]).startswith("player_")]
+    totals = [(team, "ALL team lines"), (players, "ALL player lines")]
+    return _table(
+        [(rs, fam) for fam, rs in ranked]
+        + [(rs, label) for rs, label in totals if rs]
+        + [(rows, "ALL")]
+    )
 
 
 def render_sport(sport: SportKey, events: list[dict[str, Any]]) -> list[str]:

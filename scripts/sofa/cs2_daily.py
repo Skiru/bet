@@ -66,6 +66,52 @@ def step(args: list[str]) -> int:
     return subprocess.call(env_cmd, cwd=REPO)
 
 
+def _command_of(pid: int) -> str:
+    try:
+        return subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def already_running(
+    pid_file: Path,
+    date: str | None = None,
+    command_of: Callable[[int], str] = _command_of,
+    script: str = "cs2_daily.py",
+) -> int | None:
+    """The pid of a live `script` loop for this day, if one is running.
+
+    Two loops for one day double every Superbet snapshot and run two settles
+    over the same settled.json the next morning - the last writer wins. A
+    live pid is only this loop when its command line says so: after a crash
+    or a reboot the number can belong to anything, and a stale file must not
+    block (or end a chain). Shared with shadow_daily.py.
+    """
+    import os
+
+    try:
+        pid = int(pid_file.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+    if pid == os.getpid():
+        return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return None
+    except PermissionError:
+        pass
+    command = command_of(pid)
+    if script not in command or (date and date not in command):
+        return None
+    return pid
+
+
 def plan(
     date: str,
     interval_min: int,
@@ -157,6 +203,14 @@ def main() -> int:
     until = _at(args.date, args.snapshots_until)
     settle_at = _at(args.date, args.settle_at, day_offset=1)
     pid_file(args.date).parent.mkdir(parents=True, exist_ok=True)
+    running = already_running(pid_file(args.date), args.date)
+    if running is not None:
+        print(
+            f"cs2_daily for {args.date} is already running (pid {running}); "
+            "not starting a second loop",
+            flush=True,
+        )
+        return 2
     pid_file(args.date).write_text(str(os.getpid()), encoding="utf-8")
     code = run(args.date, args.interval_min, until, settle_at, args.backfill_minutes)
     done_file(args.date).write_text(

@@ -58,6 +58,8 @@ Przed dzisiejszym dniem, bo to karmi kalibrację i **konkuruje o most**.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
+# cały dzień CS2 bez obsługi (ceny do 23:30Z, settle 05:00Z D+1); druga pętla dla daty odmawia (kod 2):
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> >> runs/sofa/cs2/daily_<today>.log 2>&1 &
 # pętla D-1 robi to sama o 05:15Z; ręcznie tylko, gdy nie żyje (brak runs/sofa/shadow/daily_<D-1>.pid
 # albo jego pid nie działa) - wznawia się, więc powtórka nie szkodzi, równoległa tak:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
@@ -140,17 +142,25 @@ powiedzieć, że się go pominęło.
 ## 4. Przebudowa, confidence i PDF
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --only OFFER
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <data> --min-minutes-to-kickoff 20
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --only SHEET
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --only COUPON
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <data>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <data>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <data> --profile wariant
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <data> --profile wariant
 ```
 
 - Odśwież OFFER, jeśli poprzedni jest starszy niż **45 minut** — inaczej oba
   etapy odrzucą każdą cenę, a pusty wynik będzie wyglądał na wniosek
-  analityczny.
-- Przy **późnym** odświeżeniu dodaj `--min-minutes-to-kickoff 20`, żeby etap
-  nie spędził ~90 minut na wycenie meczów już rozegranych.
+  analityczny. Po odświeżeniu **zawsze SHEET** — przesunięta cena jest
+  odrzucana (`PRICE_MOVED_SINCE_SHEET`).
+- `--min-minutes-to-kickoff` przyjmuje tylko `run_offer.py`; `run_pipeline.py`
+  kończy się na niej kodem 2. Bez niej późne odświeżenie spędza ~90 minut na
+  wycenie meczów już rozegranych.
+- `build_coupon_pdf.py` odmawia (kod 2, `STALE_CONFIDENCE`), gdy confidence
+  jest starsze niż `05_sheet.json` albo `vetoes.json` — wtedy najpierw
+  `run_confidence.py` dla tego profilu.
 - **Czytaj `stakeable_builders`, nie `builders`.** Oba są raportowane właśnie
   dlatego, że się różnią.
 - **`picks: 0` to odpowiedź legalna i częsta.** Slip musi być
