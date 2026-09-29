@@ -100,8 +100,21 @@ today's run for the bridge. Hand it to `sofa-settler`, or run it directly:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
+# SHADOW_SETTLE for D-1 is the D-1 loop's own 05:15Z step. Run it by hand only when no
+# D-1 loop is alive - runs/sofa/shadow/daily_<D-1>.pid is gone (the loop deletes it on
+# exit) or its pid is not running. It resumes, so a repeat is harmless; a concurrent one is not:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
+# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z);
+# a second loop for the same date refuses to start (exit 2), so this is safe to repeat:
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
 ```
+
+SHADOW / SHADOW_SETTLE are the hockey / basketball / volleyball measurement
+(`src/bet/sofa/shadow.py`): Superbet's price against Sofascore's score, like
+CS2. They write only `runs/sofa/shadow/<sport>/<date>/`, never feed the
+coupon, and a PARTIAL or FAILED there never blocks the day. Report is
+`audit_shadow.py --from <d> --to <d>`.
 
 `PARTIAL` is the normal verdict (unfinished matches, provider stat gaps).
 Read section 7c of the audit — that is the PDF coupon's real result. Sections
@@ -226,6 +239,7 @@ SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów
+SHADOW:   D-1 <n> meczów rozliczonych (hokej/kosz/siatka) — pomiar, NIE kupon
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <the day's single biggest weakness>
 ```

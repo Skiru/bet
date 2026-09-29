@@ -58,6 +58,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180    # CS2 history (results only; bridge)
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> > runs/sofa/cs2/daily_<d>.log 2>&1 &   # the whole CS2 day, unattended
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW          # hockey/basketball/volleyball price snapshot, not the coupon
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE # grade D-1's shadow lines (bridge)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # the whole shadow day, unattended; --chain starts D+1 after the 05:15Z settle
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
@@ -88,6 +92,11 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   only `runs/sofa/cs2/<date>/` and test whether Superbet's devigged CS2 price
   already matches the outcomes. Superbet `sportId=190` is *virtual* football
   and `75` is e-football - neither is a real sport; never add them.
+- **Hockey, basketball and volleyball are a measurement too** (since
+  2026-09-29): `SHADOW` / `SHADOW_SETTLE` write only
+  `runs/sofa/shadow/<sport>/<date>/`, grade Superbet's two-way lines against
+  Sofascore's score, and never feed or gate the coupon. Superbet `157`
+  (e-hockey) and `70` (e-basketball) are simulations - never add them.
 - **Never print a combined / Bet Builder / parlay price** outside what
   `confidence.py` computed, and never present `odds_if_product` as a price —
   Superbet does not price a slip as the product of its legs (measured markup
@@ -144,6 +153,10 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   265–297 ms, ~3.1 s at the end); the breaker opened and skipped 61% of the
   series. One event, not a measured limit — but a long single run at full
   width is no longer known to be safe. Backfills run short and resume.
+  **Second: 2026-09-29 14:26:50Z, RESOLVE** — 5 × 403 in one instant on
+  five different routes, 21 min after the windows were launched, in an
+  ordinary day run; the breaker opened and a `--from-stage RESOLVE` re-run
+  minutes later recovered it (recall 74.8% → 82.3%).
 - **Measure the round trip, not the wall clock around the client.** The token
   bucket sits *inside* `client.event_statistics()`, so timing that call
   reports our own rate limiting as if it were browser latency — it read a flat

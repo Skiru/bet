@@ -336,11 +336,16 @@ class SofascoreClient:
         self._log(stage, "GET", url, status, elapsed, False, state)
         raise ProviderError(f"Unexpected HTTP {status}")
 
-    def search(self, q: str) -> Any | None:
+    def search(self, q: str, sport: str | None = None) -> Any | None:
         # quote() is not optional: team names carry spaces, "&" and non-ASCII,
         # and pasting them raw into the query string silently searches for
         # something else.
         url = "https://api.sofascore.com/api/v1/search/all?q=" + quote(q, safe="")
+        if sport:
+            # Scopes the results to one sport (checked live 2026-09-29:
+            # "praia clube" &sport=volleyball returns only volleyball teams,
+            # where the unscoped search ranks football and futsal first).
+            url += "&sport=" + quote(sport, safe="")
         return self._execute(url)
 
     def entity_events(

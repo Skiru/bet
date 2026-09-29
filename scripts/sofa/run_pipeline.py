@@ -77,6 +77,12 @@ STAGE_MODULES: dict[str, str] = {
     # feed or gate the coupon.
     "CS2": "scripts.sofa.run_cs2",
     "CS2_SETTLE": "scripts.sofa.settle_cs2",
+    # The same shadow measurement for ice hockey, basketball and volleyball
+    # (src/bet/sofa/shadow.py): SHADOW snapshots Superbet's two-way lines,
+    # SHADOW_SETTLE grades D-1's against Sofascore scores. Outside the
+    # sequence and outside the day's directory for CS2's reason.
+    "SHADOW": "scripts.sofa.run_shadow",
+    "SHADOW_SETTLE": "scripts.sofa.settle_shadow",
 }
 
 # (stage, label) — OFFER appears twice by design.

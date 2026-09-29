@@ -98,6 +98,33 @@ def run(
     snapshot, morning, audit = plan(
         date, interval_min, until, settle_at, backfill_minutes
     )
+    return loop(
+        snapshot,
+        morning,
+        audit,
+        interval_min,
+        until,
+        settle_at,
+        clock=clock,
+        sleep=sleep,
+        runner=runner,
+    )
+
+
+def loop(
+    snapshot: list[str],
+    morning: list[list[str]],
+    audit: list[str],
+    interval_min: int,
+    until: datetime,
+    settle_at: datetime,
+    *,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    sleep: Callable[[float], None] = time.sleep,
+    runner: Callable[[list[str]], int] = step,
+) -> int:
+    """Snapshot every interval until `until`, then the morning steps, then
+    the audit. Shared with shadow_daily.py."""
     worst = 0
     while clock() < until:
         worst = max(worst, runner(snapshot))

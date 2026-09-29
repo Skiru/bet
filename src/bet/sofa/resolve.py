@@ -55,6 +55,7 @@ def name_score(a: str, b: str) -> float:
     """
     return max(fuzz.ratio(a, b), fuzz.token_set_ratio(a, b))
 
+
 # How far the two sources' kickoffs may differ and still be the same match.
 #
 # Per sport, and that is not tidiness. In football the median disagreement is
@@ -67,6 +68,12 @@ def name_score(a: str, b: str) -> float:
 MATCH_WINDOW_S: dict[str, float] = {
     "football": 6 * 3600,
     "tennis": 24 * 3600,
+    # The shadow sports (src/bet/sofa/shadow.py). A hockey or volleyball side
+    # plays the same opponent on consecutive days (back-to-back series), so a
+    # 24 h window would match yesterday's game; kickoffs agree like football's.
+    "ice-hockey": 6 * 3600,
+    "basketball": 6 * 3600,
+    "volleyball": 6 * 3600,
 }
 DEFAULT_MATCH_WINDOW_S = 24 * 3600
 
@@ -86,8 +93,32 @@ ListingKind = Literal["last", "next"]
 LISTING_KINDS_BY_SPORT: dict[str, tuple[ListingKind, ...]] = {
     "football": ("next", "last"),
     "tennis": ("last",),
+    # The shadow sports are only ever resolved by SHADOW_SETTLE, for a game
+    # that is over, and a finished game is on the first page of events/last.
+    # With next and three pages each a hockey side cost six listings a
+    # lookup (measured 2026-09-29, ~1 req/s through the bridge). A postponed
+    # game is then not found and ends GAVE_UP rather than VOID - either way
+    # it is not graded.
+    "ice-hockey": ("last",),
+    "basketball": ("last",),
+    "volleyball": ("last",),
 }
 DEFAULT_LISTING_KINDS: tuple[ListingKind, ...] = ("next", "last")
+LISTING_PAGES_BY_SPORT: dict[str, int] = {
+    "ice-hockey": 1,
+    "basketball": 1,
+    "volleyball": 1,
+}
+DEFAULT_LISTING_PAGES = 3
+
+# Sports whose search is asked with &sport=<slug>. Sofascore's unscoped search
+# returns 20 results ranked across every sport, and a volleyball or
+# basketball side shares its name with a football club far more often than
+# not: on 2026-09-29 only 7 of 22 volleyball games resolved, and "afturelding"
+# / "hamar" / "estudiantes de la plata" returned no volleyball team at all
+# unscoped while the scoped search put one first. Football and tennis keep the
+# unscoped search they were measured with.
+SPORT_SCOPED_SEARCH = frozenset({"ice-hockey", "basketball", "volleyball"})
 
 # Markers Superbet uses for a women's team, in the side name.
 _WOMEN_SUPERBET_MARKERS = (
@@ -111,6 +142,12 @@ _WOMEN_COMPETITION_MARKERS = (
     "damen",
     "girls",
 )
+
+
+# Sports whose sides are teams, which Superbet marks "(K)" when they are
+# women's. The gender gate is right for every one of them and wrong only for
+# tennis, where a side is a person (see match_quality).
+TEAM_SPORTS = frozenset({"football", "ice-hockey", "basketball", "volleyball"})
 
 
 def superbet_gender(name: str) -> str:
@@ -203,10 +240,10 @@ def candidate_fits(norm_side: str, entity: dict[str, Any], sport: str) -> bool:
     the search ranks the senior men's club first: "rio ave" returns Rio Ave,
     Rio Ave U23 and Rio Ave FC U19 before the women's Rio Ave FC. So a
     candidate of the wrong gender or the wrong squad level is skipped before
-    it takes one of the three places. Gender is football only, for the reason
+    it takes one of the three places. Gender is team sports only, for the reason
     `match_quality` gives: a tennis side is a person and carries no marker.
     """
-    if sport == "football":
+    if sport in TEAM_SPORTS:
         gender = entity_gender(entity)
         if gender is not None and gender != superbet_gender(norm_side):
             return False
@@ -233,7 +270,7 @@ class SofaResolver:
     ) -> list[dict[str, Any]]:
         events = []
         for kind in LISTING_KINDS_BY_SPORT.get(sport, DEFAULT_LISTING_KINDS):
-            for page in range(3):
+            for page in range(LISTING_PAGES_BY_SPORT.get(sport, DEFAULT_LISTING_PAGES)):
                 data = self.cache.get_entity_events(entity_id, kind, page)
                 if not data:
                     # A 404 is a fact worth remembering for the day. It was the
@@ -265,6 +302,7 @@ class SofaResolver:
         sport: str = "tennis",
         superbet_side_a: str = "",
         superbet_side_b: str = "",
+        check_orientation: bool = True,
     ) -> float | None:
         """How well this event matches, or None if it does not.
 
@@ -293,7 +331,7 @@ class SofaResolver:
             return None
 
         if superbet_side_a or superbet_side_b:
-            # Gender: football only, and that is not caution, it is what the
+            # Gender: TEAM_SPORTS only, and that is not caution, it is what the
             # two sources make possible. In football both sides of the gate
             # name a *team*, and Superbet marks a women's team "(K)" — 285
             # agreeing men, 4 agreeing women, one caught mismatch.
@@ -308,7 +346,7 @@ class SofaResolver:
             #
             # F25's evidence was football and only football; applying it to
             # tennis was my over-generalisation, not the finding's.
-            if sport == "football":
+            if sport in TEAM_SPORTS:
                 expected = (
                     "W"
                     if "W"
@@ -322,7 +360,11 @@ class SofaResolver:
                     return None
             # Orientation applies to both sports: it compares the two names to
             # the two names, so it needs no marker anywhere.
-            if orientation_is_reversed(event, superbet_side_a, superbet_side_b):
+            # A caller that reads the orientation itself (SHADOW_SETTLE grades a
+            # reversed listing from team1's side) turns the refusal off.
+            if check_orientation and orientation_is_reversed(
+                event, superbet_side_a, superbet_side_b
+            ):
                 return None
 
         home = normalize_name(event.get("homeTeam", {}).get("name", ""))
@@ -336,9 +378,7 @@ class SofaResolver:
         # 25 false pairs `name_score` admits on the 2026-09-18 slate, this gate
         # removes 14, taking the rate back to what `fuzz.ratio` alone ran at.
         candidates = [
-            side
-            for side in (home, away)
-            if levels_compatible(expected_opponent, side)
+            side for side in (home, away) if levels_compatible(expected_opponent, side)
         ]
         if not candidates:
             return None
@@ -364,6 +404,7 @@ class SofaResolver:
         sport: str = "tennis",
         superbet_side_a: str = "",
         superbet_side_b: str = "",
+        check_orientation: bool = True,
     ) -> bool:
         return (
             self.match_quality(
@@ -373,6 +414,7 @@ class SofaResolver:
                 sport=sport,
                 superbet_side_a=superbet_side_a,
                 superbet_side_b=superbet_side_b,
+                check_orientation=check_orientation,
             )
             is not None
         )
@@ -386,6 +428,8 @@ class SofaResolver:
         *,
         board_side_a: str = "",
         board_side_b: str = "",
+        record_miss: bool = True,
+        check_orientation: bool = True,
     ) -> tuple[int | None, dict[str, Any] | None, bool]:
         """
         Returns (sofascore_id, matching_event, is_ambiguous).
@@ -394,6 +438,16 @@ class SofaResolver:
         original order, which ``side``/``expected_opponent`` lose because the
         caller retries with them swapped. The gender and orientation gates need
         the original order (F25).
+
+        ``record_miss=False`` is for a caller that looks up one past game, not
+        the team: SHADOW_SETTLE. A game missing from a listing there (not yet
+        marked finished, rescheduled) says nothing about the team, and a
+        recorded miss would block every game of it for a week.
+
+        ``check_orientation=False`` keeps a listing that reads the other way
+        round, for a caller that tells the orientation itself and grades
+        from it (SHADOW_SETTLE). RESOLVE never passes it: a reversed football
+        fixture would price the wrong team's sample.
         """
         norm_side = normalize_name(side)
         norm_opp = normalize_name(expected_opponent)
@@ -416,13 +470,18 @@ class SofaResolver:
                     sport=sport,
                     superbet_side_a=board_side_a,
                     superbet_side_b=board_side_b,
+                    check_orientation=check_orientation,
                 ):
                     return cached["sofascore_id"], e, False
 
         # Miss -> search/all
-        search_data = self.client.search(search_query(norm_side))
+        if sport in SPORT_SCOPED_SEARCH:
+            search_data = self.client.search(search_query(norm_side), sport=sport)
+        else:
+            search_data = self.client.search(search_query(norm_side))
         if not search_data or "results" not in search_data:
-            self.cache.save_entity_miss(sport, norm_side)
+            if record_miss:
+                self.cache.save_entity_miss(sport, norm_side)
             return None, None, False
 
         candidates = []
@@ -448,6 +507,7 @@ class SofaResolver:
                     sport=sport,
                     superbet_side_a=board_side_a,
                     superbet_side_b=board_side_b,
+                    check_orientation=check_orientation,
                 ):
                     matching_events.append((cand, e))
 
@@ -484,7 +544,8 @@ class SofaResolver:
         # Nothing matched. Note this is only reached when the fixture was not
         # ambiguous: an ambiguous name may disambiguate tomorrow, so caching it
         # as a miss would suppress a resolution that is still possible.
-        self.cache.save_entity_miss(sport, norm_side)
+        if record_miss:
+            self.cache.save_entity_miss(sport, norm_side)
         return None, None, False
 
 

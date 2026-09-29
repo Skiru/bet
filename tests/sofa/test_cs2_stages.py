@@ -403,7 +403,8 @@ def test_audit_renders_coverage_and_the_price_table(tmp_path: Path) -> None:
     )
     assert "series: 1  SETTLED 1" in text
     assert "| CCT - EU | SETTLED 1 |" in text
-    assert "| maps_total | 1 | 2 |" in text and "| ALL | 1 | 4 |" in text
+    # One side per line (the favourite), or the gap is 0 by construction.
+    assert "| maps_total | 1 | 1 |" in text and "| ALL | 1 | 2 |" in text
 
 
 # --- the place in the pipeline --------------------------------------------------------

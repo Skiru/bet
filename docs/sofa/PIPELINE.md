@@ -807,6 +807,10 @@ runs/sofa/<data>/
 runs/sofa/cs2/<data>/   — obok dnia, nigdy w nim
   snapshots.jsonl      linie CS2 Superbeta przed startem serii (run_cs2.py, etap CS2)
   settled.json         te linie ocenione z danych Sofascore (settle_cs2.py, CS2_SETTLE)
+
+runs/sofa/shadow/<sport>/<data>/   — sport: hockey | basketball | volleyball
+  snapshots.jsonl      linie Superbeta przed startem meczu (run_shadow.py, etap SHADOW)
+  settled.json         te linie ocenione z wyniku Sofascore (settle_shadow.py, SHADOW_SETTLE)
 ```
 
 `10_boosts.*` pisze `scripts/sofa/run_boosts.py --date <d>`, poza
@@ -858,6 +862,66 @@ naprawi sam, bo wymaga zamknięcia Chrome. Każda linia logu zaczyna się od
 - **audit_cs2.py**: pokrycie (stany i turnieje), potem dla każdej rodziny rynku
   kurs bez marży, trafialność, różnica, Brier, zwrot i marża; osobno faworyci
   i underdogi. Linie jednej serii są skorelowane — czytaj kolumnę `series`.
+
+### Hokej, koszykówka, siatkówka — pomiar ceny, nie kupon
+
+Od 2026-09-29 tak samo jak CS2, dla trzech sportów drużynowych, które Superbet
+wystawia w dużej liczbie (29.09: hokej 49 meczów / 16 turniejów, koszykówka 70
+/ 31, siatkówka 49 / 23). Pytanie jest to samo: czy kurs bez marży już zgadza
+się z wynikiem? Nic z `runs/sofa/shadow/` nie jest czytane przez etap, który
+buduje kupon, a `PARTIAL`/`FAILED` tych etapów nigdy nie blokuje dnia.
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>   --only SHADOW         # kilka razy dziennie, tylko Superbet
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE  # rano, bridge musi działać
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain \
+    >> runs/sofa/shadow/daily_<d>.log 2>&1 &    # cały dzień bez obsługi: ceny do 04:30Z D+1, settle o 05:15Z, potem --chain startuje D+1
+```
+
+- **SHADOW** (`run_shadow.py`): Superbet sportId 3 (hokej), 4 (koszykówka),
+  1 (siatkówka); e-hokej (157) i e-koszykówka (70) to symulacje i nie są
+  czytane. Rynek rozpoznaje po `marketId` (jeden identyfikator na typ rynku we
+  wszystkich meczach), stronę po `code` i po treści — gdy się nie zgadzają,
+  linia wypada. Czytane są tylko linie dwudrożne: zwycięzca z dogrywką, sumy,
+  sumy drużyn, handicapy, zakład bez remisu — całość, tercje, połowy, kwarty,
+  sety. Pyta o mecz, gdy startuje w ciągu `--horizon-h` (3 h) albo gdy dzień
+  nie ma go jeszcze w ogóle; mecze następnego dnia w horyzoncie trafiają do
+  pliku tamtego dnia (późne NHL/NBA po 00:00Z).
+- **SHADOW_SETTLE** (`settle_shadow.py`): mecz znajduje resolverem RESOLVE
+  (ten sam cache, bramki nazwy, płci „(K)” i poziomu drużyny; okno 6 h), `/event/{id}` pyta świeżo i ocenia dopiero, gdy wynik się zgadza: suma
+  okresów = `normaltime`, dogrywka tylko z remisu, sety = `current`. Gol z
+  dogrywki jest w `current`, a w żadnym okresie. Rynek bez „(z dogrywką)”
+  liczy czas regulaminowy; kwarta 4. i 2. połowa w koszykówce po dogrywce są
+  nieoceniane (nazwa nie mówi, czy dogrywka się wlicza). Gdy nie da się
+  pewnie powiedzieć, która strona Sofascore to drużyna 1 Superbeta, oceniane
+  są tylko sumy (`orientation_unclear: true`). Listing odwrócony (gospodarz
+  Sofascore = drużyna 2 Superbeta) jest oceniany ze strony drużyny 1 —
+  bramka orientacji RESOLVE jest tu wyłączona, bo settle sam czyta
+  orientację. Zegar przedmeczowy to **wcześniejszy** z dwóch (start Superbeta
+  i `startTimestamp` Sofascore), jak w piłce: gdy mecz zaczął się wcześniej,
+  oceniana jest ostatnia cena sprzed prawdziwego startu, a gdy takiej nie ma
+  — stan `NO_PRE_START_PRICE` (ostateczny, tylko dla meczu zakończonego).
+  Wiek ceny (`minutes_before_kickoff`) liczony jest do tego wcześniejszego
+  zegara. Brak odpowiedzi `/event` to
+  `ERROR` (ponawiany), nigdy wynik z listingu. Stany jak w CS2; po 7 dniach
+  `GAVE_UP` (nasze), nigdy `VOID` Superbeta. Każdy oceniony wiersz ma
+  `minutes_before_kickoff` — wiek ceny; audyt dzieli po nim (sekcja 5).
+  Koszt: mecz szuka tylko w pierwszej stronie `events/last` (~3–9 żądań na
+  zimnym cache, ~1 s na żądanie przez bridge).
+- **audit_shadow.py**: per sport pokrycie, cena vs wynik per rodzina,
+  kierunek (OVER / drużyna 1), faworyci vs underdogi, mecze z dogrywką vs
+  bez, wiek ceny. Sekcje 2, 2b, 4 i 5 biorą **jedną stronę każdej linii**
+  (faworyta albo stałą) — obie strony razem dają średni kurs i trafialność
+  0,500 z samej konstrukcji, więc różnica byłaby zawsze zerowa. Linie
+  jednego meczu są skorelowane — czytaj kolumnę `games`.
+- **shadow_daily.py**: jedna pętla na datę — druga odmawia startu (exit 2),
+  gdy `daily_<d>.pid` wskazuje żywy proces `shadow_daily.py` tej daty; plik
+  pid znika, gdy pętla się kończy. Pętla D łapie mecze D+1 tylko do ~07:30Z
+  (ostatni snapshot 04:30Z + horyzont 3 h), dlatego `--chain` po porannym
+  settle i audycie sam startuje pętlę D+1 (też z `--chain`) do
+  `daily_<D+1>.log`. Łańcuch zatrzymuje się, zabijając pid z
+  `daily_<d>.pid`.
 
 **Historia i silnik.** `scripts/sofa/backfill_cs2.py --days 180` wczytuje z
 Sofascore historię CS2 do tabel `cs2_series`, `cs2_map`, `cs2_player_map` w

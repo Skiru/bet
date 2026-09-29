@@ -226,6 +226,51 @@ family. It is a measurement of Superbet's price: CS2 has no calibration curve,
 so CONFIDENCE would refuse every CS2 row (`NOT_CALIBRATED`) even if one
 reached a sheet - which none does.
 
+## `runs/sofa/shadow/<sport>/<date>/` — hockey / basketball / volleyball shadow — **not the coupon**
+
+CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
+`hockey` (Superbet 3, Sofascore `ice-hockey`), `basketball` (4), `volleyball`
+(1). Stages SHADOW (`run_shadow.py`, Superbet only) and SHADOW_SETTLE
+(`settle_shadow.py`, bridge, D-1), both outside `DEFAULT_SEQUENCE`;
+`shadow_daily.py` runs a day unattended, `audit_shadow.py --from --to` reports.
+
+- `snapshots.jsonl`: per not-yet-started game every complete two-way line -
+  `market_id` (the table key; one id per market type across events),
+  `family`, `period` (0 = none; period / quarter / set otherwise), `subject`
+  (`T1`/`T2` for a team total), `line` (a total, or **team1's** handicap),
+  `side` (OVER/UNDER/T1/T2), `odds`.
+- `settled.json`: per game a `state` - `SETTLED` (with `t1_periods`,
+  `t2_periods`, `t1_full`, `t2_full`, `overtime`, `graded[]` with `actual`,
+  `outcome`, `fair_p`, `overtime`), `PENDING`, `NOT_ON_SOFASCORE`,
+  `AMBIGUOUS`, `DATA_MISMATCH` (the periods do not add
+  up to Sofascore's own totals), `UNUSUAL` (finished but not Ended/AET/AP),
+  `VOID` (cancelled / not started 48 h on), `GAVE_UP` (ours, after 7 days),
+  `NO_PRE_START_PRICE` (Sofascore's start was earlier than Superbet's and
+  no snapshot predates it - every price held was in play; final).
+  The pre-match clock is the EARLIER of Superbet's kickoff and Sofascore's
+  `startTimestamp` (football's rule); a game that began early carries
+  `sofascore_start_utc`, `started_before_superbet_min`,
+  `priced_sides_superbet_clock` and `priced_sides`, and is graded at the last
+  snapshot before it; `minutes_before_kickoff` runs to that earlier clock.
+  NO_PRE_START_PRICE is only decided for a finished game. An empty `/event`
+  is `ERROR` (retried), never the listing's score.
+  A game whose orientation cannot be told is SETTLED with
+  `orientation_unclear: true` and only its totals graded. Every graded row
+  carries `minutes_before_kickoff` (audit section 5 splits on it).
+- SHADOW also records the next day's games that start within its horizon,
+  into that day's file, so late North American games are priced.
+- `shadow_daily.py`: one loop per date (`daily_<d>.pid`, deleted on exit; a
+  second loop refuses, exit 2). `--chain` starts D+1's loop after D's 05:15Z
+  settle and audit - without it D+1's games after ~07:30Z are priced only
+  once someone starts D+1's loop.
+- A market without "(z dogrywką)" counts regulation time; Sofascore puts an
+  overtime goal in `current` and in no period. Basketball Q4 and second-half
+  lines are ungradeable after overtime (the name does not say whether it is
+  appended).
+- `audit_shadow.py` (and `audit_cs2.py` section 2) keep ONE side per line
+  (`cs2.one_side_per_line`): pooled, both sides read fair p = hit = 0.500 by
+  construction. Section 2 is the favourite side, 2b a fixed side (OVER / T1).
+
 ## `vetoes.json` — `Veto[]`
 
 `sofascore_event_id` (int, required), `market`, `subject`, `line`,

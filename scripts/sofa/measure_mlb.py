@@ -33,10 +33,12 @@ from bet.sofa.resolve import SofaResolver
 from bet.sofa.superbet import SuperbetClient, split_match_name
 from bet.sofa.timeutil import now
 
-# Superbet sport id for baseball. Unverified — the run reports how many rows
-# carried it, so a wrong id shows up as "0 fixtures on the board", not as a
-# silent zero recall.
-BASEBALL_SPORT_ID = 3
+# Superbet sport id for baseball: 20 ("Baseball" in /v2/pl-PL/struct, checked
+# 2026-09-29). It was 3 until then, unverified - and 3 is "Hokej na lodzie",
+# so a re-run would have measured ice hockey and reported it as baseball; the
+# "0 fixtures on the board" safety net could not catch that, because hockey
+# has fixtures.
+BASEBALL_SPORT_ID = 20
 
 # Keys that would carry run scoring if Sofascore published it for baseball.
 RUN_KEYS = ("runs", "hits", "errors", "runsScored", "totalRuns", "totalHits")

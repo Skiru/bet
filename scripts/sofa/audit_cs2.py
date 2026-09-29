@@ -32,7 +32,13 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
         sys.path.insert(0, _path)
 
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.cs2 import SETTLED_FILE, FamilyStats, cs2_day_dir, summarize  # noqa: E402
+from bet.sofa.cs2 import (  # noqa: E402
+    SETTLED_FILE,
+    FamilyStats,
+    cs2_day_dir,
+    one_side_per_line,
+    summarize,
+)
 from bet.sofa.cs2_engine import (  # noqa: E402
     UNFITTED,
     compare_to_price,
@@ -94,15 +100,21 @@ def render(events: list[dict[str, Any]], date_from: str, date_to: str) -> list[s
         for ev in events
         for r in ev.get("graded") or []
     ]
-    out += ["", "## 2. price against outcome, by family", ""]
+    out += ["", "## 2. price against outcome, by family (favourite side)", ""]
     if not rows:
         return [*out, "no graded lines yet"]
     by_family: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
         by_family[r["family"]].append(r)
-    stats = [summarize(rs, fam) for fam, rs in by_family.items()]
+    # One side per line: pooled, both sides make fair p and hit 0.500 by
+    # construction (cs2.one_side_per_line). 3b keeps both - Brier is symmetric.
+    fav_side = one_side_per_line(rows, "favourite")
+    fav_by_family: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for r in fav_side:
+        fav_by_family[r["family"]].append(r)
+    stats = [summarize(rs, fam) for fam, rs in fav_by_family.items()]
     table = sorted((s for s in stats if s), key=lambda s: -s.sides)
-    total = summarize(rows, "ALL")
+    total = summarize(fav_side, "ALL")
     out += HEADER + [_row(s) for s in table] + ([_row(total)] if total else [])
 
     out += ["", "## 3. by price", ""]
@@ -130,8 +142,9 @@ def render(events: list[dict[str, Any]], date_from: str, date_to: str) -> list[s
         out.append("UNFITTED_CONSTANTS: " + ", ".join(UNFITTED))
     out += [
         "",
-        "ROI is flat, one unit per side, both sides of every line. The pooled",
-        "figure is minus the margin by construction; the gap is the measurement.",
+        "ROI is flat, one unit per side. Section 2 keeps the favourite side of",
+        "every line (pooled, both sides read fair p = hit = 0.500 by",
+        "construction); section 3 keeps every side. The gap is the measurement.",
     ]
     return out
 

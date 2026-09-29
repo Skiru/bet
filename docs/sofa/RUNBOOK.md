@@ -58,8 +58,17 @@ Przed dzisiejszym dniem, bo to karmi kalibrację i **konkuruje o most**.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
+# pętla D-1 robi to sama o 05:15Z; ręcznie tylko, gdy nie żyje (brak runs/sofa/shadow/daily_<D-1>.pid
+# albo jego pid nie działa) - wznawia się, więc powtórka nie szkodzi, równoległa tak:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
 ```
+
+- SHADOW / SHADOW_SETTLE to pomiar hokeja, koszykówki i siatkówki (jak CS2):
+  **nie kupon**, a ich `PARTIAL`/`FAILED` nie blokuje dnia. Druga pętla
+  `shadow_daily.py` dla tej samej daty odmawia startu (exit 2), więc
+  ponowne uruchomienie jest bezpieczne.
 
 - `PARTIAL` to normalny werdykt.
 - **Sekcja 7c audytu to prawdziwy wynik kuponu z PDF.** Sekcje 7 i 7b to

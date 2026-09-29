@@ -738,6 +738,52 @@ def summarize(rows: list[dict[str, Any]], label: str) -> FamilyStats | None:
     )
 
 
+def _pair_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(
+        row.get(k)
+        for k in (
+            "superbet_event_id",
+            "family",
+            "market_id",
+            "map_nr",
+            "period",
+            "subject",
+            "line",
+        )
+    )
+
+
+def one_side_per_line(
+    rows: list[dict[str, Any]], pick: str = "favourite"
+) -> list[dict[str, Any]]:
+    """One graded side of every line, so a gap can show.
+
+    Both sides of a line are graded or neither, their devigged probabilities
+    sum to one and exactly one of them wins. Pool both and the mean fair p
+    and the hit rate are both 0.500 by construction, whatever the price is
+    worth: 500 lines whose favourite won 90% of the time summarised to a gap
+    of 0.0. Keeping one side restores it.
+
+    `pick` "favourite" keeps the side with the higher devigged probability
+    (OVER / T1 on an exact tie); "fixed" keeps OVER, else T1 - a lean toward
+    a direction or toward the first-named team.
+    """
+    by_line: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for r in rows:
+        if r.get("fair_p") is not None:
+            by_line.setdefault(_pair_key(r), []).append(r)
+    out: list[dict[str, Any]] = []
+    for sides in by_line.values():
+        first = [r for r in sides if r.get("side") in ("OVER", "T1")]
+        if pick == "fixed":
+            out.extend(first[:1] or sides[:1])
+            continue
+        best = max(r["fair_p"] for r in sides)
+        top = [r for r in sides if r["fair_p"] == best]
+        out.append(next((r for r in top if r in first), top[0]))
+    return out
+
+
 # --- files ------------------------------------------------------------------------
 
 SNAPSHOTS_FILE = "snapshots.jsonl"
