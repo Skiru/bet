@@ -386,9 +386,32 @@ def _pdf_text(path: Path) -> str:
     return " ".join(p.extract_text() for p in PdfReader(str(path)).pages)
 
 
-def test_the_variant_pdf_explains_its_own_rule_and_prints_no_builders(
-    day: Path,
-) -> None:
+def _stakeable_builder(doc: dict[str, Any]) -> dict[str, Any]:
+    # A builder on fixture 1, its legs in the shape confidence.py writes
+    # (odds, not offered_odds) and present in the artifact's own leg list.
+    one = next(x for x in doc["legs"] if x["sofascore_event_id"] == 1)
+    leg = {k: one[k] for k in ("market", "subject", "line", "direction", "confidence")}
+    leg["odds"] = one["offered_odds"]
+    return {
+        "sofascore_event_id": 1,
+        "match": "Home 1 - Away 1",
+        "kickoff_utc": one["kickoff_utc"],
+        "best_for_fixture": True,
+        "ev_after_haircut": 0.2,
+        "ev_if_product_priced": 0.3,
+        "haircut": 0.12,
+        "n_legs": 2,
+        "legs": [leg, leg],
+        "combined_probability": 0.6,
+        "fair_odds": 1.67,
+        "odds_if_product": 2.3,
+        "odds_after_haircut": 2.0,
+        "empirical_joint_hits": 0,
+        "empirical_joint_n": 0,
+    }
+
+
+def _variant_pdf_with_a_builder(day: Path, *, legacy: bool) -> str:
     run = day / DAY
     assert (
         _run(
@@ -396,35 +419,105 @@ def test_the_variant_pdf_explains_its_own_rule_and_prints_no_builders(
         ).returncode
         == 0
     )
-    # A stakeable builder in the variant artifact must still not be printed.
     doc = json.loads((run / "08_confidence_wariant.json").read_text())
-    doc["builders"] = [
-        {
-            "sofascore_event_id": 1,
-            "match": "Home 1 - Away 1",
-            "best_for_fixture": True,
-            "ev_after_haircut": 0.2,
-            "n_legs": 2,
-            "legs": doc["singles"][:1] * 2,
-            "combined_probability": 0.6,
-            "fair_odds": 1.67,
-            "odds_if_product": 2.3,
-            "odds_after_haircut": 2.0,
-            "empirical_joint_hits": 0,
-            "empirical_joint_n": 0,
-        }
-    ]
+    assert doc["prints_builders"] is True
+    doc["builders"] = [_stakeable_builder(doc)]
+    if legacy:
+        del doc["prints_builders"]  # an artifact written before 2026-09-29
     (run / "08_confidence_wariant.json").write_text(json.dumps(doc))
     pdf = _run(
         "build_coupon_pdf.py", day, "--runs-dir", str(day), "--profile", "wariant"
     )
     assert pdf.returncode == 0, pdf.stderr
-    text = _pdf_text(run / f"KUPON_{DAY}_WARIANT.pdf")
+    return _pdf_text(run / f"KUPON_{DAY}_WARIANT.pdf")
+
+
+def test_the_variant_pdf_explains_its_own_rule(day: Path) -> None:
+    text = _variant_pdf_with_a_builder(day, legacy=False)
     assert "WARIANT" in text and "To nie jest oficjalny kupon" in text
-    assert "0 zakładów łączonych" in text
     assert "poniżej uczciwego" in text
     # the official rule's sentence would contradict the rows printed under it
     assert "poniżej nie" not in text
+
+
+def test_the_variant_pdf_prints_its_stakeable_builders_since_0929(day: Path) -> None:
+    # The operator's request, 2026-09-29: the variant prints Bet Builders by
+    # the coupon's own predicate, and says they were never measured.
+    text = _variant_pdf_with_a_builder(day, legacy=False)
+    assert "1 zakładów łączonych" in text
+    assert "Od 29.09 drukuje też Bet Buildery" in text
+
+
+def test_an_old_variant_artifact_still_prints_no_builders(day: Path) -> None:
+    # Before 2026-09-29 the variant's PDF printed none; rebuilding such a day
+    # must not print slips nobody saw then.
+    text = _variant_pdf_with_a_builder(day, legacy=True)
+    assert "0 zakładów łączonych" in text
+    assert "Od 29.09" not in text
+
+
+def test_printed_builders_follows_the_artifact() -> None:
+    from bet.sofa.confidence import printed_builders
+
+    good = {"best_for_fixture": True, "ev_after_haircut": 0.1}
+    bad = {"best_for_fixture": True, "ev_after_haircut": -0.1}
+    assert printed_builders({"min_ev": None, "builders": [good, bad]}) == [good]
+    assert printed_builders({"min_ev": 0.9, "builders": [good]}) == []
+    assert printed_builders(
+        {"min_ev": 0.9, "prints_builders": True, "builders": [good, bad]}
+    ) == [good]
+
+
+def test_settlement_grades_the_variants_builders_on_their_own(day: Path) -> None:
+    run = day / DAY
+    assert _run("run_confidence.py", day, "--runs-dir", str(day)).returncode == 0
+    assert (
+        _run(
+            "run_confidence.py", day, "--runs-dir", str(day), "--profile", "wariant"
+        ).returncode
+        == 0
+    )
+    doc = json.loads((run / "08_confidence_wariant.json").read_text())
+    builder = _stakeable_builder(doc)
+    doc["builders"] = [builder]
+    (run / "08_confidence_wariant.json").write_text(json.dumps(doc))
+    # A screen price for the variant's slip, in the variant's own file.
+    (run / "09_screen_prices_wariant.json").write_text(json.dumps({"1": 2.5}))
+
+    db = day / "s.db"
+    migrate(str(db))
+    con = sqlite3.connect(db)
+    con.execute(
+        "insert into sofa_settled_row (run_date, sofascore_event_id, sport,"
+        " competition_id, market, subject, line, direction, sample_size,"
+        " sample_mean, sample_sd, p_central, p_bar, market_p, actual_value,"
+        " outcome, settled_at, offered_odds, verdict) values"
+        " (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (DAY, 1, "football", 9, "goals_total", "", 1.5, "OVER", 20, 2.6, 1.2,
+         0.7, 0.68, 0.65, 3.0, "WIN", NOW.isoformat(), ODDS_A, "BELOW_BAR"),
+    )
+    con.commit()
+    con.close()
+
+    out = day / "report.md"
+    rep = _run(
+        "audit_settlement.py",
+        day,
+        "--out",
+        str(out),
+        env={"SOFA_RUNS_DIR": str(day), "SOFA_DB_PATH": str(db)},
+    )
+    assert rep.returncode == 0, rep.stderr
+    text = out.read_text()
+    official = text.split("## 7c.", 1)[1].split("## 7d.", 1)[0]
+    variant = text.split("## 7d. WARIANT", 1)[1].split("## 7e.", 1)[0]
+    # never pooled: the coupon printed no builder, the variant one
+    assert "| slipów na kuponie | 0 |" in official
+    assert "### Bet Buildery wariantu" in variant
+    assert "| slipów w wariancie | 1 |" in variant
+    assert "| WESZŁO (cały slip) | 1 |" in variant
+    # paid at the variant's screen price, not the haircut estimate
+    assert "| wynik przy 1 j. na slip | +1.50 j. |" in variant
 
 
 @pytest.mark.parametrize("since_0924", [False, True])

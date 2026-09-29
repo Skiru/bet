@@ -660,6 +660,7 @@ def main() -> int:
         "min_ev": profile.min_ev,
         "max_overround": profile.max_overround,
         "pdf_max_singles": profile.pdf_max_singles,
+        "prints_builders": profile.prints_builders,
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         "unfitted_constants": sorted(
@@ -802,7 +803,13 @@ def main() -> int:
             # after the measured correlation haircut. A summary that disagrees
             # with the artifact downstream of it is worse than no summary.
             "best_for_fixture": sum(1 for b in builders if b["best_for_fixture"]),
-            "stakeable_builders": sum(1 for b in builders if is_stakeable(b)),
+            # What the PDF prints, so a profile that prints no builders
+            # cannot report stakeable ones (the variant said 2 over 0 on
+            # 2026-09-29, before it printed builders).
+            "stakeable_builders": (
+                sum(1 for b in builders if is_stakeable(b))
+                if profile.prints_builders else 0
+            ),
             "fixtures_with_legs": len(by_fixture), "refused": dict(refused),
             "vetoes_applied": len(vetoes) - len(unmatched),
             "vetoes_unmatched": len(unmatched),

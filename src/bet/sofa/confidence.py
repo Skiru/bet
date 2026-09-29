@@ -341,6 +341,10 @@ class ConfidenceProfile:
     max_overround: float = MAX_OVERROUND
     # How many singles the PDF prints; None prints the whole artifact.
     pdf_max_singles: int | None = PDF_MAX_SINGLES
+    # Whether the PDF prints this profile's stakeable Bet Builders. Written
+    # into the artifact, so a variant artifact from before 2026-09-29 (whose
+    # PDF printed none) is never graded as if it had.
+    prints_builders: bool = True
 
     def single_is_fairly_priced(self, leg_overround: float | None) -> bool:
         return leg_overround is not None and leg_overround <= self.max_overround
@@ -374,6 +378,12 @@ class ConfidenceProfile:
 # -6.7% at 13-16% (n=1,082); 10.5-13% was worse than <=10.5% on every one of
 # the five days. Variant results before and after this date are not the same
 # experiment and must not be pooled.
+#
+# From 2026-09-29 the variant's PDF also prints its stakeable Bet Builders (the
+# operator's request): same predicate as the coupon (`is_stakeable`: best for
+# its fixture, EV > 0 after the 12% correlation haircut), built from the
+# variant's looser legs. They were never measured before being added; 7d of the
+# settlement grades them on their own, never pooled with the coupon's builders.
 PROFILES: dict[str, ConfidenceProfile] = {
     "standard": ConfidenceProfile("standard", 0.70, None, "", ""),
     "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
@@ -393,6 +403,24 @@ def printed_singles(artifact: dict[str, Any]) -> list[dict[str, Any]]:
     singles: list[dict[str, Any]] = artifact.get("singles") or []
     limit = artifact.get("pdf_max_singles", PDF_MAX_SINGLES)
     return singles if limit is None else singles[:limit]
+
+
+def prints_builders(artifact: dict[str, Any]) -> bool:
+    """Whether the PDF built from this artifact prints Bet Builders at all."""
+    return bool(artifact.get("prints_builders", artifact.get("min_ev") is None))
+
+
+def printed_builders(artifact: dict[str, Any]) -> list[dict[str, Any]]:
+    """The Bet Builders the PDF built from this artifact actually prints.
+
+    `is_stakeable` builders, on an artifact whose profile prints builders.
+    An artifact without `prints_builders` predates 2026-09-29: the official
+    coupon (min_ev None) printed its builders, the variant printed none, and
+    the settlement of those days must not start grading slips nobody saw.
+    """
+    if not prints_builders(artifact):
+        return []
+    return [b for b in artifact.get("builders") or [] if is_stakeable(b)]
 
 
 def fixture_leg_counts(singles: list[dict[str, Any]]) -> dict[int, int]:

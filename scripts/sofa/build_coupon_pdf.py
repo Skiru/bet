@@ -45,7 +45,7 @@ from bet.sofa.confidence import (  # noqa: E402
     confidence_artifact,
     displayed_ev,
     fixture_leg_counts,
-    is_stakeable,
+    printed_builders,
     printed_singles,
     quantity_family,
 )
@@ -225,13 +225,11 @@ def main() -> int:
         if "ev_after_haircut" in (doc_json["builders"][0] if doc_json["builders"] else {})
         else "ev_if_product_priced"
     )
-    picks = [b for b in doc_json["builders"] if is_stakeable(b)]
-    # The variant is a singles experiment. Its looser legs would admit
-    # builders the official coupon does not print, and a builder is a
-    # different bet (correlation haircut, joint probability) that the
-    # variant was never measured on - so its PDF prints none.
-    if profile.min_ev is not None:
-        picks = []
+    # Until 2026-09-29 the variant printed no builders (a singles
+    # experiment); since then it prints its stakeable ones, at the operator's
+    # request. The artifact records which, so an old variant artifact
+    # rebuilt today still prints none.
+    picks = printed_builders(doc_json)
     # Singles. Present since 2026-09-22: on a day where no Bet Builder forms —
     # which needs two legs of DIFFERENT quantity families in the SAME match —
     # this renderer used to emit a blank page while the confidence artifact
@@ -285,7 +283,12 @@ def main() -> int:
             "Wersja z marżą 10,5% dała na 18–22.09 <b>−3,2%</b> na zakład wobec "
             "−2,9% oficjalnego; rynki z marżą 10,5–15% traciły tam o 1–2 pkt "
             "proc. więcej niż tańsze. Od 23.09 mierzony w tym ustawieniu, "
-            "obok oficjalnego (sekcja 7d raportu rozliczenia).", SUB))
+            "obok oficjalnego (sekcja 7d raportu rozliczenia)."
+            + (" <b>Od 29.09 drukuje też Bet Buildery</b> — z luźniejszych nóg "
+               "wariantu, tą samą regułą co kupon (najlepszy dla meczu, EV &gt; 0 "
+               "po 12% narzutu). Nie były mierzone przed dodaniem; rozliczane "
+               "osobno, nigdy razem z builderami kuponu."
+               if doc_json.get("prints_builders") else ""), SUB))
     sheet_doc = json.loads((run / "05_sheet.json").read_text(encoding="utf-8"))
     sheet_rows = sheet_doc if isinstance(sheet_doc, list) else sheet_doc["rows"]
     # A builder's legs carry no event id of their own; it is on the builder.

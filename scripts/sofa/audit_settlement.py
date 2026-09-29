@@ -38,8 +38,9 @@ from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
     builder_odds,
     confidence_artifact,
-    is_stakeable,
+    printed_builders,
     printed_singles,
+    prints_builders,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
@@ -180,6 +181,99 @@ def slip_status(outcomes: list[str | None]) -> str:
     if any(o is None or o == "PUSH" for o in outcomes):
         return "NIEROZLICZONY"
     return "WESZŁO"
+
+
+def render_builders(picks: list[dict], by_key: dict, screen: dict[str, Any],
+                    screen_file: str, printed_on: str = "na kuponie") -> list[str]:
+    """The printed Bet Builders graded slip by slip, at the screen price when
+    the operator recorded one and the haircut estimate otherwise. Shared by
+    the official coupon (7c) and, since 2026-09-29, the variant (7d)."""
+    out: list[str] = []
+    A = out.append
+
+    def slip_odds(b: dict) -> tuple[float, bool]:
+        """What this slip really paid, and whether we measured it."""
+        real = screen.get(str(b["sofascore_event_id"]))
+        if real is not None:
+            return float(real), True
+        return builder_odds(b["odds_if_product"]), False
+
+    slip_rows, sw, sl, su, sret, sn = [], 0, 0, 0, 0.0, 0
+    n_measured = 0
+    lw = ll = lu = 0
+    for b in picks:
+        outs = []
+        for L in b["legs"]:
+            g = by_key.get((b["sofascore_event_id"], L["market"], L["subject"] or "",
+                            float(L["line"]), L["direction"]))
+            outs.append((L, g))
+            if g is None or g["outcome"] == "PUSH":
+                lu += 1
+            elif g["outcome"] == "WIN":
+                lw += 1
+            else:
+                ll += 1
+        status = slip_status([None if g is None else g["outcome"] for _, g in outs])
+        if status == "NIEROZLICZONY":
+            su += 1
+        elif status == "WESZŁO":
+            sw, sn = sw + 1, sn + 1
+            odds, measured = slip_odds(b)
+            n_measured += measured
+            sret += odds - 1.0
+        else:
+            sl, sn = sl + 1, sn + 1
+            sret -= 1.0
+        slip_rows.append((b, status, outs))
+    A(_table(["", "liczba"],
+             [[f"slipów {printed_on}", len(picks)],
+              ["rozliczonych", sn],
+              ["WESZŁO (cały slip)", sw],
+              ["NIE WESZŁO", sl],
+              ["nierozliczonych", su],
+              ["% slipów trafionych", _pct(sw, sn)],
+              ["nóg: weszło / nie weszło", f"{lw} / {ll}"],
+              ["% nóg trafionych", _pct(lw, lw + ll)],
+              ["deklarowane combined_probability (śr.)",
+               f"{sum(b['combined_probability'] for b in picks) / len(picks):.3f}" if picks else "—"],
+              ["cen z ekranu", f"{n_measured} / {sw} wygranych slipów"],
+              ["wynik przy 1 j. na slip", f"{sret:+.2f} j."],
+              ["ROI", f"{100.0 * sret / sn:+.1f}%" if sn else "—"]]))
+    A("")
+    if n_measured < sw:
+        A(f"**Kurs slipa jest w większości szacowany.** Zmierzonych cen z "
+          f"ekranu: {n_measured} z {sw}. Reszta to iloczyn kursów nóg "
+          f"pomniejszony o {BUILDER_CORRELATION_HAIRCUT:.0%} — zmierzony "
+          "narzut Superbeta za korelację (8,8% / 15,8% / 19,6% na trzech "
+          "slipach z 2026-09-20). Wcześniejsze wersje tego raportu liczyły "
+          "sam iloczyn i zawyżały ROI o kilkanaście punktów procentowych. "
+          "Żeby to przestało być szacunkiem, wpisz ceny do "
+          f"`{screen_file}` (klucz: `sofascore_event_id`).")
+        A("")
+    A(f"Do tego {sn} slipów to próbka, w której odchylenie standardowe "
+      "wyniku sięga kilku jednostek: to nie jest dowód przewagi, to brak "
+      "dowodu straty.")
+    A("")
+    A("### Slip po slipie")
+    A("")
+    rows = []
+    for b, status, outs in sorted(slip_rows, key=lambda x: (x[1] != "NIE WESZŁO",)):
+        broke = [f"{L['market']} {L['subject'] or ''} {L['direction']} {L['line']:g} "
+                 f"(padło {g['actual_value']:g})"
+                 for L, g in outs if g is not None and g["outcome"] == "LOSS"]
+        missing = [f"{L['market']} {L['subject'] or ''}".strip()
+                   for L, g in outs if g is None]
+        reason = ("; ".join(broke) if broke
+                  else ("brak rozliczenia: " + ", ".join(missing) if missing
+                        else "wszystkie nogi weszły"))
+        odds, measured = slip_odds(b)
+        rows.append([b["match"], b["n_legs"], f"{b['odds_if_product']:.2f}",
+                     f"{odds:.2f}" + ("" if measured else " (szac.)"),
+                     f"{b['combined_probability']:.3f}", status, reason])
+    A(_table(["mecz", "nóg", "iloczyn", "kurs użyty", "p slipa", "wynik",
+              "co położyło slip"], rows))
+    A("")
+    return out
 
 
 def main() -> int:
@@ -528,91 +622,8 @@ def main() -> int:
         screen_path = run_dir / "09_screen_prices.json"
         screen = (json.loads(screen_path.read_text(encoding="utf-8"))
                   if screen_path.exists() else {})
-        picks = [b for b in conf["builders"] if is_stakeable(b)]
-
-        def slip_odds(b: dict) -> tuple[float, bool]:
-            """What this slip really paid, and whether we measured it."""
-            real = screen.get(str(b["sofascore_event_id"]))
-            if real is not None:
-                return float(real), True
-            return builder_odds(b["odds_if_product"]), False
-
-        slip_rows, sw, sl, su, sret, sn = [], 0, 0, 0, 0.0, 0
-        n_measured = 0
-        lw = ll = lu = 0
-        for b in picks:
-            outs = []
-            for L in b["legs"]:
-                g = by_key.get((b["sofascore_event_id"], L["market"], L["subject"] or "",
-                                float(L["line"]), L["direction"]))
-                outs.append((L, g))
-                if g is None or g["outcome"] == "PUSH":
-                    lu += 1
-                elif g["outcome"] == "WIN":
-                    lw += 1
-                else:
-                    ll += 1
-            status = slip_status([None if g is None else g["outcome"] for _, g in outs])
-            if status == "NIEROZLICZONY":
-                su += 1
-            elif status == "WESZŁO":
-                sw, sn = sw + 1, sn + 1
-                odds, measured = slip_odds(b)
-                n_measured += measured
-                sret += odds - 1.0
-            else:
-                sl, sn = sl + 1, sn + 1
-                sret -= 1.0
-            slip_rows.append((b, status, outs))
-        A(_table(["", "liczba"],
-                 [["slipów na kuponie", len(picks)],
-                  ["rozliczonych", sn],
-                  ["WESZŁO (cały slip)", sw],
-                  ["NIE WESZŁO", sl],
-                  ["nierozliczonych", su],
-                  ["% slipów trafionych", _pct(sw, sn)],
-                  ["nóg: weszło / nie weszło", f"{lw} / {ll}"],
-                  ["% nóg trafionych", _pct(lw, lw + ll)],
-                  ["deklarowane combined_probability (śr.)",
-                   f"{sum(b['combined_probability'] for b in picks) / len(picks):.3f}" if picks else "—"],
-                  ["cen z ekranu", f"{n_measured} / {sw} wygranych slipów"],
-                  ["wynik przy 1 j. na slip", f"{sret:+.2f} j."],
-                  ["ROI", f"{100.0 * sret / sn:+.1f}%" if sn else "—"]]))
-        A("")
-        if n_measured < sw:
-            A(f"**Kurs slipa jest w większości szacowany.** Zmierzonych cen z "
-              f"ekranu: {n_measured} z {sw}. Reszta to iloczyn kursów nóg "
-              f"pomniejszony o {BUILDER_CORRELATION_HAIRCUT:.0%} — zmierzony "
-              "narzut Superbeta za korelację (8,8% / 15,8% / 19,6% na trzech "
-              "slipach z 2026-09-20). Wcześniejsze wersje tego raportu liczyły "
-              "sam iloczyn i zawyżały ROI o kilkanaście punktów procentowych. "
-              "Żeby to przestało być szacunkiem, wpisz ceny do "
-              "`09_screen_prices.json` (klucz: `sofascore_event_id`).")
-            A("")
-        A(f"Do tego {sn} slipów to próbka, w której odchylenie standardowe "
-          "wyniku sięga kilku jednostek: to nie jest dowód przewagi, to brak "
-          "dowodu straty.")
-        A("")
-        A("### Slip po slipie")
-        A("")
-        rows = []
-        for b, status, outs in sorted(slip_rows, key=lambda x: (x[1] != "NIE WESZŁO",)):
-            broke = [f"{L['market']} {L['subject'] or ''} {L['direction']} {L['line']:g} "
-                     f"(padło {g['actual_value']:g})"
-                     for L, g in outs if g is not None and g["outcome"] == "LOSS"]
-            missing = [f"{L['market']} {L['subject'] or ''}".strip()
-                       for L, g in outs if g is None]
-            reason = ("; ".join(broke) if broke
-                      else ("brak rozliczenia: " + ", ".join(missing) if missing
-                            else "wszystkie nogi weszły"))
-            odds, measured = slip_odds(b)
-            rows.append([b["match"], b["n_legs"], f"{b['odds_if_product']:.2f}",
-                         f"{odds:.2f}" + ("" if measured else " (szac.)"),
-                         f"{b['combined_probability']:.3f}", status, reason])
-        A(_table(["mecz", "nóg", "iloczyn", "kurs użyty", "p slipa", "wynik",
-                  "co położyło slip"], rows))
-        A("")
-
+        lines.extend(render_builders(printed_builders(conf), by_key, screen,
+                                     screen_path.name))
         # The PDF prints singles too (since 2026-09-22), and on 2026-09-23 it
         # printed 216 singles and no builder - a day this section would have
         # reported as "0 slips" without one word about what was on the page.
@@ -655,10 +666,16 @@ def main() -> int:
               var.get("min_ev", PROFILES["wariant"].min_ev),
               var.get("max_overround", MAX_OVERROUND)))
         A("")
+        var_builders_printed = prints_builders(var)
         A("Rozliczany obok oficjalnego kuponu, na tych samych rozliczonych "
-          "wierszach i po swoich wydrukowanych kursach. Tylko pojedyncze — PDF "
-          "wariantu nie drukuje Bet Builderów. Przed dodaniem zmierzony "
-          "na 18–22.09: −3,2% na zakład wobec −2,9% oficjalnego.")
+          "wierszach i po swoich wydrukowanych kursach. "
+          + ("Od 2026-09-29 PDF wariantu drukuje też Bet Buildery; są "
+             "rozliczone niżej osobno i nigdy nie są sumowane z builderami "
+             "kuponu (7c). " if var_builders_printed else
+             "Tylko pojedyncze — PDF wariantu z tego dnia nie drukował Bet "
+             "Builderów. ")
+          + "Przed dodaniem zmierzony na 18–22.09: −3,2% na zakład wobec "
+          "−2,9% oficjalnego.")
         A("")
         if not var_singles:
             A("Wariant nie wydrukował pojedynczych.")
@@ -692,6 +709,23 @@ def main() -> int:
                 A("Brak `08_confidence.json` z tego dnia, więc nie da się "
                   "powiedzieć, co wariant dokłada ponad oficjalny kupon.")
         A("")
+        if var_builders_printed:
+            A("### Bet Buildery wariantu")
+            A("")
+            # Its own screen-price file: the variant's slip on a fixture is a
+            # different slip from the coupon's on the same fixture (2026-09-29
+            # Botafogo: 4 legs in both, only one leg in common).
+            vscreen_path = run_dir / "09_screen_prices_wariant.json"
+            vscreen = (json.loads(vscreen_path.read_text(encoding="utf-8"))
+                       if vscreen_path.exists() else {})
+            vpicks = printed_builders(var)
+            if not vpicks:
+                A("Wariant nie wydrukował żadnego Bet Buildera.")
+                A("")
+            else:
+                lines.extend(render_builders(vpicks, by_key, vscreen,
+                                             vscreen_path.name,
+                                             printed_on="w wariancie"))
 
     # ---- 7e. the analysts' vetoes, graded ---------------------------------
     #
