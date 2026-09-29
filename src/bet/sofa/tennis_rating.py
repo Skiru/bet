@@ -67,6 +67,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.tennis_score import set_games
+
 DEFAULT_CONFIG = Path("config/tennis_rating.json")
 
 MIN_RATED = 10
@@ -180,16 +182,13 @@ def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
     if winner not in (1, 2):
         return None
     hs, as_ = event.get("homeScore") or {}, event.get("awayScore") or {}
-    sets: list[tuple[int, int]] = []
-    for i in range(1, 6):
-        key = f"period{i}"
-        if key in hs and key in as_:
-            try:
-                sets.append((int(hs[key]), int(as_[key])))
-            except (TypeError, ValueError):
-                return None
-    if len(sets) < 1:
+    # Games per set with a 10-point match tiebreak counted as one game; the
+    # raw periods put 10-5 points into the neighbour table's games totals
+    # (tennis_score). None = not a set score (UTS exhibitions).
+    normalised = set_games(hs, as_)
+    if not normalised:
         return None
+    sets: list[tuple[int, int]] = normalised
     timing = event.get("time") or {}
     durations = [timing.get(f"period{i}") for i in range(1, len(sets) + 1)]
     seconds = [float(d) for d in durations if isinstance(d, (int, float))]

@@ -1,6 +1,7 @@
 from typing import Any
 
 from bet.sofa.contracts import GapReason
+from bet.sofa.tennis_score import match_tiebreak_sets, set_games
 
 # Finished after extra time (110 = AET) or penalties (120 = AP). 366 such
 # matches sat in the cache, all rejected. Rejecting them is *right* for the
@@ -724,9 +725,14 @@ def check_identities(
         if "ALL" in flat_stats and "gamesWon" in flat_stats["ALL"]:
             hs = listing_event.get("homeScore", {})
             as_ = listing_event.get("awayScore", {})
-            set_keys = [f"period{i}" for i in range(1, 6)]
-            home_sets = sum(hs.get(k, 0) for k in set_keys if k in hs)
-            away_sets = sum(as_.get(k, 0) for k in set_keys if k in as_)
+            # A 10-point match tiebreak sits in periodN as points (10-5);
+            # gamesWon counts it as one game. Summing the raw periods made
+            # every such match INTERNAL_INCONSISTENT - see tennis_score.
+            games = set_games(hs, as_)
+            if games is None:
+                return GapReason.INTERNAL_INCONSISTENT
+            home_sets = sum(h for h, _ in games)
+            away_sets = sum(a for _, a in games)
 
             # tiebreak games might need to be included?
             # The rule says: "suma gamesWon obu stron == suma gemów z wyniku setowego"
@@ -813,14 +819,15 @@ def extract_metric(
         if "gamesWon" in stats_all:
             h, a = stats_all["gamesWon"]
         else:
-            home_score = listing_event.get("homeScore", {})
-            away_score = listing_event.get("awayScore", {})
-            set_keys = [f"period{i}" for i in range(1, 6)]
-            played = [k for k in set_keys if k in home_score and k in away_score]
-            if not played:
+            # A match tiebreak counts as one game, as gamesWon counts it;
+            # the raw periods read 6-4 6-7 10-5 as 22 games (tennis_score).
+            games = set_games(
+                listing_event.get("homeScore", {}), listing_event.get("awayScore", {})
+            )
+            if not games:
                 return GapReason.STAT_KEY_ABSENT
-            h = float(sum(home_score[k] for k in played))
-            a = float(sum(away_score[k] for k in played))
+            h = float(sum(g for g, _ in games))
+            a = float(sum(g for _, g in games))
         return float(h + a) if is_total else float(h if is_home else a)
 
     if sofascore_key == "games_from_listing":
@@ -831,9 +838,15 @@ def extract_metric(
         if not isinstance(set_index, int):
             return GapReason.STAT_KEY_ABSENT
         key = f"period{set_index}"
-        h = listing_event.get("homeScore", {}).get(key)
-        a = listing_event.get("awayScore", {}).get(key)
+        hs_ = listing_event.get("homeScore", {})
+        as_ = listing_event.get("awayScore", {})
+        h = hs_.get(key)
+        a = as_.get(key)
         if h is None or a is None:
+            return GapReason.STAT_KEY_ABSENT
+        # A match tiebreak is not a set of games (10-5 is points), and a
+        # score that is no set score at all (UTS) is no observation.
+        if set_index in match_tiebreak_sets(hs_, as_) or set_games(hs_, as_) is None:
             return GapReason.STAT_KEY_ABSENT
         return float(h + a) if is_total else float(h if is_home else a)
 
