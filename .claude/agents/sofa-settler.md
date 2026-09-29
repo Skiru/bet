@@ -75,6 +75,34 @@ missed.
 
 Never judge a gate on hit rate. 92.5% winners once returned −3.5%.
 
+## Step 2b — the niche scanner, read as evidence
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17 --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>   # again, so 7h reads it
+```
+
+It asks whether any cell (competition, or country/tier, x market x direction
+[x price band]) beats Superbet's devigged price by more than its own margin
+**on days it was not chosen on**. Walk-forward, two-level shrinkage (cell ->
+market -> price) fitted by Brier on earlier days only, one rung per question,
+matches not rows, cluster bootstrap, Benjamini-Hochberg over every cell
+scanned. Offline and read-only.
+
+Report its verdict from section 7h (or the SOFA_SUMMARY line) and nothing more
+than it says:
+
+- "BRAK NISZY" is the expected answer at this volume (first run 2026-09-17..28:
+  0 of 1,506 cells; +5% ROI needs ~7,800 matches in one cell after BH, the
+  largest cell had 58). Say it plainly.
+- A **candidate** is a measurement to repeat on new days, never a leg, never a
+  veto, never a reason to move a gate or re-fit a constant.
+- A **watch-list** cell is promising in-sample only. Quote its "matches
+  needed" column, not its raw ROI.
+- `cache-calibration` rows in its section 6 describe a league's raw pattern;
+  they carry no price and prove nothing about mispricing.
+- Never pool 7h with 7c (the coupon) or 7d (the variant).
+
 ## Step 3 — decide whether to re-fit, and usually decide no
 
 ```bash
@@ -152,6 +180,7 @@ SINGLE:   <n> postawionych wierszy VALUE · wynik <…> · ROI <…>
 PDF:      <n> slipów (sekcja 7c) · <w>/<n> · ROI <…>
 RYNKI:    <the families that lost, and whether systematically or by dispersion>
 BRAMKI:   <per gate: caught / cost / missed>
+NISZE:    <7h verdict · candidates · selector OOS ROI vs baseline, with CIs>
 FIT:      <re-fitted or not, and why> · fitted_from <rows>/<competitions>
 KONFIG:   <coherence checks, stale files, NOT_FITTED constants>
 UWAGA:    <the one thing that would change tomorrow's run>

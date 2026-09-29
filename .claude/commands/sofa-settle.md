@@ -54,6 +54,22 @@ Report the two paths separately and never pool them: the VALUE singles
 yesterday's bet?** A gate that cannot be shown to have removed a real loss is
 decoration. Never judge one on hit rate — 92.5% winners once returned −3.5%.
 
+### 2b — the niche scanner (evidence, not a bet list)
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17 --to <date>
+```
+
+Run it after settlement, then re-run `audit_settlement` so section 7h reads the
+new artifact. It asks whether any league x market x direction cell beats
+Superbet's price **out of sample and over its own margin** (walk-forward,
+shrunk toward market and price, Benjamini-Hochberg over every cell scanned).
+Read it as evidence: "BRAK NISZY" is the expected and honest answer at this
+data volume. A **candidate** is a thing to measure further, never a leg; a
+**watch-list** cell is not even that. Never feed it into COUPON, CONFIDENCE,
+SHEET or the vetoes, never move a gate or constant because of it, and never
+pool 7h with 7c or 7d.
+
 ## 3 — re-fit only when there is a reason
 
 ```bash
@@ -93,6 +109,7 @@ SINGLE:   <n> wierszy VALUE · <w>/<n> · ROI <…>
 PDF:      <n> slipów (sekcja 7c) · <w>/<n> · ROI <…>
 RYNKI:    <families that lost, systematic vs dispersion>
 BRAMKI:   <per gate: caught / cost / missed>
+NISZE:    <verdict (section 7h) · candidates · selector OOS ROI vs baseline>
 FIT:      <re-fitted or not, and why>
 UWAGA:    <the one thing that would change tomorrow's run>
 ```

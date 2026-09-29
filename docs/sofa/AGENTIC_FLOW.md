@@ -229,6 +229,43 @@ czym drugą odpowiedzią jest zwykle „nie".
 
 Szczegóły higieny plików konfiguracyjnych: [`CONFIG.md`](CONFIG.md).
 
+### Skaner nisz — po rozliczeniu, jako dowód, nie lista zakładów
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17 --to <D-1>
+```
+
+Pyta, czy w jakiejś komórce **liga × rynek × kierunek [× przedział kursu]**
+(albo kraj/poziom z `02_fixtures.json`) cena Superbeta jest systematycznie zła
+**poza próbą** i **ponad własną marżą** tej komórki. Wzorzec już wyceniony
+(„w tej lidze zawsze 10+ rożnych" przy linii 11,5) nie jest niszą.
+
+- **Walk-forward:** komórki na dzień D wybiera się wyłącznie z dni < D; wagę
+  ściągania (K, K_rynku) też — dopasowaną Brierem na wcześniejszych dniach.
+  Wynik główny to ROI selektora poza próbą przy wydrukowanych kursach, obok
+  bazy (te same rynki i kierunki, bez wyboru ligi).
+- **Dwupoziomowe ściąganie:** bias komórki → bias rynku → zero (cena).
+  Surowa średnia na małym n to dokładnie złudzenie, którego szukamy.
+- **Jeden szczebel na pytanie** (linia najbliżej 0,5, remis → niższa), liczone
+  są **mecze**, przedziały to bootstrap po meczach; `market_p` przeliczane
+  z wydrukowanej pary OVER/UNDER, bo 2,7% par miało je z innego odświeżenia
+  oferty.
+- **Kandydat** = ściągnięty bias pokonuje marżę na całości **i** ROI poza
+  próbą > 0 **i** komórka przechodzi Benjaminiego–Hochberga (FDR 0,10) na
+  wszystkich przeskanowanych komórkach. Reszta obiecujących to **lista
+  obserwacyjna** z liczbą meczów, jakiej brakuje.
+- Wiersze `cache-calibration` nie mają ceny — tylko **opisują** stabilność
+  surowego wzorca ligi, nigdy nie są dowodem złej wyceny.
+
+Pisze `reports/sofa_nisze_<to>.md` (po polsku) i `.json`; `audit_settlement`
+streszcza ostatni werdykt w **sekcji 7h** — osobno od 7c (kupon) i 7d
+(wariant), nigdy z nimi nie łączony. Skaner **niczego nie zasila** (COUPON,
+CONFIDENCE, SHEET, weta), nie zmienia stałych i nie jest w `DEFAULT_SEQUENCE`.
+Pierwszy przebieg (2026-09-17…28): **brak niszy** — 0 z 1506 komórek po BH;
+przewaga +5% ROI wymaga ~7 800 meczów w jednej komórce po korekcie, a największa
+ma 58. Czytaj go jako dowód, nie jako listę typów; decyzja o stawce należy do
+operatora.
+
 ---
 
 ## 6. Kontrakt zwiadowcy rynku

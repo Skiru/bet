@@ -45,6 +45,8 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
+from scripts.sofa.audit_niches import latest_artifact as latest_niches  # noqa: E402
+from scripts.sofa.audit_niches import render_section as render_niches  # noqa: E402
 from scripts.sofa.audit_trend import build_trend  # noqa: E402
 from scripts.sofa.audit_trend import render as render_trend  # noqa: E402
 from scripts.sofa.audit_vetoes import audit_day  # noqa: E402
@@ -274,6 +276,17 @@ def render_builders(picks: list[dict], by_key: dict, screen: dict[str, Any],
               "co położyło slip"], rows))
     A("")
     return out
+
+
+NICHES_HEADING = "## 7h. Skaner nisz — ostatni werdykt poza próbą (pomiar, nie kupon)"
+
+
+def section_7h(reports_dir: Path, date: str) -> list[str]:
+    """The niche scanner's latest out-of-sample verdict, for a window ending by
+    `date`. Kept apart from 7c (the coupon) and 7d (the variant) and never pooled
+    with them: the scanner bets nothing, it measures whether a league cell beats
+    Superbet's price out of sample."""
+    return render_niches(latest_niches(reports_dir, date), NICHES_HEADING)
 
 
 def main() -> int:
@@ -761,6 +774,12 @@ def main() -> int:
         build_trend(Path(config.runs_dir), args.date, _settled_artifact_loader(
             Path(config.runs_dir))),
         "## 7g. Wiele dni — marża drabiny i klasy rynku (obserwacja, nie bramka)"))
+
+    # ---- 7h. the niche scanner's latest verdict ---------------------------
+    #
+    # audit_niches.py writes reports/sofa_nisze_<to>.json; this reads the newest
+    # one whose window ends by the report's date, or says there is none.
+    lines.extend(section_7h(Path("reports"), args.date))
 
     # ---- 8. kalibracja ---------------------------------------------------
     A("## 8. Kalibracja — czy 70% znaczy 70%")
