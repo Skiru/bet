@@ -4,7 +4,7 @@ Event 16498311, ITF M15 Slobozia: 6-4 6-7(3) 10-5. Sofascore stores the
 deciding match tiebreak as period3 = 10 / 5. Summing periods read it as
 22 games won by Prunescu Nita - impossible in best of three (21 is the
 maximum) - and, where /statistics carried gamesWon (which counts the
-tiebreak as one game), marked the whole match INTERNAL_INCONSISTENT.
+tiebreak as NO game), marked the whole match INTERNAL_INCONSISTENT.
 """
 
 from __future__ import annotations
@@ -78,8 +78,10 @@ def test_the_third_set_games_of_a_match_tiebreak_are_no_observation() -> None:
     assert extract_metric("games_won_set2_for", "tennis", {}, None, event, True) == 6.0
 
 
-def test_gameswon_that_counts_the_tiebreak_as_one_game_is_consistent() -> None:
-    flat = {"ALL": {"gamesWon": (13.0, 11.0)}}
+def test_gameswon_that_counts_the_tiebreak_as_no_game_is_consistent() -> None:
+    # Sofascore's convention on 266 of 270 cached match-tiebreak events:
+    # 6-4 6-7 10-5 -> gamesWon 12 : 11, the tiebreak counted as nothing.
+    flat = {"ALL": {"gamesWon": (12.0, 11.0)}}
     assert check_identities(flat, None, _event(MTB_HOME, MTB_AWAY), "tennis") is None
     flat_wrong = {"ALL": {"gamesWon": (22.0, 16.0)}}
     assert (
@@ -93,3 +95,20 @@ def test_the_rating_history_reads_the_tiebreak_as_one_game() -> None:
     assert result is not None
     assert result.sets == ((6, 4), (6, 7), (1, 0))
     assert sum(h for h, _ in result.sets) == 13
+
+
+def test_the_statistic_and_the_listing_give_one_convention() -> None:
+    # gamesWon says 12 (tiebreak = 0); the observation must still be 13, as
+    # it is when only the listing is present - never two conventions.
+    flat = {"ALL": {"gamesWon": (12.0, 11.0)}}
+    event = _event(MTB_HOME, MTB_AWAY)
+    assert extract_metric("games_won_for", "tennis", flat, None, event, True) == 13.0
+    assert extract_metric("games_total", "tennis", flat, None, event, True) == 24.0
+
+
+def test_a_match_without_a_tiebreak_still_reads_the_statistic() -> None:
+    home = {"period1": 6, "period2": 7}
+    away = {"period1": 3, "period2": 6}
+    flat = {"ALL": {"gamesWon": (13.0, 9.0)}}
+    event = _event(home, away)
+    assert extract_metric("games_won_for", "tennis", flat, None, event, True) == 13.0

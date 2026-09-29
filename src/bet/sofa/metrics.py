@@ -725,14 +725,18 @@ def check_identities(
         if "ALL" in flat_stats and "gamesWon" in flat_stats["ALL"]:
             hs = listing_event.get("homeScore", {})
             as_ = listing_event.get("awayScore", {})
-            # A 10-point match tiebreak sits in periodN as points (10-5);
-            # gamesWon counts it as one game. Summing the raw periods made
-            # every such match INTERNAL_INCONSISTENT - see tennis_score.
+            # A 10-point match tiebreak sits in periodN as points (10-5), and
+            # gamesWon counts it as NO game (266 of 270 cached cases: 6-2 1-6
+            # 10-8 has gamesWon 7:8). Summing the raw periods made every such
+            # match INTERNAL_INCONSISTENT - see tennis_score. The identity is
+            # checked in gamesWon's own convention, the tiebreak set left out.
             games = set_games(hs, as_)
             if games is None:
                 return GapReason.INTERNAL_INCONSISTENT
-            home_sets = sum(h for h, _ in games)
-            away_sets = sum(a for _, a in games)
+            tiebreaks = match_tiebreak_sets(hs, as_)
+            counted = [g for i, g in enumerate(games, 1) if i not in tiebreaks]
+            home_sets = sum(h for h, _ in counted)
+            away_sets = sum(a for _, a in counted)
 
             # tiebreak games might need to be included?
             # The rule says: "suma gamesWon obu stron == suma gemów z wyniku setowego"
@@ -816,14 +820,17 @@ def extract_metric(
         # so this branch is the quantity that invariant validates. Prefer the
         # statistic when present, so nothing that worked before changes.
         stats_all = flat_stats.get("ALL", {})
-        if "gamesWon" in stats_all:
+        hs_ = listing_event.get("homeScore", {})
+        as_ = listing_event.get("awayScore", {})
+        # One convention for every observation: a match tiebreak is ONE game
+        # to its winner (bet365's rule; Superbet's is unverified). gamesWon
+        # counts it as none and the raw periods as ten (6-4 6-7 10-5 read as
+        # 22), so a match that had one is always read from the normalised
+        # set score, whichever source is present - see tennis_score.
+        if "gamesWon" in stats_all and not match_tiebreak_sets(hs_, as_):
             h, a = stats_all["gamesWon"]
         else:
-            # A match tiebreak counts as one game, as gamesWon counts it;
-            # the raw periods read 6-4 6-7 10-5 as 22 games (tennis_score).
-            games = set_games(
-                listing_event.get("homeScore", {}), listing_event.get("awayScore", {})
-            )
+            games = set_games(hs_, as_)
             if not games:
                 return GapReason.STAT_KEY_ABSENT
             h = float(sum(g for g, _ in games))

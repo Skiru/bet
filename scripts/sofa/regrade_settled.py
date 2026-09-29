@@ -50,6 +50,7 @@ from bet.sofa.metrics import (
 )
 from bet.sofa.players import is_player_metric
 from bet.sofa.settle import settle
+from bet.sofa.tennis_score import match_tiebreak_sets
 from scripts.sofa.calibrate_from_cache import market_name, match_values
 from scripts.sofa.run_settle import _settle_derived, _subject_is_home
 
@@ -172,6 +173,52 @@ def grade_calibration(
     return actual, settle(actual, row["line"], row["direction"])
 
 
+# Tennis markets a match tiebreak changed (afdb886f): the games counts. A
+# row on such a match was graded with the tiebreak's 10 points summed as
+# games, whenever its data was fetched - the fetch time says nothing here.
+_GAMES_MARKETS = ("games_won_for", "games_total", "handicap_games", "most_games")
+
+
+def match_tiebreak_events(conn: sqlite3.Connection) -> set[int]:
+    """Finished tennis events in the listing cache that had a match tiebreak."""
+    out: set[int] = set()
+    for (events_json,) in conn.execute(
+        "SELECT events_json FROM sofa_entity_events"
+        " WHERE events_json LIKE '%\"slug\": \"tennis\"%'"
+    ):
+        try:
+            events = json.loads(events_json).get("events", [])
+        except ValueError:
+            continue
+        for event in events:
+            eid = event.get("id")
+            if not isinstance(eid, int) or eid in out:
+                continue
+            home, away = event.get("homeScore") or {}, event.get("awayScore") or {}
+            if match_tiebreak_sets(home, away):
+                out.add(eid)
+    return out
+
+
+def tiebreak_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Live tennis games rows on match-tiebreak events (--match-tiebreak)."""
+    wanted = match_tiebreak_events(conn)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        f"""
+        SELECT id, run_date, sofascore_event_id, sport, market, subject,
+               line, direction, actual_value, outcome, settled_at
+        FROM sofa_settled_row
+        WHERE sport = 'tennis' AND outcome IN ('WIN', 'LOSS')
+          AND run_date != ?
+          AND market IN ({",".join("?" * len(_GAMES_MARKETS))})
+        """,
+        (CALIBRATION, *_GAMES_MARKETS),
+    ).fetchall()
+    conn.row_factory = None
+    return [dict(r) for r in rows if r["sofascore_event_id"] in wanted]
+
+
 def candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
@@ -193,9 +240,9 @@ def candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def regrade(
-    conn: sqlite3.Connection, runs_dir: Path
+    conn: sqlite3.Connection, runs_dir: Path, *, match_tiebreak: bool = False
 ) -> tuple[list[dict[str, Any]], Counter[str]]:
-    rows = candidates(conn)
+    rows = tiebreak_candidates(conn) if match_tiebreak else candidates(conn)
     events = {r["sofascore_event_id"] for r in rows}
     cached = {
         int(eid): (sj, ij)
@@ -213,7 +260,9 @@ def regrade(
     tally: Counter[str] = Counter()
     for row in rows:
         eid = row["sofascore_event_id"]
-        sj, ij = cached[eid]
+        # A tiebreak candidate may have no /statistics at all - its games
+        # came from the listing, which is exactly the path that was wrong.
+        sj, ij = cached.get(eid, (None, None))
         if row["run_date"] == CALIBRATION:
             event = listings.get(eid)
             if event is None:
@@ -268,12 +317,20 @@ def regrade(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true", help="write; default dry run")
+    parser.add_argument(
+        "--match-tiebreak",
+        action="store_true",
+        help="re-grade live tennis games rows on matches with a 10-point match "
+        "tiebreak (graded before afdb886f with its points summed as games)",
+    )
     args = parser.parse_args()
     config = SofaConfig.from_env()
     at = datetime.now(UTC)
     try:
         conn = sqlite3.connect(config.db_path, timeout=30.0)
-        changes, tally = regrade(conn, Path(config.runs_dir))
+        changes, tally = regrade(
+            conn, Path(config.runs_dir), match_tiebreak=args.match_tiebreak
+        )
     except (sqlite3.Error, ValueError) as exc:
         print(f"FAILED: {exc}", file=sys.stderr)
         return 2

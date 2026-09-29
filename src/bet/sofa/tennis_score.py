@@ -11,10 +11,12 @@ Measured 2026-09-29 over the cached singles history: every set scored above
 singles and 12.3% of ITF three-setters) or a UTS exhibition quarter, which is
 not a set at all. No advantage set (8-6, 10-8 played out in games) occurs.
 
-Sofascore's own `gamesWon` statistic counts the match tiebreak as ONE game
-(e.g. 7 : 8 after 6-1 0-6 and a tiebreak); so does bet365's rule. Superbet's
-rule for games markets is UNVERIFIED - its general regulamin does not state
-it - so this follows the statistic the rest of the pipeline already reads.
+Sofascore's own `gamesWon` statistic counts the match tiebreak as NO game
+(266 of 270 cached cases; 6-2 1-6 10-8, event 16835306, has gamesWon 7 : 8).
+bet365's rule counts it as ONE game; Superbet's rule for games markets is
+UNVERIFIED - its general regulamin does not state it. The pipeline uses one
+convention everywhere, one game to the tiebreak's winner, and checks
+gamesWon's identity in gamesWon's own convention (metrics.check_identities).
 """
 
 from __future__ import annotations
