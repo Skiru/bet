@@ -68,14 +68,17 @@ a job and found nothing waiting went back into what was then a 20 s `/pull`
 `WARN ... burst probes FAILED` line is a real fault.
 
 If you need the capacity number, `scripts/sofa/measure_bridge_capacity.py`
-gives it. A genuinely low sustained figure means the windows are not visible —
-three tabs in ONE window is one working tab, since only the active tab counts
-as visible.
+gives it (it sends ~300 requests; run it deliberately, not as a check). Five
+windows opened with `launch_bridge_browser.py` sustain ~14.3 req/s and do not
+have to be visible - the old "three visible windows" rule is retired
+(CLAUDE.md). Measured 2026-09-29 after the /pull fix: 14.63 req/s peak, p50
+300-334 ms, zero non-200.
 
-**Set `SOFA_TARGET_RPS` from `scripts/sofa/measure_bridge_capacity.py`, never
-above the plateau it reports** — 3.9 req/s on three tabs (2026-09-22, 360
-requests, zero non-200). Above the plateau the queue grows, not the throughput.
-**Never lower `MIN_INTERVAL_MS`**: that is the per-connection pace.
+**Leave `SOFA_TARGET_RPS` (20) and `SOFA_MAX_CONCURRENCY` (5) at their
+defaults.** The bucket must sit ABOVE the tabs' capacity - starving it is
+worse than opening it - and the worker count equals the window count; below
+it the bridge collapses (CLAUDE.md's table). **Never lower
+`MIN_INTERVAL_MS`**: that is the per-connection pace.
 
 Check the tabs before blaming the rate. A tab Chrome has throttled answers the
 same routes in ~2,000 ms instead of ~175 ms and takes ~40 s to claim a job;
@@ -106,8 +109,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --
 # exit) or its pid is not running. It resumes, so a repeat is harmless; a concurrent one is not:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
-# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z);
-# a second loop for the same date refuses to start (exit 2), so this is safe to repeat:
+# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
+# A D-1 loop started with --chain starts today's by itself at ~05:17Z: start one by
+# hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
+# (a second loop for a date refuses with exit 2, so a repeat is harmless):
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
 ```
 
@@ -176,9 +181,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> -
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
 
-Refresh OFFER first if the last one is over 45 minutes old; on a late refresh
-pass `--min-minutes-to-kickoff` so the stage does not spend ~90 minutes
-re-pricing fixtures that have already been played.
+Refresh OFFER first if the last one is over 45 minutes old; on a late
+refresh run `run_offer.py` directly - `run_pipeline.py` does not take the flag
+and exits 2 on it (checked 2026-09-29) - so the stage does not spend ~90
+minutes re-pricing fixtures that have already been played:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
+```
 
 `picks: 0` is a legitimate answer and happens often: a builder needs
 `best_for_fixture` **and** positive EV after the measured correlation haircut

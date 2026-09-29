@@ -153,7 +153,7 @@ def _family_table(rows: list[dict[str, Any]]) -> list[str]:
 def render_sport(sport: SportKey, events: list[dict[str, Any]]) -> list[str]:
     out = [f"## {sport}", "", "### 1. coverage", ""]
     if not events:
-        return [*out, "no settled file in range"]
+        return [*out, "no settled game in range (no settled.json, or it holds none)"]
     by_state: dict[str, int] = defaultdict(int)
     by_tour: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for ev in events:

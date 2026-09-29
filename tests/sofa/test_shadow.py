@@ -1010,7 +1010,7 @@ def test_audit_reports_the_settled_game(tmp_path: Path) -> None:
     # One side per line in section 2, so a line is one row there.
     assert "| total | 1 | 1 |" in text and "| winner | 1 | 1 |" in text
     assert "### 2b. fixed side" in text
-    assert "## basketball" in text and "no settled file in range" in text
+    assert "## basketball" in text and "no settled game in range" in text
     # Priced at 15:00 for a 16:00 start: the fresh half of the price-age split.
     assert "| <= 60 min | 1 | 2 |" in text
 
@@ -1852,3 +1852,38 @@ def test_the_clustered_error_is_centred_on_the_mean_gap() -> None:
         for i in range(50)
     ]
     assert audit_shadow.gap_se(rows) == pytest.approx(0.0)
+
+
+def test_a_torn_snapshot_line_is_counted_not_fatal(tmp_path: Path) -> None:
+    write_snapshot(tmp_path)
+    path = tmp_path / "shadow" / "hockey" / DATE / "snapshots.jsonl"
+    with path.open("a") as fh:
+        fh.write('{"fetched_at_utc": "2026-09-28T15:30:00Z", "superbet_ev')  # torn
+        fh.write("\n[1, 2]\n")
+    result = run_settle(
+        tmp_path,
+        FakeResolver(sofa_event()),
+        FakeClient({**sofa_event(), **HOCKEY_AET}),
+        6,
+    )
+    m = result["metrics"]["hockey"]
+    assert m["metrics"]["unreadable_snapshot_lines"] == 2
+    assert settled(tmp_path)["1"]["state"] == "SETTLED"
+    assert m["verdict"] == "PARTIAL"  # graded, but the file needs a look
+
+
+def test_concurrent_snapshot_appends_keep_every_record_whole(tmp_path: Path) -> None:
+    import threading
+
+    def one(i: int) -> None:
+        clock = datetime(2026, 9, 28, 9, i, tzinfo=UTC)
+        run_shadow.snapshot(DATE, FakeSuperbet(), str(tmp_path), at=clock)  # type: ignore[arg-type]
+
+    threads = [threading.Thread(target=one, args=(i,)) for i in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    for p in (tmp_path / "shadow").glob("*/*/snapshots.jsonl"):
+        for raw in p.read_text().splitlines():
+            json.loads(raw)  # every line parses

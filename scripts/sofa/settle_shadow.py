@@ -263,11 +263,22 @@ def settle_sport(
     snaps_path = day / SNAPSHOTS_FILE
     if not snaps_path.exists():
         return {"verdict": "NO_SNAPSHOTS", "metrics": {}}
-    snapshots = [
-        json.loads(line)
-        for line in snaps_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    snapshots: list[dict[str, Any]] = []
+    unreadable = 0
+    for line in snaps_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            snap = json.loads(line)
+        except ValueError:
+            # One torn line (a crash mid-append) must not take the sport's
+            # whole day down; it is counted, not guessed at.
+            unreadable += 1
+            continue
+        if isinstance(snap, dict) and "superbet_event_id" in snap:
+            snapshots.append(snap)
+        else:
+            unreadable += 1
     events = latest_pre_kickoff(snapshots)
     raw_by_event: dict[str, list[dict[str, Any]]] = {}
     for snap in snapshots:
@@ -285,6 +296,7 @@ def settle_sport(
         "errors": 0,
         "graded_sides": 0,
         "settled_now": 0,
+        "unreadable_snapshot_lines": unreadable,
     }
     breaker_open = False
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
@@ -339,7 +351,7 @@ def settle_sport(
     settled_now = metrics["settled_now"]
     if breaker_open and attempted and metrics["errors"] >= attempted:
         verdict = "FAILED"
-    elif metrics["errors"] or (attempted and not settled_now):
+    elif metrics["errors"] or unreadable or (attempted and not settled_now):
         # Every game tried and none graded is not a clean day, whatever the
         # reason each one gives.
         verdict = "PARTIAL"

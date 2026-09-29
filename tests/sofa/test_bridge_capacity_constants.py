@@ -69,3 +69,22 @@ def test_env_overrides_still_win():
     cfg = SofaConfig(max_concurrency=8, target_rps=30)
     assert cfg.max_concurrency == 8
     assert cfg.target_rps == 30
+
+
+def test_help_never_runs_the_ramp() -> None:
+    # 2026-09-29: module-level code ran all 300 requests on `--help`.
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = (
+        Path(__file__).parents[2] / "scripts" / "sofa" / "measure_bridge_capacity.py"
+    )
+    out = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert out.returncode == 0
+    assert "usage:" in out.stdout and "pool of" not in out.stdout

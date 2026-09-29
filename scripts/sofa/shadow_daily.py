@@ -196,7 +196,12 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
     if args.chain:
         try:
             pid = spawn(args.date)
-            print(f"chained {next_day(args.date)}: pid {pid}", flush=True)
+            print(
+                f"chained {next_day(args.date)}: started pid {pid} (it exits 2 at "
+                f"once if a loop for that date is already running - see "
+                f"daily_{next_day(args.date)}.log)",
+                flush=True,
+            )
         except Exception as exc:  # the day is done; a failed chain is logged
             print(f"chain to {next_day(args.date)} failed: {exc}", flush=True)
     return code

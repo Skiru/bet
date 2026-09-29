@@ -45,7 +45,8 @@ capacity number, if anyone needs it, comes from
 `scripts/sofa/measure_bridge_capacity.py`.
 
 Do not change the rate to compensate. `SOFA_TARGET_RPS` and
-`SOFA_MAX_CONCURRENCY` already default to the measured values (14 and 3); set
+`SOFA_MAX_CONCURRENCY` already default to the measured values (20 and 5 - the
+bucket above the five windows' 14.3 req/s, one worker per window); set
 them only from `measure_bridge_capacity.py`, never above it, and **never lower
 `MIN_INTERVAL_MS`** — that is the per-connection pace. A slow bridge is a tab
 problem, and it is the operator's to fix, not yours.
@@ -67,8 +68,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --
 # exit) or its pid is not running. It resumes, so a repeat is harmless; a concurrent one is not:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
-# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z);
-# a second loop for the same date refuses to start (exit 2), so this is safe to repeat:
+# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
+# A D-1 loop started with --chain starts today's by itself at ~05:17Z: start one by
+# hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
+# (a second loop for a date refuses with exit 2, so a repeat is harmless):
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
 ```
 
@@ -141,8 +144,20 @@ from bet.sofa.contracts import SheetRow, Veto
 from bet.sofa.veto import find_unmatched_vetoes
 
 date = "<date>"
-merged = json.loads(open("/tmp/football_vetoes.json").read()) \
-       + json.loads(open("/tmp/tennis_vetoes.json").read())
+fresh = json.loads(open("/tmp/football_vetoes.json").read()) \
+      + json.loads(open("/tmp/tennis_vetoes.json").read())
+# The day may already hold vetoes (an earlier build, a rebuild): keep them.
+# A veto can only remove a row, so carrying one over is conservative; list
+# them so the operator sees what was not re-issued today.
+import os
+path = f"runs/sofa/{date}/vetoes.json"
+earlier = json.loads(open(path).read()) if os.path.exists(path) else []
+key = lambda v: json.dumps(v, sort_keys=True)
+carried = [v for v in earlier if key(v) not in {key(x) for x in fresh}]
+merged = fresh + carried
+print(f"{len(fresh)} fresh vetoes, {len(carried)} carried over from vetoes.json")
+for v in carried:
+    print("  CARRIED:", json.dumps(v, ensure_ascii=False))
 # Validation first. A bad entry takes the whole file down at COUPON time,
 # and the stage then runs with NO vetoes and reports zero.
 vetoes = RootModel[list[Veto]].model_validate(merged).root
@@ -180,8 +195,18 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
 Refresh OFFER first if more than 45 minutes have passed since the last one —
 both COUPON and CONFIDENCE refuse a price older than that, and a stale offer
 empties the coupon for a reason that looks like a modelling result. On a late
-refresh pass `--min-minutes-to-kickoff` so the stage does not spend ~90 minutes
-re-pricing fixtures that have already been played.
+refresh run `run_offer.py` directly - `run_pipeline.py` does not take the flag
+and exits 2 on it (checked 2026-09-29) - so the stage does not spend ~90
+minutes re-pricing fixtures that have already been played:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
+```
+
+`build_coupon_pdf.py` exits 2 with `STALE_CONFIDENCE` when the confidence
+artifact is older than `05_sheet.json` (SHEET ran after CONFIDENCE): run
+`run_confidence.py` for that date and profile, then the PDF. Never work around
+it - the PDF would print the earlier prices as today's coupon.
 
 Read `stakeable_builders`, **not** `builders`. `picks: 0` in the PDF is a
 legitimate and frequent answer: a slip needs `best_for_fixture` **and**
@@ -208,6 +233,7 @@ SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych (<x>%) → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów (sekcja 7c)
+SHADOW:   D-1 <n> meczów rozliczonych (hokej/kosz/siatka) — pomiar, NIE kupon
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <the day's single biggest weakness>
 ```

@@ -45,6 +45,7 @@ Design constraints, on purpose:
   - hard abort on anything that is not 200/404, on a circuit-breaker open,
     or on latency blowing out - and the ramp stops, it does not "retry".
 """
+import argparse
 import json
 import pathlib
 import sqlite3
@@ -52,6 +53,12 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+
+# Before anything touches the network: this script is all module-level code,
+# so on 2026-09-29 `--help` ran the whole 300-request ramp against Sofascore.
+argparse.ArgumentParser(
+    description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+).parse_args()
 
 sys.path.insert(0, "src")
 from bet.sofa.client import SofascoreClient

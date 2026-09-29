@@ -137,6 +137,27 @@ def unfitted_constants(
     return sorted(found)
 
 
+def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
+    """Why the PDF must not be built, or None.
+
+    The PDF is the coupon and prints CONFIDENCE's legs at CONFIDENCE's prices.
+    A 05_sheet.json newer than the confidence artifact means SHEET (and so,
+    since 2026-09-25, an OFFER refresh) ran after CONFIDENCE did: the PDF
+    would print the earlier prices as today's coupon. Found in review
+    2026-09-29 - a day built the afternoon before would otherwise be printed
+    again whenever the morning's CONFIDENCE failed.
+    """
+    sheet, conf = run / "05_sheet.json", run / artifact
+    if not sheet.exists() or not conf.exists():
+        return None
+    if conf.stat().st_mtime < sheet.stat().st_mtime:
+        return (
+            f"STALE_CONFIDENCE: {artifact} is older than 05_sheet.json - run "
+            "run_confidence.py for this day (and profile) before the PDF"
+        )
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--date", required=True)
@@ -170,6 +191,10 @@ def main() -> int:
             f"not {profile.name!r}",
             file=sys.stderr,
         )
+        return 2
+    stale = confidence_older_than_sheet(run, confidence_artifact(profile))
+    if stale:
+        print(stale, file=sys.stderr)
         return 2
     samples = {
         s["sofascore_event_id"]: s

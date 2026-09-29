@@ -57,8 +57,20 @@ from bet.sofa.contracts import SheetRow, Veto
 from bet.sofa.veto import find_unmatched_vetoes
 
 date = "<date>"
-merged = json.loads(open("/tmp/football_vetoes.json").read()) \
-       + json.loads(open("/tmp/tennis_vetoes.json").read())
+fresh = json.loads(open("/tmp/football_vetoes.json").read()) \
+      + json.loads(open("/tmp/tennis_vetoes.json").read())
+# The day may already hold vetoes (an earlier build, a rebuild): keep them.
+# A veto can only remove a row, so carrying one over is conservative; list
+# them so the operator sees what was not re-issued today.
+import os
+path = f"runs/sofa/{date}/vetoes.json"
+earlier = json.loads(open(path).read()) if os.path.exists(path) else []
+key = lambda v: json.dumps(v, sort_keys=True)
+carried = [v for v in earlier if key(v) not in {key(x) for x in fresh}]
+merged = fresh + carried
+print(f"{len(fresh)} fresh vetoes, {len(carried)} carried over from vetoes.json")
+for v in carried:
+    print("  CARRIED:", json.dumps(v, ensure_ascii=False))
 
 # Validation first: extra="forbid" means an invented key (action, player,
 # event_id) fails the whole file, and COUPON then runs with NO vetoes at all
