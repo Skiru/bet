@@ -112,7 +112,7 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 # the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
-# A D-1 loop started with --chain starts today's by itself at ~05:17Z: start one by
+# A D-1 loop started with --chain starts today's by itself after its 05:15Z settle and audit (~05:20-05:45Z): start one by
 # hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
 # (a second loop for a date refuses with exit 2, so a repeat is harmless):
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &

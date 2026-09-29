@@ -349,6 +349,13 @@ def settle_sport(
         if record["state"] == "ERROR":
             # An exception or an empty /event alike: the run was not clean.
             metrics["errors"] += 1
+        if retry_players and record["state"] != "SETTLED":
+            # A retry for the player lines only: a failed attempt (a 403, the
+            # game no longer in a listing) must never replace the graded
+            # team lines already on file (review round 4, 2026-09-29).
+            assert prev is not None
+            done[eid] = {**prev, "player_retry_last_error": record["state"]}
+            continue
         if record["state"] in RETRYABLE and at - kickoff > GIVE_UP_AFTER:
             record = {**record, "state": "GAVE_UP", "gave_up_on": record["state"]}
         done[eid] = record

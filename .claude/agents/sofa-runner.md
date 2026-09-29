@@ -71,7 +71,7 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 # the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
-# A D-1 loop started with --chain starts today's by itself at ~05:17Z: start one by
+# A D-1 loop started with --chain starts today's by itself after its 05:15Z settle and audit (~05:20-05:45Z): start one by
 # hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
 # (a second loop for a date refuses with exit 2, so a repeat is harmless):
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
@@ -206,7 +206,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-
 ```
 
 `build_coupon_pdf.py` exits 2 with `STALE_CONFIDENCE` when the confidence
-artifact is older than `05_sheet.json` (SHEET ran after CONFIDENCE): run
+artifact is older than `05_sheet.json` or `vetoes.json` (SHEET or a veto
+merge ran after CONFIDENCE): run
 `run_confidence.py` for that date and profile, then the PDF. Never work around
 it - the PDF would print the earlier prices as today's coupon.
 

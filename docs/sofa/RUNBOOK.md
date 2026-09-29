@@ -64,7 +64,7 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today>
 # albo jego pid nie działa) - wznawia się, więc powtórka nie szkodzi, równoległa tak:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
-# pętla D-1 z --chain sama startuje dzisiejszą ok. 05:17Z; ręcznie tylko, gdy nie ma
+# pętla D-1 z --chain sama startuje dzisiejszą po swoim rozliczeniu i audycie (ok. 05:20–05:45Z); ręcznie tylko, gdy nie ma
 # ani runs/sofa/shadow/daily_<D-1>.pid, ani daily_<today>.pid:
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
 ```

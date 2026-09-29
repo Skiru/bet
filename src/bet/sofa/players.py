@@ -200,7 +200,9 @@ def team_totals(statistics: Any, *, is_home: bool) -> dict[str, float]:
             continue
         for group in period.get("groups") or []:
             for item in (group or {}).get("statisticsItems") or []:
-                key = (item or {}).get("key")
+                if not isinstance(item, dict):
+                    continue
+                key = item.get("key")
                 value = item.get("homeValue" if is_home else "awayValue")
                 if isinstance(key, str) and isinstance(value, int | float):
                     if not isinstance(value, bool):

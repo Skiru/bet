@@ -61,9 +61,9 @@ argparse.ArgumentParser(
 ).parse_args()
 
 sys.path.insert(0, "src")
-from bet.sofa.client import SofascoreClient
-from bet.sofa.config import SofaConfig
-from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.client import SofascoreClient  # noqa: E402
+from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.errors import CircuitOpenError, ProviderError  # noqa: E402
 
 # The steps have to straddle what the tabs can serve, or the ramp measures
 # starvation and nothing else. Five windows at MIN_INTERVAL_MS = 350 is

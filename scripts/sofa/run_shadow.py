@@ -84,10 +84,12 @@ def snapshot(
     plus the next day's that start within the horizon."""
     start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC)
     next_day = (start + timedelta(days=1)).strftime("%Y-%m-%d")
+    # The window runs to the horizon from NOW once the day is over: the loop's
+    # snapshots after midnight must see the next morning's early games (the
+    # fixed "day + horizon" end stopped at 03:00Z D+1 - review round 4).
+    window_end = max(start + timedelta(days=1), at or now()) + horizon
     try:
-        rows = client.events_by_date(
-            start, start + timedelta(days=1) + horizon, offer_state="prematch"
-        )
+        rows = client.events_by_date(start, window_end, offer_state="prematch")
     except Exception as exc:
         return {"verdict": "FAILED", "error": f"{type(exc).__name__}: {exc}"}
     rows = [r for r in rows if r.get("sportId") in SPORT_BY_SUPERBET_ID]

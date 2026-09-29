@@ -2315,3 +2315,58 @@ def test_player_lines_grade_when_the_orientation_is_unclear() -> None:
     assert {r["side"] for r in rows} == {"OVER", "UNDER"} and counts[
         "needs_orientation"
     ] == 0
+
+
+class FailingClient(LineupsClient):
+    def event(self, eid: int) -> dict[str, Any]:
+        raise RuntimeError("HTTP 403")
+
+
+def test_a_failed_player_retry_never_replaces_the_graded_game(tmp_path: Path) -> None:
+    snap = {**_snap("2026-09-28T15:00:00Z", 1.9)}
+    snap["lines"] = snap["lines"] + [
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, s, 1.9
+        ).as_dict()
+        for s in ("OVER", "UNDER")
+    ]
+    _write_snaps(tmp_path, [snap])
+    run_settle(
+        tmp_path,
+        FakeResolver(sofa_event()),
+        LineupsClient({**sofa_event(), **HOCKEY_AET}, None),
+        6,
+    )
+    before = settled(tmp_path)["1"]
+    assert before["state"] == "SETTLED" and before["player_retry"] and before["graded"]
+    run_settle(tmp_path, FakeResolver(sofa_event()), FailingClient({}, None), 8)
+    after = settled(tmp_path)["1"]
+    assert after["state"] == "SETTLED" and after["graded"] == before["graded"]
+    assert after["player_retry_last_error"] == "ERROR"
+    # ...and a resolver that no longer finds the game changes nothing either.
+    run_settle(tmp_path, FakeResolver(None), LineupsClient({}, None), 9)
+    assert settled(tmp_path)["1"]["graded"] == before["graded"]
+
+
+def test_a_snapshot_after_midnight_asks_for_the_next_mornings_games(
+    tmp_path: Path,
+) -> None:
+    asked: list[tuple[datetime, datetime]] = []
+
+    class Board(FakeSuperbet):
+        def events_by_date(
+            self, start: datetime, end: datetime, offer_state: str
+        ) -> list[dict]:
+            asked.append((start, end))
+            return []
+
+    late = datetime(2026, 9, 29, 4, 24, tzinfo=UTC)  # D+1 04:24Z of D = 09-28
+    run_shadow.snapshot(DATE, Board(), str(tmp_path), at=late)  # type: ignore[arg-type]
+    assert asked[-1][1] == late + timedelta(hours=run_shadow.DEFAULT_HORIZON_H)
+    # During the day itself the window is the day plus the horizon, as before.
+    run_shadow.snapshot(
+        DATE, Board(), str(tmp_path), at=datetime(2026, 9, 28, 12, tzinfo=UTC)
+    )  # type: ignore[arg-type]
+    assert asked[-1][1] == datetime(2026, 9, 29, tzinfo=UTC) + timedelta(
+        hours=run_shadow.DEFAULT_HORIZON_H
+    )
