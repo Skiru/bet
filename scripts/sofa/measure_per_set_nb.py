@@ -14,6 +14,8 @@ import json
 import sqlite3
 import statistics
 import sys
+from collections.abc import Callable
+from typing import Any
 
 from bet.sofa.engine import (
     calc_p_central_nb_raw,
@@ -42,7 +44,7 @@ LINES = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5]
 SAMPLE_N, MIN_N = 10, 8
 
 conn = sqlite3.connect("file:data/sofa.db?mode=ro", uri=True, timeout=120)
-events: dict[int, dict] = {}
+events: dict[int, dict[str, Any]] = {}
 for (ej,) in conn.execute("SELECT events_json FROM sofa_entity_events"):
     try:
         evs = json.loads(ej)
@@ -60,7 +62,7 @@ for (ej,) in conn.execute("SELECT events_json FROM sofa_entity_events"):
             events[e["id"]] = e
 print("tennis completed listing events", len(events), file=sys.stderr)
 
-flat_by_event: dict[int, dict] = {}
+flat_by_event: dict[int, dict[str, Any]] = {}
 ids = list(events)
 for i in range(0, len(ids), 500):
     chunk = ids[i : i + 500]
@@ -86,10 +88,11 @@ played = sorted(
 )
 
 # player -> list of (ts, surface, best_of, {metric: value})
-hist: dict[int, list] = collections.defaultdict(list)
-rows = collections.defaultdict(
+hist: dict[int, list[Any]] = collections.defaultdict(list)
+rows: dict[str, list[Any]] = collections.defaultdict(
     list
 )  # metric -> (event_id, dir, line, p_norm, p_nb, won, mean)
+d: Any  # a direction string in the loop below, a Brier delta after it
 for e in played:
     flat = flat_by_event[e["id"]]
     surface = e.get("groundType")
@@ -145,7 +148,7 @@ for e in played:
         past.append((ts, surface, bo, vals))
 
 
-def brier(rs, i):
+def brier(rs: list[Any], i: int) -> float:
     return sum((r[i] - r[5]) ** 2 for r in rs) / len(rs) if rs else float("nan")
 
 
@@ -163,10 +166,10 @@ for m in METRICS:
     de = brier(ev, 4) - brier(ev, 3)
     do = brier(od, 4) - brier(od, 3)
     ov = [r for r in rs if r[1] == "OVER"]
-    mo = lambda i: sum(r[i] for r in ov) / len(ov)
+    mo: Callable[[int], float] = lambda i: sum(r[i] for r in ov) / len(ov)
     tn = [r for r in rs if r[3] >= 0.70]
     tb = [r for r in rs if r[4] >= 0.70]
-    avg = lambda xs, i: sum(x[i] for x in xs) / len(xs) if xs else float("nan")
+    avg: Callable[[list[Any], int], float] = lambda xs, i: sum(x[i] for x in xs) / len(xs) if xs else float("nan")
     if len(rs) < 2000:
         verdict = "INSUFFICIENT_DATA"
     elif d < 0 and de < 0 and do < 0:

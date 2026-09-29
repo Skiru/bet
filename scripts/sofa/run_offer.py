@@ -1,24 +1,24 @@
 import argparse
 import json
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from pydantic import RootModel
 
+from bet.sofa import timeutil
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
 from bet.sofa.coupon import effective_kickoff
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
-from bet.sofa.timeutil import now
 
 
 def merge_with_previous(
-    fresh: list[dict], previous: list[dict]
-) -> tuple[list[dict], int]:
+    fresh: list[dict[str, Any]], previous: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], int]:
     """Refreshed fixtures win; every untouched fixture survives.
 
     A filtered refresh **merges**; it must never shrink the artifact. SHEET
@@ -44,7 +44,9 @@ def main() -> int:
     # Every request underneath this call is this stage's cost (F22).
     set_stage("OFFER")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", help="YYYY-MM-DD", default=now().strftime("%Y-%m-%d"))
+    parser.add_argument(
+        "--date", help="YYYY-MM-DD", default=timeutil.now().strftime("%Y-%m-%d")
+    )
     parser.add_argument(
         "--min-minutes-to-kickoff",
         type=int,
@@ -72,6 +74,7 @@ def main() -> int:
         print(f"{fixtures_path} missing", file=sys.stderr)
         return 2
 
+    f: IO[Any]
     with open(fixtures_path, "rb") as f:
         fixtures_data = f.read()
 
@@ -80,7 +83,7 @@ def main() -> int:
     # Filter before the fetch, not after: the point is the requests not made.
     skipped_kicked_off = 0
     if args.min_minutes_to_kickoff is not None:
-        cutoff = datetime.now(UTC) + timedelta(minutes=args.min_minutes_to_kickoff)
+        cutoff = timeutil.now() + timedelta(minutes=args.min_minutes_to_kickoff)
         # The earlier clock, as COUPON reads it. Filtering on Sofascore's
         # alone re-priced 22 ITF fixtures already in play on 2026-09-23: it
         # runs 7-9 h late there, so a started match looked upcoming.

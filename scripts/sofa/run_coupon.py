@@ -13,6 +13,7 @@ import json
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import cast
 
 from pydantic import RootModel
 
@@ -85,7 +86,7 @@ def _near_miss_section(
     for sport in sorted(by_sport):
         rows = sorted(
             by_sport[sport],
-            key=lambda r: r.surplus / r.required_odds,
+            key=lambda r: cast(float, r.surplus) / r.required_odds,
             reverse=True,
         )[:NEAR_MISSES_PER_SPORT]
         lines += [

@@ -30,6 +30,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
 for _p in (str(_REPO), str(_REPO / "src")):
@@ -55,7 +56,7 @@ from bet.sofa.db import get_connection  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 
-def key(row: dict) -> tuple:
+def key(row: dict[str, Any]) -> tuple[Any, ...]:
     return (
         int(row["sofascore_event_id"]),
         row["market"],
@@ -65,7 +66,7 @@ def key(row: dict) -> tuple:
     )
 
 
-def table(header: list[str], rows: list[list]) -> str:
+def table(header: list[str], rows: list[list[Any]]) -> str:
     out = ["| " + " | ".join(header) + " |",
            "|" + "|".join("---" for _ in header) + "|"]
     out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
@@ -97,7 +98,9 @@ def main() -> int:
 
     now = datetime.now(timezone.utc)
 
-    def observations(eid: int, market: str, subject: str):
+    def observations(
+        eid: int, market: str, subject: str
+    ) -> tuple[list[Any], int | None]:
         mv = (samples.get(eid, {}).get("metrics") or {}).get(market)
         if not mv:
             return [], None
@@ -146,6 +149,7 @@ def main() -> int:
 
     # Every coupon leg, with its outcome, its evidence, and which of today's
     # gates it would now fail. One row = one staked position.
+    k: Any
     positions = []
     for slip_id, b in enumerate(picks):
         for L in b["legs"]:
@@ -346,7 +350,7 @@ def main() -> int:
         population.append({"odds": L["offered_odds"], "outcome": g["outcome"],
                            "gates": gates})
 
-    def roi_of(group):
+    def roi_of(group: list[dict[str, Any]]) -> tuple[Any, Any, Any]:
         if not group:
             return None, None, None
         ret = sum((x["odds"] - 1.0) if x["outcome"] == "WIN" else -1.0
@@ -451,12 +455,15 @@ def main() -> int:
         else:
             trimmed.append((b, ps, survivors))
 
-    def slip_outcome(ps):
+    def slip_outcome(ps: list[dict[str, Any]]) -> str | None:
         if any(p["outcome"] is None for p in ps):
             return None
         return "WIN" if all(p["outcome"] == "WIN" for p in ps) else "LOSS"
 
-    def money(group, use_survivors):
+    def money(
+        group: list[tuple[Any, list[dict[str, Any]], list[dict[str, Any]]]],
+        use_survivors: bool,
+    ) -> tuple[float, int]:
         ret, n = 0.0, 0
         for b, ps, sv in group:
             use = sv if use_survivors else ps

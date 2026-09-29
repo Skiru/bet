@@ -481,7 +481,7 @@ def mode_loses(line: float, direction: str, sample_values: list[float]) -> bool:
     return mode <= line if direction == "OVER" else mode >= line
 
 
-def builder_legs_are_coherent(legs: list[dict]) -> bool:
+def builder_legs_are_coherent(legs: list[dict[str, Any]]) -> bool:
     """Do these legs point the same way about how busy the match will be?
 
     `combined_probability` multiplies, which assumes independence. Across
@@ -506,7 +506,9 @@ MAX_BUILDER_LEGS = 4
 MIN_BUILDER_LEGS = 2
 
 
-def best_leg_per_quantity(legs: list[dict]) -> dict[str, dict]:
+def best_leg_per_quantity(
+    legs: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     """One representative per quantity family, chosen by **leg EV**.
 
     A builder takes at most one leg per quantity, so this choice happens before
@@ -518,7 +520,7 @@ def best_leg_per_quantity(legs: list[dict]) -> dict[str, dict]:
     2026-09-20 defect surviving one level below the sort that was supposed to
     have removed it.
     """
-    best: dict[str, dict] = {}
+    best: dict[str, dict[str, Any]] = {}
     for leg in legs:
         family = quantity_family(leg["market"])
         current = best.get(family)
@@ -527,7 +529,7 @@ def best_leg_per_quantity(legs: list[dict]) -> dict[str, dict]:
     return best
 
 
-def displayed_ev(builder: dict) -> float | None:
+def displayed_ev(builder: dict[str, Any]) -> float | None:
     """The EV a builder should be *shown* with: after the correlation haircut.
 
     Separate from the selection key only because the two disagreed. In
@@ -554,8 +556,8 @@ def direction_key(market: str, direction: str) -> str:
 
 @dataclass(frozen=True)
 class Calibration:
-    pooled: dict[str, dict]
-    by_market: dict[str, dict[str, dict]]
+    pooled: dict[str, dict[str, Any]]
+    by_market: dict[str, dict[str, dict[str, Any]]]
     # Pooled per sport. The global pool is ~95% football counting markets, so
     # serving a tennis metric from it hands tennis football's shape.
     pooled_by_sport: dict[str, dict[str, dict[str, Any]]] = field(
@@ -604,7 +606,7 @@ class Calibration:
         return (entry, f"market:{key}") if entry is not None else None
 
     @staticmethod
-    def _find(curve: dict[str, dict], p: float) -> dict | None:
+    def _find(curve: dict[str, dict[str, Any]], p: float) -> dict[str, Any] | None:
         for key, entry in curve.items():
             lo, hi = (float(x) for x in key.split("-"))
             if lo <= p < hi:
@@ -630,6 +632,7 @@ class Calibration:
         has a bucket for `p` (see `_direction_entry`); without one the lookup
         is the pooled market curve, as it was before 2026-09-26.
         """
+        entry: dict[str, Any] | None
         by_direction = self._direction_entry(market, direction, p)
         if by_direction is not None:
             entry, source = by_direction

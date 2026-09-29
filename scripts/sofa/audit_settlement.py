@@ -56,7 +56,7 @@ from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 Key = tuple[int, str, str, float, str]
 
 
-def _key(row: dict) -> Key:
+def _key(row: dict[str, Any]) -> Key:
     return (
         int(row["sofascore_event_id"]),
         row["market"],
@@ -84,20 +84,20 @@ def _pct(part: int, whole: int) -> str:
     return f"{100.0 * part / whole:.1f}%" if whole else "—"
 
 
-def _reason_for_loss(row: dict) -> str:
+def _reason_for_loss(row: dict[str, Any]) -> str:
     line, actual, direction = row["line"], row["actual_value"], row["direction"]
     want = ">" if direction == "OVER" else "<"
     return f"padło {actual:g}, potrzebne {want} {line:g}"
 
 
-def _table(header: list[str], rows: list[list[str]]) -> str:
+def _table(header: list[str], rows: list[list[Any]]) -> str:
     out = ["| " + " | ".join(header) + " |",
            "|" + "|".join("---" for _ in header) + "|"]
     out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
     return "\n".join(out)
 
 
-def _load_settled(db_path: str, run_date: str) -> list[dict]:
+def _load_settled(db_path: str, run_date: str) -> list[dict[str, Any]]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
@@ -121,7 +121,7 @@ def _settled_artifact_loader(
     return load
 
 
-def _outcome_block(title: str, rows: list[dict]) -> str:
+def _outcome_block(title: str, rows: list[dict[str, Any]]) -> str:
     c = Counter(r["outcome"] for r in rows)
     w, lo, p = c["WIN"], c["LOSS"], c["PUSH"]
     decided = w + lo
@@ -130,7 +130,9 @@ def _outcome_block(title: str, rows: list[dict]) -> str:
             f"nie weszło {lo}, zwrot {p}")
 
 
-def settle_singles(singles: list[dict], by_key: dict) -> dict[str, Any]:
+def settle_singles(
+    singles: list[dict[str, Any]], by_key: dict[Any, Any]
+) -> dict[str, Any]:
     """Grade the PDF's printed singles at their printed odds."""
     won = lost = unsettled = 0
     units = 0.0
@@ -185,7 +187,8 @@ def slip_status(outcomes: list[str | None]) -> str:
     return "WESZŁO"
 
 
-def render_builders(picks: list[dict], by_key: dict, screen: dict[str, Any],
+def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
+                    screen: dict[str, Any],
                     screen_file: str, printed_on: str = "na kuponie") -> list[str]:
     """The printed Bet Builders graded slip by slip, at the screen price when
     the operator recorded one and the haircut estimate otherwise. Shared by
@@ -193,7 +196,7 @@ def render_builders(picks: list[dict], by_key: dict, screen: dict[str, Any],
     out: list[str] = []
     A = out.append
 
-    def slip_odds(b: dict) -> tuple[float, bool]:
+    def slip_odds(b: dict[str, Any]) -> tuple[float, bool]:
         """What this slip really paid, and whether we measured it."""
         real = screen.get(str(b["sofascore_event_id"]))
         if real is not None:
@@ -315,7 +318,7 @@ def main() -> int:
     # cause, and "UNSETTLED" as a single bucket is the answer that hides the
     # difference between "the match was postponed" and "we have no reading of
     # that statistic".
-    ungraded: list[dict] = []
+    ungraded: list[dict[str, Any]] = []
     for row in sheet:
         if _key(row) not in by_key:
             ungraded.append(row)
@@ -373,7 +376,7 @@ def main() -> int:
     A("## 2. Ile weszło, ile nie weszło")
     A("")
     c = Counter(r["outcome"] for r in settled_db)
-    decided = c["WIN"] + c["LOSS"]
+    decided: Any = c["WIN"] + c["LOSS"]
     A(_table(
         ["wynik", "liczba", "% rozstrzygniętych", "% wszystkich rozważonych"],
         [["WESZŁO (WIN)", c["WIN"], _pct(c["WIN"], decided), _pct(c["WIN"], len(sheet))],
@@ -398,7 +401,7 @@ def main() -> int:
     A("Tu powód jest arytmetyczny: znamy wynik, linia go nie objęła.")
     A("")
     losses = [r for r in settled_db if r["outcome"] == "LOSS"]
-    fam_loss: dict[str, Counter] = defaultdict(Counter)
+    fam_loss: dict[str, Counter[Any]] = defaultdict(Counter)
     for r in settled_db:
         fam_loss[_family(r["market"])][r["outcome"]] += 1
     rows = []
@@ -412,7 +415,7 @@ def main() -> int:
     A("### Najczęstszy kształt pudła")
     A("")
     rows = []
-    by_fam_loss: dict[str, list[dict]] = defaultdict(list)
+    by_fam_loss: dict[str, list[dict[Any, Any]]] = defaultdict(list)
     for r in losses:
         by_fam_loss[_family(r["market"])].append(r)
     for fam, rs in sorted(by_fam_loss.items(), key=lambda kv: -len(kv[1]))[:12]:
@@ -513,6 +516,8 @@ def main() -> int:
         A("06_coupon.json nie ma ani jednej pozycji (albo pliku brak). "
           "Kupon z PDF jest w sekcji 7c.")
     else:
+        graded_legs: list[tuple[dict[str, Any], Any]]
+        ungraded_legs: list[tuple[dict[str, Any], Any]]
         graded_legs, ungraded_legs = [], []
         for leg in coupon:
             got = by_key.get(_key(leg))
@@ -610,7 +615,7 @@ def main() -> int:
           "przewaga — mamy rację co do meczu i i tak płacimy za nią za dużo.")
         A("")
         rows = []
-        cb: dict[int, list] = defaultdict(list)
+        cb: dict[int, list[Any]] = defaultdict(list)
         for L, g in decided:
             cb[min(int(L["confidence"] * 20), 19)].append((L, g))
         for k in sorted(cb):
@@ -787,7 +792,7 @@ def main() -> int:
     A("Liczone na `p_bar`, czyli na tej liczbie, którą kupon faktycznie "
       "porównuje z kursem. PUSH-e wyrzucone.")
     A("")
-    buckets: dict[str, list[dict]] = defaultdict(list)
+    buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in settled_db:
         if r["outcome"] == "PUSH":
             continue

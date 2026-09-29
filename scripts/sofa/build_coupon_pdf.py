@@ -15,6 +15,7 @@ import math
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
 for _p in (str(_REPO), str(_REPO / "src")):
@@ -39,6 +40,7 @@ from reportlab.platypus import (  # noqa: E402
     TableStyle,
 )
 
+from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
     PROFILES,
@@ -80,7 +82,7 @@ RULE = colors.HexColor("#d8d8d8")
 BAND = colors.HexColor("#f4f4f4")
 
 
-def _referee(fixture: dict) -> str:
+def _referee(fixture: dict[str, Any]) -> str:
     """The fixture carries the referee as an object, not a name.
 
     Interpolating it printed the whole dict — games, yellow_cards and all —
@@ -113,7 +115,7 @@ def wilson_lo(k: int, n: int, z: float = 1.2816) -> float:
 
 
 def unfitted_constants(
-    sheet_rows: list[dict], keys: set[tuple]
+    sheet_rows: list[dict[str, Any]], keys: set[tuple[Any, ...]]
 ) -> list[str]:
     """Every constant a printed row names in its UNFITTED_CONSTANTS note.
 
@@ -177,14 +179,17 @@ def main() -> int:
     fx_obj = {f.sofascore_event_id: f for f in RootModel[list[Fixture]].model_validate_json(raw).root}
     fx_raw = {f["sofascore_event_id"]: f for f in json.loads(raw)}
     cal = json.loads(Path("config/sofa_confidence_calibration.json").read_text())
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = timeutil.now()  # the one clock (bet.sofa.timeutil)
 
     legs_idx = {
         (l["sofascore_event_id"], l["market"], l["subject"], l["line"], l["direction"]): l
         for l in doc_json["legs"]
     }
 
-    def own_sample(eid, market, subject, line, direction):
+    def own_sample(
+        eid: Any, market: Any, subject: Any, line: Any, direction: Any
+    ) -> tuple[int, int, float, int, list[Any]] | None:
+        side: str | None
         mv = (samples.get(eid, {}).get("metrics") or {}).get(market)
         if not mv:
             return None
@@ -261,7 +266,7 @@ def main() -> int:
         leftMargin=15 * mm, rightMargin=13 * mm, topMargin=14 * mm, bottomMargin=13 * mm,
         title=f"Kupon {args.date}", author="sofa pipeline",
     )
-    S: list = []
+    S: list[Any] = []
     title = f"Kupon — {args.date}"
     if profile.min_ev is not None:
         title += " — WARIANT"
@@ -437,7 +442,7 @@ def main() -> int:
 
     for i, b in enumerate(picks, 1):
         fxr = fx_raw[b["sofascore_event_id"]]
-        block: list = []
+        block: list[Any] = []
         ko = b["kickoff_utc"][11:16]
         block.append(Paragraph(f"{i}. {b['match']}", PICK))
         block.append(Paragraph(

@@ -22,14 +22,16 @@ import math
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
 for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     disagrees_with_price,
     too_close_to_kickoff,
@@ -180,7 +182,7 @@ def main() -> int:
         for s in json.loads((run_dir / "03_samples.json").read_text(encoding="utf-8"))
     }
 
-    def side_observations(row: dict) -> list[dict]:
+    def side_observations(row: dict[str, Any]) -> list[dict[str, Any]]:
         """This row's own past matches, on the side the sheet priced.
 
         Carries the whole observation, not just its value, because the
@@ -217,7 +219,7 @@ def main() -> int:
         return obs
 
     def sample_values(
-        obs: list[dict],
+        obs: list[dict[str, Any]],
     ) -> tuple[list[float], int | None, int | None]:
         """These observations' values, and the age of the oldest, in days.
 
@@ -233,7 +235,7 @@ def main() -> int:
         return values, (now - min(parsed)).days, (now - max(parsed)).days
 
     offers = json.loads((run_dir / "04_offer.json").read_text(encoding="utf-8"))
-    fetched: dict[tuple, str] = {}
+    fetched: dict[tuple[Any, ...], str] = {}
     # The price this offer quotes for the side, so a leg is only timed against
     # the price it actually carries. The sheet's `offered_odds` is from the
     # OFFER that fed SHEET; a rebuild refreshes OFFER without re-running SHEET
@@ -261,7 +263,9 @@ def main() -> int:
                 margins[key] = rung_margin
 
     cal = Calibration.load()
-    now = datetime.now(timezone.utc)
+    # One clock for every stage (bet.sofa.timeutil), so a rebuild or a test
+    # that fixes the time fixes it here too.
+    now = timeutil.now()
 
     # The analyst's vetoes, which until 2026-09-21 this stage did not read.
     # COUPON honoured them and CONFIDENCE did not, so a veto removed a row
@@ -270,9 +274,9 @@ def main() -> int:
     # Builder the PDF actually stakes. The one channel a human read has into
     # this pipeline could not reach its product.
     vetoes = load_vetoes(run_dir / "vetoes.json")
-    vetoed_keys: set[tuple] = set()
+    vetoed_keys: set[tuple[Any, ...]] = set()
 
-    legs: list[dict] = []
+    legs: list[dict[str, Any]] = []
     refused: dict[str, int] = defaultdict(int)
     for row in sheet:
         odds = row.get("offered_odds")
@@ -530,8 +534,8 @@ def main() -> int:
     )
 
     # Bet Builders: same fixture, one leg per market family, 2-4 legs.
-    builders: list[dict] = []
-    by_fixture: dict[int, list[dict]] = defaultdict(list)
+    builders: list[dict[str, Any]] = []
+    by_fixture: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for leg in legs:
         by_fixture[leg["sofascore_event_id"]].append(leg)
     for eid, group in by_fixture.items():

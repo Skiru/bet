@@ -27,6 +27,7 @@ import sqlite3
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
 for _p in (str(_REPO), str(_REPO / "src")):
@@ -162,8 +163,10 @@ def main() -> int:
             pooled_by_sport[sport][b].append(hit)
         scored += 1
 
-    def curve(counts: dict[int, list[int]], floor: int) -> dict[str, dict]:
-        out: dict[str, dict] = {}
+    def curve(
+        counts: dict[int, list[int]], floor: int
+    ) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
         for b, hits in sorted(counts.items()):
             if len(hits) < floor:
                 continue
@@ -183,7 +186,7 @@ def main() -> int:
         for m, counts in per_market_direction.items()
         if (c := curve(counts, MIN_MARKET_BUCKET))
     }
-    doc = {
+    doc: dict[str, Any] = {
         "_doc": (
             "What the model's probability turns into in practice. Fitted by "
             "scripts/sofa/fit_confidence.py. A market with too few rows in a "

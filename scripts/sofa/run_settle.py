@@ -33,7 +33,7 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
@@ -73,7 +73,7 @@ _CACHEABLE_STATUS = ("finished", "canceled", "abandoned")
 _DERIVED_SUBJECTS = frozenset({"1", "2", "__draw__"})
 
 
-def _subject_is_home(subject: str, fixture: dict) -> bool | None:
+def _subject_is_home(subject: str, fixture: dict[str, Any]) -> bool | None:
     """Which side a per-team row is about, or None when it names neither.
 
     Returning None rather than guessing is the point. `is_home` decides which
@@ -148,7 +148,7 @@ def unfinished_reason(event: dict[str, Any]) -> str:
 
 def _event_payload(
     client: SofascoreClient, cache: SofaCache, event_id: int
-) -> tuple[dict, dict | None, dict | None] | str:
+) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None] | str:
     """(listing event, statistics, incidents), or a string saying why not."""
     detail = client.event(event_id)
     event = (detail or {}).get("event")
@@ -183,7 +183,7 @@ def _event_payload(
 
 
 def _settled(
-    row: dict,
+    row: dict[str, Any],
     run_date: str,
     event_id: int,
     competition_id: int | None,
@@ -216,7 +216,11 @@ def _settled(
 
 
 def _settle_derived(
-    row: dict, sport: str, flat: dict, incidents: dict | None, event: dict
+    row: dict[str, Any],
+    sport: str,
+    flat: dict[str, Any],
+    incidents: dict[str, Any] | None,
+    event: dict[str, Any],
 ) -> tuple[float, str] | str:
     """Grade a both-teams / most / handicap row, or say why it cannot be.
 
@@ -327,7 +331,9 @@ def _settle_player(
     return "PLAYER_NOT_MATCHED"
 
 
-def _handicap_side(subject: str, row: dict, event: dict) -> str | None:
+def _handicap_side(
+    subject: str, row: dict[str, Any], event: dict[str, Any]
+) -> str | None:
     if subject == "1":
         return "home"
     if subject == "2":
@@ -474,7 +480,9 @@ class SkipLedger:
         return out
 
 
-def rows_to_consider(sheet: list[dict], *, include_unpriced: bool) -> list[dict]:
+def rows_to_consider(
+    sheet: list[dict[str, Any]], *, include_unpriced: bool
+) -> list[dict[str, Any]]:
     """Which sheet rows this run will try to grade.
 
     Priced-only by default: a row with no price cannot answer the question
@@ -528,7 +536,7 @@ def main() -> int:
     # default is priced-only. --include-unpriced widens it to the whole
     # board, for a backfill that has to account for every market considered.
     considered = rows_to_consider(sheet, include_unpriced=args.include_unpriced)
-    by_event: dict[int, list[dict]] = {}
+    by_event: dict[int, list[dict[str, Any]]] = {}
     for row in considered:
         by_event.setdefault(row["sofascore_event_id"], []).append(row)
 
@@ -593,6 +601,7 @@ def main() -> int:
                     False: squad_statistics(lineups, is_home=False),
                 }
 
+            value: float | GapReason
             for row in event_rows:
                 if is_player_metric(row["market"]):
                     graded = _settle_player(row, squads)
@@ -671,7 +680,8 @@ def main() -> int:
     won = sum(1 for r in rows if r.outcome == "WIN")
     staked = [r for r in rows if r.verdict == "VALUE" and r.offered_odds]
     value_return = sum(
-        (r.offered_odds - 1.0) if r.outcome == "WIN" else -1.0 for r in staked
+        (cast(float, r.offered_odds) - 1.0) if r.outcome == "WIN" else -1.0
+        for r in staked
     )
 
     metrics = {

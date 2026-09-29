@@ -6,10 +6,11 @@ import re
 import statistics
 import sys
 from collections import Counter
+from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import RootModel
 from rapidfuzz import fuzz
@@ -1201,7 +1202,8 @@ def process_fixture(
                 # kind — every short-priced favourite on the board (F52).
                 sample_weight = n / (n + k_price)
                 best_p_bar = (
-                    sample_weight * P_CEILING + (1.0 - sample_weight) * m_p_out
+                    sample_weight * P_CEILING
+                    + (1.0 - sample_weight) * cast(float, m_p_out)
                 )
                 notes.append(
                     "UNREACHABLE_BAR: no sample could clear this price "
@@ -1262,8 +1264,11 @@ def process_fixture(
         max_ladder_sigma=max_ladder_sigma,
         k_price=k_price,
         unfitted=unfitted,
-        correction_for=lambda market, p, direction="": get_calibration_correction(
-            reliability, market, p, direction
+        correction_for=cast(
+            "Callable[[str, float, str], float]",
+            lambda market, p, direction="": get_calibration_correction(
+                reliability, market, p, direction
+            ),
         ),
         rating_p=(rating.probability if rating is not None else None),
         rating_note=(
