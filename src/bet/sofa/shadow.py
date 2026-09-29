@@ -166,6 +166,116 @@ MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
     },
 }
 PARTNER = {"OVER": "UNDER", "UNDER": "OVER", "T1": "T2", "T2": "T1"}
+
+
+@dataclass(frozen=True)
+class PlayerSpec:
+    """A two-way player line: the quantity is the sum of `keys` in the
+    player's `/event/{id}/lineups` statistics.
+
+    `name` is Superbet's market name, lowercased, and must match exactly - the
+    id alone could be re-used. Every one of these is "(z dogrywką)", and a
+    hockey line excludes the shootout ("Rzuty karne nie są brane pod uwagę"),
+    as Sofascore's player statistics do.
+    """
+
+    family: str
+    keys: tuple[str, ...]
+    name: str
+
+
+def _p(family: str, name: str, *keys: str) -> PlayerSpec:
+    return PlayerSpec(family, keys, name)
+
+
+# Measured live 2026-09-29 on the next day's board (both sides quoted on every
+# line), and each Sofascore key checked against the team: the players' sum
+# equalled the team's `/statistics` value (hockey shots / hits / blocked,
+# basketball assists / blocks / steals / threes) or the final score
+# (basketball points) on every one of 12 team-games; a goalie's `saves` is
+# the opponent's shots minus the goals he let in.
+_B = "zawodnik - liczba "
+_Z = " (z dogrywką)"
+PLAYER_MARKETS: dict[SportKey, dict[int, PlayerSpec]] = {
+    "hockey": {
+        236265: _p("player_points", _B + "punktów" + _Z, "points"),
+        236264: _p("player_assists", _B + "asyst" + _Z, "assists"),
+        230023: _p("player_shots_on_goal", "celne strzały zawodnika" + _Z, "shots"),
+        232584: _p(
+            "player_pp_points", _B + "punktów w przewadze" + _Z, "powerPlayPoints"
+        ),
+        232585: _p(
+            "player_plus_minus",
+            "bilans goli (+/-) zawodnika na lodzie" + _Z,
+            "plusMinus",
+        ),
+        232586: _p(
+            "player_blocked_shots", _B + "zablokowanych strzałów" + _Z, "blocked"
+        ),
+        236939: _p(
+            "player_faceoff_wins", _B + "wygranych wznowień" + _Z, "faceOffWins"
+        ),
+        236940: _p("player_hits", _B + "hits" + _Z, "hits"),
+        230026: _p("player_goalie_saves", "obronione strzały bramkarza" + _Z, "saves"),
+    },
+    "basketball": {
+        **{
+            mid: _p("player_points", _B + "punktów" + _Z, "points")
+            for mid in (233565, 239934)
+        },
+        **{
+            mid: _p("player_assists", _B + "asyst" + _Z, "assists")
+            for mid in (233566, 239935)
+        },
+        **{
+            mid: _p("player_rebounds", _B + "zbiórek" + _Z, "rebounds")
+            for mid in (233567, 239936)
+        },
+        **{
+            mid: _p(
+                "player_threes",
+                _B + "trafionych rzutów za 3pkt" + _Z,
+                "threePointsMade",
+            )
+            for mid in (233568, 233857)
+        },
+        **{
+            mid: _p(
+                "player_pts_reb_ast",
+                _B + "punktów + zbiórek + asyst" + _Z,
+                "points",
+                "rebounds",
+                "assists",
+            )
+            for mid in (233569, 239940)
+        },
+        **{
+            mid: _p(
+                "player_reb_ast", _B + "zbiórek + asyst" + _Z, "rebounds", "assists"
+            )
+            for mid in (233570, 239939)
+        },
+        **{
+            mid: _p("player_pts_ast", _B + "punktów + asyst" + _Z, "points", "assists")
+            for mid in (233571, 239937)
+        },
+        **{
+            mid: _p(
+                "player_pts_reb", _B + "punktów + zbiórek" + _Z, "points", "rebounds"
+            )
+            for mid in (233572, 239938)
+        },
+        235217: _p("player_blocks", _B + "bloków" + _Z, "blocks"),
+        235218: _p("player_steals", _B + "przechwytów" + _Z, "steals"),
+    },
+    "volleyball": {},
+}
+
+
+def is_player_line(sport: SportKey, market_id: int) -> bool:
+    return market_id in PLAYER_MARKETS[sport]
+
+
 _HCP_IN_NAME = re.compile(r"\((-?\d+(?:\.\d+)?)\)")
 
 
@@ -233,7 +343,10 @@ def parse_line(
         return None
     spec = MARKETS[sport].get(market_id)
     if spec is None:
-        return None
+        player_spec = PLAYER_MARKETS[sport].get(market_id)
+        if player_spec is None:
+            return None
+        return _parse_player_line(item, player_spec, event_id, market_id)
     market = str(item.get("marketName") or "")
     if ";" in market or "price_boost" in str(item.get("tags") or ""):
         return None
@@ -287,6 +400,39 @@ def parse_line(
     return ShadowLine(
         event_id, market_id, spec.family, period, subject, value, side, odds
     )
+
+
+def _parse_player_line(
+    item: dict[str, Any], spec: PlayerSpec, event_id: str, market_id: int
+) -> ShadowLine | None:
+    """One side of a player line. The side is read from the text only: the
+    outcome `code` of these markets is not the +/- of a total ("6-", "9-")."""
+    market = str(item.get("marketName") or "")
+    if market.strip().lower() != spec.name:
+        return None
+    if "price_boost" in str(item.get("tags") or ""):
+        return None
+    if item.get("status") not in (None, "active"):
+        return None
+    odds = _num(item.get("price"))
+    if odds is None or odds <= 1.0:
+        return None
+    specifiers = item.get("specifiers") or {}
+    player = str(specifiers.get("player") or "").strip()
+    value = _num(specifiers.get("total"))
+    if not player or value is None:
+        return None
+    name = str(item.get("name") or "")
+    side = _direction(name) or _direction(str(item.get("info") or ""))
+    if side is None:
+        return None
+    # The outcome must name the same player and the same number.
+    if player.lower() not in name.lower():
+        return None
+    numbers = re.findall(r"-?\d+(?:\.\d+)?", name.split(" - ")[-1])
+    if not numbers or float(numbers[-1]) != value:
+        return None
+    return ShadowLine(event_id, market_id, spec.family, 0, player, value, side, odds)
 
 
 def parse_event(
@@ -558,6 +704,94 @@ def actual_value(
     return float(a - b)
 
 
+@dataclass(frozen=True)
+class PlayerBox:
+    """Both squads' `/lineups` statistics for one finished game.
+
+    `ok` is False when the box does not add up to the score - basketball's
+    points to the final score, hockey's goals to it (a shootout's deciding
+    goal may or may not be in `current`) - and then no player line of the
+    game is graded.
+    """
+
+    players: dict[str, dict[str, Any]]
+    ok: bool
+    reason: str = ""
+
+
+def _squad(lineups: dict[str, Any], side: str) -> list[tuple[str, dict[str, Any]]]:
+    out: list[tuple[str, dict[str, Any]]] = []
+    for entry in (lineups.get(side) or {}).get("players") or []:
+        if not isinstance(entry, dict):
+            continue
+        name = (entry.get("player") or {}).get("name")
+        if isinstance(name, str) and name.strip():
+            stats = entry.get("statistics")
+            out.append((name, stats if isinstance(stats, dict) else {}))
+    return out
+
+
+def build_player_box(
+    lineups: dict[str, Any] | None, detail: dict[str, Any], sport: ShadowSport
+) -> PlayerBox | None:
+    """The game's player statistics, checked against its score."""
+    from bet.sofa.names import normalize_name
+
+    if not isinstance(lineups, dict):
+        return None
+    sides = {side: _squad(lineups, side) for side in ("home", "away")}
+    if not sides["home"] or not sides["away"]:
+        return None
+    players: dict[str, dict[str, Any]] = {}
+    for squad in sides.values():
+        for name, stats in squad:
+            players[normalize_name(name)] = stats
+    shootout = (detail.get("status") or {}).get("description") == "AP"
+    code = detail.get("winnerCode")
+    for side, score_key, won in (
+        ("home", "homeScore", code == 1),
+        ("away", "awayScore", code == 2),
+    ):
+        current = (detail.get(score_key) or {}).get("current")
+        if not isinstance(current, int):
+            return PlayerBox(players, False, "no score")
+        key = "points" if sport.key == "basketball" else "goals"
+        summed = sum(
+            int(v) for _, st in sides[side] if isinstance(v := st.get(key), int)
+        )
+        allowed = {current, current - 1} if shootout and won else {current}
+        if summed not in allowed:
+            return PlayerBox(
+                players, False, f"{side} {key} {summed} vs score {current}"
+            )
+    return PlayerBox(players, True)
+
+
+def player_value(
+    line: ShadowLine, box: PlayerBox, sport: ShadowSport
+) -> float | Literal["DNP", "UNMATCHED", "NO_STAT"]:
+    """The player's quantity, or why there is none. A player who did not
+    take the ice / court is DNP - Superbet voids his line, it does not settle
+    it at zero."""
+    from bet.sofa.players import match_player
+
+    matched = match_player(line.subject, box.players)
+    if matched is None:
+        return "UNMATCHED"
+    stats = box.players[matched]
+    played = stats.get("secondsPlayed")
+    if not isinstance(played, int | float) or isinstance(played, bool) or played <= 0:
+        return "DNP"
+    spec = PLAYER_MARKETS[sport.key][line.market_id]
+    total = 0.0
+    for key in spec.keys:
+        value = stats.get(key)
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            return "NO_STAT"
+        total += float(value)
+    return total
+
+
 Outcome = Literal["WIN", "LOSS", "VOID"]
 
 
@@ -583,6 +817,7 @@ def settle_event(
     sport: ShadowSport,
     totals_only: bool = False,
     clock: datetime | None = None,
+    box: PlayerBox | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Grade every priced pair of one event. Both sides of a pair or neither.
 
@@ -593,16 +828,49 @@ def settle_event(
     """
     start = clock or _utc(ev.kickoff_utc)
     rows: list[dict[str, Any]] = []
-    counts = {"void": 0, "ungradeable": 0, "unpaired": 0, "needs_orientation": 0}
+    counts = {
+        "void": 0,
+        "ungradeable": 0,
+        "unpaired": 0,
+        "needs_orientation": 0,
+        "player_no_box": 0,
+        "player_unmatched": 0,
+        "player_dnp": 0,
+    }
     for key, line in ev.sides.items():
-        if totals_only and MARKETS[sport.key][line.market_id].kind != "total":
+        is_player = is_player_line(sport.key, line.market_id)
+        # A player line is about a named person, not a side: orientation
+        # does not touch it.
+        if (
+            totals_only
+            and not is_player
+            and MARKETS[sport.key][line.market_id].kind != "total"
+        ):
             counts["needs_orientation"] += 1
             continue
         partner = ev.sides.get((*key[:4], PARTNER[line.side]))
         if partner is None:
             counts["unpaired"] += 1
             continue
-        actual = actual_value(line, result, sport)
+        actual: float | None
+        if is_player:
+            if box is None or not box.ok:
+                counts["player_no_box"] += 1
+                continue
+            got = player_value(line, box, sport)
+            if got == "DNP":
+                counts["player_dnp"] += 1
+                continue
+            if got == "UNMATCHED":
+                counts["player_unmatched"] += 1
+                continue
+            if got == "NO_STAT":
+                counts["ungradeable"] += 1
+                continue
+            assert isinstance(got, float)
+            actual = got
+        else:
+            actual = actual_value(line, result, sport)
         if actual is None:
             counts["ungradeable"] += 1
             continue

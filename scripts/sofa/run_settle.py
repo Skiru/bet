@@ -597,8 +597,12 @@ def main() -> int:
             if any(is_player_metric(r["market"]) for r in event_rows):
                 lineups = fetch_lineups(client, cache, event)
                 squads = {
-                    True: squad_statistics(lineups, is_home=True),
-                    False: squad_statistics(lineups, is_home=False),
+                    True: squad_statistics(
+                        lineups, is_home=True, statistics=statistics
+                    ),
+                    False: squad_statistics(
+                        lineups, is_home=False, statistics=statistics
+                    ),
                 }
 
             value: float | GapReason

@@ -57,8 +57,10 @@ from bet.sofa.shadow import (  # noqa: E402
     ShadowSport,
     SnapshotEvent,
     SportKey,
+    build_player_box,
     build_result,
     event_state,
+    is_player_line,
     latest_pre_kickoff,
     settle_event,
     shadow_day_dir,
@@ -233,8 +235,16 @@ def settle_one(
             "away_score": detail.get("awayScore"),
             "winner_code": detail.get("winnerCode"),
         }
+    box = None
+    if any(is_player_line(sport.key, ln.market_id) for ln in ev.sides.values()):
+        # One request serves every player line of the game; asked fresh, like
+        # the event, because a provisional box would be frozen by SETTLED.
+        box = build_player_box(client.event_lineups(int(found["id"])), detail, sport)
+        record["player_box"] = (
+            "missing" if box is None else ("ok" if box.ok else box.reason)
+        )
     graded, counts = settle_event(
-        ev, result, sport, totals_only=orientation is None, clock=clock
+        ev, result, sport, totals_only=orientation is None, clock=clock, box=box
     )
     return {
         **record,

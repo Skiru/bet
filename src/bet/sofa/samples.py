@@ -544,7 +544,11 @@ def process_historical_event(
     # with no player rungs pays nothing.
     squad: dict[str, dict[str, Any]] | None = None
     if want_lineups:
-        squad = squad_statistics(fetch_lineups(client, cache, event), is_home=is_home)
+        squad = squad_statistics(
+            fetch_lineups(client, cache, event),
+            is_home=is_home,
+            statistics=statistics_json,
+        )
 
     return {
         "event_id": event_id,

@@ -477,9 +477,16 @@ Trzy pułapki, każda zamknięta w kodzie:
   grających w nagranym payloadzie). Zero bierzemy tylko wtedy, gdy zamyka się
   tożsamość `totalShots == celne + niecelne + zablokowane + słupek`
   (31/31 w nagranym payloadzie); gdy się nie zamyka — `INTERNAL_INCONSISTENT`.
-- `totalOffside` też bywa pominięte, ale **nie ma** tożsamości, która
-  udowodniłaby zero, więc `player_offsides_for` **nie istnieje**, mimo że
-  Superbet ten rynek wycenia.
+- `totalOffside`, `fouls`, `totalTackle` i `interceptionWon` też bywają
+  pominięte przy zerze (obecne u 9–50% grających). Od 2026-09-29 zero
+  udowadnia **suma drużyny**: suma grających równała się statystyce drużyny
+  z `/statistics` w 98,9% (spalone), 97,7% (faule), 98,0% (odbiory) i 97,9%
+  (przechwyty) z ~1550 meczów-drużyn. Zero bierzemy tylko w meczu, w którym
+  ta suma się domyka; w pozostałych 1–2% to luka. Stąd nowe metryki
+  `player_offsides_for`, `player_fouls_for` („liczba popełnionych fauli”),
+  `player_tackles_for` („liczba odbiorów”), `player_interceptions_for`.
+  „Faule na zawodniku” (`wasFouled`) domykają się z faulami rywala tylko w
+  58%, więc **nie są** mapowane; „odbiory na zawodniku” nie mają klucza.
 
 I ograniczenie, które decyduje o wartości całej rodziny: **Superbet kwotuje te
 rynki jednostronnie**. 437 selekcji „powyżej" i **0** „poniżej" na tablicy
@@ -931,6 +938,21 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   granicach 2 SE), `lead only` (poza 2 SE, ale dane z < 7 dni), `signal`.
   Przy tylu komórkach mniej więcej co dwudziesta wygląda na sygnał
   przypadkiem — sygnał to pytanie na kolejne tygodnie, nie zakład.
+- **Rynki zawodników (od 2026-09-29).** Hokej: punkty, asysty, celne
+  strzały, punkty w przewadze, bilans +/-, zablokowane strzały, wygrane
+  wznowienia, hity, obrony bramkarza. Koszykówka: punkty, asysty, zbiórki,
+  trójki, przechwyty, bloki i kombinacje (P+Z+A, Z+A, P+A, P+Z). Tylko
+  linie dwustronne, więc dewig działa jak dla drużyn. Rozliczane z
+  `/event/{id}/lineups` (jedno żądanie na mecz, świeże), zawodnik dopasowany
+  jak w piłce (`players.match_player`). Zawodnik, który nie zagrał
+  (`secondsPlayed` 0 lub brak), to VOID — Superbet zwraca stawkę. Pudełko
+  musi się zgadzać z wynikiem: w koszykówce suma punktów = wynik, w hokeju
+  suma goli = wynik (gol z karnych może być w `current`) — inaczej żadna
+  linia zawodnika z meczu nie jest oceniana (`player_box`). Znaczenie kluczy
+  sprawdzone 2026-09-29: suma zawodników = statystyka drużyny w 12/12
+  meczach (hokej: strzały, hity, bloki; kosz: asysty, bloki, przechwyty,
+  trójki, punkty). Na żywo: 39/40 pudełek hokejowych i 34/40 koszykarskich
+  spójnych.
 - **shadow_daily.py**: jedna pętla na datę — druga odmawia startu (exit 2),
   gdy `daily_<d>.pid` wskazuje żywy proces `shadow_daily.py` tej daty; plik
   pid znika, gdy pętla się kończy. Pętla D łapie mecze D+1 tylko do ~07:30Z

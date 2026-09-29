@@ -208,8 +208,10 @@ def test_the_fallback_keeps_the_name_as_written() -> None:
         # No line: a yes/no proposition, not a rung on a ladder.
         "Zawodnik - strzeli gola",
         "Zawodnik - otrzyma kartkę",
-        # No identity in the payload proves an absent totalOffside is a zero.
-        "Zawodnik - liczba spalonych",
+        # Offsides moved to the team_sum metrics on 2026-09-29. What stays:
+        # fouls SUFFERED and tackles suffered - no identity proves their zeros.
+        "Zawodnik - liczba fauli na zawodniku",
+        "Zawodnik - liczba odbiorów na zawodniku",
     ],
 )
 def test_variants_we_cannot_source_stay_unmapped(market_name: str) -> None:
@@ -239,9 +241,19 @@ def test_direction_is_read_not_defaulted() -> None:
 
 
 def test_a_player_and_his_team_are_one_mechanism() -> None:
-    for metric in PLAYER_METRICS:
+    team_metric = {
+        "player_shots_for": "shots_for",
+        "player_shots_on_target_for": "shots_for",
+        "player_assists_for": "shots_for",
+        "player_offsides_for": "offsides_for",
+        "player_fouls_for": "fouls_for",
+        "player_tackles_for": "tackles_for",
+        "player_interceptions_for": "tackles_for",
+    }
+    assert set(team_metric) == set(PLAYER_METRICS)
+    for metric, team in team_metric.items():
         assert is_player_market(metric)
-        assert get_mechanism_family(metric) == get_mechanism_family("shots_for")
+        assert get_mechanism_family(metric) == get_mechanism_family(team)
 
 
 # ---------------------------------------------------------------------------
@@ -570,9 +582,7 @@ def test_lineups_are_only_fetched_when_a_player_market_asked(tmp_path: Path) -> 
     gate is the difference between ~80 requests a day and ~3,600."""
     from bet.sofa import samples as samples_mod
 
-    config = dataclasses.replace(
-        SofaConfig.from_env(), db_path=str(tmp_path / "t.db")
-    )
+    config = dataclasses.replace(SofaConfig.from_env(), db_path=str(tmp_path / "t.db"))
     cache = SofaCache(config)
     calls: list[int] = []
 
@@ -593,9 +603,7 @@ def test_an_empty_answer_is_cached_as_a_fact(tmp_path: Path) -> None:
     per run — the F17 shape, in a new family."""
     from bet.sofa import samples as samples_mod
 
-    config = dataclasses.replace(
-        SofaConfig.from_env(), db_path=str(tmp_path / "t.db")
-    )
+    config = dataclasses.replace(SofaConfig.from_env(), db_path=str(tmp_path / "t.db"))
     cache = SofaCache(config)
     calls: list[int] = []
 
@@ -615,9 +623,7 @@ def test_an_empty_answer_is_cached_as_a_fact(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _sheet(
-    fixture: Fixture, samples: Any, offer: FixtureOffer
-) -> list[Any]:
+def _sheet(fixture: Fixture, samples: Any, offer: FixtureOffer) -> list[Any]:
     from scripts.sofa.run_sheet import process_fixture
 
     rows, _skipped = process_fixture(
@@ -896,9 +902,9 @@ def test_confidence_finds_a_player_row_s_observations() -> None:
             }
         },
     }
-    assert player_observations(
-        fixture_samples, "player_shots_for", "Romarinho"
-    ) == [{"sofascore_event_id": 1, "value": 3.0}]
+    assert player_observations(fixture_samples, "player_shots_for", "Romarinho") == [
+        {"sofascore_event_id": 1, "value": 3.0}
+    ]
     # A player nobody sampled gets [], the same answer the metrics axis gives
     # for a missing metric — not a KeyError halfway through CONFIDENCE.
     assert player_observations(fixture_samples, "player_shots_for", "Nobody") == []
@@ -913,3 +919,104 @@ def test_one_key_for_the_player_sample_everywhere() -> None:
     assert player_sample_key("player_shots_for", "Tolo, Nouhou") == (
         "player_shots_for|Tolo, Nouhou"
     )
+
+
+# --- 2026-09-29: team_sum metrics (fouls, tackles, interceptions, offsides) --
+
+
+@pytest.mark.parametrize(
+    ("market_name", "market"),
+    [
+        ("Zawodnik - liczba popełnionych fauli", "player_fouls_for"),
+        ("Zawodnik - liczba odbiorów", "player_tackles_for"),
+        ("Zawodnik - liczba przechwytów", "player_interceptions_for"),
+        ("Zawodnik - liczba spalonych", "player_offsides_for"),
+    ],
+)
+def test_team_sum_families_are_mapped(market_name: str, market: str) -> None:
+    got = classify_player_market(
+        market_name, "Kowalski, Jan - powyżej 0.5", "sr:player:1-Kowalski, Jan-0.5"
+    )
+    assert got == (market, "Kowalski, Jan", 0.5, "OVER")
+
+
+def _lineups(home: list[dict[str, Any]]) -> dict[str, Any]:
+    return {"home": {"players": home}, "away": {"players": []}}
+
+
+def _stats_payload(home_fouls: float) -> dict[str, Any]:
+    return {
+        "statistics": [
+            {
+                "period": "ALL",
+                "groups": [
+                    {
+                        "statisticsItems": [
+                            {"key": "fouls", "homeValue": home_fouls, "awayValue": 9},
+                            {"key": "offsides", "homeValue": 0, "awayValue": 1},
+                        ]
+                    }
+                ],
+            },
+            # A half's value must never be read as the match's.
+            {
+                "period": "1ST",
+                "groups": [{"statisticsItems": [{"key": "fouls", "homeValue": 1}]}],
+            },
+        ]
+    }
+
+
+def _player(name: str, **stats: Any) -> dict[str, Any]:
+    return {"player": {"name": name}, "statistics": stats}
+
+
+def test_a_missing_key_is_zero_only_when_the_team_sum_closes() -> None:
+    from bet.sofa.players import extract_player_metric, squad_statistics
+
+    lineups = _lineups(
+        [
+            _player("Jan Kowalski", minutesPlayed=90, fouls=2),
+            _player("Adam Nowak", minutesPlayed=90, fouls=1),
+            _player("Piotr Zieliński", minutesPlayed=75),  # no key: zero?
+            _player("Bench Warmer", fouls=0),  # named, never came on
+        ]
+    )
+    closed = squad_statistics(lineups, is_home=True, statistics=_stats_payload(3))
+    assert closed is not None
+    assert extract_player_metric("player_fouls_for", closed["piotr zielinski"]) == 0.0
+    assert extract_player_metric("player_fouls_for", closed["jan kowalski"]) == 2.0
+    # Offsides: nobody has the key and the team had 0 - every zero proven.
+    assert extract_player_metric("player_offsides_for", closed["adam nowak"]) == 0.0
+    # The team says 4, the players sum to 3: the missing one is NOT a zero.
+    open_ = squad_statistics(lineups, is_home=True, statistics=_stats_payload(4))
+    assert open_ is not None
+    assert (
+        extract_player_metric("player_fouls_for", open_["piotr zielinski"])
+        is GapReason.STAT_KEY_ABSENT
+    )
+    # Without the team statistics nothing is proven.
+    bare = squad_statistics(lineups, is_home=True)
+    assert bare is not None
+    assert (
+        extract_player_metric("player_fouls_for", bare["piotr zielinski"])
+        is GapReason.STAT_KEY_ABSENT
+    )
+    # Tackles: no team figure in the payload at all - a gap, never a zero.
+    assert (
+        extract_player_metric("player_tackles_for", closed["piotr zielinski"])
+        is GapReason.STAT_KEY_ABSENT
+    )
+    # A player who never came on is still not an observation.
+    assert (
+        extract_player_metric("player_fouls_for", closed["bench warmer"])
+        is GapReason.EVENT_NOT_FINISHED
+    )
+
+
+def test_the_proof_marker_never_leaks_into_the_source_payload() -> None:
+    from bet.sofa.players import ZERO_PROVEN_KEY, squad_statistics
+
+    raw = _player("Piotr Zieliński", minutesPlayed=75)
+    squad_statistics(_lineups([raw]), is_home=True, statistics=_stats_payload(0))
+    assert ZERO_PROVEN_KEY not in raw["statistics"]  # the cache's dict is untouched

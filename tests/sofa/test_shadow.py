@@ -1887,3 +1887,260 @@ def test_concurrent_snapshot_appends_keep_every_record_whole(tmp_path: Path) -> 
     for p in (tmp_path / "shadow").glob("*/*/snapshots.jsonl"):
         for raw in p.read_text().splitlines():
             json.loads(raw)  # every line parses
+
+
+# --- player lines (hockey, basketball) -----------------------------------------
+
+
+def _pitem(
+    mid: int,
+    market: str,
+    player: str,
+    side: str,
+    total: float,
+    price: float,
+    code: str | None = None,
+) -> dict[str, Any]:
+    word = "powyżej" if side == "OVER" else "poniżej"
+    return {
+        "marketId": mid,
+        "marketName": market,
+        "name": f"{player} - {word} {total}",
+        "info": f"{player} {word} {total} punktów (z dogrywką)",
+        "code": code,
+        "specifiers": {"player": player + " ", "total": str(total)},
+        "status": "active",
+        "price": price,
+    }
+
+
+def test_a_player_line_is_parsed_and_paired() -> None:
+    m = "Zawodnik - liczba punktów + zbiórek (z dogrywką)"
+    items = [
+        _pitem(233572, m, "Astier, Pauline", "OVER", 11.5, 1.85),
+        _pitem(233572, m, "Astier, Pauline", "UNDER", 11.5, 1.87),
+        # Another player's single side: unpaired, dropped by parse_event.
+        _pitem(233572, m, "Other, Guy", "OVER", 9.5, 1.9),
+    ]
+    lines = parse_event(items, "basketball", "e", "A", "B")
+    assert {(ln.family, ln.subject, ln.line, ln.side) for ln in lines} == {
+        ("player_pts_reb", "Astier, Pauline", 11.5, "OVER"),
+        ("player_pts_reb", "Astier, Pauline", 11.5, "UNDER"),
+    }
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"marketName": "Zawodnik - liczba punktów"},  # not the name the id carries
+        {"specifiers": {"player": "Astier, Pauline", "total": "12.5"}},  # 11.5 in text
+        {"name": "Somebody Else - powyżej 11.5"},  # the outcome names another player
+        {"status": "block"},
+        {"price": 1.0},
+        {"tags": "price_boost"},
+    ],
+)
+def test_a_player_line_that_does_not_read_twice_is_dropped(bad: dict[str, Any]) -> None:
+    m = "Zawodnik - liczba punktów + zbiórek (z dogrywką)"
+    item = {**_pitem(233572, m, "Astier, Pauline", "OVER", 11.5, 1.85), **bad}
+    assert parse_line(item, "basketball", "e", "A", "B") is None
+
+
+def test_the_hockey_code_is_not_read_as_a_direction() -> None:
+    # Superbet's code on "Celne strzały zawodnika" is "6-" for an UNDER and
+    # "6+" for an OVER on some lines and meaningless on others: text only.
+    item = _pitem(
+        230023,
+        "Celne strzały zawodnika (z dogrywką)",
+        "Adam Fox",
+        "UNDER",
+        1.5,
+        1.6,
+        "6+",
+    )
+    got = parse_line(item, "hockey", "e", "A", "B")
+    assert (
+        got is not None and got.side == "UNDER" and got.family == "player_shots_on_goal"
+    )
+
+
+def _box_lineups(
+    home_points: list[int], away_points: list[int], key: str = "points"
+) -> dict[str, Any]:
+    def squad(values: list[int], tag: str) -> dict[str, Any]:
+        return {
+            "players": [
+                {
+                    "player": {"name": f"{tag} Player{i}"},
+                    "statistics": {
+                        "secondsPlayed": 600,
+                        key: v,
+                        "rebounds": 3,
+                        "assists": 1,
+                    },
+                }
+                for i, v in enumerate(values)
+            ]
+            + [{"player": {"name": f"{tag} Bench"}, "statistics": {}}]
+        }
+
+    return {"home": squad(home_points, "Home"), "away": squad(away_points, "Away")}
+
+
+def _score_detail(
+    home: int, away: int, description: str = "Ended", code: int = 1
+) -> dict[str, Any]:
+    return {
+        "status": {"type": "finished", "description": description},
+        "winnerCode": code,
+        "homeScore": {"current": home},
+        "awayScore": {"current": away},
+    }
+
+
+def test_the_player_box_must_add_up_to_the_score() -> None:
+    from bet.sofa.shadow import build_player_box
+
+    ok = build_player_box(
+        _box_lineups([20, 30], [10, 15]), _score_detail(50, 25), BASKETBALL
+    )
+    assert ok is not None and ok.ok
+    off = build_player_box(
+        _box_lineups([20, 30], [10, 15]), _score_detail(52, 25), BASKETBALL
+    )
+    assert off is not None and not off.ok and "home points 50 vs score 52" in off.reason
+    assert build_player_box(None, _score_detail(50, 25), BASKETBALL) is None
+    # Hockey: a shootout's deciding goal may or may not be in current.
+    for home_current in (3, 4):
+        box = build_player_box(
+            _box_lineups([1, 2], [3], key="goals"),
+            _score_detail(home_current, 3, "AP", 1),
+            HOCKEY,
+        )
+        assert box is not None and box.ok
+    beyond = build_player_box(
+        _box_lineups([1, 2], [3], key="goals"), _score_detail(5, 3, "AP", 1), HOCKEY
+    )
+    assert beyond is not None and not beyond.ok
+
+
+def test_player_values_dnp_and_unmatched() -> None:
+    from bet.sofa.shadow import build_player_box, player_value
+
+    box = build_player_box(
+        _box_lineups([20, 30], [10, 15]), _score_detail(50, 25), BASKETBALL
+    )
+    assert box is not None
+
+    def ln(subject: str, mid: int = 233572) -> ShadowLine:
+        return ShadowLine("e", mid, "x", 0, subject, 11.5, "OVER", 1.9)
+
+    assert player_value(ln("Player1, Home"), box, BASKETBALL) == 33.0  # pts + reb
+    assert (
+        player_value(ln("Home Player0", 235217), box, BASKETBALL) == "NO_STAT"
+    )  # blocks
+    assert player_value(ln("Bench, Home"), box, BASKETBALL) == "DNP"
+    assert player_value(ln("Nobody Atall"), box, BASKETBALL) == "UNMATCHED"
+
+
+class LineupsClient(FakeClient):
+    def __init__(self, detail: dict[str, Any], lineups: dict[str, Any] | None) -> None:
+        super().__init__(detail)
+        self.lineups = lineups
+        self.lineups_asked: list[int] = []
+
+    def event_lineups(self, eid: int) -> dict[str, Any] | None:
+        self.lineups_asked.append(eid)
+        return self.lineups
+
+
+def test_player_lines_settle_end_to_end(tmp_path: Path) -> None:
+    lines = [
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, "OVER", 2.1
+        ).as_dict(),
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, "UNDER", 1.7
+        ).as_dict(),
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Bench, Home", 0.5, "OVER", 3.0
+        ).as_dict(),
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Bench, Home", 0.5, "UNDER", 1.35
+        ).as_dict(),
+    ]
+    snap = {**_snap("2026-09-28T15:00:00Z", 1.9)}
+    snap["lines"] = snap["lines"] + lines
+    _write_snaps(tmp_path, [snap])
+    # HOCKEY_AET: home 4 (1+2+0, OT goal), away 3.
+    lineups = {
+        "home": {
+            "players": [
+                {
+                    "player": {"name": "Home Player0"},
+                    "statistics": {"secondsPlayed": 1200, "goals": 4, "points": 5},
+                },
+                {
+                    "player": {"name": "Home Bench"},
+                    "statistics": {"secondsPlayed": 0, "goals": 0, "points": 0},
+                },
+            ]
+        },
+        "away": {
+            "players": [
+                {
+                    "player": {"name": "Away One"},
+                    "statistics": {"secondsPlayed": 1100, "goals": 3, "points": 3},
+                }
+            ]
+        },
+    }
+    client = LineupsClient({**sofa_event(), **HOCKEY_AET}, lineups)
+    run_settle(tmp_path, FakeResolver(sofa_event()), client, 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "SETTLED" and rec["player_box"] == "ok"
+    got = {
+        (g["subject"], g["side"]): g["outcome"]
+        for g in rec["graded"]
+        if g["family"] == "player_points"
+    }
+    assert got == {("Player0, Home", "OVER"): "WIN", ("Player0, Home", "UNDER"): "LOSS"}
+    assert rec["player_dnp"] == 2  # the bench player's two sides: void, not graded
+    assert client.lineups_asked == [700]
+
+
+def test_a_box_that_does_not_add_up_grades_no_player_line(tmp_path: Path) -> None:
+    snap = {**_snap("2026-09-28T15:00:00Z", 1.9)}
+    snap["lines"] = snap["lines"] + [
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, s, 1.9
+        ).as_dict()
+        for s in ("OVER", "UNDER")
+    ]
+    _write_snaps(tmp_path, [snap])
+    lineups = {
+        "home": {
+            "players": [
+                {
+                    "player": {"name": "Home Player0"},
+                    "statistics": {"secondsPlayed": 1, "goals": 1},
+                }
+            ]
+        },
+        "away": {
+            "players": [
+                {
+                    "player": {"name": "Away One"},
+                    "statistics": {"secondsPlayed": 1, "goals": 3},
+                }
+            ]
+        },
+    }
+    client = LineupsClient({**sofa_event(), **HOCKEY_AET}, lineups)
+    run_settle(tmp_path, FakeResolver(sofa_event()), client, 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["player_box"].startswith("home goals 1 vs score 4")
+    assert rec["player_no_box"] == 2
+    assert all(g["family"] != "player_points" for g in rec["graded"])
+    # The team lines are still graded.
+    assert any(g["family"] == "total" for g in rec["graded"])

@@ -138,7 +138,12 @@ read an absent xG as zero.
 - **No `*_against` metric exists.** Use the opponent's `*_for` and label it a
   proxy.
 
-## Player props — `player_shots_for`, `player_shots_on_target_for`, `player_assists_for`
+## Player props — `player_shots_for`, `player_shots_on_target_for`, `player_assists_for`, and since 2026-09-29 `player_fouls_for`, `player_tackles_for`, `player_interceptions_for`, `player_offsides_for`
+
+The four newer ones are omitted by Sofascore on a zero; a zero is taken only
+in a match where the appearing players sum to the team's `/statistics` value
+(closes in ~98% of team-games), otherwise the match is a gap for that player.
+Fouls SUFFERED ("fauli na zawodniku") is not mapped - no identity proves it.
 
 New 2026-09-22 (F54). Three metrics, read per player out of
 `/event/{id}/lineups`, living on their own axis in `03_samples.json`

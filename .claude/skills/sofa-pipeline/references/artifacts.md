@@ -67,7 +67,7 @@ without re-running the name match (`players.player_sample_key`).
 
 | field | note |
 |---|---|
-| `metric` | `player_shots_for`, `player_shots_on_target_for`, `player_assists_for` |
+| `metric` | `player_shots_for`, `player_shots_on_target_for`, `player_assists_for`, `player_fouls_for`, `player_tackles_for`, `player_interceptions_for`, `player_offsides_for` (the last four: zero only when the team sum closes) |
 | `player` | the name Superbet wrote, e.g. `"Tolo, Nouhou"` |
 | `matched_name` | the normalised Sofascore squad name it was matched to |
 | `side` | `side_a` / `side_b` — which squad he was found in, more often |
@@ -259,6 +259,12 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
   carries `minutes_before_kickoff` (audit section 5 splits on it).
 - SHADOW also records the next day's games that start within its horizon,
   into that day's file, so late North American games are priced.
+- Player lines (since 2026-09-29, hockey + basketball, two-sided only):
+  `family` `player_*`, `subject` = Superbet's player name, graded from a
+  fresh `/event/{id}/lineups`; `player_box` on the game record is `ok`,
+  `missing` or why the box does not add up to the score (then no player line
+  of the game is graded, `player_no_box`); a player who did not play is
+  `player_dnp` (void), an unmatched name `player_unmatched`.
 - `shadow_daily.py`: one loop per date (`daily_<d>.pid`, deleted on exit; a
   second loop refuses, exit 2). `--chain` starts D+1's loop after D's 05:15Z
   settle and audit - without it D+1's games after ~07:30Z are priced only

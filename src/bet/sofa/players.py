@@ -79,20 +79,45 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
         # Present for 31 of the 31 who appeared, including every zero.
         "zero_when_absent": False,
     },
-    # `player_offsides_for` is deliberately absent.
+    # 2026-09-29: the four below are omitted on a zero (present for 9-50% of
+    # appearing players over 400 cached matches), and no in-player
+    # decomposition proves the zero. The TEAM figure does: over ~1,550
+    # team-games the appearing players' values summed exactly to the team's
+    # `/statistics` value in 97.7% (fouls), 98.0% (tackles), 97.9%
+    # (interceptions) and 98.9% (offsides). So a missing key is taken as zero
+    # only in a team-game where that sum closes (`team_sum`), and is a gap in
+    # the 1-2% where it does not - the offsides note that stood here asked
+    # for exactly this measurement.
     #
-    # Superbet does price it ("Zawodnik - liczba spalonych", 19 selections on
-    # the 2026-09-24 Seattle fixture) and Sofascore does report `totalOffside`
-    # — for 4 of the 31 players who appeared. So the key is omitted on a zero,
-    # exactly like shots on target, and unlike shots on target there is no
-    # decomposition in the payload that closes with the zero and rules out
-    # missing data. Taking it anyway would be guessing, and it would guess in
-    # the direction that makes every UNDER look good.
-    #
-    # The team figure in `/statistics` could bound it — the players' offsides
-    # must sum to the team's — and that is the measurement that would unlock
-    # this metric. It has not been made, so the metric is not here.
+    # "Zawodnik - liczba fauli na zawodniku" (`wasFouled`) is NOT here: summed
+    # against the opponent's fouls it closed in only 58.1% of team-games, so
+    # there is no identity to prove its zeros. "... odbiorow na zawodniku"
+    # has no Sofascore key that means it.
+    "player_fouls_for": {
+        "sofascore": "fouls",
+        "zero_when_absent": True,
+        "team_sum": "fouls",
+    },
+    "player_tackles_for": {
+        "sofascore": "totalTackle",
+        "zero_when_absent": True,
+        "team_sum": "totalTackle",
+    },
+    "player_interceptions_for": {
+        "sofascore": "interceptionWon",
+        "zero_when_absent": True,
+        "team_sum": "interceptionWon",
+    },
+    "player_offsides_for": {
+        "sofascore": "totalOffside",
+        "zero_when_absent": True,
+        "team_sum": "offsides",
+    },
 }
+
+# Written by `squad_statistics` into each appearing player's statistics: the
+# Sofascore keys whose absence this team-game proves to be zero.
+ZERO_PROVEN_KEY = "_zero_proven_by_team_sum"
 
 
 def is_player_metric(metric: str) -> bool:
@@ -135,6 +160,10 @@ def extract_player_metric(
     if not config.get("zero_when_absent"):
         return GapReason.STAT_KEY_ABSENT
 
+    if config.get("team_sum"):
+        proven = stats.get(ZERO_PROVEN_KEY) or ()
+        return 0.0 if key in proven else GapReason.STAT_KEY_ABSENT
+
     identity = config.get("identity")
     if not identity:
         return GapReason.STAT_KEY_ABSENT
@@ -157,13 +186,58 @@ def extract_player_metric(
     return 0.0
 
 
+def team_totals(statistics: Any, *, is_home: bool) -> dict[str, float]:
+    """One side's whole-match `/statistics` values, by Sofascore key."""
+    out: dict[str, float] = {}
+    if not isinstance(statistics, dict):
+        return out
+    for period in statistics.get("statistics") or []:
+        if not isinstance(period, dict) or period.get("period") != "ALL":
+            continue
+        for group in period.get("groups") or []:
+            for item in (group or {}).get("statisticsItems") or []:
+                key = (item or {}).get("key")
+                value = item.get("homeValue" if is_home else "awayValue")
+                if isinstance(key, str) and isinstance(value, int | float):
+                    if not isinstance(value, bool):
+                        out[key] = float(value)
+    return out
+
+
+def _zero_proven(
+    squad: dict[str, dict[str, Any]], totals: dict[str, float]
+) -> list[str]:
+    """The team_sum metrics whose missing keys this team-game proves zero."""
+    proven: list[str] = []
+    appearing = [
+        st for st in squad.values() if _statistic(st, "minutesPlayed") is not None
+    ]
+    for config in PLAYER_METRICS.values():
+        team_key = config.get("team_sum")
+        if not team_key or team_key not in totals or not appearing:
+            continue
+        key = str(config["sofascore"])
+        summed = sum(_statistic(st, key) or 0.0 for st in appearing)
+        if abs(summed - totals[team_key]) < 1e-9:
+            proven.append(key)
+    return proven
+
+
 def squad_statistics(
-    lineups: dict[str, Any] | None, *, is_home: bool
+    lineups: dict[str, Any] | None,
+    *,
+    is_home: bool,
+    statistics: Any = None,
 ) -> dict[str, dict[str, Any]] | None:
     """`{normalised player name: statistics}` for one side of one match.
 
     None when the payload carries no squad for that side, which is a different
     fact from an empty squad and must not be read as "nobody played".
+
+    `statistics` is the match's `/statistics` payload, when the caller holds
+    it: it is what proves a team_sum metric's missing keys zero (each
+    appearing player's statistics then carry ZERO_PROVEN_KEY). Without it a
+    missing key of such a metric stays a gap.
     """
     if not lineups:
         return None
@@ -185,7 +259,13 @@ def squad_statistics(
         if not isinstance(name, str) or not name.strip():
             continue
         stats = entry.get("statistics")
-        out[normalize_name(name)] = stats if isinstance(stats, dict) else {}
+        out[normalize_name(name)] = dict(stats) if isinstance(stats, dict) else {}
+    if statistics is not None:
+        proven = _zero_proven(out, team_totals(statistics, is_home=is_home))
+        if proven:
+            for st in out.values():
+                if _statistic(st, "minutesPlayed") is not None:
+                    st[ZERO_PROVEN_KEY] = proven
     return out
 
 

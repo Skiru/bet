@@ -281,6 +281,13 @@ PLAYER_MARKET_NAMES = {
     "zawodnik - liczba strzalow": "player_shots_for",
     "zawodnik - liczba celnych strzalow": "player_shots_on_target_for",
     "zawodnik - liczba asyst": "player_assists_for",
+    # 2026-09-29: the team_sum metrics in players.py (fouls, tackles,
+    # interceptions, offsides). "... fauli na zawodniku" and "... odbiorow na
+    # zawodniku" stay unmapped - no Sofascore key proves them.
+    "zawodnik - liczba popelnionych fauli": "player_fouls_for",
+    "zawodnik - liczba odbiorow": "player_tackles_for",
+    "zawodnik - liczba przechwytow": "player_interceptions_for",
+    "zawodnik - liczba spalonych": "player_offsides_for",
 }
 
 # "sr:player:1011725-Castan, Luciano-0.5". The id is Sportradar's, not
@@ -411,6 +418,7 @@ def get_mechanism_family(market: str) -> str:
         "player_shots_for",
         "player_shots_on_target_for",
         "player_assists_for",
+        "player_offsides_for",
         "shots_total",
         "shots_for",
         "shots_on_target_total",
@@ -433,6 +441,7 @@ def get_mechanism_family(market: str) -> str:
         "cards_points_for",
         "fouls_total",
         "fouls_for",
+        "player_fouls_for",
     ):
         return "discipline"
     if market in ("games_total", "games_won_for", "sets_total", "tiebreaks_total"):
