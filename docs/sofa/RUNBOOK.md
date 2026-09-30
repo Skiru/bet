@@ -273,6 +273,11 @@ Albo cztery agenty `sofa-sport-runner` równolegle, po jednym na sport.
   wyniku), progi zawodników „5+” (rynek jednostronny, nie ma z czym
   zdevigować), double-double (klucze statystyk niezweryfikowane), kombinacje.
 
+Korekta jednorazowa (30.09): do 30.09 CS2_SETTLE oceniał też linie, które
+Superbet zdjął przed startem, po ich starej cenie. `regrade_cs2_snapshots.py
+--from <d> --to <d>` usuwa takie strony offline (kopia: `settled.pre_regrade.json`);
+29.09 miał ich 22 z 302. Po nim `record_results.py` dla tych dni.
+
 ### 4b. WARIANT WSZYSTKIE i dziennik wyników (od 30.09, domyślnie w /sofa-day)
 
 ```bash

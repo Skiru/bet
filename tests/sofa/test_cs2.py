@@ -740,3 +740,42 @@ def test_a_three_way_row_reports_its_own_margin() -> None:
            "overround": 0.07, "group_odds": {"T1": 1.8, "DRAW": 4.0, "T2": 4.0}}
     stats = summarize([row], "x")
     assert stats is not None and stats.margin == pytest.approx(0.07)
+
+
+def test_regrade_removes_sides_priced_from_a_replaced_snapshot(tmp_path) -> None:
+    import json as _json
+
+    from bet.sofa import cs2 as _cs2
+    from scripts.sofa import regrade_cs2_snapshots as rg
+
+    d = _cs2.cs2_day_dir(str(tmp_path), "2026-09-29")
+    d.mkdir(parents=True)
+    first = snap("2026-09-29T10:00:00Z", "2026-09-29T15:00:00Z", 1.70)
+    later = snap("2026-09-29T14:00:00Z", "2026-09-29T15:00:00Z", 1.80)
+    first["lines"] += [
+        Cs2Line("e1", "rounds_total", 0, "", 44.5, "OVER", 1.9).as_dict(),
+        Cs2Line("e1", "rounds_total", 0, "", 44.5, "UNDER", 1.9).as_dict(),
+    ]
+    (d / "snapshots.jsonl").write_text(
+        "".join(_json.dumps(s) + "\n" for s in (first, later)), encoding="utf-8")
+
+    def graded(family: str, line: float, side: str, odds: float) -> dict:
+        return {**Cs2Line("e1", family, 0, "", line, side, odds).as_dict(),
+                "outcome": "WIN", "fair_p": 0.5}
+
+    rows = [
+        graded("maps_total", 2.5, "OVER", 1.80),
+        graded("maps_total", 2.5, "UNDER", 1.9),
+        graded("rounds_total", 44.5, "OVER", 1.9),
+        graded("rounds_total", 44.5, "UNDER", 1.9),
+    ]
+    (d / "settled.json").write_text(_json.dumps({"events": {"e1": {
+        "state": "SETTLED", "graded": rows}}}), encoding="utf-8")
+    assert rg.regrade_day(str(tmp_path), "2026-09-29", dry_run=True)["removed"] == 2
+    res = rg.regrade_day(str(tmp_path), "2026-09-29", dry_run=False)
+    assert res == {"events": 1, "removed": 2}
+    ev = _json.loads((d / "settled.json").read_text(encoding="utf-8"))["events"]["e1"]
+    assert {r["family"] for r in ev["graded"]} == {"maps_total"}
+    assert ev[rg.MARK] == 2 and (d / rg.BACKUP).exists()
+    # idempotent
+    assert rg.regrade_day(str(tmp_path), "2026-09-29", dry_run=False)["removed"] == 0
