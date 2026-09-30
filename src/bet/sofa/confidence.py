@@ -26,7 +26,9 @@ back into the coupon it replaced:
 from __future__ import annotations
 
 import json
+import re
 import statistics
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -353,6 +355,89 @@ def has_unreachable_bar_note(notes: object) -> bool:
     return any(str(note).startswith("UNREACHABLE_BAR") for note in notes)
 
 
+# Match classes with a calibration curve of their own (Calibration.by_class).
+CLASS_WOMEN = "women"
+# Tennis team cups and exhibitions. tennis_rating.tier_group files them under
+# TOUR, but a regional Davis Cup group is not a tour event. Measured
+# 2026-09-30 on live settled rows at p_central >= 0.70: 236 rows / 26
+# matches claimed 0.802 and realised 0.669 (ROI -8.2%), against ITF/CH
+# 0.812 / 0.788. Its legs read only a curve fitted on its own rows
+# (fit_confidence --classes-only) and are refused wherever it has none.
+CLASS_TENNIS_TEAM_CUP = "tennis_team_cup"
+# Women's tennis. Measured 2026-09-30 on the cache replay at p_central >=
+# 0.70: women realised 0.5-1 pp further below the claim than men in every
+# bucket (0.80-0.85: -3.5 pp on 8,558 rows vs -2.6 pp on 16,258), and the
+# tennis curves pooled both.
+CLASS_TENNIS_WOMEN = "tennis_women"
+_TENNIS_TEAM_CUP_WORDS = (
+    "davis cup", "billie jean king", "exhibition", "united cup", "hopman cup",
+    "laver cup",
+)
+_WOMEN_BOARD_MARKERS = ("(k)", "(w)", "(f)", " kobiety", " women")
+# Whole words (a prefix for the inflected ones), matched on the accent-folded
+# name. A bare substring called 3,381 cached men's events women's - "liga f"
+# inside Liga FUTVE (Venezuela) and 2. Liga FBIH - and missed "Féminine".
+_WOMEN_COMPETITION_RE = re.compile(
+    r"\b(?:women\w*|kobiet\w*|femin\w*|femenin\w*|femminil\w*|frauen\w*|"
+    r"damen\w*|girls|vrouwen|dames|damallsvenskan|toppserien|nwsl|liga f|"
+    r"we[- ]league|wsl)\b"
+)
+
+
+def match_class(
+    sport: str | None, competition_name: str | None,
+    board_sides: tuple[str, str] | None = None,
+) -> str | None:
+    """CLASS_WOMEN for a women's football match; for tennis (read off the
+    category name) CLASS_TENNIS_TEAM_CUP for a team cup or exhibition, else
+    CLASS_TENNIS_WOMEN for a women's event; else None.
+
+    Superbet marks a women's side "(K)" on the board, which is what put the
+    women's leagues on the coupon on 2026-09-28; the competition name is the
+    second carrier (entity 296052 is plainly "IF Gnistan").
+    """
+    if sport == "tennis":
+        text = (competition_name or "").lower()
+        if any(w in text for w in _TENNIS_TEAM_CUP_WORDS):
+            return CLASS_TENNIS_TEAM_CUP
+        name = (competition_name or "").strip()
+        if "Women" in name or name.startswith("WTA"):
+            return CLASS_TENNIS_WOMEN
+        return None
+    if sport != "football":
+        return None
+    for name in board_sides or ():
+        lowered = f" {(name or '').lower().strip()}"
+        if any(m in lowered for m in _WOMEN_BOARD_MARKERS):
+            return CLASS_WOMEN
+    if _WOMEN_COMPETITION_RE.search(_fold(competition_name or "")):
+        return CLASS_WOMEN
+    return None
+
+
+def _fold(text: str) -> str:
+    """Lower case, accents dropped: "Première Ligue, Féminine" -> "premiere
+    ligue, feminine"."""
+    decomposed = unicodedata.normalize("NFKD", text.lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def has_cross_league_unlinked_note(notes: object) -> bool:
+    """Did SHEET record that this football fixture's two sides share nothing?
+
+    See football_rating.CROSS_LEAGUE_UNLINKED_NOTE. FK Aktobe (women,
+    Kazakhstan: 20-0, 15-0, 12-0) against Ajax (women) in the UEFA Europa
+    Cup, 2026-09-30, a week after losing 0-8 to them: goals UNDER 6.5 went
+    onto the PDF at 0.823 from a centre of 4.0 goals built from Kazakh
+    matches. When nothing the model holds compares the two sides, the price
+    is the only number that does, and a confidence leg defers to it.
+    """
+    if not isinstance(notes, (list, tuple)):
+        return False
+    return any(
+        str(note).startswith("CROSS_LEAGUE_UNLINKED") for note in notes)
+
+
 def leg_is_ev_positive(confidence: float, odds: float) -> bool:
     """Does this leg clear its own price, using its own number?
 
@@ -624,6 +709,10 @@ class Calibration:
     by_market_direction: dict[str, dict[str, dict[str, Any]]] = field(
         default_factory=dict
     )
+    # Per match class (CLASS_WOMEN): the class's own market, direction and
+    # sport-pool curves, fitted on the class's rows only. A leg of the class
+    # is read from these and nothing else - see realised().
+    by_class: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @staticmethod
     def load(path: Path | str = DEFAULT_CALIBRATION) -> Calibration:
@@ -633,6 +722,19 @@ class Calibration:
             by_market=doc.get("by_market", {}),
             pooled_by_sport=doc.get("pooled_by_sport", {}),
             by_market_direction=doc.get("by_market_direction", {}),
+            by_class=doc.get("by_class", {}),
+        )
+
+    def for_class(self, klass: str) -> Calibration | None:
+        """The class's own curves, with no global pool behind them."""
+        section = self.by_class.get(klass)
+        if not section:
+            return None
+        return Calibration(
+            pooled={},
+            by_market=section.get("by_market", {}),
+            pooled_by_sport=section.get("pooled_by_sport", {}),
+            by_market_direction=section.get("by_market_direction", {}),
         )
 
     def _direction_entry(
@@ -669,6 +771,7 @@ class Calibration:
         p: float,
         sport: str | None = None,
         direction: str | None = None,
+        klass: str | None = None,
     ) -> tuple[float, str, int] | None:
         """The measured lower bound for this market at this claimed probability.
 
@@ -682,6 +785,18 @@ class Calibration:
         has a bucket for `p` (see `_direction_entry`); without one the lookup
         is the pooled market curve, as it was before 2026-09-26.
         """
+        if klass is not None:
+            # A leg of a match class is read from the class's own curves and
+            # never from the pool the class was measured to differ from. A
+            # file with no section for the class refuses the leg - that is
+            # the AWAITING_OWN_CURVE rule applied to a class.
+            own_class = self.for_class(klass)
+            if own_class is None:
+                return None
+            hit = own_class.realised(market, p, sport, direction)
+            if hit is None:
+                return None
+            return hit[0], f"{klass}:{hit[1]}", hit[2]
         entry: dict[str, Any] | None
         by_direction = self._direction_entry(market, direction, p)
         if by_direction is not None:

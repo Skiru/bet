@@ -33,8 +33,9 @@ SAMPLES and SETTLE use).
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
-from collections import defaultdict
+from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,6 +47,8 @@ from bet.sofa.metrics import (
     extract_metric,
     is_extra_time_event,
 )
+from bet.sofa.resolve import sofascore_gender
+from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 
 # The per-side metric every football market in scope is built from. A
 # ``_total`` market is the sum of the two sides' forecasts.
@@ -123,10 +126,69 @@ UNRATED_MARKETS = frozenset(
 )
 # Smoothing of a league's own rate and home ratio.
 ALPHA_LEAGUE = 0.02
+LEAGUE_RUNNING_MEAN = True
 # A league or a team with fewer matches than this is not rated from itself.
 MIN_LEAGUE_MATCHES = 30
 MIN_TEAM_MATCHES = 5
 _RATIO_BOUNDS = (0.2, 5.0)
+
+# --- League strength (2026-09-30) -------------------------------------------
+#
+# A team's attack and defence are ratios to the league rate of the match they
+# were earned in, so they are comparable only between teams that share a
+# league. FK Aktobe (women) won 20-0, 15-0 and 12-0 in Kazakhstan, carried
+# attack 2.54 / defence 0.35 into the UEFA Europa Cup, Women and was forecast
+# to outscore Ajax 2.59 - 1.45 a week after losing to them 0-8.
+#
+# Two teams are LINKED when, inside LINK_WINDOW_S, both played at least
+# LINK_MIN_MATCHES in one competition: their ratios share a denominator. Any
+# other pairing (a European cup, a cup against a lower division, a friendly
+# between leagues, a promoted side) is priced with a per-(domain, metric)
+# strength sigma - log scale, 0 for the pool - learnt only from unlinked
+# matches, where it is the only thing that explains the residual. A team's
+# domain is its modal competition inside the window. A domain with fewer than
+# MIN_STRENGTH_LINKS unlinked matches has no strength, and the pairing is
+# UNLINKED: the rating gives no centre and says so.
+LINK_WINDOW_S = 365 * 86400
+LINK_MIN_MATCHES = 3
+TEAM_COMP_MEMORY = 40
+ALPHA_STRENGTH = 0.02
+MIN_STRENGTH_LINKS = 10
+_STRENGTH_BOUNDS = (-2.0, 2.0)
+# One match moves a ratio by alpha x (surprise - ratio); a 12-0 against a
+# defence rated 0.22 made surprise ~20 and moved Ajax's attack 1.37 -> 2.15 in
+# one step. The surprise is capped so no single score can.
+MAX_SURPRISE = 3.0
+# A team's ratios are shrunk toward 1 (the league average) by this power when
+# it meets a side from another league: they were earned against its own
+# league and are only partly transportable (Baio & Blangiardo 2010's
+# shrinkage). Austria Wien (W), defence 0.23 from the Austrian women's
+# league, was forecast 1.28 - 0.68 against Inter (W), whom Superbet made
+# favourite (sofa-verifier, 2026-10-01).
+# Chosen on one-step-ahead squared error (06-01..08-15, flat between 0.5 and
+# 0.7): goals_for held out 08-15..09-30 2.5756 -> 2.5655, cross pairs
+# 2.8414 -> ~2.79.
+CROSS_RATIO_POWER = 0.6
+# Whether a cross-domain match also moves the two teams' ratios (False: it
+# moves only the domains' strengths - PandaSkill, De Bois et al. 2025).
+CROSS_UPDATES_RATIOS = True
+
+# Chosen, not fitted on probability: ALPHA_STRENGTH, MIN_STRENGTH_LINKS and
+# MAX_SURPRISE were picked on one-step-ahead squared error of the centre
+# (06-01..08-15, checked on 08-15..09-30), LINK_MIN_MATCHES by hand. A row
+# priced through the rating names them in UNFITTED_CONSTANTS.
+RATING_UNFITTED = (
+    "ALPHA_STRENGTH", "MIN_STRENGTH_LINKS", "MAX_SURPRISE", "LINK_MIN_MATCHES",
+    "CROSS_RATIO_POWER")
+
+LINKED = "LINKED"
+LINKED_BY_STRENGTH = "LINKED_BY_STRENGTH"
+UNLINKED = "UNLINKED"
+# The note SHEET puts on every row of an UNLINKED football fixture, which
+# CONFIDENCE refuses (confidence.has_cross_league_unlinked_note). Measured on
+# 09-20..29 settled rows: the model trails the price by 0.0127 Brier on such
+# fixtures against 0.0106 elsewhere; FK Aktobe - Ajax (women) on 09-30 was one.
+CROSS_LEAGUE_UNLINKED_NOTE = "CROSS_LEAGUE_UNLINKED"
 
 
 def base_metric(market: str) -> str | None:
@@ -148,6 +210,10 @@ class FootballResult:
     home_id: int
     away_id: int
     values: Mapping[str, tuple[float, float]]  # metric -> (home, away)
+    # A women's match. The global rate a thin league falls back to is kept
+    # per gender: the pool is ~90% men's football, and women's leagues score
+    # 3.57 goals a match against its 3.17 (baselines, 2026-09-30).
+    women: bool = False
 
 
 def _listing_values(event: Mapping[str, Any]) -> dict[str, tuple[float, float]]:
@@ -155,7 +221,8 @@ def _listing_values(event: Mapping[str, Any]) -> dict[str, tuple[float, float]]:
     for metric in _LISTING_METRICS:
         h = extract_metric(metric, "football", {}, None, dict(event), True)
         a = extract_metric(metric, "football", {}, None, dict(event), False)
-        if not isinstance(h, GapReason) and not isinstance(a, GapReason):
+        if (not isinstance(h, GapReason) and not isinstance(a, GapReason)
+                and h >= 0 and a >= 0):
             out[metric] = (h, a)
     return out
 
@@ -174,7 +241,9 @@ def _stats_values(
             continue
         h = extract_metric(metric, "football", flat, incidents, dict(event), True)
         a = extract_metric(metric, "football", flat, incidents, dict(event), False)
-        if not isinstance(h, GapReason) and not isinstance(a, GapReason):
+        # A count below zero is a provider correction, never a count.
+        if (not isinstance(h, GapReason) and not isinstance(a, GapReason)
+                and h >= 0 and a >= 0):
             out[metric] = (h, a)
     return out
 
@@ -197,6 +266,11 @@ def parse_event(
         return None
     if not isinstance(ts, int):
         return None
+    # A friendly is excluded from samples (config/sofa_friendly_competitions
+    # .json) and from the rating for the same reason: 853 alone held 17,102
+    # cached matches, 410 of them won by seven or more, all one "league".
+    if competition in FRIENDLY_COMPETITION_IDS:
+        return None
     values = _listing_values(event)
     if statistics is not None or incidents is not None:
         values.update(_stats_values(event, statistics, incidents))
@@ -205,6 +279,7 @@ def parse_event(
     return FootballResult(
         event_id=int(event["id"]), ts=ts, competition_id=int(competition),
         home_id=int(home), away_id=int(away), values=values,
+        women=sofascore_gender(dict(event)) == "W",
     )
 
 
@@ -248,11 +323,15 @@ class _League:
     n: int = 0
 
     def update(self, home: float, away: float) -> None:
-        if self.n == 0:
-            self.home_mean, self.away_mean = home, away
-        else:
-            self.home_mean += ALPHA_LEAGUE * (home - self.home_mean)
-            self.away_mean += ALPHA_LEAGUE * (away - self.away_mean)
+        # A plain running mean until 1/(n+1) falls to ALPHA_LEAGUE, then
+        # exponential smoothing. Starting the smoothing at the first match
+        # left it 32% of the weight after 57: the UAE League Cup's first
+        # cached match was 0-0, and its rate read 2.13 goals a match against
+        # the 3.12 its 57 matches average (sofa-verifier, 2026-10-01).
+        step = max(ALPHA_LEAGUE, 1.0 / (self.n + 1)) if LEAGUE_RUNNING_MEAN else (
+            1.0 if self.n == 0 else ALPHA_LEAGUE)
+        self.home_mean += step * (home - self.home_mean)
+        self.away_mean += step * (away - self.away_mean)
         self.n += 1
 
 
@@ -268,6 +347,16 @@ def _clamp(x: float) -> float:
 
 
 @dataclass
+class _Strength:
+    sigma: float = 0.0
+    n: int = 0
+
+
+def _surprise(value: float, base: float) -> float:
+    return min(value / base, MAX_SURPRISE)
+
+
+@dataclass
 class RatingBook:
     leagues: dict[tuple[int, str], _League] = field(
         default_factory=lambda: defaultdict(_League))
@@ -275,27 +364,104 @@ class RatingBook:
         default_factory=lambda: defaultdict(_League))
     teams: dict[tuple[int, str], _Team] = field(
         default_factory=lambda: defaultdict(_Team))
+    # team -> its last TEAM_COMP_MEMORY (ts, competition), any metric
+    team_comps: dict[int, deque[tuple[int, int]]] = field(
+        default_factory=lambda: defaultdict(lambda: deque(maxlen=TEAM_COMP_MEMORY)))
+    strength: dict[tuple[int, str], _Strength] = field(
+        default_factory=lambda: defaultdict(_Strength))
+    last_ts: int = 0
+    # competition -> whether its matches are women's (the latest seen)
+    women_competitions: set[int] = field(default_factory=set)
+
+    @staticmethod
+    def _global_key(metric: str, women: bool) -> str:
+        return f"{metric}|W" if women else metric
+
+    def _comp_counts(self, team: int) -> Counter[int]:
+        since = self.last_ts - LINK_WINDOW_S
+        return Counter(c for ts, c in self.team_comps.get(team, ()) if ts >= since)
+
+    def domain(self, team: int) -> int | None:
+        """The team's modal competition inside the window, None if unseen."""
+        counts = self._comp_counts(team)
+        if not counts:
+            return None
+        top = max(counts.values())
+        # tie -> the most recent of the tied competitions
+        for _ts, comp in reversed(self.team_comps[team]):
+            if counts.get(comp) == top:
+                return comp
+        return None  # pragma: no cover
+
+    def linked(self, home: int, away: int) -> bool:
+        """Both sides played LINK_MIN_MATCHES in a competition that is the
+        league (domain) of at least one of them.
+
+        Sharing only the cup being played does not count: Forest U21 and
+        Sporting B U21 met in competition 20048 after 3 + 3 matches in it
+        while their own leagues shared nothing (sofa-verifier, 2026-09-30),
+        and the same rule would have linked Aktobe and Ajax after three UEFA
+        matches each.
+        """
+        return self._linked(home, away, self.domain(home), self.domain(away))
+
+    def _linked(
+        self, home: int, away: int, dh: int | None, da: int | None
+    ) -> bool:
+        ch, ca = self._comp_counts(home), self._comp_counts(away)
+        leagues = {dh, da} - {None}
+        return any(
+            c in leagues and n >= LINK_MIN_MATCHES
+            and ca.get(c, 0) >= LINK_MIN_MATCHES
+            for c, n in ch.items()
+        )
+
+    def link(self, home: int, away: int, metric: str) -> tuple[str, float]:
+        """(LINKED | LINKED_BY_STRENGTH | UNLINKED, log factor on home's rate).
+
+        The away side's rate takes the opposite factor."""
+        return self._link(
+            self.linked(home, away), self.domain(home), self.domain(away), metric)
+
+    def _link(
+        self, linked: bool, dh: int | None, da: int | None, metric: str
+    ) -> tuple[str, float]:
+        if linked:
+            return LINKED, 0.0
+        if dh is None or da is None:
+            return UNLINKED, 0.0
+        sh, sa = self.strength.get((dh, metric)), self.strength.get((da, metric))
+        if (
+            sh is None or sa is None
+            or sh.n < MIN_STRENGTH_LINKS or sa.n < MIN_STRENGTH_LINKS
+        ):
+            return UNLINKED, 0.0
+        return LINKED_BY_STRENGTH, sh.sigma - sa.sigma
 
     def league_rates(self, competition: int, metric: str) -> tuple[float, float] | None:
         """(home side's rate, away side's rate) where the match is played."""
         league = self.leagues.get((competition, metric))
         if league is not None and league.n >= MIN_LEAGUE_MATCHES:
             return league.home_mean, league.away_mean
-        g = self.global_league.get(metric)
+        g = self.global_league.get(
+            self._global_key(metric, competition in self.women_competitions))
         if g is not None and g.n >= MIN_LEAGUE_MATCHES:
             return g.home_mean, g.away_mean
         return None
 
     def expected(
-        self, competition: int, home: int, away: int, metric: str
+        self, competition: int, home: int, away: int, metric: str,
+        log_factor: float = 0.0, cross: bool = False,
     ) -> tuple[float, float] | None:
         rates = self.league_rates(competition, metric)
         if rates is None:
             return None
         th, ta = self.teams[(home, metric)], self.teams[(away, metric)]
+        f = math.exp(log_factor)
+        k = CROSS_RATIO_POWER if cross else 1.0
         return (
-            rates[0] * th.attack * ta.defence,
-            rates[1] * ta.attack * th.defence,
+            rates[0] * f * (th.attack * ta.defence) ** k,
+            rates[1] / f * (ta.attack * th.defence) ** k,
         )
 
     def team_matches(self, team: int, metric: str) -> int:
@@ -303,39 +469,78 @@ class RatingBook:
         return t.n if t is not None else 0
 
     def update(self, r: FootballResult) -> None:
+        self.last_ts = max(self.last_ts, r.ts)
+        women = bool(getattr(r, "women", False))
+        if women:
+            self.women_competitions.add(r.competition_id)
+        else:
+            self.women_competitions.discard(r.competition_id)
+        dh, da = self.domain(r.home_id), self.domain(r.away_id)
+        linked = self._linked(r.home_id, r.away_id, dh, da)
         for metric, (vh, va) in r.values.items():
-            exp = self.expected(r.competition_id, r.home_id, r.away_id, metric)
+            status, lf = self._link(linked, dh, da, metric)
+            exp = self.expected(
+                r.competition_id, r.home_id, r.away_id, metric, lf,
+                cross=status != LINKED)
             alpha = ALPHA_BY_METRIC.get(metric, 0.04)
             if exp is not None:
                 rates = self.league_rates(r.competition_id, metric)
                 assert rates is not None
+                f = math.exp(lf)
                 th = self.teams[(r.home_id, metric)]
                 ta = self.teams[(r.away_id, metric)]
-                # Each side's surprise, as a ratio to what the league and the
-                # opponent led us to expect, moves its attack and the
-                # opponent's defence.
+                # Each side's surprise, as a ratio to what the league, the
+                # league-strength gap and the opponent led us to expect, moves
+                # its attack and the opponent's defence.
                 if rates[0] > 0:
-                    base_h = rates[0]
+                    base_h = rates[0] * f
                     th_attack = _clamp(th.attack + alpha * (
-                        vh / (base_h * ta.defence) - th.attack))
+                        _surprise(vh, base_h * ta.defence) - th.attack))
                     ta_defence = _clamp(ta.defence + alpha * (
-                        vh / (base_h * th.attack) - ta.defence))
+                        _surprise(vh, base_h * th.attack) - ta.defence))
                 else:
                     th_attack, ta_defence = th.attack, ta.defence
                 if rates[1] > 0:
-                    base_a = rates[1]
+                    base_a = rates[1] / f
                     ta_attack = _clamp(ta.attack + alpha * (
-                        va / (base_a * th.defence) - ta.attack))
+                        _surprise(va, base_a * th.defence) - ta.attack))
                     th_defence = _clamp(th.defence + alpha * (
-                        va / (base_a * ta.attack) - th.defence))
+                        _surprise(va, base_a * ta.attack) - th.defence))
                 else:
                     ta_attack, th_defence = ta.attack, th.defence
-                th.attack, th.defence = th_attack, th_defence
-                ta.attack, ta.defence = ta_attack, ta_defence
+                # An unlinked match is the only evidence about the gap
+                # between two domains: the log residual of the goal (or
+                # corner...) difference moves both strengths, in opposite
+                # directions, before the ratios absorb anything.
+                if (
+                    not linked and dh is not None and da is not None
+                    and dh != da
+                    and self.team_matches(r.home_id, metric) >= MIN_TEAM_MATCHES
+                    and self.team_matches(r.away_id, metric) >= MIN_TEAM_MATCHES
+                ):
+                    resid = (
+                        math.log((vh + 0.5) / (exp[0] + 0.5))
+                        - math.log((va + 0.5) / (exp[1] + 0.5))
+                    ) / 2
+                    sh = self.strength[(dh, metric)]
+                    sa = self.strength[(da, metric)]
+                    lo, hi = _STRENGTH_BOUNDS
+                    sh.sigma = min(max(sh.sigma + ALPHA_STRENGTH * resid, lo), hi)
+                    sa.sigma = min(max(sa.sigma - ALPHA_STRENGTH * resid, lo), hi)
+                    sh.n += 1
+                    sa.n += 1
+                cross = (
+                    not linked and dh is not None and da is not None and dh != da
+                )
+                if CROSS_UPDATES_RATIOS or not cross:
+                    th.attack, th.defence = th_attack, th_defence
+                    ta.attack, ta.defence = ta_attack, ta_defence
                 th.n += 1
                 ta.n += 1
             self.leagues[(r.competition_id, metric)].update(vh, va)
-            self.global_league[metric].update(vh, va)
+            self.global_league[self._global_key(metric, women)].update(vh, va)
+        self.team_comps[r.home_id].append((r.ts, r.competition_id))
+        self.team_comps[r.away_id].append((r.ts, r.competition_id))
 
 
 def replay(history: Iterable[FootballResult], cut_ts: int) -> RatingBook:
@@ -356,18 +561,43 @@ class FootballForecast:
     home_id: int
     away_id: int
 
+    def fixture_link(self) -> str:
+        """The fixture's link on goals, the metric every football side has.
+
+        Two teams that share no league (inside LINK_WINDOW_S), and whose
+        leagues' strengths are unmeasured, are compared by nothing the model
+        holds - their ratios and their samples both describe other leagues.
+        """
+        return self.book.link(self.home_id, self.away_id, "goals_for")[0]
+
+    def link_status(self, market: str) -> str | None:
+        """LINKED / LINKED_BY_STRENGTH / UNLINKED for this market's metric."""
+        metric = base_metric(market)
+        if metric is None:
+            return None
+        return self.book.link(self.home_id, self.away_id, metric)[0]
+
     def centre(self, market: str, side: str | None) -> tuple[float, str] | None:
         """(expected value for this market, note) or None if not rated."""
         metric = base_metric(market)
         if metric is None or market in UNRATED_MARKETS:
+            return None
+        if self.competition_id in FRIENDLY_COMPETITION_IDS:
             return None
         if (
             self.book.team_matches(self.home_id, metric) < MIN_TEAM_MATCHES
             or self.book.team_matches(self.away_id, metric) < MIN_TEAM_MATCHES
         ):
             return None
+        # UNLINKED still gets the rating, un-adjusted: measured 2026-09-30
+        # (one step ahead, goals_for, 08-15..09-30, 1,596 sides) it beats
+        # the raw sample there (3.19 vs 3.78 squared error), which carries
+        # the same foreign league inside it. The row is flagged instead - see
+        # CROSS_LEAGUE_UNLINKED - and CONFIDENCE defers it to the price.
+        status, lf = self.book.link(self.home_id, self.away_id, metric)
         exp = self.book.expected(
-            self.competition_id, self.home_id, self.away_id, metric
+            self.competition_id, self.home_id, self.away_id, metric, lf,
+            cross=status != LINKED,
         )
         if exp is None:
             return None
@@ -383,6 +613,13 @@ class FootballForecast:
             f"{where}; home att {th.attack:.2f} def {th.defence:.2f}, "
             f"away att {ta.attack:.2f} def {ta.defence:.2f}"
         )
+        if status == UNLINKED:
+            detail += "; cross-league UNLINKED: no strength for the gap"
+        if status == LINKED_BY_STRENGTH:
+            detail += (
+                f"; cross-league: domains {self.book.domain(self.home_id)} vs "
+                f"{self.book.domain(self.away_id)}, log strength gap {lf:+.2f}"
+            )
         if market.endswith("_total"):
             return exp[0] + exp[1], f"home {exp[0]:.2f} + away {exp[1]:.2f}, {detail}"
         if side == "side_a":

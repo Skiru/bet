@@ -8,7 +8,9 @@
     "Every entry names the evidence file the id was read from. An id nobody can",
     "trace to a payload does not belong in this file. Extend it with",
     "`python -m scripts.sofa.find_friendly_competitions` (E10 backfill data) and",
-    "review each candidate before promoting it here."
+    "review each candidate before promoting it here.",
+    "",
+    "`allowed` lists friendly-named ids kept on purpose, with the reason; tests/sofa/test_friendly_competitions.py requires every friendly-named football id in the evidence file to be in one of the two lists."
   ],
   "excluded": [
     {
@@ -31,7 +33,273 @@
       "category": "World",
       "evidence": "docs/sofa/evidence/competition_28008_women_club_friendly_games.json",
       "source": "verified_payload"
+    },
+    {
+      "competition_id": 27120,
+      "name": "Poland Friendly Games",
+      "category": "Poland Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 856,
+      "name": "U19 Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 854,
+      "name": "U21 Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 855,
+      "name": "U20 Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27110,
+      "name": "Hungary Friendly Games",
+      "category": "Hungary Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27208,
+      "name": "Romania Friendly Games",
+      "category": "Romania Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 1072,
+      "name": "U23 Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 2302,
+      "name": "U19 Friendly Games Women",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27115,
+      "name": "Netherlands Friendly Games",
+      "category": "Netherlands Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27111,
+      "name": "Greece Friendly Games",
+      "category": "Greece Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27748,
+      "name": "Bosnia & Herzegovina Friendly Games",
+      "category": "Bosnia & Herzegovina Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 30854,
+      "name": "Sweden Friendly Games",
+      "category": "Sweden Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 32053,
+      "name": "Serbia Friendly Games",
+      "category": "Serbia Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 32366,
+      "name": "Croatia Friendly Games",
+      "category": "Croatia Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 858,
+      "name": "U17 Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27118,
+      "name": "Germany Friendly Games",
+      "category": "Germany Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 31598,
+      "name": "Finland Friendly Games",
+      "category": "Finland Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 35960,
+      "name": "England Friendly Games",
+      "category": "England Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27113,
+      "name": "Bulgaria Friendly Games",
+      "category": "Bulgaria Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 35633,
+      "name": "Switzerland Friendly Games",
+      "category": "Switzerland Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27159,
+      "name": "Brazil Friendly Games",
+      "category": "Brazil Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28932,
+      "name": "Türkiye Friendly Games",
+      "category": "Turkey Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 35799,
+      "name": "Switzerland Friendly Games",
+      "category": "Switzerland Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27138,
+      "name": "Uruguay Friendly Games",
+      "category": "Uruguay Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27158,
+      "name": "Portugal Friendly Games",
+      "category": "Portugal Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27793,
+      "name": "Chile Friendly Games",
+      "category": "Chile Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28527,
+      "name": "Albania Friendly Games",
+      "category": "Albania",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27112,
+      "name": "Montenegro Friendly Games",
+      "category": "Montenegro Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 35457,
+      "name": "Slovenia Friendly Games",
+      "category": "Slovenia Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27190,
+      "name": "Bolivia Friendly Games",
+      "category": "Bolivia",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 30029,
+      "name": "Azerbaijan Friendly Games",
+      "category": "Azerbaijan",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 857,
+      "name": "U18 Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 32368,
+      "name": "Latvia Friendly Games",
+      "category": "Latvia",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 35309,
+      "name": "Yemen Friendly Games ",
+      "category": "Yemen",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27171,
+      "name": "Kuwait Friendly Games",
+      "category": "Kuwait Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27122,
+      "name": "Italy Friendly Games",
+      "category": "Italy Amateur",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload"
     }
   ],
-  "candidates": []
+  "candidates": [],
+  "allowed": [
+    {
+      "competition_id": 851,
+      "name": "International Friendly Games",
+      "reason": "Senior national-team friendlies: the bulk of a national team's matches; excluding them starves national-team samples (SAMPLE_CROSSES_SEASON already shuts some out). Kept deliberately.",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json"
+    },
+    {
+      "competition_id": 852,
+      "name": "International Friendly Games Women",
+      "reason": "Senior women's national-team friendlies: same reason as 851.",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json"
+    }
+  ]
 }

@@ -59,6 +59,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE # grade D-1's CS2 lines (bridge)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180    # CS2 history (results only; bridge)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_listings.py --sport {football|tennis|hockey|basketball|volleyball} --days 730 --max-minutes 7   # deepen every cached team/player (+ opponents, one hop) to --days; resumable, run in chunks (bridge)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_women_competitions.py     # config/sofa_women_competitions.json from the cache (PRIOR_GLOBAL_WOMEN)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only  # refit only the by_class curves (women / tennis_women / tennis_team_cup); every other curve byte-for-byte
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_cs2_snapshots.py --from <d> --to <d> [--dry-run]   # one-off: drop CS2 sides graded from a replaced snapshot (settles before 2026-09-30; 09-29 had 22/302)
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> --chain >> runs/sofa/cs2/daily_<d>.log 2>&1 &   # the whole CS2 day, unattended; morning settles D and D-1, grades their CS2 coupons, records both; --chain starts D+1 at 23:30Z; a second loop for the date refuses
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW          # hockey/basketball/volleyball price snapshot, not the coupon
@@ -143,6 +146,18 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
 - **Never read, echo or log `.env` values.**
 - **Never re-fit constants mid-day.** `fit_constants.py` is outside the
   sequence on purpose; re-fitting breaks comparability with yesterday.
+- **A pooled number must say what it pooled across** (since 2026-09-30, FK
+  Aktobe - Ajax, women's Europa Cup: the rating carried Kazakh-league ratios
+  into a European tie, and the leg's confidence came from a men's curve).
+  Football ratings compare teams across leagues only through a measured
+  league strength (`football_rating`, LINKED / LINKED_BY_STRENGTH /
+  UNLINKED); an UNLINKED fixture is flagged `CROSS_LEAGUE_UNLINKED` in SHEET
+  and refused by CONFIDENCE. A women's football, women's tennis or tennis
+  team-cup leg reads only its class's curves (`by_class`) and is refused
+  where its class has none (`NO_CLASS_CURVE`); a women's league without a
+  baseline shrinks to the women's pool (`PRIOR_GLOBAL_WOMEN`). Friendlies are
+  out of samples and the rating (39 ids). "History is thin" is not an
+  argument before `backfill_listings.py` has been run.
 - **Never strip `UNFITTED_CONSTANTS`** from a row or a report to make it read
   better.
 - **`MIN_INTERVAL_MS = 350` in the userscript is the safety mechanism, and it
@@ -196,6 +211,13 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   five different routes, 21 min after the windows were launched, in an
   ordinary day run; the breaker opened and a `--from-stage RESOLVE` re-run
   minutes later recovered it (recall 74.8% → 82.3%).
+  **Third: 2026-09-30, backfill_listings** — 18:02Z a stale `x-captcha`
+  (reloading the tabs fixed it); then 5 × 403 in one instant at 18:26:52Z,
+  19:28Z and 20:05Z, each ~23-28 min after the tabs last minted a token,
+  at ~8-12 pages/s in 7-minute chunks. At 19:28Z a reload did not help and
+  the operator had to solve the challenge by hand. Working hypothesis
+  (unmeasured): under sustained load a token lasts ~25 min. A refusal is a
+  signal to slow down - never refresh tokens pre-emptively to outrun it.
 - **Measure the round trip, not the wall clock around the client.** The token
   bucket sits *inside* `client.event_statistics()`, so timing that call
   reports our own rate limiting as if it were browser latency — it read a flat

@@ -15,6 +15,7 @@ from typing import Any, Literal, cast
 from pydantic import RootModel
 from rapidfuzz import fuzz
 
+from bet.sofa.confidence import CLASS_WOMEN, match_class
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
     Fixture,
@@ -54,6 +55,9 @@ from bet.sofa.engine import (
     winning_boundary,
 )
 from bet.sofa.football_rating import (
+    CROSS_LEAGUE_UNLINKED_NOTE,
+    RATING_UNFITTED,
+    UNLINKED,
     W_FOOTBALL_RATING,
     FootballForecast,
     RatingBook,
@@ -455,8 +459,77 @@ def resolve_prior(
         return prior, (f"PRIOR_FROM_TEAMS_LEAGUES: competition {comp} has no "
                        f"baseline; the sides' own leagues {', '.join(parts)} "
                        f"-> {prior:.4g}")
+    women = women_global_prior(baselines, metric, fixture)
+    if women is not None:
+        return women
     pooled = get_prior(baselines, metric, comp)
     return pooled, global_prior_note(baselines, metric, comp, pooled)
+
+
+_WOMEN_COMPETITIONS_PATH = (
+    Path(__file__).resolve().parents[2] / "config" / "sofa_women_competitions.json"
+)
+# A women's pool thinner than this is not a measurement of anything; the row
+# keeps the global pool and its note.
+MIN_WOMEN_POOL_N = 300
+
+
+def load_women_competitions(path: Path = _WOMEN_COMPETITIONS_PATH) -> frozenset[int]:
+    """config/sofa_women_competitions.json (scripts/sofa/find_women_
+    competitions.py); a missing or unreadable file is an empty set."""
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    return frozenset(
+        int(e["competition_id"]) for e in doc.get("women", [])
+        if isinstance(e, dict) and isinstance(e.get("competition_id"), int)
+    )
+
+
+WOMEN_COMPETITION_IDS = load_women_competitions()
+
+
+def is_womens_fixture(fixture: Fixture) -> bool:
+    return fixture.sport == "football" and (
+        fixture.competition_id in WOMEN_COMPETITION_IDS
+        or match_class("football", fixture.competition_name) == CLASS_WOMEN
+    )
+
+
+def women_global_prior(
+    baselines: dict[str, Any], metric: str, fixture: Fixture,
+    women_ids: frozenset[int] | None = None,
+) -> tuple[float, str] | None:
+    """The women's global pool for a women's fixture with no league baseline.
+
+    The global pool is ~90% men's football. Measured on the fitted baselines
+    2026-09-30, women's leagues against the global pool: goals_total 3.57 vs
+    3.17, cards_points_total 2.59 vs 4.45, fouls_total 17.8 vs 24.9 - and a
+    league with no baseline is shrunk toward the pool at weight 0.71 at n=10.
+    """
+    if not is_womens_fixture(fixture):
+        return None
+    if _fitted_league_mean(baselines, metric, fixture.competition_id) is not None:
+        return None
+    ids = WOMEN_COMPETITION_IDS if women_ids is None else women_ids
+    entry = baselines.get(metric)
+    if not isinstance(entry, dict):
+        return None
+    total_n, total = 0, 0.0
+    for key, league in entry.items():
+        if not key.isdigit() or int(key) not in ids or not isinstance(league, dict):
+            continue
+        mean, n = league.get("mean"), league.get("n")
+        if isinstance(mean, int | float) and isinstance(n, int) and n > 0:
+            total_n += n
+            total += float(mean) * n
+    if total_n < MIN_WOMEN_POOL_N:
+        return None
+    prior = total / total_n
+    return prior, (f"PRIOR_GLOBAL_WOMEN: competition {fixture.competition_id} has "
+                   f"no {metric} baseline; the women's leagues' pool "
+                   f"{prior:.4g} (n={total_n}) stands in for the global one")
 
 
 def global_prior_note(
@@ -684,6 +757,14 @@ def process_fixture(
             continue
         ladder_rungs = rungs_by_market_subject.get((rung.market, rung.subject), [])
         extra_notes: list[str] = []
+        if football is not None and (
+            football.link_status(rung.market) or football.fixture_link()
+        ) == UNLINKED:
+            extra_notes.append(
+                f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+                "and their leagues' strengths are unmeasured - the sample and "
+                "the rating both describe other leagues"
+            )
         # The histories behind this row, for the prior: which leagues the
         # sides play in, and which matches the prior must leave out.
         own_sides: list[list[Observation]] = []
@@ -854,6 +935,10 @@ def process_fixture(
                     baselines, day_obs, rung.market, fixture, own_sides, own_events)
                 if prior_note:
                     extra_notes.append(prior_note)
+            elif (women := women_global_prior(
+                    baselines, rung.market, fixture)) is not None:
+                prior, prior_note = women
+                extra_notes.append(prior_note)
             else:
                 prior = get_prior(baselines, rung.market, fixture.competition_id)
                 prior_note = global_prior_note(
@@ -881,14 +966,29 @@ def process_fixture(
                 centre = W_FOOTBALL_RATING * rated[0] + (
                     1 - W_FOOTBALL_RATING) * sample_centre
                 row_unfitted.append("W_FOOTBALL_RATING")
+                row_unfitted.extend(RATING_UNFITTED)
                 extra_notes.append(
                     f"FOOTBALL_RATING: centre {centre:.2f} from the rating "
                     f"({rated[1]}) at W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}, "
                     f"sample centre was {sample_centre:.2f}"
                 )
 
+        # The spread moves with the centre. The prior shrink and the rating
+        # move the centre; the sample's variance used to stay where the
+        # sample left it, so a halved centre kept the old spread (Austria Wien
+        # 1st-half goals UNDER 0.5 on 10-01: 0.750 against 0.648 scaled, price
+        # 0.653). A count's dispersion index var/mean is what is kept.
+        # Measured on 102,154 settled football count rows 09-20..29: Brier
+        # 0.1986 -> 0.1982, better on 8 of 10 days; rows whose centre moved
+        # more than 20%: 0.1974 -> 0.1961.
+        scale = (
+            centre / mean
+            if uses_poisson_floor(rung.market) and mean > 0 and centre > 0
+            else 1.0
+        )
         pred_sd = predictive_sd(
-            variance, mean, n, apply_poisson_floor=uses_poisson_floor(rung.market)
+            variance * scale, mean * scale, n,
+            apply_poisson_floor=uses_poisson_floor(rung.market),
         )
 
         # The rating forecast replaces the sample's estimate wherever it has

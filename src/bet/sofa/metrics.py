@@ -791,6 +791,11 @@ def extract_metric(
         a = listing_event.get("awayScore", {}).get("period1")
         if h is None or a is None:
             return GapReason.STAT_KEY_ABSENT
+        if h < 0 or a < 0:
+            # A corrected score: event 8344189 lists period1 5, period2 -5,
+            # current 10 (18 such halves in 913k cached matches, 2026-09-30).
+            # A negative count is no count, and it crashed the rating's log.
+            return GapReason.INTERNAL_INCONSISTENT
         return float(h + a) if is_total else float(h if is_home else a)
 
     if sofascore_key == "goals_2h_from_listing":
@@ -798,6 +803,11 @@ def extract_metric(
         a = listing_event.get("awayScore", {}).get("period2")
         if h is None or a is None:
             return GapReason.STAT_KEY_ABSENT
+        if h < 0 or a < 0:
+            # A corrected score: event 8344189 lists period1 5, period2 -5,
+            # current 10 (18 such halves in 913k cached matches, 2026-09-30).
+            # A negative count is no count, and it crashed the rating's log.
+            return GapReason.INTERNAL_INCONSISTENT
         return float(h + a) if is_total else float(h if is_home else a)
 
     if sofascore_key == "cards_points_from_incidents":

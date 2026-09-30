@@ -1,0 +1,2831 @@
+{
+ "_doc": [
+  "Football competitions whose cached events are women's (resolve.sofascore_gender), from sofa_entity_events kind='last'.",
+  "Listed when at least 80% of its distinct cached events are women's; `mixed` had some women's events, is for review, and is NOT read.",
+  "Read by scripts/sofa/run_sheet.py for PRIOR_GLOBAL_WOMEN. Regenerate with scripts/sofa/find_women_competitions.py."
+ ],
+ "women": [
+  {
+   "competition_id": 201,
+   "name": "Toppserien, Women",
+   "women_events": 392,
+   "men_events": 0
+  },
+  {
+   "competition_id": 214,
+   "name": "Damallsvenskan",
+   "women_events": 530,
+   "men_events": 0
+  },
+  {
+   "competition_id": 232,
+   "name": "Frauen-Bundesliga",
+   "women_events": 446,
+   "men_events": 0
+  },
+  {
+   "competition_id": 290,
+   "name": "FIFA Women's World Cup",
+   "women_events": 97,
+   "men_events": 0
+  },
+  {
+   "competition_id": 404,
+   "name": "East Asian Championship, Women",
+   "women_events": 23,
+   "men_events": 0
+  },
+  {
+   "competition_id": 411,
+   "name": "Algarve Cup Women",
+   "women_events": 32,
+   "men_events": 0
+  },
+  {
+   "competition_id": 437,
+   "name": "Olympic Games Women",
+   "women_events": 63,
+   "men_events": 0
+  },
+  {
+   "competition_id": 477,
+   "name": "Women's Euro",
+   "women_events": 61,
+   "men_events": 0
+  },
+  {
+   "competition_id": 686,
+   "name": "DFB Pokal, Women",
+   "women_events": 185,
+   "men_events": 0
+  },
+  {
+   "competition_id": 695,
+   "name": "U19 European Women's Championship",
+   "women_events": 83,
+   "men_events": 0
+  },
+  {
+   "competition_id": 696,
+   "name": "UEFA Women's Champions League",
+   "women_events": 594,
+   "men_events": 0
+  },
+  {
+   "competition_id": 746,
+   "name": "U19 European Women's Championship Qualif.",
+   "women_events": 1006,
+   "men_events": 0
+  },
+  {
+   "competition_id": 753,
+   "name": "U17 Euro Women's Qualifiers",
+   "women_events": 230,
+   "men_events": 0
+  },
+  {
+   "competition_id": 780,
+   "name": "World Championship Women Qual.",
+   "women_events": 386,
+   "men_events": 0
+  },
+  {
+   "competition_id": 804,
+   "name": "U-20 Women's World Championship",
+   "women_events": 215,
+   "men_events": 0
+  },
+  {
+   "competition_id": 823,
+   "name": "Czech Women's First League",
+   "women_events": 313,
+   "men_events": 0
+  },
+  {
+   "competition_id": 827,
+   "name": "U17 Women's World Championship",
+   "women_events": 74,
+   "men_events": 0
+  },
+  {
+   "competition_id": 852,
+   "name": "International Friendly Games Women",
+   "women_events": 1351,
+   "men_events": 0
+  },
+  {
+   "competition_id": 878,
+   "name": "Women's Euro, Qualification",
+   "women_events": 396,
+   "men_events": 0
+  },
+  {
+   "competition_id": 917,
+   "name": "U17 European Women's Championship",
+   "women_events": 62,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1018,
+   "name": "Cyprus Women Cup",
+   "women_events": 31,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1044,
+   "name": "Women's Super League",
+   "women_events": 533,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1058,
+   "name": "Svenska Cupen, Women",
+   "women_events": 238,
+   "men_events": 1
+  },
+  {
+   "competition_id": 1062,
+   "name": "Norwegian Women's Cup",
+   "women_events": 304,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1127,
+   "name": "Liga F Moeve",
+   "women_events": 683,
+   "men_events": 1
+  },
+  {
+   "competition_id": 1139,
+   "name": "Première Ligue, Féminine",
+   "women_events": 507,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1530,
+   "name": "U17 CONCACAF Women's Championship",
+   "women_events": 99,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1568,
+   "name": "U20 CONCACAF Women's Championship",
+   "women_events": 36,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1612,
+   "name": "U20 CONMEBOL Women's Championship",
+   "women_events": 92,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1662,
+   "name": "Kansallinen Liiga",
+   "women_events": 503,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1690,
+   "name": "NWSL",
+   "women_events": 600,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1692,
+   "name": "AFC Women's Asian Cup",
+   "women_events": 58,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1866,
+   "name": "Asian Games Women",
+   "women_events": 16,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1894,
+   "name": "A-League Women",
+   "women_events": 397,
+   "men_events": 0
+  },
+  {
+   "competition_id": 1954,
+   "name": "CONCACAF W Championship",
+   "women_events": 37,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2054,
+   "name": "Scottish Women's Premier League",
+   "women_events": 493,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2077,
+   "name": "Cup, Women",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2123,
+   "name": "Eurojackpot Vrouwen Eredivisie",
+   "women_events": 401,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2127,
+   "name": "Belgian Women's Super League",
+   "women_events": 573,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2284,
+   "name": "WK League",
+   "women_events": 341,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2288,
+   "name": "2. Frauen-Bundesliga",
+   "women_events": 710,
+   "men_events": 0
+  },
+  {
+   "competition_id": 2302,
+   "name": "U19 Friendly Games Women",
+   "women_events": 332,
+   "men_events": 2
+  },
+  {
+   "competition_id": 3071,
+   "name": "CONCACAF Olympic Qualif., Women",
+   "women_events": 27,
+   "men_events": 0
+  },
+  {
+   "competition_id": 3076,
+   "name": "SheBelieves Cup",
+   "women_events": 35,
+   "men_events": 0
+  },
+  {
+   "competition_id": 3082,
+   "name": "AFC Olympic Qualification, Women",
+   "women_events": 37,
+   "men_events": 0
+  },
+  {
+   "competition_id": 3085,
+   "name": "Japan Women's Football League",
+   "women_events": 490,
+   "men_events": 0
+  },
+  {
+   "competition_id": 3093,
+   "name": "Cup, Women",
+   "women_events": 34,
+   "men_events": 1
+  },
+  {
+   "competition_id": 6783,
+   "name": "Russian Women's Super League",
+   "women_events": 215,
+   "men_events": 0
+  },
+  {
+   "competition_id": 9412,
+   "name": "A-Liga Women",
+   "women_events": 426,
+   "men_events": 0
+  },
+  {
+   "competition_id": 9415,
+   "name": "Frauen Bundesliga",
+   "women_events": 454,
+   "men_events": 0
+  },
+  {
+   "competition_id": 9558,
+   "name": "Women's Africa Cup of Nations",
+   "women_events": 115,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10257,
+   "name": "Brasileirão Série A1, Feminino",
+   "women_events": 540,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10307,
+   "name": "Urvalsdeild, Women",
+   "women_events": 341,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10443,
+   "name": "NPL Victoria Women ",
+   "women_events": 64,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10476,
+   "name": "NPL Queensland Women",
+   "women_events": 436,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10483,
+   "name": "Ykkönen, Women",
+   "women_events": 145,
+   "men_events": 3
+  },
+  {
+   "competition_id": 10495,
+   "name": "Campeonato de Fútbol Femenino",
+   "women_events": 1066,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10496,
+   "name": "Iceland 1. Deild Women",
+   "women_events": 323,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10498,
+   "name": "NRFL Premier League Women",
+   "women_events": 48,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10499,
+   "name": "ORLEN Women's Ekstraliga",
+   "women_events": 427,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10510,
+   "name": "Meistriliiga Women",
+   "women_events": 328,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10512,
+   "name": "Vyshcha Liha, Women",
+   "women_events": 19,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10518,
+   "name": "NB I Women",
+   "women_events": 537,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10527,
+   "name": "Campeonato Nacional Feminino",
+   "women_events": 595,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10553,
+   "name": "Women's Super League 2",
+   "women_events": 438,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10560,
+   "name": "Slovak Women's First League",
+   "women_events": 526,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10580,
+   "name": "CFA Women's Super League",
+   "women_events": 414,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10602,
+   "name": " Copa Libertadores Femenina",
+   "women_events": 134,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10607,
+   "name": "1st Division, Women",
+   "women_events": 506,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10609,
+   "name": "Greece Women's Football League",
+   "women_events": 675,
+   "men_events": 0
+  },
+  {
+   "competition_id": 10640,
+   "name": "Serie A Women",
+   "women_events": 475,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11126,
+   "name": "Copa de SM La Reina",
+   "women_events": 180,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11211,
+   "name": "Icelandic Women's Football Cup",
+   "women_events": 126,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11302,
+   "name": "Central American and Caribbean Games, Women",
+   "women_events": 56,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11330,
+   "name": "Asian Games, Women",
+   "women_events": 57,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11610,
+   "name": "World Championship, Women, CONCACAF/CONMEBOL Qual. Playoffs",
+   "women_events": 6,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11666,
+   "name": "Women's FA Cup",
+   "women_events": 690,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11667,
+   "name": "FA Women's League Cup",
+   "women_events": 129,
+   "men_events": 0
+  },
+  {
+   "competition_id": 11678,
+   "name": "Four Nations, Women",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13330,
+   "name": "Coupe de France, Women",
+   "women_events": 143,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13332,
+   "name": "Icelandic Women's Football League Cup A",
+   "women_events": 100,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13354,
+   "name": "Coppa Italia Femminile",
+   "women_events": 89,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13413,
+   "name": "Viareggio Cup, Women",
+   "women_events": 71,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13497,
+   "name": "Icelandic Women's Football Super Cup",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13592,
+   "name": "Liga MX, Women, Clausura",
+   "women_events": 447,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13593,
+   "name": "Liga MX, Women, Apertura",
+   "women_events": 416,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13773,
+   "name": "Pan American Games, Women",
+   "women_events": 29,
+   "men_events": 0
+  },
+  {
+   "competition_id": 13994,
+   "name": "Swiss Women's Super League",
+   "women_events": 468,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14448,
+   "name": "Paulista, Feminino",
+   "women_events": 150,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14527,
+   "name": "Football Southeast Asian Games Women",
+   "women_events": 54,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14586,
+   "name": "Israeli Women's Football League",
+   "women_events": 431,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14657,
+   "name": "Pinatar Cup",
+   "women_events": 24,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14661,
+   "name": "Tournoi de France",
+   "women_events": 20,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14687,
+   "name": "Supercopa Femenina",
+   "women_events": 6,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14722,
+   "name": "Brisbane Premier League, Women ",
+   "women_events": 50,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14723,
+   "name": "NPL South Australia Women",
+   "women_events": 338,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14732,
+   "name": "Brasileirão Série A2, Feminino",
+   "women_events": 434,
+   "men_events": 0
+  },
+  {
+   "competition_id": 14820,
+   "name": "NWSL Challenge Cup",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 15016,
+   "name": "Vysshaya Liga Women",
+   "women_events": 444,
+   "men_events": 0
+  },
+  {
+   "competition_id": 16668,
+   "name": "Three Nations, One Goal, Women",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 16675,
+   "name": "Olympic Qualif., Women, CAF-CONMEBOL Playoff",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 17212,
+   "name": "1. HNLŽ",
+   "women_events": 74,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18394,
+   "name": "NCAA Women Division I National Championship",
+   "women_events": 7,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18502,
+   "name": "Arnold Clark Cup",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18503,
+   "name": "Scottish Cup, Women",
+   "women_events": 43,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18504,
+   "name": "KNVB Beker, Women",
+   "women_events": 48,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18555,
+   "name": "Colombian Women's Football League",
+   "women_events": 717,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18653,
+   "name": "WE-League",
+   "women_events": 415,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18681,
+   "name": "Copa América Femenina",
+   "women_events": 36,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18718,
+   "name": "Peru Primera División Femenina",
+   "women_events": 458,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18799,
+   "name": "Trofeo de Campeon de Campeones, Women",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18890,
+   "name": "USL W League",
+   "women_events": 1094,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18897,
+   "name": "Campeonato Carioca Feminino",
+   "women_events": 156,
+   "men_events": 0
+  },
+  {
+   "competition_id": 18944,
+   "name": "NCAA Regular Season, Women",
+   "women_events": 3555,
+   "men_events": 1
+  },
+  {
+   "competition_id": 19683,
+   "name": "Women's Finalissima",
+   "women_events": 1,
+   "men_events": 0
+  },
+  {
+   "competition_id": 19860,
+   "name": "Elitettan, Women",
+   "women_events": 652,
+   "men_events": 0
+  },
+  {
+   "competition_id": 19917,
+   "name": "Supercopa Feminina do Brasil",
+   "women_events": 13,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20065,
+   "name": "Women's Premier Division",
+   "women_events": 420,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20368,
+   "name": "Blue Stars, Women's",
+   "women_events": 14,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20378,
+   "name": "UEFA Women's Nations League",
+   "women_events": 328,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20707,
+   "name": "Gaúcho, Feminino",
+   "women_events": 151,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20833,
+   "name": "Dutch Women's Super Cup",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20839,
+   "name": "Mato-Grossense, Feminino",
+   "women_events": 32,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20895,
+   "name": "Goiano, Feminino",
+   "women_events": 100,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20899,
+   "name": "Copa de la Liga, Women",
+   "women_events": 65,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20911,
+   "name": "Amazonense, Feminino ",
+   "women_events": 25,
+   "men_events": 0
+  },
+  {
+   "competition_id": 20976,
+   "name": "Mineiro, Feminino",
+   "women_events": 76,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21066,
+   "name": "Brasiliense, Feminino",
+   "women_events": 59,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21162,
+   "name": "CONCACAF W Gold Cup, Qualification",
+   "women_events": 63,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21306,
+   "name": "Cearense, Feminino",
+   "women_events": 77,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21413,
+   "name": "Paranaense, Feminino",
+   "women_events": 41,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21422,
+   "name": "Belgian Cup Women",
+   "women_events": 62,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21446,
+   "name": "CAF Women's Champions League",
+   "women_events": 39,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21453,
+   "name": "AFC Women's Club Championship",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21534,
+   "name": "Baiano, Feminino ",
+   "women_events": 70,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21573,
+   "name": "Piauiense, Feminino",
+   "women_events": 29,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21587,
+   "name": "Manuar Cup U11",
+   "women_events": 10,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21607,
+   "name": "Vietnamese Women's National League",
+   "women_events": 158,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21662,
+   "name": "Croatian Women's Football Cup",
+   "women_events": 9,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21696,
+   "name": "Copinha Feminina",
+   "women_events": 96,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21698,
+   "name": "Brasil Ladies Cup",
+   "women_events": 24,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21726,
+   "name": "Indian Women's League",
+   "women_events": 79,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21791,
+   "name": "U20 AFC Asian Cup, Women",
+   "women_events": 32,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21837,
+   "name": "Supercoppa Femminile",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21950,
+   "name": "Copa Rio, Feminino",
+   "women_events": 42,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21976,
+   "name": "CONCACAF W Gold Cup",
+   "women_events": 25,
+   "men_events": 0
+  },
+  {
+   "competition_id": 21988,
+   "name": "Orlen Puchar Polski Kobiet",
+   "women_events": 119,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22003,
+   "name": "Chile Primera Division Women",
+   "women_events": 585,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22004,
+   "name": "U20 Brasileiro, Feminino",
+   "women_events": 318,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22085,
+   "name": "CAF Olympic Qualification, Women",
+   "women_events": 35,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22135,
+   "name": "Costa Rican Women's Premier Division",
+   "women_events": 280,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22252,
+   "name": "Mulan Football League",
+   "women_events": 139,
+   "men_events": 5
+  },
+  {
+   "competition_id": 22272,
+   "name": "Brasileirão Série A3, Feminino",
+   "women_events": 236,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22480,
+   "name": "Eredivisie Cup",
+   "women_events": 9,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22588,
+   "name": "Sud Ladies Cup",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22600,
+   "name": "U20 Copa Pará, Feminino",
+   "women_events": 5,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22605,
+   "name": "DFB-Supercup Frauen",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22723,
+   "name": "Slovenian Women's Football League",
+   "women_events": 290,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22727,
+   "name": "Women's FAI Cup",
+   "women_events": 46,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22751,
+   "name": "Liga Femenina",
+   "women_events": 323,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22790,
+   "name": "Copa Pará, Feminino",
+   "women_events": 47,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22802,
+   "name": "NWSL x Liga MX Femenil Summer Cup",
+   "women_events": 33,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22938,
+   "name": "Ascenso Femenino",
+   "women_events": 440,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22956,
+   "name": "Capixaba, Feminino",
+   "women_events": 43,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22960,
+   "name": "U17 Brasileiro, Feminino",
+   "women_events": 71,
+   "men_events": 0
+  },
+  {
+   "competition_id": 22988,
+   "name": "U20 Paulista, Feminino",
+   "women_events": 180,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23009,
+   "name": "AFC Women's Champions League",
+   "women_events": 113,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23033,
+   "name": "Iceland 2. Deild Women",
+   "women_events": 88,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23047,
+   "name": "Myanmar League Women",
+   "women_events": 41,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23049,
+   "name": "Singapore Women's Premier League",
+   "women_events": 292,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23064,
+   "name": "Saudi Women's Premier League",
+   "women_events": 56,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23082,
+   "name": "SAFF Women's Cup",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23083,
+   "name": "U20 Copa Santa Catarina, Feminino",
+   "women_events": 24,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23084,
+   "name": "Liga Vasca Femenina",
+   "women_events": 564,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23085,
+   "name": "División de Honor Guipúzcoa Femenina",
+   "women_events": 65,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23108,
+   "name": "Latvian Women's League",
+   "women_events": 229,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23129,
+   "name": "Regional Preferente Aragón Femenina",
+   "women_events": 284,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23231,
+   "name": "Wales Premier League Women",
+   "women_events": 174,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23249,
+   "name": "Orlen 1 Liga Kobiet",
+   "women_events": 305,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23328,
+   "name": "Prime League",
+   "women_events": 278,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23341,
+   "name": "CONCACAF W Champions Cup",
+   "women_events": 48,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23349,
+   "name": "Liga 2 Feminin",
+   "women_events": 391,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23427,
+   "name": " Suwen Women's Football Super League",
+   "women_events": 638,
+   "men_events": 1
+  },
+  {
+   "competition_id": 23441,
+   "name": "Serbian Women's Super League",
+   "women_events": 183,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23491,
+   "name": "Cypriot Women's First Division",
+   "women_events": 97,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23499,
+   "name": "SAFF Women's Championship",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23573,
+   "name": "The FA Women's National League",
+   "women_events": 587,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23600,
+   "name": "Segunda Federación Femenina",
+   "women_events": 1118,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23701,
+   "name": "WE League Cup",
+   "women_events": 95,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23788,
+   "name": "Danish Women's Cup",
+   "women_events": 73,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23913,
+   "name": "COSAFA Women's Championship",
+   "women_events": 40,
+   "men_events": 0
+  },
+  {
+   "competition_id": 23957,
+   "name": "FA National League Cup",
+   "women_events": 45,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24055,
+   "name": "Women’s Highest League",
+   "women_events": 89,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24101,
+   "name": "Liga 3 Feminin",
+   "women_events": 234,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24113,
+   "name": "Cupa României Feminină",
+   "women_events": 108,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24121,
+   "name": "Women's Super League",
+   "women_events": 275,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24136,
+   "name": "UAE Women's League",
+   "women_events": 26,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24140,
+   "name": "New Zealand Women's National League",
+   "women_events": 92,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24151,
+   "name": "Taça de Portugal Feminina",
+   "women_events": 195,
+   "men_events": 1
+  },
+  {
+   "competition_id": 24160,
+   "name": "Greece Women's Football Second Division",
+   "women_events": 527,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24164,
+   "name": "Paraibano, Feminino",
+   "women_events": 49,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24173,
+   "name": "Paraense, Feminino",
+   "women_events": 60,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24180,
+   "name": "Taça Paulistana, Feminino",
+   "women_events": 29,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24235,
+   "name": "Potiguar, Feminino",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24247,
+   "name": "COSAFA U20 Women's Championship",
+   "women_events": 23,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24258,
+   "name": "Roraimense, Feminino",
+   "women_events": 8,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24260,
+   "name": "ASEAN Women's Championship Qualification",
+   "women_events": 20,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24265,
+   "name": "Pernambucano, Feminino",
+   "women_events": 68,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24295,
+   "name": "Kadınlar 1.Ligi",
+   "women_events": 187,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24327,
+   "name": "Vietnam Women's National Cup",
+   "women_events": 38,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24365,
+   "name": "Premier League, Women",
+   "women_events": 494,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24440,
+   "name": "Vrouwen Eerste Divisie",
+   "women_events": 213,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24486,
+   "name": "Japan University Women's Football Championship",
+   "women_events": 9,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24608,
+   "name": "Primera Regional Aragón Femenina",
+   "women_events": 426,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24728,
+   "name": "Taça da Liga Feminina",
+   "women_events": 36,
+   "men_events": 0
+  },
+  {
+   "competition_id": 24741,
+   "name": "Preferente Guipúzcoa Femenina",
+   "women_events": 389,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25008,
+   "name": "Kerala Women League",
+   "women_events": 84,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25145,
+   "name": "U20 CONCACAF Women's Championship Qualification ",
+   "women_events": 13,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25150,
+   "name": "U20 Goiano, Feminino",
+   "women_events": 25,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25281,
+   "name": "Faroe Islands Premier League Women",
+   "women_events": 156,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25369,
+   "name": "Serbian Women's Cup",
+   "women_events": 43,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25410,
+   "name": "A Lyga Women",
+   "women_events": 123,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25484,
+   "name": "SAFA Women's League",
+   "women_events": 308,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25502,
+   "name": "Nadeshiko League 2",
+   "women_events": 245,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25758,
+   "name": "Northern Ireland Women's Championship",
+   "women_events": 139,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25760,
+   "name": "Indian Women's League 2",
+   "women_events": 39,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25815,
+   "name": "1. Liga, Women",
+   "women_events": 66,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25857,
+   "name": "Serie C Femminile",
+   "women_events": 734,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25879,
+   "name": "Coppa Italia Serie C Femminile",
+   "women_events": 99,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25971,
+   "name": "Kazakhstan Super League Women",
+   "women_events": 377,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25986,
+   "name": "NIFL Women's Premiership League Cup",
+   "women_events": 26,
+   "men_events": 0
+  },
+  {
+   "competition_id": 25991,
+   "name": "Kansallinen Ykkönen",
+   "women_events": 231,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26132,
+   "name": "Ecuador Superliga Femenina",
+   "women_events": 358,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26134,
+   "name": "Campeonato Femenino",
+   "women_events": 493,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26135,
+   "name": "Northern Super League",
+   "women_events": 146,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26136,
+   "name": "Northern Ireland Women's Premiership",
+   "women_events": 311,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26272,
+   "name": "All-Island Cup",
+   "women_events": 62,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26301,
+   "name": "Women's Uruguayan Championship",
+   "women_events": 278,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26371,
+   "name": "Frauen-Regionalliga Süd",
+   "women_events": 167,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26387,
+   "name": "Western Australia NPL, Women",
+   "women_events": 257,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26388,
+   "name": "NSW NPL, Women",
+   "women_events": 421,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26498,
+   "name": "Premijer Ženska Liga",
+   "women_events": 157,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26521,
+   "name": "Kup BiH Žene",
+   "women_events": 16,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26544,
+   "name": "AFC Asian Cup, Women, Qualification",
+   "women_events": 55,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26639,
+   "name": "Prva Ženska liga FBiH",
+   "women_events": 72,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26648,
+   "name": "NB II Women",
+   "women_events": 403,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26704,
+   "name": "Copa Vasca Femenina",
+   "women_events": 22,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26767,
+   "name": "World Sevens Football Women's",
+   "women_events": 47,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26768,
+   "name": "Copa do Brasil, Feminino",
+   "women_events": 114,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26777,
+   "name": "U20 Copa Rio, Feminino",
+   "women_events": 37,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26786,
+   "name": "Prva liga RS, Women",
+   "women_events": 28,
+   "men_events": 0
+  },
+  {
+   "competition_id": 26795,
+   "name": "ÖFB Frauen Cup",
+   "women_events": 46,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27059,
+   "name": "OFC Women's Nations Cup",
+   "women_events": 14,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27073,
+   "name": "Super Cup, Women",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27211,
+   "name": "CECAFA Women's Championship",
+   "women_events": 7,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27241,
+   "name": "Women's Premier Soccer League",
+   "women_events": 43,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27264,
+   "name": "Regionalliga Nord, Women",
+   "women_events": 177,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27370,
+   "name": "U20 Carioca, Feminino",
+   "women_events": 65,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27372,
+   "name": "1. Liga, Women",
+   "women_events": 161,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27515,
+   "name": "Victoria Cup, Women",
+   "women_events": 17,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27545,
+   "name": "U20 Amazonense, Feminino",
+   "women_events": 14,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27582,
+   "name": "Baltic League, Women",
+   "women_events": 65,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27656,
+   "name": "Russian Women's Cup",
+   "women_events": 35,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27665,
+   "name": "ASEAN Women's Championship",
+   "women_events": 16,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27666,
+   "name": "Catarinense, Feminino",
+   "women_events": 105,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27688,
+   "name": "Saudi Women's Super Cup",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27693,
+   "name": "2 Liga Kobiet",
+   "women_events": 327,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27788,
+   "name": "Kate Sheppard Cup Women",
+   "women_events": 22,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27917,
+   "name": "Primera Federacion Women",
+   "women_events": 418,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27939,
+   "name": "Suomen Cup, Women",
+   "women_events": 67,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27945,
+   "name": "Serie A Women's Cup",
+   "women_events": 45,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27959,
+   "name": "SAFF U-20 Women's Championship",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 27980,
+   "name": "Tercera Federación Femenina",
+   "women_events": 1482,
+   "men_events": 11
+  },
+  {
+   "competition_id": 27990,
+   "name": "FA Women's National League Division One Midlands",
+   "women_events": 163,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28008,
+   "name": "Women Club Friendly Games",
+   "women_events": 1322,
+   "men_events": 5
+  },
+  {
+   "competition_id": 28090,
+   "name": "Latvian Women's Cup",
+   "women_events": 44,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28158,
+   "name": "Seconde Ligue Women",
+   "women_events": 256,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28168,
+   "name": "Czech Women's Second League",
+   "women_events": 152,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28169,
+   "name": "B-Liga Women",
+   "women_events": 136,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28276,
+   "name": "Division 1 Féminin",
+   "women_events": 312,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28320,
+   "name": "1. ŽFL",
+   "women_events": 234,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28384,
+   "name": "USL Super League",
+   "women_events": 281,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28483,
+   "name": "AFC U20 Women's Asian Cup Qualification",
+   "women_events": 15,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28543,
+   "name": "NCAA II Women",
+   "women_events": 357,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28573,
+   "name": "Supertaca, Women",
+   "women_events": 8,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28574,
+   "name": "Serie B, Women",
+   "women_events": 432,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28655,
+   "name": "SuperLiga Feminină",
+   "women_events": 377,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28660,
+   "name": "2. Frauen Bundesliga",
+   "women_events": 171,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28683,
+   "name": "Scottish Women's Premier League 2",
+   "women_events": 161,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28714,
+   "name": "Nationalliga B, Women",
+   "women_events": 178,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28733,
+   "name": "Baiano, Women",
+   "women_events": 83,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28758,
+   "name": "Alagoano, Feminino",
+   "women_events": 7,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28830,
+   "name": "Northern Ireland FA Women's Cup",
+   "women_events": 20,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28831,
+   "name": "Maltese Women's League",
+   "women_events": 66,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28900,
+   "name": "CAF Women's Champions League Qualification",
+   "women_events": 10,
+   "men_events": 0
+  },
+  {
+   "competition_id": 28916,
+   "name": "Primavera 1, Women",
+   "women_events": 62,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29045,
+   "name": "Division 2 Féminin",
+   "women_events": 76,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29187,
+   "name": "U17 Gaúcho, Feminino",
+   "women_events": 49,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29194,
+   "name": "UEFA Women's Europa Cup",
+   "women_events": 126,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29219,
+   "name": "SWPL Cup Women",
+   "women_events": 55,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29267,
+   "name": "Karnataka Women’s League",
+   "women_events": 8,
+   "men_events": 1
+  },
+  {
+   "competition_id": 29391,
+   "name": "II Divisao, Women",
+   "women_events": 344,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29399,
+   "name": "Primavera 2, Women",
+   "women_events": 64,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29409,
+   "name": "Europeada, Women",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29443,
+   "name": "AXA Women's Cup",
+   "women_events": 89,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29532,
+   "name": "Coppa Italia Primavera, Women",
+   "women_events": 7,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29689,
+   "name": "U17 Nike Premier Cup, Feminino",
+   "women_events": 10,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29738,
+   "name": "U20 Brasil Ladies Cup",
+   "women_events": 32,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29859,
+   "name": "Copa Maria Bonita",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29860,
+   "name": "Taça Cidade do Paulista",
+   "women_events": 30,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29871,
+   "name": "Women's Champions Cup",
+   "women_events": 6,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29893,
+   "name": "Hungarian Women's Cup",
+   "women_events": 15,
+   "men_events": 0
+  },
+  {
+   "competition_id": 29916,
+   "name": "Meghalaya State League, Women",
+   "women_events": 26,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30031,
+   "name": "D3 Féminine",
+   "women_events": 330,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30057,
+   "name": "Sergipano, Feminino",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30075,
+   "name": "Liga Nationala Feminină",
+   "women_events": 57,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30081,
+   "name": "Kadınlar 2. Ligi",
+   "women_events": 111,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30082,
+   "name": "Kadınlar 3. Ligi",
+   "women_events": 16,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30083,
+   "name": "U20 Gaúcho, Feminino",
+   "women_events": 20,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30184,
+   "name": "Division 3 Féminine",
+   "women_events": 61,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30188,
+   "name": "Bayerliga Frauen",
+   "women_events": 15,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30396,
+   "name": "CONMEBOL Nations League Women",
+   "women_events": 36,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30417,
+   "name": "U20 Pernambucano, Feminino",
+   "women_events": 5,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30514,
+   "name": "Wales Second Division Women",
+   "women_events": 111,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30687,
+   "name": "WAFF Women's Championship",
+   "women_events": 9,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30830,
+   "name": "FA Women's National League Division One North",
+   "women_events": 169,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30848,
+   "name": "Coupe de la Ligue Women",
+   "women_events": 62,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30849,
+   "name": "Empress's Cup Women",
+   "women_events": 31,
+   "men_events": 0
+  },
+  {
+   "competition_id": 30965,
+   "name": "Dames Ligue 1",
+   "women_events": 100,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31006,
+   "name": "Frauen Future League",
+   "women_events": 135,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31008,
+   "name": "World Cup, Women, Qual. OFC ",
+   "women_events": 17,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31016,
+   "name": "Paulista Divisão Especial, Feminino",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31026,
+   "name": "PFF Women's Cup",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31027,
+   "name": "PFF Women's League",
+   "women_events": 43,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31033,
+   "name": "NCAA Women, Division II National Championship",
+   "women_events": 10,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31175,
+   "name": "III Divisão, Feminina",
+   "women_events": 108,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31204,
+   "name": "U20 Copa Alagoas, Feminino",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31222,
+   "name": "UNAF U-20 Women's Tournament",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31225,
+   "name": "CONCACAF W Championship qualification",
+   "women_events": 56,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31227,
+   "name": "Torneo Provincial Femenino",
+   "women_events": 13,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31278,
+   "name": "U19 Liga Feminina",
+   "women_events": 139,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31331,
+   "name": "Copa Paulista, Feminino",
+   "women_events": 6,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31392,
+   "name": "SAFF Club Women's Championship",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31434,
+   "name": "North West Women's Regional League",
+   "women_events": 177,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31469,
+   "name": "Westfalenliga, Frauen",
+   "women_events": 24,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31582,
+   "name": "U13 FaCup 21 de Diciembre, Femenino",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31602,
+   "name": "U20 Baiano, Feminino",
+   "women_events": 8,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31629,
+   "name": "Saudi Women's Premier Challenge Cup",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31681,
+   "name": "Naisten Kakkonen",
+   "women_events": 255,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31687,
+   "name": "Naisten Kolmonen, Eteläinen",
+   "women_events": 128,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31695,
+   "name": "U17 Kızlar Gelişim Ligi",
+   "women_events": 31,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31715,
+   "name": "Bangladesh Women's Football League",
+   "women_events": 55,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31790,
+   "name": "R1 Bourgogne-Franche-Comté, Féminin",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31798,
+   "name": "Burgenland Frauen Landesliga",
+   "women_events": 91,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31803,
+   "name": "Wiener Frauen Landesliga",
+   "women_events": 181,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31853,
+   "name": "Reykjavík Cup Women",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31858,
+   "name": "A.F. Porto Taça Distrital Feminina",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31872,
+   "name": "Ziemas Kauss",
+   "women_events": 18,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31924,
+   "name": "Women's Scottish Cup",
+   "women_events": 15,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31957,
+   "name": "IV Divisão, Feminina",
+   "women_events": 327,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31958,
+   "name": "FaCup Santiago Enero U15, Feminine",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31971,
+   "name": "NSW U23 League One, Women ",
+   "women_events": 160,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31978,
+   "name": "Queensland Kappa Pro Series Women",
+   "women_events": 13,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31979,
+   "name": "Greek Women's Cup",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 31989,
+   "name": " Icelandic Women's Football League Cup B",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32026,
+   "name": "Queensland Premier League 1, Women ",
+   "women_events": 56,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32030,
+   "name": "Western Australia NPL Night Series, Women ",
+   "women_events": 16,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32031,
+   "name": "U17 CONCACAF Women's Championship Qualification ",
+   "women_events": 28,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32065,
+   "name": "Women's President's Cup",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32123,
+   "name": "Naisten Kolmonen, Läntinen",
+   "women_events": 109,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32128,
+   "name": "Kansallinen Cup, Women",
+   "women_events": 7,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32145,
+   "name": "Victoria Premier League, Women ",
+   "women_events": 138,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32152,
+   "name": "Sieviešu Superkauss",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32249,
+   "name": "Frauen 2. Liga",
+   "women_events": 54,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32320,
+   "name": "Coupe du Trône Féminine",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32358,
+   "name": "Czech Cup Women",
+   "women_events": 15,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32641,
+   "name": "U20 Paraense, Feminino",
+   "women_events": 8,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32648,
+   "name": "Sport-Lines Pokal der Frauen",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32650,
+   "name": "1. WFL",
+   "women_events": 92,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32681,
+   "name": "Wiener Frauen Cup",
+   "women_events": 32,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32833,
+   "name": "FIFA Series, Women",
+   "women_events": 21,
+   "men_events": 0
+  },
+  {
+   "competition_id": 32836,
+   "name": "Niederösterreich Frauen Landesliga",
+   "women_events": 111,
+   "men_events": 0
+  },
+  {
+   "competition_id": 33641,
+   "name": "Jamaica Women's Premier League",
+   "women_events": 56,
+   "men_events": 0
+  },
+  {
+   "competition_id": 33650,
+   "name": "Northern Territory Premier League, Women",
+   "women_events": 104,
+   "men_events": 0
+  },
+  {
+   "competition_id": 33678,
+   "name": "Naisten Nelonen, Eteläinen",
+   "women_events": 275,
+   "men_events": 0
+  },
+  {
+   "competition_id": 33693,
+   "name": "Naisten Nelonen, Läntinen",
+   "women_events": 206,
+   "men_events": 0
+  },
+  {
+   "competition_id": 33698,
+   "name": "Kategoria Superiore Femra",
+   "women_events": 81,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34105,
+   "name": "LT1 OÖ Liga Frauen",
+   "women_events": 16,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34147,
+   "name": "Teal Rising Cup",
+   "women_events": 7,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34329,
+   "name": "Taça Nacional Feminina Promoção",
+   "women_events": 50,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34447,
+   "name": "Estonian Women's Cup",
+   "women_events": 9,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34449,
+   "name": "U20 Women's World Cup Qualification Africa",
+   "women_events": 34,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34507,
+   "name": "SSA Women's Football League",
+   "women_events": 26,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34530,
+   "name": "Bhutan Women's National League",
+   "women_events": 50,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34563,
+   "name": "CFA Women's Football League One",
+   "women_events": 91,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34621,
+   "name": "Juegos Suramericanos de la Juventud, Women",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34623,
+   "name": "Belarusian Women's Football Cup",
+   "women_events": 13,
+   "men_events": 0
+  },
+  {
+   "competition_id": 34706,
+   "name": "Frauen-Regionalliga Nordost",
+   "women_events": 22,
+   "men_events": 1
+  },
+  {
+   "competition_id": 34775,
+   "name": "Cambodian Women's League",
+   "women_events": 60,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35094,
+   "name": "Ascenso a Liga Vasca Femenina",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35171,
+   "name": "Copa Aragon Femenina",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35174,
+   "name": "Regional Femenino Álava",
+   "women_events": 26,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35301,
+   "name": "Ascenso Liga Nacional Femenino Pichincha",
+   "women_events": 66,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35326,
+   "name": "Siguria Superliga - Femrat",
+   "women_events": 19,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35332,
+   "name": "Kärnten Frauen Landesliga",
+   "women_events": 125,
+   "men_events": 11
+  },
+  {
+   "competition_id": 35514,
+   "name": "Myanmar Women’s Football League",
+   "women_events": 17,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35592,
+   "name": "FKF Women Premier League",
+   "women_events": 10,
+   "men_events": 0
+  },
+  {
+   "competition_id": 35915,
+   "name": "AIFF Women's Youth League ",
+   "women_events": 14,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36033,
+   "name": "NCAA III, Women",
+   "women_events": 64,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36088,
+   "name": "Jordan Women's Pro League",
+   "women_events": 27,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36094,
+   "name": "Women's Jordan Cup",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36130,
+   "name": "WAFF Women's Club Championship",
+   "women_events": 8,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36653,
+   "name": "Naisten Regions Cup",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36656,
+   "name": "Prva liga Srbije, Women",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36706,
+   "name": "Naisten Roots Cup",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36771,
+   "name": "UNAF Women's Champions Tournament",
+   "women_events": 6,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36800,
+   "name": "UHL Sport Frauen 1.Liga",
+   "women_events": 34,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36952,
+   "name": "Women's Football League First Division",
+   "women_events": 17,
+   "men_events": 0
+  },
+  {
+   "competition_id": 36977,
+   "name": "Greater Manchester Women's Football League - Premier",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37039,
+   "name": "AFFA Top Girls League",
+   "women_events": 22,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37076,
+   "name": "WAFU B Women's Championship",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37166,
+   "name": "Women's Ontario Premier League Cup",
+   "women_events": 2,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37171,
+   "name": "Women's Canadian Championship",
+   "women_events": 3,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37197,
+   "name": "2nd Division, Women's",
+   "women_events": 227,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37258,
+   "name": "Coupe de France, Féminine - Phase Régionale",
+   "women_events": 5,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37295,
+   "name": "Puchar Polski",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37371,
+   "name": "Faroe Islands Women's Cup",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37447,
+   "name": "Belgium Division 1 Women",
+   "women_events": 26,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37649,
+   "name": "OFC Women's Champions League",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37680,
+   "name": "Frauen-Regionalliga West",
+   "women_events": 11,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37694,
+   "name": "Liga de Fùtbol Feminino",
+   "women_events": 12,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37742,
+   "name": "Georgian Women League",
+   "women_events": 23,
+   "men_events": 0
+  },
+  {
+   "competition_id": 37890,
+   "name": "Futbol Femenino Salvadoreño",
+   "women_events": 20,
+   "men_events": 0
+  },
+  {
+   "competition_id": 38028,
+   "name": "South American Games, Women",
+   "women_events": 8,
+   "men_events": 0
+  },
+  {
+   "competition_id": 38085,
+   "name": "Women's MSG Prime Minister's Cup",
+   "women_events": 9,
+   "men_events": 0
+  },
+  {
+   "competition_id": 38285,
+   "name": "U20 Torneio Internacional Estrelas",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 38462,
+   "name": "Esiliiga Women's",
+   "women_events": 18,
+   "men_events": 0
+  },
+  {
+   "competition_id": 38525,
+   "name": "FAI Women's Amateur Cup",
+   "women_events": 4,
+   "men_events": 0
+  },
+  {
+   "competition_id": 38539,
+   "name": "Casablanca Women’s Cup ",
+   "women_events": 4,
+   "men_events": 0
+  }
+ ],
+ "mixed": [
+  {
+   "competition_id": 654,
+   "name": "CONCACAF Gold Cup Qual.",
+   "women_events": 2,
+   "men_events": 20
+  },
+  {
+   "competition_id": 771,
+   "name": "V-League 2",
+   "women_events": 2,
+   "men_events": 315
+  },
+  {
+   "competition_id": 851,
+   "name": "International Friendly Games",
+   "women_events": 1,
+   "men_events": 2480
+  },
+  {
+   "competition_id": 853,
+   "name": "Club Friendly Games",
+   "women_events": 2,
+   "men_events": 26167
+  },
+  {
+   "competition_id": 856,
+   "name": "U19 Friendly Games",
+   "women_events": 4,
+   "men_events": 855
+  },
+  {
+   "competition_id": 858,
+   "name": "U17 Friendly Games",
+   "women_events": 1,
+   "men_events": 366
+  },
+  {
+   "competition_id": 1786,
+   "name": "Australia Cup",
+   "women_events": 1,
+   "men_events": 98
+  },
+  {
+   "competition_id": 2290,
+   "name": "Liga Bet South A",
+   "women_events": 1,
+   "men_events": 982
+  },
+  {
+   "competition_id": 16837,
+   "name": "Eccellenza Puglia",
+   "women_events": 58,
+   "men_events": 878
+  },
+  {
+   "competition_id": 17346,
+   "name": "A EPS Kavalas",
+   "women_events": 2,
+   "men_events": 74
+  },
+  {
+   "competition_id": 18275,
+   "name": "R1 Pays de la Loire",
+   "women_events": 12,
+   "men_events": 547
+  },
+  {
+   "competition_id": 22097,
+   "name": "A.F. Viana do Castelo 2ª Divisão",
+   "women_events": 9,
+   "men_events": 201
+  },
+  {
+   "competition_id": 22819,
+   "name": "A.F. Porto Decathlon Liga Pro",
+   "women_events": 4,
+   "men_events": 865
+  },
+  {
+   "competition_id": 23188,
+   "name": "3e Ligue ACVF",
+   "women_events": 7,
+   "men_events": 319
+  },
+  {
+   "competition_id": 23199,
+   "name": "BCV Cup Coupe des Actifs",
+   "women_events": 1,
+   "men_events": 160
+  },
+  {
+   "competition_id": 23395,
+   "name": "A.F. Viana do Castelo Taça Distrital",
+   "women_events": 2,
+   "men_events": 53
+  },
+  {
+   "competition_id": 23696,
+   "name": "South Africa Diski Challenge",
+   "women_events": 1,
+   "men_events": 591
+  },
+  {
+   "competition_id": 24389,
+   "name": "Coppa Italia Eccellenza Puglia",
+   "women_events": 6,
+   "men_events": 67
+  },
+  {
+   "competition_id": 26015,
+   "name": "NSW League One",
+   "women_events": 1,
+   "men_events": 824
+  },
+  {
+   "competition_id": 26020,
+   "name": "Western Australia State League 1",
+   "women_events": 1,
+   "men_events": 103
+  },
+  {
+   "competition_id": 27111,
+   "name": "Greece Friendly Games",
+   "women_events": 1,
+   "men_events": 797
+  },
+  {
+   "competition_id": 27118,
+   "name": "Germany Friendly Games",
+   "women_events": 25,
+   "men_events": 695
+  },
+  {
+   "competition_id": 27120,
+   "name": "Poland Friendly Games",
+   "women_events": 3,
+   "men_events": 1569
+  },
+  {
+   "competition_id": 27159,
+   "name": "Brazil Friendly Games",
+   "women_events": 1,
+   "men_events": 42
+  },
+  {
+   "competition_id": 27748,
+   "name": "Bosnia & Herzegovina Friendly Games",
+   "women_events": 9,
+   "men_events": 429
+  },
+  {
+   "competition_id": 28153,
+   "name": "National 1",
+   "women_events": 4,
+   "men_events": 1985
+  },
+  {
+   "competition_id": 28932,
+   "name": "Türkiye Friendly Games",
+   "women_events": 1,
+   "men_events": 252
+  },
+  {
+   "competition_id": 31598,
+   "name": "Finland Friendly Games",
+   "women_events": 14,
+   "men_events": 106
+  },
+  {
+   "competition_id": 32366,
+   "name": "Croatia Friendly Games",
+   "women_events": 1,
+   "men_events": 303
+  },
+  {
+   "competition_id": 32368,
+   "name": "Latvia Friendly Games",
+   "women_events": 1,
+   "men_events": 5
+  },
+  {
+   "competition_id": 35633,
+   "name": "Switzerland Friendly Games",
+   "women_events": 3,
+   "men_events": 92
+  }
+ ]
+}

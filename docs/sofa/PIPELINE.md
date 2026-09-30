@@ -352,7 +352,9 @@ prior   = w tej kolejności (piłka):
              spotkania, ≥30 obserwacji            notka PRIOR_FROM_DAY_SAMPLES
           3. średnia lig, w których drużyny grają na co dzień (puchary)
                                                   notka PRIOR_FROM_TEAMS_LEAGUES
-          4. globalna
+          4. mecz kobiet: pula lig kobiecych (config/sofa_women_competitions.json,
+             ≥300 meczów)                          notka PRIOR_GLOBAL_WOMEN
+          5. globalna
 w_c     = n / (n + K_CENTRE)                           (piłka 25, tenis 2)
 centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gdy brak bazy)
 
@@ -382,6 +384,67 @@ globalnie 15, piłka 25, tenis 2); `K_PRICE` z tego samego pliku, gdzie ma
 wartość `null` i status `NOT_FITTED` — wtedy silnik używa udokumentowanego
 startu `K_PRICE = 10.0` z `engine.py`, a **każdy wiersz niesie o tym notkę
 `UNFITTED_CONSTANTS`** (2026-09-21: 5782 z 5782).
+
+### 7.1a Rating piłkarski i siła ligi (od 2026-09-30)
+
+`centre` wiersza piłkarskiego to w połowie (`W_FOOTBALL_RATING = 0.5`) rating
+atak/obrona drużyn (`src/bet/sofa/football_rating.py`). Stosunki ataku i obrony
+są liczone względem ligi, w której mecz się odbył, więc są porównywalne tylko
+między drużynami jednej ligi. FK Aktobe (kobiety, Kazachstan: 20:0, 15:0, 12:0)
+dostało atak 2,54 i obronę 0,35 i w Europa Cup kobiet zostało wycenione
+2,59 : 1,45 przeciw Ajaxowi, tydzień po porażce 0:8. Stąd trzy zmiany:
+
+- **połączenie** — drużyny są `LINKED`, gdy obie zagrały ≥3 mecze
+  (`LINK_MIN_MATCHES`) w rozgrywkach, które są ligą (najczęstszymi
+  rozgrywkami) co najmniej jednej z nich. Wspólny puchar, który właśnie grają,
+  nie wystarcza;
+- **siła ligi** — dla par niepołączonych osobny współczynnik na (ligę, metrykę)
+  w skali logarytmicznej, uczony tylko z meczów między ligami
+  (`ALPHA_STRENGTH = 0.02`); gdy któraś liga ma <10 takich meczów
+  (`MIN_STRENGTH_LINKS`), para jest `UNLINKED`;
+- **limit zaskoczenia** — jeden wynik nie przesuwa stosunku o więcej niż
+  `alpha·(MAX_SURPRISE − stosunek)`, `MAX_SURPRISE = 3`.
+
+Mecze towarzyskie (`config/sofa_friendly_competitions.json`, 39 id) nie wchodzą
+do historii ratingu. Liga zbyt rzadka na własną stawkę spada na globalną stawkę
+**swojej płci**.
+
+Pomiar (prognoza jeden mecz naprzód, poza próbą 2026-08-15..09-30, bez
+towarzyskich): błąd kwadratowy spadł na każdej z 14 metryk — gole −0,36%,
+faule −9,9%, spalone −1,4%, pary połączone siłą ligi −2,4% do −13%. Stałe
+wybrano na 06-01..08-15 po błędzie środka, nie po prawdopodobieństwie — każdy
+wiersz wyceniony ratingiem wymienia je w `UNFITTED_CONSTANTS`.
+
+Po weryfikacji na żywo 10-01 (sofa-verifier) doszły jeszcze trzy rzeczy:
+
+- **stawka ligi** jest zwykłą średnią, dopóki liga ma mniej niż ~50 meczów,
+  a dopiero potem średnią wykładniczą (`LEAGUE_RUNNING_MEAN`). Wcześniej
+  pierwszy mecz w cache ważył 32% po 57 meczach: Puchar Ligi ZEA miał
+  2,1 gola na mecz zamiast 3,1 i dał dwa fałszywe „poniżej". Gole poza
+  próbą −1,7%;
+- **stosunki drużyny spoza ligi rywala** są ściągane ku 1 potęgą
+  `CROSS_RATIO_POWER = 0.6` — zdobyte przeciw własnej lidze, przenoszą się
+  tylko częściowo (Baio & Blangiardo 2010). Minimum płaskie 0,5–0,7;
+- **rozrzut idzie za środkiem**: gdy prior albo rating przesuwa `centre`,
+  wariancja i podłoga Poissona skalują się o `centre / sample_mean`
+  (zachowany indeks dyspersji). Brier na 102 154 rozliczonych wierszach
+  liczników 09-20..29: 0,1986 → 0,1982, lepiej w 8 z 10 dni.
+
+Znane ograniczenie (zmierzone, nie naprawione): w skrajnych meczach słabej
+ligi przeciw mocnej siła ligi uczy się wolno (`ALPHA_STRENGTH = 0.02` wygrywa
+średnio; szybsze tempo psuje przeciętną prognozę). Aktobe - Ajax po
+backfillu: 1,21 : 1,20 zamiast 2,59 : 1,45 — lepiej, ale daleko od 0:8.
+Tam chroni głównie bramka `DISAGREES_WITH_PRICE`.
+
+Wiersz meczu `UNLINKED` dostaje notkę `CROSS_LEAGUE_UNLINKED` i CONFIDENCE
+go odrzuca: ani próbka, ani rating nie opisują drugiej ligi, więc jedyną
+liczbą porównującą obie drużyny jest cena (na rozliczonych 09-20..29 model
+przegrywał tam z ceną o 0,0127 Briera wobec 0,0106 gdzie indziej). Na
+tablicy 09-30 był to jeden mecz — właśnie Aktobe - Ajax.
+
+Brak danych nie jest argumentem: `scripts/sofa/backfill_listings.py` pogłębia
+historię każdej drużyny z cache (i każdego rywala) do 730 dni, porcjami i z
+wznowieniem.
 
 ### 7.2 Trzy rzeczy, które wyglądają na usterkę i nią nie są
 
@@ -678,7 +741,8 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `STALE_PRICE` | cena starsza niż 45 min |
 | `NOT_IN_CALIBRATION_FIT` | metryka nie należy do rodziny, na której fitowano krzywą |
 | `DERIVED_NOT_CALIBRATABLE` | rynek pochodny (`both_over_`, `handicap_`, `most_`) — ma 2–252 rozliczonych wierszy i żadna próbka z artefaktów go nie sprawdzi |
-| `NOT_CALIBRATED` | dla tego kubełka **nie ma pomiaru**; własna liczba modelu nie jest jego substytutem |
+| `CROSS_LEAGUE_UNLINKED` | mecz piłkarski drużyn bez wspólnej ligi i bez zmierzonej siły ich lig (§7.1a) — decyzję oddajemy cenie |
+| `NOT_CALIBRATED` | dla tego kubełka **nie ma pomiaru**; własna liczba modelu nie jest jego substytutem. Od 2026-09-30 także noga **klasy** meczu bez własnej krzywej: piłka kobiet (`women`, rozpoznawana po „(K)" Superbetu albo nazwie rozgrywek), tenis kobiet (`tennis_women`), Davis Cup / BJK Cup / pokazówki (`tennis_team_cup`). Noga klasy czyta wyłącznie krzywe swojej klasy (`by_class` w `config/sofa_confidence_calibration.json`, `fit_confidence.py --classes-only`) — nigdy puli, od której klasa się różni (piłka kobiet przy p 0,80–0,85: 0,792 wobec 0,806 mężczyzn; rożne przy 0,90: 0,874 wobec 0,903) |
 | `BELOW_CONFIDENCE_FLOOR` | `realised_lo < --floor` |
 | `DISAGREES_WITH_PRICE` | `realised_lo − 1/odds > MAX_DISAGREEMENT = 0.10` |
 | `NEGATIVE_LEG_EV` | noga nie przebija własnej ceny (`leg_is_ev_positive`) |

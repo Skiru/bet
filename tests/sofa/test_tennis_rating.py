@@ -191,7 +191,12 @@ def test_the_checked_in_config_names_features_the_book_computes():
     assert set(coefficients) == {"ITF", "CH", "TOUR"}
     assert set(meta["features"]) <= set(FEATURES)
     assert all(len(c) == len(meta["features"]) + 1 for c in coefficients.values())
-    assert meta["fitted_from"]["cut_utc"].startswith("2026-09-17")
+    # Refit 2026-09-30 on the backfilled history (239k matches), cut before
+    # the first day it prices. dhigh / dtour carry the tier gap one Elo pool
+    # cannot see; held out 09-17..09-30 they took Brier 0.1948 -> 0.1884
+    # (TOUR 0.2055 -> 0.1855).
+    assert meta["fitted_from"]["cut_utc"].startswith("2026-10-01")
+    assert {"dhigh", "dtour"} <= set(meta["features"])
 
 
 def test_an_unrated_player_gets_no_forecast():
@@ -381,3 +386,19 @@ def test_best_of_five_and_football_are_not_forecast():
     football = fixture.model_copy(update={"sport": "football"})
     assert tennis_forecast(_Model(), football) is None  # type: ignore[arg-type]
     assert tennis_forecast(None, fixture) is None
+
+
+def test_tour_neighbours_never_include_a_match_tiebreak_decider():
+    """T1 (2026-10-01): a 10-point match tiebreak is counted as a 1-0 third
+    set; tour and Challenger matches always play a full third set."""
+    from bet.sofa.tennis_rating import NEIGHBOURS, Outcome, TennisRatingModel
+
+    full = [Outcome(0.5 + i * 1e-6, 20, 18, 3, 0, (6, 4), (4, 6))
+            for i in range(NEIGHBOURS)]
+    mtb = [Outcome(0.5 + i * 1e-7, 13, 12, 3, 0, (6, 4), (4, 6), True)
+           for i in range(NEIGHBOURS)]
+    model = TennisRatingModel(RatingBook(), {}, full + mtb)
+    tour = model._neighbours(0.5, full_third_set=True)
+    itf = model._neighbours(0.5)
+    assert len(tour) == NEIGHBOURS and not any(o.match_tiebreak for o in tour)
+    assert any(o.match_tiebreak for o in itf)

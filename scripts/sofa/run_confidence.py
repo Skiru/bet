@@ -51,6 +51,8 @@ from bet.sofa.confidence import (  # noqa: E402
     empirical_joint,
     fair_odds,
     fixture_leg_counts,
+    has_cross_league_unlinked_note,
+    match_class,
     has_unreachable_bar_note,
     joint_probability,
     PROFILES,
@@ -264,6 +266,16 @@ def main() -> int:
                 margins[key] = rung_margin
 
     cal = Calibration.load()
+    # Superbet's own side names, for the match class ("(K)" = women's).
+    board_sides: dict[str, tuple[str, str]] = {}
+    board_path = run_dir / "01_board.json"
+    if board_path.exists():
+        board_doc = json.loads(board_path.read_text(encoding="utf-8"))
+        for entry in board_doc if isinstance(board_doc, list) else board_doc.get(
+                "fixtures", board_doc.get("events", [])):
+            if isinstance(entry, dict) and entry.get("superbet_event_id"):
+                board_sides[str(entry["superbet_event_id"])] = (
+                    str(entry.get("side_a") or ""), str(entry.get("side_b") or ""))
     # One clock for every stage (bet.sofa.timeutil), so a rebuild or a test
     # that fixes the time fixes it here too.
     now = timeutil.now()
@@ -398,6 +410,11 @@ def main() -> int:
         if has_unreachable_bar_note(row.get("notes")):
             refused["UNREACHABLE_BAR"] += 1
             continue
+        # See has_cross_league_unlinked_note: two football sides that share
+        # no league and whose leagues' strengths are unmeasured.
+        if has_cross_league_unlinked_note(row.get("notes")):
+            refused["CROSS_LEAGUE_UNLINKED"] += 1
+            continue
         # See DERIVED_PREFIXES. A joint of two sides is not a count of one
         # thing, has 2-252 settled rows of its own, and no sample in the
         # artifacts can check it.
@@ -405,9 +422,28 @@ def main() -> int:
             refused["DERIVED_NOT_CALIBRATABLE"] += 1
             continue
 
-        hit = cal.realised(
-            row["market"], row["p_central"], row.get("sport"), row["direction"]
+        sides = next(
+            (board_sides[str(i)] for i in fx.get("superbet_event_ids") or []
+             if str(i) in board_sides), None)
+        klass = match_class(
+            row.get("sport"),
+            fx.get("category_name") if row.get("sport") == "tennis"
+            else fx.get("competition_name"),
+            sides,
         )
+        hit = cal.realised(
+            row["market"], row["p_central"], row.get("sport"), row["direction"],
+            klass,
+        )
+        if hit is None and klass is not None and cal.realised(
+            row["market"], row["p_central"], row.get("sport"), row["direction"]
+        ) is not None:
+            # Refused only because of its class: the unclassed curves would
+            # have served it (Calibration.realised). A class leg nothing would
+            # have served falls through to NOT_CALIBRATED like any other -
+            # on the 10-01 verification run 757 of 777 were that.
+            refused["NO_CLASS_CURVE"] += 1
+            continue
         if hit is None:
             # No measurement for this bucket. The model's own number is not a
             # substitute for one, so the leg is refused rather than guessed.

@@ -124,6 +124,20 @@ def locked_leg_problem(d: Path, doc: dict[str, Any], leg: dict[str, Any]) -> str
         return "UNVERIFIABLE: locked, and no earlier build is logged"
     fields = (*sc.LEG_KEY, "odds", "fair_p", "price_fetched_at_utc")
     want = tuple(leg.get(k) for k in fields)
+    # The leg's first logged appearance already locked means the build that
+    # created it predates the log: it cannot be checked either. 2026-09-30:
+    # Paqt-Rune Eaters and CSB-FEU were locked in the first logged build
+    # (06:58Z), created at ~06:14Z before the log existed (sofa-verifier).
+    # Only the log's very first record can hold a leg locked by a build the
+    # log never saw; a leg that first appears locked in any later record was
+    # inherited from nowhere and stays a defect.
+    first_rec = min(earlier, key=lambda r: str(r.get("created_at_utc")))
+    if any(
+        tuple(old.get(k) for k in sc.LEG_KEY) == want[: len(sc.LEG_KEY)]
+        and old.get("locked")
+        for old in first_rec.get("legs", [])
+    ):
+        return "UNVERIFIABLE: locked already in the log's first build"
     for rec in earlier:
         for old in rec.get("legs", []):
             if tuple(old.get(k) for k in fields) == want and (

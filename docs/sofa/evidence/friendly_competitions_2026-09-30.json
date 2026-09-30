@@ -1,0 +1,608 @@
+{
+ "_doc": [
+  "Football competitions named '*Friendly*' in the sofa cache (sofa_entity_events, kind='last'), read 2026-09-30.",
+  "One example event per id, verbatim from the cached listing payload. n_events = distinct cached events."
+ ],
+ "competitions": [
+  {
+   "competition_id": 853,
+   "name": "Club Friendly Games",
+   "slug": "club-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 13382448,
+    "home": "Kawasaki Frontale",
+    "away": "Vanraure Hachinohe",
+    "startTimestamp": 1737684000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 17102
+  },
+  {
+   "competition_id": 851,
+   "name": "International Friendly Games",
+   "slug": "int-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 9662629,
+    "home": "Kuwait U23",
+    "away": "Bahrain U23",
+    "startTimestamp": 1626966000,
+    "homeTeam_national": true,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 2437
+  },
+  {
+   "competition_id": 852,
+   "name": "International Friendly Games Women",
+   "slug": "int-friendly-games-women",
+   "category": "World",
+   "example_event": {
+    "id": 8610603,
+    "home": "Smedby Ais",
+    "away": "Älvsjö AIK FF",
+    "startTimestamp": 1584183600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "F"
+   },
+   "n_events": 1093
+  },
+  {
+   "competition_id": 28008,
+   "name": "Women Club Friendly Games",
+   "slug": "club-friendly-games-women",
+   "category": "World",
+   "example_event": {
+    "id": 12589700,
+    "home": "LD Alajuelense",
+    "away": "Alianza FC",
+    "startTimestamp": 1721764800,
+    "homeTeam_national": false,
+    "homeTeam_gender": "F"
+   },
+   "n_events": 1056
+  },
+  {
+   "competition_id": 27120,
+   "name": "Poland Friendly Games",
+   "slug": "poland-friendly-games",
+   "category": "Poland Amateur",
+   "example_event": {
+    "id": 13979204,
+    "home": "Świt Skolwin Szczecin",
+    "away": "Gryf Słupsk",
+    "startTimestamp": 1737543617,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 973
+  },
+  {
+   "competition_id": 856,
+   "name": "U19 Friendly Games",
+   "slug": "u19-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 13372613,
+    "home": "Cracovia U19",
+    "away": "Baník Ostrava U19",
+    "startTimestamp": 1737540000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 720
+  },
+  {
+   "competition_id": 854,
+   "name": "U21 Friendly Games",
+   "slug": "u21-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 14675726,
+    "home": "SC Telstar U21",
+    "away": "FC Eindhoven U21",
+    "startTimestamp": 1757757600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 655
+  },
+  {
+   "competition_id": 855,
+   "name": "U20 Friendly Games",
+   "slug": "u20-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 11075000,
+    "home": "Fiji U20",
+    "away": "New Zealand U20",
+    "startTimestamp": 1676971800,
+    "homeTeam_national": true,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 571
+  },
+  {
+   "competition_id": 27110,
+   "name": "Hungary Friendly Games",
+   "slug": "hungary-friendly-games",
+   "category": "Hungary Amateur",
+   "example_event": {
+    "id": 14225586,
+    "home": "ETO Akadémia",
+    "away": "Ipswich Town U21",
+    "startTimestamp": 1752912000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 403
+  },
+  {
+   "competition_id": 27208,
+   "name": "Romania Friendly Games",
+   "slug": "romania-friendly-games",
+   "category": "Romania Amateur",
+   "example_event": {
+    "id": 14339158,
+    "home": "SCM Dunărea 2020 Giurgiu",
+    "away": "FCSB U19",
+    "startTimestamp": 1754119800,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 373
+  },
+  {
+   "competition_id": 1072,
+   "name": "U23 Friendly Games",
+   "slug": "u23-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 11151256,
+    "home": "Kuwait U23",
+    "away": "Kyrgyzstan U23",
+    "startTimestamp": 1679514300,
+    "homeTeam_national": true,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 349
+  },
+  {
+   "competition_id": 2302,
+   "name": "U19 Friendly Games Women",
+   "slug": "u19-friendly-games-women",
+   "category": "World",
+   "example_event": {
+    "id": 11677679,
+    "home": "Bulgaria U19",
+    "away": "Romania U19",
+    "startTimestamp": 1695385800,
+    "homeTeam_national": true,
+    "homeTeam_gender": "F"
+   },
+   "n_events": 214
+  },
+  {
+   "competition_id": 27115,
+   "name": "Netherlands Friendly Games",
+   "slug": "netherlands-friendly-games",
+   "category": "Netherlands Amateur",
+   "example_event": {
+    "id": 14410866,
+    "home": "FC Groningen U21",
+    "away": "VV Hoogeveen",
+    "startTimestamp": 1755019800,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 201
+  },
+  {
+   "competition_id": 27111,
+   "name": "Greece Friendly Games",
+   "slug": "greece-friendly-games",
+   "category": "Greece Amateur",
+   "example_event": {
+    "id": 14517639,
+    "home": "APS Zakynthos 1961",
+    "away": "AO Asteras Amaliadas",
+    "startTimestamp": 1755956700,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 188
+  },
+  {
+   "competition_id": 27748,
+   "name": "Bosnia & Herzegovina Friendly Games",
+   "slug": "bosnia-and-herzegovina-friendly-games",
+   "category": "Bosnia & Herzegovina Amateur",
+   "example_event": {
+    "id": 15629093,
+    "home": "FK Željezničar Banja Luka",
+    "away": "FK Crni Vrh Jaružani",
+    "startTimestamp": 1772373600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 169
+  },
+  {
+   "competition_id": 30854,
+   "name": "Sweden Friendly Games",
+   "slug": "sweden-friendly-games",
+   "category": "Sweden Amateur",
+   "example_event": {
+    "id": 15393103,
+    "home": "IK Frej Täby FF",
+    "away": "Reymersholms IK",
+    "startTimestamp": 1771182000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 117
+  },
+  {
+   "competition_id": 32053,
+   "name": "Serbia Friendly Games",
+   "slug": "serbia-friendly-games",
+   "category": "Serbia Amateur",
+   "example_event": {
+    "id": 15498722,
+    "home": "FK Hajduk Višnjićevo",
+    "away": "NK Vuteks-Sloga Vukovar",
+    "startTimestamp": 1770474600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 112
+  },
+  {
+   "competition_id": 32366,
+   "name": "Croatia Friendly Games",
+   "slug": "croatia-friendly-games",
+   "category": "Croatia Amateur",
+   "example_event": {
+    "id": 15549344,
+    "home": "NK Sesvete",
+    "away": "NK Radnik Križevci",
+    "startTimestamp": 1770469200,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 101
+  },
+  {
+   "competition_id": 858,
+   "name": "U17 Friendly Games",
+   "slug": "u17-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 13476722,
+    "home": "Kolos Kovalivka",
+    "away": "FC Telavi",
+    "startTimestamp": 1739541600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 94
+  },
+  {
+   "competition_id": 27118,
+   "name": "Germany Friendly Games",
+   "slug": "germany-friendly-games",
+   "category": "Germany Amateur",
+   "example_event": {
+    "id": 16388682,
+    "home": "SV Lauterhofen",
+    "away": "ASV Neumarkt",
+    "startTimestamp": 1782405000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 92
+  },
+  {
+   "competition_id": 31598,
+   "name": "Finland Friendly Games",
+   "slug": "finland-friendly-games",
+   "category": "Finland Amateur",
+   "example_event": {
+    "id": 15314991,
+    "home": "Paimion Haka",
+    "away": "NuPS",
+    "startTimestamp": 1768578328,
+    "homeTeam_national": false,
+    "homeTeam_gender": "F"
+   },
+   "n_events": 67
+  },
+  {
+   "competition_id": 35960,
+   "name": "England Friendly Games",
+   "slug": "england-friendly-games",
+   "category": "England Amateur",
+   "example_event": {
+    "id": 16644937,
+    "home": "Leicester St Andrews FC",
+    "away": "Grantham Town",
+    "startTimestamp": 1784988000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 60
+  },
+  {
+   "competition_id": 27113,
+   "name": "Bulgaria Friendly Games",
+   "slug": "bulgaria-friendly-games",
+   "category": "Bulgaria Amateur",
+   "example_event": {
+    "id": 14224820,
+    "home": "FK Etar Veliko Tarnovo",
+    "away": "FK Dunav Ruse",
+    "startTimestamp": 1752940800,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 58
+  },
+  {
+   "competition_id": 35633,
+   "name": "Switzerland Friendly Games",
+   "slug": "testspiel-cup",
+   "category": "Switzerland Amateur",
+   "example_event": {
+    "id": 16527325,
+    "home": "FC Biel-Bienne 1896",
+    "away": "SC Kriens",
+    "startTimestamp": 1784386800,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 41
+  },
+  {
+   "competition_id": 27159,
+   "name": "Brazil Friendly Games",
+   "slug": "brazil-friendly-games",
+   "category": "Brazil Amateur",
+   "example_event": {
+    "id": 15684219,
+    "home": "América-PE U20",
+    "away": "Sport Recife U20",
+    "startTimestamp": 1772888412,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 28
+  },
+  {
+   "competition_id": 28932,
+   "name": "Türkiye Friendly Games",
+   "slug": "turkiye-friendly-games",
+   "category": "Turkey Amateur",
+   "example_event": {
+    "id": 17100084,
+    "home": "İstinye SK",
+    "away": "Sariyer U19",
+    "startTimestamp": 1789308002,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 23
+  },
+  {
+   "competition_id": 35799,
+   "name": "Switzerland Friendly Games",
+   "slug": "switzerland-friendly-games",
+   "category": "Switzerland Amateur",
+   "example_event": {
+    "id": 16605249,
+    "home": "FC Dübendorf",
+    "away": "SV Schaffhausen",
+    "startTimestamp": 1784829642,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 21
+  },
+  {
+   "competition_id": 27138,
+   "name": "Uruguay Friendly Games",
+   "slug": "uruguay-friendly-games",
+   "category": "Uruguay Amateur",
+   "example_event": {
+    "id": 14191542,
+    "home": "Miramar Misiones",
+    "away": "Huracán Buceo",
+    "startTimestamp": 1752600600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 19
+  },
+  {
+   "competition_id": 27158,
+   "name": "Portugal Friendly Games",
+   "slug": "portugal-friendly-games",
+   "category": "Portugal Amateur",
+   "example_event": {
+    "id": 16627250,
+    "home": "CD Tondela U15",
+    "away": "AD Taboeira U15",
+    "startTimestamp": 1784973600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 17
+  },
+  {
+   "competition_id": 27793,
+   "name": "Chile Friendly Games",
+   "slug": "chile-friendly-games",
+   "category": "Chile Amateur",
+   "example_event": {
+    "id": 14356114,
+    "home": "Arturo Fernández Vial",
+    "away": "Lota Schwager",
+    "startTimestamp": 1751668200,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 17
+  },
+  {
+   "competition_id": 28527,
+   "name": "Albania Friendly Games",
+   "slug": "albania-friendly-games",
+   "category": "Albania",
+   "example_event": {
+    "id": 14407033,
+    "home": "Turan Tovuz",
+    "away": "Flamurtari FC",
+    "startTimestamp": 1754143200,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 14
+  },
+  {
+   "competition_id": 27112,
+   "name": "Montenegro Friendly Games",
+   "slug": "montenegro-friendly-games",
+   "category": "Montenegro Amateur",
+   "example_event": {
+    "id": 14270434,
+    "home": "FK Zeta Golubovci",
+    "away": "OFK Grbalj",
+    "startTimestamp": 1753286400,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 10
+  },
+  {
+   "competition_id": 35457,
+   "name": "Slovenia Friendly Games",
+   "slug": "slovenia-friendly-games",
+   "category": "Slovenia Amateur",
+   "example_event": {
+    "id": 16318966,
+    "home": "NK Jakob",
+    "away": "NK Maribor U19",
+    "startTimestamp": 1783785602,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 9
+  },
+  {
+   "competition_id": 27190,
+   "name": "Bolivia Friendly Games",
+   "slug": "bolivia-friendly-games",
+   "category": "Bolivia",
+   "example_event": {
+    "id": 14068085,
+    "home": "CD Ayacucho",
+    "away": "Deportivo Tigres FC",
+    "startTimestamp": 1746302400,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 8
+  },
+  {
+   "competition_id": 30029,
+   "name": "Azerbaijan Friendly Games",
+   "slug": "azerbaijan-friendly-games",
+   "category": "Azerbaijan",
+   "example_event": {
+    "id": 16842009,
+    "home": "Qarabağ II",
+    "away": "Zəngəzur FK",
+    "startTimestamp": 1786710240,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 2
+  },
+  {
+   "competition_id": 857,
+   "name": "U18 Friendly Games",
+   "slug": "u18-friendly-games",
+   "category": "World",
+   "example_event": {
+    "id": 16929032,
+    "home": "Spain U18",
+    "away": "Uzbekistan U17",
+    "startTimestamp": 1787817600,
+    "homeTeam_national": true,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 2
+  },
+  {
+   "competition_id": 32368,
+   "name": "Latvia Friendly Games",
+   "slug": "latvia-friendly-games",
+   "category": "Latvia",
+   "example_event": {
+    "id": 15843081,
+    "home": "FK Liepāja",
+    "away": "Dienvidkurzemes SS / LFS U19",
+    "startTimestamp": 1774776600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "F"
+   },
+   "n_events": 1
+  },
+  {
+   "competition_id": 35309,
+   "name": "Yemen Friendly Games ",
+   "slug": "yemen-friendly-games",
+   "category": "Yemen",
+   "example_event": {
+    "id": 16320704,
+    "home": "Al Hilal Hudayda FC",
+    "away": "Shabab Al Jeel FC",
+    "startTimestamp": 1781442051,
+    "homeTeam_national": false,
+    "homeTeam_gender": null
+   },
+   "n_events": 1
+  },
+  {
+   "competition_id": 27171,
+   "name": "Kuwait Friendly Games",
+   "slug": "kuwait-friendly-games",
+   "category": "Kuwait Amateur",
+   "example_event": {
+    "id": 16876631,
+    "home": "Al Kuwait SC",
+    "away": "Kazma SC",
+    "startTimestamp": 1787240708,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 1
+  },
+  {
+   "competition_id": 27122,
+   "name": "Italy Friendly Games",
+   "slug": "italy-friendly-games",
+   "category": "Italy Amateur",
+   "example_event": {
+    "id": 16870973,
+    "home": "Pompei",
+    "away": "Scafatese U19",
+    "startTimestamp": 1786176056,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 1
+  }
+ ]
+}

@@ -221,3 +221,43 @@ def test_the_ledger_records_every_variant_once_per_date(
         .splitlines()
     )
     assert len(lines) == 5
+
+
+def test_a_leg_locked_in_its_first_logged_build_is_unverifiable_not_a_defect(tmp_path):
+    """2026-09-30: two legs were locked in the first logged build (06:58Z);
+    the build that created them predates the log. Unverifiable is a note."""
+    import json as _json
+
+    from bet.sofa import sport_coupon as sc
+    from scripts.sofa.audit_variants import locked_leg_problem
+
+    leg = {k: f"v{i}" for i, k in enumerate(sc.LEG_KEY)}
+    leg.update(odds=1.28, fair_p=0.747, price_fetched_at_utc="2026-09-30T06:04:32Z",
+               kickoff_utc="2026-09-30T07:00:00Z", locked=True)
+    first = {"created_at_utc": "2026-09-30T06:58:43Z", "legs": [dict(leg)]}
+    (tmp_path / sc.BUILDS_FILE).write_text(_json.dumps(first) + "\n")
+    doc = {"created_at_utc": "2026-09-30T17:24:32Z"}
+    why = locked_leg_problem(tmp_path, doc, leg)
+    assert why is not None and why.startswith("UNVERIFIABLE")
+    # printed unlocked, well before kickoff, by a logged build: verified
+    early = dict(leg, locked=False)
+    rec = {"created_at_utc": "2026-09-30T06:00:00Z", "legs": [early]}
+    (tmp_path / sc.BUILDS_FILE).write_text(_json.dumps(rec) + "\n")
+    assert locked_leg_problem(tmp_path, doc, leg) is None
+
+
+def test_a_leg_first_locked_in_a_later_build_stays_a_defect(tmp_path):
+    import json as _json
+
+    from bet.sofa import sport_coupon as sc
+    from scripts.sofa.audit_variants import locked_leg_problem
+
+    leg = {k: f"v{i}" for i, k in enumerate(sc.LEG_KEY)}
+    leg.update(odds=1.28, fair_p=0.747, price_fetched_at_utc="2026-10-01T09:00:00Z",
+               kickoff_utc="2026-10-01T10:00:00Z", locked=True)
+    first = {"created_at_utc": "2026-10-01T06:00:00Z", "legs": []}
+    later = {"created_at_utc": "2026-10-01T09:55:00Z", "legs": [dict(leg)]}
+    (tmp_path / sc.BUILDS_FILE).write_text(
+        _json.dumps(first) + "\n" + _json.dumps(later) + "\n")
+    why = locked_leg_problem(tmp_path, {"created_at_utc": "2026-10-01T12:00:00Z"}, leg)
+    assert why is not None and not why.startswith("UNVERIFIABLE")

@@ -403,6 +403,13 @@ class Outcome:
     tiebreaks: int
     set1: tuple[int, int]
     set2: tuple[int, int]
+    # Decided by a 10-point match tiebreak, which set_games counts as a
+    # 1-0 third set. Tour and Challenger singles always play a full third
+    # set, so such a match is never a neighbour for them (T1, sofa-verifier
+    # 2026-10-01: 6.45% of best-of-3 ITF matches; 13-24 of each tour leg's
+    # 600 neighbours, and two of the day's nine singles owed their place to
+    # them).
+    match_tiebreak: bool = False
 
 
 def _outcomes(r: TennisResult, p_home: float) -> list[Outcome]:
@@ -414,9 +421,11 @@ def _outcomes(r: TennisResult, p_home: float) -> list[Outcome]:
     ga = sum(b for _, b in r.sets)
     tb = sum(1 for a, b in r.sets if (a, b) in ((7, 6), (6, 7)))
     s1, s2 = r.sets[0], r.sets[1]
+    mtb = len(r.sets) == 3 and sorted(r.sets[2]) == [0, 1]
     return [
-        Outcome(p_home, gh, ga, len(r.sets), tb, s1, s2),
-        Outcome(1.0 - p_home, ga, gh, len(r.sets), tb, (s1[1], s1[0]), (s2[1], s2[0])),
+        Outcome(p_home, gh, ga, len(r.sets), tb, s1, s2, mtb),
+        Outcome(1.0 - p_home, ga, gh, len(r.sets), tb, (s1[1], s1[0]),
+                (s2[1], s2[0]), mtb),
     ]
 
 
@@ -522,24 +531,33 @@ class TennisRatingModel:
         self.names = tuple(names)
         self._table = sorted(table, key=lambda o: o.p)
         self._keys = [o.p for o in self._table]
+        # The same table without match-tiebreak deciders, for the tiers that
+        # never play one (see Outcome.match_tiebreak).
+        self._full_third = [o for o in self._table if not o.match_tiebreak]
+        self._full_keys = [o.p for o in self._full_third]
 
     @property
     def table_size(self) -> int:
         return len(self._table)
 
-    def _neighbours(self, p: float) -> tuple[Outcome, ...]:
-        if len(self._table) < NEIGHBOURS:
+    def _neighbours(
+        self, p: float, full_third_set: bool = False
+    ) -> tuple[Outcome, ...]:
+        table, keys = (
+            (self._full_third, self._full_keys) if full_third_set
+            else (self._table, self._keys))
+        if len(table) < NEIGHBOURS:
             return ()
-        i = bisect.bisect_left(self._keys, p)
+        i = bisect.bisect_left(keys, p)
         lo, hi = i, i
         while hi - lo < NEIGHBOURS:
-            left = p - self._keys[lo - 1] if lo > 0 else math.inf
-            right = self._keys[hi] - p if hi < len(self._keys) else math.inf
+            left = p - keys[lo - 1] if lo > 0 else math.inf
+            right = keys[hi] - p if hi < len(keys) else math.inf
             if left <= right:
                 lo -= 1
             else:
                 hi += 1
-        return tuple(self._table[lo:hi])
+        return tuple(table[lo:hi])
 
     def forecast(
         self,
@@ -552,17 +570,19 @@ class TennisRatingModel:
         rh, ra = self.book.rated(home_id), self.book.rated(away_id)
         if rh < MIN_RATED or ra < MIN_RATED:
             return None
-        coefficients = self.coefficients.get(tier_group(category_name))
+        tier = tier_group(category_name)
+        coefficients = self.coefficients.get(tier)
         if coefficients is None:
             return None
+        full_third = tier != "ITF"
         feats = self.book.features(
             home_id, away_id, surface_family(ground_type), int(kickoff.timestamp())
         )
         p_home = calibrated_p(coefficients, feats, self.names)
         return MatchForecast(
             p_home=p_home,
-            neighbours_home=self._neighbours(p_home),
-            neighbours_away=self._neighbours(1.0 - p_home),
+            neighbours_home=self._neighbours(p_home, full_third),
+            neighbours_away=self._neighbours(1.0 - p_home, full_third),
             rated_home=rh,
             rated_away=ra,
         )
