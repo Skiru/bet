@@ -1,6 +1,6 @@
 ---
 name: sofa-settler
-description: Owns the settle-and-calibrate loop - the only place where one sofa day affects the next. Runs SETTLE for a finished day, reads audit_settlement (section 7c is the PDF coupon's real result, 7 and 7b are input material) and audit_day_deep (was the miss systematic or dispersion, and would today's gates still have made yesterday's bet), and decides whether to re-fit constants - which is a deliberate, separate step and must never happen mid-day. Checks the fitted_from metadata and half-match coherence of the config files before anyone trusts a sheet built on them. Use the morning after a day, before a run, or when a constant or a baseline looks wrong. Never runs today's pipeline, never builds a coupon, never recommends a stake.
+description: Owns the settle-and-calibrate loop - the only place where one sofa day affects the next. Runs SETTLE for a finished day, reads audit_settlement (section 7c is the PDF coupon's real result, 7 and 7b are input material) and audit_day_deep (was the miss systematic or dispersion, and would today's gates still have made yesterday's bet), and decides whether to re-fit constants - which is a deliberate, separate step and must never happen mid-day. Checks the fitted_from metadata and half-match coherence of the config files before anyone trusts a sheet built on them. Also grades every variant of D-1 (WARIANT 7d, the four sport coupons, WARIANT WSZYSTKIE) and writes the ledger (record_results.py); never pools them. Use the morning after a day, before a run, or when a constant or a baseline looks wrong. Never runs today's pipeline, never builds a coupon, never recommends a stake.
 tools: Bash, Read, Glob, Grep
 skills:
   - sofa-pipeline
@@ -22,8 +22,9 @@ scripts that write config, and you report. You do not hand-edit a constant.
 ## Step 1 — settle the finished day
 
 ```bash
+.venv/bin/python scripts/sofa/ensure_bridge.py      # SETTLE needs the bridge; exit 2 = the operator must act (quit an unflagged Chrome), stop
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<D-1>.done exists or the pid in daily_<D-1>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
 ```
 
@@ -45,24 +46,74 @@ counting it as a win overstates it.
 
 ## Step 1b — every variant, and the ledger
 
-Every day, after the three SETTLEs:
+Every day, after the three SETTLEs (SHADOW_SETTLE D-1 is the loop's 05:15Z
+step; before it a sport coupon's legs read PENDING - shown, exit 0 - and
+`measure:<sport>` is simply absent, not pending):
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>   # D-2 too: its legs after 00:00Z settle into D-1's file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled
 ```
+
+Exit codes of `settle_sport_coupon.py`, `settle_multi_coupon.py` and
+`record_results.py` (since 2026-09-30): **0** = graded as far as the settles
+allow - pending legs are shown in the table's `pending` column, never as an
+exit code. Pending is the normal shape of D-1: its sport-coupon legs after
+00:00Z (NHL/NBA, night CS2) settle into today's snapshot file and are graded
+at tomorrow's 05:00Z (`cs2_daily`) / 05:15Z (`shadow_daily`) morning steps -
+each loop settles D and D-1, grades both days' sport coupons and records
+both days in the ledger - and tomorrow's `--from <D-2>` closes them too.
+**1** = a `MISMATCH` (the coupon's grader and the measurement's disagree on a
+leg - a defect: name it) or an unreadable file (named in the table).
+**2** = a crash, or for `record_results.py` a missing database (nothing is
+written then).
+Before SHADOW_SETTLE / CS2_SETTLE has written `settled.json`, a sport
+coupon's legs read PENDING but `measure:<sport>` is simply absent from the
+ledger, not pending - check every `measure:*` row is there, not only the exit
+code.
 
 `record_results.py` writes one row per (date, variant) into
 `runs/sofa/ledger/results.jsonl`: official (7c), wariant (7d), each
 `sport:<sport>` coupon, `multi`, and `measure:<sport>` - Superbet's price
 against the outcome on the favourite side. It reproduces 7c / 7d exactly
 (checked on 2026-09-29: official +5.99 u = singles +3.47 + builder +2.52;
-wariant +2.83 u). Read the ledger across days, per variant, never pooled:
-that is where a sport earns or loses the right to stay on its experiment,
-and it is read at a fixed price band, the same way vetoes are.
+wariant +2.83 u). Read the ledger across days with
+`audit_ledger.py --from <d> --to <d> [--variant sport:hockey]` - one table
+per variant, never pooled: that is where a sport earns or loses the right to
+stay on its experiment. Families are stored for `sport:*`, `rule:*` and
+`measure:*` rows only (not for official / wariant); the ledger holds no price
+band, so a band comparison goes back to the settled files.
+
+Rows beside the variants, since 2026-09-30:
+- `rule:<sport>` - the price-only rule replayed on the settled day, the side
+  chosen before the outcome, at the last pre-start price (not a printed
+  price): the rule's record even on a day no coupon was built. Never pooled
+  with `sport:<sport>`.
+- `measure:<sport>` - `favourite_side` is TWO-WAY lines only, so it is
+  comparable across the 09-30 cutover; `by_shape` (two / three / exact),
+  `by_family` and `players` (player lines, which never enter
+  `favourite_side`) carry the rest.
+- every official / wariant / `sport:*` / `multi` row carries `outcomes`, a count per grade (WIN, LOSS, VOID,
+  PENDING:*, UNGRADEABLE, IN_PLAY_PRICE, NOT_GRADED:*, MISMATCH). A
+  `MISMATCH` is a grader defect, never a result.
+
+Legs an earlier build of a sport coupon printed and a later build replaced
+(`replaced_legs` in `sport_coupon.json`, every build in
+`sport_coupon_builds.jsonl`) are recorded but never graded: only the final
+build's legs are the coupon's result.
+
+The official, wariant and multi-official rows read `sofa_settled_row` in
+`data/sofa.db`, exactly as 7c / 7d do (`settle_multi_coupon.official_rows`) -
+the table `regrade_settled.py` corrects; `07_settled.json` is not. After any
+regrade, re-run `record_results.py --from <first regraded date> --to <D-1>`,
+or the ledger keeps the old grades; a regrade that turns a result into a
+PUSH / VOID replaces the row (only a run that read no data at all keeps the
+older graded row, with a `KEPT` line). With no DB file `record_results.py`
+fails (exit 2) and writes nothing.
 
 The sport coupons have no model; their loss is expected to track their
 margin. A sport coupon ahead of its margin over a handful of days is
@@ -87,8 +138,9 @@ Report the two products separately and never pool them:
 - the **PDF** path (`08_confidence.json` → `KUPON_<date>.pdf`) — +8.2% the same
   day.
 - the operator's **variant** (`08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf`,
-  section 7d; floor 0.65, confidence x odds >= 0.90) — measured -3.2% vs the
-  official -2.9% over 18-22.09 before it was added. Report its result beside the
+  section 7d; floor 0.65, confidence x odds >= 0.90, margin <= 15% since
+  2026-09-23 13:30 UTC (10.5% before — two experiments, never pooled)) —
+  measured -3.2% vs the official -2.9% over 18-22.09 with the 10.5% margin. Report its result beside the
   PDF's, including the "tylko w wariancie" line (what the variant adds), and
   never pool it with the coupon.
 
@@ -198,6 +250,13 @@ confident prediction there that verifies. `games_won_for` has 9,286 settled
 rows and not one bucket above 0.825; falling through to a pooled 0.905 produced
 twelve tennis legs at a claimed rate that market has never been observed to
 deliver.
+
+A market in `confidence.AWAITING_OWN_CURVE` (football player props, the new
+per-half / saves / throw-in / goal-kick / tackle markets, and since 2026-09-30
+the tennis per-set serve markets `TENNIS_PER_SET_SERVE`, which realised
+149/253 = 0.589 against 0.777 claimed) is refused until it has a curve of its
+own. The guard lapses by itself: installing a confidence curve that covers one
+of them silently re-admits it to the PDF - report it when that happens.
 
 ## What you report
 

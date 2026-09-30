@@ -25,7 +25,8 @@ fails, report the output and stop; never repair code.
   (football + tennis). You never read from, write to, or rebuild anything in
   `runs/sofa/<d>/`, and you never add this sport's result to the coupon's.
 - These sports have **no model**. The probability on the page is Superbet's
-  own two-way price with the margin removed (`fair_p`). Expected value at a
+  own price with the margin removed over the market's whole outcome group
+  (two sides, a 1X2, or the full exact-score set) (`fair_p`). Expected value at a
   fair price is negative by the margin, on every leg; the page prints
   `fair p x odds` below 1.00 for exactly that reason. Never describe a leg
   as value, edge or "the model likes it".
@@ -42,23 +43,26 @@ cat runs/sofa/<cs2|shadow>/daily_<d>.pid; ps -p <pid> -o command=
 tail -5 runs/sofa/<cs2|shadow>/daily_<d>.log
 ```
 
-The unattended loop (`cs2_daily.py`, `shadow_daily.py --chain`) snapshots
-prices all day and settles D-1 the next morning. **Never start a second loop
+The unattended loop (`cs2_daily.py --chain`, `shadow_daily.py --chain`) snapshots
+prices all day; the next morning it settles D and D-1, grades both days'
+sport coupons and records both days in the ledger. **Never start a second loop
 and never kill one.** If it is not running, say so in the report and go on:
 you can still build today from the snapshots on disk.
 
 D-1: does `<sport dir>/<D-1>/settled.json` exist? If not, report it; do not
 run CS2_SETTLE / SHADOW_SETTLE yourself - they need the bridge, and the loop
-or `cs2_watchdog.py` retries them. If it exists:
+or a `cs2_watchdog.py`, if one was started (`pgrep -f cs2_watchdog`), retries them. If it exists:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1> --sport <sport>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1> --sport <sport>   # D-2 too: its legs after 00:00Z settle into D-1's file
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1> --sport <sport>   # shadow sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>                    # cs2
 ```
 
-(A D-1 without `sport_coupon.json` has no experimental coupon to grade; the
-first built day is 2026-09-30.) A settled result is a fact about that day,
+(A D-1 without `sport_coupon.json` has no experimental coupon to grade; say
+so.) `settle_sport_coupon.py` exits 0 with legs still pending (read the
+`pending` column), 1 only for a `MISMATCH` (its grader and the measurement's
+disagree on a leg - a defect: report it) or an unreadable file, 2 on a crash. A settled result is a fact about that day,
 never a reason for today's choice.
 
 ## Step 2 - fresh prices (Superbet only)
@@ -68,6 +72,7 @@ older than 20 minutes, refresh:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2            # cs2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D+1> --only CS2          # cs2: night series live in D+1's file
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_shadow.py --date <d> --horizon-h 24          # shadow: all three sports at once
 ```
 
@@ -95,7 +100,10 @@ What a build does that you must not undo or work around:
   `source_date`.
 - A leg of an earlier build that has started is `locked`: kept as printed,
   counted toward the ten. Every build is appended to
-  `sport_coupon_builds.jsonl`.
+  `sport_coupon_builds.jsonl`. Legs an earlier build printed and a later one
+  replaced (`replaced_legs`) are recorded there, never graded: only the final
+  build's legs are the coupon's result - say so if the operator may have
+  seen an earlier PDF.
 - A rebuild re-prices every unlocked leg from the newest snapshot, so it can
   print legs you have not read: after any rebuild, read the new ones.
 - `tie_at_cut: true` marks legs that tied with the first one left out; the
@@ -144,15 +152,16 @@ under "Weta" and not among the legs.
 The orchestrator assembles WARIANT WSZYSTKIE from your coupon verbatim
 (`run_multi_coupon.py`) and checks it with `audit_variants.py`, which replays
 your selection from the snapshots and recomputes every price and devig. A
-vetoes.json you write after that assembly makes it stale - say so in the
+veto written after the assembly requires a rebuild (Step 3), and that
+rebuild makes WARIANT WSZYSTKIE stale (audit_variants M2) - say so in the
 report when it happens, so the variant is re-assembled.
 
 ## Step 5 - report
 
 Back to the orchestrator, in English, short:
 
-1. Loop state and D-1: settled or not; D-1 experimental coupon graded (it
-   will not exist before 2026-10-01); one line from the audit.
+1. Loop state and D-1: settled or not; D-1 experimental coupon graded (or
+   that D-1 had none); one line from the audit.
 2. Snapshot freshness at build time; whether you refreshed.
 3. The PDF path and its md5; number of legs; drop counts.
 4. Each leg: start (Warsaw), match, label, odds, fair_p, margin.

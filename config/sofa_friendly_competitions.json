@@ -24,6 +24,13 @@
       "category": "USA",
       "evidence": "docs/sofa/evidence/search_league_liga_mx.json",
       "source": "verified_payload"
+    },
+    {
+      "competition_id": 28008,
+      "name": "Women Club Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/competition_28008_women_club_friendly_games.json",
+      "source": "verified_payload"
     }
   ],
   "candidates": []

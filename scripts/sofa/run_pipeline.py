@@ -78,7 +78,8 @@ STAGE_MODULES: dict[str, str] = {
     "CS2": "scripts.sofa.run_cs2",
     "CS2_SETTLE": "scripts.sofa.settle_cs2",
     # The same shadow measurement for ice hockey, basketball and volleyball
-    # (src/bet/sofa/shadow.py): SHADOW snapshots Superbet's two-way lines,
+    # (src/bet/sofa/shadow.py): SHADOW snapshots Superbet's lines (two-way,
+    # and whole 1X2 / odd-even / exact-score groups since 2026-09-30),
     # SHADOW_SETTLE grades D-1's against Sofascore scores. Outside the
     # sequence and outside the day's directory for CS2's reason.
     "SHADOW": "scripts.sofa.run_shadow",

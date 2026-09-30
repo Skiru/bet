@@ -118,7 +118,7 @@ like a veto that was honoured.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
-# the operator's variant (0.65 / price up to 10% below fair), beside the coupon, never instead of it
+# the operator's variant (floor 0.65, confidence x odds >= 0.90, margin <= 15%), beside the coupon, never instead of it
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
@@ -134,6 +134,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
 A sport coupon older than 6 h is excluded from it (exit 1, reason printed):
 rebuild that sport with a `sofa-sport-runner` first if the operator wants it
 on the page.
+
+Only while the day's window is open: after 06:00 Warsaw on D+1 the variant
+is final and `run_multi_coupon.py` refuses (exit 2) - skip it and say so.
 
 Both COUPON and CONFIDENCE read `vetoes.json`, so both must be re-run after a
 veto changes — rebuilding only the singles leaves the vetoed rung standing as a
@@ -152,7 +155,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
 ```
 
 Then hand it to `sofa-verifier` unless the operator explicitly asked for a bare
-rebuild.
+rebuild, and name `KUPON_<date>_WARIANT.pdf` in the verifier's prompt
+(`audit_variants` C1/C2 checks its structure and rule; only the verifier
+re-derives its legs).
 
 ## Report back
 

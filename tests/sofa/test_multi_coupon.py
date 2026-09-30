@@ -391,6 +391,38 @@ def test_sport_coupon_json_names_its_pdf_by_hash(
 # --- settling -------------------------------------------------------------------------
 
 
+def write_db(root: Path, rows: list[dict[str, Any]], date: str = DATE) -> str:
+    """The rows where 7c reads them: sofa_settled_row in the database - not
+    07_settled.json, which regrade_settled.py does not correct."""
+    import sqlite3
+
+    db = root / "sofa.db"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS sofa_settled_row (run_date TEXT, "
+        "sofascore_event_id INTEGER, market TEXT, subject TEXT, line REAL, "
+        "direction TEXT, outcome TEXT)"
+    )
+    conn.executemany(
+        "INSERT INTO sofa_settled_row VALUES (?,?,?,?,?,?,?)",
+        [
+            (
+                date,
+                r["sofascore_event_id"],
+                r["market"],
+                r["subject"],
+                r["line"],
+                r["direction"],
+                r["outcome"],
+            )
+            for r in rows
+        ],
+    )
+    conn.commit()
+    conn.close()
+    return str(db)
+
+
 def settled_row(
     eid: int, market: str, outcome: str, line: float = 7.5, direction: str = "OVER"
 ) -> dict[str, Any]:
@@ -416,7 +448,11 @@ def test_settlement_matches_7c_and_the_sport_coupons_and_adds_up(
         settled_row(3, "corners_total", "WIN"),
         settled_row(3, "goals_total", "WIN", 3.5, "UNDER"),
     ]
-    (run_dir / "07_settled.json").write_text(json.dumps(rows), encoding="utf-8")
+    db = write_db(tmp_path, rows)
+    # 07_settled.json disagrees on purpose: the DB is what counts (as in 7c)
+    (run_dir / "07_settled.json").write_text(
+        json.dumps([{**r, "outcome": "LOSS"} for r in rows]), encoding="utf-8"
+    )
     hockey = sc.day_dir(str(tmp_path), "hockey", DATE)
     game = {
         "state": "SETTLED",
@@ -430,7 +466,7 @@ def test_settlement_matches_7c_and_the_sport_coupons_and_adds_up(
     (hockey / "settled.json").write_text(
         json.dumps({"events": {"11": game}}), encoding="utf-8"
     )
-    res = settle_multi_coupon.settle_day(str(tmp_path), DATE)
+    res = settle_multi_coupon.settle_day(str(tmp_path), DATE, db)
     assert res is not None
     off = res["sections"]["official"]
     # the same answer as audit_settlement 7c on the same rows
@@ -464,7 +500,38 @@ def test_an_excluded_section_settles_to_nothing(
 ) -> None:
     write_official(tmp_path, [official_single(1, "corners_total", 1.3, 0.77)])
     run(monkeypatch, tmp_path, AT)
-    res = settle_multi_coupon.settle_day(str(tmp_path), DATE)
+    # a database with nothing for the day: SETTLE has not run yet
+    res = settle_multi_coupon.settle_day(str(tmp_path), DATE, write_db(tmp_path, []))
     assert res is not None
     assert res["sections"]["cs2"]["status"] == "EXCLUDED"
+    # nothing settled at all: the official single is waiting, not lost
+    assert res["sections"]["official"]["rows"][0]["outcome"] == "PENDING"
     assert res["variant_total"]["positions"] == 1
+
+
+def test_build_sports_builds_every_coupon_first_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.sofa.test_sport_coupon import snap, total_pair, write_snaps
+
+    write_official(tmp_path, [official_single(1, "corners_total", 1.3, 0.77)])
+    write_snaps(
+        tmp_path,
+        "hockey",
+        DATE,
+        [snap("9", total_pair("9", 1.20, 4.20), AT - timedelta(minutes=5))],
+    )
+    # three sports have no snapshots: their coupons are empty, which is a
+    # legitimate section, not an excluded one
+    assert run(monkeypatch, tmp_path, AT, "--build-sports") == 0
+    doc = json.loads(
+        (mc.multi_dir(str(tmp_path), DATE) / mc.MULTI_FILE).read_text(encoding="utf-8")
+    )
+    assert doc["sports_built_unreviewed"] is True and doc["sport_build_errors"] == {}
+    assert doc["sections"]["hockey"]["status"] == "OK"
+    assert [
+        p["source"]["superbet_event_id"] for p in doc["sections"]["hockey"]["singles"]
+    ] == ["9"]
+    # the sports with no snapshots still got a (legless) coupon of their own
+    assert doc["sections"]["cs2"]["status"] == "OK"
+    assert doc["sections"]["cs2"]["singles"] == []

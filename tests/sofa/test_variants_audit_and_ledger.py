@@ -17,7 +17,7 @@ from scripts.sofa import (
     run_multi_coupon,
     run_sport_coupon,
 )
-from tests.sofa.test_multi_coupon import official_single, write_official
+from tests.sofa.test_multi_coupon import official_single, write_db, write_official
 from tests.sofa.test_sport_coupon import snap, total_pair, write_snaps
 
 DATE = "2026-09-30"
@@ -124,7 +124,8 @@ def test_a_vetoed_leg_on_the_page_is_s4(
         json.dumps({"vetoes": [{"superbet_event_id": eid}]}), encoding="utf-8"
     )
     got = findings(tmp_path)
-    assert any(f.startswith("S4") and "vetoed" in f for f in got)
+    # a veto written after the build: the coupon must be rebuilt
+    assert any(f.startswith("S4") and "changed after the build" in f for f in got)
 
 
 def test_a_source_rebuilt_after_the_variant_makes_it_stale_m2(
@@ -152,21 +153,18 @@ def test_the_ledger_records_every_variant_once_per_date(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     d = built_day(tmp_path, monkeypatch)
-    run_dir = tmp_path / DATE
-    (run_dir / "07_settled.json").write_text(
-        json.dumps(
-            [
-                {
-                    "sofascore_event_id": 1,
-                    "market": "corners_total",
-                    "subject": "",
-                    "line": 7.5,
-                    "direction": "OVER",
-                    "outcome": "WIN",
-                }
-            ]
-        ),
-        encoding="utf-8",
+    db = write_db(
+        tmp_path,
+        [
+            {
+                "sofascore_event_id": 1,
+                "market": "corners_total",
+                "subject": "",
+                "line": 7.5,
+                "direction": "OVER",
+                "outcome": "WIN",
+            }
+        ],
     )
     doc = json.loads((d / sc.COUPON_FILE).read_text(encoding="utf-8"))
     events = {
@@ -201,19 +199,25 @@ def test_the_ledger_records_every_variant_once_per_date(
         for leg in doc["legs"]
     }
     (d / "settled.json").write_text(json.dumps({"events": events}), encoding="utf-8")
-    rows = record_results.record(str(tmp_path), DATE)
+    rows = record_results.record(str(tmp_path), DATE, db)
     by = {r["variant"]: r for r in rows}
-    assert set(by) == {"official", "sport:hockey", "multi", "measure:hockey"}
+    assert set(by) == {
+        "official",
+        "sport:hockey",
+        "multi",
+        "measure:hockey",
+        "rule:hockey",
+    }
     assert by["official"]["total"]["won"] == 1
     assert by["sport:hockey"]["total"]["won"] == 3
     assert by["multi"]["total"]["units"] == pytest.approx(
         by["official"]["total"]["units"] + by["sport:hockey"]["total"]["units"]
     )
     assert by["measure:hockey"]["favourite_side"]["sides"] == 3
-    record_results.record(str(tmp_path), DATE)  # idempotent
+    record_results.record(str(tmp_path), DATE, db)  # idempotent
     lines = (
         record_results.ledger_path(str(tmp_path))
         .read_text(encoding="utf-8")
         .splitlines()
     )
-    assert len(lines) == 4
+    assert len(lines) == 5

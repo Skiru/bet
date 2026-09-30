@@ -28,8 +28,14 @@ has audited the wrong file:
    (`surplus / required_odds`). Measured **−20.4%** on 2026-09-20. Structurally
    anti-selective: surplus grows as `p` is overstated, so the rows most likely
    to be wrong are the ones most likely to be picked.
-2. **`08_confidence.json` → `KUPON_<date>.pdf`** — the Bet Builders the
-   operator actually stakes. **+8.2%** the same day.
+2. **`08_confidence.json` → `KUPON_<date>.pdf`** — the printed singles and
+   the Bet Builders the operator stakes. **+8.2%** the same day.
+
+Beside them, `08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf` is the
+operator's variant (not the coupon): it prints every single at floor 0.65 and
+reads the same `vetoes.json`. A leg only there is still a position the
+operator may take — read it, at lower priority than the official legs, and
+say which you did not reach.
 
 Cover both. A read that grades the singles and ignores the PDF describes a day
 that was never staked — which has happened, and produced an "analysis" that
@@ -87,6 +93,7 @@ runs/sofa/<date>/06_coupon.json       the singles selected
 runs/sofa/<date>/06_dropped.json      every VALUE row that was NOT selected, with a reason
 runs/sofa/<date>/08_confidence.json   the legs and the builders — the product
 runs/sofa/<date>/KUPON_<date>.pdf     what is staked
+runs/sofa/<date>/08_confidence_wariant.json   the operator's variant (every single at 0.65) — NOT the coupon, read after the product
 ```
 
 Filter by `row.sport` / `fixture.sport`. **Count the day's VALUE yourself** —

@@ -12,9 +12,11 @@ Per sport:
 2. price      - per market family and overall, on the FAVOURITE side of
                 every line: games, lines, the mean devigged price, the hit
                 rate, their gap, Brier, flat ROI, the median margin
-2b. direction - the same on a FIXED side: OVER of every total, Superbet's
-                first-named team (T1) of everything else - a lean toward
-                overs or toward the first-named side shows here
+2b. direction - the same on a FIXED side: OVER of every total, ODD of a
+                parity, YES of a yes/no, Superbet's first-named team (T1) of
+                everything else - a lean toward overs or toward the
+                first-named side shows here (an exact score has no fixed
+                side: its row there means nothing)
 3. by price   - every graded side, favourites (fair p >= 0.5) against
                 underdogs
 4. overtime   - favourite sides, games that went to overtime against not
@@ -22,9 +24,10 @@ Per sport:
                 older ones (an event whose late fetches came back empty keeps
                 an earlier price; this is where that shows)
 
-Both sides of a line are graded or neither, their fair p sum to one and one of
-them wins - so pooled, the mean fair p and the hit rate are 0.500 whatever the
-price is worth. Sections 2, 2b, 4 and 5 therefore keep one side per line
+All sides of a line are graded or none, their fair p sum to one and one of
+them wins - so pooled, the mean fair p and the hit rate are 0.500 for a pair
+(1/3 for a 1X2, 1/k for an exact score) whatever the price is worth.
+Sections 2, 2b, 4 and 5 therefore keep one side per line
 (`cs2.one_side_per_line`); the gap between the price and the hit rate there,
 and whether it survives the splits, is the measurement. Lines of one game are
 correlated - read `games`, not only `sides`. Nothing here is a bet list.
@@ -195,7 +198,7 @@ def render_sport(sport: SportKey, events: list[dict[str, Any]]) -> list[str]:
         return [*out, "no graded lines yet"]
     fav_side = one_side_per_line(rows, "favourite")
     out += _family_table(fav_side)
-    out += ["", "### 2b. fixed side: OVER of a total, T1 otherwise", ""]
+    out += ["", "### 2b. fixed side: OVER / ODD / YES, T1 otherwise", ""]
     out += _family_table(one_side_per_line(rows, "fixed"))
 
     out += ["", "### 3. by price", ""]

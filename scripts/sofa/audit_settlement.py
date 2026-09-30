@@ -108,6 +108,49 @@ def _load_settled(db_path: str, run_date: str) -> list[dict[str, Any]]:
         conn.close()
 
 
+def _load_settled_elsewhere(
+    db_path: str, run_date: str, event_ids: set[int]
+) -> list[dict[str, Any]]:
+    """Settled rows of these events filed under ANOTHER run_date.
+
+    sofa_settled_row is unique on (event, market, subject, line, direction)
+    across all dates, and SETTLE never moves a row: a rung that was on two
+    days' sheets is filed under the day that settled it first. Read by
+    run_date alone, it is missing from the other day - on 2026-09-24 eleven
+    WARIANT legs read "unsettled" although their row sat under 09-25. The key
+    names the match, so a row found this way is that leg's grade.
+    """
+    if not event_ids:
+        return []
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        ids = sorted(event_ids)
+        out: list[dict[str, Any]] = []
+        for i in range(0, len(ids), 500):
+            chunk = ids[i : i + 500]
+            marks = ",".join("?" * len(chunk))
+            out += [dict(r) for r in conn.execute(
+                "SELECT * FROM sofa_settled_row WHERE run_date != ? "
+                f"AND sofascore_event_id IN ({marks})",
+                (run_date, *chunk),
+            )]
+        return out
+    finally:
+        conn.close()
+
+
+def settled_by_key(
+    db_path: str, run_date: str, event_ids: set[int]
+) -> dict[Key, dict[str, Any]]:
+    """The day's settled rows by key, completed with the same keys filed
+    under another date (the day's own row wins)."""
+    elsewhere = _load_settled_elsewhere(db_path, run_date, event_ids)
+    by_key = {_key(r): r for r in elsewhere}
+    by_key.update({_key(r): r for r in _load_settled(db_path, run_date)})
+    return by_key
+
+
 def _settled_artifact_loader(
     runs_dir: Path,
 ) -> Callable[[str], list[dict[str, Any]]]:
@@ -308,7 +351,9 @@ def main() -> int:
     settled_artifact = json.loads(settled_path.read_text()) if settled_path.exists() else []
 
     settled_db = _load_settled(config.db_path, args.date)
-    by_key = {_key(r): r for r in settled_db}
+    by_key = settled_by_key(
+        config.db_path, args.date, {int(r["sofascore_event_id"]) for r in sheet}
+    )
 
     fixture_by_id = {f["sofascore_event_id"]: f for f in fixtures}
     sheet_by_key = {_key(r): r for r in sheet}

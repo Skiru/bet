@@ -59,17 +59,18 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE # grade D-1's CS2 lines (bridge)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180    # CS2 history (results only; bridge)
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> >> runs/sofa/cs2/daily_<d>.log 2>&1 &   # the whole CS2 day, unattended; a second loop for the date refuses
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> --chain >> runs/sofa/cs2/daily_<d>.log 2>&1 &   # the whole CS2 day, unattended; morning settles D and D-1, grades their CS2 coupons, records both; --chain starts D+1 at 23:30Z; a second loop for the date refuses
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW          # hockey/basketball/volleyball price snapshot, not the coupon
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE # grade D-1's shadow lines (bridge)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # the whole shadow day, unattended; --chain starts D+1 after the 05:15Z settle
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # the whole shadow day, unattended; morning settles D and D-1, grades their sport coupons, records both; --chain starts D+1 after the 05:15Z settle
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport {cs2|hockey|basketball|volleyball|all}   # experimental per-sport coupon, beside the measurement
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <d> --to <d> [--sport hockey]   # grade it at the printed price (after CS2_SETTLE / SHADOW_SETTLE)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>        # WARIANT WSZYSTKIE: the official PDF + four sport coupons, verbatim, runs/sofa/multi/<d>/
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>          # re-derive the sport coupons from raw snapshots; WSZYSTKIE vs its sources
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>        # ledger: every variant + measurement, runs/sofa/ledger/results.jsonl
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>   # ledger: every variant + rule + measurement, runs/sofa/ledger/results.jsonl; D-2 too (legs after 00:00Z grade a day late)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # read the ledger: one table per variant, never pooled
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
@@ -102,7 +103,8 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   and `75` is e-football - neither is a real sport; never add them.
 - **Hockey, basketball and volleyball are a measurement too** (since
   2026-09-29): `SHADOW` / `SHADOW_SETTLE` write only
-  `runs/sofa/shadow/<sport>/<date>/`, grade Superbet's two-way lines against
+  `runs/sofa/shadow/<sport>/<date>/`, grade Superbet's lines (two-way, and
+  since 2026-09-30 1X2 / odd-even / yes-no / exact score as whole groups) against
   Sofascore's score, and never feed or gate the coupon. Superbet `157`
   (e-hockey) and `70` (e-basketball) are simulations - never add them.
 - **The per-sport experimental coupons are not the coupon** (since
@@ -122,8 +124,15 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   Any rebuild of a source makes it stale (`audit_variants.py` M2), so it is
   re-assembled after every rebuild. Its result is its own.
 - **Every day records every variant** (`record_results.py`, the ledger). It
-  reproduces 7c / 7d exactly and is the only place results across days are
-  read - per variant, never pooled.
+  reproduces 7c / 7d exactly - it reads `sofa_settled_row` in the DB like 7c,
+  so re-run it after any `regrade_settled.py` - and is the one place every
+  variant's result is recorded side by side - read per variant, never pooled
+  (`audit_ledger.py`). Its exit is 0 with legs merely pending (they are shown),
+  1 only for a `MISMATCH` (two graders disagree on a leg - a defect) or an
+  unreadable file, 2 for a crash or a missing DB; `settle_sport_coupon.py` and
+  `settle_multi_coupon.py` exit the same way. A daily loop reads its plan when
+  it starts, so a loop started before a code change keeps its old morning
+  steps until it ends.
 - **Never print a combined / Bet Builder / parlay price** outside what
   `confidence.py` computed, and never present `odds_if_product` as a price —
   Superbet does not price a slip as the product of its legs (measured markup

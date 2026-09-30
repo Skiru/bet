@@ -22,8 +22,12 @@ and, not bets but the evidence under the price-only rule:
                      against its devigged probability, Brier and flat ROI
 
 A variant whose artifact does not exist that day is absent, not a zero.
-Offline. Exit 0 when every present variant is fully settled, 1 when some
-position is still pending.
+Also `rule:<sport>` - the price-only rule replayed on the day, chosen before
+the outcome - so the rule has a record even on a day no coupon was built.
+
+Offline. Exit 0 = recorded (pending legs are shown, not failed); 1 = a
+MISMATCH: the coupon's grader and the measurement's disagree on a leg; 2 = a
+crash or a missing database (nothing is written then).
 """
 
 from __future__ import annotations
@@ -53,6 +57,10 @@ from scripts.sofa import settle_multi_coupon, settle_sport_coupon  # noqa: E402
 
 LEDGER_DIR = "ledger"
 LEDGER_FILE = "results.jsonl"
+# SETTLE's final event states; anything else is asked again.
+FINAL_STATES = frozenset(
+    {"SETTLED", "VOID", "UNUSUAL", "GAVE_UP", "NO_PRE_START_PRICE"}
+)
 
 
 def ledger_path(runs_dir: str) -> Path:
@@ -63,19 +71,24 @@ def _pending(rows: list[dict[str, Any]]) -> int:
     return sum(1 for r in rows if settle_sport_coupon.is_pending(str(r["outcome"])))
 
 
-def confidence_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
+def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
     out = []
-    rows, screen = settle_multi_coupon.official_rows(runs_dir, date)
     for variant, profile in (("official", "standard"), ("wariant", "wariant")):
         path = mc.official_dir(runs_dir, date) / confidence_artifact(PROFILES[profile])
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
+        ids = {int(x["sofascore_event_id"]) for x in printed_singles(doc)}
+        ids |= {int(x["sofascore_event_id"]) for x in printed_builders(doc)}
+        rows, screen = settle_multi_coupon.official_rows(
+            runs_dir, date, db_path, profile, ids
+        )
         singles, builders = settle_multi_coupon.grade_confidence_positions(
             [{"source": s} for s in printed_singles(doc)],
             [{"source": b} for b in printed_builders(doc)],
             rows,
             screen,
+            settle_ran=settle_multi_coupon.ran_on(rows, date),
         )
         out.append(
             {
@@ -85,7 +98,8 @@ def confidence_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
                 "builders": mc.summarize_units(builders),
                 "total": mc.summarize_units(singles + builders),
                 "pending": _pending(singles + builders),
-                "settled_rows_on_disk": len(rows),
+                "outcomes": _outcomes(singles + builders),
+                "settled_rows_in_db": len(rows),
             }
         )
     return out
@@ -107,13 +121,14 @@ def sport_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
                     for fam in sorted({g["family"] for g in graded})
                 },
                 "pending": _pending(graded),
+                "outcomes": _outcomes(graded),
             }
         )
     return out
 
 
-def multi_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
-    res = settle_multi_coupon.settle_day(runs_dir, date)
+def multi_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
+    res = settle_multi_coupon.settle_day(runs_dir, date, db_path)
     if res is None:
         return []
     sections = {}
@@ -131,11 +146,43 @@ def multi_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
             "total": res["variant_total"],
             "sections": sections,
             "pending": _pending(rows),
+            "outcomes": _outcomes(rows),
         }
     ]
 
 
+def _favourite(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Price against outcome on the favourite side of every line."""
+    stats = summarize(one_side_per_line(rows, "favourite"), "ALL")
+    if stats is None:
+        return None
+    return {
+        "events": stats.events,
+        "sides": stats.sides,
+        "mean_fair_p": round(stats.fair_p, 4),
+        "hit": round(stats.hit, 4),
+        "gap_pp": round(100 * (stats.hit - stats.fair_p), 2),
+        "brier": round(stats.brier, 4),
+        "roi": round(stats.roi, 4),
+        "median_margin": round(stats.margin, 4),
+    }
+
+
+def _shape(row: dict[str, Any]) -> str:
+    if "partner_odds" in row:
+        return "two"
+    sides = set((row.get("group_odds") or {}).keys())
+    return "three" if "DRAW" in sides else "exact"
+
+
 def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
+    """The price against the outcome, per sport.
+
+    `favourite_side` is the TWO-WAY lines only, the series every day before
+    2026-09-30 measured, so it stays comparable across the cutover; 1X2 and
+    exact-score groups (favourites at 0.26-0.5) are in `by_shape`, every
+    family in `by_family`, and player lines apart in `players`.
+    """
     out = []
     for sport in sc.SPORT_KEYS:
         doc = sc.load_settled(runs_dir, sport, date)
@@ -145,10 +192,9 @@ def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
             r
             for ev in (doc.get("events") or {}).values()
             for r in ev.get("graded") or []
-            if not str(r.get("family", "")).startswith("player_")
         ]
-        fav = one_side_per_line(graded, "favourite")
-        stats = summarize(fav, "ALL")
+        team = [r for r in graded if not str(r.get("family", "")).startswith("player_")]
+        players = [r for r in graded if str(r.get("family", "")).startswith("player_")]
         states: dict[str, int] = {}
         for ev in (doc.get("events") or {}).values():
             states[str(ev.get("state"))] = states.get(str(ev.get("state")), 0) + 1
@@ -157,32 +203,103 @@ def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
                 "date": date,
                 "variant": f"measure:{sport}",
                 "events": states,
-                "favourite_side": None
-                if stats is None
-                else {
-                    "events": stats.events,
-                    "sides": stats.sides,
-                    "mean_fair_p": round(stats.fair_p, 4),
-                    "hit": round(stats.hit, 4),
-                    "gap_pp": round(100 * (stats.hit - stats.fair_p), 2),
-                    "brier": round(stats.brier, 4),
-                    "roi": round(stats.roi, 4),
-                    "median_margin": round(stats.margin, 4),
+                "favourite_side": _favourite([r for r in team if _shape(r) == "two"]),
+                "by_shape": {
+                    shape: _favourite([r for r in team if _shape(r) == shape])
+                    for shape in ("two", "three", "exact")
+                    if any(_shape(r) == shape for r in team)
                 },
+                "by_family": {
+                    fam: _favourite([r for r in team if r.get("family") == fam])
+                    for fam in sorted({str(r.get("family")) for r in team})
+                },
+                "players": _favourite(players),
+                # events SETTLE would ask again (RETRYABLE); most never settle
+                # (not on Sofascore), and the loops re-settle only D and D-1,
+                # so they are reported, never counted as pending
+                "retryable": sum(
+                    n for st, n in states.items() if st not in FINAL_STATES
+                ),
                 "pending": 0,
             }
         )
     return out
 
 
-def record(runs_dir: str, date: str) -> list[dict[str, Any]]:
+def rule_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
+    """What the price-only rule would have done on the day, one side per
+    event chosen before the outcome (sport_coupon.rule_history) - recorded
+    every settled day, whether or not a coupon was built."""
+    out = []
+    for sport in sc.SPORT_KEYS:
+        if sc.load_settled(runs_dir, sport, date) is None:
+            continue
+        h = sc.rule_history(runs_dir, sport, [date], sc.Rule())
+        n = int(h.get("n", 0))
+        wins = int(h.get("wins", 0))
+        other = int(h.get("void", 0)) + int(h.get("ungradeable", 0))
+        out.append(
+            {
+                "date": date,
+                "variant": f"rule:{sport}",
+                "graded_at": "last pre-start price",
+                "total": {
+                    "positions": n + other,
+                    "settled": n,
+                    "won": wins,
+                    "lost": n - wins,
+                    "not_counted": other,
+                    "units": round(float(h.get("roi", 0.0)) * n, 4),
+                    "roi": h.get("roi") if n else None,
+                },
+                "by_family": h.get("by_family", {}),
+                "pending": 0,
+            }
+        )
+    return out
+
+
+def _outcomes(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for r in rows:
+        key = str(r["outcome"]).split(":")[0]
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _read_nothing(row: dict[str, Any]) -> bool:
+    if "settled_rows_in_db" in row:
+        return int(row["settled_rows_in_db"]) == 0
+    if "favourite_side" in row:
+        return row["favourite_side"] is None and not row.get("by_shape")
+    outcomes = row.get("outcomes")
+    if outcomes is not None:
+        return set(outcomes) <= {"PENDING"}
+    return _settled(row) == 0
+
+
+def _settled(row: dict[str, Any]) -> int:
+    total = row.get("total") or {}
+    fav = row.get("favourite_side") or {}
+    return int(total.get("settled") or fav.get("sides") or 0)
+
+
+def record(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
     rows = (
-        confidence_rows(runs_dir, date)
+        confidence_rows(runs_dir, date, db_path)
         + sport_rows(runs_dir, date)
-        + multi_rows(runs_dir, date)
+        + multi_rows(runs_dir, date, db_path)
         + measure_rows(runs_dir, date)
+        + rule_rows(runs_dir, date)
     )
     path = ledger_path(runs_dir)
+    with sc.dir_lock(path.parent):
+        return _merge(path, date, rows)
+
+
+def _merge(path: Path, date: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Replace `date`'s rows in the ledger (under the caller's lock: the
+    05:15Z loop and a /sofa-day run may both record the same day)."""
     kept = []
     if path.exists():
         kept = [
@@ -190,7 +307,21 @@ def record(runs_dir: str, date: str) -> list[dict[str, Any]]:
             for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+        old = {r["variant"]: r for r in kept if r.get("date") == date}
         kept = [r for r in kept if r.get("date") != date]
+        for i, r in enumerate(rows):
+            before = old.get(r["variant"])
+            if before is not None and _settled(before) > 0 and _read_nothing(r):
+                # a run that read no data (no settled rows for the day, a
+                # settled.json not written yet) never replaces a graded row;
+                # one that read data does - a regrade to PUSH, a MISMATCH or
+                # an in-play price may lower the count, and that is the truth
+                print(
+                    f"KEPT  {date} {r['variant']}: the ledger has "
+                    f"{_settled(before)} settled, this run {_settled(r)}",
+                    file=sys.stderr,
+                )
+                rows[i] = before
     merged = sorted(kept + rows, key=lambda r: (r["date"], r["variant"]))
     write_atomic(
         path, "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in merged)
@@ -198,7 +329,7 @@ def record(runs_dir: str, date: str) -> list[dict[str, Any]]:
     return rows
 
 
-def main() -> int:
+def _main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--date")
     parser.add_argument("--from", dest="start")
@@ -210,32 +341,62 @@ def main() -> int:
         dates = settle_sport_coupon.days(args.start, args.end)
     else:
         parser.error("--date, or --from and --to")
-    runs_dir = SofaConfig.from_env().runs_dir
-    pending = 0
+    config = SofaConfig.from_env()
+    runs_dir = config.runs_dir
+    pending = mismatches = 0
     print(
         "| date | variant | positions | settled | won | lost | units | ROI | pending |"
     )
     print("|---|---|---|---|---|---|---|---|---|")
+    measures = []
     for date in dates:
-        for r in record(runs_dir, date):
+        for r in record(runs_dir, date, config.db_path):
             pending += r["pending"]
-            t = r.get("total")
-            if t is None:
-                f = r.get("favourite_side") or {}
-                print(
-                    f"| {date} | {r['variant']} | {f.get('sides', 0)} sides | | "
-                    f"hit {f.get('hit', '-')} | fair {f.get('mean_fair_p', '-')} | | "
-                    f"{f.get('roi', '-')} | |"
-                )
+            mismatches += int((r.get("outcomes") or {}).get("MISMATCH", 0))
+            if r["variant"].startswith("measure:"):
+                measures.append(r)
                 continue
+            t = r["total"]
             roi = "-" if t["roi"] is None else f"{t['roi']:+.1%}"
             print(
                 f"| {date} | {r['variant']} | {t['positions']} | {t['settled']} | "
                 f"{t['won']} | {t['lost']} | {t['units']:+.2f} | {roi} | "
                 f"{r['pending']} |"
             )
+    if measures:
+        print(
+            "\n| date | measurement (two-way, favourite side) | sides | fair p "
+            "| hit | gap pp | ROI | retryable events |"
+        )
+        print("|---|---|---|---|---|---|---|---|")
+        for r in measures:
+            f = r.get("favourite_side") or {}
+            roi = "-" if f.get("roi") is None else f"{f['roi']:+.1%}"
+            print(
+                f"| {r['date']} | {r['variant']} | {f.get('sides', 0)} | "
+                f"{f.get('mean_fair_p', '-')} | {f.get('hit', '-')} | "
+                f"{f.get('gap_pp', '-')} | {roi} | {r['retryable']} |"
+            )
+    if mismatches:
+        print(
+            f"\nMISMATCH: {mismatches} position(s) - two graders disagree; one "
+            "of them is wrong, and neither result is counted"
+        )
     print(f"\nledger: {ledger_path(runs_dir)}")
-    return 1 if pending else 0
+    # 1 only for a defect (two graders disagreeing); a pending leg is the
+    # normal state of yesterday's night games and is shown, not failed
+    return 1 if mismatches else 0
+
+
+def main() -> int:
+    """An unexpected crash is FAILED (2), never read as "pending" (1)."""
+    try:
+        return _main()
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

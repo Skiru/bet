@@ -135,6 +135,14 @@ Per fixture: `readiness: READY | PARTIAL | BLOCKED`, `metrics{}` and `gaps[]`.
 Observations carry `sofascore_event_id`, `match_date_utc`, `opponent`, `value`,
 `competition_id`, `season_id`, `venue`.
 
+Football friendlies are dropped here by `uniqueTournament.id` from
+`config/sofa_friendly_competitions.json`: 853 Club Friendly Games, 1794 MLS
+All Star Game, and 28008 Women Club Friendly Games since 2026-09-30. SAMPLES'
+`SOFA_SUMMARY` carries `friendly_competitions_excluded` (3 now). Only SAMPLES
+applies it: a sheet built from samples taken before an id was added still
+counts those matches (look for the id in the observations' `competition_id`),
+and `/sofa-rebuild` does not fix that.
+
 `GapReason` vocabulary: `NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`,
 `NO_MATCHING_EVENT`, `EVENT_NOT_FINISHED`, `NO_STATISTICS`, `NO_INCIDENTS`,
 `STAT_KEY_ABSENT`, `ALL_ZERO_SAMPLE`, `OUTSIDE_MODEL_RESOLUTION`,
@@ -257,7 +265,12 @@ refused rather than served the model's own number. **A market with its own
 curve may not borrow the pooled curve above the top of its own measured
 range** — silence above a market's ceiling is evidence, not a gap. The sport's
 own pool (`pooled:tennis`) is tried before the global one, because the global
-pool is almost entirely football counts.
+pool is almost entirely football counts. A market in
+`confidence.AWAITING_OWN_CURVE` (football player props, the new per-half /
+saves / throw-in / goal-kick / tackle markets, tennis per-set serve markets
+`TENNIS_PER_SET_SERVE` and full-match serve points `TENNIS_SERVE_POINTS`
+since 2026-09-30) never borrows a pool: without its own
+curve it is `NOT_CALIBRATED`.
 
 Empirical-frequency metrics (`sets_total`, `games_won_for`,
 `games_won_set{1,2,3}_for`) are **no longer

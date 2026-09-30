@@ -47,8 +47,17 @@ def test_a_day_runs_snapshots_then_the_morning_steps_in_order() -> None:
     assert [t.strftime("%H:%M") for t in snaps] == ["21:45", "22:15", "22:45", "23:15"]
     morning = [(t, c) for t, c in calls if c[-1] != "CS2"]
     assert morning[0][0] == settle_at and morning[0][1][-1] == "CS2_SETTLE"
-    assert morning[1][1][0].endswith("backfill_cs2.py")
-    assert morning[2][1][0].endswith("audit_cs2.py") and "--history" in morning[2][1]
+    assert morning[0][1][2] == "2026-09-29"
+    # the day before again: its STATS_PENDING series and night series
+    assert morning[1][1][2] == "2026-09-28" and morning[1][1][-1] == "CS2_SETTLE"
+    assert morning[2][1][0].endswith("settle_sport_coupon.py")
+    assert morning[2][1][1:] == ["--from", "2026-09-28", "--to", "2026-09-29",
+                                 "--sport", "cs2"]
+    assert morning[2][1][-1] == "cs2"
+    assert morning[3][1][0].endswith("record_results.py")
+    assert morning[3][1][1:] == ["--from", "2026-09-28", "--to", "2026-09-29"]
+    assert morning[4][1][0].endswith("backfill_cs2.py")
+    assert morning[5][1][0].endswith("audit_cs2.py") and "--history" in morning[5][1]
     assert code == 1  # the worst step, the audit not counted
 
 
@@ -114,3 +123,29 @@ def test_a_second_cs2_loop_for_the_same_day_refuses(
         for p in (loop, other):
             p.kill()
             p.wait()
+
+
+
+def test_chain_starts_the_next_day_once_when_the_snapshots_end() -> None:
+    clock = Clock(datetime(2026, 9, 29, 22, 50, tzinfo=UTC))
+    events: list[str] = []
+
+    def runner(cmd: list[str]) -> int:
+        events.append("settle" if "CS2_SETTLE" in cmd else cmd[0])
+        return 0
+
+    cs2_daily.run(
+        "2026-09-29",
+        30,
+        cs2_daily._at("2026-09-29", "23:30"),
+        cs2_daily._at("2026-09-29", "05:00", day_offset=1),
+        0,
+        clock=clock.now,
+        sleep=clock.sleep,
+        runner=runner,
+        after_snapshots=lambda: events.append("chain"),
+    )
+    assert events.count("chain") == 1
+    # after every snapshot, before the first settle
+    assert events.index("chain") < events.index("settle")
+    assert all(e != "settle" for e in events[: events.index("chain")])

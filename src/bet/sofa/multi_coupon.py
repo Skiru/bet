@@ -125,11 +125,20 @@ def official_source(
 def sport_source(
     runs_dir: str, sport: sc.SportKey, date: str, at: datetime
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """A sport coupon of this day, or why it cannot be used."""
+    """A sport coupon of this day, or why it cannot be used. Read under the
+    sport directory's lock, so a rebuild running at the same moment is never
+    caught between its JSON and its PDF."""
     d = sc.day_dir(runs_dir, sport, date)
     path = d / sc.COUPON_FILE
     if not path.exists():
         return None, f"MISSING: {path}"
+    with sc.dir_lock(d):
+        return _sport_source(d, path, sport, date, at)
+
+
+def _sport_source(
+    d: Path, path: Path, sport: sc.SportKey, date: str, at: datetime
+) -> tuple[dict[str, Any] | None, str | None]:
     doc: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     if doc.get("date") != date or doc.get("kind") != "SPORT_COUPON_EXPERIMENT":
         return None, f"WRONG_DAY: {path} is {doc.get('date')!r}"

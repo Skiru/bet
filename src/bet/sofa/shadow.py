@@ -345,7 +345,8 @@ _HCP_IN_NAME = re.compile(r"\((-?\d+(?:\.\d+)?)\)")
 
 @dataclass(frozen=True)
 class ShadowLine:
-    """One side of one two-way Superbet line."""
+    """One side (outcome) of one Superbet line: a two-way pair, a 1X2, or an
+    exact-score set."""
 
     superbet_event_id: str
     market_id: int
@@ -353,7 +354,7 @@ class ShadowLine:
     period: int  # 0 = not a period market
     subject: str  # "T1" / "T2" for a team total, else ""
     line: float | None  # a total, or team1's handicap; None for winner / dnb
-    side: str  # OVER / UNDER / T1 / T2
+    side: str  # OVER / UNDER / T1 / T2 / DRAW / ODD / EVEN / YES / NO / "3:1"
     odds: float
 
     def key(self) -> tuple[int, int, str, float | None]:
@@ -817,9 +818,13 @@ def actual_value(
         score = exact_score(line.side)
         return None if score is None else (1.0 if score == (a, b) else 0.0)
     if spec.kind == "yes_no":
-        # Extra points: the set ran past its target (25, the fifth set 15),
-        # which only a 24-24 (14-14) level score allows.
-        target = 15 if line.period == 5 else 25
+        # Extra points: the set ran past its target, which only a 24-24
+        # (14-14) level score allows. The deciding set is played to 15 - the
+        # 5th of a best-of-5, the 3rd of a best-of-3: the winner's sets
+        # count says which format was played.
+        sets = list(zip(result.t1_periods, result.t2_periods, strict=True))
+        k = max(sum(1 for x, y in sets if x > y), sum(1 for x, y in sets if y > x))
+        target = 15 if k > 1 and line.period == 2 * k - 1 else 25
         return 1.0 if max(a, b) > target else 0.0
     if spec.kind == "odd_even":
         if spec.team is not None:

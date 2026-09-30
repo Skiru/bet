@@ -1081,7 +1081,7 @@ def test_daily_plan() -> None:
     snapshot, morning, audit = shadow_daily.plan(DATE)
     assert snapshot[-2:] == ["--only", "SHADOW"]
     # The day, then the day before once more for its pending games.
-    assert morning == [
+    assert morning[:2] == [
         ["scripts/sofa/run_pipeline.py", "--date", DATE, "--only", "SHADOW_SETTLE"],
         [
             "scripts/sofa/run_pipeline.py",
@@ -1091,10 +1091,20 @@ def test_daily_plan() -> None:
             "SHADOW_SETTLE",
         ],
     ]
+    # then each settled day's experimental coupons, after every settle
+    assert [(c[0], c[2], c[-1]) for c in morning[2:-1]] == [
+        ("scripts/sofa/settle_sport_coupon.py", d, sp)
+        for d in (DATE, "2026-09-27")
+        for sp in ("hockey", "basketball", "volleyball")
+    ]
+    # and last, the ledger for both settled days
+    assert morning[-1] == [
+        "scripts/sofa/record_results.py", "--from", "2026-09-27", "--to", DATE
+    ]
     assert audit[0] == "scripts/sofa/audit_shadow.py"
     # On the first shadow day there is nothing before it to retry.
     _, first_day, _ = shadow_daily.plan(DATE, retry_before=False)
-    assert [cmd[2] for cmd in first_day] == [DATE]
+    assert {cmd[2] for cmd in first_day} == {DATE}
 
 
 def test_has_snapshots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -2503,3 +2513,12 @@ def test_orientation_free_kinds_grade_without_orientation() -> None:
     assert {r["family"] for r in rows} == {"odd_even"}
     assert counts["needs_orientation"] == 2
     assert {r["side"]: r["outcome"] for r in rows} == {"ODD": "WIN", "EVEN": "LOSS"}
+
+
+def test_extra_points_in_the_deciding_set_of_a_best_of_three() -> None:
+    bo3 = GameResult((25, 20, 16), (20, 25, 14), 2, 1, "T1", False)
+    third = ShadowLine("1", 100077, "set_extra_points", 3, "", None, "YES", 6.0)
+    assert actual_value(third, bo3, VOLLEYBALL) == 1.0  # 16-14 in a set to 15
+    # the same score in the 3rd set of a best-of-5 is a set to 25: no extras
+    bo5 = GameResult((25, 20, 16, 25), (20, 25, 14, 20), 3, 1, "T1", False)
+    assert actual_value(third, bo5, VOLLEYBALL) == 0.0

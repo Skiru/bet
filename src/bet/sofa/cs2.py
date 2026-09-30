@@ -134,14 +134,15 @@ def esports_name(name: str) -> str:
 
 @dataclass(frozen=True)
 class Cs2Line:
-    """One side of one two-way Superbet line."""
+    """One side (outcome) of one Superbet line: a two-way pair or an
+    exact-score set."""
 
     superbet_event_id: str
     family: str
     map_nr: int  # 0 = the whole series
     subject: str  # player or team name; "" for series/map-level markets
     line: float | None  # a total, or team1's handicap; None for a winner
-    side: str  # OVER / UNDER / T1 / T2
+    side: str  # OVER / UNDER / T1 / T2 / ODD / EVEN / "2:1"
     odds: float
 
     def key(self) -> tuple[str, int, str, float | None]:
@@ -944,15 +945,18 @@ def one_side_per_line(
 ) -> list[dict[str, Any]]:
     """One graded side of every line, so a gap can show.
 
-    Both sides of a line are graded or neither, their devigged probabilities
-    sum to one and exactly one of them wins. Pool both and the mean fair p
-    and the hit rate are both 0.500 by construction, whatever the price is
-    worth: 500 lines whose favourite won 90% of the time summarised to a gap
-    of 0.0. Keeping one side restores it.
+    All sides of a line are graded or none, their devigged probabilities sum
+    to one and exactly one of them wins. Pool a two-way pair and the mean
+    fair p and the hit rate are both 0.500 by construction, whatever the
+    price is worth (1/3 for a 1X2, 1/k for an exact-score set): 500 lines
+    whose favourite won 90% of the time summarised to a gap of 0.0. Keeping
+    one side restores it.
 
-    `pick` "favourite" keeps the side with the higher devigged probability
-    (OVER / T1 on an exact tie); "fixed" keeps OVER, else T1 - a lean toward
-    a direction or toward the first-named team.
+    `pick` "favourite" keeps the side with the highest devigged probability
+    (the first of FIXED_SIDES on an exact tie); "fixed" keeps the first of
+    FIXED_SIDES - OVER, T1, ODD or YES - a lean toward a direction or toward
+    the first-named team. An exact-score group has no fixed side and keeps
+    its first stored score, which says nothing.
     """
     by_line: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
     for r in rows:
@@ -980,6 +984,35 @@ def cs2_day_dir(runs_dir: str, date: str) -> Path:
     """runs/sofa/cs2/<date>/ - beside the day, never inside it, so nothing CS2
     writes can be read by a stage that builds the coupon."""
     return Path(runs_dir) / "cs2" / date
+
+
+def append_records(path: Path, records: list[dict[str, Any]]) -> None:
+    """Append snapshot records as whole lines, under an exclusive lock.
+
+    Every appender goes through here (run_cs2, run_shadow), so a reader's
+    shared lock (sport_coupon.read_snapshots) sees whole records only. A file
+    whose last write was torn by a crash gets a newline first, so the next
+    good record never glues onto the broken one.
+    """
+    if not records:
+        return
+    import fcntl
+    import json
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            fh.seek(0, os.SEEK_END)
+            if fh.tell() > 0:
+                fh.seek(-1, os.SEEK_END)
+                if fh.read(1) != b"\n":
+                    fh.write(b"\n")
+            text = "".join(json.dumps(x, ensure_ascii=False) + "\n" for x in records)
+            fh.write(text.encode("utf-8"))
+            fh.flush()
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
 
 
 def write_atomic(path: Path, text: str) -> None:

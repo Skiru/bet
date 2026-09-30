@@ -294,11 +294,16 @@ def settle(
     snaps_path = day / SNAPSHOTS_FILE
     if not snaps_path.exists():
         return {"verdict": "FAILED", "error": f"no {snaps_path}"}
-    snapshots = [
-        json.loads(line)
-        for line in snaps_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    # One torn line (a crash mid-append) must not take the whole day down;
+    # it is skipped, as settle_shadow does.
+    snapshots = []
+    for line in snaps_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            snapshots.append(json.loads(line))
+        except ValueError:
+            continue
     events = latest_pre_kickoff(snapshots)
     out = day / SETTLED_FILE
     done: dict[str, Any] = (

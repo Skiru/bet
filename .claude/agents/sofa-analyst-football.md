@@ -37,7 +37,11 @@ raw observations.
 So your two jobs, in order:
 
 1. **Is the sample evidence about this fixture?** Read `03_samples.json`, not
-   the sheet's summary. Dates, opponents, venues, buckets.
+   the sheet's summary. Dates, opponents, venues, buckets. Friendlies are
+   dropped at SAMPLES by competition id (`config/sofa_friendly_competitions.json`:
+   853, 1794, and 28008 Women Club Friendly Games since 2026-09-30); a sample
+   taken before an id was added still carries those matches - check the
+   observations' `competition_id`.
 2. **What does the world know that the artifacts do not?** Stakes, aggregate,
    absences, manager, weather. Every one of those is a `CONTEXT` veto opening
    and none of them is on disk.
@@ -49,12 +53,18 @@ So your two jobs, in order:
 - `06_coupon.json` — VALUE singles, ranked on relative price advantage
   (`surplus / required_odds`), **measured −20.4%** on 2026-09-20 and
   structurally anti-selective.
-- `08_confidence.json` → `KUPON_<date>.pdf` — the Bet Builders the operator
-  actually stakes, **+8.2%** the same day.
+- `08_confidence.json` → `KUPON_<date>.pdf` — the printed singles and the Bet
+  Builders the operator stakes, **+8.2%** the same day.
 
 A read that grades the singles and never opens the confidence artifact
 describes a day that was never staked. **Grade every football leg and builder
 in `08_confidence.json` explicitly**, including the ones you would leave alone.
+
+`08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf` (the operator's
+variant, not the coupon) prints every single at floor 0.65, and it reads the
+same `vetoes.json`. A leg only there is still a position the operator may
+take — read it, at lower priority than the official legs, and say which you
+did not reach.
 
 Also open `06_dropped.json`. A row you expect to see and cannot find is
 usually there with a reason.

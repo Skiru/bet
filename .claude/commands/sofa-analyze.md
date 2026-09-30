@@ -24,6 +24,13 @@ print('legs', len(c['legs']), 'builders', len(c['builders']),
       'stakeable', sum(1 for b in c['builders']
                        if b.get('best_for_fixture') and b.get('ev_after_haircut', -1) > 0))
 "
+# the run id: the last non-empty run_id of a SAMPLES request on that date (or the id the day was run with)
+.venv/bin/python -c "
+import json
+ids = [r.get('run_id') for r in map(json.loads, open('runs/sofa/run.log.jsonl'))
+       if r.get('stage') == 'SAMPLES' and r.get('run_id') and r.get('ts_utc', '').startswith('<date>')]
+print('run_id', ids[-1] if ids else 'NOT FOUND - say so')
+"
 ```
 
 No `05_sheet.json` → nothing to analyse; the day needs `/sofa-day`.
@@ -35,8 +42,8 @@ must grade **what is actually staked**, not only the VALUE singles.
 In **one** message, so they run in parallel:
 
 ```
-Task -> sofa-analyst-football   "date <date>; <n> football fixtures, <n> VALUE, <n> legs, <n> stakeable builders; <anything that failed in the run>"
-Task -> sofa-analyst-tennis     "date <date>; <n> tennis fixtures, <n> VALUE, <n> legs, <n> stakeable builders; <anything that failed>"
+Task -> sofa-analyst-football   "date <date>; run <run_id>; <n> football fixtures, <n> VALUE, <n> legs, <n> stakeable builders; <anything that failed in the run>"
+Task -> sofa-analyst-tennis     "date <date>; run <run_id>; <n> tennis fixtures, <n> VALUE, <n> legs, <n> stakeable builders; <anything that failed>"
 ```
 
 Give each the counts you just computed, the run id, and what failed. Do **not**
@@ -101,6 +108,18 @@ Three things to check before you accept a veto list:
 
 ## Step 3 — rebuild
 
+If the offer is more than 45 minutes old and the day is still live, refresh it
+first and re-run SHEET before the rebuild below - a moved price is refused
+(`PRICE_MOVED_SINCE_SHEET`) otherwise, and the empty result will look like an
+analytical conclusion:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET
+```
+
+Then:
+
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
@@ -117,15 +136,11 @@ built before the merge prints legs the analysts just vetoed.
 `build_coupon_pdf.py` refuses (exit 2, `STALE_CONFIDENCE`) a profile whose
 confidence artifact is older than `vetoes.json` or `05_sheet.json`.
 
-If the offer is more than 45 minutes old and the day is still live, refresh it
-first and re-run SHEET before the rebuild above - a moved price is refused
-(`PRICE_MOVED_SINCE_SHEET`) otherwise, and the empty result will look like an
-analytical conclusion:
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET
-```
+WARIANT WSZYSTKIE excludes a sport coupon built more than 6 h before the
+assembly (`STALE`): rebuild that sport with a `sofa-sport-runner` first if the
+operator wants it on the page. After 06:00 Warsaw on D+1 the day's window is
+closed and `run_multi_coupon.py` refuses (exit 2) - the variant is final;
+skip it and say so.
 
 ## Step 4 — save the read and report the delta
 
@@ -136,6 +151,7 @@ ANALIZA:  piłka <n> meczów przeczytanych z <n>; tenis <n> z <n>
 WETA:     <n> zastosowanych (<n> SAMPLE_UNINFORMATIVE / <n> CONTEXT / <n> PRICE / <n> OTHER), <n> bez dopasowania
 KUPON:    single <n> → <n>; PDF <n> → <n> pozycji
 WARIANT:  PDF <n> → <n> pozycji (NIE kupon)
+WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 · audyt wariantów <n> znalezisk
 ZDJĘTE:   <which rows the vetoes removed, and from which product>
 NIE PRZECZYTANO: <fixtures neither analyst reached, and why>
 ```

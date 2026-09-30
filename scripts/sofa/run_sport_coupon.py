@@ -82,19 +82,43 @@ def build(
     sport: sc.SportKey, date: str, runs_dir: str, at: datetime, rule: sc.Rule
 ) -> dict[str, Any]:
     directory = sc.day_dir(runs_dir, sport, date)
-    events, snapshots = sc.day_events(runs_dir, sport, date)
+    stats: dict[str, Any] = {}
+    events, snapshots = sc.day_events(runs_dir, sport, date, stats)
     counts: dict[str, int] = {"events": len(events)}
-    cands = sc.candidates(sport, events, at, rule, counts, until=sc.day_end(date))
+    cands = sc.candidates(
+        sport,
+        events,
+        at,
+        rule,
+        counts,
+        until=sc.day_end(date),
+        since=sc.day_end(sc.prev_date(date)),
+    )
     vetoes = sc.load_vetoes(directory)
     previous = load_previous(directory, date)
-    locked = sc.locked_legs(previous, at)
+    locked = sc.locked_legs(
+        previous, at, {eid: ev.kickoff_utc for eid, ev in events.items()}
+    )
     legs, vetoed = sc.select(sport, cands, vetoes, rule, locked)
+    kept = {audit_key(leg) for leg in legs}
+    # What an earlier build printed and this one does not: re-priced away,
+    # vetoed, or gone from the board. Named, so the record says why a leg the
+    # operator may have seen is no longer on the page.
+    replaced = [
+        {k: leg.get(k) for k in (*sc.LEG_KEY, "match_name", "odds", "kickoff_utc")}
+        for leg in (previous or {}).get("legs", [])
+        if audit_key(leg) not in kept
+    ]
     return {
         "kind": "SPORT_COUPON_EXPERIMENT",
         "not_the_coupon": True,
         "sport": sport,
         "date": date,
         "created_at_utc": at.isoformat().replace("+00:00", "Z"),
+        "window_start_utc": sc.day_end(sc.prev_date(date))
+        .astimezone(UTC)
+        .isoformat()
+        .replace("+00:00", "Z"),
         "window_end_utc": sc.day_end(date)
         .astimezone(UTC)
         .isoformat()
@@ -104,12 +128,17 @@ def build(
         "rule": rule.as_dict(),
         "UNFITTED_CONSTANTS": list(sc.UNFITTED_CONSTANTS),
         "snapshots": snapshots,
+        # what this build read, so audit_variants replays exactly it
+        "snapshot_lines": stats["snapshot_lines"],
+        "unreadable_snapshot_lines": stats["unreadable_snapshot_lines"],
+        "vetoes_applied": vetoes,
         "counts": counts,
         "candidates": len(cands),
         "vetoes_file": len(vetoes),
         "vetoes_unmatched": sc.unmatched_vetoes(vetoes, cands, set(events)),
         "vetoed": vetoed,
         "locked": len(locked),
+        "replaced_legs": replaced,
         "previous_build_utc": (previous or {}).get("created_at_utc"),
         "rule_history": {
             "graded_at": "last pre-start price (SETTLE), not a printed price",
@@ -119,6 +148,10 @@ def build(
         },
         "legs": legs,
     }
+
+
+def audit_key(leg: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(leg.get(k) for k in sc.LEG_KEY)
 
 
 def render_md(doc: dict[str, Any]) -> str:
@@ -148,7 +181,8 @@ def render_md(doc: dict[str, Any]) -> str:
             else "brak rozliczonych dni"
         ),
         *(
-            f"- {fam}: n={f['n']}, trafione {f['hit']:.1%} wobec fair p "
+            f"- {sc.FAMILY_PL[sport].get(fam, fam)}: n={f['n']}, trafione "
+            f"{f['hit']:.1%} wobec fair p "
             f"{f['mean_fair_p']:.1%}, ROI {f['roi']:+.1%}"
             for fam, f in (h.get("by_family") or {}).items()
             if f.get("n")
@@ -184,6 +218,15 @@ def render_md(doc: dict[str, Any]) -> str:
             f"- {json.dumps(v, ensure_ascii=False)}" for v in doc["vetoes_unmatched"]
         ]
     return "\n".join(out) + "\n"
+
+
+def veto_count_pl(n: int) -> str:
+    """'1 weto nie pasuje', '2 weta nie pasują', '5 wet nie pasuje'."""
+    if n == 1:
+        return "1 weto nie pasuje"
+    if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+        return f"{n} weta nie pasują"
+    return f"{n} wet nie pasuje"
 
 
 def render_pdf(doc: dict[str, Any], path: Path) -> None:
@@ -242,7 +285,8 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
             "nie ma modelu — pewność to cena Superbet z usuniętą marżą, więc "
             "przy uczciwej cenie każda pozycja traci średnio tyle, ile marża "
             "(kolumna „fair p × kurs” poniżej 1,00 = strata oczekiwana). "
-            "Wybór: na mecz jedna strona o najtańszej cenie. Tylko pojedyncze; "
+            "Wybór: na mecz jedna strona o najwyższym fair p × kurs (najmniejsza "
+            "zapłacona marża). Tylko pojedyncze; "
             "stawka jest decyzją operatora.",
             body,
         ),
@@ -268,7 +312,8 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
         ),
         *(
             Paragraph(
-                f"&nbsp;&nbsp;• {fam}: {f['n']} zakł., trafione {f['hit']:.1%} wobec "
+                f"&nbsp;&nbsp;• {sc.FAMILY_PL[sport].get(fam, fam)}: {f['n']} zakł., "
+                f"trafione {f['hit']:.1%} wobec "
                 f"fair p {f['mean_fair_p']:.1%}, ROI {f['roi']:+.1%}",
                 sub,
             )
@@ -369,8 +414,9 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
     if doc["vetoes_unmatched"]:
         story.append(
             Paragraph(
-                f"<font color='{warn}'><b>{len(doc['vetoes_unmatched'])} wet nie "
-                "pasuje do żadnej pozycji</b></font> — sprawdź id w vetoes.json.",
+                f"<font color='{warn}'><b>"
+                f"{veto_count_pl(len(doc['vetoes_unmatched']))} do żadnej pozycji"
+                "</b></font> — sprawdź id w vetoes.json.",
                 body,
             )
         )
@@ -453,8 +499,14 @@ def main() -> int:
         directory = sc.day_dir(config.runs_dir, sport, args.date)
         pdf_path = directory / sc.pdf_name(sport, args.date)
         try:
-            doc = build(sport, args.date, config.runs_dir, at, rule)
-            write_outputs(sport, args.date, config.runs_dir, doc)
+            # build and write under one lock: a second runner for the same
+            # sport waits, then builds on top of this build (its locked legs)
+            with sc.dir_lock(directory):
+                # the clock is read inside the lock: a runner that waited for
+                # another builds at its own time, after the build it follows
+                at = now()
+                doc = build(sport, args.date, config.runs_dir, at, rule)
+                write_outputs(sport, args.date, config.runs_dir, doc)
         except Exception as exc:  # one sport failing never stops the others
             metrics[sport] = {
                 "verdict": "FAILED",

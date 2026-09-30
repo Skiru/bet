@@ -50,6 +50,17 @@ The four sport coupons re-derived from their raw snapshots (prices, devig,
 rule, the selection replayed) and WARIANT WSZYSTKIE against its sources. A
 finding is a defect. "nothing to check" is not a pass.
 
+## 1c — the WARIANT
+
+`08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf` (floor 0.65,
+confidence x odds >= 0.90, margin <= 15%, every single printed):
+`audit_variants` C1/C2 checks its freshness, its profile and each printed
+single's rule (floor, confidence x odds >= min_ev, margin, not started at
+build), but no script re-derives its legs from the samples and `audit_coupon`
+never opens it. Apply the checks in 2 to every position it prints that the
+official PDF does not, and report it separately, never pooled with the
+coupon.
+
 ## 2 — what the audit cannot do
 
 A row whose fields are all mutually consistent and all built on the wrong
@@ -67,9 +78,9 @@ with `surplus > +0.40`:
    that folds diacritics. This is the most fragile join in the pipeline.
 4. **Re-ask Superbet** for every leg's live price through `OfferFetcher`, and
    read the odds payload a second time by hand.
-5. **Check the match has not started on the earlier clock.** COUPON uses
-   `min(kickoff_utc, superbet_kickoff_utc)`; CONFIDENCE reads Sofascore's
-   alone. Look for any staked leg sitting in that gap.
+5. **Check the match has not started on the earlier clock.** COUPON and
+   CONFIDENCE both gate on `min(kickoff_utc, superbet_kickoff_utc)` + 15 min;
+   check that no staked leg violates it.
 
 `pred_sd` is not on the row, so `p_central` reproduces only approximately from
 `centre` and `sample_sd` (5 of 63 rows outside 0.024 once). That is a known

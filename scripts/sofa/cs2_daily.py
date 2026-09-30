@@ -7,9 +7,17 @@ audit the next morning.
 
 1. CS2 every --interval-min (default 30) until --snapshots-until (default
    23:30Z on the day). Superbet only.
+   With --chain, the NEXT day's loop (itself with --chain) is started
+   detached right when this day's snapshots end, so D+1's night series are
+   snapshotted from 23:30Z on; a loop already running for that date makes
+   the new one refuse (exit 2).
 2. Sleep until --settle-at (default 05:00Z the next day), then CS2_SETTLE for
-   the day - it needs the bridge; a failed settle is logged and can be rerun
-   by hand at any time (`run_pipeline.py --date <d> --only CS2_SETTLE`).
+   the day and once more for the day before (series held STATS_PENDING, and
+   the day before's night series that settle into this day's file) - it
+   needs the bridge; a failed settle is logged and can be rerun by hand at
+   any time (`run_pipeline.py --date <d> --only CS2_SETTLE`).
+2b. settle_sport_coupon.py for the experimental CS2 coupons of both days,
+   and record_results.py for both days (the ledger; offline).
 3. A short CS2_BACKFILL (--backfill-minutes, default 6; 0 to skip). It honours
    the cooldown a Sofascore refusal leaves behind, so it never re-hammers.
 4. audit_cs2.py for the day, into the log.
@@ -121,7 +129,19 @@ def plan(
 ) -> tuple[list[str], list[list[str]], list[str]]:
     """(snapshot step, morning steps, audit step) - separated for tests."""
     snapshot = ["scripts/sofa/run_pipeline.py", "--date", date, "--only", "CS2"]
-    morning = [["scripts/sofa/run_pipeline.py", "--date", date, "--only", "CS2_SETTLE"]]
+    before = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+    morning = [
+        ["scripts/sofa/run_pipeline.py", "--date", date, "--only", "CS2_SETTLE"],
+        # the day before again: STATS_PENDING series (72 h grace) and the
+        # night series its coupon printed from this day's file
+        ["scripts/sofa/run_pipeline.py", "--date", before, "--only", "CS2_SETTLE"],
+        # both days' experimental coupons, graded by the settles just before
+        ["scripts/sofa/settle_sport_coupon.py", "--from", before, "--to", date,
+         "--sport", "cs2"],
+        ["scripts/sofa/record_results.py", "--from", before, "--to", date],
+    ]
     if backfill_minutes > 0:
         morning.append(
             ["scripts/sofa/backfill_cs2.py", "--max-minutes", str(backfill_minutes)]
@@ -140,6 +160,7 @@ def run(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     sleep: Callable[[float], None] = time.sleep,
     runner: Callable[[list[str]], int] = step,
+    after_snapshots: Callable[[], None] | None = None,
 ) -> int:
     snapshot, morning, audit = plan(
         date, interval_min, until, settle_at, backfill_minutes
@@ -154,7 +175,30 @@ def run(
         clock=clock,
         sleep=sleep,
         runner=runner,
+        after_snapshots=after_snapshots,
     )
+
+
+def next_day(date: str) -> str:
+    return (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+
+
+def spawn_next_day(date: str) -> int:
+    """Start D+1's loop detached (own session, own log); its pid."""
+    nxt = next_day(date)
+    log = state_dir() / f"daily_{nxt}.log"
+    with log.open("a", encoding="utf-8") as fh:
+        proc = subprocess.Popen(
+            [PYTHON, "scripts/sofa/cs2_daily.py", "--date", nxt, "--chain"],
+            cwd=REPO,
+            stdout=fh,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    return proc.pid
 
 
 def loop(
@@ -168,9 +212,11 @@ def loop(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     sleep: Callable[[float], None] = time.sleep,
     runner: Callable[[list[str]], int] = step,
+    after_snapshots: Callable[[], None] | None = None,
 ) -> int:
     """Snapshot every interval until `until`, then the morning steps, then
-    the audit. Shared with shadow_daily.py."""
+    the audit. Shared with shadow_daily.py. `after_snapshots` runs once, when
+    the snapshots end (cs2_daily's --chain)."""
     worst = 0
     while clock() < until:
         worst = max(worst, runner(snapshot))
@@ -178,6 +224,11 @@ def loop(
         if remaining <= 0:
             break
         sleep(min(interval_min * 60, remaining))
+    if after_snapshots is not None:
+        try:
+            after_snapshots()
+        except Exception as exc:  # the day goes on; a failed chain is logged
+            print(f"after-snapshots step failed: {exc}", flush=True)
     wait = (settle_at - clock()).total_seconds()
     if wait > 0:
         sleep(wait)
@@ -187,7 +238,7 @@ def loop(
     return min(worst, 2)
 
 
-def main() -> int:
+def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -196,6 +247,11 @@ def main() -> int:
     ap.add_argument("--snapshots-until", default="23:30", help="HH:MM UTC on --date")
     ap.add_argument("--settle-at", default="05:00", help="HH:MM UTC the next day")
     ap.add_argument("--backfill-minutes", type=float, default=6.0)
+    ap.add_argument(
+        "--chain",
+        action="store_true",
+        help="when the snapshots end, start the next day's loop (with --chain)",
+    )
     args = ap.parse_args()
     import json
     import os
@@ -212,7 +268,23 @@ def main() -> int:
         )
         return 2
     pid_file(args.date).write_text(str(os.getpid()), encoding="utf-8")
-    code = run(args.date, args.interval_min, until, settle_at, args.backfill_minutes)
+    def chain() -> None:
+        pid = spawn(args.date)
+        print(
+            f"chained {next_day(args.date)}: started pid {pid} (it exits 2 at once "
+            f"if a loop for that date is already running - see "
+            f"daily_{next_day(args.date)}.log)",
+            flush=True,
+        )
+
+    code = run(
+        args.date,
+        args.interval_min,
+        until,
+        settle_at,
+        args.backfill_minutes,
+        after_snapshots=chain if args.chain else None,
+    )
     done_file(args.date).write_text(
         json.dumps({"exit": code, "at": datetime.now(UTC).isoformat()}),
         encoding="utf-8",

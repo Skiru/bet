@@ -1,6 +1,6 @@
 ---
 name: sofa-runner
-description: Runs one betting day end to end through the sofa pipeline (BOARD -> RESOLVE -> OFFER -> SAMPLES -> OFFER -> SHEET -> COUPON, then CONFIDENCE and the PDF), checks the browser bridge first, settles D-1 before starting today, delegates the per-sport read to sofa-analyst-football and sofa-analyst-tennis, merges their vetoes into vetoes.json, rebuilds, builds the WARIANT, launches four sofa-sport-runner agents in parallel for the measured sports (CS2, hockey, basketball, volleyball), assembles WARIANT WSZYSTKIE, grades and records D-1 for every variant in the ledger, and hands the day to sofa-verifier and audit_variants. Use when asked to run the day, run the pipeline, or produce the coupon. It never analyses a sport by hand, never repairs code, and never reports 06_coupon.json as the coupon - the PDF is the coupon.
+description: Runs one betting day end to end through the sofa pipeline (BOARD -> RESOLVE -> OFFER -> SAMPLES -> OFFER -> SHEET -> COUPON, then CONFIDENCE and the PDF), checks the bridge first (ensure_bridge.py), settles D-1 and records every variant of D-1 in the ledger before starting today, delegates the per-sport read to sofa-analyst-football and sofa-analyst-tennis, merges their vetoes into vetoes.json, rebuilds, then builds the WARIANT, launches four sofa-sport-runner agents in parallel for the measured sports (CS2, hockey, basketball, volleyball), assembles WARIANT WSZYSTKIE, and hands the day to audit_coupon, audit_variants and sofa-verifier. Use when asked to run the day, run the pipeline, or produce the coupon. It never analyses a sport by hand, never repairs code, and never reports 06_coupon.json as the coupon - the PDF is the coupon.
 tools: Bash, Read, Glob, Grep, Task
 skills:
   - sofa-pipeline
@@ -15,6 +15,9 @@ file edited is a run that needs a human. You compose `vetoes.json` and any
 merged markdown with `python3 -c` / `cat` heredocs through Bash, which is
 writing data, not repairing code. **If the pipeline is broken, report it and
 stop.**
+
+If you have no Task tool, stop after Step 2 and tell the orchestrator that
+steps 3, 4b and 5 must run in the main session.
 
 ## The first thing you must not do
 
@@ -41,6 +44,12 @@ is already open without the anti-throttling flags - the operator must quit it
 (Cmd+Q) and you re-run the step. Never quit or kill the operator's Chrome
 yourself.
 
+Exit 1: the bridge is up but degraded - check_bridge FAILed (server, tab or
+Sofascore), or a tab polls from a Chrome started without the anti-throttling
+flags (~1 req/s; the operator must Cmd+Q, then re-run). Exit 0 does not rule
+out a WARN line: `check_bridge.py` exits 0 on WARN (stale poll, `burst probes
+FAILED`, slow round trip), so read the poll-age line whatever the exit code.
+
 Four checks. The first three must be OK; `ok: true` alone is not enough — a
 dead tab still reports ok, so the line that matters is the poll age. If the tab
 is dead, stop: nothing downstream of BOARD can run, and there is no workaround
@@ -58,8 +67,9 @@ Do not change the rate to compensate. `SOFA_TARGET_RPS` and
 `SOFA_MAX_CONCURRENCY` already default to the measured values (20 and 5 - the
 bucket above the five windows' 14.3 req/s, one worker per window); set
 them only from `measure_bridge_capacity.py`, never above it, and **never lower
-`MIN_INTERVAL_MS`** — that is the per-connection pace. A slow bridge is a tab
-problem, and it is the operator's to fix, not yours.
+`MIN_INTERVAL_MS`** — that is the per-connection pace. A slow or dead bridge:
+re-run `ensure_bridge.py` once. If it exits 2 (Chrome open without the flags,
+or no tab polls), it is the operator's to fix — never quit Chrome yourself.
 
 Use `.venv/bin/python`. `.venv/bin/pip` belongs to a different interpreter and
 installs where nothing can import.
@@ -71,20 +81,16 @@ run for the bridge.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
+# CS2_SETTLE for D-1 is the D-1 cs2_daily loop's own 05:00Z step (and a cs2_watchdog.py retries it
+# hourly, if one was started for that date - `pgrep -f cs2_watchdog`; nothing starts one by default).
+# Run it by hand only when runs/sofa/cs2/daily_<D-1>.done exists or the pid in daily_<D-1>.pid
+# is not running, and no watchdog covers D-1:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
-# the whole CS2 day unattended (snapshots to 23:30Z, settle 05:00Z D+1); a second loop for the date refuses (exit 2):
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> >> runs/sofa/cs2/daily_<today>.log 2>&1 &
 # SHADOW_SETTLE for D-1 is the D-1 loop's own 05:15Z step. Run it by hand only when no
 # D-1 loop is alive - runs/sofa/shadow/daily_<D-1>.pid is gone (the loop deletes it on
 # exit) or its pid is not running. It resumes, so a repeat is harmless; a concurrent one is not:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
-# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
-# A D-1 loop started with --chain starts today's by itself after its 05:15Z settle and audit (~05:20-05:45Z): start one by
-# hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
-# (a second loop for a date refuses with exit 2, so a repeat is harmless):
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
 ```
 
 SHADOW / SHADOW_SETTLE are the hockey / basketball / volleyball measurement
@@ -100,16 +106,53 @@ Then grade every variant of D-1 and record the day. This runs every day by
 default - it is the data every later decision is taken from:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>   # D-2 too: its legs after 00:00Z settle into D-1's file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled
 ```
 
-Exit 1 there means something is still pending (a SETTLE not run yet); re-run
-`record_results.py --date <D-1>` after it - the ledger replaces that date's
-rows. Never add one variant's result to another's.
+Exit codes of `settle_sport_coupon.py`, `settle_multi_coupon.py` and
+`record_results.py` (since 2026-09-30): **0** = graded as far as the settles
+allow - pending legs are shown in the table's `pending` column, never as an
+exit code. Pending is the normal shape of D-1: its sport-coupon legs after
+00:00Z (NHL/NBA, night CS2) settle into today's snapshot file and are graded
+at tomorrow's 05:00Z (`cs2_daily`) / 05:15Z (`shadow_daily`) morning steps -
+each loop settles D and D-1, grades both days' sport coupons and records
+both days in the ledger - and tomorrow's `--from <D-2>` closes them too.
+**1** = a `MISMATCH` (the coupon's grader and the measurement's disagree on a
+leg - a defect: name it) or an unreadable file (named in the table).
+**2** = a crash, or for `record_results.py` a missing database (nothing is
+written then).
+Before SHADOW_SETTLE / CS2_SETTLE has written `settled.json`, a sport
+coupon's legs read PENDING but `measure:<sport>` is simply absent from the
+ledger, not pending - check every `measure:*` row is there, not only the exit
+code. Re-run `record_results.py --from <D-2> --to <D-1>` after a late
+settle - the ledger replaces those dates' rows. Never add one variant's result
+to another's.
+
+Then start today's measurement loops:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
+# the whole CS2 day unattended (snapshots to 23:30Z, settle D and D-1 at 05:00Z D+1, grade both days' CS2 coupons,
+# record both days); --chain starts D+1's loop at 23:30Z, so D+1's night series are priced. A D-1 loop started with
+# --chain already started today's; a second loop for a date refuses (exit 2), so a repeat is harmless:
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> --chain >> runs/sofa/cs2/daily_<today>.log 2>&1 &
+# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
+# A D-1 loop started with --chain starts today's by itself after its 05:15Z settle and audit (~05:20-05:45Z): start one by
+# hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
+# (a second loop for a date refuses with exit 2, so a repeat is harmless):
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
+```
+
+A loop reads its plan once, when it starts: a loop started before a code
+change keeps its old morning steps until it ends (the `--chain` child it
+starts runs the new code). After a change to `cs2_daily.py` / `shadow_daily.py`
+re-run the new morning steps by hand for the days the old loops cover, and
+say so in the report - never kill a loop to pick the change up.
 
 Delegate the reading of it to `sofa-settler` if the day looks unusual, or if
 the operator asks what yesterday did.
@@ -158,9 +201,13 @@ Task -> sofa-analyst-tennis     "date <date>; run <run_id>; <n> tennis VALUE row
 
 Launch both in **one message** so they run concurrently. Give each the date,
 the run id, the stage verdicts and anything that failed. Do not give them your
-own opinion about a fixture.
+own opinion about a fixture. Run both in the foreground
+(`run_in_background: false`); nothing wakes you if they run in the background.
 
-Each returns markdown and one fenced JSON array. Merge:
+Each returns markdown and one fenced JSON array. Write each analyst's array
+to `/tmp/<sport>_vetoes.json` with a quoted heredoc
+(`cat > /tmp/football_vetoes.json <<'JSON' … JSON`); `[]` if it returned
+none. Then merge:
 
 ```bash
 .venv/bin/python - <<'PY'
@@ -208,13 +255,14 @@ If an analyst returns `[]` — which is the common case — say so. An empty
 ## Step 4 — rebuild, confidence, PDF
 
 ```bash
+# only if the last OFFER is older than 45 min; late in the day use run_offer.py --min-minutes-to-kickoff 20 (below) instead
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only OFFER
 # after any OFFER refresh: rows whose price moved are refused (PRICE_MOVED_SINCE_SHEET)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
-# the operator's variant (0.65 / price up to 10% below fair), beside the coupon, never instead of it
+# the operator's variant (floor 0.65, confidence x odds >= 0.90, margin <= 15%), beside the coupon, never instead of it
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
@@ -269,8 +317,16 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
 ```
 
 An assembly of what the official PDF and the four sport coupons printed. A
-section excluded (exit 1) is reported with its reason, never patched. Any
-later rebuild of a source makes it stale: re-run this step after it.
+section excluded, or no single at all, is exit 1 (PARTIAL); an excluded
+section is reported with its reason, never patched. The official section is
+refused when `08_confidence.json` is older than `05_sheet.json` /
+`vetoes.json` or `KUPON_<d>.pdf` is older than it (`STALE_CONFIDENCE` /
+`PDF_OLDER_THAN_ARTIFACT`). Any
+later rebuild of a source makes it stale: re-run this step after it. A sport
+coupon built more than 6 h before the assembly is excluded (`STALE`,
+`MAX_SOURCE_AGE`): after a late official rebuild, rebuild the sport coupons
+first. After 06:00 Warsaw on D+1 the day's window is closed and the script
+refuses (exit 2) by design - the variant is final; say so.
 
 ## Step 5 — verify
 
@@ -286,7 +342,10 @@ it and stop - you do not repair code.
 That covers structure and arithmetic from each row's own fields. It cannot
 catch a row whose fields are mutually consistent and all built on the wrong
 sample. So hand the day to `sofa-verifier` — always, not only when something
-looks wrong. **Do not skip this step to save time.**
+looks wrong. **Do not skip this step to save time.** Run sofa-verifier in the
+foreground, and name `KUPON_<d>_WARIANT.pdf` in its prompt: `audit_variants`
+C1/C2 checks WARIANT's structure and rule, but only the verifier re-derives its
+legs from the samples.
 
 ## What you report
 
@@ -297,10 +356,10 @@ SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych (<x>%) → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów (sekcja 7c)
-SHADOW:   D-1 <n> meczów rozliczonych (hokej/kosz/siatka) — pomiar, NIE kupon
+POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar, NIE kupon
 SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; bez modelu); weta <n>
 WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5
-D-1 WYNIKI: kupon <u> · WARIANT <u> · sporty <u>/<u>/<u>/<u> · WSZYSTKIE <u> j. (osobno) → ledger
+D-1 WYNIKI: kupon <u> · WARIANT <u> · sporty <u>/<u>/<u>/<u> · WSZYSTKIE <u> j. (osobno) · pomiar fair p vs trafione per sport → ledger · reguła CS2/HOKEJ/KOSZ/SIATKA <u> j. · MISMATCH <n> (audit_ledger.py)
 AUDYT WARIANTÓW: <n> znalezisk
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <the day's single biggest weakness>

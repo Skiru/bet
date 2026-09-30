@@ -10,9 +10,10 @@ does not), grades every printed leg at the PRINTED price, writes
 sport_coupon_settled.json next to the coupon, and prints one table per sport.
 
 Each sport is reported on its own and never pooled with another, nor with the
-coupon's result (audit_settlement 7c). Offline. Exit 0 when every leg is
-graded, 1 when a leg is pending or a file
-was unreadable (named in the table, the rest still graded).
+coupon's result (audit_settlement 7c). Offline. Exit 0 = graded as far as the
+settles allow (pending legs are shown); 1 = a MISMATCH between the coupon's
+grader and the measurement's, or an unreadable file (named in the table, the
+rest still graded); 2 = a crash.
 """
 
 from __future__ import annotations
@@ -75,7 +76,7 @@ def is_pending(outcome: str) -> bool:
     return outcome == "PENDING" or outcome.startswith("PENDING:")
 
 
-def main() -> int:
+def _main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--from", dest="start", required=True)
     parser.add_argument("--to", dest="end", required=True)
@@ -87,14 +88,14 @@ def main() -> int:
         f"# Experimental sport coupons {args.start}..{args.end} "
         "(NOT the coupon; never pooled)\n"
     )
-    bad = pending_total = 0
+    bad = pending_total = mismatch_total = 0
     for sport in sports:
         print(f"## {sport}\n")
         print(
-            "| day | legs | WIN | LOSS | void | ungraded | pending | hit "
-            "| mean fair p | ROI (printed) |"
+            "| day | legs | WIN | LOSS | void | ungraded | in-play price | mismatch "
+            "| pending | hit | mean fair p | ROI (printed) |"
         )
-        print("|---|---|---|---|---|---|---|---|---|---|")
+        print("|---|---|---|---|---|---|---|---|---|---|---|---|")
         pooled: list[dict[str, Any]] = []
         for day in days(args.start, args.end):
             try:
@@ -112,12 +113,17 @@ def main() -> int:
             outcomes = [str(g["outcome"]) for g in graded]
             void = outcomes.count("VOID")
             pending = sum(1 for o in outcomes if is_pending(o))
-            ungraded = len(outcomes) - s.get("n", 0) - void - pending
+            in_play = outcomes.count("IN_PLAY_PRICE")
+            mismatch = outcomes.count("MISMATCH")
+            ungraded = (
+                len(outcomes) - s.get("n", 0) - void - pending - in_play - mismatch
+            )
             pending_total += pending
+            mismatch_total += mismatch
             print(
                 f"| {day} | {len(graded)} | {s.get('wins', 0)} | "
                 f"{s.get('n', 0) - s.get('wins', 0)} | {void} | {ungraded} | "
-                f"{pending} | "
+                f"{in_play} | {mismatch} | {pending} | "
                 + (
                     f"{s['hit']:.1%} | {s['mean_fair_p']:.1%} | {s['roi']:+.1%} |"
                     if s.get("n")
@@ -128,12 +134,29 @@ def main() -> int:
         if s.get("n"):
             print(
                 f"| **all** | {len(pooled)} | {s['wins']} | {s['n'] - s['wins']} "
-                f"| | | | {s['hit']:.1%} | {s['mean_fair_p']:.1%} | "
+                f"| | | | | | {s['hit']:.1%} | {s['mean_fair_p']:.1%} | "
                 f"{s['roi']:+.1%} |"
             )
         print()
-    # 0 all graded; 1 something still pending or a file was unreadable.
-    return 1 if bad or pending_total else 0
+    if mismatch_total:
+        print(
+            f"MISMATCH: {mismatch_total} leg(s) - the coupon's grader and the "
+            "measurement's disagree; one of them is wrong"
+        )
+    # 1 = a defect (a MISMATCH, an unreadable file); a pending leg - the
+    # night games of yesterday - is shown, not failed.
+    return 1 if bad or mismatch_total else 0
+
+
+def main() -> int:
+    """An unexpected crash is FAILED (2), never read as "pending" (1)."""
+    try:
+        return _main()
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

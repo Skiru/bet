@@ -173,6 +173,34 @@ AWAITING_OWN_CURVE = frozenset(
         "player_interceptions_for",
         "player_offsides_for",
     }
+) | frozenset(
+    # Tennis per-set serve markets (TENNIS_PER_SET_SERVE below). Measured
+    # 2026-09-30 by sofa-verifier and re-counted from sofa_settled_row: since
+    # the 09-24 model change, rows at p_central >= 0.70 realised 149/253 =
+    # 0.589 against 0.777 claimed (devigged price 0.53); the three printed on
+    # 09-30's coupon, 33/57 = 0.579. They had no curve of their own and read
+    # the tennis pool, which is games markets - the player-props failure again.
+    # The per-set GAMES markets have their own curves and realise as claimed
+    # (0.766 at 0.75), so they are not here.
+    f"{stat}_set{n}_{suffix}"
+    for stat in ("aces", "double_faults", "serve_points")
+    for n in (1, 2)
+    for suffix in ("for", "total")
+) | frozenset(
+    # Full-match serve points (TENNIS_SERVE_POINTS below): no curve of their
+    # own either, and the same read of the tennis pool. Re-counted
+    # 2026-09-30, rows since 09-24 at p_central >= 0.70: serve_points_for
+    # 15/31 = 0.484 against 0.782 claimed, serve_points_total 8/12. The
+    # full-match aces / double faults have their own curves (20k+ rows each)
+    # and stay.
+    {"serve_points_for", "serve_points_total"}
+)
+TENNIS_SERVE_POINTS = frozenset({"serve_points_for", "serve_points_total"})
+TENNIS_PER_SET_SERVE = frozenset(
+    f"{stat}_set{n}_{suffix}"
+    for stat in ("aces", "double_faults", "serve_points")
+    for n in (1, 2)
+    for suffix in ("for", "total")
 )
 
 

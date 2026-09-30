@@ -37,6 +37,7 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import (  # noqa: E402
     SNAPSHOTS_FILE,
     SUPERBET_CS2_SPORT_ID,
+    append_records,
     cs2_day_dir,
     parse_event,
 )
@@ -126,8 +127,7 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
     # One write per snapshot, appended whole: a crash mid-loop loses this
     # snapshot, never corrupts an earlier one.
     if records:
-        with out.open("a", encoding="utf-8") as fh:
-            fh.write("".join(json.dumps(x, ensure_ascii=False) + "\n" for x in records))
+        append_records(out, records)
     verdict = "PARTIAL" if metrics["fetch_failed"] else "OK"
     return {"verdict": verdict, "metrics": metrics, "output_path": str(out)}
 

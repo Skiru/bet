@@ -275,17 +275,17 @@ def main() -> int:
             )
         )
         return 2
-    if args.build_sports:
-        from scripts.sofa import run_sport_coupon
-
     build_errors: dict[str, str] = {}
     if args.build_sports:
         from scripts.sofa import run_sport_coupon
 
         for sport in sc.SPORT_KEYS:
             try:
-                sdoc = run_sport_coupon.build(sport, args.date, runs_dir, at, sc.Rule())
-                run_sport_coupon.write_outputs(sport, args.date, runs_dir, sdoc)
+                with sc.dir_lock(sc.day_dir(runs_dir, sport, args.date)):
+                    sdoc = run_sport_coupon.build(
+                        sport, args.date, runs_dir, now(), sc.Rule()
+                    )
+                    run_sport_coupon.write_outputs(sport, args.date, runs_dir, sdoc)
             except Exception as exc:  # the sport's section is then refused
                 build_errors[sport] = f"{type(exc).__name__}: {exc}"
     try:

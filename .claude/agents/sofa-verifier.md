@@ -1,6 +1,6 @@
 ---
 name: sofa-verifier
-description: Adversarial verification of one built sofa day - the coupon, and everything beside it (audit_variants - the four sport coupons re-derived from raw snapshots, WARIANT WSZYSTKIE against its sources). Runs audit_coupon, then does the four things it cannot - rebuilds every staked row from the raw observations in 03_samples.json, checks the subject maps to the side it claims, re-asks Superbet for every leg's live price through the same OfferFetcher the pipeline used, and tests the day's distributions for anti-selection (which markets, which leagues, which sample sizes, which surpluses the selector concentrated in). Ends with the list of rows it would NOT stake even though the pipeline picked them, which is the point. Use after the PDF is built, before anything is staked, and on demand for a past day. Never edits code, never rebuilds the coupon, never recommends a stake.
+description: Adversarial verification of one built sofa day - the coupon, and everything beside it (audit_variants - the four sport coupons re-derived from raw snapshots, WARIANT WSZYSTKIE against its sources) and the WARIANT, whose legs no script re-derives. Runs audit_coupon, then does the four things it cannot - rebuilds every staked row from the raw observations in 03_samples.json, checks the subject maps to the side it claims, re-asks Superbet for every leg's live price through the same OfferFetcher the pipeline used, and tests the day's distributions for anti-selection (which markets, which leagues, which sample sizes, which surpluses the selector concentrated in). Ends with the list of rows it would NOT stake even though the pipeline picked them, which is the point. Use after the PDF is built, before anything is staked, and on demand for a past day. Never edits code, never rebuilds the coupon, never recommends a stake.
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
 skills:
   - sofa-pipeline
@@ -63,7 +63,13 @@ devig recomputed from the snapshot record the leg names, one leg per event,
 no vetoed leg, and the whole selection replayed as the snapshots stood at
 build time. M1-M3 check WARIANT WSZYSTKIE: its PDF hash, every section still
 equal to what its source prints now, nothing written into `runs/sofa/<d>/`.
+C1-C2 check the official coupon and WARIANT: the artifact is of its profile
+and not older than `05_sheet.json` / `vetoes.json`, its PDF is not older than
+it, and every printed single obeys the artifact's own dials.
 "no findings (nothing to check)" is not a pass - say which variants existed.
+Lines under `notes (not defects):` are locked sport legs that cannot be
+re-verified (`UNVERIFIABLE`): not findings and not a pass - list them. Exit 0
+no findings, 1 findings, 2 a file could not be read.
 
 For a sport leg, the live re-price in 2c applies as well: re-ask Superbet for
 the event (`SuperbetClient().event_odds`) and compare the leg's side and its
@@ -71,6 +77,15 @@ whole outcome group. These legs have no model; the only thing to verify
 beyond the price is that the market settles the way the label says
 (regulation vs overtime, a second leg of an aggregate tie, a friendly played
 to a fixed number of sets or periods).
+
+## Step 1c — the WARIANT
+
+`08_confidence_wariant.json` → `KUPON_<d>_WARIANT.pdf` (floor 0.65,
+confidence x odds >= 0.90, margin <= 15%, every single printed):
+`audit_variants` C1/C2 checks its freshness, profile and each printed
+single's rule, but no script re-derives its legs from the samples and
+`audit_coupon` never opens it. Apply 2a–2d to every position it prints that the official PDF does
+not. Report it separately from the coupon, never pooled.
 
 ## Step 2 — the four things the audit cannot do
 
@@ -120,10 +135,17 @@ the artifact claims, and that the fixture is still on the board.
 
 `min(kickoff_utc, superbet_kickoff_utc)`. Sofascore's clock alone is not
 enough: on ITF the two disagree by up to 11 h and the error makes a finished
-match look upcoming. **CONFIDENCE reads Sofascore's clock while COUPON takes
-the earlier of the two** — check whether any staked leg sits in that gap.
+match look upcoming. **COUPON and CONFIDENCE both gate on the earlier clock
+plus 15 min** (`coupon.effective_kickoff`, `confidence.too_close_to_kickoff`)
+— check that no staked leg violates it.
 
 ## Step 3 — anti-selection, the most important test
+
+First, a guard check: a tennis per-set serve leg
+(`{aces,double_faults,serve_points}_set{1,2}_*`, `confidence.TENNIS_PER_SET_SERVE`),
+a full-match serve-points leg (`serve_points_for` / `serve_points_total`,
+`confidence.TENNIS_SERVE_POINTS`) or a football player prop in an `08_confidence*.json` built after 2026-09-30
+without a curve of its own (`AWAITING_OWN_CURVE`) is a defect.
 
 `coupon.py` ranks on the **relative** price advantage `surplus / required_odds`
 (where `surplus = offered − 1.10/p_bar`), then orders breadth-first — each
@@ -136,7 +158,8 @@ about the day, and it makes these the real tests:
   measurement — thin samples, uncheckable ladders (only 52.4% of ladders can be
   checked at all; `sets_total` and `aces_*` were 0%), no market curve — it is an
   artifact, not an edge. Count it.
-- **Distribution across `sample_size`.** At small `n`, `w = n/(n+10)` pulls
+- **Distribution across `sample_size`.** At small `n`, `w = n/(n+K_PRICE)`, `K_PRICE = 10`
+  (NOT_FITTED), pulls
   `p_bar` hard toward `market_p`, so the coupon stops measuring the model and
   measures only the price against its own devigged line. Describe rows with
   `n < 8` separately and say what they actually are.

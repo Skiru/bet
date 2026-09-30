@@ -1,0 +1,205 @@
+{
+ "_doc": "Sofascore event payload (cache: sofa_entity_events) naming uniqueTournament 28008 'Women Club Friendly Games' - the women's twin of 853. Extracted 2026-09-30 for config/sofa_friendly_competitions.json.",
+ "event": {
+  "eventState": {},
+  "tournament": {
+   "name": "Women Club Friendly Games",
+   "slug": "club-friendly-games-women",
+   "category": {
+    "name": "World",
+    "slug": "world",
+    "sport": {
+     "name": "Football",
+     "slug": "football",
+     "id": 1
+    },
+    "priority": 20,
+    "country": {},
+    "id": 1468,
+    "flag": "international",
+    "fieldTranslations": {
+     "nameTranslation": {
+      "ar": "العالم",
+      "bn": "বিশ্ব",
+      "hi": "विश्व",
+      "ru": "Мир"
+     },
+     "shortNameTranslation": {}
+    }
+   },
+   "uniqueTournament": {
+    "name": "Women Club Friendly Games",
+    "slug": "club-friendly-games-women",
+    "category": {
+     "name": "World",
+     "slug": "world",
+     "sport": {
+      "name": "Football",
+      "slug": "football",
+      "id": 1
+     },
+     "priority": 20,
+     "country": {},
+     "id": 1468,
+     "flag": "international",
+     "fieldTranslations": {
+      "nameTranslation": {
+       "ar": "العالم",
+       "bn": "বিশ্ব",
+       "hi": "विश्व",
+       "ru": "Мир"
+      },
+      "shortNameTranslation": {}
+     }
+    },
+    "userCount": 1868,
+    "hasPerformanceGraphFeature": false,
+    "country": {},
+    "id": 28008,
+    "hasEventPlayerStatistics": false,
+    "displayInverseHomeAwayTeams": false,
+    "fieldTranslations": {
+     "nameTranslation": {
+      "ar": "مباريات ودية للأندية، السيدات",
+      "ru": "Дружественные игры клубов среди женщин"
+     },
+     "shortNameTranslation": {}
+    }
+   },
+   "priority": 0,
+   "isGroup": false,
+   "isLive": false,
+   "id": 5787,
+   "fieldTranslations": {
+    "nameTranslation": {
+     "ar": "مباريات ودية للأندية للسيدات",
+     "ru": "Дружеские матчи среди женщин"
+    },
+    "shortNameTranslation": {}
+   }
+  },
+  "season": {
+   "name": "Women Club Friendly Games 2024",
+   "year": "2024",
+   "editor": false,
+   "id": 71742
+  },
+  "customId": "QXLcsfxce",
+  "status": {
+   "code": 100,
+   "description": "Ended",
+   "type": "finished"
+  },
+  "winnerCode": 2,
+  "homeTeam": {
+   "name": "LD Alajuelense",
+   "slug": "ld-alajuelense",
+   "shortName": "LD Alajuelense",
+   "gender": "F",
+   "sport": {
+    "name": "Football",
+    "slug": "football",
+    "id": 1
+   },
+   "userCount": 3092,
+   "nameCode": "ALA",
+   "disabled": false,
+   "national": false,
+   "type": 0,
+   "country": {
+    "alpha2": "CR",
+    "alpha3": "CRI",
+    "name": "Costa Rica",
+    "slug": "costa-rica"
+   },
+   "id": 342391,
+   "subTeams": [],
+   "teamColors": {
+    "primary": "#374df5",
+    "secondary": "#374df5",
+    "text": "#ffffff"
+   },
+   "fieldTranslations": {
+    "nameTranslation": {
+     "ar": "إل دي ألاجولينسي",
+     "ru": "ЛД Алахуэленсе"
+    },
+    "shortNameTranslation": {
+     "ar": "إل دي ألاجولينسي",
+     "ru": "ЛД Алахуэленсе"
+    }
+   }
+  },
+  "awayTeam": {
+   "name": "Alianza FC",
+   "slug": "alianza-fc",
+   "gender": "F",
+   "sport": {
+    "name": "Football",
+    "slug": "football",
+    "id": 1
+   },
+   "userCount": 320,
+   "nameCode": "ALI",
+   "national": false,
+   "type": 0,
+   "country": {
+    "alpha2": "CO",
+    "alpha3": "COL",
+    "name": "Colombia",
+    "slug": "colombia"
+   },
+   "id": 506105,
+   "subTeams": [],
+   "teamColors": {
+    "primary": "#ea1515",
+    "secondary": "#0d2e67",
+    "text": "#0d2e67"
+   },
+   "fieldTranslations": {
+    "nameTranslation": {
+     "ar": "أليانزا إف سي",
+     "ru": "ФК Альянса"
+    },
+    "shortNameTranslation": {}
+   }
+  },
+  "homeScore": {
+   "current": 1,
+   "display": 1,
+   "period1": 1,
+   "period2": 0,
+   "normaltime": 1
+  },
+  "awayScore": {
+   "current": 3,
+   "display": 3,
+   "period1": 2,
+   "period2": 1,
+   "normaltime": 3
+  },
+  "coverage": -1,
+  "time": {
+   "currentPeriodStartTimestamp": 1721768640
+  },
+  "changes": {
+   "changes": [
+    "status.code",
+    "status.description",
+    "status.type",
+    "awayScore.period2",
+    "awayScore.normaltime"
+   ],
+   "changeTimestamp": 1721771509
+  },
+  "hasGlobalHighlights": false,
+  "crowdsourcingDataDisplayEnabled": false,
+  "id": 12589700,
+  "awayRedCards": 1,
+  "slug": "alianza-fc-ld-alajuelense",
+  "startTimestamp": 1721764800,
+  "finalResultOnly": false,
+  "feedLocked": true,
+  "isEditor": false
+ }
+}

@@ -14,14 +14,15 @@ Mechanika etapów jest w [`PIPELINE.md`](PIPELINE.md). Tutaj są **role**.
 
 | komenda | co robi | sieć |
 |---|---|---|
-| `/sofa-day [data]` | cały dzień: most → SETTLE D-1 → BOARD…COUPON → analitycy → przebudowa → PDF → weryfikacja | Sofascore (most) + Superbet |
+| `/sofa-day [data]` | cały dzień: most (ensure_bridge) → SETTLE D-1 + wszystkie warianty + dziennik → BOARD…COUPON → analitycy → przebudowa → PDF + WARIANT → 4 × sofa-sport-runner → WARIANT WSZYSTKIE → audit_coupon + audit_variants + weryfikacja | Sofascore (most) + Superbet |
 | `/sofa-analyze [data]` | analitycy nad gotowym arkuszem, scalenie wet, przebudowa | tylko Superbet (opcjonalnie) |
 | `/sofa-rebuild [data]` | przebudowa kuponu i PDF z artefaktów z dysku | tylko Superbet (opcjonalnie) |
 | `/sofa-verify [data]` | adwersaryjna weryfikacja zbudowanego dnia | Superbet (ceny na żywo) + web |
 | `/sofa-settle [data]` | rozliczenie dnia zakończonego i decyzja o fitowaniu | Sofascore (most) |
 
 Argument to `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty znaczy dzisiaj.
-**Doba zakładowa jest w UTC.**
+**Doba zakładowa kuponu jest w UTC; kupony sportów i WSZYSTKIE trwają do
+06:00 czasu warszawskiego D+1.**
 
 ### Agenci — wykonawcy z własnym kontekstem
 
@@ -65,12 +66,15 @@ przebiega *jego* przebieg.
 ```
 operator: /sofa-day 2026-09-21
    │
-   ├─ 0. most            check_bridge.py — trzy linie OK, i liczy się WIEK pobrania
-   │                     martwa karta nadal melduje ok:true
+   ├─ 0. most            ensure_bridge.py — podnosi most, potem check_bridge;
+   │                     liczy się WIEK pobrania, martwa karta nadal melduje ok:true
    │
    ├─ 1. SETTLE D-1      → sofa-settler (albo inline)
-   │                       audit_settlement §7c = prawdziwy wynik PDF-kuponu
-   │                       §7 i §7b to materiał wejściowy, NIE zakłady
+   │                       audit_settlement §7c = prawdziwy wynik PDF-kuponu,
+   │                       §7d = WARIANT; §7 i §7b to materiał wejściowy, NIE zakłady
+   │                       settle_sport_coupon → settle_multi_coupon → record_results (dziennik) → audit_ledger
+   │   1b. pętle dnia    cs2_daily.py --chain, shadow_daily.py --chain (zostają u orkiestratora;
+   │                     rano każda rozlicza D i D-1 i zapisuje oba dni w dzienniku)
    │
    ├─ 2. dzisiaj         BOARD (tylko Superbet — może iść, gdy SETTLE trzyma most)
    │                     … RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
@@ -81,10 +85,16 @@ operator: /sofa-day 2026-09-21
    │                        ↓ każdy zwraca markdown + jedną tablicę JSON
    │                     walidacja → runs/sofa/<data>/vetoes.json
    │
-   ├─ 4. przebudowa      OFFER (jeśli cena > 45 min) → COUPON → CONFIDENCE → PDF
+   ├─ 4. przebudowa      OFFER (jeśli cena > 45 min) → SHEET → COUPON → CONFIDENCE → PDF
+   │                     → WARIANT (confidence + PDF --profile wariant)
    │                     bo vetoes.json czytają COUPON I CONFIDENCE
    │
-   └─ 5. weryfikacja     → sofa-verifier  (NIE jest opcjonalna)
+   ├─ 4b. sporty         jedno odświeżenie cen, potem 4 × sofa-sport-runner
+   │                     (jedna wiadomość, pierwszy plan)
+   │
+   ├─ 4c. WSZYSTKIE      run_multi_coupon.py — złożenie, bez wyboru
+   │
+   └─ 5. weryfikacja     audit_coupon + audit_variants + sofa-verifier  (NIE jest opcjonalna)
                            kończy listą wierszy, których NIE postawiłby
 ```
 
@@ -131,7 +141,11 @@ Każdy `/sofa-day` robi dodatkowo, bez pytania:
 1. **D-1 dla wszystkich:** po SETTLE / CS2_SETTLE / SHADOW_SETTLE —
    `settle_sport_coupon.py`, `settle_multi_coupon.py`, `audit_shadow.py`,
    `audit_cs2.py` i `record_results.py` (dziennik
-   `runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i wariant).
+   `runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i wariant, także
+   `rule:<sport>` i `measure:<sport>`), czytany przez `audit_ledger.py` —
+   osobno per wariant, nigdy łącznie. Kod 0 także przy pozycjach
+   oczekujących (widać je w tabeli); 1 tylko przy `MISMATCH` albo
+   nieczytelnym pliku; 2 przy awarii lub braku bazy.
 2. **Po oficjalnym PDF:** jedno odświeżenie cen (Superbet), potem **cztery
    agenty `sofa-sport-runner` w jednej wiadomości** — CS2, hokej, koszykówka,
    siatkówka — każdy buduje swój kupon, czyta nogi, pisze weta.
@@ -221,6 +235,13 @@ skrypt nie umie: odtwarza wiersz z `03_samples.json`, sprawdza, czy `subject`
 wskazuje stronę, którą twierdzi, dopytuje Superbet o **żywą** cenę tym samym
 `OfferFetcher`, i testuje rozkłady dnia pod kątem antyselekcji.
 
+Obok kuponu weryfikuje też warianty: `audit_variants.py` przelicza cztery
+kupony sportów z surowych migawek i sprawdza WARIANT WSZYSTKIE wobec jego
+źródeł, a **WARIANT** (`08_confidence_wariant.json` →
+`KUPON_<data>_WARIANT.pdf`): `audit_variants` C1/C2 sprawdza świeżość,
+profil i regułę każdej wydrukowanej pozycji, ale nóg z próbek nie odtwarza
+żaden skrypt — agent robi to ręcznie, osobno, nigdy łącznie z kuponem.
+
 **Produktem jest lista wierszy, których NIE postawiłby, mimo że pipeline je
 wybrał.** Nie lista poleconych. Na koniec werdykt i **żadnej rekomendacji
 stawki** — `K_PRICE` i `MAX_LADDER_SIGMA` są `NOT_FITTED` i każdy wiersz o tym
@@ -243,6 +264,10 @@ czym drugą odpowiedzią jest zwykle „nie".
   `half_match_coherence`, status **każdej** stałej. `null` ze statusem
   `NOT_FITTED` to **poprawny wynik, nie luka**.
 - Nigdy nie edytuj stałej ręcznie. Fituj albo zgłoś.
+- Co dzień rozlicza **każdy wariant** D-1 (WARIANT §7d, cztery kupony
+  sportów, WARIANT WSZYSTKIE) i zapisuje dziennik `record_results.py`
+  (`runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i wariant); wyniki
+  nigdy się nie sumują.
 
 Szczegóły higieny plików konfiguracyjnych: [`CONFIG.md`](CONFIG.md).
 
@@ -321,10 +346,16 @@ sięgnęłaby próbka, którą już mamy, a do których nie.
 
 ```
 KUPON:    runs/sofa/<data>/KUPON_<data>.pdf — <n> pozycji
+WARIANT:  runs/sofa/<data>/KUPON_<data>_WARIANT.pdf — <n> pozycji (NIE kupon; 0.65 / x ≥ 0.90)
 SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <werdykt> · <n> na tablicy → <n> dopasowanych (<x>%) → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów (sekcja 7c)
+POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar, NIE kupon
+SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; cena bez marży, bez modelu); weta <n>
+WSZYSTKIE: runs/sofa/multi/<data>/KUPON_<data>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 (wyłączone: <…>)
+D-1 WYNIKI: kupon <u> j. · WARIANT <u> j. · sporty <u>/<u>/<u>/<u> j. · WSZYSTKIE <u> j. (każdy osobno, nigdy sumowane) · pomiar fair p vs trafione per sport → dziennik · reguła CS2/HOKEJ/KOSZ/SIATKA <u> j. · MISMATCH <n> (audit_ledger.py)
+AUDYT WARIANTÓW: <n> znalezisk
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <największa słabość dnia, jedna>
 ```

@@ -48,7 +48,10 @@ Hard boundaries, each guarded by a test:
 
 from __future__ import annotations
 
+import fcntl
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -228,14 +231,60 @@ def is_player_family(family: str) -> bool:
     return family.startswith("player_")
 
 
-def load_snapshots(path: Path) -> list[dict[str, Any]]:
+def read_snapshots(
+    path: Path, upto_lines: int | None = None
+) -> tuple[list[dict[str, Any]], int, int]:
+    """(records, lines in the file, unreadable lines).
+
+    Read under a shared lock (run_shadow appends under an exclusive one), and
+    a line that does not parse - a crash mid-append - is skipped and counted,
+    never fatal: one torn line once stopped every later build of its sport.
+    `upto_lines` reads only the file's first N lines - what a build saw.
+    """
     if not path.exists():
-        return []
-    return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+        return [], 0, 0
+    with path.open(encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_SH)
+        try:
+            text = fh.read()
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+    lines = text.splitlines()
+    # Only whole lines: a last line with no newline is an append in progress
+    # (or torn). Counting it would let a replay read a record the build never
+    # saw once the write completes.
+    if lines and not text.endswith("\n"):
+        lines = lines[:-1]
+    if upto_lines is not None:
+        lines = lines[:upto_lines]
+    rows: list[dict[str, Any]] = []
+    bad = 0
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            bad += 1
+    return rows, len(lines), bad
+
+
+def load_snapshots(path: Path, upto_lines: int | None = None) -> list[dict[str, Any]]:
+    return read_snapshots(path, upto_lines)[0]
+
+
+@contextmanager
+def dir_lock(directory: Path) -> Iterator[None]:
+    """One writer per sport directory at a time: two runners (or a runner and
+    an operator) rebuilding the same coupon would otherwise interleave their
+    JSON, PDF and build log."""
+    directory.mkdir(parents=True, exist_ok=True)
+    with (directory / ".sport_coupon.lock").open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
 
 
 def latest_events(sport: SportKey, snapshots: list[dict[str, Any]]) -> dict[str, Any]:
@@ -244,19 +293,50 @@ def latest_events(sport: SportKey, snapshots: list[dict[str, Any]]) -> dict[str,
     return dict(shadow.latest_pre_kickoff(snapshots))
 
 
-def day_events(runs_dir: str, sport: SportKey, date: str) -> tuple[dict[str, Any], int]:
+def prev_date(date: str) -> str:
+    return (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+
+
+def _newest(ev: Any) -> datetime | None:
+    return max((_utc(t) for t in ev.fetched_at.values()), default=None)
+
+
+def day_events(
+    runs_dir: str,
+    sport: SportKey,
+    date: str,
+    stats: dict[str, Any] | None = None,
+    upto_lines: dict[str, int] | None = None,
+) -> tuple[dict[str, Any], int]:
     """The events of D's and D+1's snapshot files, each tagged with the file
     (`source_date`) its result will be settled into. An event in both files
-    keeps D's record. Returns (events, snapshot records read)."""
+    (a game moved across midnight UTC) keeps the record with the newer price.
+    Returns (events, snapshot records read); `stats` gets each file's line
+    count - what a replay must read - and the unreadable lines."""
     out: dict[str, Any] = {}
     read = 0
+    lines: dict[str, int] = {}
+    bad = 0
     for source in (date, next_date(date)):
-        snaps = load_snapshots(day_dir(runs_dir, sport, source) / cs2.SNAPSHOTS_FILE)
+        snaps, n_lines, n_bad = read_snapshots(
+            day_dir(runs_dir, sport, source) / cs2.SNAPSHOTS_FILE,
+            None if upto_lines is None else upto_lines.get(source, 0),
+        )
         read += len(snaps)
+        lines[source] = n_lines
+        bad += n_bad
         for eid, ev in latest_events(sport, snaps).items():
-            if eid not in out:
-                ev.source_date = source
+            ev.source_date = source
+            have = out.get(eid)
+            if have is None or (_newest(ev) or datetime.min.replace(tzinfo=WARSAW)) > (
+                _newest(have) or datetime.min.replace(tzinfo=WARSAW)
+            ):
                 out[eid] = ev
+    if stats is not None:
+        stats["snapshot_lines"] = lines
+        stats["unreadable_snapshot_lines"] = bad
     return out, read
 
 
@@ -324,7 +404,16 @@ def side_filter(
         return "BELOW_MIN_ODDS"
     if margin > rule.max_overround:
         return "MARGIN_TOO_HIGH"
+    if margin < 0:
+        # the book never pays out more than it takes in: a negative margin is
+        # a stale or misread group, not a price
+        return "NEGATIVE_MARGIN"
     return None
+
+
+# Families a leg cannot come from: the coupon grades from the stored result,
+# and settled.json keeps only each map's rounds, not the players' kills.
+EXCLUDED_FAMILIES = frozenset({"team_kills"})
 
 
 # Keys a veto may narrow itself by; an absent key matches anything. Without
@@ -332,7 +421,14 @@ def side_filter(
 VETO_KEYS = ("family", "side", "market_id", "period", "map_nr", "subject", "line")
 
 
+VETO_FIELDS = frozenset({"superbet_event_id", "reason", "source", *VETO_KEYS})
+
+
 def veto_matches(v: dict[str, Any], leg: dict[str, Any]) -> bool:
+    """A veto with a key it does not know (a typo, "event_id") matches
+    nothing - it is reported as unmatched, never silently widened."""
+    if set(v) - VETO_FIELDS:
+        return False
     if str(v.get("superbet_event_id")) != str(leg["superbet_event_id"]):
         return False
     return all(v[k] == leg.get(k) for k in VETO_KEYS if v.get(k) is not None)
@@ -375,10 +471,13 @@ def candidates(
     counts: dict[str, int],
     until: datetime | None = None,
     check_clock: bool = True,
+    since: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Every side of every event in the window that the rule admits.
 
-    The window is [at + KICKOFF_MARGIN, until). Only the event's most recent
+    The window is [max(at + KICKOFF_MARGIN, since), until): `since` is the
+    previous day's `day_end`, so a night game belongs to one day's coupon
+    only, however early the next one is built. Only the event's most recent
     snapshot is read - a line Superbet has taken down since is not a price -
     and it must be under MAX_PRICE_AGE. A side's probability is devigged over
     its whole outcome group; an incomplete group is no price.
@@ -391,6 +490,9 @@ def candidates(
             continue
         if until is not None and kickoff >= until:
             _bump(counts, "after_day_end")
+            continue
+        if since is not None and kickoff < since:
+            _bump(counts, "previous_days_window")
             continue
         if not ev.fetched_at:
             continue
@@ -405,6 +507,9 @@ def candidates(
         for key, line in current.items():
             if is_player_family(line.family):
                 _bump(counts, "player_line")
+                continue
+            if line.family in EXCLUDED_FAMILIES:
+                _bump(counts, "ungradeable_family")
                 continue
             group_odds = {s: ln.odds for s, ln in groups[key[:4]].items()}
             shape = (
@@ -444,17 +549,28 @@ def candidates(
     return out
 
 
-def locked_legs(previous: dict[str, Any] | None, at: datetime) -> list[dict[str, Any]]:
+def locked_legs(
+    previous: dict[str, Any] | None,
+    at: datetime,
+    current_kickoff: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
     """Legs of an earlier build of the same day that can no longer be
     replaced - started, or inside the kickoff margin. They stay on the coupon
-    exactly as printed."""
+    exactly as printed. The kickoff is the EARLIER of the printed one and the
+    one the snapshots say now: a game moved forward and already in play is
+    locked, not dropped from the record."""
     if not previous:
         return []
-    return [
-        {**leg, "locked": True}
-        for leg in previous.get("legs", [])
-        if _utc(leg["kickoff_utc"]) - at < KICKOFF_MARGIN
-    ]
+    now_ko = current_kickoff or {}
+    out = []
+    for leg in previous.get("legs", []):
+        kickoff = _utc(leg["kickoff_utc"])
+        moved = now_ko.get(str(leg["superbet_event_id"]))
+        if moved is not None:
+            kickoff = min(kickoff, _utc(moved))
+        if kickoff - at < KICKOFF_MARGIN:
+            out.append({**leg, "locked": True})
+    return out
 
 
 def select(
@@ -718,6 +834,12 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
     return shadow.grade(sline, actual, spec.kind == "three_way")
 
 
+def _priced_in_play(leg: dict[str, Any], ev: dict[str, Any]) -> bool:
+    start = ev.get("sofascore_start_utc")
+    priced = leg.get("price_fetched_at_utc")
+    return bool(start and priced) and _utc(str(priced)) >= _utc(str(start))
+
+
 def grade_coupon(
     coupon: dict[str, Any],
     settled_by_date: dict[str, dict[str, Any] | None],
@@ -728,7 +850,9 @@ def grade_coupon(
     WIN / LOSS / VOID (a push, or a map / set never played); UNGRADEABLE when
     the result cannot answer the line (an ambiguous overtime, an unclear
     orientation); VOID when SETTLE voided the event; NOT_GRADED:<state> for
-    an event SETTLE gave up on; PENDING / PENDING:<state> until it is settled. Where the
+    an event SETTLE gave up on; IN_PLAY_PRICE when the printed price was
+    taken after Sofascore's real start; PENDING / PENDING:<state> until it
+    is settled. Where the
     measurement graded the same side too, a disagreement is MISMATCH - it
     means one of the two graders is wrong, and neither result is counted.
     """
@@ -740,6 +864,11 @@ def grade_coupon(
         ev = events.get(leg["superbet_event_id"])
         if ev is None:
             outcome = "PENDING"
+        elif ev.get("state") == "SETTLED" and _priced_in_play(leg, ev):
+            # the printed price was taken after the game really began: not a
+            # pre-match price, never counted (the measurement's
+            # NO_PRE_START_PRICE)
+            outcome = "IN_PLAY_PRICE"
         elif ev.get("state") == "SETTLED":
             outcome = _grade_leg(sport, leg, ev)
             measured = {_leg_key(r): r["outcome"] for r in ev.get("graded") or []}

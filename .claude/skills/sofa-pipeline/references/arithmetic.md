@@ -101,6 +101,18 @@ the leg is **refused** (`NOT_CALIBRATED`) rather than served the model's own
 number — falling back to `p` is exactly the untested claim this module exists
 to stop making.
 
+**A market in `confidence.AWAITING_OWN_CURVE` never reaches a pool:** with no
+curve of its own it is refused (`NOT_CALIBRATED`). That set holds the football
+player props (claimed 0.776, realised 0.624 on the pooled curve), the new
+per-half / saves / throw-in / goal-kick / tackle markets, and since 2026-09-30
+the tennis per-set serve markets `{aces,double_faults,serve_points}_set{1,2}_{for,total}`
+(`TENNIS_PER_SET_SERVE`) - which, reading the games-only tennis pool, claimed
+0.777 and realised 149/253 = 0.589 - and the full-match serve points
+`serve_points_for` / `serve_points_total` (`TENNIS_SERVE_POINTS`): 15/31 =
+0.484 against 0.782 claimed. The per-set GAMES markets and the full-match aces
+/ double faults have their own curves and are not in it. The guard lapses by itself once `fit_confidence`
+gives the market a curve of its own.
+
 **A market with its own curve may not borrow the pooled curve above the top of
 its own measured range.** Silence above a market's ceiling is evidence, not a
 gap: it says the model never produces a confident prediction there that

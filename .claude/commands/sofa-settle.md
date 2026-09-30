@@ -19,9 +19,9 @@ during one.
 ## 1 — settle
 
 ```bash
-.venv/bin/python scripts/sofa/check_bridge.py
+.venv/bin/python scripts/sofa/ensure_bridge.py      # brings the bridge up if it is down, then runs check_bridge.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SETTLE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<date>.done exists or the pid in daily_<date>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
 ```
 
@@ -38,18 +38,29 @@ say what the whole board did.
 ## 1b — every variant, and the ledger (every day)
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <date> --to <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <date> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <date-1> --to <date>   # the day before too: its legs after 00:00Z settle into <date>'s file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <date-1> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <date> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <date> --to <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <date-1> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <date-7> --to <date>    # read it: one table per variant, never pooled
 ```
 
 One ledger row per (date, variant) in `runs/sofa/ledger/results.jsonl`;
 re-running a date replaces its rows. Each variant stands alone - official,
-wariant, sport:<sport>, multi - and `measure:<sport>` records the price
-against the outcome. Exit 1 = something still pending; re-run after the
-missing SETTLE.
+wariant, sport:<sport>, multi, `rule:<sport>` (the price-only rule replayed
+on the day, chosen before the outcome) - and `measure:<sport>` records the
+price against the outcome (`favourite_side` two-way lines only, comparable
+across the 09-30 cutover; `by_shape`, `by_family`, `players` beside it).
+Exit 0 = graded as far as the settles allow (pending legs are shown in the
+table, never an exit code); 1 = a `MISMATCH` (two graders disagree on a leg -
+a defect, name it) or an unreadable file (named in the table); 2 = a crash,
+or for `record_results.py` a missing database. A leg after 00:00Z settles
+into the next day's file and is graded the morning after (the loops' 05:00Z
+/ 05:15Z steps settle D and D-1 and record both days), so the next run's
+`--from <date-1>` closes it too. Before the sport's SETTLE has written
+`settled.json`, `measure:<sport>` is absent, not pending - check every
+`measure:*` row is present.
 
 ## 2 — read it, in the right order
 
@@ -63,8 +74,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <date>
 or 7b as the day's result is the same error as calling `06_coupon.json` the
 coupon, and it has inverted a day before.
 
-Report the two paths separately and never pool them: the VALUE singles
-(−20.4% on 2026-09-20) and the PDF (+8.2% the same day).
+Report the paths separately and never pool them: the VALUE singles
+(−20.4% on 2026-09-20), the PDF (+8.2% the same day), and WARIANT (7d).
 
 `audit_day_deep` answers the two questions after: per market, was the miss
 **systematic** or **dispersion**; and **would today's gates still have made
@@ -124,6 +135,9 @@ refusing to name a value is information.
 SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody)
 SINGLE:   <n> wierszy VALUE · <w>/<n> · ROI <…>
 PDF:      <n> slipów (sekcja 7c) · <w>/<n> · ROI <…>
+WARIANTY: WARIANT <u> · CS2 <u> · HOKEJ <u> · KOSZ <u> · SIATKA <u> · WSZYSTKIE <u> j. (osobno) · pending <n>
+POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
+LEDGER:   <n> wierszy zapisanych dla <date>
 RYNKI:    <families that lost, systematic vs dispersion>
 BRAMKI:   <per gate: caught / cost / missed>
 NISZE:    <verdict (section 7h) · candidates · selector OOS ROI vs baseline>

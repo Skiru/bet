@@ -26,7 +26,6 @@ Writes runs/sofa/shadow/<sport>/<date>/snapshots.jsonl. Exit: 0 OK,
 from __future__ import annotations
 
 import argparse
-import fcntl
 import json
 import sys
 from datetime import UTC, datetime, timedelta
@@ -39,6 +38,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
         sys.path.insert(0, _path)
 
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.cs2 import append_records  # noqa: E402
 from bet.sofa.shadow import (  # noqa: E402
     SNAPSHOTS_FILE,
     SPORT_BY_SUPERBET_ID,
@@ -185,17 +185,9 @@ def snapshot(
         paths[key].parent.mkdir(parents=True, exist_ok=True)
         # One append per sport per snapshot: a crash mid-loop loses this
         # snapshot, never corrupts an earlier one.
-        with paths[key].open("a", encoding="utf-8") as fh:
-            # Two loops can append to one day's file (D-1's covers the next
-            # day's early games while D's runs): the lock keeps records whole.
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                fh.write(
-                    "".join(json.dumps(x, ensure_ascii=False) + "\n" for x in recs)
-                )
-                fh.flush()
-            finally:
-                fcntl.flock(fh, fcntl.LOCK_UN)
+        # Two loops can append to one day's file (D-1's covers the next day's
+        # early games while D's runs): append_records locks, keeps lines whole.
+        append_records(paths[key], recs)
     failed = sum(m["fetch_failed"] for m in metrics.values())
     return {
         "verdict": "PARTIAL" if failed else "OK",

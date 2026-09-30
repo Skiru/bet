@@ -141,7 +141,8 @@ def main() -> int:
         default="standard",
         help=(
             "standard = the official coupon (08_confidence.json). wariant = "
-            "floor 0.65 and a price up to 10%% below fair, written to its own "
+            "floor 0.65, a price up to 10%% below fair and a ladder margin up "
+            "to 15%% (the coupon: 10.5%%), written to its own "
             "08_confidence_wariant.* so the official files are untouched."
         ),
     )

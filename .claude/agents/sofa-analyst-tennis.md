@@ -65,9 +65,16 @@ Say all of that on any confident `games_won_for` row you grade.
 
 ## Cover both products
 
-`06_coupon.json` is not the coupon; `KUPON_<date>.pdf` is. Grade every tennis
-leg and builder in `08_confidence.json` explicitly, and open `06_dropped.json`
-before concluding a row was never generated.
+`06_coupon.json` is not the coupon; `KUPON_<date>.pdf` is (its printed
+singles and its Bet Builders). Grade every tennis leg and builder in
+`08_confidence.json` explicitly, and open `06_dropped.json` before concluding
+a row was never generated.
+
+`08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf` (the operator's
+variant, not the coupon) prints every single at floor 0.65, and it reads the
+same `vetoes.json`. A leg only there is still a position the operator may
+take — read it, at lower priority than the official legs, and say which you
+did not reach.
 
 ## When `08_confidence.json` does not exist yet — the normal first pass
 

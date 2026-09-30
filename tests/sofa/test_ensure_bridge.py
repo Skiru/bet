@@ -11,8 +11,11 @@ from scripts.sofa.ensure_bridge import STALE_POLL_S, State, decide
     "state, want",
     [
         (State(True, 3.0, True, True), ["OK"]),
-        # a healthy bridge is never touched, whatever Chrome looks like
-        (State(True, 3.0, True, False), ["OK"]),
+        # a polling bridge is never touched - but a Chrome without the flags
+        # is named: its tabs poll clamped
+        (State(True, 3.0, True, False), ["WARN_UNFLAGGED"]),
+        # the port is held by a server that does not answer: never a second one
+        (State(False, None, False, False, port_busy=True), ["STOP_PORT_BUSY"]),
         (State(False, None, False, False), ["START_SERVER", "LAUNCH_BROWSER"]),
         (State(False, None, True, True), ["START_SERVER", "WAIT_FOR_POLL"]),
         (State(True, STALE_POLL_S + 1, True, True), ["WAIT_FOR_POLL"]),

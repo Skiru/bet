@@ -1,6 +1,8 @@
 # `sofa` — dokumentacja jedynego obowiązującego pipeline'u
 
-Statystyki: **Sofascore**. Ceny: **Superbet**. Sporty: **piłka i tenis**.
+Statystyki: **Sofascore**. Ceny: **Superbet**. Sporty kuponu: **piłka
+i tenis**; obok, jako pomiar i eksperyment: CS2, hokej, koszykówka,
+siatkówka (nigdy kupon).
 Produkt: **`runs/sofa/<data>/KUPON_<data>.pdf`**.
 
 **Nie ma etapu `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` ani

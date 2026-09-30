@@ -60,6 +60,34 @@ Poza tym sprawdź ręcznie:
   usuwaj.
 - **`UNMATCHED_VETO`**, jeśli weta w ogóle były.
 
+### 1b. Warianty obok kuponu (od 2026-09-30)
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <data>
+```
+
+Wyjście `0` = brak znalezisk, `1` = są znaleziska, `2` = zły plik. Linie pod
+`notes (not defects):` to zablokowane nogi sportów, których nie da się
+potwierdzić (`UNVERIFIABLE` — zbudowane, zanim istniał dziennik buildów): nie
+są znaleziskiem, ale też nie są „zaliczone” — wymień je w raporcie. S1–S5
+przeliczają każdy z czterech kuponów sportów (CS2, hokej, koszykówka,
+siatkówka) z surowych migawek: skrót PDF, reguła na każdej nowej nodze, każda
+cena i devig z rekordu migawki, jedna noga na mecz, żadnej zawetowanej nogi,
+cały wybór odtworzony tak, jak migawki stały w chwili budowy. M1–M3 sprawdzają
+WARIANT WSZYSTKIE: skrót PDF, każda sekcja równa temu, co jej źródło drukuje
+teraz, nic zapisanego do `runs/sofa/<data>/`. „nothing to check” to nie jest
+zaliczenie — powiedz, które warianty istniały. Dla nogi sportu dopytaj
+Superbet o żywą cenę jak w 2c (strona i cała grupa wyników) i sprawdź, czy
+rynek rozlicza się tak, jak mówi etykieta (czas podstawowy czy z dogrywką,
+format meczu towarzyskiego).
+
+**WARIANT** (`08_confidence_wariant.json` → `KUPON_<data>_WARIANT.pdf`; próg
+0,65, pewność × kurs ≥ 0,90, marża do 15%, drukuje każdy singiel):
+`audit_variants` C1/C2 sprawdza jego świeżość, profil i regułę każdej
+wydrukowanej pozycji, ale **nóg z próbek nie odtwarza żaden skrypt** —
+`audit_coupon` go nie otwiera. Zastosuj 2a–2d do każdej pozycji, którą drukuje, a której nie
+ma oficjalny PDF. Raportuj go osobno, nigdy łącznie z kuponem.
+
 ---
 
 ## 2. Cztery rzeczy, których audyt nie umie

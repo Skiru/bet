@@ -118,8 +118,8 @@ pipeline ──HTTP──► bridge_server.py (127.0.0.1:8787) ◄──polling�
    (src/bet/sofa/bridge_transport.py)                     (userscripts/sofascore-bridge.user.js)
 ```
 
-- Uruchomienie: `.venv/bin/python scripts/sofa/bridge_server.py` i otwarta
-  karta z aktywnym userscriptem.
+- Uruchomienie: `.venv/bin/python scripts/sofa/ensure_bridge.py` (serwer
+  w tle + 5 okien `launch_bridge_browser.py`, potem `check_bridge`).
 - Kontrola: `.venv/bin/python scripts/sofa/check_bridge.py` — **`ok: true` to
   za mało.** Martwa karta nadal raportuje `ok`. Liczy się **wiek ostatniego
   pobrania** (`last_pull_age_s`).
@@ -271,7 +271,7 @@ Dla każdej strony meczu i każdej metryki, którą ktoś wycenia, pobiera
 (`process_historical_event`, `src/bet/sofa/metrics.py`).
 
 Zakresy (scoping), zanim mecz historyczny wejdzie do próbki:
-- **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`);
+- **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`: 853, 1794 i od 30.09 28008 — towarzyskie klubowe kobiet); działa tylko w SAMPLES, więc próbka pobrana przed dodaniem id nadal je zawiera;
 - **tenis:** mecz historyczny liczy się tylko, gdy
   `surfaces_comparable(event.groundType, fixture.ground_type)` **i**
   `infer_best_of(event) == fixture.default_period_count`. Na poziomie
@@ -739,7 +739,7 @@ dlatego, że się różnią.
 
 ## 11. PDF — produkt
 
-`scripts/sofa/build_coupon_pdf.py --date <d> [--out …] [--runs-dir …]` →
+`scripts/sofa/build_coupon_pdf.py --date <d> [--profile standard|wariant] [--out …] [--runs-dir …]` →
 **`runs/sofa/<data>/KUPON_<data>.pdf`**
 
 Renderuje **wyłącznie** pozycje przechodzące `is_stakeable`, każdą z własnym
@@ -811,16 +811,34 @@ runs/sofa/<data>/
   07_settle_skips.json (tylko D-1)        czego nie dało się ocenić i dlaczego
   08_confidence.json/.md                  legi i Bet Buildery
   KUPON_<data>.pdf                        ★ produkt — to jest kupon
+  08_confidence_wariant.json/.md          wariant operatora (--profile wariant)
+  KUPON_<data>_WARIANT.pdf                PDF wariantu — NIE jest kuponem; rozliczany w 7d
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
   10_boosts.json/.md   Boost[]            boosty Superbeta — NIE są kuponem (run_boosts.py)
 
 runs/sofa/cs2/<data>/   — obok dnia, nigdy w nim
   snapshots.jsonl      linie CS2 Superbeta przed startem serii (run_cs2.py, etap CS2)
   settled.json         te linie ocenione z danych Sofascore (settle_cs2.py, CS2_SETTLE)
+  sport_coupon.json/.md, sport_coupon_builds.jsonl, vetoes.json
+                       kupon eksperymentalny CS2 (run_sport_coupon.py) — NIE jest kuponem
+  sport_coupon_settled.json
+                       nogi ostatniej wersji rozliczone po wydrukowanym kursie (settle_sport_coupon.py)
+  KUPON_<data>_CS2.pdf
 
 runs/sofa/shadow/<sport>/<data>/   — sport: hockey | basketball | volleyball
   snapshots.jsonl      linie Superbeta przed startem meczu (run_shadow.py, etap SHADOW)
   settled.json         te linie ocenione z wyniku Sofascore (settle_shadow.py, SHADOW_SETTLE)
+  sport_coupon.json/.md, sport_coupon_builds.jsonl, vetoes.json
+                       kupon eksperymentalny sportu — NIE jest kuponem
+  sport_coupon_settled.json
+                       nogi ostatniej wersji rozliczone po wydrukowanym kursie (settle_sport_coupon.py)
+  KUPON_<data>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf
+
+runs/sofa/multi/<data>/
+  multi_coupon.json/.md, multi_coupon_settled.json
+  KUPON_<data>_WSZYSTKIE.pdf              złożenie oficjalnego PDF i czterech kuponów sportów — NIE jest kuponem
+
+runs/sofa/ledger/results.jsonl            dziennik: jeden wiersz na (dzień, wariant), record_results.py; czyta go audit_ledger.py
 ```
 
 `10_boosts.*` pisze `scripts/sofa/run_boosts.py --date <d>`, poza
@@ -838,7 +856,8 @@ Od 2026-09-28 `sofa` mierzy Counter-Strike 2 obok kuponu. To **pomiar, nie
 rynek na kupon**: pytanie brzmi, czy kurs Superbeta po zdjęciu marży już zgadza
 się z tym, co się dzieje — jeśli tak, próbka nie ma czego dodać i CS2 na kupon
 nie trafia. Nic z `runs/sofa/cs2/` nie jest czytane przez etap, który buduje
-kupon.
+kupon. Od 2026-09-30 obok pomiaru jest eksperymentalny `KUPON_<d>_CS2.pdf`
+(tylko cena, bez modelu) — też NIE kupon.
 
 ```
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>   --only CS2         # kilka razy dziennie
@@ -846,14 +865,20 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
 ```
 
-Cały dzień CS2 bez obsługi (zapis cen co 30 min do 23:30Z, następnego dnia
-o 05:00Z CS2_SETTLE, krótki backfill z poszanowaniem karencji i audyt do
-logu):
+Cały dzień CS2 bez obsługi (zapis cen co 30 min do 23:30Z; z `--chain` o
+23:30Z startuje pętla D+1, więc nocne serie D+1 mają ceny; następnego dnia o
+05:00Z CS2_SETTLE dla D i D-1, rozliczenie kuponów CS2 za D-1 i D, dziennik
+za D-1 i D, krótki backfill z poszanowaniem karencji i audyt do logu; druga
+pętla dla tej samej daty odmawia, kod 2):
 
 ```
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> \
-    > runs/sofa/cs2/daily_<d>.log 2>&1 &
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> --chain \
+    >> runs/sofa/cs2/daily_<d>.log 2>&1 &
 ```
+
+Pętla czyta swój plan raz, przy starcie: pętla uruchomiona przed zmianą kodu
+wykonuje stare kroki poranne aż do końca (jej następczyni z `--chain` ma już
+nowy kod).
 
 Strażnik (`cs2_watchdog.py --dates <d1,d2> --until <UTC>`) co 5 min: wznawia
 padnięty `cs2_daily` (plik `daily_<d>.pid` bez `.done`), restartuje serwer
@@ -862,8 +887,10 @@ ponowienia, i zgłasza `ALERT_TABS`, gdy karty przestały odpytywać — tego ni
 naprawi sam, bo wymaga zamknięcia Chrome. Każda linia logu zaczyna się od
 `WATCHDOG`.
 
-- **CS2** (`run_cs2.py`) pyta tylko Superbeta (sportId 55): każdą dwudrożną
-  linię serii, która się jeszcze nie zaczęła, dopisuje do `snapshots.jsonl`.
+- **CS2** (`run_cs2.py`) pyta tylko Superbeta (sportId 55): każdą pełną
+  grupę wyników serii, która się jeszcze nie zaczęła (linie dwudrożne, a od
+  2026-09-30 także dokładny wynik w mapach i parzystość rund na mapie, każda
+  zdevigowana po całej grupie), dopisuje do `snapshots.jsonl`.
 - **CS2_SETTLE** (`settle_cs2.py`) bierze ostatni kurs sprzed startu, znajduje
   serię w Sofascore (kategoria „Counter Strike”; drużyna e-sportowa jest osobna
   dla każdej gry), odtwarza mapy po kolei i ocenia linie dopiero wtedy, gdy mapy
@@ -886,16 +913,18 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>   --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE  # rano, bridge musi działać
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain \
-    >> runs/sofa/shadow/daily_<d>.log 2>&1 &    # cały dzień bez obsługi: ceny do 04:30Z D+1, settle o 05:15Z, potem --chain startuje D+1
+    >> runs/sofa/shadow/daily_<d>.log 2>&1 &    # cały dzień bez obsługi: ceny do 04:30Z D+1, o 05:15Z settle D i D-1, kupony sportów i dziennik za D-1 i D, potem --chain startuje D+1
 ```
 
 - **SHADOW** (`run_shadow.py`): Superbet sportId 3 (hokej), 4 (koszykówka),
   1 (siatkówka); e-hokej (157) i e-koszykówka (70) to symulacje i nie są
   czytane. Rynek rozpoznaje po `marketId` (jeden identyfikator na typ rynku we
   wszystkich meczach), stronę po `code` i po treści — gdy się nie zgadzają,
-  linia wypada. Czytane są tylko linie dwudrożne: zwycięzca z dogrywką, sumy,
-  sumy drużyn, handicapy, zakład bez remisu — całość, tercje, połowy, kwarty,
-  sety. Pyta o mecz, gdy startuje w ciągu `--horizon-h` (3 h) albo gdy dzień
+  linia wypada. Czytana jest każda pełna grupa wyników: linie dwudrożne
+  (zwycięzca z dogrywką, sumy, sumy drużyn, handicapy, zakład bez remisu —
+  całość, tercje, połowy, kwarty, sety), a od 2026-09-30 także 1X2 (1X2 bez
+  remisu nie jest ceną), parzystość, set na przewagi (tak/nie) i dokładny
+  wynik w setach (siatkówka), każda zdevigowana po całej grupie. Pyta o mecz, gdy startuje w ciągu `--horizon-h` (3 h) albo gdy dzień
   nie ma go jeszcze w ogóle; mecze następnego dnia w horyzoncie trafiają do
   pliku tamtego dnia (późne NHL/NBA po 00:00Z).
 - **SHADOW_SETTLE** (`settle_shadow.py`): mecz znajduje resolverem RESOLVE
@@ -959,7 +988,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   (ostatni snapshot 04:30Z + horyzont 3 h), dlatego `--chain` po porannym
   settle i audycie sam startuje pętlę D+1 (też z `--chain`) do
   `daily_<D+1>.log`. Łańcuch zatrzymuje się, zabijając pid z
-  `daily_<d>.pid`.
+  `daily_<d>.pid`. Rano po SHADOW_SETTLE (D i D-1) pętla rozlicza kupony
+  sportów za D-1 i D (`settle_sport_coupon.py`) i zapisuje dziennik
+  (`record_results.py --from D-1 --to D`).
 
 **Historia i silnik.** `scripts/sofa/backfill_cs2.py --days 180` wczytuje z
 Sofascore historię CS2 do tabel `cs2_series`, `cs2_map`, `cs2_player_map` w
@@ -1027,7 +1058,7 @@ Log całego przebiegu: `runs/sofa/run.log.jsonl` (jedna linia JSON na zdarzenie,
 .venv/bin/python -m pip install <pkg>      # dobrze
 .venv/bin/pip install <pkg>                # po cichu bezużyteczne
 
-.venv/bin/python scripts/sofa/check_bridge.py                                     # zawsze pierwsze
+.venv/bin/python scripts/sofa/ensure_bridge.py                                    # zawsze pierwsze: podnosi most, potem check_bridge
 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only BOARD --run-id <id>
@@ -1042,9 +1073,23 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
+
+# obok kuponu (od 2026-09-30) — żaden z nich NIE jest kuponem
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport all          # kupony sportów, obok pomiaru
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>      # po CS2_SETTLE / SHADOW_SETTLE; D-2, bo jego pozycje po 00:00Z rozliczają się dzień później
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>                      # WARIANT WSZYSTKIE, po PDF i kuponach sportów
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>           # dziennik runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # odczyt dziennika: tabela na wariant, nigdy łącznie
 ```
 
-Kody wyjścia: **0 = OK, 1 = PARTIAL, 2 = FAILED**.
+Kody wyjścia: **0 = OK, 1 = PARTIAL, 2 = FAILED**. Wyjątek od 2026-09-30:
+`settle_sport_coupon.py`, `settle_multi_coupon.py` i `record_results.py`
+kończą się `0` także wtedy, gdy pozycje jeszcze czekają (widać je w tabeli,
+kolumna `pending`), `1` tylko przy `MISMATCH` (dwa oceniające nie zgadzają
+się co do nogi — to defekt) albo nieczytelnym pliku, `2` przy awarii albo
+(record_results) braku bazy.
 `--stop-on-failure` przerywa przy pierwszym `FAILED` zamiast iść dalej.
 
 **`PARTIAL` na RESOLVE / OFFER / SAMPLES to normalny kształt zdrowego

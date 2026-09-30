@@ -13,45 +13,53 @@ zrobić, gdy coś pójdzie inaczej.
 ## 0. Zanim cokolwiek ruszy
 
 ```bash
-date -u +%F                                             # doba zakładowa jest w UTC
-.venv/bin/python scripts/sofa/check_bridge.py           # most, ZAWSZE pierwszy
+date -u +%F                                             # doba zakładowa kuponu jest w UTC
+.venv/bin/python scripts/sofa/ensure_bridge.py          # most, ZAWSZE pierwszy: podnosi go, potem check_bridge
 ```
 
 Most: **`ok: true` nie wystarcza.** Martwa karta przeglądarki nadal melduje
 `ok`. Liczy się **wiek ostatniego pobrania**. Jeśli karta nie żyje — poza BOARD,
-OFFER i etapami offline nic nie ruszy. Nie próbuj obejścia i **nigdy nie
-podnoś `SOFA_TARGET_RPS`**.
+OFFER i etapami offline nic nie ruszy. Nie próbuj obejścia i **nie zmieniaj
+`SOFA_TARGET_RPS` (20) ani `SOFA_MAX_CONCURRENCY` (5)**.
 
-Od 30.09 `/sofa-day` **sam podnosi most** na starcie:
-
-```bash
-.venv/bin/python scripts/sofa/ensure_bridge.py   # serwer w tle, 5 okien, jeśli trzeba; potem check_bridge
-```
+Od 30.09 `/sofa-day` **sam podnosi most** na starcie tym właśnie
+`ensure_bridge.py` (serwer w tle, 5 okien, jeśli trzeba; potem
+`check_bridge`).
 
 Działającego mostu nie rusza. Jeśli Chrome jest już otwarty bez flag mostka,
 skrypt się zatrzymuje (exit 2): zamknij Chrome całkowicie (Cmd+Q) i uruchom
 krok jeszcze raz — agent nigdy nie zamyka przeglądarki operatora.
 
+Kody wyjścia: `0` most działa; `1` działa, ale źle — `check_bridge` zgłosił
+FAIL albo karta odpytuje z Chrome'a uruchomionego bez flag (ok. 1 zapytanie/s;
+Cmd+Q i powtórz); `2` nie udało się go podnieść (komunikat mówi, co zrobić).
+`0` nie wyklucza linii WARN — `check_bridge` kończy się `0` także przy WARN,
+więc zawsze przeczytaj wiek ostatniego pobrania.
+
 Ręcznie (to samo, krok po kroku):
 
 ```bash
 # serwer umiera razem z terminalem, który go uruchomił — na długi przebieg odetnij:
-nohup .venv/bin/python scripts/sofa/bridge_server.py > /tmp/sofa_bridge.log 2>&1 &
+nohup .venv/bin/python scripts/sofa/bridge_server.py >> runs/sofa/bridge_server.log 2>&1 &
+.venv/bin/python scripts/sofa/launch_bridge_browser.py --windows 5   # Chrome musi być najpierw całkiem zamknięty
 ```
 
-1. otwórz kartę na `sofascore.com` z aktywnym userscriptem
-   `userscripts/sofascore-bridge.user.js`;
-2. karta sama zaczyna odpytywać serwer — to ona wykonuje żądania, nie proces
-   pythonowy;
-3. `check_bridge.py` ponownie: trzy linie OK **i świeży wiek pobrania**;
-4. karta musi zostać **otwarta i aktywna** przez cały przebieg. Uśpiona karta
-   przestaje odpytywać, a most nadal melduje `ok`.
+1. okna otwiera `launch_bridge_browser.py` — z flagami, bez których Chrome
+   dławi kartę w tle do ~1 req/s; okna mogą być zminimalizowane, nie muszą
+   być widoczne;
+2. liczba okien = `SOFA_MAX_CONCURRENCY` (5) — mniej okien niż workerów to
+   zapaść mostu (tabela w CLAUDE.md), nie wolniejszy przebieg;
+3. karty same zaczynają odpytywać serwer — to one wykonują żądania, nie
+   proces pythonowy;
+4. `check_bridge.py` ponownie: trzy kontrole OK **i świeży wiek pobrania**.
 
-`check_bridge.py` sprawdza dokładnie trzy rzeczy w kolejności i mówi, która
-padła: (1) serwer nasłuchuje, (2) jakaś karta go odpytuje — `last_pull_age_s`,
+`check_bridge.py` sprawdza cztery rzeczy w kolejności i mówi, która padła:
+(1) serwer nasłuchuje, (2) jakaś karta go odpytuje — `last_pull_age_s`,
 powyżej **30 s** dostajesz `WARN`, (3) prawdziwe zapytanie `/api/v1/` wraca 200
 z JSON-em. **403 w punkcie trzecim znaczy przeterminowany `x-captcha` karty** —
-przeładuj `sofascore.com`, nie zmieniaj niczego w kodzie.
+przeładuj `sofascore.com`, nie zmieniaj niczego w kodzie. Trzy pierwsze muszą
+być OK; czwarta (INFO, krótki burst z bezczynności) nie jest oceną — błędem
+jest tylko `WARN … burst probes FAILED`.
 
 Interpreter: `.venv/bin/python` (3.12). `.venv/bin/pip` należy do 3.14
 i instaluje tam, gdzie nikt tego nie zaimportuje — instaluj przez
@@ -65,14 +73,47 @@ Przed dzisiejszym dniem, bo to karmi kalibrację i **konkuruje o most**.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
+# pętla CS2 D-1 robi to sama o 05:00Z, a dzisiejsza ponawia D-1 jutro rano (cs2_watchdog.py ponawia co godzinę, jeśli ktoś go uruchomił
+# dla tej daty - `pgrep -f cs2_watchdog`; domyślnie nic go nie startuje); ręcznie tylko, gdy istnieje
+# runs/sofa/cs2/daily_<D-1>.done albo pid z daily_<D-1>.pid nie działa, i żaden watchdog nie pilnuje D-1:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
-# cały dzień CS2 bez obsługi (ceny do 23:30Z, settle 05:00Z D+1); druga pętla dla daty odmawia (kod 2):
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> >> runs/sofa/cs2/daily_<today>.log 2>&1 &
 # pętla D-1 robi to sama o 05:15Z; ręcznie tylko, gdy nie żyje (brak runs/sofa/shadow/daily_<D-1>.pid
 # albo jego pid nie działa) - wznawia się, więc powtórka nie szkodzi, równoległa tak:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
+# każdy wariant D-1 i dziennik:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>   # cztery kupony sportów, po wydrukowanym kursie; także D-2: jego pozycje po 00:00Z rozliczają się w pliku D-1
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>   # WARIANT WSZYSTKIE, sekcja po sekcji
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant, nigdy łącznie
+```
+
+Kody wyjścia `settle_sport_coupon.py`, `settle_multi_coupon.py` i
+`record_results.py` (od 2026-09-30): **0** = rozliczone na tyle, na ile
+pozwalają settle — pozycje oczekujące widać w tabeli (kolumna `pending`),
+nigdy w kodzie wyjścia. To normalny stan D-1: pozycje kuponu sportu po
+00:00Z (NHL/NBA, nocne CS2) rozliczają się w pliku migawek dzisiejszego dnia
+i są oceniane jutro rano — pętla CS2 o 05:00Z i pętla shadow o 05:15Z
+rozliczają D i D-1, oceniają kupony sportów z obu dni i zapisują oba dni w
+dzienniku; jutrzejsze `--from <D-2>` też je domyka. **1** = `MISMATCH` (dwa
+oceniające nie zgadzają się co do nogi — defekt, nazwij go) albo nieczytelny
+plik (nazwany w tabeli). **2** = awaria albo, w `record_results.py`, brak
+bazy (nic się wtedy nie zapisuje). Zanim SHADOW_SETTLE / CS2_SETTLE zapisze `settled.json`, pozycje
+kuponu sportu mają PENDING, ale wiersza `measure:<sport>` po prostu nie ma w
+dzienniku (nie jest „oczekujący”) - sprawdź, czy są wszystkie wiersze
+`measure:*`, nie tylko kod wyjścia. Po późnym rozliczeniu powtórz
+`record_results.py --from <D-2> --to <D-1>` — zastępuje wiersze tych dat.
+
+Potem pętle dzisiejszego dnia:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
+# cały dzień CS2 bez obsługi (ceny do 23:30Z, o 05:00Z D+1 settle D i D-1, kupony CS2 i dziennik za D-1 i D);
+# --chain o 23:30Z startuje pętlę D+1 (nocne serie D+1 mają ceny); pętla D-1 z --chain już ją uruchomiła,
+# a druga pętla dla daty odmawia (kod 2), więc powtórka nie szkodzi:
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> --chain >> runs/sofa/cs2/daily_<today>.log 2>&1 &
 # pętla D-1 z --chain sama startuje dzisiejszą po swoim rozliczeniu i audycie (ok. 05:20–05:45Z); ręcznie tylko, gdy nie ma
 # ani runs/sofa/shadow/daily_<D-1>.pid, ani daily_<today>.pid:
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
@@ -82,10 +123,16 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <tod
   **nie kupon**, a ich `PARTIAL`/`FAILED` nie blokuje dnia. Druga pętla
   `shadow_daily.py` dla tej samej daty odmawia startu (exit 2), więc
   ponowne uruchomienie jest bezpieczne.
+- Pętla czyta swój plan raz, przy starcie: pętla uruchomiona przed zmianą
+  kodu wykonuje stare kroki poranne aż do końca (jej następczyni z `--chain`
+  ma już nowy kod). Po zmianie `cs2_daily.py` / `shadow_daily.py` powtórz
+  nowe kroki poranne ręcznie dla dni, które obejmują stare pętle, i napisz to
+  w raporcie — nigdy nie zabijaj pętli, żeby złapała zmianę.
 
 - `PARTIAL` to normalny werdykt.
 - **Sekcja 7c audytu to prawdziwy wynik kuponu z PDF.** Sekcje 7 i 7b to
-  materiał wejściowy (legi i kandydaci), **nie zakłady**.
+  materiał wejściowy (legi i kandydaci), **nie zakłady**. Sekcja 7d to
+  WARIANT — obok 7c, nigdy łącznie.
 - `07_settle_skips.json`: wiersz, którego nie dało się ocenić, **nie jest
   przegraną**.
 
@@ -192,23 +239,27 @@ Eksperyment operatora. **To nie jest kupon** i nigdy nie trafia do
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_shadow.py --date <d> --horizon-h 24     # świeże ceny hokej/kosz/siatka (tylko Superbet)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2       # świeże ceny CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D+1> --only CS2     # nocne serie CS2 leżą w pliku D+1
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport all
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>   # po CS2_SETTLE / SHADOW_SETTLE
 ```
+
+Rozliczenie kuponów sportów za D-1 (`settle_sport_coupon.py`) jest w kroku 1.
 
 Albo cztery agenty `sofa-sport-runner` równolegle, po jednym na sport.
 
 - Te sporty **nie mają modelu**. Pewność to cena Superbet bez marży, więc
   przy uczciwej cenie każda pozycja traci średnio tyle, ile marża.
 - Reguła: na mecz jedna strona z fair p ≥ 0,70, marżą linii ≤ 10,5% i
-  kursem ≥ 1,087, ta o najtańszej cenie (fair p × kurs); maks. 10 pozycji;
+  kursem ≥ 1,087, ta o najwyższym fair p × kurs (najmniejsza zapłacona marża); maks. 10 pozycji;
   cena nie starsza niż 3 h; bez linii zawodników. Wszystkie stałe są
   UNFITTED.
 - Dzień kuponu trwa do 06:00 czasu warszawskiego następnego dnia, więc mecze
   nocne (NHL, NBA) z pliku D+1 też się liczą. Przebudowa zostawia nogi już
   rozpoczęte bez zmian („w toku”); każda wersja trafia do
-  `sport_coupon_builds.jsonl`. Dnia, którego okno się zamknęło, nie da się
-  przebudować.
+  `sport_coupon_builds.jsonl`. Nogi wcześniejszych wersji i `replaced_legs`
+  są zapisane, ale **nie są rozliczane** — wynik kuponu to tylko nogi
+  ostatniej wersji (`sport_coupon_settled.json`). Dnia, którego okno się
+  zamknęło, nie da się przebudować.
 - Pewność liczona jest z całej grupy wyników rynku: para, 1X2 (trzy wyniki)
   albo pełny zestaw dokładnych wyników. 1X2 bez wyceny remisu nie jest ceną.
 - Tylko pojedyncze. Rozliczane per sport po wydrukowanym kursie, z zapisanego
@@ -227,19 +278,29 @@ Albo cztery agenty `sofa-sport-runner` równolegle, po jednym na sport.
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>     # po kuponie i czterech kuponach sportów
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>       # każdy wariant przeliczony z surowych danych
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>     # dziennik: runs/sofa/ledger/results.jsonl
 ```
+
+Rozliczenie WSZYSTKIE za D-1 (`settle_multi_coupon.py`) i dziennik
+(`record_results.py`) są w kroku 1.
 
 - `runs/sofa/multi/<d>/KUPON_<d>_WSZYSTKIE.pdf` to **złożenie**, nie nowy
   wybór: pojedyncze i buildery z oficjalnego PDF oraz nogi czterech kuponów
   sportów, dokładnie po ich kursach. Sekcja z nieaktualnego lub brakującego
   źródła jest wyłączona z podanym powodem.
 - Po każdej przebudowie kuponu albo kuponu sportu złożenie trzeba powtórzyć
-  (`audit_variants` M2 to wykrywa).
+  (`audit_variants` M2 to wykrywa). Kupon sportu zbudowany ponad 6 h przed
+  złożeniem jest wyłączony (`STALE`); po 06:00 czasu warszawskiego D+1 okno
+  dnia jest zamknięte i skrypt odmawia (kod 2) — wariant jest ostateczny.
 - Dziennik ma jeden wiersz na (dzień, wariant): kupon (7c), WARIANT (7d),
-  każdy kupon sportu, WSZYSTKIE i pomiar ceny per sport. Z niego — i tylko
-  z niego, osobno per wariant — czyta się wyniki z wielu dni.
+  każdy kupon sportu, WSZYSTKIE, `rule:<sport>` (reguła samej ceny odtworzona
+  na rozliczonym dniu, wybór przed wynikiem, po ostatniej cenie przed
+  startem — także w dniu bez kuponu) i `measure:<sport>` (pomiar ceny:
+  `favourite_side` tylko z linii dwudrożnych, więc porównywalny przez
+  granicę 30.09; obok `by_shape`, `by_family` i `players`). Każdy wiersz
+  wariantu ma `outcomes` (liczba ocen każdego rodzaju; `MISMATCH` to defekt,
+  nie wynik). Z niego — i tylko z niego, osobno per wariant — czyta się
+  wyniki z wielu dni:
+  `PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]`.
 - Weta (`vetoes.json` w katalogu sportu) tylko usuwają: przełożony mecz,
   zmiana składu w CS2, nietypowy format. Nigdy „ta liga gra under”.
 
@@ -249,9 +310,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>   
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <data>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <data>
 ```
 
-Potem oddaj dzień agentowi `sofa-verifier` (`/sofa-verify`). Protokół:
+WARIANT (`KUPON_<data>_WARIANT.pdf`) sprawdza `audit_variants` (C1/C2: świeżość,
+profil, reguła każdej pozycji), ale jego nóg z próbek nie odtwarza żaden
+skrypt — nazwij go weryfikatorowi wprost. Potem oddaj dzień agentowi `sofa-verifier` (`/sofa-verify`). Protokół:
 [`VERIFY_PROTOCOL.md`](VERIFY_PROTOCOL.md). Audyt sprawdza wiersz wobec niego
 samego; agent robi cztery rzeczy, których audyt nie umie — odtwarza wiersz
 z `03_samples.json`, sprawdza mapowanie `subject` na stronę, dopytuje Superbet
@@ -267,7 +331,7 @@ o żywą cenę i testuje rozkłady pod kątem antyselekcji.
 | zmienił się kod po zbudowaniu arkusza | `/sofa-rebuild` — przebudowa z artefaktów, bez mostu i bez SAMPLES. Napisz, **co** się zmieniło: przeliczony arkusz nie jest porównywalny z poprzednim. |
 | arkusz jest, brakuje odczytu analityków | `/sofa-analyze` — analitycy, scalenie wet, przebudowa. Bez Sofascore. |
 | stała albo baza wygląda źle | Zgłoś. Fitowanie to osobna, świadoma decyzja `sofa-settler` i **nigdy nie dzieje się w środku dnia**. |
-| most padł w połowie SAMPLES | Napraw kartę, potem `--from-stage SAMPLES --run-id <ten sam id>`. Artefakty z dysku zostają. |
+| most padł w połowie SAMPLES | Uruchom `ensure_bridge.py` (kod 2 = zamknij Chrome całkowicie i powtórz), potem `--from-stage SAMPLES --run-id <ten sam id>`. Artefakty z dysku zostają. |
 | brakuje `05_sheet.json` | Nie ma czego przebudowywać — dzień potrzebuje `/sofa-day`. |
 | brakuje `02_fixtures.json` | Stop. Bez niego COUPON nie nazwie meczu, nie zastosuje bramki kickoffu, a `determine_side` nie rozwiąże `subject` na stronę. |
 
@@ -294,10 +358,16 @@ napisałeś**.
 
 ```
 KUPON:    runs/sofa/<data>/KUPON_<data>.pdf — <n> pozycji
+WARIANT:  runs/sofa/<data>/KUPON_<data>_WARIANT.pdf — <n> pozycji (NIE kupon; 0.65 / x ≥ 0.90)
 SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <werdykt> · <n> na tablicy → <n> dopasowanych (<x>%) → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów (sekcja 7c)
+POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar, NIE kupon
+SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; cena bez marży, bez modelu); weta <n>
+WSZYSTKIE: runs/sofa/multi/<data>/KUPON_<data>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 (wyłączone: <…>)
+D-1 WYNIKI: kupon <u> j. · WARIANT <u> j. · sporty <u>/<u>/<u>/<u> j. · WSZYSTKIE <u> j. (każdy osobno, nigdy sumowane) · pomiar fair p vs trafione per sport → dziennik · reguła CS2/HOKEJ/KOSZ/SIATKA <u> j. · MISMATCH <n> (audit_ledger.py)
+AUDYT WARIANTÓW: <n> znalezisk
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <największa słabość dnia, jedna>
 ```

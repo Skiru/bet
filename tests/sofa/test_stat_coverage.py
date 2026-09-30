@@ -224,12 +224,24 @@ def test_cache_replay_carries_the_new_bases_and_refuses_placeholders(
 
 
 def test_a_new_metric_cannot_borrow_the_pool_until_it_has_its_own_curve() -> None:
-    from bet.sofa.confidence import AWAITING_OWN_CURVE, Calibration
+    from bet.sofa.confidence import (
+        AWAITING_OWN_CURVE,
+        TENNIS_PER_SET_SERVE,
+        TENNIS_SERVE_POINTS,
+        Calibration,
+    )
     from bet.sofa.players import PLAYER_METRICS
 
     # The coverage audit's new metrics, plus (2026-09-29) every football
-    # player prop, which the pooled curve over-read by ~15 pp.
-    assert set(NEW_METRICS) | set(PLAYER_METRICS) == set(AWAITING_OWN_CURVE)
+    # player prop, which the pooled curve over-read by ~15 pp, plus
+    # (2026-09-30) tennis per-set serve markets, over-read by ~19 pp.
+    assert (
+        set(NEW_METRICS)
+        | set(PLAYER_METRICS)
+        | TENNIS_PER_SET_SERVE
+        | TENNIS_SERVE_POINTS
+        == set(AWAITING_OWN_CURVE)
+    )
     pool = {"0.60-0.70": {"realised_lo95": 0.66, "n": 5000}}
     cal = Calibration(pooled=pool, by_market={}, pooled_by_sport={"football": pool})
     assert cal.realised("throw_ins_total", 0.65, "football") is None
@@ -303,3 +315,33 @@ def test_half_coherence_check_skips_markets_with_no_half_form() -> None:
         "handicap_games": {"global": {"mean": 0.02, "n": 100}},
     }
     assert check_half_match_coherence(derived) == []
+
+
+def test_tennis_per_set_serve_markets_never_read_the_tennis_pool() -> None:
+    """2026-09-30: 149/253 = 0.589 realised against 0.777 claimed."""
+    from bet.sofa.confidence import TENNIS_PER_SET_SERVE, Calibration
+
+    assert "double_faults_set2_for" in TENNIS_PER_SET_SERVE
+    assert not any(m.startswith("games") for m in TENNIS_PER_SET_SERVE)
+    cal = Calibration.load()
+    for market in TENNIS_PER_SET_SERVE:
+        hit = cal.realised(market, 0.75, "tennis", "OVER")
+        assert hit is None or not str(hit[1]).startswith("pooled"), (market, hit)
+    # the per-set games markets keep their own, measured curves
+    assert {"games_won_set1_for", "games_set1_total"} <= set(cal.by_market)
+
+
+def test_full_match_serve_points_never_read_the_tennis_pool() -> None:
+    """2026-09-30: serve_points_for 15/31 = 0.484 realised against 0.782."""
+    from bet.sofa.confidence import TENNIS_SERVE_POINTS, Calibration
+
+    cal = Calibration.load()
+    for market in TENNIS_SERVE_POINTS:
+        for p in (0.72, 0.80, 0.90):
+            for direction in ("OVER", "UNDER"):
+                hit = cal.realised(market, p, "tennis", direction)
+                assert hit is None or not str(hit[1]).startswith("pooled"), (
+                    market, p, direction, hit)
+    # the full-match aces and double faults keep their own measured curves
+    kept = {"aces_for", "aces_total", "double_faults_for", "double_faults_total"}
+    assert kept <= set(cal.by_market)

@@ -159,6 +159,16 @@ measured facts must travel with every confident tennis row:
   evidence rather than a gap.
 - tennis length markets were measured overconfident by ~25 pp on 2026-09-06 and
   **deliberately left uncorrected**, because the fix risked overfitting.
+- per-set **serve** markets (`{aces,double_faults,serve_points}_set{1,2}_*`,
+  `confidence.TENNIS_PER_SET_SERVE`) have no curve of their own and, since
+  2026-09-30, are refused by CONFIDENCE (`NOT_CALIBRATED`) instead of reading
+  the games-only tennis pool: at p_central >= 0.70 they realised 149/253 =
+  0.589 against 0.777 claimed. Their absence from the builder is that guard,
+  not a gap in your read. Per-set GAMES markets have their own curves.
+- full-match **serve points** (`serve_points_for`, `serve_points_total`,
+  `confidence.TENNIS_SERVE_POINTS`) are refused the same way since
+  2026-09-30: 15/31 = 0.484 realised against 0.782 claimed. Full-match aces
+  and double faults have their own curves and stay.
 
 Superbet is a soft book and its tennis ladders are wide (12.5–36.5), so the
 rung the sheet ranked is one of many — read the whole ladder and say why that

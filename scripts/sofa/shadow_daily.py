@@ -15,7 +15,9 @@ through the day, then settle and audit the next morning.
    has snapshots (its pending games get a second attempt). A failed settle
    is logged and can be rerun by hand at any time
    (`run_pipeline.py --date <d> --only SHADOW_SETTLE`); it resumes.
-3. audit_shadow.py for the day, into the log.
+3. settle_sport_coupon.py for each settled day and sport (the experimental
+   coupons, offline), record_results.py for those days (the ledger), then
+   audit_shadow.py for the day, into the log.
 4. With --chain, start the NEXT day's loop (itself with --chain), detached,
    into runs/sofa/shadow/daily_<D+1>.log. This loop covers D+1's games only
    up to ~07:30Z (its 04:30Z snapshot plus the 3 h horizon); without a D+1
@@ -76,6 +78,19 @@ def plan(
         ["scripts/sofa/run_pipeline.py", "--date", d, "--only", "SHADOW_SETTLE"]
         for d in days
     ]
+    # Each settled day's experimental coupons, straight after the settle that
+    # grades them (offline; a pending leg is exit 1, never a blocker).
+    morning += [
+        ["scripts/sofa/settle_sport_coupon.py", "--from", d, "--to", d, "--sport", sp]
+        for d in days
+        for sp in ("hockey", "basketball", "volleyball")
+    ]
+    # Then the ledger for every settled day (the 05:15Z step is the last
+    # morning settle - CS2's runs at 05:00Z): a day's rows are rewritten
+    # whole, so re-recording the day before closes its late legs.
+    morning.append(
+        ["scripts/sofa/record_results.py", "--from", min(days), "--to", max(days)]
+    )
     audit = ["scripts/sofa/audit_shadow.py", "--from", date, "--to", date]
     return snapshot, morning, audit
 

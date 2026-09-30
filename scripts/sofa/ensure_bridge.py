@@ -49,7 +49,13 @@ WAIT_FOR_POLL_S = 90.0
 FLAG = "--disable-background-timer-throttling"
 
 Action = Literal[
-    "START_SERVER", "LAUNCH_BROWSER", "WAIT_FOR_POLL", "STOP_FOREIGN_CHROME", "OK"
+    "START_SERVER",
+    "LAUNCH_BROWSER",
+    "WAIT_FOR_POLL",
+    "STOP_FOREIGN_CHROME",
+    "STOP_PORT_BUSY",
+    "WARN_UNFLAGGED",
+    "OK",
 ]
 
 
@@ -59,15 +65,24 @@ class State:
     pull_age_s: float | None
     chrome_running: bool
     chrome_has_flags: bool
+    # something holds the bridge port but /health did not answer: a server
+    # that is starting, hung or slow - never start a second one over it
+    port_busy: bool = False
 
 
 def decide(state: State) -> list[Action]:
     """What to do, in order, for this state. Pure - the tests hold it."""
     actions: list[Action] = []
     if not state.server_up:
+        if state.port_busy:
+            return ["STOP_PORT_BUSY"]
         actions.append("START_SERVER")
     polling = state.pull_age_s is not None and state.pull_age_s <= STALE_POLL_S
     if state.server_up and polling:
+        # A tab polls - but one in a Chrome without the anti-throttling flags
+        # polls clamped, ~1 req/s instead of 2.86, and nothing else says so.
+        if state.chrome_running and not state.chrome_has_flags:
+            return ["WARN_UNFLAGGED"]
         return ["OK"]
     if not state.chrome_running:
         actions.append("LAUNCH_BROWSER")
@@ -78,13 +93,16 @@ def decide(state: State) -> list[Action]:
     return actions
 
 
-def health() -> dict[str, object] | None:
-    try:
-        with urlopen(HEALTH_URL, timeout=3) as r:
-            data: dict[str, object] = json.loads(r.read().decode("utf-8"))
-            return data
-    except (URLError, OSError, ValueError):
-        return None
+def health(tries: int = 1) -> dict[str, object] | None:
+    for attempt in range(tries):
+        try:
+            with urlopen(HEALTH_URL, timeout=3) as r:
+                data: dict[str, object] = json.loads(r.read().decode("utf-8"))
+                return data
+        except (URLError, OSError, ValueError):
+            if attempt + 1 < tries:
+                time.sleep(1.0)
+    return None
 
 
 def pull_age(h: dict[str, object] | None) -> float | None:
@@ -105,14 +123,25 @@ def chrome_processes() -> list[str]:
     ]
 
 
+def port_open(host: str = "127.0.0.1", port: int = 8787) -> bool:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(1.0)
+        return sock.connect_ex((host, port)) == 0
+
+
 def observe() -> State:
-    h = health()
+    # three tries: a healthy bridge busy in a run can miss one 3 s answer,
+    # and a miss with the port held would read as a hung server
+    h = health(tries=3)
     procs = chrome_processes()
     return State(
         server_up=h is not None,
         pull_age_s=pull_age(h),
         chrome_running=bool(procs),
         chrome_has_flags=any(FLAG in p for p in procs),
+        port_busy=h is None and port_open(),
     )
 
 
@@ -164,9 +193,22 @@ def main() -> int:
     args = parser.parse_args()
     # Our lines and check_bridge's must come out in the order they happen.
     sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+    degraded = False
     for action in decide(observe()):
         if action == "OK":
             print("OK    bridge already up and polling - nothing started")
+        elif action == "WARN_UNFLAGGED":
+            degraded = True
+            print(
+                "WARN  a tab polls, but Chrome runs WITHOUT the anti-throttling flags:"
+            )
+            print("      a hidden tab is clamped to ~1 req/s. Quit Chrome (Cmd+Q) and")
+            print("      re-run this step so launch_bridge_browser.py opens it right.")
+        elif action == "STOP_PORT_BUSY":
+            print("STOP  port 8787 is taken but /health does not answer - a bridge")
+            print("      server starting or hung. Not starting a second one; wait a")
+            print("      minute and re-run, or look at runs/sofa/bridge_server.log.")
+            return 2
         elif action == "START_SERVER":
             if not start_server():
                 return 2
@@ -193,8 +235,14 @@ def main() -> int:
             )
             print("      Quit Chrome completely (Cmd+Q), then re-run this step.")
             return 2
-    rc = subprocess.call([PYTHON, str(REPO / "scripts/sofa/check_bridge.py")], cwd=REPO)
-    return 0 if rc == 0 else 1
+    try:
+        rc = subprocess.call(
+            [PYTHON, str(REPO / "scripts/sofa/check_bridge.py")], cwd=REPO, timeout=300
+        )
+    except subprocess.TimeoutExpired:
+        print("FAIL  check_bridge.py did not finish within 300 s")
+        return 1
+    return 0 if rc == 0 and not degraded else 1
 
 
 if __name__ == "__main__":

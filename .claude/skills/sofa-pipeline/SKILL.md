@@ -16,7 +16,7 @@ Two pipelines exist in this repository and they share no code.
 | stages | DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE | **BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON** |
 | ranking number | `p_low` | `p_central` → `p_bar` |
 | fixture key | `event_id`, a 64-char hash | `sofascore_event_id`, an integer |
-| sports | football, tennis, baseball | football, tennis (`SPORT_IDS = {"football": 5, "tennis": 2}`) |
+| sports | football, tennis, baseball | football, tennis on the coupon (`SPORT_IDS = {"football": 5, "tennis": 2}`); cs2 / hockey / basketball / volleyball measured beside it (and their experimental sport coupons) |
 | product | `<date>_kupony.md` | **`KUPON_<date>.pdf`** |
 | agentic config | `.claude/legacy/` | `.claude/agents/sofa-*` |
 
@@ -40,6 +40,12 @@ The source of truth is `DEFAULT_SEQUENCE` in `scripts/sofa/run_pipeline.py`.
 | — | **PDF** | **the coupon the operator stakes** | offline | `KUPON_<date>.pdf` |
 | E10 | **SETTLE** | grade a finished day — D-1, never today | bridge | `07_settled.json` → `data/sofa.db` |
 | E11 | **FIT** | re-fit constants from the settled table | offline | `config/sofa_*.json` |
+| — | **CS2** / **CS2_SETTLE** | CS2 price snapshot / grade D-1 against Sofascore — a measurement | Superbet / bridge | `runs/sofa/cs2/<date>/` |
+| — | **SHADOW** / **SHADOW_SETTLE** | hockey, basketball, volleyball: the same | Superbet / bridge | `runs/sofa/shadow/<sport>/<date>/` |
+
+CS2, CS2_SETTLE, SHADOW and SHADOW_SETTLE are in `run_pipeline.STAGE_MODULES`
+(reachable with `--only`) and outside `DEFAULT_SEQUENCE`; nothing they write
+feeds or gates the coupon.
 
 OFFER runs **twice on purpose**: once before SAMPLES so sampling is not paid
 for metrics nobody prices, once after so the bar is measured against a fresh
@@ -55,8 +61,10 @@ Full per-stage detail, arguments and failure shapes: `references/stages.md`.
 `06_coupon.json` holds VALUE singles, selected on price advantage. That selector's
 measured record is bad — **−20.4% on 2026-09-20**, the same day the PDF's Bet
 Builders returned **+8.2%**. Reporting `06_coupon` as "the coupon" inverts the
-day. Three files on disk call themselves a coupon; only `KUPON_<date>.pdf` is
-staked.
+day. Several files call themselves a coupon (`06_coupon.json`,
+`KUPON_<d>_WARIANT.pdf`, `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`,
+`KUPON_<d>_WSZYSTKIE.pdf`); only `KUPON_<date>.pdf` is the coupon. No
+variant result is ever pooled with it or with another.
 
 ### 2. Selection is anti-selective against error in `p`.
 
@@ -126,6 +134,20 @@ runs/sofa/<date>/
   08_confidence_wariant.json/.md         the operator's variant (--profile wariant): floor 0.65, x >= 0.90, margin <= 15%
   KUPON_<date>_WARIANT.pdf               the variant's PDF — NOT the coupon; settled beside it (7d)
   vetoes.json          Veto[]            the analyst's only channel. `[]` on most days.
+
+runs/sofa/cs2/<date>/, runs/sofa/shadow/<sport>/<date>/     beside the day, never in it
+  snapshots.jsonl, settled.json          the measurement (CS2 / SHADOW, CS2_SETTLE / SHADOW_SETTLE)
+  sport_coupon.json/.md                  the experimental sport coupon (run_sport_coupon.py) — NOT the coupon
+  sport_coupon_builds.jsonl              every build appended (earlier builds' legs recorded, never graded)
+  sport_coupon_settled.json              the final build's legs graded at the printed price (settle_sport_coupon.py)
+  vetoes.json                            {"vetoes": [{superbet_event_id, family?, side?, ...}]} — removes only
+  KUPON_<date>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf
+
+runs/sofa/multi/<date>/
+  multi_coupon.json/.md, multi_coupon_settled.json
+  KUPON_<date>_WSZYSTKIE.pdf             an assembly of the official PDF + the four sport coupons — NOT the coupon
+
+runs/sofa/ledger/results.jsonl           one row per (date, variant), record_results.py; read with audit_ledger.py
 ```
 
 Every field with its type and meaning: `references/artifacts.md`.
@@ -160,26 +182,33 @@ swallowed.
 .venv/bin/python -m pip install <pkg>          # correct
 .venv/bin/pip install <pkg>                    # silently useless
 
-.venv/bin/python scripts/sofa/check_bridge.py                                   # first, always
+.venv/bin/python scripts/sofa/ensure_bridge.py                                  # first, always: brings the bridge up, then check_bridge
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only BOARD --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
-# the operator's variant (0.65 / price up to 10% below fair), beside the coupon, never instead of it
+# the operator's variant (floor 0.65, confidence x odds >= 0.90, margin <= 15%), beside the coupon, never instead of it
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport all     # sport coupons, beside the measurement
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>                 # WARIANT WSZYSTKIE, after the PDF and the sport coupons
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>      # the ledger, after every settle; D-2 too (its legs after 00:00Z grade a day late); exit 0 even with legs pending, 1 = MISMATCH / unreadable file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # read the ledger, one table per variant, never pooled
 ```
 
 Sofascore answers **403 to every non-browser client**. Everything except BOARD
-and the offline stages goes through a real browser tab (`check_bridge.py`).
-`ok: true` alone is not enough — a dead tab still reports ok; read the poll
-age. **Set `SOFA_TARGET_RPS` from `measure_bridge_capacity.py`, never above
-its plateau** — 3.9 req/s on three tabs (2026-09-22); above it you buy queue,
-not speed. **Never lower `MIN_INTERVAL_MS`**: that is the per-connection pace.
-The binding limit is the browser, not Sofascore — a hidden, throttled tab drops
-a run to ~0.5 req/s and `check_bridge.py` now names it.
+and the offline stages goes through a real browser tab (`ensure_bridge.py`,
+then `check_bridge.py`). `ok: true` alone is not enough — a dead tab still
+reports ok; read the poll age. **`SOFA_TARGET_RPS` (20) must sit ABOVE what
+the tabs can serve** (5 windows x 2.86 = 14.3 req/s) — starving it is worse
+than opening it; **`SOFA_MAX_CONCURRENCY` (5) equals the window count and is
+never below it.** **Never lower `MIN_INTERVAL_MS`**: that is the
+per-connection pace. Open the windows with `launch_bridge_browser.py` (or
+`ensure_bridge.py`); they need not be visible. The old 3.9 req/s plateau was
+a measurement artefact. The binding limit is the browser, not Sofascore.
 
 ## Hard rules
 
