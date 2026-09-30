@@ -107,6 +107,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
+# WARIANT WSZYSTKIE prints the official singles verbatim: re-assemble it after any rebuild
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
 ```
 
 The variant is rebuilt too: it reads the same `vetoes.json`, and a variant PDF

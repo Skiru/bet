@@ -139,6 +139,14 @@ it.
 If you wrote any veto, rebuild (Step 3) and confirm each vetoed leg appears
 under "Weta" and not among the legs.
 
+## Step 4b - what happens after you
+
+The orchestrator assembles WARIANT WSZYSTKIE from your coupon verbatim
+(`run_multi_coupon.py`) and checks it with `audit_variants.py`, which replays
+your selection from the snapshots and recomputes every price and devig. A
+vetoes.json you write after that assembly makes it stale - say so in the
+report when it happens, so the variant is re-assembled.
+
 ## Step 5 - report
 
 Back to the orchestrator, in English, short:

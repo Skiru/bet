@@ -1,10 +1,26 @@
 ---
-description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet), take the analysts' vetoes, and produce the PDF coupon. This is the CURRENT pipeline; the simple one is archived in .claude/legacy.
+description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet) - settle and record D-1 for every variant and sport, build the PDF coupon with the analysts' vetoes, the WARIANT, the four measured-sport coupons (CS2, hockey, basketball, volleyball) in parallel and WARIANT WSZYSTKIE, then verify all of it. This is the CURRENT pipeline; the simple one is archived in .claude/legacy.
 argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 
 Run one betting day through **`sofa`**, from nothing to the PDF coupon, and
 verify it. Unattended: do not stop to ask permission between stages.
+
+**Everything below is the default** (operator's order, 2026-09-30): every run
+settles and records D-1 for every variant and every sport, builds the
+coupon, the WARIANT, the four measured-sport coupons and WARIANT WSZYSTKIE,
+and verifies all of them. A step is skipped only when the operator asked
+for a bare run - and then the report names it as skipped.
+
+| product | file | what it is |
+|---|---|---|
+| **KUPON** | `runs/sofa/<d>/KUPON_<d>.pdf` | **the coupon** (football + tennis) |
+| WARIANT | `runs/sofa/<d>/KUPON_<d>_WARIANT.pdf` | operator's variant, 7d |
+| CS2 / HOKEJ / KOSZYKOWKA / SIATKOWKA | `runs/sofa/cs2/<d>/…`, `runs/sofa/shadow/<sport>/<d>/KUPON_<d>_<SPORT>.pdf` | price-only experiment per measured sport |
+| WARIANT WSZYSTKIE | `runs/sofa/multi/<d>/KUPON_<d>_WSZYSTKIE.pdf` | all of the above on one page, each at its own price |
+| ledger | `runs/sofa/ledger/results.jsonl` | every variant's and measurement's settled result, one row per day |
+
+None of the variants is the coupon, and no result is ever added to another.
 
 Delegate rather than doing it all inline. The agents exist and each carries the
 measured history this command cannot restate:
@@ -14,6 +30,7 @@ measured history this command cannot restate:
 | `sofa-runner` | the whole run, if you want one owner for it |
 | `sofa-settler` | step 1 — D-1 settlement and the calibration loop |
 | `sofa-analyst-football` / `sofa-analyst-tennis` | step 3 — the per-sport read and the vetoes |
+| `sofa-sport-runner` ×4 | step 4b — one per measured sport, launched in ONE message so they run in parallel |
 | `sofa-verifier` | step 5 — adversarial verification. **Not optional.** |
 | `sofa-market-scout` | when a row's availability or price is in question |
 
@@ -51,8 +68,18 @@ Sofascore answers 403 to every non-browser client. Everything except BOARD
 goes through a real browser tab.
 
 ```bash
-.venv/bin/python scripts/sofa/check_bridge.py
+.venv/bin/python scripts/sofa/ensure_bridge.py      # brings it UP if it is down, then runs check_bridge.py
 ```
+
+**Start the bridge first, every time** (operator's order, 2026-09-30).
+`ensure_bridge.py` does nothing to a bridge that already polls. Otherwise it
+starts `bridge_server.py` detached (log `runs/sofa/bridge_server.log`) and,
+when Chrome is not running, opens the five windows with
+`launch_bridge_browser.py`, then waits for a tab to poll and grades the
+result with `check_bridge.py`. Exit 2 means it could not: most often Chrome
+is already open without the anti-throttling flags - the operator must quit it
+(Cmd+Q) and you re-run the step. Never quit or kill the operator's Chrome
+yourself.
 
 Four checks now, and the fourth is advisory. The first three must be OK;
 `ok: true` alone is not enough — a dead tab still reports ok, so the line that
@@ -128,6 +155,23 @@ coupon, and a PARTIAL or FAILED there never blocks the day. Report is
 Read section 7c of the audit — that is the PDF coupon's real result. Sections
 7 and 7b are input material, not bets.
 
+Then grade every variant of D-1 and record the day - this is the data every
+later decision about a rule, a floor or a sport is taken from, so it runs
+every day, not when someone remembers:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>   # the four sport coupons, at their printed prices
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>   # WARIANT WSZYSTKIE, section by section
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>                   # the ledger row of every variant and measurement
+```
+
+Exit 1 from the settle / record scripts means a position is still pending
+(a game not yet graded, CS2_SETTLE / SHADOW_SETTLE not run yet). Re-run
+`record_results.py --date <D-1>` once they have; it replaces that date's
+rows. A result is a fact about the day, never a reason for today's choice.
+
 ## Step 2 — today
 
 BOARD touches only Superbet, so it can run while SETTLE is still going.
@@ -192,6 +236,43 @@ minutes re-pricing fixtures that have already been played:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
 ```
 
+## Step 4b — the four measured sports, in parallel
+
+After the official PDF (the variant below reads it), launch all four in ONE
+message so they run concurrently:
+
+```
+Task -> sofa-sport-runner  "sport cs2; date <date>"
+Task -> sofa-sport-runner  "sport hockey; date <date>"
+Task -> sofa-sport-runner  "sport basketball; date <date>"
+Task -> sofa-sport-runner  "sport volleyball; date <date>"
+```
+
+Before launching, refresh the prices once so the three shadow runners do not
+each refetch the same board (Superbet only, no bridge):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_shadow.py --date <date> --horizon-h 24
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D+1> --only CS2    # night series belong to <date>'s coupon
+```
+
+Each runner builds its sport's coupon, reads every leg, writes vetoes that
+only remove, and reports. Check their numbers against the files (md5, leg
+count, drop counts) before you quote them.
+
+## Step 4c — WARIANT WSZYSTKIE
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
+```
+
+It assembles, it does not select: the official PDF's printed singles and
+builders, and each sport coupon's legs, verbatim. A section whose source is
+stale or missing is printed as excluded with its reason (exit 1). **Any later
+rebuild of the official PDF or of a sport coupon makes it stale - re-run this
+step after it** (`audit_variants.py` M2 says so).
+
 `picks: 0` is a legitimate answer and happens often: a builder needs
 `best_for_fixture` **and** positive EV after the measured correlation haircut
 (12%; measured range 8.8–19.6%). `ev_if_product_priced` being positive means
@@ -209,7 +290,18 @@ Hand the day to `sofa-verifier`. Its protocol is
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
 ```
 
-That covers structure and arithmetic **from each row's own fields**. It cannot
+and, for everything beside the coupon:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
+```
+
+which re-derives the four sport coupons from their raw snapshots (every
+price, every devig, the selection replayed at build time) and checks that
+WARIANT WSZYSTKIE is still exactly what its sources print. Any finding is a
+defect to fix before the day is reported, not a note.
+
+`audit_coupon.py` covers structure and arithmetic **from each row's own fields**. It cannot
 catch a row whose fields are all mutually consistent and all built on the
 wrong sample, which is why the agent then rebuilds from `03_samples.json`,
 re-checks that `subject` maps to the side it claims, re-asks Superbet for every
@@ -253,6 +345,10 @@ RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych → <n> R
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów
 SHADOW:   D-1 <n> meczów rozliczonych (hokej/kosz/siatka) — pomiar, NIE kupon
+SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; cena bez marży, bez modelu); weta <n>
+WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 (wyłączone: <…>)
+D-1 WYNIKI: kupon <u> j. · WARIANT <u> j. · sporty <u>/<u>/<u>/<u> j. · WSZYSTKIE <u> j. (każdy osobno, nigdy sumowane) → ledger
+AUDYT WARIANTÓW: <n> znalezisk
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <the day's single biggest weakness>
 ```

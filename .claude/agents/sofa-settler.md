@@ -43,6 +43,32 @@ Read `07_settle_skips.json` — **a row that could not be graded is not a loss.*
 Counting a blind row as a loss understates the model exactly as much as
 counting it as a win overstates it.
 
+## Step 1b — every variant, and the ledger
+
+Every day, after the three SETTLEs:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>
+```
+
+`record_results.py` writes one row per (date, variant) into
+`runs/sofa/ledger/results.jsonl`: official (7c), wariant (7d), each
+`sport:<sport>` coupon, `multi`, and `measure:<sport>` - Superbet's price
+against the outcome on the favourite side. It reproduces 7c / 7d exactly
+(checked on 2026-09-29: official +5.99 u = singles +3.47 + builder +2.52;
+wariant +2.83 u). Read the ledger across days, per variant, never pooled:
+that is where a sport earns or loses the right to stay on its experiment,
+and it is read at a fixed price band, the same way vetoes are.
+
+The sport coupons have no model; their loss is expected to track their
+margin. A sport coupon ahead of its margin over a handful of days is
+dispersion until a measurement of 30+ settled games per family says
+otherwise - never a reason to widen its rule mid-week.
+
 ## Step 2 — read the day, in the right order
 
 ```bash
@@ -179,6 +205,9 @@ deliver.
 SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody)
 SINGLE:   <n> postawionych wierszy VALUE · wynik <…> · ROI <…>
 PDF:      <n> slipów (sekcja 7c) · <w>/<n> · ROI <…>
+WARIANTY: WARIANT <u> · CS2 <u> · HOKEJ <u> · KOSZ <u> · SIATKA <u> · WSZYSTKIE <u> j. (osobno) · pending <n>
+POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
+LEDGER:   <n> wierszy zapisanych dla <D-1>
 RYNKI:    <the families that lost, and whether systematically or by dispersion>
 BRAMKI:   <per gate: caught / cost / missed>
 NISZE:    <7h verdict · candidates · selector OOS ROI vs baseline, with CIs>

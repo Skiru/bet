@@ -123,6 +123,18 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> -
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
 
+Then WARIANT WSZYSTKIE - a rebuilt official PDF makes it stale (it prints
+the official singles verbatim), so it is re-assembled every time:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
+```
+
+A sport coupon older than 6 h is excluded from it (exit 1, reason printed):
+rebuild that sport with a `sofa-sport-runner` first if the operator wants it
+on the page.
+
 Both COUPON and CONFIDENCE read `vetoes.json`, so both must be re-run after a
 veto changes — rebuilding only the singles leaves the vetoed rung standing as a
 leg of the Bet Builder the PDF stakes.
@@ -147,6 +159,7 @@ rebuild.
 ```
 KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — <n> pozycji (było <n>)
 WARIANT:  runs/sofa/<date>/KUPON_<date>_WARIANT.pdf — <n> pozycji (NIE kupon; 0.65 / x ≥ 0.90)
+WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 · audyt wariantów <n> znalezisk
 SINGLE:   <n> wierszy VALUE → <n> w kuponie, <n> odrzuconych (powody)
 WETA:     <n> zastosowanych, <n> bez dopasowania
 CENA:     oferta z <ts>, wiek <n> min <"świeża" | "przeterminowana — to tłumaczy pustki">

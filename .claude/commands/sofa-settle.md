@@ -35,6 +35,22 @@ it is unreachable through `--only SETTLE`. They cannot reach
 the `K_PRICE` fitter, but they are real forecasts and they are the only way to
 say what the whole board did.
 
+## 1b — every variant, and the ledger (every day)
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <date> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <date> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <date> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <date> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <date>
+```
+
+One ledger row per (date, variant) in `runs/sofa/ledger/results.jsonl`;
+re-running a date replaces its rows. Each variant stands alone - official,
+wariant, sport:<sport>, multi - and `measure:<sport>` records the price
+against the outcome. Exit 1 = something still pending; re-run after the
+missing SETTLE.
+
 ## 2 — read it, in the right order
 
 ```bash

@@ -165,7 +165,10 @@ def render_md(doc: dict[str, Any]) -> str:
             f"{leg['match_name']} | "
             f"{leg.get('tournament') or '-'} | {leg['label']} | {leg['odds']:.2f} | "
             f"{leg['fair_p']:.3f} | {leg['overround']:.1%} | "
-            f"{leg['fair_p_x_odds']:.3f} | {leg['price_age_min']} min |"
+            f"{leg['fair_p_x_odds']:.3f} | "
+            + ("wydruk " + local(leg["price_fetched_at_utc"]) if leg.get("locked")
+               else f"{leg['price_age_min']} min")
+            + " |"
         )
     if not doc["legs"]:
         out.append("| - | brak pozycji spełniających regułę | | | | | | | |")
@@ -339,8 +342,16 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
         Paragraph(
             "Cena z ostatniego snapshotu Superbet przed zbudowaniem (wiek: "
             + ", ".join(
-                sorted({f"{leg['price_age_min']} min" for leg in doc["legs"]}) or ["—"]
+                sorted(
+                    {
+                        f"{leg['price_age_min']} min"
+                        for leg in doc["legs"]
+                        if not leg.get("locked")
+                    }
+                )
+                or ["—"]
             )
+            + "; pozycje „w toku” zostają po kursie z wcześniejszego wydruku"
             + "). Sprawdź kurs w aplikacji przed zakładem — jeśli spadł, pozycja "
             "jest droższa niż na tej stronie.",
             sub,
@@ -376,6 +387,41 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
     pdf.build(story)
 
 
+def write_outputs(
+    sport: sc.SportKey, date: str, runs_dir: str, doc: dict[str, Any]
+) -> Path:
+    """PDF, JSON, md and the build log, in the order that never leaves a PDF
+    and a JSON that disagree: the PDF is rendered to a temporary file first,
+    so a failed render leaves the previous pair untouched."""
+    directory = sc.day_dir(runs_dir, sport, date)
+    directory.mkdir(parents=True, exist_ok=True)
+    pdf_path = directory / sc.pdf_name(sport, date)
+    tmp_pdf = pdf_path.with_suffix(".pdf.tmp")
+    render_pdf(doc, tmp_pdf)
+    # The JSON names the exact PDF it was printed as: a reader checks the
+    # hash, not file times, which a copy or a restore does not keep.
+    doc["pdf_sha256"] = sc.file_sha256(tmp_pdf)
+    write_atomic(
+        directory / sc.COUPON_FILE, json.dumps(doc, ensure_ascii=False, indent=2)
+    )
+    os.replace(tmp_pdf, pdf_path)
+    write_atomic(directory / sc.COUPON_MD, render_md(doc))
+    # Every build, appended: what each printed PDF held.
+    with (directory / sc.BUILDS_FILE).open("a", encoding="utf-8") as fh:
+        fh.write(
+            json.dumps(
+                {
+                    "created_at_utc": doc["created_at_utc"],
+                    "legs": doc["legs"],
+                    "vetoed": doc["vetoed"],
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    return pdf_path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--date", required=True)
@@ -408,30 +454,7 @@ def main() -> int:
         pdf_path = directory / sc.pdf_name(sport, args.date)
         try:
             doc = build(sport, args.date, config.runs_dir, at, rule)
-            directory.mkdir(parents=True, exist_ok=True)
-            # The PDF first, through a temporary file: a failed render leaves
-            # the previous PDF AND the previous JSON, never a mismatched pair.
-            tmp_pdf = pdf_path.with_suffix(".pdf.tmp")
-            render_pdf(doc, tmp_pdf)
-            write_atomic(
-                directory / sc.COUPON_FILE,
-                json.dumps(doc, ensure_ascii=False, indent=2),
-            )
-            os.replace(tmp_pdf, pdf_path)
-            write_atomic(directory / sc.COUPON_MD, render_md(doc))
-            # Every build, appended: what each printed PDF held.
-            with (directory / sc.BUILDS_FILE).open("a", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {
-                            "created_at_utc": doc["created_at_utc"],
-                            "legs": doc["legs"],
-                            "vetoed": doc["vetoed"],
-                        },
-                        ensure_ascii=False,
-                    )
-                    + "\n"
-                )
+            write_outputs(sport, args.date, config.runs_dir, doc)
         except Exception as exc:  # one sport failing never stops the others
             metrics[sport] = {
                 "verdict": "FAILED",

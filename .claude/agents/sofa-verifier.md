@@ -1,6 +1,6 @@
 ---
 name: sofa-verifier
-description: Adversarial verification of one built sofa day. Runs audit_coupon, then does the four things it cannot - rebuilds every staked row from the raw observations in 03_samples.json, checks the subject maps to the side it claims, re-asks Superbet for every leg's live price through the same OfferFetcher the pipeline used, and tests the day's distributions for anti-selection (which markets, which leagues, which sample sizes, which surpluses the selector concentrated in). Ends with the list of rows it would NOT stake even though the pipeline picked them, which is the point. Use after the PDF is built, before anything is staked, and on demand for a past day. Never edits code, never rebuilds the coupon, never recommends a stake.
+description: Adversarial verification of one built sofa day - the coupon, and everything beside it (audit_variants - the four sport coupons re-derived from raw snapshots, WARIANT WSZYSTKIE against its sources). Runs audit_coupon, then does the four things it cannot - rebuilds every staked row from the raw observations in 03_samples.json, checks the subject maps to the side it claims, re-asks Superbet for every leg's live price through the same OfferFetcher the pipeline used, and tests the day's distributions for anti-selection (which markets, which leagues, which sample sizes, which surpluses the selector concentrated in). Ends with the list of rows it would NOT stake even though the pipeline picked them, which is the point. Use after the PDF is built, before anything is staked, and on demand for a past day. Never edits code, never rebuilds the coupon, never recommends a stake.
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
 skills:
   - sofa-pipeline
@@ -50,6 +50,27 @@ than one that was kept? And count `ABOVE_MEASURED_CEILING` — that gate fires
 where a market's own settled history refuses to describe the probability the
 row claims, so a day with many of them is a day the model was confident where
 it has never been verified.
+
+## Step 1b — everything beside the coupon
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
+```
+
+S1-S5 re-derive each sport coupon (CS2, hockey, basketball, volleyball) from
+its raw snapshots: the PDF hash, the rule on every new leg, every price and
+devig recomputed from the snapshot record the leg names, one leg per event,
+no vetoed leg, and the whole selection replayed as the snapshots stood at
+build time. M1-M3 check WARIANT WSZYSTKIE: its PDF hash, every section still
+equal to what its source prints now, nothing written into `runs/sofa/<d>/`.
+"no findings (nothing to check)" is not a pass - say which variants existed.
+
+For a sport leg, the live re-price in 2c applies as well: re-ask Superbet for
+the event (`SuperbetClient().event_odds`) and compare the leg's side and its
+whole outcome group. These legs have no model; the only thing to verify
+beyond the price is that the market settles the way the label says
+(regulation vs overtime, a second leg of an aggregate tie, a friendly played
+to a fixed number of sets or periods).
 
 ## Step 2 — the four things the audit cannot do
 

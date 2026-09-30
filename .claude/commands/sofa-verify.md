@@ -40,6 +40,16 @@ Also check the caps actually bound: did a row fall out to `MAX_PER_FIXTURE` or
 refuses to describe the probability the row claims. And is
 `UNFITTED_CONSTANTS` still on every row? **Never strip it.**
 
+## 1b — the variants
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
+```
+
+The four sport coupons re-derived from their raw snapshots (prices, devig,
+rule, the selection replayed) and WARIANT WSZYSTKIE against its sources. A
+finding is a defect. "nothing to check" is not a pass.
+
 ## 2 — what the audit cannot do
 
 A row whose fields are all mutually consistent and all built on the wrong

@@ -22,8 +22,17 @@ Most: **`ok: true` nie wystarcza.** Martwa karta przeglądarki nadal melduje
 OFFER i etapami offline nic nie ruszy. Nie próbuj obejścia i **nigdy nie
 podnoś `SOFA_TARGET_RPS`**.
 
-Podniesienie mostu (robi to **operator**, nie agent — agent ma się zatrzymać
-i powiedzieć, że most stoi):
+Od 30.09 `/sofa-day` **sam podnosi most** na starcie:
+
+```bash
+.venv/bin/python scripts/sofa/ensure_bridge.py   # serwer w tle, 5 okien, jeśli trzeba; potem check_bridge
+```
+
+Działającego mostu nie rusza. Jeśli Chrome jest już otwarty bez flag mostka,
+skrypt się zatrzymuje (exit 2): zamknij Chrome całkowicie (Cmd+Q) i uruchom
+krok jeszcze raz — agent nigdy nie zamyka przeglądarki operatora.
+
+Ręcznie (to samo, krok po kroku):
 
 ```bash
 # serwer umiera razem z terminalem, który go uruchomił — na długi przebieg odetnij:
@@ -212,6 +221,25 @@ Albo cztery agenty `sofa-sport-runner` równolegle, po jednym na sport.
   pierwszy gol / kto pierwszy do N punktów (brak kolejności zdobyczy w
   wyniku), progi zawodników „5+” (rynek jednostronny, nie ma z czym
   zdevigować), double-double (klucze statystyk niezweryfikowane), kombinacje.
+
+### 4b. WARIANT WSZYSTKIE i dziennik wyników (od 30.09, domyślnie w /sofa-day)
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>     # po kuponie i czterech kuponach sportów
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>       # każdy wariant przeliczony z surowych danych
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>     # dziennik: runs/sofa/ledger/results.jsonl
+```
+
+- `runs/sofa/multi/<d>/KUPON_<d>_WSZYSTKIE.pdf` to **złożenie**, nie nowy
+  wybór: pojedyncze i buildery z oficjalnego PDF oraz nogi czterech kuponów
+  sportów, dokładnie po ich kursach. Sekcja z nieaktualnego lub brakującego
+  źródła jest wyłączona z podanym powodem.
+- Po każdej przebudowie kuponu albo kuponu sportu złożenie trzeba powtórzyć
+  (`audit_variants` M2 to wykrywa).
+- Dziennik ma jeden wiersz na (dzień, wariant): kupon (7c), WARIANT (7d),
+  każdy kupon sportu, WSZYSTKIE i pomiar ceny per sport. Z niego — i tylko
+  z niego, osobno per wariant — czyta się wyniki z wielu dni.
 - Weta (`vetoes.json` w katalogu sportu) tylko usuwają: przełożony mecz,
   zmiana składu w CS2, nietypowy format. Nigdy „ta liga gra under”.
 

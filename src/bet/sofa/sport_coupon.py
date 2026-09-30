@@ -167,6 +167,36 @@ PERIOD_PL = {"hockey": "tercja", "basketball": "kwarta", "volleyball": "set"}
 SIDE_PL = {"ODD": "nieparzysta", "EVEN": "parzysta", "YES": "tak", "NO": "nie"}
 
 
+def file_sha256(path: Path) -> str:
+    import hashlib
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def pdf_matches(doc: dict[str, Any], json_path: Path, pdf_path: Path) -> str | None:
+    """Why this PDF is not the one this JSON was printed as, or None.
+
+    Since 2026-09-30 the JSON carries `pdf_sha256`, and only an exact match
+    passes. A JSON from before then has no hash; its PDF was written in the
+    same run, just before it, so it passes when it is at most LEGACY_PDF_SKEW
+    older - and never when it is newer by more than that either way.
+    """
+    if not pdf_path.exists():
+        return f"NO_PDF: {pdf_path.name}"
+    want = doc.get("pdf_sha256")
+    if want:
+        if file_sha256(pdf_path) == want:
+            return None
+        return f"PDF_MISMATCH: {pdf_path.name}"
+    skew = json_path.stat().st_mtime - pdf_path.stat().st_mtime
+    if abs(skew) > LEGACY_PDF_SKEW_S:
+        return f"PDF_NOT_FROM_THIS_BUILD: {pdf_path.name} ({skew:+.0f} s)"
+    return None
+
+
+LEGACY_PDF_SKEW_S = 120.0
+
+
 def day_dir(runs_dir: str, sport: SportKey, date: str) -> Path:
     """The measurement's own day directory - never runs/sofa/<date>/."""
     if sport == "cs2":

@@ -28,11 +28,12 @@ Argument to `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty znaczy dzisiaj.
 | agent | rola | narzędzia | pisze pliki? |
 |---|---|---|---|
 | `sofa-runner` | właściciel przebiegu: uruchamia etapy, deleguje, scala weta, melduje | Bash, Read, Glob, Grep, **Task** | nie (brak Edit/Write; dane pisze przez Bash) |
-| `sofa-analyst-football` | piłkarski odczyt meczu, którego kod nie zrobi + weta | Read/Glob/Grep/Bash, Web, **bzzoiro MCP** | nie — zwraca tekst |
+| `sofa-analyst-football` | piłkarski odczyt meczu, którego kod nie zrobi + weta | Read/Glob/Grep/Bash, Web (bez bzzoiro — sofa czyta tylko Sofascore i Superbet) | nie — zwraca tekst |
 | `sofa-analyst-tennis` | to samo dla tenisa | Read/Glob/Grep/Bash, Web | nie — zwraca tekst |
 | `sofa-verifier` | rozbiera zbudowany dzień na części, adwersaryjnie | Read/Glob/Grep/Bash, Web | nie |
 | `sofa-settler` | pętla rozliczenie → kalibracja, higiena konfiguracji | Bash, Read, Glob, Grep | nie (uruchamia fitter, nie edytuje stałej ręcznie) |
 | `sofa-market-scout` | czy da się to postawić i czy warto tej ceny; ślepa plama `unmapped_markets` | Read, Glob, Grep, Bash, WebFetch | nie |
+| `sofa-sport-runner` | jeden sport mierzony (CS2 / hokej / kosz / siatka): odświeżenie cen, kupon eksperymentalny, odczyt nóg, weta; cztery naraz | Bash, Read, Glob, Grep, Web | tylko `vetoes.json` swojego sportu (przez Bash) |
 
 **Żaden agent `sofa` nie ma `Write` ani `Edit`.** To nie przeoczenie: przebieg,
 który potrzebował edycji pliku, potrzebuje człowieka. Dane (jak `vetoes.json`)
@@ -122,6 +123,22 @@ unmatched = find_unmatched_vetoes(rows, vetoes)                 # potem raport
 i melduje zero — wygląda to identycznie jak dzień bez zastrzeżeń.
 
 ---
+
+### Od 2026-09-30: warianty, sporty mierzone i dziennik — domyślnie
+
+Każdy `/sofa-day` robi dodatkowo, bez pytania:
+
+1. **D-1 dla wszystkich:** po SETTLE / CS2_SETTLE / SHADOW_SETTLE —
+   `settle_sport_coupon.py`, `settle_multi_coupon.py`, `audit_shadow.py`,
+   `audit_cs2.py` i `record_results.py` (dziennik
+   `runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i wariant).
+2. **Po oficjalnym PDF:** jedno odświeżenie cen (Superbet), potem **cztery
+   agenty `sofa-sport-runner` w jednej wiadomości** — CS2, hokej, koszykówka,
+   siatkówka — każdy buduje swój kupon, czyta nogi, pisze weta.
+3. **`run_multi_coupon.py`** — WARIANT WSZYSTKIE, złożenie bez wyboru.
+4. **Weryfikacja:** `audit_coupon.py` + `audit_variants.py` + `sofa-verifier`.
+
+Żaden z wariantów nie jest kuponem; żadnego wyniku nie dodaje się do innego.
 
 ## 3. Kontrakt analityka
 

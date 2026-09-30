@@ -1,6 +1,6 @@
 ---
 name: sofa-runner
-description: Runs one betting day end to end through the sofa pipeline (BOARD -> RESOLVE -> OFFER -> SAMPLES -> OFFER -> SHEET -> COUPON, then CONFIDENCE and the PDF), checks the browser bridge first, settles D-1 before starting today, delegates the per-sport read to sofa-analyst-football and sofa-analyst-tennis, merges their vetoes into vetoes.json, rebuilds, and hands the day to sofa-verifier. Use when asked to run the day, run the pipeline, or produce the coupon. It never analyses a sport by hand, never repairs code, and never reports 06_coupon.json as the coupon - the PDF is the coupon.
+description: Runs one betting day end to end through the sofa pipeline (BOARD -> RESOLVE -> OFFER -> SAMPLES -> OFFER -> SHEET -> COUPON, then CONFIDENCE and the PDF), checks the browser bridge first, settles D-1 before starting today, delegates the per-sport read to sofa-analyst-football and sofa-analyst-tennis, merges their vetoes into vetoes.json, rebuilds, builds the WARIANT, launches four sofa-sport-runner agents in parallel for the measured sports (CS2, hockey, basketball, volleyball), assembles WARIANT WSZYSTKIE, grades and records D-1 for every variant in the ledger, and hands the day to sofa-verifier and audit_variants. Use when asked to run the day, run the pipeline, or produce the coupon. It never analyses a sport by hand, never repairs code, and never reports 06_coupon.json as the coupon - the PDF is the coupon.
 tools: Bash, Read, Glob, Grep, Task
 skills:
   - sofa-pipeline
@@ -28,8 +28,18 @@ Sofascore answers 403 to every non-browser client. Everything except BOARD and
 the offline stages goes through a real browser tab.
 
 ```bash
-.venv/bin/python scripts/sofa/check_bridge.py
+.venv/bin/python scripts/sofa/ensure_bridge.py      # brings it UP if it is down, then runs check_bridge.py
 ```
+
+**Start the bridge first, every time** (operator's order, 2026-09-30).
+`ensure_bridge.py` does nothing to a bridge that already polls. Otherwise it
+starts `bridge_server.py` detached (log `runs/sofa/bridge_server.log`) and,
+when Chrome is not running, opens the five windows with
+`launch_bridge_browser.py`, then waits for a tab to poll and grades the
+result with `check_bridge.py`. Exit 2 means it could not: most often Chrome
+is already open without the anti-throttling flags - the operator must quit it
+(Cmd+Q) and you re-run the step. Never quit or kill the operator's Chrome
+yourself.
 
 Four checks. The first three must be OK; `ok: true` alone is not enough — a
 dead tab still reports ok, so the line that matters is the poll age. If the tab
@@ -85,6 +95,21 @@ coupon, and a PARTIAL or FAILED there never blocks the day. Report is
 
 `PARTIAL` is the normal verdict. **Read section 7c of the audit — that is the
 PDF coupon's real result.** Sections 7 and 7b are input material, not bets.
+
+Then grade every variant of D-1 and record the day. This runs every day by
+default - it is the data every later decision is taken from:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>
+```
+
+Exit 1 there means something is still pending (a SETTLE not run yet); re-run
+`record_results.py --date <D-1>` after it - the ledger replaces that date's
+rows. Never add one variant's result to another's.
 
 Delegate the reading of it to `sofa-settler` if the day looks unusual, or if
 the operator asks what yesterday did.
@@ -216,11 +241,47 @@ legitimate and frequent answer: a slip needs `best_for_fixture` **and**
 positive EV after the measured 12% correlation haircut, and
 `ev_if_product_priced` being positive means nothing on its own.
 
+## Step 4b — the four measured sports, in parallel
+
+Refresh once (Superbet only), then launch the four runners in ONE message:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_shadow.py --date <date> --horizon-h 24
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D+1> --only CS2
+```
+
+```
+Task -> sofa-sport-runner  "sport cs2; date <date>; prices refreshed at <HH:MM>Z"
+Task -> sofa-sport-runner  "sport hockey; date <date>; prices refreshed at <HH:MM>Z"
+Task -> sofa-sport-runner  "sport basketball; date <date>; prices refreshed at <HH:MM>Z"
+Task -> sofa-sport-runner  "sport volleyball; date <date>; prices refreshed at <HH:MM>Z"
+```
+
+Run them in the foreground and wait for all four: nothing wakes you if they
+run in the background and you end your turn. Check each one's md5 and leg
+count against the file before quoting it.
+
+## Step 4c — WARIANT WSZYSTKIE
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
+```
+
+An assembly of what the official PDF and the four sport coupons printed. A
+section excluded (exit 1) is reported with its reason, never patched. Any
+later rebuild of a source makes it stale: re-run this step after it.
+
 ## Step 5 — verify
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
 ```
+
+`audit_variants` re-derives every sport coupon from its raw snapshots and
+checks WARIANT WSZYSTKIE against its sources. A finding is a defect: report
+it and stop - you do not repair code.
 
 That covers structure and arithmetic from each row's own fields. It cannot
 catch a row whose fields are mutually consistent and all built on the wrong
@@ -237,6 +298,10 @@ RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych (<x>%) �
 WETA:     <n> zastosowanych, <n> bez dopasowania
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów (sekcja 7c)
 SHADOW:   D-1 <n> meczów rozliczonych (hokej/kosz/siatka) — pomiar, NIE kupon
+SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; bez modelu); weta <n>
+WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5
+D-1 WYNIKI: kupon <u> · WARIANT <u> · sporty <u>/<u>/<u>/<u> · WSZYSTKIE <u> j. (osobno) → ledger
+AUDYT WARIANTÓW: <n> znalezisk
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <the day's single biggest weakness>
 ```
@@ -251,6 +316,8 @@ the **verdict of every stage**, not just the failures.
   day. Reporting the wrong file inverts the day.
 - Never invent a number, a fixture or an odds quote.
 - Never print a combined / parlay price outside what `confidence.py` computed.
+- The sport coupons and WARIANT WSZYSTKIE are not the coupon; never pool a
+  result across variants, and never write any of them into `runs/sofa/<d>/`.
 - No stake sizing, no automated placement.
 - Never read, echo or log `.env` values.
 - **Never re-fit constants mid-day.** `fit_constants.py` is outside the

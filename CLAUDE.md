@@ -25,7 +25,7 @@ Source of truth for the order: `DEFAULT_SEQUENCE` in
 
 | you want | use |
 |---|---|
-| a full betting day | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
+| a full betting day - coupon, WARIANT, four sport coupons, WARIANT WSZYSTKIE, D-1 settled and recorded for all | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
 | the per-sport read over an existing sheet | `/sofa-analyze` |
 | coupon + PDF from artifacts on disk | `/sofa-rebuild` |
 | adversarial verification of a built day | `/sofa-verify` |
@@ -43,7 +43,8 @@ Full orchestration contract: `docs/sofa/AGENTIC_FLOW.md`.
 ## Commands
 
 ```bash
-.venv/bin/python scripts/sofa/check_bridge.py                                    # always first
+.venv/bin/python scripts/sofa/ensure_bridge.py                                   # always first: brings the bridge up if down, then check_bridge
+.venv/bin/python scripts/sofa/check_bridge.py                                    # the grade alone
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
@@ -65,6 +66,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # the whole shadow day, unattended; --chain starts D+1 after the 05:15Z settle
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport {cs2|hockey|basketball|volleyball|all}   # experimental per-sport coupon, beside the measurement
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <d> --to <d> [--sport hockey]   # grade it at the printed price (after CS2_SETTLE / SHADOW_SETTLE)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>        # WARIANT WSZYSTKIE: the official PDF + four sport coupons, verbatim, runs/sofa/multi/<d>/
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <d> --to <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>          # re-derive the sport coupons from raw snapshots; WSZYSTKIE vs its sources
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date <D-1>        # ledger: every variant + measurement, runs/sofa/ledger/results.jsonl
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
@@ -111,6 +116,14 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   settled hockey day (09-29) went 33/46 against a mean fair p of 85.1%,
   ROI -17.7%. The CS2 / SHADOW rules above still hold: nothing from these
   sports feeds or gates the coupon.
+- **`KUPON_<d>_WSZYSTKIE.pdf` is not the coupon either** (since 2026-09-30):
+  an assembly in `runs/sofa/multi/<d>/` of what the official PDF and the four
+  sport coupons printed, verbatim, at their prices - it selects nothing.
+  Any rebuild of a source makes it stale (`audit_variants.py` M2), so it is
+  re-assembled after every rebuild. Its result is its own.
+- **Every day records every variant** (`record_results.py`, the ledger). It
+  reproduces 7c / 7d exactly and is the only place results across days are
+  read - per variant, never pooled.
 - **Never print a combined / Bet Builder / parlay price** outside what
   `confidence.py` computed, and never present `odds_if_product` as a price —
   Superbet does not price a slip as the product of its legs (measured markup
