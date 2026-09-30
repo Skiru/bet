@@ -200,7 +200,8 @@ def test_every_family_parses_from_superbets_own_shape(
             {"player": "hypex", "total": "6.5"},
             {},
         ),
-        ("Dokładny wynik", "2:0", None, {}),
+        ("Dokładny wynik", "2-0", None, {}),  # not a score
+        ("Dokładny wynik", "2:0", None, {"code": "21"}),  # code disagrees
         ("1. mapa - 1. runda - zwycięzca", "Ninjas in Pyjamas", None, {}),
         (
             "1.mapa - Zwycięzca i liczba rund (z dogrywką)",
@@ -663,3 +664,79 @@ def test_one_nickname_on_both_rosters_grades_neither() -> None:
     assert mp is not None and len(mp.players) == 2
     ln = Cs2Line("e", "player_kills", 1, "Snax", 14.5, "OVER", 1.9)
     assert actual_value(ln, [mp], TEAM1, TEAM2) is None
+
+
+# --- 2026-09-30: whole-snapshot replacement, exact score, parity, groups ---------
+
+
+def test_a_line_taken_down_in_the_last_snapshot_is_not_kept_at_its_old_price() -> None:
+    first = snap("2026-09-26T10:00:00Z", "2026-09-26T15:00:00Z", 1.70)
+    later = snap("2026-09-26T14:00:00Z", "2026-09-26T15:00:00Z", 1.80)
+    later["lines"] = [
+        Cs2Line("e1", "maps_total", 0, "", 3.5, "OVER", 2.4).as_dict(),
+        Cs2Line("e1", "maps_total", 0, "", 3.5, "UNDER", 1.5).as_dict(),
+    ]
+    sides = latest_pre_kickoff([first, later])["e1"].sides
+    assert {k[3] for k in sides} == {3.5}
+
+
+def test_exact_maps_and_map_parity_parse_and_grade() -> None:
+    from bet.sofa.cs2 import MapResult, actual_value, grade
+
+    raw = {**item("Dokładny wynik", "2:1", 3.5), "code": "21"}
+    exact = parse_line(raw, "e1", T1, T2)
+    assert exact is not None and (exact.family, exact.side) == ("exact_maps", "2:1")
+    parity = one(
+        "X mapa - nieparzysta/parzysta liczba rund (z dogrywką)",
+        "2. - nieparzysta",
+        {"mapnr": "2"},
+    )
+    got = (parity.family, parity.map_nr, parity.side)
+    assert got == ("map_rounds_odd_even", 2, "ODD")
+    even = one(
+        "X mapa - nieparzysta/parzysta liczba rund (z dogrywką)",
+        "2. - parzysta",
+        {"mapnr": "2"},
+    )
+    assert even.side == "EVEN"
+    maps = [MapResult(13, 7, {}), MapResult(10, 13, {}), MapResult(16, 14, {})]
+    assert grade(exact, actual_value(exact, maps, T1, T2) or 0.0) == "WIN"  # 2:1
+    other = Cs2Line("e1", "exact_maps", 0, "", None, "2:0", 3.0)
+    assert grade(other, actual_value(other, maps, T1, T2) or 0.0) == "LOSS"
+    # map 2 went 10-13: 23 rounds, odd
+    assert grade(parity, actual_value(parity, maps, T1, T2) or 0.0) == "WIN"
+    assert grade(even, actual_value(even, maps, T1, T2) or 0.0) == "LOSS"
+
+
+def test_an_exact_score_market_is_read_only_whole() -> None:
+    whole = [
+        {**item("Dokładny wynik", s, o), "code": s.replace(":", "")}
+        for s, o in (("2:0", 3.0), ("2:1", 3.5), ("1:2", 4.0), ("0:2", 5.0))
+    ]
+    lines = parse_event(whole, "e1", T1, T2)
+    assert sorted(ln.side for ln in lines) == ["0:2", "1:2", "2:0", "2:1"]
+    assert parse_event(whole[:3], "e1", T1, T2) == []  # one score missing
+
+
+def test_group_fair_matches_the_pair_devig_and_sums_to_one() -> None:
+    from bet.sofa.cs2 import fair_probability, group_fair, group_overround
+
+    two = group_fair({"OVER": 1.5, "UNDER": 2.5}, "two")
+    assert two is not None
+    assert two["OVER"] == fair_probability(1.5, 2.5)
+    three = group_fair({"T1": 1.8, "DRAW": 4.2, "T2": 3.9}, "three")
+    assert three is not None and sum(three.values()) == pytest.approx(1.0)
+    assert three["T1"] > three["T2"] > three["DRAW"]
+    assert group_fair({"T1": 1.5, "T2": 5.0, "DRAW": 1.0}, "three") is None
+    assert group_fair({"T1": 1.5, "T2": 5.0, "X": 9.0}, "three") is None
+    # a 1X2 with its draw suspended is not a two-way market
+    assert group_fair({"T1": 1.5, "T2": 5.0}, "three") is None
+    assert group_fair({"T1": 1.5, "T2": 5.0, "DRAW": 9.0}, "two") is None
+    assert group_overround({"T1": 2.0, "T2": 2.0}) == pytest.approx(0.0)
+
+
+def test_a_three_way_row_reports_its_own_margin() -> None:
+    row = {"fair_p": 0.5, "odds": 1.8, "outcome": "WIN", "superbet_event_id": "e",
+           "overround": 0.07, "group_odds": {"T1": 1.8, "DRAW": 4.0, "T2": 4.0}}
+    stats = summarize([row], "x")
+    assert stats is not None and stats.margin == pytest.approx(0.07)

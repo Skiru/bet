@@ -173,6 +173,48 @@ Jeśli dzień jest **zakończony**, nie odświeżaj ceny. Powiedz, że ceny są
 historyczne i że każda bramka niżej je teraz odrzuci — bo to poprawne
 zachowanie.
 
+### 4a. Kupony eksperymentalne: CS2, hokej, koszykówka, siatkówka (od 30.09)
+
+Eksperyment operatora. **To nie jest kupon** i nigdy nie trafia do
+`runs/sofa/<d>/`. Pliki leżą obok pomiaru:
+`runs/sofa/cs2/<d>/KUPON_<d>_CS2.pdf`,
+`runs/sofa/shadow/<sport>/<d>/KUPON_<d>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`.
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_shadow.py --date <d> --horizon-h 24     # świeże ceny hokej/kosz/siatka (tylko Superbet)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2       # świeże ceny CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport all
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-1> --to <D-1>   # po CS2_SETTLE / SHADOW_SETTLE
+```
+
+Albo cztery agenty `sofa-sport-runner` równolegle, po jednym na sport.
+
+- Te sporty **nie mają modelu**. Pewność to cena Superbet bez marży, więc
+  przy uczciwej cenie każda pozycja traci średnio tyle, ile marża.
+- Reguła: na mecz jedna strona z fair p ≥ 0,70, marżą linii ≤ 10,5% i
+  kursem ≥ 1,087, ta o najtańszej cenie (fair p × kurs); maks. 10 pozycji;
+  cena nie starsza niż 3 h; bez linii zawodników. Wszystkie stałe są
+  UNFITTED.
+- Dzień kuponu trwa do 06:00 czasu warszawskiego następnego dnia, więc mecze
+  nocne (NHL, NBA) z pliku D+1 też się liczą. Przebudowa zostawia nogi już
+  rozpoczęte bez zmian („w toku”); każda wersja trafia do
+  `sport_coupon_builds.jsonl`. Dnia, którego okno się zamknęło, nie da się
+  przebudować.
+- Pewność liczona jest z całej grupy wyników rynku: para, 1X2 (trzy wyniki)
+  albo pełny zestaw dokładnych wyników. 1X2 bez wyceny remisu nie jest ceną.
+- Tylko pojedyncze. Rozliczane per sport po wydrukowanym kursie, z zapisanego
+  wyniku meczu (także gdy Superbet zdjął później linię), nigdy łączone z
+  kuponem ani ze sobą.
+- Rynki mierzone od 30.09: 1X2 (hokej, koszykówka: mecz, połowy, kwarty,
+  tercje), parzystość (koszykówka, siatkówka, CS2 — rundy na mapie), dokładny
+  wynik (siatkówka w setach, CS2 w mapach), set na przewagi (siatkówka).
+  Niemierzone, z powodem: podwójna szansa (to 1X2 sprzedane drugi raz),
+  pierwszy gol / kto pierwszy do N punktów (brak kolejności zdobyczy w
+  wyniku), progi zawodników „5+” (rynek jednostronny, nie ma z czym
+  zdevigować), double-double (klucze statystyk niezweryfikowane), kombinacje.
+- Weta (`vetoes.json` w katalogu sportu) tylko usuwają: przełożony mecz,
+  zmiana składu w CS2, nietypowy format. Nigdy „ta liga gra under”.
+
 ---
 
 ## 5. Weryfikacja — nie do pominięcia

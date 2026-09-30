@@ -41,9 +41,22 @@ What each source was checked against (live, 2026-09-29):
   say whether overtime is appended, so a line there is ungradeable when the
   game went to overtime and graded otherwise.
 
-Only two-way lines are read (winner incl. overtime, totals, team totals,
-handicaps, draw-no-bet): a three-way 1X2 cannot be devigged two ways, and
-player props need a box score this measurement does not fetch.
+Read: two-way lines (winner incl. overtime, totals, team totals, handicaps,
+draw-no-bet, odd/even, volleyball's "set on extra points"), and since
+2026-09-30 the 1X2s and volleyball's exact set score, each devigged over its
+WHOLE outcome group (cs2.group_fair) - a 1X2 missing its draw is no price,
+never a two-way one. Player lines are read from the box score.
+
+Not read, each for a reason (measured on the live board 2026-09-30):
+- double chance (hockey 606/616, basketball 201797/230595): overlapping
+  outcomes, not a partition - it is the 1X2 re-sold, and the 1X2 is read;
+- first goal (666, 643) and race to N points (750): need the order of
+  scoring, which the stored score does not have;
+- basketball milestone props ("Punkty zawodnika" 5+, 235311-235315,
+  238440-238446): one-sided, nothing to devig against;
+- double-double (233573): two-way, but needs five box-score keys not yet
+  checked against the team totals;
+- combinations (a ";" in the name, 2312xx / 2397xx): a Bet Builder price.
 """
 
 from __future__ import annotations
@@ -54,7 +67,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from bet.sofa.cs2 import fair_probability
+from bet.sofa.cs2 import (
+    Shape,
+    complete_group,
+    exact_score,
+    grade_side,
+    group_fair,
+    group_overround,
+    parity_side,
+)
 
 SportKey = Literal["hockey", "basketball", "volleyball"]
 
@@ -95,7 +116,20 @@ VOID_AFTER = timedelta(hours=48)
 # A basketball or hockey game runs ~2.5 h with breaks, volleyball 2 h.
 SETTLE_AFTER = timedelta(hours=4)
 
-Kind = Literal["winner", "total", "team_total", "handicap", "dnb"]
+Kind = Literal[
+    "winner",
+    "total",
+    "team_total",
+    "handicap",
+    "dnb",
+    "three_way",  # 1X2: T1 / DRAW / T2, devigged over all three
+    "odd_even",  # ODD / EVEN of a total, or of a team's own (team set)
+    "yes_no",  # YES / NO: volleyball "set decided on extra points"
+    "exact",  # exact score in sets, "3:1" = team1 first; the whole score set
+]
+# Kinds whose quantity does not depend on which side is team1, so a game whose
+# orientation cannot be told still grades them (with no team of their own).
+ORIENTATION_FREE: frozenset[str] = frozenset({"total", "odd_even", "yes_no"})
 
 
 @dataclass(frozen=True)
@@ -132,6 +166,10 @@ MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
         638: _m("period_team_total", "team_total", "period", "periodnr", "T2"),
         678: _m("period_handicap", "handicap", "period", "periodnr"),
         662: _m("period_dnb", "dnb", "period", "periodnr"),
+        # 1X2 checked live 2026-09-30: "Mecz" 1 / X / 2 (code 1 / 0 / 2), a
+        # draw priced (4.2), so regulation time; per period the same.
+        640: _m("result_1x2", "three_way", "reg"),
+        660: _m("period_1x2", "three_way", "period", "periodnr"),
     },
     "basketball": {
         759: _m("winner", "winner", "full"),
@@ -154,6 +192,15 @@ MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
         200802: _m("quarter_team_total", "team_total", "period", "quarternr", "T1"),
         200795: _m("quarter_team_total", "team_total", "period", "quarternr", "T2"),
         772: _m("quarter_dnb", "dnb", "period", "quarternr"),
+        # Checked live 2026-09-30. "Mecz" prices a draw (X 12.0), so it is
+        # regulation; 233400 names the teams and "Remis" with no code.
+        777: _m("result_1x2", "three_way", "reg"),
+        763: _m("h1_1x2", "three_way", "h1"),
+        233400: _m("h2_1x2", "three_way", "h2"),
+        779: _m("quarter_1x2", "three_way", "period", "quarternr"),
+        775: _m("odd_even", "odd_even", "full"),
+        230634: _m("team_odd_even", "odd_even", "full", team="T1"),
+        230640: _m("team_odd_even", "odd_even", "full", team="T2"),
     },
     "volleyball": {
         745: _m("winner", "winner", "sets"),
@@ -163,6 +210,13 @@ MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
         1069: _m("points_handicap", "handicap", "full"),
         744: _m("set_winner", "dnb", "period", "setnr"),
         782: _m("set_points_total", "total", "period", "setnr"),
+        # Checked live 2026-09-30: "Dokładny wynik" 3:0 / 3:1 / ... (code
+        # "30"), team1 first; parity per match and per set; 100077 "Czy N. set
+        # zostanie rozstrzygnięty na dodatkowe punkty przewagi?" Tak / Nie.
+        785: _m("exact_sets", "exact", "sets"),
+        200896: _m("points_odd_even", "odd_even", "full"),
+        781: _m("set_points_odd_even", "odd_even", "period", "setnr"),
+        100077: _m("set_extra_points", "yes_no", "period", "setnr"),
     },
 }
 PARTNER = {"OVER": "UNDER", "UNDER": "OVER", "T1": "T2", "T2": "T1"}
@@ -276,6 +330,16 @@ def is_player_line(sport: SportKey, market_id: int) -> bool:
     return market_id in PLAYER_MARKETS[sport]
 
 
+def group_shape(sport: SportKey, market_id: int) -> Shape:
+    """The outcome shape a market's sides must make up (player lines: two)."""
+    spec = MARKETS[sport].get(market_id)
+    if spec is not None and spec.kind == "three_way":
+        return "three"
+    if spec is not None and spec.kind == "exact":
+        return "exact"
+    return "two"
+
+
 _HCP_IN_NAME = re.compile(r"\((-?\d+(?:\.\d+)?)\)")
 
 
@@ -365,6 +429,17 @@ def parse_line(
             return None
         period = int(raw_period)
 
+    code = str(item.get("code") or "")
+    if spec.kind in ("three_way", "odd_even", "yes_no", "exact"):
+        side = _wide_side(spec.kind, code, name, info, team1, team2)
+        if side is None:
+            return None
+        if spec.team is not None:
+            if _team_side(market, team1, team2) != spec.team:
+                return None
+        return ShadowLine(
+            event_id, market_id, spec.family, period, spec.team or "", None, side, odds
+        )
     from_code = _CODE_SIDE.get(str(item.get("code")))
     if spec.kind in ("total", "team_total"):
         from_text = _direction(name) or _direction(info)
@@ -400,6 +475,45 @@ def parse_line(
     return ShadowLine(
         event_id, market_id, spec.family, period, subject, value, side, odds
     )
+
+
+_THREE_WAY_CODE = {"1": "T1", "0": "DRAW", "2": "T2"}
+_THREE_WAY_TOKEN = {"1": "T1", "X": "DRAW", "2": "T2"}
+_PARITY_CODE = {"1": "ODD", "2": "EVEN"}
+
+
+def _wide_side(
+    kind: str, code: str, name: str, info: str, team1: str, team2: str
+) -> str | None:
+    """The side of a 1X2 / parity / yes-no / exact-score outcome, read from
+    the text and from Superbet's `code`; a disagreement drops it."""
+    from_code: str | None
+    if kind == "three_way":
+        token = name.rsplit("-", 1)[-1].strip()
+        lowered = (name + " " + info).lower()
+        from_text = (
+            _THREE_WAY_TOKEN.get(token)
+            or ("DRAW" if "remis" in lowered else None)
+            or _team_side(name, team1, team2)
+            or _team_side(info, team1, team2)
+        )
+        from_code = _THREE_WAY_CODE.get(code)
+    elif kind == "odd_even":
+        from_text = parity_side(name + " " + info)
+        from_code = _PARITY_CODE.get(code)
+    elif kind == "yes_no":
+        answer = name.strip().lower()
+        from_text = {"tak": "YES", "nie": "NO"}.get(answer)
+        from_code = None
+    else:  # exact
+        score = exact_score(name.strip())
+        if score is None:
+            return None
+        from_text = name.strip()
+        from_code = from_text if code in ("", f"{score[0]}{score[1]}") else "MISMATCH"
+    if from_code is not None and from_text is not None and from_code != from_text:
+        return None
+    return from_text or from_code
 
 
 def _parse_player_line(
@@ -451,8 +565,8 @@ def parse_event(
                 parsed
             )
     out: list[ShadowLine] = []
-    for sides in by_key.values():
-        if set(sides) not in ({"OVER", "UNDER"}, {"T1", "T2"}):
+    for key, sides in by_key.items():
+        if not complete_group(set(sides), group_shape(sport, key[0])):
             continue
         if any(len(v) != 1 for v in sides.values()):
             continue
@@ -482,6 +596,8 @@ class SnapshotEvent:
     tournament: str | None
     sides: dict[SideKey, ShadowLine] = field(default_factory=dict)
     fetched_at: dict[SideKey, str] = field(default_factory=dict)
+    # The snapshot file the event was read from (set by sport_coupon).
+    source_date: str | None = None
 
 
 def latest_pre_kickoff(
@@ -697,6 +813,18 @@ def actual_value(
     if pair is None:
         return None
     a, b = pair
+    if spec.kind == "exact":
+        score = exact_score(line.side)
+        return None if score is None else (1.0 if score == (a, b) else 0.0)
+    if spec.kind == "yes_no":
+        # Extra points: the set ran past its target (25, the fifth set 15),
+        # which only a 24-24 (14-14) level score allows.
+        target = 15 if line.period == 5 else 25
+        return 1.0 if max(a, b) > target else 0.0
+    if spec.kind == "odd_even":
+        if spec.team is not None:
+            return float(a if spec.team == "T1" else b)
+        return float(a + b)
     if spec.kind == "total":
         return float(a + b)
     if spec.kind == "team_total":
@@ -803,20 +931,17 @@ def player_value(
 Outcome = Literal["WIN", "LOSS", "VOID"]
 
 
-def grade(line: ShadowLine, actual: float) -> Outcome:
+def grade(line: ShadowLine, actual: float, three_way: bool = False) -> Outcome:
     """WIN / LOSS / VOID for this side, given the quantity's actual value.
 
     For winner / dnb / handicap `actual` is team1 minus team2 and `line.line`
-    is team1's handicap (None for winner and dnb, so a level dnb is VOID).
+    is team1's handicap (None for winner and dnb, so a level dnb is VOID). In
+    a 1X2 (`three_way`) a level score is the DRAW side's win. Parity takes the
+    quantity; yes/no and an exact score take an indicator (cs2.grade_side).
     """
-    if line.side in ("OVER", "UNDER"):
-        if line.line is None or actual == line.line:
-            return "VOID"
-        return "WIN" if (actual > line.line) == (line.side == "OVER") else "LOSS"
-    margin = actual + (line.line or 0.0)
-    if margin == 0:
-        return "VOID"
-    return "WIN" if (margin > 0) == (line.side == "T1") else "LOSS"
+    out = grade_side(line.side, actual, line.line, three_way)
+    assert out in ("WIN", "LOSS", "VOID")
+    return out  # type: ignore[return-value]
 
 
 def settle_event(
@@ -845,19 +970,25 @@ def settle_event(
         "player_unmatched": 0,
         "player_dnp": 0,
     }
+    groups: dict[tuple[Any, ...], dict[str, ShadowLine]] = {}
+    for key, line in ev.sides.items():
+        groups.setdefault(key[:4], {})[line.side] = line
     for key, line in ev.sides.items():
         is_player = is_player_line(sport.key, line.market_id)
         # A player line is about a named person, not a side: orientation
         # does not touch it.
+        spec = None if is_player else MARKETS[sport.key][line.market_id]
         if (
             totals_only
-            and not is_player
-            and MARKETS[sport.key][line.market_id].kind != "total"
+            and spec is not None
+            and (spec.kind not in ORIENTATION_FREE or spec.team is not None)
         ):
             counts["needs_orientation"] += 1
             continue
-        partner = ev.sides.get((*key[:4], PARTNER[line.side]))
-        if partner is None:
+        group = groups[key[:4]]
+        group_odds = {s: ln.odds for s, ln in group.items()}
+        fair = group_fair(group_odds, group_shape(sport.key, line.market_id))
+        if fair is None:
             counts["unpaired"] += 1
             continue
         actual: float | None
@@ -882,24 +1013,29 @@ def settle_event(
         if actual is None:
             counts["ungradeable"] += 1
             continue
-        outcome = grade(line, actual)
+        outcome = grade(line, actual, spec is not None and spec.kind == "three_way")
         if outcome == "VOID":
             counts["void"] += 1
             continue
-        rows.append(
-            {
-                **line.as_dict(),
-                "partner_odds": partner.odds,
-                "fair_p": fair_probability(line.odds, partner.odds),
-                "fetched_at_utc": ev.fetched_at[key],
-                "minutes_before_kickoff": round(
-                    (start - _utc(ev.fetched_at[key])).total_seconds() / 60
-                ),
-                "actual": actual,
-                "overtime": result.overtime,
-                "outcome": outcome,
-            }
-        )
+        row: dict[str, Any] = {
+            **line.as_dict(),
+            "fair_p": fair[line.side],
+            "overround": group_overround(group_odds),
+            "fetched_at_utc": ev.fetched_at[key],
+            "minutes_before_kickoff": round(
+                (start - _utc(ev.fetched_at[key])).total_seconds() / 60
+            ),
+            "actual": actual,
+            "overtime": result.overtime,
+            "outcome": outcome,
+        }
+        if len(group) == 2:
+            row["partner_odds"] = next(
+                o for s, o in group_odds.items() if s != line.side
+            )
+        else:
+            row["group_odds"] = group_odds
+        rows.append(row)
     return rows, counts
 
 

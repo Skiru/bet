@@ -31,8 +31,11 @@ Sources, and what each was checked against (2026-09-28):
   condition cannot be met (a third map in a 2-0).
 
 Only markets Sofascore's per-map data grades without interpretation are
-parsed. AWP kills (not published), combos, boosts, exact scores, round-N and
-pistol-round markets are skipped.
+parsed. AWP kills (not published), combos, boosts, round-N and pistol-round
+markets are skipped. Since 2026-09-30 the exact maps score ("2:1", team1
+first - its T1-first probability matched the winner market within 1.4 pp on
+3 live series; reversed it would have been 1 - p) and a map's round parity
+are read too, each devigged over its whole outcome group (`group_fair`).
 """
 
 from __future__ import annotations
@@ -47,7 +50,7 @@ from typing import Any, Literal
 
 from rapidfuzz import fuzz
 
-from bet.sofa.engine import devig
+from bet.sofa.engine import devig, devig_many
 from bet.sofa.names import DIACRITICS_FOLD
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD
 
@@ -87,6 +90,8 @@ FAMILIES = (
     "player_deaths",
     "player_headshots",
     "player_assists",
+    "map_rounds_odd_even",
+    "exact_maps",
 )
 PARTNER = {"OVER": "UNDER", "UNDER": "OVER", "T1": "T2", "T2": "T1"}
 
@@ -101,6 +106,10 @@ _TEAM_KILLS = re.compile(r"^(\d)\.\s?mapa - (.+?) - liczba zabójstw" + _OT)
 _MAP_ROUNDS = re.compile(r"^(\d)\.\s?mapa - Liczba rund" + _OT)
 _MAP_TEAM_ROUNDS = re.compile(r"^(\d)\.\s?mapa - (.+?) liczba rund" + _OT)
 _MAP_ROUND_HCP = re.compile(r"^(\d)\.\s?mapa - Handicap rund" + _OT)
+# Checked live 2026-09-30 (marketId 2480 / 2489): the parity market names the
+# map in `mapnr`, the exact score names team1's maps first ("2:1", code "21").
+MAP_ODD_EVEN = "X mapa - nieparzysta/parzysta liczba rund (z dogrywką)"
+EXACT_MAPS = "Dokładny wynik"
 _HCP_IN_NAME = re.compile(r"\((-?\d+(?:\.\d+)?)\)")
 # Series- and map-winner markets. An outcome naming neither side (a draw)
 # makes the market three-way, and a two-way devig of it would be wrong.
@@ -216,7 +225,8 @@ def parse_line(
     ) -> Cs2Line | None:
         if side is None:
             return None
-        if family != "match_winner" and family != "map_winner" and value is None:
+        valueless = ("match_winner", "map_winner", "map_rounds_odd_even", "exact_maps")
+        if family not in valueless and value is None:
             return None
         return Cs2Line(event_id, family, map_nr, subject, value, side, odds)
 
@@ -228,6 +238,17 @@ def parse_line(
         return make("map_winner", mapnr, "", None, _team_side(name, team1, team2))
     if market == "Liczba map":
         return make("maps_total", 0, "", total, _direction(name))
+    if market == MAP_ODD_EVEN:
+        if mapnr < 1:
+            return None
+        side = parity_side(name + " " + info)
+        return make("map_rounds_odd_even", mapnr, "", None, side)
+    if market == EXACT_MAPS:
+        score = exact_score(name.strip())
+        code = str(item.get("code") or "")
+        if score is None or code not in ("", f"{score[0]}{score[1]}"):
+            return None
+        return make("exact_maps", 0, "", None, name.strip())
     if market == "Handicap map":
         return make(
             "maps_handicap", 0, "", hcp, _handicap_side(name, hcp, team1, team2)
@@ -263,6 +284,21 @@ def parse_line(
         return make("team_rounds", 0, m.group(1).strip(), total, _direction(info))
     if (m := _TEAM_MAPS.match(market)) and team_of(m.group(1), team1, team2):
         return make("team_maps", 0, m.group(1).strip(), total, _direction(info))
+    return None
+
+
+_PARITY_WORD = re.compile(r"(nie)?parzyst")
+
+
+def parity_side(text: str) -> str | None:
+    """ODD / EVEN from Polish outcome text; None when it names neither or
+    both. Name and info repeat the word ("1. - nieparzysta" / "Nieparzysta
+    liczba rund"), so every occurrence must agree."""
+    found = {m.group(1) is not None for m in _PARITY_WORD.finditer(text.lower())}
+    if found == {True}:
+        return "ODD"
+    if found == {False}:
+        return "EVEN"
     return None
 
 
@@ -308,7 +344,7 @@ def parse_event(
     for key, sides in by_key.items():
         if (key[0], key[1]) in three_way:
             continue
-        if set(sides) not in ({"OVER", "UNDER"}, {"T1", "T2"}):
+        if not complete_group(set(sides), group_shape(key[0])):
             continue
         if any(len(v) != 1 for v in sides.values()):
             continue
@@ -320,6 +356,124 @@ def fair_probability(odds: float, partner_odds: float) -> float | None:
     """The devigged probability of a side, by the pipeline's own devig."""
     pair = devig(odds, partner_odds)
     return None if pair is None else pair[0]
+
+
+# --- outcome groups (two-way and wider) -----------------------------------------
+
+# The outcome sets a market may be read as. A two-way line is one of the first
+# four; a 1X2 is the three-way set; an exact score must be the WHOLE score set
+# of a best-of-N - a subset (one score suspended) would devig to probabilities
+# that are too high on every remaining score.
+TWO_WAY_SETS = (
+    frozenset({"OVER", "UNDER"}),
+    frozenset({"T1", "T2"}),
+    frozenset({"ODD", "EVEN"}),
+    frozenset({"YES", "NO"}),
+)
+THREE_WAY_SET = frozenset({"T1", "DRAW", "T2"})
+_EXACT = re.compile(r"^(\d+):(\d+)$")
+
+
+def exact_score(side: str) -> tuple[int, int] | None:
+    m = _EXACT.match(side)
+    return None if m is None else (int(m.group(1)), int(m.group(2)))
+
+
+def exact_score_sets() -> list[frozenset[str]]:
+    """Every complete exact-score set, best-of-1 to best-of-7 (first to 1..4)."""
+    out = []
+    for k in range(1, 5):
+        scores = {f"{k}:{j}" for j in range(k)} | {f"{j}:{k}" for j in range(k)}
+        out.append(frozenset(scores))
+    return out
+
+
+EXACT_SETS = exact_score_sets()
+
+
+Shape = Literal["two", "three", "exact"]
+
+
+def complete_group(sides: set[str] | frozenset[str], shape: Shape) -> bool:
+    """True when `sides` is the whole market its kind says it is.
+
+    The shape comes from the market, never from the sides seen: a 1X2 whose
+    DRAW is suspended leaves {T1, T2}, which looks like a whole two-way
+    market and would devig to probabilities that sum to one without the draw
+    (T1 1.5 / T2 5.0 read that way came out at a -13% margin).
+    """
+    group = frozenset(sides)
+    if shape == "two":
+        return group in TWO_WAY_SETS
+    if shape == "three":
+        return group == THREE_WAY_SET
+    return group in EXACT_SETS
+
+
+def group_shape(family: str) -> Shape:
+    """A CS2 family's outcome shape."""
+    return "exact" if family == "exact_maps" else "two"
+
+
+def group_fair(odds_by_side: dict[str, float], shape: Shape) -> dict[str, float] | None:
+    """Each side's devigged probability over its whole group, or None.
+
+    Two sides go through `fair_probability`, exactly as before this existed;
+    wider groups through `engine.devig_many`, the same estimator.
+    """
+    if not complete_group(set(odds_by_side), shape):
+        return None
+    sides = sorted(odds_by_side)
+    if len(sides) == 2:
+        a, b = sides
+        pa = fair_probability(odds_by_side[a], odds_by_side[b])
+        pb = fair_probability(odds_by_side[b], odds_by_side[a])
+        if pa is None or pb is None:
+            return None
+        return {a: pa, b: pb}
+    if any(o <= 1.0 for o in odds_by_side.values()):
+        return None
+    fair = devig_many([1.0 / odds_by_side[s] for s in sides])
+    return None if fair is None else dict(zip(sides, fair, strict=True))
+
+
+def group_overround(odds_by_side: dict[str, float]) -> float:
+    return sum(1.0 / o for o in odds_by_side.values()) - 1.0
+
+
+def grade_side(side: str, actual: float, value: float | None, three_way: bool) -> str:
+    """WIN / LOSS / VOID for one side of any supported group.
+
+    `actual` is the quantity for OVER/UNDER and ODD/EVEN, an indicator (1.0 =
+    it happened) for YES/NO and an exact score, and team1 minus team2 for
+    T1/T2/DRAW. In a three-way market a level score is the DRAW side's win,
+    never a void; in a two-way one `value` is team1's handicap.
+    """
+    if side in ("OVER", "UNDER"):
+        if value is None or actual == value:
+            return "VOID"
+        return "WIN" if (actual > value) == (side == "OVER") else "LOSS"
+    if side in ("ODD", "EVEN"):
+        return "WIN" if (int(actual) % 2 == 1) == (side == "ODD") else "LOSS"
+    if side in ("YES", "NO"):
+        return "WIN" if (actual == 1.0) == (side == "YES") else "LOSS"
+    if exact_score(side) is not None:
+        return "WIN" if actual == 1.0 else "LOSS"
+    if three_way:
+        result = "T1" if actual > 0 else "T2" if actual < 0 else "DRAW"
+        return "WIN" if side == result else "LOSS"
+    margin = actual + (value or 0.0)
+    if margin == 0:
+        return "VOID"
+    return "WIN" if (margin > 0) == (side == "T1") else "LOSS"
+
+
+def group_sides(
+    sides: dict[Any, Any], key: tuple[Any, ...]
+) -> dict[str, Any]:
+    """Every side of the line `key` (the side-less part of a side key)."""
+    n = len(key)
+    return {k[n]: v for k, v in sides.items() if k[:n] == key}
 
 
 # --- snapshots ---------------------------------------------------------------
@@ -345,6 +499,8 @@ class SnapshotEvent:
     fetched_at: dict[tuple[str, int, str, float | None, str], str] = field(
         default_factory=dict
     )
+    # The snapshot file the event was read from (set by sport_coupon).
+    source_date: str | None = None
 
 
 def latest_pre_kickoff(snapshots: list[dict[str, Any]]) -> dict[str, SnapshotEvent]:
@@ -352,7 +508,10 @@ def latest_pre_kickoff(snapshots: list[dict[str, Any]]) -> dict[str, SnapshotEve
 
     The kickoff is the one of the latest record: a rescheduled series keeps
     its newest time, and a record taken at or after that time is not a
-    pre-match price.
+    pre-match price. The last pre-start record replaces every earlier one
+    whole, as in shadow.latest_pre_kickoff: until 2026-09-30 sides were
+    merged across records, so a line Superbet had taken down was still graded
+    at its old price, and a pair could join two sides quoted hours apart.
     """
     latest: dict[str, tuple[str, str]] = {}  # event -> (fetched_at, kickoff)
     for snap in snapshots:
@@ -376,6 +535,8 @@ def latest_pre_kickoff(snapshots: list[dict[str, Any]]) -> dict[str, SnapshotEve
                 snap.get("tournament"),
             ),
         )
+        ev.sides.clear()
+        ev.fetched_at.clear()
         for raw in snap["lines"]:
             line = Cs2Line(**raw)
             key = (*line.key(), line.side)
@@ -613,7 +774,7 @@ def actual_value(
         mp = maps[line.map_nr - 1]
         if fam in ("map_winner", "map_rounds_handicap"):
             return float(mp.t1_rounds - mp.t2_rounds)
-        if fam == "map_rounds_total":
+        if fam in ("map_rounds_total", "map_rounds_odd_even"):
             return float(mp.t1_rounds + mp.t2_rounds)
         if fam == "map_team_rounds" and side:
             return float(rounds(side, [mp]))
@@ -633,6 +794,11 @@ def actual_value(
         return float(t1_maps - t2_maps)
     if fam == "maps_total":
         return float(len(maps))
+    if fam == "exact_maps":
+        score = exact_score(line.side)
+        if score is None:
+            return None
+        return 1.0 if score == (t1_maps, t2_maps) else 0.0
     if fam == "rounds_total":
         return float(rounds("T1", maps) + rounds("T2", maps))
     if fam == "rounds_handicap":
@@ -653,27 +819,28 @@ def grade(line: Cs2Line, actual: float) -> Outcome:
     For winners and handicaps `actual` is team1 minus team2 (maps or rounds)
     and `line.line` is team1's handicap - Superbet quotes both outcomes of a
     handicap under the same team1 specifier ("NiP (-1.5)" / "GamerLegion (1.5)"
-    both carry hcp -1.5).
+    both carry hcp -1.5). CS2 has no three-way market here (a winner market
+    with a draw is dropped whole in parse_event).
     """
-    if line.side in ("OVER", "UNDER"):
-        if line.line is None or actual == line.line:
-            return "VOID"
-        return "WIN" if (actual > line.line) == (line.side == "OVER") else "LOSS"
-    margin = actual + (line.line or 0.0)
-    if margin == 0:
-        return "VOID"
-    return "WIN" if (margin > 0) == (line.side == "T1") else "LOSS"
+    out = grade_side(line.side, actual, line.line, three_way=False)
+    assert out in ("WIN", "LOSS", "VOID")
+    return out  # type: ignore[return-value]
 
 
 def settle_event(
     ev: SnapshotEvent, maps: list[MapResult]
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Grade every priced pair of one event. Both sides of a pair or neither."""
+    """Grade every priced line of one event: all its sides or none."""
     rows: list[dict[str, Any]] = []
     counts: dict[str, int] = {"void": 0, "ungradeable": 0, "unpaired": 0}
+    groups: dict[tuple[Any, ...], dict[str, Cs2Line]] = {}
     for key, line in ev.sides.items():
-        partner = ev.sides.get((*key[:4], PARTNER[line.side]))
-        if partner is None:
+        groups.setdefault(key[:4], {})[line.side] = line
+    for key, line in ev.sides.items():
+        group = groups[key[:4]]
+        odds = {s: ln.odds for s, ln in group.items()}
+        fair = group_fair(odds, group_shape(line.family))
+        if fair is None:
             counts["unpaired"] += 1
             continue
         actual = actual_value(line, maps, ev.team1, ev.team2)
@@ -684,16 +851,21 @@ def settle_event(
         if outcome == "VOID":
             counts["void"] += 1
             continue
-        rows.append(
-            {
-                **line.as_dict(),
-                "partner_odds": partner.odds,
-                "fair_p": fair_probability(line.odds, partner.odds),
-                "fetched_at_utc": ev.fetched_at[key],
-                "actual": actual,
-                "outcome": outcome,
-            }
-        )
+        row: dict[str, Any] = {
+            **line.as_dict(),
+            "fair_p": fair[line.side],
+            "overround": group_overround({s: ln.odds for s, ln in group.items()}),
+            "fetched_at_utc": ev.fetched_at[key],
+            "actual": actual,
+            "outcome": outcome,
+        }
+        if len(group) == 2:
+            row["partner_odds"] = next(
+                ln.odds for s, ln in group.items() if s != line.side
+            )
+        else:
+            row["group_odds"] = {s: ln.odds for s, ln in group.items()}
+        rows.append(row)
     return rows, counts
 
 
@@ -724,7 +896,7 @@ def summarize(rows: list[dict[str, Any]], label: str) -> FamilyStats | None:
         return None
     n = len(rs)
     wins = [1.0 if r["outcome"] == "WIN" else 0.0 for r in rs]
-    margins = sorted(1 / r["odds"] + 1 / r["partner_odds"] - 1 for r in rs)
+    margins = sorted(row_overround(r) for r in rs)
     return FamilyStats(
         family=label,
         events=len({r["superbet_event_id"] for r in rs}),
@@ -736,6 +908,14 @@ def summarize(rows: list[dict[str, Any]], label: str) -> FamilyStats | None:
         / n,
         margin=margins[n // 2],
     )
+
+
+def row_overround(row: dict[str, Any]) -> float:
+    """A graded row's market margin: stored since 2026-09-30, else from the
+    pair (every row written before then is two-way)."""
+    if row.get("overround") is not None:
+        return float(row["overround"])
+    return float(1 / row["odds"] + 1 / row["partner_odds"] - 1)
 
 
 def _pair_key(row: dict[str, Any]) -> tuple[Any, ...]:
@@ -751,6 +931,12 @@ def _pair_key(row: dict[str, Any]) -> tuple[Any, ...]:
             "line",
         )
     )
+
+
+# The side `pick="fixed"` keeps: a direction, the first-named team, or the
+# first side of a parity / yes-no market. A group without one (an exact score)
+# keeps its first side in stored order.
+FIXED_SIDES = ("OVER", "T1", "ODD", "YES")
 
 
 def one_side_per_line(
@@ -774,7 +960,7 @@ def one_side_per_line(
             by_line.setdefault(_pair_key(r), []).append(r)
     out: list[dict[str, Any]] = []
     for sides in by_line.values():
-        first = [r for r in sides if r.get("side") in ("OVER", "T1")]
+        first = [r for r in sides if r.get("side") in FIXED_SIDES]
         if pick == "fixed":
             out.extend(first[:1] or sides[:1])
             continue

@@ -259,6 +259,10 @@ def settle_one(
         "t1_full": result.t1_full,
         "t2_full": result.t2_full,
         "overtime": result.overtime,
+        # The winner as Sofascore decided it: a shootout's deciding goal is
+        # not always in `current`, so the score alone cannot say (read back by
+        # sport_coupon.grade_coupon).
+        "winner": result.winner,
         **counts,
         "graded": graded,
     }

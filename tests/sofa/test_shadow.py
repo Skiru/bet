@@ -1111,7 +1111,14 @@ def test_market_tables_only_name_known_scopes() -> None:
         for spec in table.values():
             assert spec.scope in ("full", "reg", "period", "h1", "h2", "sets")
             assert (spec.scope == "period") == (spec.period_key is not None)
-            assert (spec.kind == "team_total") == (spec.team is not None)
+            if spec.team is not None:
+                assert spec.kind in ("team_total", "odd_even")
+            if spec.kind == "team_total":
+                assert spec.team is not None
+            if spec.kind == "yes_no":
+                assert sport == "volleyball" and spec.scope == "period"
+            if spec.kind == "exact":
+                assert spec.scope == "sets"
             if spec.scope in ("h1", "h2"):
                 assert sport == "basketball"
             if spec.scope == "reg":
@@ -2370,3 +2377,129 @@ def test_a_snapshot_after_midnight_asks_for_the_next_mornings_games(
     assert asked[-1][1] == datetime(2026, 9, 29, tzinfo=UTC) + timedelta(
         hours=run_shadow.DEFAULT_HORIZON_H
     )
+
+
+# --- 2026-09-30: 1X2, parity, yes/no, exact score (shapes captured live) ----------
+
+from bet.sofa.shadow import GameResult, SnapshotEvent  # noqa: E402
+
+BB1, BB2 = "New Zealand Breakers", "Cairns Taipans"
+
+
+def test_hockey_1x2_reads_code_and_token_and_needs_all_three() -> None:
+    raw = [
+        item(640, "Mecz", "1", 1.74, code="1", info=f"{T1} wygra mecz"),
+        item(640, "Mecz", "X", 4.2, code="0", info="Remis w meczu"),
+        item(640, "Mecz", "2", 3.9, code="2", info=f"{T2} wygra mecz"),
+        item(660, "X.tercja - zwycięzca", "1.tercja - 1", 2.27, {"periodnr": "1"},
+             code="1", info="Wygra 1.tercji"),
+        item(660, "X.tercja - zwycięzca", "1.tercja - X", 2.7, {"periodnr": "1"},
+             code="0", info="Remis w 1.tercji"),
+    ]
+    lines = parse_event(raw, "hockey", "1", T1, T2)
+    assert sorted(ln.side for ln in lines) == ["DRAW", "T1", "T2"]  # period: no "2"
+    assert {ln.family for ln in lines} == {"result_1x2"}
+    # the code and the token must agree
+    wrong = item(640, "Mecz", "1", 1.74, code="2")
+    assert parse_line(wrong, "hockey", "1", T1, T2) is None
+
+
+def test_basketball_second_half_1x2_names_the_teams_and_remis() -> None:
+    raw = [
+        item(233400, "2.Połowa - 1X2", BB1, 1.76, info=f"{BB1} wygra 2.połowę"),
+        item(233400, "2.Połowa - 1X2", "Remis", 16.0, info="Remis w 2.połowie"),
+        item(233400, "2.Połowa - 1X2", BB2, 2.2, info=f"{BB2} wygra 2.połowę"),
+    ]
+    sides = {ln.side: ln.odds for ln in parse_event(raw, "basketball", "1", BB1, BB2)}
+    assert sides == {"T1": 1.76, "DRAW": 16.0, "T2": 2.2}
+
+
+def test_parity_markets_and_the_team_they_name() -> None:
+    raw = [
+        item(775, "Nieparzysta/parzysta liczba punktów(z dogrywką)", "nieparzysta",
+             1.77, code="1", info="Nieparzysta liczba punktów w meczu (z dogrywką)"),
+        item(775, "Nieparzysta/parzysta liczba punktów(z dogrywką)", "parzysta",
+             1.92, code="2", info="Parzysta liczba punktów w meczu (z dogrywką)"),
+        item(230634, f"{BB1} liczba punktów nieparzysta/parzysta (z dogrywką)",
+             "Nieparzysta", 1.87),
+        item(230634, f"{BB1} liczba punktów nieparzysta/parzysta (z dogrywką)",
+             "Parzysta", 1.82),
+        # id says team1, the name says team2: dropped
+        item(230634, f"{BB2} liczba punktów nieparzysta/parzysta (z dogrywką)",
+             "Nieparzysta", 1.87),
+    ]
+    lines = parse_event(raw[:4], "basketball", "1", BB1, BB2)
+    got = {(ln.family, ln.subject, ln.side) for ln in lines}
+    assert got == {("odd_even", "", "ODD"), ("odd_even", "", "EVEN"),
+                   ("team_odd_even", "T1", "ODD"), ("team_odd_even", "T1", "EVEN")}
+    assert parse_line(raw[4], "basketball", "1", BB1, BB2) is None
+
+
+def test_volleyball_exact_score_extra_points_and_parity() -> None:
+    scores = ["3:0", "3:1", "3:2", "0:3", "1:3", "2:3"]
+    raw = [item(785, "Dokładny wynik", s, 5.0 + i, code=s.replace(":", ""))
+           for i, s in enumerate(scores)]
+    assert len(parse_event(raw, "volleyball", "1", T1, T2)) == 6
+    assert parse_event(raw[:5], "volleyball", "1", T1, T2) == []  # not whole
+    bad = item(785, "Dokładny wynik", "3:1", 5.0, code="13")
+    assert parse_line(bad, "volleyball", "1", T1, T2) is None
+    q = "Czy 1. set zostanie rozstrzygnięty na dodatkowe punkty przewagi?"
+    raw_yes = item(100077, q, "Tak", 6.4, {"setnr": "1"})
+    yes = parse_line(raw_yes, "volleyball", "1", T1, T2)
+    assert yes is not None and (yes.side, yes.period) == ("YES", 1)
+
+    game = GameResult((25, 26, 23, 15), (20, 24, 25, 13), 3, 1, "T1", False)
+    ex = ShadowLine("1", 785, "exact_sets", 0, "", None, "3:1", 5.0)
+    assert grade(ex, actual_value(ex, game, VOLLEYBALL) or 0.0) == "WIN"
+    ex30 = ShadowLine("1", 785, "exact_sets", 0, "", None, "3:0", 5.0)
+    assert grade(ex30, actual_value(ex30, game, VOLLEYBALL) or 0.0) == "LOSS"
+    extra = {p: ShadowLine("1", 100077, "set_extra_points", p, "", None, "YES", 6.0)
+             for p in (1, 2)}
+    assert grade(extra[1], actual_value(extra[1], game, VOLLEYBALL) or 0.0) == "LOSS"
+    assert grade(extra[2], actual_value(extra[2], game, VOLLEYBALL) or 0.0) == "WIN"
+    five = GameResult((25, 20, 25, 20, 16), (20, 25, 20, 25, 14), 3, 2, "T1", False)
+    set5 = ShadowLine("1", 100077, "set_extra_points", 5, "", None, "YES", 6.0)
+    assert actual_value(set5, five, VOLLEYBALL) == 1.0  # 16-14 in a set to 15
+    par = ShadowLine("1", 781, "set_points_odd_even", 1, "", None, "ODD", 1.9)
+    assert grade(par, actual_value(par, game, VOLLEYBALL) or 0.0) == "WIN"  # 45
+
+
+def test_a_level_score_is_the_draws_win_in_a_1x2_never_a_void() -> None:
+    draw = ShadowLine("1", 640, "result_1x2", 0, "", None, "DRAW", 4.2)
+    home = ShadowLine("1", 640, "result_1x2", 0, "", None, "T1", 1.8)
+    assert grade(draw, 0.0, three_way=True) == "WIN"
+    assert grade(home, 0.0, three_way=True) == "LOSS"
+    assert grade(home, 2.0, three_way=True) == "WIN"
+
+
+def test_a_three_way_group_settles_devigged_over_all_three() -> None:
+    ev = SnapshotEvent("1", f"{T1}·{T2}", T1, T2, "2026-09-29T17:00:00Z", None)
+    for side, odds in (("T1", 1.8), ("DRAW", 4.2), ("T2", 3.9)):
+        ln = ShadowLine("1", 640, "result_1x2", 0, "", None, side, odds)
+        ev.sides[(*ln.key(), side)] = ln
+        ev.fetched_at[(*ln.key(), side)] = "2026-09-29T16:30:00Z"
+    game = GameResult((1, 1, 1), (1, 1, 1), 4, 3, "T1", True)  # 3-3, won in OT
+    rows, _ = settle_event(ev, game, HOCKEY)
+    by = {r["side"]: r for r in rows}
+    assert by["DRAW"]["outcome"] == "WIN" and by["T1"]["outcome"] == "LOSS"
+    assert sum(r["fair_p"] for r in rows) == pytest.approx(1.0)
+    assert by["T1"]["overround"] == pytest.approx(1 / 1.8 + 1 / 4.2 + 1 / 3.9 - 1)
+    assert "partner_odds" not in by["T1"] and len(by["T1"]["group_odds"]) == 3
+    # one side missing: no price for the others
+    del ev.sides[(640, 0, "", None, "DRAW")]
+    rows, counts = settle_event(ev, game, HOCKEY)
+    assert rows == [] and counts["unpaired"] == 2
+
+
+def test_orientation_free_kinds_grade_without_orientation() -> None:
+    ev = SnapshotEvent("1", f"{BB1}·{BB2}", BB1, BB2, "2026-09-29T17:00:00Z", None)
+    for mid, fam, subj in ((775, "odd_even", ""), (230634, "team_odd_even", "T1")):
+        for side in ("ODD", "EVEN"):
+            ln = ShadowLine("1", mid, fam, 0, subj, None, side, 1.9)
+            ev.sides[(*ln.key(), side)] = ln
+            ev.fetched_at[(*ln.key(), side)] = "2026-09-29T16:30:00Z"
+    game = GameResult((20, 20, 20, 21), (20, 20, 20, 20), 81, 80, "T1", False)
+    rows, counts = settle_event(ev, game, BASKETBALL, totals_only=True)
+    assert {r["family"] for r in rows} == {"odd_even"}
+    assert counts["needs_orientation"] == 2
+    assert {r["side"]: r["outcome"] for r in rows} == {"ODD": "WIN", "EVEN": "LOSS"}

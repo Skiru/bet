@@ -33,7 +33,8 @@ Source of truth for the order: `DEFAULT_SEQUENCE` in
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,
-`sofa-verifier`, `sofa-settler`, `sofa-market-scout`. Skills preloaded into
+`sofa-verifier`, `sofa-settler`, `sofa-market-scout`, `sofa-sport-runner`
+(one measured sport's experimental coupon; four run in parallel). Skills preloaded into
 them: `sofa-pipeline`, `sofa-analysis-core`, `football-analysis`,
 `tennis-analysis`.
 
@@ -62,6 +63,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE # grade D-1's shadow lines (bridge)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # the whole shadow day, unattended; --chain starts D+1 after the 05:15Z settle
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport {cs2|hockey|basketball|volleyball|all}   # experimental per-sport coupon, beside the measurement
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <d> --to <d> [--sport hockey]   # grade it at the printed price (after CS2_SETTLE / SHADOW_SETTLE)
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
@@ -97,6 +100,17 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   `runs/sofa/shadow/<sport>/<date>/`, grade Superbet's two-way lines against
   Sofascore's score, and never feed or gate the coupon. Superbet `157`
   (e-hockey) and `70` (e-basketball) are simulations - never add them.
+- **The per-sport experimental coupons are not the coupon** (since
+  2026-09-30, the operator's order): `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`
+  are built by `run_sport_coupon.py` into the measurement's own directory
+  (`runs/sofa/cs2/<d>/`, `runs/sofa/shadow/<sport>/<d>/`), never into
+  `runs/sofa/<d>/`. Price-only - these sports have no model, so the
+  probability is Superbet's devigged price and EV at that price is minus the
+  margin; singles only; graded by `settle_sport_coupon.py` per sport and never
+  pooled with the coupon or with each other. The rule replayed on the one
+  settled hockey day (09-29) went 33/46 against a mean fair p of 85.1%,
+  ROI -17.7%. The CS2 / SHADOW rules above still hold: nothing from these
+  sports feeds or gates the coupon.
 - **Never print a combined / Bet Builder / parlay price** outside what
   `confidence.py` computed, and never present `odds_if_product` as a price —
   Superbet does not price a slip as the product of its legs (measured markup
