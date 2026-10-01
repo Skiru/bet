@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 from bet.sofa.client import SofascoreClient  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import (  # noqa: E402
+    SERIES_FAMILIES,
     SETTLE_AFTER,
     SETTLED_FILE,
     SNAPSHOTS_FILE,
@@ -47,6 +49,7 @@ from bet.sofa.cs2 import (  # noqa: E402
     event_state,
     latest_pre_kickoff,
     pick_event,
+    series_only_maps,
     settle_event,
     stats_missing,
     write_atomic,
@@ -171,7 +174,29 @@ def settle_one(
         store_series(event, detail, games, lineups, at, kickoff, db_path, record)
     maps = build_series(detail, games, lineups, home_is_t1)
     if maps is None:
-        return {**record, "state": "DATA_MISMATCH", "games": len(games)}
+        series = series_only_maps(detail, games, home_is_t1)
+        if series is None:
+            return {**record, "state": "DATA_MISMATCH", "games": len(games)}
+        # Rounds unknown, series score known: grade the series lines only.
+        series_ev = replace(
+            ev,
+            sides={k: ln for k, ln in ev.sides.items() if ln.family in SERIES_FAMILIES},
+            fetched_at={
+                k: v
+                for k, v in ev.fetched_at.items()
+                if ev.sides[k].family in SERIES_FAMILIES
+            },
+        )
+        graded, counts = settle_event(series_ev, series)
+        return {
+            **record,
+            "state": "SETTLED",
+            "series_only": True,
+            "maps": [[m.t1_rounds, m.t2_rounds] for m in series],
+            "maps_with_players": 0,
+            **counts,
+            "graded": graded,
+        }
     if stats_missing(ev, maps) and at - kickoff < STATS_GRACE:
         return {**record, "state": "STATS_PENDING", "maps": len(maps)}
     graded, counts = settle_event(ev, maps)

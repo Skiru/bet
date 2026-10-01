@@ -758,6 +758,40 @@ def build_series(
     return maps
 
 
+# The families a series score alone answers: who won, by how many maps, how
+# many were played. Nothing about a map's rounds, its order or its players.
+SERIES_FAMILIES = frozenset(
+    {"match_winner", "maps_handicap", "maps_total", "team_maps", "exact_maps"}
+)
+
+
+def series_only_maps(
+    detail: dict[str, Any], games: list[dict[str, Any]], home_is_t1: bool
+) -> list[MapResult] | None:
+    """Placeholder maps carrying only who won each, from the series score.
+
+    2026-10-01: Reveal - Huskies and RED Canids Academy - ALKA ended 2-0 on
+    Sofascore, whose games list both maps as finished with no round score, so
+    build_series refused the series (DATA_MISMATCH) and two printed series
+    legs - a match winner and a map handicap - stayed pending for ever. The
+    series score answers exactly SERIES_FAMILIES; the rounds in these
+    placeholders mean nothing and no other family may read them. Refused
+    unless the match is finished, has a winner, and its score accounts for
+    exactly the finished games Sofascore lists.
+    """
+    if (detail.get("status") or {}).get("type") != "finished":
+        return None
+    home = (detail.get("homeScore") or {}).get("current")
+    away = (detail.get("awayScore") or {}).get("current")
+    if not isinstance(home, int) or not isinstance(away, int) or home == away:
+        return None
+    finished = [g for g in games if (g.get("status") or {}).get("type") == "finished"]
+    if home + away != len(finished):
+        return None
+    t1, t2 = (home, away) if home_is_t1 else (away, home)
+    return [MapResult(1, 0, {})] * t1 + [MapResult(0, 1, {})] * t2
+
+
 def actual_value(
     line: Cs2Line, maps: list[MapResult], team1: str, team2: str
 ) -> float | None:

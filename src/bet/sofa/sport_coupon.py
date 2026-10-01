@@ -863,6 +863,10 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         maps = [cs2.MapResult(int(a), int(b), {}) for a, b in ev.get("maps") or []]
         if not maps:
             return "UNGRADEABLE"
+        # Settled from the series score alone (cs2.series_only_maps): its
+        # placeholder rounds answer the series families and nothing else.
+        if ev.get("series_only") and leg["family"] not in cs2.SERIES_FAMILIES:
+            return "UNGRADEABLE"
         line = cs2.Cs2Line(
             leg["superbet_event_id"],
             leg["family"],
