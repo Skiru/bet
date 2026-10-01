@@ -533,3 +533,43 @@ def test_player_lines_get_a_number_through_model_probability(
         assert got is not None and got.n == 10, side
     ghost = Cs2Line("e", "player_kills", 1, "nobody", 23.5, "OVER", 1.9)
     assert eng.model_probability(ghost, A, B, "a", "b", 3, hist, ratings, True) is None
+
+
+def _pmap(eid, ts, home, away, home_won, hp, ap):
+    players = tuple((home, pid, f"p{pid}", ()) for pid in hp) + tuple(
+        (away, pid, f"p{pid}", ()) for pid in ap)
+    return eng.MapRow(eid, ts, 1, home, away, 13 if home_won else 5,
+                      5 if home_won else 13, home_won, players)
+
+
+def test_the_player_elo_follows_players_not_team_names():
+    """Team 1's five players beat everyone; they move to a new team id (3).
+    The team-name Elo starts 3 from scratch, the player Elo does not."""
+    book = eng.PlayerEloBook()
+    stars, others = (1, 2, 3, 4, 5), (6, 7, 8, 9, 10)
+    for i in range(10):
+        book.update(_pmap(i, i, 1, 2, True, stars, others))
+    assert book.ratings[1] > eng.ELO_START > book.ratings[6]
+    book.update(_pmap(99, 99, 3, 2, True, stars, others))  # same players, new name
+    gap = book.gap(3, 2)
+    assert gap is not None and gap > 0
+
+
+def test_a_lineup_under_four_players_is_not_rated():
+    book = eng.PlayerEloBook()
+    book.update(_pmap(1, 1, 1, 2, True, (1, 2, 3), (6, 7, 8, 9, 10)))
+    assert book.ratings == {} and book.gap(1, 2) is None
+
+
+def test_build_ratings_uses_the_player_model_once_it_is_fitted():
+    hist = []
+    rng = __import__("random").Random(3)
+    for i in range(400):
+        home, away = (1, 2) if i % 2 else (2, 1)
+        lineup = {1: (1, 2, 3, 4, 5), 2: (6, 7, 8, 9, 10)}
+        won = rng.random() < (0.75 if home == 1 else 0.25)
+        hist.append(_pmap(i, i, home, away, won, lineup[home], lineup[away]))
+    model = eng.build_ratings(hist)
+    assert model.p_fit >= eng.MIN_FIT and model.players is not None
+    p = model.p_map(1, 2, team1_is_home=True)
+    assert p is not None and p > 0.6

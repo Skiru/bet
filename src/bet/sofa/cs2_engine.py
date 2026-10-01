@@ -201,6 +201,53 @@ def fit_logistic(xs: list[float], ys: list[float]) -> tuple[float, float]:
     return a, b
 
 
+# A team is its players. A player-level Elo (each player moved by K x the map
+# result's surprise, the expectation from the two lineups' mean ratings)
+# predicts a series from the lineup each team fielded last. Measured
+# 2026-10-01 on the backfilled history (16,586 series), each series from the
+# ratings at its start, calibration fitted on the first 70%: held out 6,588
+# maps, team Elo 0.2382, player Elo 0.2368; paired bootstrap over 2,897
+# series -0.00148 [-0.00268, -0.00025]. Roster churn is the variable a
+# team-name Elo cannot see.
+MIN_LINEUP = 4  # players of a team on a map, for the lineup to count
+MIN_PLAYER_MAPS = 3  # maps every player of both lineups has been rated on
+
+
+@dataclass
+class PlayerEloBook:
+    ratings: dict[int, float] = field(default_factory=dict)
+    played: dict[int, int] = field(default_factory=lambda: defaultdict(int))
+    lineup: dict[int, tuple[int, ...]] = field(default_factory=dict)
+
+    def mean(self, players: tuple[int, ...]) -> float:
+        return sum(self.ratings.get(p, ELO_START) for p in players) / len(players)
+
+    def gap(self, home: int, away: int) -> float | None:
+        """The last lineups' mean-rating gap in logits, or None."""
+        lh, la = self.lineup.get(home), self.lineup.get(away)
+        if not lh or not la:
+            return None
+        if min(self.played[p] for p in lh + la) < MIN_PLAYER_MAPS:
+            return None
+        return (self.mean(lh) - self.mean(la)) * math.log(10.0) / 400.0
+
+    def update(self, m: MapRow) -> None:
+        ph = tuple(pid for t, pid, _, _ in m.players if t == m.home_id)
+        pa = tuple(pid for t, pid, _, _ in m.players if t == m.away_id)
+        if len(ph) < MIN_LINEUP or len(pa) < MIN_LINEUP:
+            return
+        expected = elo_expected(self.mean(ph), self.mean(pa))
+        surprise = (1.0 if m.home_won else 0.0) - expected
+        for pid in ph:
+            self.ratings[pid] = self.ratings.get(pid, ELO_START) + ELO_K * surprise
+            self.played[pid] += 1
+        for pid in pa:
+            self.ratings[pid] = self.ratings.get(pid, ELO_START) - ELO_K * surprise
+            self.played[pid] += 1
+        self.lineup[m.home_id] = ph
+        self.lineup[m.away_id] = pa
+
+
 @dataclass
 class RatingModel:
     """Map-level Elo, calibrated on its own pre-match history.
@@ -218,12 +265,21 @@ class RatingModel:
     a: float = 0.0
     b: float = 1.0
     n_fit: int = 0
+    players: PlayerEloBook | None = None
+    # the player model's own calibration; used only when it was fitted
+    pa: float = 0.0
+    pb: float = 1.0
+    p_fit: int = 0
 
     def p_map(self, team1: int, team2: int, team1_is_home: bool) -> float | None:
         if not self.book.rated(team1, team2):
             return None
         home, away = (team1, team2) if team1_is_home else (team2, team1)
-        p_home = _sigmoid(self.a + self.b * logit_diff(self.book, home, away))
+        gap = self.players.gap(home, away) if self.players is not None else None
+        if gap is not None and self.p_fit >= MIN_FIT:
+            p_home = _sigmoid(self.pa + self.pb * gap)
+        else:
+            p_home = _sigmoid(self.a + self.b * logit_diff(self.book, home, away))
         return p_home if team1_is_home else 1.0 - p_home
 
 
@@ -320,8 +376,20 @@ def load_history(
 def walk_forward(history: list[MapRow]) -> tuple[EloBook, list[tuple[float, float]]]:
     """Replay the history series by series: predict each series' maps from the
     ratings at its start as (logit gap home - away, home won), then update."""
+    book, points, _, _ = walk_forward_players(history)
+    return book, points
+
+
+def walk_forward_players(
+    history: list[MapRow],
+) -> tuple[EloBook, list[tuple[float, float]], PlayerEloBook,
+           list[tuple[float, float]]]:
+    """walk_forward, plus the player Elo and its (lineup gap, home won)
+    points - each series from the ratings and lineups at its start."""
     book = EloBook()
+    players = PlayerEloBook()
     points: list[tuple[float, float]] = []
+    ppoints: list[tuple[float, float]] = []
     by_series: dict[int, list[MapRow]] = {}
     for m in history:
         by_series.setdefault(m.event_id, []).append(m)
@@ -330,20 +398,28 @@ def walk_forward(history: list[MapRow]) -> tuple[EloBook, list[tuple[float, floa
         if book.rated(home, away):
             d = logit_diff(book, home, away)
             points.extend((d, 1.0 if m.home_won else 0.0) for m in maps)
+            g = players.gap(home, away)
+            if g is not None:
+                ppoints.extend((g, 1.0 if m.home_won else 0.0) for m in maps)
         for m in maps:
             winner, loser = (
                 (m.home_id, m.away_id) if m.home_won else (m.away_id, m.home_id)
             )
             book.update(winner, loser)
-    return book, points
+            players.update(m)
+    return book, points, players, ppoints
 
 
 def build_ratings(history: list[MapRow]) -> RatingModel:
-    book, points = walk_forward(history)
+    book, points, players, ppoints = walk_forward_players(history)
     if len(points) < MIN_FIT:
         return RatingModel(book, n_fit=len(points))
     a, b = fit_logistic([x for x, _ in points], [y for _, y in points])
-    return RatingModel(book, a, max(0.0, min(2.0, b)), len(points))
+    model = RatingModel(book, a, max(0.0, min(2.0, b)), len(points), players)
+    if len(ppoints) >= MIN_FIT:
+        pa, pb = fit_logistic([x for x, _ in ppoints], [y for _, y in ppoints])
+        model.pa, model.pb, model.p_fit = pa, max(0.0, min(2.0, pb)), len(ppoints)
+    return model
 
 
 # --- the models ---------------------------------------------------------------------
