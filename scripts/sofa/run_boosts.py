@@ -174,6 +174,17 @@ def render(boosts: list[Boost], run_dir: Path, at: datetime) -> list[str]:
         out.append(f"**{b.label}** — {orig}**{b.boosted_price:.2f}**{pct}"
                    + (" · kombinacja" if b.combo else ""))
         out.append("")
+        ev = b.ev_at_fair
+        if ev is not None and b.fair_p is not None:
+            out.append(
+                f"Rynek przed podbiciem bez marży ({b.fair_outcomes} wyniki, "
+                f"metoda potęgowa): p = {b.fair_p:.3f}, czyli kurs uczciwy "
+                f"{1 / b.fair_p:.2f}; EV po podbiciu {ev:+.1%}.")
+            out.append("")
+        elif not b.combo:
+            out.append("Rynku przed podbiciem nie da się odczytać w całości — "
+                       "EV po podbiciu nieoceniony.")
+            out.append("")
         product = b.leg_price_product
         if product:
             before = (f"{1 - b.original_price / product:.1%}" if b.original_price

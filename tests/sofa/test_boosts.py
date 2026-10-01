@@ -171,3 +171,37 @@ def test_classify_odd_is_offers_classification() -> None:
                          "specialBetValue": None}) == (None, "Liczba goli (no line)")
     assert classify_odd({"marketName": "Nieznany rynek", "name": "x"}) == (
         None, "Nieznany rynek")
+
+
+def _pajor_market(*, with_partner: bool = True) -> dict:
+    """A single boost (2.67 -> 3.00) on a two-outcome market quoted 2.67 / 1.40."""
+    src = {"uuid": "src", "marketId": 77, "marketName": "Pajor 2+", "name": "tak",
+           "specialBetValue": None, "price": 2.67, "tags": "v2"}
+    other = {"uuid": "no", "marketId": 77, "marketName": "Pajor 2+", "name": "nie",
+             "specialBetValue": None, "price": 1.40, "tags": "v2"}
+    boost = {"uuid": "b", "marketId": 900, "marketName": "Pajor 2+", "name": "tak",
+             "price": 3.00, "tags": "price_boost,v2",
+             "extra": {"originalPrice": "9479:2.670000", "sourceOddUuid": "9479:src"}}
+    odds = [src, boost] + ([other] if with_partner else [])
+    return {"eventId": "9002", "matchName": "Barcelona·Paris FC", "sportId": 5,
+            "utcDate": "2026-09-23T19:00:00Z", "odds": odds}
+
+
+def test_a_single_boost_is_valued_against_its_devigged_market() -> None:
+    from bet.sofa.engine import devig
+
+    [b] = extract_boosts(_pajor_market(), AT)
+    fair = devig(2.67, 1.40)
+    assert fair is not None and b.fair_outcomes == 2
+    assert b.fair_p is not None and abs(b.fair_p - fair[0]) < 1e-9
+    assert b.ev_at_fair is not None and abs(b.ev_at_fair - (3.00 * fair[0] - 1)) < 1e-9
+
+
+def test_a_market_that_cannot_be_read_whole_is_not_valued() -> None:
+    [b] = extract_boosts(_pajor_market(with_partner=False), AT)
+    assert b.fair_p is None and b.ev_at_fair is None
+
+
+def test_a_combination_never_gets_a_probability() -> None:
+    [b] = extract_boosts(_seattle(), AT)
+    assert b.combo and b.fair_p is None and b.ev_at_fair is None

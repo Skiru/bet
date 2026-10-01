@@ -26,6 +26,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from bet.sofa.engine import devig_many
 from bet.sofa.offer import classify_odd
 from bet.sofa.superbet import SPORT_BY_ID, odds_items
 
@@ -72,12 +73,26 @@ class Boost(BaseModel):
     combo: bool
     legs: list[BoostLeg]
     observations: list[BoostObservation]
+    # A single only: the boosted outcome's probability with the margin taken
+    # out of its whole market as quoted before the boost (the source odd and
+    # its siblings - same marketId and line - devigged by engine.devig_many).
+    # Never set for a combination: sofa prints no combined probability.
+    fair_p: float | None = None
+    fair_outcomes: int | None = None
 
     @property
     def boost_pct(self) -> float | None:
         if not self.original_price:
             return None
         return self.boosted_price / self.original_price - 1.0
+
+    @property
+    def ev_at_fair(self) -> float | None:
+        """The boosted single's expected return at the devigged pre-boost
+        market: boosted_price x fair_p - 1. None for a combination."""
+        if self.combo or self.fair_p is None:
+            return None
+        return self.boosted_price * self.fair_p - 1.0
 
     @property
     def leg_price_product(self) -> float | None:
@@ -158,6 +173,7 @@ def extract_boosts(event: Mapping[str, Any], fetched_at: datetime) -> list[Boost
         extra = odd.get("extra") or {}
         components = odd.get("oddComponents") or []
         legs: list[BoostLeg] = []
+        fair: tuple[float, int] | None = None
         if components:
             for c in components:
                 plain = (by_uuid.get(str(c.get("oddID")))
@@ -178,6 +194,7 @@ def extract_boosts(event: Mapping[str, Any], fetched_at: datetime) -> list[Boost
             source = by_uuid.get(src_uuid)
             legs.append(_leg(source if source is not None else odd, _price(source),
                              sport_id))
+            fair = _fair_single(odds, source) if source is not None else None
         boosted = float(odd["price"])
         original = parse_original_price(extra.get("originalPrice"))
         out.append(Boost(
@@ -195,8 +212,40 @@ def extract_boosts(event: Mapping[str, Any], fetched_at: datetime) -> list[Boost
             observations=[BoostObservation(
                 fetched_at_utc=fetched_at, boosted_price=boosted,
                 original_price=original)],
+            fair_p=None if fair is None else fair[0],
+            fair_outcomes=None if fair is None else fair[1],
         ))
     return out
+
+
+def _fair_single(
+    odds: list[dict[str, Any]], source: Mapping[str, Any]
+) -> tuple[float, int] | None:
+    """(devigged probability of `source`, outcomes in its market) or None.
+
+    The market is every active odd of the event sharing the source's
+    marketId and line (specialBetValue). A market whose outcomes cannot be
+    told apart that way, or that has one outcome, is not devigged.
+    """
+    market = source.get("marketId")
+    if market is None:
+        return None
+    line = str(source.get("specialBetValue") or "")
+    group = [
+        o for o in odds
+        if o.get("marketId") == market
+        and str(o.get("specialBetValue") or "") == line
+        and o.get("status", "active") == "active"
+        and BOOST_TAG not in _tags(o)
+        and isinstance(o.get("price"), int | float) and float(o["price"]) > 1.0
+    ]
+    if len(group) < 2 or not any(o is source for o in group):
+        return None
+    fair = devig_many([1.0 / float(o["price"]) for o in group])
+    if fair is None:
+        return None
+    idx = next(i for i, o in enumerate(group) if o is source)
+    return fair[idx], len(group)
 
 
 def is_boosted_event(row: Mapping[str, Any]) -> bool:
@@ -221,6 +270,8 @@ def merge_snapshots(previous: Iterable[Boost], fresh: Iterable[Boost]) -> list[B
         old.observations.extend(b.observations)
         old.boosted_price = b.boosted_price
         old.original_price = b.original_price
+        if b.fair_p is not None:
+            old.fair_p, old.fair_outcomes = b.fair_p, b.fair_outcomes
     return list(merged.values())
 
 

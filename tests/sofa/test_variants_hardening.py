@@ -1039,3 +1039,16 @@ def test_the_ledger_reader_keeps_every_variant_apart(tmp_path: Path) -> None:
 )
 def test_veto_count_is_proper_polish(n: int, want: str) -> None:
     assert run_sport_coupon.veto_count_pl(n) == want
+
+
+def test_the_ledger_roi_interval_resamples_days():
+    from scripts.sofa import audit_ledger
+
+    def day(units, settled):
+        return {"total": {"units": units, "settled": settled}}
+
+    assert audit_ledger.roi_interval([day(1.0, 10)]) is None
+    lo, hi = audit_ledger.roi_interval([day(5.0, 10), day(-5.0, 10), day(0.0, 10)])
+    assert lo < 0 < hi
+    tight = audit_ledger.roi_interval([day(-1.0, 100)] * 5)
+    assert tight == (-0.01, -0.01)

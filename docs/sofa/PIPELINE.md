@@ -814,6 +814,32 @@ To jest jedyny plik, który się stawia.
 
 ---
 
+## 11a. CLV, boosty, metoda zdejmowania marży (od 2026-10-01)
+
+Po przeglądzie praktyki (fora, systemy open source, narzędzia komercyjne)
+dodane trzy pomiary — żaden nie zmienia kuponu:
+
+- **CLV** (`capture_closing.py` + `audit_clv.py`): czy wydrukowana cena była
+  lepsza od ceny zamknięcia Superbeta (pobranej 3–30 min przed meczem,
+  zdjętej metodą potęgową). `EV_CLV = kurs wzięty × p zamknięcia − 1`,
+  przedział z bootstrapu po meczach. Rozrzut CLV na zakład jest ~10× mniejszy
+  niż zysku, więc odpowiada w dziesiątkach nóg, a nie tysiącach. To
+  zamknięcie bukmachera „miękkiego" — słabszy test niż zamknięcie ostrej ceny;
+  linia, której Superbet nie rusza, to „nietestowane", nie „neutralne".
+  Pierwszy odczyt (kupony sportowe 09-30): −2,3% … −7,1% — kurs prawie się
+  nie rusza, więc CLV ≈ ujemna marża, czego należy oczekiwać po kuponie z
+  samej ceny.
+- **Boosty**: pojedynczy boost dostaje EV wobec swojego rynku sprzed podbicia
+  z całym rynkiem zdjętym z marży (`Boost.fair_p`, `ev_at_fair`). Kombinacja
+  nie dostaje żadnego prawdopodobieństwa (zasada: żadnej ceny kombinacji poza
+  `confidence.py`).
+- **Metoda zdejmowania marży** (`measure_devig.py`, 98 702 rozliczone strony
+  09-20..30): potęgowa 0,20047, Shin 0,20038, proporcjonalna 0,20088 —
+  potęgowa zostaje (Shin lepszy o 0,00009, przedział dotyka zera).
+- **Ledger** podaje teraz przedział ROI z bootstrapu po dniach: oficjalny
+  kupon 09-19..30 −1,8% [−9,0%; +11,1%] (nie do odróżnienia od zera), WARIANT
+  −3,8% [−5,3%; −1,3%].
+
 ## 12. SETTLE — rozliczenie dnia zakończonego
 
 `src/bet/sofa/settle.py`, `scripts/sofa/run_settle.py --date <d>

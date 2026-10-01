@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,30 @@ def totals(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return t
 
 
+# Bets for a 3% edge to show at 2 sigma when one bet's return has sd ~1
+# (practitioner arithmetic, 2026-10-01 review): (2 / 0.03)^2.
+BETS_FOR_3PCT = 4400
+
+
+def roi_interval(rows: list[dict[str, Any]], seed: int = 7,
+                 n: int = 2000) -> tuple[float, float] | None:
+    """95% interval of ROI from resampling whole DAYS - the ledger holds days,
+    not legs, and a day's legs share a board. None under two settled days."""
+    days = [((r.get("total") or {}).get("units", 0.0),
+             (r.get("total") or {}).get("settled", 0)) for r in rows]
+    days = [(float(u), int(c)) for u, c in days if int(c) > 0]
+    if len(days) < 2:
+        return None
+    rng = random.Random(seed)
+    stats = []
+    for _ in range(n):
+        pick = [days[rng.randrange(len(days))] for _ in days]
+        settled = sum(c for _, c in pick)
+        stats.append(sum(u for u, _ in pick) / settled)
+    stats.sort()
+    return stats[int(0.025 * n)], stats[int(0.975 * n)]
+
+
 def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
     out: list[str] = []
     by_variant: dict[str, list[dict[str, Any]]] = {}
@@ -65,18 +90,25 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
         by_variant.setdefault(r["variant"], []).append(r)
     bets = sorted(v for v in by_variant if not v.startswith("measure:"))
     out += [
-        "| variant | days | positions | settled | won | lost | units | ROI |",
-        "|---|---|---|---|---|---|---|---|",
+        "| variant | days | positions | settled | won | lost | units | ROI "
+        "| ROI 95% (by day) |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for v in bets:
         if variant and v != variant:
             continue
         t = totals(by_variant[v])
         roi = "-" if t["roi"] is None else f"{t['roi']:+.1%}"
+        ci = roi_interval(by_variant[v])
+        ci_txt = ("- (<2 settled days)" if ci is None
+                  else f"[{ci[0]:+.1%}, {ci[1]:+.1%}]")
         out.append(
             f"| {v} | {t['days']} | {t['positions']} | {t['settled']} | "
-            f"{t['won']} | {t['lost']} | {t['units']:+.2f} | {roi} |"
+            f"{t['won']} | {t['lost']} | {t['units']:+.2f} | {roi} | {ci_txt} |"
         )
+    out += ["", f"A 3% edge needs ~{BETS_FOR_3PCT} settled positions to show at "
+            "2 sigma; a ROI over a few dozen is noise until its interval says "
+            "otherwise. CLV (audit_clv.py) answers sooner."]
     if variant and variant in by_variant:
         fams: dict[str, dict[str, float]] = {}
         for r in by_variant[variant]:

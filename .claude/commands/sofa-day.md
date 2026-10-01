@@ -292,6 +292,19 @@ nothing on its own — Superbet does not price a slip as the product of its legs
 Read `stakeable_builders` from CONFIDENCE, not `builders`. Both numbers are
 reported since 2026-09-21 precisely because they disagree.
 
+Then start the closing-price capture for the printed legs (Superbet only, no
+bridge; it exits by itself after the last leg starts), and take a boosts
+snapshot - repeat `run_boosts.py` a few times during the day, boosts appear
+and disappear:
+
+```bash
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <date> --loop >> runs/sofa/<date>/capture_closing.log 2>&1 &
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <date>
+```
+
+CLV (`audit_clv.py`) is the first number to read about yesterday's printed
+legs: it answers in tens of legs where ROI needs thousands.
+
 ## Step 4b — the four measured sports, in parallel
 
 After the official PDF: WARIANT WSZYSTKIE (step 4c) needs it, and a sport
