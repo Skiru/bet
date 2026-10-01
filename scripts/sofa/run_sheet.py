@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import json
 import logging
 import os
@@ -543,10 +544,59 @@ def global_prior_note(
 # A per-side market must be attributed to a side we can actually name. Below
 # this ratio, or on a tie, we do not know which side it is.
 SIDE_MATCH_THRESHOLD = 70.0
+SIDE_MATCH_MARGIN = 10.0
 
 # A leading market scope, folded: "1.polowa", "2. polowa". These describe which
 # part of the match the line covers, not who it is about.
 _SCOPE_PREFIX = re.compile(r"^[12]\.\s?polowa\b")
+
+
+# A tennis player's name the token sort could not place. Superbet and
+# Sofascore disagree on middle names ("tai sach" / "Tai Leonard Sach",
+# "rafael alfonso de alba valdes" / "Rafael de Alba"), initials ("d.nicolae
+# madaras"), compounds ("heerae im" / "Im Hee Rae") and spelling ("Oyinlomo" /
+# "Qyinlomo"): six per-player ladders lost on 2026-09-30. A side is taken only
+# when it reads clearly as the player AND the other side clearly does not -
+# both of a match's names are on the fixture, so two plausible answers stay
+# no answer.
+TENNIS_FALLBACK_MATCH = 90.0
+TENNIS_FALLBACK_OTHER_MAX = 50.0
+
+
+def _name_tokens(name: str) -> list[str]:
+    return [t for t in re.split(r"[\s.\-]+", name) if t]
+
+
+def _tennis_name_score(subject: str, side: str) -> float:
+    sub, sid = _name_tokens(subject), _name_tokens(side)
+    if not sub or not sid:
+        return 0.0
+    # compounds: the same letters in some order of whole tokens
+    if len(sid) <= 4 and any(
+        "".join(perm) == "".join(sub) for perm in itertools.permutations(sid)
+    ):
+        return 100.0
+    # an initial stands for a token of the other name
+    full = [t for t in sub if len(t) > 1]
+    initials = [t for t in sub if len(t) == 1]
+    if initials and full and all(any(s.startswith(i) for s in sid) for i in initials):
+        sub = full
+    return float(
+        max(
+            fuzz.token_set_ratio(" ".join(sub), " ".join(sid)),
+            fuzz.token_sort_ratio(" ".join(sub), " ".join(sid)),
+        )
+    )
+
+
+def _tennis_name_fallback(subject_norm: str, fixture: Fixture) -> str | None:
+    home = _tennis_name_score(subject_norm, normalize_name(fixture.home_name))
+    away = _tennis_name_score(subject_norm, normalize_name(fixture.away_name))
+    if home >= TENNIS_FALLBACK_MATCH and away < TENNIS_FALLBACK_OTHER_MAX:
+        return "side_a"
+    if away >= TENNIS_FALLBACK_MATCH and home < TENNIS_FALLBACK_OTHER_MAX:
+        return "side_b"
+    return None
 
 
 def determine_side(subject: str, fixture: Fixture) -> str | None:
@@ -573,9 +623,14 @@ def determine_side(subject: str, fixture: Fixture) -> str | None:
 
     best = max(home_score, away_score)
     if best < SIDE_MATCH_THRESHOLD:
+        if fixture.sport == "tennis":
+            return _tennis_name_fallback(subject_norm, fixture)
         return None
-    if abs(home_score - away_score) < 1e-9:
-        # Two equally good answers is not an answer.
+    if abs(home_score - away_score) < SIDE_MATCH_MARGIN:
+        # Two (nearly) equally good answers is not an answer. Exact equality
+        # used to be the test, so "martinez" against Pedro and Juan Martinez
+        # went to whichever name was shorter. Measured 2026-10-01 over three
+        # days of offers: 0 of 1,557 matched subjects sit within the margin.
         return None
     return "side_a" if home_score > away_score else "side_b"
 

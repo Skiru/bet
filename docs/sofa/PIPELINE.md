@@ -319,7 +319,12 @@ nie SAMPLES, i łatwo się na tym pomylić:
   obserwację, nawet gdy obie strony w nim grały;
 - rynek `*_for` (z `subject`) czyta **wyłącznie stronę, którą nazywa**
   (`determine_side`). **H2H nie dociera do rynków per strona w ogóle** — to
-  projekt, nie luka;
+  projekt, nie luka. Od 2026-10-01 dwie strony bliżej niż 10 pkt
+  (`SIDE_MATCH_MARGIN`) to brak odpowiedzi (wcześniej tylko równość — „martinez”
+  przy dwóch Martinezach szło do krótszego nazwiska; na 1 557 dopasowaniach z
+  trzech dni 0 przypadków w marginesie), a w tenisie nazwisko, którego token sort
+  nie umieścił (drugie imię, inicjał, człony sklejone, literówka — 6 drabin
+  09-30), dostaje stronę tylko gdy jedna strona pasuje ≥ 90, a druga < 50;
 - **nie ma filtra wieku wewnątrz próbki.** Ośmioletnie spotkanie h2h waży tyle
   samo, co zeszłomiesięczne. Wiek bramkują dopiero COUPON (`MAX_SAMPLE_AGE_DAYS
   = 60` na najświeższej obserwacji) i CONFIDENCE (180 dni na najstarszej), i to

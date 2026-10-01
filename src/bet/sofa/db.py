@@ -250,6 +250,12 @@ def migrate(db_path: str) -> None:
         "CREATE INDEX IF NOT EXISTS cs2_series_home ON cs2_series (home_id, start_ts);",
         "CREATE INDEX IF NOT EXISTS cs2_series_away ON cs2_series (away_id, start_ts);",
         "CREATE INDEX IF NOT EXISTS cs2_map_event ON cs2_map (sofascore_event_id);",
+        # Every per-day reader (audit_settlement, audit_vetoes, audit_niches,
+        # audit_day_deep, measure_devig) asks WHERE run_date = ?, which was a
+        # full SCAN of 26M rows (review 2026-10-01). Built on the live DB by
+        # hand once (it holds the write lock while it builds); a no-op since.
+        "CREATE INDEX IF NOT EXISTS sofa_settled_row_run_date "
+        "ON sofa_settled_row (run_date);",
     ]
 
     # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is
