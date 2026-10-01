@@ -199,7 +199,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport all     # sport coupons, beside the measurement
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>                 # WARIANT WSZYSTKIE, after the PDF and the sport coupons
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>      # the ledger, after every settle; D-2 too (its legs after 00:00Z grade a day late); exit 0 even with legs pending, 1 = MISMATCH / unreadable file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>      # the ledger, after every settle; D-2 too (its legs after 00:00Z grade a day late); exit 0 even with legs pending, 1 = MISMATCH / unreadable file
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # read the ledger, one table per variant, never pooled
 ```
 

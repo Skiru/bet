@@ -79,6 +79,21 @@ def _load_friendly_ids() -> frozenset[int]:
 
 FRIENDLY_COMPETITION_IDS: frozenset[int] = _load_friendly_ids()
 
+
+def is_friendly_fixture(sport: str, competition_id: int | None) -> bool:
+    """A football fixture played in an excluded competition (2026-10-01).
+
+    The list kept friendlies out of the SAMPLES only, so a friendly could
+    still be the fixture: 15 on 2026-10-01 (Club / U19 / U23 Friendly Games)
+    carried 465 sheet rows and 16 VALUE rows, priced from league samples that
+    describe a different game. COUPON and CONFIDENCE refuse them.
+    """
+    return (
+        sport == "football"
+        and competition_id is not None
+        and competition_id in FRIENDLY_COMPETITION_IDS
+    )
+
 _NO_STATS_PATH = (
     Path(__file__).resolve().parents[3] / "config" / "sofa_no_stats_tournaments.json"
 )
@@ -361,8 +376,109 @@ def get_historical_events(
 
     # The sample is the most recent `sample_n`, newest first.
     events = one_listing_per_match(events)
+    if sport == "football":
+        events, conflict = one_squad_per_entity(events, entity_id)
+        if conflict is not None:
+            if gaps is not None:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.ENTITY_CONFLICT,
+                        metric="all",
+                        detail=f"entity {entity_id}: {conflict}; side left empty",
+                    )
+                )
+            return []
     events.sort(key=lambda e: e.get("startTimestamp") or 0, reverse=True)
     return events[: config.sample_n]
+
+
+# No football side plays two matches inside a day. Two in an entity's listing
+# mean one id carries two squads - or one match listed twice against an
+# opponent filed under two ids, which one_listing_per_match cannot see.
+MIN_HOURS_BETWEEN_MATCHES = 24
+# The same result this close is one match re-listed even when the opponent's
+# id and name both differ (Naft Masjed Soleyman 1-0 at 10:30 and at 11:30 on
+# 2026-01-03, "Arka Alborz" and "Arka City FC").
+RELISTED_WITHIN_HOURS = 3
+
+
+def _goals_for_against(event: dict[str, Any], entity_id: int) -> tuple[Any, Any]:
+    home, away = _score(event)
+    if event.get("homeTeam", {}).get("id") == entity_id:
+        return home, away
+    return away, home
+
+
+def _opponent(event: dict[str, Any], entity_id: int) -> tuple[Any, str]:
+    other = (
+        event.get("awayTeam", {})
+        if event.get("homeTeam", {}).get("id") == entity_id
+        else event.get("homeTeam", {})
+    )
+    return other.get("id"), str(other.get("name") or "").casefold()
+
+
+def one_squad_per_entity(
+    events: list[dict[str, Any]], entity_id: int
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Collapse a re-listed match; name an entity that is two squads.
+
+    Two matches of one side less than MIN_HOURS_BETWEEN_MATCHES apart are,
+    measured on 2026-10-01's 111 football fixtures, one of three things:
+    - one match re-listed: the same opponent and the same score a day apart
+      (Hapoel Marmorek - FC Tzeirey Tira, 0-0 on 2026-01-09 10:45 and again
+      on 01-10 10:00, a postponement kept twice), or the same kick-off and
+      the same score against an opponent filed under two ids and two names
+      (Hapoel Ironi Karmiel, 2026-09-04 11:45, "Hapoel Bnei Jat United" and
+      "Hapoel Ihud Bnei Jatt F.C."), or the same score within
+      RELISTED_WITHIN_HOURS - the (day, pair) key of
+      one_listing_per_match sees neither. Kept once, the lowest id;
+    - the same opponent with two different scores: nothing says which is the
+      match, so neither stays (one_listing_per_match's rule);
+    - anything else: two squads under one id - France / Slovenia / Türkiye /
+      Switzerland / Poland U19 (two qualifiers a day, different opponents),
+      Deportivo Santo Domingo 414281 (LigaPro Serie B and the amateur
+      Ascenso Nacional, 19:00 and 21:30 on 2026-09-11). The side then has
+      no sample, because its listing describes two teams.
+    """
+
+    def start(e: dict[str, Any]) -> int:
+        return int(e.get("startTimestamp") or 0)
+
+    ordered = sorted(events, key=lambda e: (start(e), e.get("id") or 0))
+    kept: list[dict[str, Any]] = []
+    dropped: set[int] = set()
+    for event in ordered:
+        clash = next(
+            (
+                p
+                for p in reversed(kept)
+                if (start(event) - start(p)) / 3600 < MIN_HOURS_BETWEEN_MATCHES
+            ),
+            None,
+        )
+        if clash is None:
+            kept.append(event)
+            continue
+        same_result = _goals_for_against(event, entity_id) == _goals_for_against(
+            clash, entity_id
+        )
+        opp_a, opp_b = _opponent(event, entity_id), _opponent(clash, entity_id)
+        same_opponent = (opp_a[0] is not None and opp_a[0] == opp_b[0]) or (
+            bool(opp_a[1]) and opp_a[1] == opp_b[1]
+        )
+        close = (start(event) - start(clash)) / 3600 <= RELISTED_WITHIN_HOURS
+        if same_result and (same_opponent or close):
+            continue  # one match re-listed: the lower id stays
+        if same_opponent:
+            dropped.add(id(clash))  # two scores for one match: neither stays
+            continue
+        gap_h = (start(event) - start(clash)) / 3600
+        return events, (
+            f"events {clash.get('id')} and {event.get('id')} are {gap_h:.1f} h "
+            "apart against different opponents - one id, two squads"
+        )
+    return [e for e in kept if id(e) not in dropped], None
 
 
 def _match_key(

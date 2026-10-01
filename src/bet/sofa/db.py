@@ -1,16 +1,95 @@
+"""The sofa database: one SQLite file, many writers, long readers.
+
+2026-10-01: RESOLVE died on `sqlite3.OperationalError: database is locked`
+in a cache commit while other processes were reading the 22 GB file. In the
+rollback-journal mode the file had always been in (`journal_mode=delete`) a
+COMMIT needs every reader gone, so one long read blocks every writer past its
+busy timeout - reproduced locally: a commit under one open read transaction
+fails at once in `delete` mode and succeeds in 0 ms in WAL. Two defences:
+
+- WAL (write-ahead log): readers and the writer stop blocking each other.
+  The mode is persistent, changing it rewrites nothing, and `PRAGMA
+  journal_mode=DELETE` undoes it. Switched on by migrate(), best effort: it
+  needs a moment when nobody else holds the file, and it is retried by every
+  later migrate() until it takes.
+- a COMMIT that still meets SQLITE_BUSY is retried. SQLite leaves the
+  transaction open after a busy COMMIT precisely so it can be retried.
+"""
+
 import sqlite3
+import sys
+import time
+from typing import Any
+
+# A commit that is still busy after the connection's own timeout is retried
+# this many times, waiting COMMIT_BACKOFF_S * attempt in between. With the 30 s
+# timeout that is about five minutes before the error is let through.
+COMMIT_ATTEMPTS = 6
+COMMIT_BACKOFF_S = 5.0
 
 
-def get_connection(db_path: str) -> sqlite3.Connection:
+def _is_lock_error(exc: sqlite3.OperationalError) -> bool:
+    text = str(exc).lower()
+    return "locked" in text or "busy" in text
+
+
+class RetryingConnection(sqlite3.Connection):
+    """A connection whose COMMIT outlasts a reader or writer holding the file."""
+
+    def commit(self) -> None:
+        for attempt in range(1, COMMIT_ATTEMPTS + 1):
+            try:
+                super().commit()
+                return
+            except sqlite3.OperationalError as exc:
+                if not _is_lock_error(exc) or attempt == COMMIT_ATTEMPTS:
+                    raise
+                print(
+                    f"DB_COMMIT_BUSY attempt {attempt}/{COMMIT_ATTEMPTS}: {exc}; "
+                    f"retrying in {COMMIT_BACKOFF_S * attempt:.1f} s",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(COMMIT_BACKOFF_S * attempt)
+
+
+def get_connection(db_path: str, timeout: float = 30.0) -> sqlite3.Connection:
     # `timeout` is what a writer waits for another writer's lock instead of
     # raising "database is locked" immediately. It was the default 5 s while
     # the pipeline was single-threaded and nothing ever contended; SAMPLES now
     # runs a thread pool, and every worker writes cached statistics. 30 s is
     # far longer than any write here takes and turns a lost fixture into a
     # pause nobody notices.
-    conn = sqlite3.connect(db_path, timeout=30.0)
+    conn: Any = sqlite3.connect(db_path, timeout=timeout, factory=RetryingConnection)
     conn.row_factory = sqlite3.Row
-    return conn
+    return conn  # type: ignore[no-any-return]
+
+
+def enable_wal(db_path: str) -> str:
+    """Switch the file to WAL if it is not already; return the mode it is in.
+
+    Best effort by design: the switch needs a moment with no other connection
+    holding the file, and a busy file keeps its mode until a later call.
+    """
+    conn = sqlite3.connect(db_path, timeout=5.0)
+    mode = "unknown"
+    try:
+        mode = str(conn.execute("PRAGMA journal_mode").fetchone()[0]).lower()
+        if mode != "wal":
+            mode = str(conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]).lower()
+    except sqlite3.OperationalError as exc:
+        if not _is_lock_error(exc):
+            raise
+        print(
+            f"DB_WAL_NOT_ENABLED {db_path}: {exc}; stays in its current mode "
+            "until a later start finds the file free",
+            file=sys.stderr,
+        )
+        if mode == "unknown":
+            mode = "busy"
+    finally:
+        conn.close()
+    return mode
 
 
 def migrate(db_path: str) -> None:
@@ -194,6 +273,7 @@ def migrate(db_path: str) -> None:
         ("sofa_event_stats", "lineups_json", "TEXT"),
     ]
 
+    enable_wal(db_path)
     with get_connection(db_path) as conn:
         for q in queries:
             conn.execute(q)

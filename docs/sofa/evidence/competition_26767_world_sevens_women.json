@@ -1,0 +1,85 @@
+{
+  "_doc": "Payload rows read from the sofa cache (sofa_entity_events, Aston Villa Women 266375, kind=last) on 2026-10-01: uniqueTournament 26767 'World Sevens Football Women's' is a seven-a-side tournament with several matches per team per day (2026-05-28/29). A seven-a-side match describes a different game; it entered football samples and read as two squads under one id.",
+  "unique_tournament": {
+    "name": "World Sevens Football Women's",
+    "slug": "world-sevens-football-womens",
+    "category": {
+      "name": "World",
+      "slug": "world",
+      "sport": {
+        "name": "Football",
+        "slug": "football",
+        "id": 1
+      },
+      "priority": 20,
+      "country": {},
+      "id": 1468,
+      "flag": "international",
+      "fieldTranslations": {
+        "nameTranslation": {
+          "ar": "العالم",
+          "hi": "विश्व",
+          "bn": "বিশ্ব",
+          "ru": "Мир"
+        },
+        "shortNameTranslation": {}
+      }
+    },
+    "userCount": 1437,
+    "hasPerformanceGraphFeature": false,
+    "liveActivityEnabled": false,
+    "country": {},
+    "id": 26767,
+    "hasEventPlayerStatistics": false,
+    "displayInverseHomeAwayTeams": false,
+    "fieldTranslations": {
+      "nameTranslation": {
+        "ar": "بطولة العالم لكرة القدم للسيدات سبعات",
+        "ru": "Мировая лига семи футбольных среди женщин"
+      },
+      "shortNameTranslation": {}
+    }
+  },
+  "events": [
+    {
+      "id": 16236783,
+      "startTimestamp": 1779987600,
+      "home": "Tottenham FC",
+      "away": "Aston Villa",
+      "score": [
+        3,
+        6
+      ]
+    },
+    {
+      "id": 16236801,
+      "startTimestamp": 1780063200,
+      "home": "Manchester United",
+      "away": "Aston Villa",
+      "score": [
+        4,
+        0
+      ]
+    },
+    {
+      "id": 16236808,
+      "startTimestamp": 1780077600,
+      "home": "Aston Villa",
+      "away": "West Ham",
+      "score": [
+        3,
+        2
+      ]
+    },
+    {
+      "id": 16255669,
+      "startTimestamp": 1780135200,
+      "home": "Chelsea FC",
+      "away": "Aston Villa",
+      "score": [
+        8,
+        2
+      ]
+    }
+  ]
+}

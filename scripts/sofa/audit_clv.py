@@ -129,7 +129,32 @@ def main() -> int:
               f"[{s.ci95[0]:+.2%}, {s.ci95[1]:+.2%}] | {s.beat_share:.0%} |")
     if not rows:
         print("no leg with a recorded close in the window")
+    # An official / WARIANT day with no closing file prints no row above, and
+    # a missing row reads like "nothing to measure". Name it (2026-10-01).
+    for day in _days(args.date_from, args.date_to):
+        for line in missing_closes(runs, day):
+            print(line)
     return 0
+
+
+def missing_closes(runs: Path, day: str) -> list[str]:
+    """`NO_CLOSING_FILE` for a day whose official / WARIANT artifact exists
+    but whose closing.jsonl does not: capture_closing.py never ran for it."""
+    day_dir = runs / day
+    if (day_dir / "closing.jsonl").exists():
+        return []
+    built = [
+        name
+        for name in ("08_confidence.json", "08_confidence_wariant.json")
+        if (day_dir / name).exists()
+    ]
+    if not built:
+        return []
+    return [
+        f"NO_CLOSING_FILE {day}: {', '.join(built)} printed, but "
+        f"{day_dir / 'closing.jsonl'} does not exist - capture_closing.py "
+        "--loop was not run for it, so its CLV is unmeasured, not zero"
+    ]
 
 
 if __name__ == "__main__":

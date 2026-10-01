@@ -71,12 +71,28 @@ KICKOFF_MARGIN = timedelta(minutes=15)  # as coupon/confidence
 MAX_PRICE_AGE = timedelta(hours=3)
 DAY_END_HOUR_WARSAW = 6  # the coupon of D covers kickoffs until 06:00 D+1
 WARSAW = ZoneInfo("Europe/Warsaw")
+# A leg nobody can grade is not a measurement (2026-10-01). Superbet lists
+# events Sofascore never has: volleyball 30 of 50 settled events were
+# NOT_ON_SOFASCORE on 09-29/30, every club friendly among them (6/6), and the
+# 09-30 volleyball coupon printed 8 legs of which 6 can never be graded; CS2's
+# "Winners series 1x1" went 30/30. So the coupon leaves out a friendly, and a
+# tournament the measurement has already failed to find on Sofascore in at
+# least UNSETTLEABLE_SHARE of UNSETTLEABLE_MIN_EVENTS or more events over the
+# last UNSETTLEABLE_LOOKBACK_DAYS settled days. An unseen tournament is
+# allowed: there is no evidence against it yet.
+FRIENDLY_MARKERS = ("towarzysk",)  # Superbet's "Mecze towarzyskie"
+UNSETTLEABLE_SHARE = 0.5
+UNSETTLEABLE_MIN_EVENTS = 2
+UNSETTLEABLE_LOOKBACK_DAYS = 14
+NOT_FOUND_STATES = frozenset({"NOT_ON_SOFASCORE"})
 UNFITTED_CONSTANTS = (
     "FLOOR",
     "MAX_OVERROUND",
     "MAX_LEGS",
     "MAX_PRICE_AGE",
     "RANK_BY_FAIR_P_TIMES_ODDS",
+    "UNSETTLEABLE_SHARE",
+    "UNSETTLEABLE_MIN_EVENTS",
 )
 
 COUPON_FILE = "sport_coupon.json"
@@ -463,6 +479,49 @@ def _bump(counts: dict[str, int], key: str) -> None:
     counts[key] = counts.get(key, 0) + 1
 
 
+def is_friendly(tournament: str | None) -> bool:
+    folded = (tournament or "").casefold()
+    return any(marker in folded for marker in FRIENDLY_MARKERS)
+
+
+def unsettleable_tournaments(
+    runs_dir: str, sport: SportKey, date: str
+) -> dict[str, str]:
+    """Tournaments the measurement could not find on Sofascore, from the
+    settled days strictly before `date` - never the day itself, whose
+    outcome is not known when its coupon is built. Value: "<n>/<total>"."""
+    total: dict[str, int] = {}
+    missing: dict[str, int] = {}
+    day = date
+    for _ in range(UNSETTLEABLE_LOOKBACK_DAYS):
+        day = prev_date(day)
+        settled = load_settled(runs_dir, sport, day)
+        for ev in ((settled or {}).get("events") or {}).values():
+            name = ev.get("tournament")
+            if not name:
+                continue
+            total[name] = total.get(name, 0) + 1
+            state = ev.get("state")
+            if state in NOT_FOUND_STATES or ev.get("gave_up_on") in NOT_FOUND_STATES:
+                missing[name] = missing.get(name, 0) + 1
+    return {
+        name: f"{missing.get(name, 0)}/{n}"
+        for name, n in sorted(total.items())
+        if n >= UNSETTLEABLE_MIN_EVENTS
+        and missing.get(name, 0) / n >= UNSETTLEABLE_SHARE
+    }
+
+
+def ungradeable_reason(
+    tournament: str | None, unsettleable: dict[str, str] | None
+) -> str | None:
+    if is_friendly(tournament):
+        return "friendly_tournament"
+    if unsettleable and tournament in unsettleable:
+        return "unsettleable_tournament"
+    return None
+
+
 def candidates(
     sport: SportKey,
     events: dict[str, Any],
@@ -472,6 +531,7 @@ def candidates(
     until: datetime | None = None,
     check_clock: bool = True,
     since: datetime | None = None,
+    unsettleable: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Every side of every event in the window that the rule admits.
 
@@ -480,7 +540,8 @@ def candidates(
     only, however early the next one is built. Only the event's most recent
     snapshot is read - a line Superbet has taken down since is not a price -
     and it must be under MAX_PRICE_AGE. A side's probability is devigged over
-    its whole outcome group; an incomplete group is no price.
+    its whole outcome group; an incomplete group is no price. An event
+    nobody will be able to grade (`ungradeable_reason`) is left out whole.
     """
     out: list[dict[str, Any]] = []
     for ev in events.values():
@@ -495,6 +556,10 @@ def candidates(
             _bump(counts, "previous_days_window")
             continue
         if not ev.fetched_at:
+            continue
+        why_not = ungradeable_reason(ev.tournament, unsettleable)
+        if why_not is not None:
+            _bump(counts, why_not)
             continue
         newest = max(ev.fetched_at.values(), key=_utc)
         if check_clock and at - _utc(newest) > MAX_PRICE_AGE:
@@ -769,6 +834,13 @@ def _leg_key(row: dict[str, Any]) -> tuple[Any, ...]:
 # SETTLE's final states other than SETTLED / VOID: the event will not be
 # graded. Everything else is asked again, so the leg is still pending.
 TERMINAL_UNGRADED = frozenset({"UNUSUAL", "GAVE_UP", "NO_PRE_START_PRICE"})
+# SETTLE gives up on an event it could not grade within this long of its start
+# (settle_shadow / settle_cs2 GIVE_UP_AFTER) - but only if it is ever run on
+# that date again, and the daily loops settle D and D-1 only. So a
+# NOT_ON_SOFASCORE leg stayed PENDING for ever (2026-10-01: 6 of the 09-30
+# volleyball coupon's 8 legs). The coupon's grader applies the same deadline
+# itself: past it, a leg still waiting is NOT_GRADED:GAVE_UP.
+GIVE_UP_AFTER = timedelta(days=7)
 
 
 def _stored_winner(ev: dict[str, Any]) -> Literal["T1", "T2"] | None:
@@ -843,6 +915,7 @@ def _priced_in_play(leg: dict[str, Any], ev: dict[str, Any]) -> bool:
 def grade_coupon(
     coupon: dict[str, Any],
     settled_by_date: dict[str, dict[str, Any] | None],
+    at: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Each printed leg graded at the PRINTED price, from the stored result of
     the file its event settles into (`source_date`, else the coupon's date).
@@ -852,7 +925,8 @@ def grade_coupon(
     orientation); VOID when SETTLE voided the event; NOT_GRADED:<state> for
     an event SETTLE gave up on; IN_PLAY_PRICE when the printed price was
     taken after Sofascore's real start; PENDING / PENDING:<state> until it
-    is settled. Where the
+    is settled - and, when `at` is given, NOT_GRADED:GAVE_UP once a leg
+    still waiting is more than GIVE_UP_AFTER past its kickoff. Where the
     measurement graded the same side too, a disagreement is MISMATCH - it
     means one of the two graders is wrong, and neither result is counted.
     """
@@ -881,5 +955,11 @@ def grade_coupon(
             outcome = f"NOT_GRADED:{ev.get('state')}"
         else:  # a state SETTLE asks again (settle_shadow / settle_cs2 RETRYABLE)
             outcome = f"PENDING:{ev.get('state')}"
+        if (
+            at is not None
+            and outcome.startswith("PENDING")
+            and at - _utc(leg["kickoff_utc"]) > GIVE_UP_AFTER
+        ):
+            outcome = "NOT_GRADED:GAVE_UP"
         out.append({**leg, "outcome": outcome})
     return out

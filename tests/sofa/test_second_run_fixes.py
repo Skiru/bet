@@ -539,6 +539,11 @@ def test_f15_a_raising_stage_does_not_stop_the_stages_after_it(
     Exception``, so a sqlite3.OperationalError in RESOLVE escaped main() and
     killed the whole pipeline — five stages never ran, and --stop-on-failure
     had not been asked for.
+
+    Since 2026-10-01 the stages after a FAILED one are skipped by default
+    (test_pipeline_failure_cascade.py); what F15 guarantees - the exception
+    is caught and named, and the run goes on when asked to - is exercised
+    here with --continue-on-failure.
     """
     driver = tmp_path / "driver.py"
     driver.write_text(
@@ -564,7 +569,7 @@ def test_f15_a_raising_stage_does_not_stop_the_stages_after_it(
 
             rp.STAGE_MODULES = {"BOOM": "boom_stage", "AFTER": "after_stage"}
             rp.DEFAULT_SEQUENCE = [("BOOM", "BOOM"), ("AFTER", "AFTER")]
-            sys.argv = ["run_pipeline", "--date", "2026-01-01"]
+            sys.argv = ["run_pipeline", "--date", "2026-01-01", "--continue-on-failure"]
             code = rp.main()
             print("PROBE: " + json.dumps({"ran": ran, "code": code}))
             """

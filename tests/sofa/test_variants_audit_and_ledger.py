@@ -278,3 +278,21 @@ def test_the_first_record_exemption_is_only_for_the_log_s_first_day(tmp_path):
     (tmp_path / sc.BUILDS_FILE).write_text(_json.dumps(first) + "\n")
     why = locked_leg_problem(tmp_path, {"created_at_utc": "2026-10-02T09:00:00Z"}, leg)
     assert why is not None and not why.startswith("UNVERIFIABLE")
+
+
+def test_a_leg_from_an_ungradeable_tournament_is_s2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """2026-10-01: a printed friendly / unsettleable leg is a defect, checked
+    against the list the build itself recorded."""
+    d = built_day(tmp_path, monkeypatch)
+
+    def ungradeable(doc: dict[str, Any]) -> None:
+        doc["legs"][0]["tournament"] = "Mecze towarzyskie - klubowe"
+        doc["legs"][1]["tournament"] = "Regional"
+        doc["unsettleable_tournaments"] = {"Regional": "2/2"}
+
+    edit_coupon(d, ungradeable)
+    got = [f for f in findings(tmp_path) if f.startswith("S2")]
+    assert any("friendly_tournament" in f for f in got)
+    assert any("unsettleable_tournament" in f for f in got)

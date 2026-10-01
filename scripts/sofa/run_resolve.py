@@ -9,6 +9,7 @@ from typing import Literal, NamedTuple
 
 from pydantic import RootModel
 
+from bet.sofa.artifact_guard import clear_incomplete, mark_incomplete
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
@@ -253,6 +254,7 @@ def main() -> int:
             print(f"PREVIOUS_ARTIFACT_UNREADABLE {out_path}: {exc}", file=sys.stderr)
             previous = {}
 
+    failure: BaseException | None = None
     try:
         for outcome in resolve_board_concurrently(
             fixtures, resolver, client, cache, config
@@ -281,6 +283,9 @@ def main() -> int:
                 duplicates += 1
             else:
                 resolved_fixtures[sf_id] = outcome.fixture
+    except BaseException as exc:
+        failure = exc
+        raise
     finally:
         # F5 only held for CircuitOpenError, because the write sat after the
         # loop: any other exception — the sqlite3.OperationalError of F14, say
@@ -303,6 +308,17 @@ def main() -> int:
         dumped = [f.model_dump(mode="json") for f in resolved_fixtures.values()]
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(dumped, f, indent=2)
+        # The write above keeps what resolved; the marker keeps anyone from
+        # mistaking it for the slate (2026-10-01: 15 of 461, then OFFER and
+        # SAMPLES overwrote the day with those 15).
+        if failure is not None:
+            mark_incomplete(
+                out_path,
+                stage="RESOLVE",
+                reason=f"{type(failure).__name__}: {failure}",
+            )
+        else:
+            clear_incomplete(out_path)
 
     fuzzy = sum(1 for f in resolved_fixtures.values() if f.identity == "FUZZY")
     recall = len(resolved_fixtures) / len(fixtures) if fixtures else 0.0

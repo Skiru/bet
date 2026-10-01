@@ -57,7 +57,7 @@ run CS2_SETTLE / SHADOW_SETTLE yourself - they need the bridge, and the loop
 or a `cs2_watchdog.py`, if one was started (`pgrep -f cs2_watchdog`), retries them. If it exists:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1> --sport <sport>   # D-2 too: its legs after 00:00Z settle into D-1's file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1> --sport <sport>   # D-2 too: its legs after 00:00Z settle into D-1's file
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1> --sport <sport>   # shadow sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>                    # cs2
 ```

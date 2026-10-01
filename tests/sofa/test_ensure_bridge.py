@@ -27,3 +27,41 @@ from scripts.sofa.ensure_bridge import STALE_POLL_S, State, decide
 )
 def test_decide(state: State, want: list[str]) -> None:
     assert decide(state) == want
+
+
+def test_fresh_windows_are_graded_again_until_the_token_is_minted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2026-10-01: 403 'challenge' right after the launch, 200 a minute later."""
+    import scripts.sofa.ensure_bridge as eb
+
+    answers = iter([1, 1, 0])
+    calls: list[int] = []
+    monkeypatch.setattr(eb, "run_check_bridge", lambda: calls.append(1) or next(answers))
+    monkeypatch.setattr(eb.time, "sleep", lambda s: None)
+    assert eb.graded_check(eb.FRESH_LAUNCH_CHECKS) == 0
+    assert len(calls) == 3
+
+
+def test_a_bridge_that_was_already_up_is_graded_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import scripts.sofa.ensure_bridge as eb
+
+    calls: list[int] = []
+    monkeypatch.setattr(eb, "run_check_bridge", lambda: calls.append(1) or 1)
+    monkeypatch.setattr(eb.time, "sleep", lambda s: None)
+    assert eb.graded_check(1) == 1
+    assert len(calls) == 1
+
+
+def test_a_failure_that_outlasts_the_retries_is_still_reported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import scripts.sofa.ensure_bridge as eb
+
+    calls: list[int] = []
+    monkeypatch.setattr(eb, "run_check_bridge", lambda: calls.append(1) or 1)
+    monkeypatch.setattr(eb.time, "sleep", lambda s: None)
+    assert eb.graded_check(eb.FRESH_LAUNCH_CHECKS) == 1
+    assert len(calls) == eb.FRESH_LAUNCH_CHECKS

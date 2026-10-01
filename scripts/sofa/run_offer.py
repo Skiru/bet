@@ -8,6 +8,7 @@ from typing import IO, Any
 from pydantic import RootModel
 
 from bet.sofa import timeutil
+from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
 from bet.sofa.coupon import effective_kickoff
@@ -72,6 +73,10 @@ def main() -> int:
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():
         print(f"{fixtures_path} missing", file=sys.stderr)
+        return 2
+    refusal = incomplete_reason(fixtures_path)
+    if refusal:
+        print(refusal, file=sys.stderr)
         return 2
 
     f: IO[Any]

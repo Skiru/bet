@@ -17,6 +17,7 @@ from typing import cast
 
 from pydantic import RootModel
 
+from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.confidence import MIN_MINUTES_TO_KICKOFF, Calibration
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
@@ -244,6 +245,10 @@ def main() -> int:
 
     config = SofaConfig.from_env()
     run_dir = Path(config.runs_dir) / args.date
+    refusal = incomplete_reason(run_dir / "02_fixtures.json")
+    if refusal:
+        print(refusal, file=sys.stderr)
+        return 2
 
     sheet_data = read_file(run_dir / "05_sheet.json")
     fixtures_data = read_file(run_dir / "02_fixtures.json")

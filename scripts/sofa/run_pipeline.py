@@ -21,6 +21,16 @@ Each stage is still runnable on its own against the artifact on disk; this
 script only sequences them.
 
 Exit: 0 = OK, 1 = PARTIAL, 2 = FAILED.
+
+A FAILED stage stops the stages after it (2026-10-01). The sequence is a
+chain - each stage reads what the one before it wrote - so a stage that runs
+after a failure reads a broken artifact and, worse, overwrites a good one: a
+locked database stopped RESOLVE at 15 of 461 fixtures, and OFFER and SAMPLES
+went on to price and sample those 15 and replace the day's 04_offer.json and
+03_samples.json. The stages after a failure are reported SKIPPED and leave
+their artifacts on disk alone. `--continue-on-failure` restores the old
+behaviour for whoever wants it deliberately. A stage that raises still fails
+only itself as a process (F15): the exception is caught, named and reported.
 """
 
 from __future__ import annotations
@@ -104,8 +114,12 @@ class StageResult:
     label: str
     exit_code: int
 
+    skipped_after: str | None = None
+
     @property
     def verdict(self) -> str:
+        if self.skipped_after is not None:
+            return "SKIPPED"
         return {0: "OK", 1: "PARTIAL"}.get(self.exit_code, "FAILED")
 
 
@@ -158,7 +172,14 @@ def main() -> int:
     parser.add_argument(
         "--stop-on-failure",
         action="store_true",
-        help="abort the run at the first FAILED stage instead of continuing",
+        help="kept for old command lines; stopping at the first FAILED stage "
+        "is the default since 2026-10-01",
+    )
+    parser.add_argument(
+        "--continue-on-failure",
+        action="store_true",
+        help="run the stages after a FAILED one anyway, on whatever the failed "
+        "stage left on disk (deliberate use only: they overwrite their artifacts)",
     )
     parser.add_argument(
         "--run-id",
@@ -190,7 +211,17 @@ def main() -> int:
         sequence = sequence[start:]
 
     results: list[StageResult] = []
+    failed: StageResult | None = None
     for stage, label in sequence:
+        if failed is not None:
+            results.append(StageResult(stage, label, 2, skipped_after=failed.label))
+            print(
+                f"{label}: SKIPPED (upstream {failed.label} FAILED; its artifact "
+                f"on disk is untouched - re-run from {failed.stage})",
+                file=sys.stderr,
+                flush=True,
+            )
+            continue
         print(f"--- {label} ---", file=sys.stderr, flush=True)
         code = run_stage(stage, args.date)
         result = StageResult(stage, label, code)
@@ -200,8 +231,8 @@ def main() -> int:
         # run spent three hours on SAMPLES after OFFER had already decided
         # there would be no coupon, and the log said nothing.
         print(f"{label}: {result.verdict} (exit {code})", file=sys.stderr, flush=True)
-        if code >= 2 and args.stop_on_failure:
-            break
+        if code >= 2 and not args.continue_on_failure:
+            failed = result
 
     worst = max((r.exit_code for r in results), default=0)
     verdict = {0: "OK", 1: "PARTIAL"}.get(worst, "FAILED")

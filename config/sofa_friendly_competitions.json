@@ -285,6 +285,13 @@
       "category": "Italy Amateur",
       "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
       "source": "cache_payload"
+    },
+    {
+      "competition_id": 26767,
+      "name": "World Sevens Football Women's",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/competition_26767_world_sevens_women.json",
+      "source": "cache_payload"
     }
   ],
   "candidates": [],

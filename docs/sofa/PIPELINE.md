@@ -1237,11 +1237,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
 
 # obok kuponu (od 2026-09-30) — żaden z nich NIE jest kuponem
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport all          # kupony sportów, obok pomiaru
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>      # po CS2_SETTLE / SHADOW_SETTLE; D-2, bo jego pozycje po 00:00Z rozliczają się dzień później
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>      # po CS2_SETTLE / SHADOW_SETTLE; D-2, bo jego pozycje po 00:00Z rozliczają się dzień później
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>                      # WARIANT WSZYSTKIE, po PDF i kuponach sportów
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>           # dziennik runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>           # dziennik runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # odczyt dziennika: tabela na wariant, nigdy łącznie
 ```
 
@@ -1251,7 +1251,24 @@ kończą się `0` także wtedy, gdy pozycje jeszcze czekają (widać je w tabeli
 kolumna `pending`), `1` tylko przy `MISMATCH` (dwa oceniające nie zgadzają
 się co do nogi — to defekt) albo nieczytelnym pliku, `2` przy awarii albo
 (record_results) braku bazy.
-`--stop-on-failure` przerywa przy pierwszym `FAILED` zamiast iść dalej.
+Od 2026-10-01 etap `FAILED` **zatrzymuje etapy po nim** (domyślnie; dawne
+`--stop-on-failure` jest przyjmowane, ale nic już nie zmienia). Etapy za nim
+są raportowane jako `SKIPPED` i nie ruszają swoich artefaktów, bo każdy czyta
+poprzedni: tego dnia zablokowana baza zatrzymała RESOLVE na 15 z 461 meczów,
+a OFFER i SAMPLES nadpisały dzień tymi 15. `--continue-on-failure` to
+świadomy wyjątek. RESOLVE przerwany wyjątkiem zostawia
+`02_fixtures.json.INCOMPLETE`; OFFER, SAMPLES, SHEET, COUPON, CONFIDENCE i PDF
+odmawiają go czytać (`UPSTREAM_INCOMPLETE`, kod 2), aż czysty RESOLVE usunie
+znacznik. Baza działa w trybie WAL (czytający nie blokują zapisu), a zajęty
+COMMIT jest ponawiany (`bet.sofa.db`).
+
+Od 2026-10-01 rozliczenie kuponów sportowych, WSZYSTKIE i dziennik sięga
+`--from <D-8>`: noga, która po 7 dniach od startu wciąż czeka
+(`NOT_ON_SOFASCORE`, `DATA_MISMATCH`), staje się `NOT_GRADED:GAVE_UP`, czyli
+nierozliczona, a nie wiecznie „pending”. Kupon sportowy nie bierze już
+sparingów ani turniejów, których pomiar nie znalazł na Sofascore
+(`friendly_tournament`, `unsettleable_tournament`; lista z dowodem w
+`sport_coupon.json`).
 
 **`PARTIAL` na RESOLVE / OFFER / SAMPLES to normalny kształt zdrowego
 przebiegu**, nie awaria: zawsze jakieś mecze mają luki. Zatrzymuje wyłącznie

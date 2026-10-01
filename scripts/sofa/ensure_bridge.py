@@ -46,6 +46,13 @@ HEALTH_URL = "http://127.0.0.1:8787/health"
 STALE_POLL_S = 30.0  # check_bridge's own WARN threshold
 WAIT_FOR_SERVER_S = 15.0
 WAIT_FOR_POLL_S = 90.0
+# Windows this run just opened: a tab polls before Sofascore has minted its
+# x-captcha, so the first probe can answer 403 "challenge" and a minute later
+# 200 (2026-10-01: exit 1 at 09:50Z, OK at 09:52Z with nothing touched). After
+# a fresh launch only, check_bridge is asked again. This waits for the token
+# the page mints by itself; it never reloads a tab or refreshes a token.
+FRESH_LAUNCH_CHECKS = 4
+FRESH_LAUNCH_WAIT_S = 30.0
 FLAG = "--disable-background-timer-throttling"
 
 Action = Literal[
@@ -194,6 +201,7 @@ def main() -> int:
     # Our lines and check_bridge's must come out in the order they happen.
     sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
     degraded = False
+    launched = False
     for action in decide(observe()):
         if action == "OK":
             print("OK    bridge already up and polling - nothing started")
@@ -224,6 +232,7 @@ def main() -> int:
             )
             if rc != 0 or not wait_for_poll():
                 return 2
+            launched = True
         elif action == "WAIT_FOR_POLL":
             if not wait_for_poll():
                 return 2
@@ -235,14 +244,34 @@ def main() -> int:
             )
             print("      Quit Chrome completely (Cmd+Q), then re-run this step.")
             return 2
+    rc = graded_check(FRESH_LAUNCH_CHECKS if launched else 1)
+    return 0 if rc == 0 and not degraded else 1
+
+
+def run_check_bridge() -> int:
     try:
-        rc = subprocess.call(
+        return subprocess.call(
             [PYTHON, str(REPO / "scripts/sofa/check_bridge.py")], cwd=REPO, timeout=300
         )
     except subprocess.TimeoutExpired:
         print("FAIL  check_bridge.py did not finish within 300 s")
         return 1
-    return 0 if rc == 0 and not degraded else 1
+
+
+def graded_check(attempts: int) -> int:
+    """check_bridge, asked again up to `attempts` times after a fresh launch."""
+    rc = run_check_bridge()
+    for attempt in range(2, attempts + 1):
+        if rc == 0:
+            break
+        print(
+            f"INFO  fresh windows: a new tab mints its Sofascore token after the "
+            f"page loads - asking again in {FRESH_LAUNCH_WAIT_S:.0f} s "
+            f"(check {attempt}/{attempts}; nothing is reloaded)"
+        )
+        time.sleep(FRESH_LAUNCH_WAIT_S)
+        rc = run_check_bridge()
+    return rc
 
 
 if __name__ == "__main__":

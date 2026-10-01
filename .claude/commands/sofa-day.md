@@ -171,11 +171,11 @@ later decision about a rule, a floor or a sport is taken from, so it runs
 every day, not when someone remembers:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>   # the four sport coupons, at their printed prices; D-2 too: its legs after 00:00Z settle into D-1's file, graded only this morning
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>   # WARIANT WSZYSTKIE, section by section
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>   # the four sport coupons, at their printed prices; D-2 too: its legs after 00:00Z settle into D-1's file, graded only this morning
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>   # WARIANT WSZYSTKIE, section by section
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>        # the ledger row of every variant and measurement; replaces both dates' rows
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # the ledger row of every variant and measurement; replaces both dates' rows
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled; ROI with its by-day 95% interval
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # closing line value per variant - read it first: it answers in tens of legs
 ```
@@ -187,7 +187,14 @@ exit code. Pending is the normal shape of D-1: its sport-coupon legs after
 00:00Z (NHL/NBA, night CS2) settle into today's snapshot file and are graded
 at tomorrow's 05:00Z (`cs2_daily`) / 05:15Z (`shadow_daily`) morning steps -
 each loop settles D and D-1, grades both days' sport coupons and records
-both days in the ledger - and tomorrow's `--from <D-2>` closes them too.
+both days in the ledger - and tomorrow's run closes them too. The window
+reaches D-8 (since 2026-10-01): a leg still waiting more than 7 days after
+its kickoff (`NOT_ON_SOFASCORE`, `DATA_MISMATCH`) becomes
+`NOT_GRADED:GAVE_UP` - counted as ungraded, no longer as pending - and only a
+re-grade of its date writes that. Since the same day a sport coupon leaves
+out friendlies and tournaments the measurement has already failed to find on
+Sofascore (`friendly_tournament`, `unsettleable_tournament` in its counts;
+the list and its evidence are in `sport_coupon.json`).
 **1** = a `MISMATCH` (the coupon's grader and the measurement's disagree on a
 leg - a defect: name it) or an unreadable file (named in the table).
 **2** = a crash, or for `record_results.py` a missing database (nothing is
@@ -195,7 +202,7 @@ written then).
 Before SHADOW_SETTLE / CS2_SETTLE has written `settled.json`, a sport
 coupon's legs read PENDING but `measure:<sport>` is simply absent from the
 ledger, not pending - check every `measure:*` row is there, not only the exit
-code. Re-run `record_results.py --from <D-2> --to <D-1>` after a late
+code. Re-run `record_results.py --from <D-8> --to <D-1>` after a late
 settle; it replaces those dates' rows. A result is a fact about the day, never
 a reason for today's choice.
 
@@ -223,10 +230,20 @@ say so in the report - never kill a loop to pick the change up.
 ## Step 2 — today
 
 BOARD touches only Superbet, so it can run while SETTLE is still going.
+RESOLVE cannot: start it when the WHOLE of step 1 has returned, not when
+the `--only SETTLE` process ends - on 2026-10-01 RESOLVE died on
+`database is locked` while the settler's later scripts read the database
+(the DB is in WAL mode since that day and a busy commit is retried, so this
+is a second line of defence, not the only one).
+
+A FAILED stage now stops the stages after it (`SKIPPED`, their artifacts
+untouched) and a RESOLVE that died leaves `02_fixtures.json.INCOMPLETE`,
+which every later stage refuses with `UPSTREAM_INCOMPLETE`. Re-run from the
+failed stage; `--continue-on-failure` exists for a deliberate exception.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only BOARD --run-id <id>
-# once SETTLE is done:
+# once step 1 (the whole settler) is done:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --from-stage RESOLVE --run-id <id>
 ```
 

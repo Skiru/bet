@@ -20,6 +20,7 @@ from bet.sofa.contracts import (
     Veto,
 )
 from bet.sofa.market_mapper import get_mechanism_family
+from bet.sofa.samples import is_friendly_fixture
 from bet.sofa.veto import match_vetoes
 
 # The day's row cap. `None` means no cap, which is the default: a cap that
@@ -51,6 +52,18 @@ MIN_ODDS_FLOOR = 1.25
 # refusing it would silently drop whole markets whose observations carry no
 # match date.
 MAX_SAMPLE_AGE_DAYS = 60
+
+# A VALUE single priced under this market probability is refused (2026-10-01).
+# MAX_DISAGREEMENT is an absolute gap, so at a long price it admits a model
+# that claims many times the book's probability: measured on 239,511 settled
+# priced rows (09-18..09-30), the VALUE rows it let through at market_p < 0.05
+# were 75 rows over 61 matches, median odds 25, and won 0 times; every
+# 06_coupon single since 09-21 but one sat at market_p <= 0.028. Replacing the
+# gate with a log-odds one was measured too and is NOT supported - at a fixed
+# price the rows it removes do not lose more - so this is a price floor on the
+# singles path only. Chosen, not fitted (UNFITTED_CONSTANTS).
+MIN_MARKET_P_FOR_SINGLE = 0.05
+UNFITTED_CONSTANTS = ("MIN_MARKET_P_FOR_SINGLE",)
 
 
 @dataclass(frozen=True)
@@ -131,6 +144,29 @@ def build_coupon(
         fixture = fixtures_by_id.get(row.sofascore_event_id)
         if not fixture:
             dropped.append(DroppedRow(row, "NO_FIXTURE"))
+            continue
+
+        if is_friendly_fixture(fixture.sport, fixture.competition_id):
+            dropped.append(
+                DroppedRow(
+                    row,
+                    "FRIENDLY_FIXTURE",
+                    f"{fixture.competition_name} (competition "
+                    f"{fixture.competition_id}) is excluded from samples as a "
+                    "different game, and so is not a fixture to price",
+                )
+            )
+            continue
+
+        if row.market_p is not None and row.market_p < MIN_MARKET_P_FOR_SINGLE:
+            dropped.append(
+                DroppedRow(
+                    row,
+                    "LONG_SHOT",
+                    f"market_p {row.market_p:.3f} < {MIN_MARKET_P_FOR_SINGLE}: "
+                    "the singles measured at these prices won 0 of 75",
+                )
+            )
             continue
 
         # L19: a finished or imminent match must not top the sheet.

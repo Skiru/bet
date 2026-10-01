@@ -41,6 +41,7 @@ from reportlab.platypus import (  # noqa: E402
 )
 
 from bet.sofa import timeutil  # noqa: E402
+from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
     PROFILES,
@@ -184,6 +185,10 @@ def main() -> int:
     profile = PROFILES[args.profile]
 
     run = Path(args.runs_dir) / args.date
+    refusal = incomplete_reason(run / "02_fixtures.json")
+    if refusal:
+        print(refusal, file=sys.stderr)
+        return 2
     doc_json = json.loads(
         (run / confidence_artifact(profile)).read_text(encoding="utf-8")
     )

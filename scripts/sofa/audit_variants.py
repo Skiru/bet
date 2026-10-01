@@ -230,6 +230,10 @@ def audit_sport(
             out.append(f"S2 {name}: margin {leg['overround']} above max")
         if sc.is_player_family(str(leg["family"])):
             out.append(f"S2 {name}: a player line")
+        unsettleable = doc.get("unsettleable_tournaments") or {}
+        why_ungradeable = sc.ungradeable_reason(leg.get("tournament"), unsettleable)
+        if why_ungradeable is not None:
+            out.append(f"S2 {name}: {why_ungradeable} ({leg.get('tournament')})")
         kickoff = _utc(leg["kickoff_utc"])
         if kickoff - at < sc.KICKOFF_MARGIN or kickoff >= sc.day_end(date):
             out.append(f"S2 {name}: kickoff outside the window at build")
@@ -292,7 +296,14 @@ def audit_sport(
     counts: dict[str, int] = {}
     since = sc.day_end(sc.prev_date(date)) if "window_start_utc" in doc else None
     cands = sc.candidates(
-        sport, events_then, at, rule, counts, until=sc.day_end(date), since=since
+        sport,
+        events_then,
+        at,
+        rule,
+        counts,
+        until=sc.day_end(date),
+        since=since,
+        unsettleable=doc.get("unsettleable_tournaments") or {},
     )
     locked = [leg for leg in legs if leg.get("locked")]
     replay, _ = sc.select(sport, cands, vetoes, rule, locked)

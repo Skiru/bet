@@ -5,15 +5,23 @@ lines; read them rather than guessing.
 
 Every stage is runnable on its own against the artifacts already on disk.
 `run_pipeline.py` only sequences them, and a stage that raises fails **that
-stage**, not the run (`STAGE_EXCEPTION` on stderr, exit 2 for that stage) —
-unless `--stop-on-failure` was asked for.
+stage** as a process (`STAGE_EXCEPTION` on stderr, exit 2 for that stage).
+Since 2026-10-01 a FAILED stage **stops the stages after it**: they are
+reported `SKIPPED` and leave their artifacts untouched, because each reads the
+one before it (that day a locked DB stopped RESOLVE at 15 of 461 fixtures and
+OFFER/SAMPLES overwrote the day with those 15). `--continue-on-failure` is
+the deliberate exception. A RESOLVE that raised also leaves
+`02_fixtures.json.INCOMPLETE`; OFFER, SAMPLES, SHEET, COUPON, CONFIDENCE and
+the PDF refuse it (`UPSTREAM_INCOMPLETE`, exit 2) until a clean RESOLVE
+clears it. The DB is in WAL mode and a busy COMMIT is retried (`bet.sofa.db`).
 
 ```
 --date YYYY-MM-DD        default: today, UTC
 --only STAGE             run just this one, in or out of the daily sequence
 --from-stage STAGE       resume here, reusing what is on disk
 --run-id ID              reuse an id instead of minting one (for resuming)
---stop-on-failure        abort at the first FAILED stage
+--stop-on-failure        kept for old command lines; stopping is the default
+--continue-on-failure    run the stages after a FAILED one anyway
 ```
 
 `SOFA_RUN_ID` is minted **before** the stages run and exported, so every log

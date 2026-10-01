@@ -20,6 +20,9 @@ class GapReason(StrEnum):
     ALL_ZERO_SAMPLE = "ALL_ZERO_SAMPLE"
     OUTSIDE_MODEL_RESOLUTION = "OUTSIDE_MODEL_RESOLUTION"
     INTERNAL_INCONSISTENT = "INTERNAL_INCONSISTENT"
+    # One Sofascore entity id carrying two squads (2026-10-01): a side that
+    # "played" twice within a day. Its sample describes nobody, so it is empty.
+    ENTITY_CONFLICT = "ENTITY_CONFLICT"
     THIN_SAMPLE = "THIN_SAMPLE"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"

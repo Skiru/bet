@@ -85,6 +85,7 @@ def build(
     stats: dict[str, Any] = {}
     events, snapshots = sc.day_events(runs_dir, sport, date, stats)
     counts: dict[str, int] = {"events": len(events)}
+    unsettleable = sc.unsettleable_tournaments(runs_dir, sport, date)
     cands = sc.candidates(
         sport,
         events,
@@ -93,6 +94,7 @@ def build(
         counts,
         until=sc.day_end(date),
         since=sc.day_end(sc.prev_date(date)),
+        unsettleable=unsettleable,
     )
     vetoes = sc.load_vetoes(directory)
     previous = load_previous(directory, date)
@@ -127,6 +129,8 @@ def build(
         "whole outcome group; no model",
         "rule": rule.as_dict(),
         "UNFITTED_CONSTANTS": list(sc.UNFITTED_CONSTANTS),
+        # what the build refused as ungradeable, and the evidence for each
+        "unsettleable_tournaments": unsettleable,
         "snapshots": snapshots,
         # what this build read, so audit_variants replays exactly it
         "snapshot_lines": stats["snapshot_lines"],

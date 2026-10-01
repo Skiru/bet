@@ -106,11 +106,11 @@ Then grade every variant of D-1 and record the day. This runs every day by
 default - it is the data every later decision is taken from:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>   # D-2 too: its legs after 00:00Z settle into D-1's file
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>   # D-2 too: its legs after 00:00Z settle into D-1's file
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled; ROI with its by-day 95% interval
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # closing line value per variant - read it first: it answers in tens of legs
 ```
@@ -130,7 +130,7 @@ written then).
 Before SHADOW_SETTLE / CS2_SETTLE has written `settled.json`, a sport
 coupon's legs read PENDING but `measure:<sport>` is simply absent from the
 ledger, not pending - check every `measure:*` row is there, not only the exit
-code. Re-run `record_results.py --from <D-2> --to <D-1>` after a late
+code. Re-run `record_results.py --from <D-8> --to <D-1>` after a late
 settle - the ledger replaces those dates' rows. Never add one variant's result
 to another's.
 
@@ -164,7 +164,9 @@ BOARD touches only Superbet, so it can run while SETTLE still holds the bridge.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only BOARD --run-id <id>
-# once SETTLE is done:
+# once the WHOLE of step 1 is done (not only --only SETTLE: the settler's later scripts read the DB;
+# 2026-10-01 RESOLVE died on 'database is locked' running beside them). A FAILED stage now SKIPs the
+# rest and a died RESOLVE leaves 02_fixtures.json.INCOMPLETE (refused downstream): re-run from it.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --from-stage RESOLVE --run-id <id>
 ```
 

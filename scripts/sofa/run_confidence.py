@@ -32,6 +32,8 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import timeutil  # noqa: E402
+from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
+from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     disagrees_with_price,
     too_close_to_kickoff,
@@ -170,6 +172,10 @@ def main() -> int:
     # The same limit COUPON reads. A hard-coded 45 here let
     # SOFA_PRICE_MAX_AGE_MIN move COUPON's gate and not this one's.
     max_price_age = timedelta(minutes=SofaConfig.from_env().price_max_age_min)
+    refusal = incomplete_reason(run_dir / "02_fixtures.json")
+    if refusal:
+        print(refusal, file=sys.stderr)
+        return 2
     sheet = json.loads((run_dir / "05_sheet.json").read_text(encoding="utf-8"))
     fixtures = {
         f["sofascore_event_id"]: f
@@ -415,6 +421,11 @@ def main() -> int:
         if has_cross_league_unlinked_note(row.get("notes")):
             refused["CROSS_LEAGUE_UNLINKED"] += 1
             continue
+        # A friendly is not a fixture to price (samples.is_friendly_fixture).
+        fx_row = fixtures.get(row["sofascore_event_id"]) or {}
+        if is_friendly_fixture(str(fx_row.get("sport")), fx_row.get("competition_id")):
+            refused["FRIENDLY_FIXTURE"] += 1
+            continue
         # See DERIVED_PREFIXES. A joint of two sides is not a count of one
         # thing, has 2-252 settled rows of its own, and no sample in the
         # artifacts can check it.
@@ -478,6 +489,11 @@ def main() -> int:
 
         observations = side_observations(row)
         values, oldest_days, newest_days = sample_values(observations)
+        # SHEET measures freshness per side and keeps the staler one; the pool
+        # read here would let a fresh opponent hide a stale side (2026-10-01).
+        sheet_newest = row.get("sample_newest_days")
+        if sheet_newest is not None:
+            newest_days = max(newest_days or 0, int(sheet_newest))
         obs_by_match = {
             o["sofascore_event_id"]: o["value"]
             for o in observations

@@ -15,6 +15,7 @@ from typing import Any, Literal, cast
 from pydantic import RootModel
 from rapidfuzz import fuzz
 
+from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
@@ -67,6 +68,7 @@ from bet.sofa.football_rating import replay as replay_football
 from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.players import is_player_metric, player_sample_key
+from bet.sofa.sample_age import stalest_side_newest_days
 from bet.sofa.stage import set_stage
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
@@ -862,10 +864,12 @@ def process_fixture(
         # How stale the freshest match behind this row is. Computed here
         # because this is the last place the observations exist as objects;
         # the sheet row is all the coupon ever sees.
-        sample_newest_days: int | None = None
-        dates = [o.match_date_utc for o in obs if o.match_date_utc is not None]
-        if dates:
-            sample_newest_days = (now() - max(dates)).days
+        #
+        # Per side, and the staler side wins (2026-10-01). A match total pools
+        # both histories, so the pool's newest match hid a side that had
+        # stopped playing: Bublik's hard-court side was 194 days old, Mensik's
+        # was this week's, and every Bublik-Mensik total read "1 day".
+        sample_newest_days = stalest_side_newest_days(own_sides, now(), obs)
 
         mean = statistics.mean(values)
         if n > 1:
@@ -1389,6 +1393,10 @@ def main() -> int:
     fixtures_path = runs_dir / "02_fixtures.json"
     samples_path = runs_dir / "03_samples.json"
     offer_path = runs_dir / "04_offer.json"
+    refusal = incomplete_reason(fixtures_path)
+    if refusal:
+        print(refusal, file=sys.stderr)
+        return 2
 
     try:
         fixtures_data = read_file(fixtures_path)

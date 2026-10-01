@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import RootModel
 
+from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
@@ -189,6 +190,10 @@ def main() -> int:
     fixtures_path = run_dir / "02_fixtures.json"
     if not fixtures_path.exists():
         print(f"{fixtures_path} missing", file=sys.stderr)
+        return 2
+    refusal = incomplete_reason(fixtures_path)
+    if refusal:
+        print(refusal, file=sys.stderr)
         return 2
 
     fixtures = (

@@ -33,6 +33,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
+from bet.sofa.timeutil import now  # noqa: E402
 
 SETTLED_OUT = "sport_coupon_settled.json"
 
@@ -54,7 +55,7 @@ def settle_day(
     # for a game after midnight UTC.
     sources = {leg.get("source_date") or day for leg in coupon.get("legs", [])}
     settled = {d: sc.load_settled(runs_dir, sport, d) for d in sources | {day}}
-    graded = sc.grade_coupon(coupon, settled)
+    graded = sc.grade_coupon(coupon, settled, at=now())
     write_atomic(
         directory / SETTLED_OUT,
         json.dumps(

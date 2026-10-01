@@ -82,11 +82,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 # każdy wariant D-1 i dziennik:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-2> --to <D-1>   # cztery kupony sportów, po wydrukowanym kursie; także D-2: jego pozycje po 00:00Z rozliczają się w pliku D-1
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-2> --to <D-1>   # WARIANT WSZYSTKIE, sekcja po sekcji
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>   # cztery kupony sportów, po wydrukowanym kursie; także D-2: jego pozycje po 00:00Z rozliczają się w pliku D-1
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>   # WARIANT WSZYSTKIE, sekcja po sekcji
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant, nigdy łącznie; ROI z przedziałem 95% po dniach
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # CLV na wariant — pierwsza liczba o wczoraj
 ```
@@ -105,7 +105,7 @@ bazy (nic się wtedy nie zapisuje). Zanim SHADOW_SETTLE / CS2_SETTLE zapisze `se
 kuponu sportu mają PENDING, ale wiersza `measure:<sport>` po prostu nie ma w
 dzienniku (nie jest „oczekujący”) - sprawdź, czy są wszystkie wiersze
 `measure:*`, nie tylko kod wyjścia. Po późnym rozliczeniu powtórz
-`record_results.py --from <D-2> --to <D-1>` — zastępuje wiersze tych dat.
+`record_results.py --from <D-8> --to <D-1>` — zastępuje wiersze tych dat.
 
 Potem pętle dzisiejszego dnia:
 
@@ -147,7 +147,9 @@ BOARD dotyka tylko Superbetu, więc może iść, gdy SETTLE trzyma jeszcze most.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --only BOARD --run-id <id>
-# gdy SETTLE skończy:
+# gdy CAŁY krok 1 (settler) skończy - nie tylko proces --only SETTLE: późniejsze skrypty settlera
+# czytają bazę, a 2026-10-01 RESOLVE padł obok nich na 'database is locked'. FAILED zatrzymuje dalsze
+# etapy (SKIPPED), a przerwany RESOLVE zostawia 02_fixtures.json.INCOMPLETE - wtedy RESOLVE jeszcze raz.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --from-stage RESOLVE --run-id <id>
 ```
 

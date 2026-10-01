@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from datetime import UTC, datetime
@@ -131,6 +132,36 @@ def run_once(day_dir: Path, fetcher: Any, now: datetime | None = None) -> int:
     return written
 
 
+PID_FILE = "capture_closing.pid"
+
+
+def loop_holder(day_dir: Path) -> int | None:
+    """The pid of a live loop for this day, else None (a stale file is not one).
+
+    Two loops for one day doubled every closing request; the second refuses,
+    the way cs2_daily / shadow_daily do.
+    """
+    path = day_dir / PID_FILE
+    try:
+        pid = int(path.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+    if pid == os.getpid():
+        return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return None
+    except PermissionError:
+        return pid
+    return pid
+
+
+def claim_loop(day_dir: Path) -> None:
+    day_dir.mkdir(parents=True, exist_ok=True)
+    (day_dir / PID_FILE).write_text(str(os.getpid()), encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--date", required=True)
@@ -138,6 +169,13 @@ def main() -> int:
                     help=f"repeat every {LOOP_SLEEP_S}s until the last leg starts")
     args = ap.parse_args()
     day_dir = Path(SofaConfig.from_env().runs_dir) / args.date
+    if args.loop:
+        holder = loop_holder(day_dir)
+        if holder is not None:
+            print(f"capture_closing loop for {args.date} already runs (pid {holder}); "
+                  "not starting a second one", file=sys.stderr)
+            return 2
+        claim_loop(day_dir)
     fetcher = OfferFetcher(SuperbetClient(
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"))
     while True:
