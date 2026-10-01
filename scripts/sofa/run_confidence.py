@@ -32,6 +32,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import timeutil  # noqa: E402
+from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -734,8 +735,8 @@ def main() -> int:
         ],
         "builders": builders,
     }
-    (run_dir / artifact).write_text(
-        json.dumps(out, indent=1, ensure_ascii=False) + "\n", encoding="utf-8"
+    write_atomic(
+        run_dir / artifact, json.dumps(out, indent=1, ensure_ascii=False) + "\n"
     )
 
     lines = [
@@ -845,9 +846,7 @@ def main() -> int:
             f"{b['odds_after_haircut']} | {b['ev_after_haircut']:+.3f} | "
             f"{b['match']} | {sel} |"
         )
-    (run_dir / artifact.replace(".json", ".md")).write_text(
-        "\n".join(lines) + "\n", encoding="utf-8"
-    )
+    write_atomic(run_dir / artifact.replace(".json", ".md"), "\n".join(lines) + "\n")
 
     print(json.dumps({
         "stage": "CONFIDENCE", "verdict": "OK", "profile": profile.name,

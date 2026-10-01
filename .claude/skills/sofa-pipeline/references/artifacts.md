@@ -25,7 +25,7 @@ The day is **UTC**. Datetimes in these files are UTC ISO with `Z`.
 | `sofascore_event_id` | int | the key everything downstream joins on |
 | `superbet_event_ids` | str[] | plural: duplicate listings are merged here |
 | `kickoff_utc` | datetime | **Sofascore's** clock |
-| `superbet_kickoff_utc` | datetime \| null | **Superbet's** clock |
+| `superbet_kickoff_utc` | datetime \| null | **Superbet's** clock. A match listed twice keeps the first listing's clock, unless it is exactly 00:00:00Z and the other is a real time (`resolve.merged_superbet_kickoff`, since 2026-10-01: three ITF matches held a midnight placeholder beside 11:08Z and lost all 168 priced rungs as "started") |
 | `kickoff_disagreement_h` | float \| null | up to 11 h on ITF. COUPON takes the **earlier** of the two. |
 | `home_name` / `away_name`, `home_entity_id` / `away_entity_id` | | the side a `subject` must resolve to |
 | `competition_name`, `competition_id`, `season_id`, `category_name` | | first place a competition is named at all |
@@ -83,6 +83,15 @@ it does not settle it at zero.
 named reason.** Nothing disappears in silence; if you cannot find why a metric
 is absent, you are reading the wrong file, not looking at a silent drop.
 
+The SAMPLES summary counts `provider_fault_fixtures` (since 2026-10-01):
+fixtures that lost metrics to a provider fault with nothing to carry over.
+Any of them makes the verdict `PARTIAL` (`samples_verdict`); before, a breaker
+opening mid-SAMPLES thinned the day under an `OK`. A cached match whose
+`incidents_json` is NULL ("never asked", not "none") is asked `/incidents`
+once when a card market needs it; a 404 is stored as `{}` and read as no
+incidents. A fault on that ask costs the card metrics (`NO_INCIDENTS`), never
+the match (2026-10-01: 118 gaps over 59 events were all NULL).
+
 ## `04_offer.json` — `FixtureOffer[]`
 
 ```
@@ -95,6 +104,12 @@ rungs: PricedRung[], unmapped_markets: str[], price_collisions: str[]
 possible, so `market_p` is `null` and the sheet says `NO_MARKET_MARGINAL`.
 
 `fetched_at_utc` is per rung and is what the 45-minute staleness gates read.
+
+One Superbet listing that errors (a removed event answers 404) is a gap, not
+`FAILED` (since 2026-10-01): it is counted in the summary's `fetch_errors`
+(the first 20 on stderr as `OFFER_FETCH_ERROR`) and the verdict is `PARTIAL`.
+A fixture whose every listing failed gets **no entry** - not an empty one -
+so a filtered refresh's merge keeps the prices the previous file holds.
 
 ## `05_sheet.json` — `SheetRow[]`
 
@@ -170,6 +185,21 @@ Two traps in this object:
 The product. Only `is_stakeable` slips — `best_for_fixture` **and**
 `ev_after_haircut > 0`.
 
+Since 2026-10-01 the page marks (shown, never enforced): `ta sama drabina: N`
+on a single when N singles stand on one ladder (`confidence.ladder_key`:
+fixture, market, subject), with a line above the list counting such ladders
+(09-30's coupon printed corners_total 12.5 UNDER, 11.5 UNDER and 7.5 OVER on
+one match; 10-01's WARIANT ten such ladders, 22 rows); `start przed renderem
+PDF` on a leg already inside CONFIDENCE's kickoff margin when the PDF is
+rendered (kept - the JSON is what is graded - and a `WARNING` on stderr). A
+builder line prints only `kurs po narzucie` (`odds_after_haircut`), never the
+product of the legs' prices. The PDF is rendered to a temporary sibling and
+moved into place, so a crash never leaves a truncated `KUPON_*.pdf`.
+
+Every stage artifact, PDF and `config/` fit is written atomically since
+2026-10-01 (`src/bet/sofa/atomic.py`: `<name>.<pid>.<thread>.tmp` beside the
+target, then `os.replace`).
+
 ## `10_boosts.json` / `10_boosts.md` — `Boost[]` — **not the coupon**
 
 Written by `scripts/sofa/run_boosts.py --date <d>`, outside `DEFAULT_SEQUENCE`
@@ -204,13 +234,33 @@ Beside the day, never inside it; no coupon stage reads it. Two stages outside
   `DATA_MISMATCH` (the maps do not reproduce Sofascore's series score, so
   nothing is graded), `UNUSUAL` (finished but not "Ended", e.g. a walkover),
   `VOID` (cancelled, or still ungraded 48 h after the start - Superbet's own
-  rule). SETTLED/VOID/UNUSUAL are never asked again.
+  rule), `GAVE_UP` (ours, after `GIVE_UP_AFTER` = 7 days). VOID/UNUSUAL/
+  GAVE_UP are never asked again; a `SETTLED` series is asked again while it
+  carries `pending_sides` > 0 (`pending_reason` `SERIES_ONLY` or
+  `STATS_PENDING`, `settle_cs2.is_waiting`), and a failed retry never
+  replaces the grades it already has (`last_retry_state`; past
+  `GIVE_UP_AFTER` the count moves to `gave_up_pending`). Since 2026-10-01 a
+  series whose player rows are missing (`STATS_GRACE` 72 h) is no longer held
+  whole: only the player / team-kill sides on a map without player rows wait
+  (`stats_pending`), the series, map and round lines are graded now. A series
+  with no round scores grades its series lines and counts the rest
+  (`series_only_skipped` - on 09-30 114 of 154 were dropped uncounted).
+  `sofascore_start_utc` is written since 2026-10-01, so the sport coupon's
+  `IN_PLAY_PRICE` guard can fire for CS2. `settled.json` is a locked
+  read-modify-write (`<file>.lock`): a concurrent settle keeps the series
+  this one did not touch.
+- `settle_cs2.py --sweep-from <d> --sweep-to <d>`: settles every date in the
+  range whose `settled.json` is missing or still holds a waiting series
+  (decided offline from the files; `CS2_SETTLE_SWEEP` summary lists
+  `waiting_dates`).
 - `cs2_daily.py`: one loop per date (`daily_<d>.pid`, `daily_<d>.done`; a
   second loop refuses, exit 2). Snapshots to 23:30Z; `--chain` then starts
   D+1's loop, so D+1's night series are priced. Its 05:00Z morning settles D
-  and D-1 (series held `STATS_PENDING` up to 72 h, and the night series of
-  D-1's coupon that sit in D's file), grades both days' CS2 coupons and
-  records both days in the ledger. A loop reads this plan when it starts.
+  and D-1 (the night series of D-1's coupon sit in D's file), sweeps D-7..D-2
+  (`settle_cs2.py --sweep-from/--sweep-to`: without it a series still waiting
+  on D-2 was never asked again and never reached `GIVE_UP_AFTER`, audit
+  2026-10-01), then grades the CS2 coupons and records the ledger for
+  D-7..D. A loop reads this plan when it starts.
 
 **History and engine.** `scripts/sofa/backfill_cs2.py` (stage name
 CS2_BACKFILL, not in STAGE_MODULES - it takes `--days/--hops/--max-minutes`)
@@ -278,15 +328,31 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
   fresh `/event/{id}/lineups`; `player_box` on the game record is `ok`,
   `missing` or why the box does not add up to the score (then no player line
   of the game is graded, `player_no_box`); a player who did not play is
-  `player_dnp` (void), an unmatched name `player_unmatched`.
+  `player_dnp` (void), an unmatched name `player_unmatched`. Since 2026-10-01
+  the `/lineups` answer of a finished game is saved to the cache
+  (`sofa_event_stats.lineups_json` had been empty for all 3,052 graded player
+  sides), so a player grade can be audited against its box; an empty answer
+  is not saved.
+- A `NOT_ON_SOFASCORE` game carries `miss` (`team1` / `team2`): the first gate
+  that emptied each side's lookup (`shadow.miss_reason`: `CACHED_MISS`,
+  `NO_SEARCH_RESULT`, `NO_CANDIDATE` with `search_teams`, `NO_LISTING`,
+  `NO_GAME_IN_WINDOW` with `nearest_gap_h`, `GENDER_REFUSED` /
+  `OPPONENT_REFUSED` with `in_window`, `UNEXPLAINED`), read from the search
+  already paid for and the cache, never a new request (30 of 50 volleyball
+  games of 09-29..30 ended NOT_ON_SOFASCORE with nothing saying why).
 - `shadow_daily.py`: one loop per date (`daily_<d>.pid`, deleted on exit; a
-  second loop refuses, exit 2). Its 05:15Z morning settles D and D-1, grades
-  both days' sport coupons (`settle_sport_coupon.py`) and records both days
-  (`record_results.py --from D-1 --to D`). `--chain` starts D+1's loop after
+  second loop refuses, exit 2). Its 05:15Z morning settles D, D-1 and D-2
+  (each that has snapshots; D-2's settle is 53-77 h after its games, the
+  first late enough for a postponed game to read VOID - `VOID_AFTER` 48 h -
+  rather than end GAVE_UP), grades those days' sport coupons
+  (`settle_sport_coupon.py`) and records them (`record_results.py --from
+  <earliest> --to D`). `--chain` starts D+1's loop after
   D's 05:15Z settle and audit - without it D+1's games after ~07:30Z are priced only
   once someone starts D+1's loop.
 - A market without "(z dogrywką)" counts regulation time; Sofascore puts an
-  overtime goal in `current` and in no period. Basketball Q4 and second-half
+  overtime goal in `current` and in no period. Hockey's overtime-inclusive
+  families (613 / 617 / 621 / 653) are not mapped, and the NHL is posted ONLY
+  with them, so no NHL total is measured at all (review 2026-10-01). Basketball Q4 and second-half
   lines are ungradeable after overtime (the name does not say whether it is
   appended).
 - `audit_shadow.py` (and `audit_cs2.py` section 2) keep ONE side per line
@@ -311,7 +377,9 @@ price age, day end, rank), `UNFITTED_CONSTANTS`, `snapshots` /
 `audit_variants` replays exactly it), `vetoes_applied`, `counts` (drop reasons),
 `candidates`, `vetoes_file`, `vetoes_unmatched`, `vetoed`, `locked`,
 `replaced_legs` (legs an earlier build printed and this one does not, with
-why), `previous_build_utc`, `rule_history` (the rule replayed on the settled
+why), `refused_events` (CS2: Superbet event id -> `unseen_team`, a side the
+`cs2_series` store has never seen, computed once per build so `audit_variants`
+replays exactly it; an empty store refuses nothing), `previous_build_utc`, `rule_history` (the rule replayed on the settled
 days at the last pre-start price - not a printed price), `pdf_sha256` (the PDF
 it was printed as) and `legs[]`.
 
@@ -334,7 +402,19 @@ graded** - only the final build's `legs` are the coupon's result.
 `UNGRADEABLE`, `IN_PLAY_PRICE` (printed after Sofascore's real start, never
 counted), `NOT_GRADED:<state>`, `PENDING` / `PENDING:<state>`, `MISMATCH`
 (the measurement graded the same side the other way: a grader defect,
-neither result counted, exit 1).
+neither result counted, exit 1). A CS2 leg on a partly graded series
+(`pending_sides` in `settled.json`) is `PENDING:<pending_reason>`, not
+`UNGRADEABLE`, until the record is final or the leg passes 7 days.
+
+Build-time refusals that keep an ungradeable leg off a sport coupon (in
+`counts`): `friendly_tournament`; `unsettleable_tournament` - over the last
+14 settled days before D, at least half of >= 2 events `NOT_ON_SOFASCORE`, or
+(since 2026-10-01, `UNSETTLEABLE_ALL_MIN_EVENTS`) every seen event (>= 1)
+`NOT_ON_SOFASCORE` (10-01's volleyball coupon printed two legs of "Brazylia -
+Paulista U19" and one of "Szwecja - Puchar Ligi", each 1/1 not found); an
+unseen tournament passes. CS2 only, since 2026-10-01: `unseen_team` (above)
+and `no_tournament` (Superbet's struct fetch failed, so neither gate can read
+the event).
 
 ## `runs/sofa/multi/<d>/` — WARIANT WSZYSTKIE — **not the coupon**
 
@@ -361,10 +441,20 @@ never pooled. Variants: `official` (7c), `wariant` (7d), `sport:<sport>`,
 `multi`, `rule:<sport>`, `measure:<sport>`.
 
 - official / wariant: `singles`, `builders`, `total` (the summary above),
-  `pending`, `settled_rows_in_db`, `outcomes` (count per grade).
-- `sport:<sport>`: `total`, `by_family`, `pending`, `outcomes`.
+  `pending`, `settled_rows_in_db`, `outcomes` (count per grade),
+  `estimated_builders` (builders graded at `odds_if_product` x haircut because
+  no screen price was recorded - 7c's "(szac.)"; not a price Superbet
+  printed) and `by_match`.
+- `sport:<sport>`: `total`, `by_family`, `pending`, `outcomes`, `by_match`.
+- `by_match` (since 2026-10-01): `{match: [units, settled]}` (`sofa:<id>` /
+  `sb:<id>`) - the cluster `audit_ledger` resamples. Its ROI interval is a
+  bootstrap **by match** (legs of one match share its game script), `-` under
+  20 matches (`clv.MIN_CLUSTERS`) and `- (no per-match record)` when a day
+  with settled positions predates the field. `audit_clv` uses the same
+  cluster rule.
 - `multi`: `total` (= `variant_total`), `sections` (a summary, or
-  `{"excluded": reason}`), `pending`, `outcomes`.
+  `{"excluded": reason}`), `pending`, `outcomes`, `estimated_builders`,
+  `by_match`.
 - `rule:<sport>`: the price-only rule replayed on the day (one side per
   event, chosen before the outcome, at the last pre-start price) - `total`,
   `by_family`, `graded_at`. Its record even on a day without a coupon.

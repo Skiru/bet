@@ -187,6 +187,22 @@ NEGATIVE_BINOMIAL_METRICS = frozenset(
         "double_faults_set1_for",
         "double_faults_set2_for",
         "serve_points_set2_for",
+        # football player props: measured 2026-10-01 on every settled player
+        # row (2026-09-24..30), the sheet's own normal reproduced to the
+        # fourth decimal (Brier 0.1732), against the NB at the same centre
+        # and predictive sd. The normal put +8 pp median on every OVER
+        # (assists 0.5 OVER claimed 0.243, realised 0.081, n=495).
+        #
+        #     metric                       n    dBrier   even id   odd id
+        #     player_assists_for         546  -0.03136  -0.03280  -0.02998
+        #     player_shots_on_target_for 1317 -0.01473  -0.01460  -0.01487
+        #     player_shots_for          2379  -0.00749  -0.00226  -0.01241
+        #
+        # (scratchpad nb_players.py; below the n>=2000 bar for two of them,
+        # admitted on the split-half sign as the per-half metrics were.)
+        "player_assists_for",
+        "player_shots_on_target_for",
+        "player_shots_for",
     }
 )
 

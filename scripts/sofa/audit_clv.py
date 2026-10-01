@@ -25,7 +25,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from bet.sofa.clv import ClvRow, is_close, sport_coupon_rows, summarize, two_way_close
+from bet.sofa.clv import (  # noqa: E402
+    MIN_CLUSTERS,
+    ClvRow,
+    is_close,
+    sport_coupon_rows,
+    summarize,
+    two_way_close,
+)
 
 SPORT_DIRS = {
     "cs2": ("cs2", ("superbet_event_id", "family", "map_nr", "subject", "line",
@@ -125,8 +132,10 @@ def main() -> int:
         s = summarize(rows, v)
         if s is None:
             continue
+        ci = (f"- (<{MIN_CLUSTERS} matches)" if s.ci95 is None
+              else f"[{s.ci95[0]:+.2%}, {s.ci95[1]:+.2%}]")
         print(f"| {v} | {s.legs} | {s.games} | {s.mean_clv_ev:+.2%} | "
-              f"[{s.ci95[0]:+.2%}, {s.ci95[1]:+.2%}] | {s.beat_share:.0%} |")
+              f"{ci} | {s.beat_share:.0%} |")
     if not rows:
         print("no leg with a recorded close in the window")
     # An official / WARIANT day with no closing file prints no row above, and

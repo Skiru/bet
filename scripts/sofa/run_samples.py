@@ -16,6 +16,7 @@ from typing import Any
 from pydantic import RootModel
 
 from bet.sofa.artifact_guard import incomplete_reason
+from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
@@ -111,6 +112,22 @@ def superbet_for_thread() -> SuperbetClient:
         client = SuperbetClient()
         _THREAD_LOCAL.superbet = client
     return client
+
+
+def samples_verdict(
+    *,
+    ready: int,
+    n_fixtures: int,
+    unreachable: bool,
+    coverage_partial: bool,
+    provider_faulted: int,
+) -> str:
+    """FAILED with nothing READY, PARTIAL on any named shortfall, else OK."""
+    if ready == 0 and n_fixtures:
+        return "FAILED"
+    if unreachable or coverage_partial or provider_faulted:
+        return "PARTIAL"
+    return "OK"
 
 
 def sample_fixtures_concurrently(
@@ -263,6 +280,10 @@ def main() -> int:
     # with the emptiness (F41).
     previous_by_id = load_previous_samples(run_dir / "03_samples.json")
     carried_over = 0
+    # Fixtures that lost metrics to a provider fault and had nothing to carry
+    # over. They used to leave the verdict OK (review 2026-10-01): a breaker
+    # opening mid-SAMPLES thinned the day with nothing in the summary saying so.
+    provider_faulted = 0
 
     sampled = sample_fixtures_concurrently(
         fixtures, client, cache, config, offers_by_id
@@ -274,6 +295,8 @@ def main() -> int:
         )
         if carried:
             carried_over += 1
+        elif any(g.reason in _PROVIDER_FAULT_GAPS for g in samples.gaps):
+            provider_faulted += 1
         all_samples.append(samples)
 
         readiness_counts[samples.readiness] += 1
@@ -295,13 +318,13 @@ def main() -> int:
 
     run_dir.mkdir(parents=True, exist_ok=True)
     out_path = run_dir / "03_samples.json"
-    out_path.write_text(
+    write_atomic(
+        out_path,
         json.dumps(
             [s.model_dump(mode="json") for s in all_samples],
             indent=2,
             ensure_ascii=False,
         ),
-        encoding="utf-8",
     )
 
     # T40: the coverage floor, per sport, against this pipeline's own history.
@@ -325,12 +348,13 @@ def main() -> int:
     ]
 
     coverage_partial = any(v.status == "PARTIAL" for v in coverage)
-    if readiness_counts.get("READY", 0) == 0 and fixtures:
-        verdict = "FAILED"
-    elif unreachable or coverage_partial:
-        verdict = "PARTIAL"
-    else:
-        verdict = "OK"
+    verdict = samples_verdict(
+        ready=readiness_counts.get("READY", 0),
+        n_fixtures=len(fixtures),
+        unreachable=bool(unreachable),
+        coverage_partial=coverage_partial,
+        provider_faulted=provider_faulted,
+    )
 
     summary = {
         "stage": "SAMPLES",
@@ -339,6 +363,7 @@ def main() -> int:
             "input_fixtures": len(fixtures),
             "output_samples": len(all_samples),
             "carried_over_on_provider_fault": carried_over,
+            "provider_fault_fixtures": provider_faulted,
             "total_metrics_extracted": total_metrics,
             "readiness": dict(readiness_counts),
             "readiness_by_sport": {k: dict(v) for k, v in readiness_by_sport.items()},

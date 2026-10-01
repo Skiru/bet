@@ -60,6 +60,7 @@ from zoneinfo import ZoneInfo
 
 from bet.sofa import cs2, shadow
 from bet.sofa.confidence import MAX_OVERROUND, MIN_ODDS_FOR_CEILING
+from bet.sofa.resolve import NAME_MATCH_THRESHOLD
 
 SportKey = Literal["cs2", "hockey", "basketball", "volleyball"]
 SPORT_KEYS: tuple[SportKey, ...] = ("cs2", "hockey", "basketball", "volleyball")
@@ -83,6 +84,11 @@ WARSAW = ZoneInfo("Europe/Warsaw")
 FRIENDLY_MARKERS = ("towarzysk",)  # Superbet's "Mecze towarzyskie"
 UNSETTLEABLE_SHARE = 0.5
 UNSETTLEABLE_MIN_EVENTS = 2
+# ...and a tournament whose every seen event so far was unsettleable, from
+# this many on (audit 2026-10-01: the 10-01 volleyball coupon printed two
+# legs of "Brazylia - Paulista U19" and one of "Szwecja - Puchar Ligi", each
+# with a single earlier event, not found - 1/1 slipped under the >=2 rule).
+UNSETTLEABLE_ALL_MIN_EVENTS = 1
 UNSETTLEABLE_LOOKBACK_DAYS = 14
 NOT_FOUND_STATES = frozenset({"NOT_ON_SOFASCORE"})
 UNFITTED_CONSTANTS = (
@@ -93,6 +99,7 @@ UNFITTED_CONSTANTS = (
     "RANK_BY_FAIR_P_TIMES_ODDS",
     "UNSETTLEABLE_SHARE",
     "UNSETTLEABLE_MIN_EVENTS",
+    "UNSETTLEABLE_ALL_MIN_EVENTS",
 )
 
 COUPON_FILE = "sport_coupon.json"
@@ -507,8 +514,11 @@ def unsettleable_tournaments(
     return {
         name: f"{missing.get(name, 0)}/{n}"
         for name, n in sorted(total.items())
-        if n >= UNSETTLEABLE_MIN_EVENTS
-        and missing.get(name, 0) / n >= UNSETTLEABLE_SHARE
+        if (
+            n >= UNSETTLEABLE_MIN_EVENTS
+            and missing.get(name, 0) / n >= UNSETTLEABLE_SHARE
+        )
+        or (n >= UNSETTLEABLE_ALL_MIN_EVENTS and missing.get(name, 0) == n)
     }
 
 
@@ -522,6 +532,58 @@ def ungradeable_reason(
     return None
 
 
+def cs2_known_team_names(db_path: str) -> list[str]:
+    """Every team name the CS2 series store (cs2_series) has seen, folded
+    with cs2.esports_name. Read-only: opened mode=ro, so a coupon build can
+    never write, lock or create the database; a missing DB or table is []."""
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return []
+    try:
+        rows = conn.execute(
+            "SELECT home_name FROM cs2_series UNION SELECT away_name FROM cs2_series"
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        conn.close()
+    return sorted({cs2.esports_name(str(r[0])) for r in rows if r[0]})
+
+
+def cs2_unseen_team_events(
+    events: dict[str, Any], known_names: list[str]
+) -> dict[str, str]:
+    """Superbet event id -> "unseen_team" for every CS2 event with a side
+    the series store has never seen (cs2.esports_score above the pipeline's
+    name threshold, as CS2_SETTLE matches). A team Sofascore has never
+    listed is one CS2_SETTLE will not find either - the 09-30 "Winners
+    series 1x1" went 30/30 NOT_ON_SOFASCORE. Computed once per build and
+    recorded, so a replay refuses exactly what the build refused; an empty
+    store refuses nothing (no evidence yet, as for an unseen tournament)."""
+    if not known_names:
+        return {}
+    known = set(known_names)
+    seen: dict[str, bool] = {}
+
+    def is_known(name: str) -> bool:
+        folded = cs2.esports_name(name)
+        if folded not in seen:
+            seen[folded] = folded in known or any(
+                cs2.esports_score(folded, k) > NAME_MATCH_THRESHOLD
+                for k in known_names
+            )
+        return seen[folded]
+
+    return {
+        str(ev.superbet_event_id): "unseen_team"
+        for ev in events.values()
+        if not (is_known(ev.team1) and is_known(ev.team2))
+    }
+
+
 def candidates(
     sport: SportKey,
     events: dict[str, Any],
@@ -532,6 +594,7 @@ def candidates(
     check_clock: bool = True,
     since: datetime | None = None,
     unsettleable: dict[str, str] | None = None,
+    refused_events: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Every side of every event in the window that the rule admits.
 
@@ -558,6 +621,14 @@ def candidates(
         if not ev.fetched_at:
             continue
         why_not = ungradeable_reason(ev.tournament, unsettleable)
+        if sport == "cs2" and why_not is None:
+            if not ev.tournament:
+                # run_cs2 leaves the tournament None when Superbet's struct
+                # fetch fails; neither the friendly nor the unsettleable gate
+                # can read such an event, so it is refused, not waved through.
+                why_not = "no_tournament"
+            elif refused_events and str(ev.superbet_event_id) in refused_events:
+                why_not = refused_events[str(ev.superbet_event_id)]
         if why_not is not None:
             _bump(counts, why_not)
             continue
@@ -949,6 +1020,12 @@ def grade_coupon(
             outcome = "IN_PLAY_PRICE"
         elif ev.get("state") == "SETTLED":
             outcome = _grade_leg(sport, leg, ev)
+            if outcome == "UNGRADEABLE" and sport == "cs2" and ev.get("pending_sides"):
+                # CS2_SETTLE graded part of the series and asks again for the
+                # rest (series_only round scores, late player rows): not yet
+                # an answer, so pending until the record is final or the
+                # leg passes GIVE_UP_AFTER below.
+                outcome = f"PENDING:{ev.get('pending_reason') or 'PARTIAL'}"
             measured = {_leg_key(r): r["outcome"] for r in ev.get("graded") or []}
             other = measured.get(_leg_key(leg))
             if other is not None and outcome in ("WIN", "LOSS") and other != outcome:

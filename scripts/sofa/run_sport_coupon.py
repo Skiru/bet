@@ -46,6 +46,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import sport_coupon as sc  # noqa: E402
+from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
@@ -86,6 +87,16 @@ def build(
     events, snapshots = sc.day_events(runs_dir, sport, date, stats)
     counts: dict[str, int] = {"events": len(events)}
     unsettleable = sc.unsettleable_tournaments(runs_dir, sport, date)
+    # A CS2 side the series store has never seen is one CS2_SETTLE will not
+    # find either (09-30: "Winners series 1x1", 30/30 NOT_ON_SOFASCORE).
+    # Recorded, so audit_variants replays exactly what this build refused.
+    refused: dict[str, str] = (
+        sc.cs2_unseen_team_events(
+            events, sc.cs2_known_team_names(SofaConfig.from_env().db_path)
+        )
+        if sport == "cs2"
+        else {}
+    )
     cands = sc.candidates(
         sport,
         events,
@@ -95,6 +106,7 @@ def build(
         until=sc.day_end(date),
         since=sc.day_end(sc.prev_date(date)),
         unsettleable=unsettleable,
+        refused_events=refused,
     )
     vetoes = sc.load_vetoes(directory)
     previous = load_previous(directory, date)
@@ -131,6 +143,7 @@ def build(
         "UNFITTED_CONSTANTS": list(sc.UNFITTED_CONSTANTS),
         # what the build refused as ungradeable, and the evidence for each
         "unsettleable_tournaments": unsettleable,
+        "refused_events": refused,
         "snapshots": snapshots,
         # what this build read, so audit_variants replays exactly it
         "snapshot_lines": stats["snapshot_lines"],
@@ -446,7 +459,7 @@ def write_outputs(
     directory = sc.day_dir(runs_dir, sport, date)
     directory.mkdir(parents=True, exist_ok=True)
     pdf_path = directory / sc.pdf_name(sport, date)
-    tmp_pdf = pdf_path.with_suffix(".pdf.tmp")
+    tmp_pdf = tmp_path(pdf_path)
     render_pdf(doc, tmp_pdf)
     # The JSON names the exact PDF it was printed as: a reader checks the
     # hash, not file times, which a copy or a restore does not keep.

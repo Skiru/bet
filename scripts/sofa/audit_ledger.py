@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,6 +25,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa.clv import MIN_CLUSTERS, cluster_ratio_interval  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from scripts.sofa.record_results import ledger_path  # noqa: E402
 
@@ -64,23 +64,68 @@ def totals(rows: list[dict[str, Any]]) -> dict[str, Any]:
 BETS_FOR_3PCT = 4400
 
 
+def match_clusters(
+    rows: list[dict[str, Any]],
+) -> dict[str, tuple[float, int]] | None:
+    """{match: (units, settled)} over a variant's days, merged by match (a
+    leg graded a day late is still its match). None when a day with settled
+    positions carries no per-match record (written before 2026-10-01, or a
+    rule replay, which records only its totals) - its positions cannot be
+    clustered, and dropping them would bias the interval."""
+    out: dict[str, tuple[float, int]] = {}
+    for r in rows:
+        settled = int((r.get("total") or {}).get("settled", 0) or 0)
+        matches = r.get("by_match")
+        if matches is None:
+            if settled:
+                return None
+            continue
+        for key, (units, count) in matches.items():
+            u, c = out.get(key, (0.0, 0))
+            out[key] = (u + float(units), c + int(count))
+    return out
+
+
 def roi_interval(rows: list[dict[str, Any]], seed: int = 7,
                  n: int = 2000) -> tuple[float, float] | None:
-    """95% interval of ROI from resampling whole DAYS - the ledger holds days,
-    not legs, and a day's legs share a board. None under two settled days."""
-    days = [((r.get("total") or {}).get("units", 0.0),
-             (r.get("total") or {}).get("settled", 0)) for r in rows]
-    days = [(float(u), int(c)) for u, c in days if int(c) > 0]
-    if len(days) < 2:
+    """95% interval of ROI from resampling whole MATCHES - legs of one match
+    share its game script, and a day is not the unit either: with two days
+    the old by-day bootstrap could only return the two days' own ROIs.
+    None without a per-match record, or under MIN_CLUSTERS matches."""
+    clusters = match_clusters(rows)
+    if clusters is None:
         return None
-    rng = random.Random(seed)
-    stats = []
-    for _ in range(n):
-        pick = [days[rng.randrange(len(days))] for _ in days]
-        settled = sum(c for _, c in pick)
-        stats.append(sum(u for u, _ in pick) / settled)
-    stats.sort()
-    return stats[int(0.025 * n)], stats[int(0.975 * n)]
+    return cluster_ratio_interval(clusters, seed, n)
+
+
+def interval_text(rows: list[dict[str, Any]]) -> str:
+    clusters = match_clusters(rows)
+    if clusters is None:
+        return "- (no per-match record)"
+    ci = cluster_ratio_interval(clusters)
+    if ci is None:
+        return f"- (<{MIN_CLUSTERS} matches)"
+    return f"[{ci[0]:+.1%}, {ci[1]:+.1%}]"
+
+
+def estimated_text(rows: list[dict[str, Any]]) -> str:
+    """Units of the builders graded at the haircut estimate (no screen
+    price recorded) - audit_settlement 7c's "(szac.)". "?" counts the days
+    whose record predates the field but had builders."""
+    units = 0.0
+    settled = unknown = 0
+    for r in rows:
+        est = r.get("estimated_builders")
+        if est is None:
+            if int((r.get("builders") or {}).get("positions", 0) or 0):
+                unknown += 1
+            continue
+        units += float(est.get("units", 0.0))
+        settled += int(est.get("settled", 0))
+    text = "-" if not settled else f"{units:+.2f} in {settled}"
+    if unknown:
+        text += f" (+? on {unknown} unrecorded day{'s' if unknown > 1 else ''})"
+    return text
 
 
 def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
@@ -90,25 +135,27 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
         by_variant.setdefault(r["variant"], []).append(r)
     bets = sorted(v for v in by_variant if not v.startswith("measure:"))
     out += [
-        "| variant | days | positions | settled | won | lost | units | ROI "
-        "| ROI 95% (by day) |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| variant | days | positions | settled | won | lost | units "
+        "| of which estimated builders | ROI | ROI 95% (by match) |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for v in bets:
         if variant and v != variant:
             continue
         t = totals(by_variant[v])
         roi = "-" if t["roi"] is None else f"{t['roi']:+.1%}"
-        ci = roi_interval(by_variant[v])
-        ci_txt = ("- (<2 settled days)" if ci is None
-                  else f"[{ci[0]:+.1%}, {ci[1]:+.1%}]")
         out.append(
             f"| {v} | {t['days']} | {t['positions']} | {t['settled']} | "
-            f"{t['won']} | {t['lost']} | {t['units']:+.2f} | {roi} | {ci_txt} |"
+            f"{t['won']} | {t['lost']} | {t['units']:+.2f} | "
+            f"{estimated_text(by_variant[v])} | {roi} | "
+            f"{interval_text(by_variant[v])} |"
         )
     out += ["", f"A 3% edge needs ~{BETS_FOR_3PCT} settled positions to show at "
             "2 sigma; a ROI over a few dozen is noise until its interval says "
-            "otherwise. CLV (audit_clv.py) answers sooner."]
+            "otherwise. CLV (audit_clv.py) answers sooner. An estimated builder "
+            "is graded "
+            "at odds_if_product x the haircut (no screen price recorded) - "
+            "its units are not a price Superbet printed."]
     if variant and variant in by_variant:
         fams: dict[str, dict[str, float]] = {}
         for r in by_variant[variant]:

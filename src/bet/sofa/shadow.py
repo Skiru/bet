@@ -56,7 +56,11 @@ Not read, each for a reason (measured on the live board 2026-09-30):
   238440-238446): one-sided, nothing to devig against;
 - double-double (233573): two-way, but needs five box-score keys not yet
   checked against the team totals;
-- combinations (a ";" in the name, 2312xx / 2397xx): a Bet Builder price.
+- combinations (a ";" in the name, 2312xx / 2397xx): a Bet Builder price;
+- hockey 613 / 617 / 621 / 653: the overtime-inclusive ("z dogrywka")
+  families, not mapped - the hockey totals read above (623, 658, 652, 604)
+  are regulation-time. The NHL is posted ONLY with these, so no NHL total is
+  measured at all (review 2026-10-01).
 """
 
 from __future__ import annotations

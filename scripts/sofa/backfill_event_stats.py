@@ -12,7 +12,9 @@ corners baseline shrinks its corners rows toward the global pool: on the
 This reads no listing and discovers no event. It only asks for the statistics
 of events the cache already lists, restricted to the competitions that have
 actually been on a board, newest first - so a run cut short has still filled
-the part that matters most. It is resumable: an event already in
+the part that matters most. `--board-days N` narrows it further to the
+matches of the teams/players on the last N boards (backfill_listings'
+board_entities), i.e. the sides we actually price. It is resumable: an event already in
 `sofa_event_stats` (including an asked-and-404 row) is never asked again.
 
 Same client, same token bucket, same bridge as SAMPLES - it cannot be faster
@@ -21,6 +23,8 @@ than the pipeline and must not try to be.
 Usage:
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --dry-run
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --days 400
+    PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py \\
+        --sport tennis --days 365 --board-days 7 --max-minutes 7
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ import argparse
 import dataclasses
 import glob
 import json
+import sqlite3
 import sys
 import threading
 import time
@@ -41,9 +46,9 @@ from typing import Any
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
-from bet.sofa.db import get_connection
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.samples import statistics_are_hopeless
+from scripts.sofa.backfill_listings import board_entities, read_only_connection
 
 
 def board_competitions(runs_dir: str, sport: str = "football") -> set[int]:
@@ -67,9 +72,13 @@ def select_targets(
     since_ts: int,
     barren: set[int] | frozenset[int] = frozenset(),
     sport: str = "football",
+    entities: set[int] | None = None,
 ) -> list[dict[str, Any]]:
     """Finished `sport` events in `competitions` since `since_ts` whose
     statistics were never asked for, newest first, one entry per event.
+
+    `entities`, when given, keeps only events one of whose sides is in it
+    (the teams/players on recent boards); None keeps every side.
 
     `competitions=None` takes every competition. Tennis passes it: a tennis
     competition id is one week of one tournament, so the board's ids say
@@ -99,6 +108,10 @@ def select_targets(
             if competitions is not None and comp not in competitions:
                 continue
             if comp in barren:
+                continue
+            if entities is not None and not any(
+                    (event.get(side) or {}).get("id") in entities
+                    for side in ("homeTeam", "awayTeam")):
                 continue
             if statistics_are_hopeless(event):
                 continue
@@ -135,7 +148,10 @@ def barren_competitions(
 
 
 def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
-    with get_connection(db_path) as conn:
+    # Planning only reads: the connection is read-only, so a --dry-run beside
+    # a live pipeline run cannot write or migrate the cache.
+    conn: sqlite3.Connection = read_only_connection(db_path)
+    try:
         for row in conn.execute("SELECT events_json FROM sofa_entity_events"):
             try:
                 payload = json.loads(row["events_json"])
@@ -144,11 +160,14 @@ def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
             events = payload.get("events") if isinstance(payload, dict) else payload
             if isinstance(events, list):
                 yield events
+    finally:
+        conn.close()
 
 
 def _already_asked(db_path: str) -> dict[int, bool]:
     """Event id -> whether the cached row carries statistics."""
-    with get_connection(db_path) as conn:
+    conn = read_only_connection(db_path)
+    try:
         return {
             int(r["sofascore_event_id"]): r["has_stats"] == 1
             for r in conn.execute(
@@ -156,6 +175,8 @@ def _already_asked(db_path: str) -> dict[int, bool]:
                 "FROM sofa_event_stats"
             )
         }
+    finally:
+        conn.close()
 
 
 # A competition whose first MAX_BARREN_MISSES events all answer 404 on
@@ -252,6 +273,9 @@ def main() -> int:
     ap.add_argument("--sport", choices=("football", "tennis"), default="football")
     ap.add_argument("--max-minutes", type=float, default=None,
                     help="start no new event after this many minutes")
+    ap.add_argument("--board-days", type=int, default=None,
+                    help="only matches of the teams/players on the last N "
+                    "boards (RESOLVE artifacts)")
     args = ap.parse_args()
 
     config = SofaConfig.from_env()
@@ -262,18 +286,24 @@ def main() -> int:
         )
 
     comps = board_competitions(config.runs_dir) if args.sport == "football" else None
+    entities = (
+        None if args.board_days is None
+        else board_entities(config.runs_dir, args.sport, args.board_days)
+    )
     since = int(time.time()) - args.days * 86400
     asked = _already_asked(config.db_path)
     barren = barren_competitions(_iter_listings(config.db_path), asked)
     targets = select_targets(
         _iter_listings(config.db_path), comps, set(asked), since, barren,
-        sport=args.sport,
+        sport=args.sport, entities=entities,
     )
     if args.limit is not None:
         targets = targets[: args.limit]
     print(json.dumps({
         "run_id": config.run_id, "sport": args.sport,
         "competitions": None if comps is None else len(comps),
+        "board_days": args.board_days,
+        "board_entities": None if entities is None else len(entities),
         "targets": len(targets),
         "requests": (2 if args.sport == "football" else 1) * len(targets),
         "barren_competitions_skipped": len(barren),

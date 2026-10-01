@@ -71,6 +71,44 @@ def _pending(rows: list[dict[str, Any]]) -> int:
     return sum(1 for r in rows if settle_sport_coupon.is_pending(str(r["outcome"])))
 
 
+def match_key(row: dict[str, Any]) -> str:
+    """The match one graded position belongs to - the cluster audit_ledger
+    resamples (legs of one match share its game script and are not
+    independent). A Sofascore id for the official / WARIANT positions, a
+    Superbet id for a sport coupon's."""
+    src = row.get("source") if isinstance(row.get("source"), dict) else row
+    assert isinstance(src, dict)
+    if src.get("sofascore_event_id") is not None:
+        return f"sofa:{src['sofascore_event_id']}"
+    if src.get("superbet_event_id") is not None:
+        return f"sb:{src['superbet_event_id']}"
+    return f"unkeyed:{id(row)}"  # never merges with another position
+
+
+def by_match(
+    rows: list[dict[str, Any]], odds_key: str = "odds"
+) -> dict[str, list[float]]:
+    """{match: [units, settled]} over the decided positions, graded exactly
+    as mc.summarize_units grades them (WIN pays odds - 1, LOSS costs 1)."""
+    out: dict[str, list[float]] = {}
+    for r in rows:
+        if r["outcome"] not in ("WIN", "LOSS"):
+            continue
+        units = float(r[odds_key]) - 1.0 if r["outcome"] == "WIN" else -1.0
+        acc = out.setdefault(match_key(r), [0.0, 0])
+        acc[0] = round(acc[0] + units, 4)
+        acc[1] += 1
+    return out
+
+
+def estimated_builders(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """The builders graded at the haircut estimate (odds_if_product x
+    BUILDER_HAIRCUT) because no screen price was recorded for them - what
+    audit_settlement 7c marks "(szac.)". Their units are an estimate of what
+    Superbet would have paid, not a price it printed."""
+    return mc.summarize_units([r for r in rows if r.get("odds_measured") is False])
+
+
 def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
     out = []
     for variant, profile in (("official", "standard"), ("wariant", "wariant")):
@@ -97,6 +135,8 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
                 "singles": mc.summarize_units(singles),
                 "builders": mc.summarize_units(builders),
                 "total": mc.summarize_units(singles + builders),
+                "estimated_builders": estimated_builders(builders),
+                "by_match": by_match(singles + builders),
                 "pending": _pending(singles + builders),
                 "outcomes": _outcomes(singles + builders),
                 "settled_rows_in_db": len(rows),
@@ -116,6 +156,7 @@ def sport_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
                 "date": date,
                 "variant": f"sport:{sport}",
                 "total": mc.summarize_units(graded),
+                "by_match": by_match(graded),
                 "by_family": {
                     fam: mc.summarize_units([g for g in graded if g["family"] == fam])
                     for fam in sorted({g["family"] for g in graded})
@@ -144,6 +185,8 @@ def multi_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
             "date": date,
             "variant": "multi",
             "total": res["variant_total"],
+            "estimated_builders": estimated_builders(rows),
+            "by_match": by_match(rows),
             "sections": sections,
             "pending": _pending(rows),
             "outcomes": _outcomes(rows),

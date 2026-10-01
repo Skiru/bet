@@ -2522,3 +2522,177 @@ def test_extra_points_in_the_deciding_set_of_a_best_of_three() -> None:
     # the same score in the 3rd set of a best-of-5 is a set to 25: no extras
     bo5 = GameResult((25, 20, 16, 25), (20, 25, 14, 20), 3, 1, "T1", False)
     assert actual_value(third, bo5, VOLLEYBALL) == 0.0
+
+
+# --- review 2026-10-01: miss reasons, D-2 settle, saved lineups ------------------
+
+
+def _temp_cache(tmp_path: Path) -> Any:
+    from bet.sofa.cache import SofaCache
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.db import migrate
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    db = str(tmp_path / "sofa.db")
+    migrate(db)
+    return SofaCache(SofaConfig(db_path=db))
+
+
+class _MissClient:
+    """Search answers per query; one listing for entity 5."""
+
+    def __init__(self, results: dict[str, Any], listing: list[dict[str, Any]]):
+        self.results, self.listing = results, listing
+        self.requests = 0
+
+    def search(self, q: str, sport: str | None = None) -> Any:
+        self.requests += 1
+        return self.results.get(q)
+
+    def entity_events(self, eid: int, kind: str, page: int) -> dict[str, Any]:
+        self.requests += 1
+        return {"events": self.listing, "hasNextPage": False}
+
+
+def _volley_game(home: str, away: str, ko: datetime) -> dict[str, Any]:
+    return {
+        "id": 77,
+        "startTimestamp": int(ko.timestamp()),
+        "homeTeam": {"name": home},
+        "awayTeam": {"name": away},
+        "tournament": {"name": "Liga", "category": {"name": "Iceland"}},
+    }
+
+
+def _explain(
+    tmp_path: Path, results: dict[str, Any], listing: list[dict[str, Any]]
+) -> tuple[Any, dict[str, Any], int]:
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import SofaResolver
+    from bet.sofa.shadow import SnapshotEvent
+
+    ko = datetime(2026, 9, 29, 19, 30, tzinfo=UTC)
+    client = _MissClient(results, listing)
+    resolver = SofaResolver(SofaConfig(), client, _temp_cache(tmp_path))  # type: ignore[arg-type]
+    ev = SnapshotEvent("9", "Hamar·Afturelding", "Hamar", "Afturelding",
+                       "2026-09-29T19:30:00Z", "Liga")  # fmt: skip
+    miss: dict[str, Any] = {}
+    found = settle_shadow.find_event(resolver, VOLLEYBALL, ev, ko, miss)
+    # The client is RESOLVE's own again afterwards.
+    assert resolver.client is client
+    return found, miss, client.requests
+
+
+def _team(name: str) -> dict[str, Any]:
+    return {"type": "team", "entity": {"id": 5, "name": name,
+                                       "sport": {"slug": "volleyball"}}}  # fmt: skip
+
+
+def test_a_miss_records_why_from_answers_already_paid_for(tmp_path: Path) -> None:
+    ko = datetime(2026, 9, 29, 19, 30, tzinfo=UTC)
+    # Nothing found for either side.
+    found, miss, _ = _explain(tmp_path / "a", {}, [])
+    assert found == "NOT_ON_SOFASCORE"
+    assert miss["team1"]["reason"] == "NO_SEARCH_RESULT"
+    assert miss["team2"]["reason"] == "NO_SEARCH_RESULT"
+    # A search hit of another sport only: no candidate, its names kept empty.
+    other = {"hamar": {"results": [{"type": "team", "entity": {
+        "id": 5, "name": "Hamar", "sport": {"slug": "football"}}}]}}  # fmt: skip
+    _, miss, _ = _explain(tmp_path / "b", other, [])
+    assert miss["team1"]["reason"] == "NO_CANDIDATE"
+    # The team found, its game listed, but against a name that does not agree.
+    hit = {"hamar": {"results": [_team("Hamar")]}}
+    wrong = [_volley_game("Hamar", "Somebody Else", ko + timedelta(hours=2))]
+    _, miss, requests = _explain(tmp_path / "c", hit, wrong)
+    assert miss["team1"] == {
+        "reason": "OPPONENT_REFUSED",
+        "in_window": ["Hamar - Somebody Else"],
+        "search_teams": ["Hamar"],
+    }
+    assert miss["team2"]["reason"] == "NO_SEARCH_RESULT"
+    # Explaining cost nothing: one search per side and the one listing.
+    assert requests == 3
+    # The game listed, but a day away.
+    late = [_volley_game("Hamar", "Afturelding", ko + timedelta(hours=30))]
+    _, miss, _ = _explain(tmp_path / "d", hit, late)
+    assert miss["team1"] == {
+        "reason": "NO_GAME_IN_WINDOW",
+        "nearest_gap_h": 30.0,
+        "search_teams": ["Hamar"],
+    }
+    # A women's game where the board names the men's side.
+    women = [{**_volley_game("Hamar", "Afturelding", ko),
+              "homeTeam": {"name": "Hamar", "gender": "F"}}]  # fmt: skip
+    _, miss, _ = _explain(tmp_path / "e", hit, women)
+    assert miss["team1"]["reason"] == "GENDER_REFUSED"
+
+
+def test_a_miss_reason_reaches_the_settled_record(tmp_path: Path) -> None:
+    from bet.sofa.config import SofaConfig
+    from bet.sofa.resolve import SofaResolver
+
+    write_snapshot(tmp_path)
+    client = _MissClient({}, [])
+    resolver = SofaResolver(SofaConfig(), client, _temp_cache(tmp_path))  # type: ignore[arg-type]
+    run_settle(tmp_path, resolver, FakeClient({}), 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "NOT_ON_SOFASCORE"
+    assert rec["miss"]["team1"]["reason"] == "NO_SEARCH_RESULT"
+
+
+def test_daily_plan_settles_d_minus_2_so_a_postponed_game_can_void() -> None:
+    from bet.sofa.shadow import VOID_AFTER
+
+    _, morning, _ = shadow_daily.plan(DATE, retry_two_before=True)
+    settles = [c[2] for c in morning if c[-1] == "SHADOW_SETTLE"]
+    assert settles == [DATE, "2026-09-27", "2026-09-26"]
+    assert ("scripts/sofa/settle_sport_coupon.py", "2026-09-26", "hockey") in {
+        (c[0], c[2], c[-1]) for c in morning
+    }
+    assert morning[-1][1:] == ["--from", "2026-09-26", "--to", DATE]
+    # D-2's 05:15Z settle is past VOID_AFTER even for a 23:59Z start; D-1's
+    # is not, which is why D-2 is in the plan.
+    latest_start = datetime(2026, 9, 26, 23, 59, tzinfo=UTC)
+    d1_settle = datetime(2026, 9, 28, 5, 15, tzinfo=UTC)
+    assert d1_settle - latest_start < VOID_AFTER
+    assert d1_settle + timedelta(days=1) - latest_start > VOID_AFTER
+    _, default, _ = shadow_daily.plan(DATE)
+    assert "2026-09-26" not in {c[2] for c in default}
+
+
+def test_settling_a_player_line_saves_the_lineups(tmp_path: Path) -> None:
+    snap = {**_snap("2026-09-28T15:00:00Z", 1.9)}
+    snap["lines"] = snap["lines"] + [
+        ShadowLine(
+            "1", 236265, "player_points", 0, "Player0, Home", 0.5, s, 1.9
+        ).as_dict()
+        for s in ("OVER", "UNDER")
+    ]
+    _write_snaps(tmp_path, [snap])
+    lineups = {
+        "home": {"players": [{"player": {"name": "Home Player0"},
+                 "statistics": {"secondsPlayed": 1200, "goals": 4}}]},
+        "away": {"players": [{"player": {"name": "Away One"},
+                 "statistics": {"secondsPlayed": 1100, "goals": 3}}]},
+    }  # fmt: skip
+    cache = _temp_cache(tmp_path)
+    client = LineupsClient({**sofa_event(), **HOCKEY_AET}, lineups)
+    at = datetime(2026, 9, 28, 22, tzinfo=UTC)
+    settle_shadow.settle(
+        DATE, FakeResolver(sofa_event()), client, cache, str(tmp_path), at, ("hockey",)
+    )
+    assert settled(tmp_path)["1"]["state"] == "SETTLED"
+    assert cache.get_event_lineups(700) == lineups
+    # An empty answer is never saved as the fact "nothing published".
+    empty_cache = _temp_cache(tmp_path / "empty")
+    (tmp_path / "shadow" / "hockey" / DATE / "settled.json").unlink()
+    settle_shadow.settle(
+        DATE,
+        FakeResolver(sofa_event()),
+        LineupsClient({**sofa_event(), **HOCKEY_AET}, None),
+        empty_cache,
+        str(tmp_path),
+        at,
+        ("hockey",),
+    )
+    assert empty_cache.get_event_lineups(700) is None

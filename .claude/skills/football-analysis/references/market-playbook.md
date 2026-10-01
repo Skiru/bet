@@ -160,6 +160,13 @@ the row stops at `LEAN`. That is the row being selected by our model with no
 price checking it, which is the population the settled record calls the worst
 one on the sheet. Read these as forecasts.
 
+Since 2026-10-01 shots, shots on target and assists are priced with a
+negative binomial (`engine.NEGATIVE_BINOMIAL_METRICS`), not the normal: on
+the settled player rows of 09-24..30 the normal put a median +8 pp on every
+OVER (assists 0.5 OVER claimed 0.243, realised 0.081, n=495). A sheet built
+before that change carries the inflated OVER; do not compare a pre- and
+post-change `p_central` as if the player moved.
+
 What to check when one is on the sheet:
 
 - **`PLAYER_MINUTES`.** Every player row carries it: median minutes, how many

@@ -15,6 +15,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.tennis_rating import (
     DEFAULT_CONFIG,
@@ -51,7 +52,7 @@ def main() -> int:
         "neighbours": NEIGHBOURS,
         "tiers": tiers,
     }
-    Path(args.out).write_text(json.dumps(out, indent=2) + "\n")
+    write_atomic(Path(args.out), json.dumps(out, indent=2) + "\n")
     for tier, entry in tiers.items():
         coefficients = ", ".join(f"{c:+.3f}" for c in entry["coefficients"])
         print(f"{tier:5s} n={entry['n']:6d} [{coefficients}]")

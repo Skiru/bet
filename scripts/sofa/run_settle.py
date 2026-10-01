@@ -35,6 +35,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple, cast
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
@@ -287,10 +288,37 @@ def _settle_derived(
             return "DERIVED_SUBJECT"
         margin = (home - away) if side == "home" else (away - home)
         if margin == -line:
+            # A whole-number handicap landing on its line: the stake comes
+            # back. Like the marginal path's push (settle_value -> None,
+            # skip reason "PUSH") it is a skip reason, not a row: no reader
+            # of sofa_settled_row expects an outcome other than WIN / LOSS
+            # (several score "not WIN" as a loss), and a missing row grades
+            # as not counted in 7c / 7d and the ledger - 0 units, as a push
+            # pays.
             return "PUSH"
         return float(margin), ("WIN" if margin > -line else "LOSS")
 
     return "NOT_DERIVED"
+
+
+def value_rows_return(rows: list[Any]) -> tuple[list[Any], float]:
+    """The VALUE rows with a price that were decided, and their flat return.
+
+    Only WIN and LOSS are decided: a PUSH returns the stake (0 units) and is
+    not a bet that was won or lost, so it is neither counted as -1 nor in the
+    denominator. SETTLE writes no PUSH row today (a push is a skip reason,
+    exactly as on the marginal path), so this guards the metric rather than
+    changing any number it has printed.
+    """
+    staked = [
+        r for r in rows
+        if r.verdict == "VALUE" and r.offered_odds and r.outcome in ("WIN", "LOSS")
+    ]
+    value_return = sum(
+        (cast(float, r.offered_odds) - 1.0) if r.outcome == "WIN" else -1.0
+        for r in staked
+    )
+    return staked, value_return
 
 
 def _settle_player(
@@ -741,11 +769,7 @@ def main() -> int:
 
     with_price = sum(1 for r in rows if r.market_p is not None)
     won = sum(1 for r in rows if r.outcome == "WIN")
-    staked = [r for r in rows if r.verdict == "VALUE" and r.offered_odds]
-    value_return = sum(
-        (cast(float, r.offered_odds) - 1.0) if r.outcome == "WIN" else -1.0
-        for r in staked
-    )
+    staked, value_return = value_rows_return(rows)
 
     metrics = {
         "rows_in_sheet": len(sheet),
@@ -780,8 +804,9 @@ def main() -> int:
     # provider has no reading of that statistic" into one bucket, and those
     # two are not the same fact about the day.
     skips_path = run_dir / "07_settle_skips.json"
-    with open(skips_path, "w", encoding="utf-8") as f:
-        json.dump(
+    write_atomic(
+        skips_path,
+        json.dumps(
             {
                 "date": args.date,
                 "include_unpriced": args.include_unpriced,
@@ -793,22 +818,23 @@ def main() -> int:
                 "skipped": dict(sorted(skips.counts.items(), key=lambda kv: -kv[1])),
                 "skipped_events": skips.events(fixtures),
             },
-            f,
             indent=2,
-        )
+        ),
+    )
 
     out_path = run_dir / "07_settled.json"
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(
+    write_atomic(
+        out_path,
+        json.dumps(
             [
                 {
                     **{k: v for k, v in vars(r).items()},
                 }
                 for r in rows
             ],
-            f,
             indent=2,
-        )
+        ),
+    )
 
     print(
         "SOFA_SUMMARY: "

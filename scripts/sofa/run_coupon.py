@@ -18,6 +18,7 @@ from typing import cast
 from pydantic import RootModel
 
 from bet.sofa.artifact_guard import incomplete_reason
+from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import MIN_MINUTES_TO_KICKOFF, Calibration
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
@@ -289,14 +290,15 @@ def main() -> int:
     )
 
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "06_coupon.json").write_text(
+    write_atomic(
+        run_dir / "06_coupon.json",
         json.dumps(result.coupon.model_dump(mode="json"), indent=2, ensure_ascii=False),
-        encoding="utf-8",
     )
-    (run_dir / "06_coupon.md").write_text(
-        render_markdown(result, sheet_rows, unmatched_vetoes), encoding="utf-8"
+    write_atomic(
+        run_dir / "06_coupon.md", render_markdown(result, sheet_rows, unmatched_vetoes)
     )
-    (run_dir / "06_dropped.json").write_text(
+    write_atomic(
+        run_dir / "06_dropped.json",
         json.dumps(
             [
                 {
@@ -314,7 +316,6 @@ def main() -> int:
             indent=2,
             ensure_ascii=False,
         ),
-        encoding="utf-8",
     )
 
     if not vetoes_path.exists():

@@ -304,6 +304,7 @@ def audit_sport(
         until=sc.day_end(date),
         since=since,
         unsettleable=doc.get("unsettleable_tournaments") or {},
+        refused_events=doc.get("refused_events") or {},
     )
     locked = [leg for leg in legs if leg.get("locked")]
     replay, _ = sc.select(sport, cands, vetoes, rule, locked)

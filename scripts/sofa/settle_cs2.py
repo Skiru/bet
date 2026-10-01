@@ -26,7 +26,7 @@ import argparse
 import json
 import sys
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -43,10 +43,12 @@ from bet.sofa.cs2 import (  # noqa: E402
     SETTLED_FILE,
     SNAPSHOTS_FILE,
     Cs2Line,
+    MapResult,
     SnapshotEvent,
     build_series,
     cs2_day_dir,
     event_state,
+    file_lock,
     latest_pre_kickoff,
     pick_event,
     series_only_maps,
@@ -157,6 +159,17 @@ def settle_one(
         }
     )
     detail = (sofa.client.event(int(event["id"])) or {}).get("event") or event
+    # Sofascore's own start: sport_coupon.grade_coupon refuses a printed price
+    # taken at or after it (IN_PLAY_PRICE), and rule_history cuts its prices
+    # there. Never written before 2026-10-01, so that guard could not fire
+    # for CS2.
+    start_ts = detail.get("startTimestamp") or event.get("startTimestamp")
+    if isinstance(start_ts, int | float) and start_ts > 0:
+        record["sofascore_start_utc"] = (
+            datetime.fromtimestamp(int(start_ts), UTC)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
     state = event_state(detail, kickoff, at)
     if state != "FINISHED":
         return {
@@ -178,16 +191,18 @@ def settle_one(
         if series is None:
             return {**record, "state": "DATA_MISMATCH", "games": len(games)}
         # Rounds unknown, series score known: grade the series lines only.
+        # The rest are counted (series_only_skipped, so the counts add up to
+        # priced_sides - 09-30 dropped 114 of 154 uncounted) and stay
+        # retryable until GIVE_UP_AFTER: the round scores may still land.
+        keep = {k for k, ln in ev.sides.items() if ln.family in SERIES_FAMILIES}
         series_ev = replace(
             ev,
-            sides={k: ln for k, ln in ev.sides.items() if ln.family in SERIES_FAMILIES},
-            fetched_at={
-                k: v
-                for k, v in ev.fetched_at.items()
-                if ev.sides[k].family in SERIES_FAMILIES
-            },
+            sides={k: ev.sides[k] for k in keep},
+            fetched_at={k: v for k, v in ev.fetched_at.items() if k in keep},
         )
         graded, counts = settle_event(series_ev, series)
+        skipped = len(ev.sides) - len(keep)
+        waiting = skipped if at - kickoff <= GIVE_UP_AFTER else 0
         return {
             **record,
             "state": "SETTLED",
@@ -195,11 +210,28 @@ def settle_one(
             "maps": [[m.t1_rounds, m.t2_rounds] for m in series],
             "maps_with_players": 0,
             **counts,
+            "series_only_skipped": skipped,
+            "pending_sides": waiting,
+            **({"pending_reason": "SERIES_ONLY"} if waiting else {}),
             "graded": graded,
         }
+    held: set[tuple[str, int, str, float | None, str]] = set()
     if stats_missing(ev, maps) and at - kickoff < STATS_GRACE:
-        return {**record, "state": "STATS_PENDING", "maps": len(maps)}
-    graded, counts = settle_event(ev, maps)
+        # Only the player / team-kill sides on a map without player rows
+        # wait; the series, map and round lines are graded now. Holding the
+        # whole series kept a match winner pending past what the daily loop
+        # ever reaches (it settles at ~29 h and ~53 h; the grace is 72 h).
+        held = {k for k in ev.sides if needs_stats(k, maps)}
+    graded_ev = (
+        replace(
+            ev,
+            sides={k: ln for k, ln in ev.sides.items() if k not in held},
+            fetched_at={k: v for k, v in ev.fetched_at.items() if k not in held},
+        )
+        if held
+        else ev
+    )
+    graded, counts = settle_event(graded_ev, maps)
     if db_path is not None:
         try:
             attach_model(graded, ev, event, detail, home_is_t1, kickoff, db_path)
@@ -213,8 +245,32 @@ def settle_one(
         "maps": [[m.t1_rounds, m.t2_rounds] for m in maps],
         "maps_with_players": sum(1 for m in maps if m.players),
         **counts,
+        "stats_pending": len(held),
+        "pending_sides": len(held),
+        **({"pending_reason": "STATS_PENDING"} if held else {}),
         "graded": graded,
     }
+
+
+def needs_stats(
+    key: tuple[str, int, str, float | None, str], maps: list[MapResult]
+) -> bool:
+    """This side is a player or team-kill line on a played map that has no
+    player rows yet (cs2.stats_missing, one side at a time)."""
+    family, map_nr = key[0], key[1]
+    if not (family.startswith("player_") or family == "team_kills"):
+        return False
+    return 1 <= map_nr <= len(maps) and not maps[map_nr - 1].players
+
+
+def is_waiting(rec: dict[str, Any] | None) -> bool:
+    """CS2_SETTLE will ask about this series again: a retryable state, or a
+    SETTLED series with sides still waiting for data (pending_sides)."""
+    if rec is None:
+        return True
+    if rec.get("state") in RETRYABLE:
+        return True
+    return rec.get("state") == "SETTLED" and bool(rec.get("pending_sides"))
 
 
 def store_series(
@@ -336,6 +392,7 @@ def settle(
         if out.exists()
         else {}
     )
+    updated: dict[str, Any] = {}
     sofa = Cs2Sofascore(client)
     metrics: dict[str, int] = {
         "events": len(events),
@@ -343,11 +400,13 @@ def settle(
         "kept": 0,
         "errors": 0,
         "graded_sides": 0,
+        "series_only_skipped": 0,
+        "pending_sides": 0,
     }
     breaker_open = False
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
         prev = done.get(eid)
-        if prev and prev["state"] in TERMINAL:
+        if prev and prev["state"] in TERMINAL and not is_waiting(prev):
             metrics["kept"] += 1
             continue
         kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
@@ -371,16 +430,38 @@ def settle(
                 "error": f"{type(exc).__name__}: {exc}",
             }
             metrics["errors"] += 1
+        if prev and prev["state"] == "SETTLED" and record["state"] != "SETTLED":
+            # A retry of a partly graded series that failed (a lookup, a
+            # request) never replaces the grades it already has.
+            record = {**prev, "last_retry_state": record["state"]}
+            if at - kickoff > GIVE_UP_AFTER:
+                record["gave_up_pending"] = record.get("pending_sides", 0)
+                record["pending_sides"] = 0
+                record.pop("pending_reason", None)
         if record["state"] in RETRYABLE and at - kickoff > GIVE_UP_AFTER:
             record = {**record, "state": "GAVE_UP", "gave_up_on": record["state"]}
         done[eid] = record
+        updated[eid] = record
         metrics["graded_sides"] += len(record.get("graded") or [])
+    with file_lock(out):
+        # Read again under the lock and lay only this run's records over it:
+        # a settle that ran meanwhile (the watchdog's, a hand-run one) keeps
+        # what it wrote for the series this run did not touch.
+        current: dict[str, Any] = (
+            json.loads(out.read_text(encoding="utf-8")).get("events", {})
+            if out.exists()
+            else {}
+        )
+        done = {**current, **updated}
+        write_atomic(
+            out,
+            json.dumps({"date": date, "events": done}, ensure_ascii=False, indent=1),
+        )
     states: dict[str, int] = {}
     for rec in done.values():
         states[rec["state"]] = states.get(rec["state"], 0) + 1
-    write_atomic(
-        out, json.dumps({"date": date, "events": done}, ensure_ascii=False, indent=1)
-    )
+        metrics["series_only_skipped"] += int(rec.get("series_only_skipped") or 0)
+        metrics["pending_sides"] += int(rec.get("pending_sides") or 0)
     attempted = metrics["events"] - metrics["kept"] - metrics["too_early"]
     if breaker_open and attempted and metrics["errors"] >= attempted:
         verdict = "FAILED"
@@ -395,18 +476,79 @@ def settle(
     }
 
 
+def waiting_dates(runs_dir: str, dates: list[str]) -> list[str]:
+    """The dates CS2_SETTLE still has work on: snapshots, and a settled.json
+    that is missing or holds a series `is_waiting`. Offline - files only -
+    so the morning sweep asks the bridge about nothing that is final."""
+    out = []
+    for date in dates:
+        day = cs2_day_dir(runs_dir, date)
+        if not (day / SNAPSHOTS_FILE).exists():
+            continue
+        path = day / SETTLED_FILE
+        if not path.exists():
+            out.append(date)
+            continue
+        try:
+            events = json.loads(path.read_text(encoding="utf-8")).get("events", {})
+        except (OSError, ValueError):
+            out.append(date)
+            continue
+        if any(is_waiting(rec) for rec in events.values()):
+            out.append(date)
+    return out
+
+
+def date_range(first: str, last: str) -> list[str]:
+    day = datetime.strptime(first, "%Y-%m-%d")
+    end = datetime.strptime(last, "%Y-%m-%d")
+    out = []
+    while day <= end:
+        out.append(day.strftime("%Y-%m-%d"))
+        day += timedelta(days=1)
+    return out
+
+
 def main() -> int:
     set_stage("CS2_SETTLE")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--date", required=True)
-    args = parser.parse_args()
-    config = SofaConfig.from_env()
-    migrate(config.db_path)
-    result = settle(
-        args.date, SofascoreClient(config), config.runs_dir, now(), config.db_path
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--date")
+    group.add_argument(
+        "--sweep-from",
+        help="with --sweep-to: settle every date in the range that still has "
+        "waiting series (cs2_daily's morning sweep of D-7..D-2)",
     )
-    print("SOFA_SUMMARY: " + json.dumps({"stage": "CS2_SETTLE", **result}), flush=True)
-    return {"OK": 0, "PARTIAL": 1}.get(str(result["verdict"]), 2)
+    parser.add_argument("--sweep-to")
+    args = parser.parse_args()
+    if args.sweep_from and not args.sweep_to:
+        parser.error("--sweep-from needs --sweep-to")
+    config = SofaConfig.from_env()
+    if args.date:
+        dates = [args.date]
+    else:
+        dates = waiting_dates(
+            config.runs_dir, date_range(args.sweep_from, args.sweep_to)
+        )
+        print(
+            "SOFA_SUMMARY: "
+            + json.dumps({"stage": "CS2_SETTLE_SWEEP", "waiting_dates": dates}),
+            flush=True,
+        )
+    if not dates:
+        return 0
+    migrate(config.db_path)
+    client = SofascoreClient(config)
+    worst = 0
+    for date in dates:
+        result = settle(date, client, config.runs_dir, now(), config.db_path)
+        print(
+            "SOFA_SUMMARY: "
+            + json.dumps({"stage": "CS2_SETTLE", "date": date, **result}),
+            flush=True,
+        )
+        worst = max(worst, {"OK": 0, "PARTIAL": 1}.get(str(result["verdict"]), 2))
+    return worst
 
 
 if __name__ == "__main__":

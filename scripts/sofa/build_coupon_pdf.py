@@ -42,15 +42,20 @@ from reportlab.platypus import (  # noqa: E402
 
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
+from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
+    MIN_MINUTES_TO_KICKOFF,
     PROFILES,
     confidence_artifact,
     displayed_ev,
     fixture_leg_counts,
+    ladder_key,
+    ladder_leg_counts,
     printed_builders,
     printed_singles,
     quantity_family,
+    too_close_to_kickoff,
 )
 from bet.sofa.contracts import Fixture  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
@@ -138,6 +143,21 @@ def unfitted_constants(
     return sorted(found)
 
 
+def started_at_render(leg: dict[str, Any], now: datetime.datetime) -> bool:
+    """Is this printed leg inside CONFIDENCE's kickoff margin at render time?
+
+    CONFIDENCE gates on its own clock; a PDF rendered later from the same JSON
+    (a rebuild, a re-render) would print a leg that has already started with
+    nothing on the page saying so. The leg is kept - the JSON is what is
+    graded - and marked. Its kickoff_utc is the earlier of the two clocks.
+    """
+    ko = leg.get("kickoff_utc")
+    if not ko:
+        return True
+    clock = datetime.datetime.fromisoformat(str(ko).replace("Z", "+00:00"))
+    return too_close_to_kickoff([clock], now)
+
+
 def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
     """Why the PDF must not be built, or None.
 
@@ -214,7 +234,6 @@ def main() -> int:
     raw = (run / "02_fixtures.json").read_bytes()
     fx_obj = {f.sofascore_event_id: f for f in RootModel[list[Fixture]].model_validate_json(raw).root}
     fx_raw = {f["sofascore_event_id"]: f for f in json.loads(raw)}
-    cal = json.loads(Path("config/sofa_confidence_calibration.json").read_text())
     now = timeutil.now()  # the one clock (bet.sofa.timeutil)
 
     legs_idx = {
@@ -297,8 +316,11 @@ def main() -> int:
                           textColor=INK, spaceAfter=1)
 
     out_path = Path(args.out or (run / f"KUPON_{args.date}{profile.pdf_suffix}.pdf"))
+    # Rendered beside the target and moved into place: a crash mid-render
+    # must never leave a truncated KUPON_*.pdf where the coupon was.
+    tmp_out = tmp_path(out_path)
     pdf = SimpleDocTemplate(
-        str(out_path), pagesize=A4,
+        str(tmp_out), pagesize=A4,
         leftMargin=15 * mm, rightMargin=13 * mm, topMargin=14 * mm, bottomMargin=13 * mm,
         title=f"Kupon {args.date}", author="sofa pipeline",
     )
@@ -431,6 +453,14 @@ def main() -> int:
         srows = [[Paragraph(h, SMALL) for h in shead]]
         # See fixture_leg_counts: singles of one match are one bet in pieces.
         per_fixture = fixture_leg_counts(singles)
+        per_ladder = ladder_leg_counts(singles)
+        n_ladders = sum(1 for n in per_ladder.values() if n > 1)
+        if n_ladders:
+            S.append(Paragraph(
+                f"<b>{n_ladders} drabin(a/y) ma na tej liście więcej niż jeden "
+                "szczebel</b> — oznaczone 'ta sama drabina: N'. To jedno "
+                "twierdzenie o jednej liczbie kupione kilka razy.", SMALL))
+            S.append(Spacer(1, 3))
         shared = sum(1 for n in per_fixture.values() if n > 1)
         if shared:
             S.append(Paragraph(
@@ -444,6 +474,13 @@ def main() -> int:
             n_same = per_fixture[int(leg["sofascore_event_id"])]
             same = (f"<br/><font size=6.5 color='#b23b3b'>ten sam mecz: "
                     f"{n_same} nóg</font>" if n_same > 1 else "")
+            n_rungs = per_ladder[ladder_key(leg)]
+            if n_rungs > 1:
+                same += (f"<br/><font size=6.5 color='#b23b3b'>ta sama drabina: "
+                         f"{n_rungs}</font>")
+            if started_at_render(leg, now):
+                same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
+                         "renderem PDF</b></font>")
             srows.append([
                 Paragraph(str(i), SMALL),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
@@ -544,9 +581,11 @@ def main() -> int:
             Paragraph(f"<b>{b['n_legs']} nogi</b>", BODY),
             Paragraph(f"łączne p <b>{b['combined_probability']:.3f}</b>", BODY),
             Paragraph(f"kurs uczciwy <b>{b['fair_odds']}</b>", BODY),
+            # Never the product of the legs' prices: Superbet does not price a
+            # slip that way (CLAUDE.md, measured markup 8.8-19.6%). Only the
+            # haircut price confidence.py computed is printed.
             Paragraph(
-                f"iloczyn {b['odds_if_product']} → po narzucie <b>{after}</b>"
-                if after else f"iloczyn kursów {b['odds_if_product']}",
+                f"kurs po narzucie <b>{after}</b>" if after else "kurs po narzucie —",
                 BODY,
             ),
             Paragraph(f"<font color='#1b7f4b'><b>EV {ev:+.3f}</b></font>", BODY),
@@ -567,6 +606,15 @@ def main() -> int:
         S.append(KeepTogether(block))
 
     pdf.build(S)
+    os.replace(tmp_out, out_path)
+    late = [leg for leg in singles if started_at_render(leg, now)]
+    if late:
+        print(
+            f"WARNING: {len(late)} printed single(s) kick off within "
+            f"{MIN_MINUTES_TO_KICKOFF} min of this render (or already started) - "
+            "marked on the page",
+            file=sys.stderr,
+        )
     print(json.dumps({
         "stage": "COUPON_PDF", "verdict": "OK",
         "metrics": {"picks": len(picks), "singles": len(singles),

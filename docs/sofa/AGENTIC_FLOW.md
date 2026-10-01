@@ -74,7 +74,8 @@ operator: /sofa-day 2026-09-21
    │                       §7d = WARIANT; §7 i §7b to materiał wejściowy, NIE zakłady
    │                       settle_sport_coupon → settle_multi_coupon → record_results (dziennik) → audit_ledger
    │   1b. pętle dnia    cs2_daily.py --chain, shadow_daily.py --chain (zostają u orkiestratora;
-   │                     rano każda rozlicza D i D-1 i zapisuje oba dni w dzienniku)
+   │                     rano CS2: settle D i D-1 + przegląd D-7..D-2, dziennik D-7..D;
+   │                     shadow: settle D, D-1 i D-2, dziennik za te dni)
    │
    ├─ 2. dzisiaj         BOARD (tylko Superbet — może iść, gdy SETTLE trzyma most)
    │                     … RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON

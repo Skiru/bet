@@ -238,6 +238,9 @@ def save_series(
                     fetched_at,
                 ),
             )
+        # Explicit: `with conn:`'s own commit is the C-level one and bypasses
+        # RetryingConnection's busy-COMMIT retry (review 2026-10-01).
+        conn.commit()
 
 
 def complete_ids(

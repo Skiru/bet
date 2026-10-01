@@ -555,7 +555,10 @@ def calculate_cards_points(
     yellow also stops counting toward the second-yellow arithmetic, which is
     what the disciplinary record says happened.
     """
-    if incidents is None:
+    # `not`, not `is None`: {} is the cache's "asked, got 404" (samples.py),
+    # and read as a payload it graded a match as 0 cards in SETTLE and fed
+    # 0:0 into calibration and the rating (review 2026-10-01).
+    if not incidents:
         # A missing payload is not a zero (L3).
         return GapReason.NO_INCIDENTS
 
@@ -696,7 +699,9 @@ def check_identities(
                 if abs(s_tot - (s_on + s_off + s_blk)) > woodwork[side]:
                     return GapReason.INTERNAL_INCONSISTENT
 
-    if sport == "football" and incidents is not None:
+    # {} ("asked, got 404") checks nothing: as a payload it read as zero goals
+    # and failed every match with a goal.
+    if sport == "football" and incidents:
         goal_incs = sum(
             1
             for i in incidents.get("incidents", [])

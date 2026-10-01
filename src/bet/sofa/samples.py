@@ -216,7 +216,15 @@ def fetch_available_metrics(
     """
     available_metrics: set[str] = set()
     for s_id in fixture.superbet_event_ids:
-        for item in odds_items(superbet_client.event_odds(s_id)):
+        # One listing's error is that listing's, as in OfferFetcher: Superbet
+        # raises curl_cffi's HTTPError (not a ProviderError) on a removed
+        # event, and escaping here it took the whole SAMPLES stage down after
+        # every other fixture had finished (review 2026-10-01).
+        try:
+            payload = superbet_client.event_odds(s_id)
+        except Exception:  # noqa: BLE001 - one listing, not the stage
+            continue
+        for item in odds_items(payload):
             classified = classify_market(item.get("marketName"))
             if classified:
                 available_metrics.add(classified[0])
@@ -583,8 +591,32 @@ def process_historical_event(
     cached_stats = cache.get_event_stats(
         event_id, kickoff_ts=int(start) if isinstance(start, (int, float)) else None
     )
+    needs_incidents = sport == "football" and bool(
+        metrics_to_collect & INCIDENT_METRICS
+    )
+    incidents_faulted = False
     if cached_stats:
-        statistics_json, incidents_json, _ = cached_stats
+        statistics_json, incidents_json, cached_status = cached_stats
+        # NULL incidents mean "never asked", not "none": a match first cached
+        # for a fixture with no card market has statistics and no incidents,
+        # and every later card sample read it as NO_INCIDENTS without asking
+        # (2026-10-01: 118 gaps over 59 events, all NULL). Ask once; a 404 is
+        # stored as {} so it is a fact and is not paid for again.
+        #
+        # The ask is the only network call on this cached path, so a provider
+        # fault here costs the card metrics only (NO_INCIDENTS), never the
+        # match: escaping, it BLOCKED the whole fixture (review 2026-10-01).
+        if incidents_json is None and needs_incidents:
+            try:
+                fetched = client.event_incidents(event_id)
+            except (ProviderError, CircuitOpenError):
+                fetched = None
+                incidents_faulted = True
+            else:
+                cache.save_event_incidents(
+                    event_id, fetched if fetched is not None else {}
+                )
+            incidents_json = fetched
     else:
         # A 404 we can predict from a payload we already hold. `/incidents` is
         # still asked for, though: 29 of these 1,241 events carry incidents
@@ -597,9 +629,6 @@ def process_historical_event(
             None if skipped_statistics else client.event_statistics(event_id)
         )
         incidents_json = None
-        needs_incidents = sport == "football" and bool(
-            metrics_to_collect & INCIDENT_METRICS
-        )
         if needs_incidents:
             incidents_json = client.event_incidents(event_id)
 
@@ -614,6 +643,12 @@ def process_historical_event(
                 event_id, statistics_json, incidents_json, status_type
             )
 
+    # {} is the stored fact "asked, got 404" - for every reader below it is
+    # "no incidents". Read as a payload, check_identities saw zero goals on a
+    # match with goals and marked EVERY metric INTERNAL_INCONSISTENT, for good
+    # (review 2026-10-01).
+    if not incidents_json:
+        incidents_json = None
     flat_stats = extract_flat_statistics(statistics_json)
     ident_gap = check_identities(flat_stats, incidents_json, event, sport)
     # Reported, not blocking (PLAN §5.5, last row).
@@ -638,6 +673,10 @@ def process_historical_event(
             continue
 
         val = extract_metric(metric, sport, flat_stats, incidents_json, event, is_home)
+        if incidents_faulted and metric in INCIDENT_METRICS:
+            # Named as the provider fault it was, so SAMPLES' verdict sees it
+            # (provider_fault_fixtures), not as a match without incidents.
+            val = GapReason.PROVIDER_ERROR
         if isinstance(val, GapReason):
             collected[metric] = val
         else:

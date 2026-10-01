@@ -503,6 +503,9 @@ _SUBJECT_IS_PROPOSITION = re.compile(r"^(?:nieparzysta|parzysta)\b|/parzysta\b")
 # market's variant ("handicap", "h2h", "remis", "kto wykona wiecej") as one.
 _SUBJECT_IS_NOT_A_SIDE = re.compile(
     r"^(?:zawodnik|zawodnicy|ktorykolwiek)\b|^-|\bhandicap\b|\bh2h\b|^remis\b|^kto\b"
+    # "Liczba strzalow w obramowanie bramki" is shots hitting the woodwork,
+    # not a team called "w obramowanie bramki" (13 rungs on 2026-10-01).
+    r"|^w obramowanie\b"
 )
 
 

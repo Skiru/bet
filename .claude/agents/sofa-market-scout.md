@@ -181,6 +181,11 @@ eight body-part and location splits of shots, and `liczba spalonych` — is
 still in the blind spot, and for a stated reason each: no line, or no
 Sofascore statistic, or no identity that proves an omitted key is a zero.
 
+"Liczba strzałów w obramowanie bramki" (shots hitting the woodwork) is
+refused since 2026-10-01 (`market_mapper._SUBJECT_IS_NOT_A_SIDE`): before,
+the team pattern read "w obramowanie bramki" as a side (13 rungs on
+2026-10-01). It belongs in the blind spot, not on a sheet.
+
 ---
 
 ## What you report

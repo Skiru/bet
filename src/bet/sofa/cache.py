@@ -156,6 +156,24 @@ class SofaCache:
             )
             conn.commit()
 
+    def save_event_incidents(
+        self, sofascore_event_id: int, incidents: dict[str, Any]
+    ) -> None:
+        """Fill the incidents of a row already cached, and nothing else.
+
+        ``{}`` records a 404. Deliberately leaves ``fetched_at`` alone: that is
+        when the statistics were fetched, and the provisional-row test, the
+        regrade candidate test and the history fingerprint all read it so.
+        A row that does not exist is not created - there is nothing to fill.
+        """
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                "UPDATE sofa_event_stats SET incidents_json = ? "
+                "WHERE sofascore_event_id = ? AND incidents_json IS NULL",
+                (json.dumps(incidents), sofascore_event_id),
+            )
+            conn.commit()
+
     def get_event_lineups(
         self, sofascore_event_id: int
     ) -> dict[str, Any] | None:

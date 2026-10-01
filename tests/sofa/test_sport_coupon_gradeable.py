@@ -105,8 +105,9 @@ def test_the_unsettleable_list_is_read_from_earlier_settled_days(
         tmp_path, "volleyball", DATE, {"7": ev("Liga", "NOT_ON_SOFASCORE")}
     )
     got = sc.unsettleable_tournaments(str(tmp_path), "volleyball", DATE)
-    # Regional 2/2; Liga 1/3 is under the share; Once is a single event
-    assert got == {"Regional": "2/2"}
+    # Regional 2/2; Liga 1/3 is under the share; Once 1/1 - every event it
+    # ever had was not found (since 2026-10-01, UNSETTLEABLE_ALL_MIN_EVENTS)
+    assert got == {"Regional": "2/2", "Once": "1/1"}
 
 
 def test_an_unsettleable_tournament_is_left_out_whole() -> None:

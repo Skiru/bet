@@ -137,7 +137,16 @@ the artifact claims, and that the fixture is still on the board.
 enough: on ITF the two disagree by up to 11 h and the error makes a finished
 match look upcoming. **COUPON and CONFIDENCE both gate on the earlier clock
 plus 15 min** (`coupon.effective_kickoff`, `confidence.too_close_to_kickoff`)
-— check that no staked leg violates it.
+— check that no staked leg violates it. CONFIDENCE gates on its own clock; a
+PDF rendered later from the same JSON keeps such a leg (the JSON is what is
+graded) and, since 2026-10-01, marks it `start przed renderem PDF` with a
+`WARNING` on stderr - count those marks and name every one.
+
+The PDF also marks `ta sama drabina: N` (N singles on one ladder - one
+fixture, market and subject - `confidence.ladder_key`; shown, never
+enforced): name each such ladder, since its rungs are one claim bought N
+times. A builder line prints only `kurs po narzucie` - if a page shows the
+product of leg prices, that is a defect.
 
 ## Step 3 — anti-selection, the most important test
 

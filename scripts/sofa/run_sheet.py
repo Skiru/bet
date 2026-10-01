@@ -16,6 +16,7 @@ from pydantic import RootModel
 from rapidfuzz import fuzz
 
 from bet.sofa.artifact_guard import incomplete_reason
+from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
@@ -1493,13 +1494,14 @@ def main() -> int:
 
         sheet_path = runs_dir / "05_sheet.json"
 
-        with open(sheet_path, "w", encoding="utf-8") as f:
-            json.dump(
+        write_atomic(
+            sheet_path,
+            json.dumps(
                 [r.model_dump(mode="json") for r in all_rows],
-                f,
                 indent=2,
                 ensure_ascii=False,
-            )
+            ),
+        )
 
     except Exception:
         logger.exception("Error generating sheet")

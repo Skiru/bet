@@ -187,6 +187,35 @@ nie jedzie. `fit_constants.py` został na to poprawiony, `fit_confidence.py`
 **przybliżony**, a ruchu krzywej na tych rynkach nie traktuj jako dowodu
 o modelu.
 
+### Zmiany z 2026-10-01 — zadziałają przy **następnym** fitcie między dniami
+
+Kod się zmienił, pliki w `config/` nie: krzywe i stałe na dysku są nadal
+z ostatniego fitu, a poniższe zmieni dopiero kolejny, świadomy fit.
+
+- **Rynki pochodne (`both_over_`, `handicap_`, `most_`) wypadają z obu
+  fitów** (`market_mapper.is_derived`). `fit_confidence.py` oceniał je jako
+  „wynik > linia” na `p` odbudowanym z `sample_mean`/`sd`, a SETTLE rozlicza
+  je po stronie (handicap wygrywa przy marży > −linia, `most_` po stronie
+  albo remisie); na 2026-09-30 nie zgadzało się to z zapisanym wynikiem na
+  351/1243 wierszach handicapu i 197/431 `most_`, a każdy z nich wchodził do
+  `pooled_by_sport` i krzywych klas. `fit_constants.py` z tego samego powodu
+  nie ocenia ich przy `K_CENTRE` (wycenia je `derived.py`, który `K_CENTRE`
+  nie czyta). CONFIDENCE i tak odmawia nóg pochodnych.
+- **Prior `K_CENTRE` zostawia własny mecz poza sobą** (`fit_constants.
+  leave_match_out_prior`): bazy ligowe są fitowane na każdym rozliczonym
+  wierszu, także tych, na których ocenia się `K_CENTRE`, więc wartość wiersza
+  siedziała w priorze, którym go oceniano (do 2 z 30+ wartości ligi), i krzywa
+  ciągnęła `K` ku „ufaj lidze”. Odejmowany jest mecz, nie dzień: 25,8 mln
+  wierszy kalibracji z cache'u leży pod jedną `run_date` i nie ma daty meczu.
+  Bazy zapisywane do `sofa_league_baselines.json` dalej zawierają każdy mecz.
+- **`calibrate_from_cache.py` składa zduplikowane listingi**
+  (`samples.one_listing_per_match`): Sofascore wystawia niektóre mecze dwa
+  razy pod dwoma id, a powtórka rozliczała drugą kopię na próbce, która już
+  zawierała ten sam mecz — własny wynik we własnej próbce.
+- Pliki fitu (`sofa_engine_constants.json`, `sofa_league_baselines.json`,
+  `sofa_market_reliability.json`, krzywe `fit_confidence`) są zapisywane
+  atomowo (`bet.sofa.atomic`): przerwany fit nie zostawia uciętego JSON-a.
+
 ---
 
 ## 5. Higiena — trzy rzeczy, które już raz poszły źle

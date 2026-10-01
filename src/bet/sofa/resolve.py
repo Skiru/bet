@@ -571,14 +571,21 @@ class SofaResolver:
         norm_side = normalize_name(side)
         norm_opp = normalize_name(expected_opponent)
 
+        cached = self.cache.get_entity(sport, norm_side)
+        verified = bool(cached and cached["status"] == "verified")
         # A name we recently failed to resolve costs a search plus up to three
         # listings. Paying that again every run, forever, was ~20% of the
         # request budget spent re-learning the same negative fact.
-        if self.cache.get_entity_miss(sport, norm_side):
+        #
+        # Never for a VERIFIED name, though: its miss was "no event for that
+        # one fixture yet", not "this team cannot be found", and checked first
+        # it stopped RESOLVE asking the known id for seven days - on
+        # 2026-10-01 ~26 tennis matches that had not started (Tien-Hurkacz),
+        # and Croatia U19 / Jerash in football.
+        if not verified and self.cache.get_entity_miss(sport, norm_side):
             return None, None, False
 
-        cached = self.cache.get_entity(sport, norm_side)
-        if cached and cached["status"] == "verified":
+        if cached and verified:
             # Just verify event exists
             events = self._fetch_events(cached["sofascore_id"], sport)
             for e in events:
@@ -599,7 +606,7 @@ class SofaResolver:
         else:
             search_data = self.client.search(search_query(norm_side))
         if not search_data or "results" not in search_data:
-            if record_miss:
+            if record_miss and not verified:
                 self.cache.save_entity_miss(sport, norm_side)
             return None, None, False
 
@@ -662,8 +669,10 @@ class SofaResolver:
 
         # Nothing matched. Note this is only reached when the fixture was not
         # ambiguous: an ambiguous name may disambiguate tomorrow, so caching it
-        # as a miss would suppress a resolution that is still possible.
-        if record_miss:
+        # as a miss would suppress a resolution that is still possible. A
+        # verified name is never recorded: one fixture's absence from its
+        # listing is a fact about the fixture, not about the name.
+        if record_miss and not verified:
             self.cache.save_entity_miss(sport, norm_side)
         return None, None, False
 

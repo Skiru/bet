@@ -34,7 +34,15 @@ def test_the_interval_resamples_matches_not_legs():
     rows += [clv.ClvRow("v", "b", "z", 2.0, 2.0, 0.4)]
     s = clv.summarize(rows, "v", n_boot=300)
     assert s is not None and s.games == 2 and s.legs == 11
-    assert s.ci95[0] <= -0.2 + 1e-9 and s.ci95[1] >= 0.2 - 1e-9
+    # two matches are two pieces of evidence, not an interval
+    assert s.ci95 is None
+    many = [clv.ClvRow("v", f"g{g}", str(i), 2.0, 2.0, 0.6 if g % 2 else 0.4)
+            for g in range(30) for i in range(1 + 9 * (g == 0))]
+    s = clv.summarize(many, "v", n_boot=300)
+    assert s is not None and s.games == 30 and s.legs == 39
+    assert s.ci95 is not None
+    # by match, the ten legs of g0 move the interval as one draw, not ten
+    assert -0.2 < s.ci95[0] < s.ci95[1] < 0.2
 
 
 def test_sport_coupon_legs_match_their_graded_close():

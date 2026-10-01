@@ -39,6 +39,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
+# The morning sweep reaches back this far: settle_cs2's GIVE_UP_AFTER is 7
+# days, so a waiting series is asked until it settles or is given up on.
+SWEEP_DAYS = 7
 
 
 def state_dir() -> Path:
@@ -132,15 +135,26 @@ def plan(
     before = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime(
         "%Y-%m-%d"
     )
+    sweep_from, sweep_to = (
+        (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=n)).strftime("%Y-%m-%d")
+        for n in (SWEEP_DAYS, 2)
+    )
     morning = [
         ["scripts/sofa/run_pipeline.py", "--date", date, "--only", "CS2_SETTLE"],
         # the day before again: STATS_PENDING series (72 h grace) and the
         # night series its coupon printed from this day's file
         ["scripts/sofa/run_pipeline.py", "--date", before, "--only", "CS2_SETTLE"],
-        # both days' experimental coupons, graded by the settles just before
-        ["scripts/sofa/settle_sport_coupon.py", "--from", before, "--to", date,
+        # D-7..D-2: only the dates whose settled.json still has a waiting
+        # series (decided at run time, from the files). Without it a series
+        # still waiting on D-2 was never asked again, and never reached
+        # GIVE_UP_AFTER either (audit 2026-10-01).
+        ["scripts/sofa/settle_cs2.py", "--sweep-from", sweep_from,
+         "--sweep-to", sweep_to],
+        # the experimental coupons of every day those settles may have
+        # changed, then the ledger for the same days (both offline)
+        ["scripts/sofa/settle_sport_coupon.py", "--from", sweep_from, "--to", date,
          "--sport", "cs2"],
-        ["scripts/sofa/record_results.py", "--from", before, "--to", date],
+        ["scripts/sofa/record_results.py", "--from", sweep_from, "--to", date],
     ]
     if backfill_minutes > 0:
         morning.append(

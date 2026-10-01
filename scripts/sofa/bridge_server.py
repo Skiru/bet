@@ -146,8 +146,14 @@ class JobQueue:
         return True
 
     def forget(self, job_id: str) -> None:
+        """Drop a job the caller gave up on - from the queue too. Removed from
+        `_by_id` only, a timed-out job stayed pending, a tab ran it after the
+        client had already retried (one wasted Sofascore request per timeout,
+        queued ahead of live ones), and `claimed` below went negative, which
+        switched BUSY_PULL_WAIT_S off (review 2026-10-01)."""
         with self._lock:
             self._by_id.pop(job_id, None)
+            self._pending = [j for j in self._pending if j.id != job_id]
 
     def stats(self) -> dict[str, Any]:
         with self._lock:

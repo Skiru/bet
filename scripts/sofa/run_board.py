@@ -5,7 +5,9 @@ import os
 import sys
 import time
 from collections import Counter
+from pathlib import Path
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.board import fetch_board
 from bet.sofa.config import SofaConfig
 from bet.sofa.stage import set_stage
@@ -44,13 +46,14 @@ def main() -> int:
 
     out_path = os.path.join(out_dir, "01_board.json")
 
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(
+    write_atomic(
+        Path(out_path),
+        json.dumps(
             [fix.model_dump(mode="json") for fix in fixtures],
-            f,
             indent=2,
             ensure_ascii=False,
-        )
+        ),
+    )
 
     elapsed = time.monotonic() - start_time
 

@@ -46,6 +46,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.engine import (
     calc_p_central_raw,
@@ -61,6 +62,7 @@ from bet.sofa.metrics import (
     regulation_score,
     stat_is_untracked,
 )
+from bet.sofa.samples import one_listing_per_match
 from bet.sofa.settle import settle
 
 # Metric base -> Sofascore statistics key. Goals are not here: they come off
@@ -243,10 +245,20 @@ def load_cache(db_path: Path) -> list[Played]:
         conn.close()
 
     played: list[Played] = []
-    for event_id, event in identity.items():
-        status = event.get("status") or {}
-        if status.get("type") != "finished":
-            continue
+    # One entry per physical match, the way SAMPLES reads a history. Sofascore
+    # lists some matches twice under two event ids (same teams, same day);
+    # keyed by event id alone, the replay settled the first copy, appended it
+    # to both teams' history, then settled the second copy against a sample
+    # that already held that very match - its own result in its own sample.
+    # Filtered to finished first: a pre-match copy has no score and would
+    # "disagree" with the finished one, which drops both.
+    finished = [
+        event
+        for event in identity.values()
+        if (event.get("status") or {}).get("type") == "finished"
+    ]
+    for event in one_listing_per_match(finished):
+        event_id = int(event["id"])
         home = (event.get("homeTeam") or {}).get("id")
         away = (event.get("awayTeam") or {}).get("id")
         started = event.get("startTimestamp")
@@ -626,9 +638,9 @@ def main() -> int:
         # gate this script does not; two writers on one file meant whichever
         # ran last won, and the first time that happened an empty file
         # overwrote a measured one and reported success.
-        Path(args.out).write_text(
+        write_atomic(
+            Path(args.out),
             json.dumps(curve, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
         )
 
     written = write_settled(rows, db_path)

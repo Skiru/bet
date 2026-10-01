@@ -124,6 +124,11 @@ def classify_odd(
 class OfferFetcher:
     def __init__(self, client: Any) -> None:
         self.client = client
+        # (superbet_event_id, error) per listing that failed. One Superbet
+        # error used to raise out of fetch_offers and FAIL the whole OFFER -
+        # and with it the chain - over a single listing (a removed event
+        # answers 404, which raise_for_status turns into an exception).
+        self.errors: list[tuple[str, str]] = []
 
     def fetch_offers(self, fixtures: list[Fixture]) -> list[FixtureOffer]:
         results = []
@@ -131,8 +136,14 @@ class OfferFetcher:
             combined_odds: dict[tuple[str, str, float], dict[str, Any]] = {}
             unmapped = set()
 
+            failed = 0
             for su_id in fixture.superbet_event_ids:
-                items = odds_items(self.client.event_odds(su_id))
+                try:
+                    items = odds_items(self.client.event_odds(su_id))
+                except Exception as exc:  # noqa: BLE001 - one listing, not the stage
+                    self.errors.append((str(su_id), f"{type(exc).__name__}: {exc}"))
+                    failed += 1
+                    continue
                 if not items:
                     continue
 
@@ -203,6 +214,11 @@ class OfferFetcher:
                     )
                 )
 
+            if failed and failed == len(fixture.superbet_event_ids):
+                # Nothing was read, so nothing is known: no entry, rather than
+                # an empty one that a filtered refresh's merge would let
+                # overwrite the prices the previous file still holds.
+                continue
             results.append(
                 FixtureOffer(
                     sofascore_event_id=fixture.sofascore_event_id,

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.timeutil import now
 
 MARKER_SUFFIX = ".INCOMPLETE"
@@ -33,8 +34,7 @@ def mark_incomplete(artifact: Path, *, stage: str, reason: str) -> Path:
     """Record that `stage` wrote `artifact` without finishing."""
     path = marker_path(artifact)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
+    write_atomic(path, json.dumps(
             {
                 "artifact": artifact.name,
                 "stage": stage,
@@ -42,9 +42,7 @@ def mark_incomplete(artifact: Path, *, stage: str, reason: str) -> Path:
                 "marked_at_utc": now().isoformat(),
             },
             indent=2,
-        ),
-        encoding="utf-8",
-    )
+        ))
     return path
 
 

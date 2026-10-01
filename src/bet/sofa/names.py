@@ -86,7 +86,10 @@ def normalize_name(name: str) -> str:
     # also turns every standalone "b" in the middle of a name into one — and a
     # false reserve match is worse than no match, because it silently builds a
     # dossier from the wrong squad.
-    name = re.sub(r"\s+(?:ii|b|u21|u-21)\s*$", " (r)", name)
+    # Sofascore spells the same side "River Plate Reserve" where Superbet
+    # writes "CA River Plate (R)": unfolded the pair scored 75.9 against the
+    # 82 gate and two Argentine reserve fixtures were lost on 2026-10-01.
+    name = re.sub(r"\s+(?:ii|b|u21|u-21|reserves?)\s*$", " (r)", name)
 
     # Collapse repeated or nested markers left by an already-marked name.
     name = re.sub(r"\(\(r\)\)", "(r)", name)

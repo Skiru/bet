@@ -34,6 +34,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     CLASS_WOMEN,
     direction_key,
@@ -50,6 +51,7 @@ from bet.sofa.engine import (  # noqa: E402
     uses_poisson_floor,
     winning_boundary,
 )
+from bet.sofa.market_mapper import is_derived  # noqa: E402
 from bet.sofa.resolve import sofascore_gender  # noqa: E402
 
 # Buckets are narrow at the top because that is where the operator lives and
@@ -183,6 +185,18 @@ def main() -> int:
     scored = 0
     for (market, line, direction, n, mean, sd, actual, stored_p, sport,
          event_id) in rows:
+        if is_derived(market):
+            # A joint / comparative market (both_over_, handicap_, most_) is
+            # not a count against its line: its actual_value is a margin or
+            # a min(a, b), and SETTLE grades it by side (run_settle.
+            # _settle_derived - a handicap wins when margin > -line, most_ by
+            # side or draw). Scored below as "actual > line" on a p rebuilt
+            # from sample_mean/sd it disagreed with the stored outcome on
+            # 351/1243 handicap and 197/431 most rows of 2026-09-30, and every
+            # one of them fed pooled_by_sport and the class curves too.
+            # run_confidence refuses derived legs anyway (no curve measured
+            # for a joint), so they belong in no curve family.
+            continue
         if uses_empirical_frequency(market):
             # These have no distribution to recompute from — `p_central` IS
             # the sample's own hit rate, and the sheet already stored it. Until
@@ -292,7 +306,7 @@ def main() -> int:
             "db_path": args.db_path, "scored_rows": scored,
             "classes": {k: len(v["by_market"]) for k, v in by_class.items()},
         }
-        Path(args.out).write_text(json.dumps(prior, indent=1) + "\n", encoding="utf-8")
+        write_atomic(Path(args.out), json.dumps(prior, indent=1) + "\n")
         print(json.dumps({
             "stage": "FIT_CONFIDENCE", "verdict": "OK", "mode": "classes-only",
             "metrics": prior["by_class_fitted_from"], "output_path": args.out,
@@ -330,7 +344,7 @@ def main() -> int:
             "classes": {k: len(v["by_market"]) for k, v in by_class.items()},
         },
     }
-    Path(args.out).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    write_atomic(Path(args.out), json.dumps(doc, indent=1) + "\n")
     print(
         json.dumps(
             {

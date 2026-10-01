@@ -37,7 +37,11 @@ from typing import Any
 
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
 
-DEFAULT_CALIBRATION = Path("config/sofa_confidence_calibration.json")
+# Resolved against the repo, not the working directory: run from anywhere
+# else a relative path failed (or read another checkout's curves).
+DEFAULT_CALIBRATION = (
+    Path(__file__).resolve().parents[3] / "config" / "sofa_confidence_calibration.json"
+)
 
 # The ceiling for an empirical / non-count market with no curve of its own
 # when no empirical market has a curve either. Below the pool's 0.80-0.825
@@ -600,6 +604,31 @@ def fixture_leg_counts(singles: list[dict[str, Any]]) -> dict[int, int]:
     for leg in singles:
         eid = int(leg["sofascore_event_id"])
         counts[eid] = counts.get(eid, 0) + 1
+    return counts
+
+
+def ladder_key(leg: Mapping[str, Any]) -> tuple[int, str, str]:
+    """One ladder: a fixture's market for one subject, every rung and side."""
+    return (
+        int(leg["sofascore_event_id"]),
+        str(leg["market"]),
+        str(leg.get("subject") or ""),
+    )
+
+
+def ladder_leg_counts(singles: list[dict[str, Any]]) -> dict[tuple[int, str, str], int]:
+    """How many of these singles stand on each ladder (see ladder_key).
+
+    Two rungs of one ladder are one claim about one count bought twice - on
+    2026-09-30 the coupon printed corners_total 12.5 UNDER, 11.5 UNDER and
+    7.5 OVER on one match, and on 2026-10-01 the WARIANT printed ten such
+    ladders (22 rows). Like fixture_leg_counts it is shown, not enforced:
+    the per-match cap was back-tested and is the operator's call.
+    """
+    counts: dict[tuple[int, str, str], int] = {}
+    for leg in singles:
+        k = ladder_key(leg)
+        counts[k] = counts.get(k, 0) + 1
     return counts
 
 

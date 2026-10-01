@@ -1041,14 +1041,24 @@ def test_veto_count_is_proper_polish(n: int, want: str) -> None:
     assert run_sport_coupon.veto_count_pl(n) == want
 
 
-def test_the_ledger_roi_interval_resamples_days():
+def test_the_ledger_roi_interval_resamples_matches_not_days():
     from scripts.sofa import audit_ledger
 
-    def day(units, settled):
-        return {"total": {"units": units, "settled": settled}}
+    def day(units, settled, matches=None):
+        row = {"total": {"units": units, "settled": settled}}
+        if matches is not None:
+            row["by_match"] = matches
+        return row
 
-    assert audit_ledger.roi_interval([day(1.0, 10)]) is None
-    lo, hi = audit_ledger.roi_interval([day(5.0, 10), day(-5.0, 10), day(0.0, 10)])
+    # a day written before the per-match record cannot be clustered
+    assert audit_ledger.roi_interval([day(5.0, 10), day(-5.0, 10)]) is None
+    # two matches over two days are two pieces of evidence, not an interval
+    two = [day(1.0, 1, {"sofa:1": [1.0, 1]}), day(-1.0, 1, {"sofa:2": [-1.0, 1]})]
+    assert audit_ledger.roi_interval(two) is None
+    many = [day(0.0, 30, {f"sofa:{i}": [1.0 if i % 2 else -1.0, 1]
+                          for i in range(30)})]
+    lo, hi = audit_ledger.roi_interval(many)
     assert lo < 0 < hi
-    tight = audit_ledger.roi_interval([day(-1.0, 100)] * 5)
-    assert tight == (-0.01, -0.01)
+    tight = audit_ledger.roi_interval(
+        [day(-1.0, 100, {f"sofa:{i}": [-1.0, 1] for i in range(25)})] * 2)
+    assert tight == (-1.0, -1.0)

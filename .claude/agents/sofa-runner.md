@@ -116,7 +116,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled; ROI with its by-day 95% interval
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled; ROI with its by-match 95% interval ("-" under 20 matches)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # closing line value per variant - read it first: it answers in tens of legs
 ```
 
@@ -126,8 +126,9 @@ allow - pending legs are shown in the table's `pending` column, never as an
 exit code. Pending is the normal shape of D-1: its sport-coupon legs after
 00:00Z (NHL/NBA, night CS2) settle into today's snapshot file and are graded
 at tomorrow's 05:00Z (`cs2_daily`) / 05:15Z (`shadow_daily`) morning steps -
-each loop settles D and D-1, grades both days' sport coupons and records
-both days in the ledger - and tomorrow's `--from <D-2>` closes them too.
+`cs2_daily` settles D and D-1, sweeps D-7..D-2 for waiting series and
+grades / records D-7..D; `shadow_daily` settles D, D-1 and D-2 and grades /
+records those days - and tomorrow's `--from <D-2>` closes them too.
 **1** = a `MISMATCH` (the coupon's grader and the measurement's disagree on a
 leg - a defect: name it) or an unreadable file (named in the table).
 **2** = a crash, or for `record_results.py` a missing database (nothing is
@@ -143,8 +144,8 @@ Then start today's measurement loops:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
-# the whole CS2 day unattended (snapshots to 23:30Z, settle D and D-1 at 05:00Z D+1, grade both days' CS2 coupons,
-# record both days); --chain starts D+1's loop at 23:30Z, so D+1's night series are priced. A D-1 loop started with
+# the whole CS2 day unattended (snapshots to 23:30Z, settle D and D-1 at 05:00Z D+1, sweep D-7..D-2 for waiting
+# series, grade the CS2 coupons and record D-7..D); --chain starts D+1's loop at 23:30Z, so D+1's night series are priced. A D-1 loop started with
 # --chain already started today's; a second loop for a date refuses (exit 2), so a repeat is harmless:
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> --chain >> runs/sofa/cs2/daily_<today>.log 2>&1 &
 # the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).

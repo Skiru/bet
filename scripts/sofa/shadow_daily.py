@@ -11,8 +11,9 @@ through the day, then settle and audit the next morning.
    games after 00:00Z are priced before the next day's loop is running.
 2. Sleep until --settle-at (default 05:15Z the next day - after CS2_SETTLE
    starts at 05:00Z; that the two do not overlap is expected, not measured),
-   then SHADOW_SETTLE for the day, and once more for the day before when it
-   has snapshots (its pending games get a second attempt). A failed settle
+   then SHADOW_SETTLE for the day, and once more for each of the two days
+   before that has snapshots (their pending games get another attempt; D-2's
+   is the one late enough for a postponed game to read VOID). A failed settle
    is logged and can be rerun by hand at any time
    (`run_pipeline.py --date <d> --only SHADOW_SETTLE`); it resumes.
 3. settle_sport_coupon.py for each settled day and sport (the experimental
@@ -61,19 +62,23 @@ def state_dir() -> Path:
 
 
 def plan(
-    date: str, retry_before: bool = True
+    date: str, retry_before: bool = True, retry_two_before: bool = False
 ) -> tuple[list[str], list[list[str]], list[str]]:
     """(snapshot step, morning steps, audit step) - separated for tests."""
     snapshot = ["scripts/sofa/run_pipeline.py", "--date", date, "--only", "SHADOW"]
+    day = datetime.strptime(date, "%Y-%m-%d")
     days = [date]
     if retry_before:
         # The day before once more: a game still pending or not yet listed on
         # Sofascore gets a second, unattended attempt.
-        days.append(
-            (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime(
-                "%Y-%m-%d"
-            )
-        )
+        days.append((day - timedelta(days=1)).strftime("%Y-%m-%d"))
+    if retry_two_before:
+        # And D-2: a postponed game reads VOID only VOID_AFTER (48 h) after
+        # its start, and D-1's settle at 05:15Z is at most ~35 h after it -
+        # so without this a postponed game never voided and ended GAVE_UP.
+        # D-2's settle is 53-77 h after. Cheap: a settled game is kept, only
+        # the pending ones are asked again.
+        days.append((day - timedelta(days=2)).strftime("%Y-%m-%d"))
     morning = [
         ["scripts/sofa/run_pipeline.py", "--date", d, "--only", "SHADOW_SETTLE"]
         for d in days
@@ -150,10 +155,15 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
         help="when done, start the next day's loop (with --chain) detached",
     )
     args = ap.parse_args()
-    before = (datetime.strptime(args.date, "%Y-%m-%d") - timedelta(days=1)).strftime(
-        "%Y-%m-%d"
+    day = datetime.strptime(args.date, "%Y-%m-%d")
+    before, two_before = (
+        (day - timedelta(days=n)).strftime("%Y-%m-%d") for n in (1, 2)
     )
-    snapshot, morning, audit = plan(args.date, retry_before=has_snapshots(before))
+    snapshot, morning, audit = plan(
+        args.date,
+        retry_before=has_snapshots(before),
+        retry_two_before=has_snapshots(two_before),
+    )
     state_dir().mkdir(parents=True, exist_ok=True)
     pid_file = state_dir() / f"daily_{args.date}.pid"
     running = already_running(pid_file, args.date)

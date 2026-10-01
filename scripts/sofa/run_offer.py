@@ -9,6 +9,7 @@ from pydantic import RootModel
 
 from bet.sofa import timeutil
 from bet.sofa.artifact_guard import incomplete_reason
+from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
 from bet.sofa.coupon import effective_kickoff
@@ -120,8 +121,7 @@ def main() -> int:
             previous = json.load(f)
         dumped, carried_forward = merge_with_previous(dumped, previous)
 
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(dumped, f, indent=2)
+    write_atomic(out_path, json.dumps(dumped, indent=2))
 
     total_two_way = sum(
         1
@@ -143,14 +143,17 @@ def main() -> int:
         "total_unmapped": total_unmapped,
         "price_collisions": total_collisions,
         "empty_offers": empty_offers,
+        "fetch_errors": len(fetcher.errors),
     }
+    for su_id, err in fetcher.errors[:20]:
+        print(f"OFFER_FETCH_ERROR superbet={su_id}: {err}", file=sys.stderr)
 
     # Fixtures on the board with no priced rung at all, and market names we
     # could not classify, are both diagnostics the operator has to see — a
     # market Superbet added should surface as unmapped, not vanish (T16).
     if fixtures and empty_offers == len(offers):
         verdict = "FAILED"
-    elif empty_offers or total_unmapped or total_collisions:
+    elif empty_offers or total_unmapped or total_collisions or fetcher.errors:
         verdict = "PARTIAL"
     else:
         verdict = "OK"

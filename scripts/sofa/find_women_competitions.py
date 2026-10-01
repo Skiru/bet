@@ -22,6 +22,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.resolve import sofascore_gender
 
 WOMEN_SHARE = 0.8
@@ -84,8 +85,7 @@ def main() -> int:
         ],
         **classes,
     }
-    Path(args.out).write_text(
-        json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_atomic(Path(args.out), json.dumps(doc, ensure_ascii=False, indent=1) + "\n")
     print(json.dumps({"women": len(classes["women"]),
                       "mixed": len(classes["mixed"]),
                       "output_path": args.out}))

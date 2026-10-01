@@ -34,6 +34,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from bet.sofa import multi_coupon as mc  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
+from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
@@ -295,7 +296,7 @@ def main() -> int:
         out = mc.multi_dir(runs_dir, args.date)
         out.mkdir(parents=True, exist_ok=True)
         pdf = out / mc.pdf_name(args.date)
-        tmp = pdf.with_suffix(".pdf.tmp")
+        tmp = tmp_path(pdf)
         render_pdf(doc, tmp)
         doc["pdf_sha256"] = sc.file_sha256(tmp)
         write_atomic(out / mc.MULTI_FILE, json.dumps(doc, ensure_ascii=False, indent=2))

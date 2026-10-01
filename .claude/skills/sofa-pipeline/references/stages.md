@@ -74,7 +74,19 @@ fixtures into 408.
 A negative cache remembers "we looked and found nothing", stamped with
 `MATCH_LOGIC_VERSION`. Bump that constant whenever matching logic changes in a
 way that could turn a miss into a hit — otherwise a fix is invisible, because
-RESOLVE never asks again.
+RESOLVE never asks again. It is **6** since 2026-10-01 (Sofascore's trailing
+"Reserve(s)" folds to "(r)": "River Plate Reserve" vs "CA River Plate (R)"
+scored 75.9 against the 82 gate). A **verified** entity is looked up even with
+a fresh miss row and never gets a miss written: its miss meant "no event for
+that one fixture yet", and checked first it stopped RESOLVE asking the known
+id for seven days (2026-10-01: ~26 unstarted tennis matches, Tien-Hurkacz;
+Croatia U19 / Jerash in football).
+
+A match listed twice on the board keeps the first listing's Superbet clock,
+unless that is exactly 00:00:00Z and the other listing has a real time
+(`merged_superbet_kickoff`): Superbet lists some ITF matches at a midnight
+placeholder, and on 2026-10-01 three of them were read as started and lost all
+168 priced rungs.
 
 ## OFFER (E5) — `src/bet/sofa/offer.py`
 
@@ -92,6 +104,11 @@ Per fixture: `status: PRICED | NO_PRICE`, `rungs[]` each with
 `fetched_at_utc`, and `unmapped_markets[]`. That last list is routinely
 enormous — **21,290 on 2026-09-21**. We read roughly a tenth of Superbet's
 screen and that is a known state, not a fault.
+
+One listing that errors (a removed event's 404) is a gap, not `FAILED`
+(since 2026-10-01; before, one exception failed OFFER and the chain): counted
+in `fetch_errors`, verdict `PARTIAL`. A fixture whose every listing failed
+gets no entry at all, so a filtered refresh keeps the previous file's prices.
 
 `price_collisions[]` records where two Superbet listings of the same match
 quoted one rung differently. Empty is normal; non-empty means the price used
@@ -127,6 +144,15 @@ prop can reach the coupon today, and that is deliberate** — it is the family
 the settled record calls unchecked, not a gate to tune away. Tennis's
 per-player set games *are* two-sided and can reach it.
 
+Since 2026-10-01 `player_assists_for`, `player_shots_on_target_for` and
+`player_shots_for` are priced with a negative binomial
+(`engine.NEGATIVE_BINOMIAL_METRICS`): on every settled player row of
+09-24..30 the normal put +8 pp median on every OVER (assists 0.5 OVER claimed
+0.243, realised 0.081, n=495); dBrier NB vs normal -0.03136 / -0.01473 /
+-0.00749 (n 546 / 1317 / 2379). "Liczba strzałów w obramowanie bramki" is
+woodwork, not a team, and is no longer read as a side
+(`_SUBJECT_IS_NOT_A_SIDE`).
+
 ## SAMPLES (E6) — `src/bet/sofa/samples.py`
 
 Each side's last N matches per metric. **Through the bridge, ~12 requests per
@@ -156,6 +182,14 @@ and `/sofa-rebuild` does not fix that.
 `STAT_KEY_ABSENT`, `ALL_ZERO_SAMPLE`, `OUTSIDE_MODEL_RESOLUTION`,
 `INTERNAL_INCONSISTENT`, `THIN_SAMPLE`, `SURFACE_UNKNOWN`, `NO_PRICE`,
 `STALE_PRICE`, `PROVIDER_ERROR`, `CIRCUIT_OPEN`.
+
+`provider_fault_fixtures` in the summary (since 2026-10-01) counts fixtures
+that lost metrics to a provider fault with nothing to carry over; any makes
+the verdict `PARTIAL`. A cached match with NULL `incidents_json` ("never
+asked", not "none") is asked `/incidents` once when a card market needs it -
+a 404 is stored as `{}` and read as no incidents, and a fault on that ask
+costs only the card metrics (`NO_INCIDENTS`), never the match (2026-10-01:
+118 gaps over 59 events, all NULL).
 
 `SURFACE_UNKNOWN` is the tennis one and it is the honest version of a silent
 failure: the surface scope compares `event.groundType` against
@@ -310,6 +344,12 @@ in the summary since 2026-09-21 precisely because they disagree.
 Renders only slips passing `is_stakeable`. **`picks: 0` is a legitimate and
 frequent answer.** Needs `reportlab`, which is in `dependencies`.
 
+Since 2026-10-01 it marks, never enforces: `ta sama drabina: N` (N singles on
+one ladder, `confidence.ladder_key`), `start przed renderem PDF` (a leg inside
+CONFIDENCE's kickoff margin at render time - kept, `WARNING` on stderr), and a
+builder prints only `kurs po narzucie` - never the product of its legs'
+prices. Rendered to a temporary file and moved into place.
+
 ## SETTLE (E10) — `src/bet/sofa/settle.py`
 
 Grades a **finished** day. Running it against today finds every fixture
@@ -347,6 +387,18 @@ shipped a corners prior 24–32% too high for two days before anyone noticed.
 `sofa_market_reliability.json` (`--out` writes an ungated curve for inspection
 only). Two writers on one file meant whichever ran last won, and the first time
 that happened an empty file overwrote a measured one and reported success.
+Since 2026-10-01 it collapses duplicate listings (`one_listing_per_match`),
+so a match listed under two ids is no longer settled against a sample holding
+itself.
+
+Since 2026-10-01 `fit_confidence.py`'s curves and `fit_constants.py`'s
+K_CENTRE scoring skip the derived markets (`both_over_`, `handicap_`, `most_` - `is_derived`), which SETTLE
+grades by side and the old scoring read as "actual > line" (disagreeing with
+the stored outcome on 351/1243 handicap and 197/431 most rows of 09-30), and
+K_CENTRE is scored on a prior that leaves the scored match out
+(`leave_match_out_prior`; the written baselines keep every match). The files
+in `config/` change only at the next between-days refit. Fit outputs are
+written atomically.
 
 ## Audits
 

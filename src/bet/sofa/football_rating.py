@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.atomic import write_bytes_atomic
 from bet.sofa.contracts import GapReason
 from bet.sofa.metrics import (
     extract_flat_statistics,
@@ -328,9 +329,11 @@ def load_history(
             pass
         history = _load_history_uncached(db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_bytes(pickle.dumps((fp, history), protocol=pickle.HIGHEST_PROTOCOL))
-        tmp.replace(path)
+        # Per-writer tmp name: two SHEETs (a rebuild beside a day) sharing one
+        # ".tmp" interleaved, or the second replace found it gone and crashed.
+        write_bytes_atomic(
+            path, pickle.dumps((fp, history), protocol=pickle.HIGHEST_PROTOCOL)
+        )
         return history
     return _load_history_uncached(db_path)
 

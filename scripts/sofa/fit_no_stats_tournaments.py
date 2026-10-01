@@ -1,3 +1,4 @@
+
 """Fit the list of Sofascore tournaments that never serve /event/{id}/statistics.
 
 Deliberately OUTSIDE `DEFAULT_SEQUENCE`, for the same reason `fit_constants.py`
@@ -27,6 +28,8 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from bet.sofa.atomic import write_atomic
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_PATH = ROOT / "config" / "sofa_no_stats_tournaments.json"
@@ -91,8 +94,7 @@ def main() -> int:
     )
     saved = sum(int(entry["events"]) for entry in selected)
 
-    OUT_PATH.write_text(
-        json.dumps(
+    write_atomic(OUT_PATH, json.dumps(
             {
                 "_doc": (
                     "uniqueTournament ids for which Sofascore has never served "
@@ -113,9 +115,7 @@ def main() -> int:
             indent=2,
             ensure_ascii=False,
         )
-        + "\n",
-        encoding="utf-8",
-    )
+        + "\n")
     print(
         f"FIT: {len(selected)} tournament(s), {saved} request(s) a full sample, "
         f"from {len(payloads)} cached events -> {OUT_PATH}",

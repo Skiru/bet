@@ -32,6 +32,7 @@ sys.path.insert(0, "src")
 
 from pydantic import RootModel  # noqa: E402
 
+from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.boosts import (  # noqa: E402
     Boost,
     extract_boosts,
@@ -241,10 +242,8 @@ def main() -> int:
 
     path = run_dir / BOOSTS_JSON
     merged = merge_snapshots(load_boosts(path), fresh)
-    path.write_text(
-        RootModel[list[Boost]](merged).model_dump_json(indent=1), encoding="utf-8")
-    (run_dir / BOOSTS_MD).write_text("\n".join(render(merged, run_dir, at)),
-                                     encoding="utf-8")
+    write_atomic(path, RootModel[list[Boost]](merged).model_dump_json(indent=1))
+    write_atomic(run_dir / BOOSTS_MD, "\n".join(render(merged, run_dir, at)))
     print(f"BOOSTS: {len(rows)} events, {len(boosted)} boosted, "
           f"{tagged_without_odd} tagged with no boosted odd, "
           f"{len(fresh)} boosts this snapshot, {len(merged)} on file, "

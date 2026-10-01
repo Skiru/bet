@@ -47,8 +47,10 @@ tail -5 runs/sofa/<cs2|shadow>/daily_<d>.log
 ```
 
 The unattended loop (`cs2_daily.py --chain`, `shadow_daily.py --chain`) snapshots
-prices all day; the next morning it settles D and D-1, grades both days'
-sport coupons and records both days in the ledger. **Never start a second loop
+prices all day; the next morning `cs2_daily` settles D and D-1, sweeps
+D-7..D-2 for series still waiting (`settle_cs2.py --sweep-from/--sweep-to`)
+and grades / records D-7..D, and `shadow_daily` settles D, D-1 and D-2 and
+grades / records those days. **Never start a second loop
 and never kill one.** If it is not running, say so in the report and go on:
 you can still build today from the snapshots on disk.
 
@@ -65,7 +67,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D
 (A D-1 without `sport_coupon.json` has no experimental coupon to grade; say
 so.) `settle_sport_coupon.py` exits 0 with legs still pending (read the
 `pending` column), 1 only for a `MISMATCH` (its grader and the measurement's
-disagree on a leg - a defect: report it) or an unreadable file, 2 on a crash. A settled result is a fact about that day,
+disagree on a leg - a defect: report it) or an unreadable file, 2 on a crash.
+A CS2 leg on a partly graded series reads `PENDING:SERIES_ONLY` /
+`PENDING:STATS_PENDING` (since 2026-10-01 CS2_SETTLE grades the series, map
+and round lines at once and holds only the player / team-kill sides on a map
+without player rows) - pending, not ungradeable. A settled result is a fact about that day,
 never a reason for today's choice.
 
 ## Step 2 - fresh prices (Superbet only)
@@ -93,7 +99,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --
 Exit 0 OK, 1 PARTIAL (no snapshots, no legs - a legitimate answer on a thin
 board - or a veto that matched nothing), 2 FAILED (stop and report; also a
 day whose window has closed, which is refused on purpose). Then read
-`sport_coupon.md` in the sport directory: legs, the drop counts, and
+`sport_coupon.md` in the sport directory: legs, the drop counts (among them
+the gradeability refusals `friendly_tournament`, `unsettleable_tournament` -
+since 2026-10-01 also a tournament whose every seen event so far (>= 1) was
+NOT_ON_SOFASCORE - and, for CS2 only, `unseen_team` (a side `cs2_series`
+has never seen; listed in `refused_events`) and `no_tournament`), and
 `rule_history` (what the same rule did on every settled day, chosen before
 the outcome - by family, with voids).
 

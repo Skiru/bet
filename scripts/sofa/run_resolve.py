@@ -4,12 +4,14 @@ import sys
 from collections import defaultdict
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, NamedTuple
 
 from pydantic import RootModel
 
 from bet.sofa.artifact_guard import clear_incomplete, mark_incomplete
+from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
@@ -145,6 +147,35 @@ def _resolve_one(
         return ResolveOutcome(bf, gap=GapReason.PROVIDER_ERROR, error=str(e))
 
 
+def is_midnight_placeholder(t: datetime | None) -> bool:
+    """Superbet lists some ITF matches at exactly 00:00:00Z before it has a
+    time. A real midnight kickoff exists (South American football), so this
+    only means "placeholder" beside another listing of the same match."""
+    return t is not None and (t.hour, t.minute, t.second) == (0, 0, 0)
+
+
+def merged_superbet_kickoff(
+    held: datetime | None, other: datetime | None
+) -> datetime | None:
+    """The Superbet clock of a match listed twice on the board.
+
+    The first listing's time used to win. On 2026-10-01 three ITF matches held
+    a 00:00Z placeholder while their second listing said 11:08Z, so the
+    earlier-clock gate read them as started and stripped all 168 priced rungs.
+    A midnight placeholder gives way to a real time; otherwise the first
+    listing's clock is kept, as before.
+    """
+    if held is None:
+        return other
+    if (
+        other is not None
+        and is_midnight_placeholder(held)
+        and not is_midnight_placeholder(other)
+    ):
+        return other
+    return held
+
+
 def resolve_board_concurrently(
     fixtures: list[BoardFixture],
     resolver: SofaResolver,
@@ -277,9 +308,13 @@ def main() -> int:
             if sf_id in resolved_fixtures:
                 # A2/L12: two board entries pointing at one Sofascore event are
                 # one fixture with two superbet ids, not two fixtures.
-                existing_ids = resolved_fixtures[sf_id].superbet_event_ids
+                held = resolved_fixtures[sf_id]
+                existing_ids = held.superbet_event_ids
                 if outcome.board.superbet_event_id not in existing_ids:
                     existing_ids.append(outcome.board.superbet_event_id)
+                held.superbet_kickoff_utc = merged_superbet_kickoff(
+                    held.superbet_kickoff_utc, outcome.board.kickoff_utc
+                )
                 duplicates += 1
             else:
                 resolved_fixtures[sf_id] = outcome.fixture
@@ -306,8 +341,7 @@ def main() -> int:
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
         dumped = [f.model_dump(mode="json") for f in resolved_fixtures.values()]
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(dumped, f, indent=2)
+        write_atomic(out_path, json.dumps(dumped, indent=2))
         # The write above keeps what resolved; the marker keeps anyone from
         # mistaking it for the slate (2026-10-01: 15 of 461, then OFFER and
         # SAMPLES overwrote the day with those 15).

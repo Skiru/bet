@@ -22,7 +22,10 @@ from dataclasses import dataclass
 # Sofascore's own team gender and squad level, the gender gate reads
 # team.gender. The women's and reserve misses were recorded by a search that
 # could not succeed.
-MATCH_LOGIC_VERSION = 5
+#
+# 6 (2026-10-01): Sofascore's trailing "Reserve(s)" folds to "(r)"; reserve
+# misses recorded without the fold could not succeed.
+MATCH_LOGIC_VERSION = 6
 
 
 @dataclass(frozen=True)

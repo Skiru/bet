@@ -33,7 +33,7 @@ import json
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
@@ -48,7 +48,21 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.names import normalize_name  # noqa: E402
-from bet.sofa.resolve import SofaResolver  # noqa: E402
+from bet.sofa.resolve import (  # noqa: E402
+    DEFAULT_LISTING_KINDS,
+    DEFAULT_LISTING_PAGES,
+    DEFAULT_MATCH_WINDOW_S,
+    LISTING_KINDS_BY_SPORT,
+    LISTING_PAGES_BY_SPORT,
+    MATCH_WINDOW_S,
+    TEAM_SPORTS,
+    SofaResolver,
+    candidate_fits,
+    is_virtual_event,
+    search_query,
+    sofascore_gender,
+    superbet_gender,
+)
 from bet.sofa.shadow import (  # noqa: E402
     SETTLE_AFTER,
     SETTLED_FILE,
@@ -109,8 +123,136 @@ def home_is_team1(event: dict[str, Any], team1: str, team2: str) -> bool | None:
     return straight > crossed
 
 
+class _SearchRecorder:
+    """The resolver's client, keeping what each search answered.
+
+    A miss is explained from answers already paid for (this search, the
+    listings now in the cache), never from a request of its own: 30 of 50
+    volleyball games of 2026-09-29..30 ended NOT_ON_SOFASCORE and nothing
+    said why.
+    """
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.searches: dict[str, Any] = {}
+
+    def search(self, q: str, **kwargs: Any) -> Any:
+        data = self._inner.search(q, **kwargs)
+        self.searches[q] = data
+        return data
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+
+def _cached_listing(resolver: SofaResolver, entity_id: int, slug: str) -> list[Any]:
+    """The listing the resolver just read, from the cache only (no request)."""
+    events: list[Any] = []
+    for kind in LISTING_KINDS_BY_SPORT.get(slug, DEFAULT_LISTING_KINDS):
+        for page in range(LISTING_PAGES_BY_SPORT.get(slug, DEFAULT_LISTING_PAGES)):
+            data = resolver.cache.get_entity_events(entity_id, kind, page)
+            if not data or "events" not in data:
+                break
+            events.extend(e for e in data["events"] if isinstance(e, dict))
+            if not data.get("hasNextPage"):
+                break
+    return events
+
+
+def _pair(event: dict[str, Any]) -> str:
+    return (
+        f"{(event.get('homeTeam') or {}).get('name')} - "
+        f"{(event.get('awayTeam') or {}).get('name')}"
+    )
+
+
+def miss_reason(
+    resolver: SofaResolver,
+    slug: str,
+    side: str,
+    kickoff: datetime,
+    board: tuple[str, str],
+    searches: dict[str, Any],
+) -> dict[str, Any]:
+    """Why one side's lookup found no game - the first gate that emptied it.
+
+    CACHED_MISS (a recorded miss short-circuited it), NO_SEARCH_RESULT,
+    NO_CANDIDATE (no team of the sport that fits the name; the search's own
+    team names are kept), NO_LISTING, NO_GAME_IN_WINDOW (the nearest game's
+    gap in hours), GENDER_REFUSED, OPPONENT_REFUSED (the in-window games are
+    kept, so a name the aliases do not bridge is visible). Read from the
+    recorded search and the cache, never a new request.
+    """
+    norm = normalize_name(side)
+    entity = resolver.cache.get_entity(slug, norm)
+    verified = bool(entity and entity.get("status") == "verified")
+    if not verified and resolver.cache.get_entity_miss(slug, norm):
+        return {"reason": "CACHED_MISS"}
+    ids: list[int] = []
+    if verified and entity is not None:
+        ids.append(int(entity["sofascore_id"]))
+    out: dict[str, Any] = {}
+    data = searches.get(search_query(norm))
+    results = data.get("results") if isinstance(data, dict) else None
+    if isinstance(results, list):
+        teams = [
+            r["entity"]
+            for r in results
+            if isinstance(r, dict)
+            and r.get("type") == "team"
+            and isinstance(r.get("entity"), dict)
+            and (r["entity"].get("sport") or {}).get("slug") == slug
+        ]
+        fits = [e for e in teams if candidate_fits(norm, e, slug)][:3]
+        out["search_teams"] = [str(e.get("name")) for e in teams[:3]]
+        ids += [int(e["id"]) for e in fits if int(e["id"]) not in ids]
+    if not ids:
+        reason = "NO_CANDIDATE" if isinstance(results, list) else "NO_SEARCH_RESULT"
+        return {"reason": reason, **out}
+    events = [
+        e
+        for eid in ids
+        for e in _cached_listing(resolver, eid, slug)
+        if not is_virtual_event(e) and e.get("startTimestamp")
+    ]
+    if not events:
+        return {"reason": "NO_LISTING", **out}
+    window = MATCH_WINDOW_S.get(slug, DEFAULT_MATCH_WINDOW_S)
+    gaps = [
+        (abs(datetime.fromtimestamp(int(e["startTimestamp"]), UTC) - kickoff), e)
+        for e in events
+    ]
+    in_window = [e for gap, e in gaps if gap.total_seconds() <= window]
+    if not in_window:
+        nearest = min(gap for gap, _ in gaps)
+        return {
+            "reason": "NO_GAME_IN_WINDOW",
+            "nearest_gap_h": round(nearest.total_seconds() / 3600, 1),
+            **out,
+        }
+    if slug in TEAM_SPORTS:
+        expected = "W" if "W" in {superbet_gender(b) for b in board} else "M"
+        gendered = [e for e in in_window if sofascore_gender(e) == expected]
+        if not gendered:
+            return {
+                "reason": "GENDER_REFUSED",
+                "in_window": [_pair(e) for e in in_window[:3]],
+                **out,
+            }
+        in_window = gendered
+    return {
+        "reason": "OPPONENT_REFUSED",
+        "in_window": [_pair(e) for e in in_window[:3]],
+        **out,
+    }
+
+
 def find_event(
-    resolver: SofaResolver, sport: ShadowSport, ev: SnapshotEvent, kickoff: datetime
+    resolver: SofaResolver,
+    sport: ShadowSport,
+    ev: SnapshotEvent,
+    kickoff: datetime,
+    explain: dict[str, Any] | None = None,
 ) -> dict[str, Any] | str:
     """The Sofascore event of this game, or the state that explains why not.
 
@@ -123,23 +265,51 @@ def find_event(
     relaxed one (resolve.shadow_opponent_agrees) and virtual games are
     refused (resolve.is_virtual_event). A side that is ambiguous does not
     stop the other side from being tried.
+
+    `explain`, when given and the resolver is RESOLVE's own, receives each
+    side's `miss_reason` on a NOT_ON_SOFASCORE.
     """
-    ambiguous_seen = False
-    for side, opponent in ((ev.team1, ev.team2), (ev.team2, ev.team1)):
-        _, event, ambiguous = resolver.resolve_entity(
-            sport.sofascore_slug,
-            side,
-            kickoff,
-            opponent,
-            board_side_a=ev.team1,
-            board_side_b=ev.team2,
-            record_miss=False,
-            check_orientation=False,
-        )
-        if event:
-            return event
-        ambiguous_seen = ambiguous_seen or ambiguous
-    return "AMBIGUOUS" if ambiguous_seen else "NOT_ON_SOFASCORE"
+    recorder: _SearchRecorder | None = None
+    inner: Any = None
+    if explain is not None and isinstance(resolver, SofaResolver):
+        inner = resolver.client
+        recorder = _SearchRecorder(inner)
+        resolver.client = cast(SofascoreClient, recorder)
+    try:
+        ambiguous_seen = False
+        for side, opponent in ((ev.team1, ev.team2), (ev.team2, ev.team1)):
+            _, event, ambiguous = resolver.resolve_entity(
+                sport.sofascore_slug,
+                side,
+                kickoff,
+                opponent,
+                board_side_a=ev.team1,
+                board_side_b=ev.team2,
+                record_miss=False,
+                check_orientation=False,
+            )
+            if event:
+                return event
+            ambiguous_seen = ambiguous_seen or ambiguous
+    finally:
+        if recorder is not None:
+            resolver.client = inner
+    if ambiguous_seen:
+        return "AMBIGUOUS"
+    if recorder is not None and explain is not None:
+        for key, side in (("team1", ev.team1), ("team2", ev.team2)):
+            try:
+                explain[key] = miss_reason(
+                    resolver,
+                    sport.sofascore_slug,
+                    side,
+                    kickoff,
+                    (ev.team1, ev.team2),
+                    recorder.searches,
+                )
+            except Exception as exc:  # an explanation never fails the game
+                explain[key] = {"reason": "UNEXPLAINED", "error": repr(exc)}
+    return "NOT_ON_SOFASCORE"
 
 
 def settle_one(
@@ -160,9 +330,10 @@ def settle_one(
         "tournament": ev.tournament,
         "priced_sides": len(ev.sides),
     }
-    found = find_event(resolver, sport, ev, kickoff)
+    miss: dict[str, Any] = {}
+    found = find_event(resolver, sport, ev, kickoff, miss)
     if isinstance(found, str):
-        return {**record, "state": found}
+        return {**record, "state": found, **({"miss": miss} if miss else {})}
     record.update(
         {
             "sofascore_event_id": found["id"],
@@ -239,7 +410,16 @@ def settle_one(
     if any(is_player_line(sport.key, ln.market_id) for ln in ev.sides.values()):
         # One request serves every player line of the game; asked fresh, like
         # the event, because a provisional box would be frozen by SETTLED.
-        box = build_player_box(client.event_lineups(int(found["id"])), detail, sport)
+        lineups = client.event_lineups(int(found["id"]))
+        if cache is not None and isinstance(lineups, dict) and lineups:
+            # Kept, so a player grade can be audited against the box it was
+            # read from (sofa_event_stats.lineups_json was empty for all 3,052
+            # graded player sides, 2026-10-01). The game is finished here
+            # (event_state); a later retry overwrites it. An empty answer is
+            # not saved: `{}` reads "asked, nothing published" as a fact, and
+            # a box not published yet is not one.
+            cache.save_event_lineups(int(found["id"]), lineups, "finished")
+        box = build_player_box(lineups, detail, sport)
         record["player_box"] = (
             "missing" if box is None else ("ok" if box.ok else box.reason)
         )

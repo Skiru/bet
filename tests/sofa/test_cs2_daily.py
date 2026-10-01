@@ -50,14 +50,16 @@ def test_a_day_runs_snapshots_then_the_morning_steps_in_order() -> None:
     assert morning[0][1][2] == "2026-09-29"
     # the day before again: its STATS_PENDING series and night series
     assert morning[1][1][2] == "2026-09-28" and morning[1][1][-1] == "CS2_SETTLE"
-    assert morning[2][1][0].endswith("settle_sport_coupon.py")
-    assert morning[2][1][1:] == ["--from", "2026-09-28", "--to", "2026-09-29",
+    # D-7..D-2: settle_cs2 decides at run time which of them still wait
+    assert morning[2][1] == ["scripts/sofa/settle_cs2.py", "--sweep-from",
+                             "2026-09-22", "--sweep-to", "2026-09-27"]
+    assert morning[3][1][0].endswith("settle_sport_coupon.py")
+    assert morning[3][1][1:] == ["--from", "2026-09-22", "--to", "2026-09-29",
                                  "--sport", "cs2"]
-    assert morning[2][1][-1] == "cs2"
-    assert morning[3][1][0].endswith("record_results.py")
-    assert morning[3][1][1:] == ["--from", "2026-09-28", "--to", "2026-09-29"]
-    assert morning[4][1][0].endswith("backfill_cs2.py")
-    assert morning[5][1][0].endswith("audit_cs2.py") and "--history" in morning[5][1]
+    assert morning[4][1][0].endswith("record_results.py")
+    assert morning[4][1][1:] == ["--from", "2026-09-22", "--to", "2026-09-29"]
+    assert morning[5][1][0].endswith("backfill_cs2.py")
+    assert morning[6][1][0].endswith("audit_cs2.py") and "--history" in morning[6][1]
     assert code == 1  # the worst step, the audit not counted
 
 

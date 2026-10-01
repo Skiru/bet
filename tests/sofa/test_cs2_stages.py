@@ -338,7 +338,11 @@ def test_late_player_statistics_are_waited_for(tmp_path: Path) -> None:
     write_snapshot(tmp_path)
     no_stats = [dict(g, hasCompleteStatistics=False) for g in FakeSofascore().games]
     run_settle(tmp_path, FakeSofascore(games=no_stats), 5)
-    assert settled(tmp_path)["1"]["state"] == "STATS_PENDING"
+    # Since 2026-10-01 the series lines are graded at once; only the player
+    # sides wait (pending_sides), and the series is asked again.
+    first = settled(tmp_path)["1"]
+    assert first["state"] == "SETTLED" and first["pending_sides"] == 2
+    assert {r["family"] for r in first["graded"]} == {"maps_total"}
     run_settle(tmp_path, FakeSofascore(), 30)
     rec = settled(tmp_path)["1"]
     assert rec["state"] == "SETTLED"

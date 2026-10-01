@@ -35,6 +35,36 @@ from bet.sofa.engine import devig, devig_many
 CLOSE_MIN_MINUTES = 3.0
 CLOSE_MAX_MINUTES = 30.0
 
+# Below this many independent matches a resampled interval is not an
+# interval: with two matches the bootstrap can only ever draw the two
+# matches' own means, and audit_clv printed [-9.67%, -3.18%] off 2 legs of
+# 2 matches as if it had measured something. Shown as "-" instead.
+MIN_CLUSTERS = 20
+
+
+def cluster_ratio_interval(
+    clusters: dict[str, tuple[float, int]],
+    seed: int = 7,
+    n_boot: int = 2000,
+    min_clusters: int = MIN_CLUSTERS,
+) -> tuple[float, float] | None:
+    """95% interval of sum(value) / sum(count) from resampling whole
+    clusters (one cluster = one match: `{key: (value_sum, count)}`).
+
+    None below `min_clusters` clusters with a count - too few independent
+    pieces of evidence for any interval to mean what it says.
+    """
+    pieces = [(float(v), int(c)) for v, c in clusters.values() if int(c) > 0]
+    if len(pieces) < min_clusters:
+        return None
+    rng = random.Random(seed)
+    stats = []
+    for _ in range(n_boot):
+        pick = [pieces[rng.randrange(len(pieces))] for _ in pieces]
+        stats.append(sum(v for v, _ in pick) / sum(c for _, c in pick))
+    stats.sort()
+    return stats[int(0.025 * n_boot)], stats[int(0.975 * n_boot)]
+
 
 @dataclass(frozen=True)
 class ClvRow:
@@ -77,7 +107,7 @@ class ClvSummary:
     legs: int
     games: int
     mean_clv_ev: float
-    ci95: tuple[float, float]
+    ci95: tuple[float, float] | None  # None under MIN_CLUSTERS matches
     beat_share: float
 
 
@@ -91,19 +121,12 @@ def summarize(rows: Sequence[ClvRow], variant: str, seed: int = 7,
     by_game: dict[str, list[float]] = defaultdict(list)
     for r in rs:
         by_game[r.game].append(r.clv_ev)
-    games = list(by_game)
-    rng = random.Random(seed)
-    stats = []
-    for _ in range(n_boot):
-        pick = [games[rng.randrange(len(games))] for _ in games]
-        total = sum(sum(by_game[g]) for g in pick)
-        count = sum(len(by_game[g]) for g in pick)
-        stats.append(total / count)
-    stats.sort()
+    ci95 = cluster_ratio_interval(
+        {g: (sum(v), len(v)) for g, v in by_game.items()}, seed, n_boot
+    )
     mean = sum(r.clv_ev for r in rs) / len(rs)
     return ClvSummary(
-        variant, len(rs), len(games), mean,
-        (stats[int(0.025 * n_boot)], stats[int(0.975 * n_boot)]),
+        variant, len(rs), len(by_game), mean, ci95,
         sum(1 for r in rs if r.beat) / len(rs),
     )
 

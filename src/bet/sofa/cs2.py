@@ -40,9 +40,12 @@ are read too, each devigged over its whole outcome group (`group_fair`).
 
 from __future__ import annotations
 
+import fcntl
 import os
 import re
 import unicodedata
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -50,6 +53,7 @@ from typing import Any, Literal
 
 from rapidfuzz import fuzz
 
+from bet.sofa.atomic import write_atomic as _write_atomic
 from bet.sofa.engine import devig, devig_many
 from bet.sofa.names import DIACRITICS_FOLD
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD
@@ -555,7 +559,26 @@ Resolution = tuple[dict[str, Any], bool]
 # Organisation affixes one source prints and the other drops ("Masonic" /
 # "Masonic Esports", "33" / "33 Esports"). "academy", "junior", "prospects"
 # are NOT here: they name a different roster, and must keep two names apart.
-ESPORTS_AFFIXES = frozenset({"esports", "esport", "gaming", "team", "club", "clan"})
+# "gg" is the ".gg" domain suffix some organisations carry on one source only
+# (audit 2026-10-01: Superbet "KUUSAMO" / Sofascore "KUUSAMO.gg").
+ESPORTS_AFFIXES = frozenset(
+    {"esports", "esport", "gaming", "team", "club", "clan", "gg"}
+)
+# Trailing markers of a women's roster, after esports_name folding. Superbet
+# prints "MIBR (K)" (kobiety), Sofascore "MIBR fe" / "... Female"; some
+# sources "(W)". Audit 2026-10-01: "mibr k" vs "mibr fe" scored 76.9 against
+# the 82 threshold, so every women's series was NOT_ON_SOFASCORE for ever.
+WOMEN_MARKERS = frozenset({"k", "w", "fe", "female", "fem", "women", "woman"})
+
+
+def _women_split(name: str) -> tuple[str, bool]:
+    """(the name without a trailing women's marker, whether it had one)."""
+    words = name.split()
+    women = False
+    while len(words) > 1 and words[-1] in WOMEN_MARKERS:
+        words.pop()
+        women = True
+    return " ".join(words), women
 
 
 def _core(name: str) -> str:
@@ -569,7 +592,13 @@ def esports_score(a: str, b: str) -> float:
     Not `resolve.name_score`: its token-set half scores "big" against "big
     academy" 100, and an esports organisation's academy plays in the same
     tier-2 events as its main roster. Word order may differ; word sets may not.
+    A women's roster never matches a men's one (0.0): the marker is one fact
+    on both sides, compared before the names are.
     """
+    a, a_women = _women_split(a)
+    b, b_women = _women_split(b)
+    if a_women != b_women:
+        return 0.0
     a, b = _core(a), _core(b)
     return max(fuzz.ratio(a, b), fuzz.token_sort_ratio(a, b))
 
@@ -1051,7 +1080,22 @@ def append_records(path: Path, records: list[dict[str, Any]]) -> None:
 
 def write_atomic(path: Path, text: str) -> None:
     """Write through a temporary file, so a crash never leaves half a file."""
+    _write_atomic(path, text)
+
+
+@contextmanager
+def file_lock(path: Path) -> Iterator[None]:
+    """An exclusive flock on `<path>.lock` for a read-modify-write of `path`.
+
+    settled.json is written by the daily loop's settle, the watchdog's
+    RESETTLE and a hand-run settle; without it the last writer silently
+    dropped the other's grades. A sidecar file, because write_atomic replaces
+    `path` itself and a lock on the replaced inode would guard nothing.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    with path.with_name(path.name + ".lock").open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)

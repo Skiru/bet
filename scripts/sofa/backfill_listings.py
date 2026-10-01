@@ -15,6 +15,15 @@ there is no next page. Opponents come for free: every team a cached event
 names is an entity to deepen (hop 1), so a league's cross-league matches get
 their other side's history too.
 
+Gaps. A page is keyed by its number and page 0 is always the newest, so
+when SAMPLES/RESOLVE re-fetch pages 0-2 the deeper pages an older backfill
+wrote no longer join up: the matches that slid across the boundary since the
+deeper page was fetched are on no cached page (player 65576 on 2026-10-01:
+page 2 fetched 09-28 reached back to 2025-10-31, page 3 fetched 09-18 began on
+2025-10-03). An entity with such a gap inside the window is not done; it is
+re-fetched from the first gapped page on, until the pages join up and reach
+--days. See EntityState.first_gap for the test.
+
 Order: entities on the most recent boards first, then by how recently the
 entity last played - so a run cut short by --max-minutes has filled what the
 next sheet reads. Resumable: an entity whose deepest cached page already
@@ -53,7 +62,6 @@ from typing import Any
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
-from bet.sofa.db import get_connection
 from bet.sofa.errors import CircuitOpenError, ProviderError
 
 # Sofascore sport slug per --sport.
@@ -73,6 +81,33 @@ MAX_PAGE = 25
 # is what the first run on 2026-09-30 did.
 DB_RETRIES = 4
 DB_RETRY_SLEEP_S = 5.0
+# A match that started this long before a page was fetched may not have been
+# on the listing yet (still playing, or listed late), so it still counts as
+# having shifted the listing after that fetch. Erring wide costs a re-fetch;
+# erring narrow leaves a silent gap. 6 h covers a finished football match and
+# nearly every tennis match. Measured on the 2026-10-01 cache (football, 730
+# days): gapped entities 874 at 0 h, 930 at 3 h, 940 at 6 h, 976 at 24 h - the
+# gaps are not an artefact of the margin.
+SHIFT_MARGIN_S = 6 * 3600
+
+
+def _iso_ts(value: str) -> int | None:
+    try:
+        stamp = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    return int(stamp.timestamp())
+
+
+@dataclass(frozen=True)
+class PageInfo:
+    """One cached page: its newest and oldest startTimestamp, when fetched."""
+
+    newest: int | None
+    oldest: int | None
+    fetched: int | None
 
 
 def _with_retry(write: Any) -> bool:
@@ -97,9 +132,57 @@ class EntityState:
     has_next: bool = True
     last_played: int = 0
     on_board: bool = False
+    pages: dict[int, PageInfo] = dataclasses.field(default_factory=dict)
+    # startTimestamps on this entity's own pages that are recent enough to
+    # have shifted the listing after some cached page was fetched.
+    recent_stamps: list[int] = dataclasses.field(default_factory=list)
+
+    def first_gap(self, since_ts: int) -> int | None:
+        """The first page whose cached copy does not join up with the page
+        before it, inside the window; None when the cache is contiguous.
+
+        Page k joins page k-1 when it overlaps it in time (page k's newest
+        start >= page k-1's oldest). Disjoint pages are contiguous only if
+        the listing did not move between their fetches: a page k fetched no
+        earlier than page k-1 cannot have lost a match (the listing only
+        grows at the front, which pushes matches *into* page k), while a page
+        k fetched earlier lost one match per match the entity played after
+        that fetch - and those are on the newer pages, so they are counted.
+        A missing page inside the window is a gap. Pages past the one that
+        already reaches `since_ts` are not judged: they are outside --days.
+        """
+        if self.deepest_page < 0 or not self.pages:
+            return None
+        for k in range(self.deepest_page + 1):
+            cur = self.pages.get(k)
+            if cur is None:
+                return k
+            if k == 0:
+                continue
+            prev = self.pages[k - 1]
+            if prev.oldest is not None and prev.oldest < since_ts:
+                return None
+            if cur.newest is None or prev.oldest is None:
+                continue
+            if cur.newest >= prev.oldest:
+                continue
+            if cur.fetched is None or prev.fetched is None:
+                continue
+            if cur.fetched >= prev.fetched:
+                continue
+            lo, hi = cur.fetched - SHIFT_MARGIN_S, prev.fetched
+            if any(lo < ts <= hi for ts in self.recent_stamps):
+                return k
+        return None
+
+    def start_page(self, since_ts: int) -> int:
+        gap = self.first_gap(since_ts)
+        return self.deepest_page + 1 if gap is None else gap
 
     def done(self, since_ts: int) -> bool:
         if self.deepest_page < 0:
+            return False
+        if self.first_gap(since_ts) is not None:
             return False
         if not self.has_next or self.deepest_page >= MAX_PAGE:
             return True
@@ -111,9 +194,12 @@ def _event_sport(event: dict[str, Any]) -> str | None:
     return ((tournament.get("category") or {}).get("sport") or {}).get("slug")
 
 
-def board_entities(runs_dir: str, sport: str) -> set[int]:
-    """Entity ids on the RESOLVE artifacts of the last seven days."""
-    paths = sorted(glob.glob(str(Path(runs_dir) / "*" / "02_fixtures.json")))[-7:]
+def board_entities(runs_dir: str, sport: str, boards: int = 7) -> set[int]:
+    """Entity ids on the RESOLVE artifacts of the last `boards` days."""
+    if boards <= 0:
+        return set()
+    paths = sorted(
+        glob.glob(str(Path(runs_dir) / "*" / "02_fixtures.json")))[-boards:]
     out: set[int] = set()
     for path in paths:
         try:
@@ -142,6 +228,11 @@ def scan(
     hop from what the pipeline had cached, not the whole world.
     """
     states: dict[int, EntityState] = {}
+    # Only matches after the oldest fetch can have shifted a listing, so only
+    # those stamps are kept per entity (a few, not the whole history).
+    fetch_times = [_iso_ts(str(r[3])) for r in rows if len(r) >= 4]
+    known = [t for t in fetch_times if t is not None]
+    shift_floor = (min(known) - SHIFT_MARGIN_S) if known else None
 
     def state(eid: int) -> EntityState:
         s = states.get(eid)
@@ -164,10 +255,15 @@ def scan(
         if not sport_events and events:
             continue
         own = state(entity_id)
+        stamps = [e["startTimestamp"] for e in events
+                  if isinstance(e.get("startTimestamp"), int)]
+        own.pages[page] = PageInfo(
+            max(stamps) if stamps else None, min(stamps) if stamps else None,
+            _iso_ts(str(row[3])) if len(row) >= 4 else None)
+        if shift_floor is not None:
+            own.recent_stamps.extend(t for t in stamps if t >= shift_floor)
         if page > own.deepest_page:
             own.deepest_page = page
-            stamps = [e.get("startTimestamp") for e in events
-                      if isinstance(e.get("startTimestamp"), int)]
             own.oldest_ts = min(stamps) if stamps else None
             own.has_next = bool(payload.get("hasNextPage", True))
         for event in sport_events:
@@ -218,7 +314,7 @@ class Deepen:
                        "errors": 0, "db_locked": 0, "completed": 0}
 
     def run_one(self, s: EntityState) -> None:
-        page = s.deepest_page + 1
+        page = s.start_page(self.since_ts)
         while page <= MAX_PAGE:
             if self.stop.is_set() or self.timed_out.is_set():
                 return
@@ -270,8 +366,18 @@ class Deepen:
             self.counts["completed"] += 1
 
 
+def read_only_connection(db_path: str) -> sqlite3.Connection:
+    """The planning reads open the cache read-only: a --dry-run beside a live
+    pipeline run must not be able to write, migrate or lock it."""
+    uri = Path(db_path).resolve().as_uri() + "?mode=ro"
+    conn = sqlite3.connect(uri, uri=True, timeout=30.0)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def _rows(db_path: str) -> list[tuple[int, int, str, str]]:
-    with get_connection(db_path) as conn:
+    conn = read_only_connection(db_path)
+    try:
         return [
             (int(r["sofascore_entity_id"]), int(r["page"]), r["events_json"],
              str(r["fetched_at"]))
@@ -279,18 +385,26 @@ def _rows(db_path: str) -> list[tuple[int, int, str, str]]:
                 "SELECT sofascore_entity_id, page, events_json, fetched_at "
                 "FROM sofa_entity_events WHERE kind = 'last'")
         ]
+    finally:
+        conn.close()
 
 
-def seed_cut(path: Path, sport: str, default: str) -> str:
+def seed_cut(path: Path, sport: str, default: str, record: bool = True) -> str:
     """The seed time for this sport's backfill: read if recorded, else
-    recorded now. Every chunk of one backfill shares it."""
+    recorded now (unless `record` is False - a dry run writes nothing).
+    Every chunk of one backfill shares it."""
+    doc: dict[str, Any] = {}
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            doc = loaded
         cut = doc.get(sport)
         if isinstance(cut, str):
             return cut
     except (OSError, ValueError):
         doc = {}
+    if not record:
+        return default
     doc[sport] = default
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
@@ -323,7 +437,8 @@ def main() -> int:
     now = int(time.time())
     since, recent = now - args.days * 86400, now - args.recent_days * 86400
     seed = args.seed_before or seed_cut(
-        Path(args.seed_file), args.sport, datetime.now(UTC).isoformat())
+        Path(args.seed_file), args.sport, datetime.now(UTC).isoformat(),
+        record=not args.dry_run)
     states = scan(_rows(config.db_path), SPORT_SLUGS[args.sport], recent, seed)
     board = board_entities(config.runs_dir, args.sport)
     todo = plan(states, board, since, recent)
@@ -335,6 +450,9 @@ def main() -> int:
         "entities_known": len(states), "entities_to_deepen": len(todo),
         "on_board": sum(s.on_board for s in todo),
         "never_listed": sum(s.deepest_page < 0 for s in todo),
+        "gapped": sum(s.first_gap(since) is not None for s in todo),
+        "gapped_on_board": sum(
+            s.on_board and s.first_gap(since) is not None for s in todo),
     }), flush=True)
     if args.dry_run or not todo:
         return 0

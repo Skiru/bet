@@ -41,6 +41,7 @@ from typing import Any
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
+from bet.sofa.db import RetryingConnection
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
@@ -247,6 +248,14 @@ def candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         """
     ).fetchall()
     conn.row_factory = None
+    # Player props stay out on purpose. They are graded from the fixture's
+    # /lineups (run_settle._settle_player), and lineups are cached forever
+    # (samples.fetch_lineups) - nothing re-fetches them, so a newer
+    # /statistics fetch says nothing new about a player row. grade_live has
+    # no player branch either: it would send the row down the team path and
+    # report SUBJECT_NOT_MATCHED. Including them could only produce noise
+    # until a lineups re-fetch exists (and a lineup frozen while provisional
+    # is a suspicion nobody has measured).
     return [
         dict(r)
         for r in rows
@@ -342,7 +351,10 @@ def main() -> int:
     config = SofaConfig.from_env()
     at = datetime.now(UTC)
     try:
-        conn = sqlite3.connect(config.db_path, timeout=30.0)
+        # RetryingConnection: a busy COMMIT is retried, as everywhere else.
+        conn = sqlite3.connect(
+            config.db_path, timeout=30.0, factory=RetryingConnection
+        )
         changes, tally = regrade(
             conn, Path(config.runs_dir), match_tiebreak=args.match_tiebreak
         )

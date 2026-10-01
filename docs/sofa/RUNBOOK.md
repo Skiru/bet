@@ -77,6 +77,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 # dla tej daty - `pgrep -f cs2_watchdog`; domyślnie nic go nie startuje); ręcznie tylko, gdy istnieje
 # runs/sofa/cs2/daily_<D-1>.done albo pid z daily_<D-1>.pid nie działa, i żaden watchdog nie pilnuje D-1:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
+# serie wciąż czekające z D-7..D-2 (pętla robi to sama; tylko daty, których settled.json ma czekającą serię):
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>
 # pętla D-1 robi to sama o 05:15Z; ręcznie tylko, gdy nie żyje (brak runs/sofa/shadow/daily_<D-1>.pid
 # albo jego pid nie działa) - wznawia się, więc powtórka nie szkodzi, równoległa tak:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
@@ -92,7 +94,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant, nigdy łącznie; ROI z przedziałem 95% po dniach
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant, nigdy łącznie; ROI z przedziałem 95% po meczach („-” poniżej 20 meczów)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # CLV na wariant — pierwsza liczba o wczoraj
 ```
 
@@ -101,9 +103,11 @@ Kody wyjścia `settle_sport_coupon.py`, `settle_multi_coupon.py` i
 pozwalają settle — pozycje oczekujące widać w tabeli (kolumna `pending`),
 nigdy w kodzie wyjścia. To normalny stan D-1: pozycje kuponu sportu po
 00:00Z (NHL/NBA, nocne CS2) rozliczają się w pliku migawek dzisiejszego dnia
-i są oceniane jutro rano — pętla CS2 o 05:00Z i pętla shadow o 05:15Z
-rozliczają D i D-1, oceniają kupony sportów z obu dni i zapisują oba dni w
-dzienniku; jutrzejsze `--from <D-2>` też je domyka. **1** = `MISMATCH` (dwa
+i są oceniane jutro rano — pętla CS2 o 05:00Z rozlicza D i D-1, przegląda
+D-7..D-2 (`settle_cs2.py --sweep-from/--sweep-to`: tylko daty z czekającą
+serią) i ocenia kupony CS2 oraz dziennik za D-7..D; pętla shadow o 05:15Z
+rozlicza D, D-1 i D-2 (D-2: przełożony mecz staje się `VOID` dopiero 48 h po
+starcie) i ocenia kupony sportów oraz dziennik za te dni; jutrzejsze `--from <D-2>` też je domyka. **1** = `MISMATCH` (dwa
 oceniające nie zgadzają się co do nogi — defekt, nazwij go) albo nieczytelny
 plik (nazwany w tabeli). **2** = awaria albo, w `record_results.py`, brak
 bazy (nic się wtedy nie zapisuje). Zanim SHADOW_SETTLE / CS2_SETTLE zapisze `settled.json`, pozycje
@@ -116,7 +120,7 @@ Potem pętle dzisiejszego dnia:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
-# cały dzień CS2 bez obsługi (ceny do 23:30Z, o 05:00Z D+1 settle D i D-1, kupony CS2 i dziennik za D-1 i D);
+# cały dzień CS2 bez obsługi (ceny do 23:30Z, o 05:00Z D+1 settle D i D-1, przegląd D-7..D-2, kupony CS2 i dziennik za D-7..D);
 # --chain o 23:30Z startuje pętlę D+1 (nocne serie D+1 mają ceny); pętla D-1 z --chain już ją uruchomiła,
 # a druga pętla dla daty odmawia (kod 2), więc powtórka nie szkodzi:
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> --chain >> runs/sofa/cs2/daily_<today>.log 2>&1 &

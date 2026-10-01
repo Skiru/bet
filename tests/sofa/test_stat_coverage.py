@@ -190,7 +190,9 @@ def test_cache_replay_carries_the_new_bases_and_refuses_placeholders(
 
     def event(eid: int) -> dict[str, Any]:
         return {"id": eid, "status": {"type": "finished"},
-                "startTimestamp": 1_000 + eid,
+                # one day apart: the same two sides on one UTC day are one
+                # match listed twice (samples.one_listing_per_match)
+                "startTimestamp": 1_000 + eid * 86_400,
                 "homeTeam": {"id": 1}, "awayTeam": {"id": 2},
                 "homeScore": {"current": 1}, "awayScore": {"current": 0},
                 "tournament": {"uniqueTournament": {"id": 17},

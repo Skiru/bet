@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.contracts import GapReason
 from bet.sofa.metrics import extract_flat_statistics, extract_metric
 from bet.sofa.tennis_prior import _is_countable, fit_tier_baselines, tier_key
@@ -132,7 +133,7 @@ def main() -> int:
         "fitted_before": args.before,
         "metrics": baselines,
     }
-    Path(args.out).write_text(json.dumps(out, indent=2, sort_keys=True) + "\n")
+    write_atomic(Path(args.out), json.dumps(out, indent=2, sort_keys=True) + "\n")
     print(json.dumps({
         "out": args.out, "metrics": len(baselines),
         "keys": sorted({k for m in baselines.values() for k in m}),

@@ -197,13 +197,20 @@ Bramki dopasowania:
 | `NAME_EXACT_THRESHOLD` | 99.0 | próg „to na pewno ta sama nazwa" |
 | `ORIENTATION_MARGIN` | 20.0 | o ile lepsze musi być dopasowanie odwrócone, by uznać zamianę stron |
 | `MATCH_WINDOW_S` | per sport, domyślnie 24 h | dopuszczalny rozjazd czasu |
-| `MATCH_LOGIC_VERSION` | 3 | stempluje **negatywny cache**; zmiana logiki unieważnia zapamiętane pudła |
+| `MATCH_LOGIC_VERSION` | 6 | stempluje **negatywny cache**; zmiana logiki unieważnia zapamiętane pudła (4: aliasy krajów, 5: wyszukiwanie bez „(w)”/„(r)”, 6 od 2026-10-01: końcowe „Reserve(s)” Sofascore składa się do „(r)” — „River Plate Reserve” wobec „CA River Plate (R)” dawało 75,9 przy progu 82) |
 
 `MATCH_LOGIC_VERSION` to nie kosmetyka. Negatywny cache pamięta „szukaliśmy
 i nie ma", co jest faktem o świecie tylko wtedy, gdy szukanie było poprawne.
 2026-09-18 błędna bramka płci uczyniła 175 tenisistek nierozwiązywalnymi,
 zapisała je jako pudła, a po naprawie RESOLVE wyprodukował **bajt w bajt
 identyczny artefakt**, bo już nie zapytał.
+
+Od 2026-10-01 **nazwa zweryfikowana** (`status = verified` w cache encji) jest
+sprawdzana mimo świeżego wpisu w tabeli pudeł i nigdy nie dostaje pudła
+zapisanego: jej „brak” znaczył „ten jeden mecz nie jest jeszcze w jej
+listingu”, a nie „tej drużyny nie da się znaleźć”. Wcześniej pudło sprawdzane
+jako pierwsze blokowało pytanie o znane id na siedem dni — 2026-10-01 ok. 26
+nierozpoczętych meczów tenisowych (Tien–Hurkacz), w piłce Croatia U19 i Jerash.
 
 Wynik na mecz: `identity: CONFIRMED | FUZZY` albo luka
 (`NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`, `NO_MATCHING_EVENT`).
@@ -221,6 +228,15 @@ i `kickoff_disagreement_h`.
 wcześniej niż", a Sofascore lokalny czas turnieju; rozjazd sięga **11 h**
 i biegnie w złą stronę — *mecz zakończony wygląda na nadchodzący*. COUPON
 bierze **wcześniejszy** z dwóch.
+
+Mecz wystawiony na tablicy dwa razy: zegar Superbetu bierze się z pierwszego
+listingu, **chyba że** ten pokazuje dokładnie 00:00:00Z, a drugi realny czas
+(`resolve.merged_superbet_kickoff`). Superbet wystawia część meczów ITF na
+00:00Z, zanim zna godzinę; 2026-10-01 trzy takie mecze miały w drugim
+listingu 11:08Z, a bramka „wcześniejszy zegar” uznała je za rozpoczęte
+i zdjęła wszystkie 168 wycenionych szczebli. Prawdziwa północ istnieje
+(piłka południowoamerykańska), więc 00:00Z to zaślepka tylko obok innego
+listingu tego samego meczu.
 
 ---
 
@@ -244,6 +260,14 @@ Na mecz (`FixtureOffer`): `status: PRICED | NO_PRICE`, `rungs` (`PricedRung`:
 
 `fetched_at_utc` jest per szczebel i to on decyduje później o `STALE_PRICE`
 (limit **45 min**, `SofaConfig.price_max_age_min`).
+
+**Błąd jednego listingu Superbetu to luka, nie `FAILED`** (od 2026-10-01).
+Wcześniej jeden wyjątek (usunięte zdarzenie odpowiada 404) wychodził z
+`fetch_offers` i wywracał cały OFFER, a z nim łańcuch. Teraz błąd trafia do
+`OfferFetcher.errors`, podsumowanie etapu liczy go w `fetch_errors` (pierwsze
+20 na stderr jako `OFFER_FETCH_ERROR`), a werdykt jest `PARTIAL`. Mecz,
+którego **każdy** listing zawiódł, nie dostaje wpisu wcale — nie pustego —
+żeby odświeżenie z filtrem nie nadpisało cen, które poprzedni plik wciąż ma.
 
 **`unmapped_markets` to znany stan, nie usterka.** W `04_offer.json`
 z 2026-09-21: **20 851** nieodwzorowanych nazw rynków wobec **4161**
@@ -317,7 +341,20 @@ Każda luka ma powód (`GapReason`): `NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`,
 `STAT_KEY_ABSENT`, `ALL_ZERO_SAMPLE`, `OUTSIDE_MODEL_RESOLUTION`,
 `INTERNAL_INCONSISTENT`, `THIN_SAMPLE`, `SURFACE_UNKNOWN`, `NO_PRICE`,
 `STALE_PRICE`, `PROVIDER_ERROR`, `CIRCUIT_OPEN`. Awaria dostawcy blokuje
-**mecz**, nie dzień.
+**mecz**, nie dzień. Od 2026-10-01 podsumowanie liczy
+`provider_fault_fixtures` — mecze, które straciły metryki przez awarię
+dostawcy i nie miały czego przenieść — i każdy taki mecz daje `PARTIAL`
+(`samples_verdict`); wcześniej wyłącznik otwarty w połowie SAMPLES
+przerzedzał dzień przy werdykcie `OK`.
+
+**Incydenty meczu z cache.** `NULL` w `incidents_json` znaczy „nigdy nie
+pytano”, nie „brak”: mecz zapisany dla meczu bez rynku kartek ma statystyki,
+a nie ma incydentów, i każda późniejsza próbka kartek czytała go jako
+`NO_INCIDENTS` bez pytania (2026-10-01: 118 luk na 59 zdarzeniach, wszystkie
+`NULL`). Od 2026-10-01 SAMPLES raz pyta `/incidents`, gdy rynek kartek tego
+potrzebuje; 404 zapisuje się jako `{}` (fakt, za który się już nie płaci)
+i jest czytane jako „brak incydentów”. Awaria przy tym pytaniu kosztuje tylko
+metryki kartek (`NO_INCIDENTS`), nigdy cały mecz.
 
 **`coverage_floor` (`src/bet/sofa/coverage.py`) jest ślepy na dzień tygodnia.**
 Porównuje z medianą ostatnich 10 przebiegów (`MAX_DROP = 0.40`), więc
@@ -444,7 +481,24 @@ tablicy 09-30 był to jeden mecz — właśnie Aktobe - Ajax.
 
 Brak danych nie jest argumentem: `scripts/sofa/backfill_listings.py` pogłębia
 historię każdej drużyny z cache (i każdego rywala) do 730 dni, porcjami i z
-wznowieniem.
+wznowieniem. Od 2026-10-01 naprawia też **przerwane łańcuchy stron**: strona 0
+listingu jest zawsze najnowsza, więc gdy SAMPLES / RESOLVE odświeżają strony
+0–2, głębsze strony starszego backfillu przestają się z nimi stykać, a mecze,
+które w międzyczasie przesunęły się przez granicę, nie leżą na żadnej
+stronie z cache (zawodnik 65576: strona 2 pobrana 09-28 sięgała 2025-10-31,
+strona 3 pobrana 09-18 zaczynała się 2025-10-03). Encja z taką luką w oknie
+nie jest „gotowa” i jest pobierana od pierwszej przerwanej strony
+(`EntityState.first_gap`, margines `SHIFT_MARGIN_S` = 6 h; na cache z
+2026-10-01, piłka, 730 dni: 874 encje z luką przy 0 h, 940 przy 6 h, 976 przy
+24 h). `--dry-run` podaje `gapped` i `gapped_on_board` i czyta bazę tylko do
+odczytu.
+
+Statystyki meczów, które cache już zna, dociąga
+`scripts/sofa/backfill_event_stats.py --sport {football|tennis} --days N`;
+`--board-days N` (od 2026-10-01) zawęża to do meczów drużyn / zawodników
+z ostatnich N tablic (artefakty RESOLVE), czyli stron, które faktycznie
+wyceniamy. Wznawialny: zdarzenie już w `sofa_event_stats` (także zapytane
+z 404) nie jest pytane ponownie.
 
 ### 7.1b Rating tenisowy (od 2026-10-01)
 
@@ -577,6 +631,21 @@ Wiersz zawodniczy niesie notkę `PLAYER_MINUTES` (mediana minut, ile występów
 60'+, ile z ilu meczów próbki) — bo próbka złożona z wejść na 12 minut i
 próbka złożona ze startów to nie jest ta sama wielkość, a nic innego w wierszu
 nie umiałoby tego powiedzieć.
+
+**Od 2026-10-01 `player_assists_for`, `player_shots_on_target_for`
+i `player_shots_for` liczą się rozkładem ujemnym dwumianowym**
+(`engine.NEGATIVE_BINOMIAL_METRICS`), nie normalnym. Zmierzone na każdym
+rozliczonym wierszu zawodniczym 2026-09-24..30: normalna arkusza dawała
+medianowo +8 pp na każdym „powyżej” (asysty 0,5 powyżej: deklarowane 0,243,
+zrealizowane 0,081, n = 495). ΔBrier NB wobec normalnej przy tym samym
+środku i odchyleniu: asysty −0,03136 (n = 546), celne −0,01473 (1317),
+strzały −0,00749 (2379); dwie pierwsze są poniżej progu n ≥ 2000 i weszły na
+zgodnym znaku w obu połówkach (parzyste / nieparzyste id), jak wcześniej
+metryki połówkowe.
+
+„Liczba strzałów w obramowanie bramki” to strzały w słupek lub poprzeczkę,
+a nie drużyna o nazwie „w obramowanie bramki” — od 2026-10-01 mapper nie
+czyta jej jako strony (`_SUBJECT_IS_NOT_A_SIDE`; 13 szczebli 2026-10-01).
 
 ### 7.5 Werdykty
 
@@ -824,6 +893,28 @@ Renderuje **wyłącznie** pozycje przechodzące `is_stakeable`, każdą z własn
 śladem dowodowym. **`picks: 0` to odpowiedź legalna i częsta** — i zwykle jest
 skutkiem narzutu korelacyjnego, nie braku danych.
 
+Oznaczenia na stronie (od 2026-10-01; pokazane, nie egzekwowane):
+
+- **„ta sama drabina: N”** przy singlu, gdy na liście stoi N szczebli jednej
+  drabiny (ten sam mecz, rynek i podmiot, `confidence.ladder_key`), plus
+  zdanie nad listą z liczbą takich drabin. Dwa szczeble jednej drabiny to
+  jedno twierdzenie o jednej liczbie kupione dwa razy — 2026-09-30 kupon
+  wydrukował na jednym meczu corners_total 12.5 poniżej, 11.5 poniżej i 7.5
+  powyżej, a 2026-10-01 WARIANT dziesięć takich drabin (22 wiersze). Limit na
+  mecz był testowany wstecz i jest decyzją operatora.
+- **„start przed renderem PDF”**, gdy noga w chwili renderowania jest już
+  w marginesie startu CONFIDENCE (`MIN_MINUTES_TO_KICKOFF`, wcześniejszy
+  z dwóch zegarów) albo się zaczęła. CONFIDENCE bramkuje na swoim zegarze;
+  PDF przerenderowany później z tego samego JSON-a drukował nogę po starcie
+  bez słowa. Noga zostaje (rozlicza się JSON), jest oznaczona, a skrypt pisze
+  `WARNING` na stderr.
+- Bet Builder pokazuje wyłącznie **„kurs po narzucie”** (`odds_after_haircut`
+  z `confidence.py`), nigdy iloczynu kursów nóg — Superbet tak slipu nie
+  wycenia (zmierzony narzut 8,8–19,6%).
+
+PDF renderuje się do pliku tymczasowego obok i jest przenoszony na miejsce
+(`os.replace`): przerwany render nie zostawia uciętego `KUPON_*.pdf`.
+
 To jest jedyny plik, który się stawia.
 
 ---
@@ -836,7 +927,10 @@ dodane trzy pomiary — żaden nie zmienia kuponu:
 - **CLV** (`capture_closing.py` + `audit_clv.py`): czy wydrukowana cena była
   lepsza od ceny zamknięcia Superbeta (pobranej 3–30 min przed meczem,
   zdjętej metodą potęgową). `EV_CLV = kurs wzięty × p zamknięcia − 1`,
-  przedział z bootstrapu po meczach. Rozrzut CLV na zakład jest ~10× mniejszy
+  przedział z bootstrapu po meczach (`clv.cluster_ratio_interval`; poniżej
+  20 meczów `MIN_CLUSTERS` drukowane jest „-” — przy dwóch meczach bootstrap
+  może zwrócić tylko ich własne średnie, a `audit_clv` drukował
+  [−9,67%; −3,18%] z 2 nóg 2 meczów). Rozrzut CLV na zakład jest ~10× mniejszy
   niż zysku, więc odpowiada w dziesiątkach nóg, a nie tysiącach. To
   zamknięcie bukmachera „miękkiego" — słabszy test niż zamknięcie ostrej ceny;
   linia, której Superbet nie rusza, to „nietestowane", nie „neutralne".
@@ -850,9 +944,20 @@ dodane trzy pomiary — żaden nie zmienia kuponu:
 - **Metoda zdejmowania marży** (`measure_devig.py`, 98 702 rozliczone strony
   09-20..30): potęgowa 0,20047, Shin 0,20038, proporcjonalna 0,20088 —
   potęgowa zostaje (Shin lepszy o 0,00009, przedział dotyka zera).
-- **Ledger** podaje teraz przedział ROI z bootstrapu po dniach: oficjalny
-  kupon 09-19..30 −1,8% [−9,0%; +11,1%] (nie do odróżnienia od zera), WARIANT
-  −3,8% [−5,3%; −1,3%].
+- **Ledger** podaje przedział ROI z bootstrapu **po meczach** (od
+  2026-10-01; nogi jednego meczu dzielą jego scenariusz, a dzień też nie jest
+  jednostką — przy dwóch dniach bootstrap po dniach zwracał tylko ROI tych
+  dwóch dni). Poniżej 20 meczów kolumna pokazuje „- (<20 matches)”, a dzień
+  zapisany bez rekordu per mecz (sprzed 2026-10-01 albo powtórka reguły,
+  która zapisuje same sumy) daje „- (no per-match record)” — pominięcie go
+  zniekształciłoby przedział. Rekord dnia niesie `by_match`
+  (`{mecz: [jednostki, rozliczone]}`) i `estimated_builders`: buildery
+  rozliczone po szacunku `odds_if_product × haircut`, bo nie zapisano kursu
+  z ekranu (7c „(szac.)”) — `audit_ledger` pokazuje je w osobnej kolumnie, bo
+  to nie jest kurs, który Superbet wydrukował. Pierwszy odczyt (jeszcze po
+  dniach, sprzed tej zmiany): oficjalny kupon 09-19..30 −1,8% [−9,0%;
+  +11,1%], WARIANT −3,8% [−5,3%; −1,3%] — przedziały po dniach, nie do
+  porównania z nowymi.
 - **Czego to nie zmienia** (przegląd literatury i praktyki): model z samych
   wyników nie bije ceny na zwycięzcy (rynek zna składy, kontuzje, bramkarza);
   sumy niosą trochę informacji; rynki siatkówki są niezbadane. Przewaga u
@@ -901,7 +1006,12 @@ stałych jest innym arkuszem, i nikt już nie odróżni zmiany modelu od zmiany
 rynku.
 
 Szczegóły — który plik, kto go pisze, co znaczy `NOT_FITTED`, jak czytać
-`half_match_coherence` — w [`CONFIG.md`](CONFIG.md).
+`half_match_coherence` — w [`CONFIG.md`](CONFIG.md). Od 2026-10-01
+`fit_confidence.py` i `fit_constants.py` pomijają rynki pochodne
+(`most_` / `handicap_` / `both_over_`), prior `K_CENTRE` jest liczony bez
+ocenianego meczu (leave-one-match-out), a `calibrate_from_cache.py` składa
+zduplikowane listingi — krzywe zmienią się dopiero przy **następnym** fitcie
+między dniami (CONFIG.md §4).
 
 ---
 
@@ -950,6 +1060,12 @@ runs/sofa/multi/<data>/
 runs/sofa/ledger/results.jsonl            dziennik: jeden wiersz na (dzień, wariant), record_results.py; czyta go audit_ledger.py
 ```
 
+Od 2026-10-01 każdy artefakt etapu, PDF i plik fitu w `config/` jest
+zapisywany atomowo (`src/bet/sofa/atomic.py`): do `<nazwa>.<pid>.<wątek>.tmp`
+obok celu, potem `os.replace`. Etap przerwany w trakcie zapisu nie zostawia
+uciętego JSON-a, który następny etap by przeczytał (albo odrzucił z błędem
+wskazującym złą przyczynę).
+
 `10_boosts.*` pisze `scripts/sofa/run_boosts.py --date <d>`, poza
 `DEFAULT_SEQUENCE`: migawka każdego kursu z tagiem `price_boost` — kurs po
 podbiciu, kurs sprzed podbicia i nogi, sklasyfikowane tą samą funkcją co
@@ -976,9 +1092,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d>
 
 Cały dzień CS2 bez obsługi (zapis cen co 30 min do 23:30Z; z `--chain` o
 23:30Z startuje pętla D+1, więc nocne serie D+1 mają ceny; następnego dnia o
-05:00Z CS2_SETTLE dla D i D-1, rozliczenie kuponów CS2 za D-1 i D, dziennik
-za D-1 i D, krótki backfill z poszanowaniem karencji i audyt do logu; druga
-pętla dla tej samej daty odmawia, kod 2):
+05:00Z CS2_SETTLE dla D i D-1, potem przegląd D-7..D-2
+(`settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>` — tylko daty, których
+`settled.json` brakuje albo wciąż ma czekającą serię, rozstrzygnięte offline
+z plików), rozliczenie kuponów CS2 i dziennik za D-7..D, krótki backfill
+z poszanowaniem karencji i audyt do logu; druga pętla dla tej samej daty
+odmawia, kod 2). Bez przeglądu seria, która wciąż czekała na D-2, nie była
+już nigdy pytana i nie dochodziła nawet do `GAVE_UP` po 7 dniach (audyt
+2026-10-01):
 
 ```
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> --chain \
@@ -1004,7 +1125,24 @@ naprawi sam, bo wymaga zamknięcia Chrome. Każda linia logu zaczyna się od
   serię w Sofascore (kategoria „Counter Strike”; drużyna e-sportowa jest osobna
   dla każdej gry), odtwarza mapy po kolei i ocenia linie dopiero wtedy, gdy mapy
   dają dokładnie wynik serii podany przez Sofascore. Seria w toku jest ponawiana;
-  po 48 h od startu to `VOID` — tak jak w Regulaminie Superbeta (5.E.1.a).
+  po 48 h od startu to `VOID` — tak jak w Regulaminie Superbeta (5.E.1.a);
+  po 7 dniach bez oceny `GAVE_UP` (nasze). Od 2026-10-01 seria bez wierszy
+  zawodników nie czeka w całości (`STATS_PENDING`, karencja 72 h): czekają
+  tylko linie zawodników i zabójstw drużyny na mapie bez tych wierszy
+  (`stats_pending`), a linie serii, map i rund są oceniane od razu — dawniej
+  zwycięzca meczu wisiał dłużej, niż pętla kiedykolwiek sięgała (rozlicza po
+  ~29 h i ~53 h). Seria bez wyników rund ocenia linie serii i liczy resztę
+  (`series_only_skipped`; 09-30 zgubiło bez śladu 114 ze 154). `SETTLED`
+  z `pending_sides` > 0 (`pending_reason` `SERIES_ONLY` / `STATS_PENDING`)
+  jest pytany ponownie, a nieudana ponowna próba nigdy nie zastępuje ocen,
+  które już są. Rekord ma `sofascore_start_utc` (od 2026-10-01), więc
+  `IN_PLAY_PRICE` kuponu sportowego działa też dla CS2. `settled.json` jest
+  zapisywany pod blokadą (`<plik>.lock`): równoległe rozliczenie (strażnik,
+  ręczne) zachowuje serie, których to nie dotknęło. Nazwy: sufiks „.gg”
+  (Superbet „KUUSAMO” / Sofascore „KUUSAMO.gg”) i znaczniki składu kobiet
+  („MIBR (K)” / „MIBR fe”, wcześniej 76,9 przy progu 82 — każda seria kobiet
+  była `NOT_ON_SOFASCORE`) są składane; skład kobiet nigdy nie pasuje do
+  męskiego.
 - **audit_cs2.py**: pokrycie (stany i turnieje), potem dla każdej rodziny rynku
   kurs bez marży, trafialność, różnica, Brier, zwrot i marża; osobno faworyci
   i underdogi. Linie jednej serii są skorelowane — czytaj kolumnę `series`.
@@ -1022,7 +1160,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>   --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE  # rano, bridge musi działać
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain \
-    >> runs/sofa/shadow/daily_<d>.log 2>&1 &    # cały dzień bez obsługi: ceny do 04:30Z D+1, o 05:15Z settle D i D-1, kupony sportów i dziennik za D-1 i D, potem --chain startuje D+1
+    >> runs/sofa/shadow/daily_<d>.log 2>&1 &    # cały dzień bez obsługi: ceny do 04:30Z D+1, o 05:15Z settle D, D-1 i D-2, kupony sportów i dziennik za te dni, potem --chain startuje D+1
 ```
 
 - **SHADOW** (`run_shadow.py`): Superbet sportId 3 (hokej), 4 (koszykówka),
@@ -1048,7 +1186,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   `/event/{id}` pyta świeżo i ocenia dopiero, gdy wynik się zgadza: suma
   okresów = `normaltime`, dogrywka tylko z remisu, sety = `current`. Gol z
   dogrywki jest w `current`, a w żadnym okresie. Rynek bez „(z dogrywką)”
-  liczy czas regulaminowy; kwarta 4. i 2. połowa w koszykówce po dogrywce są
+  liczy czas regulaminowy (rodziny hokejowe z dogrywką 613 / 617 / 621 / 653
+  nie są mapowane, a NHL jest wystawiana **tylko** z nimi, więc żadna suma NHL
+  nie jest mierzona — przegląd 2026-10-01); kwarta 4. i 2. połowa w koszykówce po dogrywce są
   nieoceniane (nazwa nie mówi, czy dogrywka się wlicza). Gdy nie da się
   pewnie powiedzieć, która strona Sofascore to drużyna 1 Superbeta, oceniane
   są tylko sumy (`orientation_unclear: true`). Listing odwrócony (gospodarz
@@ -1061,7 +1201,14 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   Wiek ceny (`minutes_before_kickoff`) liczony jest do tego wcześniejszego
   zegara. Brak odpowiedzi `/event` to
   `ERROR` (ponawiany), nigdy wynik z listingu. Stany jak w CS2; po 7 dniach
-  `GAVE_UP` (nasze), nigdy `VOID` Superbeta. Każdy oceniony wiersz ma
+  `GAVE_UP` (nasze), nigdy `VOID` Superbeta. Mecz `NOT_ON_SOFASCORE` niesie
+  od 2026-10-01 `miss` (`team1` / `team2`): pierwszą bramkę, która opróżniła
+  szukanie danej strony (`CACHED_MISS`, `NO_SEARCH_RESULT`, `NO_CANDIDATE`
+  z `search_teams`, `NO_LISTING`, `NO_GAME_IN_WINDOW` z `nearest_gap_h`,
+  `GENDER_REFUSED` / `OPPONENT_REFUSED` z `in_window`), odczytaną z już
+  opłaconego wyszukiwania i z cache, bez nowego żądania — 30 z 50 meczów
+  siatkówki 09-29..30 skończyło jako `NOT_ON_SOFASCORE` i nic nie mówiło
+  dlaczego. Każdy oceniony wiersz ma
   `minutes_before_kickoff` — wiek ceny; audyt dzieli po nim (sekcja 5).
   Koszt: mecz szuka tylko w pierwszej stronie `events/last` (~3–9 żądań na
   zimnym cache, ~1 s na żądanie przez bridge).
@@ -1090,16 +1237,24 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   sprawdzone 2026-09-29: suma zawodników = statystyka drużyny w 12/12
   meczach (hokej: strzały, hity, bloki; kosz: asysty, bloki, przechwyty,
   trójki, punkty). Na żywo: 39/40 pudełek hokejowych i 34/40 koszykarskich
-  spójnych.
+  spójnych. Od 2026-10-01 odpowiedź `/lineups` zakończonego meczu trafia do
+  cache (`sofa_event_stats.lineups_json` było puste dla wszystkich 3052
+  ocenionych stron zawodników), więc ocenę zawodnika da się sprawdzić na
+  pudełku, z którego ją wzięto; pusta odpowiedź nie jest zapisywana.
 - **shadow_daily.py**: jedna pętla na datę — druga odmawia startu (exit 2),
   gdy `daily_<d>.pid` wskazuje żywy proces `shadow_daily.py` tej daty; plik
   pid znika, gdy pętla się kończy. Pętla D łapie mecze D+1 tylko do ~07:30Z
   (ostatni snapshot 04:30Z + horyzont 3 h), dlatego `--chain` po porannym
   settle i audycie sam startuje pętlę D+1 (też z `--chain`) do
   `daily_<D+1>.log`. Łańcuch zatrzymuje się, zabijając pid z
-  `daily_<d>.pid`. Rano po SHADOW_SETTLE (D i D-1) pętla rozlicza kupony
-  sportów za D-1 i D (`settle_sport_coupon.py`) i zapisuje dziennik
-  (`record_results.py --from D-1 --to D`).
+  `daily_<d>.pid`. Rano po SHADOW_SETTLE (D, D-1 i D-2 — każdy dzień,
+  który ma migawki) pętla rozlicza kupony sportów za te dni
+  (`settle_sport_coupon.py`) i zapisuje dziennik (`record_results.py --from
+  <najwcześniejszy> --to D`). D-2 doszło 2026-10-01: przełożony mecz staje
+  się `VOID` dopiero 48 h po starcie, a settle D-1 o 05:15Z jest najwyżej
+  ~35 h po nim — bez D-2 przełożony mecz nigdy nie był `VOID` i kończył jako
+  `GAVE_UP`. Settle D-2 wypada 53–77 h po meczu; mecz już rozliczony jest
+  zachowywany, pytane są tylko czekające.
 
 **Historia i silnik.** `scripts/sofa/backfill_cs2.py --days 180` wczytuje z
 Sofascore historię CS2 do tabel `cs2_series`, `cs2_map`, `cs2_player_map` w
@@ -1268,7 +1423,23 @@ Od 2026-10-01 rozliczenie kuponów sportowych, WSZYSTKIE i dziennik sięga
 nierozliczona, a nie wiecznie „pending”. Kupon sportowy nie bierze już
 sparingów ani turniejów, których pomiar nie znalazł na Sofascore
 (`friendly_tournament`, `unsettleable_tournament`; lista z dowodem w
-`sport_coupon.json`).
+`sport_coupon.json`). Turniej jest „nierozliczalny”, gdy w ostatnich 14
+rozliczonych dniach przed D co najmniej połowa z ≥ 2 jego meczów była
+`NOT_ON_SOFASCORE` — albo, od audytu 2026-10-01, gdy **każdy** z jego
+widzianych meczów (≥ 1) był `NOT_ON_SOFASCORE` (`UNSETTLEABLE_ALL_MIN_EVENTS`;
+kupon siatkówki 10-01 wydrukował dwie nogi „Brazylia - Paulista U19” i jedną
+„Szwecja - Puchar Ligi”, każdy z jednym wcześniejszym, nieznalezionym meczem —
+1/1 prześlizgnęło się pod regułą ≥ 2). Turniej niewidziany przechodzi: nie ma
+jeszcze dowodu przeciw niemu. Dwie odmowy tylko dla CS2 (od 2026-10-01):
+`unseen_team` — strona, której magazyn serii (`cs2_series`) nigdy nie widział
+(dopasowanie nazw jak w CS2_SETTLE; „Winners series 1x1” 09-30 poszło 30/30
+`NOT_ON_SOFASCORE`), liczone raz na budowę i zapisane w `refused_events`, żeby
+`audit_variants` powtórzył dokładnie to, co budowa odrzuciła; pusty magazyn
+nie odrzuca niczego — i `no_tournament` — zdarzenie CS2 bez turnieju (gdy
+Superbet nie oddał struktury), którego ani bramka sparingów, ani
+nierozliczalnych nie umie przeczytać. Noga CS2 z serii ocenionej częściowo
+(`pending_sides` w `settled.json`) jest `PENDING:<pending_reason>`, nie
+`UNGRADEABLE`, dopóki rekord nie jest ostateczny albo noga nie minie 7 dni.
 
 **`PARTIAL` na RESOLVE / OFFER / SAMPLES to normalny kształt zdrowego
 przebiegu**, nie awaria: zawsze jakieś mecze mają luki. Zatrzymuje wyłącznie

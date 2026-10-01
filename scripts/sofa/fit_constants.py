@@ -29,6 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.db import get_connection
 from bet.sofa.engine import (
@@ -40,6 +41,7 @@ from bet.sofa.engine import (
     uses_negative_binomial,
     winning_boundary,
 )
+from bet.sofa.market_mapper import is_derived
 
 K_GRID = [0.0, 2.0, 5.0, 8.0, 10.0, 15.0, 25.0, 1000.0]
 
@@ -101,6 +103,80 @@ def bucket_p(p: float) -> str:
     return f"{b / 10.0:.1f}-{(b + 1) / 10.0:.1f}"
 
 
+BASELINE_GROUPS_SQL = """
+    SELECT competition_id, market, subject, sofascore_event_id,
+           MAX(actual_value) AS value
+    FROM sofa_settled_row
+    WHERE competition_id IS NOT NULL
+    GROUP BY competition_id, market, subject, sofascore_event_id
+    ORDER BY market, competition_id, sofascore_event_id
+"""
+
+
+def _in_baselines(market: str) -> bool:
+    """Which markets get a league baseline at all (see fit_baselines)."""
+    return not market.startswith("player_")
+
+
+# market -> competition id (str) -> (sum of values, number of values): the
+# exact totals behind every league mean, and per market the pool behind
+# "global". Used to take one match's own values back out of its prior.
+BaselineTotals = tuple[
+    dict[str, dict[str, tuple[float, int]]], dict[str, tuple[float, int]]
+]
+
+
+def baseline_totals(conn: sqlite3.Connection) -> BaselineTotals:
+    """Unrounded (sum, n) of every league baseline and of every market pool,
+    over exactly the values fit_baselines averages."""
+    league: dict[str, dict[str, tuple[float, int]]] = defaultdict(dict)
+    pooled: dict[str, tuple[float, int]] = {}
+    for row in conn.execute(BASELINE_GROUPS_SQL):
+        market = row["market"]
+        if not _in_baselines(market):
+            continue
+        comp = str(row["competition_id"])
+        value = float(row["value"])
+        s, n = league[market].get(comp, (0.0, 0))
+        league[market][comp] = (s + value, n + 1)
+        s, n = pooled.get(market, (0.0, 0))
+        pooled[market] = (s + value, n + 1)
+    return dict(league), pooled
+
+
+def leave_match_out_prior(
+    row: dict[str, Any], totals: BaselineTotals
+) -> float | None:
+    """The prior get_prior would have read had this row's own match never
+    been settled: its league mean without the match's values, else the
+    market pool without them, else None - each held to the same
+    MIN_BASELINE_OBSERVATIONS bar as fit_baselines.
+
+    The baselines are fitted on every settled row, the rows K_CENTRE is
+    scored on included, so without this a row's own realised value sits in
+    the prior it is scored with (up to 2 of a league's 30+ values) and the
+    curve flatters the prior - it pushes K towards "trust the league". A
+    leave-one-DAY-out would be the stricter cut, but 25.8M of the rows are
+    cache-calibration rows filed under one run_date and carry no match date,
+    so the match is the unit that can be taken out everywhere.
+    """
+    market = row["market"]
+    league, pooled = totals
+    if market not in pooled:
+        return None
+    own_sum = float(row.get("own_sum") or 0.0)
+    own_n = int(row.get("own_n") or 0)
+    s, n = league.get(market, {}).get(str(row["competition_id"]), (0.0, 0))
+    if n - own_n >= MIN_BASELINE_OBSERVATIONS:
+        return (s - own_sum) / (n - own_n)
+    s, n = pooled[market]
+    # A league that never reached the bar contributes nothing of its own to
+    # the league tier but still sits in the pool, so the match leaves both.
+    if n - own_n >= MIN_BASELINE_OBSERVATIONS:
+        return (s - own_sum) / (n - own_n)
+    return None
+
+
 def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
     """Per-league mean of each market's realised value, keyed on competition_id.
 
@@ -114,16 +190,7 @@ def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
       an integer line — a non-random slice of the distribution, removed from a
       statistic that is about values, not about results.
     """
-    cursor = conn.execute(
-        """
-        SELECT competition_id, market, subject, sofascore_event_id,
-               MAX(actual_value) AS value
-        FROM sofa_settled_row
-        WHERE competition_id IS NOT NULL
-        GROUP BY competition_id, market, subject, sofascore_event_id
-        ORDER BY market, competition_id, sofascore_event_id
-        """
-    )
+    cursor = conn.execute(BASELINE_GROUPS_SQL)
 
     by_market: dict[str, dict[str, list[float]]] = defaultdict(
         lambda: defaultdict(list)
@@ -135,7 +202,7 @@ def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
         # SETTLE had not yet produced 30 rows; the first fit that crossed the
         # bar raised player_shots_for OVER p from 0.413 to 0.437 against a
         # 0.365 hit rate on 09-25 (Brier 0.191 -> 0.208, n=241).
-        if row["market"].startswith("player_"):
+        if not _in_baselines(row["market"]):
             continue
         by_market[row["market"]][str(row["competition_id"])].append(row["value"])
 
@@ -411,34 +478,80 @@ K_CENTRE_ROWS_SQL = """
     ORDER BY id
 """
 
+# The same rows, each with its own match's contribution to its market's
+# baseline (own_sum / own_n: the per-subject values BASELINE_GROUPS_SQL
+# averages), so leave_match_out_prior can take the match back out.
+K_CENTRE_ROWS_LOO_SQL = """
+    WITH g AS (
+        SELECT competition_id, market, sofascore_event_id, subject,
+               MAX(actual_value) AS value
+        FROM sofa_settled_row
+        WHERE competition_id IS NOT NULL
+        GROUP BY competition_id, market, subject, sofascore_event_id
+    ), e AS (
+        SELECT competition_id, market, sofascore_event_id,
+               SUM(value) AS own_sum, COUNT(*) AS own_n
+        FROM g
+        GROUP BY competition_id, market, sofascore_event_id
+    )
+    SELECT r.sport, r.competition_id, r.market, r.line, r.direction,
+           r.sample_size, r.sample_mean, r.sample_sd, r.outcome,
+           e.own_sum, e.own_n
+    FROM sofa_settled_row r
+    LEFT JOIN e ON e.competition_id = r.competition_id
+               AND e.market = r.market
+               AND e.sofascore_event_id = r.sofascore_event_id
+    WHERE r.outcome IN ('WIN', 'LOSS')
+    ORDER BY r.id
+"""
+
 # Below this a sport has not been measured, and the pooled value is the
 # honest answer rather than a curve fitted on a few hundred rows.
 MIN_ROWS_PER_SPORT = 5000
 
 
 def _k_centre_curve(
-    rows: list[dict[str, Any]], baselines: dict[str, Any]
+    rows: list[dict[str, Any]],
+    baselines: dict[str, Any],
+    totals: BaselineTotals | None = None,
 ) -> dict[float, float]:
-    """Brier by K over one population of settled rows."""
+    """Brier by K over one population of settled rows.
+
+    With `totals`, each row's prior leaves its own match out
+    (leave_match_out_prior); without, it is read from `baselines` as the
+    sheet reads it.
+    """
+    # A joint / comparative market (both_over_, handicap_, most_) is not a
+    # count against its line - its sample_mean/sd describe no one quantity
+    # the line is drawn on, and run_sheet prices it in derived.py, which
+    # reads no K_CENTRE. Scoring it here as a count fitted K on rows whose
+    # rebuilt p has nothing to do with how they are priced or settled.
+    rows = [r for r in rows if not is_derived(r["market"])]
+    priors: list[float | None] = []
+    for row in rows:
+        market = row["market"]
+        comp_id = str(row["competition_id"])
+        # Same precedence as run_sheet.get_prior, and the same tolerance
+        # of both pool shapes: `{"mean": x, "n": k}` since 2026-09-21,
+        # a bare float in every file written before it. K_CENTRE is
+        # fitted against these priors, so reading them differently here
+        # than the sheet does would fit a constant for a model that does
+        # not ship.
+        prior = None
+        if totals is not None:
+            prior = leave_match_out_prior(row, totals)
+        elif market in baselines:
+            if comp_id in baselines[market]:
+                prior = baselines[market][comp_id]["mean"]
+            else:
+                prior = _pooled_mean(baselines[market])
+        priors.append(prior)
+
     curve: dict[float, float] = {}
     for k in K_GRID:
         errors: list[float] = []
-        for row in rows:
+        for row, prior in zip(rows, priors, strict=True):
             market = row["market"]
-            comp_id = str(row["competition_id"])
-            # Same precedence as run_sheet.get_prior, and the same tolerance
-            # of both pool shapes: `{"mean": x, "n": k}` since 2026-09-21,
-            # a bare float in every file written before it. K_CENTRE is
-            # fitted against these priors, so reading them differently here
-            # than the sheet does would fit a constant for a model that does
-            # not ship.
-            prior = None
-            if market in baselines:
-                if comp_id in baselines[market]:
-                    prior = baselines[market][comp_id]["mean"]
-                else:
-                    prior = _pooled_mean(baselines[market])
-
             mean = row["sample_mean"]
             n = row["sample_size"]
             if prior is not None:
@@ -484,19 +597,30 @@ def _k_centre_curve(
     return curve
 
 
+def _k_centre_rows(
+    conn: sqlite3.Connection, totals: BaselineTotals | None
+) -> list[dict[str, Any]]:
+    sql = K_CENTRE_ROWS_SQL if totals is None else K_CENTRE_ROWS_LOO_SQL
+    return [dict(r) for r in conn.execute(sql)]
+
+
 def fit_k_centre(
-    conn: sqlite3.Connection, baselines: dict[str, Any]
+    conn: sqlite3.Connection,
+    baselines: dict[str, Any],
+    totals: BaselineTotals | None = None,
 ) -> tuple[float | None, dict[float, float]]:
     """Weight of the league prior against the sample mean, pooled."""
-    rows = [dict(r) for r in conn.execute(K_CENTRE_ROWS_SQL)]
+    rows = _k_centre_rows(conn, totals)
     if not rows:
         return None, {}
-    curve = _k_centre_curve(rows, baselines)
+    curve = _k_centre_curve(rows, baselines, totals)
     return _pick_plateau_k(curve, BRIER_PLATEAU_TOLERANCE), curve
 
 
 def fit_k_centre_by_sport(
-    conn: sqlite3.Connection, baselines: dict[str, Any]
+    conn: sqlite3.Connection,
+    baselines: dict[str, Any],
+    totals: BaselineTotals | None = None,
 ) -> dict[str, float]:
     """K_CENTRE per sport. The pooled fit is, in practice, a football fit.
 
@@ -512,7 +636,7 @@ def fit_k_centre_by_sport(
     0.20492 — 8.6% worse. One number was asking a UTR PTT group match to be
     two-thirds "the average tennis match" (F46).
     """
-    rows = [dict(r) for r in conn.execute(K_CENTRE_ROWS_SQL)]
+    rows = _k_centre_rows(conn, totals)
     by_sport: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         by_sport.setdefault(str(row["sport"]), []).append(row)
@@ -522,7 +646,8 @@ def fit_k_centre_by_sport(
         if len(sport_rows) < MIN_ROWS_PER_SPORT:
             continue
         picked = _pick_plateau_k(
-            _k_centre_curve(sport_rows, baselines), BRIER_PLATEAU_TOLERANCE
+            _k_centre_curve(sport_rows, baselines, totals),
+            BRIER_PLATEAU_TOLERANCE,
         )
         if picked is not None:
             fitted[sport] = picked
@@ -670,8 +795,12 @@ def main() -> int:
 
         baselines = fit_baselines(conn)
         reliability = fit_reliability(conn)
-        k_centre, k_centre_curve = fit_k_centre(conn, baselines)
-        k_centre_by_sport = fit_k_centre_by_sport(conn, baselines)
+        # K_CENTRE is scored on priors that leave the scored match out
+        # (leave_match_out_prior); the baselines written below keep every
+        # match, because a future day's sheet reads all of them.
+        totals = baseline_totals(conn)
+        k_centre, k_centre_curve = fit_k_centre(conn, baselines, totals)
+        k_centre_by_sport = fit_k_centre_by_sport(conn, baselines, totals)
         k_price, k_price_curve = fit_k_price(conn)
         max_sigma, sigma_report = fit_max_ladder_sigma(conn)
 
@@ -704,11 +833,13 @@ def main() -> int:
     if coherence:
         for line in coherence:
             print(f"BASELINE_INCOHERENT {line}", file=sys.stderr, flush=True)
-    (config_dir / "sofa_league_baselines.json").write_text(
-        json.dumps(baselines_out, indent=2, ensure_ascii=False), encoding="utf-8"
+    write_atomic(
+        config_dir / "sofa_league_baselines.json",
+        json.dumps(baselines_out, indent=2, ensure_ascii=False),
     )
-    (config_dir / "sofa_market_reliability.json").write_text(
-        json.dumps(reliability, indent=2, ensure_ascii=False), encoding="utf-8"
+    write_atomic(
+        config_dir / "sofa_market_reliability.json",
+        json.dumps(reliability, indent=2, ensure_ascii=False),
     )
 
     constants: dict[str, Any] = {
@@ -745,8 +876,9 @@ def main() -> int:
         },
         "MAX_LADDER_SIGMA": {"value": max_sigma, **sigma_report},
     }
-    (config_dir / "sofa_engine_constants.json").write_text(
-        json.dumps(constants, indent=2, ensure_ascii=False), encoding="utf-8"
+    write_atomic(
+        config_dir / "sofa_engine_constants.json",
+        json.dumps(constants, indent=2, ensure_ascii=False),
     )
 
     fitted = sum(

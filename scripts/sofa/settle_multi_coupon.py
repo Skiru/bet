@@ -5,9 +5,11 @@
         --from 2026-09-30 --to 2026-09-30
 
 - official section: its singles and builders are graded exactly as
-  audit_settlement 7c grades the PDF - the same 07_settled.json rows, the
-  same key, the same slip rule (one lost leg loses the slip), the builder's
-  screen price where 09_screen_prices.json has it, else the haircut estimate;
+  audit_settlement 7c grades the PDF - the same settled rows, read from the
+  database (sofa_settled_row, which regrade_settled.py corrects;
+  07_settled.json is not corrected and is not read), the same key, the same
+  slip rule (one lost leg loses the slip), the builder's screen price where
+  09_screen_prices.json has it, else the haircut estimate;
 - each sport section: sport_coupon.grade_coupon on the stored results.
 
 Writes runs/sofa/multi/<d>/multi_coupon_settled.json and prints one table.
