@@ -24,6 +24,7 @@ import argparse
 import glob
 import json
 import math
+import os
 import random
 import sqlite3
 import sys
@@ -148,7 +149,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--from", dest="date_from", required=True)
     ap.add_argument("--to", dest="date_to", required=True)
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     args = ap.parse_args()
     days = _days(args.date_from, args.date_to)
     runs = Path(args.runs_dir)

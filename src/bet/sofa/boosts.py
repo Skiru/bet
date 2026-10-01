@@ -31,6 +31,11 @@ from bet.sofa.offer import classify_odd
 from bet.sofa.superbet import SPORT_BY_ID, odds_items
 
 BOOST_TAG = "price_boost"
+# The implied-probability sum of a market that can be devigged as one
+# exclusive set: at least fair, at most a 35% margin (Superbet's widest
+# measured multi-way markets ran 12-46%; above this it is not one market).
+MIN_MARKET_SUM = 1.0
+MAX_MARKET_SUM = 1.35
 
 Outcome = Literal["WIN", "LOSS", "UNSETTLED"]
 
@@ -241,7 +246,14 @@ def _fair_single(
     ]
     if len(group) < 2 or not any(o is source for o in group):
         return None
-    fair = devig_many([1.0 / float(o["price"]) for o in group])
+    implied = [1.0 / float(o["price"]) for o in group]
+    # An exclusive market's implied probabilities sum to 1 plus its margin.
+    # A player market (anytime scorer, a player's shots without a line)
+    # shares one marketId across outcomes that are NOT exclusive, and its sum
+    # runs far past any margin: such a group is not devigged.
+    if not MIN_MARKET_SUM <= sum(implied) <= MAX_MARKET_SUM:
+        return None
+    fair = devig_many(implied)
     if fair is None:
         return None
     idx = next(i for i, o in enumerate(group) if o is source)

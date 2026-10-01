@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import math
+import pickle
 import sqlite3
 from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, Mapping
@@ -126,7 +127,6 @@ UNRATED_MARKETS = frozenset(
 )
 # Smoothing of a league's own rate and home ratio.
 ALPHA_LEAGUE = 0.02
-LEAGUE_RUNNING_MEAN = True
 # A league or a team with fewer matches than this is not rated from itself.
 MIN_LEAGUE_MATCHES = 30
 MIN_TEAM_MATCHES = 5
@@ -169,9 +169,6 @@ MAX_SURPRISE = 3.0
 # 0.7): goals_for held out 08-15..09-30 2.5756 -> 2.5655, cross pairs
 # 2.8414 -> ~2.79.
 CROSS_RATIO_POWER = 0.6
-# Whether a cross-domain match also moves the two teams' ratios (False: it
-# moves only the domains' strengths - PandaSkill, De Bois et al. 2025).
-CROSS_UPDATES_RATIOS = True
 
 # Chosen, not fitted on probability: ALPHA_STRENGTH, MIN_STRENGTH_LINKS and
 # MAX_SURPRISE were picked on one-step-ahead squared error of the centre
@@ -179,7 +176,7 @@ CROSS_UPDATES_RATIOS = True
 # priced through the rating names them in UNFITTED_CONSTANTS.
 RATING_UNFITTED = (
     "ALPHA_STRENGTH", "MIN_STRENGTH_LINKS", "MAX_SURPRISE", "LINK_MIN_MATCHES",
-    "CROSS_RATIO_POWER")
+    "CROSS_RATIO_POWER", "LINK_WINDOW_S", "TEAM_COMP_MEMORY")
 
 LINKED = "LINKED"
 LINKED_BY_STRENGTH = "LINKED_BY_STRENGTH"
@@ -218,9 +215,10 @@ class FootballResult:
 
 def _listing_values(event: Mapping[str, Any]) -> dict[str, tuple[float, float]]:
     out: dict[str, tuple[float, float]] = {}
+    ev = event if isinstance(event, dict) else dict(event)
     for metric in _LISTING_METRICS:
-        h = extract_metric(metric, "football", {}, None, dict(event), True)
-        a = extract_metric(metric, "football", {}, None, dict(event), False)
+        h = extract_metric(metric, "football", {}, None, ev, True)
+        a = extract_metric(metric, "football", {}, None, ev, False)
         if (not isinstance(h, GapReason) and not isinstance(a, GapReason)
                 and h >= 0 and a >= 0):
             out[metric] = (h, a)
@@ -233,14 +231,15 @@ def _stats_values(
     incidents: dict[str, Any] | None,
 ) -> dict[str, tuple[float, float]]:
     out: dict[str, tuple[float, float]] = {}
-    if is_extra_time_event(dict(event)):
+    ev = event if isinstance(event, dict) else dict(event)
+    if is_extra_time_event(ev):
         return out
     flat = extract_flat_statistics(statistics)
     for metric in BASE_METRICS:
         if metric in _LISTING_METRICS:
             continue
-        h = extract_metric(metric, "football", flat, incidents, dict(event), True)
-        a = extract_metric(metric, "football", flat, incidents, dict(event), False)
+        h = extract_metric(metric, "football", flat, incidents, ev, True)
+        a = extract_metric(metric, "football", flat, incidents, ev, False)
         # A count below zero is a provider correction, never a count.
         if (not isinstance(h, GapReason) and not isinstance(a, GapReason)
                 and h >= 0 and a >= 0):
@@ -279,12 +278,64 @@ def parse_event(
     return FootballResult(
         event_id=int(event["id"]), ts=ts, competition_id=int(competition),
         home_id=int(home), away_id=int(away), values=values,
-        women=sofascore_gender(dict(event)) == "W",
+        women=sofascore_gender(event if isinstance(event, dict) else dict(event))
+        == "W",
     )
 
 
-def load_history(db_path: str | Path) -> list[FootballResult]:
-    """Every distinct finished football match in the cache, in time order."""
+# Bump when parse_event / the metrics it reads change meaning: a cached
+# history parsed by older code is then never reused.
+HISTORY_PARSER_VERSION = "2026-10-01.1"
+
+
+def history_fingerprint(db_path: str | Path) -> str:
+    """What the parsed history depends on: the cached listings and statistics
+    (row count and newest fetch of each), the parser and the friendly list.
+    Two loads with the same fingerprint parse to the same history."""
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn.execute("PRAGMA busy_timeout = 60000")
+    try:
+        lst = conn.execute(
+            "SELECT COUNT(*), MAX(fetched_at) FROM sofa_entity_events "
+            "WHERE kind = 'last'").fetchone()
+        sts = conn.execute(
+            "SELECT COUNT(*), MAX(fetched_at) FROM sofa_event_stats").fetchone()
+    finally:
+        conn.close()
+    friendlies = ",".join(str(c) for c in sorted(FRIENDLY_COMPETITION_IDS))
+    return f"{HISTORY_PARSER_VERSION}|{lst[0]}|{lst[1]}|{sts[0]}|{sts[1]}|{friendlies}"
+
+
+def load_history(
+    db_path: str | Path, cache_dir: str | Path | None = None
+) -> list[FootballResult]:
+    """Every distinct finished football match in the cache, in time order.
+
+    Parsing the backfilled cache (913k matches, 2026-10-01) takes ~10 minutes,
+    and SHEET runs again after every OFFER refresh. With `cache_dir` the parsed
+    history is kept as a pickle under its fingerprint (history_fingerprint)
+    and reused while the listings and statistics are unchanged - a rebuild
+    after an OFFER refresh writes neither.
+    """
+    if cache_dir is not None:
+        fp = history_fingerprint(db_path)
+        path = Path(cache_dir) / "football_history.pkl"
+        try:
+            stored_fp, history = pickle.loads(path.read_bytes())
+            if stored_fp == fp:
+                return list(history)
+        except (OSError, pickle.PickleError, EOFError, ValueError, TypeError):
+            pass
+        history = _load_history_uncached(db_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(pickle.dumps((fp, history), protocol=pickle.HIGHEST_PROTOCOL))
+        tmp.replace(path)
+        return history
+    return _load_history_uncached(db_path)
+
+
+def _load_history_uncached(db_path: str | Path) -> list[FootballResult]:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         events: dict[int, dict[str, Any]] = {}
@@ -328,8 +379,7 @@ class _League:
         # left it 32% of the weight after 57: the UAE League Cup's first
         # cached match was 0-0, and its rate read 2.13 goals a match against
         # the 3.12 its 57 matches average (sofa-verifier, 2026-10-01).
-        step = max(ALPHA_LEAGUE, 1.0 / (self.n + 1)) if LEAGUE_RUNNING_MEAN else (
-            1.0 if self.n == 0 else ALPHA_LEAGUE)
+        step = max(ALPHA_LEAGUE, 1.0 / (self.n + 1))
         self.home_mean += step * (home - self.home_mean)
         self.away_mean += step * (away - self.away_mean)
         self.n += 1
@@ -529,12 +579,10 @@ class RatingBook:
                     sa.sigma = min(max(sa.sigma - ALPHA_STRENGTH * resid, lo), hi)
                     sh.n += 1
                     sa.n += 1
-                cross = (
-                    not linked and dh is not None and da is not None and dh != da
-                )
-                if CROSS_UPDATES_RATIOS or not cross:
-                    th.attack, th.defence = th_attack, th_defence
-                    ta.attack, ta.defence = ta_attack, ta_defence
+                # A cross-league match moves the ratios too: measured
+                # 2026-09-30, moving only the strengths (PandaSkill) was worse.
+                th.attack, th.defence = th_attack, th_defence
+                ta.attack, ta.defence = ta_attack, ta_defence
                 th.n += 1
                 ta.n += 1
             self.leagues[(r.competition_id, metric)].update(vh, va)

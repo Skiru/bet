@@ -205,3 +205,17 @@ def test_a_market_that_cannot_be_read_whole_is_not_valued() -> None:
 def test_a_combination_never_gets_a_probability() -> None:
     [b] = extract_boosts(_seattle(), AT)
     assert b.combo and b.fair_p is None and b.ev_at_fair is None
+
+
+
+def test_a_non_exclusive_player_market_is_not_devigged() -> None:
+    """Anytime scorer: one marketId, many outcomes that can all happen."""
+    odds = [{"uuid": f"p{i}", "marketId": 5, "marketName": "Strzelec", "name": f"P{i}",
+             "specialBetValue": None, "price": 2.5, "tags": "v2"} for i in range(6)]
+    boost = {"uuid": "b", "marketId": 900, "marketName": "Strzelec", "name": "P0",
+             "price": 3.0, "tags": "price_boost,v2",
+             "extra": {"originalPrice": "1:2.500000", "sourceOddUuid": "1:p0"}}
+    event = {"eventId": "9003", "matchName": "A·B", "sportId": 5,
+             "utcDate": "2026-10-01T19:00:00Z", "odds": [*odds, boost]}
+    [b] = extract_boosts(event, AT)
+    assert b.fair_p is None and b.ev_at_fair is None  # sum 2.4: not one market

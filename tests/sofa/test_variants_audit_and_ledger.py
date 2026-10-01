@@ -261,3 +261,20 @@ def test_a_leg_first_locked_in_a_later_build_stays_a_defect(tmp_path):
         _json.dumps(first) + "\n" + _json.dumps(later) + "\n")
     why = locked_leg_problem(tmp_path, {"created_at_utc": "2026-10-01T12:00:00Z"}, leg)
     assert why is not None and not why.startswith("UNVERIFIABLE")
+
+
+def test_the_first_record_exemption_is_only_for_the_log_s_first_day(tmp_path):
+    import json as _json
+
+    from bet.sofa import sport_coupon as sc
+    from scripts.sofa.audit_variants import locked_leg_problem
+
+    leg = {k: f"v{i}" for i, k in enumerate(sc.LEG_KEY)}
+    # locked already in the first record, which ran inside the kickoff margin:
+    # on 09-30 that was "unverifiable"; on a later day it is a defect
+    leg.update(odds=1.3, fair_p=0.75, price_fetched_at_utc="2026-10-02T06:00:00Z",
+               kickoff_utc="2026-10-02T06:15:00Z", locked=True)
+    first = {"created_at_utc": "2026-10-02T06:10:00Z", "legs": [dict(leg)]}
+    (tmp_path / sc.BUILDS_FILE).write_text(_json.dumps(first) + "\n")
+    why = locked_leg_problem(tmp_path, {"created_at_utc": "2026-10-02T09:00:00Z"}, leg)
+    assert why is not None and not why.startswith("UNVERIFIABLE")

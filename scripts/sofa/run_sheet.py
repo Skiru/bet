@@ -15,7 +15,7 @@ from typing import Any, Literal, cast
 from pydantic import RootModel
 from rapidfuzz import fuzz
 
-from bet.sofa.confidence import CLASS_WOMEN, match_class
+from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
     Fixture,
@@ -466,35 +466,15 @@ def resolve_prior(
     return pooled, global_prior_note(baselines, metric, comp, pooled)
 
 
-_WOMEN_COMPETITIONS_PATH = (
-    Path(__file__).resolve().parents[2] / "config" / "sofa_women_competitions.json"
-)
-# A women's pool thinner than this is not a measurement of anything; the row
-# keeps the global pool and its note.
+# A women's league with no baseline of its own shrinks to the women's pool.
 MIN_WOMEN_POOL_N = 300
 
 
-def load_women_competitions(path: Path = _WOMEN_COMPETITIONS_PATH) -> frozenset[int]:
-    """config/sofa_women_competitions.json (scripts/sofa/find_women_
-    competitions.py); a missing or unreadable file is an empty set."""
-    try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return frozenset()
-    return frozenset(
-        int(e["competition_id"]) for e in doc.get("women", [])
-        if isinstance(e, dict) and isinstance(e.get("competition_id"), int)
-    )
-
-
-WOMEN_COMPETITION_IDS = load_women_competitions()
-
-
 def is_womens_fixture(fixture: Fixture) -> bool:
-    return fixture.sport == "football" and (
-        fixture.competition_id in WOMEN_COMPETITION_IDS
-        or match_class("football", fixture.competition_name) == CLASS_WOMEN
-    )
+    """confidence.match_class - the one reading of "women's football" SHEET
+    and CONFIDENCE share (SHEET has no board names; CONFIDENCE adds them)."""
+    return match_class(fixture.sport, fixture.competition_name, None,
+                       fixture.competition_id) == CLASS_WOMEN
 
 
 def women_global_prior(
@@ -945,6 +925,8 @@ def process_fixture(
                     baselines, rung.market, fixture.competition_id, prior)
                 if prior_note:
                     extra_notes.append(prior_note)
+            if prior_note and prior_note.startswith("PRIOR_GLOBAL_WOMEN"):
+                row_unfitted.append("MIN_WOMEN_POOL_N")
             if prior is not None:
                 w_c = n / (n + k_centre)  # K_CENTRE
                 centre = w_c * mean + (1 - w_c) * prior
@@ -981,9 +963,11 @@ def process_fixture(
         # Measured on 102,154 settled football count rows 09-20..29: Brier
         # 0.1986 -> 0.1982, better on 8 of 10 days; rows whose centre moved
         # more than 20%: 0.1974 -> 0.1961.
+        # Football only: measured there; tennis counts were not.
         scale = (
             centre / mean
-            if uses_poisson_floor(rung.market) and mean > 0 and centre > 0
+            if fixture.sport == "football" and uses_poisson_floor(rung.market)
+            and mean > 0 and centre > 0
             else 1.0
         )
         pred_sd = predictive_sd(
@@ -1447,7 +1431,9 @@ def main() -> int:
     ):
         cut = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
         football_book = replay_football(
-            load_football_history(config.db_path), int(cut.timestamp())
+            load_football_history(config.db_path,
+                                  Path(config.db_path).parent / "cache"),
+            int(cut.timestamp()),
         )
 
     all_rows = []

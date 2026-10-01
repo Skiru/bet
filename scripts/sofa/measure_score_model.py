@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sqlite3
 import sys
@@ -69,7 +70,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--sport", choices=sorted(SPORTS), required=True)
     ap.add_argument("--date", action="append", required=True)
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--json-out", default=None)
     ap.add_argument("--rows-out", default=None, help="every scored line, JSONL")
     args = ap.parse_args()

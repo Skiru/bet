@@ -84,3 +84,71 @@ def test_audit_reads_the_latest_close_per_leg(tmp_path):
     (day / "closing.jsonl").write_text("".join(json.dumps(r) + "\n" for r in recs))
     rows = closing_rows(tmp_path, "2026-10-01")
     assert len(rows) == 1 and rows[0].odds_close == 1.75
+
+
+def test_the_capture_reads_what_the_pdf_prints_and_builder_legs_apart(tmp_path):
+    day = tmp_path
+    single = {"sofascore_event_id": 1, "market": "goals_total", "subject": "",
+              "line": 2.5, "direction": "OVER", "offered_odds": 1.9,
+              "kickoff_utc": "2026-10-01T12:00:00Z"}
+    builder = {"sofascore_event_id": 2, "kickoff_utc": "2026-10-01T13:00:00Z",
+               "best_for_fixture": True, "ev_after_haircut": 0.05,
+               "legs": [{"market": "corners_total", "subject": "", "line": 9.5,
+                         "direction": "OVER", "odds": 1.5}]}
+    doc = {"profile": "standard", "pdf_max_singles": 30, "prints_builders": True,
+           "singles": [single], "builders": [builder]}
+    (day / "08_confidence.json").write_text(json.dumps(doc))
+    legs = cc.printed_legs(day)
+    variants = sorted(v for v, _ in legs)
+    assert variants == ["official", "official:builder_leg"]
+    leg = next(leg for v, leg in legs if v == "official:builder_leg")
+    assert leg["offered_odds"] == 1.5 and leg["sofascore_event_id"] == 2
+
+
+def test_a_sport_leg_after_midnight_is_found_in_the_next_days_settle(tmp_path):
+    from scripts.sofa.audit_clv import sport_rows
+
+    leg = {"superbet_event_id": "9", "market_id": 1, "period": 0, "subject": "",
+           "line": 5.5, "side": "OVER", "odds": 1.95, "label": "total",
+           "kickoff_utc": "2026-10-02T01:00:00Z"}
+    d1 = tmp_path / "shadow" / "hockey" / "2026-10-01"
+    d2 = tmp_path / "shadow" / "hockey" / "2026-10-02"
+    d1.mkdir(parents=True)
+    d2.mkdir(parents=True)
+    (d1 / "sport_coupon.json").write_text(json.dumps({"legs": [leg]}))
+    graded = {**{k: leg[k] for k in ("superbet_event_id", "market_id", "period",
+                                     "subject", "line", "side")},
+              "odds": 1.80, "partner_odds": 2.0, "minutes_before_kickoff": 10}
+    (d2 / "settled.json").write_text(json.dumps(
+        {"events": {"9": {"graded": [graded]}}}))
+    rows = sport_rows(tmp_path, "2026-10-01")
+    assert len(rows) == 1 and rows[0].odds_close == 1.80
+
+
+
+def test_a_failed_fetch_records_the_leg_as_missing_and_goes_on(tmp_path):
+    now = datetime.now(UTC)
+    leg = {"sofascore_event_id": 7, "market": "goals_total", "subject": "",
+           "line": 2.5, "direction": "OVER", "offered_odds": 1.9,
+           "kickoff_utc": (now + timedelta(minutes=10)).isoformat()}
+    doc = {"profile": "standard", "pdf_max_singles": 30, "prints_builders": False,
+           "singles": [leg], "builders": []}
+    (tmp_path / "08_confidence.json").write_text(json.dumps(doc))
+    fixture = {"sofascore_event_id": 7, "superbet_event_ids": ["1"],
+               "sport": "football",
+               "kickoff_utc": leg["kickoff_utc"], "home_name": "A", "away_name": "B",
+               "home_entity_id": 1, "away_entity_id": 2, "competition_name": "L",
+               "competition_id": 3, "season_id": 4, "category_name": "C",
+               "identity": "CONFIRMED", "round_number": None, "round_name": None,
+               "cup_round_type": None, "previous_leg_event_id": None,
+               "venue_name": None, "referee": None, "ground_type": None,
+               "default_period_count": 2}
+    (tmp_path / "02_fixtures.json").write_text(json.dumps([fixture]))
+
+    class Boom:
+        def fetch_offers(self, fixtures):
+            raise TimeoutError("superbet timed out")
+
+    assert cc.run_once(tmp_path, Boom(), now) == 1
+    rec = json.loads((tmp_path / "closing.jsonl").read_text().splitlines()[0])
+    assert rec["missing"] is True

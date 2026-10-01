@@ -150,17 +150,15 @@ For every tennis fixture with a `VALUE` row, every fixture appearing in
   charged twice — and `confidence.py`'s quantity families put `games_*`,
   `sets_*` and `handicap_games` in the **same** family for exactly that reason.
 
-- **One Elo pool across tiers (open until `config/tennis_rating.json` is
-  refit with `dhigh`/`dtour`).** ITF and tour ratings are one currency, so
-  the lower-tier side is over-forecast by +3 to +24 pp as the tier-profile gap
-  grows (measured on history before 2026-09-17; Zhang 0.409 vs Superbet 0.044
-  on 2026-09-28). Until the refit, **veto the rating-priced markets -
-  `games_total`, `games_won_for`, `handicap_games`, `sets_total` - when the
-  two players' above-ITF / tour shares differ by 0.3 or more** (compute them
-  with `RatingBook._shares` in `src/bet/sofa/tennis_rating.py` over history
-  before the day; reason_class `OTHER`, quote both shares and n). Check
-  whether the config has been refit (`features` lists `dhigh`/`dtour`) before
-  applying it - after the refit this rule is retired.
+- **Tier gap: refit done, the veto rule is retired.** `config/tennis_rating.json`
+  was refit with `dhigh`/`dtour` on 2026-09-30 (cut 2026-10-01, 239,315
+  matches; held out 09-17..30 Brier 0.1948 -> 0.1884, TOUR 0.2055 -> 0.1855).
+  Do not veto on a tier-share gap any more. Tour and Challenger forecasts read
+  no neighbour decided by a match tiebreak (`Outcome.match_tiebreak`).
+  Davis/BJK Cup and exhibitions (`tennis_team_cup`) and women's events
+  (`tennis_women`) read only their own calibration curves; such a leg missing
+  from `08_confidence` was refused (`NO_CLASS_CURVE` / `NOT_CALIBRATED`), not
+  lost.
 
 ## Tennis-specific output requirements
 

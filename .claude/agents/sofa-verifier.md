@@ -111,8 +111,8 @@ required = 1.10 / p_bar
 (measured: 5 of 63 rows fell outside a 0.024 tolerance). Do not report that as
 a defect. Check `p_central` against **the sample's own hit rate** instead:
 
-- **tennis `sets_total` and `games_won_for` use the empirical frequency, so
-  `p_central` must EQUAL the hit rate.** A gap there is a real finding.
+- **tennis**: rated tennis markets (games_total, games_won_for, sets_total, handicap_games; note TENNIS_RATING): 0.25 x rating + 0.75 x market_p; other tennis empirical rows with a price: w x hits/n + (1-w) x market_p, w = n/(n+30); without a price: the frequency around the shifted centre. Re-derive it from the row's notes; a mismatch
+  with that is a finding, a gap to the raw hit rate is not.
 - football counts go through a negative binomial and will differ — but a gap
   above ~15 pp means the league prior, not the team, is doing the work. Compute
   `n/(n+25)` and say what share of the centre the sample actually owns.
@@ -146,6 +146,15 @@ First, a guard check: a tennis per-set serve leg
 a full-match serve-points leg (`serve_points_for` / `serve_points_total`,
 `confidence.TENNIS_SERVE_POINTS`) or a football player prop in an `08_confidence*.json` built after 2026-09-30
 without a curve of its own (`AWAITING_OWN_CURVE`) is a defect.
+
+Also defects (since 2026-10-01): an `08_confidence*` leg whose sheet row
+carries `CROSS_LEAGUE_UNLINKED`; a leg of a women's football match (Superbet
+`(K)` or a women's competition), of women's tennis, or of a Davis/BJK Cup /
+exhibition whose `calibrated_on` lacks its class prefix (`women:`,
+`tennis_women:`, `tennis_team_cup:`); a tour/Challenger tennis leg whose rating
+neighbours include a match-tiebreak decider. And check that
+`runs/sofa/<d>/capture_closing.log` exists and the loop is running - if not,
+name "CLV not captured" in the report.
 
 `coupon.py` ranks on the **relative** price advantage `surplus / required_odds`
 (where `surplus = offered − 1.10/p_bar`), then orders breadth-first — each

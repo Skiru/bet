@@ -430,6 +430,7 @@ def main() -> int:
             fx.get("category_name") if row.get("sport") == "tennis"
             else fx.get("competition_name"),
             sides,
+            fx.get("competition_id"),
         )
         hit = cal.realised(
             row["market"], row["p_central"], row.get("sport"), row["direction"],

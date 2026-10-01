@@ -23,8 +23,9 @@ w_c     = n / (n + K_CENTRE)                         football 25.0, tennis 2.0  
 centre  = w_c·sample_mean + (1 − w_c)·prior          (= sample_mean when no baseline exists)
 
 p_central:
-    empirical-frequency metrics (tennis, some others)
-                       -> p_empirical_raw(hits, n)       == the sample's own hit rate
+    tennis rated markets -> 0.25·rating + 0.75·market_p       (note TENNIS_RATING)
+    tennis empirical, priced -> w·hits/n + (1−w)·market_p, w = n/(n+30)
+    other empirical    -> frequency around the shifted centre
     football counts    -> negative binomial around `centre`
     everything else    -> normal, support floored at −0.5
 
@@ -77,7 +78,8 @@ p_bar         == w·(p_central − calibration_correction) + (1 − w)·market_p
 2. `ladder_centre` / `ladder_sigma` describe **the bookmaker's ladder**. A
    `ladder_sigma` of 0.003 is a normal value for a ladder, not a suspiciously
    tight distribution of ours.
-3. For tennis, `p_central` **equals** the sample hit rate by construction.
+3. For tennis, `p_central` is a blend with the price (see above), not the raw
+   hit rate.
    Football goes through a negative binomial and will differ — but a gap above
    ~15 pp means the league prior, not the team, is doing the work.
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -52,16 +53,29 @@ def _json(path: Path) -> Any:
         return None
 
 
+def _next_day(day: str) -> str:
+    d = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC) + timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
+
 def sport_rows(runs: Path, day: str) -> list[ClvRow]:
+    """A day's sport-coupon legs against their graded close. A leg that starts
+    after midnight UTC (NHL, NBA, a night CS2 series) is graded into the next
+    day's settled.json, so both files are read."""
     out: list[ClvRow] = []
     for sport, (sub, keys) in SPORT_DIRS.items():
         coupon = _json(runs / sub / day / "sport_coupon.json")
-        settled = _json(runs / sub / day / "settled.json")
-        if not coupon or not settled:
+        if not coupon:
             continue
-        events = settled.get("events", {})
-        graded = [g for e in (events.values() if isinstance(events, dict) else events)
-                  if isinstance(e, dict) for g in e.get("graded", [])]
+        graded: list[dict[str, Any]] = []
+        for d in (day, _next_day(day)):
+            settled = _json(runs / sub / d / "settled.json")
+            if not settled:
+                continue
+            events = settled.get("events", {})
+            graded += [g for e in (events.values() if isinstance(events, dict)
+                                   else events)
+                       if isinstance(e, dict) for g in e.get("graded", [])]
         out += sport_coupon_rows(coupon, graded, f"sport:{sport}", keys)
     return out
 
@@ -97,7 +111,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--from", dest="date_from", required=True)
     ap.add_argument("--to", dest="date_to", required=True)
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     args = ap.parse_args()
     runs = Path(args.runs_dir)
     rows: list[ClvRow] = []

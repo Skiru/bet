@@ -111,7 +111,9 @@ was never generated, look for it there.
 | field | what it is | what it is not |
 |---|---|---|
 | `sample_mean`, `sample_sd`, `sample_size` | the raw sample | the centre |
-| `centre` | the mean **after** shrinkage toward the league prior, `w_c = n/(n+K_CENTRE)` | the sample's claim |
+| `centre` | the mean **after** shrinkage toward the prior, `w_c = n/(n+K_CENTRE)`; a football row with a `FOOTBALL_RATING` note is 0.5·rating + 0.5·that | the sample's claim |
+| notes `CROSS_LEAGUE_UNLINKED` / `PRIOR_GLOBAL_WOMEN` | the sides share no league and no measured league strength (CONFIDENCE refuses it, the price decides) / a women's league shrunk to the women's pool | a reason of its own to veto - the code has already acted |
+| `calibrated_on` prefix `women:` / `tennis_women:` / `tennis_team_cup:` | the leg read only its class's curve; a class leg without one is refused (`NO_CLASS_CURVE`) | the pooled curve |
 | `p_central` | the model's probability. **Tennis: equals the sample hit rate.** Football: negative binomial. | conservative |
 | `calibration_correction` | subtracted before the price blend; one-sided, can only lower `p` | evidence |
 | `market_p` | Superbet's price, power-devigged. `null` = one-sided rung, no devig possible. | our number |

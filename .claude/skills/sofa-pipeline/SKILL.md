@@ -90,9 +90,13 @@ every day. Only `FAILED` stops you. Exit codes: `0 = OK`, `1 = PARTIAL`,
 prior   = league baseline, else global baseline          (config/sofa_league_baselines.json)
 w_c     = n / (n + K_CENTRE)                             football 25, tennis 2
 centre  = w_c·sample_mean + (1 − w_c)·prior              (or sample_mean when no baseline)
+centre  = 0.5·rating + 0.5·centre                        football rows with a FOOTBALL_RATING note
+spread  = the sample's variance scaled by centre/sample_mean (dispersion index kept, counts)
 
 p_central:
-    tennis + empirical metrics  -> p_empirical_raw(hits, n)   == the sample's own hit rate
+    tennis rated markets        -> 0.25·rating + 0.75·market_p           (note TENNIS_RATING)
+    tennis empirical, priced    -> w·hits/n + (1−w)·market_p, w = n/(n+30)
+    tennis empirical, no price  -> frequency around the shifted centre
     football counts             -> negative binomial around `centre`
     everything else             -> normal with a support floor at −0.5
 

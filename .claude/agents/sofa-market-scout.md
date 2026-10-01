@@ -110,6 +110,11 @@ when it applies:
 3. **An unchecked ladder.** Only **52.4%** of ladders can be checked at all;
    `sets_total` and `aces_*` were **0%**. `NO_LADDER_CHECK` means the row
    passed *without* the test, not that it passed it.
+4. **Boosts.** A single in `10_boosts.json` carries `fair_p` / `ev_at_fair`
+   (its whole pre-boost market devigged); quote those, never a number of your
+   own. A combination has no probability. The practitioner review
+   (PIPELINE.md §11a) puts a soft book's edge, if any, in boosts, props and
+   slow-moving lines - not in main-market winners.
 
 And for anything that may become a Bet Builder leg: **Superbet does not price a
 slip as the product of its legs.** The measured correlation markup is

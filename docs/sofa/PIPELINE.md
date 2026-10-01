@@ -446,6 +446,19 @@ Brak danych nie jest argumentem: `scripts/sofa/backfill_listings.py` pogłębia
 historię każdej drużyny z cache (i każdego rywala) do 730 dni, porcjami i z
 wznowieniem.
 
+### 7.1b Rating tenisowy (od 2026-10-01)
+
+`config/tennis_rating.json` (`fit_tennis_rating.py --cut <d>`, między dniami):
+8 cech plus wyraz wolny, osobno dla ITF / CH / TOUR, w tym `dhigh` i `dtour`
+(udział meczów zawodnika powyżej ITF / w tourze) — jedna pula Elo dla
+wszystkich poziomów przeszacowywała zawodnika z niższego poziomu o 3–24 pp.
+Refit 2026-09-30 po backfillu (cut 2026-10-01, 239 315 meczów): poza próbą
+09-17..30 Brier 0,1948 → 0,1884, TOUR 0,2055 → 0,1855. Rynki `games_total`,
+`games_won_for`, `sets_total`, `handicap_games`:
+`p_central = 0,25·rating + 0,75·market_p` (notka `TENNIS_RATING`). Dla TOUR i
+CH tabela podobnych meczów pomija mecze rozstrzygnięte super-tie-breakiem
+(liczonym jako 1 gem trzeciego seta; 5,1% meczów, prawie wyłącznie ITF).
+
 ### 7.2 Trzy rzeczy, które wyglądają na usterkę i nią nie są
 
 1. `centre` to średnia **po skurczeniu** ku bazie ligowej. Porównanie jej
@@ -740,9 +753,10 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `NO_FETCHED_AT` | szczebel bez znacznika pobrania ceny |
 | `STALE_PRICE` | cena starsza niż 45 min |
 | `NOT_IN_CALIBRATION_FIT` | metryka nie należy do rodziny, na której fitowano krzywą |
-| `DERIVED_NOT_CALIBRATABLE` | rynek pochodny (`both_over_`, `handicap_`, `most_`) — ma 2–252 rozliczonych wierszy i żadna próbka z artefaktów go nie sprawdzi |
 | `CROSS_LEAGUE_UNLINKED` | mecz piłkarski drużyn bez wspólnej ligi i bez zmierzonej siły ich lig (§7.1a) — decyzję oddajemy cenie |
-| `NOT_CALIBRATED` | dla tego kubełka **nie ma pomiaru**; własna liczba modelu nie jest jego substytutem. Od 2026-09-30 także noga **klasy** meczu bez własnej krzywej: piłka kobiet (`women`, rozpoznawana po „(K)" Superbetu albo nazwie rozgrywek), tenis kobiet (`tennis_women`), Davis Cup / BJK Cup / pokazówki (`tennis_team_cup`). Noga klasy czyta wyłącznie krzywe swojej klasy (`by_class` w `config/sofa_confidence_calibration.json`, `fit_confidence.py --classes-only`) — nigdy puli, od której klasa się różni (piłka kobiet przy p 0,80–0,85: 0,792 wobec 0,806 mężczyzn; rożne przy 0,90: 0,874 wobec 0,903) |
+| `DERIVED_NOT_CALIBRATABLE` | rynek pochodny (`both_over_`, `handicap_`, `most_`) — ma 2–252 rozliczonych wierszy i żadna próbka z artefaktów go nie sprawdzi |
+| `NO_CLASS_CURVE` | noga klasy (`women`, `tennis_women`, `tennis_team_cup`), którą krzywe bez klasy by obsłużyły, ale klasa nie ma własnego kubełka |
+| `NOT_CALIBRATED` | dla tego kubełka **nie ma pomiaru**; własna liczba modelu nie jest jego substytutem. Od 2026-09-30 także noga **klasy**, której nie obsłużyłaby żadna krzywa (inaczej `NO_CLASS_CURVE`): piłka kobiet (`women`, rozpoznawana po „(K)" Superbetu albo nazwie rozgrywek), tenis kobiet (`tennis_women`), Davis Cup / BJK Cup / pokazówki (`tennis_team_cup`). Noga klasy czyta wyłącznie krzywe swojej klasy (`by_class` w `config/sofa_confidence_calibration.json`, `fit_confidence.py --classes-only`) — nigdy puli, od której klasa się różni (piłka kobiet przy p 0,80–0,85: 0,792 wobec 0,806 mężczyzn; rożne przy 0,90: 0,874 wobec 0,903) |
 | `BELOW_CONFIDENCE_FLOOR` | `realised_lo < --floor` |
 | `DISAGREES_WITH_PRICE` | `realised_lo − 1/odds > MAX_DISAGREEMENT = 0.10` |
 | `NEGATIVE_LEG_EV` | noga nie przebija własnej ceny (`leg_is_ev_positive`) |
@@ -839,6 +853,11 @@ dodane trzy pomiary — żaden nie zmienia kuponu:
 - **Ledger** podaje teraz przedział ROI z bootstrapu po dniach: oficjalny
   kupon 09-19..30 −1,8% [−9,0%; +11,1%] (nie do odróżnienia od zera), WARIANT
   −3,8% [−5,3%; −1,3%].
+- **Czego to nie zmienia** (przegląd literatury i praktyki): model z samych
+  wyników nie bije ceny na zwycięzcy (rynek zna składy, kontuzje, bramkarza);
+  sumy niosą trochę informacji; rynki siatkówki są niezbadane. Przewaga u
+  bukmachera „miękkiego", jeśli jest, leży w propsach, boostach i wolno
+  poruszanych liniach — to hipoteza do pomiaru przez CLV, nie reguła.
 
 ## 12. SETTLE — rozliczenie dnia zakończonego
 
@@ -1139,6 +1158,58 @@ Log całego przebiegu: `runs/sofa/run.log.jsonl` (jedna linia JSON na zdarzenie,
 
 ---
 
+#### Model wyniku (od 2026-10-01) — pomiar, nie kupon
+
+`src/bet/sofa/score_model.py` jest pierwszym modelem samego wyniku tych
+sportów. Rating to ten sam `RatingBook` co w piłce (siła ligi, ściąganie
+poza ligą), liczony na wyniku całego meczu w czasie regulaminowym
+(koszykówka α 0,06, hokej 0,02 — wybrane po błędzie prognozy na historii
+2026-03-01..07-15, sprawdzone na 07-15..09-29) i dzielony na okresy według
+zmierzonych udziałów; siatkówka — punkty na set (α 0,04). Mecz jest
+**symulowany**, a każda symulacja oceniana tym samym `shadow.actual_value` /
+`shadow.grade`, którym rozlicza SHADOW_SETTLE, więc prawdopodobieństwo linii
+ma dokładnie semantykę jej rozliczenia (czas podstawowy, dogrywka, karne,
+push).
+
+Co weszło (każde zmierzone na historii, w obu oknach):
+
+- koszykówka: wspólny szok meczu (tempo) dopasowany metodą momentów na
+  resztach kwart — kowariancja między drużynami 1,57 > wewnątrz drużyny
+  0,73; średni Brier progów 0,18038 → 0,17972 (tune), 0,18450 → 0,18368 (test);
+- hokej: gol do pustej bramki / 6 na 5 przy prowadzeniu 1–2 (0,2 / 0,05) i
+  dogrywka ściągnięta do połowy ku monecie; 0,20558 → 0,20514 / 0,20373 →
+  0,20353 (mały efekt, ale w obu oknach). Różnica 3 goli jest w historii
+  częstsza niż 2 (0,203 vs 0,188) — podpis pustej bramki.
+
+Co odpadło po pomiarze: mecz dzień po dniu (reszta +0,06 pkt, se 0,64 —
+efekt NBA z literatury nie występuje w naszych ligach), mocniejsza separacja
+drużyn (gorzej w każdym wariancie), wspólny szok Poissona w hokeju
+(kowariancja −0,04), w siatkówce szum seta i model zagrywki (lepsza liczba
+setów, gorszy zwycięzca).
+
+Przeciw cenie Superbetu (`measure_score_model.py`, 09-29 + 09-30, bootstrap
+po meczach; `measure_model_information.py` — test łączony: b ≈ 0 = model
+nic nie dodaje do ceny):
+
+| sport | mecze | Brier cena / model | blend 0,25 − cena [95%] | b [95%] |
+|---|---|---|---|---|
+| hokej | 100 | 0,2153 / 0,2190 | −0,0005 [−0,0029; +0,0019] | 0,12 [−0,55; 0,75] |
+| koszykówka | 99 | 0,2345 / 0,2369 | −0,0014 [−0,0045; +0,0016] | 0,37 [−0,13; 0,96] |
+| siatkówka | 16 | 0,2226 / 0,1950 | −0,0116 [−0,0290; +0,0025] | 1,13 [−0,19; 3,18] |
+
+Test łączony per rynek: model niesie informację na **sumach** — hokej
+b = 0,98 [−0,07; 2,14] przy wadze ceny c = 0,10, koszykówka b = 0,70
+[−0,44; 2,26] — a na **zwycięzcy** cena wie więcej (hokej b = −0,38,
+koszykówka −0,14, CS2 ok. 0): rynek zna składy, kontuzje i bramkarza.
+
+Żaden sport nie przeszedł reguły wejścia (blend lepszy od ceny z przedziałem
+bez zera na co najmniej dwóch dniach), więc kupony sportowe zostają z samej
+ceny. Kandydaci do obserwacji: sumy hokeja i koszykówki, siatkówka. CS2: silnik dostał Elo zawodników (składy zamiast nazw drużyn; na
+historii 0,2382 → 0,2368, bootstrap po seriach [−0,00268; −0,00025]), ale
+wobec ceny przegrywa jak wcześniej (0,2026 cena, 0,2171 model, 32 serie).
+Literatura (NBA/NHL/CS2) mówi to samo: model z samych wyników nie bije ceny;
+zyski dają składy, bramkarz i połączenie z kursem.
+
 ## 15. Uruchamianie
 
 ```bash
@@ -1219,56 +1290,3 @@ Budżet czasu pełnego dnia: **2,5–3 h**, z czego większość to SAMPLES.
 - Nigdy nie usuwaj notki `UNFITTED_CONSTANTS`, żeby raport lepiej się czytał.
 - Rozliczony wynik jest faktem o dniu, **nie o decyzji, która go wywołała**.
   „Wygrało" nie wchodzi do uzasadnienia następnej decyzji.
-
-
-#### Model wyniku (od 2026-10-01) — pomiar, nie kupon
-
-`src/bet/sofa/score_model.py` jest pierwszym modelem samego wyniku tych
-sportów. Rating to ten sam `RatingBook` co w piłce (siła ligi, ściąganie
-poza ligą), liczony na wyniku całego meczu w czasie regulaminowym
-(koszykówka α 0,06, hokej 0,02 — wybrane po błędzie prognozy na historii
-2026-03-01..07-15, sprawdzone na 07-15..09-29) i dzielony na okresy według
-zmierzonych udziałów; siatkówka — punkty na set (α 0,04). Mecz jest
-**symulowany**, a każda symulacja oceniana tym samym `shadow.actual_value` /
-`shadow.grade`, którym rozlicza SHADOW_SETTLE, więc prawdopodobieństwo linii
-ma dokładnie semantykę jej rozliczenia (czas podstawowy, dogrywka, karne,
-push).
-
-Co weszło (każde zmierzone na historii, w obu oknach):
-
-- koszykówka: wspólny szok meczu (tempo) dopasowany metodą momentów na
-  resztach kwart — kowariancja między drużynami 1,57 > wewnątrz drużyny
-  0,73; średni Brier progów 0,18038 → 0,17972 (tune), 0,18450 → 0,18368 (test);
-- hokej: gol do pustej bramki / 6 na 5 przy prowadzeniu 1–2 (0,2 / 0,05) i
-  dogrywka ściągnięta do połowy ku monecie; 0,20558 → 0,20514 / 0,20373 →
-  0,20353 (mały efekt, ale w obu oknach). Różnica 3 goli jest w historii
-  częstsza niż 2 (0,203 vs 0,188) — podpis pustej bramki.
-
-Co odpadło po pomiarze: mecz dzień po dniu (reszta +0,06 pkt, se 0,64 —
-efekt NBA z literatury nie występuje w naszych ligach), mocniejsza separacja
-drużyn (gorzej w każdym wariancie), wspólny szok Poissona w hokeju
-(kowariancja −0,04), w siatkówce szum seta i model zagrywki (lepsza liczba
-setów, gorszy zwycięzca).
-
-Przeciw cenie Superbetu (`measure_score_model.py`, 09-29 + 09-30, bootstrap
-po meczach; `measure_model_information.py` — test łączony: b ≈ 0 = model
-nic nie dodaje do ceny):
-
-| sport | mecze | Brier cena / model | blend 0,25 − cena [95%] | b [95%] |
-|---|---|---|---|---|
-| hokej | 100 | 0,2153 / 0,2190 | −0,0005 [−0,0029; +0,0019] | 0,12 [−0,55; 0,75] |
-| koszykówka | 99 | 0,2345 / 0,2369 | −0,0014 [−0,0045; +0,0016] | 0,37 [−0,13; 0,96] |
-| siatkówka | 16 | 0,2226 / 0,1950 | −0,0116 [−0,0290; +0,0025] | 1,13 [−0,19; 3,18] |
-
-Test łączony per rynek: model niesie informację na **sumach** — hokej
-b = 0,98 [−0,07; 2,14] przy wadze ceny c = 0,10, koszykówka b = 0,70
-[−0,44; 2,26] — a na **zwycięzcy** cena wie więcej (hokej b = −0,38,
-koszykówka −0,14, CS2 ok. 0): rynek zna składy, kontuzje i bramkarza.
-
-Żaden sport nie przeszedł reguły wejścia (blend lepszy od ceny z przedziałem
-bez zera na co najmniej dwóch dniach), więc kupony sportowe zostają z samej
-ceny. Kandydaci do obserwacji: sumy hokeja i koszykówki, siatkówka. CS2: silnik dostał Elo zawodników (składy zamiast nazw drużyn; na
-historii 0,2382 → 0,2368, bootstrap po seriach [−0,00268; −0,00025]), ale
-wobec ceny przegrywa jak wcześniej (0,2026 cena, 0,2171 model, 32 serie).
-Literatura (NBA/NHL/CS2) mówi to samo: model z samych wyników nie bije ceny;
-zyski dają składy, bramkarz i połączenie z kursem.

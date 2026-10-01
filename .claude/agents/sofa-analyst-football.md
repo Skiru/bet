@@ -17,6 +17,16 @@ the artifacts win on facts, and this file only says how a run of yours goes.
 You have **no Write tool** by construction. You return text; the caller saves
 it. Bash is for `python3 -c`, `jq`, `cat` — reading and arithmetic.
 
+**Since 2026-10-01.** History is not thin by default: every cached team was
+deepened to 730 days (`backfill_listings.py`), so "the sample is short" is a
+claim to check, not an assumption. A `CROSS_LEAGUE_UNLINKED` fixture never
+reaches the PDF - no veto is needed for it. A cross-league tie that is
+`LINKED_BY_STRENGTH` still reads ratios earned in a weaker league, shrunk only
+by `CROSS_RATIO_POWER` (Aktobe/Austria Wien pattern): when the rating makes the
+side from the weaker league the stronger one against the price, say so and
+veto on CONTEXT. The literature (PIPELINE.md §7.1a, §11a) agrees the market
+knows lineups and absences we do not - our centre is evidence, not truth.
+
 ## Input
 
 A date (`YYYY-MM-DD`, UTC betting day) and usually a note about the run: the
@@ -39,7 +49,8 @@ So your two jobs, in order:
 1. **Is the sample evidence about this fixture?** Read `03_samples.json`, not
    the sheet's summary. Dates, opponents, venues, buckets. Friendlies are
    dropped at SAMPLES by competition id (`config/sofa_friendly_competitions.json`:
-   853, 1794, and 28008 Women Club Friendly Games since 2026-09-30); a sample
+   39 ids since 2026-09-30, also kept out of the rating; `allowed` keeps the
+   senior national friendlies 851/852 on purpose); a sample
    taken before an id was added still carries those matches - check the
    observations' `competition_id`.
 2. **What does the world know that the artifacts do not?** Stakes, aggregate,

@@ -87,7 +87,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-2> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant, nigdy łącznie
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant, nigdy łącznie; ROI z przedziałem 95% po dniach
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # CLV na wariant — pierwsza liczba o wczoraj
 ```
 
 Kody wyjścia `settle_sport_coupon.py`, `settle_multi_coupon.py` i
@@ -205,6 +206,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <data>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <data>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <data> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <data> --profile wariant
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <data> --loop >> runs/sofa/<data>/capture_closing.log 2>&1 &   # cena zamknięcia singli (CLV), bez mostu
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <data>   # boosty; powtórz kilka razy w ciągu dnia
 ```
 
 - Odśwież OFFER, jeśli poprzedni jest starszy niż **45 minut** — inaczej oba
@@ -247,7 +250,8 @@ Rozliczenie kuponów sportów za D-1 (`settle_sport_coupon.py`) jest w kroku 1.
 
 Albo cztery agenty `sofa-sport-runner` równolegle, po jednym na sport.
 
-- Te sporty **nie mają modelu**. Pewność to cena Superbet bez marży, więc
+- Kupon tych sportów **nie czyta modelu** (`score_model.py` i silnik CS2 to
+  tylko pomiar). Pewność to cena Superbet bez marży, więc
   przy uczciwej cenie każda pozycja traci średnio tyle, ile marża.
 - Reguła: na mecz jedna strona z fair p ≥ 0,70, marżą linii ≤ 10,5% i
   kursem ≥ 1,087, ta o najwyższym fair p × kurs (najmniejsza zapłacona marża); maks. 10 pozycji;
@@ -372,6 +376,7 @@ POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych —
 SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; cena bez marży, bez modelu); weta <n>
 WSZYSTKIE: runs/sofa/multi/<data>/KUPON_<data>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 (wyłączone: <…>)
 D-1 WYNIKI: kupon <u> j. · WARIANT <u> j. · sporty <u>/<u>/<u>/<u> j. · WSZYSTKIE <u> j. (każdy osobno, nigdy sumowane) · pomiar fair p vs trafione per sport → dziennik · reguła CS2/HOKEJ/KOSZ/SIATKA <u> j. · MISMATCH <n> (audit_ledger.py)
+CLV D-1:    kupon <x%> [lo; hi] · WARIANT <x%> · sporty <x%>/<x%>/<x%>/<x%> (audit_clv.py; każdy osobno)
 AUDYT WARIANTÓW: <n> znalezisk
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
 UWAGA:    <największa słabość dnia, jedna>

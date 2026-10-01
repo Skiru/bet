@@ -47,6 +47,7 @@ Full orchestration contract: `docs/sofa/AGENTIC_FLOW.md`.
 .venv/bin/python scripts/sofa/check_bridge.py                                    # the grade alone
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
+# SHEET parses the whole football history (913k matches since the 09-30 backfill): ~10 min the first time a day's listings change, ~30 s on a rebuild (pickle under data/cache/, keyed on the DB's listings/stats and the parser version). A SHEET that looks hung for 10 minutes is parsing - do not kill it.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant    # variant, beside the coupon
@@ -121,7 +122,8 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   2026-09-30, the operator's order): `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`
   are built by `run_sport_coupon.py` into the measurement's own directory
   (`runs/sofa/cs2/<d>/`, `runs/sofa/shadow/<sport>/<d>/`), never into
-  `runs/sofa/<d>/`. Price-only - these sports have no model, so the
+  `runs/sofa/<d>/`. Price-only - the coupon reads no model (score_model.py and
+  the CS2 engine are measurements), so the
   probability is Superbet's devigged price and EV at that price is minus the
   margin; singles only; graded by `settle_sport_coupon.py` per sport and never
   pooled with the coupon or with each other. The rule replayed on the one
@@ -160,7 +162,8 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   UNLINKED); an UNLINKED fixture is flagged `CROSS_LEAGUE_UNLINKED` in SHEET
   and refused by CONFIDENCE. A women's football, women's tennis or tennis
   team-cup leg reads only its class's curves (`by_class`) and is refused
-  where its class has none (`NO_CLASS_CURVE`); a women's league without a
+  where its class has none (`NO_CLASS_CURVE` when only the class blocked it,
+  else `NOT_CALIBRATED`); a women's league without a
   baseline shrinks to the women's pool (`PRIOR_GLOBAL_WOMEN`). Friendlies are
   out of samples and the rating (39 ids). "History is thin" is not an
   argument before `backfill_listings.py` has been run.

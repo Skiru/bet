@@ -24,7 +24,10 @@ fails, report the output and stop; never repair code.
 - It is **not the coupon**. The coupon is `runs/sofa/<d>/KUPON_<d>.pdf`
   (football + tennis). You never read from, write to, or rebuild anything in
   `runs/sofa/<d>/`, and you never add this sport's result to the coupon's.
-- These sports have **no model**. The probability on the page is Superbet's
+- The coupon reads **no model**: `score_model.py` (hockey/basketball/volleyball)
+  and the CS2 player Elo are measurements only - they failed the entry rule
+  (blend minus price intervals include 0; on winners the price knows more:
+  lineups, goalies). Never quote a model number for a leg. The probability on the page is Superbet's
   own price with the margin removed over the market's whole outcome group
   (two sides, a 1X2, or the full exact-score set) (`fair_p`). Expected value at a
   fair price is negative by the margin, on every leg; the page prints

@@ -24,6 +24,7 @@ from typing import Any
 from pydantic import RootModel
 
 from bet.sofa.clv import CLOSE_MAX_MINUTES, CLOSE_MIN_MINUTES
+from bet.sofa.confidence import printed_builders, printed_singles
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.offer import OfferFetcher
@@ -39,13 +40,24 @@ def leg_key(leg: dict[str, Any]) -> str:
 
 
 def printed_legs(day_dir: Path) -> list[tuple[str, dict[str, Any]]]:
+    """What the PDFs print - confidence.printed_singles / printed_builders, the
+    same selection build_coupon_pdf uses - as (variant, leg). A builder's legs
+    are their own variant ("<variant>:builder_leg"): Superbet prices the slip,
+    not the product of its legs, so a leg's CLV is not the slip's."""
     out: list[tuple[str, dict[str, Any]]] = []
     for variant, name in VARIANTS.items():
         path = day_dir / name
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
-        out += [(variant, leg) for leg in doc.get("singles", [])]
+        out += [(variant, leg) for leg in printed_singles(doc)]
+        for b in printed_builders(doc):
+            for leg in b.get("legs", []):
+                out.append((f"{variant}:builder_leg", {
+                    "sofascore_event_id": b["sofascore_event_id"],
+                    "kickoff_utc": b["kickoff_utc"], "market": leg["market"],
+                    "subject": leg.get("subject") or "", "line": leg["line"],
+                    "direction": leg["direction"], "offered_odds": leg["odds"]}))
     return out
 
 
@@ -92,8 +104,18 @@ def run_once(day_dir: Path, fetcher: Any, now: datetime | None = None) -> int:
     fixtures = {f.sofascore_event_id: f
                 for f in RootModel[list[Fixture]].model_validate_json(raw).root}
     wanted = sorted({leg["sofascore_event_id"] for _, leg in legs})
-    offers = {o.sofascore_event_id: o for o in fetcher.fetch_offers(
-        [fixtures[e] for e in wanted if e in fixtures])}
+    offers: dict[int, FixtureOffer] = {}
+    for e in wanted:
+        if e not in fixtures:
+            continue
+        # One event at a time: a pulled event or a timeout must not cost the
+        # others their close (the leg is recorded as missing instead).
+        try:
+            for o in fetcher.fetch_offers([fixtures[e]]):
+                offers[o.sofascore_event_id] = o
+        except Exception as exc:  # noqa: BLE001 - network: log and go on
+            print(json.dumps({"fetch_failed": e, "error": repr(exc)[:200]}),
+                  flush=True)
     written = 0
     with (day_dir / "closing.jsonl").open("a", encoding="utf-8") as f:
         for variant, leg in legs:
@@ -119,7 +141,11 @@ def main() -> int:
     fetcher = OfferFetcher(SuperbetClient(
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"))
     while True:
-        n = run_once(day_dir, fetcher)
+        try:
+            n = run_once(day_dir, fetcher)
+        except Exception as exc:  # noqa: BLE001 - an unattended loop survives
+            print(json.dumps({"pass_failed": repr(exc)[:300]}), flush=True)
+            n = 0
         now = datetime.now(UTC)
         print(json.dumps({"ts_utc": now.isoformat(), "closes_written": n}), flush=True)
         legs = printed_legs(day_dir)

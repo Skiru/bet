@@ -103,6 +103,11 @@ def _record_group(
     return None
 
 
+# The build log started on 2026-09-30; only a leg locked in a first record of
+# that day can come from a build the log never saw.
+BUILD_LOG_STARTED = "2026-09-30"
+
+
 def locked_leg_problem(d: Path, doc: dict[str, Any], leg: dict[str, Any]) -> str | None:
     """Why a locked leg is not provably the leg an earlier build printed.
 
@@ -132,7 +137,7 @@ def locked_leg_problem(d: Path, doc: dict[str, Any], leg: dict[str, Any]) -> str
     # log never saw; a leg that first appears locked in any later record was
     # inherited from nowhere and stays a defect.
     first_rec = min(earlier, key=lambda r: str(r.get("created_at_utc")))
-    if any(
+    if str(first_rec.get("created_at_utc"))[:10] <= BUILD_LOG_STARTED and any(
         tuple(old.get(k) for k in sc.LEG_KEY) == want[: len(sc.LEG_KEY)]
         and old.get("locked")
         for old in first_rec.get("legs", [])

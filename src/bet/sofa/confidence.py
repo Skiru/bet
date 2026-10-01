@@ -384,11 +384,35 @@ _WOMEN_COMPETITION_RE = re.compile(
 )
 
 
+_WOMEN_COMPETITIONS_PATH = (
+    Path(__file__).resolve().parents[3] / "config" / "sofa_women_competitions.json"
+)
+
+
+def load_women_competitions(path: Path = _WOMEN_COMPETITIONS_PATH) -> frozenset[int]:
+    """config/sofa_women_competitions.json (scripts/sofa/find_women_
+    competitions.py); a missing or unreadable file is an empty set."""
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    return frozenset(
+        int(e["competition_id"]) for e in doc.get("women", [])
+        if isinstance(e, dict) and isinstance(e.get("competition_id"), int)
+    )
+
+
+WOMEN_COMPETITION_IDS = load_women_competitions()
+
+
 def match_class(
     sport: str | None, competition_name: str | None,
     board_sides: tuple[str, str] | None = None,
+    competition_id: int | None = None,
 ) -> str | None:
-    """CLASS_WOMEN for a women's football match; for tennis (read off the
+    """CLASS_WOMEN for a women's football match - the competition id in
+    config/sofa_women_competitions.json, Superbet's "(K)" on a board side, or
+    the competition name - and for tennis (read off the
     category name) CLASS_TENNIS_TEAM_CUP for a team cup or exhibition, else
     CLASS_TENNIS_WOMEN for a women's event; else None.
 
@@ -406,6 +430,8 @@ def match_class(
         return None
     if sport != "football":
         return None
+    if competition_id is not None and competition_id in WOMEN_COMPETITION_IDS:
+        return CLASS_WOMEN
     for name in board_sides or ():
         lowered = f" {(name or '').lower().strip()}"
         if any(m in lowered for m in _WOMEN_BOARD_MARKERS):

@@ -22,6 +22,7 @@ w złym momencie jest błędem, nie stratą minuty.
 | `sofa_confidence_calibration.json` | `fit_confidence.py` (`--classes-only` odświeża tylko `by_class`, reszta bajt w bajt) | `run_confidence.py`, `coupon.py` | krzywe `pooled` / `pooled_by_sport` / `by_market`, sufit każdego rynku; `by_class` — krzywe klas meczu (`women`, `tennis_women`, `tennis_team_cup`), noga klasy czyta tylko je |
 | `sofa_side_correlations.json` | `measure_side_correlations.py` | `joint.py`, `derived.py` | `correlation` (**residual**, nie `raw_correlation`), `residual_pairs` |
 | `sofa_friendly_competitions.json` | ręcznie, z dowodem | `samples.py`, `football_rating.py` | każdy wpis wskazuje plik dowodowy; id, nigdy nazwa; `allowed` — towarzyskie zostawione celowo, z powodem (851, 852: reprezentacje seniorskie) |
+| `tennis_rating.json` | `fit_tennis_rating.py --cut <d>` (między dniami) | `run_sheet.py` | `fitted_from.cut_utc`, `features` zawiera `dhigh`/`dtour`, `n` na poziom |
 | `sofa_women_competitions.json` | `find_women_competitions.py` | `run_sheet.py` | rozgrywki kobiece z cache (≥80% meczów kobiecych) — pula `PRIOR_GLOBAL_WOMEN` |
 | `sofa_board_exclusions.json` | ręcznie, z pomiarem | `board.py` | **pusty jest poprawny** — wykluczenie bez pomiaru to cięcie pokrycia w przebraniu oszczędności |
 | `sofa_no_stats_tournaments.json` | `fit_no_stats_tournaments.py` (poza sekwencją) | `samples.py` | `fitted_at_utc`, `min_events` ≥ 10, `events_examined`; każdy wpis to turniej, który **ani razu** nie oddał `/event/{id}/statistics` |

@@ -53,7 +53,7 @@ concession.
 - Bimodal: a straight-sets winner has ≥12 games, so the distribution is a loser
   mode over 0–11 and a wall at 12 (one day: 10:17, 11:10, **12:159**, 13:84).
 - **Superbet's line is 11.5, in the trough.**
-- Priced by the sample's own frequency, so `p_central` *equals* the hit rate.
+- `p_central` is NOT the raw hit rate: rated tennis markets (games_total, games_won_for, sets_total, handicap_games; note TENNIS_RATING): 0.25 x rating + 0.75 x market_p; other tennis empirical rows with a price: w x hits/n + (1-w) x market_p, w = n/(n+30); without a price: the frequency around the shifted centre.
 - **Overconfident at the top:** a claimed 0.95 realises **0.728** over 9,286
   settled rows, and the market has no measured calibration bucket above 0.825.
   Both products now refuse that region — `ABOVE_MEASURED_CEILING` on the

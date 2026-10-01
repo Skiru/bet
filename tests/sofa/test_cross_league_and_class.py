@@ -516,3 +516,31 @@ def test_the_spread_moves_with_the_centre():
     boundary = row.line - 0.5 if row.line == int(row.line) else row.line
     expected = calc_p_central_nb_raw(row.centre, psd, boundary, "UNDER")
     assert row.p_central == pytest.approx(expected, abs=1e-3)
+
+
+def test_one_reading_of_womens_football_for_sheet_and_confidence():
+    from bet.sofa.confidence import WOMEN_COMPETITION_IDS
+    from scripts.sofa import run_sheet
+    from tests.sofa.test_player_markets import _fixture
+
+    comp = next(iter(WOMEN_COMPETITION_IDS))
+    plain_name = _fixture().model_copy(update={
+        "competition_id": comp, "competition_name": "Premier Division"})
+    assert run_sheet.is_womens_fixture(plain_name)  # by id, no marker in the name
+    assert match_class("football", "Premier Division", None, comp) == CLASS_WOMEN
+    assert match_class("football", "Premier Division", None, -1) is None
+
+
+def test_the_history_cache_is_reused_only_under_the_same_fingerprint(
+    tmp_path, monkeypatch
+):
+    import bet.sofa.football_rating as fr
+
+    calls = []
+    monkeypatch.setattr(fr, "_load_history_uncached", lambda db: calls.append(db) or [])
+    fp = {"v": "a"}
+    monkeypatch.setattr(fr, "history_fingerprint", lambda db: fp["v"])
+    assert fr.load_history("x.db", tmp_path) == [] and len(calls) == 1
+    assert fr.load_history("x.db", tmp_path) == [] and len(calls) == 1  # cached
+    fp["v"] = "b"  # the listings changed
+    assert fr.load_history("x.db", tmp_path) == [] and len(calls) == 2
