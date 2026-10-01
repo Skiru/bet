@@ -41,6 +41,9 @@ def _env(tmp_path: Path) -> dict[str, str]:
     )
     env["SOFA_RUNS_DIR"] = str(tmp_path / "runs")
     env["SOFA_DB_PATH"] = str(tmp_path / "t.db")
+    # One worker: the fake resolver counts calls across threads, and which
+    # fixture meets the failure must not depend on thread scheduling.
+    env["SOFA_MAX_CONCURRENCY"] = "1"
     return env
 
 

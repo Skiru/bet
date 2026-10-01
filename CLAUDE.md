@@ -48,6 +48,7 @@ Full orchestration contract: `docs/sofa/AGENTIC_FLOW.md`.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 # SHEET parses the whole football history (913k matches since the 09-30 backfill): ~10 min the first time a day's listings change, ~30 s on a rebuild (pickle under data/cache/, keyed on the DB's listings/stats and the parser version). A SHEET that looks hung for 10 minutes is parsing - do not kill it.
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps   # every morning: statistic gaps (corners etc.) close days later; then regrade_settled.py --apply
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant    # variant, beside the coupon

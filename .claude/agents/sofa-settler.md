@@ -125,6 +125,11 @@ otherwise - never a reason to widen its rule mid-week.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
+# Statistic gaps close days later (2026-10-01): Sofascore publishes a lower league's corners/shots/fouls
+# days after the cards, and the cache re-asks only a match >= 4 days old - so re-settle D-5 every morning
+# (inserts only the rows that were missing) and correct rows graded off an early snapshot:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
 ```
 

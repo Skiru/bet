@@ -147,7 +147,7 @@ def unfinished_reason(event: dict[str, Any]) -> str:
 
 
 def _event_payload(
-    client: SofascoreClient, cache: SofaCache, event_id: int
+    client: SofascoreClient, cache: SofaCache, event_id: int, refetch: bool = False
 ) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None] | str:
     """(listing event, statistics, incidents), or a string saying why not."""
     detail = client.event(event_id)
@@ -167,7 +167,7 @@ def _event_payload(
         return unfinished_reason(event)
 
     start = event.get("startTimestamp")
-    cached = cache.get_event_stats(
+    cached = None if refetch else cache.get_event_stats(
         event_id, kickoff_ts=int(start) if isinstance(start, (int, float)) else None
     )
     if cached:
@@ -373,14 +373,22 @@ class EventFetch(NamedTuple):
 
 
 def _fetch_one(
-    event_id: int, client: SofascoreClient, cache: SofaCache, stage: str
+    event_id: int,
+    client: SofascoreClient,
+    cache: SofaCache,
+    stage: str,
+    refetch: frozenset[int] = frozenset(),
 ) -> EventFetch:
     # `stage` is a ContextVar and a fresh thread starts from the default, so
     # without this every request a worker makes would be billed to stage
     # "CLIENT" and the per-stage cost accounting would stop working silently.
     set_stage(stage)
     try:
-        payload = _event_payload(client, cache, event_id)
+        payload = (
+            _event_payload(client, cache, event_id, True)
+            if event_id in refetch
+            else _event_payload(client, cache, event_id)
+        )
     except CircuitOpenError:
         return EventFetch(event_id, reason="PROVIDER_ERROR", circuit_open=True)
     except ProviderError as exc:
@@ -395,6 +403,7 @@ def fetch_events_concurrently(
     client: SofascoreClient,
     cache: SofaCache,
     config: SofaConfig,
+    refetch: frozenset[int] = frozenset(),
 ) -> Iterator[EventFetch]:
     """One EventFetch per event, in the input's order, yielded as it lands.
 
@@ -433,11 +442,13 @@ def fetch_events_concurrently(
     stage = current_stage()
     if workers == 1 or len(event_ids) < 2:
         for event_id in event_ids:
-            yield _fetch_one(event_id, client, cache, stage)
+            yield _fetch_one(event_id, client, cache, stage, refetch)
         return
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        yield from pool.map(lambda e: _fetch_one(e, client, cache, stage), event_ids)
+        yield from pool.map(
+            lambda e: _fetch_one(e, client, cache, stage, refetch), event_ids
+        )
 
 
 class SkipLedger:
@@ -480,6 +491,33 @@ class SkipLedger:
         return out
 
 
+# The skips a fresh /statistics can answer: Sofascore publishes a lower
+# league's full statistics days after the cards (bet.sofa.cache).
+STAT_GAP_REASONS = ("NO_STATISTICS", "STAT_KEY_ABSENT")
+
+
+def stat_gap_events(skips_path: Path) -> frozenset[int]:
+    """Events a previous SETTLE of the day left ungraded for want of a
+    statistic, read from its 07_settle_skips.json (empty if there is none).
+
+    2026-10-01: the 09-30 coupon's 4 unsettled legs and the WARIANT's 10 were
+    all corners on three such matches, cached at 05:58Z with no statistics or
+    cards only. The cache re-asks a row like that only once the match is
+    REFETCH_AFTER_DAYS old, and nothing settled the date again by then.
+    """
+    if not skips_path.exists():
+        return frozenset()
+    doc = json.loads(skips_path.read_text(encoding="utf-8"))
+    return frozenset(
+        int(entry["sofascore_event_id"])
+        for entry in doc.get("skipped_events") or []
+        if any(
+            str(reason).split(":")[-1] in STAT_GAP_REASONS
+            for reason in (entry.get("skipped") or {})
+        )
+    )
+
+
 def rows_to_consider(
     sheet: list[dict[str, Any]], *, include_unpriced: bool
 ) -> list[dict[str, Any]]:
@@ -510,6 +548,17 @@ def main() -> int:
             "construction — but they are real forecasts we made, and grading "
             "them is the only way a backfill can say what the day's whole "
             "board did rather than just the part that carried a price."
+        ),
+    )
+    parser.add_argument(
+        "--refetch-stat-gaps",
+        action="store_true",
+        help=(
+            "Ask Sofascore again, past the cache, for the statistics of every "
+            "event the day's previous SETTLE skipped as NO_STATISTICS / "
+            "STAT_KEY_ABSENT (07_settle_skips.json). Rows already settled are "
+            "never inserted twice; regrade_settled.py --apply then corrects "
+            "any whose data changed."
         ),
     )
     args = parser.parse_args()
@@ -562,8 +611,18 @@ def main() -> int:
         else:
             skips.add(event_id, "NO_FIXTURE", len(event_rows))
 
+    refetch = (
+        stat_gap_events(run_dir / "07_settle_skips.json")
+        if args.refetch_stat_gaps
+        else frozenset()
+    )
+    if args.refetch_stat_gaps:
+        print(f"REFETCH_STAT_GAPS {len(refetch)} event(s)", file=sys.stderr)
+
     try:
-        for fetched in fetch_events_concurrently(to_fetch, client, cache, config):
+        for fetched in fetch_events_concurrently(
+            to_fetch, client, cache, config, refetch
+        ):
             event_id = fetched.event_id
             event_rows = by_event[event_id]
             fixture = fixtures[event_id]
@@ -702,6 +761,7 @@ def main() -> int:
         "value_rows_settled": len(staked),
         "value_roi": round(value_return / len(staked), 4) if staked else None,
         "breaker_open": breaker_open,
+        "refetched_stat_gaps": len(refetch),
         "skipped": dict(skips.counts.most_common(12)),
     }
 

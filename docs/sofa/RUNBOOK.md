@@ -81,6 +81,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 # albo jego pid nie działa) - wznawia się, więc powtórka nie szkodzi, równoległa tak:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
+# Luki statystyk zamykają się po kilku dniach (2026-10-01): Sofascore publikuje rożne/strzały/faule niższych lig
+# kilka dni po kartkach, a cache pyta ponownie dopiero mecz sprzed >= 4 dni - więc co rano ponowne rozliczenie D-5
+# (dopisuje tylko brakujące wiersze) i poprawa wierszy rozliczonych z wczesnego snapshotu:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
 # każdy wariant D-1 i dziennik:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>   # cztery kupony sportów, po wydrukowanym kursie; także D-2: jego pozycje po 00:00Z rozliczają się w pliku D-1
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>   # WARIANT WSZYSTKIE, sekcja po sekcji
