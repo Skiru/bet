@@ -96,7 +96,7 @@ COUNT_FAMILIES = {
     "player_headshots",
     "team_kills",
 }
-ROUND_FAMILIES = {"map_rounds_total", "map_team_rounds"}
+ROUND_FAMILIES = {"map_rounds_total", "map_team_rounds", "map_rounds_handicap"}
 MODELLED = ELO_FAMILIES | COUNT_FAMILIES | ROUND_FAMILIES
 
 
@@ -422,6 +422,100 @@ def build_ratings(history: list[MapRow]) -> RatingModel:
     return model
 
 
+# --- rounds from a round-win probability ------------------------------------------
+
+# A CS2 map is a race to 13 rounds (MR12); at 12-12, overtime is played in
+# blocks of six, first to four, repeated at 3-3. Given team1's probability of
+# winning a single round, the final-score distribution is exact (no
+# simulation); the round probability is solved so that the map-win
+# probability matches the rating's. Measured before use: see
+# ROUND_MODEL_EVIDENCE below.
+MAX_OVERTIMES = 6
+
+
+@cache
+def map_score_distribution(p_round: float) -> dict[tuple[int, int], float]:
+    """(team1 rounds, team2 rounds) -> probability, for one map."""
+    q = 1.0 - p_round
+    out: dict[tuple[int, int], float] = defaultdict(float)
+    # regulation: paths to 13-k for k <= 11
+    for k in range(12):
+        out[(13, k)] += math.comb(12 + k, k) * p_round ** 13 * q ** k
+        out[(k, 13)] += math.comb(12 + k, k) * q ** 13 * p_round ** k
+    level = math.comb(24, 12) * p_round ** 12 * q ** 12  # 12-12
+    base1 = base2 = 12
+    for _ in range(MAX_OVERTIMES):
+        # one overtime block: first to 4 of up to 6; 3-3 goes on
+        for k in range(3):
+            ways = level * math.comb(3 + k, k)
+            out[(base1 + 4, base2 + k)] += ways * p_round ** 4 * q ** k
+            out[(base1 + k, base2 + 4)] += ways * q ** 4 * p_round ** k
+        level *= math.comb(6, 3) * p_round ** 3 * q ** 3
+        base1 += 3
+        base2 += 3
+    if level > 0:  # the tail past MAX_OVERTIMES: split by strength, ~1e-6
+        out[(base1 + 4, base2)] += level * p_round
+        out[(base1, base2 + 4)] += level * q
+    return dict(out)
+
+
+def map_win_probability(p_round: float) -> float:
+    return sum(v for (a, b), v in map_score_distribution(p_round).items() if a > b)
+
+
+# Rounds are not independent (economy, side swaps, a team's night on a map):
+# a per-map shock on the round probability, sd ROUND_SHOCK_SD, makes the
+# overtime share right and the margins wider. Chosen on the second half of
+# the training maps (map_rounds margins, threshold Brier): 0.06 0.17812,
+# 0.10 0.17576, 0.12 0.17518, 0.15 0.17535; held out (3,047 maps) 0.17348
+# against the base rate's 0.17825, overtime share 0.110 against 0.119 in the
+# history (0.155 with independent rounds). The total's length it does not
+# help: 0.1924 against the base rate's 0.1918 - totals stay the base rate.
+ROUND_SHOCK_SD = 0.12
+_SHOCK_NODES = ((-1.5, 0.1), (-0.5, 0.4), (0.5, 0.4), (1.5, 0.1))
+
+
+def mixed_score_distribution(
+    p_round: float, sd: float = ROUND_SHOCK_SD
+) -> dict[tuple[int, int], float]:
+    """map_score_distribution averaged over the per-map shock."""
+    if sd <= 0:
+        return map_score_distribution(round(p_round, 4))
+    out: dict[tuple[int, int], float] = defaultdict(float)
+    for z, w in _SHOCK_NODES:
+        q = min(max(p_round + z * sd, 0.05), 0.95)
+        for k, v in map_score_distribution(round(q, 4)).items():
+            out[k] += w * v
+    return dict(out)
+
+
+def map_distribution_for(p_map: float, sd: float = ROUND_SHOCK_SD
+                         ) -> dict[tuple[int, int], float]:
+    """The map's score distribution whose map-win probability is p_map."""
+    lo, hi = 0.05, 0.95
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        dist = mixed_score_distribution(mid, sd)
+        if sum(v for (a, b), v in dist.items() if a > b) < p_map:
+            lo = mid
+        else:
+            hi = mid
+    return mixed_score_distribution((lo + hi) / 2, sd)
+
+
+def round_probability(p_map: float) -> float:
+    """The single-round probability whose map-win probability is p_map."""
+    lo, hi = 0.02, 0.98
+    target = min(max(p_map, map_win_probability(lo)), map_win_probability(hi))
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if map_win_probability(round(mid, 6)) < target:
+            lo = mid
+        else:
+            hi = mid
+    return round((lo + hi) / 2, 6)
+
+
 # --- the models ---------------------------------------------------------------------
 
 
@@ -624,6 +718,18 @@ def model_probability(
         side = side_given_no_push(p_over, p_under, line.side == "OVER")
         return None if side is None else ModelP(clamp(side), n, "elo_series")
 
+    if fam == "map_rounds_handicap":
+        # team1's round handicap on one map, graded on t1 - t2 rounds
+        p = ratings.p_map(team1_id, team2_id, team1_is_home)
+        if p is None or line.line is None or line.side not in ("T1", "T2"):
+            return None
+        dist = map_distribution_for(p)
+        hcp = line.line
+        p_t1 = sum(q for (a, b), q in dist.items() if a - b + hcp > 0)
+        p_t2 = sum(q for (a, b), q in dist.items() if a - b + hcp < 0)
+        side = side_given_no_push(p_t1, p_t2, line.side == "T1")
+        n = min(ratings.book.played[team1_id], ratings.book.played[team2_id])
+        return None if side is None else ModelP(clamp(side), n, "round_race")
     if line.line is None or line.side not in ("OVER", "UNDER"):
         return None
     over = line.side == "OVER"

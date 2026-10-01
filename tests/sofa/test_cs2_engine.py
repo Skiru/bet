@@ -573,3 +573,51 @@ def test_build_ratings_uses_the_player_model_once_it_is_fitted():
     assert model.p_fit >= eng.MIN_FIT and model.players is not None
     p = model.p_map(1, 2, team1_is_home=True)
     assert p is not None and p > 0.6
+
+
+def test_the_map_score_distribution_is_a_race_to_thirteen():
+    d = eng.map_score_distribution(0.5)
+    assert sum(d.values()) == pytest.approx(1.0, abs=1e-9)
+    assert all(max(a, b) >= 13 and a != b for a, b in d)
+    assert all(abs(a - b) >= 2 or max(a, b) == 13 for a, b in d if a + b > 24)
+    assert eng.map_win_probability(0.5) == pytest.approx(0.5)
+
+
+def test_the_round_probability_reproduces_the_map_probability():
+    for p_map in (0.3, 0.5, 0.7, 0.85):
+        assert eng.map_win_probability(eng.round_probability(p_map)) == pytest.approx(
+            p_map, abs=1e-3)
+        dist = eng.map_distribution_for(p_map)
+        assert sum(v for (a, b), v in dist.items() if a > b) == pytest.approx(
+            p_map, abs=2e-3)
+
+
+def test_the_shock_brings_overtime_down_to_the_measured_share():
+    plain = eng.map_score_distribution(0.5)
+    mixed = eng.mixed_score_distribution(0.5)
+    ot = lambda d: sum(v for (a, b), v in d.items() if a + b > 24)  # noqa: E731
+    assert ot(mixed) < ot(plain)
+    assert 0.08 < ot(mixed) < 0.14
+
+
+def test_a_round_handicap_is_priced_from_the_rating():
+    from bet.sofa.cs2 import Cs2Line
+
+    class R:
+        book = eng.EloBook()
+
+        def p_map(self, t1, t2, home):
+            return 0.7
+
+    R.book.played.update({1: 50, 2: 50})
+    fields = Cs2Line.__dataclass_fields__
+    base = {k: None for k in fields}
+    base.update(superbet_event_id="1", family="map_rounds_handicap", map_nr=1,
+                subject="", line=-3.5, side="T1", odds=1.9)
+    line = Cs2Line(**{k: base[k] for k in fields})
+    mp = eng.model_probability(line, 1, 2, "A", "B", 3, [], R(), True)
+    assert mp is not None and mp.model == "round_race"
+    other = Cs2Line(**{**{k: base[k] for k in fields}, "side": "T2"})
+    mq = eng.model_probability(other, 1, 2, "A", "B", 3, [], R(), True)
+    assert mq is not None and mp.p + mq.p == pytest.approx(1.0, abs=1e-6)
+    assert 0.3 < mp.p < 0.7  # a 70% favourite covers -3.5 less often than it wins
