@@ -480,6 +480,13 @@ def test_compare_reports_every_section_from_two_config_sets(tmp_path: Path) -> N
         "SHEET was NOT re-run",
     ):
         assert heading in md
+    # Review 2026-10-03: the OVER curves (what Superbet quotes, what CONFIDENCE
+    # reads) come first; the combined player_shots_for curve is listed apart
+    # as never read.
+    assert "OVER - what Superbet quotes" in md
+    assert md.index("OVER - what Superbet quotes") < md.index("never read for a prop")
+    assert md.index("never read for a prop") < md.index("| player_shots_for |")
+    assert pr._bucket_mid("0.700-0.750") == "0.725"
     assert json.loads((paths.scratch / "compare_report.json").read_text())
 
 

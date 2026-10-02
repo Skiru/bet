@@ -1045,6 +1045,15 @@ def compare_confidence(
     }
 
 
+def _bucket_mid(bucket: str) -> str:
+    """'0.700-0.750' -> '0.725'; anything else is shown as given."""
+    try:
+        lo, hi = (float(x) for x in bucket.split("-"))
+    except ValueError:
+        return bucket
+    return f"{(lo + hi) / 2:.3f}"
+
+
 def compare_configs(old_dir: Path, new_dir: Path) -> dict[str, Any]:
     old_c = load_json(old_dir / "sofa_engine_constants.json")
     new_c = load_json(new_dir / "sofa_engine_constants.json")
@@ -1590,14 +1599,37 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
     ]
     if conf["player_curves"]:
+        # Superbet quotes player lines OVER only, and CONFIDENCE reads a prop's
+        # own direction curve or nothing (review 2026-10-03): the OVER curves
+        # are the decision; the combined and UNDER ones look calibrated and
+        # are never read.
+        over = [r for r in conf["player_curves"]
+                if str(r["curve"]).endswith("|OVER")]
+        rest = [r for r in conf["player_curves"] if r not in over]
         out += [
+            "OVER - what Superbet quotes and the only curve CONFIDENCE reads "
+            "for a prop (claimed = bucket midpoint):",
+            "",
+            "| family | curve | bucket | claimed | n | realised | lo95 |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        out += [
+            f"| {r['family']} | {r['curve']} | {r['bucket']} | "
+            f"{_bucket_mid(str(r['bucket']))} | {r['n']} | "
+            f"{r['realised']} | {r['realised_lo95']} |"
+            for r in over
+        ] or ["| - | no OVER curve | | | | | |"]
+        out += [
+            "",
+            "Combined and UNDER curves (never read for a prop):",
+            "",
             "| family | curve | bucket | n | realised | lo95 |",
             "|---|---|---|---|---|---|",
         ]
         out += [
             f"| {r['family']} | {r['curve']} | {r['bucket']} | {r['n']} | "
             f"{r['realised']} | {r['realised_lo95']} |"
-            for r in conf["player_curves"]
+            for r in rest
         ]
     else:
         out.append("No player_* curve in the new fit.")
