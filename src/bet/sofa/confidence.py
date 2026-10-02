@@ -906,6 +906,16 @@ class Calibration:
         if by_direction is not None:
             entry, source = by_direction
             return entry["realised_lo95"], source, entry["n"]
+        # A player prop is read from its own direction's curve or not at all.
+        # Superbet quotes these OVER only, while the cache replay prices both
+        # directions, so the combined market curve is mostly UNDER rows - and
+        # the two directions are miscalibrated in opposite ways (2026-10-02
+        # replay: OVER >=0.70 claimed 0.798, realised 0.672; UNDER claimed
+        # 0.850, realised 0.875). shots_on_target OVER has no bucket above
+        # 0.70 and would have read 0.704 off the combined curve against ~0.62
+        # realised.
+        if market in PLAYER_PROP_MARKETS:
+            return None
         own = self.by_market.get(market, {})
         entry = self._find(own, p)
         if entry is not None:
