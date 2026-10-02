@@ -222,19 +222,28 @@ def main() -> int:
         p = min(max(p, 0.0), 1.0)
         hit = 1 if ((actual > line) if direction == "OVER" else (actual < line)) else 0
         b = bucket_of(p)
+        # A player prop gets its own market and direction curves and enters
+        # no pool: a pooled number must say what it pooled across, and since
+        # 2026-10-03 a player leg reads its direction's curve or nothing
+        # (confidence.PLAYER_PROP_MARKETS), so a pool never serves one either.
+        # The cache replay adds ~1.2M player rows; they moved the football
+        # pool by <=0.01 pp, but a team leg must not read player rows at all.
+        pools_it = not market.startswith("player_")
         klass = classes.get(event_id)
         if klass is not None:
             by_class_market[klass][market][b].append(hit)
             by_class_direction[klass][direction_key(market, direction)][b].append(hit)
-            by_class_sport[klass][sport][b].append(hit)
+            if pools_it:
+                by_class_sport[klass][sport][b].append(hit)
         if args.classes_only:
             scored += 1
             continue
         per_market[market][b].append(hit)
         per_market_direction[direction_key(market, direction)][b].append(hit)
-        pooled[b].append(hit)
-        if sport:
-            pooled_by_sport[sport][b].append(hit)
+        if pools_it:
+            pooled[b].append(hit)
+            if sport:
+                pooled_by_sport[sport][b].append(hit)
         scored += 1
 
     def curve(

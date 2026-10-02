@@ -497,7 +497,9 @@ def fit_reliability(conn: sqlite3.Connection) -> dict[str, Any]:
     for market in buckets:
         # The "market|DIRECTION" keys hold the same rows again; pooling them
         # too would count every row twice and halve every confidence interval.
-        if "|" in market:
+        # The pool says what it pooled across: team markets only. A player
+        # prop has its own market and direction entries (2026-10-03).
+        if "|" in market or market.startswith("player_"):
             continue
         for bucket, pairs in buckets[market].items():
             pooled_buckets[bucket].extend(pairs)
@@ -619,6 +621,9 @@ def _k_centre_curve(
     # reads no K_CENTRE. Scoring it here as a count fitted K on rows whose
     # rebuilt p has nothing to do with how they are priced or settled.
     rows = [r for r in rows if not is_derived(r["market"])]
+    # A player prop has no prior (no league baseline for player_*), so its p
+    # does not depend on K at all - it would only dilute the K curve.
+    rows = [r for r in rows if not str(r["market"]).startswith("player_")]
     priors: list[float | None] = []
     for row in rows:
         market = row["market"]

@@ -701,3 +701,34 @@ def test_printed_legs_reads_builder_legs_in_the_real_shape() -> None:
     entry = printed[(7, "corners_total", "", 8.5, "OVER")]
     assert entry["offered_odds"] == 1.3 and entry["match"] == "A - B"
     assert entry["as"] == ["builder#1"]
+
+
+def test_rebuild_hands_the_real_runs_dir_to_the_player_replay(tmp_path: Path) -> None:
+    """Review 2026-10-03: without --runs-dir the replay read SOFA_RUNS_DIR, and
+    a scratch runs dir there emptied the player replay with exit 0."""
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+    seen: list[list[str]] = []
+    inner = _fake_calibrate(paths.db_path)
+
+    def runner(cmd: Sequence[str], env: dict[str, str], log: Path | None
+               ) -> tuple[int, list[str]]:
+        seen.append(list(cmd))
+        return inner(cmd, env, log)
+
+    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner)
+    cmd = seen[0]
+    assert cmd[cmd.index("--runs-dir") + 1] == str(paths.runs_dir)
+
+
+def test_rebuild_stops_when_the_player_replay_produced_nothing(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+
+    def runner(cmd: Sequence[str], env: dict[str, str], log: Path | None
+               ) -> tuple[int, list[str]]:
+        return 1, ['SOFA_SUMMARY: {"stage": "CALIBRATE_FROM_CACHE", "verdict": '
+                   '"PARTIAL", "metrics": {"player_replay": "NO_ROWS"}}']
+
+    with pytest.raises(pr.RefitError, match="NO_ROWS"):
+        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner)

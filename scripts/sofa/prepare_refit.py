@@ -572,6 +572,10 @@ def rebuild_cache_rows(
         str(paths.repo / "scripts/sofa/calibrate_from_cache.py"),
         "--db-path",
         str(paths.db_path),
+        # The printed player ladder is read from the real days, never from
+        # whatever SOFA_RUNS_DIR the shell carries (review 2026-10-03).
+        "--runs-dir",
+        str(paths.runs_dir),
     ]
     if calibrate_out is not None:
         cmd += ["--out", str(calibrate_out)]
@@ -603,9 +607,15 @@ def rebuild_cache_rows(
             f"LIVE ROWS CHANGED on {changed} - stop, compare with the DB backup"
         )
     if rc != 0:
+        players = [
+            (s.get("metrics") or {}).get("player_replay")
+            for s in report["calibrate_summary"]
+            if s.get("stage") == "CALIBRATE_FROM_CACHE"
+        ]
         raise RefitError(
-            f"calibrate_from_cache exited {rc}; the cache rows are deleted and "
-            "the replay did not finish - re-run this step or restore the DB"
+            f"calibrate_from_cache exited {rc} (player_replay: {players}); "
+            "the cache rows were deleted and the replay is not complete - "
+            "re-run this step or restore the DB"
         )
     checkpoint_result = checkpoint(paths.db_path)
     report["checkpoint_after"] = checkpoint_result

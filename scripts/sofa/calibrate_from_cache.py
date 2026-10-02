@@ -1251,9 +1251,15 @@ def main() -> int:
     overall_realised = (
         sum(1 for r in rows if r.won) / len(rows) if rows else 0.0
     )
+    # Players asked for and none produced is not a success: a wrong runs dir
+    # (no 04_offer.json, so no printed ladder) emptied the player replay with
+    # exit 0 and the refit fitted on no player rows (review 2026-10-03).
+    players_missing = args.players != "skip" and player_metrics.get(
+        "player_replay"
+    ) != "OK"
     summary = {
         "stage": "CALIBRATE_FROM_CACHE",
-        "verdict": "OK" if rows else "PARTIAL",
+        "verdict": "OK" if rows and not players_missing else "PARTIAL",
         "metrics": {
             "matches_replayed": len(played),
             "settled_rows": len(rows),
@@ -1273,7 +1279,7 @@ def main() -> int:
         "output_path": args.out,
     }
     print(f"SOFA_SUMMARY: {json.dumps(summary)}", flush=True)
-    return 0
+    return 1 if players_missing else 0
 
 
 if __name__ == "__main__":

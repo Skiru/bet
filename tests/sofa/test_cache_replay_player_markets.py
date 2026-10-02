@@ -343,3 +343,26 @@ def test_a_player_baseline_stops_the_player_replay(tmp_path: Path) -> None:
         tmp_path / "missing.db", tmp_path, {"player_shots_for": {"global": 1.0}},
         SofaConfig(), out)
     assert out == [] and str(metrics["player_replay"]).startswith("SKIPPED")
+
+
+def test_players_asked_for_and_none_produced_is_not_a_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review 2026-10-03: a runs dir with no 04_offer.json (a scratch
+    SOFA_RUNS_DIR) emptied the player replay and still exited 0."""
+    empty_runs = tmp_path / "runs"
+    empty_runs.mkdir()
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    where = tmp_path / "a"
+    where.mkdir()
+    _fixture(where).index()
+    monkeypatch.setenv("SOFA_CONFIG_DIR", str(config_dir))
+    monkeypatch.setattr(sys, "argv", [
+        "calibrate_from_cache", "--db-path", str(where / "sofa.db"),
+        "--runs-dir", str(empty_runs), "--players", "include"])
+    assert cfc.main() == 1
+    monkeypatch.setattr(sys, "argv", [
+        "calibrate_from_cache", "--db-path", str(where / "sofa.db"),
+        "--runs-dir", str(empty_runs), "--players", "skip"])
+    assert cfc.main() == 0
