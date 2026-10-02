@@ -30,6 +30,19 @@ The operator's instruction, 2026-10-02 ~10:15Z:
 - The first SHEET today re-parses the football history (~10 min; the listing
   index was filled this morning) - do not kill it.
 
+**Update 2026-10-02 ~12:30Z:** the checks are done - do NOT install this
+candidate (data/refit_2026-10-02/ is kept only as a reference). The fixes are on
+main (9c420cf2): curves keyed on the stored p_central, the replay priced like
+SHEET (NB, variance scale), tennis per-set games markets need
+`admitted_tennis_set_markets`, half coherence on the same matches, regional
+groups split into league units, second-squad matches out of the senior sample
+and rating (HISTORY_PARSER_VERSION 2026-10-02.3 - the next SHEET re-parses).
+**Next (2026-10-03 morning, before the run):** settle 10-02, then
+`prepare_refit.py --date 2026-10-03` backup -> rebuild-cache-rows -> fit ->
+compare --days 2026-09-30 2026-10-01 2026-10-02. Before install, decide
+`shots_total` (UNDER legs realise ~9 pp under claim live) and fouls/tackles
+totals (live -39 pp n=30 / -17 pp n=8): proposal - keep them off the coupon.
+
 Remove this section when the decision is taken.
 
 ## The only pipeline in service is `sofa`
