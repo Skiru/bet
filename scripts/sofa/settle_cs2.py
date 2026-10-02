@@ -147,25 +147,22 @@ class Cs2Sofascore:
     ) -> tuple[dict[str, Any], bool] | str:
         """(event, home is team1), or the state that explains why not.
 
-        Per side: first the teams already in cs2_series under a matching name
-        (no search), then /search/all - its esports teams' listings and the
-        CS events it returned itself. On 2026-10-02 the search alone missed
-        teams it had crowded out with football clubs ("Gremio", "Huskies")
-        or that Superbet names differently ("Natus Vincere Junior" is NAVI
-        Junior); a team we already store is found without asking.
+        One pool for the series, one pick: for both sides, the teams already
+        in cs2_series under a matching name, the esports teams /search/all
+        returns and the CS events it returns itself. On 2026-10-02 the search
+        alone missed teams it had crowded out with football clubs ("Gremio",
+        "Huskies") or that Superbet names differently ("Natus Vincere Junior"
+        is NAVI Junior). Both sides are always searched and picked together:
+        a side that is ambiguous must not be overruled by a single hit on the
+        other side's narrower pool (review 2026-10-03: two stored "Rush"
+        teams, a "Nexus" only the search knew - a per-side pick graded the
+        wrong series with no search at all).
         """
-        ambiguous = False
+        pool: dict[int, dict[str, Any]] = {}
         for side in (ev.team1, ev.team2):
-            pool: dict[int, dict[str, Any]] = {}
             for tid in self._store_candidates(side):
                 for e in self._listing(tid):
                     pool[int(e["id"])] = e
-            hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff)
-            if hit == "AMBIGUOUS":
-                ambiguous = True
-                continue
-            if hit is not None:
-                return hit
             found = self.client.search(side) or {}
             results = found.get("results") or []
             teams = [
@@ -181,12 +178,10 @@ class Cs2Sofascore:
             for r in results:
                 if r.get("type") == "event" and isinstance(r.get("entity"), dict):
                     pool.setdefault(int(r["entity"]["id"]), r["entity"])
-            hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff)
-            if hit == "AMBIGUOUS":
-                ambiguous = True
-            elif hit is not None:
-                return hit
-        return "AMBIGUOUS" if ambiguous else "NOT_ON_SOFASCORE"
+        hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff)
+        if hit == "AMBIGUOUS":
+            return "AMBIGUOUS"
+        return hit if hit is not None else "NOT_ON_SOFASCORE"
 
 
 def _needs_players(ev: SnapshotEvent) -> bool:

@@ -49,7 +49,7 @@ def test_targets_are_in_scope_unasked_and_newest_first() -> None:
         ev(2, 5, 999, home=10),             # a player-market team elsewhere
         ev(3, 3, 999),                      # neither
         ev(4, 2, friendly, home=10),        # friendly: out, as in SAMPLES
-        ev(5, 1, 54, hasEventPlayerStatistics=False),  # Sofascore says none
+        ev(5, 1, 54, hasEventPlayerStatistics=False),  # flag not trusted: asked
         ev(6, 4, 54),                       # lineups already asked
         ev(7, 400, 54),                     # outside the window
         ev(8, 6, 54),                       # no stats row at all
@@ -57,8 +57,9 @@ def test_targets_are_in_scope_unasked_and_newest_first() -> None:
     states = {1: (True, False), 2: (True, False), 6: (True, True)}
     got = bl.select_targets(events, states, {54}, {10}, NOW - 365 * DAY, NOW,
                             barren=set())
-    assert [t.event["id"] for t in got] == [2, 8, 1]
-    assert {t.event["id"]: t.needs_stats for t in got} == {2: False, 8: True, 1: False}
+    assert [t.event["id"] for t in got] == [5, 2, 8, 1]
+    assert {t.event["id"]: t.needs_stats for t in got} == {
+        5: True, 2: False, 8: True, 1: False}
 
 
 class FakeClient:
@@ -75,7 +76,12 @@ class FakeClient:
 
     def event_lineups(self, eid: int) -> dict[str, Any] | None:
         self.calls.append(f"lineups {eid}")
-        return {"home": {"players": []}} if eid != 9 else None
+        if eid == 9:
+            return None
+        if eid == 10:  # a squad list with no per-player statistics
+            return {"home": {"players": [{"player": {"id": 1}}]}}
+        return {"home": {"players": [{"player": {"id": 1},
+                                      "statistics": {"minutesPlayed": 90}}]}}
 
 
 class FakeCache:
@@ -95,9 +101,20 @@ def test_an_unseen_event_gets_its_team_statistics_before_its_lineups() -> None:
     runner.fetch(bl.Target(ev(8, 1, 54), needs_stats=True))
     runner.fetch(bl.Target(ev(1, 1, 54), needs_stats=False))
     runner.fetch(bl.Target(ev(9, 1, 54), needs_stats=False))
+    runner.fetch(bl.Target(ev(10, 1, 54), needs_stats=False))
     assert client.calls == ["stats 8", "incidents 8", "lineups 8",
-                            "lineups 1", "lineups 9"]
+                            "lineups 1", "lineups 9", "lineups 10"]
     assert [w[:2] for w in cache.writes] == [
-        ("stats", 8), ("lineups", 8), ("lineups", 1), ("lineups", 9)]
-    assert cache.writes[-1][2] is None  # an empty answer is recorded as asked
-    assert runner.counts["lineups"] == 2 and runner.counts["no_lineups"] == 1
+        ("stats", 8), ("lineups", 8), ("lineups", 1), ("lineups", 9),
+        ("lineups", 10)]
+    assert cache.writes[3][2] is None  # an empty answer is recorded as asked
+    assert cache.writes[4][2] is not None  # a squad list is stored as sent...
+    # ...but is not a hit: it feeds no player sample.
+    assert runner.counts["lineups"] == 2 and runner.counts["no_lineups"] == 2
+
+
+def test_a_squads_only_payload_counts_as_empty_for_the_barren_rule() -> None:
+    assert bl._empty('{"home": {"players": [{"player": {"id": 1}}]}}')
+    assert not bl._empty(
+        '{"home": {"players": [{"player": {"id": 1}, "statistics": {"x": 1}}]}}')
+    assert bl._empty("{}") and bl._empty(None) and bl._empty("not json")

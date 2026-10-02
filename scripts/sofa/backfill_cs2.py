@@ -318,9 +318,16 @@ class Backfill:
             self.stats.add("teams_ambiguous_seeded", len(tied))
             return tied
         tid, (_, team_name) = best[0]
-        self.cache.save_entity(
-            ENTITY_SPORT, key, tid, team_name, "team", None, "verified"
-        )
+        if searched:
+            # Cached only when the search had its say: a store-only pick made
+            # while search is cooling down may be a namesake of a team the
+            # store has never seen, and a "verified" entity is never searched
+            # again (review 2026-10-03).
+            self.cache.save_entity(
+                ENTITY_SPORT, key, tid, team_name, "team", None, "verified"
+            )
+        else:
+            self.stats.add("teams_seeded_uncached")
         return [tid]
 
     def _search_fits(
@@ -339,7 +346,11 @@ class Backfill:
             tid = int(team["id"])
             team_name = str(team.get("name") or "")
             score = esports_score(key, esports_name(team_name))
-            if score <= NAME_MATCH_THRESHOLD or tid in fits:
+            if score <= NAME_MATCH_THRESHOLD:
+                continue
+            if tid in fits:
+                # Already known to play CS (the store): keep its best score.
+                fits[tid] = max(fits[tid], (score, team_name))
                 continue
             page = self.listing_page(tid, 0)
             if any(is_cs_event(e) for e in (page or {}).get("events") or []):
@@ -355,13 +366,16 @@ class Backfill:
                 continue
             for side in ("homeTeam", "awayTeam"):
                 team = event.get(side) or {}
-                if not team.get("id") or int(team["id"]) in fits:
+                if not team.get("id"):
                     continue
+                tid = int(team["id"])
                 team_name = str(team.get("name") or "")
                 score = esports_score(key, esports_name(team_name))
-                if score > NAME_MATCH_THRESHOLD:
-                    fits[int(team["id"])] = (score, team_name)
+                if score <= NAME_MATCH_THRESHOLD:
+                    continue
+                if tid not in fits:
                     self.stats.add("teams_from_search_events")
+                fits[tid] = max(fits.get(tid, (0.0, "")), (score, team_name))
 
     # --- series ----------------------------------------------------------------
 

@@ -11,8 +11,9 @@ Scope, from the day artifacts on disk (no request): every football fixture
 whose 04_offer.json carries a `player_*` rung, joined to 02_fixtures.json for
 its competition and sides. A target is a finished event in the last --days of
 one of those competitions (friendlies out, as in SAMPLES) or of one of those
-teams, whose lineups were never asked. An event Sofascore marks
-`hasEventPlayerStatistics: false` is not asked.
+teams, whose lineups were never asked. `hasEventPlayerStatistics` is not
+trusted: 26 of 63 cached events flagged false held per-player statistics
+(review 2026-10-03), so the barren-competition rule decides instead.
 
 An event with no sofa_event_stats row at all is asked /statistics and
 /incidents first, exactly as backfill_event_stats.py would: writing the
@@ -114,8 +115,30 @@ def _states(db_path: str) -> dict[int, tuple[bool, bool]]:
         conn.close()
 
 
+def has_player_statistics(payload: object) -> bool:
+    """A lineups payload worth having: some player carries `statistics`.
+
+    A squad list without per-player statistics (815 of 28,441 stored rows on
+    2026-10-03) is stored as Sofascore sent it, but it is not a hit - it
+    feeds no player sample, and counting it would keep a squads-only
+    competition from ever being judged barren.
+    """
+    if not isinstance(payload, dict):
+        return False
+    for side in ("home", "away"):
+        for row in (payload.get(side) or {}).get("players") or []:
+            if isinstance(row, dict) and row.get("statistics"):
+                return True
+    return False
+
+
 def _empty(raw: str | None) -> bool:
-    return raw in (None, "", "{}", "null")
+    if raw is None or raw in ("", "{}", "null"):
+        return True
+    try:
+        return not has_player_statistics(json.loads(raw))
+    except (TypeError, json.JSONDecodeError):
+        return True
 
 
 def barren_lineup_competitions(
@@ -161,8 +184,6 @@ def select_targets(
             continue
         sides = {(e.get(s) or {}).get("id") for s in ("homeTeam", "awayTeam")}
         if comp not in comps and not sides & teams:
-            continue
-        if e.get("hasEventPlayerStatistics") is False:
             continue
         state = states.get(int(e["id"]))
         if state is not None and state[1]:
@@ -214,8 +235,9 @@ class Backfill:
             with self.lock:
                 self.counts["errors"] += 1
             return
-        ok = isinstance(got, dict) and bool(got)
-        self.cache.save_event_lineups(eid, got if ok else None, "finished")
+        stored = got if isinstance(got, dict) and got else None
+        self.cache.save_event_lineups(eid, stored, "finished")
+        ok = has_player_statistics(stored)
         with self.lock:
             self.counts["done"] += 1
             self.counts["lineups" if ok else "no_lineups"] += 1

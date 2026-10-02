@@ -795,9 +795,11 @@ def test_the_store_still_answers_while_search_is_cooling_down(tmp_path: Path) ->
     fake = FakeSofascore()
     result = run_with(tmp_path, fake, cfg)
     assert not any(c.startswith("search") for c in fake.calls)
+    # Seeded for this run, never cached: without a search the store's "Rush"
+    # may be a namesake of the team Superbet means (review 2026-10-03).
     from bet.sofa.cache import SofaCache
-    cached = SofaCache(cfg).get_entity("cs2", "rush")
-    assert cached is not None and int(cached["sofascore_id"]) == 3
+    assert SofaCache(cfg).get_entity("cs2", "rush") is None
+    assert result["metrics"]["teams_seeded_uncached"] == 1
     assert result["metrics"]["teams_from_store"] >= 1
 
 
@@ -848,7 +850,7 @@ def _snapshot_event(team1: str, team2: str) -> Any:
     return SimpleNamespace(team1=team1, team2=team2)
 
 
-def test_settle_finds_a_stored_team_under_its_alias_without_searching(
+def test_settle_finds_a_stored_team_under_its_alias(
     tmp_path: Path,
 ) -> None:
     """Superbet's "Fire Flux · Natus Vincere Junior" is Sofascore's Fire Flux
@@ -866,7 +868,6 @@ def test_settle_finds_a_stored_team_under_its_alias_without_searching(
     sofa = settle_cs2.Cs2Sofascore(fake, cfg.db_path)  # type: ignore[arg-type]
     hit = sofa.find(_snapshot_event("Natus Vincere Junior", "Fire Flux"), AT)
     assert isinstance(hit, tuple) and hit[0]["id"] == 77 and hit[1] is False
-    assert not any(c.startswith("search") for c in fake.calls)
 
 
 def test_settle_reads_the_cs_events_the_search_returned_itself() -> None:
@@ -877,3 +878,32 @@ def test_settle_reads_the_cs_events_the_search_returned_itself() -> None:
     sofa = settle_cs2.Cs2Sofascore(fake)  # type: ignore[arg-type]
     hit = sofa.find(_snapshot_event("5Star eSports", "magic"), AT)
     assert isinstance(hit, tuple) and hit[0]["id"] == 78 and hit[1] is True
+
+
+def test_settle_one_ambiguous_side_is_never_overruled_by_the_other_sides_hit(
+    tmp_path: Path,
+) -> None:
+    """Review 2026-10-03: two stored "Rush" teams (10, 11) and a stored
+    "Nexus" (20); a second "Nexus" (30) only the search knows. E1 = Rush(10)
+    - Nexus(20) and E2 = Rush(11) - Nexus(30) start together. A per-side pick
+    took E1 off Nexus's store pool with no search; it is ambiguous."""
+    cfg = seeded_config(tmp_path, ("magic", "Astralis"))
+    backfill_cs2.run(
+        FakeSofascore(), cfg, days=180, hops=0, max_minutes=5,  # type: ignore[arg-type]
+        dry_run=False, extra_team_ids=[], at=AT,
+    )
+    e1 = _settle_event(91, (10, "Rush"), (20, "Nexus"))
+    e2 = _settle_event(92, (11, "Rush"), (30, "Nexus"))
+    with db(tmp_path) as conn:
+        for eid, h, a in ((901, (10, "Rush"), (1, "x")), (902, (11, "Rush"), (1, "x")),
+                          (903, (20, "Nexus"), (1, "x"))):
+            conn.execute(
+                "INSERT INTO cs2_series (sofascore_event_id, start_ts, home_id,"
+                " home_name, away_id, away_name, status_type, complete, fetched_at)"
+                " VALUES (?,?,?,?,?,?,'finished',1,'x')",
+                (eid, 1, h[0], h[1], a[0], a[1]))
+    nexus30 = {"type": "team",
+               "entity": {"id": 30, "name": "Nexus", "sport": {"slug": "esports"}}}
+    fake = SettleSearch([nexus30], {10: [e1], 11: [e2], 20: [e1], 30: [e2]})
+    sofa = settle_cs2.Cs2Sofascore(fake, cfg.db_path)  # type: ignore[arg-type]
+    assert sofa.find(_snapshot_event("RUSH", "Nexus"), AT) == "AMBIGUOUS"
