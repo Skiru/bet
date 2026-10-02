@@ -923,11 +923,28 @@ def player_value(
     matched = match_player(line.subject, box.players)
     if matched is None:
         return "UNMATCHED"
-    stats = box.players[matched]
+    return player_stat_value(
+        box.players[matched], PLAYER_MARKETS[sport.key][line.market_id]
+    )
+
+
+def has_played(stats: dict[str, Any]) -> bool:
+    """The appearance gate: a positive `secondsPlayed`, nothing else."""
     played = stats.get("secondsPlayed")
-    if not isinstance(played, int | float) or isinstance(played, bool) or played <= 0:
+    return (
+        isinstance(played, int | float) and not isinstance(played, bool) and played > 0
+    )
+
+
+def player_stat_value(
+    stats: dict[str, Any], spec: PlayerSpec
+) -> float | Literal["DNP", "NO_STAT"]:
+    """One player's quantity in one game's statistics: the sum of the spec's
+    keys, DNP without an appearance, NO_STAT when a key is missing. Shared
+    by the grade (player_value) and the player model's history
+    (player_model.py), so both read a game the same way."""
+    if not has_played(stats):
         return "DNP"
-    spec = PLAYER_MARKETS[sport.key][line.market_id]
     total = 0.0
     for key in spec.keys:
         value = stats.get(key)

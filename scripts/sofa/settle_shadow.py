@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -48,6 +49,17 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.names import normalize_name  # noqa: E402
+from bet.sofa.player_model import (  # noqa: E402
+    MODEL_KEYS,
+    PLAYER_MODEL_FILE,
+    history_cutoff,
+    last_pregame,
+    line_key,
+    load_appearances,
+    model_fields,
+    read_forecasts,
+    score_rows,
+)
 from bet.sofa.resolve import (  # noqa: E402
     DEFAULT_LISTING_KINDS,
     DEFAULT_LISTING_PAGES,
@@ -320,9 +332,14 @@ def settle_one(
     cache: SofaCache | None,
     at: datetime,
     raw: list[dict[str, Any]] | None = None,
+    db_path: str | None = None,
+    forecasts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """One game. `raw` is this game's snapshot records, for re-collapsing
-    them on Sofascore's clock when the game began before Superbet's."""
+    them on Sofascore's clock when the game began before Superbet's.
+    `forecasts` (the day's player_model.jsonl) and `db_path` put the player
+    model's number beside each graded player line (attach_player_model); it
+    never changes a grade."""
     kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
     record: dict[str, Any] = {
         "match_name": ev.match_name,
@@ -430,6 +447,25 @@ def settle_one(
     graded, counts = settle_event(
         ev, result, sport, totals_only=orientation is None, clock=clock, box=box
     )
+    if (db_path is not None or forecasts) and any(
+        is_player_line(sport.key, int(g["market_id"])) for g in graded
+    ):
+        try:
+            attach_player_model(
+                graded,
+                sport,
+                found,
+                detail,
+                kickoff,
+                clock,
+                db_path,
+                forecasts or [],
+                ev.superbet_event_id,
+            )
+        except Exception as exc:
+            # The grade stands without a model number; never the other way
+            # round (settle_cs2.attach_model's rule).
+            record["player_model_error"] = f"{type(exc).__name__}: {exc}"
     return {
         **record,
         "state": "SETTLED",
@@ -448,6 +484,82 @@ def settle_one(
     }
 
 
+def attach_player_model(
+    graded: list[dict[str, Any]],
+    sport: ShadowSport,
+    event: dict[str, Any],
+    detail: dict[str, Any],
+    kickoff: datetime,
+    clock: datetime,
+    db_path: str | None,
+    forecasts: list[dict[str, Any]],
+    superbet_event_id: str,
+) -> None:
+    """Put the player model's pre-match probability beside each graded player
+    line (bet.sofa.player_model; a measurement, read by nothing that builds a
+    coupon).
+
+    The source is the last pre-game forecast SHADOW wrote for the line
+    (player_model.jsonl, a snapshot taken before `clock`, the game's
+    pre-match clock) when one carries a p - `model_source: pregame` - else
+    the same model computed now from the database - `model_source: settle`.
+
+    History is cut before the earlier of Superbet's kickoff and Sofascore's
+    start and this game is excluded by id: its own box was saved minutes ago,
+    and reading it back would be the answer as a forecast. Every number is
+    computed before any row is touched, so a failure leaves the rows as the
+    grade wrote them. The database is opened read-only.
+    """
+    rows = [g for g in graded if is_player_line(sport.key, int(g["market_id"]))]
+    if not rows:
+        return
+    pregame = last_pregame(forecasts, superbet_event_id, clock)
+    updates: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    rest: list[dict[str, Any]] = []
+    for row in rows:
+        hit = pregame.get(line_key(row))
+        if hit is None:
+            rest.append(row)
+            continue
+        fields = {k: hit.get(k) for k in MODEL_KEYS if k in hit}
+        fields["model_source"] = "pregame"
+        fields["model_fetched_at_utc"] = hit["fetched_at_utc"]
+        updates.append((row, fields))
+    if rest and db_path is not None:
+        updates += _settle_time_model(rest, sport, event, detail, kickoff, db_path)
+    for row, fields in updates:
+        row.update(fields)
+
+
+def _settle_time_model(
+    rows: list[dict[str, Any]],
+    sport: ShadowSport,
+    event: dict[str, Any],
+    detail: dict[str, Any],
+    kickoff: datetime,
+    db_path: str,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    start = detail.get("startTimestamp") or event.get("startTimestamp")
+    before = history_cutoff(
+        int(kickoff.timestamp()), int(start) if isinstance(start, int) else None
+    )
+    teams = [
+        int(tid)
+        for side in ("homeTeam", "awayTeam")
+        if isinstance(tid := (event.get(side) or {}).get("id"), int)
+    ]
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
+    try:
+        apps = load_appearances(conn, sport.key, teams, before, int(event["id"]))
+    finally:
+        conn.close()
+    scored = score_rows(rows, sport.key, apps)
+    return [
+        (row, {"model_source": "settle", **model_fields(mp)})
+        for row, mp in zip(rows, scored, strict=True)
+    ]
+
+
 def settle_sport(
     sport: ShadowSport,
     date: str,
@@ -456,6 +568,7 @@ def settle_sport(
     cache: SofaCache | None,
     runs_dir: str,
     at: datetime,
+    db_path: str | None = None,
 ) -> dict[str, Any]:
     day = shadow_day_dir(runs_dir, sport.key, date)
     snaps_path = day / SNAPSHOTS_FILE
@@ -478,6 +591,11 @@ def settle_sport(
         else:
             unreadable += 1
     events = latest_pre_kickoff(snapshots)
+    # SHADOW's pre-game player forecasts; an unreadable file is no forecast.
+    try:
+        forecasts = read_forecasts(day / PLAYER_MODEL_FILE)
+    except Exception:
+        forecasts = []
     raw_by_event: dict[str, list[dict[str, Any]]] = {}
     for snap in snapshots:
         raw_by_event.setdefault(str(snap["superbet_event_id"]), []).append(snap)
@@ -517,7 +635,15 @@ def settle_sport(
             continue
         try:
             record = settle_one(
-                ev, sport, resolver, client, cache, at, raw_by_event.get(eid)
+                ev,
+                sport,
+                resolver,
+                client,
+                cache,
+                at,
+                raw_by_event.get(eid),
+                db_path=db_path,
+                forecasts=forecasts,
             )
         except CircuitOpenError:
             breaker_open = True
@@ -583,9 +709,12 @@ def settle(
     runs_dir: str,
     at: datetime,
     sports: tuple[SportKey, ...] = tuple(SPORTS),
+    db_path: str | None = None,
 ) -> dict[str, Any]:
     per_sport = {
-        key: settle_sport(SPORTS[key], date, resolver, client, cache, runs_dir, at)
+        key: settle_sport(
+            SPORTS[key], date, resolver, client, cache, runs_dir, at, db_path
+        )
         for key in sports
     }
     # A sport with no snapshots is a quiet day for that sport, not a fault;
@@ -611,7 +740,16 @@ def main() -> int:
     cache = SofaCache(config)
     resolver = SofaResolver(config, client, cache)
     sports = tuple(args.sport) if args.sport else tuple(SPORTS)
-    result = settle(args.date, resolver, client, cache, config.runs_dir, now(), sports)
+    result = settle(
+        args.date,
+        resolver,
+        client,
+        cache,
+        config.runs_dir,
+        now(),
+        sports,
+        db_path=config.db_path,
+    )
     print(
         "SOFA_SUMMARY: " + json.dumps({"stage": "SHADOW_SETTLE", **result}),
         flush=True,
