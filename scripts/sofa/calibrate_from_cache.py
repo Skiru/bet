@@ -45,10 +45,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from bet.sofa.atomic import write_atomic
-from bet.sofa.config import SofaConfig
+from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.engine import (
     calc_p_central_raw,
     outside_model_resolution,
@@ -155,7 +155,7 @@ def k_centre_for(sport: str, constants: dict[str, Any] | None = None) -> float:
 
 
 def _load_engine_constants() -> dict[str, Any]:
-    path = Path("config/sofa_engine_constants.json")
+    path = config_path("sofa_engine_constants.json")
     if not path.exists():
         return {}
     try:
@@ -309,7 +309,7 @@ def lines_for(centre: float) -> list[float]:
 
 
 def load_baselines() -> dict[str, Any]:
-    path = Path("config/sofa_league_baselines.json")
+    path = config_path("sofa_league_baselines.json")
     if not path.exists():
         return {}
     try:
@@ -362,122 +362,175 @@ class SettledRow:
         return self.outcome == "WIN"
 
 
+class Past(NamedTuple):
+    """One earlier match in a side's replayed history."""
+
+    timestamp: int
+    event_id: int
+    own: float
+    total: float
+
+
+def pooled_total_sample(
+    home_recent: list[Past], away_recent: list[Past]
+) -> list[float]:
+    """The sample of a match-total row, the way SHEET builds it.
+
+    run_sheet.py prices a `*_total` rung (no subject) from
+    `deduplicate_observations([side_a, side_b, h2h])`: both sides' last
+    SAMPLE_N matches pooled, one historical match once. SAMPLES' h2h bucket
+    holds only meetings already present in side_a or side_b
+    (samples.py, `is_h2h`), so the union of the two recent lists, keyed by
+    event id, is the whole pool - a past meeting of these two sides sits in
+    both lists with the same total and enters once.
+
+    Until 2026-10-02 the replay settled a total once per SIDE from that side's
+    own ten matches, under one key (event, market, "", line, direction): the
+    away side's rows overwrote the home side's wherever their line grids
+    overlapped, so a replayed total carried one side's sample while the
+    sheet ships a pooled one (71.6M rows written, 29.4M keys, in a rehearsal).
+    """
+    seen: set[int] = set()
+    values: list[float] = []
+    for past in (*home_recent, *away_recent):
+        if past.event_id in seen:
+            continue
+        seen.add(past.event_id)
+        values.append(past.total)
+    return values
+
+
 def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
     # Read once: the constant is per sport and must be the one that ships.
     engine_constants = _load_engine_constants()
-    # team -> base -> chronological list of (timestamp, own value, total value)
-    history: dict[tuple[int, str], list[tuple[int, float, float]]] = (
-        collections.defaultdict(list)
-    )
+    # (team, base) -> chronological list of earlier matches
+    history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
     rows: list[SettledRow] = []
 
     for match in played:
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
-            for team, own, market_suffixes in (
-                (match.home_id, home_value, ("for", "total")),
-                (match.away_id, away_value, ("for", "total")),
+            home_recent = history[(match.home_id, base)][-SAMPLE_N:]
+            away_recent = history[(match.away_id, base)][-SAMPLE_N:]
+
+            # `*_for`: each side from its own history only, as SHEET does
+            # (determine_side; h2h never reaches a per-side market).
+            for team, own, recent in (
+                (match.home_id, home_value, home_recent),
+                (match.away_id, away_value, away_recent),
             ):
-                del market_suffixes
-                past = history[(team, base)]
-                if len(past) >= MIN_SAMPLE:
+                if len(recent) >= MIN_SAMPLE:
                     rows.extend(
-                        _settle_side(
+                        _settle_sample(
                             match,
-                            base,
-                            team,
+                            market_name(base, "for"),
+                            str(team),
                             own,
-                            total,
-                            past,
+                            [p.own for p in recent],
                             baselines,
                             engine_constants,
                         )
                     )
 
+            # `*_total`: ONE row set per match, from the pooled sample, and
+            # only when BOTH sides have a sample - SHEET refuses a total with
+            # either side thin (THIN_SAMPLE, "total pools both sides").
+            # Residual difference from the sheet, not removable here: the
+            # per-side threshold is this replay's MIN_SAMPLE (8), not the
+            # sheet's config.min_sample (5); the per-side sample is the last
+            # SAMPLE_N matches that HAVE this statistic, where SAMPLES takes
+            # the last sample_n events and loses the gaps; and SAMPLES'
+            # scoping (friendlies out, tennis surface / best-of) is not
+            # replayed - the same differences every `*_for` row already has.
+            if len(home_recent) >= MIN_SAMPLE and len(away_recent) >= MIN_SAMPLE:
+                rows.extend(
+                    _settle_sample(
+                        match,
+                        market_name(base, "total"),
+                        "",
+                        total,
+                        pooled_total_sample(home_recent, away_recent),
+                        baselines,
+                        engine_constants,
+                    )
+                )
+
         # Only after settling: a match may never contribute to its own sample.
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
             history[(match.home_id, base)].append(
-                (match.timestamp, home_value, total)
+                Past(match.timestamp, match.event_id, home_value, total)
             )
             history[(match.away_id, base)].append(
-                (match.timestamp, away_value, total)
+                Past(match.timestamp, match.event_id, away_value, total)
             )
 
     return rows
 
 
-def _settle_side(
+def _settle_sample(
     match: Played,
-    base: str,
-    team: int,
-    own_value: float,
-    total_value: float,
-    past: list[tuple[int, float, float]],
+    market: str,
+    subject: str,
+    actual: float,
+    sample: list[float],
     baselines: dict[str, Any],
     engine_constants: dict[str, Any],
 ) -> list[SettledRow]:
     out: list[SettledRow] = []
-    recent = past[-SAMPLE_N:]
+    n = len(sample)
+    if n < MIN_SAMPLE or all(v == 0.0 for v in sample):
+        return out
+    mean = statistics.mean(sample)
+    variance = statistics.variance(sample) if n > 1 else 0.0
+    sample_sd = statistics.stdev(sample) if n > 1 else 0.0
 
-    for suffix, actual, sample in (
-        ("for", own_value, [p[1] for p in recent]),
-        ("total", total_value, [p[2] for p in recent]),
-    ):
-        market = market_name(base, suffix)
-        n = len(sample)
-        if n < MIN_SAMPLE or all(v == 0.0 for v in sample):
-            continue
-        mean = statistics.mean(sample)
-        variance = statistics.variance(sample) if n > 1 else 0.0
-        sample_sd = statistics.stdev(sample) if n > 1 else 0.0
+    prior = prior_for(baselines, market, match.competition_id)
+    if prior is not None:
+        k_centre = k_centre_for(match.sport, engine_constants)
+        weight = n / (n + k_centre)
+        centre = weight * mean + (1.0 - weight) * prior
+    else:
+        centre = mean
 
-        prior = prior_for(baselines, market, match.competition_id)
-        if prior is not None:
-            k_centre = k_centre_for(match.sport, engine_constants)
-            weight = n / (n + k_centre)
-            centre = weight * mean + (1.0 - weight) * prior
-        else:
-            centre = mean
+    spread = predictive_sd(
+        variance, mean, n, apply_poisson_floor=uses_poisson_floor(market)
+    )
 
-        spread = predictive_sd(
-            variance, mean, n, apply_poisson_floor=uses_poisson_floor(market)
-        )
-
-        for line in lines_for(centre):
-            for direction in ("OVER", "UNDER"):
-                boundary = winning_boundary(line, direction)
-                p_raw = calc_p_central_raw(
-                    centre, spread, boundary, direction, support_floor_for(market)
+    for line in lines_for(centre):
+        for direction in ("OVER", "UNDER"):
+            boundary = winning_boundary(line, direction)
+            p_raw = calc_p_central_raw(
+                centre, spread, boundary, direction, support_floor_for(market)
+            )
+            if outside_model_resolution(p_raw):
+                continue
+            # settle.py owns this vocabulary. Writing "WON"/"LOST" here
+            # produced 1.5M rows that fit_constants.py filters out with
+            # `outcome IN ('WIN','LOSS')` — it read zero, wrote an empty
+            # reliability file over a measured one, and reported success.
+            # A half-line cannot PUSH, but the grid is built from a centre
+            # and must not assume that.
+            outcome = settle(actual, line, direction)
+            if outcome == "PUSH":
+                continue
+            out.append(
+                SettledRow(
+                    event_id=match.event_id,
+                    sport=match.sport,
+                    competition_id=match.competition_id,
+                    market=market,
+                    subject=subject,
+                    line=line,
+                    direction=direction,
+                    sample_size=n,
+                    sample_mean=round(mean, 4),
+                    sample_sd=round(sample_sd, 4),
+                    p_central=round(p_raw, 6),
+                    actual=actual,
+                    outcome=outcome,
                 )
-                if outside_model_resolution(p_raw):
-                    continue
-                # settle.py owns this vocabulary. Writing "WON"/"LOST" here
-                # produced 1.5M rows that fit_constants.py filters out with
-                # `outcome IN ('WIN','LOSS')` — it read zero, wrote an empty
-                # reliability file over a measured one, and reported success.
-                # A half-line cannot PUSH, but the grid is built from a centre
-                # and must not assume that.
-                outcome = settle(actual, line, direction)
-                if outcome == "PUSH":
-                    continue
-                out.append(
-                    SettledRow(
-                        event_id=match.event_id,
-                        sport=match.sport,
-                        competition_id=match.competition_id,
-                        market=market,
-                        subject=str(team) if suffix == "for" else "",
-                        line=line,
-                        direction=direction,
-                        sample_size=n,
-                        sample_mean=round(mean, 4),
-                        sample_sd=round(sample_sd, 4),
-                        p_central=round(p_raw, 6),
-                        actual=actual,
-                        outcome=outcome,
-                    )
-                )
+            )
     return out
 
 
