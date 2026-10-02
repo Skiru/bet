@@ -1,49 +1,70 @@
 # Working agreement — `bet`
 
-## OPEN DECISION (2026-10-02) - read before running or refitting anything
+## OPEN DECISION (2026-10-03 morning) - the 10-03 refit; read before running or refitting anything
 
-The operator's instruction, 2026-10-02 ~10:15Z:
+The night of 10-02 -> 10-03 (operator's order: rich statistics for every sport,
+models calibrated on the backfill, everything wired into the 10-03 /sofa-day,
+two review rounds, then push). What landed on main (`git log 9f0604b5..`):
 
-- **Today's `/sofa-day` 2026-10-02 runs in a separate session, on the CURRENT
-  config.** No refit is installed. Do **not** run `prepare_refit.py install`,
-  `fit_constants.py` or `fit_confidence.py` against `config/`, and do not
-  "fix" the config during the day run.
-- **D-1 (2026-10-01) is already settled and recorded** (08:49-08:53Z:
-  `run_settle --include-unpriced`, audit 7c/7d, D-5 re-settle, regrade, sport
-  coupons, WSZYSTKIE, ledger 09-24..10-01). Re-running step 1 is harmless (it
-  merges), not required.
-- **A refit candidate is prepared and NOT installed:** `data/refit_2026-10-02/`
-  (`config/`, `compare_report.md`); backups in `config/backup_2026-10-02/` and
-  `data/backup_2026-10-02/sofa.db`. Do not delete or overwrite them. The DB's
-  `cache-calibration` rows were rebuilt (25.8M -> 49.4M); today's SHEET and
-  CONFIDENCE read `config/`, not those rows, so the day run is unaffected.
-- **The install decision belongs to the main (audit) session, after the
-  operator reports the day run done.** Replay of 09-30 + 10-01 on the new
-  config (in-sample): official -1.66 u, WARIANT -6.76 u. Three checks are
-  open first: (1) `*_total` confidence curves jumped (tackles 0.72 -> 0.93,
-  throw-ins 0.65 -> 0.79, fouls 0.80 -> 0.92) - suspected replay-p vs SHEET-p
-  mismatch after the pooled-totals replay fix; (2) tennis per-set markets
-  (`games_set1/2_total`, `games_won_set1/2_for`) would get curves and leave
-  AWAITING_OWN_CURVE - they were measured overconfident before; (3) half-match
-  coherence worse (`goals_for` -15.5%, `fouls_for` -15.3%, `throw_ins_for`
-  -27.9%).
-- The first SHEET today re-parses the football history (~10 min; the listing
-  index was filled this morning) - do not kill it.
+- **Backfill, 365 d:** hockey / basketball / volleyball /statistics + /lineups
+  complete; football per-player /lineups for the 11 player-market leagues and
+  135 teams (~1,000 -> ~4,000 matches, `backfill_football_lineups.py`); tennis
+  (113) and football (20) histories deepened; CS2 108/108 missing series.
+  Football /statistics (16k) and tennis /statistics (63k) were still running
+  overnight and start no new chunk after 07:30Z (resumable: re-run the dry-runs).
+- **CS2:** team resolution through search events, the store and 3 verified
+  aliases (134 -> 153 of 176 names; the rest are 1x1 players or tournaments
+  Sofascore lacks). CS2_SETTLE picks over one pooled series; 09-28..10-01
+  re-swept (73 -> 84 settled), sport coupons, WSZYSTKIE and ledger re-recorded.
+- **Football player props:** the cache replay now writes player rows (1.19M
+  rows over 3,117 matches on the real DB). OVER >=0.70 claimed 0.799, realised
+  0.664 - fouls / tackles / offsides OVER 16-32 pp over, shots ~5 pp. A prop
+  reads only its own direction's curve; player rows enter no pool. Props stay
+  refused (`PLAYER_PROP_NOT_ADMITTED`) until named in `admitted_player_markets`.
+- **Measured sports:** `player_rate_v3` (basketball, hockey) fitted on the
+  history (`config/sofa_player_model.json`, provenance inside). SHADOW writes a
+  pre-game forecast per player line (`<sport>/<d>/player_model.jsonl`),
+  SHADOW_SETTLE attaches `model_p`. It does NOT beat the price (basketball
+  Brier +0.002 [-0.008, +0.014] vs price; hockey +0.0055) - a measurement; it
+  selects and vetoes nothing.
+- **Operator key `refused_markets`** ("market" or "market|DIRECTION"): keeps a
+  market off both coupons whatever its curve says; survives a refit. Empty.
+- **Refit safety:** rebuild-cache-rows refuses without today's `backup --db`
+  and while another process holds the DB; SOFA_DB_PATH / SOFA_RUNS_DIR that
+  are not the repo's are refused unless passed explicitly; an empty player
+  replay fails the step. Rehearsed end to end on a DB copy: rebuild 29 min,
+  fit_constants ~60 min (fit.log stays empty until it ends - not hung),
+  fit_confidence 6 min; the whole tests/sofa passes on the fitted files.
 
-**Update 2026-10-02 ~12:30Z:** the checks are done - do NOT install this
-candidate (data/refit_2026-10-02/ is kept only as a reference). The fixes are on
-main (9c420cf2): curves keyed on the stored p_central, the replay priced like
-SHEET (NB, variance scale), tennis per-set games markets need
-`admitted_tennis_set_markets`, half coherence on the same matches, regional
-groups split into league units, second-squad matches out of the senior sample
-and rating (HISTORY_PARSER_VERSION 2026-10-02.3 - the next SHEET re-parses).
-**Next (2026-10-03 morning, before the run):** settle 10-02, then
-`prepare_refit.py --date 2026-10-03` backup -> rebuild-cache-rows -> fit ->
-compare --days 2026-09-30 2026-10-01 2026-10-02. Before install, decide
-`shots_total` (UNDER legs realise ~9 pp under claim live) and fouls/tackles
-totals (live -39 pp n=30 / -17 pp n=8): proposal - keep them off the coupon.
+**Morning checklist (in order):**
+1. After 05:45Z: `runs/sofa/shadow/daily_2026-10-02.log` and
+   `runs/sofa/cs2/daily_2026-10-02.log` show their settle steps done; grep
+   `player_model_error` in the shadow `settled.json` files (a model error never
+   changes a grade).
+2. `ensure_bridge.py`.
+3. Wait until `pgrep -fl "backfill_|drive_backfill|chain2"` is empty.
+4. Settle 10-02 completely (run_settle --include-unpriced, D-5 refetch +
+   regrade, sport coupons, WSZYSTKIE, record_results).
+5. Decide `refused_markets` in `config/sofa_confidence_calibration.json`.
+   Recommendation: `["shots_total|UNDER", "fouls_total|UNDER"]` only - settled
+   priced rows: shots_total UNDER >=0.70 claimed 0.759 realised 0.521 [CI -36
+   .. -12 pp] n=144 ROI -29%; fouls_total UNDER >=0.65 0.729 / 0.389 n=36; the
+   OVER sides and shots_on_target_total are within noise; tackles_total has <10
+   priced rows (cannot be judged).
+6. `PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 --db-path data/sofa.db --runs-dir runs/sofa`
+   with `backup --db data/backup_2026-10-03/sofa.db`, then
+   `rebuild-cache-rows --confirm`, then `fit`, then
+   `compare --days 2026-09-30 2026-10-01 2026-10-02 --with-sheet`
+   (the SHEET-side changes - K_CENTRE football 25 -> ~15 in the rehearsal,
+   ~1,150 reliability buckets, player p_bar corrections - show only with it).
+7. In compare_report.md read "Player-prop curves": the OVER table is the
+   decision. Recommendation: do NOT admit player props yet (one-sided prices,
+   no ROI evidence, OVER overconfident even if the curve corrects it).
+8. `install --confirm` (it runs tests/sofa and restores on failure), then
+   `/sofa-day`. The first SHEET re-parses the history (10+ min): do not kill it.
 
-Remove this section when the decision is taken.
+Remove this section when the decision is taken. The previous candidate
+(`data/refit_2026-10-02/`) stays rejected and is kept only as a reference.
 
 ## The only pipeline in service is `sofa`
 
