@@ -19,7 +19,12 @@ sequential. Superbet only; no bridge, no Sofascore.
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py \\
         --date 2026-09-29 --only SHADOW
 
-Writes runs/sofa/shadow/<sport>/<date>/snapshots.jsonl. Exit: 0 OK,
+Writes runs/sofa/shadow/<sport>/<date>/snapshots.jsonl and, for basketball
+and hockey player lines, the player model's pre-game forecast beside it in
+player_model.jsonl (bet.sofa.player_model; read-only database, no request; a
+measurement read by SHADOW_SETTLE and measure_player_props.py only). The
+forecast runs after the snapshot is written and can never fail or change it.
+Exit: 0 OK,
 1 PARTIAL (an event fetch failed), 2 FAILED (the board could not be read).
 """
 
@@ -27,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -37,6 +43,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa import player_model  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records  # noqa: E402
 from bet.sofa.shadow import (  # noqa: E402
@@ -79,9 +86,11 @@ def snapshot(
     runs_dir: str,
     horizon: timedelta = timedelta(hours=DEFAULT_HORIZON_H),
     at: datetime | None = None,
+    db_path: str | None = None,
 ) -> dict[str, Any]:
     """Append one snapshot of the day's not-yet-started lines, per sport,
-    plus the next day's that start within the horizon."""
+    plus the next day's that start within the horizon. With `db_path`, then
+    the player model's pre-game forecasts (forecast_players)."""
     start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC)
     next_day = (start + timedelta(days=1)).strftime("%Y-%m-%d")
     # The window runs to the horizon from NOW once the day is over: the loop's
@@ -189,11 +198,64 @@ def snapshot(
         # early games while D's runs): append_records locks, keeps lines whole.
         append_records(paths[key], recs)
     failed = sum(m["fetch_failed"] for m in metrics.values())
-    return {
+    result: dict[str, Any] = {
         "verdict": "PARTIAL" if failed else "OK",
         "metrics": metrics,
         "output_path": str(Path(runs_dir) / "shadow"),
     }
+    if db_path is not None:
+        # After every snapshot is on disk, and outside the verdict: the
+        # measurement's model never fails or alters the snapshot.
+        try:
+            result["player_model"] = forecast_players(
+                records, runs_dir, db_path, stamp(), at
+            )
+        except Exception as exc:
+            result["player_model"] = {"error": f"{type(exc).__name__}: {exc}"}
+    return result
+
+
+def forecast_players(
+    records: dict[tuple[SportKey, str], list[dict[str, Any]]],
+    runs_dir: str,
+    db_path: str,
+    computed_at: str,
+    at: datetime,
+) -> dict[str, Any]:
+    """Append the player model's forecast for this snapshot's player lines
+    to <sport>/<date>/player_model.jsonl, once per (snapshot, line, side).
+    Never raises: a failure is counted per sport and the rest goes on."""
+    out: dict[str, Any] = {}
+    for (key, day), recs in records.items():
+        if key not in player_model.MODEL_SPORTS or not recs:
+            continue
+        tag = f"{key}/{day}"
+        try:
+            path = shadow_day_dir(runs_dir, key, day) / player_model.PLAYER_MODEL_FILE
+            done = {
+                player_model.forecast_key(r) for r in player_model.read_forecasts(path)
+            }
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
+            try:
+                rows = player_model.forecast_records(
+                    conn,
+                    key,
+                    SPORTS[key].sofascore_slug,
+                    recs,
+                    computed_at,
+                    done,
+                    int(at.timestamp()),
+                )
+            finally:
+                conn.close()
+            append_records(path, rows)
+            out[tag] = {
+                "rows": len(rows),
+                "with_p": sum(1 for r in rows if r.get("model_p") is not None),
+            }
+        except Exception as exc:
+            out[tag] = {"error": f"{type(exc).__name__}: {exc}"}
+    return out
 
 
 def main() -> int:
@@ -207,6 +269,7 @@ def main() -> int:
         SuperbetClient(),
         SofaConfig.from_env().runs_dir,
         timedelta(hours=args.horizon_h),
+        db_path=SofaConfig.from_env().db_path,
     )
     print("SOFA_SUMMARY: " + json.dumps({"stage": "SHADOW", **result}), flush=True)
     return {"OK": 0, "PARTIAL": 1}.get(str(result["verdict"]), 2)
