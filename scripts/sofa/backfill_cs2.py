@@ -170,6 +170,8 @@ class Backfill:
         # while /event and the listings still answered 200. It stops further
         # searching, not the run - known teams need no search at all.
         self.search_refused = False
+        # Every CS team already in cs2_series, id -> the names it played under.
+        self.stored_teams: dict[int, set[str]] = {}
 
     # --- listings ------------------------------------------------------------
 
@@ -266,59 +268,100 @@ class Backfill:
             return int(cached["sofascore_id"])
         return None
 
-    def resolve_team(self, name: str) -> int | None:
-        """Superbet's team name -> the Sofascore CS entity, or None.
+    def resolve_team(self, name: str) -> list[int]:
+        """Superbet's team name -> the Sofascore CS entities to seed with.
 
-        A candidate counts only if its own listing holds Counter Strike events
-        and its name clears the threshold on `esports_score`; two different
-        entities that both do is ambiguous and neither is taken.
+        A candidate counts only if it is known to play Counter Strike - its
+        own listing holds CS events, it is a side of a CS event the search
+        itself returned, or it is a side of a series already in cs2_series -
+        and its name clears the threshold on `esports_score`. One best
+        candidate is cached as the name's entity. Several equally named CS
+        entities are all seeded and none is cached: a backfill only stores
+        series by their own event id, so a namesake's history is real CS
+        history, never a misattribution - but which of them Superbet means is
+        not known, so the name maps to none of them.
         """
         set_stage(STAGE)
         key = esports_name(name)
         cached = self.cached_team(name)
         if cached is not None:
-            return cached
+            return [cached]
+        fits: dict[int, tuple[float, str]] = {}
+        # The store first, at no request: on 2026-10-02 "DEPO", "Rush",
+        # "STATE", "Grêmio Esports" and "THUNDER dOWNUNDER" were all in
+        # cs2_series as opponents while their Superbet names stayed misses.
+        for tid, names in self.stored_teams.items():
+            if not names:
+                continue
+            score = max(esports_score(key, esports_name(n)) for n in names)
+            if score > NAME_MATCH_THRESHOLD:
+                fits[tid] = (score, max(names, key=len))
+        if fits:
+            self.stats.add("teams_from_store")
+        searched = False
         if self.search_refused:
             self.stats.add("search_skipped")
-            return None
-        if self.cache.get_entity_miss(ENTITY_SPORT, key):
-            return None
+        elif not self.cache.get_entity_miss(ENTITY_SPORT, key):
+            searched = True
+            self._search_fits(name, key, fits)
+        best = sorted(fits.items(), key=lambda kv: -kv[1][0])
+        if not best:
+            if searched:
+                self.cache.save_entity_miss(ENTITY_SPORT, key)
+                self.stats.add("teams_unresolved")
+            return []
+        if len(best) > 1 and best[0][1][0] == best[1][1][0]:
+            # Equally named CS entities: not cached as a miss, since the tie
+            # is about our scorer, not about Sofascore lacking the team.
+            tied = [tid for tid, (s, _) in best if s == best[0][1][0]]
+            self.stats.add("teams_ambiguous")
+            self.stats.add("teams_ambiguous_seeded", len(tied))
+            return tied
+        tid, (_, team_name) = best[0]
+        self.cache.save_entity(
+            ENTITY_SPORT, key, tid, team_name, "team", None, "verified"
+        )
+        return [tid]
+
+    def _search_fits(
+        self, name: str, key: str, fits: dict[int, tuple[float, str]]
+    ) -> None:
+        """Add /search/all's CS candidates for this name to `fits`."""
         found = self.client.search(name) or {}
+        results = found.get("results") or []
         teams = [
             r["entity"]
-            for r in found.get("results") or []
+            for r in results
             if r.get("type") == "team"
             and ((r.get("entity") or {}).get("sport") or {}).get("slug") == "esports"
         ][:MAX_CANDIDATES]
-        fits: dict[int, tuple[float, dict[str, Any]]] = {}
         for team in teams:
-            score = esports_score(key, esports_name(str(team.get("name") or "")))
-            if score <= NAME_MATCH_THRESHOLD:
+            tid = int(team["id"])
+            team_name = str(team.get("name") or "")
+            score = esports_score(key, esports_name(team_name))
+            if score <= NAME_MATCH_THRESHOLD or tid in fits:
                 continue
-            page = self.listing_page(int(team["id"]), 0)
+            page = self.listing_page(tid, 0)
             if any(is_cs_event(e) for e in (page or {}).get("events") or []):
-                fits[int(team["id"])] = (score, team)
-        best = sorted(fits.items(), key=lambda kv: -kv[1][0])
-        if not best:
-            self.cache.save_entity_miss(ENTITY_SPORT, key)
-            self.stats.add("teams_unresolved")
-            return None
-        if len(best) > 1 and best[0][1][0] == best[1][1][0]:
-            # Two CS entities, equally named: not cached as a miss, since the
-            # tie is about our scorer, not about Sofascore lacking the team.
-            self.stats.add("teams_ambiguous")
-            return None
-        tid, (_, team) = best[0]
-        self.cache.save_entity(
-            ENTITY_SPORT,
-            key,
-            tid,
-            str(team.get("name") or ""),
-            "team",
-            None,
-            "verified",
-        )
-        return tid
+                fits[tid] = (score, team_name)
+        # /search/all answers 20 results across every sport, so a common name
+        # ("Gremio", "Huskies", "5Star eSports") can have its CS team pushed
+        # out by football clubs while the team's CS events are still listed
+        # (2026-10-02: 36 of 176 seed names were cached as misses that way or
+        # were not on Sofascore at all). A side of a CS event is a CS team.
+        for r in results:
+            event = r.get("entity") or {}
+            if r.get("type") != "event" or not is_cs_event(event):
+                continue
+            for side in ("homeTeam", "awayTeam"):
+                team = event.get(side) or {}
+                if not team.get("id") or int(team["id"]) in fits:
+                    continue
+                team_name = str(team.get("name") or "")
+                score = esports_score(key, esports_name(team_name))
+                if score > NAME_MATCH_THRESHOLD:
+                    fits[int(team["id"])] = (score, team_name)
+                    self.stats.add("teams_from_search_events")
 
     # --- series ----------------------------------------------------------------
 
@@ -440,18 +483,21 @@ def run(
             unknown.append(name)
     stats.add("seed_cached", len(team_ids))
     with get_connection(config.db_path) as conn:
-        stored = {
-            int(r[0])
-            for r in conn.execute(
-                "SELECT home_id FROM cs2_series UNION SELECT away_id FROM cs2_series"
-            )
-            if r[0]
-        }
+        for tid, tname in conn.execute(
+            "SELECT home_id, home_name FROM cs2_series"
+            " UNION SELECT away_id, away_name FROM cs2_series"
+        ):
+            if tid:
+                played_as = bf.stored_teams.setdefault(int(tid), set())
+                if tname:
+                    played_as.add(str(tname))
+        stored = set(bf.stored_teams)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         resolved = pool.map(
             lambda n: bf.guarded("resolve", bf.resolve_team, n), unknown
         )
-        team_ids.update(tid for tid in resolved if tid is not None)
+        # guarded() answers None for a resolve that raised.
+        team_ids.update(tid for tids in resolved for tid in tids or [])
         if not team_ids and not stored:
             why = (
                 "stopped (deadline, breaker or refusal) before a seed resolved"

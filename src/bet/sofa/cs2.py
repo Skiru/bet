@@ -121,10 +121,25 @@ WINNER_MARKETS = ("Zwycięzca (z dogrywką)", "Mapa X - zwycięzca (z dogrywką)
 _TEAM_ROUNDS = re.compile(r"^(.+?) liczba rund \(z dogrywką\)$")
 _TEAM_MAPS = re.compile(r"^(.+?) liczba map$")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
+# Superbet's name -> Sofascore's, both folded, whole names only. Only names no
+# fuzzy score can join, each verified on a fixture both sides listed at the
+# same time against the same opponent (2026-10-02, cs2_series):
+#   "Fire Flux · Natus Vincere Junior" 09-29 17:30 = Fire Flux Esports - NAVI
+#     Junior 17:15 (and Next UP, ABT, aimclub on 10-01);
+#   "EA Copenhagen Extra · ENCE Prospects" 09-30 13:00 = EAC Extra - ENCE
+#     Prospects 13:00;
+#   "EA Copenhagen · ex-Zero Tenacity" 10-01 17:00 = Esport Academy
+#     Copenhagen - ex-Zero Tenacity 17:00.
+ESPORTS_ALIASES = {
+    "natus vincere junior": "navi junior",
+    "ea copenhagen": "esport academy copenhagen",
+    "ea copenhagen extra": "eac extra",
+}
 
 
 def esports_name(name: str) -> str:
-    """A team or player name folded for comparison, and nothing more.
+    """A team or player name folded for comparison, and nothing more (bar the
+    few verified whole-name aliases in ESPORTS_ALIASES).
 
     Not `normalize_name`: that one rewrites Polish exonyms anywhere in the
     name and turns a trailing "B"/"II"/"2" into a reserve marker - right for
@@ -133,7 +148,8 @@ def esports_name(name: str) -> str:
     for char, repl in DIACRITICS_FOLD.items():
         name = name.replace(char, repl).replace(char.upper(), repl.upper())
     name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    return _NON_ALNUM.sub(" ", name.lower()).strip()
+    folded = _NON_ALNUM.sub(" ", name.lower()).strip()
+    return ESPORTS_ALIASES.get(folded, folded)
 
 
 @dataclass(frozen=True)
