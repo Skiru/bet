@@ -68,7 +68,7 @@ def _fit_confidence(tmp_path: Path, rows: list[tuple[Any, ...]]) -> dict[str, An
 
 def test_a_derived_row_is_counted_in_no_confidence_curve(tmp_path: Path) -> None:
     counts = [("goals_total", 4.5, "UNDER", 10, 2.0, 1.2,
-               2.0 if i % 5 else 6.0, None, "football", 1 + i % 2)
+               2.0 if i % 5 else 6.0, 0.9, "football", 1 + i % 2)
               for i in range(1200)]
     # A handicap row: actual_value is a margin, the line is a handicap - read
     # as a count it would land in the same buckets as the goals above.

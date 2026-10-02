@@ -215,9 +215,9 @@ def test_degenerate_zero_sd_is_unchanged_by_the_floor() -> None:
 @pytest.mark.parametrize(
     "path,call",
     [
-        ("scripts/sofa/run_sheet.py", "calc_p_central_raw"),
+        # run_sheet and calibrate_from_cache price through
+        # engine.sheet_count_p_raw since 2026-10-02 (see the test below).
         ("src/bet/sofa/settle.py", "calc_p_central_raw"),
-        ("scripts/sofa/calibrate_from_cache.py", "calc_p_central_raw"),
         ("scripts/sofa/fit_constants.py", "calc_p_central"),
     ],
 )
@@ -245,6 +245,38 @@ def test_every_stage_that_scores_a_rung_passes_a_support_floor(
             f"{path}:{node.lineno} passes a literal floor instead of "
             "support_floor_for(market)"
         )
+
+
+@pytest.mark.parametrize(
+    "path", ["scripts/sofa/run_sheet.py", "scripts/sofa/calibrate_from_cache.py"]
+)
+def test_sheet_and_replay_price_through_the_one_shared_estimator(path: str) -> None:
+    tree = ast.parse((REPO / path).read_text(encoding="utf-8"))
+    names = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert {"sheet_count_p_raw", "sheet_predictive_sd"} <= names, path
+    # Neither may price a count around the shared function.
+    assert not names & {"calc_p_central_raw", "calc_p_central_nb_raw"}, path
+
+
+def test_the_shared_estimator_passes_the_markets_support_floor() -> None:
+    import inspect
+
+    from bet.sofa import engine
+
+    tree = ast.parse(inspect.getsource(engine.sheet_count_p_raw))
+    calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        and node.func.id == "calc_p_central_raw"
+    ]
+    assert calls
+    for node in calls:
+        arg = node.args[4]
+        assert isinstance(arg, ast.Call) and arg.func.id == "support_floor_for"
 
 
 def test_no_zero_rung_that_gets_priced_can_claim_impossible_mass() -> None:

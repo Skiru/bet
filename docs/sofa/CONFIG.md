@@ -131,7 +131,8 @@ progu i zapisującą własne `n`. Brak wpisu znaczy brak prioru, a wtedy
    Do 2026-09-21 ten plik nie niósł **żadnych** metadanych, a kopia w `config`
    była zbudowana na tabeli, która urosła od tego czasu o 88 185 wierszy
    i 120 rozgrywek — i nic na dysku tego nie mówiło.
-2. `half_match_coherence` — kontrola sumy połówek. Stan bieżący:
+2. `half_match_coherence` — kontrola sumy połówek (od 2026-10-02 wieczór
+   na tych samych meczach — patrz sekcja zmian niżej). Stan z pul bazowych:
    `goals_for: 1H 0.619 + 2H 0.777 = 1.396 wobec pełnego 1.689 (−17,3%)`,
    `goals_total: −13,3%`. To **realna niespójność**: bazy półmeczowe fitują
    się na mniejszej i innej populacji meczów niż pełnomeczowe. Raportowane,
@@ -226,9 +227,9 @@ z ostatniego fitu, a poniższe zmieni dopiero kolejny, świadomy fit.
   w `config/sofa_confidence_calibration.json`:
   `"admitted_player_markets": ["player_shots_for"]`. To decyzja operatora,
   nie skutek fitu (09-26..09-29 nogi buildera z propsów: deklarowane 0,776,
-  zrealizowane 0,624; ceny jednostronne). Fit liczy `p` propsów od nowa z
-  zapisanych `sample_mean`/`sd` bieżącym kodem, czyli rozkładem ujemnym
-  dwumianowym — krzywa pasuje do estymatora, który teraz je wycenia.
+  zrealizowane 0,624; ceny jednostronne). Od 2026-10-02 (wieczór) fit
+  kluczuje każdy wiersz na **zapisanym** `p_central` (patrz niżej), więc
+  krzywa propsa opisuje `p`, które SHEET zapisał.
 - **Korekta z `sofa_market_reliability.json` nie dotyczy tenisowego `p`
   już przyciągniętego do ceny** (blend ratingu z ceną, próbka dociągnięta do
   ceny szczebla; `run_sheet.row_correction`). Plik był fitowany na mieszance
@@ -239,6 +240,43 @@ z ostatniego fitu, a poniższe zmieni dopiero kolejny, świadomy fit.
   / +0,00040). Tenisowe wiersze z samej próbki korektę zachowują — to one są
   przeszacowane (0,749 / 0,614, n=500) i korekta im pomaga w obu połówkach.
   Wpływa na `p_bar` i werdykt SHEET, nie na PDF (CONFIDENCE czyta `p_central`).
+
+### Zmiany z 2026-10-02 (wieczór) — część działa dopiero po refitcie
+
+- **`fit_confidence` kluczuje każdy wiersz na zapisanym `p_central`** — tym,
+  pod którym CONFIDENCE szuka nogi. Wcześniej (poza rynkami empirycznymi)
+  liczył `p` od nowa z surowych `sample_mean`/`sd`, bez shrinku do prioru,
+  więc kubełki 0,80-0,95 `throw_ins_total` / `fouls_total` w kandydacie
+  10-02 trzymały wiersze, które SHEET wycenił niżej (+3-6 pp zawyżenia).
+  Fit otwiera bazę tylko do odczytu.
+- **`calibrate_from_cache` liczy `p` tak jak SHEET** — te same funkcje
+  (`engine.sheet_predictive_sd`, `engine.sheet_count_p_raw`): rozkład ujemny
+  dwumianowy dla `NEGATIVE_BINOMIAL_METRICS`, wariancja skalowana
+  środek/średnia dla liczników piłkarskich, rynki empiryczne z częstości
+  próbki. **Kolejność refitu: najpierw `rebuild-cache-rows`, potem `fit`.**
+  Fit nowym kodem na starych wierszach replayu (normalny zamiast NB) pogarsza
+  `goals_total` i `cards_points_total` (zapisane `p` replayu i SHEET-u to
+  wtedy dwa różne estymatory). Nie odtwarzane w replayu: ratingi (piłka,
+  tenis) i priory tenisowe (tier / drabinka).
+- **Tenisowe rynki gemów w secie wymagają dopuszczenia z nazwy**
+  (`games_set1_total`, `games_set2_total`, `games_won_set1_for`,
+  `games_won_set2_for`): CONFIDENCE odmawia ich jako
+  `TENNIS_SET_MARKET_NOT_ADMITTED`, dopóki nie zostaną wpisane do
+  `"admitted_tennis_set_markets": [...]` w
+  `config/sofa_confidence_calibration.json` (fit i install przenoszą klucz).
+  W kandydacie 10-02 ich nowe krzywe sięgały 0,925 i poza próbką (po dacie)
+  zawyżały o 2-3 pp. Ostatnio drukowane w WARIANCIE 09-23..09-25 (z puli
+  tenisowej); 10-01 i 10-02: zero nóg, więc dzisiejszy dzień się nie zmienia.
+- **Żaden rynek tenisowy „w secie” nie pożycza puli tenisowej** — ani nad,
+  ani wewnątrz własnego zakresu: dziura w krzywej to odmowa, nie pula.
+- **`half_match_coherence` liczone na tych samych meczach** (te same pary
+  mecz/strona z połową 1, połową 2 i całym meczem), a nie na pulach bazowych:
+  połowy są tylko z żywego SETTLE, pełny mecz głównie z replayu. Na żywej
+  bazie 10-02: wszystkie rodziny w granicach 0,1% (gole n=2980 par).
+  Wcześniejsze −15%/−28% w kandydacie były różnicą populacji.
+- **Pula `global` rynku połówkowego wymaga ≥ 2 rozgrywek**
+  (`MIN_HALF_POOL_COMPETITIONS`). W kandydacie 10-02 osiem pul połówkowych
+  miało n=30 z jednej ligi (np. `throw_ins_1h_for`, `shots_2h_for`).
 
 ---
 

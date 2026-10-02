@@ -22,8 +22,16 @@ ships:
     matches strictly **before** that match's kickoff — the same chronological
     rule the sampler uses, so no row is scored against its own result;
   * shrink toward the league baseline with the same K_CENTRE;
-  * take `predictive_sd` with the same Poisson floor, and
-    `calc_p_central_raw` against the same `winning_boundary`;
+  * take SHEET's own predictive sd (`engine.sheet_predictive_sd`: the
+    Poisson floor and, for football counts, the variance scaled by
+    centre / mean) and SHEET's own estimator (`engine.sheet_count_p_raw`:
+    the negative binomial for NEGATIVE_BINOMIAL_METRICS, else the normal
+    with the support floor; the empirical-frequency metrics through
+    `p_empirical_centred_raw`, as SHEET prices a rung with no price) against
+    the same `winning_boundary`. Until 2026-10-02 this was a support-floored
+    normal on the unscaled variance for every market, so a replayed NB
+    metric's stored p_central was not the p SHEET computes, and the curve
+    fit_confidence keys on that stored p described another model;
   * refuse the same rungs `outside_model_resolution` refuses;
   * settle against what actually happened.
 
@@ -50,11 +58,11 @@ from typing import Any, NamedTuple
 from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.engine import (
-    calc_p_central_raw,
     outside_model_resolution,
-    predictive_sd,
-    support_floor_for,
-    uses_poisson_floor,
+    p_empirical_centred_raw,
+    sheet_count_p_raw,
+    sheet_predictive_sd,
+    uses_empirical_frequency,
     winning_boundary,
 )
 from bet.sofa.listing_index import listed_events_by_id
@@ -493,16 +501,33 @@ def _settle_sample(
     else:
         centre = mean
 
-    spread = predictive_sd(
-        variance, mean, n, apply_poisson_floor=uses_poisson_floor(market)
-    )
+    # SHEET's spread and SHEET's estimator, from the functions SHEET calls
+    # (see the module docstring). What is NOT replayed, and so still differs
+    # from a live row: the football rating's centre (W_FOOTBALL_RATING), the
+    # tennis rating and the tennis tier / ladder priors - the replay's centre
+    # is the league-baseline shrink alone.
+    spread = sheet_predictive_sd(market, match.sport, mean, variance, n, centre)
+    empirical = uses_empirical_frequency(market)
 
     for line in lines_for(centre):
         for direction in ("OVER", "UNDER"):
             boundary = winning_boundary(line, direction)
-            p_raw = calc_p_central_raw(
-                centre, spread, boundary, direction, support_floor_for(market)
-            )
+            if empirical:
+                # run_sheet refuses an empirical rung whose raw frequency is
+                # outside resolution before it looks at the shrunk one.
+                hits = sum(
+                    1 for v in sample
+                    if (v > boundary if direction == "OVER" else v < boundary)
+                )
+                if outside_model_resolution(hits / n):
+                    continue
+                p_raw = p_empirical_centred_raw(
+                    sample, boundary, direction, centre - mean
+                )
+            else:
+                p_raw = sheet_count_p_raw(
+                    market, centre, spread, boundary, direction
+                )
             if outside_model_resolution(p_raw):
                 continue
             # settle.py owns this vocabulary. Writing "WON"/"LOST" here

@@ -257,19 +257,22 @@ def test_an_unmeasured_market_is_capped() -> None:
     # games_won_for is the measured empirical market; its curve stops at 0.825
     cal = _cal({"games_won_for": {"0.750-0.800": {"realised_lo95": 0.70, "n": 900},
                                   "0.800-0.825": {"realised_lo95": 0.72, "n": 500}}})
-    for market in ("games_set1_total", "games_set2_total", "tiebreaks_total",
-                   "games_won_set1_for"):
-        assert cal.realised(market, 0.78, "tennis") == (0.7515, "pooled:tennis", 3112)
-        assert cal.realised(market, 0.83, "tennis") is None
-        assert cal.realised(market, 0.91, "tennis") is None
+    assert cal.realised("tiebreaks_total", 0.78, "tennis") == (
+        0.7515, "pooled:tennis", 3112)
+    assert cal.realised("tiebreaks_total", 0.83, "tennis") is None
+    assert cal.realised("tiebreaks_total", 0.91, "tennis") is None
+    # Since 2026-10-02 a per-set market reads no pool at all (TENNIS_PER_SET).
+    for market in ("games_set1_total", "games_set2_total", "games_won_set1_for"):
+        for p in (0.78, 0.83, 0.91):
+            assert cal.realised(market, p, "tennis") is None
     # A count market has a distribution behind it and keeps the pool.
     assert cal.realised("aces_total", 0.91, "tennis") == (0.8310, "pooled:tennis", 1330)
 
 
 def test_with_no_measured_empirical_market_the_cap_is_tighter_not_absent() -> None:
     cal = _cal({})
-    assert cal.realised("games_set1_total", 0.79, "tennis") is not None
-    assert cal.realised("games_set1_total", 0.80, "tennis") is None
+    assert cal.realised("tiebreaks_total", 0.79, "tennis") is not None
+    assert cal.realised("tiebreaks_total", 0.80, "tennis") is None
 
 
 def test_tiebreaks_share_the_length_family_in_a_builder() -> None:

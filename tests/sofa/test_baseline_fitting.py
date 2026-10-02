@@ -56,8 +56,10 @@ def test_a_pool_thinner_than_a_league_entry_is_not_written():
 
 
 def test_a_pool_at_the_bar_is_written_and_carries_its_own_n():
+    # Two competitions: a per-half pool of one is not global (2026-10-02,
+    # MIN_HALF_POOL_COMPETITIONS).
     rows = [
-        (1, "corners_2h_for", "a", i, 2.0)
+        (1 + i % 2, "corners_2h_for", "a", i, 2.0)
         for i in range(MIN_BASELINE_OBSERVATIONS)
     ]
     out = fit_baselines(_db(rows))

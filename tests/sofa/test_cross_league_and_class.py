@@ -250,7 +250,7 @@ def test_the_class_only_fit_leaves_every_other_curve_untouched(tmp_path: Path):
     for i in range(1200):
         eid = 1 if i % 2 else 2  # event 1 is a women's match
         rows.append(("goals_total", 4.5, "UNDER", 10, 2.0, 1.2,
-                     2.0 if i % 5 else 6.0, None, "football", eid))
+                     2.0 if i % 5 else 6.0, 0.9, "football", eid))
     con.executemany("insert into sofa_settled_row values (?,?,?,?,?,?,?,?,?,?)", rows)
     events = {"events": [
         {"id": 1, "homeTeam": {"gender": "F"}, "awayTeam": {"gender": "F"},

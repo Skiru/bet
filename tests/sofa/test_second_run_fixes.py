@@ -1315,7 +1315,11 @@ def test_f30_sheet_and_settle_share_one_estimator_policy() -> None:
 
     for module in (settle, run_sheet):
         source = inspect.getsource(module)
-        assert "uses_poisson_floor" in source, module.__name__
+        # run_sheet reads the floor through engine.sheet_predictive_sd /
+        # sheet_count_p_raw since 2026-10-02 (shared with the cache replay).
+        assert (
+            "uses_poisson_floor" in source or "sheet_predictive_sd" in source
+        ), module.__name__
         assert "uses_empirical_frequency" in source, module.__name__
 
 

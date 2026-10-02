@@ -214,6 +214,21 @@ TENNIS_PER_SET_SERVE = frozenset(
     for n in (1, 2)
     for suffix in ("for", "total")
 )
+# Tennis per-set GAMES markets. They have curves of their own, and the
+# 2026-10-02 refit candidate gave them buckets up to 0.80-0.925 where the
+# shipped curves stopped at 0.60-0.70 - out of sample by date the new curves
+# overclaimed 2-3 pp, and the holes inside their range, read from the tennis
+# pool (games_total / games_won_for shaped), overclaimed more. They printed
+# only in the WARIANT of 09-23..09-25 (pooled:tennis, 157 legs), never since.
+# A curve is not an admission: see Calibration.admitted_tennis_set_markets.
+TENNIS_SET_GAMES = frozenset(
+    {"games_set1_total", "games_set2_total", "games_won_set1_for",
+     "games_won_set2_for"}
+)
+# Every tennis per-set market. None may borrow the tennis pool - neither
+# above nor inside its own measured range (Calibration.realised): the pool is
+# full-match markets, a set is a different quantity.
+TENNIS_PER_SET = TENNIS_PER_SET_SERVE | TENNIS_SET_GAMES
 
 
 def quantity_family(market: str) -> str:
@@ -779,11 +794,22 @@ class Calibration:
     # 0.624 against 0.776 claimed, and they price at one-sided offers, so
     # being curved is not a reason to print them. A deliberate decision is.
     admitted_player_markets: frozenset[str] = frozenset()
+    # Tennis per-set games markets the operator has admitted by name
+    # ("admitted_tennis_set_markets"), for the same reason: see
+    # TENNIS_SET_GAMES. Empty by default - refused as
+    # TENNIS_SET_MARKET_NOT_ADMITTED.
+    admitted_tennis_set_markets: frozenset[str] = frozenset()
 
     def player_prop_not_admitted(self, market: str) -> bool:
         return (
             market in PLAYER_PROP_MARKETS
             and market not in self.admitted_player_markets
+        )
+
+    def tennis_set_market_not_admitted(self, market: str) -> bool:
+        return (
+            market in TENNIS_SET_GAMES
+            and market not in self.admitted_tennis_set_markets
         )
 
     @staticmethod
@@ -797,6 +823,9 @@ class Calibration:
             by_class=doc.get("by_class", {}),
             admitted_player_markets=frozenset(
                 doc.get("admitted_player_markets") or ()
+            ),
+            admitted_tennis_set_markets=frozenset(
+                doc.get("admitted_tennis_set_markets") or ()
             ),
         )
 
@@ -884,6 +913,10 @@ class Calibration:
         # See AWAITING_OWN_CURVE: no pool may stand in for a market that has
         # no measured curve of its own yet.
         if not own and market in AWAITING_OWN_CURVE:
+            return None
+        # See TENNIS_PER_SET: a per-set market is read from its own curve or
+        # not at all - a hole inside its range is not filled from the pool.
+        if market in TENNIS_PER_SET:
             return None
 
         # A market with its own curve may NOT borrow the pooled one above the
