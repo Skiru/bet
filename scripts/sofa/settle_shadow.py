@@ -413,6 +413,7 @@ def settle_one(
             "winner_code": detail.get("winnerCode"),
         }
     box = None
+    lineups: Any = None
     if any(is_player_line(sport.key, ln.market_id) for ln in ev.sides.values()):
         # One request serves every player line of the game; asked fresh, like
         # the event, because a provisional box would be frozen by SETTLED.
@@ -450,6 +451,7 @@ def settle_one(
                 db_path,
                 forecasts or [],
                 ev.superbet_event_id,
+                lineups,
             )
         except Exception as exc:
             # The grade stands without a model number; never the other way
@@ -483,15 +485,23 @@ def attach_player_model(
     db_path: str | None,
     forecasts: list[dict[str, Any]],
     superbet_event_id: str,
+    lineups: Any = None,
 ) -> None:
     """Put the player model's pre-match probability beside each graded player
     line (bet.sofa.player_model; a measurement, read by nothing that builds a
     coupon).
 
+    The player is the one the GRADE read: the subject matched in this game's
+    own box (`lineups`) by the grade's own matcher (player_model.
+    match_in_box), and his history read by that player id. A subject the box
+    does not resolve gets no number (NOT_IN_BOX); no box, none (NO_BOX).
+
     The source is the last pre-game forecast SHADOW wrote for the line
     (player_model.jsonl, a snapshot taken before `clock`, the game's
-    pre-match clock) when one carries a p - `model_source: pregame` - else
-    the same model computed now from the database - `model_source: settle`.
+    pre-match clock, both teams resolved) when one carries a p and priced
+    that same player id - `model_source: pregame` - else the same model
+    computed now from the database - `model_source: settle`. A forecast that
+    priced another player is not attached (`model_pregame_rejected`).
 
     History is cut before the earlier of Superbet's kickoff and Sofascore's
     start and this game is excluded by id: its own box was saved minutes ago,
@@ -501,25 +511,49 @@ def attach_player_model(
     """
     # Imported here: a broken model module costs this number, never the grade
     # (the caller records the exception as player_model_error).
-    from bet.sofa.player_model import MODEL_KEYS, last_pregame, line_key
+    from bet.sofa.player_model import (
+        MODEL_KEYS,
+        box_player_ids,
+        last_pregame,
+        line_key,
+        match_in_box,
+    )
 
     rows = [g for g in graded if is_player_line(sport.key, int(g["market_id"]))]
     if not rows:
         return
+    box_ids = box_player_ids(lineups)
     pregame = last_pregame(forecasts, superbet_event_id, clock)
     updates: list[tuple[dict[str, Any], dict[str, Any]]] = []
     rest: list[dict[str, Any]] = []
+    rejected: dict[int, str] = {}
     for row in rows:
         hit = pregame.get(line_key(row))
         if hit is None:
             rest.append(row)
             continue
+        pid = (
+            None
+            if box_ids is None
+            else match_in_box(str(row.get("subject") or ""), box_ids)[0]
+        )
+        if pid is None or hit.get("model_player_id") != pid:
+            rejected[id(row)] = "PLAYER_MISMATCH" if pid is not None else "NO_BOX_MATCH"
+            rest.append(row)
+            continue
         fields = {k: hit.get(k) for k in MODEL_KEYS if k in hit}
         fields["model_source"] = "pregame"
         fields["model_fetched_at_utc"] = hit["fetched_at_utc"]
+        fields["model_teams_resolved"] = hit.get("teams_resolved")
         updates.append((row, fields))
     if rest and db_path is not None:
-        updates += _settle_time_model(rest, sport, event, detail, kickoff, db_path)
+        computed = _settle_time_model(
+            rest, sport, event, detail, kickoff, db_path, box_ids
+        )
+        for row, fields in computed:
+            if id(row) in rejected:
+                fields["model_pregame_rejected"] = rejected[id(row)]
+        updates += computed
     for row, fields in updates:
         row.update(fields)
 
@@ -531,8 +565,10 @@ def _settle_time_model(
     detail: dict[str, Any],
     kickoff: datetime,
     db_path: str,
+    box_ids: dict[str, int | None] | None,
 ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
     from bet.sofa.player_model import (
+        PlayerProbability,
         history_cutoff,
         load_appearances,
         model_fields,
@@ -548,14 +584,26 @@ def _settle_time_model(
         for side in ("homeTeam", "awayTeam")
         if isinstance(tid := (event.get(side) or {}).get("id"), int)
     ]
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
-    try:
-        apps = load_appearances(conn, sport.key, teams, before, int(event["id"]))
-    finally:
-        conn.close()
-    scored = score_rows(rows, sport.key, apps)
+    if box_ids is None:
+        scored = [
+            PlayerProbability(None, 0, reason="NO_BOX", match="box") for _ in rows
+        ]
+    else:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
+        try:
+            apps = load_appearances(conn, sport.key, teams, before, int(event["id"]))
+        finally:
+            conn.close()
+        scored = score_rows(rows, sport.key, apps, box_ids=box_ids)
     return [
-        (row, {"model_source": "settle", **model_fields(mp)})
+        (
+            row,
+            {
+                "model_source": "settle",
+                **model_fields(mp),
+                "model_teams_resolved": len(teams),
+            },
+        )
         for row, mp in zip(rows, scored, strict=True)
     ]
 

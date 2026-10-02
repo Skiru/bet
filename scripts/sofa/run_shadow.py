@@ -222,7 +222,8 @@ def forecast_players(
     at: datetime,
 ) -> dict[str, Any]:
     """Append the player model's forecast for this snapshot's player lines
-    to <sport>/<date>/player_model.jsonl, once per (snapshot, line, side).
+    to <sport>/<date>/player_model.jsonl, once per (snapshot, line, side),
+    and only when the line side's number moved since the last row written.
     Never raises: a failure is counted per sport and the rest goes on."""
     out: dict[str, Any] = {}
     # Imported here, not at the top: a broken model module must cost the
@@ -235,9 +236,12 @@ def forecast_players(
         tag = f"{key}/{day}"
         try:
             path = shadow_day_dir(runs_dir, key, day) / player_model.PLAYER_MODEL_FILE
-            done = {
-                player_model.forecast_key(r) for r in player_model.read_forecasts(path)
-            }
+            written = player_model.read_forecasts(path)
+            done = {player_model.forecast_key(r) for r in written}
+            # A line side whose number has not moved since the last row
+            # written for it is not written again (player_model.
+            # forecast_signature): the file grew by every line every snapshot.
+            last = player_model.last_signatures(written)
             conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
             try:
                 rows = player_model.forecast_records(
@@ -248,6 +252,7 @@ def forecast_players(
                     computed_at,
                     done,
                     int(at.timestamp()),
+                    last,
                 )
             finally:
                 conn.close()
