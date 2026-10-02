@@ -48,6 +48,13 @@ K_GRID = [0.0, 2.0, 5.0, 8.0, 10.0, 15.0, 25.0, 1000.0]
 # A league baseline below this many observations is noise wearing a prior.
 MIN_BASELINE_OBSERVATIONS = 30
 
+# A per-half market's `global` pool needs values from at least this many
+# competitions before it may stand as every league's prior. Half rows come
+# only from live SETTLE (the cache replay reads the ALL period), so several
+# half pools on the 2026-10-02 refit were n=30 from ONE league - that league's
+# mean, served to every league on the board as "global".
+MIN_HALF_POOL_COMPETITIONS = 2
+
 # How far 1H + 2H may sit from the full-match baseline before it is reported.
 SUM_TOLERANCE = 0.10
 
@@ -130,6 +137,21 @@ def _in_baselines(market: str) -> bool:
     return not market.startswith("player_")
 
 
+def is_half_market(market: str) -> bool:
+    return "_1h_" in market or "_2h_" in market
+
+
+def pool_may_stand(market: str, n_values: int, n_competitions: int) -> bool:
+    """May this market's pooled values be written as its `global` prior?
+
+    The same evidence bar as a league entry, and for a per-half market at
+    least MIN_HALF_POOL_COMPETITIONS competitions behind it.
+    """
+    if n_values < MIN_BASELINE_OBSERVATIONS:
+        return False
+    return not is_half_market(market) or n_competitions >= MIN_HALF_POOL_COMPETITIONS
+
+
 # market -> competition id (str) -> (sum of values, number of values): the
 # exact totals behind every league mean, and per market the pool behind
 # "global". Used to take one match's own values back out of its prior.
@@ -153,6 +175,11 @@ def baseline_totals(conn: sqlite3.Connection) -> BaselineTotals:
         league[market][comp] = (s + value, n + 1)
         s, n = pooled.get(market, (0.0, 0))
         pooled[market] = (s + value, n + 1)
+    # The pool is only a prior where fit_baselines writes it (pool_may_stand).
+    pooled = {
+        m: t for m, t in pooled.items()
+        if pool_may_stand(m, t[1], len(league[m]))
+    }
     return dict(league), pooled
 
 
@@ -174,13 +201,14 @@ def leave_match_out_prior(
     """
     market = row["market"]
     league, pooled = totals
-    if market not in pooled:
-        return None
     own_sum = float(row.get("own_sum") or 0.0)
     own_n = int(row.get("own_n") or 0)
     s, n = league.get(market, {}).get(str(row["competition_id"]), (0.0, 0))
     if n - own_n >= MIN_BASELINE_OBSERVATIONS:
         return (s - own_sum) / (n - own_n)
+    # A pool fit_baselines does not write (pool_may_stand) is no prior.
+    if market not in pooled:
+        return None
     s, n = pooled[market]
     # A league that never reached the bar contributes nothing of its own to
     # the league tier but still sits in the pool, so the match leaves both.
@@ -243,7 +271,9 @@ def fit_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
         # returns None and run_sheet falls back to `centre = mean`, which is
         # the sample speaking for itself rather than a constant nobody could
         # audit.
-        if len(pooled) >= MIN_BASELINE_OBSERVATIONS:
+        # A per-half pool from one competition is that competition's mean,
+        # not a global one (MIN_HALF_POOL_COMPETITIONS).
+        if pool_may_stand(market, len(pooled), len(by_market[market])):
             entry["global"] = {
                 "mean": round(statistics.mean(pooled), 4),
                 "n": len(pooled),
@@ -319,6 +349,56 @@ def check_half_match_coherence(baselines: dict[str, Any]) -> list[str]:
                 f"{low:.0%}-{high:.0%} (1H {a:.3f}, 2H {b:.3f})"
             )
     return findings
+
+
+# The (event, subject) groups behind the half-match coherence check: only the
+# events that have a half row at all - all of them live SETTLE rows - so the
+# check never groups the cache replay's full-match rows for nothing.
+SAME_MATCH_GROUPS_SQL = f"""
+    SELECT market, subject, sofascore_event_id, MAX(actual_value) AS value
+    FROM sofa_settled_row
+    WHERE competition_id IS NOT NULL AND {NOT_FRIENDLY}
+      AND sofascore_event_id IN (
+          SELECT DISTINCT sofascore_event_id FROM sofa_settled_row
+          WHERE instr(market, '_1h_') > 0 OR instr(market, '_2h_') > 0)
+    GROUP BY market, subject, sofascore_event_id
+"""
+
+
+def same_match_baselines(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Pooled means of every full / 1H / 2H triple over the SAME matches.
+
+    check_half_match_coherence compares a full-match mean with the two half
+    means. Fed fit_baselines' pools it compared different populations: the
+    halves come from live SETTLE alone (the replay reads the ALL period), the
+    full match is dominated by the cache replay's history - on the 10-02
+    refit candidate goals_for -15.5%, fouls_for -15.3%, throw_ins_for -27.9%,
+    a gap in who was measured, not in how the halves add up. Here a market's
+    mean is taken only over the (event, subject) groups that carry the full
+    market AND both halves, so the three numbers describe one set of matches.
+    Returned in fit_baselines' shape ({"global": {"mean", "n"}}) so the check
+    itself is unchanged.
+    """
+    values: dict[tuple[int, str], dict[str, float]] = defaultdict(dict)
+    for market, subject, event_id, value in conn.execute(SAME_MATCH_GROUPS_SQL):
+        if not _in_baselines(market) or half_name(market, "1h") == market:
+            continue
+        values[(int(event_id), str(subject))][str(market)] = float(value)
+    pools: dict[str, list[float]] = defaultdict(list)
+    for by_market in values.values():
+        for full in by_market:
+            if is_half_market(full):
+                continue
+            h1, h2 = half_name(full, "1h"), half_name(full, "2h")
+            if h1 in by_market and h2 in by_market:
+                pools[full].append(by_market[full])
+                pools[h1].append(by_market[h1])
+                pools[h2].append(by_market[h2])
+    return {
+        market: {"global": {"mean": round(statistics.mean(v), 4), "n": len(v)}}
+        for market, v in sorted(pools.items())
+        if len(v) >= MIN_BASELINE_OBSERVATIONS
+    }
 
 
 def _pooled_mean(entry: dict[str, Any]) -> float | None:
@@ -583,7 +663,9 @@ def _k_centre_curve(
                     P_FLOOR,
                     min(
                         P_CEILING,
-                        calc_p_central_nb_raw(centre, pred_sd, boundary, row["direction"]),
+                        calc_p_central_nb_raw(
+                            centre, pred_sd, boundary, row["direction"]
+                        ),
                     ),
                 )
             else:
@@ -819,6 +901,7 @@ def main() -> int:
         k_centre_by_sport = fit_k_centre_by_sport(conn, baselines, totals)
         k_price, k_price_curve = fit_k_price(conn)
         max_sigma, sigma_report = fit_max_ladder_sigma(conn)
+        same_match = same_match_baselines(conn)
 
     # Metadata first, so a reader can tell how old the file is and what it was
     # built from. Until 2026-09-21 this file carried none at all: the copy in
@@ -826,7 +909,9 @@ def main() -> int:
     # grown by 88,185 rows and 120 competitions, and nothing on disk said so.
     # `sofa_engine_constants.json` had `fitted_from` from the start; this one
     # is the file the centre actually comes from.
-    coherence = check_half_match_coherence(baselines)
+    # Over the same matches, not over the shipped pools - see
+    # same_match_baselines.
+    coherence = check_half_match_coherence(same_match)
     baselines_out: dict[str, Any] = {
         "_doc": (
             "Per-competition mean of each market's realised value, fitted by "

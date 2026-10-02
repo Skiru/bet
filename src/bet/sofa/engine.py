@@ -283,6 +283,52 @@ def uses_poisson_floor(market: str) -> bool:
     return market not in NON_COUNT_METRICS
 
 
+def sheet_predictive_sd(
+    market: str, sport: str | None, mean: float, variance: float, n: int,
+    centre: float,
+) -> float:
+    """SHEET's predictive sd for a modelled rung, given the shrunk centre.
+
+    The spread moves with the centre. The prior shrink and the rating move
+    the centre; the sample's variance used to stay where the sample left it,
+    so a halved centre kept the old spread (Austria Wien 1st-half goals UNDER
+    0.5 on 10-01: 0.750 against 0.648 scaled, price 0.653). A count's
+    dispersion index var/mean is what is kept. Measured on 102,154 settled
+    football count rows 09-20..29: Brier 0.1986 -> 0.1982, better on 8 of 10
+    days; rows whose centre moved more than 20%: 0.1974 -> 0.1961. Football
+    only: measured there; tennis counts were not.
+
+    One function for run_sheet and the cache replay (calibrate_from_cache):
+    the replay's stored p_central is what fit_confidence keys a curve on, and
+    a curve keyed on a p the sheet does not compute describes another model.
+    """
+    floor = uses_poisson_floor(market)
+    scale = (
+        centre / mean
+        if sport == "football" and floor and mean > 0 and centre > 0
+        else 1.0
+    )
+    return predictive_sd(variance * scale, mean * scale, n, apply_poisson_floor=floor)
+
+
+def sheet_count_p_raw(
+    market: str, centre: float, pred_sd: float, boundary: float,
+    direction: Direction,
+) -> float:
+    """SHEET's unclamped p for a modelled (non-empirical, non-rating) rung.
+
+    The negative binomial for NEGATIVE_BINOMIAL_METRICS (no support floor:
+    the distribution is discrete on 0,1,2,...), else the normal CDF with the
+    market's support floor. Shared with the cache replay for the reason given
+    in sheet_predictive_sd.
+    """
+    if uses_negative_binomial(market):
+        return calc_p_central_nb_raw(centre, pred_sd, boundary, direction)
+    return calc_p_central_raw(
+        centre, pred_sd, boundary, direction, support_floor_for(market)
+    )
+
+
 def uses_empirical_frequency(market: str) -> bool:
     return market in EMPIRICAL_FREQUENCY_METRICS
 

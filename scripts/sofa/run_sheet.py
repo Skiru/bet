@@ -40,8 +40,6 @@ from bet.sofa.engine import (
     P_FLOOR,
     bar_is_unreachable,
     bar_probability,
-    calc_p_central_nb_raw,
-    calc_p_central_raw,
     calculate_p_low,
     devig,
     get_required_odds,
@@ -50,11 +48,9 @@ from bet.sofa.engine import (
     outside_model_resolution,
     p_empirical_centred_raw,
     p_empirical_shrunk_to_price,
-    predictive_sd,
-    support_floor_for,
+    sheet_count_p_raw,
+    sheet_predictive_sd,
     uses_empirical_frequency,
-    uses_negative_binomial,
-    uses_poisson_floor,
     winning_boundary,
 )
 from bet.sofa.football_rating import (
@@ -1030,24 +1026,10 @@ def process_fixture(
                     f"sample centre was {sample_centre:.2f}"
                 )
 
-        # The spread moves with the centre. The prior shrink and the rating
-        # move the centre; the sample's variance used to stay where the
-        # sample left it, so a halved centre kept the old spread (Austria Wien
-        # 1st-half goals UNDER 0.5 on 10-01: 0.750 against 0.648 scaled, price
-        # 0.653). A count's dispersion index var/mean is what is kept.
-        # Measured on 102,154 settled football count rows 09-20..29: Brier
-        # 0.1986 -> 0.1982, better on 8 of 10 days; rows whose centre moved
-        # more than 20%: 0.1974 -> 0.1961.
-        # Football only: measured there; tennis counts were not.
-        scale = (
-            centre / mean
-            if fixture.sport == "football" and uses_poisson_floor(rung.market)
-            and mean > 0 and centre > 0
-            else 1.0
-        )
-        pred_sd = predictive_sd(
-            variance * scale, mean * scale, n,
-            apply_poisson_floor=uses_poisson_floor(rung.market),
+        # The spread moves with the centre (football counts) - see
+        # engine.sheet_predictive_sd, which the cache replay shares.
+        pred_sd = sheet_predictive_sd(
+            rung.market, fixture.sport, mean, variance, n, centre
         )
 
         # The rating forecast replaces the sample's estimate wherever it has
@@ -1119,21 +1101,14 @@ def process_fixture(
                     p_raw = p_empirical_centred_raw(
                         values, boundary, direction, centre - mean
                     )
-            elif uses_negative_binomial(rung.market):
+            else:
                 # A count is right-skewed and the normal CDF is not. See
                 # NEGATIVE_BINOMIAL_METRICS: symmetric tails put +4.7 pp on
                 # every OVER rung, which is what makes a coupon come out
-                # 88.8% OVER. No support floor here — the distribution is
-                # discrete on 0,1,2,... so there is no mass below zero to
-                # condition away.
-                p_raw = calc_p_central_nb_raw(centre, pred_sd, boundary, direction)
-            else:
-                p_raw = calc_p_central_raw(
-                    centre,
-                    pred_sd,
-                    boundary,
-                    direction,
-                    support_floor_for(rung.market),
+                # 88.8% OVER. engine.sheet_count_p_raw picks the NB or the
+                # support-floored normal; the cache replay calls the same.
+                p_raw = sheet_count_p_raw(
+                    rung.market, centre, pred_sd, boundary, direction
                 )
 
             # F35: a rung whose estimate falls outside the clamp band is not a

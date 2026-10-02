@@ -438,6 +438,10 @@ def main() -> int:
         if cal.player_prop_not_admitted(row["market"]):
             refused["PLAYER_PROP_NOT_ADMITTED"] += 1
             continue
+        # See Calibration.admitted_tennis_set_markets (TENNIS_SET_GAMES).
+        if cal.tennis_set_market_not_admitted(row["market"]):
+            refused["TENNIS_SET_MARKET_NOT_ADMITTED"] += 1
+            continue
 
         sides = next(
             (board_sides[str(i)] for i in fx.get("superbet_event_ids") or []

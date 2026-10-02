@@ -24,8 +24,11 @@ from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 
 # Keys the operator writes into a fitted file by hand. A fit that rebuilds the
 # file from the DB must carry them over, or the next refit silently undoes an
-# operator decision (admitted_player_markets: Calibration.player_prop_not_admitted).
-OPERATOR_KEYS: tuple[str, ...] = ("admitted_player_markets",)
+# operator decision (admitted_player_markets: Calibration.player_prop_not_admitted;
+# admitted_tennis_set_markets: Calibration.tennis_set_market_not_admitted).
+OPERATOR_KEYS: tuple[str, ...] = (
+    "admitted_player_markets", "admitted_tennis_set_markets",
+)
 
 
 def friendly_exclusion_sql(

@@ -40,17 +40,7 @@ from bet.sofa.confidence import (  # noqa: E402
     direction_key,
     match_class,
 )
-from bet.sofa.engine import (  # noqa: E402
-    NORMAL_NON_COUNT_METRICS,
-    calc_p_central_nb_raw,
-    calc_p_central_raw,
-    predictive_sd,
-    support_floor_for,
-    uses_empirical_frequency,
-    uses_negative_binomial,
-    uses_poisson_floor,
-    winning_boundary,
-)
+from bet.sofa.engine import has_calibratable_model  # noqa: E402
 from bet.sofa.fit_meta import (  # noqa: E402
     carry_operator_keys,
     fit_stamp,
@@ -142,7 +132,8 @@ def main() -> int:
     args = ap.parse_args()
     classes = load_event_classes(args.db_path)
 
-    con = sqlite3.connect(args.db_path)
+    # Read-only: the fit only reads, and may run beside a day that writes.
+    con = sqlite3.connect(f"file:{args.db_path}?mode=ro", uri=True)
     # A settled table without the event id (hand-built test fixtures) scores
     # exactly as before and classes nothing.
     columns = {r[1] for r in con.execute("PRAGMA table_info(sofa_settled_row)")}
@@ -206,50 +197,28 @@ def main() -> int:
             # run_confidence refuses derived legs anyway (no curve measured
             # for a joint), so they belong in no curve family.
             continue
-        if uses_empirical_frequency(market):
-            # These have no distribution to recompute from — `p_central` IS
-            # the sample's own hit rate, and the sheet already stored it. Until
-            # 2026-09-21 the loop skipped them, so they had no curve, and
-            # run_confidence refused every one of them as NOT_IN_CALIBRATION_
-            # FIT. That banned `games_won_for` — the single largest tennis
-            # market, 1084 rows on a Monday sheet and 9,286 settled — from the
-            # path that produces the coupon, while the VALUE-singles path was
-            # made of almost nothing else.
-            #
-            # Banning was the wrong answer to a real problem: the raw
-            # frequency IS overconfident at the top (measured on those 9,286
-            # rows, a claimed 0.95 realises 0.728). That is what a calibration
-            # curve is for. Fitted, the top bucket caps itself at ~0.73 and
-            # the 0.811-against-odds-of-20.0 leg that motivated the ban cannot
-            # reach the floor any more.
-            if stored_p is None:
-                continue
-            p = stored_p
-        elif market in NORMAL_NON_COUNT_METRICS:
-            # A floorless normal (no Poisson floor, no support floor), which is
-            # run_sheet's estimator for these. Centred on the raw sample mean,
-            # like every count branch below: the fit has never replayed the
-            # prior / ladder shrink, so for tennis this p is the sample's own,
-            # not the shrunk p_central the stage looks up - the same
-            # approximation the count markets have always carried. Until
-            # 2026-09-23 these fell into the branch below and were skipped.
-            psd = predictive_sd(sd * sd, mean, n, apply_poisson_floor=False)
-            p = calc_p_central_raw(
-                mean, psd, winning_boundary(line, direction), direction, None
-            )
-        elif not uses_poisson_floor(market):
-            # Neither a count, an empirical frequency, nor a modelled non-count
-            # (the xG pair): no model at all.
+        if not has_calibratable_model(market):
+            # Neither a count, an empirical frequency, nor a modelled
+            # non-count (the xG pair): no model at all.
             continue
-        else:
-            psd = predictive_sd(sd * sd, mean, n, apply_poisson_floor=True)
-            boundary = winning_boundary(line, direction)
-            if uses_negative_binomial(market):
-                p = calc_p_central_nb_raw(mean, psd, boundary, direction)
-            else:
-                p = calc_p_central_raw(
-                    mean, psd, boundary, direction, support_floor_for(market)
-                )
+        if stored_p is None:
+            continue
+        # Every row is keyed on its STORED p_central, because that is the
+        # number run_confidence looks a leg up at (cal.realised(market,
+        # row["p_central"], ...)). For a live row it is SHEET's p after the
+        # prior shrink, the variance scale, the NB and the ratings; for a
+        # cache-replay row it is calibrate_from_cache's, which since
+        # 2026-10-02 calls SHEET's own estimator.
+        #
+        # Until 2026-10-02 only the empirical-frequency markets were keyed on
+        # the stored p (they have no distribution to recompute from); every
+        # other row was re-priced here from the RAW sample_mean / sample_sd -
+        # no shrink, no scale - so a bucket held rows whose SHEET p was
+        # elsewhere. The replay's stored p is compressed toward the prior by
+        # K_CENTRE, and on the 10-02 refit candidate the throw_ins_total /
+        # fouls_total 0.80-0.95 buckets were filled with rows SHEET would
+        # have priced lower: +3-6 pp overstatement on the live legs.
+        p = float(stored_p)
         p = min(max(p, 0.0), 1.0)
         hit = 1 if ((actual > line) if direction == "OVER" else (actual < line)) else 0
         b = bucket_of(p)
