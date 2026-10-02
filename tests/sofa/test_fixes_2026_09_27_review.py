@@ -84,6 +84,9 @@ def test_the_sample_is_filled_after_the_duplicate_is_removed() -> None:
         def save_entity_events(self, *a: object) -> None:
             return None
 
+        def get_listed_events(self, *a: object) -> list[dict]:
+            return []  # empty listed-event index
+
     class _Fixture:
         kickoff_utc = datetime(2026, 9, 25, tzinfo=UTC)
         ground_type = None

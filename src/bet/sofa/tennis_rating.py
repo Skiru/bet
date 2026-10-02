@@ -67,6 +67,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.tennis_score import set_games
 
 DEFAULT_CONFIG = Path("config/tennis_rating.json")
@@ -216,14 +217,33 @@ def load_history(db_path: str | Path) -> list[TennisResult]:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         seen: dict[int, TennisResult] = {}
-        for (events_json,) in conn.execute(
-            "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
+        # Which page fetch supplied each event: an indexed copy fetched later
+        # (listing_index.py) is the newer one.
+        fetched: dict[int, str] = {}
+        for events_json, fetched_at in conn.execute(
+            "SELECT events_json, fetched_at FROM sofa_entity_events "
+            "WHERE kind = 'last' "
             "AND events_json LIKE '%\"slug\": \"tennis\"%'"
         ):
             for event in json.loads(events_json).get("events", []):
+                eid = event.get("id") if isinstance(event, dict) else None
                 result = parse_event(event)
                 if result is not None:
                     seen[result.event_id] = result
+                if isinstance(eid, int):
+                    # Every page copy, parsed or not, as football_rating
+                    # holds every payload: the stamp decides which is newer.
+                    fetched[eid] = str(fetched_at)
+        # Matches that slid out of every cached page, and newer copies of
+        # those the pages hold; nothing while the index is empty. The newer
+        # copy wins even when it no longer parses (football_rating drops such
+        # an event the same way): its page result is the stale one (F6).
+        for event in iter_indexed_events(conn, fetched, sport="tennis"):
+            result = parse_event(event)
+            if result is not None:
+                seen[result.event_id] = result
+            else:
+                seen.pop(event["id"], None)
     finally:
         conn.close()
     return sorted(seen.values(), key=lambda r: (r.ts, r.event_id))

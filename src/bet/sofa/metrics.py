@@ -533,6 +533,11 @@ def _incident_player_key(incident: dict[str, Any]) -> str | None:
     return None
 
 
+def _is_staff_card(incident: dict[str, Any]) -> bool:
+    """A card to the coaching staff: Sofascore sets ``manager``, not ``player``."""
+    return bool(incident.get("manager")) and not incident.get("player")
+
+
 def calculate_cards_points(
     incidents: dict[str, Any] | None,
     all_stats: dict[str, tuple[float, float]] | None = None,
@@ -554,6 +559,17 @@ def calculate_cards_points(
     ``rescinded`` cards are dropped unconditionally (PULAPKA #4); a rescinded
     yellow also stops counting toward the second-yellow arithmetic, which is
     what the disciplinary record says happened.
+
+    Cards shown to the coaching staff are dropped too. Superbet's football
+    rules (Oficjalny Komunikat nr 06/2022, version of 16.12.2025, sections 1,
+    2 and 4): "Kartki pokazane sztabowi szkoleniowemu oraz zawodnikom na
+    ławce rezerwowych nie będą brane pod uwagę." Sofascore marks such a card
+    with ``manager`` and no ``player`` (3,339 of them in the cache on
+    2026-10-02; all 895 sampled had ``time`` -5); its own ``yellowCards`` statistic
+    leaves them out on 87% of the events that carry one. A card with neither
+    key is kept: that is a player Sofascore did not name, not a coach. A card
+    to an unused substitute carries ``player`` and is still counted - telling
+    it apart needs the lineups, which this function does not read.
     """
     # `not`, not `is None`: {} is the cache's "asked, got 404" (samples.py),
     # and read as a payload it graded a match as 0 cards in SETTLE and fed
@@ -565,7 +581,9 @@ def calculate_cards_points(
     cards = [
         inc
         for inc in incidents.get("incidents", [])
-        if inc.get("incidentType") == "card" and not inc.get("rescinded", False)
+        if inc.get("incidentType") == "card"
+        and not inc.get("rescinded", False)
+        and not _is_staff_card(inc)
     ]
 
     # An incident list with no card in it is only a zero when /statistics

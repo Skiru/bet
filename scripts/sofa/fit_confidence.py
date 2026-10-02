@@ -56,6 +56,7 @@ from bet.sofa.fit_meta import (  # noqa: E402
     fit_stamp,
     friendly_exclusion_sql,
 )
+from bet.sofa.listing_index import listed_events_by_id  # noqa: E402
 from bet.sofa.market_mapper import is_derived  # noqa: E402
 from bet.sofa.resolve import sofascore_gender  # noqa: E402
 
@@ -118,15 +119,11 @@ def load_event_classes(db_path: str) -> dict[int, str]:
         ).fetchone()
         if has_listings is None:
             return out  # no cache: no class is known, every row is unclassed
-        for (events_json,) in con.execute(
-            "SELECT events_json FROM sofa_entity_events WHERE kind = 'last'"
-        ):
-            for event in json.loads(events_json).get("events", []):
-                eid = event.get("id")
-                if isinstance(eid, int) and eid not in out:
-                    klass = event_class(event)
-                    if klass is not None:
-                        out[eid] = klass
+        # Pages and the listed-event index (listing_index.py): calibrate_from_cache
+        # replays index-only matches too, and a women's one read as unclassed
+        # would go into the men's curves. First classed page copy, as before;
+        # a newer indexed copy wins.
+        out = listed_events_by_id(con, event_class, kinds=("last",))
     finally:
         con.close()
     return out

@@ -57,6 +57,9 @@ def test_sofascore_pages_are_oldest_first_so_the_cut_must_come_last() -> None:
         def save_entity_events(self, *a: object) -> None:
             return None
 
+        def get_listed_events(self, *a: object) -> list[dict]:
+            return []  # empty listed-event index
+
     class _Fixture:
         kickoff_utc = datetime(2026, 9, 25, tzinfo=UTC)
         ground_type = "Hardcourt outdoor"

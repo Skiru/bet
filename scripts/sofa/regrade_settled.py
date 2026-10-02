@@ -42,6 +42,7 @@ from typing import Any
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import RetryingConnection
+from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
@@ -85,23 +86,19 @@ def reads_refetched_data(market: str) -> bool:
 def listing_events(
     conn: sqlite3.Connection, wanted: set[int]
 ) -> dict[int, dict[str, Any]]:
-    """The cached listing payload of each wanted event (what the replay read)."""
-    out: dict[int, dict[str, Any]] = {}
-    for (events_json,) in conn.execute("SELECT events_json FROM sofa_entity_events"):
-        try:
-            events = json.loads(events_json).get("events", [])
-        except ValueError:
-            continue
-        for event in events:
-            eid = event.get("id")
-            # A match sits in a team's `next` listing too, from before it was
-            # played: no score there. Only the finished copy can grade it -
-            # the first dry run read 38,972 goal rows as ungradable off the
-            # pre-match copy.
-            finished = (event.get("status") or {}).get("type") == "finished"
-            if isinstance(eid, int) and eid in wanted and eid not in out and finished:
-                out[eid] = event
-    return out
+    """The cached listing payload of each wanted event (what the replay read):
+    the pages, every kind, and the listed-event index (listing_index.py) -
+    calibrate_from_cache replays index-only matches too. First finished page
+    copy as before; a newer indexed copy wins."""
+
+    def finished(event: dict[str, Any]) -> dict[str, Any] | None:
+        # A match sits in a team's `next` listing too, from before it was
+        # played: no score there. Only the finished copy can grade it - the
+        # first dry run read 38,972 goal rows as ungradable off the pre-match
+        # copy.
+        return event if (event.get("status") or {}).get("type") == "finished" else None
+
+    return listed_events_by_id(conn, finished, kinds=None, only=wanted)
 
 
 def detail_events(
@@ -183,22 +180,14 @@ _GAMES_MARKETS = ("games_won_for", "games_total", "handicap_games", "most_games"
 def match_tiebreak_events(conn: sqlite3.Connection) -> set[int]:
     """Finished tennis events, in the listing or the /event cache, that had a
     match tiebreak."""
-    out: set[int] = set()
-    for (events_json,) in conn.execute(
-        "SELECT events_json FROM sofa_entity_events"
-        " WHERE events_json LIKE '%\"slug\": \"tennis\"%'"
-    ):
-        try:
-            events = json.loads(events_json).get("events", [])
-        except ValueError:
-            continue
-        for event in events:
-            eid = event.get("id")
-            if not isinstance(eid, int) or eid in out:
-                continue
-            home, away = event.get("homeScore") or {}, event.get("awayScore") or {}
-            if match_tiebreak_sets(home, away):
-                out.add(eid)
+    def had_match_tiebreak(event: dict[str, Any]) -> bool | None:
+        home, away = event.get("homeScore") or {}, event.get("awayScore") or {}
+        return True if match_tiebreak_sets(home, away) else None
+
+    # The pages (every kind) and the listed-event index (listing_index.py).
+    out: set[int] = set(listed_events_by_id(
+        conn, had_match_tiebreak, kinds=None,
+        like='%"slug": "tennis"%', sport="tennis"))
     # grade_live grades from the /event payload first, and a match can be
     # finished there while every listing copy is still notstarted/inprogress
     # (17175914 and four more on 25-26.09): those rows were missed.
@@ -235,6 +224,53 @@ def tiebreak_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [dict(r) for r in rows if r["sofascore_event_id"] in wanted]
 
 
+def staff_card_events(conn: sqlite3.Connection) -> set[int]:
+    """Events whose cached incidents carry a card shown to staff (a `manager`
+    and no `player`) - metrics.calculate_cards_points has ignored those since
+    2026-10-02 (Superbet komunikat 06/2022 §2: "Kartki pokazane sztabowi
+    szkoleniowemu ... nie będą brane pod uwagę"). One full read of the
+    incidents column, filtered by LIKE first."""
+    out: set[int] = set()
+    for eid, ij in conn.execute(
+        "SELECT sofascore_event_id, incidents_json FROM sofa_event_stats"
+        " WHERE incidents_json LIKE '%\"manager\"%'"
+    ):
+        for inc in (json.loads(ij) or {}).get("incidents", []):
+            if (
+                inc.get("incidentType") == "card"
+                and inc.get("manager")
+                and not inc.get("player")
+                and not inc.get("rescinded")
+            ):
+                out.add(int(eid))
+                break
+    return out
+
+
+def cards_staff_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Card-points rows - live and cache-calibration - on events with a staff
+    card (--cards-staff). The grading code changed, not the data, so the
+    fetched_at test in candidates() cannot see them. Measured 2026-10-02:
+    92 live rows flip on 21 events (34 cards_points_total), 7,296 calibration
+    rows; the calibration ones feed the next deliberate refit."""
+    wanted = staff_card_events(conn)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT id, run_date, sofascore_event_id, sport, market, subject,
+               line, direction, actual_value, outcome, settled_at
+        FROM sofa_settled_row
+        WHERE outcome IN ('WIN', 'LOSS') AND market LIKE '%cards_points%'
+        """
+    ).fetchall()
+    conn.row_factory = None
+    return [
+        dict(r)
+        for r in rows
+        if r["sofascore_event_id"] in wanted and not is_player_metric(r["market"])
+    ]
+
+
 def candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
@@ -264,9 +300,18 @@ def candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def regrade(
-    conn: sqlite3.Connection, runs_dir: Path, *, match_tiebreak: bool = False
+    conn: sqlite3.Connection,
+    runs_dir: Path,
+    *,
+    match_tiebreak: bool = False,
+    cards_staff: bool = False,
 ) -> tuple[list[dict[str, Any]], Counter[str]]:
-    rows = tiebreak_candidates(conn) if match_tiebreak else candidates(conn)
+    if cards_staff:
+        rows = cards_staff_candidates(conn)
+    elif match_tiebreak:
+        rows = tiebreak_candidates(conn)
+    else:
+        rows = candidates(conn)
     events = {r["sofascore_event_id"] for r in rows}
     cached = {
         int(eid): (sj, ij)
@@ -347,6 +392,12 @@ def main() -> int:
         help="re-grade live tennis games rows on matches with a 10-point match "
         "tiebreak (graded before afdb886f with its points summed as games)",
     )
+    parser.add_argument(
+        "--cards-staff",
+        action="store_true",
+        help="re-grade card-points rows (live and cache-calibration) on events "
+        "with a card shown to staff, which Superbet does not count (2026-10-02)",
+    )
     args = parser.parse_args()
     config = SofaConfig.from_env()
     at = datetime.now(UTC)
@@ -356,7 +407,10 @@ def main() -> int:
             config.db_path, timeout=30.0, factory=RetryingConnection
         )
         changes, tally = regrade(
-            conn, Path(config.runs_dir), match_tiebreak=args.match_tiebreak
+            conn,
+            Path(config.runs_dir),
+            match_tiebreak=args.match_tiebreak,
+            cards_staff=args.cards_staff,
         )
     except (sqlite3.Error, ValueError) as exc:
         print(f"FAILED: {exc}", file=sys.stderr)

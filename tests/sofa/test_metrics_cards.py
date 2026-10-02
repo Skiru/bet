@@ -187,3 +187,46 @@ def test_fixture_declares_itself_synthetic(variants: dict[str, Any]) -> None:
     """Nobody may later read this file as a measurement of §5.4a."""
     doc = " ".join(variants["_doc"])
     assert "SYNTHETIC" in doc
+
+
+def _card(cls: str, is_home: bool, **who: Any) -> dict[str, Any]:
+    return {
+        "incidentType": "card",
+        "incidentClass": cls,
+        "rescinded": False,
+        "isHome": is_home,
+        **who,
+    }
+
+
+def test_cards_shown_to_the_coaching_staff_do_not_count() -> None:
+    """Superbet, Oficjalny Komunikat 06/2022 (16.12.2025): "Kartki pokazane
+    sztabowi szkoleniowemu [...] nie beda brane pod uwage". Sofascore marks a
+    staff card with `manager` and no `player`, and gives it time -5."""
+    coach: dict[str, Any] = {
+        "manager": {"name": "Mika Lehkosuo", "id": 53604},
+        "playerName": "Mika Lehkosuo",
+        "time": -5,
+    }
+    incidents = {
+        "incidents": [
+            _card("yellow", True, player={"id": 1, "name": "A"}),
+            _card("yellow", True, **coach),
+            _card("red", False, **coach),
+            _card("yellowRed", False, **coach),
+            _card("red", False, player={"id": 2, "name": "B"}),
+        ]
+    }
+    assert calculate_cards_points(incidents) == (1.0, 2.0)
+
+
+def test_a_card_with_no_name_at_all_still_counts() -> None:
+    """Neither `player` nor `manager`: an unnamed player, not a coach."""
+    incidents = {"incidents": [_card("yellow", False)]}
+    assert calculate_cards_points(incidents) == (0.0, 1.0)
+
+
+def test_only_staff_cards_is_a_tracked_zero_for_the_players() -> None:
+    """The feed carried cards, so it was tracking them; none went to a player."""
+    incidents = {"incidents": [_card("yellow", True, manager={"id": 9}, time=-5)]}
+    assert calculate_cards_points(incidents) == (0.0, 0.0)

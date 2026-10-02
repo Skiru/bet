@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from bet.sofa.config import MATCH_LOGIC_VERSION, SofaConfig
 from bet.sofa.db import get_connection, migrate
+from bet.sofa.listing_index import entity_indexed_events, index_page
 from bet.sofa.timeutil import now
 
 # Sofascore publishes a lower-league match's /statistics in two steps: the
@@ -260,6 +261,11 @@ class SofaCache:
     ) -> None:
         """
         Zapisuje listing zdarzeń.
+
+        The page replaces the cached copy of that page number, and - in the
+        same transaction - every event on it is upserted into the listed-event
+        index (listing_index.py), so a match that later slides past every
+        cached page is not lost with the page that last held it.
         """
         fetched_at = now().isoformat()
         events_json = json.dumps(events)
@@ -273,7 +279,18 @@ class SofaCache:
                 """,
                 (sofascore_entity_id, kind, page, fetched_at, events_json),
             )
+            index_page(conn, sofascore_entity_id, kind, fetched_at, events)
             conn.commit()
+
+    def get_listed_events(
+        self, sofascore_entity_id: int, kind: str, before_ts: int, limit: int
+    ) -> list[dict[str, Any]]:
+        """The newest `limit` indexed events of one entity's listing that
+        started before `before_ts`, newest first, ignoring TTL (a finished
+        match does not expire). Empty until the index holds the entity."""
+        with get_connection(self.config.db_path) as conn:
+            return entity_indexed_events(
+                conn, sofascore_entity_id, kind, before_ts, limit)
 
     def iter_entity_events(
         self,

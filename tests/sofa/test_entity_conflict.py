@@ -155,6 +155,9 @@ def test_get_historical_events_leaves_a_two_squad_side_empty_and_says_why() -> N
         def save_entity_events(self, *_: Any) -> None:
             raise AssertionError("no write expected")
 
+        def get_listed_events(self, *a: object) -> list[dict]:
+            return []  # empty listed-event index
+
     class Client:
         def entity_events(self, *_: Any) -> None:
             return None

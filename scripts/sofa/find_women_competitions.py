@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.atomic import write_atomic
+from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.resolve import sofascore_gender
 
 WOMEN_SHARE = 0.8
@@ -61,15 +62,13 @@ def main() -> int:
     args = ap.parse_args()
     con = sqlite3.connect(f"file:{args.db_path}?mode=ro", uri=True)
     con.execute("PRAGMA busy_timeout = 60000")
-    events: list[dict[str, Any]] = []
     try:
-        for (events_json,) in con.execute(
-            "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
-            "AND events_json LIKE '%\"slug\": \"football\"%'"
-        ):
-            payload = json.loads(events_json)
-            events.extend(e for e in payload.get("events", [])
-                          if isinstance(e, dict))
+        # The pages and the listed-event index (listing_index.py), one copy
+        # per event id (classify counts each once): the first page copy, or
+        # the index's when it is newer.
+        events: list[dict[str, Any]] = list(listed_events_by_id(
+            con, lambda e: e, kinds=("last",),
+            like='%"slug": "football"%', sport="football").values())
     finally:
         con.close()
     classes = classify(events)

@@ -46,8 +46,30 @@ def get_aliases() -> dict[str, str]:
     return _ALIASES_CACHE
 
 
+# A dash joining two letters, in any of the spellings either source prints.
+#
+# Sofascore writes "Al-Wahda FC", "Umm-Salal SC", "Colo-Colo", "Guinea-Bissau"
+# where Superbet writes "Al Wahda", "Umm Salal", "Colo Colo", "Gwinea Bissau".
+# A hyphen glues two words into one token, so the token scorers see
+# {"al-wahda", "fc"} against {"al", "wahda"} - nothing in common - and the
+# pair scored 73.7 against SETTLE's 82: on 2026-10-01 the "al wahda" rows of
+# Baniyas - Al-Wahda went SUBJECT_NOT_MATCHED. Folded to a space, both read
+# "al wahda" and score 100. Measured over 2026-09-29..10-01 (football and
+# tennis): 3 SHEET and 2 SETTLE subjects went from unplaced to their own side,
+# none moved to another side. Only between letters: "U-21" is a reserve marker
+# the suffix rule below reads with its dash, and a non-ASCII dash used to be
+# deleted outright by the ASCII fold, gluing "Al–Wahda" into "alwahda".
+_LETTER_DASH = re.compile(
+    r"(?<=[^\W\d_])[\-‐‑‒–—―−](?=[^\W\d_])"
+)
+
+
 def normalize_name(name: str) -> str:
     name = name.strip()
+
+    # 0. A dash between two letters is a word break (_LETTER_DASH). Before the
+    # ASCII fold, which would drop a non-ASCII dash instead of splitting on it.
+    name = _LETTER_DASH.sub(" ", name)
 
     # 1. Custom diacritics fold before NFD
     for char, replacement in DIACRITICS_FOLD.items():

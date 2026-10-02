@@ -30,6 +30,7 @@ from typing import Any
 
 from bet.sofa.atomic import write_atomic
 from bet.sofa.contracts import GapReason
+from bet.sofa.listing_index import event_sport, listed_events_by_id
 from bet.sofa.metrics import extract_flat_statistics, extract_metric
 from bet.sofa.tennis_prior import _is_countable, fit_tier_baselines, tier_key
 
@@ -37,20 +38,20 @@ DEFAULT_OUT = Path("config/sofa_tennis_tier_baselines.json")
 
 
 def iter_tennis_events(db_path: str) -> Iterator[dict[str, Any]]:
+    """One countable copy per tennis match: the cached pages (every kind,
+    first countable copy - the copy both consumers kept from the old stream
+    of every copy) and the listed-event index (listing_index.py), whose newer
+    countable copy wins."""
+
+    def countable(e: dict[str, Any]) -> dict[str, Any] | None:
+        return e if event_sport(e) == "tennis" and _is_countable(e) else None
+
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
-        for (js,) in conn.execute("SELECT events_json FROM sofa_entity_events"):
-            try:
-                payload = json.loads(js)
-            except (TypeError, json.JSONDecodeError):
-                continue
-            events = payload.get("events") if isinstance(payload, dict) else payload
-            for e in events or []:
-                cat = (e.get("tournament") or {}).get("category") or {}
-                if (cat.get("sport") or {}).get("slug") == "tennis":
-                    yield e
+        events = listed_events_by_id(conn, countable, kinds=None, sport="tennis")
     finally:
         conn.close()
+    yield from events.values()
 
 
 def load_statistics(db_path: str) -> dict[int, dict[str, Any]]:

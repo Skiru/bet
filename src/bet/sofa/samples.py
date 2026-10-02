@@ -248,6 +248,12 @@ def _competition_id(event: dict[str, Any]) -> int | None:
     return int(value) if isinstance(value, int) else None
 
 
+# Indexed events read per entity (listing_index.py): the reach of the five
+# pages the walk below may read (~30 events each), with room for the events a
+# surface or format filter refuses.
+INDEXED_HISTORY_LIMIT = 200
+
+
 def get_historical_events(
     client: SofascoreClient,
     cache: SofaCache,
@@ -266,6 +272,109 @@ def get_historical_events(
     page = 0
     # Reported once per entity, not once per rejected event.
     surface_unknown_reported = False
+    # Ids of everything the pages listed, admitted or not, and each read
+    # page's (newest, oldest) start - the time span it covers.
+    page_ids: set[int] = set()
+    spans: list[tuple[int, int]] = []
+
+    def admit(event: dict[str, Any]) -> bool:
+        """Whether one listed event may enter the sample (gaps say why not)."""
+        nonlocal surface_unknown_reported
+        # A walkover or retirement is `finished` but did not produce a
+        # comparable result; it must not enter a sample (L31).
+        if not is_completed_event(event):
+            # L14: a gate nobody can see looks like missing data. An event
+            # dropped because it never produced a comparable result is a
+            # known reason, so say so instead of silently shortening the
+            # sample.
+            if gaps is not None:
+                status = event.get("status", {}).get("type", "unknown")
+                code = event.get("status", {}).get("code")
+                # "status=finished" under a reason called NOT_FINISHED read
+                # as a contradiction; it is a retirement or walkover.
+                what = (
+                    f"finished abnormally (status code {code}: retirement, "
+                    "walkover or similar)"
+                    if str(status).lower() == "finished"
+                    else f"status={status}"
+                )
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.EVENT_NOT_FINISHED,
+                        metric="all",
+                        detail=(
+                            f"event {event.get('id')} {what} "
+                            f"excluded from entity {entity_id} sample"
+                        ),
+                    )
+                )
+            return False
+
+        start_ts = event.get("startTimestamp")
+        if not start_ts:
+            return False
+        # T12: an event at or after our kickoff is the future leaking in.
+        if datetime.fromtimestamp(start_ts, UTC) >= fixture.kickoff_utc:
+            return False
+
+        if sport == "tennis":
+            # groundType IS on the listing (30/30 in the recorded payload);
+            # a clay match does not describe a hard-court match (§5.7).
+            #
+            # When OUR fixture's surface is unknown the `!=` below is not
+            # a surface filter at all — it keeps only past matches whose
+            # surface is also unknown, which is almost none, and empties
+            # the sample without saying why. That is the L14 failure the
+            # block above exists to prevent, so it gets the same
+            # treatment: refuse the comparison and record the reason.
+            #
+            # 2026-09-21, corrected after review: six fixtures had no
+            # surface (all UTR Pro Tennis Tour Norfolk). Five were blocked
+            # upstream for NO_PRICE, but 17132335 was PRICED and did reach
+            # sampling — so the case is live, not hypothetical. It still
+            # recorded no SURFACE_UNKNOWN that day, because
+            # `is_completed_event` above rejected every candidate first
+            # and the loop never got here. The guard is therefore correct
+            # but UNPROVEN on live data: a fixture can still report
+            # THIN_SAMPLE when the real reason is that its surface is
+            # unknown.
+            if fixture.ground_type is None:
+                if gaps is not None and not surface_unknown_reported:
+                    gaps.append(
+                        GapEntry(
+                            reason=GapReason.SURFACE_UNKNOWN,
+                            metric="all",
+                            detail=(
+                                "fixture has no groundType; a sample "
+                                "cannot be checked for surface "
+                                "comparability"
+                            ),
+                        )
+                    )
+                    surface_unknown_reported = True
+                return False
+            if not surfaces_comparable(
+                event.get("groundType"), fixture.ground_type
+            ):
+                return False
+            # defaultPeriodCount is NOT on the listing, so the format is
+            # derived from sets won. None means "cannot tell" — and an
+            # unknown format is not a match for a known one.
+            if fixture.default_period_count is not None:
+                if infer_best_of(event) != fixture.default_period_count:
+                    return False
+        else:
+            comp_id = _competition_id(event)
+            if comp_id is not None and comp_id in FRIENDLY_COMPETITION_IDS:
+                return False
+
+        home_id = event.get("homeTeam", {}).get("id")
+        away_id = event.get("awayTeam", {}).get("id")
+        if home_id != entity_id and away_id != entity_id:
+            return False
+
+        return True
+
     while len(events) < config.sample_n and page < 5:
         cached = cache.get_entity_events(entity_id, "last", page)
         if cached is not None:
@@ -290,101 +399,14 @@ def get_historical_events(
             # same payload (F46). The page is bounded at ~30 events, so
             # scanning all of it costs nothing; the recency cut happens once,
             # after the loop.
-
-            # A walkover or retirement is `finished` but did not produce a
-            # comparable result; it must not enter a sample (L31).
-            if not is_completed_event(event):
-                # L14: a gate nobody can see looks like missing data. An event
-                # dropped because it never produced a comparable result is a
-                # known reason, so say so instead of silently shortening the
-                # sample.
-                if gaps is not None:
-                    status = event.get("status", {}).get("type", "unknown")
-                    code = event.get("status", {}).get("code")
-                    # "status=finished" under a reason called NOT_FINISHED read
-                    # as a contradiction; it is a retirement or walkover.
-                    what = (
-                        f"finished abnormally (status code {code}: retirement, "
-                        "walkover or similar)"
-                        if str(status).lower() == "finished"
-                        else f"status={status}"
-                    )
-                    gaps.append(
-                        GapEntry(
-                            reason=GapReason.EVENT_NOT_FINISHED,
-                            metric="all",
-                            detail=(
-                                f"event {event.get('id')} {what} "
-                                f"excluded from entity {entity_id} sample"
-                            ),
-                        )
-                    )
-                continue
-
-            start_ts = event.get("startTimestamp")
-            if not start_ts:
-                continue
-            # T12: an event at or after our kickoff is the future leaking in.
-            if datetime.fromtimestamp(start_ts, UTC) >= fixture.kickoff_utc:
-                continue
-
-            if sport == "tennis":
-                # groundType IS on the listing (30/30 in the recorded payload);
-                # a clay match does not describe a hard-court match (§5.7).
-                #
-                # When OUR fixture's surface is unknown the `!=` below is not
-                # a surface filter at all — it keeps only past matches whose
-                # surface is also unknown, which is almost none, and empties
-                # the sample without saying why. That is the L14 failure the
-                # block above exists to prevent, so it gets the same
-                # treatment: refuse the comparison and record the reason.
-                #
-                # 2026-09-21, corrected after review: six fixtures had no
-                # surface (all UTR Pro Tennis Tour Norfolk). Five were blocked
-                # upstream for NO_PRICE, but 17132335 was PRICED and did reach
-                # sampling — so the case is live, not hypothetical. It still
-                # recorded no SURFACE_UNKNOWN that day, because
-                # `is_completed_event` above rejected every candidate first
-                # and the loop never got here. The guard is therefore correct
-                # but UNPROVEN on live data: a fixture can still report
-                # THIN_SAMPLE when the real reason is that its surface is
-                # unknown.
-                if fixture.ground_type is None:
-                    if gaps is not None and not surface_unknown_reported:
-                        gaps.append(
-                            GapEntry(
-                                reason=GapReason.SURFACE_UNKNOWN,
-                                metric="all",
-                                detail=(
-                                    "fixture has no groundType; a sample "
-                                    "cannot be checked for surface "
-                                    "comparability"
-                                ),
-                            )
-                        )
-                        surface_unknown_reported = True
-                    continue
-                if not surfaces_comparable(
-                    event.get("groundType"), fixture.ground_type
-                ):
-                    continue
-                # defaultPeriodCount is NOT on the listing, so the format is
-                # derived from sets won. None means "cannot tell" — and an
-                # unknown format is not a match for a known one.
-                if fixture.default_period_count is not None:
-                    if infer_best_of(event) != fixture.default_period_count:
-                        continue
-            else:
-                comp_id = _competition_id(event)
-                if comp_id is not None and comp_id in FRIENDLY_COMPETITION_IDS:
-                    continue
-
-            home_id = event.get("homeTeam", {}).get("id")
-            away_id = event.get("awayTeam", {}).get("id")
-            if home_id != entity_id and away_id != entity_id:
-                continue
-
-            events.append(event)
+            if isinstance(event.get("id"), int):
+                page_ids.add(event["id"])
+            if admit(event):
+                events.append(event)
+        starts = [e["startTimestamp"] for e in page_events
+                  if isinstance(e, dict) and isinstance(e.get("startTimestamp"), int)]
+        if starts:
+            spans.append((max(starts), min(starts)))
 
         # Pages go backwards in time (page 0 is the most recent block), so
         # another page can only add older matches. Stop as soon as this page
@@ -393,6 +415,57 @@ def get_historical_events(
         page += 1
         if len(one_listing_per_match(events)) >= config.sample_n:
             break
+
+    # The listed-event index (listing_index.py) holds matches that slid out of
+    # every cached page when a newer page 0-2 was saved over the old ones.
+    # Such a match lies strictly between page k's oldest start and page k+1's
+    # newest (the shallower page was re-saved after it slid), or beyond the
+    # deepest page read. An indexed event *inside* a read page's own span is
+    # one Sofascore no longer lists there - removed, or re-listed under
+    # another id - and the index never forgets, so it is not added (F4). Ids
+    # the pages listed are never added either: a page inside its TTL is the
+    # fresher copy. Beyond the deepest page only tops up a sample the pages
+    # left short, without a request.
+    #
+    # No page read at all (page 0 neither cached nor served): the walk says
+    # nothing about this entity's listing today, so the index does not stand
+    # in for it - a sample built from the index alone would carry no gap and
+    # look like a fresh read (F2). The gap says why the side is empty.
+    # Empty index: nothing is added and the sample is what it always was.
+    if not spans:
+        if gaps is not None:
+            gaps.append(
+                GapEntry(
+                    reason=GapReason.PROVIDER_ERROR,
+                    metric="all",
+                    detail=(
+                        f"entity {entity_id}: listing page 0 unavailable "
+                        "(not cached, no events served); the listed-event "
+                        "index is not read without a page"
+                    ),
+                )
+            )
+    else:
+        short = len(one_listing_per_match(events)) < config.sample_n
+        deepest_oldest = spans[-1][1]
+        windows = [(older[0], newer[1])
+                   for newer, older in zip(spans, spans[1:], strict=False)]
+        for event in cache.get_listed_events(
+            entity_id, "last", int(fixture.kickoff_utc.timestamp()),
+            INDEXED_HISTORY_LIMIT,
+        ):
+            if event["id"] in page_ids:
+                continue
+            start = event.get("startTimestamp")
+            if not isinstance(start, int):
+                continue
+            in_gap = any(lo < start < hi for lo, hi in windows)
+            beyond = start < deepest_oldest
+            if not (in_gap or (short and beyond)):
+                continue
+            page_ids.add(event["id"])
+            if admit(event):
+                events.append(event)
 
     # The sample is the most recent `sample_n`, newest first.
     events = one_listing_per_match(events)

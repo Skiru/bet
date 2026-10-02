@@ -47,6 +47,7 @@ from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.samples import statistics_are_hopeless
 from scripts.sofa.backfill_listings import board_entities, read_only_connection
 
@@ -151,6 +152,7 @@ def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
     # Planning only reads: the connection is read-only, so a --dry-run beside
     # a live pipeline run cannot write or migrate the cache.
     conn: sqlite3.Connection = read_only_connection(db_path)
+    listed: set[int] = set()
     try:
         for row in conn.execute("SELECT events_json FROM sofa_entity_events"):
             try:
@@ -159,7 +161,23 @@ def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
                 continue
             events = payload.get("events") if isinstance(payload, dict) else payload
             if isinstance(events, list):
+                # Only finished copies hold an id back from the index: a stale
+                # pre-match copy (a `next` page) is not a target, and must not
+                # hide the finished indexed copy that is (F5).
+                listed.update(e["id"] for e in events
+                              if isinstance(e, dict) and isinstance(e.get("id"), int)
+                              and (e.get("status") or {}).get("type") == "finished")
                 yield events
+        # Matches that slid out of every cached page (listing_index.py) still
+        # want their statistics; nothing while the index is empty.
+        extra: list[dict[str, Any]] = []
+        for event in iter_indexed_events(conn, listed):
+            extra.append(event)
+            if len(extra) >= 1000:
+                yield extra
+                extra = []
+        if extra:
+            yield extra
     finally:
         conn.close()
 

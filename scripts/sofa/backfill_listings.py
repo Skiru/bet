@@ -22,7 +22,11 @@ deeper page was fetched are on no cached page (player 65576 on 2026-10-01:
 page 2 fetched 09-28 reached back to 2025-10-31, page 3 fetched 09-18 began on
 2025-10-03). An entity with such a gap inside the window is not done; it is
 re-fetched from the first gapped page on, until the pages join up and reach
---days. See EntityState.first_gap for the test.
+--days. See EntityState.first_gap for the test. Since the listed-event
+index (src/bet/sofa/listing_index.py, filled once by
+scripts/sofa/index_listing_events.py, then by every page save) a disjoint
+pair is not re-walked when the index already holds the matches it lost; a
+missing page still is. --dry-run reports gaps_covered_by_index.
 
 Order: entities on the most recent boards first, then by how recently the
 entity last played - so a run cut short by --max-minutes has filled what the
@@ -53,6 +57,7 @@ import sqlite3
 import sys
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -63,6 +68,7 @@ from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.listing_index import entity_indexed_count, has_index
 
 # Sofascore sport slug per --sport.
 SPORT_SLUGS = {
@@ -136,8 +142,25 @@ class EntityState:
     # startTimestamps on this entity's own pages that are recent enough to
     # have shifted the listing after some cached page was fetched.
     recent_stamps: list[int] = dataclasses.field(default_factory=list)
+    # (entity_id, after_ts, before_ts) -> how many of the entity's events the
+    # listed-event index holds strictly between the two; None = no index.
+    indexed: Callable[[int, int, int], int] | None = dataclasses.field(
+        default=None, compare=False, repr=False)
 
-    def first_gap(self, since_ts: int) -> int | None:
+    def _covered_by_index(self, newest: int, oldest: int, lo: int,
+                          hi: int) -> bool:
+        """A gap between two cached pages loses the m matches the entity
+        played between their fetches, and those m sit strictly between the
+        deeper page's newest start and the shallower page's oldest. The gap
+        costs nothing when the index already holds at least m events there.
+        m is counted with SHIFT_MARGIN_S, so it errs high (a re-walk), never
+        low - except two matches sharing one start second, counted once."""
+        if self.indexed is None:
+            return False
+        shifted = len({ts for ts in self.recent_stamps if lo < ts <= hi})
+        return self.indexed(self.entity_id, newest, oldest) >= shifted
+
+    def first_gap(self, since_ts: int, use_index: bool = True) -> int | None:
         """The first page whose cached copy does not join up with the page
         before it, inside the window; None when the cache is contiguous.
 
@@ -150,6 +173,11 @@ class EntityState:
         that fetch - and those are on the newer pages, so they are counted.
         A missing page inside the window is a gap. Pages past the one that
         already reaches `since_ts` are not judged: they are outside --days.
+
+        Since the listed-event index (listing_index.py) a disjoint pair whose
+        lost matches the index holds is not a gap (`use_index=False` judges
+        the pages alone). A missing page always is: nothing says how many
+        matches it held.
         """
         if self.deepest_page < 0 or not self.pages:
             return None
@@ -172,6 +200,9 @@ class EntityState:
                 continue
             lo, hi = cur.fetched - SHIFT_MARGIN_S, prev.fetched
             if any(lo < ts <= hi for ts in self.recent_stamps):
+                if use_index and self._covered_by_index(
+                        cur.newest, prev.oldest, lo, hi):
+                    continue
                 return k
         return None
 
@@ -375,6 +406,30 @@ def read_only_connection(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+class IndexCounter:
+    """EntityState.indexed over a read-only connection, shared by the worker
+    threads (start_page is asked again inside Deepen.run_one)."""
+
+    def __init__(self, db_path: str) -> None:
+        uri = Path(db_path).resolve().as_uri() + "?mode=ro"
+        self.conn = sqlite3.connect(uri, uri=True, timeout=30.0,
+                                    check_same_thread=False)
+        self.lock = threading.Lock()
+        self.memo: dict[tuple[int, int, int], int] = {}
+        self.available = has_index(self.conn)
+
+    def __call__(self, entity_id: int, after_ts: int, before_ts: int) -> int:
+        key = (entity_id, after_ts, before_ts)
+        with self.lock:
+            if key not in self.memo:
+                self.memo[key] = entity_indexed_count(
+                    self.conn, entity_id, "last", after_ts, before_ts)
+            return self.memo[key]
+
+    def close(self) -> None:
+        self.conn.close()
+
+
 def _rows(db_path: str) -> list[tuple[int, int, str, str]]:
     conn = read_only_connection(db_path)
     try:
@@ -440,6 +495,10 @@ def main() -> int:
         Path(args.seed_file), args.sport, datetime.now(UTC).isoformat(),
         record=not args.dry_run)
     states = scan(_rows(config.db_path), SPORT_SLUGS[args.sport], recent, seed)
+    counter = IndexCounter(config.db_path)
+    if counter.available:
+        for s in states.values():
+            s.indexed = counter
     board = board_entities(config.runs_dir, args.sport)
     todo = plan(states, board, since, recent)
     if args.limit is not None:
@@ -453,6 +512,10 @@ def main() -> int:
         "gapped": sum(s.first_gap(since) is not None for s in todo),
         "gapped_on_board": sum(
             s.on_board and s.first_gap(since) is not None for s in todo),
+        # Gapped by the pages alone, but the index holds what the gap lost.
+        "gaps_covered_by_index": sum(
+            s.first_gap(since, use_index=False) is not None
+            and s.first_gap(since) is None for s in states.values()),
     }), flush=True)
     if args.dry_run or not todo:
         return 0

@@ -25,7 +25,13 @@ from dataclasses import dataclass
 #
 # 6 (2026-10-01): Sofascore's trailing "Reserve(s)" folds to "(r)"; reserve
 # misses recorded without the fold could not succeed.
-MATCH_LOGIC_VERSION = 6
+#
+# 7 (2026-10-02): a dash between letters folds to a space ("Al-Wahda FC" ->
+# "al wahda fc"). A miss is recorded under the SEARCHED side's key when the
+# opponent gate refuses every listed event, and that key does not change - so
+# "Baniyas" missed because its opponent "Al Wahda" scored 73.7 against
+# Sofascore's "Al-Wahda FC". Those misses would now resolve.
+MATCH_LOGIC_VERSION = 7
 
 
 @dataclass(frozen=True)

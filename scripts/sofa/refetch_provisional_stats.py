@@ -35,25 +35,21 @@ from typing import Any
 from bet.sofa.cache import SofaCache, _all_period_keys, is_provisional
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.listing_index import event_sport, listed_events_by_id
 
 
 def kickoffs(conn: sqlite3.Connection) -> dict[int, tuple[int, str | None]]:
-    """Event id -> (startTimestamp, sport slug), from every cached listing."""
-    out: dict[int, tuple[int, str | None]] = {}
-    for (events_json,) in conn.execute("SELECT events_json FROM sofa_entity_events"):
-        try:
-            events = json.loads(events_json).get("events", [])
-        except ValueError:
-            continue
-        for event in events:
-            eid, start = event.get("id"), event.get("startTimestamp")
-            if isinstance(eid, int) and isinstance(start, (int, float)):
-                category = (event.get("tournament") or {}).get("category") or {}
-                sport = (category.get("sport") or {}).get("slug")
-                out.setdefault(
-                    eid, (int(start), sport if isinstance(sport, str) else None)
-                )
-    return out
+    """Event id -> (startTimestamp, sport slug), from every cached listing
+    (every kind, first copy) and the listed-event index (listing_index.py),
+    whose newer copy wins."""
+
+    def kickoff(event: dict[str, Any]) -> tuple[int, str | None] | None:
+        start = event.get("startTimestamp")
+        if not isinstance(start, (int, float)):
+            return None
+        return int(start), event_sport(event)
+
+    return listed_events_by_id(conn, kickoff, kinds=None)
 
 
 def candidates(

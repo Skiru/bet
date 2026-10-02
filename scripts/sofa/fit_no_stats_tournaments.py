@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.atomic import write_atomic
+from bet.sofa.listing_index import listed_events_by_id
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_PATH = ROOT / "config" / "sofa_no_stats_tournaments.json"
@@ -60,20 +61,11 @@ def main() -> int:
         )
     }
 
-    # One payload per event id; the same event appears in both teams' listings.
-    payloads: dict[int, dict[str, Any]] = {}
-    for row in conn.execute("SELECT events_json FROM sofa_entity_events"):
-        try:
-            data = json.loads(row["events_json"])
-        except (TypeError, ValueError):
-            continue
-        events = data.get("events") if isinstance(data, dict) else data
-        if not isinstance(events, list):
-            continue
-        for event in events:
-            ident = event.get("id")
-            if ident in has_stats and ident not in payloads:
-                payloads[ident] = event
+    # One payload per event id; the same event appears in both teams'
+    # listings. The pages (every kind, first copy) and the listed-event index
+    # (listing_index.py), whose newer copy wins.
+    payloads: dict[int, dict[str, Any]] = listed_events_by_id(
+        conn, lambda e: e, kinds=None, only=set(has_stats))
 
     tally: dict[int, list[int]] = defaultdict(lambda: [0, 0])  # id -> [with, without]
     names: dict[int, str] = {}

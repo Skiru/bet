@@ -21,6 +21,8 @@ import sys
 import time
 from typing import Any
 
+from bet.sofa.listing_index import SCHEMA as LISTING_INDEX_SCHEMA
+
 # A commit that is still busy after the connection's own timeout is retried
 # this many times, waiting COMMIT_BACKOFF_S * attempt in between. With the 30 s
 # timeout that is about five minutes before the error is let through.
@@ -256,6 +258,11 @@ def migrate(db_path: str) -> None:
         # hand once (it holds the write lock while it builds); a no-op since.
         "CREATE INDEX IF NOT EXISTS sofa_settled_row_run_date "
         "ON sofa_settled_row (run_date);",
+        # Listed events by event id (listing_index.py): a match that slides
+        # out of every cached page is still here. New tables, so the CREATEs
+        # are instant on the live file; filled once by
+        # scripts/sofa/index_listing_events.py, then by every page save.
+        *LISTING_INDEX_SCHEMA,
     ]
 
     # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is

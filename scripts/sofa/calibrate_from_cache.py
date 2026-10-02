@@ -57,6 +57,7 @@ from bet.sofa.engine import (
     uses_poisson_floor,
     winning_boundary,
 )
+from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.metrics import (
     calculate_cards_points,
     extract_flat_statistics,
@@ -224,25 +225,17 @@ def load_cache(
     """
     conn = sqlite3.connect(str(db_path))
     try:
-        identity: dict[int, dict[str, Any]] = {}
-        for (events_json,) in conn.execute(
-            "SELECT events_json FROM sofa_entity_events"
-        ):
-            try:
-                events = json.loads(events_json)
-            except ValueError:
-                continue
-            if isinstance(events, dict):
-                events = events.get("events", [])
-            if not isinstance(events, list):
-                continue
-            for event in events:
-                if not isinstance(event, dict):
-                    continue
-                event_id = event.get("id")
-                if not isinstance(event_id, int) or event_id in identity:
-                    continue
-                identity[event_id] = event
+        # The first *finished* copy of each event on any cached page, then the
+        # listed-event index (listing_index.py), whose newer finished copy
+        # wins. Only finished copies are kept: the replay drops the rest below
+        # anyway, and keeping the first copy of any status let a stale
+        # pre-match copy (a `next` page) block the finished one - on a later
+        # page or in the index (2026-10-02 review, F5).
+        def finished_copy(event: dict[str, Any]) -> dict[str, Any] | None:
+            status = (event.get("status") or {}).get("type")
+            return event if status == "finished" else None
+
+        identity = listed_events_by_id(conn, finished_copy, kinds=None)
 
         stats_by_event: dict[int, tuple[str | None, str | None]] = {}
         for event_id, statistics_json, incidents_json in conn.execute(

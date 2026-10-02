@@ -44,6 +44,7 @@ from typing import Any
 
 from bet.sofa.atomic import write_bytes_atomic
 from bet.sofa.contracts import GapReason
+from bet.sofa.listing_index import index_fingerprint, iter_indexed_events
 from bet.sofa.metrics import (
     extract_flat_statistics,
     extract_metric,
@@ -286,7 +287,10 @@ def parse_event(
 
 # Bump when parse_event / the metrics it reads change meaning: a cached
 # history parsed by older code is then never reused.
-HISTORY_PARSER_VERSION = "2026-10-01.1"
+# 2026-10-02.1: calculate_cards_points ignores cards shown to staff (a
+# `manager`, no `player`; Superbet komunikat 06/2022 s.2), so cards_points_for
+# changes; the history also reads the listed-event index (listing_index.py).
+HISTORY_PARSER_VERSION = "2026-10-02.1"
 
 
 def history_fingerprint(db_path: str | Path) -> str:
@@ -301,10 +305,16 @@ def history_fingerprint(db_path: str | Path) -> str:
             "WHERE kind = 'last'").fetchone()
         sts = conn.execute(
             "SELECT COUNT(*), MAX(fetched_at) FROM sofa_event_stats").fetchone()
+        # The listed-event index feeds the history too (and the one-time fill
+        # writes it without touching a page).
+        idx = index_fingerprint(conn, "football")
     finally:
         conn.close()
     friendlies = ",".join(str(c) for c in sorted(FRIENDLY_COMPETITION_IDS))
-    return f"{HISTORY_PARSER_VERSION}|{lst[0]}|{lst[1]}|{sts[0]}|{sts[1]}|{friendlies}"
+    fp = f"{HISTORY_PARSER_VERSION}|{lst[0]}|{lst[1]}|{sts[0]}|{sts[1]}|{friendlies}"
+    # Appended only once the index holds a football event, so the pickle a
+    # SHEET wrote before the index shipped is still reused while it is empty.
+    return f"{fp}|idx:{idx}" if idx else fp
 
 
 def load_history(
@@ -342,13 +352,22 @@ def _load_history_uncached(db_path: str | Path) -> list[FootballResult]:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         events: dict[int, dict[str, Any]] = {}
-        for (events_json,) in conn.execute(
-            "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
+        # Which page fetch supplied each payload: an indexed copy fetched
+        # later (listing_index.py) is the newer one.
+        fetched: dict[int, str] = {}
+        for events_json, fetched_at in conn.execute(
+            "SELECT events_json, fetched_at FROM sofa_entity_events "
+            "WHERE kind = 'last' "
             "AND events_json LIKE '%\"slug\": \"football\"%'"
         ):
             for event in json.loads(events_json).get("events", []):
                 if isinstance(event.get("id"), int):
                     events[event["id"]] = event
+                    fetched[event["id"]] = str(fetched_at)
+        # Matches that slid out of every cached page; nothing while the index
+        # is empty.
+        for event in iter_indexed_events(conn, fetched, sport="football"):
+            events[event["id"]] = event
         stats: dict[int, tuple[Any, Any]] = {}
         for eid, s_json, i_json in conn.execute(
             "SELECT sofascore_event_id, statistics_json, incidents_json "

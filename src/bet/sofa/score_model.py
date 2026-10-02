@@ -42,6 +42,7 @@ from bet.sofa.football_rating import (
     FootballResult,
     RatingBook,
 )
+from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.resolve import sofascore_gender
 from bet.sofa.shadow import (
     MARKETS,
@@ -143,14 +144,22 @@ def load_history(db_path: str | Path, sport: ShadowSport) -> list[FootballResult
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     con.execute("PRAGMA busy_timeout = 60000")
     events: dict[int, dict[str, Any]] = {}
+    # Which page fetch supplied each payload: an indexed copy fetched later
+    # (listing_index.py) is the newer one.
+    fetched: dict[int, str] = {}
     try:
-        for (events_json,) in con.execute(
-            "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
+        for events_json, fetched_at in con.execute(
+            "SELECT events_json, fetched_at FROM sofa_entity_events "
+            "WHERE kind = 'last' "
             "AND events_json LIKE ?", (f'%"slug": "{sport.sofascore_slug}"%',)
         ):
             for event in json.loads(events_json).get("events", []):
                 if isinstance(event.get("id"), int):
                     events[event["id"]] = event
+                    fetched[event["id"]] = str(fetched_at)
+        for event in iter_indexed_events(
+                con, fetched, sport=sport.sofascore_slug):
+            events[event["id"]] = event
     finally:
         con.close()
     out = [r for e in events.values() if (r := parse_event(e, sport)) is not None]
