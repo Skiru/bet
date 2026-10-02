@@ -811,3 +811,69 @@ def test_verified_superbet_aliases_fold_to_the_sofascore_name() -> None:
     assert esports_name("Natus Vincere") == "natus vincere"
     assert esports_score(esports_name("Natus Vincere Junior"),
                          esports_name("Natus Vincere")) <= 82
+
+
+# --- CS2_SETTLE finds the series the search alone misses (2026-10-02) -------------
+
+
+def _settle_event(
+    eid: int, home: tuple[int, str], away: tuple[int, str]
+) -> dict[str, Any]:
+    return {
+        "id": eid, "startTimestamp": int(AT.timestamp()),
+        "homeTeam": {"id": home[0], "name": home[1]},
+        "awayTeam": {"id": away[0], "name": away[1]},
+        "status": {"type": "finished"},
+        "tournament": {"name": "ESEA", "category": {"name": "Counter Strike"}},
+    }
+
+
+class SettleSearch:
+    def __init__(self, results: list[dict[str, Any]],
+                 listings: dict[int, list[dict[str, Any]]]) -> None:
+        self.results, self.listings = results, listings
+        self.calls: list[str] = []
+
+    def search(self, q: str) -> dict[str, Any]:
+        self.calls.append(f"search {q}")
+        return {"results": self.results}
+
+    def entity_events(self, team_id: int, kind: str, page: int) -> dict[str, Any]:
+        self.calls.append(f"listing {team_id} {kind}")
+        return {"events": self.listings.get(team_id, []) if kind == "last" else []}
+
+
+def _snapshot_event(team1: str, team2: str) -> Any:
+    from types import SimpleNamespace
+    return SimpleNamespace(team1=team1, team2=team2)
+
+
+def test_settle_finds_a_stored_team_under_its_alias_without_searching(
+    tmp_path: Path,
+) -> None:
+    """Superbet's "Fire Flux · Natus Vincere Junior" is Sofascore's Fire Flux
+    Esports - NAVI Junior; NAVI Junior (364836) is already in cs2_series."""
+    series = _settle_event(77, (501, "Fire Flux Esports"), (364836, "NAVI Junior"))
+    cfg = seeded_config(tmp_path, ("magic", "Astralis"))
+    backfill_cs2.run(
+        FakeSofascore(), cfg, days=180, hops=0, max_minutes=5,  # type: ignore[arg-type]
+        dry_run=False, extra_team_ids=[], at=AT,
+    )
+    with db(tmp_path) as conn:
+        conn.execute("UPDATE cs2_series SET away_id = 364836, away_name = 'NAVI Junior'"
+                     " WHERE sofascore_event_id = 13")
+    fake = SettleSearch([], {364836: [series]})
+    sofa = settle_cs2.Cs2Sofascore(fake, cfg.db_path)  # type: ignore[arg-type]
+    hit = sofa.find(_snapshot_event("Natus Vincere Junior", "Fire Flux"), AT)
+    assert isinstance(hit, tuple) and hit[0]["id"] == 77 and hit[1] is False
+    assert not any(c.startswith("search") for c in fake.calls)
+
+
+def test_settle_reads_the_cs_events_the_search_returned_itself() -> None:
+    series = _settle_event(78, (40, "5star"), (2, "magic"))
+    football = {"type": "team",
+                "entity": {"id": 7, "name": "5 Star FC", "sport": {"slug": "football"}}}
+    fake = SettleSearch([football, {"type": "event", "entity": series}], {})
+    sofa = settle_cs2.Cs2Sofascore(fake)  # type: ignore[arg-type]
+    hit = sofa.find(_snapshot_event("5Star eSports", "magic"), AT)
+    assert isinstance(hit, tuple) and hit[0]["id"] == 78 and hit[1] is True

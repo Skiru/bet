@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -47,6 +48,8 @@ from bet.sofa.cs2 import (  # noqa: E402
     SnapshotEvent,
     build_series,
     cs2_day_dir,
+    esports_name,
+    esports_score,
     event_state,
     file_lock,
     latest_pre_kickoff,
@@ -65,6 +68,7 @@ from bet.sofa.cs2_engine import (  # noqa: E402
 from bet.sofa.cs2_store import is_complete, save_series  # noqa: E402
 from bet.sofa.db import get_connection, migrate  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
+from bet.sofa.resolve import NAME_MATCH_THRESHOLD  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
 
@@ -91,9 +95,14 @@ STATS_GRACE = timedelta(hours=72)
 class Cs2Sofascore:
     """The few Sofascore reads CS2_SETTLE needs, with per-run listing reuse."""
 
-    def __init__(self, client: SofascoreClient) -> None:
+    # Stored teams tried per side before any search: the best-named few.
+    STORE_CANDIDATES = 2
+
+    def __init__(self, client: SofascoreClient, db_path: str | None = None) -> None:
         self.client = client
+        self.db_path = db_path
         self._listings: dict[int, list[dict[str, Any]]] = {}
+        self._stored: dict[int, set[str]] | None = None
 
     def _listing(self, team_id: int) -> list[dict[str, Any]]:
         if team_id not in self._listings:
@@ -104,24 +113,74 @@ class Cs2Sofascore:
             self._listings[team_id] = events
         return self._listings[team_id]
 
+    def _stored_teams(self) -> dict[int, set[str]]:
+        """Every CS team in cs2_series, id -> the names it played under."""
+        if self._stored is None:
+            self._stored = {}
+            if self.db_path is not None:
+                # The store only adds candidates: an unreadable one leaves
+                # the search path exactly as it was, and never fails a grade.
+                try:
+                    with get_connection(self.db_path) as conn:
+                        rows = conn.execute(
+                            "SELECT home_id, home_name FROM cs2_series"
+                            " UNION SELECT away_id, away_name FROM cs2_series"
+                        ).fetchall()
+                except (sqlite3.Error, OSError):
+                    rows = []
+                for tid, name in rows:
+                    if tid and name:
+                        self._stored.setdefault(int(tid), set()).add(str(name))
+        return self._stored
+
+    def _store_candidates(self, side: str) -> list[int]:
+        key = esports_name(side)
+        scored = []
+        for tid, names in self._stored_teams().items():
+            score = max(esports_score(key, esports_name(n)) for n in names)
+            if score > NAME_MATCH_THRESHOLD:
+                scored.append((score, tid))
+        return [tid for _, tid in sorted(scored, reverse=True)[: self.STORE_CANDIDATES]]
+
     def find(
         self, ev: SnapshotEvent, kickoff: datetime
     ) -> tuple[dict[str, Any], bool] | str:
-        """(event, home is team1), or the state that explains why not."""
+        """(event, home is team1), or the state that explains why not.
+
+        Per side: first the teams already in cs2_series under a matching name
+        (no search), then /search/all - its esports teams' listings and the
+        CS events it returned itself. On 2026-10-02 the search alone missed
+        teams it had crowded out with football clubs ("Gremio", "Huskies")
+        or that Superbet names differently ("Natus Vincere Junior" is NAVI
+        Junior); a team we already store is found without asking.
+        """
         ambiguous = False
         for side in (ev.team1, ev.team2):
+            pool: dict[int, dict[str, Any]] = {}
+            for tid in self._store_candidates(side):
+                for e in self._listing(tid):
+                    pool[int(e["id"])] = e
+            hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff)
+            if hit == "AMBIGUOUS":
+                ambiguous = True
+                continue
+            if hit is not None:
+                return hit
             found = self.client.search(side) or {}
+            results = found.get("results") or []
             teams = [
                 r["entity"]
-                for r in found.get("results") or []
+                for r in results
                 if r.get("type") == "team"
                 and ((r.get("entity") or {}).get("sport") or {}).get("slug")
                 == "esports"
             ][:4]
-            pool: dict[int, dict[str, Any]] = {}
             for team in teams:
                 for e in self._listing(int(team["id"])):
                     pool[int(e["id"])] = e
+            for r in results:
+                if r.get("type") == "event" and isinstance(r.get("entity"), dict):
+                    pool.setdefault(int(r["entity"]["id"]), r["entity"])
             hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff)
             if hit == "AMBIGUOUS":
                 ambiguous = True
@@ -393,7 +452,7 @@ def settle(
         else {}
     )
     updated: dict[str, Any] = {}
-    sofa = Cs2Sofascore(client)
+    sofa = Cs2Sofascore(client, db_path)
     metrics: dict[str, int] = {
         "events": len(events),
         "too_early": 0,
