@@ -81,7 +81,7 @@ from bet.sofa.shadow import (  # noqa: E402
 DEFAULT_CUT = "2026-07-01"
 # Own appearances stored per record: above every max_sample the grid tries,
 # with room for games whose box lacks a family's statistic.
-STORE = 40
+STORE = 70
 LINE_SAMPLE = 20
 BANDS = (0.5, 0.6, 0.7, 0.8, 0.9, 1.0001)
 EPS = 1e-12
@@ -632,11 +632,14 @@ def objective(rows: Sequence[tuple[Any, ...]]) -> float:
 
 GRID: dict[str, list[Any]] = {
     "hl_minutes": [3.0, 5.0, 8.0, 12.0],
-    "k_phi": [5.0, 10.0, 20.0, 40.0],
-    "max_sample": [20, 30],
+    # Extended 2026-10-03: the v2 fit chose 40 and 30, each the top of its
+    # grid with the curve still falling (and hockey prior_games the bottom,
+    # rising) - an optimum not bracketed is not a fitted value.
+    "k_phi": [5.0, 10.0, 20.0, 40.0, 80.0, 160.0, 320.0],
+    "max_sample": [20, 30, 40, 50, 60],
     "pool": ["group", "all"],
     "sig_a": [0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
-    "prior_games": [1.0, 2.0, 3.0, 4.0, 6.0],
+    "prior_games": [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0],
     "prior_games_signed": [3.0, 10.0, 30.0, 100.0],
 }
 SHARED = ("hl_minutes", "k_phi", "max_sample")
@@ -891,6 +894,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "line (the printed line nearest the sample median), train split, "
             "count families only."
         ),
+        # Every grid the descent searched, so whether a value is bracketed
+        # (not the end of its grid) can be read off the file.
+        "grids": {name: list(values) for name, values in GRID.items()},
         "shared": {
             name: {
                 "value": getattr(shared, name),

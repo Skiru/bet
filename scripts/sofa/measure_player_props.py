@@ -4,11 +4,18 @@
 For every settled basketball / hockey game with graded player lines
 (runs/sofa/shadow/<sport>/<date>/settled.json), the model is rebuilt from the
 database strictly before the earlier of Superbet's kickoff and Sofascore's
-start, with the graded game excluded by id (source `recomputed`, every date).
-Where SHADOW_SETTLE already attached a number (model_source `pregame` - the
-last forecast SHADOW wrote before the start - or `settle`), that number is
-measured too, per source, never pooled with the recomputed one; a number an
-older model wrote is its own source (`pregame:player_rate_v1`).
+start, with the graded game excluded by id. The player is the one the grade
+read - the subject matched in the graded game's own stored box by the grade's
+matcher (source `recomputed`) - or, where the box is not stored, the strict
+name rule over the history (source `recomputed:name`; never pooled with the
+box-matched one). Where SHADOW_SETTLE already attached a number (model_source
+`pregame` - the last forecast SHADOW wrote before the start - or `settle`),
+that number is measured too, per source, never pooled with the recomputed
+one. The source key carries everything that makes two numbers different
+measurements: a model other than this one or a fitted file other than the
+current one (`pregame:player_rate_v2@2026-10-02T22:20:19+00:00`), the teams a
+pregame row resolved (`:teams=1`), and `:IN_SAMPLE` for a graded date before
+that file's training cut.
 
 Per sport and family: sides, lines (pairs), games, model coverage; Brier and
 log loss of the model and of the devigged price on the same sides, with a 95%
@@ -52,10 +59,15 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.player_model import (  # noqa: E402
     MODEL_NAME,
     MODEL_SPORTS,
+    PLAYER_MODEL_FILE,
     UNFITTED,
+    box_player_ids,
+    config_identity,
     history_cutoff,
+    line_key,
     load_appearances,
     params_provenance,
+    read_forecasts,
     score_rows,
 )
 from bet.sofa.shadow import SETTLED_FILE, is_player_line  # noqa: E402
@@ -78,13 +90,54 @@ def _event(conn: sqlite3.Connection, eid: int) -> dict[str, Any] | None:
     return dict(json.loads(row[0])) if row else None
 
 
-def attached_source(g: dict[str, Any]) -> str:
-    """The attached number's source; one an older model wrote carries its
-    model name (`pregame:player_rate_v1`), so it is never pooled with this
-    model's numbers."""
+def _lineups(conn: sqlite3.Connection, eid: int) -> Any:
+    row = conn.execute(
+        "SELECT lineups_json FROM sofa_event_stats WHERE sofascore_event_id = ?",
+        (eid,),
+    ).fetchone()
+    if not row or not row[0]:
+        return None
+    try:
+        return json.loads(row[0])
+    except ValueError:
+        return None
+
+
+def in_sample(date: str, cut_utc: str | None) -> bool:
+    """A graded date before the fitted file's training cut was in its
+    training data."""
+    if not cut_utc:
+        return False
+    return date < str(cut_utc)[:10]
+
+
+def attached_source(g: dict[str, Any], date: str, teams_resolved: Any = None) -> str:
+    """The attached number's source key: model_source, then whatever makes
+    it a different measurement from this model's current numbers - another
+    model or another fitted file (`@fitted_at_utc`; a row without one is
+    `@?`), a pregame row's resolved team count, and IN_SAMPLE."""
+    current = config_identity()
     source = str(g["model_source"])
     model = g.get("model")
-    return source if model in (None, MODEL_NAME) else f"{source}:{model}"
+    config = g.get("model_config")
+    if model not in (None, MODEL_NAME) or config != current["model_config"]:
+        source += f":{model}@{config or '?'}"
+    if source.startswith("pregame"):
+        teams = g.get("model_teams_resolved", teams_resolved)
+        source += f":teams={teams if teams is not None else '?'}"
+    if in_sample(date, g.get("model_cut_utc")):
+        source += ":IN_SAMPLE"
+    return source
+
+
+def _forecast_teams(day: Path) -> dict[tuple[Any, ...], Any]:
+    """(superbet id, line key, fetched_at) -> teams_resolved of the day's
+    pre-game rows, for a graded row attached before it carried the count."""
+    out: dict[tuple[Any, ...], Any] = {}
+    for r in read_forecasts(day / PLAYER_MODEL_FILE):
+        key = (str(r["superbet_event_id"]), line_key(r), r.get("fetched_at_utc"))
+        out[key] = r.get("teams_resolved")
+    return out
 
 
 def collect(
@@ -104,6 +157,8 @@ def collect(
             if dates and date not in dates:
                 continue
             doc = json.loads((base / date / SETTLED_FILE).read_text(encoding="utf-8"))
+            teams_of = _forecast_teams(base / date)
+            current = config_identity()
             for sb_id, entry in sorted(doc.get("events", {}).items()):
                 if entry.get("state") != "SETTLED":
                     continue
@@ -118,6 +173,10 @@ def collect(
                     continue
                 eid = int(entry["sofascore_event_id"])
                 event = _event(conn, eid)
+                box_ids = box_player_ids(_lineups(conn, eid))
+                recomputed = "recomputed" if box_ids is not None else "recomputed:name"
+                if in_sample(date, current["model_cut_utc"]):
+                    recomputed += ":IN_SAMPLE"
                 if event is None:
                     skipped["no_listed_event"] += len(graded)
                     scored: list[Any] = [None] * len(graded)
@@ -133,7 +192,7 @@ def collect(
                         int(start) if isinstance(start, int) else None,
                     )
                     apps = load_appearances(conn, sport, teams, before, eid)  # type: ignore[arg-type]
-                    scored = score_rows(graded, sport, apps)  # type: ignore[arg-type]
+                    scored = score_rows(graded, sport, apps, box_ids)  # type: ignore[arg-type]
                 for g, mp in zip(graded, scored, strict=True):
                     common = {
                         "sport": sport,
@@ -152,23 +211,35 @@ def collect(
                         rows.append(
                             {
                                 **common,
-                                "source": "recomputed",
+                                "source": recomputed,
                                 "p_model": mp.p,
                                 "model_n": mp.n,
                                 "model_mean": mp.mean,
+                                "model_config": current["model_config"],
                             }
                         )
                     else:
                         reason = "no_listed_event" if mp is None else str(mp.reason)
-                        skipped[f"{sport}:recomputed:{reason}"] += 1
+                        skipped[f"{sport}:{recomputed}:{reason}"] += 1
                     if g.get("model_p") is not None and g.get("model_source"):
                         rows.append(
                             {
                                 **common,
-                                "source": attached_source(g),
+                                "source": attached_source(
+                                    g,
+                                    date,
+                                    teams_of.get(
+                                        (
+                                            str(sb_id),
+                                            line_key(g),
+                                            g.get("model_fetched_at_utc"),
+                                        )
+                                    ),
+                                ),
                                 "p_model": float(g["model_p"]),
                                 "model_n": g.get("model_n"),
                                 "model_mean": g.get("model_mean"),
+                                "model_config": g.get("model_config"),
                             }
                         )
     return rows, dict(skipped)
@@ -336,6 +407,7 @@ def build_report(rows: Sequence[dict[str, Any]], n_boot: int) -> dict[str, Any]:
         "model": MODEL_NAME,
         "unfitted_constants": list(UNFITTED),
         "fitted_constants": params_provenance(),
+        "config_identity": config_identity(),
         "groups": {k: summarize(groups[k], n_boot) for k in ordered},
     }
 

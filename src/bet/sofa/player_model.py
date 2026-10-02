@@ -10,16 +10,26 @@ The sample. For a line on player P in game G (teams A and B), the history is
 each team's own `last` listing (sofa_listing_event) strictly before the
 earlier of Superbet's kickoff and Sofascore's start, minus a margin, with G
 itself excluded by id; for each of those games the stored `/lineups`
-(sofa_event_stats.lineups_json) gives that team's players. P is found by name
-among the players the two teams fielded (players.match_player, the grade's own
-matcher; a name two different player ids share is nobody's), and his sample
-is his newest `max_sample` appearances in his team's games - the grade's own
+(sofa_event_stats.lineups_json) gives that team's players. P is the player
+the grade reads: at settle, the subject matched in the graded game's own box
+by the grade's own matcher (match_in_box -> players.match_player) and his
+history read by that id; before the game, where there is no box, the one
+player the two teams fielded whose name agrees on a strict rule (find_player,
+names_agree: same surname, agreeing forenames or initials) - the grade's
+threshold over 60 games of two squads priced namesakes ("Williams, Jalen" ->
+"Jaylin Williams", 2026-10-03); a name two player ids share is nobody's. His
+sample is his newest `max_sample` appearances in his team's games - the grade's own
 gate, shadow.has_played (secondsPlayed > 0), and the grade's own reading of
 the statistics, shadow.player_stat_value, so a combined line (points +
 rebounds) is the sum in each game, modelled directly. A game whose box lacks
 the stat is left out of that family's sample, never read as a zero.
 
-The count model, `player_rate_v2` (every family but plus-minus), per second on
+`player_rate_v3` is v2's count model below with that player rule, pre-game
+numbers only for games with both teams resolved, and the fitted file's
+identity (model_config = fitted_at_utc, model_cut_utc) on every row; its
+constants were refitted on wider grids (fit_player_model.GRID).
+
+The count model (every family but plus-minus), per second on
 the court / ice, the sample newest first (i = 0, 1, ...):
 
     rate  = (sum x + K * pool_rate) / (sum s + K),  K = prior_games * mean s
@@ -95,7 +105,7 @@ from bet.sofa.shadow import (
     player_stat_value,
 )
 
-MODEL_NAME = "player_rate_v2"
+MODEL_NAME = "player_rate_v3"
 PARAMS_FILE = "sofa_player_model.json"
 
 # Team games read from each side's listing, newest first.
@@ -125,6 +135,12 @@ MODEL_KEYS = (
     "model",
     "model_reason",
     "model_mean",
+    "model_player_id",
+    "model_match",
+    "model_config",
+    "model_cut_utc",
+    "model_teams_resolved",
+    "model_pregame_rejected",
     "unfitted_constants",
 )
 
@@ -195,6 +211,10 @@ class PlayerProbability:
     model: str = MODEL_NAME
     reason: str | None = None
     mean: float | None = None
+    player_id: int | None = None
+    # How the player was found: "box" (the graded game's box, the grade's
+    # own matcher) or "name" (the strict name rule over the history).
+    match: str | None = None
 
 
 def parse_params(doc: dict[str, Any]) -> dict[str, SportParams]:
@@ -356,20 +376,154 @@ def load_appearances(
     return out
 
 
-def find_player(subject: str, appearances: Sequence[Appearance]) -> int | None:
-    """The player id Superbet's subject names, among the players fielded.
+# Name tokens that are not part of who a player is: generational suffixes
+# ("Jr.", "II" - which normalize_name turns into the reserves marker "(r)").
+_NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v", "r"})
+# token_sort_ratio at or above which two names are taken as one without the
+# structural check (a spelling variant normalize_name does not fold).
+STRICT_NAME_RATIO = 97.0
 
-    players.match_player on normalised names; a normalised name two player
-    ids share is removed first, as build_player_box removes a homonym.
-    """
+
+def name_tokens(text: str) -> list[str]:
+    """normalize_name's tokens with punctuation and generational suffixes
+    removed ("P.J." -> "pj", "Trent II" -> "trent")."""
+    out = []
+    for raw in normalize_name(text).split():
+        tok = "".join(ch for ch in raw if ch.isalnum())
+        if tok and tok not in _NAME_SUFFIXES:
+            out.append(tok)
+    return out
+
+
+def _given_agree(a: Sequence[str], b: Sequence[str]) -> bool:
+    """Given names agree pairwise: equal, an initial of the other, or a
+    prefix of at least three letters (Mitch / Mitchell)."""
+    if len(a) != len(b) or not a:
+        return False
+    for x, y in zip(a, b, strict=True):
+        short, long_ = (x, y) if len(x) <= len(y) else (y, x)
+        if x == y or (len(short) == 1 and long_.startswith(short)):
+            continue
+        if len(short) >= 3 and long_.startswith(short):
+            continue
+        return False
+    return True
+
+
+def names_agree(subject: str, candidate: str) -> bool:
+    """Whether Superbet's `subject` ("Williams, Jalen") names Sofascore's
+    `candidate` ("Jalen Williams") on the strict rule the pre-game forecast
+    needs: the same surname tokens and agreeing given names, or a
+    token_sort_ratio of at least STRICT_NAME_RATIO. "Williams, Jalen" is not
+    "Jaylin Williams" (89.7, which players.match_player accepts)."""
+    from rapidfuzz import fuzz
+
+    cand = name_tokens(candidate)
+    if not cand:
+        return False
+    if "," in subject:
+        sur_text, _, given_text = subject.partition(",")
+        subj = name_tokens(sur_text) + name_tokens(given_text)
+        readings = [(name_tokens(sur_text), name_tokens(given_text))]
+    else:
+        subj = name_tokens(subject)
+        readings = [(subj[k:], subj[:k]) for k in range(1, len(subj))] + [
+            (subj[:k], subj[k:]) for k in range(1, len(subj))
+        ]
+    if not subj:
+        return False
+    if sorted(subj) == sorted(cand):
+        return True
+    if fuzz.token_sort_ratio(" ".join(subj), " ".join(cand)) >= STRICT_NAME_RATIO:
+        return True
+    for sur, given in readings:
+        if not sur or len(sur) >= len(cand) or cand[-len(sur) :] != sur:
+            continue
+        if _given_agree(given, cand[: len(cand) - len(sur)]):
+            return True
+    return False
+
+
+def _unique_ids(appearances: Sequence[Appearance]) -> dict[str, int]:
+    """Normalised name -> player id; a name two ids share is nobody's (as
+    build_player_box removes a homonym)."""
     ids: dict[str, set[int]] = {}
     for a in appearances:
         ids.setdefault(normalize_name(a.name), set()).add(a.player_id)
-    candidates: dict[str, dict[str, Any]] = {
-        name: {"id": next(iter(pids))} for name, pids in ids.items() if len(pids) == 1
-    }
-    matched = match_player(subject, candidates)
-    return None if matched is None else int(candidates[matched]["id"])
+    return {name: next(iter(p)) for name, p in ids.items() if len(p) == 1}
+
+
+def find_player(
+    subject: str, appearances: Sequence[Appearance]
+) -> tuple[int | None, str | None]:
+    """(player id, None) for the one player fielded whose name agrees with
+    Superbet's subject on the strict rule (names_agree), else (None, reason):
+    NAME_UNCERTAIN when the grade's looser matcher would pick somebody or two
+    players agree; NOT_IN_HISTORY when nobody comes close.
+
+    Used where the graded game's box is not available (the pre-game
+    forecast): the history holds every player two teams fielded in up to
+    HISTORY_GAMES games, a far larger field than the box the grade matches
+    in, so the grade's own threshold would price a namesake (2026-10-03:
+    "Williams, Jalen" matched "Jaylin Williams" at 89.7).
+    """
+    candidates = _unique_ids(appearances)
+    agreed = {pid for name, pid in candidates.items() if names_agree(subject, name)}
+    if len(agreed) == 1:
+        return next(iter(agreed)), None
+    if agreed:
+        return None, "NAME_UNCERTAIN"
+    loose = match_player(subject, {n: {} for n in candidates})
+    return None, ("NAME_UNCERTAIN" if loose is not None else "NOT_IN_HISTORY")
+
+
+def box_player_ids(lineups: dict[str, Any] | None) -> dict[str, int | None] | None:
+    """The graded game's box keyed as the grade keys it (shadow.
+    build_player_box: every named entry of both squads by normalised name, a
+    name seen twice removed), each name with its player id (None when the
+    entry carries none). None when either squad is empty or absent - then no
+    player line is graded either."""
+    if not isinstance(lineups, dict):
+        return None
+    out: dict[str, int | None] = {}
+    homonyms: set[str] = set()
+    for side in ("home", "away"):
+        size = 0
+        for entry in (lineups.get(side) or {}).get("players") or []:
+            if not isinstance(entry, dict):
+                continue
+            player = entry.get("player")
+            if not isinstance(player, dict):
+                continue
+            name = player.get("name")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            size += 1
+            key = normalize_name(name)
+            if key in out:
+                homonyms.add(key)
+            pid = player.get("id")
+            out[key] = (
+                pid if isinstance(pid, int) and not isinstance(pid, bool) else None
+            )
+        if not size:
+            return None
+    for key in homonyms:
+        del out[key]
+    return out
+
+
+def match_in_box(
+    subject: str, box_ids: dict[str, int | None]
+) -> tuple[int | None, str | None]:
+    """The player the GRADE reads for this subject - players.match_player
+    over the graded game's own box, shadow.player_value's call - and his id;
+    else (None, NOT_IN_BOX / NO_PLAYER_ID)."""
+    matched = match_player(subject, {k: {} for k in box_ids})
+    if matched is None:
+        return None, "NOT_IN_BOX"
+    pid = box_ids[matched]
+    return (pid, None) if pid is not None else (None, "NO_PLAYER_ID")
 
 
 def _values(
@@ -562,18 +716,31 @@ def line_probability(
     sport: SportKey,
     appearances: Sequence[Appearance],
     params: SportParams | None = None,
+    player_id: int | None = None,
 ) -> PlayerProbability:
-    """P(this side settles a win | it settles), or None with a reason."""
+    """P(this side settles a win | it settles), or None with a reason.
+
+    `player_id` is the player the grade reads (match_in_box, at settle);
+    without it the subject is found by the strict name rule (find_player)."""
     spec = PLAYER_MARKETS[sport].get(line.market_id)
     if spec is None:
         return PlayerProbability(None, 0, reason="NOT_A_PLAYER_MARKET")
-    pid = find_player(line.subject, appearances)
+    match = "box" if player_id is not None else "name"
+    pid = player_id
     if pid is None:
-        return PlayerProbability(None, 0, reason="NOT_IN_HISTORY")
+        pid, why = find_player(line.subject, appearances)
+        if pid is None:
+            return PlayerProbability(None, 0, reason=why, match=match)
     prm = params or sport_params(sport)
     own = own_sample(pid, appearances, spec, prm.max_sample)
+    if not own and not any(a.player_id == pid for a in appearances):
+        return PlayerProbability(
+            None, 0, reason="NOT_IN_HISTORY", player_id=pid, match=match
+        )
     if len(own) < MIN_APPEARANCES:
-        return PlayerProbability(None, len(own), reason="THIN_SAMPLE")
+        return PlayerProbability(
+            None, len(own), reason="THIN_SAMPLE", player_id=pid, match=match
+        )
     group = own[0][0].group
     pool = pool_of(
         _values(
@@ -593,10 +760,12 @@ def line_probability(
         pmf = dict(enumerate(counts))
     p = side_probability(line, pmf)
     if p is None:
-        return PlayerProbability(None, len(own), reason="DEGENERATE")
+        return PlayerProbability(
+            None, len(own), reason="DEGENERATE", player_id=pid, match=match
+        )
     if not signed:
         p = calibrate_side(p, prm.calibration_b)
-    return PlayerProbability(p, len(own), mean=mean)
+    return PlayerProbability(p, len(own), mean=mean, player_id=pid, match=match)
 
 
 def line_from_row(row: dict[str, Any]) -> ShadowLine:
@@ -613,14 +782,29 @@ def line_from_row(row: dict[str, Any]) -> ShadowLine:
     )
 
 
+def config_identity(path: Path | None = None) -> dict[str, Any]:
+    """Which fitted file produced a number: its fitted_at_utc and its
+    training cut (config/sofa_player_model.json, fitted_from)."""
+    fitted = params_provenance(path)["fitted_from"]
+    return {
+        "model_config": fitted.get("fitted_at_utc"),
+        "model_cut_utc": fitted.get("cut_utc"),
+    }
+
+
 def model_fields(mp: PlayerProbability) -> dict[str, Any]:
-    """What a graded line carries: the model's number and its provenance."""
+    """What a graded line carries: the model's number and its provenance -
+    the model, the fitted file it read (config_identity), the player it
+    priced and how he was found."""
     return {
         "model_p": None if mp.p is None else round(mp.p, 4),
         "model_n": mp.n,
         "model": mp.model,
         "model_reason": mp.reason,
         "model_mean": None if mp.mean is None else round(mp.mean, 3),
+        "model_player_id": mp.player_id,
+        "model_match": mp.match,
+        **config_identity(),
         "unfitted_constants": list(UNFITTED),
     }
 
@@ -629,14 +813,28 @@ def score_rows(
     rows: Sequence[dict[str, Any]],
     sport: SportKey,
     appearances: Sequence[Appearance],
+    box_ids: dict[str, int | None] | None = None,
 ) -> list[PlayerProbability]:
-    """One PlayerProbability per row, player lines only (others: None p)."""
-    return [
-        line_probability(line_from_row(r), sport, appearances)
-        if int(r["market_id"]) in PLAYER_MARKETS[sport]
-        else PlayerProbability(None, 0, reason="NOT_A_PLAYER_MARKET")
-        for r in rows
-    ]
+    """One PlayerProbability per row, player lines only (others: None p).
+
+    With `box_ids` (box_player_ids of the graded game) each subject is the
+    player the grade read (match_in_box), and a subject the box does not
+    resolve gets no p; without it, the strict name rule (find_player)."""
+    out = []
+    for r in rows:
+        if int(r["market_id"]) not in PLAYER_MARKETS[sport]:
+            out.append(PlayerProbability(None, 0, reason="NOT_A_PLAYER_MARKET"))
+            continue
+        ln = line_from_row(r)
+        if box_ids is None:
+            out.append(line_probability(ln, sport, appearances))
+            continue
+        pid, why = match_in_box(ln.subject, box_ids)
+        if pid is None:
+            out.append(PlayerProbability(None, 0, reason=why, match="box"))
+            continue
+        out.append(line_probability(ln, sport, appearances, player_id=pid))
+    return out
 
 
 def history_cutoff(kickoff_ts: int, sofa_start_ts: int | None) -> int:
@@ -668,6 +866,41 @@ def forecast_key(row: dict[str, Any]) -> ForecastKey:
         repr(row.get("line")),
         str(row["side"]),
     )
+
+
+LineIdentity = tuple[str, int, str, str, str]
+
+
+def forecast_line(row: dict[str, Any]) -> LineIdentity:
+    """One line's side across snapshots: forecast_key without the snapshot."""
+    return forecast_key(row)[1:]
+
+
+def forecast_signature(row: dict[str, Any]) -> tuple[Any, ...]:
+    """What a pre-game row says about its line: the model, its number, the
+    fitted file it read and the teams it found. Two snapshots with one
+    signature say the same thing, and only the first is written."""
+    return (
+        row.get("model"),
+        row.get("model_p"),
+        row.get("model_n"),
+        row.get("model_reason"),
+        row.get("model_config"),
+        row.get("teams_resolved"),
+    )
+
+
+def last_signatures(rows: Sequence[dict[str, Any]]) -> dict[LineIdentity, Any]:
+    """Per line side: the signature of the newest row written (the file is
+    append-only and in snapshot order; ties go to the later line)."""
+    newest: dict[LineIdentity, tuple[str, tuple[Any, ...]]] = {}
+    for row in rows:
+        key = forecast_line(row)
+        at = str(row.get("fetched_at_utc"))
+        prev = newest.get(key)
+        if prev is None or at >= prev[0]:
+            newest[key] = (at, forecast_signature(row))
+    return {k: v[1] for k, v in newest.items()}
 
 
 def read_forecasts(path: Path) -> list[dict[str, Any]]:
@@ -745,14 +978,27 @@ def forecast_records(
     computed_at: str,
     done: set[ForecastKey],
     now_ts: int,
+    last: dict[LineIdentity, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """The pre-game rows for one sport's new snapshot records.
 
     Per record: both teams tied to Sofascore ids offline (resolve_team), the
     history cut before Superbet's kickoff (history_cutoff), each player side
     scored by line_probability, its pair devigged as the grade devigs it. A
-    key already in `done` is not written again.
+    key already in `done` is not written again, and neither is a row whose
+    forecast_signature equals the last one written for its line side
+    (`last`, last_signatures of the file; updated here): every 30-minute
+    snapshot used to re-write every line. The last row before the start is
+    still the number that held at the start - only its odds / fair_p are
+    those of the snapshot that first said it.
+
+    Only a game with BOTH teams resolved is priced: one team's history is
+    half the pool and, for an opponent's player, no sample at all (10-02
+    hockey: 332 of 584 rows had one team); such a line is computed at settle,
+    where Sofascore names both teams.
     """
+    if last is None:
+        last = {}
     from bet.sofa.cs2 import group_fair
     from bet.sofa.shadow import group_shape
 
@@ -781,9 +1027,9 @@ def forecast_records(
             if tid is not None:
                 teams.append(tid)
         ckey = (tuple(sorted(teams)), before)
-        if ckey not in cache:
+        if len(teams) == 2 and ckey not in cache:
             cache[ckey] = load_appearances(conn, sport, teams, before, None)
-        apps = cache[ckey]
+        apps = cache.get(ckey, [])
         groups: dict[tuple[Any, ...], dict[str, float]] = {}
         for ln in raw_lines:
             gkey = (
@@ -817,20 +1063,23 @@ def forecast_records(
                 ln.get("line"),
             )
             fair = group_fair(groups[gkey], group_shape(sport, int(ln["market_id"])))
-            if not teams:
+            if len(teams) < 2:
                 mp = PlayerProbability(None, 0, reason="TEAM_UNRESOLVED")
             else:
                 mp = line_probability(line_from_row(base), sport, apps)
-            out.append(
-                {
-                    **base,
-                    "fair_p": None if fair is None else fair.get(str(ln["side"])),
-                    "teams_resolved": len(teams),
-                    **model_fields(mp),
-                    "unfitted_constants": list(UNFITTED) + list(UNFITTED_PREGAME),
-                    "computed_at_utc": computed_at,
-                }
-            )
+            row = {
+                **base,
+                "fair_p": None if fair is None else fair.get(str(ln["side"])),
+                "teams_resolved": len(teams),
+                **model_fields(mp),
+                "unfitted_constants": list(UNFITTED) + list(UNFITTED_PREGAME),
+                "computed_at_utc": computed_at,
+            }
+            ident, sig = forecast_line(row), forecast_signature(row)
+            if last.get(ident) == sig:
+                continue
+            last[ident] = sig
+            out.append(row)
     return out
 
 
@@ -839,15 +1088,19 @@ def last_pregame(
 ) -> dict[tuple[int, str, str, str], dict[str, Any]]:
     """Per (market, subject, line, side) of one game: the newest pre-game row
     whose snapshot was taken before `clock` (the game's pre-match clock),
-    that carries a p and that this model wrote (`model` == MODEL_NAME): a
-    row an older model wrote - a loop started before the code changed - is
-    never attached as this model's number; the line is computed at settle
-    instead."""
+    that carries a p, that this model wrote (`model` == MODEL_NAME) and that
+    resolved both teams (`teams_resolved` == 2): a row an older model wrote
+    - a loop started before the code changed - is never attached as this
+    model's number, and a one-team row (a player_rate_v2 loop priced those)
+    is not preferred to the two-team number settle computes; the line is
+    computed at settle instead."""
     best: dict[tuple[int, str, str, str], dict[str, Any]] = {}
     for row in forecasts:
         if str(row.get("superbet_event_id")) != str(superbet_event_id):
             continue
         if row.get("model_p") is None or row.get("model") != MODEL_NAME:
+            continue
+        if row.get("teams_resolved") != 2:
             continue
         try:
             fetched = datetime.fromisoformat(

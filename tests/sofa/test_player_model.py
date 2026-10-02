@@ -444,6 +444,10 @@ def test_settle_attaches_the_model_and_leaves_every_grade_byte_identical(
         assert g["model_source"] == "settle" and g["model"] == player_model.MODEL_NAME
         assert g["model_n"] == 8 and 0.0 < g["model_p"] < 1.0
         assert g["unfitted_constants"] == list(UNFITTED)
+        # The player the grade read, found in the graded game's own box.
+        assert g["model_player_id"] == 1 and g["model_match"] == "box"
+        assert g["model_teams_resolved"] == 2
+        assert g["model_config"] == player_model.config_identity()["model_config"]
     assert sum(g["model_p"] for g in player) == pytest.approx(1.0, abs=2e-4)
     # Team lines carry nothing of the model.
     assert all("model_p" not in g for g in modelled["graded"] if g["family"] == "total")
@@ -472,11 +476,20 @@ def test_settle_prefers_the_last_pregame_forecast_before_the_start(
         "side": "OVER",
         "model_n": 7,
         "model": player_model.MODEL_NAME,
+        "model_player_id": 1,
+        "teams_resolved": 2,
         "unfitted_constants": ["X"],
     }
     rows = [
         {**base, "fetched_at_utc": "2026-09-28T14:00:00Z", "model_p": 0.55},
         {**base, "fetched_at_utc": "2026-09-28T15:00:00Z", "model_p": 0.61},
+        # Newer, but one team resolved: never preferred to the settle number.
+        {
+            **base,
+            "fetched_at_utc": "2026-09-28T15:05:00Z",
+            "model_p": 0.33,
+            "teams_resolved": 1,
+        },
         # Newer, before the start, but an older model wrote it: never attached.
         {
             **base,
@@ -493,6 +506,7 @@ def test_settle_prefers_the_last_pregame_forecast_before_the_start(
     under = next(g for g in rec["graded"] if g.get("subject") and g["side"] == "UNDER")
     assert over["model_source"] == "pregame" and over["model_p"] == 0.61
     assert over["model_fetched_at_utc"] == "2026-09-28T15:00:00Z"
+    assert over["model_teams_resolved"] == 2
     # No forecast for the UNDER side: computed at settle.
     assert under["model_source"] == "settle"
     assert over["model"] == under["model"] == player_model.MODEL_NAME
@@ -644,6 +658,9 @@ def test_measure_player_props_on_a_fixture(tmp_path: Path, db: str) -> None:
                 "outcome": outcome,
                 "model_p": 0.6 - 0.2 * k,
                 "model_source": "pregame",
+                "model": player_model.MODEL_NAME,
+                "model_teams_resolved": 2,
+                **player_model.config_identity(),
             }
         )
     graded.append({**graded[0], "subject": "Nobody, Atall"})
@@ -662,7 +679,14 @@ def test_measure_player_props_on_a_fixture(tmp_path: Path, db: str) -> None:
         )
     )
     conn = sqlite3.connect(db)
-    add_game(conn, 700, KO_TS, [])
+    # The graded game's box is stored: the recomputed number reads the player
+    # the grade read (source `recomputed`, not `recomputed:name`).
+    add_game(
+        conn,
+        700,
+        KO_TS,
+        GAME_LINEUPS["home"]["players"] + GAME_LINEUPS["away"]["players"],
+    )
     conn.commit()
     conn.close()
     out = tmp_path / "rows.jsonl"
@@ -685,14 +709,15 @@ def test_measure_player_props_on_a_fixture(tmp_path: Path, db: str) -> None:
     )
     assert code == 0
     rows = [json.loads(x) for x in out.read_text().splitlines()]
-    assert {r["source"] for r in rows} == {"recomputed", "pregame"}
+    assert {r["source"] for r in rows} == {"recomputed", "pregame:teams=2"}
     assert sum(r["source"] == "recomputed" for r in rows) == 2
     doc = json.loads(report.read_text())
-    assert doc["skipped"] == {"hockey:recomputed:NOT_IN_HISTORY": 1}
+    assert doc["skipped"] == {"hockey:recomputed:NOT_IN_BOX": 1}
     group = doc["groups"]["hockey|recomputed|player_shots_on_goal"]
     assert group["sides"] == 2 and group["lines"] == 1 and group["games"] == 1
     assert "brier_model" in group and group["split_half"]["odd"] is None
-    assert doc["groups"]["hockey|pregame|ALL"]["sides"] == 3
+    assert doc["groups"]["hockey|pregame:teams=2|ALL"]["sides"] == 3
+    assert doc["config_identity"] == player_model.config_identity()
 
 
 def test_an_unimportable_model_costs_the_number_never_the_grade_or_snapshot(
@@ -715,11 +740,14 @@ def test_an_unimportable_model_costs_the_number_never_the_grade_or_snapshot(
     assert "bet.sofa.player_model" in json.dumps(broken["player_model"])
 
 
-# --- player_rate_v2: fitted constants, the replay, the calibration map -----
+# --- player_rate_v3: fitted constants, the replay, the calibration map -----
 
 
-def test_v2_is_the_default_and_its_constants_load_with_provenance() -> None:
-    assert player_model.MODEL_NAME == "player_rate_v2"
+def test_v3_is_the_default_and_its_constants_load_with_provenance() -> None:
+    # v3 = v2's count model with the grade's player (box match at settle, a
+    # strict name rule pre-game), two-team pregame rows only, and the
+    # fitted file's identity on every row.
+    assert player_model.MODEL_NAME == "player_rate_v3"
     params = player_model.load_params()
     assert set(params) == {"basketball", "hockey"}
     for prm in params.values():
@@ -911,3 +939,341 @@ def test_the_replay_is_leak_free_and_reproduces_line_probability(
     conn.commit()
     again = fpm.replay_game(fpm.History.from_db(conn, "hockey"), target, specs)
     assert {r.pid: r for r in again}[1] == novak
+
+
+# --- review 2026-10-03: the grade's player, two teams, config identity, growth ---
+
+
+def _namesake_apps(conn: sqlite3.Connection) -> list[Appearance]:
+    """Six games of "Jaylin Williams" (id 9) and nobody called Jalen."""
+    for i in range(6):
+        add_game(
+            conn,
+            300 + i,
+            KO_TS - (i + 1) * 86400,
+            [
+                entry(
+                    HOME_ID, 9, "Jaylin Williams", {"secondsPlayed": 1500, "shots": 2}
+                ),
+                entry(AWAY_ID, 3, "Karel Dvorak", {"secondsPlayed": 1000, "shots": 1}),
+            ],
+        )
+    conn.commit()
+    return apps_of(conn)
+
+
+def test_a_namesake_in_the_history_is_never_priced_pregame(tmp_path: Path) -> None:
+    """The reviewer's repro: the grade's matcher accepts Jaylin for Jalen at
+    89.7 when it searches the whole history; the strict rule does not."""
+    from bet.sofa.players import match_player
+
+    apps = _namesake_apps(make_db(tmp_path / "db.sqlite"))
+    assert match_player("Williams, Jalen", {"jaylin williams": {}}) == (
+        "jaylin williams"
+    )
+    assert player_model.find_player("Williams, Jalen", apps) == (
+        None,
+        "NAME_UNCERTAIN",
+    )
+    mp = line_probability(line(SOG, "Williams, Jalen", 1.5, "OVER"), "hockey", apps)
+    assert mp.p is None and mp.reason == "NAME_UNCERTAIN" and mp.match == "name"
+    ok = line_probability(line(SOG, "Williams, Jaylin", 1.5, "OVER"), "hockey", apps)
+    assert ok.p is not None and ok.player_id == 9 and ok.match == "name"
+
+
+@pytest.mark.parametrize(
+    ("subject", "candidate", "agree"),
+    [
+        ("Williams, Jalen", "Jaylin Williams", False),
+        ("Williams, Jalen", "Jalen Brunson", False),
+        ("Williams, Jalen", "Jalen Williams", True),
+        ("Oubre Jr., Kelly", "Kelly Oubre Jr.", True),
+        ("Oubre, Kelly", "Kelly Oubre Jr.", True),
+        ("Trent II, Gary", "Gary Trent Jr.", True),
+        ("Robinson, Mitch", "Mitchell Robinson", True),
+        ("Robinson, Mitchell", "Mitch Robinson", True),
+        ("Washington, P.J.", "PJ Washington", True),
+        ("Gilgeous-Alexander, Shai", "Shai Gilgeous-Alexander", True),
+        ("Jackson Jr., Jaren", "Jaren Jackson Jr.", True),
+        ("Novak, J.", "Jan Novak", True),
+        ("Novak, Jan", "Jana Novakova", False),
+        ("Jan Novak", "Jan Novak", True),
+        ("Novak Jan", "Jan Novak", True),
+    ],
+)
+def test_the_strict_name_rule_keeps_suffixes_and_short_forenames(
+    subject: str, candidate: str, agree: bool
+) -> None:
+    assert player_model.names_agree(subject, candidate) is agree
+
+
+def test_two_players_the_strict_rule_both_accepts_is_nobody(tmp_path: Path) -> None:
+    conn = make_db(tmp_path / "db.sqlite")
+    for i in range(6):
+        add_game(
+            conn,
+            400 + i,
+            KO_TS - (i + 1) * 86400,
+            [
+                entry(HOME_ID, 1, "Jan Novak", {"secondsPlayed": 1200, "shots": 2}),
+                entry(AWAY_ID, 5, "Jakub Novak", {"secondsPlayed": 1200, "shots": 3}),
+            ],
+        )
+    conn.commit()
+    apps = apps_of(conn)
+    assert player_model.find_player("Novak, J.", apps) == (None, "NAME_UNCERTAIN")
+    assert player_model.find_player("Novak, Jan", apps) == (1, None)
+
+
+def test_the_box_is_keyed_as_the_grade_keys_it() -> None:
+    from bet.sofa.shadow import SPORTS, build_player_box
+
+    lineups = {
+        "home": {
+            "players": [
+                entry(HOME_ID, 1, "Jan Novak", {"secondsPlayed": 1200, "goals": 2}),
+                entry(HOME_ID, 7, "Petr Svoboda", {"secondsPlayed": 900, "goals": 0}),
+            ]
+        },
+        "away": {
+            "players": [
+                entry(AWAY_ID, 3, "Karel Dvorak", {"secondsPlayed": 1000, "goals": 1}),
+                # A homonym across the squads: the grade reads nobody.
+                entry(AWAY_ID, 8, "Petr Svoboda", {"secondsPlayed": 800, "goals": 0}),
+            ]
+        },
+    }
+    ids = player_model.box_player_ids(lineups)
+    box = build_player_box(lineups, {}, SPORTS["hockey"])
+    assert ids is not None and box is not None
+    assert set(ids) == set(box.players)
+    assert ids == {"jan novak": 1, "karel dvorak": 3}
+    assert player_model.match_in_box("Novak, Jan", ids) == (1, None)
+    assert player_model.match_in_box("Svoboda, Petr", ids) == (None, "NOT_IN_BOX")
+    assert player_model.box_player_ids({"home": lineups["home"]}) is None
+
+
+def test_settle_prices_the_player_the_grade_read(tmp_path: Path) -> None:
+    """At settle the subject is matched in the graded game's box, and the
+    history is read by that id - never a namesake from 60 games of two
+    squads. A subject the box does not resolve gets no number."""
+    apps = _namesake_apps(make_db(tmp_path / "db.sqlite"))
+    rows = [
+        {
+            "superbet_event_id": "1",
+            "market_id": SOG,
+            "family": "player_shots_on_goal",
+            "subject": subject,
+            "line": 1.5,
+            "side": "OVER",
+            "odds": 1.9,
+        }
+        for subject in ("Williams, Jalen", "Nobody, Atall")
+    ]
+    # The box holds Jaylin only: the grade graded Jaylin for "Williams, Jalen",
+    # so the model prices Jaylin (id 9) too.
+    box_ids: dict[str, int | None] = {"jaylin williams": 9, "karel dvorak": 3}
+    graded, nobody = player_model.score_rows(rows, "hockey", apps, box_ids)
+    assert graded.p is not None and graded.player_id == 9 and graded.match == "box"
+    assert nobody.p is None and nobody.reason == "NOT_IN_BOX"
+    # Without the box (pre-game) the same subject is refused.
+    pre, _ = player_model.score_rows(rows, "hockey", apps)
+    assert pre.p is None and pre.reason == "NAME_UNCERTAIN"
+
+
+def test_a_pregame_number_for_another_player_is_not_attached(
+    tmp_path: Path, db: str
+) -> None:
+    runs = tmp_path / "runs"
+    day = runs / "shadow" / "hockey" / DATE
+    day.mkdir(parents=True)
+    row = {
+        "superbet_event_id": "1",
+        "market_id": SOG,
+        "subject": "Novak, Jan",
+        "line": 2.5,
+        "side": "OVER",
+        "model_n": 7,
+        "model": player_model.MODEL_NAME,
+        "model_player_id": 99,  # not the box's Novak (id 1)
+        "teams_resolved": 2,
+        "fetched_at_utc": "2026-09-28T15:00:00Z",
+        "model_p": 0.61,
+    }
+    (day / "player_model.jsonl").write_text(json.dumps(row) + "\n")
+    rec = _settle(runs, db)
+    over = next(g for g in rec["graded"] if g.get("subject") and g["side"] == "OVER")
+    assert over["model_source"] == "settle" and over["model_player_id"] == 1
+    assert over["model_pregame_rejected"] == "PLAYER_MISMATCH"
+    assert _without_model(rec) == _without_model(_settle(tmp_path / "bare", None))
+
+
+def _record(team2: str, fetched: str = "2026-09-28T14:00:00Z") -> dict[str, Any]:
+    return {
+        "fetched_at_utc": fetched,
+        "superbet_event_id": "1",
+        "kickoff_utc": "2026-09-28T16:00:00Z",
+        "team1": T1,
+        "team2": team2,
+        "lines": [
+            ShadowLine(
+                "1", SOG, "player_shots_on_goal", 0, "Novak, Jan", 2.5, side, odds
+            ).as_dict()
+            for side, odds in (("OVER", 1.8), ("UNDER", 2.0))
+        ],
+    }
+
+
+def test_a_one_team_game_is_not_priced_pregame(db: str) -> None:
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        rows = player_model.forecast_records(
+            conn, "hockey", "ice-hockey", [_record("Nowhere FC")], "x", set(), KO_TS
+        )
+        both = player_model.forecast_records(
+            conn, "hockey", "ice-hockey", [_record(T2)], "x", set(), KO_TS
+        )
+    finally:
+        conn.close()
+    assert [r["teams_resolved"] for r in rows] == [1, 1]
+    assert all(r["model_p"] is None for r in rows)
+    assert {r["model_reason"] for r in rows} == {"TEAM_UNRESOLVED"}
+    assert [r["teams_resolved"] for r in both] == [2, 2]
+    assert all(r["model_p"] is not None for r in both)
+    # A one-team row that does carry a p (a player_rate_v2 loop wrote those)
+    # is never the pregame number.
+    priced = [{**both[0], "teams_resolved": 1}]
+    assert player_model.last_pregame(priced, "1", KICKOFF) == {}
+    assert len(player_model.last_pregame(both, "1", KICKOFF)) == 2
+
+
+def test_every_row_carries_the_fitted_file_and_the_report_splits_by_it(
+    db: str,
+) -> None:
+    ident = player_model.config_identity()
+    doc = json.loads((REPO / "config" / player_model.PARAMS_FILE).read_text())
+    assert ident == {
+        "model_config": doc["fitted_from"]["fitted_at_utc"],
+        "model_cut_utc": doc["fitted_from"]["cut_utc"],
+    }
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        rows = player_model.forecast_records(
+            conn, "hockey", "ice-hockey", [_record(T2)], "x", set(), KO_TS
+        )
+    finally:
+        conn.close()
+    assert all(r["model_config"] == ident["model_config"] for r in rows)
+    assert all(r["model_cut_utc"] == ident["model_cut_utc"] for r in rows)
+    g = {
+        "model_source": "pregame",
+        "model": player_model.MODEL_NAME,
+        **ident,
+        "model_teams_resolved": 2,
+    }
+    src = measure_player_props.attached_source
+    assert src(g, "2026-10-02") == "pregame:teams=2"
+    old = {**g, "model_config": "2026-01-01T00:00:00+00:00"}
+    assert src(old, "2026-10-02") == (
+        f"pregame:{player_model.MODEL_NAME}@2026-01-01T00:00:00+00:00:teams=2"
+    )
+    assert src({**g, "model": "player_rate_v2"}, "2026-10-02").startswith(
+        "pregame:player_rate_v2@"
+    )
+    assert src({**g, "model_teams_resolved": 1}, "2026-10-02") == "pregame:teams=1"
+    late_cut = {**g, "model_cut_utc": "2026-10-05T00:00:00+00:00"}
+    assert src(late_cut, "2026-10-02") == "pregame:teams=2:IN_SAMPLE"
+    assert measure_player_props.in_sample("2026-06-30", ident["model_cut_utc"])
+    assert not measure_player_props.in_sample("2026-10-02", ident["model_cut_utc"])
+
+
+def test_an_unchanged_number_is_not_written_again_and_still_settles(
+    tmp_path: Path, db: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO sofa_entity VALUES "
+        "('ice-hockey', ?, ?, ?, 'team', '', 'verified')",
+        (player_model.normalize_name(T1), HOME_ID, T1),
+    )
+    conn.commit()
+    conn.close()
+    runs = tmp_path / "runs"
+    path = runs / "shadow" / "hockey" / DATE / "player_model.jsonl"
+
+    def snap(hour: int, minute: int) -> None:
+        run_shadow.snapshot(
+            DATE,
+            PlayerSuperbet(),  # type: ignore[arg-type]
+            str(runs),
+            at=datetime(2026, 9, 28, hour, minute, tzinfo=UTC),
+            db_path=db,
+        )
+
+    for hour, minute in ((14, 0), (14, 30), (15, 0)):
+        snap(hour, minute)
+    rows = [json.loads(x) for x in path.read_text().splitlines()]
+    # Three snapshots, one number per side: written once.
+    assert len(rows) == 2
+    assert {r["fetched_at_utc"] for r in rows} == {"2026-09-28T14:00:00Z"}
+    # The number moves: the moved side is written, the other is not.
+    real = player_model.line_probability
+
+    def moved(ln: ShadowLine, *a: Any, **k: Any) -> player_model.PlayerProbability:
+        mp = real(ln, *a, **k)
+        if ln.side == "OVER" and mp.p is not None:
+            return dataclasses.replace(mp, p=mp.p / 2)
+        return mp
+
+    monkeypatch.setattr(player_model, "line_probability", moved)
+    snap(15, 30)
+    monkeypatch.setattr(player_model, "line_probability", real)
+    rows = [json.loads(x) for x in path.read_text().splitlines()]
+    assert len(rows) == 3
+    assert (rows[-1]["side"], rows[-1]["fetched_at_utc"]) == (
+        "OVER",
+        "2026-09-28T15:30:00Z",
+    )
+    under = next(r for r in rows if r["side"] == "UNDER")
+    # The last row before the start is still found and attached: the UNDER
+    # from 14:00 (unchanged since), the OVER from 15:30.
+    rec = _settle(runs, db)
+    by_side = {g["side"]: g for g in rec["graded"] if g.get("subject")}
+    assert by_side["UNDER"]["model_source"] == "pregame"
+    assert by_side["UNDER"]["model_fetched_at_utc"] == "2026-09-28T14:00:00Z"
+    assert by_side["UNDER"]["model_p"] == under["model_p"]
+    assert by_side["OVER"]["model_source"] == "pregame"
+    assert by_side["OVER"]["model_fetched_at_utc"] == "2026-09-28T15:30:00Z"
+    assert by_side["OVER"]["model_p"] == rows[-1]["model_p"]
+
+
+def test_every_fitted_constant_is_bracketed_by_its_grid() -> None:
+    """A value at the end of its grid with the curve still moving is not a
+    fitted value (v2: k_phi 40, max_sample 30 and hockey prior_games 1.0 were
+    each a grid end). An end value is allowed only where the curve is flat
+    there (within FLAT of its neighbour)."""
+    flat = 2e-4
+    doc = json.loads((REPO / "config" / player_model.PARAMS_FILE).read_text())
+    nodes = [(f"shared.{k}", v) for k, v in doc["shared"].items()] + [
+        (f"{sport}.{k}", v)
+        for sport, entry in doc["sports"].items()
+        for k, v in entry.items()
+        if isinstance(v, dict) and "curve" in v
+    ]
+    checked = 0
+    for name, node in nodes:
+        curve = node.get("curve")
+        if not curve or isinstance(node["value"], str):
+            continue
+        points = sorted((float(k), float(v)) for k, v in curve.items())
+        xs = [x for x, _ in points]
+        value = float(node["value"])
+        assert value in xs, name
+        i = xs.index(value)
+        for j in (0, len(xs) - 1):
+            if i == j:
+                k = 1 if j == 0 else len(xs) - 2
+                assert abs(points[k][1] - points[i][1]) < flat, (name, points)
+        checked += 1
+    assert checked >= 8
+    assert set(doc["grids"]) >= {"k_phi", "max_sample", "prior_games"}

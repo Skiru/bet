@@ -1,11 +1,11 @@
 {
  "_doc": "Fitted by scripts/sofa/fit_player_model.py on the stored history (no prices); read by bet.sofa.player_model. A measurement's constants: nothing here feeds or gates any coupon.",
- "model": "player_rate_v2",
+ "model": "player_rate_v3",
  "fitted_from": {
   "source": "sofa_event_stats.lineups_json + sofa_listing_event (kind=last) + sofa_listed_event, replayed before each game",
   "db_path": "/Users/mkoziol/projects/bet/data/sofa.db",
   "cut_utc": "2026-07-01T00:00:00+00:00",
-  "fitted_at_utc": "2026-10-02T22:20:19+00:00",
+  "fitted_at_utc": "2026-10-02T23:07:22+00:00",
   "splits": {
    "basketball": {
     "train": {
@@ -38,33 +38,90 @@
   }
  },
  "criterion": "train split (kickoff before cut_utc): minimise the mean over families of the per-family mean log loss of the actual count, coordinate descent over the grids below; shared constants on basketball, then each sport's own. calibration_b: maximum likelihood of sigmoid(b logit p) for the over side at the replay line (the printed line nearest the sample median), train split, count families only.",
+ "grids": {
+  "hl_minutes": [
+   3.0,
+   5.0,
+   8.0,
+   12.0
+  ],
+  "k_phi": [
+   5.0,
+   10.0,
+   20.0,
+   40.0,
+   80.0,
+   160.0,
+   320.0
+  ],
+  "max_sample": [
+   20,
+   30,
+   40,
+   50,
+   60
+  ],
+  "pool": [
+   "group",
+   "all"
+  ],
+  "sig_a": [
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.25,
+   0.3
+  ],
+  "prior_games": [
+   0.25,
+   0.5,
+   1.0,
+   2.0,
+   3.0,
+   4.0,
+   6.0
+  ],
+  "prior_games_signed": [
+   3.0,
+   10.0,
+   30.0,
+   100.0
+  ]
+ },
  "shared": {
   "hl_minutes": {
    "value": 5.0,
    "fitted_on": "basketball",
    "curve": {
-    "3.0": 2.099971,
-    "5.0": 2.099889,
-    "8.0": 2.101033,
-    "12.0": 2.102188
+    "3.0": 2.099847,
+    "5.0": 2.09977,
+    "8.0": 2.100936,
+    "12.0": 2.102133
    }
   },
   "k_phi": {
    "value": 40.0,
    "fitted_on": "basketball",
    "curve": {
-    "5.0": 2.102504,
-    "10.0": 2.100949,
-    "20.0": 2.099889,
-    "40.0": 2.099525
+    "5.0": 2.102334,
+    "10.0": 2.100806,
+    "20.0": 2.09977,
+    "40.0": 2.099418,
+    "80.0": 2.09953,
+    "160.0": 2.099798,
+    "320.0": 2.100031
    }
   },
   "max_sample": {
-   "value": 30,
+   "value": 60,
    "fitted_on": "basketball",
    "curve": {
     "20": 2.100578,
-    "30": 2.099525
+    "30": 2.099525,
+    "40": 2.099437,
+    "50": 2.099421,
+    "60": 2.099418
    }
   }
  },
@@ -73,29 +130,31 @@
    "pool": {
     "value": "all",
     "curve": {
-     "group": 2.106371,
-     "all": 2.099525
+     "group": 2.106256,
+     "all": 2.099418
     }
    },
    "sig_a": {
     "value": 0.25,
     "curve": {
-     "0.05": 2.110539,
-     "0.1": 2.107755,
-     "0.15": 2.104268,
-     "0.2": 2.101218,
-     "0.25": 2.099525,
-     "0.3": 2.099785
+     "0.05": 2.110398,
+     "0.1": 2.107621,
+     "0.15": 2.104142,
+     "0.2": 2.101101,
+     "0.25": 2.099418,
+     "0.3": 2.099686
     }
    },
    "prior_games": {
     "value": 2.0,
     "curve": {
-     "1.0": 2.101784,
-     "2.0": 2.099525,
-     "3.0": 2.099554,
-     "4.0": 2.100614,
-     "6.0": 2.104091
+     "0.25": 2.108138,
+     "0.5": 2.104914,
+     "1.0": 2.101665,
+     "2.0": 2.099418,
+     "3.0": 2.09944,
+     "4.0": 2.100484,
+     "6.0": 2.103906
     }
    },
    "prior_games_signed": {
@@ -106,53 +165,55 @@
     "value": 0.8729,
     "n": 1358060
    },
-   "train_logloss": 2.09952542922848,
-   "test_logloss": 2.1187164708444577
+   "train_logloss": 2.0994182172737705,
+   "test_logloss": 2.1176152971933186
   },
   "hockey": {
    "pool": {
     "value": "group",
     "curve": {
-     "group": 1.30545,
-     "all": 1.310912
+     "group": 1.304256,
+     "all": 1.309066
     }
    },
    "sig_a": {
     "value": 0.2,
     "curve": {
-     "0.05": 1.309717,
-     "0.1": 1.307666,
-     "0.15": 1.30591,
-     "0.2": 1.30545,
-     "0.25": 1.306669,
-     "0.3": 1.309614
+     "0.05": 1.308413,
+     "0.1": 1.30639,
+     "0.15": 1.304673,
+     "0.2": 1.304256,
+     "0.25": 1.305516,
+     "0.3": 1.308501
     }
    },
    "prior_games": {
     "value": 1.0,
     "curve": {
-     "1.0": 1.30545,
-     "2.0": 1.305682,
-     "3.0": 1.307001,
-     "4.0": 1.308773,
-     "6.0": 1.312856
+     "0.25": 1.306538,
+     "0.5": 1.305211,
+     "1.0": 1.304256,
+     "2.0": 1.304359,
+     "3.0": 1.305414,
+     "4.0": 1.306858,
+     "6.0": 1.310204
     }
    },
    "prior_games_signed": {
     "value": 30.0,
     "curve": {
-     "3.0": 1.307083,
-     "10.0": 1.305872,
-     "30.0": 1.30545,
-     "100.0": 1.305861
+     "3.0": 1.305498,
+     "10.0": 1.304529,
+     "30.0": 1.304256,
+     "100.0": 1.3047
     }
    },
    "calibration_b": {
-    "value": 0.8839,
+    "value": 0.8964,
     "n": 240660
    },
-   "train_logloss": 1.3054503993667963,
-   "test_logloss": 1.2912164369825054
+   "train_logloss": 1.3042555056417577,
+   "test_logloss": 1.2858393930176735
   }
  }
 }
