@@ -237,8 +237,9 @@ Superbet never moved is "untested", not "neutral". Read ROI only with the
 ledger's by-match 95% interval (a 3% edge needs ~4,400 settled positions);
 an estimated builder (graded at odds_if_product x haircut, no screen price)
 is in its own column and is not a price Superbet printed.
-`measure_score_model.py`, `measure_model_information.py` and
-`measure_devig.py` are on-demand measurements, not daily steps.
+`measure_score_model.py`, `measure_model_information.py`,
+`measure_player_props.py` and `measure_devig.py` are on-demand
+measurements, not daily steps.
 
 ## Step 4 — config hygiene
 

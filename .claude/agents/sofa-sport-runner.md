@@ -64,6 +64,18 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>                    # cs2
 ```
 
+Basketball and hockey only - the player model (`bet.sofa.player_model`,
+since 2026-10-02): SHADOW writes its pre-game forecast for every player line
+to `<sport dir>/<d>/player_model.jsonl`, and SHADOW_SETTLE puts `model_p` /
+`model_source` beside each graded player line. It is a measurement, read by
+nothing that builds this coupon. Read it, report it in its own section, never
+beside a leg:
+
+```bash
+wc -l runs/sofa/shadow/<sport>/<d>/player_model.jsonl                     # today's pre-game forecasts written so far
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_player_props.py --sport <sport> --bootstrap 500   # every graded day: Brier model vs price, b, split-half
+```
+
 (A D-1 without `sport_coupon.json` has no experimental coupon to grade; say
 so.) `settle_sport_coupon.py` exits 0 with legs still pending (read the
 `pending` column), 1 only for a `MISMATCH` (its grader and the measurement's
@@ -182,3 +194,9 @@ Back to the orchestrator, in English, short:
    honest note that one or two settled days is not a result.
 6. Vetoes written, with sources, and legs you checked and found nothing on.
 7. What you did NOT check (name it - silence reads as passed).
+8. Basketball / hockey: the player model, as a measurement and apart from
+   the legs - forecasts written today (rows, with a p), and from
+   `measure_player_props.py` the Brier model vs price, the information
+   test b with its interval and the split-half signs, per family. Say
+   plainly whether the model beats, matches or trails the price. It selects
+   nothing; promoting it is the operator's decision.
