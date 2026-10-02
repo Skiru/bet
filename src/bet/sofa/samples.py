@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
-from bet.sofa.config import SofaConfig
+from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import (
     Fixture,
     FixtureOffer,
@@ -48,9 +47,7 @@ from bet.sofa.players import (
 from bet.sofa.settle import is_completed_event, surfaces_comparable
 from bet.sofa.superbet import SuperbetClient, odds_items
 
-_FRIENDLIES_PATH = (
-    Path(__file__).resolve().parents[3] / "config" / "sofa_friendly_competitions.json"
-)
+_FRIENDLIES_PATH = config_path("sofa_friendly_competitions.json")
 
 # Metrics whose only source is /event/{id}/incidents.
 INCIDENT_METRICS = frozenset({"cards_points_total", "cards_points_for"})
@@ -94,9 +91,7 @@ def is_friendly_fixture(sport: str, competition_id: int | None) -> bool:
         and competition_id in FRIENDLY_COMPETITION_IDS
     )
 
-_NO_STATS_PATH = (
-    Path(__file__).resolve().parents[3] / "config" / "sofa_no_stats_tournaments.json"
-)
+_NO_STATS_PATH = config_path("sofa_no_stats_tournaments.json")
 
 
 def _load_no_stats_tournament_ids() -> frozenset[int]:

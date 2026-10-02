@@ -1,7 +1,8 @@
 import json
 import re
 import unicodedata
-from pathlib import Path
+
+from bet.sofa.config import config_path
 
 DIACRITICS_FOLD = {
     "ø": "o",
@@ -34,13 +35,9 @@ def is_womens_name(name: str) -> bool:
 def get_aliases() -> dict[str, str]:
     global _ALIASES_LOADED
     if not _ALIASES_LOADED:
-        config_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "config"
-            / "sofa_name_aliases.json"
-        )
-        if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
+        aliases_path = config_path("sofa_name_aliases.json")
+        if aliases_path.exists():
+            with open(aliases_path, encoding="utf-8") as f:
                 _ALIASES_CACHE.update(json.load(f))
         _ALIASES_LOADED = True
     return _ALIASES_CACHE

@@ -1,5 +1,32 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+# The repo's config/, resolved against this file rather than the working
+# directory (a relative path read another checkout's files when a script ran
+# from elsewhere).
+REPO_CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
+
+
+def config_dir() -> Path:
+    """The directory every sofa config reader reads from.
+
+    ``SOFA_CONFIG_DIR`` points a whole process - SHEET, COUPON, CONFIDENCE,
+    the cache replay - at another set of files, so a between-days refit can
+    be replayed on a scratch copy without touching config/ (scripts/sofa/
+    prepare_refit.py). Unset or empty: the repo's config/. Read here and
+    nowhere else; module-level paths built from it are fixed when the module
+    is imported, so the variable is set for a process, never changed inside
+    one. Writers (the fit scripts' --out / --config-dir) are not affected:
+    where a fit writes is always named on its command line.
+    """
+    raw = os.environ.get("SOFA_CONFIG_DIR", "").strip()
+    return Path(raw).resolve() if raw else REPO_CONFIG_DIR
+
+
+def config_path(name: str) -> Path:
+    """``config_dir() / name``."""
+    return config_dir() / name
 
 # Bump whenever the entity-matching logic changes in a way that could turn a
 # miss into a hit: the gates in match_quality, the kickoff window, normalize_name.

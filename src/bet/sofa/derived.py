@@ -38,6 +38,7 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
+from bet.sofa.config import config_path
 from bet.sofa.contracts import (
     Direction,
     Fixture,
@@ -72,7 +73,7 @@ from bet.sofa.market_mapper import (
 from bet.sofa.names import normalize_name
 from bet.sofa.tennis_rating import blend_with_price
 
-CORRELATIONS_PATH = Path("config/sofa_side_correlations.json")
+CORRELATIONS_PATH = config_path("sofa_side_correlations.json")
 
 # Same threshold the marginal path uses for attributing a per-side market.
 SIDE_MATCH_THRESHOLD = 70.0

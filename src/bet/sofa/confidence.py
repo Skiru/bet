@@ -35,13 +35,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
 
 # Resolved against the repo, not the working directory: run from anywhere
 # else a relative path failed (or read another checkout's curves).
-DEFAULT_CALIBRATION = (
-    Path(__file__).resolve().parents[3] / "config" / "sofa_confidence_calibration.json"
-)
+# SOFA_CONFIG_DIR (bet.sofa.config.config_dir) moves it for a scratch replay.
+DEFAULT_CALIBRATION = config_path("sofa_confidence_calibration.json")
 
 # The ceiling for an empirical / non-count market with no curve of its own
 # when no empirical market has a curve either. Below the pool's 0.80-0.825
@@ -394,9 +394,7 @@ _WOMEN_COMPETITION_RE = re.compile(
 )
 
 
-_WOMEN_COMPETITIONS_PATH = (
-    Path(__file__).resolve().parents[3] / "config" / "sofa_women_competitions.json"
-)
+_WOMEN_COMPETITIONS_PATH = config_path("sofa_women_competitions.json")
 
 
 def load_women_competitions(path: Path = _WOMEN_COMPETITIONS_PATH) -> frozenset[int]:

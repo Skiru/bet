@@ -69,3 +69,5 @@ docs/pipeline/*local*.json
 .venv_sofa/
 data/
 runs/sofa/
+# prepare_refit.py backup: config copies for restore, never committed
+/config/backup_*/

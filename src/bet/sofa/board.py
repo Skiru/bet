@@ -1,8 +1,8 @@
 import json
 import sys
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
+from bet.sofa.config import config_path
 from bet.sofa.contracts import BoardFixture, Sport
 from bet.sofa.superbet import SPORT_BY_ID, SuperbetClient, split_match_name
 
@@ -103,7 +103,7 @@ def load_excluded_tournament_ids() -> set[int]:
     change, and BoardFixture.tournament_id is recorded so the evidence can be
     gathered from the artifact rather than a live probe.
     """
-    path = Path("config/sofa_board_exclusions.json")
+    path = config_path("sofa_board_exclusions.json")
     if not path.exists():
         return set()
     try:

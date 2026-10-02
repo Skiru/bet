@@ -67,10 +67,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.config import config_path
 from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.tennis_score import set_games
 
-DEFAULT_CONFIG = Path("config/tennis_rating.json")
+DEFAULT_CONFIG = config_path("tennis_rating.json")
 
 MIN_RATED = 10
 NEIGHBOURS = 600

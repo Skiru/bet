@@ -19,7 +19,7 @@ from rapidfuzz import fuzz
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
-from bet.sofa.config import SofaConfig
+from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import (
     Fixture,
     FixtureOffer,
@@ -132,7 +132,7 @@ def _load_json_config(path: Path) -> dict[str, Any]:
 
 
 def load_baselines(config: SofaConfig) -> dict[str, Any]:
-    return _load_json_config(Path("config/sofa_league_baselines.json"))
+    return _load_json_config(config_path("sofa_league_baselines.json"))
 
 
 def load_tennis_tier_baselines(config: SofaConfig) -> dict[str, Any]:
@@ -142,7 +142,8 @@ def load_tennis_tier_baselines(config: SofaConfig) -> dict[str, Any]:
     one can be exercised end to end without installing it for the real day.
     """
     path = os.environ.get(
-        "SOFA_TENNIS_TIER_BASELINES", "config/sofa_tennis_tier_baselines.json"
+        "SOFA_TENNIS_TIER_BASELINES",
+        str(config_path("sofa_tennis_tier_baselines.json")),
     )
     loaded = _load_json_config(Path(path))
     metrics = loaded.get("metrics")
@@ -150,11 +151,11 @@ def load_tennis_tier_baselines(config: SofaConfig) -> dict[str, Any]:
 
 
 def load_reliability(config: SofaConfig) -> dict[str, Any]:
-    return _load_json_config(Path("config/sofa_market_reliability.json"))
+    return _load_json_config(config_path("sofa_market_reliability.json"))
 
 
 def load_engine_constants(config: SofaConfig) -> dict[str, Any]:
-    return _load_json_config(Path("config/sofa_engine_constants.json"))
+    return _load_json_config(config_path("sofa_engine_constants.json"))
 
 
 # Starting values, explicitly NOT fitted. §6.0 forbids carrying `simple`'s

@@ -2308,7 +2308,9 @@ def test_f12_a_missing_or_broken_config_excludes_nothing(
     cannot be read must not silently delete the slate."""
     from bet.sofa import board as board_module
 
-    monkeypatch.chdir(tmp_path)
+    # The reader follows SOFA_CONFIG_DIR (bet.sofa.config.config_dir), not
+    # the working directory.
+    monkeypatch.setenv("SOFA_CONFIG_DIR", str(tmp_path / "config"))
     assert board_module.load_excluded_tournament_ids() == set()
 
     (tmp_path / "config").mkdir()

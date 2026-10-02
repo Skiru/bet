@@ -274,3 +274,133 @@ mierzy teraz co innego.
 Po fitcie raportuj: `fitted_from` i o ile się ruszyło, `half_match_coherence`,
 status każdej stałej, i czy któraś krzywa wiarygodności ruszyła na tyle, by
 przesunąć wiersze.
+
+---
+
+## 7. Refit krok po kroku (`prepare_refit.py`)
+
+Fit między dniami, rozpisany na kroki, które operator odpala **pojedynczo**.
+Każdy krok drukuje, co zrobił, i odmawia (exit 2, `REFUSED: ...`) zamiast
+zgadywać. Do `config/` piszą tylko `install` i `restore`, oba za `--confirm`.
+Wszystko inne ląduje w katalogu roboczym `data/refit_<data>/` — nigdy pod
+`runs/` ani `config/` (skrypt odmawia takiej ścieżki).
+
+**Kiedy:** rano, **po** rozliczeniu D-1 (`run_settle.py`, `record_results.py`)
+i **przed** startem dnia. Nigdy w trakcie dnia (sekcja 5, punkt 3). Nowe pliki
+otwierają nową epokę porównywalności — commit mówi to wprost.
+
+**Jak replay widzi inne pliki:** `SOFA_CONFIG_DIR` (`bet.sofa.config.config_dir`)
+przestawia każdy czytnik konfiguracji — `run_sheet.py` (bazy, wiarygodność,
+stałe, bazy tenisowe), `confidence.py` (krzywe, rozgrywki kobiece),
+`samples.py` (towarzyskie, turnieje bez statystyk), `derived.py` (korelacje),
+`tennis_rating.py`, `names.py`, `board.py`, `calibrate_from_cache.py`. Bez
+zmiennej: `config/` w repo. Pisarze (fit_*) nadal piszą tam, gdzie każe im
+linia poleceń.
+
+### Komendy na 2026-10-03
+
+```bash
+# 0. warunek: 2026-10-02 rozliczony i zapisany w ledgerze; dzień 10-03 jeszcze nie ruszył
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 backup --db data/backup_2026-10-03/sofa.db
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 rebuild-cache-rows --dry-run
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 rebuild-cache-rows --confirm
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 fit
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 compare --days 2026-10-01 2026-10-02
+# przeczytaj data/refit_2026-10-03/compare_report.md, zdecyduj
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 install --confirm
+# commit, który install wydrukuje: "refit 2026-10-03: new comparability epoch"
+# odwrót w razie potrzeby:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 restore --confirm --backup config/backup_2026-10-03
+```
+
+Czasy zmierzone 2026-10-02 (próba na kopii bazy w katalogu tymczasowym,
+niczego w `data/sofa.db`, `config/` ani `runs/sofa` nie ruszając; maszyna
+zajęta równolegle wypełnianiem indeksu i pętlami CS2/shadow):
+
+| krok | czas | uwagi |
+|---|---|---|
+| `backup --db` | ~40 s | kopia 24 GB: 36 s; wolne miejsce sprawdzane |
+| `rebuild-cache-rows --dry-run` | 2 s | 25 841 116 wierszy replayu, 255 017 żywych w 14 `run_date` |
+| `rebuild-cache-rows --confirm` | **~27 min** | DELETE 100 s + `calibrate_from_cache` ~25 min, szczyt RSS **~24,6 GB**; replay 999 805 meczów, wierszy replayu 25,8 mln → **55,2 mln** |
+| `fit` | **~48 min** po przebudowie (54,1 mln wierszy: `fit_constants` 44 min, `fit_confidence` 4 min, szczyt RSS ~20 GB); bez przebudowy 25 min + 5 min | `fit_constants` kończy się exit 1 (`PARTIAL`) — to normalne |
+| `compare` (2 dni, bez SHEET) | 12 s | z `--with-sheet` +~10 min na dzień (niezmierzone tutaj) |
+| `install` | ~70 s | to głównie `pytest tests/sofa` (65 s) |
+
+Co pokazała próba (na bazie z 2026-10-02, przed rozliczeniem 10-01/10-02 —
+jutro liczby będą inne): po przebudowie replayu globalne `K_CENTRE` 25 → 15,
+tenis 2 → 5, piłka bez zmian (25); `half_match_coherence` gorsza
+(`goals_for` −15,9% wobec −10,8%, nowa pozycja `goals_total` −14,1%); 82
+nowe krzywe `by_market_direction`; krzywe `player_*` są tylko w kubełku
+0–0,6 (`player_shots_for` n=1974, zrealizowane 0,27). Replay 09-30/10-01:
+WARIANT 10-01 80 → 103 nogi, oficjalny 4 → 7.
+
+`all-prep` robi kroki 1–4 jednym poleceniem (`--with-cache-rows --confirm`
+dokłada krok 2); po kolei jest czytelniej.
+
+### Co robi każdy krok
+
+1. **`backup`** — każdy `config/*.json` (bez `api_keys.json`) do
+   `config/backup_<data>/` z `backup_manifest.json` (sha256). Istniejący
+   katalog = odmowa. `--db <ścieżka>`: najpierw wolne miejsce (odmowa poniżej
+   2× rozmiaru bazy z `-wal`/`-shm`), próba `PRAGMA wal_checkpoint(TRUNCATE)`,
+   kopia trzech plików; jeśli baza zmieniła się w trakcie kopiowania (pisarz
+   obok), exit 1 i ostrzeżenie — kopia mogła wyjść niespójna.
+2. **`rebuild-cache-rows`** (opcjonalny, **długi**) — procedura z 2026-09-26:
+   usuwa wiersze `run_date='cache-calibration'` partiami po 500 000 (pisarz
+   obok czeka sekundy, nie cały DELETE), a potem uruchamia
+   `calibrate_from_cache.py` na **bieżących** stałych i bazach. Wiersze żywe
+   są przed i po liczone per `run_date` razem z `SUM(id)`/`MAX(id)` (podmiana
+   wiersza zmienia id, nawet gdy liczba stoi — tak zniknęło 3154 wierszy
+   09-26); jakakolwiek zmiana = przerwanie (przed `calibrate`, jeśli wyszła
+   przy usuwaniu). `--out` replayu nigdy nie może wskazać `config/`
+   (higiena, punkt 1). `--dry-run` tylko liczy, tylko do odczytu. Dlaczego
+   tym razem warto: wiersze replayu są z 2026-09-26, a od tego czasu
+   `calibrate_from_cache.py` skleja zduplikowane listingi (10-01) i czyta
+   strony ∪ indeks `sofa_listed_event` (8f186dca); kartki sztabu (8f186dca)
+   poprawiły `outcome` 7296 wierszy replayu przez `regrade_settled.py`, ale
+   ich `sample_mean` jest dalej ze starego kodu (wniosek z kodu,
+   niezmierzony). **Jeśli `index_listing_events.py` jeszcze wypełnia
+   indeks, replay zobaczy indeks w połowie** — poczekaj na jego koniec albo
+   świadomie pomiń ten krok. Inny pisarz bazy (indeks, pętle CS2/shadow)
+   czeka między partiami; skrypt wypisuje procesy z otwartą bazą.
+3. **`fit`** — kopia bieżącego `config/` do `data/refit_<data>/config/`,
+   potem `fit_constants.py --config-dir` i `fit_confidence.py --out` na tę
+   kopię (`fit_confidence` przenosi `admitted_player_markets` z kopii).
+   Exit 1 z `fit_constants` to normalny `PARTIAL` (`K_PRICE` `NOT_FITTED`).
+   Sha256 żywego `config/` przed i po — zmiana = przerwanie.
+   `fit_manifest.json` zapisuje, z czego i kiedy fitowano.
+4. **`compare`** — `compare_report.md` + `.json` w katalogu roboczym: każda
+   stała (wartość i status, `K_CENTRE.by_sport`), 20 baz ligowych o
+   największym |Δ| i `half_match_coherence`, kubełki wiarygodności o
+   największej zmianie korekty, krzywe `pooled` / `pooled_by_sport` /
+   `by_market` (ruch `realised_lo95`, kubełki, które zniknęły — tam noga
+   spada na pulę albo dostaje `NOT_CALIBRATED`), nowe `by_market_direction`,
+   `by_class`, każda krzywa `player_*` z `n` i `realised` (pod decyzję
+   `admitted_player_markets`), `fitted_from`. Potem **replay kuponu**: każdy
+   dzień kopiowany (z czasami modyfikacji, jak `cp -p`) do
+   `data/refit_<data>/replay/{old,new}/runs/sofa/<dzień>/`, CONFIDENCE (oba
+   profile) i PDF puszczone z zegarem zamrożonym na `created_at_utc`
+   prawdziwego artefaktu, raz na kopii starego configu, raz na nowym.
+   Wynik fitu to różnica **old vs new** (nogi wypadłe, dodane, zmiana
+   pewności); osobno „dryf kodu” — prawdziwy artefakt vs replay na starym
+   configu. md5 prawdziwego dnia przed i po każdym etapie; zmiana = przerwanie
+   (pętla `capture_closing.py` i logi są pominięte). Wynik rozliczonej nogi z
+   `sofa_settled_row` jest **in-sample** — te dni są w ficie; to informacja,
+   nigdy dowód. **SHEET nie jest powtarzany** bez `--with-sheet`: `p_bar`,
+   korekta wiarygodności, priory ligowe i `K_CENTRE` działają w SHEET, więc
+   bez tej flagi replay pokazuje tylko wpływ krzywych pewności na wiersze
+   starego arkusza (z flagą: ~10 min na dzień przy pierwszym parsowaniu).
+5. **`install --confirm`** — wymaga kompletnego `fit_manifest.json` (sha256
+   plików roboczych = to, co zapisał fit) i backupu, którego sha256 zgadza
+   się z obecnym `config/`. Kopiuje cztery pliki fitu atomowo
+   (`bet.sofa.atomic`); `admitted_player_markets` bierze z **obecnego**
+   `config/` (decyzja operatora wygrywa z fitem). Potem
+   `pytest tests/sofa -q`; porażka = automatyczny powrót backupu. Na koniec
+   drukuje komendę commita.
+6. **`restore --confirm --backup <katalog>`** — `config/` z backupu, z
+   weryfikacją sha256 przed i po.
+
+**Poza tym narzędziem:** `fit_tennis_rating.py --cut`,
+`fit_tennis_tier_baselines.py`, `measure_side_correlations.py` — osobne
+fity, nie ruszane tutaj. Dopuszczenie propsa (`admitted_player_markets`) to
+osobna, ręczna decyzja po przeczytaniu raportu.
