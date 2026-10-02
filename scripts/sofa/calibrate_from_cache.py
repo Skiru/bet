@@ -39,6 +39,11 @@ ships:
 (PLAN §A9). So this supports the calibration curve and K_CENTRE, and it
 cannot support K_PRICE or MAX_LADDER_SIGMA, which need a live ladder. Those
 stay NOT_FITTED, and `fit_constants.py` already says so.
+
+Football player markets (F54, since 2026-10-03) are replayed beside the team
+markets, from the cached `/lineups` - see `build_player_rows`. Their rows
+carry the same marking (run_date 'cache-calibration', p_bar = p_central,
+market_p NULL); the subject is the player's normalised Sofascore name.
 """
 
 from __future__ import annotations
@@ -57,6 +62,7 @@ from typing import Any, NamedTuple
 
 from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig, config_path
+from bet.sofa.contracts import GapReason
 from bet.sofa.engine import (
     outside_model_resolution,
     p_empirical_centred_raw,
@@ -65,15 +71,28 @@ from bet.sofa.engine import (
     uses_empirical_frequency,
     winning_boundary,
 )
-from bet.sofa.listing_index import listed_events_by_id
+from bet.sofa.listing_index import entity_indexed_events, listed_events_by_id
 from bet.sofa.metrics import (
     calculate_cards_points,
     extract_flat_statistics,
     regulation_score,
     stat_is_untracked,
 )
-from bet.sofa.samples import one_listing_per_match
-from bet.sofa.settle import settle
+from bet.sofa.players import (
+    PLAYER_METRICS,
+    extract_player_metric,
+    is_player_metric,
+    match_player,
+    squad_statistics,
+)
+from bet.sofa.samples import (
+    FRIENDLY_COMPETITION_IDS,
+    MIN_HOURS_BETWEEN_MATCHES,
+    _competition_id,
+    finish_history,
+    one_listing_per_match,
+)
+from bet.sofa.settle import is_completed_event, settle
 
 # Metric base -> Sofascore statistics key. Goals are not here: they come off
 # the listing, which covers twenty times more matches than /statistics does.
@@ -559,6 +578,414 @@ def _settle_sample(
     return out
 
 
+# ---------------------------------------------------------------------------
+# Football player markets (F54)
+# ---------------------------------------------------------------------------
+#
+# Until 2026-10-03 the replay wrote no player row, so fit_confidence never had
+# a curve for a player prop and AWAITING_OWN_CURVE could never lapse. The
+# replay below rebuilds a player's sample the way SAMPLES and SHEET build it,
+# from the functions they call:
+#
+#   * a side's history: its indexed listing (entity_indexed_events, as SAMPLES
+#     tops its pages up), SAMPLES' admission rule for football (finished
+#     normally, before kickoff, no friendly, the side in the match), then
+#     samples.finish_history (one listing per match, second squads out, one
+#     squad per entity, newest sample_n);
+#   * per historical match: players.squad_statistics with the match's
+#     /statistics (the team-sum proof of a zero), players.match_player
+#     against that match's squad, players.extract_player_metric (the
+#     appearance gate) - build_player_samples' loop;
+#   * the side the player belongs to: where he was found more often, a tie
+#     refused (build_player_samples);
+#   * SHEET: n >= config.min_sample, an all-zero sample refused, centre = the
+#     sample mean (no league baseline exists for a player_ market -
+#     fit_constants._in_baselines - and SHEET applies no football rating to
+#     one), engine.sheet_predictive_sd and engine.sheet_count_p_raw, the
+#     rungs outside_model_resolution refuses dropped.
+#
+# The ladder is not a grid around the centre (lines_for) but every line
+# Superbet has printed for the metric (runs/sofa/*/04_offer.json): a player
+# ladder is short and fixed (shots 0.5..9.5, assists 0.5..2.5), and a grid
+# would settle rungs nobody can bet. Both directions are written, though
+# Superbet quotes OVER only: the curve is per direction anyway.
+#
+# Validated against SHEET before it was written here (2026-10-02 scratch
+# replay): 6,048 of 6,048 settled live player rows reproduced SHEET's p to
+# 1e-6 and their outcome exactly.
+#
+# What is NOT replayed: the target's own squad is the player set (every
+# player who appeared, minutesPlayed present) - live, the set is whoever
+# Superbet quotes, matched by a Superbet name; here the subject is the
+# Sofascore name, so name matching across Superbet's spelling is not tested.
+
+# How many of a side's newest indexed events before kickoff are read. SAMPLES
+# walks ~30-event pages and stops once a page yields sample_n usable matches,
+# so its candidate set (which one_squad_per_entity checks for two squads) is
+# one or two pages; the validated scratch replay read 60.
+PLAYER_HISTORY_LISTED = 60
+
+Squad = dict[str, dict[str, Any]]
+
+
+def printed_player_ladder(runs_dir: Path) -> dict[str, list[float]]:
+    """{player metric: every line Superbet printed for it}, from the offers."""
+    lines: dict[str, set[float]] = collections.defaultdict(set)
+    for path in sorted(runs_dir.glob("*/04_offer.json")):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(doc, list):
+            continue
+        for fixture in doc:
+            rungs = fixture.get("rungs") if isinstance(fixture, dict) else None
+            for rung in rungs if isinstance(rungs, list) else ():
+                if not isinstance(rung, dict):
+                    continue
+                market, line = rung.get("market"), rung.get("line")
+                if (
+                    isinstance(market, str)
+                    and is_player_metric(market)
+                    and isinstance(line, int | float)
+                    and not isinstance(line, bool)
+                ):
+                    lines[market].add(float(line))
+    return {market: sorted(found) for market, found in sorted(lines.items())}
+
+
+def admitted_football_event(
+    event: dict[str, Any], entity_id: int, kickoff_ts: int
+) -> bool:
+    """SAMPLES' admission of one listed event into a football side's history
+    (samples.get_historical_events, `admit`, the non-tennis branch)."""
+    if not is_completed_event(event):
+        return False
+    start = event.get("startTimestamp")
+    if not isinstance(start, int) or start >= kickoff_ts:
+        return False
+    competition = _competition_id(event)
+    if competition is not None and competition in FRIENDLY_COMPETITION_IDS:
+        return False
+    return entity_id in (
+        (event.get("homeTeam") or {}).get("id"),
+        (event.get("awayTeam") or {}).get("id"),
+    )
+
+
+def is_same_match(past: dict[str, Any], target: dict[str, Any]) -> bool:
+    """`past` is the target match listed again under another id.
+
+    Live, the fixture is not finished and never in its own sides' histories.
+    In the replay it is, and a re-listed copy kicked off an hour earlier is
+    "before kickoff": its own result in its own sample. Same opponent (id or
+    name) inside MIN_HOURS_BETWEEN_MATCHES of the target - no side plays one
+    opponent twice inside a day.
+    """
+    gap = int(target.get("startTimestamp") or 0) - int(past.get("startTimestamp") or 0)
+    if not 0 <= gap / 3600 < MIN_HOURS_BETWEEN_MATCHES:
+        return False
+
+    def sides(e: dict[str, Any]) -> tuple[frozenset[Any], frozenset[str]]:
+        home, away = e.get("homeTeam") or {}, e.get("awayTeam") or {}
+        return (
+            frozenset((home.get("id"), away.get("id"))),
+            frozenset(
+                (str(home.get("name") or "").casefold(),
+                 str(away.get("name") or "").casefold())
+            ),
+        )
+
+    ids_a, names_a = sides(past)
+    ids_b, names_b = sides(target)
+    return ids_a == ids_b or (names_a == names_b and "" not in names_a)
+
+
+def player_rows_for_event(
+    event: dict[str, Any],
+    target: dict[bool, Squad | None],
+    history: dict[bool, list[Squad]],
+    ladder: dict[str, list[float]],
+    min_sample: int,
+    counts: collections.Counter[str] | None = None,
+) -> list[SettledRow]:
+    """Every settled player rung of one finished match.
+
+    `target[is_home]` is that side's squad in this match (squad_statistics,
+    with this match's /statistics); `history[is_home]` the side's historical
+    squads, newest first - one per sampled match that has a squad.
+    """
+    tally: collections.Counter[str] = (
+        counts if counts is not None else collections.Counter()
+    )
+    rows: list[SettledRow] = []
+    event_id = int(event["id"])
+    competition = _competition_id(event)
+    # A name in both of this match's squads would put two players under one
+    # (event, market, subject, line, direction) key.
+    both = set(target.get(True) or {}) & set(target.get(False) or {})
+    for is_home in (True, False):
+        squad = target.get(is_home)
+        if not squad:
+            tally["target_side_without_squad"] += 1
+            continue
+        for name, stats in sorted(squad.items()):
+            if stats.get("minutesPlayed") is None:
+                continue  # did not appear: Superbet voids the market
+            tally["appearances"] += 1
+            if name in both:
+                tally["name_in_both_squads"] += 1
+                continue
+            # build_player_samples' match: per historical squad, by name.
+            matched = {
+                side: [(past, match_player(name, past)) for past in squads]
+                for side, squads in history.items()
+            }
+            for metric, lines in ladder.items():
+                if not lines:
+                    continue
+                actual = extract_player_metric(metric, stats)
+                if isinstance(actual, GapReason):
+                    tally[f"actual_gap:{metric}"] += 1
+                    continue
+                per_side: dict[bool, list[float]] = {}
+                for side, pairs in matched.items():
+                    values: list[float] = []
+                    for past, key in pairs:
+                        if key is None:
+                            continue
+                        value = extract_player_metric(metric, past[key])
+                        if not isinstance(value, GapReason):
+                            values.append(value)
+                    per_side[side] = values
+                n_home = len(per_side.get(True, []))
+                n_away = len(per_side.get(False, []))
+                if n_home == n_away:
+                    tally["no_sample" if n_home == 0 else "side_tie"] += 1
+                    continue
+                if (n_home > n_away) != is_home:
+                    # SHEET would price him from the other side's history.
+                    tally["majority_on_other_side"] += 1
+                    continue
+                sample = per_side[is_home]
+                n = len(sample)
+                if n < min_sample:
+                    tally["thin_sample"] += 1
+                    continue
+                if all(v == 0.0 for v in sample):
+                    tally["all_zero_sample"] += 1
+                    continue
+                mean = statistics.mean(sample)
+                variance = statistics.variance(sample) if n > 1 else 0.0
+                sample_sd = statistics.stdev(sample) if n > 1 else 0.0
+                spread = sheet_predictive_sd(
+                    metric, "football", mean, variance, n, mean
+                )
+                tally["samples"] += 1
+                for line in lines:
+                    for direction in ("OVER", "UNDER"):
+                        boundary = winning_boundary(line, direction)
+                        p_raw = sheet_count_p_raw(
+                            metric, mean, spread, boundary, direction
+                        )
+                        if outside_model_resolution(p_raw):
+                            tally["outside_model_resolution"] += 1
+                            continue
+                        outcome = settle(actual, line, direction)
+                        if outcome not in ("WIN", "LOSS"):
+                            continue
+                        rows.append(
+                            SettledRow(
+                                event_id=event_id,
+                                sport="football",
+                                competition_id=competition,
+                                market=metric,
+                                subject=name,
+                                line=line,
+                                direction=direction,
+                                sample_size=n,
+                                sample_mean=round(mean, 4),
+                                sample_sd=round(sample_sd, 4),
+                                p_central=round(p_raw, 6),
+                                actual=actual,
+                                outcome=outcome,
+                            )
+                        )
+    return rows
+
+
+def _event_payloads(
+    conn: sqlite3.Connection, ids: list[int], with_detail: bool
+) -> dict[int, dict[str, Any]]:
+    """The listed payload of each id, else the board's own event detail (a
+    board fixture's event is often only in sofa_event_detail)."""
+    out: dict[int, dict[str, Any]] = {}
+    for start in range(0, len(ids), 500):
+        chunk = ids[start:start + 500]
+        marks = ",".join("?" * len(chunk))
+        for event_id, raw in conn.execute(
+            "SELECT event_id, event_json FROM sofa_listed_event "
+            f"WHERE event_id IN ({marks})",
+            chunk,
+        ):
+            try:
+                event = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(event, dict):
+                out[int(event_id)] = event
+        missing = [i for i in chunk if i not in out]
+        if not missing or not with_detail:
+            continue
+        marks = ",".join("?" * len(missing))
+        for event_id, raw in conn.execute(
+            "SELECT sofascore_event_id, detail_json FROM sofa_event_detail "
+            f"WHERE sofascore_event_id IN ({marks})",
+            missing,
+        ):
+            try:
+                detail = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            event = detail.get("event", detail) if isinstance(detail, dict) else None
+            if isinstance(event, dict):
+                out[int(event_id)] = event
+    return out
+
+
+def _has_table(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+    ).fetchone() is not None
+
+
+def player_targets(
+    conn: sqlite3.Connection, counts: collections.Counter[str] | None = None
+) -> list[dict[str, Any]]:
+    """Finished football matches with a cached squad list, one listing per
+    match, chronological (event id breaks a tie) - every one, no date window,
+    so the same cache replays to the same rows."""
+    tally: collections.Counter[str] = (
+        counts if counts is not None else collections.Counter()
+    )
+    if not _has_table(conn, "sofa_listed_event"):
+        return []
+    ids = [
+        int(r[0])
+        for r in conn.execute(
+            "SELECT sofascore_event_id FROM sofa_event_stats "
+            "WHERE lineups_json IS NOT NULL AND length(lineups_json) > 10 "
+            "ORDER BY sofascore_event_id"
+        )
+    ]
+    payloads = _event_payloads(conn, ids, _has_table(conn, "sofa_event_detail"))
+    events: list[dict[str, Any]] = []
+    for event_id in ids:
+        event = payloads.get(event_id)
+        sport = (
+            (((event or {}).get("tournament") or {}).get("category") or {})
+            .get("sport") or {}
+        ).get("slug")
+        if event is None or sport != "football":
+            tally["target_not_football_or_unknown"] += 1
+            continue
+        if not is_completed_event(event) or not isinstance(
+            event.get("startTimestamp"), int
+        ):
+            tally["target_not_completed"] += 1
+            continue
+        competition = _competition_id(event)
+        if competition is not None and competition in FRIENDLY_COMPETITION_IDS:
+            tally["target_friendly"] += 1
+            continue
+        events.append(event)
+    kept = one_listing_per_match(events)
+    tally["target_duplicate_listing"] += len(events) - len(kept)
+    kept.sort(key=lambda e: (int(e["startTimestamp"]), int(e["id"])))
+    return kept
+
+
+def build_player_rows(
+    db_path: Path,
+    ladder: dict[str, list[float]],
+    *,
+    sample_n: int,
+    min_sample: int,
+) -> tuple[list[SettledRow], collections.Counter[str]]:
+    """The player rows of every finished football match with a squad list."""
+    counts: collections.Counter[str] = collections.Counter()
+    if not any(ladder.values()):
+        counts["no_printed_player_ladder"] += 1
+        return [], counts
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    rows: list[SettledRow] = []
+    try:
+        targets = player_targets(conn, counts)
+        squads: collections.OrderedDict[int, dict[bool, Squad | None]] = (
+            collections.OrderedDict()
+        )
+
+        def squads_of(event_id: int) -> dict[bool, Squad | None]:
+            """Both sides' squads of one match, parsed once (bounded cache)."""
+            if event_id in squads:
+                squads.move_to_end(event_id)
+                return squads[event_id]
+            found = conn.execute(
+                "SELECT statistics_json, lineups_json FROM sofa_event_stats "
+                "WHERE sofascore_event_id = ?",
+                (event_id,),
+            ).fetchone()
+            stats = json.loads(found[0]) if found and found[0] else None
+            lineups = json.loads(found[1]) if found and found[1] else None
+            both = {
+                h: squad_statistics(lineups, is_home=h, statistics=stats)
+                for h in (True, False)
+            }
+            squads[event_id] = both
+            if len(squads) > 50_000:
+                squads.popitem(last=False)
+            return both
+
+        for event in targets:
+            kickoff = int(event["startTimestamp"])
+            competition = _competition_id(event)
+            history: dict[bool, list[Squad]] = {}
+            for is_home in (True, False):
+                entity = int(((event.get("homeTeam" if is_home else "awayTeam")) or {})
+                             .get("id") or 0)
+                admitted = []
+                for past in entity_indexed_events(
+                    conn, entity, "last", kickoff, PLAYER_HISTORY_LISTED
+                ):
+                    if not admitted_football_event(past, entity, kickoff):
+                        continue
+                    if is_same_match(past, event):
+                        counts["history_same_match_dropped"] += 1
+                        continue
+                    admitted.append(past)
+                recent = finish_history(
+                    admitted, entity, "football", competition, kickoff, sample_n
+                )
+                side_squads: list[Squad] = []
+                for past in recent:
+                    own_home = (past.get("homeTeam") or {}).get("id") == entity
+                    squad = squads_of(int(past["id"]))[own_home]
+                    if squad:
+                        side_squads.append(squad)
+                history[is_home] = side_squads
+            produced = player_rows_for_event(
+                event, squads_of(int(event["id"])), history, ladder, min_sample,
+                counts,
+            )
+            counts["targets"] += 1
+            if produced:
+                counts["targets_with_rows"] += 1
+            rows.extend(produced)
+    finally:
+        conn.close()
+    return rows, counts
+
+
 def reliability_curve(rows: list[SettledRow]) -> dict[str, Any]:
     """Per market, per probability bucket: what we said against what happened.
 
@@ -715,6 +1142,38 @@ def write_settled(
     return written
 
 
+def replay_players(
+    db_path: Path,
+    runs_dir: Path,
+    baselines: dict[str, Any],
+    config: SofaConfig,
+    rows: list[SettledRow],
+) -> dict[str, Any]:
+    """Append the player rows to `rows`; the summary's player metrics."""
+    carried = sorted(k for k in baselines if is_player_metric(k))
+    if carried:
+        # SHEET would shrink a player toward these and the replay does not:
+        # its rows would describe another model. fit_constants never writes
+        # one (_in_baselines); a file that has them was edited by hand.
+        return {"player_replay": f"SKIPPED: baselines carry {carried}"}
+    started = datetime.now(UTC)
+    ladder = printed_player_ladder(runs_dir)
+    produced, counts = build_player_rows(
+        db_path, ladder, sample_n=config.sample_n, min_sample=config.min_sample
+    )
+    rows.extend(produced)
+    by_market = collections.Counter(r.market for r in produced)
+    return {
+        "player_replay": "OK" if produced else "NO_ROWS",
+        "player_rows": len(produced),
+        "player_rows_by_market": dict(sorted(by_market.items())),
+        "player_ladder": ladder,
+        "player_ladder_unprinted": sorted(set(PLAYER_METRICS) - set(ladder)),
+        "player_counts": dict(sorted(counts.items())),
+        "player_seconds": round((datetime.now(UTC) - started).total_seconds(), 1),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db-path", default=None)
@@ -727,15 +1186,43 @@ def main() -> int:
             "the rows this script inserts."
         ),
     )
+    parser.add_argument(
+        "--runs-dir",
+        default=None,
+        help="where the days' 04_offer.json live (the printed player ladder); "
+        "default SOFA_RUNS_DIR / runs/sofa",
+    )
+    parser.add_argument(
+        "--players",
+        choices=("include", "skip", "only"),
+        default="include",
+        help="football player markets beside the team markets (default), "
+        "not at all, or alone (the team rows are then neither rebuilt nor "
+        "touched)",
+    )
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
     db_path = Path(args.db_path or config.db_path)
 
     dropped: set[int] = set()
-    played = load_cache(db_path, dropped)
+    played: list[Played] = []
     baselines = load_baselines()
-    rows = build(played, baselines)
+    rows: list[SettledRow] = []
+    if args.players != "only":
+        played = load_cache(db_path, dropped)
+        rows = build(played, baselines)
+    team_rows = len(rows)
+
+    player_metrics: dict[str, Any] = {"player_replay": "SKIPPED"}
+    if args.players != "skip":
+        player_metrics = replay_players(
+            db_path,
+            Path(args.runs_dir or config.runs_dir),
+            baselines,
+            config,
+            rows,
+        )
 
     curve = reliability_curve(rows)
     if args.out:
@@ -770,6 +1257,8 @@ def main() -> int:
         "metrics": {
             "matches_replayed": len(played),
             "settled_rows": len(rows),
+            "team_rows": team_rows,
+            **player_metrics,
             "markets": len([m for m in curve if not m.startswith("_")]),
             "measured_buckets": measured,
             "overall_predicted": round(overall_predicted, 4),

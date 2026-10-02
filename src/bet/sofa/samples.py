@@ -482,6 +482,29 @@ def get_historical_events(
             if admit(event):
                 events.append(event)
 
+    return finish_history(
+        events, entity_id, sport, fixture_competition,
+        int(fixture.kickoff_utc.timestamp()), config.sample_n, gaps,
+    )
+
+
+def finish_history(
+    events: list[dict[str, Any]],
+    entity_id: int,
+    sport: str,
+    fixture_competition: int | None,
+    kickoff_ts: int,
+    sample_n: int,
+    gaps: list[GapEntry] | None = None,
+) -> list[dict[str, Any]]:
+    """The admitted events of one side, made into its sample.
+
+    One listing per match; in football the second squad's matches out (or
+    no sample at all when the fixture is the second squad's), one squad per
+    entity; then the newest `sample_n`, newest first. Its own function so
+    the cache replay (calibrate_from_cache, player markets) builds a side's
+    history with exactly this code rather than a copy of it.
+    """
     # The sample is the most recent `sample_n`, newest first.
     events = one_listing_per_match(events)
     if sport == "football":
@@ -489,7 +512,7 @@ def get_historical_events(
         # first team's is that guard's "two squads" too, and once the second
         # squad's matches are out the first team's listing is clean.
         reserve, fixture_is_reserve = second_squad_matches(
-            events, fixture_competition, int(fixture.kickoff_utc.timestamp())
+            events, fixture_competition, kickoff_ts
         )
         if fixture_is_reserve:
             if gaps is not None:
@@ -532,7 +555,7 @@ def get_historical_events(
                 )
             return []
     events.sort(key=lambda e: e.get("startTimestamp") or 0, reverse=True)
-    return events[: config.sample_n]
+    return events[:sample_n]
 
 
 def _team_matches(events: list[dict[str, Any]]) -> list[TeamMatch]:
