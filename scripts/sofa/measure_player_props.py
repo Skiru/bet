@@ -7,7 +7,8 @@ database strictly before the earlier of Superbet's kickoff and Sofascore's
 start, with the graded game excluded by id (source `recomputed`, every date).
 Where SHADOW_SETTLE already attached a number (model_source `pregame` - the
 last forecast SHADOW wrote before the start - or `settle`), that number is
-measured too, per source, never pooled with the recomputed one.
+measured too, per source, never pooled with the recomputed one; a number an
+older model wrote is its own source (`pregame:player_rate_v1`).
 
 Per sport and family: sides, lines (pairs), games, model coverage; Brier and
 log loss of the model and of the devigged price on the same sides, with a 95%
@@ -54,6 +55,7 @@ from bet.sofa.player_model import (  # noqa: E402
     UNFITTED,
     history_cutoff,
     load_appearances,
+    params_provenance,
     score_rows,
 )
 from bet.sofa.shadow import SETTLED_FILE, is_player_line  # noqa: E402
@@ -74,6 +76,15 @@ def _event(conn: sqlite3.Connection, eid: int) -> dict[str, Any] | None:
         "SELECT event_json FROM sofa_listed_event WHERE event_id = ?", (eid,)
     ).fetchone()
     return dict(json.loads(row[0])) if row else None
+
+
+def attached_source(g: dict[str, Any]) -> str:
+    """The attached number's source; one an older model wrote carries its
+    model name (`pregame:player_rate_v1`), so it is never pooled with this
+    model's numbers."""
+    source = str(g["model_source"])
+    model = g.get("model")
+    return source if model in (None, MODEL_NAME) else f"{source}:{model}"
 
 
 def collect(
@@ -154,7 +165,7 @@ def collect(
                         rows.append(
                             {
                                 **common,
-                                "source": str(g["model_source"]),
+                                "source": attached_source(g),
                                 "p_model": float(g["model_p"]),
                                 "model_n": g.get("model_n"),
                                 "model_mean": g.get("model_mean"),
@@ -324,6 +335,7 @@ def build_report(rows: Sequence[dict[str, Any]], n_boot: int) -> dict[str, Any]:
     return {
         "model": MODEL_NAME,
         "unfitted_constants": list(UNFITTED),
+        "fitted_constants": params_provenance(),
         "groups": {k: summarize(groups[k], n_boot) for k in ordered},
     }
 

@@ -1,0 +1,158 @@
+{
+ "_doc": "Fitted by scripts/sofa/fit_player_model.py on the stored history (no prices); read by bet.sofa.player_model. A measurement's constants: nothing here feeds or gates any coupon.",
+ "model": "player_rate_v2",
+ "fitted_from": {
+  "source": "sofa_event_stats.lineups_json + sofa_listing_event (kind=last) + sofa_listed_event, replayed before each game",
+  "db_path": "/Users/mkoziol/projects/bet/data/sofa.db",
+  "cut_utc": "2026-07-01T00:00:00+00:00",
+  "fitted_at_utc": "2026-10-02T22:20:19+00:00",
+  "splits": {
+   "basketball": {
+    "train": {
+     "from": "2025-10-15",
+     "to": "2026-06-28",
+     "games": 12877,
+     "player_games": 135806
+    },
+    "test": {
+     "from": "2026-07-01",
+     "to": "2026-10-01",
+     "games": 903,
+     "player_games": 9467
+    }
+   },
+   "hockey": {
+    "train": {
+     "from": "2025-10-12",
+     "to": "2026-06-15",
+     "games": 1341,
+     "player_games": 34111
+    },
+    "test": {
+     "from": "2026-09-19",
+     "to": "2026-10-01",
+     "games": 62,
+     "player_games": 1153
+    }
+   }
+  }
+ },
+ "criterion": "train split (kickoff before cut_utc): minimise the mean over families of the per-family mean log loss of the actual count, coordinate descent over the grids below; shared constants on basketball, then each sport's own. calibration_b: maximum likelihood of sigmoid(b logit p) for the over side at the replay line (the printed line nearest the sample median), train split, count families only.",
+ "shared": {
+  "hl_minutes": {
+   "value": 5.0,
+   "fitted_on": "basketball",
+   "curve": {
+    "3.0": 2.099971,
+    "5.0": 2.099889,
+    "8.0": 2.101033,
+    "12.0": 2.102188
+   }
+  },
+  "k_phi": {
+   "value": 40.0,
+   "fitted_on": "basketball",
+   "curve": {
+    "5.0": 2.102504,
+    "10.0": 2.100949,
+    "20.0": 2.099889,
+    "40.0": 2.099525
+   }
+  },
+  "max_sample": {
+   "value": 30,
+   "fitted_on": "basketball",
+   "curve": {
+    "20": 2.100578,
+    "30": 2.099525
+   }
+  }
+ },
+ "sports": {
+  "basketball": {
+   "pool": {
+    "value": "all",
+    "curve": {
+     "group": 2.106371,
+     "all": 2.099525
+    }
+   },
+   "sig_a": {
+    "value": 0.25,
+    "curve": {
+     "0.05": 2.110539,
+     "0.1": 2.107755,
+     "0.15": 2.104268,
+     "0.2": 2.101218,
+     "0.25": 2.099525,
+     "0.3": 2.099785
+    }
+   },
+   "prior_games": {
+    "value": 2.0,
+    "curve": {
+     "1.0": 2.101784,
+     "2.0": 2.099525,
+     "3.0": 2.099554,
+     "4.0": 2.100614,
+     "6.0": 2.104091
+    }
+   },
+   "prior_games_signed": {
+    "value": 3.0,
+    "note": "no signed family in this sport; unused"
+   },
+   "calibration_b": {
+    "value": 0.8729,
+    "n": 1358060
+   },
+   "train_logloss": 2.09952542922848,
+   "test_logloss": 2.1187164708444577
+  },
+  "hockey": {
+   "pool": {
+    "value": "group",
+    "curve": {
+     "group": 1.30545,
+     "all": 1.310912
+    }
+   },
+   "sig_a": {
+    "value": 0.2,
+    "curve": {
+     "0.05": 1.309717,
+     "0.1": 1.307666,
+     "0.15": 1.30591,
+     "0.2": 1.30545,
+     "0.25": 1.306669,
+     "0.3": 1.309614
+    }
+   },
+   "prior_games": {
+    "value": 1.0,
+    "curve": {
+     "1.0": 1.30545,
+     "2.0": 1.305682,
+     "3.0": 1.307001,
+     "4.0": 1.308773,
+     "6.0": 1.312856
+    }
+   },
+   "prior_games_signed": {
+    "value": 30.0,
+    "curve": {
+     "3.0": 1.307083,
+     "10.0": 1.305872,
+     "30.0": 1.30545,
+     "100.0": 1.305861
+    }
+   },
+   "calibration_b": {
+    "value": 0.8839,
+    "n": 240660
+   },
+   "train_logloss": 1.3054503993667963,
+   "test_logloss": 1.2912164369825054
+  }
+ }
+}
