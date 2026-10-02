@@ -1,0 +1,117 @@
+{
+  "_doc": [
+    "Competitions where a club fields its second squad (reserves / U23) under the first team's Sofascore id (bet.sofa.reserve_squads).",
+    "In a listed competition, a side whose main competition (its modal competition within 182 days of the match) is in reserve_when_main_in is a second squad: SAMPLES drops the match from that side's sample (or leaves the side empty when the fixture itself is the second squad's), and the rating moves neither side on it.",
+    "Any other side, in any competition, is a second squad there only by the clash rule: two of its matches in the competition 6-44 h from a match of its main competition.",
+    "Evidence, measured 2026-10-02 on the cache (954,191 finished football matches, read-only): per (competition, main competition), the sides from that main competition that played here, how many of them clashed at least once, their matches and the clashing ones. Genuine national and continental cups showed 0 clashes in ~7,800 such matches.",
+    "Pooled over the six Brazilian state cups: Serie A (325) sides 8, clashed 7, matches 66, clashes 23; Serie B (390) 6 / 5 / 40 / 18; Serie C (1281) 8 / 1 / 59 / 4; Serie D (10326) 23 / 2 / 170 / 3; every state division 0 clashed of ~95 sides. Serie C and D are therefore not listed - their clashing sides are caught by the clash rule alone.",
+    "Keyed on the id, never on the name. Add an entry only with its numbers."
+  ],
+  "competitions": [
+    {
+      "competition_id": 24285,
+      "name": "Copa Paraná",
+      "category": "Brazil",
+      "slug": "u23-taca-fpf",
+      "reserve_when_main_in": [325, 390],
+      "evidence": {
+        "325": {"sides": 1, "sides_clashed": 1, "matches": 5, "clashes": 4},
+        "390": {"sides": 2, "sides_clashed": 2, "matches": 9, "clashes": 7},
+        "10326": {"sides": 4, "sides_clashed": 0, "matches": 39, "clashes": 0},
+        "20096": {"sides": 7, "sides_clashed": 0, "matches": 35, "clashes": 0},
+        "note": "Sofascore's own slug is u23-taca-fpf. Londrina (2022): 4 of 5 clash with Serie B; Athletico (1967) 4 of 5 with Serie A."
+      }
+    },
+    {
+      "competition_id": 10383,
+      "name": "Copa Paulista",
+      "category": "Brazil",
+      "reserve_when_main_in": [325, 390],
+      "evidence": {
+        "325": {"sides": 1, "sides_clashed": 0, "matches": 2, "clashes": 0},
+        "390": {"sides": 2, "sides_clashed": 2, "matches": 20, "clashes": 7},
+        "1281": {"sides": 1, "sides_clashed": 1, "matches": 10, "clashes": 4},
+        "10326": {"sides": 5, "sides_clashed": 1, "matches": 27, "clashes": 1},
+        "1234": {"sides": 16, "sides_clashed": 0, "matches": 207, "clashes": 0},
+        "1614": {"sides": 17, "sides_clashed": 0, "matches": 160, "clashes": 0},
+        "note": "325 listed on the pooled state-cup evidence (one side, two matches here)."
+      }
+    },
+    {
+      "competition_id": 20620,
+      "name": "Copa FGF",
+      "category": "Brazil",
+      "reserve_when_main_in": [325, 390],
+      "evidence": {
+        "325": {"sides": 3, "sides_clashed": 3, "matches": 40, "clashes": 10},
+        "1281": {"sides": 2, "sides_clashed": 0, "matches": 13, "clashes": 0},
+        "10326": {"sides": 2, "sides_clashed": 0, "matches": 15, "clashes": 0},
+        "18643": {"sides": 13, "sides_clashed": 0, "matches": 109, "clashes": 0},
+        "note": "390 listed on the pooled state-cup evidence (no Serie B side in the cache here)."
+      }
+    },
+    {
+      "competition_id": 20546,
+      "name": "Taça Fares Lopes",
+      "category": "Brazil",
+      "reserve_when_main_in": [325, 390],
+      "evidence": {
+        "325": {"sides": 2, "sides_clashed": 2, "matches": 13, "clashes": 7},
+        "390": {"sides": 1, "sides_clashed": 0, "matches": 1, "clashes": 0},
+        "1281": {"sides": 2, "sides_clashed": 0, "matches": 12, "clashes": 0},
+        "10326": {"sides": 4, "sides_clashed": 0, "matches": 20, "clashes": 0},
+        "19855": {"sides": 4, "sides_clashed": 0, "matches": 23, "clashes": 0}
+      }
+    },
+    {
+      "competition_id": 20898,
+      "name": "Copa Santa Catarina",
+      "category": "Brazil",
+      "reserve_when_main_in": [325, 390],
+      "evidence": {
+        "390": {"sides": 1, "sides_clashed": 1, "matches": 10, "clashes": 4},
+        "1281": {"sides": 3, "sides_clashed": 0, "matches": 24, "clashes": 0},
+        "10326": {"sides": 7, "sides_clashed": 1, "matches": 61, "clashes": 2},
+        "376": {"sides": 10, "sides_clashed": 0, "matches": 64, "clashes": 0},
+        "20070": {"sides": 8, "sides_clashed": 0, "matches": 54, "clashes": 0},
+        "note": "325 listed on the pooled state-cup evidence."
+      }
+    },
+    {
+      "competition_id": 21028,
+      "name": "Copa FMF",
+      "category": "Brazil",
+      "reserve_when_main_in": [325, 390],
+      "evidence": {
+        "325": {"sides": 1, "sides_clashed": 1, "matches": 6, "clashes": 2},
+        "10326": {"sides": 1, "sides_clashed": 0, "matches": 8, "clashes": 0},
+        "11670": {"sides": 3, "sides_clashed": 0, "matches": 22, "clashes": 0},
+        "note": "390 listed on the pooled state-cup evidence."
+      }
+    },
+    {
+      "competition_id": 22637,
+      "name": "Copa Santa Fe",
+      "category": "Argentina Amateur",
+      "reserve_when_main_in": [155],
+      "evidence": {
+        "155": {"sides": 3, "sides_clashed": 3, "matches": 4, "clashes": 4},
+        "14090": {"sides": 2, "sides_clashed": 2, "matches": 5, "clashes": 2},
+        "11386": {"sides": 3, "sides_clashed": 3, "matches": 4, "clashes": 3},
+        "note": "Only the Liga Profesional (155) is listed; lower tiers clash too but on 1-5 matches each - the clash rule decides them."
+      }
+    },
+    {
+      "competition_id": 54661,
+      "name": "Copa Santa Fe",
+      "category": "Argentina",
+      "reserve_when_main_in": [155],
+      "evidence": {
+        "155": {"sides": 3, "sides_clashed": 1, "matches": 7, "clashes": 4},
+        "14090": {"sides": 4, "sides_clashed": 1, "matches": 17, "clashes": 1},
+        "11386": {"sides": 3, "sides_clashed": 2, "matches": 13, "clashes": 4},
+        "note": "The same cup under a second id; the three Liga Profesional sides (3204, 3212, 3217) clashed across the two ids."
+      }
+    }
+  ]
+}

@@ -296,6 +296,7 @@ Dla każdej strony meczu i każdej metryki, którą ktoś wycenia, pobiera
 
 Zakresy (scoping), zanim mecz historyczny wejdzie do próbki:
 - **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`: 853, 1794 i od 30.09 28008 — towarzyskie klubowe kobiet); działa tylko w SAMPLES, więc próbka pobrana przed dodaniem id nadal je zawiera;
+- **piłka, druga drużyna pod id pierwszej** (od 2026-10-02, `src/bet/sofa/reserve_squads.py`): mecze, które klub zagrał rezerwami / U23 w rozgrywkach bez osobnego bytu „B” (Londrina — Copa Paraná), wypadają z próbki drużyny. Rozstrzyga kolizja terminów: dwa mecze drużyny w rozgrywkach X w odstępie 6–44 h od meczu jej głównej ligi czynią całą parę (drużyna, X) drugim składem (krajowe i kontynentalne puchary: 0 kolizji na ~7 800 meczów), a w rozgrywkach z listy `config/sofa_reserve_competitions.json` — główna liga drużyny z `reserve_when_main_in` (stanowe puchary Brazylii dla Série A/B, Copa Santa Fe dla Liga Profesional). Gdy mecz dnia sam jest meczem drugiego składu, strona zostaje pusta. Luka `RESERVE_SQUAD` mówi, co wypadło;
 - **tenis:** mecz historyczny liczy się tylko, gdy
   `surfaces_comparable(event.groundType, fixture.ground_type)` **i**
   `infer_best_of(event) == fixture.default_period_count`. Na poziomie
@@ -344,8 +345,9 @@ per metryka, dlatego artefakt zapisuje obie.
 Każda luka ma powód (`GapReason`): `NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`,
 `NO_MATCHING_EVENT`, `EVENT_NOT_FINISHED`, `NO_STATISTICS`, `NO_INCIDENTS`,
 `STAT_KEY_ABSENT`, `ALL_ZERO_SAMPLE`, `OUTSIDE_MODEL_RESOLUTION`,
-`INTERNAL_INCONSISTENT`, `THIN_SAMPLE`, `SURFACE_UNKNOWN`, `NO_PRICE`,
-`STALE_PRICE`, `PROVIDER_ERROR`, `CIRCUIT_OPEN`. Awaria dostawcy blokuje
+`INTERNAL_INCONSISTENT`, `ENTITY_CONFLICT`, `RESERVE_SQUAD`, `THIN_SAMPLE`,
+`SURFACE_UNKNOWN`, `NO_PRICE`, `STALE_PRICE`, `PROVIDER_ERROR`,
+`CIRCUIT_OPEN`. Awaria dostawcy blokuje
 **mecz**, nie dzień. Od 2026-10-01 podsumowanie liczy
 `provider_fault_fixtures` — mecze, które straciły metryki przez awarię
 dostawcy i nie miały czego przenieść — i każdy taki mecz daje `PARTIAL`
@@ -448,7 +450,9 @@ dostało atak 2,54 i obronę 0,35 i w Europa Cup kobiet zostało wycenione
   `alpha·(MAX_SURPRISE − stosunek)`, `MAX_SURPRISE = 3`.
 
 Mecze towarzyskie (`config/sofa_friendly_competitions.json`, 39 id) nie wchodzą
-do historii ratingu. Liga zbyt rzadka na własną stawkę spada na globalną stawkę
+do historii ratingu. Mecz drugiego składu pod id pierwszej drużyny
+(`reserve_squads`, od 2026-10-02) nie przesuwa ratingu żadnej ze stron — liczy
+go tylko stawka rozgrywek, w których go zagrano. Liga zbyt rzadka na własną stawkę spada na globalną stawkę
 **swojej płci**.
 
 Pomiar (prognoza jeden mecz naprzód, poza próbą 2026-08-15..09-30, bez
