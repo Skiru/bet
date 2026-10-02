@@ -478,6 +478,21 @@ ligi przeciw mocnej siła ligi uczy się wolno (`ALPHA_STRENGTH = 0.02` wygrywa
 backfillu: 1,21 : 1,20 zamiast 2,59 : 1,45 — lepiej, ale daleko od 0:8.
 Tam chroni głównie bramka `DISAGREES_WITH_PRICE`.
 
+**Grupy regionalne (od 2026-10-02).** Jedno `uniqueTournament` Sofascore
+potrafi trzymać kilka grup, które ze sobą nie grają (Kakkonen 11509: grupy
+A/B/C jako osobne `tournament.id`; szwedzka Division 2 2026: sześć grup bez
+`groupName`). Rating czytał takie rozgrywki jako jedną ligę, więc JBK
+Pietarsaari (grupa C) i FC Honka (grupa B) były `LINKED` w barażu.
+Teraz w obrębie (rozgrywki, sezon) drużyny łączą tylko mecze etapów
+kołowych (`GROUP_STAGE_MIN_MATCHES = 3` meczów na drużynę); gdy powstają
+≥2 składowe po ≥6 drużyn (`MIN_GROUP_TEAMS`) i ≥3 różnych rywali na drużynę,
+każda składowa jest osobną „ligą" dla połączenia, domeny i siły ligi
+(`assign_league_units`). Baraż ani puchar ich nie łączy — para z dwóch grup
+jest `LINKED_BY_STRENGTH` dopiero przy zmierzonej sile obu grup, inaczej
+`UNLINKED`. Stawka ligi i bazy `baselines` zostają na całe rozgrywki (jeden
+poziom rozgrywkowy; podział tylko by je przerzedził). W cache 10-02: 684 z
+11 719 par (rozgrywki, sezon), 177 711 meczów; żadna czołowa liga się nie dzieli.
+
 Wiersz meczu `UNLINKED` dostaje notkę `CROSS_LEAGUE_UNLINKED` i CONFIDENCE
 go odrzuca: ani próbka, ani rating nie opisują drugiej ligi, więc jedyną
 liczbą porównującą obie drużyny jest cena (na rozliczonych 09-20..29 model

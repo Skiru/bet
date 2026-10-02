@@ -38,7 +38,7 @@ import pickle
 import sqlite3
 from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -178,7 +178,8 @@ CROSS_RATIO_POWER = 0.6
 # priced through the rating names them in UNFITTED_CONSTANTS.
 RATING_UNFITTED = (
     "ALPHA_STRENGTH", "MIN_STRENGTH_LINKS", "MAX_SURPRISE", "LINK_MIN_MATCHES",
-    "CROSS_RATIO_POWER", "LINK_WINDOW_S", "TEAM_COMP_MEMORY")
+    "CROSS_RATIO_POWER", "LINK_WINDOW_S", "TEAM_COMP_MEMORY",
+    "MIN_GROUP_TEAMS", "GROUP_STAGE_MIN_MATCHES")
 
 LINKED = "LINKED"
 LINKED_BY_STRENGTH = "LINKED_BY_STRENGTH"
@@ -213,6 +214,21 @@ class FootballResult:
     # per gender: the pool is ~90% men's football, and women's leagues score
     # 3.57 goals a match against its 3.17 (baselines, 2026-09-30).
     women: bool = False
+    # Sofascore's season id and stage (``tournament.id``, not the
+    # uniqueTournament): what assign_league_units splits a competition by.
+    season_id: int | None = None
+    stage_id: int | None = None
+    # The league unit each side's ratios are earned in (assign_league_units);
+    # None is the competition itself.
+    home_unit: int | None = None
+    away_unit: int | None = None
+
+
+def _unit(r: FootballResult, home: bool) -> int:
+    """The league unit a side played this match in - the competition unless
+    assign_league_units split it into regional groups."""
+    unit = getattr(r, "home_unit" if home else "away_unit", None)
+    return r.competition_id if unit is None else int(unit)
 
 
 def _listing_values(event: Mapping[str, Any]) -> dict[str, tuple[float, float]]:
@@ -261,6 +277,8 @@ def parse_event(
             return None
         unique = event["tournament"].get("uniqueTournament") or {}
         competition = unique.get("id", event["tournament"]["id"])
+        stage = event["tournament"].get("id")
+        season = (event.get("season") or {}).get("id")
         home, away = event["homeTeam"]["id"], event["awayTeam"]["id"]
         ts = event["startTimestamp"]
     except (KeyError, TypeError):
@@ -282,6 +300,8 @@ def parse_event(
         home_id=int(home), away_id=int(away), values=values,
         women=sofascore_gender(event if isinstance(event, dict) else dict(event))
         == "W",
+        season_id=season if isinstance(season, int) else None,
+        stage_id=stage if isinstance(stage, int) else None,
     )
 
 
@@ -290,7 +310,150 @@ def parse_event(
 # 2026-10-02.1: calculate_cards_points ignores cards shown to staff (a
 # `manager`, no `player`; Superbet komunikat 06/2022 s.2), so cards_points_for
 # changes; the history also reads the listed-event index (listing_index.py).
-HISTORY_PARSER_VERSION = "2026-10-02.1"
+# 2026-10-02.2: a result carries its season and stage, and load_history
+# splits a competition into its regional groups (assign_league_units).
+HISTORY_PARSER_VERSION = "2026-10-02.2"
+
+
+# --- Regional groups (2026-10-02) -------------------------------------------
+#
+# One Sofascore uniqueTournament can hold several regional groups whose teams
+# never meet: Kakkonen (11509) carries Groups A, B and C as stages
+# (tournament.id 175557 = "Kakkonen, Group C", isGroup, groupName). The link
+# rule read the competition as one league, so JBK Pietarsaari (Group C) and
+# FC Honka (Group B) were LINKED in the play-offs, and Honka's goals were cut
+# by a JBK defence earned against Group C (sofa-verifier, 2026-10-02; the
+# analyst vetoed it).
+#
+# Inside one (competition, season), the teams are joined by the matches of
+# every round-robin stage - a stage (tournament.id) whose teams play at least
+# GROUP_STAGE_MIN_MATCHES matches each on average. A knockout or play-off
+# stage joins nothing: one tie between two group winners does not put their
+# ratios on one denominator. When that graph falls into two or more
+# components of at least MIN_GROUP_TEAMS teams, whose teams meet at least
+# GROUP_STAGE_MIN_MATCHES distinct opponents on average (a round robin, not
+# a chain of qualifying ties), every such component is
+# its own league unit for the link rule, the team's domain and the league
+# strength; anything else (one component - every ordinary league, cups, the
+# teams outside any big component) stays the competition, unchanged. The
+# league RATE stays per competition (one division's groups are one tier, and
+# splitting would thin every rate), and so do SHEET's baselines.
+#
+# Measured on the cache 2026-10-02 (917,014 finished non-friendly matches):
+# of 11,719 (competition, season) pairs with a season id, 684 split (177,711
+# of 864,192 matches) - 461 into two groups, up to 16 (Tercera Federacion
+# Femenina 14, Romania U19 11, Kolmonen 10, Sweden Division 2 2026 6,
+# Kakkonen 2026 3). No top league splits (Premier League, LaLiga, MLS,
+# Scottish Premiership with its split rounds, UEFA competitions). 52,822
+# matches carry no season id and are left as they were.
+#
+# Read off the graph and not off groupName: groupName also names groups that
+# DO meet (a championship / relegation group; 422 pairs with two or more
+# group names are one round-robin component), it is absent where groups are
+# separate stages (Sweden Division 2 2026: six groups, no groupName), and a
+# round-robin graph cannot be fooled by a label. The unit is minus the modal stage id of
+# the component's matches (tournament ids and uniqueTournament ids are two
+# namespaces, so it is negated), unique within the history.
+#
+# The partition is computed on the whole history load_history returns, so a
+# replay cut inside a season sees that season's groups whole: a partition,
+# never an outcome. Chosen, not fitted: both are named in RATING_UNFITTED.
+MIN_GROUP_TEAMS = 6
+GROUP_STAGE_MIN_MATCHES = 3.0
+
+
+def _components(edges: Iterable[tuple[int, int]]) -> list[set[int]]:
+    parent: dict[int, int] = {}
+
+    def find(x: int) -> int:
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in edges:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    out: dict[int, set[int]] = defaultdict(set)
+    for x in list(parent):
+        out[find(x)].add(x)
+    return list(out.values())
+
+
+def league_groups(
+    matches: Iterable[FootballResult],
+) -> list[tuple[int, set[int]]]:
+    """The regional groups of one (competition, season): (unit id, teams) per
+    component of MIN_GROUP_TEAMS or more, or [] when it is one league."""
+    stages: dict[int | None, list[FootballResult]] = defaultdict(list)
+    for r in matches:
+        stages[getattr(r, "stage_id", None)].append(r)
+    edges: list[tuple[int, int]] = []
+    stage_of: list[tuple[int, int, int | None]] = []
+    for stage, ms in stages.items():
+        teams = {r.home_id for r in ms} | {r.away_id for r in ms}
+        if 2 * len(ms) / len(teams) < GROUP_STAGE_MIN_MATCHES:
+            continue
+        edges.extend((r.home_id, r.away_id) for r in ms)
+        stage_of.extend((r.home_id, r.away_id, stage) for r in ms)
+    opponents: dict[int, set[int]] = defaultdict(set)
+    for h, a in edges:
+        opponents[h].add(a)
+        opponents[a].add(h)
+    # A group is a round robin: its teams meet GROUP_STAGE_MIN_MATCHES
+    # distinct opponents on average. A chain of two-legged qualifying ties
+    # (UEFA Champions League, Qualification) is a component too, and is not.
+    big = [
+        c for c in _components(edges)
+        if len(c) >= MIN_GROUP_TEAMS
+        and sum(len(opponents[t]) for t in c) / len(c) >= GROUP_STAGE_MIN_MATCHES
+    ]
+    if len(big) < 2:
+        return []
+    out: list[tuple[int, set[int]]] = []
+    for comp in big:
+        stage_counts = Counter(
+            s for h, _a, s in stage_of if h in comp and s is not None)
+        label = stage_counts.most_common(1)[0][0] if stage_counts else min(comp)
+        out.append((-int(label), comp))
+    return out
+
+
+def assign_league_units(history: list[FootballResult]) -> list[FootballResult]:
+    """`history` with home_unit / away_unit set where a competition's season
+    falls into regional groups (see MIN_GROUP_TEAMS); every other result is
+    returned as it was. Order is preserved."""
+    by_season: dict[tuple[int, int], list[FootballResult]] = defaultdict(list)
+    for r in history:
+        season = getattr(r, "season_id", None)
+        if season is not None:
+            by_season[(r.competition_id, season)].append(r)
+    unit_of: dict[tuple[int, int, int], int] = {}
+    used: set[int] = set()
+    for (comp, season), ms in sorted(by_season.items()):
+        for unit, teams in league_groups(ms):
+            k = 0
+            while unit in used:  # two components under one modal stage
+                k += 1
+                unit = -(abs(unit) * 100 + k)
+            used.add(unit)
+            for t in teams:
+                unit_of[(comp, season, t)] = unit
+    if not unit_of:
+        return history
+    out: list[FootballResult] = []
+    for r in history:
+        season = getattr(r, "season_id", None)
+        if season is None:
+            out.append(r)
+            continue
+        hu = unit_of.get((r.competition_id, season, r.home_id))
+        au = unit_of.get((r.competition_id, season, r.away_id))
+        out.append(r if hu is None and au is None
+                   else replace(r, home_unit=hu, away_unit=au))
+    return out
 
 
 def history_fingerprint(db_path: str | Path) -> str:
@@ -386,7 +549,7 @@ def _load_history_uncached(db_path: str | Path) -> list[FootballResult]:
         result = parse_event(event, s, i)
         if result is not None:
             out.append(result)
-    return sorted(out, key=lambda r: (r.ts, r.event_id))
+    return assign_league_units(sorted(out, key=lambda r: (r.ts, r.event_id)))
 
 
 @dataclass
@@ -436,7 +599,8 @@ class RatingBook:
         default_factory=lambda: defaultdict(_League))
     teams: dict[tuple[int, str], _Team] = field(
         default_factory=lambda: defaultdict(_Team))
-    # team -> its last TEAM_COMP_MEMORY (ts, competition), any metric
+    # team -> its last TEAM_COMP_MEMORY (ts, league unit), any metric; the
+    # unit is the competition unless it is split into regional groups
     team_comps: dict[int, deque[tuple[int, int]]] = field(
         default_factory=lambda: defaultdict(lambda: deque(maxlen=TEAM_COMP_MEMORY)))
     strength: dict[tuple[int, str], _Strength] = field(
@@ -444,6 +608,8 @@ class RatingBook:
     last_ts: int = 0
     # competition -> whether its matches are women's (the latest seen)
     women_competitions: set[int] = field(default_factory=set)
+    # regional-group unit -> its competition (only split units are listed)
+    unit_comp: dict[int, int] = field(default_factory=dict)
 
     @staticmethod
     def _global_key(metric: str, women: bool) -> str:
@@ -454,7 +620,7 @@ class RatingBook:
         return Counter(c for ts, c in self.team_comps.get(team, ()) if ts >= since)
 
     def domain(self, team: int) -> int | None:
-        """The team's modal competition inside the window, None if unseen."""
+        """The team's modal league unit inside the window, None if unseen."""
         counts = self._comp_counts(team)
         if not counts:
             return None
@@ -481,12 +647,21 @@ class RatingBook:
         self, home: int, away: int, dh: int | None, da: int | None
     ) -> bool:
         ch, ca = self._comp_counts(home), self._comp_counts(away)
-        leagues = {dh, da} - {None}
+        # A regional group is minted per season (assign_league_units), so a
+        # side's modal unit can be last season's group while both sides meet
+        # in this season's: the shared unit links when it belongs to the
+        # competition of either side's domain. An unsplit competition is its
+        # own unit, so this is the rule as it was.
+        leagues = {self.unit_competition(d) for d in (dh, da) if d is not None}
         return any(
-            c in leagues and n >= LINK_MIN_MATCHES
+            self.unit_competition(c) in leagues and n >= LINK_MIN_MATCHES
             and ca.get(c, 0) >= LINK_MIN_MATCHES
             for c, n in ch.items()
         )
+
+    def unit_competition(self, unit: int) -> int:
+        """The competition a league unit belongs to (itself when unsplit)."""
+        return self.unit_comp.get(unit, unit)
 
     def link(self, home: int, away: int, metric: str) -> tuple[str, float]:
         """(LINKED | LINKED_BY_STRENGTH | UNLINKED, log factor on home's rate).
@@ -609,8 +784,13 @@ class RatingBook:
                 ta.n += 1
             self.leagues[(r.competition_id, metric)].update(vh, va)
             self.global_league[self._global_key(metric, women)].update(vh, va)
-        self.team_comps[r.home_id].append((r.ts, r.competition_id))
-        self.team_comps[r.away_id].append((r.ts, r.competition_id))
+        # The league unit, not the competition: a regional group of one
+        # competition is a league of its own (assign_league_units).
+        for unit in (_unit(r, True), _unit(r, False)):
+            if unit != r.competition_id:
+                self.unit_comp[unit] = r.competition_id
+        self.team_comps[r.home_id].append((r.ts, _unit(r, True)))
+        self.team_comps[r.away_id].append((r.ts, _unit(r, False)))
 
 
 def replay(history: Iterable[FootballResult], cut_ts: int) -> RatingBook:
