@@ -281,7 +281,13 @@ per-half / saves / throw-in / goal-kick / tackle markets, and since 2026-09-30
 the tennis per-set serve markets `TENNIS_PER_SET_SERVE`, which realised
 149/253 = 0.589 against 0.777 claimed) is refused until it has a curve of its
 own. The guard lapses by itself: installing a confidence curve that covers one
-of them silently re-admits it to the PDF - report it when that happens.
+of them silently re-admits it to the PDF - report it when that happens. Not so
+for football player props (since 2026-10-03 the cache replay gives them
+curves): they also need their name in `admitted_player_markets`, and they read
+only their own direction's curve (`player_x|OVER`), never the combined or a
+pooled one. Tennis per-set games markets need `admitted_tennis_set_markets`.
+`refused_markets` ("market" or "market|DIRECTION") keeps a market off both
+coupons whatever its curve says; all three keys survive a refit.
 
 ## What you report
 

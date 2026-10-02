@@ -1300,3 +1300,18 @@ def test_last_pregame_takes_the_newest_before_the_start_and_honours_a_withdrawal
     # An older model's row neither forecasts nor withdraws for this one.
     assert [r["model_p"] for r in
             player_model.last_pregame(other_model, "1", clock).values()] == [0.61]
+
+
+def test_a_forecast_row_missing_keys_is_skipped_not_raised(tmp_path: Path) -> None:
+    path = tmp_path / "player_model.jsonl"
+    good = {"superbet_event_id": "1", "fetched_at_utc": "2026-09-28T14:00:00Z",
+            "market_id": 5, "side": "OVER", "line": 2.5}
+    path.write_text("\n".join([
+        json.dumps(good),
+        json.dumps({"superbet_event_id": "1"}),  # valid JSON, keys missing
+        json.dumps({**good, "market_id": "x"}),
+        '{"torn": ',
+    ]) + "\n")
+    rows = player_model.read_forecasts(path)
+    assert rows == [good]
+    assert {player_model.forecast_key(r) for r in rows}  # indexes cleanly

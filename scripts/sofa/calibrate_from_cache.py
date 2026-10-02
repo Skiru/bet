@@ -1095,7 +1095,9 @@ def write_settled(
     'cache-calibration' rows go - never a row SETTLE wrote - and never an id
     this run is writing.
     """
-    conn = sqlite3.connect(str(db_path))
+    # A long insert waits for a lock rather than failing in 5 s and leaving
+    # the cache rows deleted (review 2026-10-03).
+    conn = sqlite3.connect(str(db_path), timeout=300.0)
     written = 0
     try:
         writing = {row.event_id for row in rows}

@@ -484,6 +484,31 @@ def delete_cache_rows(db_path: Path, chunk: int) -> int:
     return deleted
 
 
+def verify_db_backup(paths: Paths) -> None:
+    """Today's backup manifest names a DB copy that exists and was not
+    written to while it was copied; else RefitError."""
+    manifest_path = paths.backup_dir / MANIFEST
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RefitError(
+            f"no DB backup for {paths.date} ({manifest_path}: {exc}) - run "
+            "`backup --db <path>` first, or pass --without-db-backup"
+        ) from exc
+    db = manifest.get("db") or {}
+    target = Path(str(db.get("target") or ""))
+    if not db or not target.is_file():
+        raise RefitError(
+            f"{manifest_path} records no DB copy that exists ({target}) - run "
+            "`backup --db <path>`, or pass --without-db-backup"
+        )
+    if db.get("changed_during_copy"):
+        raise RefitError(
+            f"the DB backup {target} was written to while it was copied - take "
+            "it again with no writer, or pass --without-db-backup"
+        )
+
+
 def rebuild_cache_rows(
     paths: Paths,
     *,
@@ -492,6 +517,8 @@ def rebuild_cache_rows(
     chunk: int = 500_000,
     calibrate_out: Path | None = None,
     runner: Runner = run_logged,
+    require_db_backup: bool = True,
+    allow_other_holders: bool = False,
 ) -> dict[str, Any]:
     if not paths.db_path.exists():
         raise RefitError(f"DB {paths.db_path} does not exist")
@@ -543,6 +570,17 @@ def rebuild_cache_rows(
             "rebuild-cache-rows deletes and rewrites "
             f"{cache_rows:,} rows of {paths.db_path}; pass --confirm "
             "(and take `backup --db` first)"
+        )
+    # Review 2026-10-03: the delete is not undoable without a DB copy, and a
+    # writer on the DB (a backfill chunk, a morning settle, SAMPLES) either
+    # fails on the ~50M-row insert's lock or makes this step fail after the
+    # delete. Both are refused unless asked for by name.
+    if require_db_backup:
+        verify_db_backup(paths)
+    if holders and not allow_other_holders:
+        raise RefitError(
+            "the DB is open in other processes - wait for them to finish, or "
+            "pass --allow-other-holders: " + "; ".join(holders)
         )
 
     t0 = time.monotonic()
@@ -1810,6 +1848,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--dry-run", action="store_true")
     r.add_argument("--confirm", action="store_true")
     r.add_argument("--chunk", type=int, default=500_000)
+    r.add_argument("--without-db-backup", action="store_true",
+                   help="run without today's `backup --db` (the delete is then "
+                   "not undoable)")
+    r.add_argument("--allow-other-holders", action="store_true",
+                   help="run while other processes have the DB open")
     r.add_argument(
         "--calibrate-out",
         default=None,
@@ -1858,6 +1901,13 @@ def resolve_paths(args: argparse.Namespace) -> Paths:
     # ladder). A SOFA_RUNS_DIR left pointing at a scratch rebuild would fit on
     # a partial ladder and say OK, so anything but runs/sofa must be asked
     # for by name (review 2026-10-03).
+    if args.db_path is None:
+        resolved_db = repo_rel(env.db_path).resolve()
+        if resolved_db != (_REPO / "data" / "sofa.db").resolve():
+            raise RefitError(
+                f"SOFA_DB_PATH resolves to {resolved_db}, not data/sofa.db - "
+                "unset it or pass --db-path explicitly"
+            )
     if args.runs_dir is None:
         resolved = repo_rel(env.runs_dir).resolve()
         if resolved != (_REPO / "runs" / "sofa").resolve():
@@ -1903,6 +1953,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     calibrate_out=Path(args.calibrate_out)
                     if args.calibrate_out
                     else None,
+                    require_db_backup=not args.without_db_backup,
+                    allow_other_holders=args.allow_other_holders,
                 )["exit"]
             )
         if args.command == "fit":

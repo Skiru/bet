@@ -343,6 +343,7 @@ def test_rebuild_replaces_cache_rows_and_leaves_live_rows(tmp_path: Path) -> Non
         paths,
         dry_run=False,
         confirm=True,
+        require_db_backup=False,
         chunk=2,
         runner=_fake_calibrate(paths.db_path),
     )
@@ -361,6 +362,7 @@ def test_rebuild_refuses_when_a_live_row_is_replaced(tmp_path: Path) -> None:
             dry_run=False,
             confirm=True,
             runner=_fake_calibrate(paths.db_path, touch_live="replace"),
+            require_db_backup=False,
         )
 
 
@@ -716,7 +718,8 @@ def test_rebuild_hands_the_real_runs_dir_to_the_player_replay(tmp_path: Path) ->
         seen.append(list(cmd))
         return inner(cmd, env, log)
 
-    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner)
+    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
+        require_db_backup=False)
     cmd = seen[0]
     assert cmd[cmd.index("--runs-dir") + 1] == str(paths.runs_dir)
 
@@ -731,7 +734,8 @@ def test_rebuild_stops_when_the_player_replay_produced_nothing(tmp_path: Path) -
                    '"PARTIAL", "metrics": {"player_replay": "NO_ROWS"}}']
 
     with pytest.raises(pr.RefitError, match="NO_ROWS"):
-        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner)
+        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
+        require_db_backup=False)
 
 
 def test_a_runs_dir_from_the_environment_must_be_the_real_one(
@@ -747,3 +751,44 @@ def test_a_runs_dir_from_the_environment_must_be_the_real_one(
         ["--runs-dir", str(tmp_path / "scratch_runs"), "--date", "2026-10-03",
          "rebuild-cache-rows", "--dry-run"])
     assert pr.resolve_paths(args).runs_dir == tmp_path / "scratch_runs"
+
+
+def test_rebuild_needs_todays_db_backup(tmp_path: Path) -> None:
+    """Review 2026-10-03: the delete of ~50M rows is not undoable without a
+    DB copy, and the step only asked for one in a message."""
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+    with pytest.raises(pr.RefitError, match="no DB backup"):
+        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True,
+                              runner=_fake_calibrate(paths.db_path))
+    paths.config_dir.mkdir(parents=True, exist_ok=True)
+    (paths.config_dir / "sofa_engine_constants.json").write_text("{}")
+    pr.backup(paths, tmp_path / "dbcopy" / "sofa.db")
+    report = pr.rebuild_cache_rows(paths, dry_run=False, confirm=True,
+                                   runner=_fake_calibrate(paths.db_path))
+    assert report["exit"] == 0
+
+
+def test_rebuild_refuses_while_another_process_holds_the_db(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+    monkeypatch.setattr(pr, "processes_holding", lambda p: ["pid 1 backfill"])
+    with pytest.raises(pr.RefitError, match="other processes"):
+        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True,
+                              runner=_fake_calibrate(paths.db_path),
+                              require_db_backup=False)
+    report = pr.rebuild_cache_rows(paths, dry_run=False, confirm=True,
+                                   runner=_fake_calibrate(paths.db_path),
+                                   require_db_backup=False,
+                                   allow_other_holders=True)
+    assert report["exit"] == 0
+
+
+def test_a_db_path_from_the_environment_must_be_the_real_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SOFA_DB_PATH", str(tmp_path / "other.db"))
+    rc = pr.main(["--date", "2026-10-03", "rebuild-cache-rows", "--dry-run"])
+    assert rc == 2 and "SOFA_DB_PATH" in capsys.readouterr().err

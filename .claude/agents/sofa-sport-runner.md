@@ -72,7 +72,7 @@ nothing that builds this coupon. Read it, report it in its own section, never
 beside a leg:
 
 ```bash
-wc -l runs/sofa/shadow/<sport>/<d>/player_model.jsonl                     # today's pre-game forecasts written so far
+PYTHONPATH=src:. .venv/bin/python -c "import json,sys; from bet.sofa.player_model import MODEL_NAME as M; r=[json.loads(l) for l in open(sys.argv[1]) if l.strip()]; c=[x for x in r if x.get('model')==M and x.get('teams_resolved')==2]; print(M, len(c), 'rows', sum(x.get('model_p') is not None for x in c), 'with p')" runs/sofa/shadow/<sport>/<d>/player_model.jsonl   # today's current-model, two-team pre-game forecasts (older-model rows in the file are never attached)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_player_props.py --sport <sport> --bootstrap 500   # every graded day: Brier model vs price, b, split-half
 ```
 

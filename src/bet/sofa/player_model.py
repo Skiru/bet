@@ -911,7 +911,9 @@ def last_signatures(rows: Sequence[dict[str, Any]]) -> dict[LineIdentity, Any]:
 
 
 def read_forecasts(path: Path) -> list[dict[str, Any]]:
-    """The day's pre-game rows; a torn line is skipped."""
+    """The day's pre-game rows; a torn line, or a row without the keys every
+    reader indexes (forecast_key, line_key), is skipped - one bad row must
+    not stop the day's forecasts or a game's attach (review 2026-10-03)."""
     if not path.exists():
         return []
     out: list[dict[str, Any]] = []
@@ -922,9 +924,21 @@ def read_forecasts(path: Path) -> list[dict[str, Any]]:
             row = json.loads(text)
         except ValueError:
             continue
-        if isinstance(row, dict) and "superbet_event_id" in row:
-            out.append(row)
+        if not isinstance(row, dict) or not all(
+            k in row for k in FORECAST_REQUIRED_KEYS
+        ):
+            continue
+        try:
+            int(row["market_id"])
+        except (TypeError, ValueError):
+            continue
+        out.append(row)
     return out
+
+
+FORECAST_REQUIRED_KEYS = (
+    "superbet_event_id", "fetched_at_utc", "market_id", "side",
+)
 
 
 def _women_key(name: str, women: bool) -> str:
