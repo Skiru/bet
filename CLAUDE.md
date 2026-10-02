@@ -1,5 +1,37 @@
 # Working agreement — `bet`
 
+## OPEN DECISION (2026-10-02) - read before running or refitting anything
+
+The operator's instruction, 2026-10-02 ~10:15Z:
+
+- **Today's `/sofa-day` 2026-10-02 runs in a separate session, on the CURRENT
+  config.** No refit is installed. Do **not** run `prepare_refit.py install`,
+  `fit_constants.py` or `fit_confidence.py` against `config/`, and do not
+  "fix" the config during the day run.
+- **D-1 (2026-10-01) is already settled and recorded** (08:49-08:53Z:
+  `run_settle --include-unpriced`, audit 7c/7d, D-5 re-settle, regrade, sport
+  coupons, WSZYSTKIE, ledger 09-24..10-01). Re-running step 1 is harmless (it
+  merges), not required.
+- **A refit candidate is prepared and NOT installed:** `data/refit_2026-10-02/`
+  (`config/`, `compare_report.md`); backups in `config/backup_2026-10-02/` and
+  `data/backup_2026-10-02/sofa.db`. Do not delete or overwrite them. The DB's
+  `cache-calibration` rows were rebuilt (25.8M -> 49.4M); today's SHEET and
+  CONFIDENCE read `config/`, not those rows, so the day run is unaffected.
+- **The install decision belongs to the main (audit) session, after the
+  operator reports the day run done.** Replay of 09-30 + 10-01 on the new
+  config (in-sample): official -1.66 u, WARIANT -6.76 u. Three checks are
+  open first: (1) `*_total` confidence curves jumped (tackles 0.72 -> 0.93,
+  throw-ins 0.65 -> 0.79, fouls 0.80 -> 0.92) - suspected replay-p vs SHEET-p
+  mismatch after the pooled-totals replay fix; (2) tennis per-set markets
+  (`games_set1/2_total`, `games_won_set1/2_for`) would get curves and leave
+  AWAITING_OWN_CURVE - they were measured overconfident before; (3) half-match
+  coherence worse (`goals_for` -15.5%, `fouls_for` -15.3%, `throw_ins_for`
+  -27.9%).
+- The first SHEET today re-parses the football history (~10 min; the listing
+  index was filled this morning) - do not kill it.
+
+Remove this section when the decision is taken.
+
 ## The only pipeline in service is `sofa`
 
 Sofascore statistics, Superbet prices, football and tennis. The product of a
