@@ -7,6 +7,7 @@ four tables the model reads, and the settle / snapshot fakes of test_shadow.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import sqlite3
 import subprocess
@@ -204,7 +205,9 @@ def test_the_sample_is_appearances_before_kickoff_for_the_players_own_team(
 def test_minutes_scale_the_per_second_rate(tmp_path: Path) -> None:
     conn = make_db(tmp_path / "db.sqlite")
     # 1 point per 120 s for everybody; Smith's last five games 1,800 s, the
-    # ten before 600 s. Expected seconds are the last five's mean.
+    # ten before 600 s. Expected seconds are the half-life-weighted mean of
+    # the sample (hl_minutes appearances), and the minutes mixture keeps it
+    # as the mean.
     for i in range(15):
         secs = 1800 if i < 5 else 600
         add_game(
@@ -227,9 +230,14 @@ def test_minutes_scale_the_per_second_rate(tmp_path: Path) -> None:
         )
     conn.commit()
     apps = load_appearances(conn, "basketball", [HOME_ID], KO_TS - 60, None)
+    prm = player_model.sport_params("basketball")
+    secs = [1800 if i < 5 else 600 for i in range(15)]
+    w = [0.5 ** (i / prm.hl_minutes) for i in range(15)]
+    expected_s = sum(a * b for a, b in zip(w, secs, strict=True)) / sum(w)
     mp = line_probability(line(PTS, "Smith, Joe", 14.5, "OVER"), "basketball", apps)
-    assert mp.mean == pytest.approx(15.0)
-    assert mp.p is not None and 0.4 < mp.p < 0.6
+    assert mp.mean == pytest.approx(expected_s / 120.0)
+    assert 600 / 120 < mp.mean < 1800 / 120  # more than the sample's mean of 7
+    assert mp.p is not None and 0.0 < mp.p < 1.0
     assert mp.n == 15
 
 
@@ -306,7 +314,11 @@ def test_plus_minus_is_a_signed_normal(tmp_path: Path) -> None:
     neg = line_probability(
         line(PLUS_MINUS, "Minus, Ivo", -0.5, "UNDER"), "hockey", apps
     )
-    assert neg.p is not None and neg.p > 0.8 and neg.mean is not None and neg.mean < -1
+    # Shrunk toward the pool by the fitted prior_games_signed pseudo-games
+    # (no other defenceman: the pool's mean is 0).
+    k = player_model.sport_params("hockey").prior_games_signed
+    assert neg.mean == pytest.approx(-23 / (9 + k))  # -3, -2, ... over 9 games
+    assert neg.p is not None and neg.p > 0.5 and neg.mean < 0
 
 
 def test_too_few_appearances_or_an_unknown_name_give_no_p(tmp_path: Path) -> None:
@@ -459,12 +471,19 @@ def test_settle_prefers_the_last_pregame_forecast_before_the_start(
         "line": 2.5,
         "side": "OVER",
         "model_n": 7,
-        "model": "player_rate_v1",
+        "model": player_model.MODEL_NAME,
         "unfitted_constants": ["X"],
     }
     rows = [
         {**base, "fetched_at_utc": "2026-09-28T14:00:00Z", "model_p": 0.55},
         {**base, "fetched_at_utc": "2026-09-28T15:00:00Z", "model_p": 0.61},
+        # Newer, before the start, but an older model wrote it: never attached.
+        {
+            **base,
+            "fetched_at_utc": "2026-09-28T15:10:00Z",
+            "model_p": 0.42,
+            "model": "player_rate_v1",
+        },
         {**base, "fetched_at_utc": "2026-09-28T15:30:00Z", "model_p": None},
         {**base, "fetched_at_utc": "2026-09-28T16:30:00Z", "model_p": 0.99},  # in play
     ]
@@ -476,6 +495,7 @@ def test_settle_prefers_the_last_pregame_forecast_before_the_start(
     assert over["model_fetched_at_utc"] == "2026-09-28T15:00:00Z"
     # No forecast for the UNDER side: computed at settle.
     assert under["model_source"] == "settle"
+    assert over["model"] == under["model"] == player_model.MODEL_NAME
     assert _without_model(rec) == _without_model(_settle(tmp_path / "bare", None))
 
 
@@ -693,3 +713,201 @@ def test_an_unimportable_model_costs_the_number_never_the_grade_or_snapshot(
     ).read_bytes()
     assert broken["verdict"] == plain["verdict"] == "OK"
     assert "bet.sofa.player_model" in json.dumps(broken["player_model"])
+
+
+# --- player_rate_v2: fitted constants, the replay, the calibration map -----
+
+
+def test_v2_is_the_default_and_its_constants_load_with_provenance() -> None:
+    assert player_model.MODEL_NAME == "player_rate_v2"
+    params = player_model.load_params()
+    assert set(params) == {"basketball", "hockey"}
+    for prm in params.values():
+        assert prm.pool in player_model.POOL_KINDS
+        assert prm.max_sample >= player_model.MIN_APPEARANCES
+        assert prm.hl_minutes > 0 and prm.k_phi > 0 and prm.prior_games > 0
+        assert prm.sig_a >= 0 and prm.calibration_b is not None
+    prov = player_model.params_provenance()
+    assert prov["criterion"]
+    splits = prov["fitted_from"]["splits"]
+    for sport in ("basketball", "hockey"):
+        assert splits[sport]["train"]["player_games"] > 0
+        assert splits[sport]["test"]["player_games"] > 0
+    doc = json.loads((REPO / "config" / player_model.PARAMS_FILE).read_text())
+    for sport, entry in doc["sports"].items():
+        assert entry["calibration_b"]["n"] > 0, sport
+    # A fitted constant is no longer listed as unfitted; the chosen ones are.
+    for name in ("N_MINUTES", "PRIOR_GAMES", "K_PHI", "MAX_SAMPLE"):
+        assert name not in UNFITTED
+    assert set(UNFITTED) == {
+        "HISTORY_GAMES",
+        "MIN_APPEARANCES",
+        "MIN_SD_SIGNED",
+        "CUTOFF_MARGIN_S",
+    }
+
+
+def test_a_file_without_provenance_or_for_another_model_is_refused() -> None:
+    doc = json.loads((REPO / "config" / player_model.PARAMS_FILE).read_text())
+    player_model.parse_params(doc)
+    with pytest.raises(ValueError, match="fitted_from"):
+        player_model.parse_params({**doc, "fitted_from": {}})
+    with pytest.raises(ValueError, match="criterion"):
+        player_model.parse_params({k: v for k, v in doc.items() if k != "criterion"})
+    with pytest.raises(ValueError, match="player_rate_v1"):
+        player_model.parse_params({**doc, "model": "player_rate_v1"})
+
+
+def test_nb_pmf_is_joint_count_pmf() -> None:
+    from bet.sofa.joint import count_pmf
+
+    for mean, var in ((0.3, 0.3), (2.0, 5.0), (14.0, 30.0), (40.0, 41.0), (0.0, 1.0)):
+        a = player_model.nb_pmf(mean, var, 80)
+        b = count_pmf(mean, var, 80)
+        assert max(abs(x - y) for x, y in zip(a, b, strict=True)) < 1e-12
+
+
+def test_the_calibration_map_is_monotone_symmetric_and_count_families_only(
+    tmp_path: Path,
+) -> None:
+    ps = [i / 100 for i in range(1, 100)]
+    for b in (0.5, 0.9, 1.0, 1.3):
+        mapped = [player_model.calibrate_side(p, b) for p in ps]
+        assert all(x < y for x, y in zip(mapped, mapped[1:], strict=False))
+        for p, m in zip(ps, mapped, strict=True):
+            assert player_model.calibrate_side(1 - p, b) == pytest.approx(1 - m)
+    assert player_model.calibrate_side(0.73, None) == 0.73
+    assert player_model.calibrate_side(0.5, 0.7) == pytest.approx(0.5)
+    conn = make_db(tmp_path / "db.sqlite")
+    hockey_history(conn, games=9)
+    conn.commit()
+    apps = apps_of(conn)
+    base = player_model.sport_params("hockey")
+    off = dataclasses.replace(base, calibration_b=None)
+    half = dataclasses.replace(base, calibration_b=0.5)
+    sog = line(SOG, "Novak, Jan", 1.5, "OVER")
+    p_off = line_probability(sog, "hockey", apps, off).p
+    p_half = line_probability(sog, "hockey", apps, half).p
+    assert p_off is not None and p_half is not None
+    assert p_half == pytest.approx(player_model.calibrate_side(p_off, 0.5))
+    assert abs(p_half - 0.5) < abs(p_off - 0.5)
+    pm_line = line(PLUS_MINUS, "Novak, Jan", 0.5, "OVER")
+    assert (
+        line_probability(pm_line, "hockey", apps, off).p
+        == line_probability(pm_line, "hockey", apps, half).p
+    )
+
+
+def test_volatile_minutes_widen_the_distribution(tmp_path: Path) -> None:
+    """Same rate and mean minutes; the player whose minutes swing gets the
+    less confident number at a line far from his mean (the v1 defect)."""
+    conn = make_db(tmp_path / "db.sqlite")
+    for i in range(12):
+        swing = 2700 if i % 2 else 300
+        add_game(
+            conn,
+            800 + i,
+            KO_TS - (i + 1) * 86400,
+            [
+                entry(HOME_ID, 1, "Joe Steady", {"secondsPlayed": 1500, "points": 15}),
+                entry(
+                    HOME_ID,
+                    2,
+                    "Bob Swing",
+                    {"secondsPlayed": swing, "points": swing // 100},
+                ),
+            ],
+            slug="basketball",
+        )
+    conn.commit()
+    apps = load_appearances(conn, "basketball", [HOME_ID], KO_TS - 60, None)
+    steady = line_probability(
+        line(PTS, "Steady, Joe", 24.5, "UNDER"), "basketball", apps
+    )
+    swing_ = line_probability(
+        line(PTS, "Swing, Bob", 24.5, "UNDER"), "basketball", apps
+    )
+    assert steady.p is not None and swing_.p is not None
+    assert swing_.p < steady.p
+
+
+def test_the_replay_is_leak_free_and_reproduces_line_probability(
+    tmp_path: Path,
+) -> None:
+    from scripts.sofa import fit_player_model as fpm
+
+    conn = make_db(tmp_path / "db.sqlite")
+    hockey_history(conn, games=8)
+    target = 900
+    add_game(
+        conn,
+        target,
+        KO_TS,
+        [
+            entry(HOME_ID, 1, "Jan Novak", {"secondsPlayed": 1300, "shots": 9}),
+            entry(HOME_ID, 2, "Petr Svoboda", {"secondsPlayed": 1100, "shots": 2}),
+        ],
+    )
+    # Inside the margin before kickoff, and after it: neither may be read.
+    add_game(
+        conn,
+        901,
+        KO_TS - 30,
+        [entry(HOME_ID, 1, "Jan Novak", {"secondsPlayed": 1200, "shots": 40})],
+    )
+    add_game(
+        conn,
+        902,
+        KO_TS + 86400,
+        [entry(HOME_ID, 1, "Jan Novak", {"secondsPlayed": 1200, "shots": 50})],
+    )
+    conn.commit()
+    history = fpm.History.from_db(conn, "hockey")
+    specs = fpm.family_specs("hockey")
+    sog = [s.family for s in specs].index("player_shots_on_goal")
+    recs = {r.pid: r for r in fpm.replay_game(history, target, specs)}
+    novak = recs[1]
+    cutoff = player_model.history_cutoff(KO_TS, KO_TS)
+    assert novak.act_s == 1300 and novak.act[sog] == 9.0
+    assert len(novak.own) == 8 and all(ts < cutoff for ts, _, _ in novak.own)
+    assert all(v[sog] in (2.0, 4.0) for _, _, v in novak.own)
+    # The in-memory history is load_appearances, row for row.
+    mem = history.appearances_before([HOME_ID, AWAY_ID], cutoff, target)
+    sql = load_appearances(conn, "hockey", [HOME_ID, AWAY_ID], cutoff, target)
+    assert [(a.event_id, a.player_id, a.ts) for a in mem] == [
+        (a.event_id, a.player_id, a.ts) for a in sql
+    ]
+    prm = player_model.sport_params("hockey")
+    checked = 0
+    for f, spec in enumerate(specs):
+        got = fpm.record_distribution(novak, f, spec.family, prm)
+        if got is None:
+            continue
+        mid = next(
+            m
+            for m, s in player_model.PLAYER_MARKETS["hockey"].items()
+            if s.family == spec.family
+        )
+        ln = ShadowLine("1", mid, spec.family, 0, "Novak, Jan", 1.5, "OVER", 1.9)
+        p = player_model.side_probability(ln, got[0])
+        assert p is not None
+        if spec.family not in player_model.SIGNED_FAMILIES:
+            p = player_model.calibrate_side(p, prm.calibration_b)
+        assert line_probability(ln, "hockey", sql, prm).p == pytest.approx(p, abs=1e-12)
+        checked += 1
+    assert checked == 2  # shots and plus-minus are in the fixture's boxes
+    # A later game changing cannot move the record.
+    later = {
+        "home": {
+            "players": [
+                entry(HOME_ID, 1, "Jan Novak", {"secondsPlayed": 3000, "shots": 99})
+            ]
+        }
+    }
+    conn.execute(
+        "UPDATE sofa_event_stats SET lineups_json = ? WHERE sofascore_event_id = 902",
+        (json.dumps(later),),
+    )
+    conn.commit()
+    again = fpm.replay_game(fpm.History.from_db(conn, "hockey"), target, specs)
+    assert {r.pid: r for r in again}[1] == novak
