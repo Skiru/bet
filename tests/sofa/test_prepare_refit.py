@@ -732,3 +732,18 @@ def test_rebuild_stops_when_the_player_replay_produced_nothing(tmp_path: Path) -
 
     with pytest.raises(pr.RefitError, match="NO_ROWS"):
         pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner)
+
+
+def test_a_runs_dir_from_the_environment_must_be_the_real_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Review 2026-10-03: --runs-dir defaulted to SOFA_RUNS_DIR, so a shell left
+    pointing at a scratch rebuild fitted the player ladder of a few days."""
+    monkeypatch.setenv("SOFA_RUNS_DIR", str(tmp_path / "scratch_runs"))
+    rc = pr.main(["--date", "2026-10-03", "rebuild-cache-rows", "--dry-run"])
+    assert rc == 2
+    assert "SOFA_RUNS_DIR" in capsys.readouterr().err
+    args = pr.build_parser().parse_args(
+        ["--runs-dir", str(tmp_path / "scratch_runs"), "--date", "2026-10-03",
+         "rebuild-cache-rows", "--dry-run"])
+    assert pr.resolve_paths(args).runs_dir == tmp_path / "scratch_runs"

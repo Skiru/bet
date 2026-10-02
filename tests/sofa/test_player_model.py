@@ -314,10 +314,10 @@ def test_plus_minus_is_a_signed_normal(tmp_path: Path) -> None:
     neg = line_probability(
         line(PLUS_MINUS, "Minus, Ivo", -0.5, "UNDER"), "hockey", apps
     )
-    # Shrunk toward the pool by the fitted prior_games_signed pseudo-games
-    # (no other defenceman: the pool's mean is 0).
-    k = player_model.sport_params("hockey").prior_games_signed
-    assert neg.mean == pytest.approx(-23 / (9 + k))  # -3, -2, ... over 9 games
+    # No other defenceman: the pool is empty, so there is no prior to shrink
+    # toward - his own mean, never a shrink toward an invented 0.0 (review
+    # 2026-10-03; before, -23 / (9 + prior_games_signed)).
+    assert neg.mean == pytest.approx(-23 / 9)  # -3, -2, ... over 9 games
     assert neg.p is not None and neg.p > 0.5 and neg.mean < 0
 
 
@@ -504,9 +504,9 @@ def test_settle_prefers_the_last_pregame_forecast_before_the_start(
     rec = _settle(runs, db)
     over = next(g for g in rec["graded"] if g.get("subject") and g["side"] == "OVER")
     under = next(g for g in rec["graded"] if g.get("subject") and g["side"] == "UNDER")
-    assert over["model_source"] == "pregame" and over["model_p"] == 0.61
-    assert over["model_fetched_at_utc"] == "2026-09-28T15:00:00Z"
-    assert over["model_teams_resolved"] == 2
+    # The 15:30 row has no p: the model withdrew its number before the start,
+    # so the 15:00 one is not attached; settle computes it (review 2026-10-03).
+    assert over["model_source"] == "settle"
     # No forecast for the UNDER side: computed at settle.
     assert under["model_source"] == "settle"
     assert over["model"] == under["model"] == player_model.MODEL_NAME
@@ -1277,3 +1277,26 @@ def test_every_fitted_constant_is_bracketed_by_its_grid() -> None:
         checked += 1
     assert checked >= 8
     assert set(doc["grids"]) >= {"k_phi", "max_sample", "prior_games"}
+
+
+def test_last_pregame_takes_the_newest_before_the_start_and_honours_a_withdrawal(
+) -> None:
+    base = {"superbet_event_id": "1", "market_id": 5, "subject": "Novak, Jan",
+            "line": 2.5, "side": "OVER", "model": player_model.MODEL_NAME,
+            "teams_resolved": 2}
+    clock = datetime(2026, 9, 28, 16, 0, tzinfo=UTC)
+    rows = [
+        {**base, "fetched_at_utc": "2026-09-28T14:00:00Z", "model_p": 0.55},
+        {**base, "fetched_at_utc": "2026-09-28T15:00:00Z", "model_p": 0.61},
+        {**base, "fetched_at_utc": "2026-09-28T16:30:00Z", "model_p": 0.99},  # in play
+    ]
+    got = player_model.last_pregame(rows, "1", clock)
+    assert [r["model_p"] for r in got.values()] == [0.61]
+    withdrawn = rows + [{**base, "fetched_at_utc": "2026-09-28T15:30:00Z",
+                         "model_p": None, "model_reason": "NAME_UNCERTAIN"}]
+    assert player_model.last_pregame(withdrawn, "1", clock) == {}
+    other_model = rows[:2] + [{**base, "fetched_at_utc": "2026-09-28T15:30:00Z",
+                               "model_p": None, "model": "player_rate_v1"}]
+    # An older model's row neither forecasts nor withdraws for this one.
+    assert [r["model_p"] for r in
+            player_model.last_pregame(other_model, "1", clock).values()] == [0.61]

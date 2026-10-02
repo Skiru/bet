@@ -772,9 +772,11 @@ def test_a_name_search_cannot_place_is_found_among_the_stored_opponents(
     result = run_with(tmp_path, fake, cfg)
     m = result["metrics"]
     assert m["teams_from_store"] == 1 and "teams_unresolved" not in m
+    # Seeded for the run, but not cached: the search ran and did not return
+    # it, so it may be a namesake of the team Superbet means (review round 2).
+    assert m["teams_seeded_uncached"] == 1
     from bet.sofa.cache import SofaCache
-    cached = SofaCache(cfg).get_entity("cs2", "gremio")
-    assert cached is not None and int(cached["sofascore_id"]) == 3
+    assert SofaCache(cfg).get_entity("cs2", "gremio") is None
 
 
 def test_the_store_still_answers_while_search_is_cooling_down(tmp_path: Path) -> None:

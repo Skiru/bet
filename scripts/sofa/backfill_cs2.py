@@ -299,11 +299,12 @@ class Backfill:
         if fits:
             self.stats.add("teams_from_store")
         searched = False
+        from_search: set[int] = set()
         if self.search_refused:
             self.stats.add("search_skipped")
         elif not self.cache.get_entity_miss(ENTITY_SPORT, key):
             searched = True
-            self._search_fits(name, key, fits)
+            from_search = self._search_fits(name, key, fits)
         best = sorted(fits.items(), key=lambda kv: -kv[1][0])
         if not best:
             if searched:
@@ -318,11 +319,12 @@ class Backfill:
             self.stats.add("teams_ambiguous_seeded", len(tied))
             return tied
         tid, (_, team_name) = best[0]
-        if searched:
-            # Cached only when the search had its say: a store-only pick made
-            # while search is cooling down may be a namesake of a team the
-            # store has never seen, and a "verified" entity is never searched
-            # again (review 2026-10-03).
+        if tid in from_search:
+            # Cached only when the search itself returned the winner: a
+            # store-only pick - search cooling down, or a search that came
+            # back without it (the crowded-out case) - may be a namesake of a
+            # team the store has never seen, and a "verified" entity is never
+            # searched again (review 2026-10-03, two rounds).
             self.cache.save_entity(
                 ENTITY_SPORT, key, tid, team_name, "team", None, "verified"
             )
@@ -332,8 +334,10 @@ class Backfill:
 
     def _search_fits(
         self, name: str, key: str, fits: dict[int, tuple[float, str]]
-    ) -> None:
-        """Add /search/all's CS candidates for this name to `fits`."""
+    ) -> set[int]:
+        """Add /search/all's CS candidates for this name to `fits`; the ids
+        the search itself vouched for."""
+        vouched: set[int] = set()
         found = self.client.search(name) or {}
         results = found.get("results") or []
         teams = [
@@ -351,10 +355,12 @@ class Backfill:
             if tid in fits:
                 # Already known to play CS (the store): keep its best score.
                 fits[tid] = max(fits[tid], (score, team_name))
+                vouched.add(tid)
                 continue
             page = self.listing_page(tid, 0)
             if any(is_cs_event(e) for e in (page or {}).get("events") or []):
                 fits[tid] = (score, team_name)
+                vouched.add(tid)
         # /search/all answers 20 results across every sport, so a common name
         # ("Gremio", "Huskies", "5Star eSports") can have its CS team pushed
         # out by football clubs while the team's CS events are still listed
@@ -376,6 +382,8 @@ class Backfill:
                 if tid not in fits:
                     self.stats.add("teams_from_search_events")
                 fits[tid] = max(fits.get(tid, (0.0, "")), (score, team_name))
+                vouched.add(tid)
+        return vouched
 
     # --- series ----------------------------------------------------------------
 

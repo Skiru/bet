@@ -1854,6 +1854,18 @@ def resolve_paths(args: argparse.Namespace) -> Paths:
         p = Path(raw)
         return p if p.is_absolute() else _REPO / p
 
+    # The refit reads the real days (settled rows' replay, the printed player
+    # ladder). A SOFA_RUNS_DIR left pointing at a scratch rebuild would fit on
+    # a partial ladder and say OK, so anything but runs/sofa must be asked
+    # for by name (review 2026-10-03).
+    if args.runs_dir is None:
+        resolved = repo_rel(env.runs_dir).resolve()
+        if resolved != (_REPO / "runs" / "sofa").resolve():
+            raise RefitError(
+                f"SOFA_RUNS_DIR resolves to {resolved}, not runs/sofa - unset it "
+                "or pass --runs-dir explicitly"
+            )
+
     return Paths(
         config_dir=repo_rel(args.config_dir),
         db_path=repo_rel(args.db_path or env.db_path),
@@ -1877,8 +1889,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"note: SOFA_CONFIG_DIR={os.environ['SOFA_CONFIG_DIR']} is ignored here; "
             "the live config is --config-dir and children get it set explicitly"
         )
-    paths = resolve_paths(args)
     try:
+        paths = resolve_paths(args)
         if args.command == "backup":
             return int(backup(paths, Path(args.db) if args.db else None)["exit"])
         if args.command == "rebuild-cache-rows":

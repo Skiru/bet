@@ -153,6 +153,10 @@ you are reading about, and discard any page that carries a result.
 Never a veto: "this league goes under", "this team has won five in a row",
 a family's hit rate in `rule_history`, or yesterday's outcome. Those are
 exactly the reads that measured as anti-selection on football and tennis.
+Nor the player model (`player_model.jsonl`, `model_p` on graded lines), the
+score model or the CS2 engine: a veto driven by a model number would make
+this price-only coupon read a model, which it must not - and none of them
+has beaten the price.
 
 Write vetoes into the sport directory (merge with any already there):
 

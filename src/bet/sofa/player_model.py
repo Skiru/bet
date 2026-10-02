@@ -641,11 +641,16 @@ def count_distribution(
     )
     cv = math.sqrt(spread) / max(expected_s, 1.0)
     sigma = math.sqrt(params.sig_a**2 + cv**2)
-    phi_pool = pool.phi if pool.phi is not None else 1.0
+    # No invented dispersion (review 2026-10-03): a pool that cannot measure
+    # one gets no weight, and with neither measured the count is at the
+    # model's structural floor, Poisson (phi >= 1 below) - not a guessed 1.0
+    # shrunk toward as if it had been measured.
     phi_own = pearson_dispersion(sample)
-    phi = (
-        n * (phi_own if phi_own is not None else phi_pool) + params.k_phi * phi_pool
-    ) / (n + params.k_phi)
+    parts = [(float(n), phi_own)] if phi_own is not None else []
+    if pool.phi is not None:
+        parts.append((float(params.k_phi), pool.phi))
+    weight = sum(w for w, _ in parts)
+    phi = sum(w * v for w, v in parts) / weight if weight > 0 else 1.0
     phi = max(phi, 1.0)
     norm = sum(_GH_WEIGHTS)
     mus = [
@@ -668,13 +673,15 @@ def signed_distribution(
     mean and variance shrunk toward the pool's."""
     xs = list(values)
     n = len(xs)
+    # An empty pool is no prior: the player's own sample alone, never a
+    # shrink toward an invented 0.0 (review 2026-10-03).
     pool_mean = pool.sum_v / pool.n if pool.n else 0.0
     pool_var = (
         (pool.sum_sq - pool.n * pool_mean**2) / (pool.n - 1)
         if pool.n >= 2
         else statistics.variance(xs)
     )
-    k = params.prior_games_signed
+    k = params.prior_games_signed if pool.n else 0.0
     mean = (sum(xs) + k * pool_mean) / (n + k)
     var = (n * statistics.pvariance(xs) + k * pool_var) / (n + k)
     sd = max(math.sqrt(max(var, 0.0)), MIN_SD_SIGNED)
@@ -1088,7 +1095,8 @@ def last_pregame(
 ) -> dict[tuple[int, str, str, str], dict[str, Any]]:
     """Per (market, subject, line, side) of one game: the newest pre-game row
     whose snapshot was taken before `clock` (the game's pre-match clock),
-    that carries a p, that this model wrote (`model` == MODEL_NAME) and that
+    when that newest row carries a p (a withdrawn number is no forecast),
+    that this model wrote (`model` == MODEL_NAME) and that
     resolved both teams (`teams_resolved` == 2): a row an older model wrote
     - a loop started before the code changed - is never attached as this
     model's number, and a one-team row (a player_rate_v2 loop priced those)
@@ -1098,7 +1106,10 @@ def last_pregame(
     for row in forecasts:
         if str(row.get("superbet_event_id")) != str(superbet_event_id):
             continue
-        if row.get("model_p") is None or row.get("model") != MODEL_NAME:
+        # A row without a p still counts as the model's latest word: a number
+        # it withdrew before the start (NAME_UNCERTAIN, THIN_SAMPLE...) is not
+        # attached from an earlier snapshot (review 2026-10-03).
+        if row.get("model") != MODEL_NAME:
             continue
         if row.get("teams_resolved") != 2:
             continue
@@ -1114,7 +1125,7 @@ def last_pregame(
         prev = best.get(key)
         if prev is None or str(row["fetched_at_utc"]) > str(prev["fetched_at_utc"]):
             best[key] = row
-    return best
+    return {k: r for k, r in best.items() if r.get("model_p") is not None}
 
 
 def line_key(row: dict[str, Any]) -> tuple[int, str, str, str]:
