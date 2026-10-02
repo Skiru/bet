@@ -17,7 +17,10 @@ All seven required keys must be present (`sofascore_event_id`, `market`, `subjec
 `line`, `direction`, `reason_class`, `reason`) — including the ones you are
 setting to `null`; an omitted key is a validation failure, not a default. `extra="forbid"` means an invented key
 (`action`, `player`, `event_id`) fails validation and takes the whole file with
-it — the stage then runs with **no** vetoes at all, and reports zero.
+it — and the run stops: COUPON raises (`run_pipeline.py` reports it FAILED,
+exit 2) and `run_confidence.py` dies on an uncaught `ValidationError` with
+exit 1, which reads as PARTIAL unless the traceback is read. Neither rewrites
+its artifact, so the previous build stays on disk looking current.
 
 ## Where it lives and who reads it
 
@@ -156,5 +159,6 @@ for v in unmatched:
 PY
 ```
 
-A validation error here is cheap. The same error at COUPON time silently
-discards the whole file.
+A validation error here is cheap. The same error at COUPON / CONFIDENCE
+time stops the rebuild and leaves the previous artifacts and PDF in place -
+validate before every rebuild.

@@ -73,9 +73,13 @@ where your contribution is.
   for lower-ranked players. **Angelini, Candila & De Angelis (2022)**:
   surface-specific Elo improves men's forecasts; standard Elo is enough for
   women. Sackmann publishes surface Elo on tennisabstract.com.
-- *Implication:* we hold no rating. Use the book's own match odds
-  (`result_market_lines`) as the favourite-strength input to the scenario
-  weights, labelled as the book's opinion; use web rankings/Elo to classify
+- *Implication:* sofa holds one rating (`src/bet/sofa/tennis_rating.py`): a
+  row priced through it carries a `TENNIS_RATING` note with "<side> wins the
+  match p" - the model's opinion, not the book's. sofa does **not** map
+  Superbet's match-winner market (`Zwycięzca` sits in `unmapped_markets` in
+  `04_offer.json`), so the book's favourite-strength input is the fixture's
+  `handicap_games` ladder in `04_offer.json` (and `most_games`, where
+  priced), labelled as the book's opinion; use web rankings/Elo to classify
   the **opposition of the sample** (method §67: a 6-1 6-2 against a qualifier
   is not the same evidence as 7-6 6-4 against a top-20 server) and tonight's
   opponent. A `games_won` distribution is conditional on who the player faced;

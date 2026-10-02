@@ -546,6 +546,62 @@ def stat_gap_events(skips_path: Path) -> frozenset[int]:
     )
 
 
+def _row_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    """The settled table's natural key (UNIQUE in sofa_settled_row)."""
+    return (
+        int(row["sofascore_event_id"]),
+        row["market"],
+        row.get("subject") or "",
+        float(row["line"]),
+        row["direction"],
+    )
+
+
+def merge_settled(
+    previous: list[dict[str, Any]], current: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """07_settled.json after a re-settle: this run's rows replace the ones they
+    re-graded, every other row the day already had stays.
+
+    2026-10-02: a D-5 `--refetch-stat-gaps` re-settle wrote only its own rows,
+    so 09-29 (settled --include-unpriced) shrank to its priced rows while the
+    DB - which never deletes - still held them all.
+    """
+    fresh = {_row_key(r): r for r in current}
+    out: list[dict[str, Any]] = []
+    for row in previous:
+        key = _row_key(row)
+        out.append(fresh.pop(key) if key in fresh else row)
+    out.extend(fresh.values())
+    return out
+
+
+def merge_skipped_events(
+    previous: list[dict[str, Any]],
+    current: list[dict[str, Any]],
+    processed: set[int],
+) -> list[dict[str, Any]]:
+    """skipped_events after a re-settle, per event: an event this run graded
+    or skipped carries this run's reasons (none if it is now fully graded); an
+    event it never reached keeps the earlier run's."""
+    merged = {
+        int(e["sofascore_event_id"]): e
+        for e in previous
+        if int(e["sofascore_event_id"]) not in processed
+    }
+    for entry in current:
+        merged[int(entry["sofascore_event_id"])] = entry
+    return [merged[k] for k in sorted(merged)]
+
+
+def skip_totals(events: list[dict[str, Any]]) -> dict[str, int]:
+    totals: Counter[str] = Counter()
+    for entry in events:
+        for reason, n in (entry.get("skipped") or {}).items():
+            totals[str(reason)] += int(n)
+    return dict(sorted(totals.items(), key=lambda kv: -kv[1]))
+
+
 def rows_to_consider(
     sheet: list[dict[str, Any]], *, include_unpriced: bool
 ) -> list[dict[str, Any]]:
@@ -608,6 +664,26 @@ def main() -> int:
     with open(fixtures_path, encoding="utf-8") as f:
         fixtures = {x["sofascore_event_id"]: x for x in json.load(f)}
 
+    # A re-settle keeps the day's scope. The skips file says whether the day
+    # was settled --include-unpriced; a narrower re-run (the morning D-5
+    # --refetch-stat-gaps) would otherwise never re-grade the unpriced rows
+    # whose statistics it re-asks for, and its skips could not be merged
+    # event by event into the wider run's.
+    skips_path = run_dir / "07_settle_skips.json"
+    previous_skips: dict[str, Any] = {}
+    if skips_path.exists():
+        try:
+            loaded = json.loads(skips_path.read_text(encoding="utf-8"))
+        except ValueError:
+            loaded = {}
+        previous_skips = loaded if isinstance(loaded, dict) else {}
+    if previous_skips.get("include_unpriced") and not args.include_unpriced:
+        print(
+            "INCLUDE_UNPRICED inherited from the day's previous SETTLE",
+            file=sys.stderr,
+        )
+        args.include_unpriced = True
+
     # A row with no price cannot answer the question this stage exists for —
     # K_PRICE needs market_p, and market_p comes from the offer. So the
     # default is priced-only. --include-unpriced widens it to the whole
@@ -640,18 +716,20 @@ def main() -> int:
             skips.add(event_id, "NO_FIXTURE", len(event_rows))
 
     refetch = (
-        stat_gap_events(run_dir / "07_settle_skips.json")
+        stat_gap_events(skips_path)
         if args.refetch_stat_gaps
         else frozenset()
     )
     if args.refetch_stat_gaps:
         print(f"REFETCH_STAT_GAPS {len(refetch)} event(s)", file=sys.stderr)
 
+    reached: set[int] = set()
     try:
         for fetched in fetch_events_concurrently(
             to_fetch, client, cache, config, refetch
         ):
             event_id = fetched.event_id
+            reached.add(event_id)
             event_rows = by_event[event_id]
             fixture = fixtures[event_id]
             if fetched.circuit_open:
@@ -680,21 +758,42 @@ def main() -> int:
             # Fetched lazily, and only when the sheet actually carries one:
             # on 2026-09-22 that was 4 fixtures of 270, so SETTLE's cost per
             # day is four requests, not one per event.
+            #
+            # The /lineups request is the one fetch outside _fetch_one, so its
+            # errors are caught here (2026-10-02): one ProviderError on it used
+            # to end the whole SETTLE FAILED with neither file written. Now the
+            # event's player rows are PROVIDER_ERROR skips and the rest of the
+            # event, and of the day, is still graded.
             squads: dict[bool, dict[str, Any] | None] | None = None
+            lineups_failed = False
             if any(is_player_metric(r["market"]) for r in event_rows):
-                lineups = fetch_lineups(client, cache, event)
-                squads = {
-                    True: squad_statistics(
-                        lineups, is_home=True, statistics=statistics
-                    ),
-                    False: squad_statistics(
-                        lineups, is_home=False, statistics=statistics
-                    ),
-                }
+                try:
+                    lineups = fetch_lineups(client, cache, event)
+                except CircuitOpenError:
+                    breaker_open = True
+                    lineups_failed = True
+                except ProviderError as exc:
+                    print(
+                        f"PROVIDER_ERROR event={event_id} lineups: {exc}",
+                        file=sys.stderr,
+                    )
+                    lineups_failed = True
+                else:
+                    squads = {
+                        True: squad_statistics(
+                            lineups, is_home=True, statistics=statistics
+                        ),
+                        False: squad_statistics(
+                            lineups, is_home=False, statistics=statistics
+                        ),
+                    }
 
             value: float | GapReason
             for row in event_rows:
                 if is_player_metric(row["market"]):
+                    if lineups_failed:
+                        skips.add(event_id, "PROVIDER_ERROR")
+                        continue
                     graded = _settle_player(row, squads)
                     if isinstance(graded, str):
                         skips.add(event_id, graded)
@@ -762,10 +861,21 @@ def main() -> int:
                         settled_at,
                     )
                 )
+            if breaker_open:
+                # The breaker opened on this event's /lineups: every later
+                # request would be refused without being sent.
+                break
 
     finally:
         with get_connection(config.db_path) as conn:
             inserted = insert_settled_rows(conn, rows)
+
+    if breaker_open:
+        # The events the breaker kept this run from asking for, on the record:
+        # PROVIDER_ERROR-only, so a merge keeps an earlier run's reasons.
+        for event_id in to_fetch:
+            if event_id not in reached:
+                skips.add(event_id, "PROVIDER_ERROR", len(by_event[event_id]))
 
     with_price = sum(1 for r in rows if r.market_p is not None)
     won = sum(1 for r in rows if r.outcome == "WIN")
@@ -790,7 +900,9 @@ def main() -> int:
     }
 
     if not rows:
-        verdict = "FAILED" if by_event and not breaker_open else "PARTIAL"
+        # Nothing graded is a failure whatever the cause - the breaker
+        # included (2026-10-02: a tripped run reported PARTIAL with zero rows).
+        verdict = "FAILED" if by_event else "PARTIAL"
     elif breaker_open or skips.counts:
         verdict = "PARTIAL"
     else:
@@ -803,7 +915,39 @@ def main() -> int:
     # means guessing. A guess collapses "the match was postponed" and "the
     # provider has no reading of that statistic" into one bucket, and those
     # two are not the same fact about the day.
-    skips_path = run_dir / "07_settle_skips.json"
+    #
+    # A re-settle of a day MERGES into both files (merge_settled,
+    # merge_skipped_events): rows and skips of events this run did not reach
+    # stay. An event whose only skip is the breaker's PROVIDER_ERROR was not
+    # reached either - its earlier reasons (a stat gap the next refetch needs)
+    # are the better record.
+    out_path = run_dir / "07_settled.json"
+    previous_rows: list[dict[str, Any]] = []
+    if out_path.exists():
+        try:
+            loaded_rows = json.loads(out_path.read_text(encoding="utf-8"))
+        except ValueError:
+            loaded_rows = []
+        if isinstance(loaded_rows, list):
+            previous_rows = [r for r in loaded_rows if isinstance(r, dict)]
+    current_rows = [dict(vars(r)) for r in rows]
+    merged_rows = merge_settled(previous_rows, current_rows)
+
+    processed = {r.sofascore_event_id for r in rows} | {
+        event_id
+        for event_id, reasons in skips.by_event.items()
+        if set(reasons) != {"PROVIDER_ERROR"}
+    }
+    previous_events = [
+        e for e in previous_skips.get("skipped_events") or [] if isinstance(e, dict)
+    ]
+    previous_ids = {int(e["sofascore_event_id"]) for e in previous_events}
+    current_events = [
+        e for e in skips.events(fixtures)
+        if int(e["sofascore_event_id"]) in processed
+        or int(e["sofascore_event_id"]) not in previous_ids
+    ]
+    merged_events = merge_skipped_events(previous_events, current_events, processed)
     write_atomic(
         skips_path,
         json.dumps(
@@ -811,30 +955,20 @@ def main() -> int:
                 "date": args.date,
                 "include_unpriced": args.include_unpriced,
                 "rows_considered": len(considered),
-                "rows_settled": len(rows),
+                "rows_settled": len(merged_rows),
+                "rows_settled_this_run": len(rows),
+                "merged_with_previous": bool(previous_rows or previous_skips),
                 "events_in_sheet": len(by_event),
                 "events_settled": events_settled,
                 "breaker_open": breaker_open,
-                "skipped": dict(sorted(skips.counts.items(), key=lambda kv: -kv[1])),
-                "skipped_events": skips.events(fixtures),
+                "skipped": skip_totals(merged_events),
+                "skipped_events": merged_events,
             },
             indent=2,
         ),
     )
 
-    out_path = run_dir / "07_settled.json"
-    write_atomic(
-        out_path,
-        json.dumps(
-            [
-                {
-                    **{k: v for k, v in vars(r).items()},
-                }
-                for r in rows
-            ],
-            indent=2,
-        ),
-    )
+    write_atomic(out_path, json.dumps(merged_rows, indent=2))
 
     print(
         "SOFA_SUMMARY: "

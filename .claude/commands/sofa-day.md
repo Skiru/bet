@@ -181,7 +181,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # the ledger row of every variant and measurement; replaces both dates' rows
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled; ROI with its by-day 95% interval
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # read the ledger: one table per variant, never pooled; ROI with its by-match 95% interval ("-" under 20 matches)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # closing line value per variant - read it first: it answers in tens of legs
 ```
 
@@ -274,8 +274,7 @@ Task -> sofa-analyst-tennis     "date <date>; run <run_id>; stage verdicts; <n> 
 ```
 
 Merge their JSON arrays into `runs/sofa/<date>/vetoes.json`, **validating
-first** — a malformed entry fails the whole file and the stage then runs with
-no vetoes at all and reports zero. Report any `UNMATCHED_VETO`: it did nothing,
+first** — a malformed entry stops the run: COUPON raises (`run_pipeline.py` reports it FAILED, exit 2) and `run_confidence.py` dies on an uncaught `ValidationError` with exit 1 - which reads as PARTIAL unless the traceback is read. Neither writes its artifact, so yesterday's build stays on disk looking current. Validate before every rebuild. Report any `UNMATCHED_VETO`: it did nothing,
 and a silent no-op reads exactly like a veto that was honoured.
 
 An empty `vetoes.json` is the healthy default. On most days it is `[]`.

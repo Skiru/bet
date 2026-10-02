@@ -30,7 +30,10 @@ family for exactly that reason.
   13:84.
 - **Superbet's line is 11.5 — in the trough**, between the loser mode and the
   wall.
-- Priced by the **sample's own frequency**, so `p_central` equals the hit rate.
+- Priced by the **sample's own frequency, then pulled onto the price**: with a
+  `TENNIS_RATING` note 0.25·rating + 0.75·`market_p`; without it
+  (`P_SHRUNK_TO_PRICE`) w·hits/n + (1−w)·`market_p`, w = n/(n+30). `p_central`
+  equals the hit rate only on a rung with no price.
 - **The frequency is overconfident at the top:** a claimed 0.95 realises 0.728
   over 9,286 settled rows, and the market has no measured bucket above 0.825.
   A confident `games_won_for` row is the number to trust least on the sheet.

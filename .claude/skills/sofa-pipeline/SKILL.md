@@ -113,9 +113,14 @@ Three things that look like defects and are not:
    mean always shows a "gap"; that gap is `K_CENTRE` doing its job.
 2. `ladder_centre` / `ladder_sigma` describe **the bookmaker's ladder**, not
    our distribution. `ladder_sigma` around 0.003 is normal.
-3. Tennis uses the empirical frequency, so `p_central` **equals** the sample's
-   hit rate. Football does not, and should not — a gap above ~15 pp means the
-   league prior, not the team, is doing the work.
+3. A priced tennis rung's `p_central` is already pulled onto the price, so it
+   does **not** equal the sample's hit rate: `TENNIS_RATING` rows
+   (`games_total`, `games_won_for`, `sets_total`, `handicap_games`) are
+   0.25·rating + 0.75·`market_p` (`W_TENNIS_RATING`); `P_SHRUNK_TO_PRICE`
+   rows (empirical markets, no rating) are w·hits/n + (1−w)·`market_p`,
+   w = n/(n+30) - 0.25 at n=10. Only an unpriced rung reads the raw rating /
+   hit rate. Football does not equal its hit rate either, and should not — a
+   gap above ~15 pp means the league prior, not the team, is doing the work.
 
 Derivation rules, the confidence chain and what cannot be re-derived:
 `references/arithmetic.md`.

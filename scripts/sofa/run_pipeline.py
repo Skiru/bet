@@ -58,6 +58,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
 
@@ -238,6 +239,14 @@ def main() -> int:
     verdict = {0: "OK", 1: "PARTIAL"}.get(worst, "FAILED")
 
     config = SofaConfig.from_env()
+    # A RESOLVE whose breaker opened returns PARTIAL like a healthy one; the
+    # marker it leaves is what says the slate is a stub, so the summary
+    # carries it rather than leaving it to a file nobody lists.
+    fixtures_refusal = incomplete_reason(
+        Path(config.runs_dir) / args.date / "02_fixtures.json"
+    )
+    if fixtures_refusal is not None:
+        print(fixtures_refusal, file=sys.stderr, flush=True)
     summary = {
         "stage": "PIPELINE",
         "verdict": verdict,
@@ -246,7 +255,8 @@ def main() -> int:
             "stages": [
                 {"stage": r.stage, "label": r.label, "verdict": r.verdict}
                 for r in results
-            ]
+            ],
+            "fixtures_incomplete": fixtures_refusal,
         },
         "output_path": str(Path(config.runs_dir) / args.date),
     }

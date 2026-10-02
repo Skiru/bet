@@ -137,6 +137,17 @@ payload z kursami drugi raz ręcznie. Drugie czytanie weryfikuje twój parser
 wobec niego samego. Potwierdź, że rynek, linia, kierunek i cena istnieją tak,
 jak twierdzi artefakt, i że mecz nadal jest na tablicy.
 
+Najpierw przeczytaj `fetcher.errors`. Od 2026-10-01 listing Superbetu, który
+rzucił błąd, trafia do `fetcher.errors`, a mecz, którego **każdy** listing
+rzucił błąd, jest z wyniku `fetch_offers` **pominięty**
+(`src/bet/sofa/offer.py`) — pusty wynik wygląda wtedy dokładnie jak mecz
+zdjęty z tablicy. Jeśli `fetcher.errors` wymienia któryś z
+`superbet_event_ids` meczu, werdykt to **NIE DA SIĘ ZWERYFIKOWAĆ**, nigdy
+„niedostępne”. Klienta buduj jak `scripts/sofa/run_offer.py`
+(`SuperbetClient(base_url="https://production-superbet-offer-pl.freetls.fastly.net")`
+albo `SuperbetClient()`), nigdy dosłownie `SuperbetClient(...)` — Ellipsis
+trafia do `base_url.strip()` i rzuca `AttributeError`.
+
 ### 2d. Czy mecz naprawdę się nie zaczął — na wcześniejszym zegarze
 
 **Oba stopnie biorą `min(kickoff_utc, superbet_kickoff_utc)`** — COUPON od

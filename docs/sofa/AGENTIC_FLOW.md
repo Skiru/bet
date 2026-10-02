@@ -131,8 +131,12 @@ unmatched = find_unmatched_vetoes(rows, vetoes)                 # potem raport
 ```
 
 `Veto` ma `extra="forbid"`. Jeden wymyślony klucz (`action`, `player`,
-`event_id`) wywraca **cały plik**, a COUPON rusza wtedy z **zerem** wet
-i melduje zero — wygląda to identycznie jak dzień bez zastrzeżeń.
+`event_id`) wywraca **cały plik** i **zatrzymuje przebudowę**: COUPON rzuca
+wyjątek (`run_pipeline.py` melduje FAILED, kod 2), a `run_confidence.py`
+pada na nieprzechwyconym `ValidationError` z kodem 1 — co czyta się jak
+PARTIAL, jeśli nie przeczyta się tracebacku. Żaden z nich nie zapisuje
+artefaktu, więc na dysku zostają poprzednie 06/08 i PDF, wyglądające na
+aktualne. Waliduj przed każdą przebudową.
 
 ---
 

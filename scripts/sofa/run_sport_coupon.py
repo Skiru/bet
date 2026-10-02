@@ -48,7 +48,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.cs2 import write_atomic  # noqa: E402
+from bet.sofa.cs2 import append_records, write_atomic  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
 
 WARSAW = ZoneInfo("Europe/Warsaw")
@@ -469,19 +469,13 @@ def write_outputs(
     )
     os.replace(tmp_pdf, pdf_path)
     write_atomic(directory / sc.COUPON_MD, render_md(doc))
-    # Every build, appended: what each printed PDF held.
-    with (directory / sc.BUILDS_FILE).open("a", encoding="utf-8") as fh:
-        fh.write(
-            json.dumps(
-                {
-                    "created_at_utc": doc["created_at_utc"],
-                    "legs": doc["legs"],
-                    "vetoed": doc["vetoed"],
-                },
-                ensure_ascii=False,
-            )
-            + "\n"
-        )
+    # Every build, appended: what each printed PDF held. Through the shared
+    # appender: whole lines under a lock, a torn tail newline-repaired first.
+    append_records(
+        directory / sc.BUILDS_FILE,
+        [{"created_at_utc": doc["created_at_utc"], "legs": doc["legs"],
+          "vetoed": doc["vetoed"]}],
+    )
     return pdf_path
 
 

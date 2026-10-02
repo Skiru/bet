@@ -101,7 +101,16 @@ def closing_rows(runs: Path, day: str) -> list[ClvRow]:
         if not is_close(rec.get("minutes_before")):
             continue
         key = (rec["variant"], rec["leg_key"])
-        if key not in latest or rec["fetched_at_utc"] > latest[key]["fetched_at_utc"]:
+        # The latest record that carries a price wins. A `missing` record (a
+        # market Superbet pulled, or - with `error` - a fetch that failed)
+        # only stands when no pass inside the window priced the leg: a failed
+        # last pass used to erase an earlier good close (1 of 96 legs on
+        # 2026-10-01).
+        rank = (not rec.get("missing") and not rec.get("error"),
+                rec["fetched_at_utc"])
+        held = latest.get(key)
+        if held is None or rank > (not held.get("missing") and not held.get("error"),
+                                   held["fetched_at_utc"]):
             latest[key] = rec
     out: list[ClvRow] = []
     for rec in latest.values():

@@ -434,6 +434,11 @@ def main() -> int:
             refused["DERIVED_NOT_CALIBRATABLE"] += 1
             continue
 
+        # See Calibration.admitted_player_markets: a curve is not an admission.
+        if cal.player_prop_not_admitted(row["market"]):
+            refused["PLAYER_PROP_NOT_ADMITTED"] += 1
+            continue
+
         sides = next(
             (board_sides[str(i)] for i in fx.get("superbet_event_ids") or []
              if str(i) in board_sides), None)

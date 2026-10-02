@@ -27,10 +27,14 @@ def _db(rows: list[tuple]) -> sqlite3.Connection:
     conn.execute(
         """CREATE TABLE sofa_settled_row (
                competition_id INTEGER, market TEXT, subject TEXT,
-               sofascore_event_id INTEGER, actual_value REAL)"""
+               sofascore_event_id INTEGER, actual_value REAL,
+               sport TEXT DEFAULT 'football')"""
     )
+    # `sport`: the fits drop football friendlies (bet.sofa.fit_meta), which
+    # needs the column the production table always has.
     conn.executemany(
-        "INSERT INTO sofa_settled_row VALUES (?,?,?,?,?)", rows
+        "INSERT INTO sofa_settled_row (competition_id, market, subject,"
+        " sofascore_event_id, actual_value) VALUES (?,?,?,?,?)", rows
     )
     return conn
 

@@ -151,6 +151,20 @@ for _family, _prefixes in {
 # saves / throw-in / goal-kick / tackle markets get that curve from the cache
 # replay (calibrate_from_cache), as every existing curve did; the per-half
 # ones only from live SETTLE, because the replay reads the ALL period.
+# Football player props (players.PLAYER_METRICS, listed here to keep this
+# module free of that import; test_player_markets checks the two agree).
+PLAYER_PROP_MARKETS = frozenset(
+    {
+        "player_shots_for",
+        "player_shots_on_target_for",
+        "player_assists_for",
+        "player_fouls_for",
+        "player_tackles_for",
+        "player_interceptions_for",
+        "player_offsides_for",
+    }
+)
+
 AWAITING_OWN_CURVE = frozenset(
     f"{base}_{suffix}"
     for base in (
@@ -170,15 +184,7 @@ AWAITING_OWN_CURVE = frozenset(
     # 0.083. The pool is not a measurement of these markets, so they wait for
     # their own curve like every market above - and they had reached the PDF
     # as builder legs on 09-26..09-29 (1-3 a day).
-    {
-        "player_shots_for",
-        "player_shots_on_target_for",
-        "player_assists_for",
-        "player_fouls_for",
-        "player_tackles_for",
-        "player_interceptions_for",
-        "player_offsides_for",
-    }
+    PLAYER_PROP_MARKETS
 ) | frozenset(
     # Tennis per-set serve markets (TENNIS_PER_SET_SERVE below). Measured
     # 2026-09-30 by sofa-verifier and re-counted from sofa_settled_row: since
@@ -768,6 +774,19 @@ class Calibration:
     # sport-pool curves, fitted on the class's rows only. A leg of the class
     # is read from these and nothing else - see realised().
     by_class: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Player props the operator has admitted to the coupon by name
+    # ("admitted_player_markets" in the calibration file). AWAITING_OWN_CURVE
+    # lapses by itself once a market has a curve, and the next fit_confidence
+    # gives every player prop one: their 09-26..09-29 builder legs realised
+    # 0.624 against 0.776 claimed, and they price at one-sided offers, so
+    # being curved is not a reason to print them. A deliberate decision is.
+    admitted_player_markets: frozenset[str] = frozenset()
+
+    def player_prop_not_admitted(self, market: str) -> bool:
+        return (
+            market in PLAYER_PROP_MARKETS
+            and market not in self.admitted_player_markets
+        )
 
     @staticmethod
     def load(path: Path | str = DEFAULT_CALIBRATION) -> Calibration:
@@ -778,6 +797,9 @@ class Calibration:
             pooled_by_sport=doc.get("pooled_by_sport", {}),
             by_market_direction=doc.get("by_market_direction", {}),
             by_class=doc.get("by_class", {}),
+            admitted_player_markets=frozenset(
+                doc.get("admitted_player_markets") or ()
+            ),
         )
 
     def for_class(self, klass: str) -> Calibration | None:

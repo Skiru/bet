@@ -254,6 +254,7 @@ def main() -> int:
     duplicates = 0
     gaps: dict[GapReason, int] = defaultdict(int)
     breaker_open = False
+    breaker_at = 0
 
     # What a previous run of this stage, for this date, already resolved.
     #
@@ -293,6 +294,11 @@ def main() -> int:
             if outcome.circuit_open:
                 gaps[GapReason.PROVIDER_ERROR] += 1
                 breaker_open = True
+                breaker_at = (
+                    len(resolved_fixtures)
+                    + duplicates
+                    + sum(gaps.values())
+                )
                 break
             if outcome.gap is not None:
                 if outcome.error:
@@ -350,6 +356,19 @@ def main() -> int:
                 out_path,
                 stage="RESOLVE",
                 reason=f"{type(failure).__name__}: {failure}",
+            )
+        elif breaker_open:
+            # The breaker's `break` is not an exception, so without this the
+            # stage cleared the marker and returned PARTIAL - the verdict a
+            # healthy RESOLVE returns too - and OFFER..PDF built the day on a
+            # quarter of the slate (sim 10-01: recall 26%, no marker). The
+            # artifact keeps what resolved (and what an earlier pass carried);
+            # the marker keeps it from being read as the slate until a clean
+            # `--from-stage RESOLVE` removes it.
+            mark_incomplete(
+                out_path,
+                stage="RESOLVE",
+                reason=f"CIRCUIT_OPEN at {breaker_at}/{len(fixtures)}",
             )
         else:
             clear_incomplete(out_path)

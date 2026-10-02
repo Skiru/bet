@@ -151,3 +151,73 @@ def test_chain_starts_the_next_day_once_when_the_snapshots_end() -> None:
     # after every snapshot, before the first settle
     assert events.index("chain") < events.index("settle")
     assert all(e != "settle" for e in events[: events.index("chain")])
+
+
+# --- morning retries (2026-10-02: CS2_SETTLE 403'd at 05:00Z and FAILED) ---------
+
+
+def _retry_day(fail_times: int) -> tuple[list[tuple[datetime, list[str]]], int]:
+    clock = Clock(datetime(2026, 10, 2, 4, 59, tzinfo=UTC))
+    calls: list[tuple[datetime, list[str]]] = []
+    left = {"n": fail_times}
+
+    def runner(cmd: list[str]) -> int:
+        calls.append((clock.now(), cmd))
+        if cmd[-1] == "CS2_SETTLE" and cmd[2] == "2026-10-01":
+            if left["n"] > 0:
+                left["n"] -= 1
+                return 2
+        if cmd[0].endswith("backfill_cs2.py"):
+            return 2  # a failed backfill is never retried
+        clock.t += timedelta(seconds=60)
+        return 0
+
+    code = cs2_daily.run(
+        "2026-10-01",
+        30,
+        cs2_daily._at("2026-10-01", "23:30"),
+        cs2_daily._at("2026-10-01", "05:00", day_offset=1),
+        6.0,
+        clock=clock.now,
+        sleep=clock.sleep,
+        runner=runner,
+    )
+    return calls, code
+
+
+def test_a_failed_settle_is_retried_with_its_dependent_steps() -> None:
+    calls, code = _retry_day(fail_times=1)
+    names = [Path(c[0]).name + ("" if c[-1] != "CS2_SETTLE" else f":{c[2]}")
+             for _, c in calls]
+    first = [t for t, c in calls if c[-1] == "CS2_SETTLE" and c[2] == "2026-10-01"]
+    assert len(first) == 2, "one retry, then it settled"
+    assert timedelta(minutes=30) <= first[1] - first[0] <= timedelta(minutes=40)
+    after = names[names.index("run_pipeline.py:2026-10-01", 1):]
+    # the retry, then the offline steps that read what it wrote, then the audit
+    assert after == ["run_pipeline.py:2026-10-01", "settle_sport_coupon.py",
+                     "record_results.py", "audit_cs2.py"]
+    assert names.count("backfill_cs2.py") == 1, "a backfill is never repeated"
+    assert names.count("settle_cs2.py") == 1, "a step that worked is not repeated"
+    assert code == 2  # the backfill's own failure still counts
+
+
+def test_retries_stop_after_four_hours() -> None:
+    calls, _ = _retry_day(fail_times=99)
+    tries = [t for t, c in calls if c[-1] == "CS2_SETTLE" and c[2] == "2026-10-01"]
+    assert len(tries) == 1 + 8
+    assert tries[-1] - tries[0] <= timedelta(hours=4, minutes=30)
+
+
+def test_a_clean_morning_is_not_retried() -> None:
+    calls, _ = _retry_day(fail_times=0)
+    assert sum(1 for _, c in calls if c[-1] == "CS2_SETTLE") == 2
+
+
+def test_watchdog_relaunch_keeps_the_chain(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.sofa import cs2_watchdog
+
+    seen: list[list[str]] = []
+    monkeypatch.setattr(cs2_watchdog, "spawn", lambda args, log: seen.append(args))
+    monkeypatch.setattr(cs2_watchdog, "log", lambda msg: None)
+    cs2_watchdog.act("RELAUNCH", "2026-10-01")
+    assert seen == [["scripts/sofa/cs2_daily.py", "--date", "2026-10-01", "--chain"]]

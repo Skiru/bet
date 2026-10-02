@@ -175,7 +175,9 @@ def act(action: str, date: str) -> None:
         )
     elif action == "RELAUNCH":
         spawn(
-            ["scripts/sofa/cs2_daily.py", "--date", date],
+            # --chain kept: a relaunched day that dropped it ended the chain
+            # (D+1 refuses at once if its loop is already running).
+            ["scripts/sofa/cs2_daily.py", "--date", date, "--chain"],
             state_dir() / f"daily_{date}.log",
         )
         log(f"RELAUNCH {date} cs2_daily was not running and had not finished")

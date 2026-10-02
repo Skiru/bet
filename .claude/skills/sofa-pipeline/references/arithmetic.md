@@ -67,7 +67,11 @@ p_bar         == w·(p_central − calibration_correction) + (1 − w)·market_p
 `p_central` itself is only reproducible approximately from `centre` and
 `sample_sd` (measured: 5 of 63 rows landed outside a 0.024 tolerance). Rebuild
 `p_central` against **the sample's own hit rate** in `03_samples.json` instead
-— that is the check that matters, and for tennis the two must be *equal*.
+— that is the check that matters. For tennis they are equal only on a rung
+with no price: a priced `TENNIS_RATING` row is 0.25·rating + 0.75·`market_p`
+(`W_TENNIS_RATING`), a priced `P_SHRUNK_TO_PRICE` row is
+w·hits/n + (1−w)·`market_p` with w = n/(n+30) (`K_TENNIS_LADDER_CENTRE`).
+Re-derive from the row's notes; a gap to the raw hit rate is not a defect.
 
 ### Three things that look wrong and are not
 

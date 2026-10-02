@@ -25,7 +25,6 @@ import sqlite3
 import statistics
 import sys
 from collections import defaultdict
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +40,7 @@ from bet.sofa.engine import (
     uses_negative_binomial,
     winning_boundary,
 )
+from bet.sofa.fit_meta import fit_stamp, friendly_exclusion_sql
 from bet.sofa.market_mapper import is_derived
 
 K_GRID = [0.0, 2.0, 5.0, 8.0, 10.0, 15.0, 25.0, 1000.0]
@@ -103,11 +103,23 @@ def bucket_p(p: float) -> str:
     return f"{b / 10.0:.1f}-{(b + 1) / 10.0:.1f}"
 
 
-BASELINE_GROUPS_SQL = """
+# Friendlies are out of SAMPLES and the football rating (bet.sofa.samples.
+# FRIENDLY_COMPETITION_IDS), so they are out of every fit too: until
+# 2026-10-02 they were ~6% of the global goals_for pool, a prior describing
+# games the sheet never samples. Every query below carries this term.
+NOT_FRIENDLY = friendly_exclusion_sql()
+NOT_FRIENDLY_R = friendly_exclusion_sql("r.")
+
+# sofa_market_reliability.json is read as {market_key: buckets}; its fit
+# metadata sits under this reserved key, which no market can be named
+# (get_calibration_correction looks markets up by name and never iterates).
+RELIABILITY_META_KEY = "_fitted_from"
+
+BASELINE_GROUPS_SQL = f"""
     SELECT competition_id, market, subject, sofascore_event_id,
            MAX(actual_value) AS value
     FROM sofa_settled_row
-    WHERE competition_id IS NOT NULL
+    WHERE competition_id IS NOT NULL AND {NOT_FRIENDLY}
     GROUP BY competition_id, market, subject, sofascore_event_id
     ORDER BY market, competition_id, sofascore_event_id
 """
@@ -327,10 +339,10 @@ def fit_reliability(conn: sqlite3.Connection) -> dict[str, Any]:
     fires in both directions is fitting noise it has not measured.
     """
     cursor = conn.execute(
-        """
+        f"""
         SELECT market, direction, p_central, outcome
         FROM sofa_settled_row
-        WHERE outcome IN ('WIN', 'LOSS')
+        WHERE outcome IN ('WIN', 'LOSS') AND {NOT_FRIENDLY}
         ORDER BY market, p_central
         """
     )
@@ -470,23 +482,23 @@ def _pick_plateau_k(
     return max(candidates)
 
 
-K_CENTRE_ROWS_SQL = """
+K_CENTRE_ROWS_SQL = f"""
     SELECT sport, competition_id, market, line, direction, sample_size,
            sample_mean, sample_sd, outcome
     FROM sofa_settled_row
-    WHERE outcome IN ('WIN', 'LOSS')
+    WHERE outcome IN ('WIN', 'LOSS') AND {NOT_FRIENDLY}
     ORDER BY id
 """
 
 # The same rows, each with its own match's contribution to its market's
 # baseline (own_sum / own_n: the per-subject values BASELINE_GROUPS_SQL
 # averages), so leave_match_out_prior can take the match back out.
-K_CENTRE_ROWS_LOO_SQL = """
+K_CENTRE_ROWS_LOO_SQL = f"""
     WITH g AS (
         SELECT competition_id, market, sofascore_event_id, subject,
                MAX(actual_value) AS value
         FROM sofa_settled_row
-        WHERE competition_id IS NOT NULL
+        WHERE competition_id IS NOT NULL AND {NOT_FRIENDLY}
         GROUP BY competition_id, market, subject, sofascore_event_id
     ), e AS (
         SELECT competition_id, market, sofascore_event_id,
@@ -501,7 +513,7 @@ K_CENTRE_ROWS_LOO_SQL = """
     LEFT JOIN e ON e.competition_id = r.competition_id
                AND e.market = r.market
                AND e.sofascore_event_id = r.sofascore_event_id
-    WHERE r.outcome IN ('WIN', 'LOSS')
+    WHERE r.outcome IN ('WIN', 'LOSS') AND {NOT_FRIENDLY_R}
     ORDER BY r.id
 """
 
@@ -666,10 +678,11 @@ def fit_k_price(
     rows = [
         dict(r)
         for r in conn.execute(
-            """
+            f"""
             SELECT p_central, market_p, sample_size, outcome
             FROM sofa_settled_row
             WHERE outcome IN ('WIN', 'LOSS') AND market_p IS NOT NULL
+              AND {NOT_FRIENDLY}
             ORDER BY id
             """
         )
@@ -711,10 +724,11 @@ def fit_max_ladder_sigma(
     rows = [
         dict(r)
         for r in conn.execute(
-            """
+            f"""
             SELECT ladder_sigma, p_central, outcome
             FROM sofa_settled_row
             WHERE outcome IN ('WIN', 'LOSS') AND ladder_sigma IS NOT NULL
+              AND {NOT_FRIENDLY}
             ORDER BY ladder_sigma
             """
         )
@@ -787,11 +801,13 @@ def main() -> int:
 
     with get_connection(str(db_path)) as conn:
         total_rows = conn.execute(
-            "SELECT COUNT(*) AS c FROM sofa_settled_row"
+            f"SELECT COUNT(*) AS c FROM sofa_settled_row WHERE {NOT_FRIENDLY}"
         ).fetchone()["c"]
         leagues = conn.execute(
-            "SELECT COUNT(DISTINCT competition_id) AS c FROM sofa_settled_row"
+            "SELECT COUNT(DISTINCT competition_id) AS c FROM sofa_settled_row "
+            f"WHERE {NOT_FRIENDLY}"
         ).fetchone()["c"]
+        stamp = fit_stamp(conn)
 
         baselines = fit_baselines(conn)
         reliability = fit_reliability(conn)
@@ -824,8 +840,8 @@ def main() -> int:
             "db_path": str(db_path),
             "settled_rows": total_rows,
             "distinct_competitions": leagues,
-            "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "min_baseline_observations": MIN_BASELINE_OBSERVATIONS,
+            **stamp,
         },
         "half_match_coherence": coherence or "OK",
         **baselines,
@@ -839,7 +855,18 @@ def main() -> int:
     )
     write_atomic(
         config_dir / "sofa_market_reliability.json",
-        json.dumps(reliability, indent=2, ensure_ascii=False),
+        json.dumps(
+            {
+                RELIABILITY_META_KEY: {
+                    "db_path": str(db_path),
+                    "settled_rows": total_rows,
+                    **stamp,
+                },
+                **reliability,
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
     )
 
     constants: dict[str, Any] = {
@@ -853,6 +880,7 @@ def main() -> int:
             "db_path": str(db_path),
             "settled_rows": total_rows,
             "distinct_competitions": leagues,
+            **stamp,
         },
         "K_CENTRE": {
             "value": k_centre,

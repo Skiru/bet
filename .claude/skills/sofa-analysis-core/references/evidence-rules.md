@@ -51,8 +51,18 @@ always for a `*_1h_*` / `*_2h_*` row — the half-match baselines are fitted on 
 smaller, different population than the full-match ones, and a stale baselines
 file has already shipped corners priors 24–32% too high for two days.
 
-Tennis at `K_CENTRE = 2` is nearly all sample, which is why tennis
-`p_central` equals the sample's own hit rate.
+Tennis `p_central` does **not** equal the sample's hit rate on a priced rung
+(`scripts/sofa/run_sheet.py`, `process_fixture`). A row with a
+`TENNIS_RATING` note (`games_total`, `games_won_for`, `sets_total`,
+`handicap_games` - `tennis_rating.RATED_MARKETS`) is
+`0.25·rating p + 0.75·market_p` (`blend_with_price`, `W_TENNIS_RATING = 0.25`,
+unfitted). An empirical-frequency row without the rating (`sets_total`,
+`games_won_for`, per-set games - `EMPIRICAL_FREQUENCY_METRICS`) carries
+`P_SHRUNK_TO_PRICE`: `w·hits/n + (1−w)·market_p`, `w = n/(n+30)`
+(`p_empirical_shrunk_to_price`, `K_TENNIS_LADDER_CENTRE = 30`; 0.25 at n=10).
+Only where the rung has no price is it the rating alone or the raw hit rate.
+A priced tennis `p_central` sitting near `market_p` and far from `hits/n` is
+the code working, not a defect.
 
 **Where the football prior came from** is on the row since 2026-09-23. In
 order: the fitted league entry (no note); `PRIOR_FROM_DAY_SAMPLES` - the

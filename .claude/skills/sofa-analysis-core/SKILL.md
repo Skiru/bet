@@ -114,7 +114,7 @@ was never generated, look for it there.
 | `centre` | the mean **after** shrinkage toward the prior, `w_c = n/(n+K_CENTRE)`; a football row with a `FOOTBALL_RATING` note is 0.5·rating + 0.5·that | the sample's claim |
 | notes `CROSS_LEAGUE_UNLINKED` / `PRIOR_GLOBAL_WOMEN` | the sides share no league and no measured league strength (CONFIDENCE refuses it, the price decides) / a women's league shrunk to the women's pool | a reason of its own to veto - the code has already acted |
 | `calibrated_on` prefix `women:` / `tennis_women:` / `tennis_team_cup:` | the leg read only its class's curve; a class leg without one is refused (`NO_CLASS_CURVE`) | the pooled curve |
-| `p_central` | the model's probability. **Tennis: equals the sample hit rate.** Football: negative binomial. | conservative |
+| `p_central` | the model's probability. **Tennis, priced rung: already pulled onto the price** - a `TENNIS_RATING` note (games_total, games_won_for, sets_total, handicap_games) is 0.25·rating + 0.75·`market_p` (`W_TENNIS_RATING`); a `P_SHRUNK_TO_PRICE` note (empirical sets/games-won/per-set games, no rating) is w·hits/n + (1−w)·`market_p`, w = n/(n+30) (0.25 at n=10). Only an unpriced tennis rung carries the raw rating / hit rate. Count markets (aces, DF, serve points) and football: count model (football negative binomial). | the sample hit rate, or a defect when it sits near `market_p` |
 | `calibration_correction` | subtracted before the price blend; one-sided, can only lower `p` | evidence |
 | `market_p` | Superbet's price, power-devigged. `null` = one-sided rung, no devig possible. | our number |
 | `p_bar` | `w·p + (1−w)·market_p`, `w = n/(n+10)` | a forecast |

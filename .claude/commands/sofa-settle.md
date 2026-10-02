@@ -23,6 +23,10 @@ during one.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<date>.done exists or the pid in daily_<date>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
+# Statistic gaps close days later: re-settle <date-4> (D-5 when <date> is D-1) and correct rows graded
+# off an early snapshot. Both write sofa_settled_row, which record_results.py reads - so before 1b:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <date-4> --refetch-stat-gaps
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
 ```
 
 `PARTIAL` is the normal verdict. Read `07_settle_skips.json`: **a row that
@@ -37,13 +41,16 @@ say what the whole board did.
 
 ## 1b — every variant, and the ledger (every day)
 
+`<date>` is D-1 on a normal morning, so `<date-7>`..`<date>` is the
+D-8..D-1 window every agent uses (`sofa-settler`, `sofa-runner`, `/sofa-day`).
+
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <date-1> --to <date>   # the day before too: its legs after 00:00Z settle into <date>'s file
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <date-1> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <date-7> --to <date>   # D-8..D-1: legs after 00:00Z settle into the next day's file; a leg waiting > 7 days becomes NOT_GRADED:GAVE_UP
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <date-7> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <date> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <date> --to <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <date-1> --to <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <date-7> --to <date>    # read it: one table per variant, never pooled
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <date-7> --to <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <date-6> --to <date>    # D-7..D-1; one table per variant, never pooled; ROI with its by-match 95% interval ("-" under 20 matches)
 ```
 
 One ledger row per (date, variant) in `runs/sofa/ledger/results.jsonl`;
@@ -58,7 +65,9 @@ a defect, name it) or an unreadable file (named in the table); 2 = a crash,
 or for `record_results.py` a missing database. A leg after 00:00Z settles
 into the next day's file and is graded the morning after (the loops' 05:00Z
 / 05:15Z steps settle D and D-1 and record both days), so the next run's
-`--from <date-1>` closes it too. Before the sport's SETTLE has written
+`--from <date-7>` window closes it too. If `regrade_settled.py` changed a row
+older than `<date-7>`, re-run `record_results.py --from <that date> --to <date>`.
+Before the sport's SETTLE has written
 `settled.json`, `measure:<sport>` is absent, not pending - check every
 `measure:*` row is present.
 

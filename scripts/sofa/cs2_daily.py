@@ -20,6 +20,9 @@ audit the next morning.
    and record_results.py for both days (the ledger; offline).
 3. A short CS2_BACKFILL (--backfill-minutes, default 6; 0 to skip). It honours
    the cooldown a Sofascore refusal leaves behind, so it never re-hammers.
+3b. A step that FAILED (exit >= 2) is retried every 30 min for up to 4 h,
+   together with the settle_sport_coupon / record_results steps after the
+   first failed one (run_morning); a backfill is never repeated.
 4. audit_cs2.py for the day, into the log.
 
 Every step is a separate process, so one crashing never takes the rest down,
@@ -246,10 +249,63 @@ def loop(
     wait = (settle_at - clock()).total_seconds()
     if wait > 0:
         sleep(wait)
-    for cmd in morning:
-        worst = max(worst, runner(cmd))
+    worst = max(
+        worst, run_morning(morning, clock=clock, sleep=sleep, runner=runner)
+    )
     runner(audit)  # a report; its exit code says nothing about the day
     return min(worst, 2)
+
+
+# A FAILED morning step is asked again every RETRY_EVERY_S for RETRY_FOR_S.
+# On 2026-10-02 05:00Z CS2_SETTLE met 5 x 403 and FAILED for 10-01 and 09-30;
+# a retry half an hour later would have settled both, and the loop had
+# already ended its morning.
+RETRY_EVERY_S = 30 * 60
+RETRY_FOR_S = 4 * 3600
+# Offline steps that read what a settle wrote: re-run after a retry when they
+# come after the first failed step, whatever their own exit was.
+RERUN_AFTER_RETRY = ("settle_sport_coupon.py", "record_results.py")
+# A backfill is capped by time and resumes the next morning; never repeated.
+NEVER_RETRY_PREFIX = "backfill_"
+
+
+def run_morning(
+    morning: list[list[str]],
+    *,
+    clock: Callable[[], datetime],
+    sleep: Callable[[float], None],
+    runner: Callable[[list[str]], int],
+    retry_every_s: float = RETRY_EVERY_S,
+    retry_for_s: float = RETRY_FOR_S,
+) -> int:
+    """The morning steps once, then their retries; the worst final exit."""
+    codes = [runner(cmd) for cmd in morning]
+
+    def name(i: int) -> str:
+        return Path(morning[i][0]).name
+
+    def retryable(i: int) -> bool:
+        return codes[i] >= 2 and not name(i).startswith(NEVER_RETRY_PREFIX)
+
+    # Fixed slots after the first pass, so slow steps do not thin the retries.
+    start = clock()
+    for k in range(1, int(retry_for_s // retry_every_s) + 1):
+        if not any(retryable(i) for i in range(len(morning))):
+            break
+        wait = (start + timedelta(seconds=k * retry_every_s) - clock()).total_seconds()
+        if wait > 0:
+            sleep(wait)
+        failed = [i for i in range(len(morning)) if retryable(i)]
+        first = failed[0]
+        print(
+            f"[{clock().isoformat(timespec='seconds')}] RETRY {k} failed morning "
+            f"steps: {[' '.join(morning[i]) for i in failed]}",
+            flush=True,
+        )
+        for i in range(len(morning)):
+            if retryable(i) or (i > first and name(i) in RERUN_AFTER_RETRY):
+                codes[i] = runner(morning[i])
+    return max(codes, default=0)
 
 
 def main(spawn: Callable[[str], int] = spawn_next_day) -> int:

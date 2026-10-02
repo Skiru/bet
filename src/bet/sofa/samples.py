@@ -215,6 +215,7 @@ def fetch_available_metrics(
     metrics_from_offer: it costs nothing.
     """
     available_metrics: set[str] = set()
+    failures: list[str] = []
     for s_id in fixture.superbet_event_ids:
         # One listing's error is that listing's, as in OfferFetcher: Superbet
         # raises curl_cffi's HTTPError (not a ProviderError) on a removed
@@ -222,12 +223,23 @@ def fetch_available_metrics(
         # every other fixture had finished (review 2026-10-01).
         try:
             payload = superbet_client.event_odds(s_id)
-        except Exception:  # noqa: BLE001 - one listing, not the stage
+        except Exception as exc:  # noqa: BLE001 - one listing, not the stage
+            failures.append(f"{s_id}: {type(exc).__name__}: {exc}")
             continue
         for item in odds_items(payload):
             classified = classify_market(item.get("marketName"))
             if classified:
                 available_metrics.add(classified[0])
+    # Every listing raised: Superbet gave no answer, which is not "nothing is
+    # priced". Returning the empty set blocked the fixture NO_PRICE, which is
+    # not a provider fault, so SAMPLES dropped its previous good sample
+    # instead of carrying it over (review 2026-10-02). A ProviderError is
+    # blocked PROVIDER_ERROR by process_fixture_samples - still one fixture,
+    # never the stage.
+    if fixture.superbet_event_ids and len(failures) == len(fixture.superbet_event_ids):
+        raise ProviderError(
+            "every Superbet listing failed: " + "; ".join(failures)[:500]
+        )
     return available_metrics
 
 

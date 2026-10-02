@@ -31,7 +31,11 @@ def test_a_day_with_its_closing_file_or_nothing_printed_is_silent(
 def test_a_second_loop_for_a_day_sees_the_first(tmp_path: Path) -> None:
     assert capture_closing.loop_holder(tmp_path) is None
     (tmp_path / capture_closing.PID_FILE).write_text(str(os.getppid()), encoding="utf-8")
-    assert capture_closing.loop_holder(tmp_path) == os.getppid()
+
+    def ours(pid: int) -> str:
+        return f"python scripts/sofa/capture_closing.py --date {tmp_path.name} --loop"
+
+    assert capture_closing.loop_holder(tmp_path, ours) == os.getppid()
 
 
 def test_a_dead_loop_s_pid_file_does_not_block(tmp_path: Path) -> None:

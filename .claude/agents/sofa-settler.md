@@ -26,6 +26,12 @@ scripts that write config, and you report. You do not hand-edit a constant.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<D-1>.done exists or the pid in daily_<D-1>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
+# Statistic gaps close days later (2026-10-01): Sofascore publishes a lower league's corners/shots/fouls
+# days after the cards, and the cache re-asks only a match >= 4 days old - so re-settle D-5 every morning
+# (inserts only the rows that were missing) and correct rows graded off an early snapshot.
+# Both write sofa_settled_row, which record_results.py reads - so they run BEFORE Step 1b, never after:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
 ```
 
 SETTLE is **not** in `DEFAULT_SEQUENCE`, by design: run it against today and it
@@ -126,13 +132,13 @@ otherwise - never a reason to widen its rule mid-week.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
-# Statistic gaps close days later (2026-10-01): Sofascore publishes a lower league's corners/shots/fouls
-# days after the cards, and the cache re-asks only a match >= 4 days old - so re-settle D-5 every morning
-# (inserts only the rows that were missing) and correct rows graded off an early snapshot:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
 ```
+
+(The D-5 re-settle and `regrade_settled.py --apply` already ran in Step 1,
+before the ledger. `regrade_settled.py` is not date-scoped: if it reports a
+change on a date older than D-8, re-run
+`record_results.py --from <that date> --to <D-1>`.)
 
 **`audit_settlement` section 7c is the PDF coupon's real result.** Sections 7
 and 7b are input material — legs and candidate rows — **not bets**. Reporting

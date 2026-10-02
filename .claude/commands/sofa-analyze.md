@@ -80,8 +80,10 @@ for v in carried:
     print("  CARRIED:", json.dumps(v, ensure_ascii=False))
 
 # Validation first: extra="forbid" means an invented key (action, player,
-# event_id) fails the whole file, and COUPON then runs with NO vetoes at all
-# and reports zero.
+# event_id) fails the whole file, and the run stops: COUPON raises (FAILED,
+# exit 2 through run_pipeline.py) and run_confidence.py dies on an uncaught
+# ValidationError, exit 1 - which reads as PARTIAL. Neither rewrites its
+# artifact, so the previous 06/08 files and PDF stay on disk looking current.
 vetoes = RootModel[list[Veto]].model_validate(merged).root
 rows = RootModel[list[SheetRow]].model_validate_json(
     open(f"runs/sofa/{date}/05_sheet.json").read()).root

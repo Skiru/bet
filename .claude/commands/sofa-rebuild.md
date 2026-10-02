@@ -86,9 +86,8 @@ every gate downstream will now refuse them, which is correct behaviour.
 
 ## Step 2 — vetoes, if there are any
 
-If an analyst produced vetoes, validate before writing — a malformed entry
-fails the whole file and the stage then runs with **no** vetoes and reports
-zero:
+If an analyst produced vetoes, validate before writing and before any
+rebuild — a malformed entry stops the run: COUPON raises (`run_pipeline.py` reports it FAILED, exit 2) and `run_confidence.py` dies on an uncaught `ValidationError` with exit 1 - which reads as PARTIAL unless the traceback is read. Neither writes its artifact, so yesterday's build stays on disk looking current:
 
 ```bash
 .venv/bin/python - <<'PY'

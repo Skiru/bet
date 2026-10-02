@@ -51,6 +51,11 @@ twelve games, so the distribution has a loser mode spread over 0–11 and a
 winner mode stacked on 12+. Across 570 observations in one day: 10:17, 11:10,
 **12:159**, 13:84. Superbet's line sits at **11.5, in the trough.** A normal
 CDF puts smooth density exactly where the real distribution has almost none.
+On a priced rung that frequency is then pulled onto the price (note
+`P_SHRUNK_TO_PRICE`: w·hits/n + (1−w)·`market_p`, w = n/(n+30)), and where the
+rating has the match (`TENNIS_RATING`, also `games_total` / `handicap_games`)
+`p_central` is 0.25·rating + 0.75·`market_p` instead - see
+`references/data-inventory.md`. Neither equals the raw hit rate, by design.
 
 For every other tennis metric `p_central` comes from a count model, so it will
 **not** equal the sample hit rate.

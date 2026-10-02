@@ -216,6 +216,29 @@ z ostatniego fitu, a poniższe zmieni dopiero kolejny, świadomy fit.
   `sofa_market_reliability.json`, krzywe `fit_confidence`) są zapisywane
   atomowo (`bet.sofa.atomic`): przerwany fit nie zostawia uciętego JSON-a.
 
+### Zmiany z 2026-10-02 — działają od razu, bez fitu
+
+- **Propsy graczy nie wchodzą na kupon same przez fit.** `AWAITING_OWN_CURVE`
+  wygasa, gdy rynek dostanie własną krzywą, a najbliższy `fit_confidence`
+  da ją każdemu propsowi. CONFIDENCE odmawia więc propsów
+  (`PLAYER_PROP_NOT_ADMITTED`), dopóki rynek nie zostanie dopuszczony z nazwy
+  w `config/sofa_confidence_calibration.json`:
+  `"admitted_player_markets": ["player_shots_for"]`. To decyzja operatora,
+  nie skutek fitu (09-26..09-29 nogi buildera z propsów: deklarowane 0,776,
+  zrealizowane 0,624; ceny jednostronne). Fit liczy `p` propsów od nowa z
+  zapisanych `sample_mean`/`sd` bieżącym kodem, czyli rozkładem ujemnym
+  dwumianowym — krzywa pasuje do estymatora, który teraz je wycenia.
+- **Korekta z `sofa_market_reliability.json` nie dotyczy tenisowego `p`
+  już przyciągniętego do ceny** (blend ratingu z ceną, próbka dociągnięta do
+  ceny szczebla; `run_sheet.row_correction`). Plik był fitowany na mieszance
+  estymatorów, głównie próbkowych. Zmierzone 2026-10-02 na 50 434 rozliczonych
+  wierszach tenisa z ceną, 09-24..10-01, w odległości < 0,15 od ceny: bez
+  korekty 0,751 deklarowane / 0,759 zrealizowane w 0,7-0,8, 0,849 / 0,850 w
+  0,8-0,9; korekta pogarszała Briera o 0,00028 (połówki po id meczu +0,00016
+  / +0,00040). Tenisowe wiersze z samej próbki korektę zachowują — to one są
+  przeszacowane (0,749 / 0,614, n=500) i korekta im pomaga w obu połówkach.
+  Wpływa na `p_bar` i werdykt SHEET, nie na PDF (CONFIDENCE czyta `p_central`).
+
 ---
 
 ## 5. Higiena — trzy rzeczy, które już raz poszły źle

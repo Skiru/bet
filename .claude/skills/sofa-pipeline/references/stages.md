@@ -280,8 +280,13 @@ does this actually happen". Offline; reads the sheet, offer, fixtures, samples
 and `vetoes.json`.
 
 ```
---date D  --floor 0.80  --runs-dir runs/sofa
+--date D  [--profile standard|wariant]  [--floor F]  [--runs-dir runs/sofa]
 ```
+
+Leave `--floor` out to build the real coupon: it defaults to the profile's
+floor (`confidence.PROFILES`: `standard` 0.70 -> `08_confidence.json`,
+`wariant` 0.65 -> `08_confidence_wariant.json`). Passing a floor builds a
+different experiment under the official file name.
 
 Every number is the **lower bound** of the measured realised rate, fitted on
 1,868,474 settled rows, so a thin bucket reads as less confident rather than

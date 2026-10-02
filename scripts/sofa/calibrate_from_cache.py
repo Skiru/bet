@@ -41,6 +41,7 @@ import json
 import math
 import sqlite3
 import statistics
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -212,7 +213,15 @@ def match_values(
     return values
 
 
-def load_cache(db_path: Path) -> list[Played]:
+def load_cache(
+    db_path: Path, dropped_out: set[int] | None = None
+) -> list[Played]:
+    """Every finished cached match, one listing per match.
+
+    `dropped_out`, when given, receives the event ids the duplicate-listing
+    collapse removed, so write_settled can delete the replay rows an earlier
+    run stored under them.
+    """
     conn = sqlite3.connect(str(db_path))
     try:
         identity: dict[int, dict[str, Any]] = {}
@@ -257,7 +266,14 @@ def load_cache(db_path: Path) -> list[Played]:
         for event in identity.values()
         if (event.get("status") or {}).get("type") == "finished"
     ]
-    for event in one_listing_per_match(finished):
+    kept = one_listing_per_match(finished)
+    if dropped_out is not None:
+        kept_ids = {e.get("id") for e in kept}
+        dropped_out.update(
+            int(e["id"]) for e in finished
+            if isinstance(e.get("id"), int) and e.get("id") not in kept_ids
+        )
+    for event in kept:
         event_id = int(event["id"])
         home = (event.get("homeTeam") or {}).get("id")
         away = (event.get("awayTeam") or {}).get("id")
@@ -569,10 +585,28 @@ _ONLY_OVER_CACHE_ROWS = (
 )
 
 
-def write_settled(rows: list[SettledRow], db_path: Path) -> int:
+def write_settled(
+    rows: list[SettledRow], db_path: Path, drop_event_ids: Iterable[int] = ()
+) -> int:
+    """Upsert the replay rows; delete the replay rows of collapsed copies.
+
+    The upsert key is the event id, so collapsing a duplicate listing to one
+    id (one_listing_per_match) left the rows an earlier run had stored under
+    the OTHER id in the table, and every fit kept reading the match twice.
+    `drop_event_ids` are those other ids: only their run_date =
+    'cache-calibration' rows go - never a row SETTLE wrote - and never an id
+    this run is writing.
+    """
     conn = sqlite3.connect(str(db_path))
     written = 0
     try:
+        writing = {row.event_id for row in rows}
+        stale = sorted(set(drop_event_ids) - writing)
+        conn.executemany(
+            "DELETE FROM sofa_settled_row "
+            "WHERE run_date = 'cache-calibration' AND sofascore_event_id = ?",
+            [(event_id,) for event_id in stale],
+        )
         for row in rows:
             conn.execute(
                 "INSERT INTO sofa_settled_row "
@@ -627,7 +661,8 @@ def main() -> int:
     config = SofaConfig.from_env()
     db_path = Path(args.db_path or config.db_path)
 
-    played = load_cache(db_path)
+    dropped: set[int] = set()
+    played = load_cache(db_path, dropped)
     baselines = load_baselines()
     rows = build(played, baselines)
 
@@ -643,7 +678,7 @@ def main() -> int:
             json.dumps(curve, indent=2, ensure_ascii=False) + "\n",
         )
 
-    written = write_settled(rows, db_path)
+    written = write_settled(rows, db_path, dropped)
 
     measured = sum(
         1
@@ -672,6 +707,7 @@ def main() -> int:
                 overall_predicted - overall_realised, 4
             ),
             "rows_written_to_db": written,
+            "duplicate_listing_ids_dropped": len(dropped),
             "next_step": "python -m scripts.sofa.fit_constants",
         },
         "output_path": args.out,

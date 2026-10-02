@@ -51,6 +51,11 @@ from bet.sofa.engine import (  # noqa: E402
     uses_poisson_floor,
     winning_boundary,
 )
+from bet.sofa.fit_meta import (  # noqa: E402
+    carry_operator_keys,
+    fit_stamp,
+    friendly_exclusion_sql,
+)
 from bet.sofa.market_mapper import is_derived  # noqa: E402
 from bet.sofa.resolve import sofascore_gender  # noqa: E402
 
@@ -145,12 +150,19 @@ def main() -> int:
     # exactly as before and classes nothing.
     columns = {r[1] for r in con.execute("PRAGMA table_info(sofa_settled_row)")}
     event_col = "sofascore_event_id" if "sofascore_event_id" in columns else "NULL"
+    # Friendlies are out of SAMPLES and the rating, so they are out of the
+    # curves too (2026-10-02). A table without competition_id cannot say.
+    friendly_term = (
+        friendly_exclusion_sql() if "competition_id" in columns else "1"
+    )
+    stamp = fit_stamp(con)
     rows = con.execute(
         f"""select market, line, direction, sample_size, sample_mean, sample_sd,
                   actual_value, p_central, sport, {event_col}
            from sofa_settled_row
            where sample_mean is not null and sample_sd is not null
-             and sample_size > 0 and actual_value is not null"""
+             and sample_size > 0 and actual_value is not null
+             and {friendly_term}"""
     )
 
     per_market: dict[str, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
@@ -305,6 +317,7 @@ def main() -> int:
         prior["by_class_fitted_from"] = {
             "db_path": args.db_path, "scored_rows": scored,
             "classes": {k: len(v["by_market"]) for k, v in by_class.items()},
+            **stamp,
         }
         write_atomic(Path(args.out), json.dumps(prior, indent=1) + "\n")
         print(json.dumps({
@@ -324,7 +337,7 @@ def main() -> int:
             "split by OVER/UNDER and is read first; the two directions of one "
             "rung are complements, so the pooled curve describes neither."
         ),
-        "fitted_from": {"db_path": args.db_path, "scored_rows": scored},
+        "fitted_from": {"db_path": args.db_path, "scored_rows": scored, **stamp},
         "min_market_bucket": MIN_MARKET_BUCKET,
         "pooled": curve(pooled, MIN_POOLED_BUCKET),
         "pooled_by_sport": {
@@ -342,9 +355,15 @@ def main() -> int:
         "by_class_fitted_from": {
             "db_path": args.db_path, "scored_rows": scored,
             "classes": {k: len(v["by_market"]) for k, v in by_class.items()},
+            **stamp,
         },
     }
-    write_atomic(Path(args.out), json.dumps(doc, indent=1) + "\n")
+    # The full fit rebuilds the file from the DB; an operator-owned key
+    # (admitted_player_markets) is not in the DB and must survive it.
+    out_path = Path(args.out)
+    if out_path.exists():
+        carry_operator_keys(doc, json.loads(out_path.read_text(encoding="utf-8")))
+    write_atomic(out_path, json.dumps(doc, indent=1) + "\n")
     print(
         json.dumps(
             {

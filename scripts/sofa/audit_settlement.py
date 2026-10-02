@@ -817,9 +817,13 @@ def main() -> int:
     # said "loosen MAX_OVERROUND" (+6.4% instead of -0.1%), 22-25.09 said the
     # band above it returns -12.8% against -4.6%. See audit_trend.
     #
-    # Read from each day's 07_settled.json, not the database: run_date has no
-    # index, and one query per day is a full scan of 26M cache rows. Section 9
-    # reports whether the two agree for this day.
+    # Read from each day's 07_settled.json, not the database. This was chosen
+    # when run_date had no index and one query per day was a full scan of 26M
+    # cache rows; since f2812970 it has one (sofa_settled_row_run_date), so a
+    # per-day DB read would now be cheap - the artifact is kept as the source
+    # only because nothing has been re-measured against it. Note the artifact
+    # is not corrected by regrade_settled.py. Section 9 reports whether the
+    # two agree for this day.
     lines.extend(render_trend(
         build_trend(Path(config.runs_dir), args.date, _settled_artifact_loader(
             Path(config.runs_dir))),

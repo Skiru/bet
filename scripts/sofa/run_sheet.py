@@ -232,6 +232,20 @@ def read_constant(
     return fallback, False
 
 
+def row_correction(
+    reliability: dict[str, Any],
+    market: str,
+    p: float,
+    direction: str,
+    price_anchored: bool,
+) -> float:
+    """The reliability correction for one row, or 0 for a p already on the
+    price (see the measurement where it is called)."""
+    if price_anchored:
+        return 0.0
+    return get_calibration_correction(reliability, market, p, direction)
+
+
 def get_calibration_correction(
     reliability: dict[str, Any], market: str, p: float, direction: str = ""
 ) -> float:
@@ -1067,11 +1081,17 @@ def process_fixture(
                 if rating is not None
                 else None
             )
+            # A tennis p already pulled onto Superbet's price (the rating blend
+            # with a price, the empirical shrink to the rung's price) is not
+            # the estimator the reliability curve was fitted on. See
+            # price_anchored below.
+            price_anchored = False
             if p_rating is not None:
-                p_raw = blend_with_price(
-                    p_rating,
-                    market_ps.get((rung.market, rung.subject, rung.line, direction)),
+                anchor_price = market_ps.get(
+                    (rung.market, rung.subject, rung.line, direction)
                 )
+                p_raw = blend_with_price(p_rating, anchor_price)
+                price_anchored = fixture.sport == "tennis" and anchor_price is not None
             elif uses_empirical_frequency(rung.market):
                 # Counted on the SHRUNK centre, not on the raw sample. The
                 # shrink above is not advisory: a note that says "pulled to
@@ -1093,6 +1113,7 @@ def process_fixture(
                     p_raw = p_empirical_shrunk_to_price(
                         hits, n, rung_price, K_TENNIS_LADDER_CENTRE
                     )
+                    price_anchored = rung_price is not None
                 else:
                     p_raw = p_empirical_centred_raw(
                         values, boundary, direction, centre - mean
@@ -1166,8 +1187,18 @@ def process_fixture(
 
             m_p = market_ps.get((rung.market, rung.subject, rung.line, direction))
 
-            corr = get_calibration_correction(
-                reliability, rung.market, p_cent, direction
+            # sofa_market_reliability.json was fitted on settled rows of every
+            # estimator, mostly sample-based ones, and a tennis p already
+            # pulled onto the price is calibrated without it. Measured
+            # 2026-10-02 on 50,434 settled priced tennis rows 09-24..10-01
+            # within 0.15 of the price: claimed 0.751 / realised 0.759 at
+            # 0.7-0.8, 0.849 / 0.850 at 0.8-0.9; the correction moved Brier
+            # +0.00028 (event-id halves +0.00016 / +0.00040), worse in the
+            # 0.8-1.0 buckets on both halves. Sample-based tennis rows keep
+            # it: they are the overconfident ones (claimed 0.749, realised
+            # 0.614, n=500) and it helps them on both halves.
+            corr = row_correction(
+                reliability, rung.market, p_cent, direction, price_anchored
             )
 
             force_weight_0 = False

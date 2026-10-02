@@ -162,6 +162,7 @@ def test_a_superbet_error_in_the_metric_fallback_is_one_listing() -> None:
         pass
 
     client = MagicMock()
-    client.event_odds.side_effect = Boom("404 Client Error")
+    client.event_odds.side_effect = [Boom("404 Client Error"), {}]
     fx = Fixture.model_construct(superbet_event_ids=["1", "2"])
+    # One listing raised, the other answered: that listing's error only.
     assert fetch_available_metrics(fx, client) == set()

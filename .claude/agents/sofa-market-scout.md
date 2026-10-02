@@ -73,10 +73,28 @@ config = SofaConfig.from_env()
 fixtures = RootModel[list[Fixture]].model_validate_json(
     open("runs/sofa/<date>/02_fixtures.json").read()).root
 target = [f for f in fixtures if f.sofascore_event_id == <event_id>]
-offers = OfferFetcher(SuperbetClient(...)).fetch_offers(target)
+# Same construction as scripts/sofa/run_offer.py. Never write SuperbetClient(...)
+# literally: the Ellipsis reaches base_url.strip() and raises AttributeError.
+client = SuperbetClient(
+    base_url="https://production-superbet-offer-pl.freetls.fastly.net"
+)
+fetcher = OfferFetcher(client)
+offers = fetcher.fetch_offers(target)
+print("listings asked:", [f.superbet_event_ids for f in target])
+print("fetcher.errors:", fetcher.errors)   # [(superbet_event_id, "ExcType: message"), ...]
 print(json.dumps([o.model_dump(mode="json") for o in offers], indent=1, ensure_ascii=False)[:4000])
 PY
 ```
+
+**Read `fetcher.errors` before `offers`.** Since 2026-10-01 a failing
+Superbet listing no longer raises out of `fetch_offers`: the error is appended
+to `fetcher.errors`, and a fixture whose *every* listing failed is **omitted**
+from the returned list (`src/bet/sofa/offer.py`, `OfferFetcher.fetch_offers`) -
+so an empty `offers` looks exactly like a fixture that is gone. If
+`fetcher.errors` names any of the fixture's `superbet_event_ids`, the verdict
+for that fixture is **CANNOT VERIFY**, never NOT AVAILABLE. With some listings
+failed and one read, the fixture is returned from the listings that answered
+only - a missing market there is CANNOT VERIFY as well.
 
 Read the raw odds payload a second time by hand as well
 (`bet.sofa.superbet.odds_items`). A second reading verifies the parser against

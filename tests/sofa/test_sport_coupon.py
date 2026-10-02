@@ -619,3 +619,22 @@ def test_a_failed_pdf_leaves_the_previous_json_and_pdf(
         (d / sc.pdf_name("hockey", DATE)).read_bytes(),
     )
     assert after == before
+
+
+def test_a_torn_build_log_line_is_repaired_before_the_next_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    d = write_snaps(
+        tmp_path,
+        "hockey",
+        DATE,
+        [snap("1", total_pair("1", 1.20, 4.20), AT - timedelta(minutes=5),
+              kickoff=AT + timedelta(hours=2))],
+    )
+    assert run_build(monkeypatch, tmp_path, AT) == 0
+    with (d / sc.BUILDS_FILE).open("a", encoding="utf-8") as fh:
+        fh.write('{"created_at_utc": "torn')  # a crash mid-append
+    assert run_build(monkeypatch, tmp_path, AT + timedelta(minutes=10)) == 0
+    lines = (d / sc.BUILDS_FILE).read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 3
+    assert json.loads(lines[0])["legs"] and json.loads(lines[2])["legs"]

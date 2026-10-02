@@ -1506,7 +1506,17 @@ def test_chain_starts_the_next_day_only_when_asked(
 ) -> None:
     monkeypatch.setenv("SOFA_RUNS_DIR", str(tmp_path / "runs"))
     monkeypatch.setattr(shadow_daily, "REPO", Path("/"))
-    monkeypatch.setattr(shadow_daily, "loop", lambda *a, **k: 0)
+    def fake_loop(*a: object, after_snapshots: object = None, **k: object) -> int:
+        # cs2_daily.loop's contract: the hook runs once when the snapshots
+        # end, and its failure is logged, never raised.
+        if callable(after_snapshots):
+            try:
+                after_snapshots()
+            except Exception:  # noqa: BLE001
+                pass
+        return 0
+
+    monkeypatch.setattr(shadow_daily, "loop", fake_loop)
     spawned: list[str] = []
 
     def spawn(date: str) -> int:
@@ -2696,3 +2706,45 @@ def test_settling_a_player_line_saves_the_lineups(tmp_path: Path) -> None:
         ("hockey",),
     )
     assert empty_cache.get_event_lineups(700) is None
+
+
+def test_shadow_chains_d1_before_the_morning_and_its_retries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import timedelta
+
+    monkeypatch.setenv("SOFA_RUNS_DIR", str(tmp_path / "runs"))
+    monkeypatch.setattr(shadow_daily, "REPO", Path("/"))
+    t = {"now": datetime(2026, 10, 2, 4, 20, tzinfo=UTC)}
+    events: list[str] = []
+    fails = {"n": 1}
+
+    def runner(cmd: list[str]) -> int:
+        events.append(Path(cmd[0]).name + (f":{cmd[-1]}" if "--only" in cmd else ""))
+        if cmd[-1] == "SHADOW_SETTLE" and fails["n"]:
+            fails["n"] -= 1
+            return 2
+        return 0
+
+    def sleep(s: float) -> None:
+        t["now"] += timedelta(seconds=s)
+
+    real_loop = shadow_daily.loop
+
+    def timed_loop(*a: object, **k: object) -> int:
+        return real_loop(  # type: ignore[arg-type]
+            *a, clock=lambda: t["now"], sleep=sleep, runner=runner, **k
+        )
+
+    monkeypatch.setattr(shadow_daily, "loop", timed_loop)
+
+    def spawn(date: str) -> int:
+        events.append("spawn")
+        return 1
+
+    monkeypatch.setattr("sys.argv", ["shadow_daily", "--date", "2026-10-01", "--chain"])
+    assert shadow_daily.main(spawn) == 0
+    assert events.count("spawn") == 1
+    first_settle = events.index("run_pipeline.py:SHADOW_SETTLE")
+    assert events.index("spawn") < first_settle, "D+1 waited for the morning"
+    assert events.count("run_pipeline.py:SHADOW_SETTLE") == 2, "one retry"

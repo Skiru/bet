@@ -14,12 +14,14 @@ through the day, then settle and audit the next morning.
    then SHADOW_SETTLE for the day, and once more for each of the two days
    before that has snapshots (their pending games get another attempt; D-2's
    is the one late enough for a postponed game to read VOID). A failed settle
-   is logged and can be rerun by hand at any time
-   (`run_pipeline.py --date <d> --only SHADOW_SETTLE`); it resumes.
+   is asked again every 30 min for up to 4 h (cs2_daily.run_morning, with
+   the coupon and ledger steps after it), and can be rerun by hand at any
+   time (`run_pipeline.py --date <d> --only SHADOW_SETTLE`); it resumes.
 3. settle_sport_coupon.py for each settled day and sport (the experimental
    coupons, offline), record_results.py for those days (the ledger), then
    audit_shadow.py for the day, into the log.
-4. With --chain, start the NEXT day's loop (itself with --chain), detached,
+4. With --chain, when the snapshots end (before the morning steps, so their
+   retries never delay it), start the NEXT day's loop (itself with --chain), detached,
    into runs/sofa/shadow/daily_<D+1>.log. This loop covers D+1's games only
    up to ~07:30Z (its 04:30Z snapshot plus the 3 h horizon); without a D+1
    loop running by then, D+1's morning games are never priced. A D+1 loop
@@ -175,6 +177,19 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
         )
         return 2
     pid_file.write_text(str(os.getpid()), encoding="utf-8")
+
+    def chain() -> None:
+        # When the snapshots end, as cs2_daily does: the morning settles and
+        # their retries (up to 4 h, cs2_daily.run_morning) must not hold back
+        # D+1's snapshots.
+        pid = spawn(args.date)
+        print(
+            f"chained {next_day(args.date)}: started pid {pid} (it exits 2 at "
+            f"once if a loop for that date is already running - see "
+            f"daily_{next_day(args.date)}.log)",
+            flush=True,
+        )
+
     try:
         code = loop(
             snapshot,
@@ -183,6 +198,7 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
             args.interval_min,
             _at(args.date, args.snapshots_until, day_offset=1),
             _at(args.date, args.settle_at, day_offset=1),
+            after_snapshots=chain if args.chain else None,
         )
     finally:
         # Gone when the loop is: a live pid file means a live loop.
@@ -191,17 +207,6 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
         json.dumps({"exit": code, "at": datetime.now(UTC).isoformat()}),
         encoding="utf-8",
     )
-    if args.chain:
-        try:
-            pid = spawn(args.date)
-            print(
-                f"chained {next_day(args.date)}: started pid {pid} (it exits 2 at "
-                f"once if a loop for that date is already running - see "
-                f"daily_{next_day(args.date)}.log)",
-                flush=True,
-            )
-        except Exception as exc:  # the day is done; a failed chain is logged
-            print(f"chain to {next_day(args.date)} failed: {exc}", flush=True)
     return code
 
 

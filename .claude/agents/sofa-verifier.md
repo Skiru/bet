@@ -131,6 +131,41 @@ payload a second time by hand. A second reading verifies your parser against
 itself. Confirm the market, the line, the direction and the price all exist as
 the artifact claims, and that the fixture is still on the board.
 
+```bash
+PYTHONPATH=src:. .venv/bin/python - <<'PY'
+import json
+from pydantic import RootModel
+from bet.sofa.contracts import Fixture
+from bet.sofa.offer import OfferFetcher
+from bet.sofa.superbet import SuperbetClient
+from bet.sofa.stage import set_stage
+
+set_stage("CLIENT")                    # an unlabelled request must not be misfiled
+fixtures = RootModel[list[Fixture]].model_validate_json(
+    open("runs/sofa/<date>/02_fixtures.json").read()).root
+target = [f for f in fixtures if f.sofascore_event_id == <event_id>]
+# Same construction as scripts/sofa/run_offer.py (SuperbetClient() uses the same
+# DEFAULT_BASE_URL). Never write SuperbetClient(...) literally: base_url.strip() raises.
+client = SuperbetClient(
+    base_url="https://production-superbet-offer-pl.freetls.fastly.net"
+)
+fetcher = OfferFetcher(client)
+offers = fetcher.fetch_offers(target)
+print("listings asked:", [f.superbet_event_ids for f in target])
+print("fetcher.errors:", fetcher.errors)   # [(superbet_event_id, "ExcType: message"), ...]
+print(json.dumps([o.model_dump(mode="json") for o in offers], indent=1, ensure_ascii=False)[:4000])
+PY
+```
+
+**Read `fetcher.errors` first.** Since 2026-10-01 a listing that raised is
+recorded in `fetcher.errors` instead of failing the call, and a fixture whose
+*every* Superbet listing raised is **omitted** from the returned list
+(`src/bet/sofa/offer.py`, `OfferFetcher.fetch_offers`) - an empty result looks
+exactly like a fixture taken off the board. If `fetcher.errors` names any of
+the fixture's `superbet_event_ids`, that leg is **CANNOT VERIFY**, never NOT
+AVAILABLE / "off the board"; with only some listings failed, a market missing
+from the rest is CANNOT VERIFY too.
+
 ### 2d. Has the match really not started — on Superbet's clock
 
 `min(kickoff_utc, superbet_kickoff_utc)`. Sofascore's clock alone is not
