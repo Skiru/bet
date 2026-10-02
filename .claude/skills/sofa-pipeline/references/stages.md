@@ -177,11 +177,21 @@ applies it: a sheet built from samples taken before an id was added still
 counts those matches (look for the id in the observations' `competition_id`),
 and `/sofa-rebuild` does not fix that.
 
+Since 2026-10-02 a club's second squad filed under the first team's id is
+dropped too (`src/bet/sofa/reserve_squads.py`, gap `RESERVE_SQUAD`): two of a
+side's matches in a competition 6-44 h from a match of its main competition
+make the whole (side, competition) pair a second squad, and
+`config/sofa_reserve_competitions.json` lists competitions where sides from
+named main competitions field reserves (Brazilian state cups for Serie A/B,
+Copa Santa Fe for the Liga Profesional). A fixture that is itself the second
+squad's leaves the side empty. The rating moves neither side on such a match.
+
 `GapReason` vocabulary: `NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`,
 `NO_MATCHING_EVENT`, `EVENT_NOT_FINISHED`, `NO_STATISTICS`, `NO_INCIDENTS`,
 `STAT_KEY_ABSENT`, `ALL_ZERO_SAMPLE`, `OUTSIDE_MODEL_RESOLUTION`,
-`INTERNAL_INCONSISTENT`, `THIN_SAMPLE`, `SURFACE_UNKNOWN`, `NO_PRICE`,
-`STALE_PRICE`, `PROVIDER_ERROR`, `CIRCUIT_OPEN`.
+`INTERNAL_INCONSISTENT`, `ENTITY_CONFLICT`, `RESERVE_SQUAD`, `THIN_SAMPLE`,
+`SURFACE_UNKNOWN`, `NO_PRICE`, `STALE_PRICE`, `PROVIDER_ERROR`,
+`CIRCUIT_OPEN`.
 
 `provider_fault_fixtures` in the summary (since 2026-10-01) counts fixtures
 that lost metrics to a provider fault with nothing to carry over; any makes

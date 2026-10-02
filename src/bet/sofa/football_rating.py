@@ -38,7 +38,7 @@ import pickle
 import sqlite3
 from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +49,12 @@ from bet.sofa.metrics import (
     extract_flat_statistics,
     extract_metric,
     is_extra_time_event,
+)
+from bet.sofa.reserve_squads import (
+    RESERVE_COMPETITIONS,
+    TeamMatch,
+    reserve_event_ids,
+    reserve_fingerprint,
 )
 from bet.sofa.resolve import sofascore_gender
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
@@ -213,6 +219,10 @@ class FootballResult:
     # per gender: the pool is ~90% men's football, and women's leagues score
     # 3.57 goals a match against its 3.17 (baselines, 2026-09-30).
     women: bool = False
+    # The side played this match with its second squad under the first team's
+    # id (reserve_squads; Londrina's Copa Parana matches, 2026-10-02).
+    home_reserve: bool = False
+    away_reserve: bool = False
 
 
 def _listing_values(event: Mapping[str, Any]) -> dict[str, tuple[float, float]]:
@@ -290,12 +300,15 @@ def parse_event(
 # 2026-10-02.1: calculate_cards_points ignores cards shown to staff (a
 # `manager`, no `player`; Superbet komunikat 06/2022 s.2), so cards_points_for
 # changes; the history also reads the listed-event index (listing_index.py).
-HISTORY_PARSER_VERSION = "2026-10-02.1"
+# 2026-10-02.2: a side's second-squad matches are marked (home_reserve /
+# away_reserve, reserve_squads) and move no rating.
+HISTORY_PARSER_VERSION = "2026-10-02.2"
 
 
 def history_fingerprint(db_path: str | Path) -> str:
     """What the parsed history depends on: the cached listings and statistics
-    (row count and newest fetch of each), the parser and the friendly list.
+    (row count and newest fetch of each), the parser, the friendly list and
+    the second-squad rule with its list.
     Two loads with the same fingerprint parse to the same history."""
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.execute("PRAGMA busy_timeout = 60000")
@@ -311,7 +324,10 @@ def history_fingerprint(db_path: str | Path) -> str:
     finally:
         conn.close()
     friendlies = ",".join(str(c) for c in sorted(FRIENDLY_COMPETITION_IDS))
-    fp = f"{HISTORY_PARSER_VERSION}|{lst[0]}|{lst[1]}|{sts[0]}|{sts[1]}|{friendlies}"
+    fp = (
+        f"{HISTORY_PARSER_VERSION}|{lst[0]}|{lst[1]}|{sts[0]}|{sts[1]}|{friendlies}"
+        f"|reserve:{reserve_fingerprint()}"
+    )
     # Appended only once the index holds a football event, so the pickle a
     # SHEET wrote before the index shipped is still reused while it is empty.
     return f"{fp}|idx:{idx}" if idx else fp
@@ -386,7 +402,40 @@ def _load_history_uncached(db_path: str | Path) -> list[FootballResult]:
         result = parse_event(event, s, i)
         if result is not None:
             out.append(result)
-    return sorted(out, key=lambda r: (r.ts, r.event_id))
+    return mark_second_squads(sorted(out, key=lambda r: (r.ts, r.event_id)))
+
+
+def mark_second_squads(
+    history: list[FootballResult],
+    listed: Mapping[int, frozenset[int]] = RESERVE_COMPETITIONS,
+) -> list[FootballResult]:
+    """Mark each side that played a match with its second squad.
+
+    The rule reads the side's whole cached history, so a match can be marked
+    by clashes after it - the squad that played it is a fact about the match,
+    not its outcome. SAMPLES asks the same question of the listing it holds
+    (samples.second_squad_matches).
+    """
+    per_team: dict[int, list[TeamMatch]] = defaultdict(list)
+    for r in history:
+        per_team[r.home_id].append(TeamMatch(r.event_id, r.ts, r.competition_id))
+        per_team[r.away_id].append(TeamMatch(r.event_id, r.ts, r.competition_id))
+    reserve: set[tuple[int, int]] = set()
+    for team, matches in per_team.items():
+        for eid in reserve_event_ids(matches, listed):
+            reserve.add((team, eid))
+    if not reserve:
+        return history
+    return [
+        replace(
+            r,
+            home_reserve=(r.home_id, r.event_id) in reserve,
+            away_reserve=(r.away_id, r.event_id) in reserve,
+        )
+        if (r.home_id, r.event_id) in reserve or (r.away_id, r.event_id) in reserve
+        else r
+        for r in history
+    ]
 
 
 @dataclass
@@ -547,6 +596,21 @@ class RatingBook:
             self.women_competitions.add(r.competition_id)
         else:
             self.women_competitions.discard(r.competition_id)
+        # A second squad's match (reserve_squads) moves neither side: the
+        # reserve's count is not the first team's, and the opponent's
+        # surprise would be measured against the first team's ratios - the
+        # wrong opponent. The league it was played in still counts it.
+        home_reserve = bool(getattr(r, "home_reserve", False))
+        away_reserve = bool(getattr(r, "away_reserve", False))
+        if home_reserve or away_reserve:
+            for metric, (vh, va) in r.values.items():
+                self.leagues[(r.competition_id, metric)].update(vh, va)
+                self.global_league[self._global_key(metric, women)].update(vh, va)
+            if not home_reserve:
+                self.team_comps[r.home_id].append((r.ts, r.competition_id))
+            if not away_reserve:
+                self.team_comps[r.away_id].append((r.ts, r.competition_id))
+            return
         dh, da = self.domain(r.home_id), self.domain(r.away_id)
         linked = self._linked(r.home_id, r.away_id, dh, da)
         for metric, (vh, va) in r.values.items():

@@ -209,7 +209,8 @@ def _old_fingerprint(db: str) -> str:
     friendlies = ",".join(
         str(c) for c in sorted(football_rating.FRIENDLY_COMPETITION_IDS))
     return (f"{football_rating.HISTORY_PARSER_VERSION}|{lst[0]}|{lst[1]}|"
-            f"{sts[0]}|{sts[1]}|{friendlies}")
+            f"{sts[0]}|{sts[1]}|{friendlies}"
+            f"|reserve:{football_rating.reserve_fingerprint()}")
 
 
 @pytest.mark.parametrize("with_tables", [True, False])

@@ -23,6 +23,10 @@ class GapReason(StrEnum):
     # One Sofascore entity id carrying two squads (2026-10-01): a side that
     # "played" twice within a day. Its sample describes nobody, so it is empty.
     ENTITY_CONFLICT = "ENTITY_CONFLICT"
+    # A club's second squad filed under the first team's id (2026-10-02,
+    # reserve_squads): its matches are out of the first team's sample, or the
+    # side is empty when the fixture itself is the second squad's.
+    RESERVE_SQUAD = "RESERVE_SQUAD"
     THIN_SAMPLE = "THIN_SAMPLE"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"

@@ -7,6 +7,7 @@ market nobody quotes is a call we paid for and cannot bet.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -43,6 +44,12 @@ from bet.sofa.players import (
     match_player,
     player_sample_key,
     squad_statistics,
+)
+from bet.sofa.reserve_squads import (
+    RESERVE_COMPETITIONS,
+    TeamMatch,
+    describe,
+    reserve_event_ids,
 )
 from bet.sofa.settle import is_completed_event, surfaces_comparable
 from bet.sofa.superbet import SuperbetClient, odds_items
@@ -370,6 +377,19 @@ def get_historical_events(
 
         return True
 
+    fixture_competition: int | None = getattr(fixture, "competition_id", None)
+
+    def usable(candidates: list[dict[str, Any]]) -> int:
+        """Candidates that can enter the sample: one listing per match, and
+        in football none a second squad played (reserve_squads)."""
+        kept = one_listing_per_match(candidates)
+        if sport == "football":
+            reserve, _ = second_squad_matches(
+                kept, fixture_competition, int(fixture.kickoff_utc.timestamp())
+            )
+            kept = [e for e in kept if e.get("id") not in reserve]
+        return len(kept)
+
     while len(events) < config.sample_n and page < 5:
         cached = cache.get_entity_events(entity_id, "last", page)
         if cached is not None:
@@ -408,7 +428,7 @@ def get_historical_events(
         # has produced enough candidates — the request count is unchanged
         # from before the fix.
         page += 1
-        if len(one_listing_per_match(events)) >= config.sample_n:
+        if usable(events) >= config.sample_n:
             break
 
     # The listed-event index (listing_index.py) holds matches that slid out of
@@ -441,7 +461,7 @@ def get_historical_events(
                 )
             )
     else:
-        short = len(one_listing_per_match(events)) < config.sample_n
+        short = usable(events) < config.sample_n
         deepest_oldest = spans[-1][1]
         windows = [(older[0], newer[1])
                    for newer, older in zip(spans, spans[1:], strict=False)]
@@ -465,6 +485,41 @@ def get_historical_events(
     # The sample is the most recent `sample_n`, newest first.
     events = one_listing_per_match(events)
     if sport == "football":
+        # Before one_squad_per_entity: a second squad's match a day from the
+        # first team's is that guard's "two squads" too, and once the second
+        # squad's matches are out the first team's listing is clean.
+        reserve, fixture_is_reserve = second_squad_matches(
+            events, fixture_competition, int(fixture.kickoff_utc.timestamp())
+        )
+        if fixture_is_reserve:
+            if gaps is not None:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.RESERVE_SQUAD,
+                        metric="all",
+                        detail=(
+                            f"entity {entity_id}: the fixture's competition "
+                            f"{fixture_competition} is played by its second "
+                            "squad under the first team's id; side left empty"
+                        ),
+                    )
+                )
+            return []
+        if reserve:
+            if gaps is not None:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.RESERVE_SQUAD,
+                        metric="all",
+                        detail=(
+                            f"entity {entity_id}: matches its second squad "
+                            "played under the first team's id excluded ("
+                            + describe(_team_matches(events), reserve)
+                            + ")"
+                        ),
+                    )
+                )
+            events = [e for e in events if e.get("id") not in reserve]
         events, conflict = one_squad_per_entity(events, entity_id)
         if conflict is not None:
             if gaps is not None:
@@ -478,6 +533,32 @@ def get_historical_events(
             return []
     events.sort(key=lambda e: e.get("startTimestamp") or 0, reverse=True)
     return events[: config.sample_n]
+
+
+def _team_matches(events: list[dict[str, Any]]) -> list[TeamMatch]:
+    out: list[TeamMatch] = []
+    for e in events:
+        eid, ts, comp = e.get("id"), e.get("startTimestamp"), _competition_id(e)
+        if isinstance(eid, int) and isinstance(ts, int) and comp is not None:
+            out.append(TeamMatch(eid, ts, comp))
+    return out
+
+
+def second_squad_matches(
+    events: list[dict[str, Any]],
+    competition_id: int | None,
+    kickoff_ts: int,
+    listed: Mapping[int, frozenset[int]] | None = None,
+) -> tuple[frozenset[int], bool]:
+    """(ids of the side's listed matches its second squad played, whether the
+    fixture itself - ``competition_id`` at ``kickoff_ts`` - is the second
+    squad's). The rule and its measurement: reserve_squads."""
+    matches = _team_matches(events)
+    probe = (kickoff_ts, competition_id) if competition_id is not None else None
+    found = reserve_event_ids(
+        matches, RESERVE_COMPETITIONS if listed is None else listed, probe
+    )
+    return found - {-1}, -1 in found
 
 
 # No football side plays two matches inside a day. Two in an entity's listing
