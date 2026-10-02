@@ -139,6 +139,14 @@ class TestShippedCurve:
         # drifted somewhere new.
         largest = 0.0
         where = ""
+        # Football player props (player_*) are held to their own bound. Their
+        # OVER side is measurably overconfident - the 2026-10-03 cache replay,
+        # 1.19M rows over 3,117 matches: offsides OVER claimed 0.740 realised
+        # 0.416, fouls OVER 0.749 / 0.587 - so corrections of ~0.32 are the
+        # measurement, not estimator drift, and these markets reach no coupon
+        # without admitted_player_markets. Past 0.40 something new is wrong.
+        player_largest = 0.0
+        player_where = ""
         for market, buckets in curve.items():
             if not isinstance(buckets, dict):
                 continue
@@ -146,6 +154,11 @@ class TestShippedCurve:
                 if not isinstance(value, dict):
                     continue
                 correction = float(value.get("correction", 0.0))
-                if correction > largest:
+                if market.startswith("player_"):
+                    if correction > player_largest:
+                        player_largest = correction
+                        player_where = f"{market} {bucket}"
+                elif correction > largest:
                     largest, where = correction, f"{market} {bucket}"
         assert largest <= 0.20, f"{where} corrects by {largest}"
+        assert player_largest <= 0.40, f"{player_where} corrects by {player_largest}"

@@ -442,6 +442,10 @@ def main() -> int:
         if cal.tennis_set_market_not_admitted(row["market"]):
             refused["TENNIS_SET_MARKET_NOT_ADMITTED"] += 1
             continue
+        # See Calibration.refused_markets: the operator's own refusals.
+        if cal.refused_by_operator(row["market"], row.get("direction")):
+            refused["OPERATOR_REFUSED"] += 1
+            continue
 
         sides = next(
             (board_sides[str(i)] for i in fx.get("superbet_event_ids") or []

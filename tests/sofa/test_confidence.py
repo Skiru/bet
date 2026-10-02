@@ -59,11 +59,16 @@ def test_there_is_no_certainty_above_about_0_92(cal: Calibration) -> None:
     claimed probability buying no more realised outcome. A leg presented at
     0.98 would be a lie of about seven points.
     """
-    for claimed in (0.93, 0.96, 0.99):
+    got = cal.realised("goals_total", 0.93)
+    assert got is not None and got[0] < 0.95
+    for claimed in (0.96, 0.99):
+        # Above the measured range a leg is refused (None) - since curves are
+        # keyed on the stored p_central (2026-10-02) the top bucket can stop
+        # at 0.950 - or read below 0.95. Never presented as near-certain.
         got = cal.realised("goals_total", claimed)
-        assert got is not None
-        realised_lo, _, _ = got
-        assert realised_lo < 0.95, f"claimed {claimed} came back as {realised_lo}"
+        if got is not None:
+            realised_lo, _, _ = got
+            assert realised_lo < 0.95, f"claimed {claimed} came back as {realised_lo}"
 
 
 def test_an_uncalibrated_bucket_is_refused_not_guessed(cal: Calibration) -> None:

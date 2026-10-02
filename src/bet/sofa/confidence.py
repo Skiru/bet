@@ -799,6 +799,22 @@ class Calibration:
     # TENNIS_SET_GAMES. Empty by default - refused as
     # TENNIS_SET_MARKET_NOT_ADMITTED.
     admitted_tennis_set_markets: frozenset[str] = frozenset()
+    # Markets the operator keeps off both coupons by name ("refused_markets"
+    # in the calibration file): "market" for both directions or
+    # "market|OVER" / "market|UNDER" for one. A curve the fit measured does
+    # not override it, and a refit carries it over (fit_meta.OPERATOR_KEYS).
+    # Built 2026-10-03 for the open decision on shots_total / fouls_total
+    # UNDER (settled rows >=0.70: shots_total UNDER claimed 0.759 realised
+    # 0.521, n=144; fouls_total UNDER >=0.65 0.729 / 0.389, n=36). Empty by
+    # default - refused as OPERATOR_REFUSED.
+    refused_markets: frozenset[str] = frozenset()
+
+    def refused_by_operator(self, market: str, direction: str | None) -> bool:
+        if market in self.refused_markets:
+            return True
+        return bool(direction) and direction_key(
+            market, str(direction)
+        ) in self.refused_markets
 
     def player_prop_not_admitted(self, market: str) -> bool:
         return (
@@ -827,6 +843,7 @@ class Calibration:
             admitted_tennis_set_markets=frozenset(
                 doc.get("admitted_tennis_set_markets") or ()
             ),
+            refused_markets=frozenset(doc.get("refused_markets") or ()),
         )
 
     def for_class(self, klass: str) -> Calibration | None:
