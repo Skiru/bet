@@ -439,7 +439,7 @@ def test_settle_attaches_the_model_and_leaves_every_grade_byte_identical(
     def boom(*_: Any, **__: Any) -> None:
         raise RuntimeError("model down")
 
-    monkeypatch.setattr(settle_shadow, "load_appearances", boom)
+    monkeypatch.setattr(player_model, "load_appearances", boom)
     failed = _settle(tmp_path / "c", db)
     assert failed["player_model_error"] == "RuntimeError: model down"
     assert _without_model(failed) == _without_model(bare)
@@ -673,3 +673,23 @@ def test_measure_player_props_on_a_fixture(tmp_path: Path, db: str) -> None:
     assert group["sides"] == 2 and group["lines"] == 1 and group["games"] == 1
     assert "brier_model" in group and group["split_half"]["odd"] is None
     assert doc["groups"]["hockey|pregame|ALL"]["sides"] == 3
+
+
+def test_an_unimportable_model_costs_the_number_never_the_grade_or_snapshot(
+    tmp_path: Path, db: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The model is imported lazily: a module that cannot even be imported
+    must leave SHADOW's snapshot and SHADOW_SETTLE's grades as they are."""
+    bare = _settle(tmp_path / "a", None)
+    plain = _snapshot(tmp_path / "plain", None)
+    monkeypatch.setitem(sys.modules, "bet.sofa.player_model", None)
+    graded = _settle(tmp_path / "b", db)
+    assert _without_model(graded) == _without_model(bare)
+    assert "bet.sofa.player_model" in graded["player_model_error"]
+    broken = _snapshot(tmp_path / "broken", db)
+    rel = Path("shadow") / "hockey" / DATE / "snapshots.jsonl"
+    assert (tmp_path / "plain" / rel).read_bytes() == (
+        tmp_path / "broken" / rel
+    ).read_bytes()
+    assert broken["verdict"] == plain["verdict"] == "OK"
+    assert "bet.sofa.player_model" in json.dumps(broken["player_model"])

@@ -49,17 +49,6 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.names import normalize_name  # noqa: E402
-from bet.sofa.player_model import (  # noqa: E402
-    MODEL_KEYS,
-    PLAYER_MODEL_FILE,
-    history_cutoff,
-    last_pregame,
-    line_key,
-    load_appearances,
-    model_fields,
-    read_forecasts,
-    score_rows,
-)
 from bet.sofa.resolve import (  # noqa: E402
     DEFAULT_LISTING_KINDS,
     DEFAULT_LISTING_PAGES,
@@ -510,6 +499,10 @@ def attach_player_model(
     computed before any row is touched, so a failure leaves the rows as the
     grade wrote them. The database is opened read-only.
     """
+    # Imported here: a broken model module costs this number, never the grade
+    # (the caller records the exception as player_model_error).
+    from bet.sofa.player_model import MODEL_KEYS, last_pregame, line_key
+
     rows = [g for g in graded if is_player_line(sport.key, int(g["market_id"]))]
     if not rows:
         return
@@ -539,6 +532,13 @@ def _settle_time_model(
     kickoff: datetime,
     db_path: str,
 ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    from bet.sofa.player_model import (
+        history_cutoff,
+        load_appearances,
+        model_fields,
+        score_rows,
+    )
+
     start = detail.get("startTimestamp") or event.get("startTimestamp")
     before = history_cutoff(
         int(kickoff.timestamp()), int(start) if isinstance(start, int) else None
@@ -593,6 +593,8 @@ def settle_sport(
     events = latest_pre_kickoff(snapshots)
     # SHADOW's pre-game player forecasts; an unreadable file is no forecast.
     try:
+        from bet.sofa.player_model import PLAYER_MODEL_FILE, read_forecasts
+
         forecasts = read_forecasts(day / PLAYER_MODEL_FILE)
     except Exception:
         forecasts = []

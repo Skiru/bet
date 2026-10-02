@@ -43,7 +43,6 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from bet.sofa import player_model  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records  # noqa: E402
 from bet.sofa.shadow import (  # noqa: E402
@@ -226,6 +225,10 @@ def forecast_players(
     to <sport>/<date>/player_model.jsonl, once per (snapshot, line, side).
     Never raises: a failure is counted per sport and the rest goes on."""
     out: dict[str, Any] = {}
+    # Imported here, not at the top: a broken model module must cost the
+    # forecast, never the snapshot that runs before it.
+    import bet.sofa.player_model as player_model
+
     for (key, day), recs in records.items():
         if key not in player_model.MODEL_SPORTS or not recs:
             continue
