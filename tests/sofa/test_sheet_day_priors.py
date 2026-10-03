@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import FixtureSamples, MetricSample, Observation
+from bet.sofa.football_rating import FootballForecast, RatingBook
 from scripts.sofa.fit_constants import MIN_BASELINE_OBSERVATIONS
 from scripts.sofa.run_sheet import (
     MIN_DAY_LEAGUE_OBSERVATIONS,
@@ -25,6 +26,7 @@ from scripts.sofa.run_sheet import (
     day_league_prior,
     home_competition,
     process_fixture,
+    rated_leagues,
     resolve_prior,
 )
 from tests.sofa.test_sheet import make_fixture, make_offer, rung
@@ -155,6 +157,52 @@ def test_home_competition_needs_a_majority() -> None:
     assert home_competition(_obs(range(3), 1.0, 1) + _obs(range(3, 5), 1.0, 2)) == 1
     assert home_competition(_obs(range(2), 1.0, 1) + _obs(range(2, 4), 1.0, 2)
                             + _obs(range(4, 6), 1.0, 3)) is None
+
+
+def test_the_rated_league_wins_over_a_cup_majority_in_the_sample() -> None:
+    """2026-10-03, Annan Athletic - Stirling Albion (League Two, 209, no
+    baseline): 4 of 6 corners matches were Challenge Cup (331), so both sides'
+    "own league" was the cup and the row shrank toward 9.055. The rating knows
+    both sides play in 209, which is in the sample: the cup is not their
+    league, and with the fixture's own league unmeasured the prior is global."""
+    league_two, challenge_cup = 209, 331
+    fixture = make_fixture(competition_id=league_two)
+    baselines = {"corners_total": {str(challenge_cup): {"mean": 9.055, "n": 400},
+                                   "global": {"mean": 9.52, "n": 90000}}}
+    annan = (_obs(range(1, 5), 9.0, comp=challenge_cup)
+             + _obs(range(5, 7), 9.0, comp=league_two))
+    stirling = (_obs(range(11, 15), 9.0, comp=challenge_cup)
+                + _obs(range(15, 17), 9.0, comp=league_two))
+    assert home_competition(annan) == challenge_cup
+    assert home_competition(annan, league_two) == league_two
+    before, before_note = resolve_prior(baselines, {}, "corners_total", fixture,
+                                        [annan, stirling], set())
+    assert before == 9.055 and before_note is not None
+    assert before_note.startswith("PRIOR_FROM_TEAMS_LEAGUES")
+    prior, note = resolve_prior(baselines, {}, "corners_total", fixture,
+                                [annan, stirling], set(), [league_two, league_two])
+    assert prior == 9.52
+    assert note is not None and note.startswith("PRIOR_GLOBAL")
+
+
+def test_a_rated_league_absent_from_the_sample_leaves_the_majority() -> None:
+    """A promoted side's rated league is last season's; it is not in a
+    current sample, so the sample's majority still decides."""
+    sample = _obs(range(1, 8), 9.0, comp=278) + _obs(range(8, 10), 9.0, comp=18877)
+    assert home_competition(sample, 999) == 278
+    assert home_competition(sample, None) == 278
+
+
+def test_rated_leagues_reads_each_teams_modal_competition() -> None:
+    book = RatingBook()
+    book.last_ts = 1_000_000
+    for ts in range(10):
+        book.team_comps[1].append((book.last_ts - ts, 209))
+    for ts in range(3):
+        book.team_comps[1].append((book.last_ts - 100 + ts, 331))
+    forecast = FootballForecast(book, 209, 1, 2)
+    assert rated_leagues(forecast, [1, 2]) == [209, None]
+    assert rated_leagues(None, [1, 2]) is None
 
 
 def test_process_fixture_prices_on_the_days_league_and_says_so() -> None:

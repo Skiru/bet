@@ -677,6 +677,18 @@ class SofaResolver:
         return None, None, False
 
 
+def kickoff_gap_h(
+    kickoff_utc: datetime, superbet_kickoff_utc: datetime | None
+) -> float | None:
+    """Hours between Sofascore's and Superbet's clocks, or None without the
+    latter. Recomputed whenever either clock changes: on 2026-10-03 a second
+    Superbet listing replaced a 00:00Z placeholder and the gap stayed at the
+    placeholder's (Humbert - Lehecka: both clocks 08:10Z, gap 8.17 h)."""
+    if superbet_kickoff_utc is None:
+        return None
+    return round(abs((kickoff_utc - superbet_kickoff_utc).total_seconds()) / 3600.0, 2)
+
+
 def parse_fixture(
     event: dict[str, Any],
     sport: Sport,
@@ -752,13 +764,7 @@ def parse_fixture(
         ground_type=event.get("groundType"),
         default_period_count=event.get("defaultPeriodCount"),
         superbet_kickoff_utc=superbet_kickoff_utc,
-        kickoff_disagreement_h=(
-            None
-            if superbet_kickoff_utc is None
-            else round(
-                abs((kickoff_utc - superbet_kickoff_utc).total_seconds()) / 3600.0, 2
-            )
-        ),
+        kickoff_disagreement_h=kickoff_gap_h(kickoff_utc, superbet_kickoff_utc),
     )
 
 

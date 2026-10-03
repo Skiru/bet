@@ -409,12 +409,24 @@ def day_league_prior(
     return statistics.mean(values), len(values)
 
 
-def home_competition(observations: list[Observation]) -> int | None:
+def home_competition(
+    observations: list[Observation], league: int | None = None
+) -> int | None:
     """The competition a side actually plays in: the one holding most of its
-    sample, and at least half of it. None when the sample has no majority."""
+    sample, and at least half of it. None when the sample has no majority.
+
+    `league` is the side's league from the football rating (its modal
+    competition over the last year, RatingBook.domain). When the sample holds
+    any match of it, it wins over the sample's majority: a short sample in an
+    early-season cup run is mostly cup. On 2026-10-03 every Scottish League
+    One / Two fixture (207, 209) took its prior from the Challenge Cup (331),
+    which held 4 of Annan Athletic's 6 corners matches.
+    """
     comps = [o.competition_id for o in observations if o.competition_id is not None]
     if not comps:
         return None
+    if league is not None and league in comps:
+        return league
     comp, count = Counter(comps).most_common(1)[0]
     return comp if count * 2 >= len(observations) else None
 
@@ -428,6 +440,21 @@ def _fitted_league_mean(
     return None
 
 
+def rated_leagues(
+    football: FootballForecast | None, teams: list[int]
+) -> list[int | None] | None:
+    """Each team's league per the football rating (its modal competition
+    over the last year), or None without a rating."""
+    if football is None:
+        return None
+    book = football.book
+    out: list[int | None] = []
+    for team in teams:
+        unit = book.domain(team)
+        out.append(None if unit is None else book.unit_competition(unit))
+    return out
+
+
 def resolve_prior(
     baselines: dict[str, Any],
     day_obs: DayLeagueObservations,
@@ -435,6 +462,7 @@ def resolve_prior(
     fixture: Fixture,
     own_sides: list[list[Observation]],
     own_events: set[int],
+    side_leagues: list[int | None] | None = None,
 ) -> tuple[float | None, str | None]:
     """The shrink target for one row, and a note saying where it came from.
 
@@ -456,8 +484,9 @@ def resolve_prior(
                       "sample excluded (no fitted league baseline)")
     parts: list[str] = []
     means: list[float] = []
-    for side in own_sides:
-        home = home_competition(side)
+    for i, side in enumerate(own_sides):
+        home = home_competition(
+            side, side_leagues[i] if side_leagues is not None else None)
         if home is None or home == comp:
             continue
         league = _fitted_league_mean(baselines, metric, home)
@@ -817,6 +846,7 @@ def process_fixture(
         # The histories behind this row, for the prior: which leagues the
         # sides play in, and which matches the prior must leave out.
         own_sides: list[list[Observation]] = []
+        own_teams: list[int] = []
         own_events: set[int] = set()
 
         # F54. A player market's subject is a person, and its sample is that
@@ -894,6 +924,7 @@ def process_fixture(
                     [metric_sample.side_a, metric_sample.side_b, metric_sample.h2h]
                 )
                 own_sides = [metric_sample.side_a, metric_sample.side_b]
+                own_teams = [fixture.home_entity_id, fixture.away_entity_id]
             else:
                 side = determine_side(rung.subject, fixture)
                 if side is None:
@@ -911,6 +942,10 @@ def process_fixture(
                     else metric_sample.side_b
                 )
                 own_sides = [obs]
+                own_teams = [
+                    fixture.home_entity_id if side == "side_a"
+                    else fixture.away_entity_id
+                ]
 
         n = len(obs)
         if n < config.min_sample:
@@ -983,7 +1018,9 @@ def process_fixture(
                 extra_notes.append(prior_note)
             elif day_obs is not None and own_sides:
                 prior, prior_note = resolve_prior(
-                    baselines, day_obs, rung.market, fixture, own_sides, own_events)
+                    baselines, day_obs, rung.market, fixture, own_sides, own_events,
+                    rated_leagues(football, own_teams)
+                    if len(own_teams) == len(own_sides) else None)
                 if prior_note:
                     extra_notes.append(prior_note)
             elif (women := women_global_prior(

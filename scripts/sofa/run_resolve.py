@@ -21,6 +21,7 @@ from bet.sofa.names import normalize_name
 from bet.sofa.resolve import (
     NAME_EXACT_THRESHOLD,
     SofaResolver,
+    kickoff_gap_h,
     parse_fixture,
     split_match_name,
 )
@@ -176,6 +177,22 @@ def merged_superbet_kickoff(
     return held
 
 
+def merge_duplicate_listing(held: Fixture, board: BoardFixture) -> None:
+    """Fold a second board entry for an already resolved Sofascore event into
+    the held fixture: one more Superbet id, the merged Superbet clock, and the
+    clock gap recomputed from the merged clock. The gap used to keep the first
+    listing's value - on 2026-10-03 Humbert - Lehecka showed both clocks at
+    08:10Z beside a gap of 8.17 h (the 00:00Z placeholder's)."""
+    if board.superbet_event_id not in held.superbet_event_ids:
+        held.superbet_event_ids.append(board.superbet_event_id)
+    held.superbet_kickoff_utc = merged_superbet_kickoff(
+        held.superbet_kickoff_utc, board.kickoff_utc
+    )
+    held.kickoff_disagreement_h = kickoff_gap_h(
+        held.kickoff_utc, held.superbet_kickoff_utc
+    )
+
+
 def resolve_board_concurrently(
     fixtures: list[BoardFixture],
     resolver: SofaResolver,
@@ -314,13 +331,7 @@ def main() -> int:
             if sf_id in resolved_fixtures:
                 # A2/L12: two board entries pointing at one Sofascore event are
                 # one fixture with two superbet ids, not two fixtures.
-                held = resolved_fixtures[sf_id]
-                existing_ids = held.superbet_event_ids
-                if outcome.board.superbet_event_id not in existing_ids:
-                    existing_ids.append(outcome.board.superbet_event_id)
-                held.superbet_kickoff_utc = merged_superbet_kickoff(
-                    held.superbet_kickoff_utc, outcome.board.kickoff_utc
-                )
+                merge_duplicate_listing(resolved_fixtures[sf_id], outcome.board)
                 duplicates += 1
             else:
                 resolved_fixtures[sf_id] = outcome.fixture
