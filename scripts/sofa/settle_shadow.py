@@ -56,13 +56,17 @@ from bet.sofa.resolve import (  # noqa: E402
     LISTING_KINDS_BY_SPORT,
     LISTING_PAGES_BY_SPORT,
     MATCH_WINDOW_S,
+    SHADOW_EXACT_KICKOFF_S,
     TEAM_SPORTS,
     SofaResolver,
     candidate_fits,
     is_virtual_event,
+    mutual_listing_event,
+    part_score,
     search_query,
     sofascore_gender,
     superbet_gender,
+    tournament_confirmed_event,
 )
 from bet.sofa.shadow import (  # noqa: E402
     SETTLE_AFTER,
@@ -120,7 +124,20 @@ def home_is_team1(event: dict[str, Any], team1: str, team2: str) -> bool | None:
     straight = fuzz.ratio(a, home) + fuzz.ratio(b, away)
     crossed = fuzz.ratio(a, away) + fuzz.ratio(b, home)
     if abs(straight - crossed) < ORIENTATION_MARGIN:
-        return None
+        # Word order and club affixes cost the whole-string ratio its margin
+        # ("Assat Pori" / "Porin Assat", "Dragons de Rouen" / "Rouen
+        # Dragons"); the word-set score, on the marker-free parts with the
+        # elisions split, then reads it - with the same margin.
+        def split(raw: str) -> str:
+            return normalize_name(raw, split_elisions=True)
+
+        h = split(str((event.get("homeTeam") or {}).get("name") or ""))
+        w = split(str((event.get("awayTeam") or {}).get("name") or ""))
+        sa, sb = split(team1), split(team2)
+        straight = part_score(sa, h) + part_score(sb, w)
+        crossed = part_score(sa, w) + part_score(sb, h)
+        if abs(straight - crossed) < ORIENTATION_MARGIN:
+            return None
     return straight > crossed
 
 
@@ -167,6 +184,106 @@ def _pair(event: dict[str, Any]) -> str:
     )
 
 
+def side_ids(
+    resolver: SofaResolver, slug: str, side: str, searches: dict[str, Any]
+) -> tuple[list[int], dict[str, Any]]:
+    """The team ids the resolver read listings for, for one board side: its
+    verified entity and the search's first three fitting teams of the sport,
+    from the search already recorded (no request). Also the search's own
+    team names, for the miss explanation."""
+    norm = normalize_name(side)
+    entity = resolver.cache.get_entity(slug, norm)
+    verified = bool(entity and entity.get("status") == "verified")
+    ids: list[int] = []
+    if verified and entity is not None:
+        ids.append(int(entity["sofascore_id"]))
+    out: dict[str, Any] = {}
+    data = searches.get(search_query(norm))
+    results = data.get("results") if isinstance(data, dict) else None
+    if isinstance(results, list):
+        teams = [
+            r["entity"]
+            for r in results
+            if isinstance(r, dict)
+            and r.get("type") == "team"
+            and isinstance(r.get("entity"), dict)
+            and (r["entity"].get("sport") or {}).get("slug") == slug
+        ]
+        fits = [e for e in teams if candidate_fits(norm, e, slug)][:3]
+        out["search_teams"] = [str(e.get("name")) for e in teams[:3]]
+        out["searched"] = True
+        ids += [int(e["id"]) for e in fits if int(e["id"]) not in ids]
+    return ids, out
+
+
+def exact_time_events(
+    resolver: SofaResolver,
+    slug: str,
+    ids: list[int],
+    kickoff: datetime,
+    board: tuple[str, str],
+) -> list[tuple[int, dict[str, Any]]]:
+    """(team id, event) for every cached game of these teams that starts
+    within SHADOW_EXACT_KICKOFF_S of the board's time - real, and of the
+    board's gender. Cache only: the listings resolve_entity just read."""
+    expected = "W" if "W" in {superbet_gender(b) for b in board} else "M"
+    out: list[tuple[int, dict[str, Any]]] = []
+    for eid in ids:
+        for e in _cached_listing(resolver, eid, slug):
+            ts = e.get("startTimestamp")
+            if not isinstance(ts, int) or is_virtual_event(e):
+                continue
+            gap = abs(datetime.fromtimestamp(ts, UTC) - kickoff).total_seconds()
+            if gap > SHADOW_EXACT_KICKOFF_S:
+                continue
+            if slug in TEAM_SPORTS and sofascore_gender(e) != expected:
+                continue
+            out.append((eid, e))
+    return out
+
+
+def confirm_from_listings(
+    resolver: SofaResolver,
+    sport: ShadowSport,
+    ev: SnapshotEvent,
+    kickoff: datetime,
+    searches: dict[str, Any],
+) -> dict[str, Any] | None:
+    """The second reading, after both sides' name gates refused: the game
+    both sides' own listings hold (MUTUAL_LISTING), else the game one side
+    found by name and the competition confirms (TOURNAMENT). Read from the
+    searches and listings already paid for - never a request. The event
+    comes back as a copy carrying `_shadow_match_rule`."""
+    slug = sport.sofascore_slug
+    board = (ev.team1, ev.team2)
+    events = {
+        side: exact_time_events(
+            resolver, slug, side_ids(resolver, slug, side, searches)[0], kickoff, board
+        )
+        for side in board
+    }
+    mutual = mutual_listing_event(events[ev.team1], events[ev.team2])
+    if mutual is not None:
+        # Each side's own team is known by id, so is the orientation.
+        team1_ids = {cand for cand, _ in events[ev.team1]}
+        home_id = (mutual.get("homeTeam") or {}).get("id")
+        return {
+            **mutual,
+            "_shadow_match_rule": "MUTUAL_LISTING",
+            "_shadow_home_is_team1": home_id in team1_ids,
+        }
+    found: dict[int, dict[str, Any]] = {}
+    for side, other in ((ev.team1, ev.team2), (ev.team2, ev.team1)):
+        hit = tournament_confirmed_event(
+            side, other, ev.tournament or "", events[side], events[other]
+        )
+        if hit is not None:
+            found[int(hit["id"])] = hit
+    if len(found) == 1:
+        return {**next(iter(found.values())), "_shadow_match_rule": "TOURNAMENT"}
+    return None
+
+
 def miss_reason(
     resolver: SofaResolver,
     slug: str,
@@ -189,26 +306,11 @@ def miss_reason(
     verified = bool(entity and entity.get("status") == "verified")
     if not verified and resolver.cache.get_entity_miss(slug, norm):
         return {"reason": "CACHED_MISS"}
-    ids: list[int] = []
-    if verified and entity is not None:
-        ids.append(int(entity["sofascore_id"]))
-    out: dict[str, Any] = {}
-    data = searches.get(search_query(norm))
-    results = data.get("results") if isinstance(data, dict) else None
-    if isinstance(results, list):
-        teams = [
-            r["entity"]
-            for r in results
-            if isinstance(r, dict)
-            and r.get("type") == "team"
-            and isinstance(r.get("entity"), dict)
-            and (r["entity"].get("sport") or {}).get("slug") == slug
-        ]
-        fits = [e for e in teams if candidate_fits(norm, e, slug)][:3]
-        out["search_teams"] = [str(e.get("name")) for e in teams[:3]]
-        ids += [int(e["id"]) for e in fits if int(e["id"]) not in ids]
+    ids, found = side_ids(resolver, slug, side, searches)
+    searched = bool(found.pop("searched", False))
+    out: dict[str, Any] = found
     if not ids:
-        reason = "NO_CANDIDATE" if isinstance(results, list) else "NO_SEARCH_RESULT"
+        reason = "NO_CANDIDATE" if searched else "NO_SEARCH_RESULT"
         return {"reason": reason, **out}
     events = [
         e
@@ -267,12 +369,18 @@ def find_event(
     refused (resolve.is_virtual_event). A side that is ambiguous does not
     stop the other side from being tried.
 
+    When both name gates refuse and the resolver is RESOLVE's own, the
+    searches and listings just read get a second reading
+    (`confirm_from_listings`): the event then carries `_shadow_match_rule`
+    (MUTUAL_LISTING or TOURNAMENT). Measured offline over 09-29..10-02
+    (data/night_2026-10-03/matching/).
+
     `explain`, when given and the resolver is RESOLVE's own, receives each
     side's `miss_reason` on a NOT_ON_SOFASCORE.
     """
     recorder: _SearchRecorder | None = None
     inner: Any = None
-    if explain is not None and isinstance(resolver, SofaResolver):
+    if isinstance(resolver, SofaResolver):
         inner = resolver.client
         recorder = _SearchRecorder(inner)
         resolver.client = cast(SofascoreClient, recorder)
@@ -297,6 +405,12 @@ def find_event(
             resolver.client = inner
     if ambiguous_seen:
         return "AMBIGUOUS"
+    if recorder is not None:
+        confirmed = confirm_from_listings(
+            resolver, sport, ev, kickoff, recorder.searches
+        )
+        if confirmed is not None:
+            return confirmed
     if recorder is not None and explain is not None:
         for key, side in (("team1", ev.team1), ("team2", ev.team2)):
             try:
@@ -340,6 +454,11 @@ def settle_one(
     found = find_event(resolver, sport, ev, kickoff, miss)
     if isinstance(found, str):
         return {**record, "state": found, **({"miss": miss} if miss else {})}
+    rule = found.pop("_shadow_match_rule", None)
+    by_id = found.pop("_shadow_home_is_team1", None)
+    if rule is not None:
+        # Matched without the opponent's name (confirm_from_listings).
+        record["match_rule"] = rule
     record.update(
         {
             "sofascore_event_id": found["id"],
@@ -351,6 +470,8 @@ def settle_one(
         }
     )
     orientation = home_is_team1(found, ev.team1, ev.team2)
+    if orientation is None and isinstance(by_id, bool):
+        orientation = by_id
     # Unclear orientation still grades the totals, which do not depend on it;
     # every side-dependent line is left out (counted as needs_orientation).
     record["home_is_team1"] = orientation

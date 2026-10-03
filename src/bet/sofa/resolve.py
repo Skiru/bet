@@ -291,6 +291,211 @@ def shadow_opponent_agrees(
     )
 
 
+def part_score(a: str, b: str) -> float:
+    """`name_score` of two normalised names, marker-free and per "/" part -
+    the full score the shadow opponent check applies first."""
+    return max(name_score(x, y) for x in _name_parts(a) for y in _name_parts(b))
+
+
+# Words that say what kind of competition it is, not which one. Superbet's
+# tournament is Polish with a country prefix ("Francja - Ligue Magnus"),
+# Sofascore's English ("Ligue Magnus"); only a word naming the competition
+# itself may tie the two.
+_GENERIC_TOURNAMENT_TOKENS = frozenset(
+    {
+        "liga", "league", "ligue", "lega", "division", "divisao", "women",
+        "woman", "men", "kobiety", "group", "grupa", "kwalifikacje",
+        "qualification", "qualifying", "qualifiers", "regular", "season",
+        "super", "superliga", "superleague", "premier", "first", "second",
+        "national", "nationale", "nacional", "cup", "puchar", "playoffs",
+        "playoff", "play", "off", "round", "stage", "championship",
+        "mecze", "towarzyskie", "klubowe", "club", "friendlies", "friendly",
+        "games", "pool", "knockout", "final", "finals", "placement",
+        "matches", "pro", "top", "elite", "the", "and", "serie", "series",
+        "hockey", "ice", "basketball", "basket", "volleyball", "volley",
+        "u17", "u18", "u19", "u20", "u21", "u23", "youth", "junior",
+        "juniors", "university", "college", "amateur", "regional", "region",
+        "conference", "east", "west", "north", "south", "central", "a1", "a2",
+    }
+)  # fmt: skip
+
+
+def tournament_tokens(text: str) -> set[str]:
+    """The words of a competition's name that name it (3+ letters)."""
+    norm = normalize_name(text or "", split_elisions=True)
+    return {
+        t
+        for t in re.split(r"[^a-z0-9]+", norm)
+        if len(t) >= 3 and not t.isdigit() and t not in _GENERIC_TOURNAMENT_TOKENS
+    }
+
+
+def event_tournament_tokens(event: dict[str, Any]) -> set[str]:
+    """Sofascore's competition words, less its country's: "Germany Pro A"
+    shares "germany" with Superbet's "Niemcy - Pro B" (the country alias),
+    and a country is not a competition."""
+    tournament = event.get("tournament") or {}
+    unique = tournament.get("uniqueTournament") or {}
+    category = tournament.get("category") or {}
+    words = tournament_tokens(str(tournament.get("name") or "")) | tournament_tokens(
+        str(unique.get("name") or "")
+    )
+    return words - tournament_tokens(str(category.get("name") or ""))
+
+
+def _team_id(event: dict[str, Any], side: str) -> int | None:
+    raw = (event.get(side) or {}).get("id")
+    return int(raw) if isinstance(raw, int) else None
+
+
+def mutual_listing_event(
+    side_a_events: list[tuple[int, dict[str, Any]]],
+    side_b_events: list[tuple[int, dict[str, Any]]],
+) -> dict[str, Any] | None:
+    """The one game both board sides' OWN listings hold at the board's time.
+
+    Each list is (candidate team id, event) for the events of that side's
+    search candidates (and verified entity) that start within
+    SHADOW_EXACT_KICKOFF_S of the board's kickoff, gender-gated. An event is
+    confirmed when one side's candidate is one of its teams and the other
+    side's candidate - a different team - is the other: two independent
+    searches landing on the two teams of one game at one time. That needs no
+    name agreement at all, which is the point: "HC Mediolan" / "HC Milano
+    Rossoblu" and "DAB Docler" / "Dunaujvarosi Acelbikak" share no word,
+    and both were found by their own search (2026-09-30, 10-02). More than
+    one such game is no answer.
+    """
+    found: dict[int, dict[str, Any]] = {}
+    for cand_a, event in side_a_events:
+        teams = {_team_id(event, "homeTeam"), _team_id(event, "awayTeam")}
+        if None in teams or cand_a not in teams:
+            continue
+        for cand_b, other in side_b_events:
+            same_game = other.get("id") == event.get("id")
+            if same_game and cand_b != cand_a and cand_b in teams:
+                found[int(event["id"])] = event
+    return next(iter(found.values())) if len(found) == 1 else None
+
+
+# How alike two single words must be to count as one name spelled two ways
+# ("goverla" / "hoverla" 85.7, "budapeszt" / "budapest" 94.1), and how long
+# both must be: on short words a ratio this high is chance.
+OPPONENT_WORD_RATIO = 80.0
+OPPONENT_WORD_MIN_LEN = 5
+
+
+def opponent_resembles(board_opponent: str, sofascore_side: str) -> bool:
+    """A weak, positive sign that two names denote one club - never enough
+    alone, only beside `tournament_confirmed_event`'s other conditions.
+
+    - one word spelled two ways: a pair of words of 5+ letters, neither a
+      generic club word, with `fuzz.ratio` >= 80 (a transliteration or an
+      exonym: Goverla / Hoverla, Budapeszt / Budapest);
+    - an acronym: a 3-5 letter board word equal to the initials of the other
+      name's words ("ASA" / "Alliance Sport Alsace"), or to the first two
+      letters of consecutive words ("ToPo" / "Torpan Pojat").
+
+    Without it the competition reading matched the same team's game two days
+    later in the same league at the same hour - 15 of 17 hits in a negative
+    control with every kickoff moved 48 h (Allsvenskan plays at 17:00).
+    """
+    a = normalize_name(board_opponent, split_elisions=True)
+    b = normalize_name(sofascore_side, split_elisions=True)
+    a_words = [w for p in _name_parts(a) for w in re.split(r"[\s/\-]+", p) if w]
+    b_words = [w for p in _name_parts(b) for w in re.split(r"[\s/\-]+", p) if w]
+    for x in a_words:
+        if len(x) < OPPONENT_WORD_MIN_LEN or x in _GENERIC_NAME_TOKENS:
+            continue
+        for y in b_words:
+            if len(y) < OPPONENT_WORD_MIN_LEN or y in _GENERIC_NAME_TOKENS:
+                continue
+            if fuzz.ratio(x, y) >= OPPONENT_WORD_RATIO:
+                return True
+    if not b_words:
+        return False
+    acronyms = {"".join(w[0] for w in b_words)}
+    for n in (2, 3):
+        for i in range(len(b_words) - n + 1):
+            chunk = b_words[i : i + n]
+            if all(len(w) >= 2 for w in chunk):
+                acronyms.add("".join(w[:2] for w in chunk))
+    return any(
+        3 <= len(x) <= 5 and x.isalpha() and x in acronyms for x in a_words
+    )
+
+
+def tournament_confirmed_event(
+    side: str,
+    other_board_side: str,
+    superbet_tournament: str,
+    side_events: list[tuple[int, dict[str, Any]]],
+    other_side_events: list[tuple[int, dict[str, Any]]],
+) -> dict[str, Any] | None:
+    """One side found by name, the opponent by the competition.
+
+    For an opponent Superbet and Sofascore name apart - an exonym ("MAC
+    Budapeszt" / "Budapest Jegkorong Akademia HC"), a short form ("ToPo" /
+    "Torpan Pojat"), a transliteration ("Goverla" / "Hoverla") - the game is
+    accepted when every one of these holds:
+
+    - the searched side's candidate has exactly one game within
+      SHADOW_EXACT_KICKOFF_S of the board's time (lists as for
+      `mutual_listing_event`, so gender is already gated);
+    - the searched side's own name passes the full score against its team in
+      that game (`part_score` > NAME_MATCH_THRESHOLD);
+    - the other team's squad level agrees with the other board side's;
+    - a word naming the competition is in both Superbet's tournament and
+      Sofascore's ("Ligue Magnus", "Erste Liga", "Korisliiga");
+    - the other team's name resembles the other board side's
+      (`opponent_resembles`: one word spelled two ways, or an acronym);
+    - the other board side's own listings hold no different game at that
+      time.
+
+    Sofascore's "San Jose St. Spartans" is not Superbet's Costa Rican "San
+    Jose", though the name passes: the competitions share no word.
+    """
+    norm_side = normalize_name(side)
+    norm_other = normalize_name(other_board_side)
+    wanted = tournament_tokens(superbet_tournament)
+    if not wanted:
+        return None
+    per_candidate: dict[int, list[dict[str, Any]]] = {}
+    for cand, event in side_events:
+        per_candidate.setdefault(cand, []).append(event)
+    found: dict[int, dict[str, Any]] = {}
+    for cand, events in per_candidate.items():
+        if len({e.get("id") for e in events}) != 1:
+            continue
+        event = events[0]
+        if _team_id(event, "homeTeam") == cand:
+            own_key, other_key = "homeTeam", "awayTeam"
+        elif _team_id(event, "awayTeam") == cand:
+            own_key, other_key = "awayTeam", "homeTeam"
+        else:
+            continue
+        own_name = normalize_name(str((event.get(own_key) or {}).get("name") or ""))
+        other_name = normalize_name(
+            str((event.get(other_key) or {}).get("name") or "")
+        )
+        if part_score(norm_side, own_name) <= NAME_MATCH_THRESHOLD:
+            continue
+        if not levels_compatible(norm_other, other_name):
+            continue
+        if not wanted & event_tournament_tokens(event):
+            continue
+        if not opponent_resembles(
+            other_board_side, str((event.get(other_key) or {}).get("name") or "")
+        ):
+            continue
+        found[int(event["id"])] = event
+    if len(found) != 1:
+        return None
+    event = next(iter(found.values()))
+    if any(other.get("id") != event.get("id") for _, other in other_side_events):
+        return None
+    return event
+
+
 def search_query(norm_side: str) -> str:
     """The name to send to Sofascore's search: our squad markers removed.
 
@@ -496,14 +701,42 @@ class SofaResolver:
             # The searched team is the board side that is not the opponent;
             # its side of the event is the one nearest its name, and only the
             # OTHER side may confirm the opponent.
-            board = [normalize_name(x) for x in (superbet_side_a, superbet_side_b)]
+            raw_board = (superbet_side_a, superbet_side_b)
+            board = [normalize_name(x) for x in raw_board]
             searched = [b for b in board if b and b != expected_opponent]
             if len(searched) != 1:
                 return None
             own_side = max((home, away), key=lambda side: name_score(searched[0], side))
             other = away if own_side == home else home
-            if other not in candidates or not shadow_opponent_agrees(
-                expected_opponent, other, gap, searched[0], own_side
+            # The relaxed check reads the raw names with an elision split
+            # ("Gothiques d'Amiens" -> "gothiques d amiens"), so a word the
+            # ASCII fold glued to its article still counts (2026-09-29/10-02:
+            # Amiens Hockey Elite, C'Chartres Basket Feminin).
+            raw_of = {
+                home: str((event.get("homeTeam") or {}).get("name") or ""),
+                away: str((event.get("awayTeam") or {}).get("name") or ""),
+            }
+            raw_searched = raw_board[board.index(searched[0])]
+            raw_opponent = next(
+                (r for r, b in zip(raw_board, board, strict=True)
+                 if b == expected_opponent),
+                expected_opponent,
+            )
+
+            def split(raw: str) -> str:
+                return normalize_name(raw, split_elisions=True)
+
+            if other not in candidates or not (
+                shadow_opponent_agrees(
+                    expected_opponent, other, gap, searched[0], own_side
+                )
+                or shadow_opponent_agrees(
+                    split(raw_opponent),
+                    split(raw_of[other]),
+                    gap,
+                    split(raw_searched),
+                    split(raw_of[own_side]),
+                )
             ):
                 return None
             best_side = other

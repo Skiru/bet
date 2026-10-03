@@ -61,8 +61,20 @@ _LETTER_DASH = re.compile(
 )
 
 
-def normalize_name(name: str) -> str:
+# An apostrophe of elision - "Gothiques d'Amiens", "C'Chartres Basket" - in
+# any of the spellings either source prints. The ASCII fold deletes it and
+# glues the article onto the next word: "damiens", "cchartres". Only
+# `normalize_name(..., split_elisions=True)` reads it as a word break; the
+# default is unchanged because every cache key and alias was minted without
+# it ("newells old boys").
+_ELISION = re.compile(r"(?<=[^\W\d_])['\u2019\u2018\u02bc`\u00b4](?=[^\W\d_])")
+
+
+def normalize_name(name: str, *, split_elisions: bool = False) -> str:
     name = name.strip()
+
+    if split_elisions:
+        name = _ELISION.sub(" ", name)
 
     # 0. A dash between two letters is a word break (_LETTER_DASH). Before the
     # ASCII fold, which would drop a non-ASCII dash instead of splitting on it.
@@ -165,7 +177,11 @@ def apply_aliases(name: str) -> str:
 # scorer that scores 100.0, which is how a senior side and an under-20 side of
 # the same club become one team.
 _AGE_MARKER = re.compile(r"\bu ?-?(14|15|16|17|18|19|20|21|22|23)\b")
-_RESERVE_MARKER = re.compile(r"(?:\(r\)|\bii\b|\breserves?\b)")
+# A trailing "B" before the women's marker is a reserve too: normalize_name
+# folds "Dukla Liberec B (K)" to "dukla liberec b (w)", where its end-anchored
+# reserve rule no longer sees the "b", and the women's B side then read as a
+# senior side - refused against Sofascore's "VK Dukla Liberec B" (2026-10-02).
+_RESERVE_MARKER = re.compile(r"(?:\(r\)|\bii\b|\breserves?\b|\bb(?= \(w\)$))")
 
 
 def team_levels(name: str) -> frozenset[str]:
