@@ -111,3 +111,19 @@ def test_end_to_end_off_and_on(day: Path, tmp_path: Path) -> None:  # noqa: F811
         assert leg["confidence"] == pytest.approx(leg["confidence_curve"] - 0.009)
     # k = 2.0: 0.06 off each leg; A falls under the floor, B under x = 0.90.
     assert with_k(2.0)["singles"] == []
+
+
+def test_a_scratch_calibration_refuses_the_real_runs_dir(day: Path, tmp_path: Path) -> None:  # noqa: F811
+    """--calibration writes the same artifact names as the real run, so it
+    refuses runs/sofa itself (night review 2026-10-04); before any read."""
+    scratch = tmp_path / "cal.json"
+    shutil.copy(REPO / "config/sofa_confidence_calibration.json", scratch)
+    out = _run("run_confidence.py", day, "--runs-dir", str(REPO / "runs" / "sofa"),
+               "--calibration", str(scratch))
+    assert out.returncode == 2
+    assert "REFUSED" in out.stderr
+
+
+def test_measure_disagreement_applies_the_shrink_like_run_confidence() -> None:
+    source = (REPO / "scripts/sofa/measure_disagreement.py").read_text()
+    assert "cal.shrink_for_gap(" in source

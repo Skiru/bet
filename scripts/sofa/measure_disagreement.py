@@ -285,7 +285,9 @@ def gate_rows(
                 row.market, row.p_central, row.sport, row.direction) is not None
             skipped["NO_CLASS_CURVE" if unclassed else "NOT_CALIBRATED"] += 1
             continue
-        confidence = float(hit[0])
+        # As run_confidence: the gap shrink (off unless the calibration file
+        # sets gap_shrink_k) comes before every gate.
+        confidence = cal.shrink_for_gap(float(hit[0]), row.p_central, row.market_p)
         freq = art.sample_frequency.get(row.key) if art is not None else None
         claim = freq if freq is not None else row.p_central
         refused = disagrees_with_price(

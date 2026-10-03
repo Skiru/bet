@@ -1155,6 +1155,10 @@ _ONLY_OVER_CACHE_ROWS = (
     "WHERE sofa_settled_row.run_date = 'cache-calibration'"
 )
 
+# Rows per commit in write_settled: short enough that a concurrent writer's
+# 30 s busy timeout is never reached, long enough that commits do not dominate.
+WRITE_BATCH = 50_000
+
 
 def write_settled(
     rows: Iterable[SettledRow], db_path: Path, drop_event_ids: Iterable[int] = ()
@@ -1175,8 +1179,12 @@ def write_settled(
     try:
         # `rows` may be a generator (the replay streams ~90M rows since the
         # per-half markets, 2026-10-04), so the ids being written are known
-        # only once it is spent; the stale ids are deleted after the inserts,
-        # in the same transaction, which commits both or neither.
+        # only once it is spent; the stale ids are deleted after the inserts.
+        # Committed every WRITE_BATCH rows: one transaction around a streamed
+        # replay held the write lock for the whole computation, so a settle or
+        # a daily loop writing meanwhile failed with "database is locked"
+        # (night review 2026-10-04). Each row is an upsert, so a run cut off
+        # between batches is repaired by running it again.
         writing: set[int] = set()
         for row in rows:
             writing.add(row.event_id)
@@ -1210,6 +1218,8 @@ def write_settled(
                 ),
             )
             written += 1
+            if written % WRITE_BATCH == 0:
+                conn.commit()
         stale = sorted(set(drop_event_ids) - writing)
         conn.executemany(
             "DELETE FROM sofa_settled_row "

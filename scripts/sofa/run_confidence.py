@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
+# The day's real artifacts; --calibration refuses to write here.
+REAL_RUNS_DIR = _REPO / "runs" / "sofa"
 for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -178,6 +180,15 @@ def main() -> int:
     artifact = confidence_artifact(profile)
 
     run_dir = Path(args.runs_dir) / args.date
+    # A scratch calibration must never write the real day's confidence view
+    # (2026-09-23: a scratch rebuild clobbered the real coupon).
+    if args.calibration and Path(args.runs_dir).resolve() == REAL_RUNS_DIR.resolve():
+        print(
+            "REFUSED: --calibration writes the same artifact names; pass a "
+            "scratch --runs-dir (not runs/sofa)",
+            file=sys.stderr,
+        )
+        return 2
     # The same limit COUPON reads. A hard-coded 45 here let
     # SOFA_PRICE_MAX_AGE_MIN move COUPON's gate and not this one's.
     max_price_age = timedelta(minutes=SofaConfig.from_env().price_max_age_min)
