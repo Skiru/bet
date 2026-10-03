@@ -867,7 +867,15 @@ def process_historical_event(
             val = GapReason.PROVIDER_ERROR
         if isinstance(val, GapReason):
             collected[metric] = val
-            if val is GapReason.ZERO_NOT_RECORDED:
+            if metric in INCIDENT_METRICS and val in (
+                GapReason.ZERO_NOT_RECORDED,
+                GapReason.CARDS_NOT_RECORDED,
+            ):
+                zero_notes[metric] = (
+                    "incident list without a substitution or a yellow card:"
+                    " no card record (metrics.cards_not_recorded)"
+                )
+            elif val is GapReason.ZERO_NOT_RECORDED:
                 key = str(FOOTBALL_METRICS.get(metric, {}).get("sofascore", ""))
                 note = zero_pair_not_recorded(key, flat_stats.get("ALL"))
                 if note:

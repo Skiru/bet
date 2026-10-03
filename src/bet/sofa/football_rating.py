@@ -327,7 +327,11 @@ def parse_event(
 # away_reserve, reserve_squads) and move no rating. One bump for both.
 # 2026-10-04.1: a 0-0 the payload shows was not counted is no value
 # (metrics.zero_pair_not_recorded, ZERO_NOT_RECORDED).
-HISTORY_PARSER_VERSION = "2026-10-04.1"
+# 2026-10-04.2: a goals-and-dismissals incident list is no card record
+# (metrics.cards_not_recorded); a partial feed's single corner is no count
+# (PARTIAL_FEED_MIN_TOTAL); the per-half full feed's omitted offsides /
+# yellowCards 0-0 is restored (fill_omitted_zero_pairs).
+HISTORY_PARSER_VERSION = "2026-10-04.2"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------

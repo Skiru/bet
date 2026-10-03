@@ -14,6 +14,17 @@ from bet.sofa.metrics import calculate_cards_points
 FIXTURE = Path("tests/fixtures/sofascore/incidents_second_yellow.json")
 
 
+# A list with a substitution in it is a detailed incident feed - the only kind
+# that is a card record without a yellow in it (metrics.cards_not_recorded,
+# tests/sofa/test_cards_not_recorded.py). Fixtures about the scoring
+# convention carry one so that they keep testing the convention.
+SUBSTITUTION = {"incidentType": "substitution", "isHome": True}
+
+
+def _detailed(incidents: dict[str, Any]) -> dict[str, Any]:
+    return {**incidents, "incidents": [*incidents["incidents"], SUBSTITUTION]}
+
+
 @pytest.fixture(scope="module")
 def variants() -> dict[str, Any]:
     return json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -38,7 +49,7 @@ def test_no_card_incidents_while_statistics_show_yellows_is_unknown() -> None:
 
 def test_no_card_incidents_confirmed_by_statistics_is_a_real_zero() -> None:
     stats = {"yellowCards": (0.0, 0.0)}
-    assert calculate_cards_points({"incidents": []}, stats) == (0.0, 0.0)
+    assert calculate_cards_points({"incidents": [SUBSTITUTION]}, stats) == (0.0, 0.0)
 
 
 def test_rescinded_cards_do_not_count() -> None:
@@ -59,7 +70,7 @@ def test_rescinded_cards_do_not_count() -> None:
             },
         ]
     }
-    assert calculate_cards_points(incidents) == (0.0, 0.0)
+    assert calculate_cards_points(_detailed(incidents)) == (0.0, 0.0)
 
 
 def test_points_not_yellows() -> None:
@@ -106,14 +117,17 @@ def test_second_yellow_is_three_points_under_every_convention(
     All three conventions must therefore give 3, and if Sofascore ever changes
     convention this stays correct without anyone noticing.
     """
-    assert calculate_cards_points(variants[variant]) == (3.0, 0.0)
+    assert calculate_cards_points(_detailed(variants[variant])) == (3.0, 0.0)
 
 
 def test_a_rescinded_first_yellow_still_totals_three(
     variants: dict[str, Any],
 ) -> None:
     """One standing yellow plus a dismissal is still a 3-point disciplinary record."""
-    assert calculate_cards_points(variants["rescinded_first_yellow"]) == (3.0, 0.0)
+    assert calculate_cards_points(_detailed(variants["rescinded_first_yellow"])) == (
+        3.0,
+        0.0,
+    )
 
 
 def test_two_players_dismissed_do_not_borrow_each_other_s_yellows() -> None:
@@ -180,7 +194,7 @@ def test_an_unattributed_yellow_red_pays_the_full_three() -> None:
             {"incidentType": "card", "incidentClass": "yellowRed", "isHome": True}
         ]
     }
-    assert calculate_cards_points(incidents) == (3.0, 0.0)
+    assert calculate_cards_points(_detailed(incidents)) == (3.0, 0.0)
 
 
 def test_fixture_declares_itself_synthetic(variants: dict[str, Any]) -> None:
@@ -229,4 +243,4 @@ def test_a_card_with_no_name_at_all_still_counts() -> None:
 def test_only_staff_cards_is_a_tracked_zero_for_the_players() -> None:
     """The feed carried cards, so it was tracking them; none went to a player."""
     incidents = {"incidents": [_card("yellow", True, manager={"id": 9}, time=-5)]}
-    assert calculate_cards_points(incidents) == (0.0, 0.0)
+    assert calculate_cards_points(_detailed(incidents)) == (0.0, 0.0)

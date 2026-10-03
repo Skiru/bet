@@ -19,7 +19,10 @@ from scripts.sofa.run_settle import _handicap_side, _settle_derived
 
 
 def _flat(home: float, away: float, key: str = "cornerKicks"):
-    return {"ALL": {key: (home, away)}}
+    # A full-feed payload (it carries `passes`): a partial feed's single
+    # corner is refused as no count (metrics.PARTIAL_FEED_MIN_TOTAL), and
+    # these tests are about the derived arithmetic, not the feed.
+    return {"ALL": {key: (home, away), "passes": (400.0, 400.0)}}
 
 
 def _event():

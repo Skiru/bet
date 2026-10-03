@@ -334,8 +334,9 @@ def stat_is_untracked(key: str, whole: tuple[float, float] | None) -> bool:
 # fouls 0.01% vs 1.15%, shots on target 0.02% vs 2.61%. The full feed's
 # rate is the genuine tail (a negative binomial on its corner totals predicts
 # 11 nil-nil matches in 63,452; 13 are there); the partial feed's excess is
-# the provider's placeholder. Two clauses, both on the full-match pair (the
-# halves inherit it, as with ZERO_MEANS_UNTRACKED):
+# the provider's placeholder. Three clauses (c, below, since 2026-10-04),
+# all on the full-match pair (the halves inherit it, as with
+# ZERO_MEANS_UNTRACKED):
 #
 #   a) NEED_FULL_FEED: a 0-0 on one of these keys in a payload without the
 #      full-feed marker is refused outright. Expected genuine losses at the
@@ -367,6 +368,17 @@ PLACEHOLDER_COMPANIONS = frozenset(
         "totalShotsOnGoal",
     }
 )
+# c) (2026-10-04, data/night_2026-10-03/guards2/) a partial feed's corner
+#    pair totalling exactly one. The full feed has 79 such matches in 64,299
+#    (0.12%), and a Poisson on both teams' corner rates in their other
+#    matches predicts 75 of its 77 measured ones; the partial feeds have
+#    1,646 in 36,254 (4.54%) where the same model predicts 70 of 970. The
+#    payloads look half-counted (where they carry them, median throw-ins 1
+#    and goal kicks 0 a match, against 38 and 14 beside five or more
+#    corners). Expected genuine
+#    losses: ~70 matches. Total 2 is also high there (1.68% vs 0.57%) but
+#    that is about two thirds placeholder at most, so it is not refused.
+PARTIAL_FEED_MIN_TOTAL: dict[str, float] = {"cornerKicks": 1.0}
 IMPLIED_BY_ZERO: dict[str, frozenset[str]] = {
     # No shot at all means none of its parts.
     "totalShotsOnGoal": frozenset({"shotsOnGoal", "shotsOffGoal"}),
@@ -376,7 +388,10 @@ IMPLIED_BY_ZERO: dict[str, frozenset[str]] = {
 def zero_pair_not_recorded(
     key: str, all_stats: dict[str, tuple[float, float]] | None
 ) -> str | None:
-    """Why this full-match 0-0 is the provider not counting, or None.
+    """Why this full-match pair is the provider not counting, or None.
+
+    A 0-0 (clauses a and b), or a partial feed's total at or under
+    PARTIAL_FEED_MIN_TOTAL (clause c: a single corner).
 
     ``all_stats`` is the payload's ALL period. Returns a short note naming
     the evidence (the clause and the companion), so a gap can say why.
@@ -384,13 +399,28 @@ def zero_pair_not_recorded(
     if key not in ZERO_PAIR_GUARDED or not all_stats:
         return None
     pair = all_stats.get(key)
-    if pair is None or pair[0] != 0 or pair[1] != 0:
+    if pair is None:
         return None
     full_feed = FULL_FEED_MARKER in all_stats
+    floor = PARTIAL_FEED_MIN_TOTAL.get(key)
+    if not full_feed and floor is not None and 0 < pair[0] + pair[1] <= floor:
+        return (
+            f"{key} {pair[0]:g}-{pair[1]:g} in a partial feed (no {FULL_FEED_MARKER}):"
+            f" a total of {floor:g} or less is not a count"
+        )
+    if pair[0] != 0 or pair[1] != 0:
+        return None
     if full_feed and key not in NEED_FULL_FEED:
-        # Offsides 0-0 is a common genuine result in the full feed (2.46%),
-        # and a placeholder companion only doubles it there (tackles 4.7% vs
-        # 2.1%): about half of what clause b would refuse would be real.
+        # Offsides 0-0 is a common genuine result in the full feed (2.46%
+        # as sent; 4.82% once the per-half shape's omitted 0-0s are restored,
+        # fill_omitted_zero_pairs), and a placeholder companion only doubles
+        # it there (tackles 4.7% vs 2.1%): about half of what clause b would
+        # refuse would be real. In the partial feeds the 0-0s clause b keeps
+        # are 8.18%, ~3.4 points over that genuine rate, and no companion
+        # measured on 2026-10-04 separates them cleanly: a half-counted
+        # companion (corners total 1, throw-ins under 15, free kicks under
+        # 10) catches 251 at an expected 60 genuine; a competition-level
+        # cut at a 25% 0-0 rate 285 at 39 (data/night_2026-10-03/guards2/).
         return None
     implied = IMPLIED_BY_ZERO.get(key, frozenset())
     for other in sorted(all_stats):
@@ -562,7 +592,43 @@ def extract_flat_statistics(
                     bucket[key] = (float(raw_home), float(raw_away))
                 except (TypeError, ValueError):
                     continue
+    fill_omitted_zero_pairs(flat)
     return flat
+
+
+# A zero the provider omits (2026-10-04, data/night_2026-10-03/guards2/).
+# Sofascore's full football feed (the payload carrying `passes`) comes in two
+# shapes: with a per-half breakdown (1ST/2ND) and without. The per-half shape
+# drops an item whose full-match pair is 0-0 - measured over the 31,116 cached
+# per-half full-feed payloads: redCards 0-0 is present 129 times and absent
+# 25,268, offsides 0-0 present 2 times and absent 1,554 (4.99%, against a 0-0
+# rate of 4.65% in the 33,188 payloads without halves, which keep the item),
+# yellowCards 0-0 present 2 and absent 943. Independent checks: the per-player
+# lineups of all 205 offsides-absent events that have them sum totalOffside
+# to 0; of the yellowCards-absent events with card incidents, all 84 carry
+# only red cards or cards to staff, never a yellow. Read as "absent" these
+# were STAT_KEY_ABSENT and every genuine nil-nil left the offsides sample and
+# the card sample - only the zeros, so both read high. Only the keys measured
+# here are filled, only in that payload shape, and a key the payload sends
+# is never touched. (fouls absent there, 166 times, is untracked - a match
+# has ~25 - and is not filled.)
+OMITTED_ZERO_KEYS = ("offsides", "yellowCards")
+
+
+def fill_omitted_zero_pairs(flat: dict[str, dict[str, tuple[float, float]]]) -> None:
+    """Restore the 0-0 the per-half full feed omitted (in place)."""
+    whole = flat.get("ALL")
+    if not whole or FULL_FEED_MARKER not in whole or "1ST" not in flat:
+        return
+    for key in OMITTED_ZERO_KEYS:
+        if key in whole:
+            continue
+        if any(key in flat.get(p, {}) for p in ("1ST", "2ND")):
+            # A half carries it, so the match is not 0-0: not this shape.
+            continue
+        for period in ("ALL", "1ST", "2ND"):
+            if period in flat:
+                flat[period][key] = (0.0, 0.0)
 
 
 def infer_best_of(event: dict[str, Any]) -> int | None:
@@ -621,6 +687,60 @@ def _is_staff_card(incident: dict[str, Any]) -> bool:
     return bool(incident.get("manager")) and not incident.get("player")
 
 
+# An incident list that is no card record (2026-10-04,
+# data/night_2026-10-03/guards2/). Sofascore's lower-league incident feeds
+# carry goals and dismissals only: no substitution, and a yellow card only
+# sometimes. Measured over the cache: of the 25,256 partial-statistics events
+# whose incident list has no substitution, 22,063 show yellowCards > 0 and
+# 17,079 of those carry no card incident at all; of the 4,098 that carry
+# cards but no yellow, 3,671 have yellowCards > 0 (red cards listed, the
+# yellows not). Where the list has substitutions the incident yellows equal
+# the statistic on 93% of full-feed and 83% of partial-feed events. In the
+# full feed a match with a red card and no yellow is 0.22% of matches; a
+# no-substitution list with red cards and no yellow is 58% of the 8,102
+# carded no-substitution lists of events without statistics. Read as card
+# points such a list counts the red cards and nothing else - a 7-card match
+# reads 2.
+#
+# So a list without a single substitution is a card record only when it
+# shows a yellow card. Without one:
+#   - a red / second-yellow / staff card: CARDS_NOT_RECORDED (5,908 events
+#     without statistics, 4,098 with; genuine red-only matches expected at
+#     ~0.22%, i.e. ~140 + ~55);
+#   - no card at all beside yellowCards 0-0: ZERO_NOT_RECORDED. Those 0-0s
+#     are 9.97% of such events against ~3% of full-feed matches with no card
+#     (genuine: ~760 of the 2,518 refused would be real). They are refused
+#     anyway because their inclusion depends on their value: in this feed a
+#     carded match yields a card value only when the list happens to carry a
+#     card (about one in four), a 0-0 always - so even the genuine zeros
+#     entered the sample at four times the weight of everything else (32% of
+#     the feed's card values were 0-0).
+INCIDENT_FEED_DETAIL = "substitution"
+
+
+def cards_not_recorded(
+    incidents: dict[str, Any], all_stats: dict[str, tuple[float, float]] | None
+) -> GapReason | None:
+    """Why this incident list cannot be read as card points, or None."""
+    listed = incidents.get("incidents", [])
+    if any(inc.get("incidentType") == INCIDENT_FEED_DETAIL for inc in listed):
+        return None
+    card_incidents = [inc for inc in listed if inc.get("incidentType") == "card"]
+    if any(
+        inc.get("incidentClass") == "yellow"
+        and not inc.get("rescinded", False)
+        and not _is_staff_card(inc)
+        for inc in card_incidents
+    ):
+        return None
+    if card_incidents:
+        return GapReason.CARDS_NOT_RECORDED
+    yellow = (all_stats or {}).get("yellowCards")
+    if yellow is not None and sum(yellow) == 0:
+        return GapReason.ZERO_NOT_RECORDED
+    return None
+
+
 def calculate_cards_points(
     incidents: dict[str, Any] | None,
     all_stats: dict[str, tuple[float, float]] | None = None,
@@ -660,6 +780,10 @@ def calculate_cards_points(
     if not incidents:
         # A missing payload is not a zero (L3).
         return GapReason.NO_INCIDENTS
+
+    not_recorded = cards_not_recorded(incidents, all_stats)
+    if not_recorded is not None:
+        return not_recorded
 
     cards = [
         inc

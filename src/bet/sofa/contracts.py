@@ -30,6 +30,10 @@ class GapReason(StrEnum):
     # A full-match 0-0 the same payload shows was not counted (2026-10-03,
     # metrics.zero_pair_not_recorded): not an observation, and not a grade.
     ZERO_NOT_RECORDED = "ZERO_NOT_RECORDED"
+    # An incident list that is no card record (2026-10-04, metrics.
+    # cards_not_recorded): a goals-and-dismissals feed - no substitution, no
+    # yellow - read as card points would count the red cards only.
+    CARDS_NOT_RECORDED = "CARDS_NOT_RECORDED"
     THIN_SAMPLE = "THIN_SAMPLE"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"
