@@ -23,7 +23,7 @@ import sqlite3
 import statistics
 import sys
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -54,16 +54,36 @@ def iter_tennis_events(db_path: str) -> Iterator[dict[str, Any]]:
     yield from events.values()
 
 
-def load_statistics(db_path: str) -> dict[int, dict[str, Any]]:
+# Event ids per `IN (...)` when statistics are read by id.
+_STATS_CHUNK = 500
+
+
+def load_statistics(
+    db_path: str, event_ids: Iterable[int] | None = None
+) -> dict[int, dict[str, Any]]:
+    """Parsed /statistics by event id; only `event_ids` when given.
+
+    The fit needs only the tennis matches it counts. Reading every row parsed
+    the whole football cache too (367,762 rows on 2026-10-03, most of them
+    football) into memory for nothing."""
+    sql = (
+        "SELECT sofascore_event_id, statistics_json FROM sofa_event_stats "
+        "WHERE statistics_json IS NOT NULL"
+    )
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
-        return {
-            int(eid): json.loads(js)
+        if event_ids is None:
+            return {int(eid): json.loads(js) for eid, js in conn.execute(sql)}
+        wanted = sorted(set(event_ids))
+        out: dict[int, dict[str, Any]] = {}
+        for i in range(0, len(wanted), _STATS_CHUNK):
+            chunk = wanted[i : i + _STATS_CHUNK]
+            marks = ",".join("?" * len(chunk))
             for eid, js in conn.execute(
-                "SELECT sofascore_event_id, statistics_json FROM sofa_event_stats "
-                "WHERE statistics_json IS NOT NULL"
-            )
-        }
+                f"{sql} AND sofascore_event_id IN ({marks})", chunk
+            ):
+                out[int(eid)] = json.loads(js)
+        return out
     finally:
         conn.close()
 
@@ -122,7 +142,7 @@ def main() -> int:
         ap.error("--measure-from needs --before at or before it (no leakage)")
 
     events = list(iter_tennis_events(args.db))
-    stats = load_statistics(args.db)
+    stats = load_statistics(args.db, (int(e["id"]) for e in events))
     fit_events = events
     if args.before:
         cut = _ts(args.before)

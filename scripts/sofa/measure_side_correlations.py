@@ -64,6 +64,24 @@ STAT_KEYS = {
     "games": "gamesWon",
 }
 
+# The one sport each pool measures. /statistics names its keys per sport and
+# two sports can share one: volleyball's `aces` has been in sofa_event_stats
+# since the shadow backfill (2,369 volleyball rows beside 100,224 tennis rows
+# carrying `aces` on 2026-10-03), and pooled into the tennis number it would
+# be a correlation of neither sport. An event whose listing names another
+# sport, or none, stays out of the pool.
+METRIC_SPORT = {
+    "corners": "football",
+    "shots": "football",
+    "shots_on_target": "football",
+    "fouls": "football",
+    "offsides": "football",
+    "cards_points": "football",
+    "aces": "tennis",
+    "double_faults": "tennis",
+    "games": "tennis",
+}
+
 
 def pearson(pairs: list[tuple[float, float]]) -> float | None:
     n = len(pairs)
@@ -78,14 +96,24 @@ def pearson(pairs: list[tuple[float, float]]) -> float | None:
     return sum((p[0] - mx) * (p[1] - my) for p in pairs) / (sx * sy)
 
 
-def event_sides(conn: sqlite3.Connection) -> dict[int, tuple[int, int]]:
-    """Which two entities played each cached event.
+def connect_read_only(db_path: Path) -> sqlite3.Connection:
+    """A measurement never writes the cache: the DB may be written by a
+    backfill at the same time, and a plain connect() would open it for
+    writing (and create an empty file where the path is wrong)."""
+    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+
+
+def event_sides(
+    conn: sqlite3.Connection,
+) -> dict[int, tuple[int, int, str | None]]:
+    """Which two entities played each cached event, and its sport slug.
 
     /statistics does not name the teams, so the pairing comes off the listings
     the sampler already stores. Without it the two columns cannot be attributed
-    to teams and no mean can be removed.
+    to teams and no mean can be removed. Nor does it name the sport, which
+    decides the pool (METRIC_SPORT).
     """
-    sides: dict[int, tuple[int, int]] = {}
+    sides: dict[int, tuple[int, int, str | None]] = {}
     for (events_json,) in conn.execute("SELECT events_json FROM sofa_entity_events"):
         try:
             events = json.loads(events_json)
@@ -102,7 +130,13 @@ def event_sides(conn: sqlite3.Connection) -> dict[int, tuple[int, int]]:
             home = (event.get("homeTeam") or {}).get("id")
             away = (event.get("awayTeam") or {}).get("id")
             if event_id and home and away:
-                sides[event_id] = (home, away)
+                sport = (
+                    ((event.get("tournament") or {}).get("category") or {}).get(
+                        "sport"
+                    )
+                    or {}
+                ).get("slug")
+                sides[event_id] = (home, away, sport)
     return sides
 
 
@@ -129,7 +163,7 @@ def residual_pearson(
 
 def collect(db_path: Path) -> dict[str, list[tuple[int, int, float, float]]]:
     pools: dict[str, list[tuple[int, int, float, float]]] = defaultdict(list)
-    conn = sqlite3.connect(str(db_path))
+    conn = connect_read_only(db_path)
     try:
         sides = event_sides(conn)
         cursor = conn.execute(
@@ -142,7 +176,7 @@ def collect(db_path: Path) -> dict[str, list[tuple[int, int, float, float]]]:
             pairing = sides.get(event_id)
             if pairing is None:
                 continue
-            home_id, away_id = pairing
+            home_id, away_id, sport = pairing
 
             if statistics_json:
                 try:
@@ -155,7 +189,7 @@ def collect(db_path: Path) -> dict[str, list[tuple[int, int, float, float]]]:
                     all_period = flat.get("ALL", {})
                     for base, key in STAT_KEYS.items():
                         value = all_period.get(key)
-                        if value is None:
+                        if value is None or METRIC_SPORT[base] != sport:
                             continue
                         home, away = value
                         pools[base].append(
@@ -167,7 +201,7 @@ def collect(db_path: Path) -> dict[str, list[tuple[int, int, float, float]]]:
                     incidents_raw = json.loads(incidents_json)
                 except ValueError:
                     incidents_raw = None
-                if incidents_raw:
+                if incidents_raw and sport == METRIC_SPORT["cards_points"]:
                     points = calculate_cards_points(incidents_raw, all_period)
                     if not isinstance(points, str) and points is not None:
                         home_pts, away_pts = points
@@ -185,7 +219,7 @@ def collect_goals(db_path: Path) -> list[tuple[int, int, float, float]]:
     needs the same dependence parameter."""
     pairs: list[tuple[int, int, float, float]] = []
     seen: set[int] = set()
-    conn = sqlite3.connect(str(db_path))
+    conn = connect_read_only(db_path)
     try:
         cursor = conn.execute("SELECT events_json FROM sofa_entity_events")
         for (events_json,) in cursor:
@@ -229,10 +263,14 @@ def collect_goals(db_path: Path) -> list[tuple[int, int, float, float]]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default="config/sofa_side_correlations.json")
+    parser.add_argument(
+        "--db", default=None, help="sofa.db to read (default: SOFA_DB_PATH)"
+    )
     args = parser.parse_args()
 
-    config = SofaConfig.from_env()
-    db_path = Path(config.db_path)
+    db_path = Path(args.db or SofaConfig.from_env().db_path)
+    if not db_path.exists():
+        parser.error(f"--db {db_path} does not exist")
 
     pools = collect(db_path)
     pools["goals"] = collect_goals(db_path)
@@ -248,6 +286,8 @@ def main() -> int:
             "Regenerate with scripts/sofa/measure_side_correlations.py."
         ),
         "_min_pairs": MIN_PAIRS,
+        # What each number pooled across (CLAUDE.md: a pooled number says so).
+        "_sport_of_pool": {**METRIC_SPORT, "goals": "football"},
     }
     for base in sorted(pools):
         rows = pools[base]
