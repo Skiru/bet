@@ -67,6 +67,7 @@ from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.sample_age import stalest_side_newest_days
+from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 from bet.sofa.stage import set_stage
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
@@ -409,26 +410,66 @@ def day_league_prior(
     return statistics.mean(values), len(values)
 
 
+# Never a side's league for the prior: friendlies (samples.FRIENDLY_COMPETITION_IDS)
+# and International Friendly Games (851), the modal competition of most national
+# teams - a Gulf Cup or CONCACAF Nations League tie shrank toward it (2026-10-03).
+NOT_A_LEAGUE: frozenset[int] = FRIENDLY_COMPETITION_IDS | {851}
+
+
 def home_competition(
-    observations: list[Observation], league: int | None = None
+    observations: list[Observation],
+    league: int | None = None,
+    leagues: frozenset[int] | None = None,
 ) -> int | None:
     """The competition a side actually plays in: the one holding most of its
     sample, and at least half of it. None when the sample has no majority.
 
     `league` is the side's league from the football rating (its modal
-    competition over the last year, RatingBook.domain). When the sample holds
-    any match of it, it wins over the sample's majority: a short sample in an
-    early-season cup run is mostly cup. On 2026-10-03 every Scottish League
-    One / Two fixture (207, 209) took its prior from the Challenge Cup (331),
-    which held 4 of Annan Athletic's 6 corners matches.
+    competition over the last year, RatingBook.domain). It wins over the
+    sample's majority only when that majority is a cup - a competition that is
+    no team's league (`leagues`, see league_competitions) - and the sample
+    holds a match of it: a short sample in an early-season cup run is mostly
+    cup. On 2026-10-03 every Scottish League One / Two fixture (207, 209) took
+    its prior from the Challenge Cup (331), which held 4 of Annan Athletic's 6
+    corners matches. A majority that is a league stands: a promoted side's
+    rated league is last season's, and 1 match of it in 10 must not beat 9 in
+    the league it plays now (Cymru North 13820 -> Cymru Premier 254 the same
+    day, before this rule).
     """
     comps = [o.competition_id for o in observations if o.competition_id is not None]
     if not comps:
         return None
-    if league is not None and league in comps:
-        return league
     comp, count = Counter(comps).most_common(1)[0]
+    if (
+        league is not None
+        and league not in NOT_A_LEAGUE
+        and league in comps
+        and (leagues is None or comp not in leagues)
+    ):
+        return league
     return comp if count * 2 >= len(observations) else None
+
+
+_LEAGUE_SETS: dict[int, tuple[int, frozenset[int]]] = {}
+
+
+def league_competitions(football: FootballForecast | None) -> frozenset[int] | None:
+    """Every competition that is some team's league in the rating (the
+    competition of its modal unit), computed once per book state."""
+    if football is None:
+        return None
+    book = football.book
+    cached = _LEAGUE_SETS.get(id(book))
+    if cached is not None and cached[0] == book.last_ts:
+        return cached[1]
+    out: set[int] = set()
+    for team in list(book.team_comps):
+        unit = book.domain(team)
+        if unit is not None:
+            out.add(book.unit_competition(unit))
+    leagues = frozenset(out - NOT_A_LEAGUE)
+    _LEAGUE_SETS[id(book)] = (book.last_ts, leagues)
+    return leagues
 
 
 def _fitted_league_mean(
@@ -463,6 +504,7 @@ def resolve_prior(
     own_sides: list[list[Observation]],
     own_events: set[int],
     side_leagues: list[int | None] | None = None,
+    leagues: frozenset[int] | None = None,
 ) -> tuple[float | None, str | None]:
     """The shrink target for one row, and a note saying where it came from.
 
@@ -486,7 +528,7 @@ def resolve_prior(
     means: list[float] = []
     for i, side in enumerate(own_sides):
         home = home_competition(
-            side, side_leagues[i] if side_leagues is not None else None)
+            side, side_leagues[i] if side_leagues is not None else None, leagues)
         if home is None or home == comp:
             continue
         league = _fitted_league_mean(baselines, metric, home)
@@ -1020,7 +1062,8 @@ def process_fixture(
                 prior, prior_note = resolve_prior(
                     baselines, day_obs, rung.market, fixture, own_sides, own_events,
                     rated_leagues(football, own_teams)
-                    if len(own_teams) == len(own_sides) else None)
+                    if len(own_teams) == len(own_sides) else None,
+                    league_competitions(football))
                 if prior_note:
                     extra_notes.append(prior_note)
             elif (women := women_global_prior(
