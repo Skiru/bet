@@ -292,20 +292,64 @@
       "category": "World",
       "evidence": "docs/sofa/evidence/competition_26767_world_sevens_women.json",
       "source": "cache_payload"
+    },
+    {
+      "competition_id": 851,
+      "name": "International Friendly Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json",
+      "source": "cache_payload",
+      "added": "2026-10-04 (was in allowed): senior national-team friendlies entered samples and moved the rating; 2,427 cached finished matches, 268 national teams, 27 of them drop under sample_n=10 and 5 under min_sample=5 in the last 730 days (data/night_2026-10-03/guards/)"
+    },
+    {
+      "competition_id": 18553,
+      "name": "MLS Preseason",
+      "category": "USA",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 18593,
+      "name": "Torneo Amistoso De Verano",
+      "category": "Bolivia",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 23238,
+      "name": "Gold Cup Pre-season Tournament ",
+      "category": "Nigeria",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28748,
+      "name": "CONIFA Exhibition Games",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28832,
+      "name": "N.F.-Board Exhibition Games",
+      "category": "International",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 25657,
+      "name": "Legends Matches",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
+      "source": "cache_payload"
     }
   ],
   "candidates": [],
   "allowed": [
     {
-      "competition_id": 851,
-      "name": "International Friendly Games",
-      "reason": "Senior national-team friendlies: the bulk of a national team's matches; excluding them starves national-team samples (SAMPLE_CROSSES_SEASON already shuts some out). Kept deliberately.",
-      "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json"
-    },
-    {
       "competition_id": 852,
       "name": "International Friendly Games Women",
-      "reason": "Senior women's national-team friendlies: same reason as 851.",
+      "reason": "Senior women's national-team friendlies. 851 moved to excluded on 2026-10-04; 852 left here pending a decision: 1,334 cached matches but only 7 with statistics, and excluding it would drop 24 women's national teams under min_sample=5 (32 under sample_n=10) in the last 730 days.",
       "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json"
     }
   ]

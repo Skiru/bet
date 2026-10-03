@@ -124,7 +124,11 @@ def test_a_full_feed_nil_nil_without_a_placeholder_stays() -> None:
 
 
 def test_offsides_nil_nil_alone_stays_in_every_feed() -> None:
-    partial = {"offsides": (0.0, 0.0), "freeKicks": (12.0, 9.0), "cornerKicks": (5.0, 4.0)}
+    partial = {
+        "offsides": (0.0, 0.0),
+        "freeKicks": (12.0, 9.0),
+        "cornerKicks": (5.0, 4.0),
+    }
     assert zero_pair_not_recorded("offsides", partial) is None
     # Full feed: a tackle placeholder only doubles the offsides 0-0 rate.
     full = {"offsides": (0.0, 0.0), "passes": (400.0, 380.0), "totalTackle": (0.0, 2.0)}
@@ -132,8 +136,15 @@ def test_offsides_nil_nil_alone_stays_in_every_feed() -> None:
 
 
 def test_offsides_beside_a_partial_feed_placeholder_is_refused() -> None:
-    partial = {"offsides": (0.0, 0.0), "freeKicks": (0.0, 0.0), "cornerKicks": (5.0, 4.0)}
-    assert zero_pair_not_recorded("offsides", partial) == "offsides 0-0 beside freeKicks 0-0"
+    partial = {
+        "offsides": (0.0, 0.0),
+        "freeKicks": (0.0, 0.0),
+        "cornerKicks": (5.0, 4.0),
+    }
+    assert (
+        zero_pair_not_recorded("offsides", partial)
+        == "offsides 0-0 beside freeKicks 0-0"
+    )
 
 
 def test_a_one_sided_zero_and_a_nonzero_pair_are_never_touched() -> None:
@@ -151,16 +162,28 @@ def test_saves_and_cards_are_not_guarded() -> None:
 def test_no_shot_at_all_does_not_count_its_own_parts_as_evidence() -> None:
     # totalShotsOnGoal 0-0 implies shotsOnGoal/shotsOffGoal 0-0; only the
     # partial feed refuses it here, not the implied companions.
-    full = {"totalShotsOnGoal": (0.0, 0.0), "shotsOnGoal": (0.0, 0.0),
-            "shotsOffGoal": (0.0, 0.0), "passes": (300.0, 310.0)}
+    full = {
+        "totalShotsOnGoal": (0.0, 0.0),
+        "shotsOnGoal": (0.0, 0.0),
+        "shotsOffGoal": (0.0, 0.0),
+        "passes": (300.0, 310.0),
+    }
     assert zero_pair_not_recorded("totalShotsOnGoal", full) is None
 
 
 def test_the_halves_inherit_the_full_match_refusal() -> None:
     stats = _stats({"cornerKicks": (0.0, 0.0), "goalKicks": (0.0, 0.0)})
     stats["statistics"] += [
-        {"period": p, "groups": [{"statisticsItems": [
-            {"key": "cornerKicks", "homeValue": 0, "awayValue": 0}]}]}
+        {
+            "period": p,
+            "groups": [
+                {
+                    "statisticsItems": [
+                        {"key": "cornerKicks", "homeValue": 0, "awayValue": 0}
+                    ]
+                }
+            ],
+        }
         for p in ("1ST", "2ND")
     ]
     flat = extract_flat_statistics(stats)
@@ -190,8 +213,13 @@ def test_samples_record_the_gap_with_its_note(cache: SofaCache) -> None:
     conn.commit()
     conn.close()
     out = process_historical_event(
-        MagicMock(), cache, _listing(case), 1, "football",
-        {"corners_total", "fouls_total"}, MagicMock(),
+        MagicMock(),
+        cache,
+        _listing(case),
+        1,
+        "football",
+        {"corners_total", "fouls_total"},
+        MagicMock(),
     )
     assert out["collected"]["corners_total"] is GapReason.ZERO_NOT_RECORDED
     assert out["collected"]["fouls_total"].value == 23.0
@@ -202,13 +230,15 @@ def test_samples_record_the_gap_with_its_note(cache: SofaCache) -> None:
 
 def test_the_cache_replay_drops_the_same_pair() -> None:
     case = _case(16494320)
-    values = match_values(_listing(case), "football", json.dumps(case["statistics"]), None)
+    values = match_values(
+        _listing(case), "football", json.dumps(case["statistics"]), None
+    )
     assert "corners" not in values
     assert values["fouls"] == (14.0, 9.0)
     kept = _case(16522425)
-    assert match_values(_listing(kept), "football", json.dumps(kept["statistics"]), None)[
-        "corners"
-    ] == (0.0, 0.0)
+    assert match_values(
+        _listing(kept), "football", json.dumps(kept["statistics"]), None
+    )["corners"] == (0.0, 0.0)
 
 
 def test_the_football_rating_history_drops_it_and_is_reparsed() -> None:
@@ -216,8 +246,11 @@ def test_the_football_rating_history_drops_it_and_is_reparsed() -> None:
 
     case = _case(16494320)
     event = _listing(case)
-    event["tournament"] = {"id": 5, "uniqueTournament": {"id": 17},
-                           "category": {"sport": {"slug": "football"}}}
+    event["tournament"] = {
+        "id": 5,
+        "uniqueTournament": {"id": 17},
+        "category": {"sport": {"slug": "football"}},
+    }
     result = football_rating.parse_event(event, case["statistics"], None)
     assert result is not None
     assert "corners_for" not in result.values
@@ -234,9 +267,18 @@ def test_settle_skips_it_as_a_stat_gap_the_morning_refetch_re_asks(
     # --refetch-stat-gaps pass must pick that event up again.
     assert "ZERO_NOT_RECORDED" in STAT_GAP_REASONS
     skips = tmp_path / "07_settle_skips.json"
-    skips.write_text(json.dumps({"skipped_events": [
-        {"sofascore_event_id": 16494320,
-         "skipped": {"corners_total:ZERO_NOT_RECORDED": 4}},
-        {"sofascore_event_id": 1, "skipped": {"PUSH": 1}},
-    ]}), encoding="utf-8")
+    skips.write_text(
+        json.dumps(
+            {
+                "skipped_events": [
+                    {
+                        "sofascore_event_id": 16494320,
+                        "skipped": {"corners_total:ZERO_NOT_RECORDED": 4},
+                    },
+                    {"sofascore_event_id": 1, "skipped": {"PUSH": 1}},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     assert stat_gap_events(skips) == frozenset({16494320})

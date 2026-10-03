@@ -413,6 +413,8 @@ def day_league_prior(
 # Never a side's league for the prior: friendlies (samples.FRIENDLY_COMPETITION_IDS)
 # and International Friendly Games (851), the modal competition of most national
 # teams - a Gulf Cup or CONCACAF Nations League tie shrank toward it (2026-10-03).
+# 851 is on the friendly list itself since 2026-10-04; named here as well so
+# the prior rule does not depend on that list.
 NOT_A_LEAGUE: frozenset[int] = FRIENDLY_COMPETITION_IDS | {851}
 
 

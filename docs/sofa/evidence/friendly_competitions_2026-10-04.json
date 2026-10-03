@@ -1,0 +1,100 @@
+{
+ "_doc": [
+  "Football competitions added to config/sofa_friendly_competitions.json on 2026-10-04,",
+  "read from the sofa cache (sofa_listed_event, sport='football', mode=ro) the night of",
+  "2026-10-03. One example event per id, verbatim; n_events = cached listed events.",
+  "851 International Friendly Games is evidenced in friendly_competitions_2026-09-30.json."
+ ],
+ "competitions": [
+  {
+   "competition_id": 18553,
+   "name": "MLS Preseason",
+   "slug": "mls-preseason",
+   "category": "USA",
+   "example_event": {
+    "id": 13353014,
+    "home": "Colorado Rapids",
+    "away": "Toronto FC",
+    "startTimestamp": 1739289600,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 181
+  },
+  {
+   "competition_id": 18593,
+   "name": "Torneo Amistoso De Verano",
+   "slug": "playoff-promocao-da-i-divisao-distrital-af-leiria",
+   "category": "Bolivia",
+   "example_event": {
+    "id": 13454424,
+    "home": "CD Royal Pari",
+    "away": "CD Real Santa Cruz",
+    "startTimestamp": 1739404822,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 91
+  },
+  {
+   "competition_id": 23238,
+   "name": "Gold Cup Pre-season Tournament ",
+   "slug": "optima-energy-gold-cup-pre-season-tournament",
+   "category": "Nigeria",
+   "example_event": {
+    "id": 16804981,
+    "home": "Inter Lagos FC",
+    "away": "Ikorodu City",
+    "startTimestamp": 1786626720,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 57
+  },
+  {
+   "competition_id": 28748,
+   "name": "CONIFA Exhibition Games",
+   "slug": "conifa-exhibition-games",
+   "category": "World",
+   "example_event": {
+    "id": 14465955,
+    "home": "Ryūkyū",
+    "away": "United Koreans of Japan",
+    "startTimestamp": 1480183200,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 11
+  },
+  {
+   "competition_id": 28832,
+   "name": "N.F.-Board Exhibition Games",
+   "slug": "nf-board-exhibition-games",
+   "category": "International",
+   "example_event": {
+    "id": 14797079,
+    "home": "Sapmi",
+    "away": "Northern Cyprus",
+    "startTimestamp": 1091062800,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 1
+  },
+  {
+   "competition_id": 25657,
+   "name": "Legends Matches",
+   "slug": "exhibition-matches",
+   "category": "World",
+   "example_event": {
+    "id": 13840130,
+    "home": "Hashtag United",
+    "away": "Premier League All Stars",
+    "startTimestamp": 1746360000,
+    "homeTeam_national": false,
+    "homeTeam_gender": "M"
+   },
+   "n_events": 1
+  }
+ ]
+}

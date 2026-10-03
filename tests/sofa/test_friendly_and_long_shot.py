@@ -66,7 +66,10 @@ def test_the_friendly_test_reads_sport_and_the_config_ids() -> None:
     assert is_friendly_fixture("football", 853)
     assert not is_friendly_fixture("tennis", 853)
     assert not is_friendly_fixture("football", None)
-    assert not is_friendly_fixture("football", 851), "senior internationals stay"
+    # 2026-10-04: senior national-team friendlies (851) are friendlies too;
+    # the women's (852) stay pending a decision.
+    assert is_friendly_fixture("football", 851)
+    assert not is_friendly_fixture("football", 852)
 
 
 def test_a_long_shot_single_is_refused() -> None:
