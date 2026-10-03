@@ -242,6 +242,31 @@ def exact_time_events(
     return out
 
 
+def mutual_orientation(
+    event: dict[str, Any],
+    team1_events: list[tuple[int, dict[str, Any]]],
+    team2_events: list[tuple[int, dict[str, Any]]],
+) -> bool | None:
+    """Is the mutual game's home team board team1 - read from the candidate
+    PAIR that confirmed it, never from "team1's candidates contain home".
+
+    A name-blind search can return both clubs for one side, and then home is
+    among team1's candidates whichever way round the game is (night review
+    2026-10-04); a flipped orientation misgrades every handicap and team
+    total of the game. Both readings possible -> None, and the game is
+    refused rather than guessed."""
+    home = (event.get("homeTeam") or {}).get("id")
+    away = (event.get("awayTeam") or {}).get("id")
+    eid = event.get("id")
+    t1 = {cand for cand, e in team1_events if e.get("id") == eid}
+    t2 = {cand for cand, e in team2_events if e.get("id") == eid}
+    straight = home in t1 and away in t2
+    swapped = away in t1 and home in t2
+    if straight == swapped:
+        return None
+    return straight
+
+
 def confirm_from_listings(
     resolver: SofaResolver,
     sport: ShadowSport,
@@ -264,13 +289,13 @@ def confirm_from_listings(
     }
     mutual = mutual_listing_event(events[ev.team1], events[ev.team2])
     if mutual is not None:
-        # Each side's own team is known by id, so is the orientation.
-        team1_ids = {cand for cand, _ in events[ev.team1]}
-        home_id = (mutual.get("homeTeam") or {}).get("id")
+        home_is_team1 = mutual_orientation(mutual, events[ev.team1], events[ev.team2])
+        if home_is_team1 is None:
+            return None
         return {
             **mutual,
             "_shadow_match_rule": "MUTUAL_LISTING",
-            "_shadow_home_is_team1": home_id in team1_ids,
+            "_shadow_home_is_team1": home_is_team1,
         }
     found: dict[int, dict[str, Any]] = {}
     for side, other in ((ev.team1, ev.team2), (ev.team2, ev.team1)):

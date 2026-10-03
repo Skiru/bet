@@ -471,3 +471,25 @@ def test_orientation_reads_word_order_when_the_ratio_cannot() -> None:
     )
     # Each board name inside both Sofascore names: still no reading.
     assert reads("Lions Tigers", "Tigers Lions", "Lions", "Tigers") is None
+
+
+def _game(eid: int, home: int, away: int) -> dict[str, Any]:
+    return {"id": eid, "homeTeam": {"id": home}, "awayTeam": {"id": away}}
+
+
+def test_mutual_orientation_reads_the_confirming_pair_not_team1s_candidates() -> None:
+    """Night review 2026-10-04: team1's name-blind search returned both clubs
+    (10 and 20); the real home is 20, team2's club. 'home in team1's
+    candidates' said team1 was home - a flipped game."""
+    game = _game(7, home=20, away=10)
+    team1 = [(10, game), (20, game)]
+    team2 = [(20, game)]
+    assert settle_shadow.mutual_orientation(game, team1, team2) is False
+
+
+def test_mutual_orientation_straight_and_ambiguous() -> None:
+    game = _game(7, home=10, away=20)
+    assert settle_shadow.mutual_orientation(game, [(10, game)], [(20, game)]) is True
+    # Both readings possible: refuse rather than guess.
+    both = [(10, game), (20, game)]
+    assert settle_shadow.mutual_orientation(game, both, both) is None
