@@ -32,11 +32,13 @@ from bet.sofa.market_mapper import (
     derived_side_metric,
 )
 from bet.sofa.metrics import (
+    FOOTBALL_METRICS,
     check_halves_identity,
     check_identities,
     extract_flat_statistics,
     extract_metric,
     infer_best_of,
+    zero_pair_not_recorded,
 )
 from bet.sofa.players import (
     extract_player_metric,
@@ -851,6 +853,8 @@ def process_historical_event(
     venue: str | None = None if sport == "tennis" else ("home" if is_home else "away")
 
     collected: dict[str, Observation | GapReason] = {}
+    # Why a 0-0 was refused, per metric, for the gap entry (2026-10-03).
+    zero_notes: dict[str, str] = {}
     for metric in metrics_to_collect:
         if ident_gap:
             collected[metric] = ident_gap
@@ -863,6 +867,11 @@ def process_historical_event(
             val = GapReason.PROVIDER_ERROR
         if isinstance(val, GapReason):
             collected[metric] = val
+            if val is GapReason.ZERO_NOT_RECORDED:
+                key = str(FOOTBALL_METRICS.get(metric, {}).get("sofascore", ""))
+                note = zero_pair_not_recorded(key, flat_stats.get("ALL"))
+                if note:
+                    zero_notes[metric] = note
         else:
             collected[metric] = Observation(
                 sofascore_event_id=event_id,
@@ -894,6 +903,7 @@ def process_historical_event(
         "collected": collected,
         "is_h2h": is_h2h,
         "halves_divergences": halves_divergences,
+        "zero_notes": zero_notes,
         "squad": squad,
         "match_date_utc": match_dt,
         "opponent": opponent_name,
@@ -1187,13 +1197,11 @@ def _process_fixture_samples(
             for res in results:
                 val = res["collected"].get(metric)
                 if isinstance(val, GapReason):
-                    gaps.append(
-                        GapEntry(
-                            reason=val,
-                            metric=metric,
-                            detail=f"{side_label} event {res['event_id']} gap",
-                        )
-                    )
+                    detail = f"{side_label} event {res['event_id']} gap"
+                    note = (res.get("zero_notes") or {}).get(metric)
+                    if note:
+                        detail = f"{detail}: {note}"
+                    gaps.append(GapEntry(reason=val, metric=metric, detail=detail))
                     continue
                 if val is None:
                     continue

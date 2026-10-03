@@ -323,6 +323,89 @@ def stat_is_untracked(key: str, whole: tuple[float, float] | None) -> bool:
     zeros = (whole[0] == 0) + (whole[1] == 0)
     return zeros == 2 if rule == "both" else zeros >= 1
 
+
+# A zero that means "not recorded" (2026-10-03, event 16494320 Wealdstone -
+# Halifax: corners 0-0 beside total tackles 0/1). Measured over the 111,606
+# cached football /statistics payloads (data/night_2026-10-03/guards/): the
+# full data feed - the one that publishes `passes` - and the partial feeds
+# (scout-logged lower leagues: a handful of keys, no `passes`) have the same
+# means (corners 9.54 vs 8.36 a match, fouls 24.7 vs 24.9, shots on target
+# 8.6 vs 8.6) and 0-0 rates 115-140 times apart: corners 0.02% vs 2.87%,
+# fouls 0.01% vs 1.15%, shots on target 0.02% vs 2.61%. The full feed's
+# rate is the genuine tail (a negative binomial on its corner totals predicts
+# 11 nil-nil matches in 63,452; 13 are there); the partial feed's excess is
+# the provider's placeholder. Two clauses, both on the full-match pair (the
+# halves inherit it, as with ZERO_MEANS_UNTRACKED):
+#
+#   a) NEED_FULL_FEED: a 0-0 on one of these keys in a payload without the
+#      full-feed marker is refused outright. Expected genuine losses at the
+#      full-feed rate: ~7 corner, ~2 foul and ~4 shots-on-target matches in
+#      the whole history.
+#   b) a 0-0 on a GUARDED key beside a companion that is itself a
+#      placeholder (stat_is_untracked, or a 0-0 on a PLACEHOLDER_COMPANIONS
+#      key) is refused: the payload has shown it was not counting. In the
+#      full feed only for NEED_FULL_FEED keys (the 16494320 shape: corners
+#      0-0 beside tackles 0/1; 2 such corner matches in the history).
+#      Measured lift on partial feeds: offsides 0-0 is 95% when
+#      free kicks read 0-0, 94% beside fouls 0-0, 88% beside a throw-in
+#      placeholder, against 10% otherwise. A companion that a genuine 0-0
+#      of the key itself would imply (no shot at all, so no shot on target)
+#      is no evidence and is skipped. goalkeeperSaves is not guarded: a
+#      keeper can make no save, saves live almost only in the full feed (56
+#      partial payloads carry them), and a placeholder companion barely
+#      moves their 0-0 rate there (0.3% vs 0.18%).
+FULL_FEED_MARKER = "passes"
+NEED_FULL_FEED = frozenset({"cornerKicks", "fouls", "shotsOnGoal", "totalShotsOnGoal"})
+ZERO_PAIR_GUARDED = NEED_FULL_FEED | {"offsides"}
+PLACEHOLDER_COMPANIONS = frozenset(
+    {
+        "cornerKicks",
+        "fouls",
+        "freeKicks",
+        "shotsOnGoal",
+        "shotsOffGoal",
+        "totalShotsOnGoal",
+    }
+)
+IMPLIED_BY_ZERO: dict[str, frozenset[str]] = {
+    # No shot at all means none of its parts.
+    "totalShotsOnGoal": frozenset({"shotsOnGoal", "shotsOffGoal"}),
+}
+
+
+def zero_pair_not_recorded(
+    key: str, all_stats: dict[str, tuple[float, float]] | None
+) -> str | None:
+    """Why this full-match 0-0 is the provider not counting, or None.
+
+    ``all_stats`` is the payload's ALL period. Returns a short note naming
+    the evidence (the clause and the companion), so a gap can say why.
+    """
+    if key not in ZERO_PAIR_GUARDED or not all_stats:
+        return None
+    pair = all_stats.get(key)
+    if pair is None or pair[0] != 0 or pair[1] != 0:
+        return None
+    full_feed = FULL_FEED_MARKER in all_stats
+    if full_feed and key not in NEED_FULL_FEED:
+        # Offsides 0-0 is a common genuine result in the full feed (2.46%),
+        # and a placeholder companion only doubles it there (tackles 4.7% vs
+        # 2.1%): about half of what clause b would refuse would be real.
+        return None
+    implied = IMPLIED_BY_ZERO.get(key, frozenset())
+    for other in sorted(all_stats):
+        if other == key or other in implied:
+            continue
+        companion = all_stats[other]
+        if stat_is_untracked(other, companion):
+            seen = f"{companion[0]:g}-{companion[1]:g}"
+            return f"{key} 0-0 beside placeholder {other} {seen}"
+        if other in PLACEHOLDER_COMPANIONS and companion[0] == 0 and companion[1] == 0:
+            return f"{key} 0-0 beside {other} 0-0"
+    if key in NEED_FULL_FEED and not full_feed:
+        return f"{key} 0-0 in a partial feed (no {FULL_FEED_MARKER})"
+    return None
+
 TENNIS_METRICS = {
     "games_total": {"sofascore": "gamesWon", "is_total": True},
     "games_won_for": {"sofascore": "gamesWon", "is_total": False},
@@ -930,6 +1013,8 @@ def extract_metric(
         return GapReason.STAT_KEY_ABSENT
     if stat_is_untracked(sofascore_key, flat_stats.get("ALL", {}).get(sofascore_key)):
         return GapReason.NO_STATISTICS
+    if zero_pair_not_recorded(sofascore_key, flat_stats.get("ALL")):
+        return GapReason.ZERO_NOT_RECORDED
 
     if period != "ALL":
         # The halves must add up to the match. Sofascore mostly agrees with

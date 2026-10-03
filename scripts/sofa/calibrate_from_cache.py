@@ -80,6 +80,7 @@ from bet.sofa.metrics import (
     extract_metric,
     regulation_score,
     stat_is_untracked,
+    zero_pair_not_recorded,
 )
 from bet.sofa.players import (
     PLAYER_METRICS,
@@ -255,8 +256,12 @@ def match_values(
         all_period = flat.get("ALL", {})
         for base, key in STAT_KEYS.items():
             pair = all_period.get(key)
-            # The same placeholder-zero refusal the sheet applies.
-            if pair is not None and not stat_is_untracked(key, pair):
+            # The same placeholder-zero refusals the sheet applies.
+            if (
+                pair is not None
+                and not stat_is_untracked(key, pair)
+                and not zero_pair_not_recorded(key, all_period)
+            ):
                 values[base] = (float(pair[0]), float(pair[1]))
     if incidents_json:
         try:

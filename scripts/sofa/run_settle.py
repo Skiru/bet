@@ -520,8 +520,11 @@ class SkipLedger:
 
 
 # The skips a fresh /statistics can answer: Sofascore publishes a lower
-# league's full statistics days after the cards (bet.sofa.cache).
-STAT_GAP_REASONS = ("NO_STATISTICS", "STAT_KEY_ABSENT")
+# league's full statistics days after the cards (bet.sofa.cache). A 0-0 the
+# payload shows was not counted (ZERO_NOT_RECORDED, 2026-10-03) is one of
+# them: graded, it would be a misgrade at zero; re-asked, the full feed may
+# have arrived.
+STAT_GAP_REASONS = ("NO_STATISTICS", "STAT_KEY_ABSENT", "ZERO_NOT_RECORDED")
 
 
 def stat_gap_events(skips_path: Path) -> frozenset[int]:

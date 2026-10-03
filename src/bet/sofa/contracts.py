@@ -27,6 +27,9 @@ class GapReason(StrEnum):
     # reserve_squads): its matches are out of the first team's sample, or the
     # side is empty when the fixture itself is the second squad's.
     RESERVE_SQUAD = "RESERVE_SQUAD"
+    # A full-match 0-0 the same payload shows was not counted (2026-10-03,
+    # metrics.zero_pair_not_recorded): not an observation, and not a grade.
+    ZERO_NOT_RECORDED = "ZERO_NOT_RECORDED"
     THIN_SAMPLE = "THIN_SAMPLE"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"
