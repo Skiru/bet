@@ -328,9 +328,9 @@ def stat_is_untracked(key: str, whole: tuple[float, float] | None) -> bool:
 # Halifax: corners 0-0 beside total tackles 0/1). Measured over the 111,606
 # cached football /statistics payloads (data/night_2026-10-03/guards/): the
 # full data feed - the one that publishes `passes` - and the partial feeds
-# (scout-logged lower leagues: a handful of keys, no `passes`) have the same
-# means (corners 9.54 vs 8.36 a match, fouls 24.7 vs 24.9, shots on target
-# 8.6 vs 8.6) and 0-0 rates 115-140 times apart: corners 0.02% vs 2.87%,
+# (a handful of keys, no `passes`; mostly lower leagues) have similar means
+# (corners 9.54 vs 8.36 a match, fouls 24.7 vs 24.9, shots on target 8.6 vs
+# 8.6) and 0-0 rates 115-140 times apart: corners 0.02% vs 2.87%,
 # fouls 0.01% vs 1.15%, shots on target 0.02% vs 2.61%. The full feed's
 # rate is the genuine tail (a negative binomial on its corner totals predicts
 # 11 nil-nil matches in 63,452; 13 are there); the partial feed's excess is
