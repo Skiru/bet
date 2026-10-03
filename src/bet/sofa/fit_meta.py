@@ -26,9 +26,12 @@ from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 # file from the DB must carry them over, or the next refit silently undoes an
 # operator decision (admitted_player_markets: Calibration.player_prop_not_admitted;
 # admitted_tennis_set_markets: Calibration.tennis_set_market_not_admitted;
-# refused_markets: Calibration.refused_by_operator).
+# refused_markets: Calibration.refused_by_operator; gap_shrink_k:
+# Calibration.shrink_for_gap - k was measured against one curve, so re-measure
+# it after a refit rather than trusting the carried value).
 OPERATOR_KEYS: tuple[str, ...] = (
     "admitted_player_markets", "admitted_tennis_set_markets", "refused_markets",
+    "gap_shrink_k",
 )
 
 

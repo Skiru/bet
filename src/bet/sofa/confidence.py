@@ -763,6 +763,22 @@ def direction_key(market: str, direction: str) -> str:
     return f"{market}|{direction.upper()}"
 
 
+def _gap_shrink_k(value: object) -> float:
+    """The calibration file's "gap_shrink_k": absent or null is 0.0 (off).
+
+    A value that is not a number in [0, 2] is refused loudly: a typo here
+    would silently move every printed confidence.
+    """
+    if value is None:
+        return 0.0
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"gap_shrink_k must be a number, got {value!r}")
+    k = float(value)
+    if not 0.0 <= k <= 2.0:
+        raise ValueError(f"gap_shrink_k must be within [0, 2], got {k}")
+    return k
+
+
 @dataclass(frozen=True)
 class Calibration:
     pooled: dict[str, dict[str, Any]]
@@ -808,6 +824,37 @@ class Calibration:
     # 0.521, n=144; fouls_total UNDER >=0.65 0.729 / 0.389, n=36). Empty by
     # default - refused as OPERATOR_REFUSED.
     refused_markets: frozenset[str] = frozenset()
+    # The anti-selection shrink ("gap_shrink_k" in the calibration file). 0.0
+    # (the default, and what a file without the key reads) changes nothing.
+    # See shrink_for_gap.
+    gap_shrink_k: float = 0.0
+
+    def shrink_for_gap(
+        self, confidence: float, p_central: float, market_p: float | None
+    ) -> float:
+        """The curve's number, lowered by k x how far the model sits above the price.
+
+        The curve is fitted on rows that mostly carry no price (the cache
+        replay), while the coupon prints only legs whose model sits ABOVE the
+        devigged price - and there the curve over-states. Measured 2026-10-03
+        night on 64,481 priced live settled rows at p >= 0.60 (09-17..10-02,
+        installed 10-03 curve, data/night_2026-10-03/antisel/): realised
+        minus curve falls with the gap model - price in 30 of 32 market x
+        direction cells (slope CI below zero; ~ -0.7 .. -1.1), from +0.11 at
+        gap < -0.10 to -0.13 at +0.10..+0.20; inside the installed rule's
+        selection (4,762 legs) the printed confidence averaged 0.805 against
+        0.745 realised and 0.742 devigged price. Fitted leave-one-day-out, k
+        is 0.83-0.88 and the held-out Brier falls on 14 of 15 days
+        (0.1888 -> 0.1836). It does NOT make the coupon pay: under it the rule
+        keeps ~10% of the legs and those returned -7.4% [-13.6, -1.7] against
+        -4.0% [-5.9, -1.9] for the installed rule. Off until the operator sets
+        it; it only ever lowers a confidence, never raises one, and a rung
+        without a devigged price is left alone.
+        """
+        if self.gap_shrink_k <= 0.0 or market_p is None:
+            return confidence
+        gap = max(float(p_central) - float(market_p), 0.0)
+        return round(max(confidence - self.gap_shrink_k * gap, 0.0), 4)
 
     def refused_by_operator(self, market: str, direction: str | None) -> bool:
         if market in self.refused_markets:
@@ -844,6 +891,7 @@ class Calibration:
                 doc.get("admitted_tennis_set_markets") or ()
             ),
             refused_markets=frozenset(doc.get("refused_markets") or ()),
+            gap_shrink_k=_gap_shrink_k(doc.get("gap_shrink_k")),
         )
 
     def for_class(self, klass: str) -> Calibration | None:

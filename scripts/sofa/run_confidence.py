@@ -163,6 +163,13 @@ def main() -> int:
     ap.add_argument(
         "--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa")
     )
+    ap.add_argument(
+        "--calibration", default=None,
+        help="calibration file to read instead of the installed one (a "
+        "scratch copy, e.g. with gap_shrink_k set, to see what it would "
+        "print); it writes the same artifact names, so pair it with a scratch "
+        "--runs-dir or it overwrites the day's real confidence view",
+    )
     args = ap.parse_args()
     profile = PROFILES[args.profile]
     if args.floor is None:
@@ -272,7 +279,7 @@ def main() -> int:
                 fresh_odds[key] = side_odds
                 margins[key] = rung_margin
 
-    cal = Calibration.load()
+    cal = Calibration.load(args.calibration) if args.calibration else Calibration.load()
     # Superbet's own side names, for the match class ("(K)" = women's).
     board_sides: dict[str, tuple[str, str]] = {}
     board_path = run_dir / "01_board.json"
@@ -476,6 +483,13 @@ def main() -> int:
             refused["NOT_CALIBRATED"] += 1
             continue
         realised_lo, source, n_cal = hit
+        # See Calibration.shrink_for_gap: off (k = 0) unless the operator put
+        # gap_shrink_k into the calibration file. Applied before the floor and
+        # the price gate, so a shrunk leg is judged on the number it prints.
+        curve_lo = realised_lo
+        realised_lo = cal.shrink_for_gap(
+            realised_lo, row["p_central"], row.get("market_p")
+        )
         if realised_lo < args.floor:
             refused["BELOW_CONFIDENCE_FLOOR"] += 1
             continue
@@ -554,6 +568,10 @@ def main() -> int:
                 "direction": row["direction"],
                 "model_p": round(row["p_central"], 4),
                 "confidence": realised_lo,
+                # The curve's own number before the gap shrink - written only
+                # while the shrink is on, so an artifact built with it off is
+                # byte-for-byte what it was before 2026-10-04.
+                **({"confidence_curve": curve_lo} if cal.gap_shrink_k > 0 else {}),
                 "calibrated_on": source,
                 "calibration_n": n_cal,
                 "sample_size": row["sample_size"],
@@ -733,6 +751,7 @@ def main() -> int:
         "max_overround": profile.max_overround,
         "pdf_max_singles": profile.pdf_max_singles,
         "prints_builders": profile.prints_builders,
+        **({"gap_shrink_k": cal.gap_shrink_k} if cal.gap_shrink_k > 0 else {}),
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         "unfitted_constants": sorted(
