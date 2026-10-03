@@ -1,71 +1,20 @@
 # Working agreement — `bet`
 
-## OPEN DECISION (2026-10-03 morning) - the 10-03 refit; read before running or refitting anything
+## Refit epoch 2026-10-03 (installed 06:45Z, before the 10-03 day)
 
-The night of 10-02 -> 10-03 (operator's order: rich statistics for every sport,
-models calibrated on the backfill, everything wired into the 10-03 /sofa-day,
-two review rounds, then push). What landed on main (`git log 9f0604b5..`):
-
-- **Backfill, 365 d:** hockey / basketball / volleyball /statistics + /lineups
-  complete; football per-player /lineups for the 11 player-market leagues and
-  135 teams (~1,000 -> ~4,000 matches, `backfill_football_lineups.py`); tennis
-  (113) and football (20) histories deepened; CS2 108/108 missing series.
-  Football /statistics (16k) and tennis /statistics (63k) finished 03:59Z -
-  every sport's 365-day dry-run shows 0 targets (resumable: re-run the dry-runs).
-- **CS2:** team resolution through search events, the store and 3 verified
-  aliases (134 -> 153 of 176 names; the rest are 1x1 players or tournaments
-  Sofascore lacks). CS2_SETTLE picks over one pooled series; 09-28..10-01
-  re-swept (73 -> 84 settled), sport coupons, WSZYSTKIE and ledger re-recorded.
-- **Football player props:** the cache replay now writes player rows (1.19M
-  rows over 3,117 matches on the real DB). OVER >=0.70 claimed 0.799, realised
-  0.664 - fouls / tackles / offsides OVER 16-32 pp over, shots ~5 pp. A prop
-  reads only its own direction's curve; player rows enter no pool. Props stay
-  refused (`PLAYER_PROP_NOT_ADMITTED`) until named in `admitted_player_markets`.
-- **Measured sports:** `player_rate_v3` (basketball, hockey) fitted on the
-  history (`config/sofa_player_model.json`, provenance inside). SHADOW writes a
-  pre-game forecast per player line (`<sport>/<d>/player_model.jsonl`),
-  SHADOW_SETTLE attaches `model_p`. It does NOT beat the price (basketball
-  Brier +0.002 [-0.008, +0.014] vs price; hockey +0.0055) - a measurement; it
-  selects and vetoes nothing.
-- **Operator key `refused_markets`** ("market" or "market|DIRECTION"): keeps a
-  market off both coupons whatever its curve says; survives a refit. Empty.
-- **Refit safety:** rebuild-cache-rows refuses without today's `backup --db`
-  and while another process holds the DB; SOFA_DB_PATH / SOFA_RUNS_DIR that
-  are not the repo's are refused unless passed explicitly; an empty player
-  replay fails the step. Rehearsed end to end on a DB copy: rebuild 29 min,
-  fit_constants ~60 min (fit.log stays empty until it ends - not hung),
-  fit_confidence 6 min; the whole tests/sofa passes on the fitted files.
-
-**Morning checklist (in order):**
-1. After 05:45Z: `runs/sofa/shadow/daily_2026-10-02.log` and
-   `runs/sofa/cs2/daily_2026-10-02.log` show their settle steps done; grep
-   `player_model_error` in the shadow `settled.json` files (a model error never
-   changes a grade).
-2. `ensure_bridge.py`.
-3. Check `pgrep -fl "backfill_|drive_backfill|chain2"` is empty (the night's
-   backfills ended 03:59Z; nothing should be running).
-4. Settle 10-02 completely (run_settle --include-unpriced, D-5 refetch +
-   regrade, sport coupons, WSZYSTKIE, record_results).
-5. Decide `refused_markets` in `config/sofa_confidence_calibration.json`.
-   Recommendation: `["shots_total|UNDER", "fouls_total|UNDER"]` only - settled
-   priced rows: shots_total UNDER >=0.70 claimed 0.759 realised 0.521 [CI -36
-   .. -12 pp] n=144 ROI -29%; fouls_total UNDER >=0.65 0.729 / 0.389 n=36; the
-   OVER sides and shots_on_target_total are within noise; tackles_total has <10
-   priced rows (cannot be judged).
-6. `PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date 2026-10-03 --db-path data/sofa.db --runs-dir runs/sofa`
-   with `backup --db data/backup_2026-10-03/sofa.db`, then
-   `rebuild-cache-rows --confirm`, then `fit`, then
-   `compare --days 2026-09-30 2026-10-01 2026-10-02 --with-sheet`
-   (the SHEET-side changes - K_CENTRE football 25 -> ~15 in the rehearsal,
-   ~1,150 reliability buckets, player p_bar corrections - show only with it).
-7. In compare_report.md read "Player-prop curves": the OVER table is the
-   decision. Recommendation: do NOT admit player props yet (one-sided prices,
-   no ROI evidence, OVER overconfident even if the curve corrects it).
-8. `install --confirm` (it runs tests/sofa and restores on failure), then
-   `/sofa-day`. The first SHEET re-parses the history (10+ min): do not kill it.
-
-Remove this section when the decision is taken. The previous candidate
-(`data/refit_2026-10-02/`) stays rejected and is kept only as a reference.
+Fitted on 55.2M settled rows (cache replay rebuilt: 1.05M matches, 1.197M
+football player rows), max_settled_run_date 2026-10-02. K_CENTRE football
+25 -> 15, tennis 2 -> 5; K_PRICE NOT_FITTED; half_match_coherence OK. Days
+before 10-03 are a different comparability epoch. Operator decisions taken
+that morning (config/sofa_confidence_calibration.json, carried over by any
+refit): `refused_markets = ["shots_total|UNDER", "fouls_total|UNDER"]`;
+`admitted_player_markets` = all seven football player props (operator's
+order, against the recommendation: one-sided prices, no ROI evidence - the
+props now print at their OVER curve's realised rate, e.g. fouls/tackles
+OVER claimed 0.725 realise 0.56). Report `data/refit_2026-10-03/compare_report.md`;
+backups `config/backup_2026-10-03` (with the keys), `config/backup_2026-10-03_prekeys`,
+`data/backup_2026-10-03/sofa.db`. Measure the admitted props separately
+before the next refit.
 
 ## The only pipeline in service is `sofa`
 
