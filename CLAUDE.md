@@ -16,6 +16,14 @@ backups `config/backup_2026-10-03` (with the keys), `config/backup_2026-10-03_pr
 `data/backup_2026-10-03/sofa.db`. Measure the admitted props separately
 before the next refit.
 
+**Between 10-03 and 10-04 (night, ~22:35Z):** `config/sofa_tennis_tier_baselines.json`
+refitted and installed (the 09-26 file predated the 09-29 match-tiebreak fix: ITF
+games_total means -1.3; OOS from 09-27 games_total MSE -2.01 [-2.48, -1.56]); backup
+`config/backup_2026-10-04_tennis/`. `tennis_rating.json` and `sofa_side_correlations.json`
+NOT installed (no OOS gain / OOS worse). Also landed that night, changing what history
+produces: the `ZERO_NOT_RECORDED` guard (HISTORY_PARSER_VERSION 2026-10-04.1) and
+competition 851 + six ids on the friendly list. Evidence: `data/night_2026-10-03/`.
+
 ## The only pipeline in service is `sofa`
 
 Sofascore statistics, Superbet prices, football and tennis. The product of a
