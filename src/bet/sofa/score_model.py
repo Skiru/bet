@@ -77,7 +77,16 @@ VOLLEYBALL_METRIC = "setpts_for"
 # history): basketball full-game 121.19 at alpha 0.06 against 126.45 for the
 # sum of per-quarter ratings at their best alpha; hockey flat, 0.02.
 REG_METRIC = {"hockey": "hk_reg_for", "basketball": "bb_reg_for"}
-SCORE_ALPHA = {"hk_reg_for": 0.02, "bb_reg_for": 0.06, VOLLEYBALL_METRIC: 0.04}
+# Volleyball 0.04 -> 0.14 on 2026-10-03, on the 730-day backfill (pages +
+# listed-event index; measure_score_history.py --union, mean threshold Brier
+# over winner / sets total / set margin / points total, 1,160-1,358 games a
+# window): chosen on the tune window 2025-10-01..2026-01-01 (0.17706 ->
+# 0.16487; 0.14 and 0.20 tied, the smaller taken), then 2026-01-01..04-15
+# 0.17831 -> 0.17462, 2026-09-01..10-03 0.18154 -> 0.16857 and
+# 2024-11-15..2025-04-15 0.17494 -> 0.16548. 0.02 was worse everywhere
+# (0.18870 on the tune window); hockey (0.01-0.05) and basketball
+# (0.04-0.09) moved in opposite directions across windows and stay.
+SCORE_ALPHA = {"hk_reg_for": 0.02, "bb_reg_for": 0.06, VOLLEYBALL_METRIC: 0.14}
 ALPHA_BY_METRIC.update(SCORE_ALPHA)
 
 
@@ -141,6 +150,14 @@ def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | N
 
 def load_history(db_path: str | Path, sport: ShadowSport) -> list[FootballResult]:
     """Every distinct finished game of the sport in the cached listings."""
+    events = load_events(db_path, sport)
+    out = [r for e in events.values() if (r := parse_event(e, sport)) is not None]
+    return sorted(out, key=lambda r: (r.ts, r.event_id))
+
+
+def load_events(db_path: str | Path, sport: ShadowSport) -> dict[int, dict[str, Any]]:
+    """Every cached `last` payload of the sport by event id: the pages and the
+    listed-event index (listing_index.py), the newest fetch winning."""
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     con.execute("PRAGMA busy_timeout = 60000")
     events: dict[int, dict[str, Any]] = {}
@@ -162,8 +179,7 @@ def load_history(db_path: str | Path, sport: ShadowSport) -> list[FootballResult
             events[event["id"]] = event
     finally:
         con.close()
-    out = [r for e in events.values() if (r := parse_event(e, sport)) is not None]
-    return sorted(out, key=lambda r: (r.ts, r.event_id))
+    return events
 
 
 def _metrics(sport: ShadowSport) -> tuple[str, ...]:
@@ -228,6 +244,41 @@ class SimParams:
     # 07-15..09-29 0.18450 -> 0.18368; the shared game shock is pace
     # (cross-team covariance 1.57 > within-team 0.73 per quarter).
     bb_fit_moments: bool = True
+    # basketball: every noise sd scaled by (the game's expected regulation
+    # total / the build window's mean total) ** this. 0 = one spread for
+    # every league, the model as first built: a 140-point women's league
+    # and a 230-point NBA game then share one per-quarter spread.
+    # Measured 2026-10-03 and NOT switched on: 0.5 / 1.0 against none,
+    # windows 2025-10..2026-01, 2026-01..04-15, 2026-09: 0.18491 / 0.18506
+    # vs 0.18474, 0.17825 / 0.17857 vs 0.17844, 0.19029 / 0.19009 vs 0.19012.
+    bb_sd_level_power: float = 0.0
+    # volleyball: the rating's point share moved away from 0.5 by this factor
+    # before a set is played (1 = the share as rated). Points per set mixes
+    # won and lost sets, so the share it gives is not the rally share.
+    # Measured 2026-10-03: 1.2 helped at alpha 0.04 (the sluggish rating's
+    # compressed shares) and nothing once alpha was 0.10 (1.0 vs 1.2:
+    # 0.16653 / 0.17389 / 0.17036 vs 0.16620 / 0.17445 / 0.17169).
+    vb_share_k: float = 1.0
+    # volleyball: one shock on the point share per simulated MATCH (form,
+    # line-up, the rating's own error), against vb_set_sd's per-set noise.
+    # A fixed share makes too many long matches: the history's sets-total
+    # curve read 0.43 claimed against 0.28 realised.
+    # Measured 2026-10-03 at alpha 0.14 (same windows as SCORE_ALPHA, mean
+    # threshold Brier): 0.02 / 0.03 / 0.045 against none - tune
+    # 0.16413 / 0.16374 / 0.16567 vs 0.16487, then 0.17306 / 0.17201 /
+    # 0.17341 vs 0.17462, 0.16688 / 0.16626 / 0.16639 vs 0.16857 and
+    # 0.16459 / 0.16372 / 0.16557 vs 0.16548: 0.03 in all four windows.
+    # vb_share_k 1.15 on top won the tune window and lost the other three.
+    vb_match_sd: float = 0.03
+    # hockey: each side's scoring rate for the game multiplied by a
+    # Gamma(mean 1, variance hk_disp) draw - goals per game negative
+    # binomial rather than Poisson. The history's top total threshold
+    # realised 0.14-0.20 where the model claimed 0.08.
+    # Measured 2026-10-03 and NOT switched on: 0.03 / 0.06 / 0.10 against
+    # none, windows 2025-10..2026-01, 2026-01..04-15, 2026-09, 2024-11..
+    # 2025-04: 0.06 was -0.00024 / -0.00068 / -0.00083 / +0.00095 - small
+    # and not of one sign; 0.03 and 0.10 the same shape.
+    hk_disp: float = 0.0
 
 
 @dataclass
@@ -241,6 +292,9 @@ class ScoreModel:
     params: SimParams = SimParams()
     # team -> start timestamp of its latest game in the history read
     last_played: dict[int, int] | None = None
+    # basketball: mean regulation total (both sides) in the spread window;
+    # the reference level of SimParams.bb_sd_level_power
+    ref_total: float = 0.0
 
     def expected(
         self, competition: int, home: int, away: int, at_ts: int | None = None,
@@ -285,8 +339,24 @@ class ScoreModel:
         if self.sport.key == "hockey":
             return [_hockey(rng, mu1, mu2, prm) for _ in range(n)]
         if self.sport.key == "basketball":
-            return [_basketball(rng, mu1, mu2, self.period_sd, prm) for _ in range(n)]
-        return [_volleyball(rng, mu1[0], mu2[0], prm.vb_set_sd, prm.vb_sideout)
+            sd = self.period_sd
+            level = sum(mu1) + sum(mu2)
+            if prm.bb_sd_level_power and self.ref_total > 0 and level > 0:
+                f = (level / self.ref_total) ** prm.bb_sd_level_power
+                sd *= f
+                if prm.bb_game_sd is not None:
+                    prm = dataclasses.replace(
+                        prm, bb_game_sd=prm.bb_game_sd * f,
+                        bb_team_sd=prm.bb_team_sd * f,
+                        bb_quarter_sd=prm.bb_quarter_sd * f)
+            return [_basketball(rng, mu1, mu2, sd, prm) for _ in range(n)]
+        p1, p2 = mu1[0], mu2[0]
+        if prm.vb_share_k != 1.0 and p1 + p2 > 0:
+            share = 0.5 + prm.vb_share_k * (p1 / (p1 + p2) - 0.5)
+            share = min(max(share, 0.05), 0.95)
+            p1, p2 = share, 1.0 - share
+        return [_volleyball(rng, p1, p2, prm.vb_set_sd, prm.vb_sideout,
+                            prm.vb_match_sd)
                 for _ in range(n)]
 
 
@@ -306,6 +376,12 @@ def _hockey(
     prm: SimParams = SimParams(),
 ) -> GameResult:
     c = prm.hk_common
+    if prm.hk_disp > 0:
+        shape = 1.0 / prm.hk_disp
+        f1 = rng.gammavariate(shape, prm.hk_disp)
+        f2 = rng.gammavariate(shape, prm.hk_disp)
+        mu1 = [m * f1 for m in mu1]
+        mu2 = [m * f2 for m in mu2]
     p1l: list[int] = []
     p2l: list[int] = []
     for m1, m2 in zip(mu1, mu2, strict=True):
@@ -391,13 +467,15 @@ def serve_probabilities(share: float, sideout: float) -> tuple[float, float]:
 
 def _volleyball(
     rng: random.Random, pts1: float, pts2: float, set_sd: float = 0.0,
-    sideout: float = 0.0,
+    sideout: float = 0.0, match_sd: float = 0.0,
 ) -> GameResult:
     """Best of five. A set goes to team1 with the share of the two sides'
     points-per-set expectations, sharpened by the set's length (a points
     share of 0.52 over ~45 points is a set won ~60% of the time); set_sd
-    adds a per-set shock to the share."""
+    adds a per-set shock to the share, match_sd one shock for the match."""
     base = pts1 / (pts1 + pts2) if pts1 + pts2 > 0 else 0.5
+    if match_sd > 0:
+        base += rng.gauss(0.0, match_sd)
     s1: list[int] = []
     s2: list[int] = []
     w1 = w2 = 0
@@ -486,6 +564,9 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     model = ScoreModel(sport, book, 6.0, shares,
                        params if params is not None else SimParams(), last)
     if window:
+        regs = [sum(r.values[REG_METRIC[sport.key]]) for r in window
+                if REG_METRIC[sport.key] in r.values]
+        model.ref_total = sum(regs) / len(regs) if regs else 0.0
         # the spread around today's expectation split by the shares - an
         # approximation (the book has moved on since), measured not assumed
         within = cross = 0.0

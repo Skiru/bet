@@ -173,3 +173,96 @@ def test_the_serve_model_keeps_the_ratings_point_share():
         pts[0] += sum(g.t1_periods)
         pts[1] += sum(g.t2_periods)
     assert pts[0] / sum(pts) == pytest.approx(24 / 46, abs=0.01)
+
+
+def _book_model(sport, params=None):
+    return sm.ScoreModel(sport, sm.RatingBook(), 6.0, ((0.25,) * 4, (0.25,) * 4),
+                         params if params is not None else sm.SimParams())
+
+
+def test_the_volleyball_share_factor_sharpens_the_favourite():
+    """vb_share_k moves the rated point share away from 0.5 before a set is
+    played; 1 is the share as rated, game for game."""
+    plain = _book_model(VOLLEYBALL, sm.SimParams(vb_share_k=1.0, vb_match_sd=0.0))
+
+    def p_t1(model, a=24.0, b=22.0):
+        games = model.simulate([a], [b], seed=4, n=1500)
+        return sum(g.winner == "T1" for g in games) / len(games)
+
+    sharp = _book_model(VOLLEYBALL, sm.SimParams(vb_share_k=1.5, vb_match_sd=0.0))
+    assert p_t1(sharp) > p_t1(plain) + 0.03
+    # k = 1 plays the rated share itself
+    direct = [sm._volleyball(random.Random(4), 24.0, 22.0).winner for _ in range(1)]
+    assert plain.simulate([24.0], [22.0], seed=4, n=1)[0].winner == direct[0]
+    # a level match stays level
+    assert p_t1(sharp, 23.0, 23.0) == pytest.approx(0.5, abs=0.05)
+
+
+def test_a_match_shock_makes_fewer_long_volleyball_matches():
+    """One shock on the share per match makes even matches more lopsided -
+    fewer five-setters - while a level match stays a coin."""
+    def stats(sd):
+        model = _book_model(VOLLEYBALL, sm.SimParams(vb_match_sd=sd))
+        games = model.simulate([23.0], [23.0], seed=7, n=3000)
+        five = sum(g.t1_full + g.t2_full == 5 for g in games) / len(games)
+        t1 = sum(g.winner == "T1" for g in games) / len(games)
+        return five, t1
+
+    five0, t1_0 = stats(0.0)
+    five3, t1_3 = stats(0.03)
+    assert five3 < five0 - 0.03
+    assert t1_0 == pytest.approx(0.5, abs=0.03)
+    assert t1_3 == pytest.approx(0.5, abs=0.03)
+    assert sm.SimParams().vb_match_sd == 0.03
+    assert sm.SCORE_ALPHA[sm.VOLLEYBALL_METRIC] == 0.14
+
+
+def test_hockey_dispersion_widens_the_goal_count_only_when_asked():
+    def var_total(disp):
+        rng = random.Random(3)
+        prm = sm.SimParams(hk_disp=disp, hk_late_lead=0.0, hk_late_trail=0.0)
+        tots = [sum(g.t1_periods) + sum(g.t2_periods)
+                for g in (sm._hockey(rng, [1.0] * 3, [1.0] * 3, prm)
+                          for _ in range(6000))]
+        m = sum(tots) / len(tots)
+        return m, sum((t - m) ** 2 for t in tots) / len(tots)
+
+    m0, v0 = var_total(0.0)
+    m1, v1 = var_total(0.1)
+    assert v0 == pytest.approx(6.0, rel=0.08)  # Poisson: variance = mean
+    assert m1 == pytest.approx(6.0, rel=0.05)
+    assert v1 == pytest.approx(6.0 + 0.1 * 2 * 9.0, rel=0.12)
+    assert sm.SimParams().hk_disp == 0.0
+
+
+def test_the_basketball_spread_scales_with_the_scoring_level_only_when_asked():
+    def total_sd(model, mu):
+        games = model.simulate([mu] * 4, [mu] * 4, seed=6, n=1500)
+        tots = [sum(g.t1_periods) + sum(g.t2_periods) for g in games]
+        m = sum(tots) / len(tots)
+        return (sum((t - m) ** 2 for t in tots) / len(tots)) ** 0.5
+
+    flat = _book_model(BASKETBALL)
+    flat.ref_total = 160.0
+    scaled = _book_model(BASKETBALL, sm.SimParams(bb_sd_level_power=1.0))
+    scaled.ref_total = 160.0
+    # at the reference level the two are the same model
+    assert total_sd(scaled, 20.0) == pytest.approx(total_sd(flat, 20.0), rel=1e-9)
+    # at 1.5x the level the spread is 1.5x; the flat model does not move
+    assert total_sd(scaled, 30.0) == pytest.approx(
+        1.5 * total_sd(flat, 20.0), rel=0.08)
+    assert total_sd(flat, 30.0) == pytest.approx(total_sd(flat, 20.0), rel=0.08)
+
+
+def test_build_model_records_the_reference_total():
+    rng = random.Random(8)
+    history = []
+    for i in range(200):
+        hq = [20 + rng.gauss(0, 3.0) for _ in range(4)]
+        aq = [20 + rng.gauss(0, 3.0) for _ in range(4)]
+        vals = {f"p{k + 1}_for": (hq[k], aq[k]) for k in range(4)}
+        vals[sm.REG_METRIC["basketball"]] = (sum(hq), sum(aq))
+        history.append(sm.FootballResult(i, i * 3600, 5, 100 + i % 6, 200 + i % 6,
+                                         vals))
+    model = sm.build_model(history, BASKETBALL, cut_ts=10**9)
+    assert model.ref_total == pytest.approx(160.0, abs=2.0)
