@@ -21,8 +21,12 @@ refitted and installed (the 09-26 file predated the 09-29 match-tiebreak fix: IT
 games_total means -1.3; OOS from 09-27 games_total MSE -2.01 [-2.48, -1.56]); backup
 `config/backup_2026-10-04_tennis/`. `tennis_rating.json` and `sofa_side_correlations.json`
 NOT installed (no OOS gain / OOS worse). Also landed that night, changing what history
-produces: the `ZERO_NOT_RECORDED` guard (HISTORY_PARSER_VERSION 2026-10-04.1) and
-competition 851 + six ids on the friendly list. Evidence: `data/night_2026-10-03/`.
+produces: the `ZERO_NOT_RECORDED` guard, cards read only from a card record
+(`CARDS_NOT_RECORDED`: red-only incident lists had counted a 7-card match as 2), the per-half
+full feed's omitted 0-0 restored for offsides/yellow cards, a partial feed's single corner
+refused (HISTORY_PARSER_VERSION 2026-10-04.2), and competition 851 + six ids on the friendly
+list. The ~67k cache-replay rows graded on fake zeros leave only at the next
+`rebuild-cache-rows`. Evidence: `data/night_2026-10-03/` (RAPORT_NOC.md first).
 
 ## The only pipeline in service is `sofa`
 
