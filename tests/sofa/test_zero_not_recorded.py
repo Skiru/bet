@@ -211,6 +211,21 @@ def test_the_cache_replay_drops_the_same_pair() -> None:
     ] == (0.0, 0.0)
 
 
+def test_the_football_rating_history_drops_it_and_is_reparsed() -> None:
+    from bet.sofa import football_rating
+
+    case = _case(16494320)
+    event = _listing(case)
+    event["tournament"] = {"id": 5, "uniqueTournament": {"id": 17},
+                           "category": {"sport": {"slug": "football"}}}
+    result = football_rating.parse_event(event, case["statistics"], None)
+    assert result is not None
+    assert "corners_for" not in result.values
+    assert result.values["fouls_for"] == (14.0, 9.0)
+    # A pickled history parsed before the guard must not be reused.
+    assert football_rating.HISTORY_PARSER_VERSION >= "2026-10-04.1"
+
+
 def test_settle_skips_it_as_a_stat_gap_the_morning_refetch_re_asks(
     tmp_path: Path,
 ) -> None:

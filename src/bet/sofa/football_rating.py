@@ -325,7 +325,9 @@ def parse_event(
 # splits a competition into its regional groups (assign_league_units).
 # 2026-10-02.3: also a side's second-squad matches are marked (home_reserve /
 # away_reserve, reserve_squads) and move no rating. One bump for both.
-HISTORY_PARSER_VERSION = "2026-10-02.3"
+# 2026-10-04.1: a 0-0 the payload shows was not counted is no value
+# (metrics.zero_pair_not_recorded, ZERO_NOT_RECORDED).
+HISTORY_PARSER_VERSION = "2026-10-04.1"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------
