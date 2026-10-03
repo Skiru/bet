@@ -417,59 +417,35 @@ NOT_A_LEAGUE: frozenset[int] = FRIENDLY_COMPETITION_IDS | {851}
 
 
 def home_competition(
-    observations: list[Observation],
-    league: int | None = None,
-    leagues: frozenset[int] | None = None,
+    observations: list[Observation], league: int | None = None
 ) -> int | None:
     """The competition a side actually plays in: the one holding most of its
     sample, and at least half of it. None when the sample has no majority.
 
     `league` is the side's league from the football rating (its modal
     competition over the last year, RatingBook.domain). It wins over the
-    sample's majority only when that majority is a cup - a competition that is
-    no team's league (`leagues`, see league_competitions) - and the sample
-    holds a match of it: a short sample in an early-season cup run is mostly
+    sample's majority when the sample holds at least half as many matches of
+    it as of the majority: a short sample in an early-season cup run is mostly
     cup. On 2026-10-03 every Scottish League One / Two fixture (207, 209) took
     its prior from the Challenge Cup (331), which held 4 of Annan Athletic's 6
-    corners matches. A majority that is a league stands: a promoted side's
-    rated league is last season's, and 1 match of it in 10 must not beat 9 in
-    the league it plays now (Cymru North 13820 -> Cymru Premier 254 the same
-    day, before this rule).
+    corners matches against 2 in League Two. One match in ten does not win: a
+    promoted side's rated league is last season's (Cymru North 13820 took
+    Cymru Premier 254 from 1 of 10 under a looser rule the same day). The
+    Challenge Cup is itself the modal competition of 8 teams (B sides), so
+    "is it anyone's league" cannot tell it from a league.
     """
     comps = [o.competition_id for o in observations if o.competition_id is not None]
     if not comps:
         return None
-    comp, count = Counter(comps).most_common(1)[0]
+    counts = Counter(comps)
+    comp, count = counts.most_common(1)[0]
     if (
         league is not None
         and league not in NOT_A_LEAGUE
-        and league in comps
-        and (leagues is None or comp not in leagues)
+        and counts.get(league, 0) * 2 >= count
     ):
         return league
     return comp if count * 2 >= len(observations) else None
-
-
-_LEAGUE_SETS: dict[int, tuple[int, frozenset[int]]] = {}
-
-
-def league_competitions(football: FootballForecast | None) -> frozenset[int] | None:
-    """Every competition that is some team's league in the rating (the
-    competition of its modal unit), computed once per book state."""
-    if football is None:
-        return None
-    book = football.book
-    cached = _LEAGUE_SETS.get(id(book))
-    if cached is not None and cached[0] == book.last_ts:
-        return cached[1]
-    out: set[int] = set()
-    for team in list(book.team_comps):
-        unit = book.domain(team)
-        if unit is not None:
-            out.add(book.unit_competition(unit))
-    leagues = frozenset(out - NOT_A_LEAGUE)
-    _LEAGUE_SETS[id(book)] = (book.last_ts, leagues)
-    return leagues
 
 
 def _fitted_league_mean(
@@ -504,7 +480,6 @@ def resolve_prior(
     own_sides: list[list[Observation]],
     own_events: set[int],
     side_leagues: list[int | None] | None = None,
-    leagues: frozenset[int] | None = None,
 ) -> tuple[float | None, str | None]:
     """The shrink target for one row, and a note saying where it came from.
 
@@ -528,7 +503,7 @@ def resolve_prior(
     means: list[float] = []
     for i, side in enumerate(own_sides):
         home = home_competition(
-            side, side_leagues[i] if side_leagues is not None else None, leagues)
+            side, side_leagues[i] if side_leagues is not None else None)
         if home is None or home == comp:
             continue
         league = _fitted_league_mean(baselines, metric, home)
@@ -1062,8 +1037,7 @@ def process_fixture(
                 prior, prior_note = resolve_prior(
                     baselines, day_obs, rung.market, fixture, own_sides, own_events,
                     rated_leagues(football, own_teams)
-                    if len(own_teams) == len(own_sides) else None,
-                    league_competitions(football))
+                    if len(own_teams) == len(own_sides) else None)
                 if prior_note:
                     extra_notes.append(prior_note)
             elif (women := women_global_prior(

@@ -25,7 +25,6 @@ from scripts.sofa.run_sheet import (
     day_league_observations,
     day_league_prior,
     home_competition,
-    league_competitions,
     process_fixture,
     rated_leagues,
     resolve_prior,
@@ -239,18 +238,18 @@ def test_a_total_with_one_thin_side_is_not_priced() -> None:
 
 
 def test_a_league_majority_stands_against_one_match_of_the_rated_league() -> None:
-    """2026-10-03 review of the fix above: a promoted side's rated league is
-    last season's, and one match of it among ten must not beat nine in the
-    league it plays now (Cymru North 13820 took Cymru Premier 254 from 1 of
-    10). Only a majority that is no team's league - a cup - yields."""
+    """2026-10-03 review: a promoted side's rated league is last season's,
+    and one match of it among ten must not beat nine in the league it plays
+    now (Cymru North 13820 took Cymru Premier 254 from 1 of 10). The rated
+    league needs at least half the majority's count - Annan's 2 against the
+    Challenge Cup's 4 still wins."""
     cymru_north, cymru_premier, challenge_cup, league_two = 13820, 254, 331, 209
     side = _obs(range(1, 10), 9.0, comp=cymru_north) + _obs(range(10, 11), 9.0,
                                                             comp=cymru_premier)
-    leagues = frozenset({cymru_north, cymru_premier, league_two})
-    assert home_competition(side, cymru_premier, leagues) == cymru_north
+    assert home_competition(side, cymru_premier) == cymru_north
     annan = (_obs(range(1, 5), 9.0, comp=challenge_cup)
              + _obs(range(5, 7), 9.0, comp=league_two))
-    assert home_competition(annan, league_two, leagues) == league_two
+    assert home_competition(annan, league_two) == league_two
 
 
 def test_international_friendlies_are_never_a_sides_league() -> None:
@@ -260,16 +259,4 @@ def test_international_friendlies_are_never_a_sides_league() -> None:
     side = (_obs(range(1, 5), 1.0, comp=friendlies)
             + _obs(range(5, 8), 1.0, comp=gulf_cup)
             + _obs(range(8, 11), 1.0, comp=qualifiers))
-    assert home_competition(side, friendlies, frozenset()) is None
-
-
-def test_league_competitions_is_every_teams_modal_league() -> None:
-    book = RatingBook()
-    book.last_ts = 1_000_000
-    for team, comp in ((1, 209), (2, 207), (3, 851)):
-        for ts in range(5):
-            book.team_comps[team].append((book.last_ts - ts, comp))
-    book.team_comps[1].append((book.last_ts - 50, 331))
-    forecast = FootballForecast(book, 209, 1, 2)
-    assert league_competitions(forecast) == frozenset({209, 207})
-    assert league_competitions(None) is None
+    assert home_competition(side, friendlies) is None
