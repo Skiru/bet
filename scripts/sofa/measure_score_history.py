@@ -43,6 +43,7 @@ from bet.sofa.score_model import (
     SimParams,
     _rated_values,
     build_model,
+    load_events,
     parse_event,
 )
 from bet.sofa.shadow import SPORTS, GameResult, ShadowSport, build_result
@@ -52,26 +53,33 @@ def _ts(day: str) -> int:
     return int(datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
 
 
-def load(db_path: str, sport: ShadowSport, cache: str | None
+def load(db_path: str, sport: ShadowSport, cache: str | None, union: bool = False
          ) -> list[tuple[FootballResult, GameResult | None]]:
-    """(rating input, the graded game) per finished game, in time order."""
+    """(rating input, the graded game) per finished game, in time order.
+
+    `union` reads the pages AND the listed-event index, as score_model's own
+    load_history does; without it the pages alone (the numbers this script
+    reported before 2026-10-03)."""
     if cache and Path(cache).exists():
         data: list[tuple[FootballResult, GameResult | None]] = pickle.loads(
             Path(cache).read_bytes())
         return data
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    con.execute("PRAGMA busy_timeout = 60000")
     events: dict[int, dict[str, Any]] = {}
-    try:
-        for (events_json,) in con.execute(
-            "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
-            "AND events_json LIKE ?", (f'%"slug": "{sport.sofascore_slug}"%',)
-        ):
-            for event in json.loads(events_json).get("events", []):
-                if isinstance(event.get("id"), int):
-                    events[event["id"]] = event
-    finally:
-        con.close()
+    if union:
+        events = load_events(db_path, sport)
+    else:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        con.execute("PRAGMA busy_timeout = 60000")
+        try:
+            for (events_json,) in con.execute(
+                "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
+                "AND events_json LIKE ?", (f'%"slug": "{sport.sofascore_slug}"%',)
+            ):
+                for event in json.loads(events_json).get("events", []):
+                    if isinstance(event.get("id"), int):
+                        events[event["id"]] = event
+        finally:
+            con.close()
     out: list[tuple[FootballResult, GameResult | None]] = []
     for e in events.values():
         r = parse_event(e, sport)
@@ -111,10 +119,12 @@ def main() -> int:
     ap.add_argument("--max-games", type=int, default=2500)
     ap.add_argument("--sims", type=int, default=600)
     ap.add_argument("--cache", default=None, help="pickle of the parsed history")
+    ap.add_argument("--union", action="store_true",
+                    help="pages + the listed-event index (load_history's read)")
     args = ap.parse_args()
     sport = SPORTS[args.sport]
     params = dataclasses.replace(SimParams(), **json.loads(args.params))
-    data = load(SofaConfig.from_env().db_path, sport, args.cache)
+    data = load(SofaConfig.from_env().db_path, sport, args.cache, args.union)
     start, end = _ts(args.start), _ts(args.end)
     history = [r for r, _ in data]
     model = build_model(history, sport, start, params)

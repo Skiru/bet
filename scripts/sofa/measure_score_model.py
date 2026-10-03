@@ -19,10 +19,10 @@ An analysis tool: it writes nothing the pipeline reads.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import random
-import sqlite3
 import sys
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -30,22 +30,17 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.config import SofaConfig
-from bet.sofa.score_model import build_model, line_probability, load_history
+from bet.sofa.score_model import (
+    SimParams,
+    build_model,
+    line_probability,
+    load_events,
+    parse_event,
+)
 from bet.sofa.shadow import MARKETS, SPORTS, ShadowLine
 
 BLENDS = (0.25, 0.5)
 BOOTSTRAP = 2000
-
-
-def _event(con: sqlite3.Connection, eid: int) -> dict[str, Any] | None:
-    for (events_json,) in con.execute(
-        "SELECT events_json FROM sofa_entity_events WHERE kind = 'last' "
-        "AND events_json LIKE ?", (f'%"id": {eid},%',)
-    ):
-        for event in json.loads(events_json).get("events", []):
-            if event.get("id") == eid:
-                return dict(event)
-    return None
 
 
 def _ci(
@@ -73,24 +68,31 @@ def main() -> int:
     ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--json-out", default=None)
     ap.add_argument("--rows-out", default=None, help="every scored line, JSONL")
+    ap.add_argument("--params", default="{}", help="SimParams overrides, JSON")
     args = ap.parse_args()
     sport = SPORTS[args.sport]
+    params = dataclasses.replace(SimParams(), **json.loads(args.params))
     config = SofaConfig.from_env()
-    history = load_history(config.db_path, sport)
-    con = sqlite3.connect(f"file:{config.db_path}?mode=ro", uri=True)
-    con.execute("PRAGMA busy_timeout = 60000")
+    # One read of the cache (pages + index), by event id: the graded games'
+    # payloads and the rating history both come from it. Until 2026-10-03
+    # each game was found by a LIKE scan of every cached page - one full
+    # pass over a 41 GB table per game.
+    events = load_events(config.db_path, sport)
+    history = sorted(
+        (fr for e in events.values() if (fr := parse_event(e, sport)) is not None),
+        key=lambda fr: (fr.ts, fr.event_id))
     rows: list[dict[str, Any]] = []
     skipped: dict[str, int] = defaultdict(int)
     for date in args.date:
         path = Path(args.runs_dir) / "shadow" / args.sport / date / "settled.json"
         doc = json.loads(path.read_text(encoding="utf-8"))
         cut = int(datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
-        model = build_model(history, sport, cut)
+        model = build_model(history, sport, cut, params)
         for sb_id, entry in doc["events"].items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):
                 skipped["not_settled_or_unoriented"] += 1
                 continue
-            event = _event(con, int(entry["sofascore_event_id"]))
+            event = events.get(int(entry["sofascore_event_id"]))
             if event is None:
                 skipped["no_cached_event"] += 1
                 continue
@@ -115,7 +117,10 @@ def main() -> int:
                 if p is None:
                     skipped["no_model_p"] += 1
                     continue
-                rows.append({"game": f"{date}:{sb_id}", "family": g["family"],
+                rows.append({"game": f"{date}:{sb_id}", "date": date,
+                             "family": g["family"], "period": g["period"],
+                             "market_id": g["market_id"], "odds": g["odds"],
+                             "overround": g.get("overround"),
                              "side": g["side"], "line": g.get("line"),
                              "p_model": p, "p_price": g["fair_p"],
                              "y": 1.0 if g["outcome"] == "WIN" else 0.0})
