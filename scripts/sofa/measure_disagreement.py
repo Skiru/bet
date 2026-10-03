@@ -76,6 +76,7 @@ from bet.sofa.confidence import (  # noqa: E402
     ConfidenceProfile,
     disagrees_with_price,
     match_class,
+    reads_catch_all_bucket,
 )
 from bet.sofa.engine import has_calibratable_model  # noqa: E402
 from bet.sofa.fit_meta import friendly_exclusion_sql  # noqa: E402
@@ -294,9 +295,15 @@ def gate_rows(
 
 
 def passes_profile(g: GatedRow, profile: ConfidenceProfile) -> bool:
-    """Floor and price rule of the profile - the gates around the split."""
-    return g.confidence >= profile.floor and profile.clears_price(
-        g.confidence, g.row.offered_odds)
+    """Floor and price rule of the profile - the gates around the split.
+
+    With run_confidence's CATCH_ALL_BUCKET refusal, which sits right after
+    the floor there."""
+    return (
+        g.confidence >= profile.floor
+        and not reads_catch_all_bucket(g.row.p_central)
+        and profile.clears_price(g.confidence, g.row.offered_odds)
+    )
 
 
 def band(g: GatedRow) -> str:

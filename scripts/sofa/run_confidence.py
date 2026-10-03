@@ -63,6 +63,7 @@ from bet.sofa.confidence import (  # noqa: E402
     overround,
     line_is_beyond_sample,
     mode_loses,
+    reads_catch_all_bucket,
 )
 from bet.sofa.players import (  # noqa: E402
     is_player_metric,
@@ -492,6 +493,11 @@ def main() -> int:
         )
         if realised_lo < args.floor:
             refused["BELOW_CONFIDENCE_FLOOR"] += 1
+            continue
+        # See CATCH_ALL_BUCKET_TOP: the bottom bucket's lower bound is an
+        # average over claims from 0.00 to 0.60 and cannot vouch for one.
+        if reads_catch_all_bucket(row["p_central"]):
+            refused["CATCH_ALL_BUCKET"] += 1
             continue
         # See MAX_DISAGREEMENT. Shading means the book pays us less than the
         # event is worth; this is the opposite case, where we claim far more

@@ -64,6 +64,26 @@ UNPROVEN_MARKET_CEILING = 0.80
 # Accepting the book's shading and ignoring this are different decisions.
 MAX_DISAGREEMENT = 0.10
 
+# Top of the catch-all bottom bucket of every curve (fit_confidence.EDGES[1]).
+# That bucket pools every claim from 0.00 to 0.60, so its realised rate is an
+# average over rows the model rates anywhere from "never" to "slightly likely"
+# and says nothing about any one of them. A leg whose own claim sits in it is
+# refused whatever the bucket's lower bound says.
+#
+# Found 2026-10-03 (night review of the admitted player props): the refit's
+# `player_offsides_for|UNDER` bucket 0.000-0.600 has realised_lo95 0.7215 -
+# above both profiles' floors - so an UNDER offsides row the model put at
+# p = 0.05 would have printed at confidence 0.72. Superbet quotes player props
+# OVER only, so the 11-18 such sheet rows a day (10-01..10-03) were unpriced
+# and it never happened; no other curve's bottom bucket reaches 0.60, so the
+# gate changes no leg of any sheet 09-20..10-03.
+CATCH_ALL_BUCKET_TOP = 0.60
+
+
+def reads_catch_all_bucket(p_central: float) -> bool:
+    """Is this claim inside the curves' catch-all bottom bucket?"""
+    return p_central < CATCH_ALL_BUCKET_TOP
+
 # Markets that are a FUNCTION of two sides rather than a count of one thing.
 # They carry 2-252 settled rows each — both_over_shots has 26, both_over_fouls
 # 18 — so no market-specific curve can be fitted, and the pooled curve they
