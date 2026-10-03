@@ -10,8 +10,8 @@ two review rounds, then push). What landed on main (`git log 9f0604b5..`):
   complete; football per-player /lineups for the 11 player-market leagues and
   135 teams (~1,000 -> ~4,000 matches, `backfill_football_lineups.py`); tennis
   (113) and football (20) histories deepened; CS2 108/108 missing series.
-  Football /statistics (16k) and tennis /statistics (63k) were still running
-  overnight and start no new chunk after 07:30Z (resumable: re-run the dry-runs).
+  Football /statistics (16k) and tennis /statistics (63k) finished 03:59Z -
+  every sport's 365-day dry-run shows 0 targets (resumable: re-run the dry-runs).
 - **CS2:** team resolution through search events, the store and 3 verified
   aliases (134 -> 153 of 176 names; the rest are 1x1 players or tournaments
   Sofascore lacks). CS2_SETTLE picks over one pooled series; 09-28..10-01
@@ -42,7 +42,8 @@ two review rounds, then push). What landed on main (`git log 9f0604b5..`):
    `player_model_error` in the shadow `settled.json` files (a model error never
    changes a grade).
 2. `ensure_bridge.py`.
-3. Wait until `pgrep -fl "backfill_|drive_backfill|chain2"` is empty.
+3. Check `pgrep -fl "backfill_|drive_backfill|chain2"` is empty (the night's
+   backfills ended 03:59Z; nothing should be running).
 4. Settle 10-02 completely (run_settle --include-unpriced, D-5 refetch +
    regrade, sport coupons, WSZYSTKIE, record_results).
 5. Decide `refused_markets` in `config/sofa_confidence_calibration.json`.
