@@ -50,11 +50,12 @@ from __future__ import annotations
 
 import argparse
 import collections
+import dataclasses
 import json
 import math
 import sqlite3
 import statistics
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -73,8 +74,10 @@ from bet.sofa.engine import (
 )
 from bet.sofa.listing_index import entity_indexed_events, listed_events_by_id
 from bet.sofa.metrics import (
+    FOOTBALL_METRICS,
     calculate_cards_points,
     extract_flat_statistics,
+    extract_metric,
     regulation_score,
     stat_is_untracked,
 )
@@ -129,6 +132,29 @@ SPORT_OF_BASE = {
     "double_faults": "tennis",
     "games": "tennis",
 }
+
+# The football per-half bases ("goals_1h", "corners_2h", ...): every
+# FOOTBALL_METRICS `<base>_for` whose scope is a half. Replayed with
+# `--halves include` (opt-in, 2026-10-04; match_values always reads them, so
+# regrade_settled can grade such rows). Without it the replay reads the ALL
+# period only, so a per-half market's curve comes from live SETTLE alone - a
+# few hundred rows a bucket at best - and where a bucket falls under
+# fit_confidence.MIN_MARKET_BUCKET CONFIDENCE reads the football pool instead
+# (goals_1h_total UNDER at 0.80-0.85 printed 0.815 / 0.841 from
+# pooled:football on 2026-10-03; the replay measured 0.812 / 0.841 there, so
+# the pool was not the error - data/night_2026-10-03/g1h/). Each half value is
+# read with metrics.extract_metric, the function SAMPLES and SETTLE call: the
+# listing's period1 / period2 for goals, /statistics "1ST" / "2ND" for the
+# rest, with its refusals (a negative corrected half score, a half that does
+# not add up with its complement to ALL, the placeholder zero, a match that
+# went to extra time for the non-goal counts).
+HALF_BASES: tuple[str, ...] = tuple(
+    sorted(
+        metric[: -len("_for")]
+        for metric in FOOTBALL_METRICS
+        if metric.endswith("_for") and ("_1h_" in metric or "_2h_" in metric)
+    )
+)
 
 # The sheet's own default when nothing is fitted. Calibrating against a
 # different value would measure a model that does not ship.
@@ -220,6 +246,7 @@ def match_values(
             values["goals"] = score
 
     all_period: dict[str, tuple[float, float]] = {}
+    flat: dict[str, dict[str, tuple[float, float]]] = {}
     if statistics_json:
         try:
             flat = extract_flat_statistics(json.loads(statistics_json))
@@ -238,7 +265,25 @@ def match_values(
             points = None
         if points is not None and not isinstance(points, str):
             values["cards_points"] = (float(points[0]), float(points[1]))
+    if sport == "football":
+        values.update(half_values(event, flat))
     return values
+
+
+def half_values(
+    event: dict[str, Any], flat: dict[str, dict[str, tuple[float, float]]]
+) -> dict[str, tuple[float, float]]:
+    """(home, away) per football per-half base (HALF_BASES) of one finished
+    match, read by metrics.extract_metric exactly as SAMPLES reads a sample
+    observation and SETTLE grades a live row. A base either side of which
+    extract_metric refuses is absent, never zero."""
+    out: dict[str, tuple[float, float]] = {}
+    for base in HALF_BASES:
+        home = extract_metric(f"{base}_for", "football", flat, None, event, True)
+        away = extract_metric(f"{base}_for", "football", flat, None, event, False)
+        if isinstance(home, float) and isinstance(away, float):
+            out[base] = (home, away)
+    return out
 
 
 def load_cache(
@@ -327,6 +372,16 @@ def load_cache(
 
     played.sort(key=lambda p: p.timestamp)
     return played
+
+
+def without_halves(played: list[Played]) -> list[Played]:
+    """The replay as it was before the per-half markets (--halves skip)."""
+    out: list[Played] = []
+    for match in played:
+        values = {b: v for b, v in match.values.items() if b not in HALF_BASES}
+        if values:
+            out.append(dataclasses.replace(match, values=values))
+    return out
 
 
 def lines_for(centre: float) -> list[float]:
@@ -428,11 +483,18 @@ def pooled_total_sample(
 
 
 def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
+    return list(iter_rows(played, baselines))
+
+
+def iter_rows(
+    played: list[Played], baselines: dict[str, Any]
+) -> Iterator[SettledRow]:
+    """build() one row at a time, for a measurement that aggregates the
+    replay without holding tens of millions of rows."""
     # Read once: the constant is per sport and must be the one that ships.
     engine_constants = _load_engine_constants()
     # (team, base) -> chronological list of earlier matches
     history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
-    rows: list[SettledRow] = []
 
     for match in played:
         for base, (home_value, away_value) in match.values.items():
@@ -447,7 +509,7 @@ def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
                 (match.away_id, away_value, away_recent),
             ):
                 if len(recent) >= MIN_SAMPLE:
-                    rows.extend(
+                    yield from (
                         _settle_sample(
                             match,
                             market_name(base, "for"),
@@ -470,7 +532,7 @@ def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
             # scoping (friendlies out, tennis surface / best-of) is not
             # replayed - the same differences every `*_for` row already has.
             if len(home_recent) >= MIN_SAMPLE and len(away_recent) >= MIN_SAMPLE:
-                rows.extend(
+                yield from (
                     _settle_sample(
                         match,
                         market_name(base, "total"),
@@ -491,8 +553,6 @@ def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
             history[(match.away_id, base)].append(
                 Past(match.timestamp, match.event_id, away_value, total)
             )
-
-    return rows
 
 
 def _settle_sample(
@@ -986,83 +1046,91 @@ def build_player_rows(
     return rows, counts
 
 
-def reliability_curve(rows: list[SettledRow]) -> dict[str, Any]:
+class ReliabilityAccumulator:
+    """reliability_curve's counts, one row at a time (rows, sum of
+    p_central, wins per market and bucket), so the replay never has to hold
+    every row to measure them."""
+
+    def __init__(self) -> None:
+        self.by_market: dict[str, dict[str, list[float]]] = (
+            collections.defaultdict(lambda: collections.defaultdict(
+                lambda: [0.0, 0.0, 0.0]))
+        )
+        self.pooled: dict[str, list[float]] = collections.defaultdict(
+            lambda: [0.0, 0.0, 0.0])
+        self.rows = 0
+        self.p_sum = 0.0
+        self.wins = 0
+
+    def add(self, row: SettledRow) -> None:
+        index = min(9, int(row.p_central * 10))
+        key = f"{index / 10.0:.1f}-{(index + 1) / 10.0:.1f}"
+        won = 1.0 if row.won else 0.0
+        for cell in (self.by_market[row.market][key], self.pooled[key]):
+            cell[0] += 1
+            cell[1] += row.p_central
+            cell[2] += won
+        self.rows += 1
+        self.p_sum += row.p_central
+        self.wins += int(won)
+
+    def curve(self) -> dict[str, Any]:
+        def entry(cell: list[float], corrected: bool) -> dict[str, Any]:
+            n = int(cell[0])
+            predicted = cell[1] / n
+            realised = cell[2] / n
+            enough = n >= 150
+            correction = round(max(0.0, predicted - realised), 4)
+            return {
+                "rows": n,
+                "predicted": round(predicted, 4),
+                "realised": round(realised, 4),
+                "correction": correction if (enough or not corrected) else 0.0,
+                "status": "MEASURED" if enough else "TOO_FEW_ROWS",
+            }
+
+        out: dict[str, Any] = {
+            "_doc": (
+                "Measured by scripts/sofa/calibrate_from_cache.py from finished "
+                "matches already in sofa.db, each scored against a sample built "
+                "strictly before its own kickoff. `correction` is subtracted from "
+                "p_central by the engine and is clamped to >= 0 there and here, so "
+                "this file can only ever raise the bar. A bucket below "
+                "`_min_rows` is written with correction 0.0 and its count, never "
+                "dropped - an absent bucket and a measured-zero bucket must not "
+                "look alike."
+            ),
+            "_min_rows": 150,
+            # What a market with too few rows of its own falls back to. The
+            # overconfidence being corrected is a property of the estimator - a
+            # normal approximation fitted to ten observations - far more than of
+            # any one market, so the pooled curve is a better estimate for a thin
+            # market than pretending the correction is zero. Measured across
+            # every market at once, which is why it is worth having.
+            "_pooled": {
+                bucket: entry(cell, corrected=False)
+                for bucket, cell in sorted(self.pooled.items())
+            },
+        }
+        for market, by_bucket in sorted(self.by_market.items()):
+            out[market] = {
+                bucket: entry(cell, corrected=True)
+                for bucket, cell in sorted(by_bucket.items())
+            }
+        return out
+
+
+def reliability_curve(rows: Iterable[SettledRow]) -> dict[str, Any]:
     """Per market, per probability bucket: what we said against what happened.
 
     The correction the engine consumes is `predicted - realised`, floored at
     zero. The engine may only ever *lower* p, so a market that turns out to be
     underconfident is left alone rather than being handed a discount.
     """
-    buckets: dict[str, dict[str, list[SettledRow]]] = collections.defaultdict(
-        lambda: collections.defaultdict(list)
-    )
+    acc = ReliabilityAccumulator()
     for row in rows:
-        index = min(9, int(row.p_central * 10))
-        key = f"{index / 10.0:.1f}-{(index + 1) / 10.0:.1f}"
-        buckets[row.market][key].append(row)
-
-    pooled: dict[str, list[SettledRow]] = collections.defaultdict(list)
-    for row in rows:
-        index = min(9, int(row.p_central * 10))
-        pooled[f"{index / 10.0:.1f}-{(index + 1) / 10.0:.1f}"].append(row)
-
-    out: dict[str, Any] = {
-        "_doc": (
-            "Measured by scripts/sofa/calibrate_from_cache.py from finished "
-            "matches already in sofa.db, each scored against a sample built "
-            "strictly before its own kickoff. `correction` is subtracted from "
-            "p_central by the engine and is clamped to >= 0 there and here, so "
-            "this file can only ever raise the bar. A bucket below "
-            "`_min_rows` is written with correction 0.0 and its count, never "
-            "dropped - an absent bucket and a measured-zero bucket must not "
-            "look alike."
-        ),
-        "_min_rows": 150,
-        # What a market with too few rows of its own falls back to. The
-        # overconfidence being corrected is a property of the estimator — a
-        # normal approximation fitted to ten observations — far more than of
-        # any one market, so the pooled curve is a better estimate for a thin
-        # market than pretending the correction is zero. Measured across every
-        # market at once, which is why it is worth having.
-        "_pooled": {
-            bucket: {
-                "rows": len(bucket_rows),
-                "predicted": round(
-                    statistics.mean(r.p_central for r in bucket_rows), 4
-                ),
-                "realised": round(
-                    sum(1 for r in bucket_rows if r.won) / len(bucket_rows), 4
-                ),
-                "correction": round(
-                    max(
-                        0.0,
-                        statistics.mean(r.p_central for r in bucket_rows)
-                        - sum(1 for r in bucket_rows if r.won) / len(bucket_rows),
-                    ),
-                    4,
-                ),
-                "status": "MEASURED" if len(bucket_rows) >= 150 else "TOO_FEW_ROWS",
-            }
-            for bucket, bucket_rows in sorted(pooled.items())
-        },
-    }
-    for market, by_bucket in sorted(buckets.items()):
-        entry: dict[str, Any] = {}
-        for bucket, bucket_rows in sorted(by_bucket.items()):
-            predicted = statistics.mean(r.p_central for r in bucket_rows)
-            realised = sum(1 for r in bucket_rows if r.won) / len(bucket_rows)
-            enough = len(bucket_rows) >= 150
-            entry[bucket] = {
-                "rows": len(bucket_rows),
-                "predicted": round(predicted, 4),
-                "realised": round(realised, 4),
-                "correction": (
-                    round(max(0.0, predicted - realised), 4) if enough else 0.0
-                ),
-                "status": "MEASURED" if enough else "TOO_FEW_ROWS",
-            }
-        out[market] = entry
-    return out
+        acc.add(row)
+    return acc.curve()
 
 
 # The unique key is (event, market, subject, line, direction) - run_date is not
@@ -1084,7 +1152,7 @@ _ONLY_OVER_CACHE_ROWS = (
 
 
 def write_settled(
-    rows: list[SettledRow], db_path: Path, drop_event_ids: Iterable[int] = ()
+    rows: Iterable[SettledRow], db_path: Path, drop_event_ids: Iterable[int] = ()
 ) -> int:
     """Upsert the replay rows; delete the replay rows of collapsed copies.
 
@@ -1100,14 +1168,13 @@ def write_settled(
     conn = sqlite3.connect(str(db_path), timeout=300.0)
     written = 0
     try:
-        writing = {row.event_id for row in rows}
-        stale = sorted(set(drop_event_ids) - writing)
-        conn.executemany(
-            "DELETE FROM sofa_settled_row "
-            "WHERE run_date = 'cache-calibration' AND sofascore_event_id = ?",
-            [(event_id,) for event_id in stale],
-        )
+        # `rows` may be a generator (the replay streams ~90M rows since the
+        # per-half markets, 2026-10-04), so the ids being written are known
+        # only once it is spent; the stale ids are deleted after the inserts,
+        # in the same transaction, which commits both or neither.
+        writing: set[int] = set()
         for row in rows:
+            writing.add(row.event_id)
             conn.execute(
                 "INSERT INTO sofa_settled_row "
                 "(run_date, sofascore_event_id, sport, competition_id, market, "
@@ -1138,6 +1205,12 @@ def write_settled(
                 ),
             )
             written += 1
+        stale = sorted(set(drop_event_ids) - writing)
+        conn.executemany(
+            "DELETE FROM sofa_settled_row "
+            "WHERE run_date = 'cache-calibration' AND sofascore_event_id = ?",
+            [(event_id,) for event_id in stale],
+        )
         conn.commit()
     finally:
         conn.close()
@@ -1195,6 +1268,19 @@ def main() -> int:
         "default SOFA_RUNS_DIR / runs/sofa",
     )
     parser.add_argument(
+        "--halves",
+        choices=("include", "skip"),
+        default="skip",
+        help="the football per-half markets (HALF_BASES, since 2026-10-04) "
+        "beside the full-match ones, or not (default: the replay as it was "
+        "before them). Opt-in, an operator decision at a refit: measured "
+        "2026-10-04 offline, ~31.5M rows; per-half curves from them would "
+        "lapse AWAITING_OWN_CURVE for every per-half market listed there, and "
+        "at p>=0.70 the replayed corners_2h_total OVER / corners_2h_for OVER / "
+        "corners_1h_for OVER curves sit 7-10 pp above what their live rows "
+        "realised (n=245-342) - see data/night_2026-10-03/g1h/",
+    )
+    parser.add_argument(
         "--players",
         choices=("include", "skip", "only"),
         default="include",
@@ -1210,12 +1296,12 @@ def main() -> int:
     dropped: set[int] = set()
     played: list[Played] = []
     baselines = load_baselines()
-    rows: list[SettledRow] = []
     if args.players != "only":
         played = load_cache(db_path, dropped)
-        rows = build(played, baselines)
-    team_rows = len(rows)
+        if args.halves == "skip":
+            played = without_halves(played)
 
+    player_rows: list[SettledRow] = []
     player_metrics: dict[str, Any] = {"player_replay": "SKIPPED"}
     if args.players != "skip":
         player_metrics = replay_players(
@@ -1223,10 +1309,27 @@ def main() -> int:
             Path(args.runs_dir or config.runs_dir),
             baselines,
             config,
-            rows,
+            player_rows,
         )
 
-    curve = reliability_curve(rows)
+    # The team rows are streamed into the DB, never held: 56M rows on the
+    # 2026-10-03 refit, ~31M more since the per-half markets (2026-10-04).
+    acc = ReliabilityAccumulator()
+    team_count = [0]
+
+    def measured() -> Iterator[SettledRow]:
+        team = iter_rows(played, baselines) if played else iter(())
+        for row in team:
+            team_count[0] += 1
+            acc.add(row)
+            yield row
+        for row in player_rows:
+            acc.add(row)
+            yield row
+
+    written = write_settled(measured(), db_path, dropped)
+    team_rows = team_count[0]
+    curve = acc.curve()
     if args.out:
         # Off by default. `fit_constants.py` owns
         # config/sofa_market_reliability.json and applies a confidence-interval
@@ -1238,21 +1341,15 @@ def main() -> int:
             json.dumps(curve, indent=2, ensure_ascii=False) + "\n",
         )
 
-    written = write_settled(rows, db_path, dropped)
-
-    measured = sum(
+    measured_buckets = sum(
         1
         for market, entry in curve.items()
         if not market.startswith("_")
         for bucket in entry.values()
         if bucket["status"] == "MEASURED"
     )
-    overall_predicted = (
-        statistics.mean(r.p_central for r in rows) if rows else 0.0
-    )
-    overall_realised = (
-        sum(1 for r in rows if r.won) / len(rows) if rows else 0.0
-    )
+    overall_predicted = acc.p_sum / acc.rows if acc.rows else 0.0
+    overall_realised = acc.wins / acc.rows if acc.rows else 0.0
     # Players asked for and none produced is not a success: a wrong runs dir
     # (no 04_offer.json, so no printed ladder) emptied the player replay with
     # exit 0 and the refit fitted on no player rows (review 2026-10-03).
@@ -1261,20 +1358,25 @@ def main() -> int:
     ) != "OK"
     summary = {
         "stage": "CALIBRATE_FROM_CACHE",
-        "verdict": "OK" if rows and not players_missing else "PARTIAL",
+        "verdict": "OK" if acc.rows and not players_missing else "PARTIAL",
         "metrics": {
             "matches_replayed": len(played),
-            "settled_rows": len(rows),
+            "settled_rows": acc.rows,
             "team_rows": team_rows,
             **player_metrics,
             "markets": len([m for m in curve if not m.startswith("_")]),
-            "measured_buckets": measured,
+            "measured_buckets": measured_buckets,
             "overall_predicted": round(overall_predicted, 4),
             "overall_realised": round(overall_realised, 4),
             "overall_overconfidence": round(
                 overall_predicted - overall_realised, 4
             ),
             "rows_written_to_db": written,
+            "half_rows_by_market": {
+                market: sum(int(cell[0]) for cell in by_bucket.values())
+                for market, by_bucket in sorted(acc.by_market.items())
+                if "_1h_" in market or "_2h_" in market
+            },
             "duplicate_listing_ids_dropped": len(dropped),
             "next_step": "python -m scripts.sofa.fit_constants",
         },

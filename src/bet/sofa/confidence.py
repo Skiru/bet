@@ -169,8 +169,11 @@ for _family, _prefixes in {
 # on it. Refused until fit_confidence gives the market a curve of its own;
 # the guard then lapses by itself, so it needs no removal. The full-match
 # saves / throw-in / goal-kick / tackle markets get that curve from the cache
-# replay (calibrate_from_cache), as every existing curve did; the per-half
-# ones only from live SETTLE, because the replay reads the ALL period.
+# replay (calibrate_from_cache), as every existing curve did. The per-half
+# ones get it only from live SETTLE, unless a refit replays the halves
+# (prepare_refit rebuild-cache-rows --with-halves, opt-in since 2026-10-04):
+# then every per-half market here has a replayed curve and its guard lapses -
+# an operator decision taken knowingly at that refit, not a side effect.
 # Football player props (players.PLAYER_METRICS, listed here to keep this
 # module free of that import; test_player_markets checks the two agree).
 PLAYER_PROP_MARKETS = frozenset(
@@ -819,6 +822,14 @@ class Calibration:
     by_market_direction: dict[str, dict[str, dict[str, Any]]] = field(
         default_factory=dict
     )
+    # The direction buckets too thin for by_market_direction
+    # (fit_confidence.MIN_THIN_BUCKET..MIN_MARKET_BUCKET rows). Never read as
+    # a curve: where the lookup falls to a pool, the pool may not claim more
+    # than this bucket's own lower bound (see realised). A file fitted before
+    # 2026-10-04 has no such section and reads exactly as it always did.
+    thin_by_market_direction: dict[str, dict[str, dict[str, Any]]] = field(
+        default_factory=dict
+    )
     # Per match class (CLASS_WOMEN): the class's own market, direction and
     # sport-pool curves, fitted on the class's rows only. A leg of the class
     # is read from these and nothing else - see realised().
@@ -903,6 +914,7 @@ class Calibration:
             by_market=doc.get("by_market", {}),
             pooled_by_sport=doc.get("pooled_by_sport", {}),
             by_market_direction=doc.get("by_market_direction", {}),
+            thin_by_market_direction=doc.get("thin_by_market_direction", {}),
             by_class=doc.get("by_class", {}),
             admitted_player_markets=frozenset(
                 doc.get("admitted_player_markets") or ()
@@ -924,6 +936,7 @@ class Calibration:
             by_market=section.get("by_market", {}),
             pooled_by_sport=section.get("pooled_by_sport", {}),
             by_market_direction=section.get("by_market_direction", {}),
+            thin_by_market_direction=section.get("thin_by_market_direction", {}),
         )
 
     def _direction_entry(
@@ -1052,14 +1065,30 @@ class Calibration:
         # global bucket of 64,790 rows that were almost entirely goals and
         # corners. Tennis has 56,581 settled rows of its own; there is no
         # reason to describe it with football.
+        pooled: tuple[float, str, int] | None = None
         if sport:
             entry = self._find(self.pooled_by_sport.get(sport, {}), p)
             if entry is not None:
-                return entry["realised_lo95"], f"pooled:{sport}", entry["n"]
-        entry = self._find(self.pooled, p)
-        if entry is not None:
-            return entry["realised_lo95"], "pooled", entry["n"]
-        return None
+                pooled = entry["realised_lo95"], f"pooled:{sport}", entry["n"]
+        if pooled is None:
+            entry = self._find(self.pooled, p)
+            if entry is not None:
+                pooled = entry["realised_lo95"], "pooled", entry["n"]
+        if pooled is None:
+            return None
+        # The pool stands in for a market's thin bucket, but may not claim
+        # more than the market's own rows there bound. goals_1h_total UNDER
+        # (no cache-replay rows until 2026-10-04) read pooled:football's
+        # 0.8149 at p 0.80-0.825 where its own 232 rows realised 0.810, lo95
+        # ~0.755, and six such legs printed on 2026-10-03: the pool's bound is
+        # tight because it measures other markets. See fit_confidence.
+        # MIN_THIN_BUCKET for the leave-one-day-out measurement.
+        if direction:
+            key = direction_key(market, direction)
+            thin = self._find(self.thin_by_market_direction.get(key, {}), p)
+            if thin is not None and thin["realised_lo95"] < pooled[0]:
+                return thin["realised_lo95"], f"market_thin:{key}", thin["n"]
+        return pooled
 
     def _unproven_ceiling(self) -> float:
         """The lowest measured ceiling among empirical markets with a curve.

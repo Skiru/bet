@@ -125,10 +125,34 @@ def test_fit_k_centre_scores_with_a_proper_rule_not_a_median() -> None:
     # The scoring lives in _k_centre_curve, which both the pooled fit and the
     # per-sport fit call (F46). Checking fit_k_centre alone would pass while
     # the curve it delegates to went back to a median.
-    source = inspect.getsource(fit_constants._k_centre_curve)
-    assert "statistics.mean(errors)" in source
-    assert "statistics.median(errors)" not in source
-    assert "** 2" in source
+    # Since 2026-10-04 the fit streams its rows: _brier_by_k scores one row
+    # at every K, _BrierByK averages (a running mean, not a median).
+    source = inspect.getsource(fit_constants._brier_by_k)
+    assert "median" not in source.replace("Median absolute error", "")
+    assert "(p - outcome) ** 2" in source
+    mean = inspect.getsource(fit_constants._BrierByK)
+    assert "self.sums[i] / self.n" in mean and "median" not in mean
+    assert "_brier_by_k" in inspect.getsource(fit_constants._k_centre_curve)
 
     for fn in (fit_constants.fit_k_centre, fit_constants.fit_k_centre_by_sport):
         assert "_k_centre_curve" in inspect.getsource(fn), fn.__name__
+    assert "_brier_by_k" in inspect.getsource(fit_constants.fit_k_centre_by_sport)
+
+
+def test_k_centre_curve_streams_and_matches_the_mean_of_squared_errors() -> None:
+    """The K fit takes a generator (2026-10-04: 55M rows held as dicts was
+    ~44 GB) and still returns the plain mean of the per-row squared errors."""
+    import statistics
+
+    rows = [{"market": "goals_total", "competition_id": 7,
+             "sample_mean": 2.0 + i / 50, "sample_size": 10, "sample_sd": 1.0,
+             "line": 2.5, "direction": "OVER",
+             "outcome": "WIN" if i % 3 else "LOSS"}
+            for i in range(60)]
+    baselines = {"goals_total": {"7": {"mean": 2.6, "n": 100}}}
+    streamed = fit_constants._k_centre_curve((r for r in rows), baselines)
+    per_row = [fit_constants._brier_by_k(r, baselines, None) for r in rows]
+    for i, k in enumerate(fit_constants.K_GRID):
+        want = statistics.mean(e[i] for e in per_row if e is not None)
+        assert abs(streamed[k] - want) < 1e-12
+    assert fit_constants._k_centre_curve(iter(()), baselines) == {}

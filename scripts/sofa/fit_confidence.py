@@ -58,6 +58,20 @@ EDGES = [0.0, 0.60, 0.70, 0.75, 0.80, 0.825, 0.85, 0.875, 0.90, 0.925, 0.95, 1.0
 # A per-market bucket below this is noise; it falls back to the pooled curve.
 MIN_MARKET_BUCKET = 400
 MIN_POOLED_BUCKET = 200
+# ...but not to the pool alone. A market|direction bucket with at least this
+# many rows of its own, and fewer than MIN_MARKET_BUCKET, is written to
+# `thin_by_market_direction`, and CONFIDENCE reads the pool there capped at
+# the bucket's own Wilson lower bound (Calibration.realised). Measured
+# 2026-10-03 night: goals_1h_total had no cache-replay rows, its UNDER buckets
+# 0.70-0.875 were 232-393 rows each and read pooled:football (0.8149 /
+# 0.8408); six such legs printed on the 10-03 coupon. Leave-one-day-out over
+# the live days 09-17..10-02 (data/night_2026-10-03/g1h/loo_thin_buckets.py)
+# no rule for these buckets moved the coupon's ROI outside noise (standard
+# -3.70% pooled vs -3.74% capped, wariant -4.64% vs -4.69%); the cap is the
+# one that never claims more for a market than its own rows bound - for the
+# WARIANT's goals_1h_total UNDER legs in the hole the pool claimed 0.828 and
+# they realised 0.800 (n=80); capped, 0.822 claimed against 0.824 (n=51).
+MIN_THIN_BUCKET = 100
 
 
 def bucket_of(p: float) -> int:
@@ -247,11 +261,11 @@ def main() -> int:
         scored += 1
 
     def curve(
-        counts: dict[int, list[int]], floor: int
+        counts: dict[int, list[int]], floor: int, below: int | None = None
     ) -> dict[str, dict[str, Any]]:
         out: dict[str, dict[str, Any]] = {}
         for b, hits in sorted(counts.items()):
-            if len(hits) < floor:
+            if len(hits) < floor or (below is not None and len(hits) >= below):
                 continue
             k, n = sum(hits), len(hits)
             out[f"{EDGES[b]:.3f}-{EDGES[b + 1]:.3f}"] = {
@@ -269,6 +283,15 @@ def main() -> int:
         for m, counts in per_market_direction.items()
         if (c := curve(counts, MIN_MARKET_BUCKET))
     }
+    # The buckets by_direction leaves out for thinness, where the market's
+    # own rows still bound what a pool may claim for it (MIN_THIN_BUCKET).
+    # Player props read no pool, so they have no use for one.
+    thin_by_direction = {
+        m: c
+        for m, counts in per_market_direction.items()
+        if not m.startswith("player_")
+        and (c := curve(counts, MIN_THIN_BUCKET, below=MIN_MARKET_BUCKET))
+    }
     by_class = {
         klass: {
             "by_market": {
@@ -278,6 +301,11 @@ def main() -> int:
             "by_market_direction": {
                 m: c for m, counts in by_class_direction[klass].items()
                 if (c := curve(counts, MIN_MARKET_BUCKET))
+            },
+            "thin_by_market_direction": {
+                m: c for m, counts in by_class_direction[klass].items()
+                if not m.startswith("player_")
+                and (c := curve(counts, MIN_THIN_BUCKET, below=MIN_MARKET_BUCKET))
             },
             "pooled_by_sport": {
                 sp: c for sp, counts in by_class_sport[klass].items()
@@ -310,7 +338,10 @@ def main() -> int:
             "from a pool ABOVE the top of its own measured range - see "
             "Calibration.realised. by_market_direction is the same curve "
             "split by OVER/UNDER and is read first; the two directions of one "
-            "rung are complements, so the pooled curve describes neither."
+            "rung are complements, so the pooled curve describes neither. "
+            "thin_by_market_direction holds the direction buckets with "
+            "min_thin_bucket..min_market_bucket rows: where the lookup falls "
+            "to a pool, the pool is capped at that bucket's realised_lo95."
         ),
         "fitted_from": {"db_path": args.db_path, "scored_rows": scored, **stamp},
         "min_market_bucket": MIN_MARKET_BUCKET,
@@ -326,6 +357,8 @@ def main() -> int:
             if (c := curve(counts, MIN_MARKET_BUCKET))
         },
         "by_market_direction": by_direction,
+        "min_thin_bucket": MIN_THIN_BUCKET,
+        "thin_by_market_direction": thin_by_direction,
         "by_class": by_class,
         "by_class_fitted_from": {
             "db_path": args.db_path, "scored_rows": scored,
@@ -348,6 +381,7 @@ def main() -> int:
                     "scored_rows": scored,
                     "markets": len(doc["by_market"]),
                     "market_directions": len(by_direction),
+                    "thin_market_directions": len(thin_by_direction),
                     "pooled_buckets": len(doc["pooled"]),
                     "pooled_by_sport": {
                         sp: len(c) for sp, c in doc["pooled_by_sport"].items()

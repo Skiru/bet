@@ -519,6 +519,7 @@ def rebuild_cache_rows(
     runner: Runner = run_logged,
     require_db_backup: bool = True,
     allow_other_holders: bool = False,
+    halves: bool = False,
 ) -> dict[str, Any]:
     if not paths.db_path.exists():
         raise RefitError(f"DB {paths.db_path} does not exist")
@@ -617,6 +618,11 @@ def rebuild_cache_rows(
     ]
     if calibrate_out is not None:
         cmd += ["--out", str(calibrate_out)]
+    if halves:
+        # The football per-half markets (calibrate_from_cache --halves):
+        # opt-in, see its help for what they change at the fit.
+        cmd += ["--halves", "include"]
+    report["halves"] = halves
     t1 = time.monotonic()
     # The replay prices with the constants and baselines it is about to be
     # fitted against: the live ones.
@@ -1890,6 +1896,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="calibrate_from_cache --out (inspection curve; never config/)",
     )
+    r.add_argument(
+        "--with-halves", action="store_true",
+        help="replay the football per-half markets too (calibrate_from_cache "
+        "--halves include; an operator decision - see its help)",
+    )
 
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
@@ -1987,6 +1998,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     else None,
                     require_db_backup=not args.without_db_backup,
                     allow_other_holders=args.allow_other_holders,
+                    halves=args.with_halves,
                 )["exit"]
             )
         if args.command == "fit":

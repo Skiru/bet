@@ -25,6 +25,7 @@ import sqlite3
 import statistics
 import sys
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +51,8 @@ MIN_BASELINE_OBSERVATIONS = 30
 
 # A per-half market's `global` pool needs values from at least this many
 # competitions before it may stand as every league's prior. Half rows come
-# only from live SETTLE (the cache replay reads the ALL period), so several
+# only from live SETTLE unless the cache replay was run with the halves
+# (calibrate_from_cache --halves include, opt-in since 2026-10-04), so several
 # half pools on the 2026-10-02 refit were n=30 from ONE league - that league's
 # mean, served to every league on the board as "global".
 MIN_HALF_POOL_COMPETITIONS = 2
@@ -352,8 +354,9 @@ def check_half_match_coherence(baselines: dict[str, Any]) -> list[str]:
 
 
 # The (event, subject) groups behind the half-match coherence check: only the
-# events that have a half row at all - all of them live SETTLE rows - so the
-# check never groups the cache replay's full-match rows for nothing.
+# events that have a half row at all, so the check never groups full-match
+# rows for nothing. Those are live SETTLE rows, plus the replayed matches
+# with a half value when the replay ran with --halves include (2026-10-04).
 SAME_MATCH_GROUPS_SQL = f"""
     SELECT market, subject, sofascore_event_id, MAX(actual_value) AS value
     FROM sofa_settled_row
@@ -604,103 +607,132 @@ K_CENTRE_ROWS_LOO_SQL = f"""
 MIN_ROWS_PER_SPORT = 5000
 
 
-def _k_centre_curve(
-    rows: list[dict[str, Any]],
-    baselines: dict[str, Any],
-    totals: BaselineTotals | None = None,
-) -> dict[float, float]:
-    """Brier by K over one population of settled rows.
+class _BrierByK:
+    """Running Brier sums per K_GRID value. The K fit streams its rows: the
+    2026-10-03 refit scored 55M rows held as dicts (~0.8 kB each, measured),
+    and the per-half cache replay (2026-10-04) adds ~31M more."""
 
-    With `totals`, each row's prior leaves its own match out
+    def __init__(self) -> None:
+        self.sums = [0.0] * len(K_GRID)
+        self.n = 0
+
+    def add(self, errors: list[float]) -> None:
+        for i, error in enumerate(errors):
+            self.sums[i] += error
+        self.n += 1
+
+    def curve(self) -> dict[float, float]:
+        if not self.n:
+            return {}
+        return {k: self.sums[i] / self.n for i, k in enumerate(K_GRID)}
+
+
+def _brier_by_k(
+    row: dict[str, Any],
+    baselines: dict[str, Any],
+    totals: BaselineTotals | None,
+) -> list[float] | None:
+    """One row's squared error at every K of K_GRID, or None for a row the
+    K fit does not score.
+
+    With `totals`, the row's prior leaves its own match out
     (leave_match_out_prior); without, it is read from `baselines` as the
     sheet reads it.
     """
+    market = row["market"]
     # A joint / comparative market (both_over_, handicap_, most_) is not a
     # count against its line - its sample_mean/sd describe no one quantity
     # the line is drawn on, and run_sheet prices it in derived.py, which
     # reads no K_CENTRE. Scoring it here as a count fitted K on rows whose
     # rebuilt p has nothing to do with how they are priced or settled.
-    rows = [r for r in rows if not is_derived(r["market"])]
+    if is_derived(market):
+        return None
     # A player prop has no prior (no league baseline for player_*), so its p
     # does not depend on K at all - it would only dilute the K curve.
-    rows = [r for r in rows if not str(r["market"]).startswith("player_")]
-    priors: list[float | None] = []
-    for row in rows:
-        market = row["market"]
-        comp_id = str(row["competition_id"])
-        # Same precedence as run_sheet.get_prior, and the same tolerance
-        # of both pool shapes: `{"mean": x, "n": k}` since 2026-09-21,
-        # a bare float in every file written before it. K_CENTRE is
-        # fitted against these priors, so reading them differently here
-        # than the sheet does would fit a constant for a model that does
-        # not ship.
-        prior = None
-        if totals is not None:
-            prior = leave_match_out_prior(row, totals)
-        elif market in baselines:
-            if comp_id in baselines[market]:
-                prior = baselines[market][comp_id]["mean"]
-            else:
-                prior = _pooled_mean(baselines[market])
-        priors.append(prior)
+    if str(market).startswith("player_"):
+        return None
+    comp_id = str(row["competition_id"])
+    # Same precedence as run_sheet.get_prior, and the same tolerance
+    # of both pool shapes: `{"mean": x, "n": k}` since 2026-09-21,
+    # a bare float in every file written before it. K_CENTRE is
+    # fitted against these priors, so reading them differently here
+    # than the sheet does would fit a constant for a model that does
+    # not ship.
+    prior = None
+    if totals is not None:
+        prior = leave_match_out_prior(row, totals)
+    elif market in baselines:
+        if comp_id in baselines[market]:
+            prior = baselines[market][comp_id]["mean"]
+        else:
+            prior = _pooled_mean(baselines[market])
 
-    curve: dict[float, float] = {}
+    mean = row["sample_mean"]
+    n = row["sample_size"]
+    var_sample = max(row["sample_sd"] ** 2, mean)
+    pred_sd = math.sqrt(var_sample * (1.0 + 1.0 / n))
+    boundary = winning_boundary(row["line"], row["direction"])
+    outcome = 1.0 if row["outcome"] == "WIN" else 0.0
+    errors: list[float] = []
     for k in K_GRID:
-        errors: list[float] = []
-        for row, prior in zip(rows, priors, strict=True):
-            market = row["market"]
-            mean = row["sample_mean"]
-            n = row["sample_size"]
-            if prior is not None:
-                w = n / (n + k)
-                centre = w * mean + (1.0 - w) * prior
-            else:
-                centre = mean
-
-            var_sample = max(row["sample_sd"] ** 2, mean)
-            pred_sd = math.sqrt(var_sample * (1.0 + 1.0 / n))
-            boundary = winning_boundary(row["line"], row["direction"])
-            # Must be the estimator run_sheet actually ships, or the curve is
-            # fitted on one model and applied to another. See
-            # NEGATIVE_BINOMIAL_METRICS.
-            if uses_negative_binomial(market):
-                p = max(
-                    P_FLOOR,
-                    min(
-                        P_CEILING,
-                        calc_p_central_nb_raw(
-                            centre, pred_sd, boundary, row["direction"]
-                        ),
+        if prior is not None:
+            w = n / (n + k)
+            centre = w * mean + (1.0 - w) * prior
+        else:
+            centre = mean
+        # Must be the estimator run_sheet actually ships, or the curve is
+        # fitted on one model and applied to another. See
+        # NEGATIVE_BINOMIAL_METRICS.
+        if uses_negative_binomial(market):
+            p = max(
+                P_FLOOR,
+                min(
+                    P_CEILING,
+                    calc_p_central_nb_raw(
+                        centre, pred_sd, boundary, row["direction"]
                     ),
-                )
-            else:
-                p = calc_p_central(
-                    centre,
-                    pred_sd,
-                    boundary,
-                    row["direction"],
-                    support_floor_for(market),
-                )
-            # Brier, not |p - outcome|. Median absolute error is not a proper
-            # scoring rule: it is insensitive to the tails and it rewards a
-            # blunt forecast, so it is minimised by throwing the sample away.
-            # Measured on 516,900 settled rows it fell monotonically to
-            # K = 1000 — "ignore the sample entirely" — while Brier and log
-            # loss both put the optimum at K = 25 and rated K = 1000 worse
-            # than K = 8. The criterion was choosing to switch the pipeline
-            # off (F44).
-            errors.append((p - (1.0 if row["outcome"] == "WIN" else 0.0)) ** 2)
+                ),
+            )
+        else:
+            p = calc_p_central(
+                centre,
+                pred_sd,
+                boundary,
+                row["direction"],
+                support_floor_for(market),
+            )
+        # Brier, not |p - outcome|. Median absolute error is not a proper
+        # scoring rule: it is insensitive to the tails and it rewards a
+        # blunt forecast, so it is minimised by throwing the sample away.
+        # Measured on 516,900 settled rows it fell monotonically to
+        # K = 1000 — "ignore the sample entirely" — while Brier and log
+        # loss both put the optimum at K = 25 and rated K = 1000 worse
+        # than K = 8. The criterion was choosing to switch the pipeline
+        # off (F44).
+        errors.append((p - outcome) ** 2)
+    return errors
 
-        if errors:
-            curve[k] = statistics.mean(errors)
-    return curve
+
+def _k_centre_curve(
+    rows: Iterable[dict[str, Any]],
+    baselines: dict[str, Any],
+    totals: BaselineTotals | None = None,
+) -> dict[float, float]:
+    """Brier by K over one population of settled rows: the mean of
+    _brier_by_k's squared errors, accumulated one row at a time."""
+    brier = _BrierByK()
+    for row in rows:
+        errors = _brier_by_k(row, baselines, totals)
+        if errors is not None:
+            brier.add(errors)
+    return brier.curve()
 
 
 def _k_centre_rows(
     conn: sqlite3.Connection, totals: BaselineTotals | None
-) -> list[dict[str, Any]]:
+) -> Iterator[dict[str, Any]]:
     sql = K_CENTRE_ROWS_SQL if totals is None else K_CENTRE_ROWS_LOO_SQL
-    return [dict(r) for r in conn.execute(sql)]
+    return (dict(r) for r in conn.execute(sql))
 
 
 def fit_k_centre(
@@ -709,10 +741,9 @@ def fit_k_centre(
     totals: BaselineTotals | None = None,
 ) -> tuple[float | None, dict[float, float]]:
     """Weight of the league prior against the sample mean, pooled."""
-    rows = _k_centre_rows(conn, totals)
-    if not rows:
+    curve = _k_centre_curve(_k_centre_rows(conn, totals), baselines, totals)
+    if not curve:
         return None, {}
-    curve = _k_centre_curve(rows, baselines, totals)
     return _pick_plateau_k(curve, BRIER_PLATEAU_TOLERANCE), curve
 
 
@@ -735,19 +766,23 @@ def fit_k_centre_by_sport(
     0.20492 — 8.6% worse. One number was asking a UTR PTT group match to be
     two-thirds "the average tennis match" (F46).
     """
-    rows = _k_centre_rows(conn, totals)
-    by_sport: dict[str, list[dict[str, Any]]] = {}
-    for row in rows:
-        by_sport.setdefault(str(row["sport"]), []).append(row)
+    # One streamed pass, each sport's rows scored as _k_centre_curve scores
+    # them (the same _brier_by_k), counted before that scorer's filters as
+    # the per-sport bar always counted them.
+    counts: dict[str, int] = defaultdict(int)
+    brier: dict[str, _BrierByK] = defaultdict(_BrierByK)
+    for row in _k_centre_rows(conn, totals):
+        sport = str(row["sport"])
+        counts[sport] += 1
+        errors = _brier_by_k(row, baselines, totals)
+        if errors is not None:
+            brier[sport].add(errors)
 
     fitted: dict[str, float] = {}
-    for sport, sport_rows in sorted(by_sport.items()):
-        if len(sport_rows) < MIN_ROWS_PER_SPORT:
+    for sport in sorted(counts):
+        if counts[sport] < MIN_ROWS_PER_SPORT:
             continue
-        picked = _pick_plateau_k(
-            _k_centre_curve(sport_rows, baselines, totals),
-            BRIER_PLATEAU_TOLERANCE,
-        )
+        picked = _pick_plateau_k(brier[sport].curve(), BRIER_PLATEAU_TOLERANCE)
         if picked is not None:
             fitted[sport] = picked
     return fitted
