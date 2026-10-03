@@ -7,7 +7,7 @@ football player rows), max_settled_run_date 2026-10-02. K_CENTRE football
 25 -> 15, tennis 2 -> 5; K_PRICE NOT_FITTED; half_match_coherence OK. Days
 before 10-03 are a different comparability epoch. Operator decisions taken
 that morning (config/sofa_confidence_calibration.json, carried over by any
-refit): `refused_markets = ["shots_total|UNDER", "fouls_total|UNDER"]`;
+refit): `refused_markets = ["shots_total|UNDER", "fouls_total|UNDER", "shots_for|UNDER"]` (the last added 08:19Z after the 10-03 review: priced live rows at claimed ~0.69 realised 0.53, ROI -18.8%);
 `admitted_player_markets` = all seven football player props (operator's
 order, against the recommendation: one-sided prices, no ROI evidence - the
 props now print at their OVER curve's realised rate, e.g. fouls/tackles
