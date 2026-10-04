@@ -29,7 +29,10 @@ def test_confidence_older_than_the_sheet_refuses(tmp_path: Path) -> None:
     assert msg and msg.startswith("STALE_CONFIDENCE")
 
 
-def test_confidence_after_the_sheet_is_fine(tmp_path: Path) -> None:
+def test_confidence_after_the_sheet_is_fine(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setenv("SOFA_CONFIG_DIR", str(tmp_path / "no_config"))
     pdf = _module()
     (tmp_path / "05_sheet.json").write_text("[]")
     (tmp_path / "08_confidence_wariant.json").write_text("{}")
@@ -64,3 +67,22 @@ def test_confidence_older_than_the_reads_refuses(tmp_path: Path) -> None:
     os.utime(tmp_path / "reads.json", (2_000, 2_000))
     msg = pdf.confidence_older_than_sheet(tmp_path, "08_confidence.json")
     assert msg and "reads.json" in msg
+
+
+def test_a_calibration_file_newer_than_confidence_refuses_the_pdf(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    # Review 2026-10-04: refused_markets / admitted_player_markets live there;
+    # a PDF-only re-render after an operator edit printed the stale selection.
+    config = tmp_path / "config"
+    config.mkdir()
+    monkeypatch.setenv("SOFA_CONFIG_DIR", str(config))
+    pdf = _module()
+    (tmp_path / "08_confidence.json").write_text("{}")
+    (config / "sofa_confidence_calibration.json").write_text("{}")
+    os.utime(tmp_path / "08_confidence.json", (2_000, 2_000))
+    os.utime(config / "sofa_confidence_calibration.json", (3_000, 3_000))
+    msg = pdf.confidence_older_than_sheet(tmp_path, "08_confidence.json")
+    assert msg and "sofa_confidence_calibration.json" in msg
+    os.utime(config / "sofa_confidence_calibration.json", (1_000, 1_000))
+    assert pdf.confidence_older_than_sheet(tmp_path, "08_confidence.json") is None

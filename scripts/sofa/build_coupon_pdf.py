@@ -58,6 +58,7 @@ from bet.sofa.confidence import (  # noqa: E402
     quantity_family,
     too_close_to_kickoff,
 )
+from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
@@ -204,6 +205,17 @@ def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
                 f"STALE_CONFIDENCE: {artifact} is older than {newer} - run "
                 "run_confidence.py for this day (and profile) before the PDF"
             )
+    # The operator's refused_markets / admitted_player_markets live in the
+    # calibration file (review 2026-10-04): a PDF-only re-render after an
+    # entry was added would print the newly refused market. The PDF only -
+    # WSZYSTKIE and its settle read past days that a refit install makes
+    # "older" without anything to rebuild.
+    calibration = config_path("sofa_confidence_calibration.json")
+    if calibration.exists() and conf.stat().st_mtime < calibration.stat().st_mtime:
+        return (
+            f"STALE_CONFIDENCE: {artifact} is older than {calibration.name} "
+            "(refused / admitted markets, curves) - run run_confidence.py first"
+        )
     return None
 
 
