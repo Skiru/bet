@@ -7,6 +7,7 @@ overtime), which dust2.us confirms map for map.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -17,6 +18,7 @@ from bet.sofa.cs2 import (
     build_map_result,
     build_series,
     esports_name,
+    esports_score,
     event_state,
     fair_probability,
     grade,
@@ -779,3 +781,47 @@ def test_regrade_removes_sides_priced_from_a_replaced_snapshot(tmp_path) -> None
     assert ev[rg.MARK] == 2 and (d / rg.BACKUP).exists()
     # idempotent
     assert rg.regrade_day(str(tmp_path), "2026-09-29", dry_run=False)["removed"] == 0
+
+
+def test_sofascore_short_and_sponsor_names_match_superbets() -> None:
+    # Review 2026-10-04: 11 series (09-28..10-03) ended NOT_ON_SOFASCORE with
+    # the right event already among the candidates.
+    from bet.sofa.cs2 import SOFASCORE_CS_CATEGORY
+
+    k = datetime(2026, 10, 2, 16, 35, tzinfo=UTC)
+
+    def ev(home: str, away: str) -> dict[str, Any]:
+        return {"id": 1, "startTimestamp": int(k.timestamp()),
+                "homeTeam": {"name": home}, "awayTeam": {"name": away},
+                "tournament": {"category": {"name": SOFASCORE_CS_CATEGORY}}}
+
+    assert pick_event([ev("NIP", "BBL")], "Ninjas in Pyjamas", "BBL", k)
+    assert pick_event([ev("BET-M 33", "Nemiga")], "33", "Nemiga", k)
+
+
+def test_a_second_roster_of_the_organisation_is_another_team() -> None:
+    n = esports_name
+    assert esports_score(n("Ninjas in Pyjamas"), n("Ninjas in Pyjamas Impact")) == 0
+    assert esports_score(n("Spirit"), n("Spirit Academy")) == 0
+    assert esports_score(n("BIG Academy"), n("BIG Academy")) == 100
+
+
+def test_a_group_rematch_resolves_to_the_series_at_the_kickoff() -> None:
+    # Review 2026-10-04: Hotu - Black Phoenix 09-29 06:00 had Sofascore events
+    # at +0 h and +5.75 h and ended AMBIGUOUS.
+    from bet.sofa.cs2 import SOFASCORE_CS_CATEGORY
+
+    k = datetime(2026, 9, 29, 6, 0, tzinfo=UTC)
+
+    def ev(eid: int, hours: float) -> dict[str, Any]:
+        return {"id": eid, "startTimestamp": int((k + timedelta(hours=hours))
+                                                 .timestamp()),
+                "homeTeam": {"name": "Hotu"}, "awayTeam": {"name": "Black Phoenix"},
+                "tournament": {"category": {"name": SOFASCORE_CS_CATEGORY}}}
+
+    got = pick_event([ev(17192138, 0.0), ev(17213809, 5.75)], "Hotu",
+                     "Black Phoenix", k)
+    assert got not in (None, "AMBIGUOUS") and got[0]["id"] == 17192138
+    # two candidates both near the kickoff stay ambiguous
+    assert pick_event([ev(1, 0.0), ev(2, 0.5)], "Hotu", "Black Phoenix",
+                      k) == "AMBIGUOUS"

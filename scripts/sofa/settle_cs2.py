@@ -189,7 +189,11 @@ def _needs_players(ev: SnapshotEvent) -> bool:
 
 
 def settle_one(
-    ev: SnapshotEvent, sofa: Cs2Sofascore, at: datetime, db_path: str | None = None
+    ev: SnapshotEvent,
+    sofa: Cs2Sofascore,
+    at: datetime,
+    db_path: str | None = None,
+    snapshots: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
     record: dict[str, Any] = {
@@ -224,6 +228,24 @@ def settle_one(
             .isoformat()
             .replace("+00:00", "Z")
         )
+        # Grade the last price before the EARLIER of the two clocks: Superbet
+        # moved Spirit - ShindeN 11:30 -> 11:45 -> 12:05 while Sofascore had
+        # it start at 12:00, and the 12:00:45 snapshot was graded (review
+        # 2026-10-04). Sides with no pre-start record are not graded.
+        start = datetime.fromtimestamp(int(start_ts), UTC)
+        if snapshots is not None and start < kickoff:
+            cut = latest_pre_kickoff(
+                [x for x in snapshots
+                 if x.get("superbet_event_id") == ev.superbet_event_id],
+                {ev.superbet_event_id: start},
+            ).get(ev.superbet_event_id)
+            ev = replace(
+                ev,
+                sides=dict(cut.sides) if cut else {},
+                fetched_at=dict(cut.fetched_at) if cut else {},
+            )
+            record["priced_sides"] = len(ev.sides)
+            record["cut_at_sofascore_start"] = True
     state = event_state(detail, kickoff, at)
     if state != "FINISHED":
         return {
@@ -471,7 +493,7 @@ def settle(
             metrics["errors"] += 1
             continue
         try:
-            record = settle_one(ev, sofa, at, db_path)
+            record = settle_one(ev, sofa, at, db_path, snapshots)
         except CircuitOpenError:
             breaker_open = True
             metrics["errors"] += 1

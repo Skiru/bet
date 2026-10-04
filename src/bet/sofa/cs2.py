@@ -64,6 +64,8 @@ SOFASCORE_CS_CATEGORY = "Counter Strike"
 # Sofascore's kickoff and Superbet's disagree by minutes, and tier-2 series
 # start late; a later start is not a different match between the same sides.
 MATCH_WINDOW = timedelta(hours=6)
+REMATCH_NEAR = timedelta(hours=1)
+REMATCH_FAR = timedelta(hours=3)
 # Regulamin 5.E.1.a: not played within 48 h of the original time -> void.
 VOID_AFTER = timedelta(hours=48)
 # A best-of-three runs ~2.5 h; settling earlier only finds it unfinished.
@@ -134,6 +136,15 @@ ESPORTS_ALIASES = {
     "natus vincere junior": "navi junior",
     "ea copenhagen": "esport academy copenhagen",
     "ea copenhagen extra": "eac extra",
+    # Review 2026-10-04, both checked against cs2_series fixtures listed at
+    # the same time against the same opponent: Sofascore prints the short
+    # name and the sponsor's prefix. 11 series (09-28..10-03, ~700 priced
+    # sides) ended NOT_ON_SOFASCORE with the event already in the pool.
+    #   "Ninjas in Pyjamas · GamerLegion" 09-28 14:00 = NIP - GamerLegion
+    #     (1win Playoffs), and NIP's six ROG Journey series on 10-02;
+    #   "33 · Nemiga" 09-28 15:00 = BET-M 33 - Nemiga (NODWIN Clutch Series).
+    "nip": "ninjas in pyjamas",
+    "bet m 33": "33",
 }
 
 
@@ -524,7 +535,9 @@ class SnapshotEvent:
     source_date: str | None = None
 
 
-def latest_pre_kickoff(snapshots: list[dict[str, Any]]) -> dict[str, SnapshotEvent]:
+def latest_pre_kickoff(
+    snapshots: list[dict[str, Any]], cutoff: dict[str, datetime] | None = None
+) -> dict[str, SnapshotEvent]:
     """Fold snapshot records into each event's last pre-start price per side.
 
     The kickoff is the one of the latest record: a rescheduled series keeps
@@ -544,6 +557,11 @@ def latest_pre_kickoff(snapshots: list[dict[str, Any]]) -> dict[str, SnapshotEve
         eid = snap["superbet_event_id"]
         kickoff = latest[eid][1]
         if _utc(snap["fetched_at_utc"]) >= _utc(kickoff):
+            continue
+        # `cutoff`: an earlier start known from elsewhere (Sofascore's), when
+        # Superbet kept moving its kickoff past the real one (review
+        # 2026-10-04: Spirit - ShindeN, 268 sides priced 45 s after it).
+        if cutoff and eid in cutoff and _utc(snap["fetched_at_utc"]) >= cutoff[eid]:
             continue
         ev = events.setdefault(
             eid,
@@ -597,6 +615,20 @@ def _women_split(name: str) -> tuple[str, bool]:
     return " ".join(words), women
 
 
+# Words that make a different roster of the same organisation. A name with
+# one and a name without it are two teams, whatever the rest scores: review
+# 2026-10-04, "ninjas in pyjamas" scored 82.9 against "ninjas in pyjamas
+# impact" (team 448738) and passed the unseen-team gate. Compared as a set
+# on both sides, like WOMEN_MARKERS.
+ROSTER_MARKERS = frozenset(
+    {"academy", "impact", "junior", "juniors", "youth", "prospects", "young"}
+)
+
+
+def _roster(name: str) -> frozenset[str]:
+    return frozenset(w for w in name.split() if w in ROSTER_MARKERS)
+
+
 def _core(name: str) -> str:
     words = [w for w in name.split() if w not in ESPORTS_AFFIXES]
     return " ".join(words) if words else name
@@ -614,6 +646,8 @@ def esports_score(a: str, b: str) -> float:
     a, a_women = _women_split(a)
     b, b_women = _women_split(b)
     if a_women != b_women:
+        return 0.0
+    if _roster(a) != _roster(b):
         return 0.0
     a, b = _core(a), _core(b)
     return max(fuzz.ratio(a, b), fuzz.token_sort_ratio(a, b))
@@ -648,6 +682,7 @@ def pick_event(
     events that both fit is AMBIGUOUS, never a coin toss.
     """
     fits: dict[int, Resolution] = {}
+    offsets: dict[int, timedelta] = {}
     for e in candidates:
         category = ((e.get("tournament") or {}).get("category") or {}).get("name")
         if category != SOFASCORE_CS_CATEGORY:
@@ -663,7 +698,17 @@ def pick_event(
         if home_is_t1 is None:
             return "AMBIGUOUS"
         fits[int(e["id"])] = (e, home_is_t1)
+        offsets[int(e["id"])] = abs(start - kickoff)
     if len(fits) > 1:
+        # The same two sides twice inside MATCH_WINDOW is a group rematch
+        # (review 2026-10-04: Hotu - Black Phoenix at +0 h and +5.75 h,
+        # OMEGA - Krytiepacani at +0 h and +4.9 h, both AMBIGUOUS). One
+        # candidate at the kickoff and every other far from it is that one.
+        ranked = sorted(offsets, key=lambda i: offsets[i])
+        if offsets[ranked[0]] <= REMATCH_NEAR and all(
+            offsets[i] >= REMATCH_FAR for i in ranked[1:]
+        ):
+            return fits[ranked[0]]
         return "AMBIGUOUS"
     return next(iter(fits.values()), None)
 

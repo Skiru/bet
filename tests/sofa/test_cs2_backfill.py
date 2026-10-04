@@ -280,7 +280,7 @@ def test_settle_writes_the_series_and_attaches_a_leak_free_model(
         for s, o in (("UNDER", 1.8), ("OVER", 1.95))
     ]
     rec = {
-        "fetched_at_utc": "2026-09-26T12:00:00Z",
+        "fetched_at_utc": "2026-09-26T11:00:00Z",  # before the detail start (12:00)
         "superbet_event_id": "1",
         "match_name": "GamerLegion·magic",
         "team1": "GamerLegion",

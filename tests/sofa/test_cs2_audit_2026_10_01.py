@@ -294,3 +294,20 @@ def test_a_tournament_never_found_once_is_refused_for_every_sport(
         got = sc.unsettleable_tournaments(str(tmp_path), sport, "2026-10-01")
         assert got == {"Paulista U19": "1/1"}, sport
     assert "UNSETTLEABLE_ALL_MIN_EVENTS" in sc.UNFITTED_CONSTANTS
+
+
+def test_a_price_after_sofascores_start_is_never_graded(tmp_path: Path) -> None:
+    # Review 2026-10-04 (Spirit - ShindeN 10-03): Superbet moved the kickoff
+    # past Sofascore's start and a snapshot taken after that start was graded.
+    write_snapshot(tmp_path)
+    path = tmp_path / "cs2" / "2026-09-26" / "snapshots.jsonl"
+    first = json.loads(path.read_text())
+    late = {**first, "fetched_at_utc": "2026-09-26T15:00:45Z",
+            "kickoff_utc": "2026-09-26T15:20:00Z",
+            "lines": [dict(ln, odds=1.05) for ln in first["lines"]]}
+    path.write_text(json.dumps(first) + "\n" + json.dumps(late) + "\n")
+    run_settle(tmp_path, FakeSofascore(), 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["cut_at_sofascore_start"] is True
+    odds = {(r["family"], r["side"]): r["odds"] for r in rec["graded"]}
+    assert odds[("maps_total", "OVER")] == 1.95, "the 12:00 price, not 15:00:45"
