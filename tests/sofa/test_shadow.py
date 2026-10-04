@@ -2771,3 +2771,18 @@ def test_an_event_that_stops_quoting_is_no_longer_graded_at_its_old_price(
     assert [len(r["lines"]) for r in recs] == [2, 0]
     events = latest_pre_kickoff(recs)
     assert not events["1"].sides, "the old price is no longer the last one"
+
+
+def test_volleyball_takes_the_winner_from_the_sets_when_winner_code_says_draw() -> None:
+    # Review 2026-10-04: finished volleyball details with winnerCode 3 and
+    # sets that agree with `current` were refused (Weber State 0-3 shape).
+    detail = {
+        "winnerCode": 3,
+        "homeScore": {"current": 0, "period1": 20, "period2": 22, "period3": 19},
+        "awayScore": {"current": 3, "period1": 25, "period2": 25, "period3": 25},
+    }
+    r = build_result(detail, VOLLEYBALL, True)
+    assert r is not None
+    # sets that do not agree with `current` are still refused
+    bad = {**detail, "awayScore": {**detail["awayScore"], "current": 2}}
+    assert build_result(bad, VOLLEYBALL, True) is None
