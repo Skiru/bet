@@ -2786,3 +2786,24 @@ def test_volleyball_takes_the_winner_from_the_sets_when_winner_code_says_draw() 
     # sets that do not agree with `current` are still refused
     bad = {**detail, "awayScore": {**detail["awayScore"], "current": 2}}
     assert build_result(bad, VOLLEYBALL, True) is None
+
+
+def test_an_emptied_event_is_still_settled_and_recut_at_sofascores_start() -> None:
+    # Review round 2: settle_sport dropped events whose last record was empty,
+    # before settle_one could re-cut at Sofascore's earlier start.
+    src = Path(settle_shadow.__file__).read_text(encoding="utf-8")
+    assert "del events[eid]" not in src
+    recs = [
+        {"fetched_at_utc": "2026-10-03T12:23:00Z", "superbet_event_id": "9",
+         "match_name": "A·B", "team1": "A", "team2": "B",
+         "kickoff_utc": "2026-10-03T13:30:00Z", "tournament": None,
+         "lines": [{"superbet_event_id": "9", "family": "winner", "period": 0,
+                    "market_id": 1, "subject": "", "side": "T1", "line": None,
+                    "odds": 1.12}]},
+        {"fetched_at_utc": "2026-10-03T12:40:00Z", "superbet_event_id": "9",
+         "match_name": "A·B", "team1": "A", "team2": "B",
+         "kickoff_utc": "2026-10-03T13:30:00Z", "tournament": None, "lines": []},
+    ]
+    assert not latest_pre_kickoff(recs)["9"].sides
+    start = datetime(2026, 10, 3, 12, 30, tzinfo=UTC)
+    assert latest_pre_kickoff(recs, {"9": start})["9"].sides

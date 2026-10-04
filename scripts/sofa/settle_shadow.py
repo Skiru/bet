@@ -786,10 +786,11 @@ def settle_sport(
             unreadable += 1
     events = latest_pre_kickoff(snapshots)
     # An event whose last pre-start record quotes nothing (run_shadow's empty
-    # record) has no price to grade and needs no Sofascore lookup.
+    # record) is still settled: its result grades the sport coupon's legs,
+    # and settle_one may re-cut at Sofascore's earlier start and find the
+    # last real pre-start price (review round 2, 2026-10-04: Kuanysh (K) -
+    # Karaganda (K), a printed leg, would have been dropped). Counted only.
     no_lines = [eid for eid, ev in events.items() if not ev.sides]
-    for eid in no_lines:
-        del events[eid]
     # SHADOW's pre-game player forecasts; an unreadable file is no forecast.
     try:
         from bet.sofa.player_model import PLAYER_MODEL_FILE, read_forecasts
