@@ -311,3 +311,26 @@ def test_a_price_after_sofascores_start_is_never_graded(tmp_path: Path) -> None:
     assert rec["cut_at_sofascore_start"] is True
     odds = {(r["family"], r["side"]): r["odds"] for r in rec["graded"]}
     assert odds[("maps_total", "OVER")] == 1.95, "the 12:00 price, not 15:00:45"
+
+
+def test_a_failed_retry_keeps_what_the_not_found_record_knew(tmp_path: Path) -> None:
+    # Review 2026-10-04: an ERROR replaced NOT_ON_SOFASCORE and dropped the
+    # tournament, so the series left the unsettleable-tournament counts.
+    write_snapshot(tmp_path)
+    run_settle(tmp_path, FakeSofascore(listed=False), 6)
+    assert settled(tmp_path)["1"]["state"] == "NOT_ON_SOFASCORE"
+
+    sofa = FakeSofascore()
+    original = settle_cs2.Cs2Sofascore.find
+
+    def boom(self: Any, *a: Any, **k: Any) -> Any:
+        raise RuntimeError("ProviderError: HTTP 403")
+
+    settle_cs2.Cs2Sofascore.find = boom  # type: ignore[method-assign]
+    try:
+        run_settle(tmp_path, sofa, 30)
+    finally:
+        settle_cs2.Cs2Sofascore.find = original  # type: ignore[method-assign]
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "ERROR" and rec["previous_state"] == "NOT_ON_SOFASCORE"
+    assert rec["tournament"] == "CCT - EU" and rec["priced_sides"] == 4

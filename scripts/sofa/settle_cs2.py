@@ -506,6 +506,12 @@ def settle(
                 "error": f"{type(exc).__name__}: {exc}",
             }
             metrics["errors"] += 1
+        if prev and record["state"] == "ERROR" and prev["state"] != "SETTLED":
+            # A retry that failed keeps what the earlier record knew
+            # (tournament, priced_sides, the not-found state it retried) -
+            # review 2026-10-04: Marsborne - Overtake lost its tournament to a
+            # 403 and dropped out of the unsettleable-tournament counts.
+            record = {**prev, **record, "previous_state": prev["state"]}
         if prev and prev["state"] == "SETTLED" and record["state"] != "SETTLED":
             # A retry of a partly graded series that failed (a lookup, a
             # request) never replaces the grades it already has.
