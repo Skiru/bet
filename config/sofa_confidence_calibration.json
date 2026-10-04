@@ -9403,7 +9403,8 @@
  "refused_markets": [
   "shots_total|UNDER",
   "fouls_total|UNDER",
-  "shots_for|UNDER"
+  "shots_for|UNDER",
+  "goals_1h_total|UNDER"
  ],
  "admitted_player_markets": [
   "player_assists_for",

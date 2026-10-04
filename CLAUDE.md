@@ -28,6 +28,18 @@ refused (HISTORY_PARSER_VERSION 2026-10-04.2), and competition 851 + six ids on 
 list. The ~67k cache-replay rows graded on fake zeros leave only at the next
 `rebuild-cache-rows`. Evidence: `data/night_2026-10-03/` (RAPORT_NOC.md first).
 
+**2026-10-04 (day, ~06:45Z):** operator added `goals_1h_total|UNDER` to `refused_markets`
+from that day's coupon on (10-03: 6 printed went 3/6 at claimed 0.819, price 0.762; the
+market has no curve of its own and read `pooled:football`); backup `config/backup_2026-10-04_g1h/`.
+Props and WARIANT kept as they were (operator). Also that morning: Superbet's own start
+signal is read. `superbet.odds_items` drops live-state odds (`offerStateId` 2) for every
+reader; OFFER records `superbet_started_utc` (event `metadata.status` STARTED/FINISHED or a
+live offer state) and `superbet_kickoff_seen_utc` (Superbet's current `utcDate`), and SHEET,
+COUPON and CONFIDENCE gate on the earliest of the three clocks. The two RESOLVE clocks were
+both late on matches Superbet had already started or moved (Seggerman - Tajima: 08:00Z frozen,
+06:15Z live). Blind spot left: a suspended pre-match offer with no metadata (`{"1":"stop"}`)
+says nothing; only the clocks see it.
+
 ## The only pipeline in service is `sofa`
 
 Sofascore statistics, Superbet prices, football and tennis. The product of a

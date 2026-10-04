@@ -95,6 +95,21 @@ class CouponResult:
     dropped: list[DroppedRow]
 
 
+def superbet_started(offers: list[FixtureOffer]) -> dict[int, datetime]:
+    """Fixtures a fetch found Superbet reporting under way, and when.
+
+    A gate beside the clocks, not instead of them: both clocks can be late
+    (2026-10-04, three STARTED events with Superbet's utcDate still ahead),
+    and once a match is under way no pre-match price can be bet, however
+    fresh it looked when it was fetched.
+    """
+    return {
+        o.sofascore_event_id: o.superbet_started_utc
+        for o in offers
+        if o.superbet_started_utc is not None
+    }
+
+
 def build_coupon(
     sheet_rows: list[SheetRow],
     fixtures: list[Fixture],
@@ -116,6 +131,12 @@ def build_coupon(
     # price it actually carries: a rebuild refreshes OFFER without re-running
     # SHEET, and the sheet's `offered_odds` is then the older price.
     odds_by_key: dict[tuple[int, str, str, float, str], float] = {}
+    started = superbet_started(offers)
+    seen_kickoff = {
+        o.sofascore_event_id: o.superbet_kickoff_seen_utc
+        for o in offers
+        if o.superbet_kickoff_seen_utc is not None
+    }
     for offer in offers:
         for rung in offer.rungs:
             for direction, side_odds in (
@@ -180,6 +201,23 @@ def build_coupon(
         # it does nothing for a match being played live and still priced.
         # The most conservative available clock is the right one here.
         kickoff = effective_kickoff(fixture)
+        # Superbet moved the start earlier since RESOLVE (see
+        # FixtureOffer.superbet_kickoff_seen_utc): the earliest clock decides.
+        moved = seen_kickoff.get(fixture.sofascore_event_id)
+        if moved is not None and moved < kickoff:
+            kickoff = moved
+        if fixture.sofascore_event_id in started:
+            seen = started[fixture.sofascore_event_id]
+            dropped.append(
+                DroppedRow(
+                    row,
+                    "KICKOFF_TOO_SOON",
+                    f"Superbet reported the match under way at "
+                    f"{seen.isoformat()}; both clocks still said "
+                    f"{kickoff.isoformat()}",
+                )
+            )
+            continue
         if kickoff <= min_kickoff:
             dropped.append(
                 DroppedRow(

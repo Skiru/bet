@@ -276,6 +276,18 @@ def main() -> int:
     # The ladder's own margin, per rung. It is a property of the two-sided
     # price, so it is the same for OVER and UNDER of one rung.
     margins: dict[tuple[int, str, str, float, str], float | None] = {}
+    # Fixtures a fetch found Superbet reporting under way (coupon.
+    # superbet_started): refused whatever the two clocks say, since both can
+    # be late and a started match takes no pre-match bet.
+    started_ids = {
+        o["sofascore_event_id"] for o in offers if o.get("superbet_started_utc")
+    }
+    # Superbet's start time as OFFER last saw it: a third clock beside the two
+    # RESOLVE froze, since Superbet moves starts earlier too.
+    seen_kickoff = {
+        o["sofascore_event_id"]: o["superbet_kickoff_seen_utc"]
+        for o in offers if o.get("superbet_kickoff_seen_utc")
+    }
     for o in offers:
         for r in o.get("rungs", []):
             rung_margin = overround(r.get("over_odds"), r.get("under_odds"))
@@ -361,10 +373,15 @@ def main() -> int:
         # wrong clock.
         clocks = [
             datetime.fromisoformat(t.replace("Z", "+00:00"))
-            for t in (fx.get("kickoff_utc"), fx.get("superbet_kickoff_utc"))
+            for t in (
+                fx.get("kickoff_utc"),
+                fx.get("superbet_kickoff_utc"),
+                seen_kickoff.get(row["sofascore_event_id"]),
+            )
             if t
         ]
-        if too_close_to_kickoff(clocks, now):
+        started = row["sofascore_event_id"] in started_ids
+        if started or too_close_to_kickoff(clocks, now):
             refused["KICKED_OFF"] += 1
             continue
         # The leg is GATED on the earlier clock, so it must be PRINTED on the

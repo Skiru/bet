@@ -142,6 +142,11 @@ def run_once(day_dir: Path, fetcher: Any, now: datetime | None = None) -> int:
                    "minutes_before": round(minutes_to(leg["kickoff_utc"], now), 1)}
             if leg["sofascore_event_id"] in errors:
                 rec["error"] = errors[leg["sofascore_event_id"]]
+            # Superbet already had the match under way: its live odds are not
+            # a close (superbet.odds_items drops them), so the earlier pre-match
+            # record stands - say why this one is empty.
+            if offer is not None and offer.superbet_started_utc is not None:
+                rec["started"] = True
         records.append(rec)
     # Whole lines under a lock, newline-repairing a torn tail, as every
     # snapshot appender does.

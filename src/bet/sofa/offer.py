@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any
 
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
@@ -7,7 +8,7 @@ from bet.sofa.market_mapper import (
     classify_market,
     classify_player_market,
 )
-from bet.sofa.superbet import odds_items
+from bet.sofa.superbet import event_started, odds_items, superbet_kickoff
 from bet.sofa.timeutil import now
 
 
@@ -137,15 +138,29 @@ class OfferFetcher:
             unmapped = set()
 
             failed = 0
+            started_at: datetime | None = None
+            seen_kickoff: datetime | None = None
             for su_id in fixture.superbet_event_ids:
                 try:
-                    items = odds_items(self.client.event_odds(su_id))
+                    payload = self.client.event_odds(su_id)
                 except Exception as exc:  # noqa: BLE001 - one listing, not the stage
                     self.errors.append((str(su_id), f"{type(exc).__name__}: {exc}"))
                     failed += 1
                     continue
+                # Any listing Superbet reports under way marks the match: the
+                # clocks can both be late, and odds_items has already dropped
+                # the live odds, so without this a started match would read as
+                # merely unpriced.
+                if started_at is None and event_started(payload):
+                    started_at = now()
+                items = odds_items(payload)
                 if not items:
                     continue
+                # Only a listing that still quotes: a delisted duplicate keeps
+                # whatever date it was pulled with.
+                seen = superbet_kickoff(payload)
+                if seen is not None and (seen_kickoff is None or seen < seen_kickoff):
+                    seen_kickoff = seen
 
                 fetched_at = now()
 
@@ -226,6 +241,8 @@ class OfferFetcher:
                     rungs=rungs,
                     unmapped_markets=sorted(list(unmapped)),
                     price_collisions=sorted(price_collisions),
+                    superbet_started_utc=started_at,
+                    superbet_kickoff_seen_utc=seen_kickoff,
                 )
             )
 

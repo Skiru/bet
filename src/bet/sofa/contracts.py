@@ -209,6 +209,16 @@ class FixtureOffer(BaseModel):
     # differently. Empty is the normal case; a non-empty list means the price
     # we used was chosen, not inherited from whichever listing came last (F27).
     price_collisions: list[str] = []
+    # When a fetch first found Superbet reporting the match under way or over
+    # (superbet.event_started). None = never seen started. A third start
+    # signal beside the two clocks, which can both be late (2026-10-04).
+    superbet_started_utc: datetime | None = None
+    # Superbet's start time as the payload gave it at fetch (`utcDate`, the
+    # earliest over the listings that still quote). RESOLVE froze the board's
+    # clock in the morning; Superbet moves it, and an earlier move (six
+    # fixtures on 2026-10-04, Seggerman - Tajima 08:00 -> 07:20) was invisible
+    # to every kickoff gate. A third clock: the gates take the earliest.
+    superbet_kickoff_seen_utc: datetime | None = None
 
 
 class SheetRow(BaseModel):

@@ -706,9 +706,15 @@ def strip_in_play_prices(
     (p_empirical_shrunk_to_price), an in-play price is not just a bad bar, it
     is the number itself - and it flows into SETTLE's population and every fit
     after it. The rung keeps its row, as NO_PRICE, so the day still settles.
-    The earlier of the two clocks decides, as at every other kickoff gate.
+    The earliest clock decides, as at every other kickoff gate: the two
+    RESOLVE froze, Superbet's start time as the fetch saw it
+    (FixtureOffer.superbet_kickoff_seen_utc), and the moment a fetch found
+    Superbet reporting the match under way (superbet_started_utc).
     """
     kickoff = effective_kickoff(fixture)
+    for later_signal in (offer.superbet_started_utc, offer.superbet_kickoff_seen_utc):
+        if later_signal is not None:
+            kickoff = min(kickoff, later_signal)
     kept: list[PricedRung] = []
     stripped: set[tuple[str, str, float]] = set()
     for r in offer.rungs:

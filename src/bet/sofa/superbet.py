@@ -20,6 +20,14 @@ MATCH_NAME_SEPARATOR = "·"
 SPORT_IDS = {"football": 5, "tennis": 2}
 SPORT_BY_ID = {value: key for key, value in SPORT_IDS.items()}
 
+# Superbet's two offer states, keyed by `offerStateId` on every odd and by the
+# keys of `offerStateStatus` on the event: "1" pre-match, "2" live. Measured on
+# the 2026-10-04 board (3,483 events): a "2" key appears only on STARTED /
+# FINISHED events, and 3 of them were STARTED with Superbet's own utcDate still
+# in the future - the start clock is not a start signal.
+LIVE_OFFER_STATE = "2"
+_STARTED_STATUSES = frozenset({"STARTED", "FINISHED"})
+
 _USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -143,13 +151,58 @@ def odds_items(odds_data: dict[str, Any] | None) -> list[dict[str, Any]]:
     This lives in one place because it used to live in two, and only one of the
     copies was right (samples.py had ``.get("odds") or []`` all along). The
     wrong copy is the one that cost the day.
+
+    A live odd (`offerStateId` 2) is not a pre-match price and is dropped here,
+    for every reader at once. Nothing in the repo read the field: the only
+    in-play guard was the kickoff clock, and on 2026-10-04 three events were
+    STARTED in Superbet's own metadata with its utcDate still ahead - their
+    live ladders reached OFFER, SHADOW, CS2 and the closing capture as prices.
     """
     if not odds_data:
         return []
     items = odds_data.get("odds")
     if not items:
         return []
-    return [item for item in items if isinstance(item, dict)]
+    return [
+        item for item in items if isinstance(item, dict) and not is_live_odd(item)
+    ]
+
+
+def is_live_odd(item: dict[str, Any]) -> bool:
+    """True for an odd quoted in Superbet's live offer state."""
+    return str(item.get("offerStateId")) == LIVE_OFFER_STATE
+
+
+def superbet_kickoff(odds_data: dict[str, Any] | None) -> datetime | None:
+    """The start time an event payload carries now (`utcDate`), or None."""
+    raw = (odds_data or {}).get("utcDate")
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+def event_started(odds_data: dict[str, Any] | None) -> bool:
+    """Whether Superbet itself reports the event as under way or over.
+
+    Read from the event, not from a clock: `metadata.status` STARTED or
+    FINISHED, or a live offer state of any kind. The pre-match state alone
+    says nothing about a start. "stop" is a suspension (15 NOT_STARTED events
+    on 2026-10-04). "finished" with no metadata is a delisted duplicate: the
+    first version of this read it as a start and flagged Esquiva Banuls -
+    Ivanov and Lock - Hemery four hours early, each with a second listing
+    still `{"1": "active"}`.
+    """
+    if not odds_data:
+        return False
+    meta = odds_data.get("metadata")
+    if isinstance(meta, dict) and meta.get("status") in _STARTED_STATUSES:
+        return True
+    states = odds_data.get("offerStateStatus")
+    return isinstance(states, dict) and LIVE_OFFER_STATE in states
 
 
 def split_match_name(match_name: str | None) -> tuple[str, str]:

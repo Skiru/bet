@@ -70,6 +70,7 @@ for _p in ("src", "."):
 from rapidfuzz import fuzz  # noqa: E402
 
 from bet.sofa.engine import devig  # noqa: E402
+from bet.sofa.superbet import odds_items  # noqa: E402
 from scripts.sofa.measure_tennis_serve_model import (  # noqa: E402
     SideServe,
     hold_probability,
@@ -1094,11 +1095,13 @@ def quotes_from_payload(
         return [], ("", "")
     sb_names = (names_raw[0].strip(), names_raw[1].strip())
     out: list[Quote] = []
-    for odd in payload.get("odds") or []:
+    # odds_items, not payload["odds"]: it drops live-state odds (2026-10-04).
+    for odd in odds_items(payload):
         if odd.get("status") != "active":
             continue
+        raw_price: Any = odd.get("price")
         try:
-            price = float(odd.get("price"))
+            price = float(raw_price)
         except (TypeError, ValueError):
             continue
         if price <= 1.0:
