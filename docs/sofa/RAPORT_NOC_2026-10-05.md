@@ -1,0 +1,83 @@
+# Noc 2026-10-04/05 — refit i przegląd wszystkich sportów
+
+Polecenie operatora: refit krzywych po zmianie reguł próbek z 10-04 (po
+rozliczeniu 10-04, przed dniem), a w nocy iteracyjny przegląd wszystkich
+sportów z poprawkami, testami i weryfikacją na żywo. Wszystkie commity na
+`main`, **niewypchnięte**. Szczegóły i dowody w opisach commitów.
+
+## 1. Refit — stan
+
+- Próba na klonie APFS bazy (`cp -c`, 0 B na dysku) dwa razy zawisła.
+  Przyczyny i poprawki:
+  - `3620dc45`: replay trzymał 1,41 mln pełnych zdarzeń wszystkich sportów
+    (25 GB); szczyt pamięci 31,5 → 20,3 GB. Przy okazji 39 meczów piłki
+    wraca do replayu (sklejane z meczem innego sportu o tych samych nazwach).
+  - `0dedf68f`: kasowanie sklejonych duplikatów szło indeksem `run_date`
+    (2490 × 59 mln wierszy); teraz indeksem po id zdarzenia (0,01 s / 100).
+  - Trzecia próba czysta (replay 26 min, fit 31 min, compare 8 min);
+    raport próby: `data/refit_rehearsal_2026-10-04b/work/compare_report.md`.
+- Na prawdziwej bazie: `backup --db` (`data/backup_2026-10-05/sofa.db`,
+  `config/backup_2026-10-05/`), potem `rebuild-cache-rows` — cztery razy, bo
+  przegląd zmieniał to, co produkuje historia; ostatni na kodzie `50a236f0`.
+- **Zostaje rano:** rozliczenie 10-04 i ledger → `regrade_settled.py`
+  (najpierw na sucho) → `fit` → `compare --days 2026-10-03 2026-10-04
+  --with-sheet` → `install --confirm`, jeśli raport czysty.
+
+## 2. Poprawki (przegląd: 5 recenzentów + 2 rundy przeglądu własnych poprawek)
+
+Zmienia to, co produkuje historia (`HISTORY_PARSER_VERSION` 2026-10-04.5):
+
+| commit | co |
+|---|---|
+| `c4149ec9` | gole z tych samych rozgrywek tylko dla meczów ligowych — **zmierzone**: na 24 777 / 31 738 meczach pucharowych reguła gorsza (goals_total +0,00546 [+0,00373; +0,00725], goals_for +0,01227 [+0,00951; +0,01526] log-loss); wynik sam sobie przeczący nie jest liczbą goli (Buxton – South Shields); gemy tenisa z wyniku setów (Shang – Mannarino: 19 zamiast 21, 8 odwróconych rozliczeń) |
+| `12e8d1e4`, `5012026c`, `0e6e8187` | replay czyta gole, gemy i zakończenia jak SAMPLES/SETTLE; krecze i walkowery poza replayem (4,5% zakończonych meczów tenisa w próbce); pokazówki tenisowe poza fitem; „Coverage canceled” to nie zakończony mecz. Populacja gemów tenisa w replayu **bez zmian** (rozszerzenie o ~145 tys. meczów bez statystyk to osobna decyzja do zmierzenia) |
+| `7e964b98` | tie-breaki z wyniku setów (statystyka 0/0 przy 7-6) |
+
+Rozliczanie i zapis wyników:
+
+| commit | co |
+|---|---|
+| `cd21f23e`, `1f5af54e` | SETTLE przypisuje drużynę jak SHEET — wydrukowane nogi typu „utsikten” były nierozliczalne (39 podmiotów odzyskanych, 0 zmienionych na 10 503); rynki pochodne tak samo; brak wierszy PUSH |
+| `cd21f23e` | 7c / 7d / ledger nigdy nie biorą wiersza replayu (`cache-calibration`) jako wyniku wydrukowanej nogi |
+| `2ef7a299`, `1f5af54e` | zamrożony zegar (`SOFA_NOW`) odrzucany w każdym skrypcie piszącym do `runs/sofa` (sprawdzone na żywo) |
+| `29ca4569` | PDF nie drukuje z CONFIDENCE starszego niż plik krzywych (`refused_markets`) |
+
+Sporty mierzone:
+
+| commit | co |
+|---|---|
+| `f7898d05` | CS2: aliasy NIP / BET-M 33, drugi skład (Academy, Impact…) to inna drużyna, rewanże w grupie, brak ceny po starcie wg Sofascore |
+| `452387bd`, `50a236f0` | CS2: nieudana ponowna próba nie gubi turnieju ani stanu „nie znaleziono” |
+| `43b126c3`, `2aad6272` | shadow: mecz bez linii dostaje pusty rekord (koniec rozliczania cen sprzed 10–12 h), a mimo to jest rozliczany (nogi kuponu) |
+| `04d131f1`, `1f5af54e` | siatkówka: zwycięzca z setów przy `winnerCode` 3, tylko przy wygranej 3 setami |
+
+## 3. Weryfikacja na żywo
+
+- CS2 sweep 09-28..10-03: wszystkie 11 serii NiP / 33 **SETTLED** (np.
+  NiP – GamerLegion 388 stron), rewanże Hotu i OMEGA rozliczone.
+- Shadow 10-03: siatkówka DATA_MISMATCH 9 → 1, SETTLED 94 → 103.
+- `SOFA_NOW` + `run_coupon --date 2026-10-04`: REFUSED, katalog dnia nietknięty.
+- Testy: 2878 zielonych; mypy --strict czysty.
+
+## 4. Do decyzji operatora (nie zmienione)
+
+1. **Który PDF jest kuponem dnia.** Przebudowa po pierwszych startach usuwa
+   z 7c/ledgera nogi wydrukowane wcześniej (10-03: 1 oficjalna, 66 WARIANT;
+   10-04: 21 WARIANT). Czy liczyć każdą nogę wydrukowaną przed jej startem?
+2. **Krecz w tenisie.** Rynki rozstrzygnięte przed kreczem (set 1, przekroczony
+   OVER) dziś nie są rozliczane. Reguła Superbetu niesprawdzona — jedno
+   źródło (meczyki.pl: „krecz = zwrot dla wszystkich zdarzeń, które nie mogły
+   być rozliczone”).
+3. **Rekalibracja ceny w kuponach hokeja i koszykówki** (`data/analysis_2026-10-04_shadow/RAPORT.md`):
+   cena przecenia faworytów o 3–4 pp; rekalibracja daje uczciwe p, ROI bez zmian.
+4. **Siatkówka:** ponad połowa nóg kuponu z turniejów, których Sofascore nie
+   ma (20/38 nierozliczalne) — wymagać ≥1 rozliczonego meczu turnieju?
+5. **Populacja gemów tenisa w replayu** (mecze bez `/statistics`) — zmierzyć
+   osobno przed włączeniem.
+
+## 5. Inne sporty — pomiar (`data/analysis_2026-10-04_shadow/RAPORT.md`)
+
+Na 5 rozliczonych dniach żaden model (hokej, koszykówka, siatkówka) nie bije
+ceny Superbetu; koszykówka-handicap prerejestrowana do testu od 10-04
+(`PREREJESTRACJA_koszykowka_handicap.md`); CS2 parzystość rund — przypadek
+(24 931 map: 55,15% vs cena ~54,8%).
