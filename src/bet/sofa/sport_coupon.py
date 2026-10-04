@@ -512,8 +512,10 @@ def unsettleable_tournaments(
             if (
                 state in NOT_FOUND_STATES
                 or ev.get("gave_up_on") in NOT_FOUND_STATES
-                # a failed retry of a not-found series (settle_cs2 keeps it)
-                or (state == "ERROR" and ev.get("previous_state") in NOT_FOUND_STATES)
+                # a failed retry of a not-found series (settle_cs2 keeps it),
+                # also once it was given up on
+                or (state in ("ERROR", "GAVE_UP")
+                    and ev.get("previous_state") in NOT_FOUND_STATES)
             ):
                 missing[name] = missing.get(name, 0) + 1
     return {

@@ -131,7 +131,8 @@ def grade_live(
     if isinstance(flat, GapReason):
         flat = {}
     if is_derived(row["market"]):
-        graded = _settle_derived(row, row["sport"], flat, incidents, event)
+        # sided like run_settle: the priced side as fallback (review round 3)
+        graded = _settle_derived(row, row["sport"], flat, incidents, event, fixture)
         return graded
     if fixture is None:
         return "NO_FIXTURE"

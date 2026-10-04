@@ -334,3 +334,23 @@ def test_a_failed_retry_keeps_what_the_not_found_record_knew(tmp_path: Path) -> 
     rec = settled(tmp_path)["1"]
     assert rec["state"] == "ERROR" and rec["previous_state"] == "NOT_ON_SOFASCORE"
     assert rec["tournament"] == "CCT - EU" and rec["priced_sides"] == 4
+
+
+def test_chained_failed_retries_keep_the_first_not_found_state(tmp_path: Path) -> None:
+    write_snapshot(tmp_path)
+    run_settle(tmp_path, FakeSofascore(listed=False), 6)
+    original = settle_cs2.Cs2Sofascore.find
+
+    def boom(self: Any, *a: Any, **k: Any) -> Any:
+        raise RuntimeError("ProviderError: HTTP 403")
+
+    settle_cs2.Cs2Sofascore.find = boom  # type: ignore[method-assign]
+    try:
+        run_settle(tmp_path, FakeSofascore(), 30)
+        run_settle(tmp_path, FakeSofascore(), 54)
+        run_settle(tmp_path, FakeSofascore(), 24 * 8)
+    finally:
+        settle_cs2.Cs2Sofascore.find = original  # type: ignore[method-assign]
+    rec = settled(tmp_path)["1"]
+    assert rec["previous_state"] == "NOT_ON_SOFASCORE"
+    assert rec["state"] in ("ERROR", "GAVE_UP")

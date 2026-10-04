@@ -511,7 +511,10 @@ def settle(
             # (tournament, priced_sides, the not-found state it retried) -
             # review 2026-10-04: Marsborne - Overtake lost its tournament to a
             # 403 and dropped out of the unsettleable-tournament counts.
-            record = {**prev, **record, "previous_state": prev["state"]}
+            # Chained failures keep the first not-found state (review round
+            # 3: ERROR then ERROR lost NOT_ON_SOFASCORE).
+            first = prev.get("previous_state", prev["state"])
+            record = {**prev, **record, "previous_state": first}
         if prev and prev["state"] == "SETTLED" and record["state"] != "SETTLED":
             # A retry of a partly graded series that failed (a lookup, a
             # request) never replaces the grades it already has.
