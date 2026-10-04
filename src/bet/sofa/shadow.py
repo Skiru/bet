@@ -713,7 +713,9 @@ def build_result(
         a_sets = sum(1 for h, a in zip(h_periods, a_periods, strict=True) if a > h)
         if h_sets + a_sets != len(h_periods) or (h_sets, a_sets) != (h_cur, a_cur):
             return None
-        if home_won is None and h_sets != a_sets:
+        if home_won is None and max(h_sets, a_sets) == 3:
+            # Only a completed best-of-five: a 2-1 cannot be told from an
+            # unfinished match (review round 2).
             # Volleyball has no draw: winnerCode 3 beside sets that agree with
             # `current` is the code's error, not the score's (review
             # 2026-10-04: 7 finished games on 10-04, e.g. Linz/Steg 3-2,

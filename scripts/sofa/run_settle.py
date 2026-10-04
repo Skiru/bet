@@ -248,6 +248,7 @@ def _settle_derived(
     flat: dict[str, Any],
     incidents: dict[str, Any] | None,
     event: dict[str, Any],
+    fixture: dict[str, Any] | None = None,
 ) -> tuple[float, str] | str:
     """Grade a both-teams / most / handicap row, or say why it cannot be.
 
@@ -299,7 +300,7 @@ def _settle_derived(
             # most_games/most_aces with a player, football most_corners with a
             # club. Only "1"/"2" were read here, so 412 named rows of
             # 2026-09-24 went unsettled while their `__draw__` leg settled.
-            side = _handicap_side(subject, row, event)
+            side = _handicap_side(subject, row, event, fixture)
             if side is None:
                 return "DERIVED_SUBJECT"
             won = home > away if side == "home" else away > home
@@ -309,7 +310,7 @@ def _settle_derived(
         # The selection's own line already carries the sign, and the side it
         # belongs to wins when its own count beats the opponent's by more than
         # -line. Mirrors `probability`'s two branches exactly.
-        side = _handicap_side(subject, row, event)
+        side = _handicap_side(subject, row, event, fixture)
         if side is None:
             return "DERIVED_SUBJECT"
         margin = (home - away) if side == "home" else (away - home)
@@ -386,7 +387,10 @@ def _settle_player(
 
 
 def _handicap_side(
-    subject: str, row: dict[str, Any], event: dict[str, Any]
+    subject: str,
+    row: dict[str, Any],
+    event: dict[str, Any],
+    fixture: dict[str, Any] | None = None,
 ) -> str | None:
     if subject == "1":
         return "home"
@@ -397,6 +401,14 @@ def _handicap_side(
         (event.get("homeTeam") or {}).get("name", ""),
         (event.get("awayTeam") or {}).get("name", ""),
     )
+    if fixture is not None:
+        # The side SHEET priced, as _subject_is_home (review round 2: 30
+        # derived rows 09-19..09-25, "athletic bilbao", "cetate suceava").
+        priced = _priced_side(subject, fixture)
+        if is_home is None:
+            is_home = priced
+        elif priced is not None and priced != is_home:
+            return None
     if is_home is None:
         return None
     return "home" if is_home else "away"
@@ -834,6 +846,11 @@ def main() -> int:
                         skips.add(event_id, graded)
                         continue
                     value, outcome = graded
+                    if outcome == "PUSH":
+                        # Never a PUSH row (review round 2: the guard below
+                        # covered the marginal path only).
+                        skips.add(event_id, "PUSH")
+                        continue
                     rows.append(
                         _settled(
                             row,
@@ -848,7 +865,9 @@ def main() -> int:
                     continue
 
                 if is_derived(row["market"]):
-                    graded = _settle_derived(row, row["sport"], flat, incidents, event)
+                    graded = _settle_derived(
+                        row, row["sport"], flat, incidents, event, fixture
+                    )
                     if isinstance(graded, str):
                         skips.add(event_id, graded)
                         continue

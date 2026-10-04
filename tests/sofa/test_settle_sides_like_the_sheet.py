@@ -67,3 +67,14 @@ def test_an_exact_hit_on_an_integer_line_is_skipped_not_written() -> None:
     src = Path(run_settle.__file__).read_text(encoding="utf-8")
     assert 'if outcome == "PUSH":' in src
     assert "if outcome is None:" not in src
+
+
+def test_a_derived_row_is_sided_like_a_marginal_one() -> None:
+    # Review round 2: most_* / handicap_* rows still used the strict matcher.
+    from scripts.sofa.run_settle import _handicap_side
+
+    event = {"homeTeam": {"name": UTSIKTEN["home_name"]},
+             "awayTeam": {"name": UTSIKTEN["away_name"]}}
+    assert _handicap_side("utsikten", {}, event) is None  # no fixture: as before
+    assert _handicap_side("utsikten", {}, event, UTSIKTEN) == "away"
+    assert _handicap_side("1", {}, event, UTSIKTEN) == "home"

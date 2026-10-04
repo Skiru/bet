@@ -33,7 +33,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
-from bet.sofa.timeutil import now  # noqa: E402
+from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 SETTLED_OUT = "sport_coupon_settled.json"
 
@@ -84,6 +84,10 @@ def _main() -> int:
     parser.add_argument("--sport", choices=[*sc.SPORT_KEYS, "all"], default="all")
     args = parser.parse_args()
     runs_dir = SofaConfig.from_env().runs_dir
+    _frozen = frozen_clock_refusal(runs_dir)
+    if _frozen:
+        print(_frozen, file=sys.stderr)
+        return 2
     sports = sc.SPORT_KEYS if args.sport == "all" else (args.sport,)
     print(
         f"# Experimental sport coupons {args.start}..{args.end} "

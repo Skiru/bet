@@ -43,7 +43,7 @@ from bet.sofa.confidence import leg_is_ev_positive  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.superbet import SuperbetClient  # noqa: E402
-from bet.sofa.timeutil import now  # noqa: E402
+from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 BOOSTS_JSON = "10_boosts.json"
 BOOSTS_MD = "10_boosts.md"
@@ -216,6 +216,10 @@ def main() -> int:
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
+    _frozen = frozen_clock_refusal(config.runs_dir)
+    if _frozen:
+        print(_frozen, file=sys.stderr)
+        return 2
     run_dir = Path(config.runs_dir) / args.date
     run_dir.mkdir(parents=True, exist_ok=True)
     client = SuperbetClient()

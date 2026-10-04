@@ -49,7 +49,7 @@ from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records, write_atomic  # noqa: E402
-from bet.sofa.timeutil import now  # noqa: E402
+from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 
@@ -486,6 +486,10 @@ def main() -> int:
     parser.add_argument("--max-legs", type=int, default=sc.MAX_LEGS)
     args = parser.parse_args()
     config = SofaConfig.from_env()
+    _frozen = frozen_clock_refusal(config.runs_dir)
+    if _frozen:
+        print(_frozen, file=sys.stderr)
+        return 2
     at = now()
     rule = sc.Rule(max_legs=args.max_legs)
     sports = sc.SPORT_KEYS if args.sport == "all" else (args.sport,)

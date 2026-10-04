@@ -2786,6 +2786,13 @@ def test_volleyball_takes_the_winner_from_the_sets_when_winner_code_says_draw() 
     # sets that do not agree with `current` are still refused
     bad = {**detail, "awayScore": {**detail["awayScore"], "current": 2}}
     assert build_result(bad, VOLLEYBALL, True) is None
+    # a 2-1 under code 3 may be an unfinished best-of-five: still refused
+    two_one = {
+        "winnerCode": 3,
+        "homeScore": {"current": 1, "period1": 25, "period2": 20, "period3": 20},
+        "awayScore": {"current": 2, "period1": 20, "period2": 25, "period3": 25},
+    }
+    assert build_result(two_one, VOLLEYBALL, True) is None
 
 
 def test_an_emptied_event_is_still_settled_and_recut_at_sofascores_start() -> None:

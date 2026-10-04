@@ -16,6 +16,7 @@ from bet.sofa.coupon import effective_kickoff
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
+from bet.sofa.timeutil import frozen_clock_refusal
 
 
 def merge_with_previous(
@@ -66,6 +67,10 @@ def main() -> int:
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
+    _frozen = frozen_clock_refusal(config.runs_dir)
+    if _frozen:
+        print(_frozen, file=sys.stderr)
+        return 2
     client = SuperbetClient(
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"
     )

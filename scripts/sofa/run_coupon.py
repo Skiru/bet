@@ -24,7 +24,7 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
 from bet.sofa.coupon import CouponResult, build_coupon
 from bet.sofa.stage import set_stage
-from bet.sofa.timeutil import now
+from bet.sofa.timeutil import frozen_clock_refusal, now
 from bet.sofa.veto import find_unmatched_vetoes, load_reads
 
 
@@ -245,6 +245,10 @@ def main() -> int:
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
+    _frozen = frozen_clock_refusal(config.runs_dir)
+    if _frozen:
+        print(_frozen, file=sys.stderr)
+        return 2
     run_dir = Path(config.runs_dir) / args.date
     refusal = incomplete_reason(run_dir / "02_fixtures.json")
     if refusal:

@@ -79,7 +79,7 @@ from bet.sofa.tennis_rating import (
     load_coefficients,
     load_history,
 )
-from bet.sofa.timeutil import now
+from bet.sofa.timeutil import frozen_clock_refusal, now
 
 logger = logging.getLogger(__name__)
 
@@ -1513,6 +1513,10 @@ def main() -> int:
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
+    _frozen = frozen_clock_refusal(config.runs_dir)
+    if _frozen:
+        print(_frozen, file=sys.stderr)
+        return 2
 
     runs_dir = Path(config.runs_dir) / args.date
     fixtures_path = runs_dir / "02_fixtures.json"
