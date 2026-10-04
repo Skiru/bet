@@ -131,7 +131,12 @@ def _load_settled_elsewhere(
             chunk = ids[i : i + 500]
             marks = ",".join("?" * len(chunk))
             out += [dict(r) for r in conn.execute(
+                # Never a cache-replay row (review 2026-10-04): a
+                # rebuild-cache-rows wrote one for Hellas Kagran - Vienna
+                # Amateure, which live SETTLE had skipped as NOT_FINISHED,
+                # and 7d / the ledger graded the printed leg from it.
                 "SELECT * FROM sofa_settled_row WHERE run_date != ? "
+                "AND run_date != 'cache-calibration' "
                 f"AND sofascore_event_id IN ({marks})",
                 (run_date, *chunk),
             )]

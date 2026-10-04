@@ -1062,3 +1062,22 @@ def test_the_ledger_roi_interval_resamples_matches_not_days():
     tight = audit_ledger.roi_interval(
         [day(-1.0, 100, {f"sofa:{i}": [-1.0, 1] for i in range(25)})] * 2)
     assert tight == (-1.0, -1.0)
+
+
+def test_a_cache_replay_row_never_grades_a_printed_leg(tmp_path: Path) -> None:
+    # Review 2026-10-04: live SETTLE skipped Hellas Kagran - Vienna Amateure
+    # (NOT_FINISHED); tonight's rebuild-cache-rows wrote a cache-calibration
+    # row for it and 7d / the ledger graded the printed leg from that row.
+    from scripts.sofa import audit_settlement
+    from tests.sofa.test_multi_coupon import official_single, write_official
+
+    write_official(tmp_path, [official_single(1, "corners_total", 1.30, 0.77)])
+    row = {"sofascore_event_id": 1, "market": "corners_total", "subject": "",
+           "line": 7.5, "direction": "OVER", "outcome": "WIN"}
+    db = write_db(tmp_path, [row], date="cache-calibration")
+    write_db(tmp_path, [{**row, "sofascore_event_id": 99}], date=DATE)  # day ran
+    assert audit_settlement._key(row) not in audit_settlement.settled_by_key(
+        db, DATE, {1})
+    [rec] = [r for r in record_results.confidence_rows(str(tmp_path), DATE, db)
+             if r["variant"] == "official"]
+    assert rec["singles"]["won"] == 0 and rec["singles"]["not_counted"] == 1

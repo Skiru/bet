@@ -92,7 +92,33 @@ def _subject_is_home(subject: str, fixture: dict[str, Any]) -> bool | None:
         return True  # a total: the flag is unused
     if subject in _DERIVED_SUBJECTS:
         return None
-    return _named_side(subject, fixture["home_name"], fixture["away_name"])
+    own = _named_side(subject, fixture["home_name"], fixture["away_name"])
+    priced = _priced_side(subject, fixture)
+    if own is None:
+        # The row that was priced is the row that is graded (review
+        # 2026-10-04): SHEET and CONFIDENCE side a subject with
+        # run_sheet.determine_side, and this stricter matcher left printed
+        # legs ungraded for good - "utsikten" against Utsiktens BK scores 80
+        # here (official 10-03), "ny cosmos", "polonia sroda wlkp.", 1-8 such
+        # subjects a day.
+        return priced
+    if priced is not None and priced != own:
+        return None  # the two readings disagree: no guess
+    return own
+
+
+def _priced_side(subject: str, fixture: dict[str, Any]) -> bool | None:
+    """The side SHEET priced the subject on, or None (a fixture record that
+    does not validate gives no reading)."""
+    from bet.sofa.contracts import Fixture
+    from scripts.sofa.run_sheet import determine_side
+
+    try:
+        model = Fixture.model_validate_json(json.dumps(fixture, default=str))
+    except ValueError:
+        return None
+    side = determine_side(subject, model)
+    return None if side is None else side == "side_a"
 
 
 def _named_side(subject: str, home_name: str, away_name: str) -> bool | None:
@@ -856,7 +882,11 @@ def main() -> int:
                     skips.add(event_id, f"{row['market']}:{value.value}")
                     continue
                 outcome = settle_value(float(value), row["line"], row["direction"])
-                if outcome is None:
+                # settle() returns "PUSH", never None: the old `is None` test
+                # could not fire, and an integer line landing exactly would
+                # have written a PUSH row the readers count as a loss
+                # (review 2026-10-04).
+                if outcome == "PUSH":
                     skips.add(event_id, "PUSH")
                     continue
                 rows.append(
