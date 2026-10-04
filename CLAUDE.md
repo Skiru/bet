@@ -40,6 +40,28 @@ both late on matches Superbet had already started or moved (Seggerman - Tajima: 
 06:15Z live). Blind spot left: a suspended pre-match offer with no metadata (`{"1":"stop"}`)
 says nothing; only the clocks see it.
 
+**2026-10-04 (afternoon), history comparability - code changes what history produces from
+10-05 on; no refit installed** (report `docs/sofa/RAPORT_2026-10-04_POROWNYWALNOSC_HISTORII.md`,
+measurements `data/analysis_2026-10-04_history/`). After Farense - Chaves U3.5 lost 4-0:
+- `bet.sofa.comparability` is the ONE "does this past match count" rule for every history
+  reader (samples, football/tennis rating, tennis prior, cache replay - which had no friendly
+  filter - player model + fit, shadow score model, CS2, stats backfill). +32 reviewed
+  pre-season/exhibition ids (Torneio de Verao 36573 had leaked); `find_friendly_competitions.py`
+  proposes candidates. Football friendlies stay keyed on ids; other sports on name markers.
+- Goal samples (`goals_total`, `goals_for`, `goals_1h_for`, `goals_2h_for`) = the side's REGULAR
+  matches of the fixture's competition when >= 5, else the usual newest ten
+  (`SAME_COMPETITION_METRICS`); measured goals_for log-loss -0.0055, both halves. Corners/fouls/
+  shots/cards untouched (no gain or worse); current-season-only was worse everywhere - do not
+  "fix" it that way. Side effect: more goal legs hit SAMPLE_CROSSES_SEASON (10-03 replay: 44 -> 63).
+  The confidence curves were fitted on old-rule replay rows: a refit (operator's) re-aligns them.
+- `runs/sofa/<d>/reads.json` (`LegRead`): NO_BET removes everywhere; **WATCH removes from the
+  official coupon, stays marked in WARIANT** (operator, 10-04); `audit_variants` C3 from 10-05:
+  every printed official leg has an analyst read. Football `MODEL_ABOVE_OWN_SAMPLE` (model -
+  own sample hit rate > 0.15, props excluded) is an automatic WATCH. Legs carry `sample_hit_rate`
+  and `context_flags` (`MAKEUP_FIXTURE` only while the meeting is still owed, `LONG_LAYOFF`,
+  `CONGESTED` - shown, never gated: a make-up fixture measured no bias).
+- `SOFA_NOW` freezes `timeutil.now()` for as-of replays only; `run_pipeline.py` refuses it.
+
 ## The only pipeline in service is `sofa`
 
 Sofascore statistics, Superbet prices, football and tennis. The product of a
@@ -110,6 +132,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_score_history.py --sport 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_model_information.py --rows <rows.jsonl>   # does the model add to the price? b of logit(y) ~ model + price, bootstrap over games
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_player_props.py --sport {basketball|hockey} [--date <d>] [--rows-out f]   # player model (bet.sofa.player_model, SHADOW pre-game forecasts in <sport>/<d>/player_model.jsonl, model_p on graded player lines) vs Superbet's price; measurement only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_disagreement.py --from <d> --to <d> [--sport football|tennis|all] [--profile standard|wariant|both]   # MAX_DISAGREEMENT re-measured on settled rows: refused vs admitted per profile, gap bands, match bootstrap, event-id halves; measurement only; the threshold decision is the operator's, between days
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sample_composition.py [--start <d>] [--end <d>] --metrics goals_for corners_total ...   # which past matches a sample should hold (newest ten vs no knockouts vs same competition vs season), log-loss on every cached league match; measurement only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_own_sample_gap.py --from <d> --to <d> [--sport football|tennis]   # model - own sample hit rate bands on settled priced rows (MODEL_ABOVE_OWN_SAMPLE's evidence); measurement only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_schedule_context.py [--start <d>] [--end <d>]   # make-up fixture / layoff / congestion vs the sample's centre; measurement only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_friendly_competitions.py --out docs/sofa/evidence/friendly_candidates_<d>.json   # candidate friendly / pre-season ids by name and shape; a person decides
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <d> --loop &   # Superbet's closing price of every printed official/WARIANT leg -> runs/sofa/<d>/closing.jsonl (no bridge)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <d> --to <d>   # closing line value per variant (sport coupons from their graded close), bootstrap by match
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_devig.py --from <d> --to <d>   # power vs proportional vs Shin against outcomes
