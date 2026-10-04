@@ -85,4 +85,4 @@ CONFIDENCE na nowym kodzie bez strażnika danych daje identyczne nogi jak prawdz
     do odtwarzania z cache trzyma ~26 GB; z OrbStack (11 GB) i resztą maszyna 48 GB swapowała
     (wolne ~66 MB, 23 mln swap-in), 4.5 h bez postępu. Przed refitem: wyłączyć OrbStack/Docker,
     nie puszczać backfillu równolegle. Kopia bazy: `data/refit_rehearsal_2026-10-04/` (42 GB).
-12. Push: nic nie zostało wypchnięte (zgodnie z zasadą „push tylko na prośbę”); wszystkie commity są na lokalnym main.
+12. Push: wypchnięte na origin/main o 04:30Z na prośbę operatora.

@@ -8,7 +8,7 @@ Wklej całość jako pierwszą wiadomość nowej sesji.
 
 Pełny raport nocy: `docs/sofa/RAPORT_NOC_2026-10-04.md` (kopia `data/night_2026-10-03/RAPORT_NOC.md`;
 dowody i skrypty w `data/night_2026-10-03/<temat>/`). Commity nocy: `git log c6b60426..HEAD`
-(lokalny main, NIE wypchnięte). Testy 2765 zielone, mypy czysty, ruff 92 jak przed nocą.
+(wypchnięte na origin/main 04:30Z). Testy 2765 zielone, mypy czysty, ruff 92 jak przed nocą.
 
 Co z listy poniżej jest już zrobione:
 - pkt 2 tenis: zainstalowane TYLKO `sofa_tennis_tier_baselines.json` (backup
@@ -37,7 +37,7 @@ Co zostało na dziś:
   przerwany, piłka 730 nie zaczęta (sterownik: `data/night_2026-10-03/tools/night_driver.py <zadania>`, log `runs/sofa/backfill_logs/night_2026-10-03.log`; wznawialne).
 - Refit na kopii bazy NIE skończył się (brak RAM-u: odtwarzanie trzyma ~26 GB, OrbStack 11 GB).
   Przed refitem wyłączyć OrbStack/Docker. Kopia: `data/refit_rehearsal_2026-10-04/` (42 GB, do usunięcia).
-- Push: tylko na prośbę operatora.
+- Push: zrobiony (operator, 04:30Z).
 
 ---
 
