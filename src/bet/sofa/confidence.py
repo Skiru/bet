@@ -37,6 +37,7 @@ from typing import Any
 
 from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
+from bet.sofa.players import is_player_metric
 
 # Resolved against the repo, not the working directory: run from anywhere
 # else a relative path failed (or read another checkout's curves).
@@ -594,10 +595,19 @@ def own_hit_rate(values: list[float], line: float, direction: str) -> float | No
 
 
 def model_above_own_sample(
-    sport: str, model_p: float, values: list[float], line: float, direction: str
+    sport: str,
+    model_p: float,
+    values: list[float],
+    line: float,
+    direction: str,
+    market: str | None = None,
 ) -> float | None:
     """The gap when it trips MAX_OWN_SAMPLE_GAP, else None."""
+    # Player props were not in the measurement (measure_own_sample_gap.py
+    # skips them): their "sample" is a player's appearances, not this one.
     if sport not in OWN_SAMPLE_GAP_SPORTS or len(values) < MIN_OWN_SAMPLE:
+        return None
+    if market is not None and is_player_metric(market):
         return None
     rate = own_hit_rate(values, line, direction)
     if rate is None:

@@ -632,7 +632,8 @@ def main() -> int:
         # An automatic WATCH (confidence.MAX_OWN_SAMPLE_GAP): refused where
         # the profile honours WATCH, kept and marked where it does not.
         own_gap = model_above_own_sample(
-            row["sport"], row["p_central"], values, row["line"], row["direction"]
+            row["sport"], row["p_central"], values, row["line"], row["direction"],
+            row["market"],
         )
         auto_watch: list[str] = []
         if own_gap is not None:

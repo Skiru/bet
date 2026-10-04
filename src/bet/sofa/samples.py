@@ -1426,6 +1426,7 @@ def _process_fixture_samples(
         kickoff_ts,
         fixture.sofascore_event_id,
         fixture.sport,
+        fixture.season_id,
     )
     return FixtureSamples(
         sofascore_event_id=fixture.sofascore_event_id,

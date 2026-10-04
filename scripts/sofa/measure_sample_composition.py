@@ -56,6 +56,8 @@ from bet.sofa.comparability import MatchKind, competition_id, match_kind
 from bet.sofa.metrics import is_extra_time_event, regulation_score
 
 DB = Path("data/sofa.db")
+# confidence.MAX_BUILDER_SAMPLE_AGE_DAYS
+MAX_AGE_S = 180 * 86400
 
 # Base statistic -> its /statistics key (period ALL). "goals" comes from the
 # listing score. Keys as in bet.sofa.metrics.
@@ -186,8 +188,19 @@ def make_rules(season_start: dict[int, int]) -> dict[str, Rule]:
         ][:n]
         return seasonal if len(seasonal) >= m else r2(b, t, n, m)
 
+    def r5(b: Sequence[Past], t: Target, n: int, m: int) -> list[Past]:
+        # R2 inside CONFIDENCE's SAMPLE_CROSSES_SEASON window (180 days), so
+        # the pick never makes a leg older than the gate allows.
+        return pick(
+            b,
+            lambda p: _regular(p) and p.competition == t.competition
+            and t.ts - p.ts <= MAX_AGE_S,
+            n, m,
+        )
+
     return {
         "R0_all": r0,
+        "R5_same_comp_180d": r5,
         "R1_no_ko": r1,
         "R2_same_comp": r2,
         "R3_no_ko_season": r3,

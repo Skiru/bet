@@ -159,6 +159,13 @@ def run_stage(stage: str, date: str) -> int:
 
 
 def main() -> int:
+    # A frozen clock (timeutil SOFA_NOW, for as-of replays of single stages)
+    # in a live run would time every price and kick-off gate against the past
+    # while BOARD / OFFER fetch the present. The pipeline refuses it.
+    if os.environ.get("SOFA_NOW"):
+        print("REFUSED: SOFA_NOW is set (a frozen replay clock); the pipeline "
+              "runs on the live clock - unset it", file=sys.stderr)
+        return 2
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", default=now().strftime("%Y-%m-%d"), help="YYYY-MM-DD")
     parser.add_argument(

@@ -488,3 +488,69 @@ def test_a_read_that_covers_nothing_is_reported(conf_day: Path) -> None:
     assert summary["metrics"]["reads_unmatched"] == 1
     doc = json.loads((conf_day / DAY / "08_confidence.json").read_text())
     assert doc["reads_unmatched"] == 1 and doc["honours_watch"] is True
+
+
+# --- review 2026-10-04 -----------------------------------------------------------
+
+
+def test_a_postponed_meeting_played_since_is_not_owed() -> None:
+    k = int(KICKOFF.timestamp())
+    postponed = _played(1, 120, 1, 2, 0, 0)
+    postponed["status"] = {"type": "postponed"}
+    replayed = _played(2, 100, 2, 1, 1, 1)  # the pair met again, either way round
+    sched = fixture_schedule([postponed, replayed], [], 1, 2, 239, k, 99)
+    assert sched.makeup_of is None
+    assert fixture_schedule([postponed], [], 1, 2, 239, k, 99).makeup_of == 1
+
+
+def test_a_postponement_of_another_season_is_not_a_make_up() -> None:
+    k = int(KICKOFF.timestamp())
+    postponed = _played(1, 300, 1, 2, 0, 0)
+    postponed["status"] = {"type": "postponed"}
+    postponed["season"] = {"id": 77801}
+    sched = fixture_schedule([postponed], [], 1, 2, 239, k, 99, season=97470)
+    assert sched.makeup_of is None
+
+
+def test_the_gap_gate_leaves_player_props_alone() -> None:
+    values = [0.0] * 6 + [2.0] * 4
+    assert model_above_own_sample(
+        "football", 0.9, values, 0.5, "OVER", "player_shots_for") is None
+    assert model_above_own_sample(
+        "football", 0.9, values, 0.5, "OVER", "shots_for") is not None
+
+
+def test_the_pipeline_refuses_a_frozen_clock() -> None:
+    proc = subprocess.run(
+        [sys.executable, "scripts/sofa/run_pipeline.py", "--date", DAY,
+         "--only", "BOARD"],
+        cwd=REPO, capture_output=True, text=True,
+        env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin",
+             "SOFA_NOW": "2026-10-04T06:00:00Z"},
+    )
+    assert proc.returncode == 2 and "SOFA_NOW" in proc.stderr
+
+
+def test_a_coupon_drop_names_the_read_that_dropped_it() -> None:
+    from bet.sofa.coupon import build_coupon
+
+    row = SheetRow.model_validate({
+        "sofascore_event_id": 5, "sport": "football", "market": "goals_total",
+        "subject": "", "line": 3.5, "direction": "UNDER", "sample_size": 20,
+        "sample_mean": 2.4, "sample_sd": 1.6, "centre": 2.3, "p_central": 0.78,
+        "market_p": 0.74, "ladder_centre": None, "ladder_sigma": None,
+        "p_bar": 0.77, "bar_reason": "none", "required_odds": 1.2,
+        "offered_odds": 1.40, "edge": 0.04, "surplus": 0.1, "verdict": "VALUE",
+        "notes": []})
+    fx = _fixture().model_copy(update={"sofascore_event_id": 5,
+                                       "kickoff_utc": KICKOFF + timedelta(days=1)})
+    reads = [_read(sofascore_event_id=5, verdict="KEEP", reason="fine"),
+             _read(sofascore_event_id=5, verdict="WATCH", author="verifier",
+                   reason="model over its own sample")]
+    result = build_coupon(
+        sheet_rows=[row], fixtures=[fx], offers=[], vetoes=[],
+        current_time=KICKOFF, min_kickoff=KICKOFF, max_price_age=timedelta(hours=1),
+        reads=reads,
+    )
+    drop = [d for d in result.dropped if d.reason == "WATCHED"]
+    assert drop and drop[0].detail == "model over its own sample"

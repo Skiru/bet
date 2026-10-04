@@ -263,7 +263,9 @@ def build_coupon(
         )
         read_refused = read_refusal(row_reads, honours_watch=True)
         if read_refused is not None:
-            dropped.append(DroppedRow(row, read_refused, row_reads[0].reason))
+            cause = "NO_BET" if read_refused == "READ_NO_BET" else "WATCH"
+            reason = next(r.reason for r in row_reads if r.verdict == cause)
+            dropped.append(DroppedRow(row, read_refused, reason))
             continue
 
         # A4/L25: a price read this morning is not the price tonight.

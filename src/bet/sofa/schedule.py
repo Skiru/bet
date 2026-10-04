@@ -91,22 +91,40 @@ def find_makeup(
     competition: int | None,
     kickoff_ts: int,
     fixture_event_id: int,
+    season: int | None = None,
 ) -> Mapping[str, Any] | None:
     """The newest not-played event of these two sides in this competition
-    before kick-off, or None."""
+    (and season, when both carry one) before kick-off that the two have not
+    played since, or None.
+
+    A postponed meeting is a make-up only while it is still owed: 74% of the
+    29,292 not-played events in the index were followed by a finished meeting
+    of the same pair in the same competition, and without that check 37% of
+    the flags fell on the return fixture or next season's meeting
+    (review 2026-10-04).
+    """
     pair = frozenset((home_id, away_id))
+    rows = [e for e in events if _sides(e) == pair and e.get("id") != fixture_event_id
+            and (competition is None or competition_id(e) == competition)]
+
+    def start(e: Mapping[str, Any]) -> int:
+        ts = e.get("startTimestamp")
+        return int(ts) if isinstance(ts, int) else -1
+
+    played = [start(e) for e in rows
+              if _status(e) == "finished" and 0 <= start(e) < kickoff_ts]
     best: Mapping[str, Any] | None = None
-    for event in events:
-        if event.get("id") == fixture_event_id or _status(event) not in _NOT_PLAYED:
+    for event in rows:
+        ts = start(event)
+        if _status(event) not in _NOT_PLAYED or not 0 <= ts < kickoff_ts:
             continue
-        start = event.get("startTimestamp")
-        if not isinstance(start, int) or start >= kickoff_ts:
+        event_season = (event.get("season") or {}).get("id")
+        if (season is not None and isinstance(event_season, int)
+                and event_season != season):
             continue
-        if _sides(event) != pair:
-            continue
-        if competition is not None and competition_id(event) != competition:
-            continue
-        if best is None or start > int(best.get("startTimestamp") or 0):
+        if any(ts < p for p in played):
+            continue  # played since: the meeting is no longer owed
+        if best is None or ts > start(best):
             best = event
     return best
 
@@ -143,10 +161,12 @@ def fixture_schedule(
     kickoff_ts: int,
     fixture_event_id: int,
     sport: str = "football",
+    season: int | None = None,
 ) -> FixtureSchedule:
     a, b = list(side_a_events), list(side_b_events)
     makeup = find_makeup(
-        [*a, *b], home_id, away_id, competition, kickoff_ts, fixture_event_id
+        [*a, *b], home_id, away_id, competition, kickoff_ts, fixture_event_id,
+        season,
     )
     postponed = makeup.get("startTimestamp") if makeup else None
     return FixtureSchedule(
