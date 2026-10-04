@@ -89,8 +89,8 @@ def test_the_cache_replay_reads_the_same_counts() -> None:
     stats = ('{"statistics": [{"period": "ALL", "groups": [{"statisticsItems": '
              '[{"key": "gamesWon", "homeValue": 8, "awayValue": 11}]}]}]}')
     assert match_values(SHANG_MANNARINO, "tennis", stats, None)["games"] == (8.0, 13.0)
-    # and from the set score alone when /statistics was never fetched
-    assert match_values(SHANG_MANNARINO, "tennis", None, None)["games"] == (8.0, 13.0)
+    # no /statistics, no games row - the replay's population is unchanged
+    assert "games" not in match_values(SHANG_MANNARINO, "tennis", None, None)
 
 
 def test_the_cache_replay_skips_retirements_and_walkovers(tmp_path: Any) -> None:
@@ -106,10 +106,10 @@ def test_the_cache_replay_skips_retirements_and_walkovers(tmp_path: Any) -> None
             "status": {"type": "finished", "code": code, "description": description},
             "homeTeam": {"id": eid * 10 + 1, "name": "A"},
             "awayTeam": {"id": eid * 10 + 2, "name": "B"},
-            "homeScore": {"current": 1, "period1": 7, "period2": 3},
-            "awayScore": {"current": 0, "period1": 5, "period2": 5},
-            "tournament": {"uniqueTournament": {"id": 2373},
-                           "category": {"sport": {"slug": "tennis"}}},
+            "homeScore": {"current": 1, "period1": 1, "period2": 0, "normaltime": 1},
+            "awayScore": {"current": 0, "period1": 0, "period2": 0, "normaltime": 0},
+            "tournament": {"uniqueTournament": {"id": 17},
+                           "category": {"sport": {"slug": "football"}}},
         }
 
     db = tmp_path / "sofa.db"

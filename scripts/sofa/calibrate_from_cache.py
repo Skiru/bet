@@ -286,16 +286,20 @@ def match_values(
             points = None
         if points is not None and not isinstance(points, str):
             values["cards_points"] = (float(points[0]), float(points[1]))
-    if sport == "tennis":
+    if sport == "tennis" and "games" in values:
         # Games as extract_metric reads them for SAMPLES and SETTLE: the set
         # score (a match tiebreak one game), gamesWon only where the sets are
         # unreadable. STAT_KEYS' gamesWon read 6-7 2-6 as 19 (event
-        # 17149657) and needed /statistics, which 35% of matches lack.
-        values.pop("games", None)
+        # 17149657). Only where /statistics gave a games value, as before:
+        # reading every match off its set score added ~145k tennis matches
+        # (6.7M rows) to the replay - a population change to be measured on
+        # its own, not slipped into a refit (2026-10-04 night).
         home = extract_metric("games_won_for", "tennis", flat, None, event, True)
         away = extract_metric("games_won_for", "tennis", flat, None, event, False)
         if isinstance(home, float) and isinstance(away, float):
             values["games"] = (home, away)
+        else:
+            values.pop("games", None)
     if sport == "football":
         values.update(half_values(event, flat))
     return values
