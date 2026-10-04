@@ -113,6 +113,10 @@ def is_completed_event(event: dict[str, Any]) -> bool:
         return False
     if str(status.get("type", "")).lower() != "finished":
         return False
+    if str(status.get("description", "")).strip().lower() == "coverage canceled":
+        # Code 100 with a partial score (review round 3, 2026-10-04: event
+        # 9538340 lists only period1 2-0 and was read as a 2-0 result).
+        return False
     code = status.get("code")
     if code is None:
         # A finished event without a code: accept, since `type == "finished"`

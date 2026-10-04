@@ -335,7 +335,8 @@ def parse_event(
 # goal count (metrics.goal_score_inconsistent); tennis games come from the
 # set score when gamesWon disagrees with it.
 # 2026-10-04.4: tennis tiebreaks_total counted off the set score.
-HISTORY_PARSER_VERSION = "2026-10-04.4"
+# 2026-10-04.5: a "Coverage canceled" finish is no completed match.
+HISTORY_PARSER_VERSION = "2026-10-04.5"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------

@@ -135,3 +135,55 @@ def test_tiebreaks_are_counted_off_the_set_score() -> None:
            "homeScore": {"current": 2, "period1": 7, "period2": 4, "period3": 10},
            "awayScore": {"current": 1, "period1": 6, "period2": 6, "period3": 8}}
     assert extract_metric("tiebreaks_total", "tennis", zero, None, mtb, True) == 1.0
+
+
+def test_a_newer_retired_copy_is_not_undercut_by_an_older_ended_one(
+    tmp_path: Any,
+) -> None:
+    import json
+    import sqlite3
+
+    from bet.sofa.db import migrate
+    from scripts.sofa.calibrate_from_cache import load_cache
+
+    ended = {"id": 7, "startTimestamp": 1_780_000_000,
+             "status": {"type": "finished", "code": 100, "description": "Ended"},
+             "homeTeam": {"id": 1, "name": "A"}, "awayTeam": {"id": 2, "name": "B"},
+             "homeScore": {"current": 1, "normaltime": 1},
+             "awayScore": {"current": 0, "normaltime": 0},
+             "tournament": {"uniqueTournament": {"id": 17},
+                            "category": {"sport": {"slug": "football"}}}}
+    retired = {**ended, "status": {"type": "finished", "code": 92,
+                                   "description": "Retired"}}
+    db = tmp_path / "sofa.db"
+    migrate(str(db))
+    with sqlite3.connect(db) as conn:
+        conn.execute("INSERT INTO sofa_entity_events VALUES "
+                     "(1, 'last', 0, '2026-10-01T00:00:00Z', ?)",
+                     (json.dumps({"events": [ended]}),))
+        conn.execute(  # the index's copy, fetched later: the newest wins
+            "INSERT INTO sofa_listed_event VALUES (7, 'football', 1780000000, "
+            "'2026-10-03T00:00:00Z', ?)", (json.dumps(retired),))
+    assert load_cache(db) == []
+
+
+def test_coverage_canceled_is_no_completed_match() -> None:
+    from bet.sofa.settle import is_completed_event
+
+    assert not is_completed_event({"status": {
+        "type": "finished", "code": 100, "description": "Coverage canceled"}})
+    assert is_completed_event({"status": {
+        "type": "finished", "code": 100, "description": "Ended"}})
+
+
+def test_a_tennis_exhibition_settles_no_replay_row() -> None:
+    from scripts.sofa import calibrate_from_cache as cfc
+
+    def played(eid: int, kind: str) -> Any:
+        return cfc.Played(event_id=eid, timestamp=eid, home_id=1, away_id=2,
+                          sport="tennis", competition_id=5,
+                          values={"aces": (5.0, 4.0)}, kind=kind)
+
+    history = [played(i, "REGULAR") for i in range(10)]
+    rows = list(cfc.iter_rows([*history, played(50, "FRIENDLY")], {}))
+    assert rows and not any(r.event_id == 50 for r in rows)

@@ -382,12 +382,6 @@ def load_cache(
             status = (event.get("status") or {}).get("type")
             if status != "finished" or _event_sport(event) not in REPLAYED_SPORTS:
                 return None
-            # A retirement or a walkover is `finished` but no result: SAMPLES
-            # and SETTLE refuse it (is_completed_event); the replay graded it
-            # as a whole match (review round 2, 2026-10-04: 438 retired +
-            # 275 walkover in a 1/20 sample of finished tennis, 4.5%).
-            if not is_completed_event(event):
-                return None
             return slim_event(event)
 
         identity = listed_events_by_id(conn, finished_copy, kinds=None)
@@ -423,6 +417,14 @@ def load_cache(
             if isinstance(e.get("id"), int) and e.get("id") not in kept_ids
         )
     for event in kept:
+        # A retirement or a walkover is `finished` but no result: SAMPLES
+        # and SETTLE refuse it (is_completed_event); the replay graded it as
+        # a whole match (review round 2, 2026-10-04: 438 retired + 275
+        # walkover in a 1/20 sample of finished tennis). Filtered AFTER the
+        # newest copy is chosen, so a later "retired" copy is never undercut
+        # by an older "Ended" one (review round 3).
+        if not is_completed_event(event):
+            continue
         event_id = int(event["id"])
         home = (event.get("homeTeam") or {}).get("id")
         away = (event.get("awayTeam") or {}).get("id")
@@ -603,6 +605,11 @@ def iter_rows(
     history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
 
     for match in played:
+        if match.kind == MatchKind.FRIENDLY and match.sport != "football":
+            # fit_meta.friendly_exclusion_sql drops football friendlies by
+            # competition id only; a tennis exhibition's rows would enter
+            # every fit (review round 3). Never settled, never in a history.
+            continue
         # The goal samples' same-competition rule applies to league fixtures
         # only (SAMPLES, review 2026-10-04: worse on KNOCKOUT targets).
         sample_competition = (
