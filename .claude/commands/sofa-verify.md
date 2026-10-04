@@ -1,5 +1,5 @@
 ---
-description: Verify a built sofa day adversarially — structure, arithmetic re-derived from raw observations, subject-to-side mapping, live Superbet prices, and the anti-selection distributions. Ends with the rows it would not stake.
+description: Verify a built sofa day adversarially — structure, arithmetic re-derived from raw observations, subject-to-side mapping, live Superbet prices, and the anti-selection distributions. Ends with the rows it would not stake - in prose and as a reads JSON array (author verifier) that is appended to reads.json and rebuilt on.
 argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 
@@ -48,7 +48,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
 
 The four sport coupons re-derived from their raw snapshots (prices, devig,
 rule, the selection replayed) and WARIANT WSZYSTKIE against its sources. A
-finding is a defect. "nothing to check" is not a pass.
+finding is a defect. "nothing to check" is not a pass. C1 also fails an
+`08_confidence*` older than `reads.json`; C3 (days from 2026-10-05) fails a
+leg the official PDF prints without an analyst's read in `reads.json`, or
+despite a WATCH / NO_BET read.
 
 ## 1c — the WARIANT
 
@@ -69,11 +72,17 @@ with `surplus > +0.40`:
 
 1. **Rebuild from `03_samples.json`** — n, mean, hits against the line,
    observation dates, opponents. Then walk the chain by hand.
-2. **Check `p_central` against the sample's own hit rate.** Tennis
-   `sets_total` and `games_won_for` use the empirical frequency, so they must
-   be **equal**. Football goes through a negative binomial and will differ —
-   a gap above ~15 pp means the league prior is doing the work, and
-   `n/(n+25)` says how much.
+2. **Check `p_central` against the sample's own hit rate.** Tennis: re-derive
+   it from the row's notes (`TENNIS_RATING`: 0.25 x rating + 0.75 x
+   `market_p`; `P_SHRUNK_TO_PRICE`: w x hits/n + (1-w) x `market_p`,
+   w = n/(n+30)) - see `sofa-verifier` 2a. Football goes through a negative
+   binomial and will differ — a gap above ~15 pp means the league prior is
+   doing the work, and `n/(n+25)` says how much. Since 2026-10-04 every leg
+   carries `sample_hit_rate`, and a football leg more than 0.15 above it
+   (n >= 5) is refused by the official profile in code
+   (`MODEL_ABOVE_OWN_SAMPLE`, flagged in the WARIANT's `context_flags`): an
+   official football leg past that gap is a defect. Re-derive the hit rate
+   from `03_samples.json`; do not trust the field.
 3. **Check `subject` maps to the side it claims**, with an independent matcher
    that folds diacritics. This is the most fragile join in the pipeline.
 4. **Re-ask Superbet** for every leg's live price through `OfferFetcher`, and
@@ -110,7 +119,21 @@ overstated. Count:
 4. **which guards had an opportunity to fire.** If the run went clean, say a
    guard was **not tested** — never that it works;
 5. **the list of rows you would not stake even though the pipeline picked
-   them, with the reason for each.** This is the deliverable.
+   them, with the reason for each.** This is the deliverable. Give it in
+   prose and, at the very end, as one fenced ```json array of `LegRead`
+   (`src/bet/sofa/contracts.py`; all nine keys, `author: "verifier"`,
+   `verdict: "NO_BET"` for a defect - wrong side, stale / wrong price,
+   arithmetic that does not reproduce - and `"WATCH"` for a judgement; `[]`
+   when empty). Schema and example: `.claude/agents/sofa-verifier.md`.
+
+The verifier writes no file. Whoever ran it **appends** that array to
+`runs/sofa/<date>/reads.json` (validated as `list[LegRead]`, then
+`load_reads`), rebuilds COUPON, `run_confidence.py` + `build_coupon_pdf.py`
+for both profiles and `run_multi_coupon.py`, and re-runs `audit_coupon.py`
+and `audit_variants.py` (C1, C3 clean). NO_BET then removes the leg from the
+coupon and the WARIANT; WATCH removes it from the coupon and keeps it,
+marked `WATCH (verifier): <reason>`, in the WARIANT. On a past day whose
+window has closed, do not rebuild: report the array as not applied.
 
 End with a verdict and **no stake recommendation**. A coupon can be technically
 correct and still not worth staking: `K_PRICE` and `MAX_LADDER_SIGMA` are

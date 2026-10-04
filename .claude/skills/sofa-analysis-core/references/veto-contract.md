@@ -1,4 +1,4 @@
-# `vetoes.json` — the schema, the resolution rules, and the ways it goes wrong
+# `vetoes.json` and `reads.json` — the schemas, the resolution rules, and the ways they go wrong
 
 ## Schema (`Veto` in `src/bet/sofa/contracts.py`, `strict`, `extra="forbid"`)
 
@@ -82,8 +82,11 @@ for r in hit:
 PY
 ```
 
-If the set is larger than you intended, do **not** emit it. Write it as a
-manual WATCH in prose and say it was not applied.
+If the set is larger than you intended, do **not** emit it. Key it as a
+narrow read instead (one `WATCH` per rung you mean, see *`reads.json`*
+below), or, if even that cannot be keyed, write it in prose and say it was
+not applied. The same count applies to a read: a `WATCH` or `NO_BET` with
+`subject: null` hits every subject on the fixture too.
 
 ## `reason_class` — pick the one that names the fault
 
@@ -120,8 +123,10 @@ look: `context-sources.md`.
 
 `reason_class` is recorded and read; it does **not** change the arithmetic
 (except `SAMPLE_UNINFORMATIVE`, which SHEET also reads to price the rung at
-the market alone). Every class removes the row outright. There is no downgrade in `sofa` — the
-retired pipeline had tiers and this one does not.
+the market alone). Every class removes the row outright, from every profile.
+A veto has no softer form; the graded per-leg verdict (KEEP / WATCH /
+NO_BET) lives in `reads.json`, below - not in tiers, which the retired
+pipeline had and this one does not.
 
 ## What a veto may never be
 
@@ -162,3 +167,61 @@ PY
 A validation error here is cheap. The same error at COUPON / CONFIDENCE
 time stops the rebuild and leaves the previous artifacts and PDF in place -
 validate before every rebuild.
+
+## `reads.json` — one verdict per leg you read (since 2026-10-04)
+
+`runs/sofa/<date>/reads.json`, a bare array of `LegRead`
+(`src/bet/sofa/contracts.py`, `strict`, `extra="forbid"` - an invented key
+fails the whole file, as with vetoes). Read by COUPON (`run_coupon.py`) and
+CONFIDENCE (`run_confidence.py`, both profiles); written by the runner from
+your second JSON block and from the verifier's.
+
+| field | type | meaning |
+|---|---|---|
+| `sofascore_event_id` | int | the fixture |
+| `market` / `subject` / `line` / `direction` | as in `Veto`, nullable | `null` covers every value - the veto's matching rule, and its widening trap |
+| `verdict` | `"KEEP" \| "WATCH" \| "NO_BET"` | your verdict on the leg |
+| `author` | `"analyst" \| "verifier"` | you are always `"analyst"` |
+| `reason` | non-empty str | the operator reads it; for WATCH it is printed on the WARIANT leg |
+| `context` | enum \| null | the `context` tags above, when the reason is one of them; else `null` |
+
+What each verdict does, in code (`veto.read_refusal`):
+
+| verdict | official coupon (`08_confidence.json`, `KUPON_<d>.pdf`, and `06_coupon`) | WARIANT |
+|---|---|---|
+| `KEEP` | nothing removed; records that the leg was read | nothing removed |
+| `WATCH` | removed, refused reason `WATCHED` | **kept**, the leg carries `"reads": [...]` and the PDF prints `WATCH (analyst): <reason>` - the operator's decision of 2026-10-04, so the ledger can measure whether WATCH removes losers |
+| `NO_BET` | removed, `READ_NO_BET` | removed, `READ_NO_BET` |
+
+- **One read per printed leg you read**: every single and every stakeable
+  builder leg in `08_confidence.json`, and WARIANT legs where you reached
+  them. `audit_variants.py` C3 (days from 2026-10-05) fails the day when a
+  leg the official PDF prints has no read with `author: "analyst"`, or
+  carries WATCH / NO_BET - so a leg you read and kept still needs its
+  `KEEP`. A fixture-wide `KEEP` (`market: null`) covers every rung on it and
+  is fine when that is your read of the whole fixture.
+- **A read is a verdict on a leg; a veto is a verdict on a sample.** A sample
+  that does not describe the fixture, or a context that breaks every rung,
+  is still a veto (`SAMPLE_UNINFORMATIVE`, `CONTEXT`, ...): it removes
+  everywhere and is graded by class in 7e. Do not write the same fault twice
+  as a veto and a `NO_BET`.
+- `WATCH` is for the leg you would not stake but cannot call broken - the
+  2026-10-04 Farense - Chaves UNDER 3.5 (analyst WATCH: Chaves 4/5/4/5 goals;
+  the read had no field and the leg was printed and lost 4-0). `BUY ≈ KILL`
+  is a WATCH.
+- A read that matches nothing prints `UNMATCHED_READ` and is counted as
+  `reads_unmatched` in CONFIDENCE's summary. It did nothing.
+
+Validate before you hand it over:
+
+```bash
+.venv/bin/python - <<'PY'
+import json, sys
+sys.path.insert(0, "src")
+from pydantic import RootModel
+from bet.sofa.contracts import LegRead
+raw = r"""<paste the reads array here>"""
+reads = RootModel[list[LegRead]].model_validate_json(raw).root   # load_reads() reads it the same way
+print(len(reads), "reads;", {v: sum(r.verdict == v for r in reads) for v in ("KEEP", "WATCH", "NO_BET")})
+PY
+```

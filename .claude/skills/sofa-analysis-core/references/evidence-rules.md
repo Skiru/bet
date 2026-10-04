@@ -156,8 +156,10 @@ External verification, when you do it:
 - **Football:** a fixture's status and both clocks are already in
   `02_fixtures.json` (`identity`, `kickoff_utc`, `superbet_kickoff_utc`,
   `kickoff_disagreement_h`). On a live day a fixture that has already started
-  is a veto on all lines. For context the artifacts do not carry — standings,
-  congestion, absences, derby status — use the web on the same terms as tennis
+  is a veto on all lines. Rest, congestion and make-up status are on disk
+  since 2026-10-04 (the `schedule` block in `03_samples.json`). For context
+  the artifacts do not carry — standings, absences, derby status, *why* a
+  make-up was postponed — use the web on the same terms as tennis
   below, and mark `UNVERIFIED` where it cannot be established.
 - **Tennis:** verification is WebFetch against the tournament's
   official order of play plus one independent domain, tagged

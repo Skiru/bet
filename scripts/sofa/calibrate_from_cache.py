@@ -97,6 +97,7 @@ from bet.sofa.players import (
 )
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
+    INDEXED_HISTORY_LIMIT,
     MIN_HOURS_BETWEEN_MATCHES,
     _competition_id,
     finish_history,
@@ -480,8 +481,12 @@ def recent_for(
     SAMPLE_N REGULAR matches of the fixture's competition when there are at
     least SAME_COMPETITION_MIN of them. Oldest first, like the history."""
     if market in SAME_COMPETITION_METRICS and competition_id is not None:
+        # SAMPLES picks from the pages it read and the listed-event index -
+        # at most INDEXED_HISTORY_LIMIT matches back - so the replay looks no
+        # further, and walks back from the newest (a slice, not a copy of a
+        # side's whole history, once per side per match).
         picked = pick_same_competition(
-            list(reversed(history)), competition_id, SAMPLE_N,
+            history[: -INDEXED_HISTORY_LIMIT - 1 : -1], competition_id, SAMPLE_N,
             lambda p: p.competition_id, lambda p: p.regular,
         )
         if picked is not None:

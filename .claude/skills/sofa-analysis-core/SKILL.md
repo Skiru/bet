@@ -1,6 +1,6 @@
 ---
 name: sofa-analysis-core
-description: The contract every sofa sport analyst works under - which artifact to open in which order, which number is evidence and which is the price, what may remove a row and what may never promote one, the vetoes.json schema that COUPON and CONFIDENCE both consume, the decision point that keeps a search result from contaminating a read, and the report format. Preloaded into sofa-analyst-football and sofa-analyst-tennis; the sport skills sit on top of it. Use when reading a sofa stats sheet, grading VALUE rows or Bet Builder legs, or writing vetoes.
+description: The contract every sofa sport analyst works under - which artifact to open in which order, which number is evidence and which is the price, what may remove a row and what may never promote one, the vetoes.json schema that COUPON and CONFIDENCE both consume, the reads.json per-leg verdicts (KEEP / WATCH / NO_BET) that remove a watched leg from the official coupon, the decision point that keeps a search result from contaminating a read, and the report format. Preloaded into sofa-analyst-football and sofa-analyst-tennis; the sport skills sit on top of it. Use when reading a sofa stats sheet, grading VALUE rows or Bet Builder legs, or writing vetoes.
 user-invocable: false
 ---
 
@@ -33,9 +33,10 @@ has audited the wrong file:
 
 Beside them, `08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf` is the
 operator's variant (not the coupon): it prints every single at floor 0.65 and
-reads the same `vetoes.json`. A leg only there is still a position the
-operator may take — read it, at lower priority than the official legs, and
-say which you did not reach.
+reads the same `vetoes.json` and `reads.json` - but keeps a `WATCH` leg,
+marked, where the official coupon drops it. A leg only there is still a
+position the operator may take — read it, at lower priority than the
+official legs, and say which you did not reach.
 
 Cover both. A read that grades the singles and ignores the PDF describes a day
 that was never staked — which has happened, and produced an "analysis" that
@@ -61,6 +62,14 @@ never touched a single real bet.
    `gaps[]` for this metric. Ask whether `subject` resolves to the side it
    thinks it does — after the side-matching work that is the most fragile
    join in the pipeline.
+   Since 2026-10-04 the history excludes friendlies and pre-season
+   tournaments everywhere (`bet.sofa.comparability`), and a football goal
+   sample (`goals_total`, `goals_for`, `goals_1h_for`, `goals_2h_for`) holds
+   only the side's newest REGULAR (non-knockout) matches of the fixture's
+   own competition when it has five or more (`comparability.
+   pick_same_competition`; else the usual newest ten). A cup or friendly
+   observation in the goal sample of a league fixture whose sides have five
+   such matches is therefore a **defect to report**, not a caveat.
 
 3. **Does the market settle what the sample measures?** Scope (half vs full
    match), side (own vs pooled), extra time, and the metric's own definition.
@@ -71,6 +80,13 @@ never touched a single real bet.
    (`previous_leg_event_id`), derby, referee (`RefereeRecord`, present on ~9%
    of fixtures), absences, surface (`ground_type`), format
    (`default_period_count`), fatigue. See `references/evidence-rules.md`.
+   The fixture's `schedule` block in `03_samples.json` (`makeup_of`,
+   `makeup_postponed_utc`, per side `rest_days`, `matches_7d`, `matches_14d`)
+   and the legs' `context_flags` (`MAKEUP_FIXTURE(...)`, `LONG_LAYOFF(...)`
+   at >= 21 days, `CONGESTED(...)` at >= 3 matches in 7 days) are computed
+   for you. A make-up fixture: find out **why** it was postponed (illness in
+   the squad, weather, a cup clash) - the 2026-10-04 Farense - Chaves was a
+   round-5 make-up after a viral outbreak and nothing flagged it.
 
 5. **Distribution and scenario** — mode, tail, where the line sits inside the
    sample's own range, what scoreline or game script produces it.
@@ -80,7 +96,9 @@ never touched a single real bet.
    not a reason to drop a row — only a reason to grade it. No later step
    redeems an earlier hard fail.
 
-7. **Verdict** — `KEEP / WATCH / NO BET` — and the veto entry if any.
+7. **Verdict** — `KEEP / WATCH / NO BET` — the read entry for every printed
+   leg, and the veto entry if any. The verdict is no longer prose only: see
+   *The two JSON blocks* below.
 
 ## Artifacts, in the order you open them
 
@@ -94,6 +112,7 @@ runs/sofa/<date>/06_dropped.json      every VALUE row that was NOT selected, wit
 runs/sofa/<date>/08_confidence.json   the legs and the builders — the product
 runs/sofa/<date>/KUPON_<date>.pdf     what is staked
 runs/sofa/<date>/08_confidence_wariant.json   the operator's variant (every single at 0.65) — NOT the coupon, read after the product
+runs/sofa/<date>/reads.json           reads already recorded (an earlier pass, the verifier) — may be absent
 ```
 
 Filter by `row.sport` / `fixture.sport`. **Count the day's VALUE yourself** —
@@ -123,6 +142,9 @@ was never generated, look for it there.
 | `sample_newest_days` | age of the newest observation | sample span |
 | `confidence` (08) | the **measured lower bound** of the realised rate, fitted on 1.87M rows | the model's claim — that is `model_p` |
 | `leg_ev`, `shading` | `confidence·odds − 1`, `confidence − 1/odds` | Superbet's builder price |
+| `sample_hit_rate` (08) | how often the line held in the leg's own sample | `model_p`; a football leg with `model_p` more than 0.15 above it (n >= 5) is refused by the official profile in code (`MODEL_ABOVE_OWN_SAMPLE`) and kept, flagged, in the WARIANT |
+| `context_flags` (08) | `MAKEUP_FIXTURE` / `LONG_LAYOFF` / `CONGESTED` from the schedule, plus `MODEL_ABOVE_OWN_SAMPLE(+gap)` on a WARIANT leg | a gate - shown, never enforced (except the last, on the official profile); a question you answer |
+| `reads` (08) | the reads covering the leg (a WATCH leg the WARIANT kept) | your read, unless you wrote it |
 
 **The one arithmetic rule:** `p_central`, `p_bar`, `required_odds` and
 `confidence` come from tested code. Read them; never recompute them in prose.
@@ -146,11 +168,16 @@ row is internally honest — that is a different act, and say which you are doin
   applies the measured 12% correlation haircut, and that number is the only
   combined price you may print.
 
-## The veto block — the only thing that reaches the product
+## The two JSON blocks — what reaches the product
 
-After the markdown report, return **one** fenced ```json block: a bare array,
-`[]` when nothing earns an entry. It is written to
-`runs/sofa/<date>/vetoes.json` and read by **COUPON and CONFIDENCE both**.
+After the markdown report, return **two** fenced ```json blocks, in this
+order: the vetoes, then the reads. Each is a bare array. The runner writes
+the first to `runs/sofa/<date>/vetoes.json` and merges the second into
+`runs/sofa/<date>/reads.json`; **COUPON and CONFIDENCE read both**.
+
+### Block 1 — vetoes (a broken sample or context; removes everywhere)
+
+`[]` when nothing earns an entry.
 
 ```json
 [{"sofascore_event_id": 15275920, "market": "corners_total", "subject": null,
@@ -174,7 +201,34 @@ After the markdown report, return **one** fenced ```json block: a bare array,
   so check your keys against the sheet before you hand it over.
 - Only rows you would strike or caveat. **Every caveat is not a veto.**
 
-Worked examples and the widening trap: `references/veto-contract.md`.
+### Block 2 — reads (one verdict per printed leg you read)
+
+```json
+[{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
+  "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "analyst",
+  "reason": "Chaves' last four 4/5/4/5 goals; make-up of round 5 (postponed 6 Sep, viral outbreak)",
+  "context": null}]
+```
+
+**One `LegRead` per printed leg you read** — every single and every
+stakeable builder leg of your sport in `08_confidence.json`, then WARIANT
+legs where you reach them. `author` is always `"analyst"`; all nine keys
+present; matching is the veto's (`null` covers every value - count what a
+WATCH / NO_BET will hit).
+
+| verdict | official coupon | WARIANT |
+|---|---|---|
+| `KEEP` | stays; records the leg was read | stays |
+| `WATCH` | **removed** (`WATCHED`) | **kept**, printed `WATCH (analyst): <reason>` - so the ledger can measure whether WATCH removes losers |
+| `NO_BET` | removed (`READ_NO_BET`) | removed |
+
+A leg the official PDF prints without your `KEEP` fails `audit_variants.py`
+C3, so a leg you leave alone still gets one line. `WATCH` is not a soft
+veto and not a hedge: write it for a leg you would not stake. A sample that
+does not describe the fixture is still a veto, not a `NO_BET`.
+
+Worked examples, the widening trap and the reads schema:
+`references/veto-contract.md`.
 
 ## The decision point — the web index runs ahead of you
 
@@ -215,7 +269,7 @@ Return markdown; the caller saves it. Structure:
 5. **Pozostałe** — one line each: the strongest lean, n, price vs bar, why no bet.
 6. **Czego zabrakło** — the one thing that most weakened the day, and the
    concrete fix. Then a **NIE PODANO** list: every check you could not make.
-7. The ```json veto block.
+7. The ```json veto block, then the ```json reads block.
 
 Never lead with a 0.5 UNDER tautology. Never use `pewniak`, `banker`,
 `musi wejść`.

@@ -29,7 +29,7 @@ in football. Order the queue by what is staked, not by surplus.
 | T12 | Ladder and tail | `04_offer.json` + the sheet | every rung with `p_central`, `p_bar`, `offered`, `required`, `surplus`. A third set adds 12–15 games — the tail is huge and one-sided. |
 | T13 | Price, last | | and often nothing checks it: a one-sided rung has `market_p` null and `p_bar` is just `p`. Say so. |
 | T14 | Buy / kill | | strongest fact for, strongest against, which wins |
-| T15 | Verdict | | `KEEP / WATCH / NO BET` + veto entry |
+| T15 | Verdict | | `KEEP / WATCH / NO BET` + the read entry per printed leg + veto entry |
 
 ## The match section, in Polish
 

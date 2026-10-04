@@ -52,3 +52,15 @@ def test_vetoes_merged_after_confidence_refuse_the_pdf(tmp_path: Path) -> None:
     os.utime(tmp_path / "vetoes.json", (3_000, 3_000))
     msg = pdf.confidence_older_than_sheet(tmp_path, "08_confidence_wariant.json")
     assert msg and "vetoes.json" in msg
+
+
+def test_confidence_older_than_the_reads_refuses(tmp_path: Path) -> None:
+    """2026-10-04: a WATCH merged into reads.json after CONFIDENCE must not
+    print on the official PDF."""
+    pdf = _module()
+    (tmp_path / "08_confidence.json").write_text("{}")
+    (tmp_path / "reads.json").write_text("[]")
+    os.utime(tmp_path / "08_confidence.json", (1_000, 1_000))
+    os.utime(tmp_path / "reads.json", (2_000, 2_000))
+    msg = pdf.confidence_older_than_sheet(tmp_path, "08_confidence.json")
+    assert msg and "reads.json" in msg

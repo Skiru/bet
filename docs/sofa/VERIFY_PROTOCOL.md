@@ -11,6 +11,9 @@ Powtarzaj, aż pełna runda nie wyprodukuje nowego znaleziska.
 
 **Produktem jest lista wierszy, których NIE postawiłbyś, mimo że pipeline je
 wybrał.** To ważniejsze niż lista poleconych i to jest sens tego protokołu.
+Od 2026-10-04 ta lista trafia do produktu: oddajesz ją także jako tablicę
+odczytów JSON, którą zlecający dopisuje do `reads.json` i na niej
+przebudowuje dzień (sekcja 5).
 Kończy się werdyktem i **żadną rekomendacją stawki**.
 
 ---
@@ -83,10 +86,17 @@ format meczu towarzyskiego).
 
 **WARIANT** (`08_confidence_wariant.json` → `KUPON_<data>_WARIANT.pdf`; próg
 0,65, pewność × kurs ≥ 0,90, marża do 15%, drukuje każdy singiel):
-`audit_variants` C1/C2 sprawdza jego świeżość, profil i regułę każdej
-wydrukowanej pozycji, ale **nóg z próbek nie odtwarza żaden skrypt** —
+`audit_variants` C1/C2 sprawdza jego świeżość (także wobec `reads.json`),
+profil i regułę każdej wydrukowanej pozycji, ale **nóg z próbek nie odtwarza
+żaden skrypt** —
 `audit_coupon` go nie otwiera. Zastosuj 2a–2d do każdej pozycji, którą drukuje, a której nie
-ma oficjalny PDF. Raportuj go osobno, nigdy łącznie z kuponem.
+ma oficjalny PDF. Raportuj go osobno, nigdy łącznie z kuponem. Noga
+WARIANTU z `reads` (WATCH) albo `MODEL_ABOVE_OWN_SAMPLE(...)` w
+`context_flags` została w nim celowo — oficjalny kupon ją zdjął.
+
+`audit_variants` C3 (dni od 2026-10-05): każda noga, którą drukuje oficjalny
+PDF — singiel albo noga buildera — ma w `reads.json` odczyt z
+`author: "analyst"` i żadna nie ma odczytu WATCH ani NO_BET.
 
 ---
 
@@ -117,12 +127,18 @@ ograniczenie, **nie znalezisko**.
 
 Zamiast tego sprawdź `p_central` wobec **własnej częstości trafień próbki**:
 
-- tenisowe `sets_total` i `games_won_for` używają częstości empirycznej, więc
-  `p_central` **musi być równe** trafieniom. Rozjazd tam jest prawdziwym
-  znaleziskiem;
+- tenis: odtwórz `p_central` z notatek wiersza (`TENNIS_RATING`: 0,25 ×
+  rating + 0,75 × `market_p`; `P_SHRUNK_TO_PRICE`: w × trafienia/n +
+  (1−w) × `market_p`, w = n/(n+30)). Niezgodność z tym jest znaleziskiem,
+  rozjazd do surowej trafialności nie;
 - piłkarskie liczniki idą przez ujemny dwumianowy i różnić się **muszą** — ale
   rozjazd powyżej ~15 pp znaczy, że pracuje prior ligowy, a nie drużyna.
-  Policz `n/(n+25)` i powiedz, jaką część środka naprawdę trzyma próbka.
+  Policz `n/(n+25)` i powiedz, jaką część środka naprawdę trzyma próbka. Od
+  2026-10-04 robi to kod: każda noga ma `sample_hit_rate`, a noga piłkarska
+  z `model_p` wyżej o ponad 0,15 (n ≥ 5) wypada z kuponu oficjalnego
+  (`MODEL_ABOVE_OWN_SAMPLE`) i zostaje oznaczona w WARIANCIE. Oficjalna noga
+  piłkarska ponad tą luką to defekt; trafialność odtwórz z `03_samples.json`,
+  nie ufaj polu.
 
 ### 2b. Czy `subject` wskazuje tę stronę, o której myśli
 
@@ -214,7 +230,17 @@ produkuj źródła.
    rząd, a przebieg bez ani jednego 403 w jedenastu tysiącach żądań nie
    przetestował ścieżki 403.
 5. **Lista wierszy, których nie postawiłbyś, mimo że pipeline je wybrał, wraz
-   z powodem dla każdego.** To jest produkt.
+   z powodem dla każdego.** To jest produkt. Prozą **i** na samym końcu jako
+   jedna ogrodzona tablica JSON obiektów `LegRead`
+   (`src/bet/sofa/contracts.py`, strict, `extra="forbid"`; wszystkie
+   dziewięć kluczy, `author: "verifier"`): `verdict: "NO_BET"` za defekt
+   (zła strona, nieaktualna albo błędna cena, arytmetyka, która się nie
+   odtwarza), `"WATCH"` za osąd; `[]`, gdy lista jest pusta. Weryfikator nie
+   pisze pliku — zlecający dopisuje tablicę do `reads.json`, przebudowuje
+   COUPON, CONFIDENCE i PDF obu profili oraz WARIANT WSZYSTKIE i powtarza
+   `audit_coupon` + `audit_variants`. NO_BET zdejmuje nogę z kuponu i z
+   WARIANTU; WATCH zdejmuje ją z kuponu, a w WARIANCIE zostawia z nadrukiem
+   `WATCH (verifier): <powód>`.
 
 Na koniec werdykt i **żadna rekomendacja stawki**. Kupon bywa technicznie
 poprawny i mimo to niewart stawiania: `K_PRICE` i `MAX_LADDER_SIGMA` są

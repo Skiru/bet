@@ -483,6 +483,22 @@ class and tag, against the rest of the board at the same price bands.
 
 Read by **COUPON and CONFIDENCE both**. Write it after SHEET and before either.
 
+## `reads.json` — `LegRead[]` (since 2026-10-04)
+
+`sofascore_event_id` (int), `market`, `subject`, `line`, `direction` (all
+nullable, matched like a veto), `verdict` (`KEEP | WATCH | NO_BET`),
+`author` (`analyst | verifier`), `reason` (non-empty), `context` (optional,
+the veto's tags). Strict, `extra="forbid"`: one bad entry fails the file and
+COUPON / CONFIDENCE with it. `NO_BET` refuses the row in every profile
+(`READ_NO_BET`), `WATCH` only where the profile honours it - COUPON and the
+official CONFIDENCE (`WATCHED`); the WARIANT keeps the leg and writes the
+covering reads on it as `reads: [{verdict, author, reason}]`. CONFIDENCE's
+summary carries `reads_applied`, `reads_unmatched`, `read_rungs`; each
+unmatched read is `UNMATCHED_READ` on stderr. Appended to, never edited:
+the analysts' reads after a provisional CONFIDENCE, the verifier's after
+verification. `audit_variants` C1 counts it in freshness, C3 (days from
+2026-10-05) requires an analyst's read on every printed official leg.
+
 ## The log
 
 `runs/sofa/run.log.jsonl` — one JSON row per request, carrying `run_id` and the

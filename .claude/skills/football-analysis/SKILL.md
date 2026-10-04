@@ -67,10 +67,20 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
    artifact's time is a veto on all lines.
 2. **Stakes.** `round_name`, `cup_round_type`, `previous_leg_event_id` are in
    the fixture. The *aggregate* is not — read the first leg. League position,
-   dead rubber, promotion play-off, congestion (third match in seven days, a
-   midweek continental tie) and derby status are **not** in the artifacts: take
-   them from the web, tag each one, and mark `UNVERIFIED` where you cannot.
-   Derby: name it and say how you know.
+   dead rubber, promotion play-off and derby status are **not** in the
+   artifacts: take them from the web, tag each one, and mark `UNVERIFIED`
+   where you cannot. Derby: name it and say how you know.
+   **Schedule is, since 2026-10-04:** the fixture's `schedule` block in
+   `03_samples.json` (`makeup_of`, `makeup_postponed_utc`, per side
+   `rest_days`, `matches_7d`, `matches_14d`) and the legs' `context_flags`
+   (`MAKEUP_FIXTURE(...)`, `LONG_LAYOFF(...)` at >= 21 days, `CONGESTED(...)`
+   at >= 3 matches in 7 days). Quote them; the web is still needed for *why*.
+   A make-up fixture (a postponed meeting of the same two sides in the same
+   competition) means find out why it was postponed - illness in a squad,
+   weather, a pitch - and whether that cause still holds; 2026-10-04
+   Farense - Chaves (UNDER 3.5 lost 4-0) was a round-5 make-up after a viral
+   outbreak and nobody asked. Congestion is an availability and rotation
+   argument (method §5), not a fatigue one.
 3. **Sample integrity.** Open `03_samples.json` for this fixture and metric.
    Count `side_a` / `side_b` / `h2h` separately. Read every observation's
    `match_date_utc`, `opponent`, `venue`, `competition_id`. Then ask:
@@ -82,6 +92,14 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
      are not measuring the same match.
    - does `subject` resolve to the side you think? This is the most fragile
      join in the pipeline.
+   - goal markets (`goals_total`, `goals_for`, `goals_1h_for`,
+     `goals_2h_for`) sample only REGULAR matches of the fixture's own
+     competition when the side has five or more, and friendlies / pre-season
+     tournaments are out of every sample (since 2026-10-04). A cup or
+     friendly observation in such a goal sample is a defect to report.
+   - `sample_hit_rate` on the leg against `model_p`: above 0.15 the code
+     already refused it from the official coupon (`MODEL_ABOVE_OWN_SAMPLE`);
+     a smaller gap is still yours to weigh.
 4. **Shrinkage share.** `w_c = n/(n+25)`. State it. At n=10 the league prior
    owns **71%** of the centre. For any `*_1h_*` / `*_2h_*` row state it twice
    — half-match baselines are fitted on a smaller, different population, and a
@@ -121,7 +139,9 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
     suspicion threshold (+0.40); the price's own `fetched_at_utc`.
 13. **Buy case / kill case.** The strongest fact for, the strongest fact
     against, which wins. `BUY ≈ KILL` → WATCH at most.
-14. **Verdict** `KEEP / WATCH / NO BET`, and the veto entry if any.
+14. **Verdict** `KEEP / WATCH / NO BET` — a read entry for every printed leg
+    (WATCH drops it from the official coupon and keeps it, marked, in the
+    WARIANT; NO_BET drops it from both) — and the veto entry if any.
 
 ## Kill cases this repo has already paid for
 

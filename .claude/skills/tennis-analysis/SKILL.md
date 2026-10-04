@@ -106,7 +106,11 @@ For every tennis fixture with a `VALUE` row, every fixture appearing in
    does the **modal** scoreline land on?
 6. **Schedule and fatigue.** Previous match: sets, games, duration, date;
    back-to-back days; a qualifier carrying three extra matches; a retirement
-   in the last month. Web, tagged. A veto on it is `CONTEXT` with
+   in the last month. Since 2026-10-04 the start of each player's last
+   finished match, the rest in days and the matches in 7 / 14 days are on
+   disk (the fixture's `schedule` block in `03_samples.json`; `LONG_LAYOFF` /
+   `CONGESTED` in the legs' `context_flags`) - quote them; the length and
+   duration of that match are still web, tagged. A veto on it is `CONTEXT` with
    `context: SCHEDULE`; ranking points to defend are `MOTIVATION`. Where to
    look: `sofa-analysis-core` `references/context-sources.md`.
 7. **H2H with decay.** A supporting prior, never the primary signal.
@@ -121,7 +125,8 @@ For every tennis fixture with a `VALUE` row, every fixture appearing in
 10. **Price — last, and there is often nothing to check it against.** When the
     rung is one-sided, `market_p` is null, the bar is unanchored
     (`NO_MARKET_MARGINAL`), and `p_bar` is just `p`. Say so.
-11. **Buy case / kill case → verdict** `KEEP / WATCH / NO BET` + the veto entry.
+11. **Buy case / kill case → verdict** `KEEP / WATCH / NO BET` + the read
+    entry for every printed leg + the veto entry.
 
 ## Kill cases this repo has already paid for
 

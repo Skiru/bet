@@ -117,7 +117,10 @@ Three buckets per metric: `side_a`, `side_b`, `h2h`. **`h2h` never reaches a
 - **rankings**, either player's or any sample opponent's
 - the round, and whether it is qualifying (**qualifying is best-of-three even
   at a slam**)
-- the previous match's length, date or duration; hours of rest
+- the previous match's length or duration (its start and the rest in days
+  **are** on disk since 2026-10-04: `schedule.side_a/side_b` in
+  `03_samples.json` - `last_match_utc`, `rest_days`, `matches_7d`,
+  `matches_14d`)
 - retirement risk, walkovers, withdrawals
 - indoor vs outdoor, altitude, ball type, wind
 - **any match-odds price** — there is no favourite strength anywhere in the

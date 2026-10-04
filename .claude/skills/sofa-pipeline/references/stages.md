@@ -269,6 +269,7 @@ Gates, in order, each with its own `06_dropped.json` reason:
 | `KICKOFF_TOO_SOON` | `min(kickoff_utc, superbet_kickoff_utc)` is not more than 15 min out. **The earlier of the two clocks**, deliberately — see RESOLVE. |
 | `ODDS_TOO_LOW` | below `MIN_ODDS_FLOOR = 1.25` |
 | `VETOED` | matched an entry in `vetoes.json` |
+| `READ_NO_BET` / `WATCHED` | a `reads.json` entry with verdict `NO_BET` / `WATCH` covers the row (since 2026-10-04; COUPON honours WATCH like the official profile) |
 | `STALE_PRICE` | no `fetched_at`, or older than `price_max_age_min` (45) |
 | `DISAGREES_WITH_PRICE` | `p_central − market_p > MAX_DISAGREEMENT = 0.10`. **Measured, not cautious**: past +0.10 the realised rate falls BELOW a coin flip while the claim keeps climbing (+0.30 and up: claims 0.800, realises 0.451 over 328 rows). Until 2026-09-21 this gate existed only on the staked path, so the singles file was the *more permissive* of the two products. It is now routinely the largest single reason a day's coupon is empty — 84 of 118 VALUE rows on 2026-09-21. |
 | `ABOVE_MEASURED_CEILING` | `p_central` is at or above the top of this market's **own measured** calibration range. Only markets that *have* a curve are gated — one with no curve is unmeasured rather than contradicted. `games_won_for` has 9,286 settled rows and no bucket above 0.825, yet seven coupon rows one day claimed 0.900: not an optimistic estimate, a claim about a region the data refuses to describe. |
@@ -287,7 +288,7 @@ up banned from the builder and dominant in the singles.
 
 A different question from COUPON: not "is this worth its price" but "how often
 does this actually happen". Offline; reads the sheet, offer, fixtures, samples
-and `vetoes.json`.
+and `vetoes.json` and `reads.json`.
 
 ```
 --date D  [--profile standard|wariant]  [--floor F]  [--runs-dir runs/sofa]
@@ -314,7 +315,16 @@ cannot have positive EV under this curve, whatever the fixture), `NO_FIXTURE`,
 `SAMPLE_CROSSES_SEASON` (oldest observation over 180 days), `STALE_SAMPLE`
 (newest over `MAX_SAMPLE_AGE_DAYS = 60` — **the same constant COUPON uses**,
 shared since 2026-09-21 so the staked path can never again be the more
-permissive one), `BUILDER_LEGS_INCOHERENT`.
+permissive one), `BUILDER_LEGS_INCOHERENT`, `READ_NO_BET` (both profiles)
+and, on the official profile only, `WATCHED` (a WATCH read; the WARIANT
+keeps the leg with `reads`) and `MODEL_ABOVE_OWN_SAMPLE` (football, n >= 5:
+`model_p` more than `MAX_OWN_SAMPLE_GAP = 0.15` above the leg's
+`sample_hit_rate`; the WARIANT keeps the leg with
+`MODEL_ABOVE_OWN_SAMPLE(+gap)` in `context_flags`). Since 2026-10-04 every
+leg carries `sample_hit_rate`, and `context_flags` when the fixture's
+schedule (`bet.sofa.schedule`) tags it `MAKEUP_FIXTURE(...)`,
+`LONG_LAYOFF(...)` (>= 21 days) or `CONGESTED(...)` (>= 3 matches in 7 days)
+- shown, never gated.
 
 `NOT_CALIBRATED` is the big one and it is the honest refusal: neither the
 market's own curve nor the pooled one covers that bucket, so the leg is

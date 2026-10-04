@@ -1,5 +1,5 @@
 ---
-description: Rebuild one sofa day's coupon and PDF from the artifacts already on disk — no bridge, no Sofascore, no SAMPLES. For when code changed, an analyst produced vetoes, or the offer went stale.
+description: Rebuild one sofa day's coupon and PDF from the artifacts already on disk — no bridge, no Sofascore, no SAMPLES. For when code changed, an analyst or the verifier produced vetoes or reads, or the offer went stale.
 argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 
@@ -34,7 +34,11 @@ Two inputs are not optional:
   a `subject` to a side.
 
 `04_offer.json` is required by COUPON and CONFIDENCE both. `vetoes.json` is
-optional and **`[]` is the healthy default**.
+optional and **`[]` is the healthy default**. `reads.json` (per-leg KEEP /
+WATCH / NO_BET from the analysts and the verifier) is optional to the code,
+but from 2026-10-05 `audit_variants` C3 fails every printed official leg
+without an analyst's read - a rebuild that prints a leg nobody read needs
+that sport's analyst on exactly those legs (`/sofa-analyze` step 2 merge).
 
 State the resolved date, what is present, and the age of each file. A sheet
 built this morning against an offer refreshed at noon is a different object
@@ -111,6 +115,18 @@ PY
 Report every unmatched veto. It did nothing, and a silent no-op reads exactly
 like a veto that was honoured.
 
+If `reads.json` exists, validate it the same way before the rebuild
+(strict, `extra="forbid"` - one bad entry fails COUPON and CONFIDENCE):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; print(len(load_reads('runs/sofa/<date>/reads.json')))"
+```
+
+`NO_BET` removes the leg from every profile; `WATCH` removes it from the
+official coupon and keeps it, marked, in the WARIANT; `KEEP` removes
+nothing. CONFIDENCE prints `UNMATCHED_READ` on stderr for a read that
+matched no row - report each.
+
 ## Step 3 — rebuild
 
 ```bash
@@ -137,9 +153,12 @@ on the page.
 Only while the day's window is open: after 06:00 Warsaw on D+1 the variant
 is final and `run_multi_coupon.py` refuses (exit 2) - skip it and say so.
 
-Both COUPON and CONFIDENCE read `vetoes.json`, so both must be re-run after a
-veto changes — rebuilding only the singles leaves the vetoed rung standing as a
-leg of the Bet Builder the PDF stakes.
+Both COUPON and CONFIDENCE read `vetoes.json` and `reads.json`, so both must
+be re-run after either changes — rebuilding only the singles leaves the
+vetoed rung standing as a leg of the Bet Builder the PDF stakes.
+`build_coupon_pdf.py`'s `STALE_CONFIDENCE` guard does not look at
+`reads.json` (only `audit_variants` C1 does): after a reads change never
+render the PDF without re-running `run_confidence.py` first.
 
 Do **not** re-run SHEET unless OFFER was refreshed (Step 1), or the engine or
 a config file changed. If the engine or a config changed,
@@ -166,6 +185,7 @@ WARIANT:  runs/sofa/<date>/KUPON_<date>_WARIANT.pdf — <n> pozycji (NIE kupon; 
 WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 · audyt wariantów <n> znalezisk
 SINGLE:   <n> wierszy VALUE → <n> w kuponie, <n> odrzuconych (powody)
 WETA:     <n> zastosowanych, <n> bez dopasowania
+READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · zdjęte z kuponu WATCHED <n> / READ_NO_BET <n> / MODEL_ABOVE_OWN_SAMPLE <n> · UNMATCHED_READ <n> · C3 <n>
 CENA:     oferta z <ts>, wiek <n> min <"świeża" | "przeterminowana — to tłumaczy pustki">
 ZMIANA:   <what moved and why — code, vetoes, or the price>
 ```

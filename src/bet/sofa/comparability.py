@@ -217,8 +217,12 @@ def pick_same_competition[T](
     minimum: int = SAME_COMPETITION_MIN,
 ) -> list[T] | None:
     """The newest ``n`` REGULAR matches of ``competition``, or None when there
-    are fewer than ``minimum`` (the caller keeps its usual sample)."""
-    chosen = [
-        m for m in newest_first if competition_of(m) == competition and regular(m)
-    ][:n]
+    are fewer than ``minimum`` (the caller keeps its usual sample). Stops at
+    the n-th: the cache replay calls it once per side per match."""
+    chosen: list[T] = []
+    for m in newest_first:
+        if competition_of(m) == competition and regular(m):
+            chosen.append(m)
+            if len(chosen) == n:
+                break
     return chosen if len(chosen) >= minimum else None

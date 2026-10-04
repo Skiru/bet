@@ -95,6 +95,10 @@ You cannot read these anywhere in `runs/sofa/<date>/`. Every one of them is a
 - league table, points, position, dead rubber, relegation or promotion stakes
 - the aggregate score of a first leg
 - squad availability, suspensions, injuries, a rested XI
+- *why* a make-up fixture was postponed (the fact that it is one, and each
+  side's rest and matches in 7 / 14 days, **are** on disk since 2026-10-04:
+  the `schedule` block per fixture in `03_samples.json`, and
+  `context_flags` on the legs)
 - manager identity or a manager change inside the sample window
 - weather, pitch condition
 - a 1X2 price or any bookmaker consensus
@@ -111,6 +115,12 @@ put median sample freshness at 154 days instead of 5.
 Per metric you get three buckets: `side_a`, `side_b`, `h2h`. Each observation
 carries `sofascore_event_id`, `match_date_utc`, `opponent`, `value`,
 `competition_id`, `season_id`, `venue`.
+
+Friendlies and pre-season tournaments are excluded from every sample
+(`bet.sofa.comparability`, since 2026-10-04). The goal metrics
+(`goals_total`, `goals_for`, `goals_1h_for`, `goals_2h_for`) take the side's
+newest REGULAR (non-knockout) matches of the fixture's own competition when
+it has at least five, else the usual newest ten.
 
 **`h2h` never reaches a per-team market.** `*_for` gets zero h2h observations
 by design — a head-to-head is a fact about a pairing, and a `_for` row is a

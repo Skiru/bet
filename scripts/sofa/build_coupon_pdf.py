@@ -195,8 +195,9 @@ def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
     # vetoes.json too (review 2026-09-29): /sofa-analyze merged new vetoes and
     # rebuilt only the standard profile, so the variant PDF printed legs the
     # analysts had just vetoed. No real day 09-22..09-30 has a vetoes.json
-    # newer than its confidence artifacts.
-    for newer in ("05_sheet.json", "vetoes.json"):
+    # newer than its confidence artifacts. reads.json likewise (2026-10-04):
+    # a WATCH merged after CONFIDENCE must not print on the official PDF.
+    for newer in ("05_sheet.json", "vetoes.json", "reads.json"):
         path = run / newer
         if path.exists() and conf.stat().st_mtime < path.stat().st_mtime:
             return (

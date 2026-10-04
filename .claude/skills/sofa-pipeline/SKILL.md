@@ -35,8 +35,8 @@ The source of truth is `DEFAULT_SEQUENCE` in `scripts/sofa/run_pipeline.py`.
 | E6 | **SAMPLES** | each side's last N matches per metric | bridge, ~12 req/fixture — **most of the run** | `03_samples.json` |
 | E5 | **OFFER** (2nd) | refresh, so the bar meets a fresh price | Superbet | `04_offer.json` |
 | E8 | **SHEET** | every rung priced: `p_central`, `p_bar`, verdict | offline | `05_sheet.json` |
-| E9 | **COUPON** | VALUE singles + every exclusion, honouring `vetoes.json` | offline | `06_coupon.*`, `06_dropped.json` |
-| — | **CONFIDENCE** | Bet Builders ranked by measured reliability, honouring `vetoes.json` | offline | `08_confidence.*` |
+| E9 | **COUPON** | VALUE singles + every exclusion, honouring `vetoes.json` and `reads.json` | offline | `06_coupon.*`, `06_dropped.json` |
+| — | **CONFIDENCE** | Bet Builders ranked by measured reliability, honouring `vetoes.json` and `reads.json` | offline | `08_confidence.*` |
 | — | **PDF** | **the coupon the operator stakes** | offline | `KUPON_<date>.pdf` |
 | E10 | **SETTLE** | grade a finished day — D-1, never today | bridge | `07_settled.json` → `data/sofa.db` |
 | E11 | **FIT** | re-fit constants from the settled table | offline | `config/sofa_*.json` |
@@ -142,7 +142,8 @@ runs/sofa/<date>/
   KUPON_<date>.pdf                       ★ the product
   08_confidence_wariant.json/.md         the operator's variant (--profile wariant): floor 0.65, x >= 0.90, margin <= 15%
   KUPON_<date>_WARIANT.pdf               the variant's PDF — NOT the coupon; settled beside it (7d)
-  vetoes.json          Veto[]            the analyst's only channel. `[]` on most days.
+  vetoes.json          Veto[]            a broken sample / context: removes everywhere. `[]` on most days.
+  reads.json           LegRead[]         one KEEP / WATCH / NO_BET per printed leg (analyst, verifier), since 2026-10-04
 
 runs/sofa/cs2/<date>/, runs/sofa/shadow/<sport>/<date>/     beside the day, never in it
   snapshots.jsonl, settled.json          the measurement (CS2 / SHADOW, CS2_SETTLE / SHADOW_SETTLE)
@@ -161,7 +162,7 @@ runs/sofa/ledger/results.jsonl           one row per (date, variant), record_res
 
 Every field with its type and meaning: `references/artifacts.md`.
 
-## `vetoes.json` — the analyst's only channel
+## `vetoes.json` and `reads.json` — the only channels into the product
 
 A veto **removes** a row. Nothing in this pipeline can promote one. It is read
 by **COUPON and CONFIDENCE both** (the second since 2026-09-21 — before that a
@@ -182,6 +183,21 @@ CONTEXT | PRICE | OTHER`; a `CONTEXT` veto also carries `context` (which
 kind), graded separately in `audit_settlement` section 7e. A veto that matches no row is printed as
 `UNMATCHED_VETO` by both stages and counted in their summaries; it is never
 swallowed.
+
+`reads.json` (since 2026-10-04, `LegRead` in `src/bet/sofa/contracts.py`,
+strict, `extra="forbid"`) holds one verdict per leg, matched like a veto:
+`{sofascore_event_id, market, subject, line, direction, verdict, author,
+reason, context}`, `verdict` ∈ `KEEP | WATCH | NO_BET`, `author` ∈
+`analyst | verifier`. `NO_BET` removes the row from every profile
+(`READ_NO_BET`); `WATCH` removes it from the official coupon (`WATCHED`) and
+keeps it in the WARIANT, where the leg carries `reads` and the PDF prints
+`WATCH (<author>): <reason>`; `KEEP` removes nothing. A read matching no row
+is `UNMATCHED_READ`. `audit_variants` C3 (days from 2026-10-05) requires an
+analyst's read on every leg the official PDF prints. The analysts write
+theirs after a provisional CONFIDENCE, the verifier's are appended after
+verification, and the day is rebuilt after each. `build_coupon_pdf.py`'s
+`STALE_CONFIDENCE` guard does not look at `reads.json` - re-run CONFIDENCE
+after every reads change.
 
 ## Running it
 

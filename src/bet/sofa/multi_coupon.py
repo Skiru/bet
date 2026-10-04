@@ -23,7 +23,7 @@ A section is printed only when its source is a coupon of this day that is
 not stale:
 
 - official: 08_confidence.json of profile "standard", no newer 05_sheet.json
-  or vetoes.json (the official PDF builder's own refusal,
+  or vetoes.json or reads.json (the official PDF builder's own refusal,
   build_coupon_pdf.confidence_older_than_sheet), and KUPON_<d>.pdf present
   and not older than it - the PDF is the coupon;
 - sport: sport_coupon.json of this date whose PDF is the one it was printed
@@ -111,7 +111,7 @@ def official_source(
     doc: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     if doc.get("profile", "standard") != "standard":
         return None, f"WRONG_PROFILE: {name} was built with {doc.get('profile')!r}"
-    for newer in ("05_sheet.json", "vetoes.json"):
+    for newer in ("05_sheet.json", "vetoes.json", "reads.json"):
         other = run / newer
         if other.exists() and _newer(other, path):
             return None, f"STALE_CONFIDENCE: {name} is older than {newer}"

@@ -1,5 +1,5 @@
 ---
-description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet) - settle and record D-1 for every variant and sport, build the PDF coupon with the analysts' vetoes, the WARIANT, the four measured-sport coupons (CS2, hockey, basketball, volleyball) in parallel and WARIANT WSZYSTKIE, then verify all of it. This is the CURRENT pipeline; the simple one is archived in .claude/legacy.
+description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet) - settle and record D-1 for every variant and sport, build the PDF coupon with the analysts' vetoes and per-leg reads, the WARIANT, the four measured-sport coupons (CS2, hockey, basketball, volleyball) in parallel and WARIANT WSZYSTKIE, then verify all of it. This is the CURRENT pipeline; the simple one is archived in .claude/legacy.
 argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 
@@ -35,9 +35,9 @@ measured history this command cannot restate:
 |---|---|
 | `sofa-runner` | the whole run, if you want one owner for it |
 | `sofa-settler` | step 1 — D-1 settlement, every variant recorded, the calibration loop (step 1b stays with you) |
-| `sofa-analyst-football` / `sofa-analyst-tennis` | step 3 — the per-sport read and the vetoes |
+| `sofa-analyst-football` / `sofa-analyst-tennis` | step 3 — the per-sport read, the vetoes and one read (KEEP / WATCH / NO_BET) per printed leg |
 | `sofa-sport-runner` ×4 | step 4b — one per measured sport, launched in ONE message so they run in parallel |
-| `sofa-verifier` | step 5 — adversarial verification. **Not optional.** |
+| `sofa-verifier` | step 5 — adversarial verification; its rows-not-to-stake come back as reads and the day is rebuilt on them. **Not optional.** |
 | `sofa-market-scout` | when a row's availability or price is in question |
 
 ## Read this first — there is no DISCOVER stage
@@ -262,22 +262,53 @@ tail -f -n 0 <log> | grep -E "^--- |: OK|: PARTIAL|: FAILED|STAGE_EXCEPTION|Trac
 `PARTIAL` on RESOLVE / OFFER / SAMPLES is the **normal shape of a healthy run**,
 not a failure. Only `FAILED` stops you.
 
-## Step 3 — the analysts, and the vetoes
+## Step 3 — the analysts, the vetoes and the reads
 
-`vetoes.json` is read by **COUPON and CONFIDENCE both**, so the analysts run
-after SHEET and the day is rebuilt afterwards. Launch both in one message so
-they run concurrently:
+`vetoes.json` and `reads.json` are read by **COUPON and CONFIDENCE both**, so
+the analysts run after SHEET and the day is rebuilt afterwards. First build
+a **provisional** CONFIDENCE, so the legs that would print are on disk for
+the analysts to read - every leg the official PDF prints needs an analyst's
+read (`audit_variants` C3, days from 2026-10-05):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
+```
+
+Then launch both analysts in one message so they run concurrently:
 
 ```
-Task -> sofa-analyst-football   "date <date>; run <run_id>; stage verdicts; <n> football VALUE"
-Task -> sofa-analyst-tennis     "date <date>; run <run_id>; stage verdicts; <n> tennis VALUE"
+Task -> sofa-analyst-football   "date <date>; run <run_id>; stage verdicts; <n> football VALUE; provisional 08_confidence: <n> legs, <n> stakeable builders, WARIANT <n> legs; return vetoes AND reads"
+Task -> sofa-analyst-tennis     "date <date>; run <run_id>; stage verdicts; <n> tennis VALUE; provisional 08_confidence: <n> legs, <n> stakeable builders, WARIANT <n> legs; return vetoes AND reads"
 ```
 
-Merge their JSON arrays into `runs/sofa/<date>/vetoes.json`, **validating
+Each returns Polish markdown and two fenced JSON arrays: vetoes, then reads.
+Save each markdown as `runs/sofa/<date>/<date>_analiza_<sport>.md`
+(`football` / `tennis`), as `/sofa-analyze` does.
+
+Merge the veto arrays into `runs/sofa/<date>/vetoes.json`, **validating
 first** — a malformed entry stops the run: COUPON raises (`run_pipeline.py` reports it FAILED, exit 2) and `run_confidence.py` dies on an uncaught `ValidationError` with exit 1 - which reads as PARTIAL unless the traceback is read. Neither writes its artifact, so yesterday's build stays on disk looking current. Validate before every rebuild. Report any `UNMATCHED_VETO`: it did nothing,
 and a silent no-op reads exactly like a veto that was honoured.
 
 An empty `vetoes.json` is the healthy default. On most days it is `[]`.
+
+Merge the reads arrays into `runs/sofa/<date>/reads.json` (append; an
+earlier read is never edited or dropped - WATCH and NO_BET win over KEEP
+whoever wrote them), validating the merged array as `list[LegRead]`
+(`src/bet/sofa/contracts.py`, strict, `extra="forbid"`) before writing - the
+snippet is in `.claude/agents/sofa-runner.md` step 3 - and then:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; print(len(load_reads('runs/sofa/<date>/reads.json')))"
+```
+
+What a read does: `NO_BET` removes the leg from every profile
+(`READ_NO_BET`); `WATCH` removes it from the official coupon (`WATCHED`) and
+**keeps** it in the WARIANT, printed `WATCH (<author>): <reason>` - the
+operator's decision of 2026-10-04, so the ledger can measure whether WATCH
+removes losers; `KEEP` removes nothing and records that the leg was read.
+An analyst that returned no reads block has not followed its contract - say
+so, never invent its reads.
 
 Skip this step only if the operator asked for a bare run — and then say you
 skipped it.
@@ -305,6 +336,15 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
 ```
+
+`build_coupon_pdf.py`'s `STALE_CONFIDENCE` guard checks `05_sheet.json` and
+`vetoes.json` but **not** `reads.json`, so after any reads merge run all of
+the above (COUPON, both CONFIDENCE profiles, both PDFs) - never only the PDF.
+Report from each `run_confidence.py` summary the `refused` counts `WATCHED`,
+`READ_NO_BET` and `MODEL_ABOVE_OWN_SAMPLE` (a football leg whose `model_p`
+is more than 0.15 above its own sample's hit rate: refused by the official
+profile, flagged in the WARIANT's `context_flags` - automatic, no read
+needed), and every `UNMATCHED_READ` line on stderr.
 
 `picks: 0` is a legitimate answer and happens often: a builder needs
 `best_for_fixture` **and** positive EV after the measured correlation haircut
@@ -408,12 +448,28 @@ from the samples, so still hand `08_confidence_wariant.json` /
 `KUPON_<d>_WARIANT.pdf` to `sofa-verifier` explicitly and name it in the
 prompt.
 
+C3 (days from 2026-10-05): every leg the official PDF prints - single or
+builder leg - has a read with `author: "analyst"` in `reads.json`, and none
+it prints carries WATCH / NO_BET. A `printed without an analyst's read`
+line (a rebuild put an unread leg on the PDF) is closed, not reported:
+send exactly those legs to that sport's analyst, merge its reads, rebuild
+step 4 and re-run the audit.
+
 `audit_coupon.py` covers structure and arithmetic **from each row's own fields**. It cannot
 catch a row whose fields are all mutually consistent and all built on the
 wrong sample, which is why the agent then rebuilds from `03_samples.json`,
 re-checks that `subject` maps to the side it claims, re-asks Superbet for every
 leg's live price through `OfferFetcher`, and tests the day's distributions for
 anti-selection.
+
+When the verifier returns: it ends with its rows-not-to-stake as a fenced JSON array
+of `LegRead` (`author: "verifier"`; WATCH for a judgement, NO_BET for a
+defect). **Append** it to `reads.json` (validated, then `load_reads`), and
+rebuild: COUPON, `run_confidence.py` + `build_coupon_pdf.py` for both
+profiles, `run_multi_coupon.py` (WARIANT WSZYSTKIE prints the official PDF
+verbatim and is stale after this), then `audit_coupon.py` and
+`audit_variants.py` again - C1 and C3 clean. An empty verifier array needs
+no rebuild; say so.
 
 ## Traps that have actually cost something
 
@@ -450,14 +506,17 @@ WARIANT:  runs/sofa/<date>/KUPON_<date>_WARIANT.pdf — <n> pozycji (NIE kupon; 
 SHEET:    <n> wierszy, <n> VALUE (<n> piłka / <n> tenis)
 RUN:      <run_id> · <verdict> · <n> na tablicy → <n> dopasowanych → <n> READY
 WETA:     <n> zastosowanych, <n> bez dopasowania
+READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n>
+ZDJĘTE:   kupon: WATCHED <n>, READ_NO_BET <n>, MODEL_ABOVE_OWN_SAMPLE <n> - <każda zdjęta noga: mecz, rynek, linia, kierunek, autor, powód>; WARIANT: <n> nóg z WATCH zostawionych i oznaczonych
+ANALIZY:  runs/sofa/<date>/<date>_analiza_football.md, <date>_analiza_tennis.md
 SETTLE:   D-1 <n> wierszy, PDF-kupon <w>/<n> slipów
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar, NIE kupon
 SPORTY:   CS2 <n> / HOKEJ <n> / KOSZ <n> / SIATKA <n> pozycji (NIE kupon; cena bez marży, bez modelu); weta <n>
 WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 (wyłączone: <…>)
 D-1 WYNIKI: kupon <u> j. · WARIANT <u> j. · sporty <u>/<u>/<u>/<u> j. · WSZYSTKIE <u> j. (każdy osobno, nigdy sumowane) · pomiar fair p vs trafione per sport → ledger · reguła CS2/HOKEJ/KOSZ/SIATKA <u> j. · MISMATCH <n> (audit_ledger.py)
 CLV D-1:    kupon <x%> [lo; hi] · WARIANT <x%> · sporty <x%>/<x%>/<x%>/<x%> (audit_clv.py; każdy osobno)
-AUDYT WARIANTÓW: <n> znalezisk
-WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych
+AUDYT WARIANTÓW: <n> znalezisk (C3: <n> drukowanych nóg bez odczytu analityka - musi być 0)
+WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych (zapisane w reads.json i przebudowane: tak/nie)
 UWAGA:    <the day's single biggest weakness>
 ```
 
