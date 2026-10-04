@@ -303,6 +303,43 @@ def half_values(
     return out
 
 
+REPLAYED_SPORTS = ("football", "tennis")
+
+# Subtrees of a Sofascore event no replay reader looks at (names in every
+# language, kit colours, a team's sub-teams and country). Dropped at load:
+# they were ~half of every held event.
+_DISPLAY_KEYS = frozenset({"fieldTranslations", "teamColors", "subTeams"})
+_TEAM_DISPLAY_KEYS = _DISPLAY_KEYS | {"country"}
+
+
+def _event_sport(event: dict[str, Any]) -> str | None:
+    sport = (
+        ((event.get("tournament") or {}).get("category") or {}).get("sport") or {}
+    ).get("slug")
+    return sport if isinstance(sport, str) else None
+
+
+def _without(value: Any, drop: frozenset[str]) -> Any:
+    if isinstance(value, dict):
+        return {k: _without(v, _DISPLAY_KEYS) for k, v in value.items()
+                if k not in drop}
+    if isinstance(value, list):
+        return [_without(v, _DISPLAY_KEYS) for v in value]
+    return value
+
+
+def slim_event(event: dict[str, Any]) -> dict[str, Any]:
+    """The event without its display-only subtrees (_DISPLAY_KEYS anywhere,
+    and a team's country)."""
+    out: dict[str, Any] = {}
+    for key, value in event.items():
+        if key in _DISPLAY_KEYS:
+            continue
+        drop = _TEAM_DISPLAY_KEYS if key in ("homeTeam", "awayTeam") else _DISPLAY_KEYS
+        out[key] = _without(value, drop)
+    return out
+
+
 def load_cache(
     db_path: Path, dropped_out: set[int] | None = None
 ) -> list[Played]:
@@ -320,9 +357,14 @@ def load_cache(
         # anyway, and keeping the first copy of any status let a stale
         # pre-match copy (a `next` page) block the finished one - on a later
         # page or in the index (2026-10-02 review, F5).
+        # Only the sports replayed below, and without the display-only
+        # subtrees (slim_event): 1.41M whole events held 25 GB on 2026-10-04
+        # and the replay thrashed a 48 GB machine for hours.
         def finished_copy(event: dict[str, Any]) -> dict[str, Any] | None:
             status = (event.get("status") or {}).get("type")
-            return event if status == "finished" else None
+            if status != "finished" or _event_sport(event) not in REPLAYED_SPORTS:
+                return None
+            return slim_event(event)
 
         identity = listed_events_by_id(conn, finished_copy, kinds=None)
 
@@ -331,7 +373,8 @@ def load_cache(
             "SELECT sofascore_event_id, statistics_json, incidents_json "
             "FROM sofa_event_stats WHERE status_type = 'finished'"
         ):
-            stats_by_event[event_id] = (statistics_json, incidents_json)
+            if event_id in identity:
+                stats_by_event[event_id] = (statistics_json, incidents_json)
     finally:
         conn.close()
 
@@ -362,10 +405,8 @@ def load_cache(
         started = event.get("startTimestamp")
         if not home or not away or not started:
             continue
-        sport = (
-            ((event.get("tournament") or {}).get("category") or {}).get("sport") or {}
-        ).get("slug")
-        if sport not in ("football", "tennis"):
+        sport = _event_sport(event)
+        if sport not in REPLAYED_SPORTS:
             continue
         unique = ((event.get("tournament") or {}).get("uniqueTournament") or {}).get(
             "id"
