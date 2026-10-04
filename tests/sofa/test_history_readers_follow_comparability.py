@@ -213,3 +213,22 @@ def test_sofa_now_freezes_the_clock_and_says_so(
     monkeypatch.setenv("SOFA_NOW", "2026-10-04T06:45:00Z")
     assert timeutil.now() == datetime(2026, 10, 4, 6, 45, tzinfo=UTC)
     assert "frozen" in capsys.readouterr().err
+
+
+def test_a_frozen_clock_is_refused_on_the_real_runs_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # Review 2026-10-04: only run_pipeline refused SOFA_NOW; CONFIDENCE, the
+    # PDF and WSZYSTKIE would time their kickoff gates on a frozen clock in
+    # the real day.
+    from bet.sofa import timeutil
+
+    monkeypatch.delenv("SOFA_NOW", raising=False)
+    assert timeutil.frozen_clock_refusal(timeutil.REAL_RUNS_DIR) is None
+    monkeypatch.setenv("SOFA_NOW", "2026-10-04T06:45:00Z")
+    assert "REFUSED" in (timeutil.frozen_clock_refusal(timeutil.REAL_RUNS_DIR) or "")
+    assert timeutil.frozen_clock_refusal(tmp_path) is None  # a replay's scratch
+    for script in ("run_confidence", "build_coupon_pdf", "run_multi_coupon"):
+        src = (Path(timeutil.__file__).parents[3] / "scripts" / "sofa"
+               / f"{script}.py").read_text(encoding="utf-8")
+        assert "frozen_clock_refusal(" in src, script

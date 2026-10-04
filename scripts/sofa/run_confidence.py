@@ -189,6 +189,10 @@ def main() -> int:
     artifact = confidence_artifact(profile)
 
     run_dir = Path(args.runs_dir) / args.date
+    frozen = timeutil.frozen_clock_refusal(args.runs_dir)
+    if frozen:
+        print(frozen, file=sys.stderr)
+        return 2
     # A scratch calibration must never write the real day's confidence view
     # (2026-09-23: a scratch rebuild clobbered the real coupon).
     if args.calibration and Path(args.runs_dir).resolve() == REAL_RUNS_DIR.resolve():

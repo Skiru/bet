@@ -37,7 +37,7 @@ from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
-from bet.sofa.timeutil import now  # noqa: E402
+from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 from scripts.sofa.run_sport_coupon import local  # noqa: E402
 
 
@@ -263,6 +263,10 @@ def main() -> int:
     parser.add_argument("--build-sports", action="store_true")
     args = parser.parse_args()
     runs_dir = SofaConfig.from_env().runs_dir
+    frozen = frozen_clock_refusal(runs_dir)
+    if frozen:
+        print(frozen, file=sys.stderr)
+        return 2
     at = now()
     if at >= sc.day_end(args.date):
         print(

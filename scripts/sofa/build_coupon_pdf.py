@@ -227,6 +227,10 @@ def main() -> int:
     profile = PROFILES[args.profile]
 
     run = Path(args.runs_dir) / args.date
+    frozen = timeutil.frozen_clock_refusal(args.runs_dir)
+    if frozen:
+        print(frozen, file=sys.stderr)
+        return 2
     refusal = incomplete_reason(run / "02_fixtures.json")
     if refusal:
         print(refusal, file=sys.stderr)
