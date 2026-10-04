@@ -4,6 +4,43 @@ Wklej całość jako pierwszą wiadomość nowej sesji.
 
 ---
 
+## STAN PO NOCY 10-03/04 (dopisane 04:25Z) — czytaj najpierw
+
+Pełny raport nocy: `docs/sofa/RAPORT_NOC_2026-10-04.md` (kopia `data/night_2026-10-03/RAPORT_NOC.md`;
+dowody i skrypty w `data/night_2026-10-03/<temat>/`). Commity nocy: `git log c6b60426..HEAD`
+(lokalny main, NIE wypchnięte). Testy 2765 zielone, mypy czysty, ruff 92 jak przed nocą.
+
+Co z listy poniżej jest już zrobione:
+- pkt 2 tenis: zainstalowane TYLKO `sofa_tennis_tier_baselines.json` (backup
+  `config/backup_2026-10-04_tennis/`); rating i korelacje NIE (brak zysku / gorzej poza próbą).
+- pkt 3 strażnik zer: zrobiony i rozszerzony (ZERO_NOT_RECORDED, CARDS_NOT_RECORDED — czerwone-only
+  listy incydentów liczyły mecz z 7 kartkami jako 2; przywrócone prawdziwe 0-0 spalonych/żółtych;
+  pojedynczy rożny w niepełnym feedzie odrzucany). HISTORY_PARSER_VERSION 2026-10-04.2 —
+  **pierwszy SHEET dziś parsuje historię ~10 min, to normalne.**
+- pkt 4: 851 + 6 innych id na liście towarzyskich.
+- pkt 5: zmierzone — pula NIE zawyżała goals_1h UNDER; strata z wybierania wierszy nad ceną
+  (160 nóg, realnie .744 przy cenie .779, ROI −8.6%). Zbudowane: odtwarzanie połówek (opt-in
+  `--with-halves`) i cienkie kubełki (działają od następnego refitu). Decyzja o
+  `refused_markets += goals_1h_total|UNDER` — operator czeka na dzisiejsze rozliczenie 10-03.
+- pkt 6: zmierzone (antyselekcja realna w 30/32 komórkach); `gap_shrink_k` zbudowany, WYŁĄCZONY.
+- pkt 7: propozycja gorsza poza próbą — bez zmian.
+- pkt 9: worktree usunięty.
+- Sporty mierzone: ponownie rozliczone 09-29..10-02 po poprawce dopasowania (+10 meczów),
+  kupony sportowe i rejestr przeliczone. Kryterium przyjęcia do kuponu: `data/night_2026-10-03/shadow/RAPORT.md`.
+- Propsy: rekomendacja zdjąć wszystkie 7 z `admitted_player_markets` (−45.8% w ciemno) — decyzja operatora.
+
+Co zostało na dziś:
+- **pkt 1 (rozliczenie 10-03) NIE zostało zrobione w nocy** — robi je `/sofa-day` (D-1). Dodatkowo
+  policz osobno: krótka lista rożnych UNDER, 6 nóg goals_1h UNDER z PDF, propsy (ręcznie w nocy:
+  27 propsów z pewnością ≥0.70 → 14/5, −4.06 j.).
+- Backfill: zrobione statystyki 365 dni wszystkich sportów i 730 dni hokej/kosz/siatka; tenis 730
+  przerwany, piłka 730 nie zaczęta (sterownik: `data/night_2026-10-03/tools/night_driver.py <zadania>`, log `runs/sofa/backfill_logs/night_2026-10-03.log`; wznawialne).
+- Refit na kopii bazy NIE skończył się (brak RAM-u: odtwarzanie trzyma ~26 GB, OrbStack 11 GB).
+  Przed refitem wyłączyć OrbStack/Docker. Kopia: `data/refit_rehearsal_2026-10-04/` (42 GB, do usunięcia).
+- Push: tylko na prośbę operatora.
+
+---
+
 Kontekst: wczoraj (10-03) zainstalowano refit (commit `9f0a9f21`, K_CENTRE piłka 15 / tenis 5,
 nowe krzywe na 55.2 mln wierszy po nocnym backfillu), poprawiono prior „liga drużyny”
 (`3be5f8ae`, `37753e84`, `ae922e10` — ostateczna reguła: liga z ratingu wygrywa, gdy ma w próbce
