@@ -84,6 +84,7 @@ from bet.sofa.metrics import (
     calculate_cards_points,
     extract_flat_statistics,
     extract_metric,
+    goal_score_inconsistent,
     regulation_score,
     stat_is_untracked,
     zero_pair_not_recorded,
@@ -253,7 +254,10 @@ def match_values(
     re-grades a cache-calibration row with exactly the code that wrote it."""
     values: dict[str, tuple[float, float]] = {}
 
-    if sport == "football":
+    if sport == "football" and not goal_score_inconsistent(event):
+        # The same refusal extract_metric applies (review round 2,
+        # 2026-10-04: the replay read Buxton - South Shields as 0-2 while
+        # SAMPLES and SETTLE refuse its self-contradicting score).
         score = regulation_score(event)
         if score is not None:
             values["goals"] = score
@@ -282,6 +286,16 @@ def match_values(
             points = None
         if points is not None and not isinstance(points, str):
             values["cards_points"] = (float(points[0]), float(points[1]))
+    if sport == "tennis":
+        # Games as extract_metric reads them for SAMPLES and SETTLE: the set
+        # score (a match tiebreak one game), gamesWon only where the sets are
+        # unreadable. STAT_KEYS' gamesWon read 6-7 2-6 as 19 (event
+        # 17149657) and needed /statistics, which 35% of matches lack.
+        values.pop("games", None)
+        home = extract_metric("games_won_for", "tennis", flat, None, event, True)
+        away = extract_metric("games_won_for", "tennis", flat, None, event, False)
+        if isinstance(home, float) and isinstance(away, float):
+            values["games"] = (home, away)
     if sport == "football":
         values.update(half_values(event, flat))
     return values
@@ -363,6 +377,12 @@ def load_cache(
         def finished_copy(event: dict[str, Any]) -> dict[str, Any] | None:
             status = (event.get("status") or {}).get("type")
             if status != "finished" or _event_sport(event) not in REPLAYED_SPORTS:
+                return None
+            # A retirement or a walkover is `finished` but no result: SAMPLES
+            # and SETTLE refuse it (is_completed_event); the replay graded it
+            # as a whole match (review round 2, 2026-10-04: 438 retired +
+            # 275 walkover in a 1/20 sample of finished tennis, 4.5%).
+            if not is_completed_event(event):
                 return None
             return slim_event(event)
 

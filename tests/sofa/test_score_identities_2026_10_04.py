@@ -78,3 +78,46 @@ def test_games_won_is_still_read_when_the_sets_are_unreadable() -> None:
     got = extract_metric("games_total", "tennis", {"ALL": {"gamesWon": (12.0, 7.0)}},
                          None, event, True)
     assert got == 19.0
+
+
+def test_the_cache_replay_reads_the_same_counts() -> None:
+    # Review round 2: the replay read full-match goals through regulation_score
+    # and tennis games from gamesWon, around both fixes above.
+    from scripts.sofa.calibrate_from_cache import match_values
+
+    assert "goals" not in match_values(BUXTON, "football", None, None)
+    stats = ('{"statistics": [{"period": "ALL", "groups": [{"statisticsItems": '
+             '[{"key": "gamesWon", "homeValue": 8, "awayValue": 11}]}]}]}')
+    assert match_values(SHANG_MANNARINO, "tennis", stats, None)["games"] == (8.0, 13.0)
+    # and from the set score alone when /statistics was never fetched
+    assert match_values(SHANG_MANNARINO, "tennis", None, None)["games"] == (8.0, 13.0)
+
+
+def test_the_cache_replay_skips_retirements_and_walkovers(tmp_path: Any) -> None:
+    import json
+    import sqlite3
+
+    from bet.sofa.db import migrate
+    from scripts.sofa.calibrate_from_cache import load_cache
+
+    def event(eid: int, code: int, description: str) -> dict[str, Any]:
+        return {
+            "id": eid, "startTimestamp": 1_780_000_000 + eid,
+            "status": {"type": "finished", "code": code, "description": description},
+            "homeTeam": {"id": eid * 10 + 1, "name": "A"},
+            "awayTeam": {"id": eid * 10 + 2, "name": "B"},
+            "homeScore": {"current": 1, "period1": 7, "period2": 3},
+            "awayScore": {"current": 0, "period1": 5, "period2": 5},
+            "tournament": {"uniqueTournament": {"id": 2373},
+                           "category": {"sport": {"slug": "tennis"}}},
+        }
+
+    db = tmp_path / "sofa.db"
+    migrate(str(db))
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "INSERT INTO sofa_entity_events VALUES (1, 'last', 0, 'x', ?)",
+            (json.dumps({"events": [event(1, 100, "Ended"),
+                                    event(2, 92, "Retired"),
+                                    event(3, 91, "Walkover")]}),))
+    assert [p.event_id for p in load_cache(db)] == [1]
