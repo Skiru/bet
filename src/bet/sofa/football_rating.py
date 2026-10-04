@@ -331,7 +331,10 @@ def parse_event(
 # (metrics.cards_not_recorded); a partial feed's single corner is no count
 # (PARTIAL_FEED_MIN_TOTAL); the per-half full feed's omitted offsides /
 # yellowCards 0-0 is restored (fill_omitted_zero_pairs).
-HISTORY_PARSER_VERSION = "2026-10-04.2"
+# 2026-10-04.3: a goal score that contradicts itself on either side is no
+# goal count (metrics.goal_score_inconsistent); tennis games come from the
+# set score when gamesWon disagrees with it.
+HISTORY_PARSER_VERSION = "2026-10-04.3"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------

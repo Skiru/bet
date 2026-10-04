@@ -245,7 +245,7 @@ def _statistics(stats_json: str | None) -> dict[str, tuple[float, float]]:
 
 
 def load(
-    db: Path, with_stats: bool
+    db: Path, with_stats: bool, target_kind: MatchKind = MatchKind.REGULAR
 ) -> tuple[dict[int, list[Past]], list[Target], dict[int, int]]:
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     stats: dict[int, dict[str, tuple[float, float]]] = {}
@@ -300,7 +300,7 @@ def load(
         swapped = {k: (v[1], v[0]) for k, v in values.items()}
         history[home].append(Past(ts, eid, comp, season, kind, values))
         history[away].append(Past(ts, eid, comp, season, kind, swapped))
-        if kind is MatchKind.REGULAR:
+        if kind is target_kind:
             targets.append(Target(ts, eid, comp, season, home, away, values))
     for side in history.values():
         side.sort(key=lambda p: (p.ts, p.event_id))
@@ -430,7 +430,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--n", type=int, default=10)
     ap.add_argument("--min", dest="minimum", type=int, default=5)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument(
+        "--targets", choices=("regular", "knockout"), default="regular",
+        help="which fixtures are scored: league rounds (the 10-04 measurement) "
+        "or KNOCKOUT ones (cup rounds, play-offs, qualifiers)",
+    )
     args = ap.parse_args(argv)
+    target_kind = MatchKind(args.targets.upper())
     for metric in args.metrics:
         split_metric(metric)
     start = int(datetime.fromisoformat(args.start).replace(tzinfo=UTC).timestamp())
@@ -439,7 +445,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"no DB at {args.db}", file=sys.stderr)
         return 2
     with_stats = any(STATS[split_metric(m)[0]] is not None for m in args.metrics)
-    history, targets, season_start = load(args.db, with_stats)
+    history, targets, season_start = load(args.db, with_stats, target_kind)
     chosen = [t for t in targets if start <= t.ts < end]
     text = [
         f"# Sample composition, {args.start}..{args.end}",
@@ -453,7 +459,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not scored.ids:
             text += [f"### {metric}: no case had a full sample", ""]
             continue
-        text += report(scored, metric, "all REGULAR league matches", None)
+        text += report(scored, metric, f"all {target_kind} matches", None)
         mask = np.asarray(scored.flagged)
         if mask.any():
             text += report(

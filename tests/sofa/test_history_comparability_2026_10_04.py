@@ -554,3 +554,47 @@ def test_a_coupon_drop_names_the_read_that_dropped_it() -> None:
     )
     drop = [d for d in result.dropped if d.reason == "WATCHED"]
     assert drop and drop[0].detail == "model over its own sample"
+
+
+def test_a_knockout_fixture_keeps_the_newest_ten_goal_sample(
+    harness: tuple[MagicMock, SofaCache, MagicMock],
+) -> None:
+    # Review 2026-10-04: on KNOCKOUT targets the same-competition rule was
+    # worse (goals_total +0.00546, goals_for +0.01227 log-loss, 24,777 /
+    # 31,738 matches), so a cup round keeps the usual sample.
+    client, cache, superbet = harness
+    fixture = _fixture().model_copy(update={"round_name": "Quarterfinals",
+                                            "cup_round_type": 8})
+    res = process_fixture_samples(
+        fixture, client, cache, superbet, SofaConfig(sample_n=10, min_sample=5)
+    )
+    ids = {o.sofascore_event_id for o in res.metrics["goals_total"].side_a}
+    assert ids != {100, 101, 102, 103, 104, 105}
+    assert {200, 201, 202, 203} <= ids, "the newest matches, cup ties included"
+
+
+def test_the_replay_reads_a_knockout_target_from_the_newest_ten() -> None:
+    from scripts.sofa import calibrate_from_cache as cfc
+
+    def played(eid: int, ts: int, comp: int, kind: str, home: int = 1,
+               away: int = 2) -> cfc.Played:
+        return cfc.Played(event_id=eid, timestamp=ts, home_id=home, away_id=away,
+                          sport="football", competition_id=comp,
+                          values={"goals": (1.0, 0.0)}, kind=kind)
+
+    # Team 1: eight old league matches of 239 (the replay's MIN_SAMPLE), then
+    # five newer cup ties of 336.
+    history = [played(i, i, 239, "REGULAR", away=100 + i) for i in range(8)]
+    history += [played(10 + i, 10 + i, 336, "KNOCKOUT", away=200 + i)
+                for i in range(5)]
+    league = played(50, 50, 239, "REGULAR", away=2)
+    cup = played(60, 60, 239, "KNOCKOUT", away=3)
+    rows = [r for r in cfc.iter_rows([*history, league, cup], {})
+            if r.market == "goals_for" and r.event_id in (50, 60)
+            and r.line == 0.5 and r.direction == "OVER"]
+    sizes = {r.event_id: r.sample_size for r in rows}
+    means = {r.event_id: r.sample_mean for r in rows}
+    assert sizes and means[50] == 1.0 and means[60] == 1.0
+    # The league target reads its eight league matches; the knockout one the
+    # newest ten (cup ties included).
+    assert sizes[50] == 8 and sizes[60] == 10

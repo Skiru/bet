@@ -24,6 +24,32 @@ def is_extra_time_event(event: dict[str, Any]) -> bool:
     return status.get("code") in EXTRA_TIME_STATUS_CODES
 
 
+def goal_score_inconsistent(event: dict[str, Any]) -> bool:
+    """The listing's goal fields disagree with each other, on either side.
+
+    period1 + period2 must be normaltime, and with no extra time current must
+    be normaltime. Review 2026-10-04: Buxton - South Shields (17160371) lists
+    the away side current 2, period1 1, period2 0, normaltime 1 (incidents:
+    goals at 7' and 64'); the old check looked at the home side only and the
+    settle graded goals_2h_total 0.5 OVER a loss. ~1% of cached league
+    matches carry such a score; a goal count read from it is no count.
+    """
+    extra_time = is_extra_time_event(event)
+    for side in ("homeScore", "awayScore"):
+        score = event.get(side)
+        if not isinstance(score, dict):
+            continue
+        p1, p2, nt, cur = (score.get(k) for k in
+                           ("period1", "period2", "normaltime", "current"))
+        if isinstance(p1, int) and isinstance(p2, int) and isinstance(nt, int):
+            if p1 + p2 != nt:
+                return True
+        if not extra_time and isinstance(nt, int) and isinstance(cur, int):
+            if cur != nt:
+                return True
+    return False
+
+
 def regulation_score(event: dict[str, Any]) -> tuple[float, float] | None:
     """Home and away goals at 90 minutes - the quantity Superbet settles on.
 
@@ -1007,6 +1033,11 @@ def extract_metric(
     ):
         return GapReason.EVENT_NOT_FINISHED
 
+    if str(sofascore_key).startswith("goals") and goal_score_inconsistent(
+        listing_event
+    ):
+        return GapReason.INTERNAL_INCONSISTENT
+
     if sofascore_key == "goals_from_listing":
         # normaltime for an extra-time match, current otherwise. A 2-1 after
         # extra time that was 1-1 at 90 minutes contributes 2, not 3.
@@ -1067,14 +1098,20 @@ def extract_metric(
         # counts it as none and the raw periods as ten (6-4 6-7 10-5 read as
         # 22), so a match that had one is always read from the normalised
         # set score, whichever source is present - see tennis_score.
-        if "gamesWon" in stats_all and not match_tiebreak_sets(hs_, as_):
-            h, a = stats_all["gamesWon"]
-        else:
-            games = set_games(hs_, as_)
-            if not games:
-                return GapReason.STAT_KEY_ABSENT
+        #
+        # The set score wins whenever it is readable (review 2026-10-04): it is
+        # what Superbet settles on, and gamesWon can contradict it - event
+        # 17149657, 6-7(9) 2-6, gamesWon 8:11 against 8:13 on the sets, graded
+        # games_total 19 and flipped eight settled rows. Where the two agree
+        # nothing changes; gamesWon is read only when the sets are unreadable.
+        games = set_games(hs_, as_)
+        if games:
             h = float(sum(g for g, _ in games))
             a = float(sum(g for _, g in games))
+        elif "gamesWon" in stats_all and not match_tiebreak_sets(hs_, as_):
+            h, a = stats_all["gamesWon"]
+        else:
+            return GapReason.STAT_KEY_ABSENT
         return float(h + a) if is_total else float(h if is_home else a)
 
     if sofascore_key == "games_from_listing":

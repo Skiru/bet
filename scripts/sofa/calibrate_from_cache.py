@@ -579,14 +579,19 @@ def iter_rows(
     history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
 
     for match in played:
+        # The goal samples' same-competition rule applies to league fixtures
+        # only (SAMPLES, review 2026-10-04: worse on KNOCKOUT targets).
+        sample_competition = (
+            match.competition_id if match.kind == MatchKind.REGULAR else None
+        )
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
             for_market = market_name(base, "for")
             home_recent = recent_for(
-                history[(match.home_id, base)], for_market, match.competition_id
+                history[(match.home_id, base)], for_market, sample_competition
             )
             away_recent = recent_for(
-                history[(match.away_id, base)], for_market, match.competition_id
+                history[(match.away_id, base)], for_market, sample_competition
             )
 
             # `*_for`: each side from its own history only, as SHEET does
@@ -622,10 +627,10 @@ def iter_rows(
             # picks its sides the way SAMPLES does (recent_for).
             total_market = market_name(base, "total")
             home_total = recent_for(
-                history[(match.home_id, base)], total_market, match.competition_id
+                history[(match.home_id, base)], total_market, sample_competition
             )
             away_total = recent_for(
-                history[(match.away_id, base)], total_market, match.competition_id
+                history[(match.away_id, base)], total_market, sample_competition
             )
             if len(home_total) >= MIN_SAMPLE and len(away_total) >= MIN_SAMPLE:
                 yield from (

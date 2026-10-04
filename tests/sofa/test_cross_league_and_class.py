@@ -461,10 +461,13 @@ def test_a_negative_half_is_no_count_anywhere():
     }
     got = extract_metric("goals_2h_for", "football", {}, None, event, True)
     assert got == GapReason.INTERNAL_INCONSISTENT
+    # Since 2026-10-04 the whole goal score is refused (period1 + period2 !=
+    # normaltime, current != normaltime with no extra time): no goal count
+    # from this match reaches the rating at all, so nothing can raise.
     r = parse_event(event)
-    assert r is not None and "goals_2h_for" not in r.values
-    book = RatingBook()
-    book.update(r)  # must not raise
+    assert r is None or not any(k.startswith("goals") for k in r.values)
+    if r is not None:
+        RatingBook().update(r)  # must not raise
 
 
 def test_a_league_rate_is_not_anchored_on_its_first_match():

@@ -236,6 +236,18 @@ def fetch_available_metrics(
     return available_metrics
 
 
+def fixture_round_event(fixture: Fixture) -> dict[str, Any]:
+    """The fixture's round as the event shape comparability.is_knockout reads
+    (roundInfo and the stage name the Fixture keeps)."""
+    return {
+        "roundInfo": {
+            "cupRoundType": fixture.cup_round_type,
+            "name": fixture.round_name or "",
+        },
+        "tournament": {"name": fixture.competition_name},
+    }
+
+
 def _competition_id(event: dict[str, Any]) -> int | None:
     value = event.get("tournament", {}).get("uniqueTournament", {}).get("id")
     return int(value) if isinstance(value, int) else None
@@ -1300,7 +1312,18 @@ def _process_fixture_samples(
     goal_results: dict[str, list[dict[str, Any]] | None] = {
         "Side A": None, "Side B": None,
     }
-    if fixture.sport == "football" and goal_metrics:
+    # League fixtures only (review 2026-10-04): the rule was measured on
+    # REGULAR targets; on 24,777 KNOCKOUT ones (cup rounds, play-offs) it made
+    # goals_total worse by +0.00546 [+0.00373; +0.00725] and goals_for by
+    # +0.01227 [+0.00951; +0.01526] (data/analysis_2026-10-04_night/
+    # composition_knockout.md), reaching back to a tournament's group stage
+    # years ago (China U23, Asian Games 2014). A knockout fixture keeps the
+    # usual newest-ten sample.
+    if (
+        fixture.sport == "football"
+        and goal_metrics
+        and not is_knockout(fixture_round_event(fixture))
+    ):
         for label, pool, entity in (
             ("Side A", pool_a, fixture.home_entity_id),
             ("Side B", pool_b, fixture.away_entity_id),
