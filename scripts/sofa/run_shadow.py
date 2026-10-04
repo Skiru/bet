@@ -167,9 +167,16 @@ def snapshot(
             continue
         fetched_at = stamp()
         lines = parse_event(odds_items(payload), sport.key, event_id, team1, team2)
-        if not lines:
+        if not lines and event_id not in seen[(sport.key, day)]:
             continue
-        if day == date:
+        # An event already on file that now quotes nothing gets an empty
+        # record: the last record replaces every earlier one whole
+        # (latest_pre_kickoff), so its old price stops being "the last
+        # pre-start price". Review 2026-10-04: games were graded on prices
+        # 628-707 minutes old because nothing newer was ever written.
+        if not lines:
+            m["emptied"] = m.get("emptied", 0) + 1
+        elif day == date:
             m["events_with_lines"] += 1
             m["lines"] += len(lines)
         else:

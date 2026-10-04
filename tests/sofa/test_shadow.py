@@ -2748,3 +2748,26 @@ def test_shadow_chains_d1_before_the_morning_and_its_retries(
     first_settle = events.index("run_pipeline.py:SHADOW_SETTLE")
     assert events.index("spawn") < first_settle, "D+1 waited for the morning"
     assert events.count("run_pipeline.py:SHADOW_SETTLE") == 2, "one retry"
+
+
+def test_an_event_that_stops_quoting_is_no_longer_graded_at_its_old_price(
+    tmp_path: Path,
+) -> None:
+    # Review 2026-10-04: a fetch with no lines wrote nothing, so SETTLE graded
+    # the last price on file however old (628-707 minutes on four games).
+    at = datetime(2026, 9, 28, 14, tzinfo=UTC)
+    run_shadow.snapshot(DATE, FakeSuperbet(), str(tmp_path), at=at)  # type: ignore[arg-type]
+
+    class Emptied(FakeSuperbet):
+        def event_odds(self, event_id: str) -> dict[str, Any]:
+            self.fetched.append(event_id)
+            return {"odds": []}
+
+    later = at + timedelta(hours=1)
+    res = run_shadow.snapshot(DATE, Emptied(), str(tmp_path), at=later)  # type: ignore[arg-type]
+    assert res["metrics"]["hockey"]["emptied"] == 1
+    hockey = tmp_path / "shadow" / "hockey" / DATE / "snapshots.jsonl"
+    recs = [json.loads(x) for x in hockey.read_text().splitlines()]
+    assert [len(r["lines"]) for r in recs] == [2, 0]
+    events = latest_pre_kickoff(recs)
+    assert not events["1"].sides, "the old price is no longer the last one"
