@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.comparability import is_friendly_event
 from bet.sofa.football_rating import (
     ALPHA_BY_METRIC,
     LINKED,
@@ -91,8 +92,10 @@ ALPHA_BY_METRIC.update(SCORE_ALPHA)
 
 
 def _is_friendly(event: dict[str, Any]) -> bool:
-    unique = (event.get("tournament") or {}).get("uniqueTournament") or {}
-    return "friendly" in str(unique.get("name") or "").lower()
+    """comparability.is_friendly_event: one rule for every history reader
+    (2026-10-04; the name test "friendly" missed NHL / AHL / WNBA / NBA
+    preseason and every pre-season tournament)."""
+    return is_friendly_event(event)
 
 
 def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | None:

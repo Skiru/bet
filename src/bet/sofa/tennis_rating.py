@@ -67,6 +67,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import config_path
 from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.tennis_score import set_games
@@ -174,6 +175,11 @@ def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
         return None
     if home.get("type") != 1 or away.get("type") != 1:
         return None  # doubles
+    # An exhibition / legends event is not a match the rating may learn
+    # from (comparability, 2026-10-04: only the UTS ones fell out, through
+    # their unparseable score; Kooyong Classic and Six Kings Slam did not).
+    if is_friendly_event(event, "tennis"):
+        return None
     status = event.get("status") or {}
     if status.get("type") != "finished":
         return None

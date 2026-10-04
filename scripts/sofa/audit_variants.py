@@ -26,6 +26,11 @@ files on disk, not from the artifact's own fields:
   C2  every printed single obeys the dials the artifact was built with:
       confidence >= floor, the price rule (official: confidence x odds > 1;
       WARIANT: >= min_ev), margin <= max_overround, not started at build
+  C3  (days from READS_CUTOVER on) every leg the official PDF prints - single
+      or builder leg - was read by an analyst (reads.json, contracts.LegRead),
+      and none it prints carries a WATCH or NO_BET read (the official profile
+      honours both; 2026-10-04, Farense - Chaves: a WATCH had no field and
+      the leg was printed)
 
 No network. Exit 0 when nothing is found, 1 with findings, 2 on a bad file.
 """
@@ -54,6 +59,11 @@ from bet.sofa.confidence import (  # noqa: E402
     printed_singles,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.veto import (  # noqa: E402
+    load_reads,
+    matching_reads,
+    read_refusal,
+)
 
 TOL = 1e-4
 # From this build time on, a sport coupon must name its PDF by sha256 and
@@ -62,6 +72,8 @@ TOL = 1e-4
 HASH_CUTOVER = "2026-09-30T07:30:00Z"
 # From this build time on, the replay fields must be there too.
 REPLAY_CUTOVER = "2026-09-30T12:00:00Z"
+# The first day whose flow writes reads.json (C3).
+READS_CUTOVER = "2026-10-05"
 
 
 def _utc(raw: str) -> datetime:
@@ -333,7 +345,7 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
     out: list[str] = []
     if doc.get("profile", "standard") != profile_name:
         out.append(f"C1 {tag}: {name} was built with profile {doc.get('profile')!r}")
-    for newer in ("05_sheet.json", "vetoes.json"):
+    for newer in ("05_sheet.json", "vetoes.json", "reads.json"):
         other = run / newer
         if other.exists() and other.stat().st_mtime > path.stat().st_mtime:
             out.append(f"C1 {tag}: {name} is older than {newer} (STALE_CONFIDENCE)")
@@ -363,6 +375,46 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
             out.append(f"C2 {label}: margin {ov} above {max_ov}")
         if built is not None and _utc(str(single["kickoff_utc"])) <= built:
             out.append(f"C2 {label}: printed after its kickoff")
+    if profile_name == "standard" and date >= READS_CUTOVER:
+        out += audit_reads(run, doc, tag)
+    return out
+
+
+def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
+    """C3: every printed official leg was read, and none it prints is WATCH
+    or NO_BET."""
+    path = run / "reads.json"
+    printed = [
+        *printed_singles(doc),
+        *(
+            {**leg, "sofascore_event_id": b["sofascore_event_id"],
+             "match": b.get("match", "")}
+            for b in printed_builders(doc)
+            for leg in b.get("legs") or []
+        ),
+    ]
+    if not printed:
+        return []
+    if not path.exists():
+        return [f"C3 {tag}: reads.json missing - none of {len(printed)} printed "
+                "legs has a recorded read"]
+    reads = load_reads(path)
+    out: list[str] = []
+    for leg in printed:
+        covering = matching_reads(
+            reads,
+            sofascore_event_id=int(leg["sofascore_event_id"]),
+            market=str(leg["market"]),
+            subject=str(leg.get("subject") or ""),
+            line=float(leg["line"]),
+            direction=str(leg["direction"]),
+        )
+        label = f"{tag} {leg.get('match', '')} {leg['market']} {leg['line']}"
+        if not any(r.author == "analyst" for r in covering):
+            out.append(f"C3 {label}: printed without an analyst's read")
+        refused = read_refusal(covering, honours_watch=True)
+        if refused is not None:
+            out.append(f"C3 {label}: printed despite {refused}")
     return out
 
 

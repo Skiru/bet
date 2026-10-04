@@ -68,6 +68,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
         sys.path.insert(0, _path)
 
 import bet.sofa.player_model as pm  # noqa: E402
+from bet.sofa.comparability import is_friendly_event  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.joint import normal_cdf  # noqa: E402
 from bet.sofa.shadow import (  # noqa: E402
@@ -136,12 +137,17 @@ class History:
     def from_db(cls, conn: sqlite3.Connection, sport: SportKey) -> History:
         slug = SPORTS[sport].sofascore_slug
         events: dict[int, tuple[int, int, int]] = {}
+        # pm.listed_games drops a friendly / pre-season game; so does the fit.
+        friendly: set[int] = set()
         for eid, ts, text in conn.execute(
             "SELECT event_id, start_ts, event_json FROM sofa_listed_event "
             "WHERE sport = ?",
             (slug,),
         ):
             ev = json.loads(text)
+            if isinstance(ev, dict) and is_friendly_event(ev):
+                friendly.add(int(eid))
+                continue
             home = (ev.get("homeTeam") or {}).get("id")
             away = (ev.get("awayTeam") or {}).get("id")
             start = ts if isinstance(ts, int) else ev.get("startTimestamp")
@@ -172,6 +178,7 @@ class History:
                     "WHERE entity_id = ? AND kind = 'last'",
                     (team,),
                 )
+                if int(eid) not in friendly
             )
         return cls.build(sport, events, rows, lineups)
 

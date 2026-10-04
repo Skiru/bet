@@ -1,0 +1,520 @@
+{
+ "_doc": [
+  "Football competitions reviewed 2026-10-04 after the Torneio de Verao leak (Farense - Chaves): proposed by scripts/sofa/find_friendly_competitions.py or found in the 18 days of 03_samples.json, each read by hand. One example event per id, verbatim from the cached listing payload (sofa_listed_event). n_events = distinct cached events.",
+  "Not added on purpose: English amateur league cups named \"Memorial\" (Len Cordell, Peter Butcher, George Mason - competitive county cups), super cups (one-off competitive finals, KNOCKOUT in comparability.match_kind), Baltic Cup and the Toulon tournament (official national-team tournaments)."
+ ],
+ "competitions": [
+  {
+   "competition_id": 22437,
+   "name": "Kings World Cup Clubs",
+   "slug": "kings-world-cup",
+   "category": "World",
+   "review": "Kings League 7-a-side format, not football rules",
+   "n_events": 63,
+   "example_event": {
+    "id": 12314439,
+    "home": "Los Aliens 1021",
+    "away": "Rayo de Barcelona",
+    "startTimestamp": 1716667200,
+    "homeTeam_national": false,
+    "season": "KWC Clubs 23/24"
+   }
+  },
+  {
+   "competition_id": 17123,
+   "name": "Memorijalni turnir Mladen Ramljak",
+   "slug": "memorijalni-turnir-mladen-ramljak",
+   "category": "Europe",
+   "review": "youth invitational (U19/U20 club sides)",
+   "n_events": 57,
+   "example_event": {
+    "id": 12626592,
+    "home": "Manchester United U19",
+    "away": "Udinese U20",
+    "startTimestamp": 1722497400,
+    "homeTeam_national": false,
+    "season": "2024"
+   }
+  },
+  {
+   "competition_id": 2105,
+   "name": "U19 CEE Cup",
+   "slug": "u19-cee-cup",
+   "category": "World",
+   "review": "youth invitational (U19)",
+   "n_events": 53,
+   "example_event": {
+    "id": 12600273,
+    "home": "Sparta Praha U19",
+    "away": "OB U19",
+    "startTimestamp": 1722085200,
+    "homeTeam_national": false,
+    "season": "U19 CEE Cup 2024"
+   }
+  },
+  {
+   "competition_id": 22948,
+   "name": "COTIF Tournament",
+   "slug": "cotif-tournament",
+   "category": "World",
+   "review": "youth invitational (U20)",
+   "n_events": 53,
+   "example_event": {
+    "id": 14124751,
+    "home": "Saudi Arabia U20",
+    "away": "Venezuela U20",
+    "startTimestamp": 1753381800,
+    "homeTeam_national": true,
+    "season": "2025"
+   }
+  },
+  {
+   "competition_id": 32832,
+   "name": "FIFA Series",
+   "slug": "fifa-series",
+   "category": "World",
+   "review": "national-team friendlies (FIFA Series)",
+   "n_events": 35,
+   "example_event": {
+    "id": 15617775,
+    "home": "Rwanda",
+    "away": "Grenada",
+    "startTimestamp": 1774638000,
+    "homeTeam_national": true,
+    "season": "2026 "
+   }
+  },
+  {
+   "competition_id": 34432,
+   "name": "U19 International Tournament",
+   "slug": "u19-international-tournament",
+   "category": "International Clubs",
+   "review": "youth invitational (U19)",
+   "n_events": 31,
+   "example_event": {
+    "id": 16079534,
+    "home": "Villarreal U19",
+    "away": "Vitória SC U19",
+    "startTimestamp": 1776873600,
+    "homeTeam_national": false,
+    "season": "U19 International Tournament  2026"
+   }
+  },
+  {
+   "competition_id": 24752,
+   "name": "Arena Cup",
+   "slug": "medulin-cup",
+   "category": "World",
+   "review": "pre-season winter tournament (Balkan clubs)",
+   "n_events": 30,
+   "example_event": {
+    "id": 13389573,
+    "home": "FK Bokelj Kotor",
+    "away": "NK Hrvace",
+    "startTimestamp": 1738418400,
+    "homeTeam_national": false,
+    "season": "2025"
+   }
+  },
+  {
+   "competition_id": 32833,
+   "name": "FIFA Series, Women",
+   "slug": "fifa-series-women",
+   "category": "World",
+   "review": "women's national-team friendlies (FIFA Series)",
+   "n_events": 21,
+   "example_event": {
+    "id": 15617796,
+    "home": "Turks and Caicos Islands",
+    "away": "Mauritania",
+    "startTimestamp": 1776355200,
+    "homeTeam_national": true,
+    "season": "2026"
+   }
+  },
+  {
+   "competition_id": 20112,
+   "name": "Allstar Trophy",
+   "slug": "allstar-trophy",
+   "category": "Croatia Amateur",
+   "review": "U9 all-star youth tournament",
+   "n_events": 21,
+   "example_event": {
+    "id": 11254934,
+    "home": "HNK Hajduk Split U9",
+    "away": "NK Brezovica U9",
+    "startTimestamp": 1683356400,
+    "homeTeam_national": false,
+    "season": "2023"
+   }
+  },
+  {
+   "competition_id": 10785,
+   "name": "Atlantic Cup",
+   "slug": "atlantic-cup",
+   "category": "World",
+   "review": "pre-season winter tournament (Algarve, Nordic/Czech clubs)",
+   "n_events": 18,
+   "example_event": {
+    "id": 15362146,
+    "home": "Mjällby AIF",
+    "away": "SK Artis Brno",
+    "startTimestamp": 1770147000,
+    "homeTeam_national": false,
+    "season": "Atlantic Cup 2026"
+   }
+  },
+  {
+   "competition_id": 35879,
+   "name": "Renato Miceli Memorial Tournament",
+   "slug": "renato-miceli-memorial-tournament",
+   "category": "Malta",
+   "review": "pre-season tournament (Maltese clubs, before the league)",
+   "n_events": 9,
+   "example_event": {
+    "id": 16434597,
+    "home": "Mqabba FC",
+    "away": "Ta’ Xbiex SC",
+    "startTimestamp": 1788019200,
+    "homeTeam_national": false,
+    "season": "Renato Miceli Memorial Tournament 2026"
+   }
+  },
+  {
+   "competition_id": 27684,
+   "name": "FIFI Wild Cup",
+   "slug": "fifi-wild-cup",
+   "category": "International",
+   "review": "exhibition of non-FIFA sides",
+   "n_events": 8,
+   "example_event": {
+    "id": 14114156,
+    "home": "Republic of St. Pauli",
+    "away": "Gibraltar",
+    "startTimestamp": 1148911200,
+    "homeTeam_national": false,
+    "season": "2006"
+   }
+  },
+  {
+   "competition_id": 24803,
+   "name": "Memorijal Andrija Anković",
+   "slug": "memorijal-andrija-ankovic",
+   "category": "World",
+   "review": "pre-season memorial tournament",
+   "n_events": 8,
+   "example_event": {
+    "id": 15538452,
+    "home": "GOŠK Gabela",
+    "away": "NK Jadran Luka Ploče",
+    "startTimestamp": 1771070400,
+    "homeTeam_national": false,
+    "season": "2026"
+   }
+  },
+  {
+   "competition_id": 28385,
+   "name": "Memorijalni Turnir “Antun Batinić”",
+   "slug": "memorijalni-turnir-antun-batinic",
+   "category": "Croatia Amateur",
+   "review": "pre-season memorial tournament",
+   "n_events": 8,
+   "example_event": {
+    "id": 16721004,
+    "home": "ŠNK Višnjevac",
+    "away": "NK Omladinac Petrijevci",
+    "startTimestamp": 1786201200,
+    "homeTeam_national": false,
+    "season": "Memorijalni Turnir “Antun Batinić” 2026"
+   }
+  },
+  {
+   "competition_id": 34965,
+   "name": "U15 Premier League International Tournament",
+   "slug": "u15-premier-league-international-tournament",
+   "category": "International Youth",
+   "review": "youth invitational (U15)",
+   "n_events": 8,
+   "example_event": {
+    "id": 16207912,
+    "home": "Paris Saint-Germain U15",
+    "away": "Blackburn Rovers U15",
+    "startTimestamp": 1774770300,
+    "homeTeam_national": false,
+    "season": "U15 Premier League International Tournament 2026"
+   }
+  },
+  {
+   "competition_id": 36470,
+   "name": "Como Cup",
+   "slug": "como-cup",
+   "category": "World",
+   "review": "pre-season club tournament",
+   "n_events": 6,
+   "example_event": {
+    "id": 16670970,
+    "home": "Famalicão",
+    "away": "Como",
+    "startTimestamp": 1785513600,
+    "homeTeam_national": false,
+    "season": "2026"
+   }
+  },
+  {
+   "competition_id": 26798,
+   "name": "Unity Cup",
+   "slug": "unity-cup-2025",
+   "category": "World",
+   "review": "national-team friendly tournament (London)",
+   "n_events": 6,
+   "example_event": {
+    "id": 13951733,
+    "home": "Jamaica",
+    "away": "Nigeria",
+    "startTimestamp": 1748707200,
+    "homeTeam_national": true,
+    "season": "2025"
+   }
+  },
+  {
+   "competition_id": 33822,
+   "name": "U19 Dallas Cup",
+   "slug": "u19-dallas-cup",
+   "category": "International Youth",
+   "review": "youth invitational (U19 Dallas Cup)",
+   "n_events": 6,
+   "example_event": {
+    "id": 15915247,
+    "home": "Houston Dynamo U18",
+    "away": "Aston Villa U18",
+    "startTimestamp": 1775077231,
+    "homeTeam_national": false,
+    "season": "2026"
+   }
+  },
+  {
+   "competition_id": 28834,
+   "name": "Outrigger Challenge Cup",
+   "slug": "outrigger-challenge-cup",
+   "category": "International",
+   "review": "friendly tournament of national/club sides",
+   "n_events": 5,
+   "example_event": {
+    "id": 14485307,
+    "home": "Turks and Caicos Islands",
+    "away": "Ozark United FC U19",
+    "startTimestamp": 1755208829,
+    "homeTeam_national": true,
+    "season": "2025"
+   }
+  },
+  {
+   "competition_id": 36224,
+   "name": "Memoriał Adama Dydzińskiego",
+   "slug": "memorial-adama-dydzinskiego",
+   "category": "Poland Amateur",
+   "review": "pre-season memorial tournament (club with its own U19)",
+   "n_events": 4,
+   "example_event": {
+    "id": 16572198,
+    "home": "Lechia Gdańsk U19",
+    "away": "Tylko Lechia Gdańsk",
+    "startTimestamp": 1784379600,
+    "homeTeam_national": false,
+    "season": "Memoriał Adama Dydzińskiego 2026"
+   }
+  },
+  {
+   "competition_id": 23160,
+   "name": "Torneio Madeira Autonomia",
+   "slug": "torneio-madeira-autonomia",
+   "category": "Portugal Amateur",
+   "review": "pre-season club tournament (Madeira)",
+   "n_events": 4,
+   "example_event": {
+    "id": 12631722,
+    "home": "CS Marítimo",
+    "away": "CS Maritimo de la Guaira",
+    "startTimestamp": 1722715200,
+    "homeTeam_national": false,
+    "season": "2024"
+   }
+  },
+  {
+   "competition_id": 1295,
+   "name": "Emirates Cup",
+   "slug": "emirates-cup",
+   "category": "World",
+   "review": "pre-season club tournament (Arsenal)",
+   "n_events": 3,
+   "example_event": {
+    "id": 16435283,
+    "home": "Arsenal",
+    "away": "Borussia Dortmund",
+    "startTimestamp": 1786280400,
+    "homeTeam_national": false,
+    "season": "Emirates Cup 2026"
+   }
+  },
+  {
+   "competition_id": 36573,
+   "name": "Torneio de Verão Póvoa de Varzim",
+   "slug": "torneio-de-verao-povoa-de-varzim",
+   "category": "Portugal",
+   "review": "pre-season club tournament (Povoa de Varzim, 1-2 Aug)",
+   "n_events": 3,
+   "example_event": {
+    "id": 16692452,
+    "home": "Varzim SC",
+    "away": "Académico Viseu FC",
+    "startTimestamp": 1785578400,
+    "homeTeam_national": false,
+    "season": "Torneio de Verão Póvoa de Varzim 2026"
+   }
+  },
+  {
+   "competition_id": 27206,
+   "name": "Vitória CUP",
+   "slug": "vitoria-cup",
+   "category": "World",
+   "review": "pre-season club tournament",
+   "n_events": 2,
+   "example_event": {
+    "id": 14057710,
+    "home": "Cruzeiro",
+    "away": "Banfield",
+    "startTimestamp": 1751828400,
+    "homeTeam_national": false,
+    "season": "2025"
+   }
+  },
+  {
+   "competition_id": 32435,
+   "name": "Torneio Ribeiro Seguros",
+   "slug": "torneio-ribeiro-seguros",
+   "category": "Portugal",
+   "review": "pre-season club tournament",
+   "n_events": 2,
+   "example_event": {
+    "id": 15551503,
+    "home": "Tourizense",
+    "away": "CF Carregal Sal",
+    "startTimestamp": 1756045800,
+    "homeTeam_national": false,
+    "season": "Torneio Ribeiro Seguros 2025"
+   }
+  },
+  {
+   "competition_id": 31133,
+   "name": "Kings Europe Cup",
+   "slug": "kings-europe-cup",
+   "category": "Europe Amateur",
+   "review": "Kings League 7-a-side format, not football rules",
+   "n_events": 2,
+   "example_event": {
+    "id": 15129767,
+    "home": "G2 FC",
+    "away": "Porcinos FC",
+    "startTimestamp": 1763755200,
+    "homeTeam_national": false,
+    "season": "Kings Europe Cup 25/26"
+   }
+  },
+  {
+   "competition_id": 29895,
+   "name": "KTFF 50th Anniversary Cup",
+   "slug": "ktff-50th-anniversary-cup",
+   "category": "International",
+   "review": "exhibition of non-FIFA sides",
+   "n_events": 2,
+   "example_event": {
+    "id": 14802798,
+    "home": "Northern Cyprus",
+    "away": "Kosovo",
+    "startTimestamp": 1130983200,
+    "homeTeam_national": false,
+    "season": "2005"
+   }
+  },
+  {
+   "competition_id": 889,
+   "name": "Telekom Cup",
+   "slug": "telekom-cup",
+   "category": "World",
+   "review": "pre-season club tournament (Bayern)",
+   "n_events": 2,
+   "example_event": {
+    "id": 16242805,
+    "home": "FC Bayern München",
+    "away": "RB Leipzig",
+    "startTimestamp": 1786800600,
+    "homeTeam_national": false,
+    "season": "Telekom Cup 2026"
+   }
+  },
+  {
+   "competition_id": 37908,
+   "name": "Taça Ibérica",
+   "slug": "taca-iberica",
+   "category": "Portugal Amateur",
+   "review": "pre-season club tournament",
+   "n_events": 1,
+   "example_event": {
+    "id": 17093443,
+    "home": "UD Sousense",
+    "away": "Rayo Ciudad Alcobendas",
+    "startTimestamp": 1790501400,
+    "homeTeam_national": false,
+    "season": "Taça Ibérica 2026"
+   }
+  },
+  {
+   "competition_id": 28852,
+   "name": "A.F. Madeira Troféu \"Cidade do Funchal\"",
+   "slug": "af-madeira-trofeu-cidade-do-funchal",
+   "category": "Portugal Amateur",
+   "review": "pre-season club trophy (Funchal)",
+   "n_events": 1,
+   "example_event": {
+    "id": 14485349,
+    "home": "CS Marítimo",
+    "away": "CD Nacional",
+    "startTimestamp": 1754236800,
+    "homeTeam_national": false,
+    "season": "2025"
+   }
+  },
+  {
+   "competition_id": 36974,
+   "name": "Democracy Cup",
+   "slug": "democracy-cup",
+   "category": "Ghana",
+   "review": "one-off exhibition (Kotoko v Hearts, Democracy Cup)",
+   "n_events": 1,
+   "example_event": {
+    "id": 16865217,
+    "home": "Asante Kotoko SC",
+    "away": "Accra Hearts of Oak",
+    "startTimestamp": 1787929200,
+    "homeTeam_national": false,
+    "season": "Democracy Cup 2026"
+   }
+  },
+  {
+   "competition_id": 31752,
+   "name": "Trening Noworoczny Cracovii",
+   "slug": "trening-noworoczny-cracovii",
+   "category": "Poland Amateur",
+   "review": "training match (Cracovia v Cracovia II, 'New Year training')",
+   "n_events": 1,
+   "example_event": {
+    "id": 15305712,
+    "home": "KS Cracovia",
+    "away": "Cracovia II",
+    "startTimestamp": 1767265200,
+    "homeTeam_national": false,
+    "season": "2026"
+   }
+  }
+ ]
+}

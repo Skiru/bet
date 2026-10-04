@@ -62,6 +62,12 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from bet.sofa.atomic import write_atomic
+from bet.sofa.comparability import (
+    SAME_COMPETITION_METRICS,
+    MatchKind,
+    match_kind,
+    pick_same_competition,
+)
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import GapReason
 from bet.sofa.engine import (
@@ -228,6 +234,11 @@ class Played:
     sport: str
     competition_id: int | None
     values: dict[str, tuple[float, float]]
+    # comparability.match_kind, so the replayed history is the one SAMPLES
+    # builds: a FRIENDLY never enters a side's history, and a goal sample is
+    # the side's REGULAR matches of the fixture's competition when it has
+    # enough of them (comparability.SAME_COMPETITION_METRICS, 2026-10-04).
+    kind: str = MatchKind.REGULAR
 
 
 def match_values(
@@ -372,6 +383,7 @@ def load_cache(
                     sport=sport,
                     competition_id=int(unique) if unique else None,
                     values=values,
+                    kind=match_kind(event, sport),
                 )
             )
 
@@ -456,6 +468,25 @@ class Past(NamedTuple):
     event_id: int
     own: float
     total: float
+    competition_id: int | None = None
+    regular: bool = True
+
+
+def recent_for(
+    history: list[Past], market: str, competition_id: int | None
+) -> list[Past]:
+    """A side's sample for ``market``, as SAMPLES picks it: the newest
+    SAMPLE_N, or for a goal market (SAME_COMPETITION_METRICS) the newest
+    SAMPLE_N REGULAR matches of the fixture's competition when there are at
+    least SAME_COMPETITION_MIN of them. Oldest first, like the history."""
+    if market in SAME_COMPETITION_METRICS and competition_id is not None:
+        picked = pick_same_competition(
+            list(reversed(history)), competition_id, SAMPLE_N,
+            lambda p: p.competition_id, lambda p: p.regular,
+        )
+        if picked is not None:
+            return list(reversed(picked))
+    return history[-SAMPLE_N:]
 
 
 def pooled_total_sample(
@@ -504,8 +535,13 @@ def iter_rows(
     for match in played:
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
-            home_recent = history[(match.home_id, base)][-SAMPLE_N:]
-            away_recent = history[(match.away_id, base)][-SAMPLE_N:]
+            for_market = market_name(base, "for")
+            home_recent = recent_for(
+                history[(match.home_id, base)], for_market, match.competition_id
+            )
+            away_recent = recent_for(
+                history[(match.away_id, base)], for_market, match.competition_id
+            )
 
             # `*_for`: each side from its own history only, as SHEET does
             # (determine_side; h2h never reaches a per-side market).
@@ -534,29 +570,45 @@ def iter_rows(
             # sheet's config.min_sample (5); the per-side sample is the last
             # SAMPLE_N matches that HAVE this statistic, where SAMPLES takes
             # the last sample_n events and loses the gaps; and SAMPLES'
-            # scoping (friendlies out, tennis surface / best-of) is not
-            # replayed - the same differences every `*_for` row already has.
-            if len(home_recent) >= MIN_SAMPLE and len(away_recent) >= MIN_SAMPLE:
+            # scoping of tennis (surface / best-of) is not replayed - the same
+            # differences every `*_for` row already has. Friendlies are out of
+            # the history since 2026-10-04 (Played.kind), and a goal total
+            # picks its sides the way SAMPLES does (recent_for).
+            total_market = market_name(base, "total")
+            home_total = recent_for(
+                history[(match.home_id, base)], total_market, match.competition_id
+            )
+            away_total = recent_for(
+                history[(match.away_id, base)], total_market, match.competition_id
+            )
+            if len(home_total) >= MIN_SAMPLE and len(away_total) >= MIN_SAMPLE:
                 yield from (
                     _settle_sample(
                         match,
-                        market_name(base, "total"),
+                        total_market,
                         "",
                         total,
-                        pooled_total_sample(home_recent, away_recent),
+                        pooled_total_sample(home_total, away_total),
                         baselines,
                         engine_constants,
                     )
                 )
 
         # Only after settling: a match may never contribute to its own sample.
+        # A friendly is settled like any match (the fit drops friendly rows,
+        # fit_meta.friendly_exclusion_sql) but never enters a history.
+        if match.kind == MatchKind.FRIENDLY:
+            continue
+        regular = match.kind == MatchKind.REGULAR
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
             history[(match.home_id, base)].append(
-                Past(match.timestamp, match.event_id, home_value, total)
+                Past(match.timestamp, match.event_id, home_value, total,
+                     match.competition_id, regular)
             )
             history[(match.away_id, base)].append(
-                Past(match.timestamp, match.event_id, away_value, total)
+                Past(match.timestamp, match.event_id, away_value, total,
+                     match.competition_id, regular)
             )
 
 

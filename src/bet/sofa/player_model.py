@@ -91,6 +91,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import config_path
 from bet.sofa.joint import normal_cdf
 from bet.sofa.names import normalize_name
@@ -328,18 +329,33 @@ def listed_games(
     exclude_event_id: int | None,
     history_games: int = HISTORY_GAMES,
 ) -> list[tuple[int, int]]:
-    """(event id, start) of a team's newest listed games before `before_ts`."""
+    """(event id, start) of a team's newest listed games before `before_ts`.
+
+    A pre-season game, a friendly or an exhibition is not a game the player
+    model may learn from (comparability.is_friendly_event, 2026-10-04: NHL /
+    AHL / WNBA / NBA preseason were read as regular games). A listed game
+    whose payload is not in the index is kept - nothing says what it was.
+    """
     listed = conn.execute(
-        "SELECT event_id, start_ts FROM sofa_listing_event "
-        "WHERE entity_id = ? AND kind = 'last' AND start_ts < ? "
-        "ORDER BY start_ts DESC LIMIT ?",
-        (int(team_id), int(before_ts), int(history_games) + 1),
+        "SELECT l.event_id, l.start_ts, e.event_json FROM sofa_listing_event l "
+        "LEFT JOIN sofa_listed_event e ON e.event_id = l.event_id "
+        "WHERE l.entity_id = ? AND l.kind = 'last' AND l.start_ts < ? "
+        "ORDER BY l.start_ts DESC LIMIT ?",
+        (int(team_id), int(before_ts), 3 * (int(history_games) + 1)),
     ).fetchall()
-    return [
-        (int(eid), int(ts))
-        for eid, ts in listed
-        if exclude_event_id is None or int(eid) != int(exclude_event_id)
-    ][:history_games]
+    out: list[tuple[int, int]] = []
+    for eid, ts, event_json in listed:
+        if exclude_event_id is not None and int(eid) == int(exclude_event_id):
+            continue
+        if event_json:
+            try:
+                event = json.loads(event_json)
+            except ValueError:
+                event = None
+            if isinstance(event, dict) and is_friendly_event(event):
+                continue
+        out.append((int(eid), int(ts)))
+    return out[:history_games]
 
 
 def load_appearances(

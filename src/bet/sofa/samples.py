@@ -13,6 +13,14 @@ from typing import Any
 
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
+from bet.sofa.comparability import (
+    FRIENDLIES_PATH,
+    SAME_COMPETITION_METRICS,
+    is_friendly_event,
+    is_knockout,
+    pick_same_competition,
+)
+from bet.sofa.comparability import FRIENDLY_COMPETITION_IDS as _FRIENDLY_IDS
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import (
     Fixture,
@@ -53,37 +61,18 @@ from bet.sofa.reserve_squads import (
     describe,
     reserve_event_ids,
 )
+from bet.sofa.schedule import fixture_schedule
 from bet.sofa.settle import is_completed_event, surfaces_comparable
 from bet.sofa.superbet import SuperbetClient, odds_items
-
-_FRIENDLIES_PATH = config_path("sofa_friendly_competitions.json")
 
 # Metrics whose only source is /event/{id}/incidents.
 INCIDENT_METRICS = frozenset({"cards_points_total", "cards_points_for"})
 
 
-def _load_friendly_ids() -> frozenset[int]:
-    """Competition ids excluded from football counting samples (PLAN §6.1).
-
-    A missing or malformed config degrades to "exclude nothing" rather than
-    crashing — but the caller reports the size of this set, so an empty filter
-    is visible in the run summary instead of being silently inert.
-    """
-    try:
-        raw = json.loads(_FRIENDLIES_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return frozenset()
-    entries = raw.get("excluded", []) if isinstance(raw, dict) else []
-    ids: set[int] = set()
-    for entry in entries:
-        if isinstance(entry, dict) and isinstance(entry.get("competition_id"), int):
-            ids.add(entry["competition_id"])
-        elif isinstance(entry, int):
-            ids.add(entry)
-    return frozenset(ids)
-
-
-FRIENDLY_COMPETITION_IDS: frozenset[int] = _load_friendly_ids()
+# The friendly list and its reader live in comparability (one predicate for
+# every history reader, 2026-10-04); re-exported here for the old importers.
+FRIENDLY_COMPETITION_IDS: frozenset[int] = _FRIENDLY_IDS
+_FRIENDLIES_PATH = FRIENDLIES_PATH
 
 
 def is_friendly_fixture(sport: str, competition_id: int | None) -> bool:
@@ -266,11 +255,18 @@ def get_historical_events(
     fixture: Fixture,
     config: SofaConfig,
     gaps: list[GapEntry] | None = None,
+    pool_out: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """The last ``sample_n`` finished events for ``entity_id`` before kickoff.
 
     The listing goes through the TTL cache: a second run of the same day must
     not re-fetch pages it already holds (E2/T13).
+
+    ``pool_out``, when given (football), receives every admissible event the
+    read pages and the listed-event index hold, newest first and through the
+    same finish_history - the pool a goal sample is picked from
+    (comparability.SAME_COMPETITION_METRICS). It costs no request: the pages
+    are the ones this walk read and the index is local.
     """
     events: list[dict[str, Any]] = []
     page = 0
@@ -281,8 +277,9 @@ def get_historical_events(
     page_ids: set[int] = set()
     spans: list[tuple[int, int]] = []
 
-    def admit(event: dict[str, Any]) -> bool:
-        """Whether one listed event may enter the sample (gaps say why not)."""
+    def admit(event: dict[str, Any], report: bool = True) -> bool:
+        """Whether one listed event may enter the sample (gaps say why not,
+        unless ``report`` is False - the pool's second look at an event)."""
         nonlocal surface_unknown_reported
         # A walkover or retirement is `finished` but did not produce a
         # comparable result; it must not enter a sample (L31).
@@ -291,7 +288,7 @@ def get_historical_events(
             # dropped because it never produced a comparable result is a
             # known reason, so say so instead of silently shortening the
             # sample.
-            if gaps is not None:
+            if gaps is not None and report:
                 status = event.get("status", {}).get("type", "unknown")
                 code = event.get("status", {}).get("code")
                 # "status=finished" under a reason called NOT_FINISHED read
@@ -319,6 +316,12 @@ def get_historical_events(
             return False
         # T12: an event at or after our kickoff is the future leaking in.
         if datetime.fromtimestamp(start_ts, UTC) >= fixture.kickoff_utc:
+            return False
+
+        # A friendly, a pre-season tournament or an exhibition describes a
+        # different game in every sport (comparability, 2026-10-04: the
+        # Torneio de Verao entered Chaves' sample as a league match).
+        if is_friendly_event(event, sport):
             return False
 
         if sport == "tennis":
@@ -367,10 +370,6 @@ def get_historical_events(
             if fixture.default_period_count is not None:
                 if infer_best_of(event) != fixture.default_period_count:
                     return False
-        else:
-            comp_id = _competition_id(event)
-            if comp_id is not None and comp_id in FRIENDLY_COMPETITION_IDS:
-                return False
 
         home_id = event.get("homeTeam", {}).get("id")
         away_id = event.get("awayTeam", {}).get("id")
@@ -483,6 +482,36 @@ def get_historical_events(
             page_ids.add(event["id"])
             if admit(event):
                 events.append(event)
+
+    if pool_out is not None and sport == "football" and spans:
+        # Every admissible match the read pages and the index hold, under the
+        # index rule above (an indexed event inside a read page's span is one
+        # Sofascore no longer lists there), without the "short" condition.
+        pool = list(events)
+        pooled = {e.get("id") for e in pool}
+        deepest_oldest = spans[-1][1]
+        windows = [(older[0], newer[1])
+                   for newer, older in zip(spans, spans[1:], strict=False)]
+        for event in cache.get_listed_events(
+            entity_id, "last", int(fixture.kickoff_utc.timestamp()),
+            INDEXED_HISTORY_LIMIT,
+        ):
+            start = event.get("startTimestamp")
+            if event.get("id") in pooled or not isinstance(start, int):
+                continue
+            listed_here = event.get("id") in page_ids
+            in_gap = any(lo < start < hi for lo, hi in windows)
+            if listed_here or not (in_gap or start < deepest_oldest):
+                continue
+            if admit(event, report=False):
+                pool.append(event)
+                pooled.add(event.get("id"))
+        pool_out.extend(
+            finish_history(
+                pool, entity_id, sport, fixture_competition,
+                int(fixture.kickoff_utc.timestamp()), len(pool) + 1, None,
+            )
+        )
 
     return finish_history(
         events, entity_id, sport, fixture_competition,
@@ -921,6 +950,78 @@ def process_historical_event(
     }
 
 
+def cached_listing(
+    cache: SofaCache, entity_id: int, kickoff_ts: int
+) -> list[dict[str, Any]]:
+    """Every listed event of one side the cache holds - the 'last' pages the
+    walk read and the listed-event index - whatever its status, one per id.
+    No request (bet.sofa.schedule reads postponed events from it)."""
+    seen: dict[Any, dict[str, Any]] = {}
+    for page in range(5):
+        payload = cache.get_entity_events(entity_id, "last", page)
+        if not payload:
+            break
+        for event in payload.get("events") or []:
+            if isinstance(event, dict) and event.get("id") is not None:
+                seen.setdefault(event["id"], event)
+    for event in cache.get_listed_events(
+        entity_id, "last", kickoff_ts, INDEXED_HISTORY_LIMIT
+    ):
+        seen.setdefault(event.get("id"), event)
+    return list(seen.values())
+
+
+def goal_observations(
+    client: SofascoreClient,
+    cache: SofaCache,
+    event: dict[str, Any],
+    entity_id: int,
+    metrics: set[str],
+    fixture: Fixture,
+) -> dict[str, Any]:
+    """process_historical_event for goal metrics only, and never a request.
+
+    A goal count is read from the listing (homeScore / awayScore), so a match
+    picked into a goal sample needs no statistics. With statistics cached the
+    usual path runs (its identity check included) - goal metrics alone ask
+    for no incidents, so it makes no call. Without them the listing is read
+    directly; the identity check, which compares the listing with the
+    statistics, has nothing to compare.
+    """
+    start = event.get("startTimestamp")
+    if cache.get_event_stats(
+        event["id"], kickoff_ts=int(start) if isinstance(start, (int, float)) else None
+    ) is not None:
+        return process_historical_event(
+            client, cache, event, entity_id, "football", metrics, fixture
+        )
+    home_team = event.get("homeTeam", {})
+    away_team = event.get("awayTeam", {})
+    is_home = home_team.get("id") == entity_id
+    collected: dict[str, Observation | GapReason] = {}
+    for metric in metrics:
+        val = extract_metric(metric, "football", {}, None, event, is_home)
+        if isinstance(val, GapReason):
+            collected[metric] = val
+        else:
+            collected[metric] = Observation(
+                sofascore_event_id=int(event["id"]),
+                match_date_utc=datetime.fromtimestamp(event["startTimestamp"], UTC),
+                opponent=(away_team if is_home else home_team).get("name") or "Unknown",
+                value=val,
+                competition_id=_competition_id(event),
+                season_id=event.get("season", {}).get("id"),
+                venue="home" if is_home else "away",
+            )
+    return {
+        "event_id": event["id"],
+        "collected": collected,
+        "is_h2h": {home_team.get("id"), away_team.get("id")}
+        == {fixture.home_entity_id, fixture.away_entity_id},
+        "zero_notes": {},
+    }
+
+
 def build_player_samples(
     wanted: dict[str, set[str]],
     side_results: dict[str, list[dict[str, Any]]],
@@ -1142,6 +1243,8 @@ def _process_fixture_samples(
         )
 
     sample_gaps: list[GapEntry] = []
+    pool_a: list[dict[str, Any]] = []
+    pool_b: list[dict[str, Any]] = []
     side_a_events = get_historical_events(
         client,
         cache,
@@ -1150,6 +1253,7 @@ def _process_fixture_samples(
         fixture,
         config,
         sample_gaps,
+        pool_a,
     )
     side_b_events = get_historical_events(
         client,
@@ -1159,6 +1263,7 @@ def _process_fixture_samples(
         fixture,
         config,
         sample_gaps,
+        pool_b,
     )
 
     side_a_results = [
@@ -1188,6 +1293,29 @@ def _process_fixture_samples(
         for e in side_b_events
     ]
 
+    # The goal markets' own sample (comparability.SAME_COMPETITION_METRICS):
+    # the side's newest REGULAR matches of the fixture's competition, when it
+    # has at least SAME_COMPETITION_MIN of them; otherwise the sample above.
+    goal_metrics = metrics_to_collect & SAME_COMPETITION_METRICS
+    goal_results: dict[str, list[dict[str, Any]] | None] = {
+        "Side A": None, "Side B": None,
+    }
+    if fixture.sport == "football" and goal_metrics:
+        for label, pool, entity in (
+            ("Side A", pool_a, fixture.home_entity_id),
+            ("Side B", pool_b, fixture.away_entity_id),
+        ):
+            picked = pick_same_competition(
+                pool, fixture.competition_id, config.sample_n,
+                _competition_id, lambda e: not is_knockout(e),
+            )
+            if picked is None:
+                continue
+            goal_results[label] = [
+                goal_observations(client, cache, e, entity, goal_metrics, fixture)
+                for e in picked
+            ]
+
     metric_samples: dict[str, MetricSample] = {}
     gaps: list[GapEntry] = list(sample_gaps)
 
@@ -1201,6 +1329,8 @@ def _process_fixture_samples(
             (side_a_results, obs_a, "Side A"),
             (side_b_results, obs_b, "Side B"),
         ):
+            if metric in goal_metrics and goal_results[side_label] is not None:
+                results = goal_results[side_label] or []
             seen_in_side: set[int] = set()
             for res in results:
                 val = res["collected"].get(metric)
@@ -1286,10 +1416,22 @@ def _process_fixture_samples(
             else "PARTIAL"
         )
 
+    kickoff_ts = int(fixture.kickoff_utc.timestamp())
+    schedule = fixture_schedule(
+        cached_listing(cache, fixture.home_entity_id, kickoff_ts),
+        cached_listing(cache, fixture.away_entity_id, kickoff_ts),
+        fixture.home_entity_id,
+        fixture.away_entity_id,
+        fixture.competition_id,
+        kickoff_ts,
+        fixture.sofascore_event_id,
+        fixture.sport,
+    )
     return FixtureSamples(
         sofascore_event_id=fixture.sofascore_event_id,
         readiness=readiness,
         metrics=metric_samples,
         gaps=gaps,
         players=player_samples,
+        schedule=schedule,
     )

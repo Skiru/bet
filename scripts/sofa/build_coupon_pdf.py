@@ -16,6 +16,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 
 _REPO = Path(__file__).resolve().parents[2]
 for _p in (str(_REPO), str(_REPO / "src")):
@@ -141,6 +142,26 @@ def unfitted_constants(
                     c.strip() for c in note.split(":", 1)[1].split(",") if c.strip()
                 )
     return sorted(found)
+
+
+def watch_label(leg: dict[str, Any]) -> str:
+    """The WATCH a profile kept (the WARIANT does; the official coupon
+    refuses the leg), printed on the leg so it is never staked unread."""
+    watched = [r for r in leg.get("reads") or [] if r.get("verdict") == "WATCH"]
+    if not watched:
+        return ""
+    who = ", ".join(sorted({str(r.get("author")) for r in watched}))
+    return (f"<br/><font size=6.5 color='#b25b00'><b>WATCH ({who})</b>: "
+            f"{escape(str(watched[0].get('reason') or ''))[:160]}</font>")
+
+
+def context_label(leg: dict[str, Any]) -> str:
+    """bet.sofa.schedule's tags (make-up fixture, long layoff, congestion)."""
+    flags = leg.get("context_flags") or []
+    if not flags:
+        return ""
+    return (f"<br/><font size=6.5 color='#b25b00'>"
+            f"{escape(', '.join(str(f) for f in flags))}</font>")
 
 
 def started_at_render(leg: dict[str, Any], now: datetime.datetime) -> bool:
@@ -481,6 +502,7 @@ def main() -> int:
             if started_at_render(leg, now):
                 same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                          "renderem PDF</b></font>")
+            same += watch_label(leg) + context_label(leg)
             srows.append([
                 Paragraph(str(i), SMALL),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
@@ -548,6 +570,13 @@ def main() -> int:
             else:
                 smp = "—"
                 caveats.append(f"noga {j}: brak próbki do weryfikacji")
+            for flag in leg.get("context_flags") or []:
+                caveats.append(f"noga {j}: {escape(str(flag))}")
+            for r in leg.get("reads") or []:
+                if r.get("verdict") == "WATCH":
+                    caveats.append(
+                        f"noga {j}: WATCH ({r.get('author')}): "
+                        f"{escape(str(r.get('reason') or ''))[:160]}")
             sub = f" {x['subject']}" if x["subject"] else ""
             rows.append([
                 str(j),

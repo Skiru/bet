@@ -1,16 +1,18 @@
 {
   "_doc": [
-    "uniqueTournament.id values excluded from FOOTBALL counting samples (PLAN §6.1).",
+    "uniqueTournament.id values excluded from every FOOTBALL history reader (samples, rating, cache replay, player model) through bet.sofa.comparability.is_friendly_event.",
     "A friendly is played at a different intensity from a league match; its corners,",
     "cards and fouls describe a different game. Keyed on the id, never on the name,",
     "because the name is localised and the id is not.",
     "",
     "Every entry names the evidence file the id was read from. An id nobody can",
-    "trace to a payload does not belong in this file. Extend it with",
-    "`python -m scripts.sofa.find_friendly_competitions` (E10 backfill data) and",
+    "trace to a payload does not belong in this file. Candidates come from",
+    "`scripts/sofa/find_friendly_competitions.py` (friendly-named OR shaped like an invitational: short season, few matches per club, clubs of different leagues);",
     "review each candidate before promoting it here.",
     "",
-    "`allowed` lists friendly-named ids kept on purpose, with the reason; tests/sofa/test_friendly_competitions.py requires every friendly-named football id in the evidence file to be in one of the two lists."
+    "`allowed` lists friendly-named ids kept on purpose, with the reason; tests/sofa/test_comparability.py requires every id here to be in its evidence file.",
+    "",
+    "`excluded_other_sports` (sport -> ids) is read by the same predicate for the other sports, on top of their name markers (friendly / preseason / exhibition / all-star / summer league; tennis also its Exhibition and Legends categories)."
   ],
   "excluded": [
     {
@@ -342,6 +344,230 @@
       "category": "World",
       "evidence": "docs/sofa/evidence/friendly_competitions_2026-10-04.json",
       "source": "cache_payload"
+    },
+    {
+      "competition_id": 22437,
+      "name": "Kings World Cup Clubs",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 17123,
+      "name": "Memorijalni turnir Mladen Ramljak",
+      "category": "Europe",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 2105,
+      "name": "U19 CEE Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 22948,
+      "name": "COTIF Tournament",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 32832,
+      "name": "FIFA Series",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 34432,
+      "name": "U19 International Tournament",
+      "category": "International Clubs",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 24752,
+      "name": "Arena Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 32833,
+      "name": "FIFA Series, Women",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 20112,
+      "name": "Allstar Trophy",
+      "category": "Croatia Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 10785,
+      "name": "Atlantic Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 35879,
+      "name": "Renato Miceli Memorial Tournament",
+      "category": "Malta",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27684,
+      "name": "FIFI Wild Cup",
+      "category": "International",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 24803,
+      "name": "Memorijal Andrija Anković",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28385,
+      "name": "Memorijalni Turnir “Antun Batinić”",
+      "category": "Croatia Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 34965,
+      "name": "U15 Premier League International Tournament",
+      "category": "International Youth",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 36470,
+      "name": "Como Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 26798,
+      "name": "Unity Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 33822,
+      "name": "U19 Dallas Cup",
+      "category": "International Youth",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28834,
+      "name": "Outrigger Challenge Cup",
+      "category": "International",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 36224,
+      "name": "Memoriał Adama Dydzińskiego",
+      "category": "Poland Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 23160,
+      "name": "Torneio Madeira Autonomia",
+      "category": "Portugal Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 1295,
+      "name": "Emirates Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 36573,
+      "name": "Torneio de Verão Póvoa de Varzim",
+      "category": "Portugal",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 27206,
+      "name": "Vitória CUP",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 32435,
+      "name": "Torneio Ribeiro Seguros",
+      "category": "Portugal",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 31133,
+      "name": "Kings Europe Cup",
+      "category": "Europe Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 29895,
+      "name": "KTFF 50th Anniversary Cup",
+      "category": "International",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 889,
+      "name": "Telekom Cup",
+      "category": "World",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 37908,
+      "name": "Taça Ibérica",
+      "category": "Portugal Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 28852,
+      "name": "A.F. Madeira Troféu \"Cidade do Funchal\"",
+      "category": "Portugal Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 36974,
+      "name": "Democracy Cup",
+      "category": "Ghana",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
+    },
+    {
+      "competition_id": 31752,
+      "name": "Trening Noworoczny Cracovii",
+      "category": "Poland Amateur",
+      "evidence": "docs/sofa/evidence/preseason_competitions_2026-10-04.json",
+      "source": "cache_payload"
     }
   ],
   "candidates": [],
@@ -352,5 +578,12 @@
       "reason": "Senior women's national-team friendlies. 851 moved to excluded on 2026-10-04; 852 left here pending a decision: 1,334 cached matches but only 7 with statistics, and excluding it would drop 24 women's national teams under min_sample=5 (32 under sample_n=10) in the last 730 days.",
       "evidence": "docs/sofa/evidence/friendly_competitions_2026-09-30.json"
     }
-  ]
+  ],
+  "excluded_other_sports": {
+    "ice-hockey": [],
+    "basketball": [],
+    "volleyball": [],
+    "tennis": [],
+    "esports": []
+  }
 }

@@ -47,6 +47,8 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     Calibration,
+    model_above_own_sample,
+    own_hit_rate,
     best_leg_per_quantity,
     builder_legs_are_coherent,
     builder_odds,
@@ -74,12 +76,19 @@ from bet.sofa.players import (  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 from pydantic import RootModel  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
+from bet.sofa.schedule import FixtureSchedule  # noqa: E402
 from bet.sofa.engine import (  # noqa: E402
     has_calibratable_model,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
-from bet.sofa.veto import load_vetoes, veto_matches  # noqa: E402
+from bet.sofa.veto import (  # noqa: E402
+    load_reads,
+    load_vetoes,
+    matching_reads,
+    read_refusal,
+    veto_matches,
+)
 
 # A leg below this is not what the operator means by a strong read. The floor
 # is on the measured LOWER bound, not on what the model claims.
@@ -211,6 +220,12 @@ def main() -> int:
         for s in json.loads((run_dir / "03_samples.json").read_text(encoding="utf-8"))
     }
 
+    def schedule_flags(event_id: int) -> list[str]:
+        raw = (samples.get(event_id) or {}).get("schedule")
+        if not raw:
+            return []
+        return FixtureSchedule.model_validate_json(json.dumps(raw)).flags()
+
     def side_observations(row: dict[str, Any]) -> list[dict[str, Any]]:
         """This row's own past matches, on the side the sheet priced.
 
@@ -326,6 +341,12 @@ def main() -> int:
     # this pipeline could not reach its product.
     vetoes = load_vetoes(run_dir / "vetoes.json")
     vetoed_keys: set[tuple[Any, ...]] = set()
+    # The analysts' and the verifier's reads (contracts.LegRead, 2026-10-04):
+    # NO_BET refuses everywhere, WATCH where the profile honours it, and a
+    # read that covers a printed leg rides on the leg so the ledger can tell
+    # a watched leg from the rest.
+    reads = load_reads(run_dir / "reads.json")
+    read_keys: set[tuple[Any, ...]] = set()
 
     legs: list[dict[str, Any]] = []
     refused: dict[str, int] = defaultdict(int)
@@ -362,6 +383,28 @@ def main() -> int:
                     row["direction"],
                 )
             )
+            continue
+        row_reads = matching_reads(
+            reads,
+            sofascore_event_id=row["sofascore_event_id"],
+            market=row["market"],
+            subject=row.get("subject") or "",
+            line=row["line"],
+            direction=row["direction"],
+        )
+        if row_reads:
+            read_keys.add(
+                (
+                    row["sofascore_event_id"],
+                    row["market"],
+                    row.get("subject") or "",
+                    row["line"],
+                    row["direction"],
+                )
+            )
+        read_refused = read_refusal(row_reads, profile.honours_watch)
+        if read_refused is not None:
+            refused[read_refused] += 1
             continue
         # The EARLIER of the two clocks, as coupon.py has done since F26 —
         # this stage read only Sofascore's, which is the later one for ITF.
@@ -586,6 +629,17 @@ def main() -> int:
         if newest_days is not None and newest_days > MAX_SAMPLE_AGE_DAYS:
             refused["STALE_SAMPLE"] += 1
             continue
+        # An automatic WATCH (confidence.MAX_OWN_SAMPLE_GAP): refused where
+        # the profile honours WATCH, kept and marked where it does not.
+        own_gap = model_above_own_sample(
+            row["sport"], row["p_central"], values, row["line"], row["direction"]
+        )
+        auto_watch: list[str] = []
+        if own_gap is not None:
+            if profile.honours_watch:
+                refused["MODEL_ABOVE_OWN_SAMPLE"] += 1
+                continue
+            auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
 
         legs.append(
             {
@@ -614,6 +668,26 @@ def main() -> int:
                 "sample_newest_days": newest_days,
                 "sample_min": min(values) if values else None,
                 "sample_max": max(values) if values else None,
+                # How often the line held in the leg's own sample - the
+                # number the verifier compared by hand on 2026-10-04 (model
+                # 0.786 against 14/20 on Farense - Chaves). Shown, not gated:
+                # measure_own_sample_gap.py found no gap band that realises
+                # worse than the price on all rows (data/analysis_2026-10-04_
+                # history/own_sample_gap_football.md).
+                "sample_hit_rate": (
+                    round(own_rate, 4)
+                    if (own_rate := own_hit_rate(values, row["line"], row["direction"]))
+                    is not None else None
+                ),
+                # bet.sofa.schedule's tags for the fixture (make-up fixture,
+                # long layoff, congestion) and an automatic WATCH this profile
+                # kept, written only when there is one.
+                **(
+                    {"context_flags": flags}
+                    if (flags := schedule_flags(row["sofascore_event_id"])
+                        + auto_watch)
+                    else {}
+                ),
                 "offered_odds": odds,
                 "implied_p": round(1.0 / odds, 4),
                 # What Superbet's shading costs on THIS leg, in probability
@@ -633,6 +707,17 @@ def main() -> int:
                 # until 2026-09-25 both confidence artifacts and their .md
                 # said it zero times - only the PDF banner re-read the sheet.
                 "unfitted_constants": unfitted_from_notes(row.get("notes")),
+                # The reads that cover the leg (reads.json), written only when
+                # there is one - a WATCH leg the WARIANT kept is marked, so the
+                # ledger can grade WATCH; an artifact without reads is
+                # byte-for-byte what it was before 2026-10-04.
+                **(
+                    {"reads": [
+                        {"verdict": r.verdict, "author": r.author, "reason": r.reason}
+                        for r in row_reads
+                    ]}
+                    if row_reads else {}
+                ),
                 # Not serialised: the builder needs to intersect legs on the
                 # matches they came from. Stripped before the artifact is
                 # written.
@@ -776,6 +861,24 @@ def main() -> int:
     ]
     for v in unmatched:
         print(f"UNMATCHED_VETO: {v.model_dump_json()}", file=sys.stderr)
+    # The same for reads: a read that covers no row on the sheet did nothing.
+    reads_unmatched = [
+        r
+        for r in reads
+        if not any(
+            veto_matches(
+                r,
+                sofascore_event_id=row["sofascore_event_id"],
+                market=row["market"],
+                subject=row.get("subject") or "",
+                line=row["line"],
+                direction=row["direction"],
+            )
+            for row in sheet
+        )
+    ]
+    for r in reads_unmatched:
+        print(f"UNMATCHED_READ: {r.model_dump_json()}", file=sys.stderr)
 
     out = {
         "created_at_utc": now.isoformat().replace("+00:00", "Z"),
@@ -788,6 +891,16 @@ def main() -> int:
         **({"gap_shrink_k": cal.gap_shrink_k} if cal.gap_shrink_k > 0 else {}),
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
+        # Written only when reads.json holds any, so a day without reads is
+        # byte-for-byte what it was before 2026-10-04.
+        **(
+            {
+                "honours_watch": profile.honours_watch,
+                "reads_applied": len(reads) - len(reads_unmatched),
+                "reads_unmatched": len(reads_unmatched),
+            }
+            if reads else {}
+        ),
         "unfitted_constants": sorted(
             {
                 c
@@ -937,6 +1050,9 @@ def main() -> int:
             "vetoes_applied": len(vetoes) - len(unmatched),
             "vetoes_unmatched": len(unmatched),
             "vetoed_rungs": len(vetoed_keys),
+            "reads_applied": len(reads) - len(reads_unmatched),
+            "reads_unmatched": len(reads_unmatched),
+            "read_rungs": len(read_keys),
         },
         "output_path": str(run_dir / artifact),
     }))

@@ -16,12 +16,13 @@ from bet.sofa.contracts import (
     CouponRow,
     Fixture,
     FixtureOffer,
+    LegRead,
     SheetRow,
     Veto,
 )
 from bet.sofa.market_mapper import get_mechanism_family
 from bet.sofa.samples import is_friendly_fixture
-from bet.sofa.veto import match_vetoes
+from bet.sofa.veto import match_vetoes, matching_reads, read_refusal
 
 # The day's row cap. `None` means no cap, which is the default: a cap that
 # binds does not trim the worst rows, it trims whichever rows sort last, and
@@ -122,6 +123,7 @@ def build_coupon(
     max_singles: int | None = MAX_SINGLES,
     max_sample_age_days: int = MAX_SAMPLE_AGE_DAYS,
     calibration: Calibration | None = None,
+    reads: list[LegRead] | None = None,
 ) -> CouponResult:
     """Select singles from VALUE rows, reporting every exclusion."""
     fixtures_by_id = {f.sofascore_event_id: f for f in fixtures}
@@ -248,6 +250,20 @@ def build_coupon(
         matched_vetoes = match_vetoes(row, vetoes)
         if matched_vetoes:
             dropped.append(DroppedRow(row, "VETOED", matched_vetoes[0].reason))
+            continue
+        # The analysts' / verifier's reads, as CONFIDENCE's official profile
+        # applies them: NO_BET and WATCH both remove (2026-10-04).
+        row_reads = matching_reads(
+            reads or [],
+            sofascore_event_id=row.sofascore_event_id,
+            market=row.market,
+            subject=row.subject,
+            line=row.line,
+            direction=row.direction,
+        )
+        read_refused = read_refusal(row_reads, honours_watch=True)
+        if read_refused is not None:
+            dropped.append(DroppedRow(row, read_refused, row_reads[0].reason))
             continue
 
         # A4/L25: a price read this morning is not the price tonight.

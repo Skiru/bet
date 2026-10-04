@@ -15,14 +15,30 @@ The only structured output an analyst had could not touch the product.
 """
 
 from pathlib import Path
+from typing import Protocol
 
 from pydantic import RootModel
 
-from bet.sofa.contracts import SheetRow, Veto
+from bet.sofa.contracts import LegRead, SheetRow, Veto
+
+
+class _RowKey(Protocol):
+    """What a veto and a read both carry: the row they cover."""
+
+    @property
+    def sofascore_event_id(self) -> int: ...
+    @property
+    def market(self) -> str | None: ...
+    @property
+    def subject(self) -> str | None: ...
+    @property
+    def line(self) -> float | None: ...
+    @property
+    def direction(self) -> str | None: ...
 
 
 def veto_matches(
-    veto: Veto,
+    veto: _RowKey,
     *,
     sofascore_event_id: int,
     market: str,
@@ -88,3 +104,54 @@ def load_vetoes(path: Path | str) -> list[Veto]:
     if not data.strip():
         return []
     return RootModel[list[Veto]].model_validate_json(data).root
+
+
+def load_reads(path: Path | str) -> list[LegRead]:
+    """Read a `reads.json` (contracts.LegRead). Absent or empty: no reads."""
+    p = Path(path)
+    if not p.exists():
+        return []
+    data = p.read_text(encoding="utf-8")
+    if not data.strip():
+        return []
+    return RootModel[list[LegRead]].model_validate_json(data).root
+
+
+def matching_reads(
+    reads: list[LegRead],
+    *,
+    sofascore_event_id: int,
+    market: str,
+    subject: str,
+    line: float,
+    direction: str,
+) -> list[LegRead]:
+    """The reads that cover this row, with the veto's matching rule."""
+    return [
+        r
+        for r in reads
+        if veto_matches(
+            r,
+            sofascore_event_id=sofascore_event_id,
+            market=market,
+            subject=subject,
+            line=line,
+            direction=direction,
+        )
+    ]
+
+
+def read_refusal(reads: list[LegRead], honours_watch: bool) -> str | None:
+    """Why the reads covering a row refuse it, or None.
+
+    NO_BET refuses in every profile (a veto by another name); WATCH only
+    where the profile honours it - the official coupon does, the WARIANT does
+    not (2026-10-04, the operator's decision), so a WATCH leg stays in the
+    WARIANT and the ledger measures it.
+    """
+    verdicts = {r.verdict for r in reads}
+    if "NO_BET" in verdicts:
+        return "READ_NO_BET"
+    if honours_watch and "WATCH" in verdicts:
+        return "WATCHED"
+    return None

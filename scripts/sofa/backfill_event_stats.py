@@ -68,6 +68,7 @@ from typing import Any
 
 from bet.sofa.cache import PROVISIONAL_FETCH_HOURS, SofaCache
 from bet.sofa.client import SofascoreClient
+from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.listing_index import iter_indexed_events
@@ -407,10 +408,10 @@ def _sport_events(
 
 
 def _is_friendly(event: dict[str, Any]) -> bool:
-    """score_model._is_friendly: friendlies are out of the rating (CLAUDE.md),
-    so their statistics would be bridge time nothing reads."""
-    unique = (event.get("tournament") or {}).get("uniqueTournament") or {}
-    return "friendly" in str(unique.get("name") or "").lower()
+    """comparability.is_friendly_event: one rule for every history reader
+    (2026-10-04; the name test "friendly" missed NHL / AHL / WNBA / NBA
+    preseason and every pre-season tournament)."""
+    return is_friendly_event(event)
 
 
 def route_barren(

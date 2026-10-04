@@ -51,6 +51,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from typing import Any
 
+from bet.sofa.comparability import is_non_competitive_name
 from bet.sofa.cs2 import Cs2Line, esports_name
 from bet.sofa.engine import (
     P_CEILING,
@@ -316,7 +317,8 @@ def load_history(
     since = before_ts - LOOKBACK_DAYS * 86400
     rows = conn.execute(
         """SELECT m.game_id, s.sofascore_event_id, s.start_ts, m.map_order,
-                  s.home_id, s.away_id, m.home_rounds, m.away_rounds, m.winner_code
+                  s.home_id, s.away_id, m.home_rounds, m.away_rounds, m.winner_code,
+                  s.tournament
            FROM cs2_map m JOIN cs2_series s USING (sofascore_event_id)
            WHERE s.status_type = 'finished' AND m.status_type = 'finished'
              AND s.start_ts < ? AND s.start_ts >= ?
@@ -326,6 +328,9 @@ def load_history(
            ORDER BY s.start_ts, s.sofascore_event_id, m.map_order""",
         (before_ts, since),
     ).fetchall()
+    # A show match / exhibition is not a series the ratings may learn from
+    # (comparability; none in the store when this was added, 2026-10-04).
+    rows = [r[:9] for r in rows if not is_non_competitive_name(r[9])]
     players: dict[int, list[tuple[str, int, str, StatRow]]] = defaultdict(list)
     ids = [r[0] for r in rows]
     for i in range(0, len(ids), 500):

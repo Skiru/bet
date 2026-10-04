@@ -25,7 +25,7 @@ from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
 from bet.sofa.coupon import CouponResult, build_coupon
 from bet.sofa.stage import set_stage
 from bet.sofa.timeutil import now
-from bet.sofa.veto import find_unmatched_vetoes
+from bet.sofa.veto import find_unmatched_vetoes, load_reads
 
 
 def read_file(path: Path) -> bytes | None:
@@ -287,6 +287,7 @@ def main() -> int:
         # The same measured ceiling CONFIDENCE enforces. Both paths read one
         # calibration so they cannot disagree about what has been observed.
         calibration=Calibration.load(),
+        reads=load_reads(run_dir / "reads.json"),
     )
 
     run_dir.mkdir(parents=True, exist_ok=True)

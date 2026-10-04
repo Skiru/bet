@@ -552,6 +552,10 @@ class ConfidenceProfile:
     # into the artifact, so a variant artifact from before 2026-09-29 (whose
     # PDF printed none) is never graded as if it had.
     prints_builders: bool = True
+    # Whether an analyst's or the verifier's WATCH (reads.json) removes a
+    # leg. The official coupon honours it; the WARIANT keeps a WATCH leg,
+    # marked, so the ledger can measure WATCH (operator, 2026-10-04).
+    honours_watch: bool = True
 
     def single_is_fairly_priced(self, leg_overround: float | None) -> bool:
         return leg_overround is not None and leg_overround <= self.max_overround
@@ -562,6 +566,44 @@ class ConfidenceProfile:
         # Rounded before comparing: 0.75 x 1.20 is 0.8999999999999999 in
         # binary, and a leg printed as x = 0.90 must not be refused at 0.90.
         return round(confidence * odds, 9) >= self.min_ev
+
+
+# A football leg whose model sits more than this above the hit rate of its own
+# sample (the share of the sample's observations the line would have won) is
+# an automatic WATCH (2026-10-04): the official coupon refuses it, the WARIANT
+# keeps it marked. The threshold is the sofa-verifier's, written before it was
+# measured; measured on 51,567 settled priced football rows with
+# p_central >= 0.65, 2026-09-19..10-03 (scripts/sofa/measure_own_sample_gap.py,
+# data/analysis_2026-10-04_history/own_sample_gap_football.md): gap > 0.15
+# realised 2.1 pp under the devigged price [-3.9; -0.3], ROI -8.2%
+# [-11.2; -5.5] against -3.6 .. -5.3% in every other band, both event-id
+# halves -8.2%, worse than the rest on 11 of 15 days. Tennis showed nothing
+# (gap > 0.15: -0.4 pp, ROI -3.7%), so it is football only. Farense - Chaves
+# goals_total UNDER 3.5 was 0.786 against 14/20 - a gap of 0.086, under it.
+MAX_OWN_SAMPLE_GAP = 0.15
+OWN_SAMPLE_GAP_SPORTS = frozenset({"football"})
+MIN_OWN_SAMPLE = 5
+
+
+def own_hit_rate(values: list[float], line: float, direction: str) -> float | None:
+    """How often the line held in these observations; None without any."""
+    if not values:
+        return None
+    won = sum(1 for v in values if (v > line if direction == "OVER" else v < line))
+    return won / len(values)
+
+
+def model_above_own_sample(
+    sport: str, model_p: float, values: list[float], line: float, direction: str
+) -> float | None:
+    """The gap when it trips MAX_OWN_SAMPLE_GAP, else None."""
+    if sport not in OWN_SAMPLE_GAP_SPORTS or len(values) < MIN_OWN_SAMPLE:
+        return None
+    rate = own_hit_rate(values, line, direction)
+    if rate is None:
+        return None
+    gap = model_p - rate
+    return gap if gap > MAX_OWN_SAMPLE_GAP else None
 
 
 # The official coupon, and the operator's variant of 2026-09-23: "65% and up to
@@ -594,7 +636,8 @@ class ConfidenceProfile:
 PROFILES: dict[str, ConfidenceProfile] = {
     "standard": ConfidenceProfile("standard", 0.70, None, "", ""),
     "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
-                                 max_overround=0.15, pdf_max_singles=None),
+                                 max_overround=0.15, pdf_max_singles=None,
+                                 honours_watch=False),
 }
 
 

@@ -29,6 +29,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
+from bet.sofa.comparability import is_friendly_event
 from bet.sofa.contracts import GapReason
 from bet.sofa.metrics import (
     TENNIS_METRICS,
@@ -97,6 +98,8 @@ def _is_countable(event: Mapping[str, Any]) -> bool:
     home, away = event.get("homeTeam") or {}, event.get("awayTeam") or {}
     if home.get("type") != 1 or away.get("type") != 1:
         return False  # doubles
+    if is_friendly_event(event, "tennis"):
+        return False  # exhibition / legends (comparability)
     status = event.get("status") or {}
     if status.get("type") != "finished" or status.get("description") != "Ended":
         return False

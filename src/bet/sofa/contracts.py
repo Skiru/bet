@@ -2,7 +2,9 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from bet.sofa.schedule import FixtureSchedule
 
 Sport = Literal["football", "tennis"]
 Direction = Literal["OVER", "UNDER"]
@@ -187,6 +189,9 @@ class FixtureSamples(BaseModel):
     # the (market, subject) pair a rung carries, so SHEET looks a player rung
     # up without re-running the name match SAMPLES already did.
     players: dict[str, PlayerSample] = {}
+    # bet.sofa.schedule (2026-10-04): make-up fixture, rest, congestion.
+    # Absent on a fixture sampled before that day.
+    schedule: FixtureSchedule | None = None
 
 
 class PricedRung(BaseModel):
@@ -302,6 +307,42 @@ class Veto(BaseModel):
                 f"got {self.reason_class!r}"
             )
         return self
+
+
+LegVerdict = Literal["KEEP", "WATCH", "NO_BET"]
+ReadAuthor = Literal["analyst", "verifier"]
+
+
+class LegRead(BaseModel):
+    """One person's read of a row: what the analyst or the verifier said.
+
+    2026-10-04, SC Farense - Chaves goals_total UNDER 3.5: the analyst read
+    the leg as WATCH (Chaves' matches 4/5/4/5 goals, two cup observations)
+    and the verifier put it among the rows it would not stake (model 9 pp
+    above its own sample's hit rate, 153 days over three competitions). The
+    schema had no field for either, so the leg stayed in the PDF and lost.
+
+    A read is persisted in ``runs/sofa/<date>/reads.json`` beside the
+    vetoes, matched like a veto (a None field covers every value), and is
+    consequential:
+
+    * NO_BET removes the row from every profile, as a veto does;
+    * WATCH removes it from the official coupon and keeps it, marked, in the
+      WARIANT - the operator's decision of 2026-10-04, so the ledger can
+      measure whether WATCH removes losers;
+    * KEEP removes nothing; it records that the row was read.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    sofascore_event_id: int
+    market: str | None
+    subject: str | None
+    line: float | None
+    direction: Direction | None
+    verdict: LegVerdict
+    author: ReadAuthor
+    reason: str = Field(min_length=1)
+    context: ContextSignal | None = None
 
 
 class CouponRow(BaseModel):
