@@ -72,3 +72,20 @@ def test_write_settled_deletes_only_the_dropped_ids_replay_rows(tmp_path: Path) 
     write_settled([_replay(10), _replay(30)], db, drop_event_ids={20, 10})
     assert _ids(db, "cache-calibration") == {10, 30}, "an id being written stays"
     assert _ids(db, "2026-09-28") == {20}, "a live row is never deleted"
+
+
+def test_the_stale_delete_reads_the_event_id_index(tmp_path: Path) -> None:
+    # Since the replay streams its rows, the stale ids are deleted AFTER ~59M
+    # cache rows are written; through the run_date index each DELETE read all
+    # of them, and the 2026-10-04 rehearsal stood there for hours.
+    from scripts.sofa.calibrate_from_cache import _DELETE_STALE_REPLAY_ROWS
+
+    db = tmp_path / "sofa.db"
+    migrate(str(db))
+    with sqlite3.connect(db) as conn:
+        plan = " ".join(
+            str(r[-1]) for r in conn.execute(
+                "EXPLAIN QUERY PLAN " + _DELETE_STALE_REPLAY_ROWS, (1,))
+        )
+    assert "sofascore_event_id=?" in plan, plan
+    assert "run_date" not in plan, plan

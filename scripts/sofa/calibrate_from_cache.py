@@ -1258,6 +1258,16 @@ _ONLY_OVER_CACHE_ROWS = (
 WRITE_BATCH = 50_000
 
 
+# By event id, through the UNIQUE(sofascore_event_id, ...) index: the unary
+# `+` keeps the planner off the run_date index, which after the inserts holds
+# ~59M 'cache-calibration' rows - read once per stale id, 2,490 ids, the
+# 2026-10-04 refit rehearsal stood in this DELETE for hours.
+_DELETE_STALE_REPLAY_ROWS = (
+    "DELETE FROM sofa_settled_row "
+    "WHERE sofascore_event_id = ? AND +run_date = 'cache-calibration'"
+)
+
+
 def write_settled(
     rows: Iterable[SettledRow], db_path: Path, drop_event_ids: Iterable[int] = ()
 ) -> int:
@@ -1320,9 +1330,7 @@ def write_settled(
                 conn.commit()
         stale = sorted(set(drop_event_ids) - writing)
         conn.executemany(
-            "DELETE FROM sofa_settled_row "
-            "WHERE run_date = 'cache-calibration' AND sofascore_event_id = ?",
-            [(event_id,) for event_id in stale],
+            _DELETE_STALE_REPLAY_ROWS, [(event_id,) for event_id in stale]
         )
         conn.commit()
     finally:
