@@ -1078,6 +1078,22 @@ def extract_metric(
         h, a = pts
         return float(h + a) if is_total else float(h if is_home else a)
 
+    if sport == "tennis" and metric_name == "tiebreaks_total":
+        # Counted off the set score (7-6 / 6-7 sets, a match tiebreak not a
+        # set), as tennis_rating._outcomes does. Review 2026-10-04: event
+        # 16196102 (3-6 7-6 5-7) has the statistic 0/0 in every period and
+        # was read as no tiebreak - the statistic is used only where the sets
+        # are unreadable.
+        hs_t = listing_event.get("homeScore", {})
+        as_t = listing_event.get("awayScore", {})
+        sets = set_games(hs_t, as_t)
+        if sets:
+            skip = match_tiebreak_sets(hs_t, as_t)
+            return float(sum(
+                1 for i, g in enumerate(sets, 1)
+                if i not in skip and g in ((7, 6), (6, 7))
+            ))
+
     if sofascore_key == "gamesWon":
         # F46. `gamesWon` is missing from /statistics on **689 of the 1,992**
         # cached tennis events — 35% — while the set scores that define it sit

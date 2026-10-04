@@ -334,7 +334,8 @@ def parse_event(
 # 2026-10-04.3: a goal score that contradicts itself on either side is no
 # goal count (metrics.goal_score_inconsistent); tennis games come from the
 # set score when gamesWon disagrees with it.
-HISTORY_PARSER_VERSION = "2026-10-04.3"
+# 2026-10-04.4: tennis tiebreaks_total counted off the set score.
+HISTORY_PARSER_VERSION = "2026-10-04.4"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------

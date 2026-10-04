@@ -121,3 +121,17 @@ def test_the_cache_replay_skips_retirements_and_walkovers(tmp_path: Any) -> None
                                     event(2, 92, "Retired"),
                                     event(3, 91, "Walkover")]}),))
     assert [p.event_id for p in load_cache(db)] == [1]
+
+
+def test_tiebreaks_are_counted_off_the_set_score() -> None:
+    # 16196102 shape: 3-6 7-6 5-7, the statistic 0/0 in every period.
+    event = {"status": FINISHED,
+             "homeScore": {"current": 1, "period1": 3, "period2": 7, "period3": 5},
+             "awayScore": {"current": 2, "period1": 6, "period2": 6, "period3": 7}}
+    zero = {"ALL": {"tiebreaks": (0.0, 0.0)}}
+    assert extract_metric("tiebreaks_total", "tennis", zero, None, event, True) == 1.0
+    # a match tiebreak (10-8) is no set tiebreak
+    mtb = {"status": FINISHED,
+           "homeScore": {"current": 2, "period1": 7, "period2": 4, "period3": 10},
+           "awayScore": {"current": 1, "period1": 6, "period2": 6, "period3": 8}}
+    assert extract_metric("tiebreaks_total", "tennis", zero, None, mtb, True) == 1.0
