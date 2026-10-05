@@ -63,13 +63,15 @@ def test_series_lines_grade_now_and_only_the_player_line_waits(
 def test_a_failed_retry_never_replaces_the_partial_grades(tmp_path: Path) -> None:
     write_snapshot(tmp_path)
     run_settle(tmp_path, FakeSofascore(games=NO_STATS), 50)
-    run_settle(tmp_path, FakeSofascore(listed=False), 60)  # lookup fails
+    # lookup fails: the pinned id answers nothing (C2), nor does the search
+    lost = {"listed": False, "event_answers": False}
+    run_settle(tmp_path, FakeSofascore(**lost), 60)
     rec = settled(tmp_path)["1"]
     assert rec["state"] == "SETTLED" and rec["last_retry_state"] == "NOT_ON_SOFASCORE"
     assert {r["family"] for r in rec["graded"]} == {"maps_total"}
     assert rec["pending_sides"] == 2
     # past GIVE_UP_AFTER the waiting sides are given up, the grades kept
-    run_settle(tmp_path, FakeSofascore(listed=False), 24 * 8)
+    run_settle(tmp_path, FakeSofascore(**lost), 24 * 8)
     rec = settled(tmp_path)["1"]
     assert rec["state"] == "SETTLED" and rec["pending_sides"] == 0
     assert rec["gave_up_pending"] == 2 and not settle_cs2.is_waiting(rec)

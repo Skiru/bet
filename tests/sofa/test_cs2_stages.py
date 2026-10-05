@@ -158,8 +158,12 @@ class FakeSofascore:
         games: list[dict] | None = None,
         breaker: bool = False,
         listed: bool = True,
+        event_answers: bool = True,
     ) -> None:
         self.status, self.breaker, self.listed = status, breaker, listed
+        # False: /event/{id} answers nothing (a pinned id that no longer
+        # resolves - settle_cs2.settle_one then searches, C2).
+        self.event_answers = event_answers
         self.games = (
             games
             if games is not None
@@ -198,7 +202,8 @@ class FakeSofascore:
         return {"events": [self._event()] if self.listed and kind == "last" else []}
 
     def event(self, event_id: int) -> dict[str, Any]:
-        return {"event": self._event()}
+        self.calls.append(f"event {event_id}")
+        return {"event": self._event()} if self.event_answers else {}
 
     def esports_games(self, event_id: int) -> dict[str, Any]:
         return {"games": self.games}

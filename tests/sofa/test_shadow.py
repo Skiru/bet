@@ -1749,7 +1749,11 @@ def test_virtual_games_never_resolve_for_a_shadow_sport() -> None:
     from bet.sofa.resolve import candidate_fits, is_virtual_event
 
     ko = datetime(2026, 9, 29, 19, tzinfo=UTC)
-    real = _event("Maxima Roma", "U-Banca Transilvania Cluj-Napoca", ko)
+    # The searched side's own name must pass too since 2026-10-05 (B2): "U BT
+    # Cluj" against "U-Banca Transilvania Cluj-Napoca" (80) is confirmed by
+    # MUTUAL_LISTING in settle_shadow, not by match_quality - so the real
+    # game here carries the short name Sofascore also uses.
+    real = _event("Maxima Roma", "U-BT Cluj-Napoca", ko)
     # Live 2026-09-29: a player-named e-team, caught by its category alone.
     virtual = {
         **_event(

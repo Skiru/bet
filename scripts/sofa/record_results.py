@@ -44,6 +44,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import multi_coupon as mc  # noqa: E402
+from bet.sofa import shadow  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
@@ -57,10 +58,11 @@ from scripts.sofa import settle_multi_coupon, settle_sport_coupon  # noqa: E402
 
 LEDGER_DIR = "ledger"
 LEDGER_FILE = "results.jsonl"
-# SETTLE's final event states; anything else is asked again.
-FINAL_STATES = frozenset(
-    {"SETTLED", "VOID", "UNUSUAL", "GAVE_UP", "NO_PRE_START_PRICE"}
-)
+# SETTLE's final event states; anything else is asked again. One set for
+# every measured sport since 2026-10-05 (bet.sofa.shadow, plan B0): UNUSUAL
+# is retryable now, and the identity states (DUPLICATE_*, WITHDRAWN,
+# ID_CHANGED, MOVED_TO:<d>, AMBIGUOUS_START) are final and never counted.
+FINAL_STATES = shadow.TERMINAL
 
 
 def ledger_path(runs_dir: str) -> Path:
@@ -231,9 +233,13 @@ def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
         doc = sc.load_settled(runs_dir, sport, date)
         if doc is None:
             continue
+        # Only a SETTLED event's lines: an identity state (a duplicate, a
+        # record moved to a later file - B4) keeps the rows it had for the
+        # audit, and they must not be counted twice or at all.
         graded = [
             r
             for ev in (doc.get("events") or {}).values()
+            if ev.get("state") == "SETTLED"
             for r in ev.get("graded") or []
         ]
         team = [r for r in graded if not str(r.get("family", "")).startswith("player_")]
@@ -261,7 +267,11 @@ def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
                 # (not on Sofascore), and the loops re-settle only D and D-1,
                 # so they are reported, never counted as pending
                 "retryable": sum(
-                    n for st, n in states.items() if st not in FINAL_STATES
+                    n for st, n in states.items() if not shadow.is_terminal(st)
+                ),
+                # never counted: a doubt about which match the record is
+                "excluded": sum(
+                    n for st, n in states.items() if shadow.is_excluded(st)
                 ),
                 "pending": 0,
             }

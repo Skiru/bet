@@ -620,8 +620,13 @@ def _women_split(name: str) -> tuple[str, bool]:
 # 2026-10-04, "ninjas in pyjamas" scored 82.9 against "ninjas in pyjamas
 # impact" (team 448738) and passed the unseen-team gate. Compared as a set
 # on both sides, like WOMEN_MARKERS.
+# "ex" (C3, plan 2026-10-05): Sofascore and Superbet both print a disbanded
+# organisation's roster as "ex-<org>" ("ex-Fingers Crossed", "ex-Zero
+# Tenacity"; 38 such names in cs2_series on 10-05), and "ex fingers crossed"
+# scored 90.9 against the organisation's own "fingers crossed". A known case
+# where one source drops the "ex-" is a whole-name alias (ESPORTS_ALIASES).
 ROSTER_MARKERS = frozenset(
-    {"academy", "impact", "junior", "juniors", "youth", "prospects", "young"}
+    {"academy", "impact", "junior", "juniors", "youth", "prospects", "young", "ex"}
 )
 
 
@@ -670,6 +675,14 @@ def _orientation(
     if straight == crossed:
         return straight, None
     return max(straight, crossed), straight > crossed
+
+
+def series_orientation(
+    event: dict[str, Any], team1: str, team2: str
+) -> tuple[float, bool | None]:
+    """`_orientation` for a caller holding one series already (a pinned id):
+    (the weaker side's name score, home is team1 or None on a tie)."""
+    return _orientation(event, team1, team2)
 
 
 def pick_event(
@@ -882,6 +895,14 @@ def series_only_maps(
     return [MapResult(1, 0, {})] * t1 + [MapResult(0, 1, {})] * t2
 
 
+def map_not_played(map_nr: int, maps: list[MapResult]) -> bool:
+    """A map line on a map the series never reached (a 2-0 has no map 3):
+    Superbet voids it, so it is a refund - VOID - and never UNGRADEABLE
+    (C4, plan 2026-10-05). `maps` must be the whole series (build_series or
+    series_only_maps), whose length is the maps played."""
+    return bool(maps) and map_nr > len(maps)
+
+
 def actual_value(
     line: Cs2Line, maps: list[MapResult], team1: str, team2: str
 ) -> float | None:
@@ -967,6 +988,9 @@ def settle_event(
         fair = group_fair(odds, group_shape(line.family))
         if fair is None:
             counts["unpaired"] += 1
+            continue
+        if line.map_nr and map_not_played(line.map_nr, maps):
+            counts["void"] += 1  # a map never played: Superbet's refund (C4)
             continue
         actual = actual_value(line, maps, ev.team1, ev.team2)
         if actual is None:

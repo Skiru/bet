@@ -54,7 +54,8 @@ def settle_day(
     # A leg settles in the file its event was snapshotted in: D's, or D+1's
     # for a game after midnight UTC.
     sources = {leg.get("source_date") or day for leg in coupon.get("legs", [])}
-    settled = {d: sc.load_settled(runs_dir, sport, d) for d in sources | {day}}
+    # ...and a record that MOVED_TO a later file is graded there (B4).
+    settled = sc.settled_for(runs_dir, sport, sources | {day})
     graded = sc.grade_coupon(coupon, settled, at=now())
     write_atomic(
         directory / SETTLED_OUT,

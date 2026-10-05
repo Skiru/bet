@@ -43,10 +43,12 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 
 from rapidfuzz import fuzz  # noqa: E402
 
+from bet.sofa import settle_identity  # noqa: E402
+from bet.sofa import shadow as _shadow  # noqa: E402
 from bet.sofa.cache import SofaCache  # noqa: E402
 from bet.sofa.client import SofascoreClient  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.cs2 import write_atomic  # noqa: E402
+from bet.sofa.cs2 import file_lock, write_atomic  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.names import normalize_name  # noqa: E402
 from bet.sofa.resolve import (  # noqa: E402
@@ -79,7 +81,10 @@ from bet.sofa.shadow import (  # noqa: E402
     build_player_box,
     build_result,
     event_state,
+    is_no_result,
     is_player_line,
+    is_retryable,
+    is_terminal,
     latest_pre_kickoff,
     settle_event,
     shadow_day_dir,
@@ -87,21 +92,10 @@ from bet.sofa.shadow import (  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
 
-# A fact about the game, never asked again. VOID is the game's own fate;
-# GAVE_UP is ours (not graded within GIVE_UP_AFTER), kept apart so the audit
-# never reports our lookup failure as Superbet voiding a market.
-# A DATA_MISMATCH stays retryable: Sofascore corrects provisional scores
-# (2026-09-28).
-# NO_PRE_START_PRICE: Sofascore's start was earlier than Superbet's and no
-# snapshot predates it - every price we hold was taken in play.
-TERMINAL = {"SETTLED", "VOID", "UNUSUAL", "GAVE_UP", "NO_PRE_START_PRICE"}
-RETRYABLE = {
-    "PENDING",
-    "NOT_ON_SOFASCORE",
-    "AMBIGUOUS",
-    "DATA_MISMATCH",
-    "ERROR",
-}
+# The event states are one set for every measured sport (bet.sofa.shadow
+# TERMINAL / RETRYABLE / EXCLUDED, plan 2026-10-05 B0); re-exported here.
+TERMINAL = _shadow.TERMINAL
+RETRYABLE = _shadow.RETRYABLE
 # RESOLVE's own margin for a clear reversal; the straight reading must win by
 # as much before a team-side line is graded.
 ORIENTATION_MARGIN = 20.0
@@ -139,6 +133,21 @@ def home_is_team1(event: dict[str, Any], team1: str, team2: str) -> bool | None:
         if abs(straight - crossed) < ORIENTATION_MARGIN:
             return None
     return straight > crossed
+
+
+def orientation_ids_agree(listed: dict[str, Any], detail: dict[str, Any]) -> bool:
+    """The listing's event id and team ids are /event's (B6). An id the
+    listing did not carry (a record written before 2026-10-05) is not
+    checked."""
+    if listed.get("id") is not None and detail.get("id") is not None:
+        if int(listed["id"]) != int(detail["id"]):
+            return False
+    for side, key in (("home", "homeTeam"), ("away", "awayTeam")):
+        want = listed.get(side)
+        got = (detail.get(key) or {}).get("id")
+        if want is not None and got is not None and int(want) != int(got):
+            return False
+    return True
 
 
 class _SearchRecorder:
@@ -462,66 +471,166 @@ def settle_one(
     raw: list[dict[str, Any]] | None = None,
     db_path: str | None = None,
     forecasts: list[dict[str, Any]] | None = None,
+    prev: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One game. `raw` is this game's snapshot records, for re-collapsing
     them on Sofascore's clock when the game began before Superbet's.
     `forecasts` (the day's player_model.jsonl) and `db_path` put the player
     model's number beside each graded player line (attach_player_model); it
-    never changes a grade."""
+    never changes a grade.
+
+    `prev` is the game's earlier record. When it carries a Sofascore id the
+    id is PINNED (plan 2026-10-05, B3): /event/{id} is asked directly and the
+    game is never searched for again - a search may land on another game.
+    Only when the pinned id answers nothing is the game searched; a search
+    that finds a different id is ID_CHANGED, never graded."""
     kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
     record: dict[str, Any] = {
         "match_name": ev.match_name,
+        "team1": ev.team1,
+        "team2": ev.team2,
         "kickoff_utc": ev.kickoff_utc,
         "tournament": ev.tournament,
         "priced_sides": len(ev.sides),
     }
-    miss: dict[str, Any] = {}
-    found = find_event(resolver, sport, ev, kickoff, miss)
-    if isinstance(found, str):
-        return {**record, "state": found, **({"miss": miss} if miss else {})}
-    rule = found.pop("_shadow_match_rule", None)
-    by_id = found.pop("_shadow_home_is_team1", None)
-    if rule is not None:
-        # Matched without the opponent's name (confirm_from_listings).
-        record["match_rule"] = rule
+    if raw:
+        record["last_snapshot_utc"] = max(str(s["fetched_at_utc"]) for s in raw)
+    pinned = (prev or {}).get("sofascore_event_id")
+    payload: dict[str, Any] = {}
+    detail: Any = None
+    found: dict[str, Any]
+    if isinstance(pinned, int):
+        payload = client.event(pinned) or {}
+        detail = payload.get("event")
+    if isinstance(pinned, int) and isinstance(detail, dict) and detail:
+        assert prev is not None
+        # The pinned match, as the record that found it described it.
+        record.update(
+            {
+                k: prev[k]
+                for k in (
+                    "match_rule",
+                    "match_method",
+                    "matched_at_utc",
+                    "sofascore_home_id",
+                    "sofascore_away_id",
+                )
+                if k in prev
+            }
+        )
+        record["pinned_id"] = True
+        found = {**detail, "id": detail.get("id", pinned)}
+        listed = {
+            "id": pinned,
+            "home": prev.get("sofascore_home_id"),
+            "away": prev.get("sofascore_away_id"),
+        }
+        orientation = home_is_team1(detail, ev.team1, ev.team2)
+        if orientation is None and not prev.get("orientation_unclear"):
+            stored = prev.get("home_is_team1")
+            orientation = stored if isinstance(stored, bool) else None
+    else:
+        miss: dict[str, Any] = {}
+        searched = find_event(resolver, sport, ev, kickoff, miss)
+        if isinstance(searched, str):
+            out = {**record, "state": searched, **({"miss": miss} if miss else {})}
+            if isinstance(pinned, int):
+                # The pinned id answered nothing and no search found the game:
+                # asked again next run, the id still pinned.
+                out.update({"sofascore_event_id": pinned, "pinned_id_unanswered": True})
+            return out
+        if isinstance(pinned, int) and int(searched["id"]) != pinned:
+            return {
+                **record,
+                "state": "ID_CHANGED",
+                "sofascore_event_id": pinned,
+                "searched_sofascore_event_id": int(searched["id"]),
+                "matched_at_utc": settle_identity.iso(at),
+            }
+        found = searched
+        rule = found.pop("_shadow_match_rule", None)
+        by_id = found.pop("_shadow_home_is_team1", None)
+        method = found.pop("_match_method", None)
+        if rule is not None:
+            # Matched without the opponent's name (confirm_from_listings).
+            record["match_rule"] = rule
+        record["match_method"] = rule or method
+        record["matched_at_utc"] = settle_identity.iso(at)
+        listed = {
+            "id": found.get("id"),
+            "home": (found.get("homeTeam") or {}).get("id"),
+            "away": (found.get("awayTeam") or {}).get("id"),
+        }
+        record["sofascore_home_id"] = listed["home"]
+        record["sofascore_away_id"] = listed["away"]
+        orientation = home_is_team1(found, ev.team1, ev.team2)
+        if orientation is None and isinstance(by_id, bool):
+            orientation = by_id
+    home_name = str((found.get("homeTeam") or {}).get("name"))
+    away_name = str((found.get("awayTeam") or {}).get("name"))
     record.update(
         {
             "sofascore_event_id": found["id"],
-            "sofascore_match": (
-                f"{(found.get('homeTeam') or {}).get('name')} - "
-                f"{(found.get('awayTeam') or {}).get('name')}"
-            ),
+            "sofascore_match": f"{home_name} - {away_name}",
+            "sofascore_home": home_name,
+            "sofascore_away": away_name,
             "sofascore_tournament": (found.get("tournament") or {}).get("name"),
         }
     )
-    orientation = home_is_team1(found, ev.team1, ev.team2)
-    if orientation is None and isinstance(by_id, bool):
-        orientation = by_id
+    if not isinstance(detail, dict):
+        # Fresh, never the cache: a listing's score can be provisional, and a
+        # finished payload cached early would be frozen (2026-09-28).
+        payload = client.event(int(found["id"])) or {}
+        detail = payload.get("event")
+    if not isinstance(detail, dict):
+        # Never the listing's score in its place: it may be provisional, and
+        # a SETTLED is never asked again. Retried on the next run.
+        return {
+            **record,
+            "home_is_team1": orientation,
+            "orientation_unclear": orientation is None,
+            "state": "ERROR",
+            "error": "no /event payload",
+        }
+    if not orientation_ids_agree(listed, detail):
+        # B6: the event or its teams are not the ones the listing named (a
+        # merged event, a swapped listing). Which side is team1 is then not
+        # known - only the lines that do not depend on it are graded.
+        record["orientation_check"] = "IDS_DIFFER"
+        orientation = None
     # Unclear orientation still grades the totals, which do not depend on it;
     # every side-dependent line is left out (counted as needs_orientation).
     record["home_is_team1"] = orientation
     record["orientation_unclear"] = orientation is None
-    # Fresh, never the cache: a listing's score can be provisional, and a
-    # finished payload cached early would be frozen (2026-09-28).
-    payload = client.event(int(found["id"])) or {}
-    detail = payload.get("event")
-    if not isinstance(detail, dict):
-        # Never the listing's score in its place: it may be provisional, and
-        # a SETTLED is never asked again. Retried on the next run.
-        return {**record, "state": "ERROR", "error": "no /event payload"}
+    record["name_scores"] = settle_identity.pair_scores(
+        "shadow", ev.team1, ev.team2, home_name, away_name, orientation
+    )
+    start_ts = detail.get("startTimestamp")
+    if isinstance(start_ts, int) and start_ts > 0:
+        record["start_gap_h"] = round(
+            (datetime.fromtimestamp(start_ts, UTC) - kickoff).total_seconds() / 3600, 2
+        )
     if cache is not None:
         cache.save_event_detail(
             int(found["id"]), payload, (detail.get("status") or {}).get("type")
         )
     state = event_state(detail, sport, kickoff, at)
+    status_text = (detail.get("status") or {}).get("description")
+    if state in ("FINISHED", "UNUSUAL") and is_no_result(detail):
+        # Awarded, a walkover, a retirement: no result, never retried.
+        return {**record, "state": "AWARDED", "status": status_text}
+    if state == "UNUSUAL":
+        # A "finished" description the sport does not expect - a status
+        # glitch ("Halftime" on hockey 15025409, 10-02) - is graded only when
+        # the score adds up; otherwise it is asked again (B5).
+        if build_result(detail, sport, True) is None:
+            return {**record, "state": "UNUSUAL", "status": status_text}
+        record["status_unusual"] = status_text
+        state = "FINISHED"
     if state != "FINISHED":
         # Before the clock check: a postponed game's start may still move, and
         # NO_PRE_START_PRICE is final.
-        return {
-            **record,
-            "state": state,
-            "status": (detail.get("status") or {}).get("description"),
-        }
+        return {**record, "state": state, "status": status_text}
     clock = kickoff
     start_ts = detail.get("startTimestamp")
     if isinstance(start_ts, int) and start_ts > 0:
@@ -754,6 +863,45 @@ def _settle_time_model(
     ]
 
 
+def reconcile_identity(
+    runs_dir: str,
+    sport: SportKey,
+    date: str,
+    events: dict[str, Any],
+    write: bool = False,
+) -> tuple[dict[str, Any], dict[str, int]]:
+    """The identity pass over the sport's D-1..D+1 files (bet.sofa.
+    settle_identity: MOVED_TO, WITHDRAWN, DUPLICATE_SUPERBET_TEAM,
+    DUPLICATE_SOFASCORE_ID). With `write`, the day's settled.json is written
+    under its lock, then the neighbours'. Offline: files only."""
+    out = shadow_day_dir(runs_dir, sport, date) / SETTLED_FILE
+
+    def day_dir(d: str) -> Path:
+        return shadow_day_dir(runs_dir, sport, d)
+
+    snaps = settle_identity.load_snaps(date, day_dir, SNAPSHOTS_FILE)
+    today, counts = settle_identity.reconcile(
+        "shadow", date, events, day_dir, SETTLED_FILE, snaps
+    )
+    if not write:
+        return today, counts
+    with file_lock(out):
+        write_atomic(
+            out,
+            json.dumps(
+                {"date": date, "sport": sport, "events": today},
+                ensure_ascii=False,
+                indent=1,
+            ),
+        )
+    counts.update(
+        settle_identity.reconcile_neighbours(
+            "shadow", date, today, day_dir, SETTLED_FILE, snaps
+        )
+    )
+    return today, counts
+
+
 def settle_sport(
     sport: ShadowSport,
     date: str,
@@ -827,7 +975,7 @@ def settle_sport(
             and prev.get("player_retry")
             and at - kickoff <= GIVE_UP_AFTER
         )
-        if prev and prev["state"] in TERMINAL and not retry_players:
+        if prev and is_terminal(prev["state"]) and not retry_players:
             metrics["kept"] += 1
             continue
         if at - kickoff < SETTLE_AFTER:
@@ -847,6 +995,7 @@ def settle_sport(
                 raw_by_event.get(eid),
                 db_path=db_path,
                 forecasts=forecasts,
+                prev=prev,
             )
         except CircuitOpenError:
             breaker_open = True
@@ -868,24 +1017,24 @@ def settle_sport(
             # team lines already on file (review round 4, 2026-09-29).
             assert prev is not None
             done[eid] = {**prev, "player_retry_last_error": record["state"]}
+            if record["state"] == "ID_CHANGED":
+                # The old grades stay; the player lines are not asked again
+                # against another match (B3), and the audit names it.
+                done[eid]["id_changed_to"] = record.get("searched_sofascore_event_id")
+                done[eid]["player_retry"] = False
             continue
-        if record["state"] in RETRYABLE and at - kickoff > GIVE_UP_AFTER:
+        if is_retryable(record["state"]) and at - kickoff > GIVE_UP_AFTER:
             record = {**record, "state": "GAVE_UP", "gave_up_on": record["state"]}
         done[eid] = record
         metrics["graded_sides"] += len(record.get("graded") or [])
         if record["state"] == "SETTLED":
             metrics["settled_now"] += 1
+    done, identity = reconcile_identity(runs_dir, sport.key, date, done, write=True)
+    if identity:
+        metrics["identity_changes"] = identity
     states: dict[str, int] = {}
     for rec in done.values():
         states[rec["state"]] = states.get(rec["state"], 0) + 1
-    write_atomic(
-        out,
-        json.dumps(
-            {"date": date, "sport": sport.key, "events": done},
-            ensure_ascii=False,
-            indent=1,
-        ),
-    )
     attempted = metrics["events"] - metrics["kept"] - metrics["too_early"]
     # This run's, not the file's: games settled by an earlier run are "kept".
     settled_now = metrics["settled_now"]

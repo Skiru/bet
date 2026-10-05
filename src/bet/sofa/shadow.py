@@ -1103,3 +1103,107 @@ def shadow_day_dir(runs_dir: str, sport: SportKey, date: str) -> Path:
     """runs/sofa/shadow/<sport>/<date>/ - beside the day, never inside it, so
     nothing written here can be read by a stage that builds the coupon."""
     return Path(runs_dir) / "shadow" / sport / date
+
+
+# --- the event states of a measured sport's settle (shadow sports and CS2) -------
+#
+# One set, read by settle_shadow, settle_cs2, settle_sport_coupon (through
+# sport_coupon.grade_coupon), record_results and cs2_watchdog - before
+# 2026-10-05 each kept its own copy, and they had drifted (CS2 had no
+# NO_PRE_START_PRICE, the watchdog no UNUSUAL).
+#
+# TERMINAL: a fact about the event, never asked again. VOID is the game's own
+# fate; GAVE_UP is ours (not graded within GIVE_UP_AFTER), kept apart so the
+# audit never reports our lookup failure as Superbet voiding a market.
+# NO_PRE_START_PRICE: Sofascore's start was earlier than Superbet's and no
+# snapshot predates it. AWARDED: Sofascore says the result was awarded, or the
+# match was a walkover / retirement - not a result (Regulamin 5.D.3.b).
+#
+# The identity states (plan 2026-10-05, part 4B/4C), all TERMINAL and all
+# EXCLUDED - a doubt about which match this is grades nothing:
+#   DUPLICATE_SOFASCORE_ID   another Superbet event of the sport's D-1..D+1
+#                            files took the same Sofascore id, and that one is
+#                            the better match (`duplicate_of`);
+#   WITHDRAWN                Superbet stopped quoting the event > 2 h before
+#                            its start and the same pair was later quoted
+#                            under another Superbet id (`withdrawn_for`);
+#   ID_CHANGED               the pinned Sofascore id no longer answers and a
+#                            search found a different one;
+#   MOVED_TO:<date>          the same Superbet event is in a later date's
+#                            file; the later record is the one graded;
+#   AMBIGUOUS_START          CS2: Sofascore's series started well away from
+#                            Superbet's time while Superbet was still quoting
+#                            it pre-match - two different series, probably;
+#   DUPLICATE_SUPERBET_TEAM  one team name in two Superbet events < 3 h apart:
+#                            which of them Sofascore's match is cannot be told.
+#
+# RETRYABLE: asked again until GIVE_UP_AFTER. DATA_MISMATCH stays retryable:
+# Sofascore corrects provisional scores (2026-09-28). UNUSUAL - a "finished"
+# status with a description the sport does not expect ("Halftime" on hockey
+# 15025409, 10-02) - is retryable since 2026-10-05: a status glitch corrects
+# itself, and a game whose score adds up is graded (settle_shadow.settle_one).
+MOVED_TO = "MOVED_TO"
+MOVED_TO_PREFIX = MOVED_TO + ":"
+EXCLUDED: frozenset[str] = frozenset(
+    {
+        "DUPLICATE_SOFASCORE_ID",
+        "WITHDRAWN",
+        "ID_CHANGED",
+        MOVED_TO,
+        "AMBIGUOUS_START",
+        "DUPLICATE_SUPERBET_TEAM",
+    }
+)
+TERMINAL: frozenset[str] = frozenset(
+    {"SETTLED", "VOID", "GAVE_UP", "NO_PRE_START_PRICE", "AWARDED"} | EXCLUDED
+)
+RETRYABLE: frozenset[str] = frozenset(
+    {
+        "PENDING",
+        "STATS_PENDING",
+        "NOT_ON_SOFASCORE",
+        "AMBIGUOUS",
+        "DATA_MISMATCH",
+        "ERROR",
+        "UNUSUAL",
+    }
+)
+
+
+def base_state(state: object) -> str:
+    """The state without its argument: "MOVED_TO:2026-10-03" -> "MOVED_TO"."""
+    text = str(state)
+    return MOVED_TO if text.startswith(MOVED_TO_PREFIX) else text
+
+
+def is_terminal(state: object) -> bool:
+    return base_state(state) in TERMINAL
+
+
+def is_retryable(state: object) -> bool:
+    return base_state(state) in RETRYABLE
+
+
+def is_excluded(state: object) -> bool:
+    """Never counted by the ledger, never graded: a doubt about identity."""
+    return base_state(state) in EXCLUDED
+
+
+def moved_to_date(state: object) -> str | None:
+    text = str(state)
+    if not text.startswith(MOVED_TO_PREFIX):
+        return None
+    return text[len(MOVED_TO_PREFIX) :]
+
+
+# Sofascore descriptions of a "finished" match that is no result.
+_NO_RESULT_MARKERS = ("walkover", "w.o", "awarded", "retired", "forfeit")
+
+
+def is_no_result(detail: dict[str, Any]) -> bool:
+    """An awarded match, a walkover or a retirement: AWARDED - never graded,
+    never retried. Read from `isAwarded` and the status description."""
+    if detail.get("isAwarded") is True:
+        return True
+    description = str((detail.get("status") or {}).get("description") or "")
+    return any(marker in description.casefold() for marker in _NO_RESULT_MARKERS)
