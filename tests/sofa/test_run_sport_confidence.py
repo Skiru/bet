@@ -360,3 +360,28 @@ def test_a_fresh_start_replaces_the_pinned_one_in_the_kickoff_gate(tmp_path: Pat
     doc, _ = _build(tmp_path, _calibration(tmp_path))
     assert doc["legs"] == []
     assert doc["sports"]["hockey"]["refused"]["KICKED_OFF"] == 4
+
+
+def test_a_cs2_team_rounds_line_the_curve_was_not_fitted_on_is_refused(
+        tmp_path: Path):
+    # 2026-10-05 night: the team-rounds curve is fitted on 9.5-12.5 only; a
+    # 6.5 on a lopsided series read it by p alone (realised 0.30 at 0.731).
+    day = tmp_path / "cs2" / DATE
+    day.mkdir(parents=True)
+    lines = [{"superbet_event_id": "8", "family": "map_team_rounds", "map_nr": 1,
+              "subject": "NAVI Junior", "line": ln, "side": s, "odds": o}
+             for ln in (6.5, 10.5) for s, o in (("OVER", 1.3), ("UNDER", 3.2))]
+    (day / "snapshots.jsonl").write_text(json.dumps({
+        "fetched_at_utc": "2026-10-06T14:30:00Z", "superbet_event_id": "8",
+        "match_name": "NAVI Junior·BIG", "team1": "NAVI Junior", "team2": "BIG",
+        "kickoff_utc": "2026-10-06T18:00:00Z", "tournament": "CCT", "lines": lines})
+        + "\n")
+    _fixtures(tmp_path, [_fixture(sb="8", sport="cs2", best_of=3)])
+    cal = _calibration(tmp_path, {"cs2": ["map_team_rounds|OVER"]})
+    fc = FakeForecaster({("map_team_rounds", "OVER"): 0.81,
+                         ("map_team_rounds", "UNDER"): 0.19})
+    doc, _ = rsc.build(DATE, str(tmp_path), cal, fc, AT, sports=("cs2",))
+    assert [g["line"] for g in doc["legs"]] == [10.5]
+    assert doc["sports"]["cs2"]["refused"][scf.LINE_OUTSIDE_FIT] == 2
+    assert scf.line_in_fit("hockey", "total", 7.5)
+    assert not scf.line_in_fit("cs2", "map_team_rounds", None)

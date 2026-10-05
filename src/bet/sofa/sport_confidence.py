@@ -131,6 +131,23 @@ DEGENERATE_P = 0.01
 # CS2 team rounds on one map: the lines Superbet posted on the settled days
 # 09-28..10-04 (10.5 / 11.5 / 12.5 are 85% of them).
 CS2_TEAM_ROUND_LINES = (9.5, 10.5, 11.5, 12.5)
+# A curve fitted only on these lines says nothing about another one: the
+# lookup reads p alone, so without this a 6.5 line on a lopsided series read
+# the 9.5-12.5 curve (2026-10-05 night: such printable rows on settled
+# Superbet lines realised 0.30 at a confidence of 0.731, n=20, 8 series).
+FITTED_LINES: dict[tuple[str, str], tuple[float, ...]] = {
+    ("cs2", "map_team_rounds"): CS2_TEAM_ROUND_LINES,
+}
+LINE_OUTSIDE_FIT = "LINE_OUTSIDE_FIT"
+
+
+def line_in_fit(sport: str, family: str, line: float | None) -> bool:
+    """Was the family's curve fitted on this line (True where the curve is
+    not line-specific)?"""
+    lines = FITTED_LINES.get((sport, family))
+    if lines is None:
+        return True
+    return line is not None and any(abs(float(line) - x) < 1e-9 for x in lines)
 
 # --- the curve (as scripts/sofa/fit_confidence.py; a test holds them equal) ------
 

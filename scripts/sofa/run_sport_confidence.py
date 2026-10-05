@@ -283,6 +283,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if p is None:
                 _bump(refused, "NO_MODEL_P")
                 continue
+            if not scf.line_in_fit(sport, family, ln.line):
+                _bump(refused, scf.LINE_OUTSIDE_FIT)
+                continue
             conf = calibration.lookup(sport, family, ln.side, p)
             if conf is None:
                 _bump(refused, NOT_CALIBRATED)

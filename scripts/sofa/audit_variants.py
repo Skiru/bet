@@ -754,6 +754,8 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             out.append(f"U3 {label}: margin {margin:.4f} above {MAX_SPORT_OVERROUND}")
         if round(float(leg["confidence"]) * float(leg["odds"]), 9) < 0.90:
             out.append(f"U3 {label}: x below 0.90")
+        if not scf.line_in_fit(sport, str(leg["family"]), leg.get("line")):
+            out.append(f"U3 {label}: line {leg.get('line')} outside the curve's fit")
         conf = cal.lookup(sport, str(leg["family"]), str(leg["side"]),
                           float(leg["forecast_p"])) if cal else None
         if conf is None or abs(conf.value - float(leg["confidence"])) > 1e-4:
