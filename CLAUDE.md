@@ -60,7 +60,8 @@ A build of a day >= 2026-10-05 made after 07:15Z is **stats-only**:
   separate sport coupons stop only when the sports go on the coupon (plan
   part 5, `SPORTS_ON_COUPON_FROM_UTC`).
 - **FIXTURE_CHECK** (`run_fixture_check.py`, bridge) in a rebuild before
-  CONFIDENCE: a fresh `/event` start replaces RESOLVE's frozen clock (K12); a
+  CONFIDENCE (since 10-05 also the candidate matches and every pinned sport game;
+  OFFER skips on the same clocks): a fresh `/event` start replaces RESOLVE's frozen clock (K12); a
   postponed / cancelled / abandoned printed match is FIXTURE_NOT_AS_SCHEDULED
   (K14); no bridge = UNVERIFIED, nothing refused.
 - **SETTLE:** a match moved > 48 h or awarded is a refund (0 u.), never a
