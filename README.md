@@ -7,9 +7,14 @@ prices from **Superbet**, and the product of a day is a single file:
 runs/sofa/<date>/KUPON_<date>.pdf
 ```
 
-Football and tennis only (`SPORT_IDS = {"football": 5, "tennis": 2}`).
-Everything else in this repository is retired and is kept only because its
-artifacts and database rows are still on disk.
+One coupon for every sport on it: football and tennis
+(`SPORT_IDS = {"football": 5, "tennis": 2}` on the board), and since
+2026-10-05 08:30Z hockey, basketball, volleyball and CS2 (from the SHADOW /
+CS2 snapshots). Confidence comes from the statistics alone; the price is only
+the betting condition. The retired `simple` code is kept only because its
+artifacts are still on disk. Retired 2026-10-05 (historical): WARIANT, WARIANT
+WSZYSTKIE and the separate sport coupons; their files up to that morning stay
+and are graded as before.
 
 ## The day, in one line
 
@@ -18,8 +23,12 @@ artifacts and database rows are still on disk.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <YYYY-MM-DD>
 ```
 
-or, from Claude Code, **`/sofa-day`** — which also settles D-1, runs the two
-sport analysts, merges their vetoes, rebuilds and verifies.
+or, from Claude Code, **`/sofa-day`** — which also settles D-1 and records the
+ledger, builds the measured sports' legs (SPORT_IDENTITY, SPORT_CONFIDENCE),
+assembles the one coupon (COUPON_ASSEMBLY → `11_coupon.json`), runs the
+analysts (football, tennis, one per measured sport) on the best 30 positions
+and every printed builder leg, merges their vetoes and reads, rebuilds and
+verifies.
 
 **Start here: [`docs/sofa/RUNBOOK.md`](docs/sofa/RUNBOOK.md)** — the operator's
 sequence, the timings and what to do when a stage complains.
@@ -28,13 +37,18 @@ sequence, the timings and what to do when a stage complains.
 
 ```
 BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
-                                          ↘ CONFIDENCE → PDF   ★ the product
+                                          ↘ CONFIDENCE ─────────────┐
+   SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE ────────────────┤
+                                   COUPON_ASSEMBLY (11_coupon.json) → PDF   ★ the product
+   in a rebuild, before CONFIDENCE:  FIXTURE_CHECK
                     deliberately separate:  SETTLE → FIT
 ```
 
 `BOARD` is discovery, and it asks the **bookmaker** what is bettable today.
-`OFFER` runs twice on purpose. `SETTLE` and `FIT` are not in the daily
-sequence. The source of truth for the order is `DEFAULT_SEQUENCE` in
+`OFFER` runs twice on purpose. `DEFAULT_SEQUENCE` ends at COUPON; CONFIDENCE
+and the PDF are scripts, and FIXTURE_CHECK, SPORT_IDENTITY, SPORT_CONFIDENCE
+and COUPON_ASSEMBLY are stage modules outside the sequence. `SETTLE` and `FIT`
+are not in the daily sequence. The source of truth for the order is `DEFAULT_SEQUENCE` in
 `scripts/sofa/run_pipeline.py`.
 
 **There is no `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` or `TIPSTERS`

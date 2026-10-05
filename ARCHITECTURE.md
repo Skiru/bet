@@ -4,18 +4,19 @@ What runs, where it lives, and what is kept only as a record.
 
 ## 1. One pipeline is in service
 
-**`sofa`** — Sofascore statistics, Superbet prices, football and tennis, one
-PDF per day. It imports **nothing** from the older trees; that was a decision,
+**`sofa`** — Sofascore statistics, Superbet prices, one coupon PDF per day
+for every sport on it: football and tennis, and since 2026-10-05 08:30Z
+hockey, basketball, volleyball and CS2. It imports **nothing** from the older trees; that was a decision,
 not an accident: the knowledge transferred, the code did not.
 
 | | in service | retired |
 |---|---|---|
 | library | `src/bet/sofa/` | `src/bet/simple_stats/`, `src/bet/tipsters/`, `src/bet/enrichment/`, `src/bet/discovery/`, `legacy/` |
 | entry points | `scripts/sofa/` | `scripts/simple/`, `legacy/pipeline_steps/` |
-| stages | BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (+ CONFIDENCE, PDF; SETTLE and FIT outside the sequence) | DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE; S0–S10 |
+| stages | BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (+ CONFIDENCE, SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, and FIXTURE_CHECK in a rebuild; SETTLE and FIT outside the sequence) | DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE; S0–S10 |
 | stats sources | Sofascore only | bzzoiro, ESPN, highlightly, OddsPapi, api-football, sportdb |
 | fixture key | `sofascore_event_id` (int) | `event_id` (64-char hash) |
-| ranking quantity | `p_central` → `p_bar`; legs by measured `confidence` | `p_low`, tiers CALL/LEAN/WEAK/DROP |
+| ranking quantity | legs by measured `confidence` (statistics only since 2026-10-05; the price only as the betting condition); `p_central` → `p_bar` for the priced VALUE selector | `p_low`, tiers CALL/LEAN/WEAK/DROP |
 | product | `runs/sofa/<date>/KUPON_<date>.pdf` | `runs/<date>/<date>_kupony.md` |
 | tests | `tests/sofa/` (699, offline) | `tests/simple_stats/`, `tests/tipsters/`, … |
 | agentic config | `.claude/agents`, `.claude/commands`, `.claude/skills` | `.claude/legacy/`, `.kilo/legacy/` |
@@ -39,7 +40,13 @@ line above describes it further; see `docs/legacy/README.md`.
 | `engine.py` | the pricing chain: prior → centre → `p_central` → `p_bar` → verdict |
 | `derived.py`, `joint.py` | markets about both sides at once, via a Gaussian copula over measured correlations |
 | `coupon.py` | VALUE-singles selection and every exclusion, with a reason |
-| `confidence.py` | legs ranked by measured realised rate; Bet Builders; `is_stakeable` |
+| `confidence.py` | legs ranked by measured realised rate; Bet Builders; `is_stakeable`; `coupon_order`, `coupon_artifact`, `legs_requiring_read` |
+| `epochs.py` | `STATS_ONLY_FROM_UTC` (2026-10-05 07:15Z) and `SPORTS_ON_COUPON_FROM_UTC` (08:30Z) — which rule a build is under |
+| `sport_identity.py` | SPORT_IDENTITY: pre-match Sofascore id of a hockey / basketball / volleyball / CS2 event, pinned in `sport_fixtures.json` |
+| `sport_confidence.py`, `score_model.py`, `cs2_engine.py` | SPORT_CONFIDENCE: the score model / CS2 engine probability read through `config/sofa_sport_confidence_calibration.json` |
+| `coupon_sports.py`, `locked_print.py` | the measured sports' legs on the one coupon (reads, locks, grading by the pinned id); legs locked from the last print (`12_printed.json`) |
+| `fixture_status.py` | FIXTURE_CHECK: a printed match postponed / cancelled / abandoned, and its fresh start |
+| `shadow.py`, `cs2.py` | the SHADOW / CS2 price measurement and its settlement; their snapshots feed SPORT_CONFIDENCE |
 | `settle.py` | grade a finished day against Sofascore, with the price |
 | `veto.py` | matching and unmatched-veto reporting for `vetoes.json` |
 | `coverage.py` | run-over-run coverage floor (weekday-blind — see the runbook) |
@@ -55,8 +62,9 @@ line above describes it further; see `docs/legacy/README.md`.
 ```
 Superbet ─► 01_board.json ─► (bridge) 02_fixtures.json ─┐
 Superbet ─► 04_offer.json ──────────────────────────────┼─► 05_sheet.json ─┬─► 06_coupon.* + 06_dropped.json
-             (bridge) 03_samples.json ──────────────────┘     ▲            └─► 08_confidence.* ─► KUPON_<date>.pdf
-                                                 config/sofa_*.json
+             (bridge) 03_samples.json ──────────────────┘     ▲            └─► 08_confidence.* ──┐
+                                                 config/sofa_*.json                            ├─► 11_coupon.json ─► KUPON_<date>.pdf + 12_printed.json
+Superbet ─► SHADOW / CS2 snapshots ─► (bridge) sport_fixtures.json ─► 08_confidence_sports.json ┘
                                                               ▲
          D-1: 05_sheet + results ─► 07_settled.json ─► data/sofa.db ─► fit_constants.py
 ```
@@ -84,7 +92,11 @@ expensive, and why re-fitting mid-day is an error rather than a wasted minute.
   optimum: the model loses to the price, and saying so is information.
 - **Two products, and they disagree.** `06_coupon.json` (VALUE singles,
   measured −20.4% on 2026-09-20) and the PDF (Bet Builders, +8.2% the same
-  day). Only the PDF is staked.
+  day). Only the PDF is staked; since 2026-10-05 it renders `11_coupon.json`,
+  the one coupon artifact. The operator's variant (WARIANT), WARIANT
+  WSZYSTKIE and the separate per-sport coupons were retired 2026-10-05
+  (historical: their files up to that morning stay and are graded as
+  before).
 
 ## 5. Where to read further
 
