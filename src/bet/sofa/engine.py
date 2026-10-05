@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 from bet.sofa.contracts import Direction
+from bet.sofa.epochs import model_fixes_enabled
 
 MAX_LADDER_SIGMA = 1.25
 K_PRICE = 10.0
@@ -296,19 +297,49 @@ def sheet_predictive_sd(
     dispersion index var/mean is what is kept. Measured on 102,154 settled
     football count rows 09-20..29: Brier 0.1986 -> 0.1982, better on 8 of 10
     days; rows whose centre moved more than 20%: 0.1974 -> 0.1961. Football
-    only: measured there; tennis counts were not.
+    only until epochs.MODEL_FIXES_FROM_UTC; from it also the tennis counts of
+    TENNIS_DISPERSION_SCALED_METRICS (measured 2026-10-05, see there).
 
     One function for run_sheet and the cache replay (calibrate_from_cache):
     the replay's stored p_central is what fit_confidence keys a curve on, and
     a curve keyed on a p the sheet does not compute describes another model.
     """
     floor = uses_poisson_floor(market)
+    scaled_sport = sport == "football" or (
+        sport == "tennis"
+        and market in TENNIS_DISPERSION_SCALED_METRICS
+        and model_fixes_enabled()
+    )
     scale = (
         centre / mean
-        if sport == "football" and floor and mean > 0 and centre > 0
+        if scaled_sport and floor and mean > 0 and centre > 0
         else 1.0
     )
     return predictive_sd(variance * scale, mean * scale, n, apply_poisson_floor=floor)
+
+
+# The tennis counts whose spread moves with the centre once
+# epochs.MODEL_FIXES_FROM_UTC is set (with the next refit; disabled until
+# then). Their centre moves to the tier baseline (tennis_prior, K_CENTRE 5:
+# a third of the way at n = 10) while the variance stayed the sample's - the
+# 09-25 defect (F2), fixed for football on 2026-10-02 and left open for
+# tennis. Measured 2026-10-05 on every cached best-of-three singles match
+# 2025-08-01..2026-10-03 (scripts/sofa/measure_model_defects.py nb-variance
+# --sport tennis), NB log-loss of the realised count, scaled - raw, 95% from
+# resampling matches, both event-id halves the same sign:
+#
+#     metric                cases    d logloss [95%]               Brier, main line
+#     aces_for            128,641  -0.01394 [-0.01497; -0.01295]   2.5: -0.00085
+#     aces_total           52,067  -0.00564 [-0.00636; -0.00503]   5.5: -0.00029
+#     double_faults_for   130,616  -0.00463 [-0.00527; -0.00396]   1.5: -0.00117
+#     double_faults_total  52,068  -0.00170 [-0.00205; -0.00134]   3.5: -0.00043
+#
+# NOT listed: games_total - log-loss -0.00045 [-0.00052; -0.00038] but the
+# Brier of the lines it is bet on is mixed (20.5: +0.00011 [+0.00011;
+# +0.00012], 24.5: -0.00004), and the line probability is what a curve reads.
+TENNIS_DISPERSION_SCALED_METRICS = frozenset(
+    {"aces_for", "aces_total", "double_faults_for", "double_faults_total"}
+)
 
 
 def sheet_count_p_raw(

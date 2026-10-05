@@ -113,6 +113,9 @@ class Past:
     season: int | None
     kind: MatchKind
     values: dict[str, tuple[float, float]]  # stat -> (for, against)
+    # Sofascore category (a country for a domestic league); None where the
+    # caller did not ask for it (measure_model_defects reads it).
+    category: int | None = None
 
     def value(self, metric: str) -> float | None:
         stat, scope = split_metric(metric)
@@ -131,6 +134,11 @@ class Target:
     home: int
     away: int
     values: dict[str, tuple[float, float]]  # stat -> (home, away)
+    # Context of the fixture itself, for the context measurements
+    # (measure_model_defects): its kind, its league round and its category.
+    kind: MatchKind = MatchKind.REGULAR
+    round: int | None = None
+    category: int | None = None
 
 
 Rule = Callable[[Sequence[Past], Target, int, int], list[Past]]
@@ -245,8 +253,10 @@ def _statistics(stats_json: str | None) -> dict[str, tuple[float, float]]:
 
 
 def load(
-    db: Path, with_stats: bool, target_kind: MatchKind = MatchKind.REGULAR
+    db: Path, with_stats: bool, target_kind: MatchKind | None = MatchKind.REGULAR
 ) -> tuple[dict[int, list[Past]], list[Target], dict[int, int]]:
+    """``target_kind`` None: every non-friendly match is a target (REGULAR and
+    KNOCKOUT, told apart by Target.kind)."""
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     stats: dict[int, dict[str, tuple[float, float]]] = {}
     if with_stats:
@@ -297,11 +307,18 @@ def load(
             if isinstance(h, int) and isinstance(a, int) and h >= 0 and a >= 0:
                 values[stat] = (float(h), float(a))
         kind = match_kind(event, "football")
+        category = ((event.get("tournament") or {}).get("category") or {}).get("id")
+        category = category if isinstance(category, int) else None
+        rnd = (event.get("roundInfo") or {}).get("round")
+        rnd = rnd if isinstance(rnd, int) else None
         swapped = {k: (v[1], v[0]) for k, v in values.items()}
-        history[home].append(Past(ts, eid, comp, season, kind, values))
-        history[away].append(Past(ts, eid, comp, season, kind, swapped))
-        if kind is target_kind:
-            targets.append(Target(ts, eid, comp, season, home, away, values))
+        history[home].append(Past(ts, eid, comp, season, kind, values, category))
+        history[away].append(Past(ts, eid, comp, season, kind, swapped, category))
+        if kind is target_kind or (
+            target_kind is None and kind is not MatchKind.FRIENDLY
+        ):
+            targets.append(Target(ts, eid, comp, season, home, away, values,
+                                  kind, rnd, category))
     for side in history.values():
         side.sort(key=lambda p: (p.ts, p.event_id))
     return history, targets, season_start

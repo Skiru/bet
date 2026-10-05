@@ -144,3 +144,25 @@ def settleability_gate(date: str, build_at: datetime | None = None) -> bool:
     """Does a build of `date` at `build_at` (default: now) refuse NOT_SETTLEABLE?"""
     at = build_at if build_at is not None else timeutil.now()
     return date >= SETTLEABILITY_DATE and at >= SETTLEABILITY_FROM_UTC
+
+
+# Model fixes measured offline on 2026-10-05 (plan F2.2,
+# docs/sofa/evidence/model_defects_2026-10-05.md) that change p_central and
+# so the quantity every confidence curve is keyed on. None = disabled: the
+# curves of the 10-05 refit (6fea99fd) were fitted on the estimator without
+# them, and a curve fitted on one p_central does not describe another. The
+# operator sets this to the install time TOGETHER with the next refit
+# (prepare_refit.py: backup, rebuild-cache-rows, fit, compare, install),
+# between days - never mid-day.
+#
+# Read on the wall clock, not timeutil.now(): SOFA_NOW freezes the clock in
+# the past for the refit's cache replay and for as-of SHEET replays, and both
+# must price with the estimator the new curves will describe.
+MODEL_FIXES_FROM_UTC: datetime | None = None
+
+
+def model_fixes_enabled(at: datetime | None = None) -> bool:
+    """Are the F2.2 model fixes on (MODEL_FIXES_FROM_UTC)?"""
+    if MODEL_FIXES_FROM_UTC is None:
+        return False
+    return (at if at is not None else datetime.now(UTC)) >= MODEL_FIXES_FROM_UTC
