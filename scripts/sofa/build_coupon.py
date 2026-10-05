@@ -12,7 +12,7 @@ sport, ordered by confidence and never by price:
 * the legs already printed whose match has started (bet.sofa.locked_print)
   first, outside the numbering;
 * the printed Bet Builders, numbered B1.., each named in its match's block;
-* the legs a read removed (removed_by_reads, graded on their own - 7h);
+* the legs a read removed (removed_by_reads, graded on their own - 7i);
 * the operator's extra read requests (read_requests.json), so C3 and the
   analysts read the same set (confidence.legs_requiring_read).
 

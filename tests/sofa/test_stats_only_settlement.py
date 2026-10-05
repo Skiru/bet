@@ -1,4 +1,4 @@
-"""7c split by sport and epoch, 7h removed_by_reads (plan K6/K7)."""
+"""7c split by sport and epoch, 7i removed_by_reads (plan K6/K7)."""
 
 from __future__ import annotations
 
@@ -33,12 +33,12 @@ def test_7c_shows_the_morning_locked_legs_apart_from_the_stats_only_ones():
     assert "| tennis | stats_only | 1 | 1 | 0 / 1 | 0 | -1.00 j. |" in text
 
 
-def test_7h_grades_the_removed_legs_by_who_removed_them():
+def test_7i_grades_the_removed_legs_by_who_removed_them():
     removed = [_leg(1, "football", 1.5, reason="analyst"),
                _leg(2, "football", 1.5, reason="auto")]
     by_key = {_key(removed[0]): {"outcome": "LOSS"},
               _key(removed[1]): {"outcome": "WIN"}}
     text = "\n".join(render_removed_by_reads(removed, by_key))
-    assert "## 7h." in text
+    assert "## 7i." in text
     assert "| analyst | 1 | 0 / 1 | -1.00 j. |" in text
     assert "| auto | 1 | 1 / 0 | +0.50 j. |" in text

@@ -338,12 +338,12 @@ def render_sport_singles(
 def render_removed_by_reads(
     removed: list[dict[str, Any]], by_key: dict[Any, Any]
 ) -> list[str]:
-    """7h: the legs that passed every gate and a read removed (WATCH /
+    """7i: the legs that passed every gate and a read removed (WATCH /
     NO_BET of an analyst or the verifier, or the automatic
     MODEL_ABOVE_OWN_SAMPLE), graded at their printed price - never part of
     the coupon's result (plan K6; the plan calls it 7f, which is the boosts'
-    section already)."""
-    out = ["## 7h. Nogi zdjęte przez odczyt — nie kupon, rozliczone osobno", ""]
+    section, and 7h is the niche scanner's)."""
+    out = ["## 7i. Nogi zdjęte przez odczyt — nie kupon, rozliczone osobno", ""]
     res = settle_singles(removed, by_key)
     out.append(_table(["", "liczba"], singles_summary_rows(len(removed), res)))
     out.append("")
@@ -911,7 +911,7 @@ def main() -> int:
             if artifact_epoch(conf) == STATS_ONLY:
                 lines.extend(render_stats_only_split(singles, coupon_by_key))
 
-        # ---- 7h. the legs a read removed (stats-only days, plan K6) -----
+        # ---- 7i. the legs a read removed (stats-only days, plan K6) -----
         removed = [r for r in conf.get("removed_by_reads") or []
                    if is_sheet_sport(r)]
         if removed:
