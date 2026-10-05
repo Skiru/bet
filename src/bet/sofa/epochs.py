@@ -25,8 +25,10 @@ STATS_ONLY = "stats_only"
 OLD = "old"
 
 STATS_ONLY_DATE = "2026-10-05"
-# Entered in the commit right before the 10-05 stats-only rebuild (K9).
-STATS_ONLY_FROM_UTC = datetime(2026, 10, 5, 23, 59, 59, tzinfo=UTC)
+# Entered in the commit right before the 10-05 stats-only rebuild (K9):
+# after the last morning build (08_confidence.json created
+# 2026-10-05T06:13:33Z, WARIANT 06:13:34Z), before the rebuild started.
+STATS_ONLY_FROM_UTC = datetime(2026, 10, 5, 7, 15, 0, tzinfo=UTC)
 
 
 def stats_only(date: str, build_at: datetime | None = None) -> bool:
