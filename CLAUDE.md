@@ -1,5 +1,51 @@
 # Working agreement — `bet`
 
+## Stats-only coupon epoch (2026-10-05 07:15Z, `bet.sofa.epochs.STATS_ONLY_FROM_UTC`)
+
+Plan `docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md` (operator decisions D1-D7).
+A build of a day >= 2026-10-05 made after 07:15Z is **stats-only**:
+- **Confidence from the statistics alone.** SHEET keeps the price out of
+  `p_central` (no tennis ladder centre, no rating blended with the price, no
+  empirical shrink to the rung's price, no handicap centre on the ladder);
+  the rating is published beside it as `forecast_p` ("model", uncalibrated,
+  never a gate). The price is only the betting condition: x = confidence x
+  odds >= 0.90, ladder margin <= 15%, ODDS_TOO_LOW, not started, fresh price;
+  `MAX_DISAGREEMENT` and `UNREACHABLE_BAR` are off; a moved price re-prices
+  the leg (x at the fresh odds). A thin direction bucket caps the `by_market`
+  curve too (K13). Bet Builders are chosen and ordered by
+  `combined_probability`, stakeable at combined p x odds after haircut >= 0.90.
+- **One coupon artifact: `runs/sofa/<d>/11_coupon.json`** (`build_coupon.py`,
+  COUPON_ASSEMBLY, from `08_confidence.json`), a superset of the 08 format;
+  every reader goes through `confidence.coupon_artifact()`. Order: confidence,
+  then the earlier start, legs of one match together (`coupon_order`),
+  positions 1..N; legs locked from an earlier print first, unnumbered;
+  builders B1.. on their own PDF pages. The PDF writes `12_printed.json`, the
+  record the next rebuild locks from. CONFIDENCE refuses a SHEET not built
+  under the rule (a rebuild starts at SHEET).
+- **Reads at the end of the chain:** a leg that passed every gate and a
+  WATCH / NO_BET (or the automatic MODEL_ABOVE_OWN_SAMPLE) removed is in
+  `removed_by_reads`, graded on its own (audit_settlement 7h, ledger
+  `removed:reads`), never in the coupon's result. Analysts read the first 30
+  positions, every printed builder leg and whatever the operator adds to
+  `read_requests.json` (`/sofa-analyze` "dodatkowo: ..."); C3 checks that set.
+- **WARIANT and WARIANT WSZYSTKIE are retired** (refused, exit 2); their
+  files up to the morning of 10-05 stay and are graded as before (D5). The
+  separate sport coupons stop only when the sports go on the coupon (plan
+  part 5, `SPORTS_ON_COUPON_FROM_UTC`).
+- **FIXTURE_CHECK** (`run_fixture_check.py`, bridge) in a rebuild before
+  CONFIDENCE: a fresh `/event` start replaces RESOLVE's frozen clock (K12); a
+  postponed / cancelled / abandoned printed match is FIXTURE_NOT_AS_SCHEDULED
+  (K14); no bridge = UNVERIFIED, nothing refused.
+- **SETTLE:** a match moved > 48 h or awarded is a refund (0 u.), never a
+  loss and never a `sofa_settled_row`; player props only from the player's
+  own squad (PLAYER_AMBIGUOUS); a printed leg without a sheet row is graded
+  into `07_settled_printed.json`. Shadow / CS2 identities are pinned, unique
+  per day and checked by `audit_settle_identity.py`.
+- **The ledger and the audits keep the epochs apart:** `official` (stats_only)
+  / `official:pre_stats_only` (legs locked from the 10-05 morning print);
+  `audit_ledger` groups do 10-04 / 10-05 rano / stats_only, never summed.
+  The official coupon before and after 07:15Z on 10-05 is not one experiment.
+
 ## Operator decisions 2026-10-05 (morning, before the 10-05 day)
 
 From the 10-05 coupon on (`docs/sofa/history/RAPORT_NOC_2026-10-05.md` section 4a):
@@ -106,7 +152,7 @@ day is **`runs/sofa/<date>/KUPON_<date>.pdf`**.
 
 ```
 BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
-                                          ↘ CONFIDENCE → PDF   ★ the product
+                     (rebuild: FIXTURE_CHECK) ↘ CONFIDENCE → COUPON_ASSEMBLY (11_coupon.json) → PDF   ★ the product
                     deliberately separate:  SETTLE → FIT
 ```
 
@@ -124,7 +170,7 @@ Source of truth for the order: `DEFAULT_SEQUENCE` in
 
 | you want | use |
 |---|---|
-| a full betting day - coupon, WARIANT, four sport coupons, WARIANT WSZYSTKIE, D-1 settled and recorded for all | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
+| a full betting day - the one coupon (11_coupon.json + PDF), the measured sports, D-1 settled and recorded for every variant | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
 | the per-sport read over an existing sheet | `/sofa-analyze` |
 | coupon + PDF from artifacts on disk | `/sofa-rebuild` |
 | adversarial verification of a built day | `/sofa-verify` |
@@ -148,10 +194,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 # SHEET parses the whole football history (913k matches since the 09-30 backfill): ~10 min the first time a day's listings change, ~30 s on a rebuild (pickle under data/cache/, keyed on the DB's listings/stats and the parser version). A SHEET that looks hung for 10 minutes is parsing - do not kill it.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps   # every morning: statistic gaps (corners etc.) close days later; then regrade_settled.py --apply
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>   # FIXTURE_CHECK in a rebuild, before CONFIDENCE: /event status + fresh start of printed matches and moved clocks -> fixture_status.json (bridge; none = UNVERIFIED)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d> --profile wariant    # variant, beside the coupon
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d> --profile wariant  # -> KUPON_<d>_WARIANT.pdf
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>        # COUPON_ASSEMBLY: 11_coupon.json, the coupon of a stats-only day (exit 1 while 08_confidence_sports.json is absent)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>    # renders 11_coupon.json (08 on a day before the epoch); writes 12_printed.json
+# --profile wariant (run_confidence / build_coupon_pdf) only rebuilds a day before 2026-10-05 07:15Z; refused after
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>        # Superbet boosts snapshot, not the coupon; a single boost now carries its EV at the devigged pre-boost market; run several times a day
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>
@@ -188,11 +235,13 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport {cs2|hockey|basketball|volleyball|all}   # experimental per-sport coupon, beside the measurement
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <d> --to <d> [--sport hockey]   # grade it at the printed price (after CS2_SETTLE / SHADOW_SETTLE)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_price_calibration.py --before <d> [--dry-run]   # hockey/basketball price recalibration a + c*logit(fair_p) -> config/sofa_sport_price_calibration.json; between days only
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>        # WARIANT WSZYSTKIE: the official PDF + four sport coupons, verbatim, runs/sofa/multi/<d>/
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>        # WARIANT WSZYSTKIE (retired from 2026-10-05 07:15Z, refused; its older days stay graded)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>          # re-derive the sport coupons from raw snapshots; WSZYSTKIE vs its sources
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>   # ledger: every variant + rule + measurement, runs/sofa/ledger/results.jsonl; D-2 too (legs after 00:00Z grade a day late)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # read the ledger: one table per variant, never pooled
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/purge_entity_alias.py --dry-run   # remove a wrongly verified team alias (B2, 2026-10-05: "u. de santiago" -> 233778); --list-suspects
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --moved-void --dry-run   # (then --apply) a match moved > 48 h: row moved to the played day or deleted with a copy; --players: props regraded from the own squad
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # offline, read-only: an id used twice, a >48 h move graded, names <= 82, ID_CHANGED / DUPLICATE_* / MOVED_TO; exit 1 on a finding (after D-1's settle)
 
 .venv/bin/python -m pytest tests/sofa -q
@@ -213,7 +262,13 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   selector returned −20.4% on 2026-09-20 while the PDF returned +8.2% the same
   day. Reporting the wrong file inverts the day.
 - **Never invent** a number, a fixture, a price or an availability.
-- **`KUPON_<date>_WARIANT.pdf` is not the coupon either.** It is the
+- **`11_coupon.json` and the PDF rendered from it are the coupon of a
+  stats-only day; on an older day the PDF of `08_confidence.json` is.**
+  `08_confidence.json` stays the football / tennis selection and the input of
+  SETTLE and the refit; `06_coupon.json` and `p_bar` are priced and are not
+  the coupon.
+- **`KUPON_<date>_WARIANT.pdf` is not the coupon either** (retired with the
+  stats-only epoch; history:). It was the
   operator's variant (floor 0.65, confidence x odds >= 0.90, and since
   2026-09-23 13:30 UTC a ladder margin up to 15% against the coupon's 10.5%;
   since 2026-10-05 the coupon shares both price dials and differs by its 0.70
@@ -245,7 +300,8 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   settled hockey day (09-29) went 33/46 against a mean fair p of 85.1%,
   ROI -17.7%. The CS2 / SHADOW rules above still hold: nothing from these
   sports feeds or gates the coupon.
-- **`KUPON_<d>_WSZYSTKIE.pdf` is not the coupon either** (since 2026-09-30):
+- **`KUPON_<d>_WSZYSTKIE.pdf` is not the coupon either** (2026-09-30 - the
+  morning of 2026-10-05; retired, `run_multi_coupon.py` refuses newer days):
   an assembly in `runs/sofa/multi/<d>/` of what the official PDF and the four
   sport coupons printed, verbatim, at their prices - it selects nothing.
   Any rebuild of a source makes it stale (`audit_variants.py` M2), so it is
