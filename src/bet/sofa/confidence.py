@@ -1448,8 +1448,8 @@ def fair_odds(probability: float) -> float | None:
 # Superbet does not price a Bet Builder at the product of its legs: it applies
 # its own correlation adjustment, and that adjustment is the whole margin.
 # Measured 2026-09-20 from the operator's screenshots — the first time this
-# repo ever saw a builder's real price (see reports/sofa_narzut_bet_buildera_
-# 2026-09-20.md):
+# repo ever saw a builder's real price (see reports/archive/oneoff/
+# sofa_narzut_bet_buildera_2026-09-20.md):
 #
 #     slip                                  legs   product   screen   markup
 #     Inter Miami  goals U5.5 + 1h U2.5        2     1.754     1.60     8.8%
