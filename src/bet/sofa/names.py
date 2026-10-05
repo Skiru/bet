@@ -176,7 +176,10 @@ def apply_aliases(name: str) -> str:
 # — and a senior club's name is a strict token subset of it. Under a token-set
 # scorer that scores 100.0, which is how a senior side and an under-20 side of
 # the same club become one team.
-_AGE_MARKER = re.compile(r"\bu ?-?(14|15|16|17|18|19|20|21|22|23)\b")
+# U10-U13 since 2026-10-05: "kk zadar u13" read as the senior side made
+# "zadar" ambiguous and a basketball game NOT_IDENTIFIED.
+_AGE_MARKER = re.compile(
+    r"\bu ?-?(10|11|12|13|14|15|16|17|18|19|20|21|22|23)\b")
 # A trailing "B" before the women's marker is a reserve too: normalize_name
 # folds "Dukla Liberec B (K)" to "dukla liberec b (w)", where its end-anchored
 # reserve rule no longer sees the "b", and the women's B side then read as a

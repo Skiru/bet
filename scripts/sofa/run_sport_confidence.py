@@ -235,6 +235,15 @@ def build_sport(sport: str, date: str, runs_dir: str,
             continue
         n_sides = len(allowed)
         fixture = fixtures.get((sport, str(ev.superbet_event_id)))
+        # A game Superbet itself has started is KICKED_OFF whatever its
+        # identity: Sofascore's events/next never lists a started game, so
+        # SPORT_IDENTITY cannot pin it, and on 2026-10-05 339 of the legs
+        # counted NOT_IDENTIFIED were games already under way - a counter
+        # that sent the diagnosis the wrong way.
+        if (fixture is None or fixture.get("status") != si.IDENTIFIED) \
+                and sb_kickoff - at < sport_coupon.KICKOFF_MARGIN:
+            _bump(refused, "KICKED_OFF", n_sides)
+            continue
         if status == NOT_IDENTIFIED or fixture is None:
             _bump(refused, NOT_IDENTIFIED, n_sides)
             continue

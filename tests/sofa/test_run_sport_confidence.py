@@ -385,3 +385,13 @@ def test_a_cs2_team_rounds_line_the_curve_was_not_fitted_on_is_refused(
     assert doc["sports"]["cs2"]["refused"][scf.LINE_OUTSIDE_FIT] == 2
     assert scf.line_in_fit("hockey", "total", 7.5)
     assert not scf.line_in_fit("cs2", "map_team_rounds", None)
+
+
+def test_a_started_game_is_kicked_off_not_unidentified(tmp_path: Path):
+    # 2026-10-05: events/next never lists a started game, so 339 legs of
+    # games under way were counted NOT_IDENTIFIED.
+    _write(tmp_path, "hockey", [_snapshot(kick="2026-10-06T15:05:00Z")])
+    _fixtures(tmp_path, [_fixture(status=si.NOT_IDENTIFIED, reason="NO_MATCH")])
+    doc, _ = _build(tmp_path, _calibration(tmp_path))
+    assert doc["sports"]["hockey"]["refused"] == {
+        "MARKET_NOT_ALLOWED": 1, "KICKED_OFF": 4}

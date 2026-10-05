@@ -238,11 +238,18 @@ _GENERIC_NAME_TOKENS = frozenset(
 )  # fmt: skip
 
 
+_LETTER_DOT = re.compile(r"(?<=[a-z])\.(?=[a-z])")
+
+
 def _name_parts(norm: str) -> list[str]:
     """A name without its squad marker, whole and split at "/" - Sofascore
     names a volleyball or basketball side "sponsor/club" ("Itambé/Minas Tênis
     Clube", "Dentil/Praia Clube") where Superbet prints the club alone."""
     bare = _SQUAD_MARKER_SUFFIX.sub("", norm).strip()
+    # An abbreviating dot between two letters is a word break: Superbet's
+    # "Mac.Ashdod" scored 75.0 against "Maccabi Ashdod", "mac ashdod" 83.3
+    # (2026-10-05, a basketball game lost to NOT_IDENTIFIED).
+    bare = _LETTER_DOT.sub(" ", bare)
     parts = [p.strip() for p in bare.split("/") if p.strip()]
     return [bare, *parts] if len(parts) > 1 else [bare]
 

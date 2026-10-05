@@ -493,3 +493,15 @@ def test_mutual_orientation_straight_and_ambiguous() -> None:
     # Both readings possible: refuse rather than guess.
     both = [(10, game), (20, game)]
     assert settle_shadow.mutual_orientation(game, both, both) is None
+
+
+def test_identity_names_found_missing_on_2026_10_05():
+    # Basketball games lost to NOT_IDENTIFIED on 2026-10-05.
+    from bet.sofa.names import normalize_name as n
+    from bet.sofa.names import team_levels
+    from bet.sofa.resolve import NAME_MATCH_THRESHOLD, part_score
+
+    assert part_score(n("Mac.Ashdod"), n("Maccabi Ashdod")) > NAME_MATCH_THRESHOLD
+    assert part_score(n("Mega Superbet"), n("KK Mega Basket")) > NAME_MATCH_THRESHOLD
+    assert team_levels(n("KK Zadar U13")) == frozenset({"U13"})
+    assert team_levels(n("KK Zadar")) == frozenset({"S"})
