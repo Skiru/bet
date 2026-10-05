@@ -395,3 +395,16 @@ def test_the_fit_scripts_tables_read_the_calibration_file():
     text = fsc.tables_markdown(doc)
     assert "| total\\|OVER | ADMITTED | history_holdout | 250 |" in text
     assert "0.800-0.825" in text
+
+
+def test_hockey_period_markets_are_scored_from_the_history_on_each_period():
+    # 2026-10-05 night: three settled days left the period families with no
+    # printable bucket; the history scores them on periods 1-3.
+    rows = _wf(_history(), 10 * DAY + 120 * 6 * 3600, 10 * DAY + 160 * 6 * 3600)
+    period_rows = [r for r in rows if r["family"].startswith("period_")]
+    assert {r["period"] for r in period_rows} == {1, 2, 3}
+    assert {r["family"] for r in period_rows} == {
+        "period_total", "period_team_total", "period_handicap", "period_1x2"}
+    assert all(r["period"] == 0 for r in rows if not r["family"].startswith("period_"))
+    assert scf.SETTLED_ONLY_FAMILIES["hockey"] == frozenset()
+    assert scf.market_periods(HOCKEY, 623) == (0,)

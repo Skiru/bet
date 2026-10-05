@@ -103,12 +103,19 @@ CS2_FAMILIES: frozenset[str] = frozenset(
 
 # The families the results history fits, with the market id a synthetic line
 # is built on. A team total is built twice (team1's id and team2's).
+#
+# Hockey's period families and basketball's first half are scored from the
+# history too since 2026-10-05 (night): the model simulates every period and
+# the history carries every period's score, while three settled days left no
+# printable bucket of 200 rows - 339 hockey period legs NOT_CALIBRATED on
+# 10-05. A period market is scored on each of its sport's PERIODS.
 HISTORY_MARKETS: dict[str, tuple[int, ...]] = {
-    "hockey": (630, 623, 658, 652, 604, 640),
-    "basketball": (759, 753, 768, 758, 776, 777),
+    "hockey": (630, 623, 658, 652, 604, 640, 649, 674, 638, 678, 660),
+    "basketball": (759, 753, 768, 758, 776, 777, 748, 773, 200804, 200797, 763),
     "volleyball": (745, 230058, 100082, 230060, 1069),
 }
-# Period and first-half families: only from settled Superbet lines (plan F4).
+PERIODS: dict[str, tuple[int, ...]] = {"hockey": (1, 2, 3)}
+# The rest (volleyball's set markets): only from settled Superbet lines (plan F4).
 SETTLED_ONLY_FAMILIES: dict[str, frozenset[str]] = {
     sport: frozenset(
         fam for mid, fam in markets.items()
@@ -459,14 +466,22 @@ def parse_history(events: Mapping[int, dict[str, Any]], sport: ShadowSport
     return out
 
 
-def _probe(sport: ShadowSport, market_id: int, subject: str) -> ShadowLine:
+def _probe(sport: ShadowSport, market_id: int, subject: str, period: int = 0
+           ) -> ShadowLine:
     spec = MARKETS[sport.key][market_id]
     side = "OVER" if spec.kind in ("total", "team_total") else "T1"
-    return ShadowLine("", market_id, spec.family, 0, subject, 0.0, side, 1.0)
+    return ShadowLine("", market_id, spec.family, period, subject, 0.0, side, 1.0)
 
 
-def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResult]
-                    ) -> list[ShadowLine]:
+def market_periods(sport: ShadowSport, market_id: int) -> tuple[int, ...]:
+    """The periods a market is scored on: (0,) unless it is a period market."""
+    if MARKETS[sport.key][market_id].scope != "period":
+        return (0,)
+    return PERIODS.get(sport.key, ())
+
+
+def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResult],
+                    period: int = 0) -> list[ShadowLine]:
     """Both (all) sides of the lines a game is scored on for one market.
 
     A total / team total / handicap: at LINE_QUANTILES of the game's own
@@ -476,12 +491,12 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     spec = MARKETS[sport.key][market_id]
     subject = spec.team or ""
     if spec.kind == "winner":
-        return [ShadowLine("", market_id, spec.family, 0, "", None, s, 1.0)
+        return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
                 for s in ("T1", "T2")]
     if spec.kind == "three_way":
-        return [ShadowLine("", market_id, spec.family, 0, "", None, s, 1.0)
+        return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
                 for s in ("T1", "DRAW", "T2")]
-    probe = _probe(sport, market_id, subject)
+    probe = _probe(sport, market_id, subject, period)
     values = sorted(v for g in sims if (v := actual_value(probe, g, sport)) is not None)
     if not values:
         return []
@@ -491,10 +506,10 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     for c in cut:
         if spec.kind == "handicap":
             # team1 covers when margin + hcp > 0: hcp = -c asks margin > c
-            out += [ShadowLine("", market_id, spec.family, 0, "", -c, s, 1.0)
+            out += [ShadowLine("", market_id, spec.family, period, "", -c, s, 1.0)
                     for s in ("T1", "T2")]
         else:
-            out += [ShadowLine("", market_id, spec.family, 0, subject, c, s, 1.0)
+            out += [ShadowLine("", market_id, spec.family, period, subject, c, s, 1.0)
                     for s in ("OVER", "UNDER")]
     return out
 
@@ -511,25 +526,28 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
     sims = model.simulate(exp[0], exp[1], seed=r.event_id, n=n_sims)
     rows: list[Row] = []
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
-    for mid in HISTORY_MARKETS[sport.key]:
-        for line in synthetic_lines(sport, mid, sims):
-            p = line_probability(line, sims, sport)
-            if p is None:
-                continue
-            if line.line is not None and not DEGENERATE_P <= p <= 1 - DEGENERATE_P:
-                continue
-            actual = actual_value(line, game.result, sport)
-            if actual is None:
-                continue
-            outcome = grade(line, actual, mid in three)
-            if outcome == "VOID":
-                continue
-            rows.append({
-                "sport": sport.key, "family": line.family, "market_id": mid,
-                "period": 0, "subject": line.subject, "line": line.line,
-                "side": line.side, "key": curve_key(line.family, line.side),
-                "p": round(p, 4), "y": 1 if outcome == "WIN" else 0,
-                "game": f"h:{r.event_id}", "ts": r.ts, "source": source})
+    lines = [ln for mid in HISTORY_MARKETS[sport.key]
+             for period in market_periods(sport, mid)
+             for ln in synthetic_lines(sport, mid, sims, period)]
+    for line in lines:
+        mid = line.market_id
+        p = line_probability(line, sims, sport)
+        if p is None:
+            continue
+        if line.line is not None and not DEGENERATE_P <= p <= 1 - DEGENERATE_P:
+            continue
+        actual = actual_value(line, game.result, sport)
+        if actual is None:
+            continue
+        outcome = grade(line, actual, mid in three)
+        if outcome == "VOID":
+            continue
+        rows.append({
+            "sport": sport.key, "family": line.family, "market_id": mid,
+            "period": line.period, "subject": line.subject, "line": line.line,
+            "side": line.side, "key": curve_key(line.family, line.side),
+            "p": round(p, 4), "y": 1 if outcome == "WIN" else 0,
+            "game": f"h:{r.event_id}", "ts": r.ts, "source": source})
     return rows
 
 
