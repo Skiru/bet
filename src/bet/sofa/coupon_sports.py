@@ -223,6 +223,50 @@ def pinned_ids(run_dir: Path) -> dict[str, int]:
     }
 
 
+def pinned_seed(runs_dir: str, sport: str, date: str) -> dict[str, dict[str, Any]]:
+    """{superbet id: a prior record} from SPORT_IDENTITY's sport_fixtures.json
+    of `date` and the day before (a game after midnight UTC is snapshotted
+    into D+1's file but identified on D's coupon). SETTLE takes it as the
+    record's pinned id (B3): /event/{id} is asked directly, a search landing
+    elsewhere is ID_CHANGED - the coupon leg is graded off the match it was
+    identified as before the start (F7: "to id przypina SETTLE")."""
+    from datetime import timedelta
+
+    day = datetime.strptime(date, "%Y-%m-%d")
+    out: dict[str, dict[str, Any]] = {}
+    for d in ((day - timedelta(days=1)).strftime("%Y-%m-%d"), date):
+        path = Path(runs_dir) / d / SPORT_FIXTURES_FILE
+        if not path.exists():
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        for f in doc.get("fixtures") or []:
+            if f.get("sport") != sport or f.get("status") != "IDENTIFIED":
+                continue
+            if f.get("sofascore_event_id") is None:
+                continue
+            out[str(f["superbet_event_id"])] = {
+                "sofascore_event_id": int(f["sofascore_event_id"]),
+                "home_is_team1": f.get("home_is_team1"),
+                "sofascore_home_id": f.get("home_id"),
+                "sofascore_away_id": f.get("away_id"),
+                "match_method": f"SPORT_IDENTITY:{f.get('match_method')}",
+                "matched_at_utc": f.get("matched_at_utc"),
+            }
+    return out
+
+
+def seeded(prev: dict[str, Any] | None, seed: dict[str, Any] | None
+           ) -> dict[str, Any] | None:
+    """The earlier record, or SPORT_IDENTITY's pin where it has no id."""
+    if seed is None or (prev and prev.get("sofascore_event_id") is not None):
+        return prev
+    # A seed alone is a record not yet graded (the loops read prev["state"]).
+    return {"state": "PENDING", **(prev or {}), **seed}
+
+
 def grade(
     runs_dir: str,
     date: str,

@@ -178,3 +178,23 @@ def test_a_read_on_a_locked_sport_leg_is_a_late_refusal_not_a_removal(tmp_path):
     assert [x.get("locked") for x in doc["legs"]] == [True]
     assert doc["removed_by_reads"] == []
     assert doc["locked_late_refusals"][0]["refusal"] == "WATCHED"
+
+
+def test_settle_starts_from_the_id_pinned_before_the_match(tmp_path):
+    import json
+
+    for d, sb, sid in (("2026-10-06", "a", 11), ("2026-10-07", "b", 22)):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / cs.SPORT_FIXTURES_FILE).write_text(json.dumps({"fixtures": [
+            {"sport": "hockey", "superbet_event_id": sb, "sofascore_event_id": sid,
+             "status": "IDENTIFIED", "home_is_team1": True, "home_id": 1,
+             "away_id": 2, "match_method": "LISTING_ID_AND_NAME"},
+            {"sport": "hockey", "superbet_event_id": "x", "sofascore_event_id": 99,
+             "status": "NOT_IDENTIFIED"}]}))
+    seeds = cs.pinned_seed(str(tmp_path), "hockey", "2026-10-07")
+    assert {k: v["sofascore_event_id"] for k, v in seeds.items()} == {"a": 11, "b": 22}
+    assert cs.seeded(None, seeds["a"])["sofascore_event_id"] == 11
+    assert cs.seeded(None, seeds["a"])["state"] == "PENDING"
+    # an earlier record with its own id keeps it
+    assert cs.seeded({"sofascore_event_id": 5}, seeds["a"]) == {"sofascore_event_id": 5}
+    assert cs.seeded({"state": "PENDING"}, seeds["b"])["sofascore_event_id"] == 22

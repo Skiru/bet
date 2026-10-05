@@ -36,7 +36,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from bet.sofa import settle_identity  # noqa: E402
+from bet.sofa import coupon_sports, settle_identity  # noqa: E402
 from bet.sofa import shadow as _shadow  # noqa: E402
 from bet.sofa.client import SofascoreClient  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
@@ -591,8 +591,9 @@ def settle(
         "pending_sides": 0,
     }
     breaker_open = False
+    seeds = coupon_sports.pinned_seed(runs_dir, "cs2", date)
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
-        prev = done.get(eid)
+        prev = coupon_sports.seeded(done.get(eid), seeds.get(str(eid)))
         if prev and _shadow.is_terminal(prev["state"]) and not is_waiting(prev):
             metrics["kept"] += 1
             continue

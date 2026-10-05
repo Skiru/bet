@@ -43,7 +43,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 
 from rapidfuzz import fuzz  # noqa: E402
 
-from bet.sofa import settle_identity  # noqa: E402
+from bet.sofa import coupon_sports, settle_identity  # noqa: E402
 from bet.sofa import shadow as _shadow  # noqa: E402
 from bet.sofa.cache import SofaCache  # noqa: E402
 from bet.sofa.client import SofascoreClient  # noqa: E402
@@ -966,8 +966,11 @@ def settle_sport(
         "no_lines_at_last_record": len(no_lines),
     }
     breaker_open = False
+    seeds = coupon_sports.pinned_seed(runs_dir, sport.key, date)
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
-        prev = done.get(eid)
+        # F7: the id SPORT_IDENTITY pinned before the match, where the
+        # record has none yet.
+        prev = coupon_sports.seeded(done.get(eid), seeds.get(str(eid)))
         kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
         retry_players = bool(
             prev
