@@ -37,6 +37,7 @@ from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY_FROM_UTC, stats_only  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 from scripts.sofa.run_sport_coupon import local  # noqa: E402
 
@@ -268,6 +269,22 @@ def main() -> int:
         print(frozen, file=sys.stderr)
         return 2
     at = now()
+    # K5 (plan 2026-10-05): one coupon from the stats-only epoch on; the
+    # WSZYSTKIE of the morning of 10-05 stays as it was printed.
+    if stats_only(args.date, at):
+        print(
+            "SOFA_SUMMARY: "
+            + json.dumps(
+                {
+                    "stage": "MULTI_COUPON",
+                    "verdict": "FAILED",
+                    "error": "WARIANT WSZYSTKIE is retired from "
+                    f"{STATS_ONLY_FROM_UTC.isoformat()} (one coupon, "
+                    "11_coupon.json)",
+                }
+            )
+        )
+        return 2
     if at >= sc.day_end(args.date):
         print(
             "SOFA_SUMMARY: "

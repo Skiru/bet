@@ -31,6 +31,22 @@ STATS_ONLY_DATE = "2026-10-05"
 STATS_ONLY_FROM_UTC = datetime(2026, 10, 5, 7, 15, 0, tzinfo=UTC)
 
 
+# The installation of plan part 5 (F7): from this build time the measured
+# sports (hockey, basketball, volleyball, CS2) print on the one coupon and
+# their separate experimental coupons (run_sport_coupon.py) stop. None until
+# F7 is installed - until then the separate coupons are the only record of
+# those sports, so they are not stopped earlier (K5).
+SPORTS_ON_COUPON_FROM_UTC: datetime | None = None
+
+
+def sports_on_coupon(date: str, build_at: datetime | None = None) -> bool:
+    """Do the measured sports print on the coupon for this build (F7)?"""
+    if SPORTS_ON_COUPON_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= STATS_ONLY_DATE and at >= SPORTS_ON_COUPON_FROM_UTC
+
+
 def stats_only(date: str, build_at: datetime | None = None) -> bool:
     """Is a build of `date` at `build_at` (default: now) in the stats-only epoch?"""
     at = build_at if build_at is not None else timeutil.now()

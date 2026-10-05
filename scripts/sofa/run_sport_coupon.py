@@ -48,6 +48,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.epochs import sports_on_coupon  # noqa: E402
 from bet.sofa.cs2 import append_records, write_atomic  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
@@ -537,6 +538,22 @@ def main() -> int:
         print(_frozen, file=sys.stderr)
         return 2
     at = now()
+    # K5: the separate sport coupons stop when the sports print on the one
+    # coupon (F7), not earlier.
+    if sports_on_coupon(args.date, at):
+        print(
+            "SOFA_SUMMARY: "
+            + json.dumps(
+                {
+                    "stage": "SPORT_COUPON",
+                    "verdict": "FAILED",
+                    "error": "the measured sports print on the coupon "
+                    "(11_coupon.json) from SPORTS_ON_COUPON_FROM_UTC; the "
+                    "separate sport coupons are retired",
+                }
+            )
+        )
+        return 2
     sports = sc.SPORT_KEYS if args.sport == "all" else (args.sport,)
     # A day whose window has closed is a record, not a board: rebuilding it
     # would print an empty coupon over the one that was printed.
