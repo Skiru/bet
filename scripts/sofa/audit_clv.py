@@ -87,6 +87,31 @@ def sport_rows(runs: Path, day: str) -> list[ClvRow]:
     return out
 
 
+def coupon_sport_rows(runs: Path, day: str) -> list[ClvRow]:
+    """F7: the measured sports' legs printed on the one coupon
+    (11_coupon.json) against the same graded close as a sport coupon's - the
+    last pre-start snapshot SHADOW_SETTLE / CS2_SETTLE graded."""
+    doc = _json(runs / day / "11_coupon.json")
+    if not doc:
+        return []
+    out: list[ClvRow] = []
+    for sport, (sub, keys) in SPORT_DIRS.items():
+        legs = [s for s in doc.get("singles") or [] if s.get("sport") == sport]
+        if not legs:
+            continue
+        graded: list[dict[str, Any]] = []
+        for d in (day, _next_day(day)):
+            settled = _json(runs / sub / d / "settled.json")
+            if not settled:
+                continue
+            events = settled.get("events", {})
+            graded += [g for e in (events.values() if isinstance(events, dict)
+                                   else events)
+                       if isinstance(e, dict) for g in e.get("graded", [])]
+        out += sport_coupon_rows({"legs": legs}, graded, f"official:{sport}", keys)
+    return out
+
+
 def closing_rows(runs: Path, day: str) -> list[ClvRow]:
     """Rows from capture_closing.py's closing.jsonl, one per printed leg."""
     path = runs / day / "closing.jsonl"
@@ -132,7 +157,8 @@ def main() -> int:
     runs = Path(args.runs_dir)
     rows: list[ClvRow] = []
     for day in _days(args.date_from, args.date_to):
-        rows += sport_rows(runs, day) + closing_rows(runs, day)
+        rows += sport_rows(runs, day) + closing_rows(runs, day) + coupon_sport_rows(
+            runs, day)
     variants = sorted({r.variant for r in rows})
     print(f"# CLV {args.date_from}..{args.date_to} - Superbet's own close, power devig")
     print("| variant | legs | matches | mean CLV | 95% (by match) | above close |")
