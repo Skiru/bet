@@ -222,3 +222,19 @@ def test_the_last_printed_coupon_is_carried_over_past_an_unprinted_build():
     assert [s["sofascore_event_id"] for s in both.singles] == [1]
     assert both.singles[0]["printed_at_utc"] == "2026-10-07T08:01:00Z"
     assert both.singles[0]["printed_under"]["epoch"] == "stats_only"
+
+
+def test_u1_u2_hold_on_an_assembled_coupon_and_catch_a_shuffle():
+    from scripts.sofa.audit_variants import audit_coupon_order
+
+    legs = [_single(1, 0.80, "2026-10-07T12:00:00Z", epoch="stats_only"),
+            _single(2, 0.90, "2026-10-07T13:00:00Z", epoch="stats_only"),
+            _single(3, 0.95, "2026-10-07T08:00:00Z", locked=True)]
+    doc = assemble(_conf_doc(legs), None, [], {}, "now")
+    assert audit_coupon_order(doc, "official") == []
+    shuffled = {**doc, "singles": [doc["singles"][0], doc["singles"][2],
+                                   doc["singles"][1]]}
+    found = audit_coupon_order(shuffled, "official")
+    assert any(f.startswith("U1") for f in found)
+    old = {**doc, "singles": [{**s, "epoch": None} for s in doc["singles"]]}
+    assert any(f.startswith("U2") for f in audit_coupon_order(old, "official"))

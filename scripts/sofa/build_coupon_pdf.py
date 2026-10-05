@@ -842,7 +842,7 @@ def render_stats_only(
     fresh = [s for s in singles if not s.get("locked")]
     blocks = {int(b["block"]): b for b in doc.get("blocks") or []}
     if locked:
-        S.append(Paragraph(f"W grze — {LOCKED_LABEL}", h2))
+        S.append(Paragraph("W grze — wydrukowane przed startem meczu", h2))
         rows: list[list[Any]] = [[Paragraph(h, small) for h in (
             "mecz", "rynek", "linia", "pewność", "kurs", "wydruk")]]
         for leg in locked:
@@ -908,7 +908,7 @@ def render_stats_only(
                 Paragraph("—" if margin is None else f"{float(margin):.1%}", small),
                 Paragraph(single_sample(leg), small),
             ])
-        S.append(_table(rows, [8*mm, 44*mm, 30*mm, 17*mm, 14*mm, 13*mm,
+        S.append(_table(rows, [8*mm, 42*mm, 30*mm, 17*mm, 16*mm, 13*mm,
                                12*mm, 11*mm, 13*mm, 14*mm]))
 
     for b in picks:

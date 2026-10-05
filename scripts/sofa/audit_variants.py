@@ -29,6 +29,12 @@ files on disk, not from the artifact's own fields:
       a locked single (bet.sofa.locked_print, since 2026-10-05: printed by an
       earlier build, its match started before this one) is checked against
       the build that printed it - its printed_at_utc and printed_under dials
+  U1  (11_coupon.json, stats-only days) the fresh singles stand in
+      confidence.coupon_order, numbered 1..N, the locked ones first and
+      unnumbered; U2 every fresh football / tennis single carries the
+      stats-only epoch. On such a day M2's official section and C1's
+      staleness of the retired WARIANT are notes, not findings: both files
+      are the record of the morning's pre-stats-only print (plan K7).
   C3  (days from READS_CUTOVER on) every leg the official PDF prints - single
       or builder leg - was read by an analyst (reads.json, contracts.LegRead),
       and none it prints carries a WATCH or NO_BET read (the official profile
@@ -58,14 +64,17 @@ from bet.sofa import cs2, shadow  # noqa: E402
 from bet.sofa import multi_coupon as mc  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    COUPON_ARTIFACT,
     MAX_OVERROUND,
     PROFILES,
+    coupon_order,
     legs_requiring_read,
     printed_builders,
     printed_singles,
     profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
     matching_reads,
@@ -362,10 +371,27 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
     out: list[str] = []
     if doc.get("profile", "standard") != profile_name:
         out.append(f"C1 {tag}: {name} was built with profile {doc.get('profile')!r}")
-    for newer in ("05_sheet.json", "vetoes.json", "reads.json"):
+    # K7: a retired profile's artifact on a day that moved to the stats-only
+    # coupon (11_coupon.json) is the record of what was printed before the
+    # cutover - it cannot be rebuilt, so a newer sheet is not staleness.
+    record_only = (
+        profile.retired_from_utc is not None
+        and (run / COUPON_ARTIFACT).exists()
+    )
+    if record_only:
+        notes.append(f"C1 {tag}: {name} is the pre-stats-only record "
+                     f"(built {doc.get('created_at_utc')}); staleness not checked")
+    sources = (
+        ("08_confidence.json", "08_confidence_sports.json", "read_requests.json")
+        if name == COUPON_ARTIFACT
+        else ("05_sheet.json", "vetoes.json", "reads.json")
+    )
+    for newer in () if record_only else sources:
         other = run / newer
         if other.exists() and other.stat().st_mtime > path.stat().st_mtime:
             out.append(f"C1 {tag}: {name} is older than {newer} (STALE_CONFIDENCE)")
+    if name == COUPON_ARTIFACT:
+        out += audit_coupon_order(doc, tag)
     pdf = run / f"KUPON_{date}{profile.pdf_suffix}.pdf"
     if not pdf.exists():
         out.append(f"C1 {tag}: {pdf.name} missing - the artifact was never printed")
@@ -414,6 +440,30 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
             out.append(f"C2 {label}: printed after its kickoff")
     if profile_name == "standard" and date >= READS_CUTOVER:
         out += audit_reads(run, doc, tag)
+    return out
+
+
+def audit_coupon_order(doc: dict[str, Any], tag: str) -> list[str]:
+    """U1 (K7): the fresh singles of 11_coupon.json stand in coupon_order,
+    numbered 1..N, the locked ones first and unnumbered; U2: every fresh
+    single was selected in the stats-only epoch."""
+    out: list[str] = []
+    singles = printed_singles(doc)
+    fresh = [s for s in singles if not s.get("locked")]
+    if any(s.get("locked") for s in singles[len(singles) - len(fresh):]):
+        out.append(f"U1 {tag}: a locked single stands after a fresh one")
+    want = [x for b in coupon_order([dict(s) for s in fresh]) for x in b.legs]
+    if [_read_key(x) for x in want] != [_read_key(x) for x in fresh]:
+        out.append(f"U1 {tag}: the singles are not in coupon_order")
+    if [s.get("position") for s in fresh] != list(range(1, len(fresh) + 1)):
+        out.append(f"U1 {tag}: positions are not 1..{len(fresh)} in order")
+    if any(s.get("position") is not None for s in singles if s.get("locked")):
+        out.append(f"U1 {tag}: a locked single carries a position")
+    for s in fresh:
+        if s.get("epoch") != STATS_ONLY and str(s.get("sport") or "football") in (
+                "football", "tennis"):
+            out.append(f"U2 {tag} {s.get('match', '')} {s['market']} {s['line']}: "
+                       f"fresh leg without the stats-only epoch")
     return out
 
 
@@ -489,6 +539,17 @@ def audit_multi(runs_dir: str, date: str) -> list[str]:
         out.append("M1 multi: the PDF is not the one the JSON was printed as")
     for key, sec in doc["sections"].items():
         if sec["status"] != "OK":
+            continue
+        if key == "official" and (
+            mc.official_dir(runs_dir, date) / COUPON_ARTIFACT
+        ).exists():
+            # K7: the official coupon moved to the stats-only epoch after this
+            # assembly; WSZYSTKIE is the record of the earlier version (M1
+            # still pins its PDF) and no longer has a source to equal.
+            notes.append(
+                f"M2 official: WSZYSTKIE {date} is the record of the "
+                f"pre-stats-only coupon (pdf sha256 {doc.get('pdf_sha256')}); "
+                "the coupon is 11_coupon.json")
             continue
         if key == "official":
             conf_path = mc.official_dir(runs_dir, date) / "08_confidence.json"
