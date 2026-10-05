@@ -867,6 +867,9 @@ def render_stats_only(
             "#", "mecz", "rynek", "linia", "pewność", "model", "kurs", "x",
             "marża", "próbka")]]
         seen_block: set[int] = set()
+        # See ladder_leg_counts: rungs of one ladder are one claim bought
+        # several times (the verifier, 10-05: 53 such ladders, unmarked).
+        per_ladder = ladder_leg_counts(fresh)
         for leg in fresh:
             first = int(leg.get("block") or 0) not in seen_block
             seen_block.add(int(leg.get("block") or 0))
@@ -894,6 +897,9 @@ def render_stats_only(
                                "renderem PDF</b></font>")
             match_cell += watch_label(leg) + context_label(leg)
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
+            n_rungs = per_ladder.get(ladder_key(leg), 1)
+            if n_rungs > 1:
+                subj += f" — ta sama drabina: {n_rungs}"
             model = leg.get("forecast_p")
             margin = leg.get("overround")
             rows.append([

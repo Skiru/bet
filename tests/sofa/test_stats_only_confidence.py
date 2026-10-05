@@ -211,3 +211,18 @@ def test_a_stats_only_builder_is_stakeable_on_x_not_on_ev():
     # an older builder keeps its EV predicate
     assert not is_stakeable({"best_for_fixture": True, "ev_after_haircut": -0.05,
                              "combined_probability": 0.9, "odds_after_haircut": 1.2})
+
+
+def test_a_postponed_match_is_refused_and_named(tmp_path, monkeypatch):
+    p = 0.75
+    odds = round(0.95 / _conf(p), 2)
+    runs = _day(tmp_path, [_row(1, p, odds, 0.70), _row(2, p, odds, 0.70)],
+                KO, {1: (odds, _under(odds)), 2: (odds, _under(odds))})
+    (runs / DAY / "fixture_status.json").write_text(json.dumps({"events": {
+        "1": {"status": "postponed", "start_utc": None},
+        "2": {"status": "UNVERIFIED"}}}))
+    assert _run(runs, monkeypatch) == 0
+    doc = _doc(runs)
+    assert [s["sofascore_event_id"] for s in doc["singles"]] == [2]
+    assert doc["fixtures_not_as_scheduled"][0]["status"] == "postponed"
+    assert doc["fixture_status_unverified"] == 1

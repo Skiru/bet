@@ -35,6 +35,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from pydantic import RootModel  # noqa: E402
 
+from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -434,6 +435,9 @@ def main() -> int:
     # in the coupon's result.
     removed_by_reads: list[dict[str, Any]] = []
     refused: dict[str, int] = defaultdict(int)
+    # K12/K14: run_fixture_check.py's read of /event/{id}; none is no check.
+    fixture_status = fs.load(run_dir) if so else {}
+    not_scheduled: dict[int, str] = {}
     for row in sheet:
         odds = row.get("offered_odds")
         if odds is None:
@@ -503,12 +507,24 @@ def main() -> int:
         # The same predicate locks an already printed leg (locked_print), so
         # a fixture's fresh rows are refused exactly when its printed legs
         # are carried over.
-        clocks = kickoff_clocks(fx, seen_kickoff.get(row["sofascore_event_id"]))
+        # K14 (stats-only): a match postponed, cancelled or abandoned since
+        # RESOLVE (fixture_status.json, else RESOLVE's own status).
+        status_entry = fixture_status.get(int(row["sofascore_event_id"]))
+        if so and fs.not_as_scheduled(status_entry, fx.get("sofascore_status")):
+            refused["FIXTURE_NOT_AS_SCHEDULED"] += 1
+            not_scheduled[int(row["sofascore_event_id"])] = str(
+                fs.not_as_scheduled(status_entry, fx.get("sofascore_status")))
+            continue
+        # K12: a fresh Sofascore start replaces RESOLVE's frozen one.
+        refreshed = fs.refreshed_start(status_entry) if so else None
+        clocks = kickoff_clocks(
+            fx, seen_kickoff.get(row["sofascore_event_id"]), refreshed)
         if kicked_off(
             fx,
             seen_kickoff.get(row["sofascore_event_id"]),
             row["sofascore_event_id"] in started_ids,
             now,
+            refreshed,
         ):
             refused["KICKED_OFF"] += 1
             continue
@@ -872,7 +888,8 @@ def main() -> int:
             # No fixture any more: the printed (earliest) clock is all there is.
             return too_close_to_kickoff(kickoff_clocks(None, printed_kickoff), now)
         return kicked_off(
-            fx_now, seen_kickoff.get(event_id), event_id in started_ids, now
+            fx_now, seen_kickoff.get(event_id), event_id in started_ids, now,
+            fs.refreshed_start(fixture_status.get(event_id)) if so else None,
         )
 
     locked = carry_over(
@@ -1161,6 +1178,22 @@ def main() -> int:
         ),
         "legs": legs,
         **({"removed_by_reads": removed_by_reads} if so else {}),
+        # K14: the fixtures refused as not played as scheduled, for the PDF.
+        **(
+            {
+                "fixtures_not_as_scheduled": [
+                    {"sofascore_event_id": eid, "status": st,
+                     "match": f"{fixtures[eid]['home_name']} - "
+                              f"{fixtures[eid]['away_name']}"}
+                    for eid, st in sorted(not_scheduled.items()) if eid in fixtures
+                ],
+                "fixture_status_checked": len(fixture_status),
+                "fixture_status_unverified": sum(
+                    1 for e in fixture_status.values()
+                    if e.get("status") == fs.UNVERIFIED),
+            }
+            if so else {}
+        ),
         "singles": [
             {k: v for k, v in s_.items() if not k.startswith("_")} for s_ in singles
         ],

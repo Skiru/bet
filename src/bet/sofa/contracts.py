@@ -114,6 +114,10 @@ class Fixture(BaseModel):
     # open, because Superbet is who accepts the bet (F26).
     superbet_kickoff_utc: datetime | None = None
     kickoff_disagreement_h: float | None = None
+    # Sofascore's status.type when RESOLVE read /event/{id} (K14, 2026-10-05):
+    # "postponed" / "canceled" here refuses the fixture in a stats-only
+    # CONFIDENCE as FIXTURE_NOT_AS_SCHEDULED. Absent before 10-05.
+    sofascore_status: str | None = None
 
 
 class Observation(BaseModel):

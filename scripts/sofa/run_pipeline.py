@@ -95,6 +95,10 @@ STAGE_MODULES: dict[str, str] = {
     # sequence and outside the day's directory for CS2's reason.
     "SHADOW": "scripts.sofa.run_shadow",
     "SHADOW_SETTLE": "scripts.sofa.settle_shadow",
+    # Outside the sequence: in a rebuild after OFFER, before CONFIDENCE
+    # (plan 2026-10-05, K12/K14) - /event/{id} for the printed matches and
+    # the moved clocks; bridge.
+    "FIXTURE_CHECK": "scripts.sofa.run_fixture_check",
 }
 
 # (stage, label) — OFFER appears twice by design.

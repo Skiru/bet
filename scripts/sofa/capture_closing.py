@@ -25,6 +25,7 @@ from typing import Any
 
 from pydantic import RootModel
 
+from bet.sofa import fixture_status as fs
 from bet.sofa.clv import CLOSE_MAX_MINUTES, CLOSE_MIN_MINUTES
 from bet.sofa.confidence import (
     coupon_artifact,
@@ -35,6 +36,7 @@ from bet.sofa.confidence import (
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
+from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
 from scripts.sofa.cs2_daily import _command_of, already_running
@@ -70,6 +72,37 @@ def printed_legs(day_dir: Path) -> list[tuple[str, dict[str, Any]]]:
                     "kickoff_utc": b["kickoff_utc"], "market": leg["market"],
                     "subject": leg.get("subject") or "", "line": leg["line"],
                     "direction": leg["direction"], "offered_odds": leg["odds"]}))
+    return with_refreshed_kickoff(day_dir, out)
+
+
+def with_refreshed_kickoff(
+    day_dir: Path, legs: list[tuple[str, dict[str, Any]]]
+) -> list[tuple[str, dict[str, Any]]]:
+    """K12: where run_fixture_check.py read a fresh Sofascore start, the
+    close is timed on the clocks it leaves (locked_print.kickoff_clocks) -
+    not on RESOLVE's frozen start, which took 10-05's Shanghai closes ~80
+    min early."""
+    status = fs.load(day_dir)
+    if not status:
+        return legs
+    fx_path, offer_path = day_dir / "02_fixtures.json", day_dir / "04_offer.json"
+    fixtures = {int(f["sofascore_event_id"]): f for f in json.loads(
+        fx_path.read_text(encoding="utf-8"))} if fx_path.exists() else {}
+    seen = {
+        int(o["sofascore_event_id"]): str(o["superbet_kickoff_seen_utc"])
+        for o in (json.loads(offer_path.read_text(encoding="utf-8"))
+                  if offer_path.exists() else [])
+        if o.get("superbet_kickoff_seen_utc")
+    }
+    out = []
+    for variant, leg in legs:
+        eid = int(leg["sofascore_event_id"])
+        fresh = fs.refreshed_start(status.get(eid))
+        if fresh:
+            clocks = kickoff_clocks(fixtures.get(eid), seen.get(eid), fresh)
+            leg = {**leg, "kickoff_utc": min(clocks).isoformat().replace(
+                "+00:00", "Z")}
+        out.append((variant, leg))
     return out
 
 

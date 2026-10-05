@@ -998,6 +998,7 @@ def parse_fixture(
         default_period_count=event.get("defaultPeriodCount"),
         superbet_kickoff_utc=superbet_kickoff_utc,
         kickoff_disagreement_h=kickoff_gap_h(kickoff_utc, superbet_kickoff_utc),
+        sofascore_status=(event.get("status") or {}).get("type"),
     )
 
 

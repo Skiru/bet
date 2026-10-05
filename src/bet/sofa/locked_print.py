@@ -69,7 +69,9 @@ def leg_key(leg: Mapping[str, Any], event_id: Any = None) -> LegKey:
 
 
 def kickoff_clocks(
-    fixture: Mapping[str, Any] | None, seen_kickoff: str | None
+    fixture: Mapping[str, Any] | None,
+    seen_kickoff: str | None,
+    refreshed_start: str | None = None,
 ) -> list[datetime]:
     """Every start time the pipeline holds for a fixture.
 
@@ -77,7 +79,16 @@ def kickoff_clocks(
     last saw it (FixtureOffer.superbet_kickoff_seen_utc). The gates take the
     EARLIEST (too_close_to_kickoff): for ITF Sofascore's clock runs 7-9 h
     late, and Superbet moves starts earlier too.
+
+    `refreshed_start` (bet.sofa.fixture_status, K12): Sofascore's start read
+    fresh from /event/{id}. It replaces both frozen clocks - RESOLVE's
+    Sofascore one, and its Superbet one where OFFER saw a newer Superbet
+    clock - so a match moved later is no longer gated on the start it had at
+    dawn. Without it the clocks are exactly what they were.
     """
+    if refreshed_start:
+        superbet = seen_kickoff or (fixture or {}).get("superbet_kickoff_utc")
+        return [_utc(str(t)) for t in (refreshed_start, superbet) if t]
     raw = (
         (fixture or {}).get("kickoff_utc"),
         (fixture or {}).get("superbet_kickoff_utc"),
@@ -91,13 +102,14 @@ def kicked_off(
     seen_kickoff: str | None,
     superbet_started: bool,
     now: datetime,
+    refreshed_start: str | None = None,
 ) -> bool:
     """CONFIDENCE's kickoff gate: Superbet reports the match under way, or the
     earliest clock is inside the margin (no clock at all counts as started).
     The one predicate for refusing a fresh row and for locking a printed one.
     """
     return superbet_started or too_close_to_kickoff(
-        kickoff_clocks(fixture, seen_kickoff), now
+        kickoff_clocks(fixture, seen_kickoff, refreshed_start), now
     )
 
 
