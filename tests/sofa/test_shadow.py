@@ -1091,20 +1091,31 @@ def test_daily_plan() -> None:
             "SHADOW_SETTLE",
         ],
     ]
-    # then each settled day's experimental coupons, after every settle
-    assert [(c[0], c[2], c[-1]) for c in morning[2:-1]] == [
-        ("scripts/sofa/settle_sport_coupon.py", d, sp)
+    # then the sweep of D-7..D-3 for games still waiting (B7, 2026-10-05)
+    assert morning[2] == [
+        "scripts/sofa/settle_shadow.py",
+        "--sweep-from", "2026-09-21", "--sweep-to", "2026-09-25",
+    ]
+    # then each settled day's experimental coupons, after every settle, and
+    # the swept range's
+    assert [(c[0], c[2], c[4], c[-1]) for c in morning[3:-1]] == [
+        ("scripts/sofa/settle_sport_coupon.py", d, d, sp)
         for d in (DATE, "2026-09-27")
         for sp in ("hockey", "basketball", "volleyball")
+    ] + [
+        ("scripts/sofa/settle_sport_coupon.py", "2026-09-21", "2026-09-25", sp)
+        for sp in ("hockey", "basketball", "volleyball")
     ]
-    # and last, the ledger for both settled days
+    # and last, the ledger for every day the morning may have changed
     assert morning[-1] == [
-        "scripts/sofa/record_results.py", "--from", "2026-09-27", "--to", DATE
+        "scripts/sofa/record_results.py", "--from", "2026-09-21", "--to", DATE
     ]
     assert audit[0] == "scripts/sofa/audit_shadow.py"
-    # On the first shadow day there is nothing before it to retry.
+    # On the first shadow day there is nothing before it to retry (the sweep
+    # finds no snapshots and asks nothing).
     _, first_day, _ = shadow_daily.plan(DATE, retry_before=False)
-    assert {cmd[2] for cmd in first_day} == {DATE}
+    settles = [c for c in first_day if c[-1] == "SHADOW_SETTLE"]
+    assert {cmd[2] for cmd in settles} == {DATE}
 
 
 def test_has_snapshots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -2663,7 +2674,8 @@ def test_daily_plan_settles_d_minus_2_so_a_postponed_game_can_void() -> None:
     assert ("scripts/sofa/settle_sport_coupon.py", "2026-09-26", "hockey") in {
         (c[0], c[2], c[-1]) for c in morning
     }
-    assert morning[-1][1:] == ["--from", "2026-09-26", "--to", DATE]
+    # the ledger from the sweep's first day (B7) through D
+    assert morning[-1][1:] == ["--from", "2026-09-21", "--to", DATE]
     # D-2's 05:15Z settle is past VOID_AFTER even for a 23:59Z start; D-1's
     # is not, which is why D-2 is in the plan.
     latest_start = datetime(2026, 9, 26, 23, 59, tzinfo=UTC)

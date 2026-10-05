@@ -96,8 +96,8 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             conn.close()
         print(f"{len(found)} verified shadow-sport aliases below the name threshold")
-        for row in found:
-            print(" | ".join(str(x) for x in row))
+        for suspect in found:
+            print(" | ".join(str(x) for x in suspect))
         return 0
     conn = (
         sqlite3.connect(f"file:{db}?mode=ro", uri=True)

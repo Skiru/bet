@@ -716,6 +716,34 @@ def waiting_dates(runs_dir: str, dates: list[str]) -> list[str]:
     return out
 
 
+def identity_only(runs_dir: str, date: str) -> dict[str, int]:
+    """The identity pass alone over a settled day's file and its neighbours -
+    offline, no bridge (the D-c regrade of days settled before 2026-10-05)."""
+    out = cs2_day_dir(runs_dir, date) / SETTLED_FILE
+    if not out.exists():
+        return {}
+
+    def day_dir(d: str) -> Path:
+        return cs2_day_dir(runs_dir, d)
+
+    snaps = settle_identity.load_snaps(date, day_dir, SNAPSHOTS_FILE)
+    with file_lock(out):
+        events = json.loads(out.read_text(encoding="utf-8")).get("events", {})
+        done, counts = settle_identity.reconcile(
+            "cs2", date, events, day_dir, SETTLED_FILE, snaps
+        )
+        if counts:
+            doc = {"date": date, "events": done}
+            text = json.dumps(doc, ensure_ascii=False, indent=1)
+            write_atomic(out, text)
+    counts.update(
+        settle_identity.reconcile_neighbours(
+            "cs2", date, done, day_dir, SETTLED_FILE, snaps
+        )
+    )
+    return counts
+
+
 def date_range(first: str, last: str) -> list[str]:
     day = datetime.strptime(first, "%Y-%m-%d")
     end = datetime.strptime(last, "%Y-%m-%d")
@@ -737,10 +765,32 @@ def main() -> int:
         "waiting series (cs2_daily's morning sweep of D-7..D-2)",
     )
     parser.add_argument("--sweep-to")
+    parser.add_argument(
+        "--identity-only",
+        action="store_true",
+        help="offline: only the identity pass (MOVED_TO, DUPLICATE_*, WITHDRAWN) "
+        "over the dates' settled files - no bridge, nothing re-settled",
+    )
     args = parser.parse_args()
     if args.sweep_from and not args.sweep_to:
         parser.error("--sweep-from needs --sweep-to")
     config = SofaConfig.from_env()
+    if args.identity_only:
+        for date in [args.date] if args.date else date_range(
+            args.sweep_from, args.sweep_to
+        ):
+            print(
+                "SOFA_SUMMARY: "
+                + json.dumps(
+                    {
+                        "stage": "CS2_IDENTITY",
+                        "date": date,
+                        "changes": identity_only(config.runs_dir, date),
+                    }
+                ),
+                flush=True,
+            )
+        return 0
     if args.date:
         dates = [args.date]
     else:

@@ -193,6 +193,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>          # re-derive the sport coupons from raw snapshots; WSZYSTKIE vs its sources
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>   # ledger: every variant + rule + measurement, runs/sofa/ledger/results.jsonl; D-2 too (legs after 00:00Z grade a day late)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]   # read the ledger: one table per variant, never pooled
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # offline, read-only: an id used twice, a >48 h move graded, names <= 82, ID_CHANGED / DUPLICATE_* / MOVED_TO; exit 1 on a finding (after D-1's settle)
 
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa

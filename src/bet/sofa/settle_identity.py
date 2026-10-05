@@ -341,8 +341,7 @@ def plan_identity(
                     "duplicate_team": name,
                     "duplicate_team_events": sorted(doubtful),
                     "identity_reason": (
-                        f"{name!r} is in another Superbet event less than 3 h "
-                        "away"
+                        f"{name!r} is in another Superbet event less than 3 h away"
                     ),
                 }
 
@@ -355,6 +354,7 @@ def plan_identity(
             sid = rec.get("sofascore_event_id")
             if isinstance(sid, int):
                 by_sofa.setdefault(sid, []).append((date, eid))
+
     def last_seen(where: tuple[str, str]) -> tuple[datetime, str]:
         seen = live.get(where[1])
         at = _utc(seen.last) if seen else datetime.min.replace(tzinfo=UTC)

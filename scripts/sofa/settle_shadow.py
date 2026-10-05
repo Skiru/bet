@@ -1081,32 +1081,144 @@ def settle(
     return {"verdict": verdict, "metrics": per_sport}
 
 
+def is_waiting(rec: dict[str, Any] | None) -> bool:
+    """SHADOW_SETTLE will ask about this game again: no record yet, a
+    retryable state, or a SETTLED game whose player lines wait for a box."""
+    if rec is None:
+        return True
+    if is_retryable(rec.get("state")):
+        return True
+    return rec.get("state") == "SETTLED" and bool(rec.get("player_retry"))
+
+
+def waiting_sports(
+    runs_dir: str, date: str, sports: tuple[SportKey, ...] = tuple(SPORTS)
+) -> list[SportKey]:
+    """The sports of `date` SHADOW_SETTLE still has work on: snapshots, and a
+    settled.json that is missing, unreadable or holds a game `is_waiting`.
+    Offline - files only - so the morning sweep (B7) asks the bridge about
+    nothing that is final."""
+    out: list[SportKey] = []
+    for key in sports:
+        day = shadow_day_dir(runs_dir, key, date)
+        if not (day / SNAPSHOTS_FILE).exists():
+            continue
+        path = day / SETTLED_FILE
+        if not path.exists():
+            out.append(key)
+            continue
+        try:
+            events = json.loads(path.read_text(encoding="utf-8")).get("events", {})
+        except (OSError, ValueError):
+            out.append(key)
+            continue
+        if any(is_waiting(rec) for rec in events.values()):
+            out.append(key)
+    return out
+
+
+def date_range(first: str, last: str) -> list[str]:
+    day = datetime.strptime(first, "%Y-%m-%d")
+    end = datetime.strptime(last, "%Y-%m-%d")
+    out = []
+    while day <= end:
+        out.append(day.strftime("%Y-%m-%d"))
+        day += timedelta(days=1)
+    return out
+
+
+def identity_only(
+    runs_dir: str, date: str, sports: tuple[SportKey, ...] = tuple(SPORTS)
+) -> dict[str, Any]:
+    """The identity pass alone over a settled day's files - offline, no
+    bridge (the D-c regrade of days settled before 2026-10-05)."""
+    out: dict[str, Any] = {}
+    for key in sports:
+        path = shadow_day_dir(runs_dir, key, date) / SETTLED_FILE
+        if not path.exists():
+            continue
+        events = json.loads(path.read_text(encoding="utf-8")).get("events", {})
+        _, counts = reconcile_identity(runs_dir, key, date, events, write=True)
+        out[key] = counts
+    return out
+
+
 def main() -> int:
     set_stage("SHADOW_SETTLE")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--date", required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--date")
+    group.add_argument(
+        "--sweep-from",
+        help="with --sweep-to: settle every date in the range whose sports still "
+        "have waiting games (shadow_daily's morning sweep of D-7..D-3)",
+    )
+    parser.add_argument("--sweep-to")
     parser.add_argument("--sport", choices=list(SPORTS), action="append")
+    parser.add_argument(
+        "--identity-only",
+        action="store_true",
+        help="offline: only the identity pass (MOVED_TO, DUPLICATE_*, WITHDRAWN) "
+        "over the dates' settled files - no bridge, nothing re-settled",
+    )
     args = parser.parse_args()
+    if args.sweep_from and not args.sweep_to:
+        parser.error("--sweep-from needs --sweep-to")
     config = SofaConfig.from_env()
+    sports = tuple(args.sport) if args.sport else tuple(SPORTS)
+    dates = [args.date] if args.date else date_range(args.sweep_from, args.sweep_to)
+    if args.identity_only:
+        for date in dates:
+            print(
+                "SOFA_SUMMARY: "
+                + json.dumps(
+                    {
+                        "stage": "SHADOW_IDENTITY",
+                        "date": date,
+                        "changes": identity_only(config.runs_dir, date, sports),
+                    }
+                ),
+                flush=True,
+            )
+        return 0
+    plan_by_date: dict[str, tuple[SportKey, ...]] = {d: sports for d in dates}
+    if not args.date:
+        plan_by_date = {}
+        for d in dates:
+            waiting = waiting_sports(config.runs_dir, d, sports)
+            if waiting:
+                plan_by_date[d] = tuple(waiting)
+        print(
+            "SOFA_SUMMARY: "
+            + json.dumps(
+                {"stage": "SHADOW_SETTLE_SWEEP", "waiting": plan_by_date}
+            ),
+            flush=True,
+        )
+        if not plan_by_date:
+            return 0
     client = SofascoreClient(config)
     cache = SofaCache(config)
     resolver = SofaResolver(config, client, cache)
-    sports = tuple(args.sport) if args.sport else tuple(SPORTS)
-    result = settle(
-        args.date,
-        resolver,
-        client,
-        cache,
-        config.runs_dir,
-        now(),
-        sports,
-        db_path=config.db_path,
-    )
-    print(
-        "SOFA_SUMMARY: " + json.dumps({"stage": "SHADOW_SETTLE", **result}),
-        flush=True,
-    )
-    return {"OK": 0, "PARTIAL": 1}.get(str(result["verdict"]), 2)
+    worst = 0
+    for date, todo in plan_by_date.items():
+        result = settle(
+            date,
+            resolver,
+            client,
+            cache,
+            config.runs_dir,
+            now(),
+            todo,
+            db_path=config.db_path,
+        )
+        print(
+            "SOFA_SUMMARY: "
+            + json.dumps({"stage": "SHADOW_SETTLE", "date": date, **result}),
+            flush=True,
+        )
+        worst = max(worst, {"OK": 0, "PARTIAL": 1}.get(str(result["verdict"]), 2))
+    return worst
 
 
 if __name__ == "__main__":
