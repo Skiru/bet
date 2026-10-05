@@ -392,6 +392,7 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
             out.append(f"C1 {tag}: {name} is older than {newer} (STALE_CONFIDENCE)")
     if name == COUPON_ARTIFACT:
         out += audit_coupon_order(doc, tag)
+        out += audit_sport_legs(runs_dir, date, doc, tag)
     pdf = run / f"KUPON_{date}{profile.pdf_suffix}.pdf"
     if not pdf.exists():
         out.append(f"C1 {tag}: {pdf.name} missing - the artifact was never printed")
@@ -521,10 +522,90 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
 
 
 def _read_key(leg: dict[str, Any]) -> tuple[Any, ...]:
+    line = leg.get("line")
     return (
         int(leg["sofascore_event_id"]), str(leg["market"]),
-        str(leg.get("subject") or ""), float(leg["line"]), str(leg["direction"]),
+        str(leg.get("subject") or ""),
+        float(line) if line is not None else None, str(leg["direction"]),
+        int(leg.get("period") or 0),
     )
+
+
+def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
+                     tag: str) -> list[str]:
+    """U3 (F7): every fresh measured-sport leg of 11_coupon.json re-derived
+    from the raw Superbet snapshot as it stood when 08_confidence_sports.json
+    was built: the price, the group's margin, x, the price's age and the
+    calibration bucket of its forecast_p."""
+    from bet.sofa import coupon_sports as cs
+    from bet.sofa import cs2
+    from bet.sofa import sport_confidence as scf
+    from bet.sofa import sport_coupon as spc
+    from bet.sofa import sport_identity as si
+    from bet.sofa.config import config_path
+    from scripts.sofa import run_sport_confidence as rsc
+
+    legs = [s for s in printed_singles(doc)
+            if cs.is_measured(s) and not s.get("locked")]
+    if not legs:
+        return []
+    built = (doc.get("built_from") or {}).get("08_confidence_sports.json")
+    if not built:
+        return [f"U3 {tag}: sport legs printed without 08_confidence_sports.json"]
+    at = _utc(str(built))
+    cal = scf.SportCalibration.load(config_path(scf.CALIBRATION_FILE))
+    out: list[str] = []
+    events: dict[str, dict[str, Any]] = {}
+    for leg in legs:
+        sport = str(leg["sport"])
+        label = (f"{tag} {leg.get('match', '')} {leg['family']} p{leg.get('period')} "
+                 f"{leg.get('line')} {leg['side']}")
+        if sport not in events:
+            events[sport] = si.snapshot_events(runs_dir, sport, date, at)
+        ev = events[sport].get(str(leg["superbet_event_id"]))
+        if ev is None:
+            out.append(f"U3 {label}: no snapshot of the event")
+            continue
+        match = [
+            (k, ln) for k, ln in ev.sides.items()
+            if ln.side == leg["side"] and ln.line == leg.get("line")
+            and str(ln.subject or "") == str(leg.get("subject") or "")
+            and int(ln.map_nr if sport == "cs2" else ln.period) == int(
+                leg.get("period") or 0)
+            and rsc._allowed(sport, ln) == leg["family"]
+        ]
+        if not match:
+            out.append(f"U3 {label}: the line is not in the snapshot")
+            continue
+        key, ln = match[0]
+        if abs(float(ln.odds) - float(leg["odds"])) > 1e-9:
+            out.append(f"U3 {label}: odds {leg['odds']} vs snapshot {ln.odds}")
+        fetched = ev.fetched_at.get(key)
+        if fetched != leg.get("price_fetched_at_utc"):
+            out.append(f"U3 {label}: price time {leg.get('price_fetched_at_utc')} "
+                       f"vs snapshot {fetched}")
+        elif at - _utc(str(fetched)) > spc.MAX_PRICE_AGE:
+            out.append(f"U3 {label}: price older than {spc.MAX_PRICE_AGE}")
+        group = {x.side: x.odds for k2, x in ev.sides.items()
+                 if rsc._group_key(sport, k2) == rsc._group_key(sport, key)
+                 and ev.fetched_at.get(k2) == fetched}
+        margin = cs2.group_overround(group)
+        if leg.get("overround") is None or abs(round(margin, 4) - float(
+                leg["overround"])) > 1e-4:
+            out.append(f"U3 {label}: margin {leg.get('overround')} vs {margin:.4f}")
+        if margin > MAX_SPORT_OVERROUND + TOL:
+            out.append(f"U3 {label}: margin {margin:.4f} above {MAX_SPORT_OVERROUND}")
+        if round(float(leg["confidence"]) * float(leg["odds"]), 9) < 0.90:
+            out.append(f"U3 {label}: x below 0.90")
+        conf = cal.lookup(sport, str(leg["family"]), str(leg["side"]),
+                          float(leg["forecast_p"])) if cal else None
+        if conf is None or abs(conf.value - float(leg["confidence"])) > 1e-4:
+            out.append(f"U3 {label}: confidence {leg['confidence']} is not the "
+                       f"calibration's {None if conf is None else conf.value}")
+    return out
+
+
+MAX_SPORT_OVERROUND = 0.15
 
 
 def audit_multi(runs_dir: str, date: str) -> list[str]:

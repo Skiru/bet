@@ -41,9 +41,9 @@ from bet.sofa.confidence import (  # noqa: E402
     coupon_artifact,
     is_sheet_sport,
     printed_builders,
-    profile_artifact_path,
     printed_singles,
     prints_builders,
+    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
@@ -296,6 +296,41 @@ def render_stats_only_split(
                      if res["settled"] else "—"])
     out.append(_table(["sport", "epoka", "pozycji", "rozliczonych",
                        "weszło / nie", "zwrot", "wynik", "ROI"], rows))
+    out.append("")
+    return out
+
+
+def render_sport_singles(
+    legs: list[dict[str, Any]], sheet_res: dict[str, Any], runs_dir: str,
+    date: str,
+) -> list[str]:
+    """7c, the measured sports' singles (F7): graded at the printed price by
+    sport_coupon against the pinned identity; then the coupon's sum of both
+    tables (units only - each table is its own population)."""
+    from bet.sofa import coupon_sports
+    from bet.sofa.timeutil import now as _now
+
+    graded = coupon_sports.grade(runs_dir, date, legs, _now())
+    out = ["", "#### Sporty mierzone na kuponie (hokej, koszykówka, siatkówka, "
+           "CS2)", ""]
+    rows = []
+    total = 0.0
+    for sport in coupon_sports.MEASURED_SPORTS:
+        mine = [g for g in graded if g.get("sport") == sport]
+        if not mine:
+            continue
+        won = sum(1 for g in mine if g["outcome"] == "WIN")
+        lost = sum(1 for g in mine if g["outcome"] == "LOSS")
+        units = sum(float(g["odds"]) - 1.0 if g["outcome"] == "WIN" else -1.0
+                    for g in mine if g["outcome"] in ("WIN", "LOSS"))
+        total += units
+        rows.append([sport, len(mine), won + lost, f"{won} / {lost}",
+                     len(mine) - won - lost, f"{units:+.2f} j."])
+    out.append(_table(["sport", "pozycji", "rozliczonych", "weszło / nie",
+                       "inne (zwrot / czeka / bez oceny)", "wynik"], rows))
+    out.append("")
+    out.append(f"**Suma kuponu (pojedyncze, wszystkie sporty): "
+               f"{sheet_res['units'] + total:+.2f} j.**")
     out.append("")
     return out
 
@@ -855,8 +890,16 @@ def main() -> int:
             A("PDF nie drukował pojedynczych.")
             A("")
         else:
-            res = settle_singles(singles, coupon_by_key)
-            A(_table(["", "liczba"], singles_summary_rows(len(singles), res)))
+            # The measured sports' legs (F7) are graded by sport_coupon, not
+            # from sofa_settled_row: their own table below, then the sum.
+            sport_singles = [s for s in singles if not is_sheet_sport(s)]
+            sheet_singles = [s for s in singles if is_sheet_sport(s)]
+            res = settle_singles(sheet_singles, coupon_by_key)
+            A(_table(["", "liczba"],
+                     singles_summary_rows(len(sheet_singles), res)))
+            if sport_singles:
+                lines.extend(render_sport_singles(
+                    sport_singles, res, config.runs_dir, args.date))
             A("")
             A("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
               "nich operator wziął. Kurs to `offered_odds` z artefaktu.")

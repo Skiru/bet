@@ -99,6 +99,15 @@ STAGE_MODULES: dict[str, str] = {
     # (plan 2026-10-05, K12/K14) - /event/{id} for the printed matches and
     # the moved clocks; bridge.
     "FIXTURE_CHECK": "scripts.sofa.run_fixture_check",
+    # The measured sports on the one coupon (plan 2026-10-05, F7), outside
+    # the sequence like CONFIDENCE: SPORT_IDENTITY pins each hockey /
+    # basketball / volleyball / CS2 event's Sofascore id before the match
+    # (bridge, after a fresh --only SHADOW / --only CS2), SPORT_CONFIDENCE
+    # writes 08_confidence_sports.json (no bridge), COUPON_ASSEMBLY writes
+    # 11_coupon.json after CONFIDENCE and before the PDF.
+    "SPORT_IDENTITY": "scripts.sofa.run_sport_identity",
+    "SPORT_CONFIDENCE": "scripts.sofa.run_sport_confidence",
+    "COUPON_ASSEMBLY": "scripts.sofa.build_coupon",
 }
 
 # (stage, label) — OFFER appears twice by design.

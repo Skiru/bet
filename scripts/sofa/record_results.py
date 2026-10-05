@@ -46,8 +46,8 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import coupon_sports, shadow  # noqa: E402
 from bet.sofa import multi_coupon as mc  # noqa: E402
-from bet.sofa import shadow  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
@@ -60,6 +60,7 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import one_side_per_line, summarize, write_atomic  # noqa: E402
 from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import leg_key, printed_leg_keys  # noqa: E402
+from bet.sofa.timeutil import now  # noqa: E402
 from scripts.sofa import settle_multi_coupon, settle_sport_coupon  # noqa: E402
 
 LEDGER_DIR = "ledger"
@@ -198,6 +199,15 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
             out.append(_confidence_row(
                 date, variant, singles, builders, rows, doc_epoch))
             continue
+        # F7: the measured sports' legs on the coupon, graded at the printed
+        # price by sport_coupon, against the identity pinned before the
+        # match; one section per sport beside football / tennis.
+        sport_legs = [s for s in printed_singles(doc) if not is_sheet_sport(s)]
+        if sport_legs:
+            singles = singles + [
+                {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
+                for g in coupon_sports.grade(runs_dir, date, sport_legs, now())
+            ]
         for name, keep in ((variant, True), (f"{variant}:pre_stats_only", False)):
             sel_s = [g for g in singles
                      if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
@@ -206,17 +216,26 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
             if keep or sel_s or sel_b:
                 out.append(_confidence_row(
                     date, name, sel_s, sel_b, rows, STATS_ONLY if keep else OLD))
-        removed = [r for r in doc.get("removed_by_reads") or [] if is_sheet_sport(r)]
-        if removed:
-            r_rows, _ = settle_multi_coupon.official_rows(
-                runs_dir, date, db_path, profile,
-                {int(r["sofascore_event_id"]) for r in removed},
-                keys={leg_key(r) for r in removed},
-            )
-            r_singles, _ = settle_multi_coupon.grade_confidence_positions(
-                [{"source": r} for r in removed], [], r_rows, {},
-                settle_ran=settle_multi_coupon.ran_on(r_rows, date),
-            )
+        all_removed = doc.get("removed_by_reads") or []
+        removed = [r for r in all_removed if is_sheet_sport(r)]
+        removed_sports = [r for r in all_removed if not is_sheet_sport(r)]
+        if removed or removed_sports:
+            r_rows: dict[Any, dict[str, Any]] = {}
+            r_singles: list[dict[str, Any]] = []
+            if removed:
+                r_rows, _ = settle_multi_coupon.official_rows(
+                    runs_dir, date, db_path, profile,
+                    {int(r["sofascore_event_id"]) for r in removed},
+                    keys={leg_key(r) for r in removed},
+                )
+                r_singles, _ = settle_multi_coupon.grade_confidence_positions(
+                    [{"source": r} for r in removed], [], r_rows, {},
+                    settle_ran=settle_multi_coupon.ran_on(r_rows, date),
+                )
+            r_singles += [
+                {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
+                for g in coupon_sports.grade(runs_dir, date, removed_sports, now())
+            ]
             row = _confidence_row(date, "removed:reads", r_singles, [], r_rows,
                                   STATS_ONLY)
             row["by_reason"] = {

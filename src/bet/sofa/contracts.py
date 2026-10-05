@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from enum import StrEnum
 from typing import Literal
@@ -322,6 +323,9 @@ class Veto(BaseModel):
 
 
 LegVerdict = Literal["KEEP", "WATCH", "NO_BET"]
+READ_SIDES = frozenset(
+    {"OVER", "UNDER", "T1", "T2", "DRAW", "ODD", "EVEN", "YES", "NO"})
+_EXACT_SCORE = re.compile(r"^\d+[:-]\d+$")
 ReadAuthor = Literal["analyst", "verifier"]
 
 
@@ -347,14 +351,28 @@ class LegRead(BaseModel):
 
     model_config = ConfigDict(extra="forbid", strict=True)
     sofascore_event_id: int
+    # For a measured sport's leg on the coupon (plan 2026-10-05, F7) `market`
+    # is the leg's family (total, team_total, handicap, winner, ...).
     market: str | None
     subject: str | None
     line: float | None
-    direction: Direction | None
+    # OVER / UNDER, or a measured sport's side: T1 / T2 / DRAW / ODD / EVEN /
+    # YES / NO / an exact score ("3:1"). See READ_SIDES.
+    direction: str | None
     verdict: LegVerdict
     author: ReadAuthor
     reason: str = Field(min_length=1)
     context: ContextSignal | None = None
+    # A measured sport's period (a hockey period, a quarter, a set, a CS2
+    # map); None covers every period, as a None field always does.
+    period: int | None = None
+
+    @model_validator(mode="after")
+    def _known_side(self) -> "LegRead":
+        d = self.direction
+        if d is not None and d not in READ_SIDES and not _EXACT_SCORE.match(d):
+            raise ValueError(f"unknown direction {d!r}")
+        return self
 
 
 class CouponRow(BaseModel):

@@ -43,10 +43,14 @@ def veto_matches(
     sofascore_event_id: int,
     market: str,
     subject: str,
-    line: float,
+    line: float | None,
     direction: str,
+    period: int | None = None,
 ) -> bool:
     """Does this veto cover that (fixture, market, subject, line, direction)?
+
+    `period` (a measured sport's leg, F7): a read naming a period covers only
+    that period; a veto or read without one covers every period.
 
     Takes primitives rather than a `SheetRow` so the stages that carry rows as
     plain dicts — CONFIDENCE reads the sheet as JSON — use this predicate
@@ -61,6 +65,9 @@ def veto_matches(
     if veto.line is not None and veto.line != line:
         return False
     if veto.direction is not None and veto.direction != direction:
+        return False
+    want = getattr(veto, "period", None)
+    if want is not None and period is not None and want != period:
         return False
     return True
 
@@ -123,8 +130,9 @@ def matching_reads(
     sofascore_event_id: int,
     market: str,
     subject: str,
-    line: float,
+    line: float | None,
     direction: str,
+    period: int | None = None,
 ) -> list[LegRead]:
     """The reads that cover this row, with the veto's matching rule."""
     return [
@@ -137,6 +145,7 @@ def matching_reads(
             subject=subject,
             line=line,
             direction=direction,
+            period=period,
         )
     ]
 

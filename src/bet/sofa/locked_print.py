@@ -40,7 +40,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from bet.sofa.confidence import printed_builders, printed_singles, too_close_to_kickoff
 
@@ -59,11 +59,14 @@ def _utc(raw: str) -> datetime:
 def leg_key(leg: Mapping[str, Any], event_id: Any = None) -> LegKey:
     """One rung and side of one fixture - the key every grader uses."""
     eid = leg.get("sofascore_event_id", event_id)
+    line = leg.get("line")
     return (
         int(eid),
         str(leg["market"]),
         str(leg.get("subject") or ""),
-        float(leg["line"]),
+        # None on a measured sport's winner / 1X2 leg (F7) - such a leg is
+        # never a sheet row, so it never meets a float key.
+        float(line) if line is not None else cast(float, None),
         str(leg["direction"]),
     )
 

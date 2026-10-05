@@ -43,6 +43,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -54,6 +55,8 @@ from bet.sofa.confidence import (  # noqa: E402
     request_covers,
 )
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
+from bet.sofa.locked_print import PRINTED_MANIFEST  # noqa: E402
+from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 
 SPORTS_ARTIFACT = "08_confidence_sports.json"
 
@@ -183,6 +186,28 @@ def day_after(date: str) -> str:
     return (datetime.date.fromisoformat(date) + datetime.timedelta(days=1)).isoformat()
 
 
+def prepare_sports(
+    run: Path, sports: dict[str, Any], at: datetime.datetime
+) -> dict[str, Any]:
+    """The measured sports' legs as 11 prints them (F7): normalized for the
+    readers, vetoes and reads applied (a WATCH / NO_BET goes to
+    removed_by_reads), and the sport legs of the last printed coupon whose
+    match has started carried over, locked, as printed."""
+    vetoes = load_vetoes(run / "vetoes.json")
+    reads = load_reads(run / "reads.json")
+    fresh = [cs.normalize(x) for x in sports.get("legs") or []]
+    kept, removed, vetoed = cs.apply_reads(fresh, vetoes, reads)
+    printed_path = run / PRINTED_MANIFEST
+    if not printed_path.exists() and (run / COUPON_ARTIFACT).exists():
+        printed_path = run / COUPON_ARTIFACT
+    printed = _load(printed_path) if printed_path.exists() else None
+    locked = cs.locked_sport_legs(printed, at)
+    locked_keys = {cs.sport_key(x) for x in locked}
+    kept = [x for x in kept if cs.sport_key(x) not in locked_keys]
+    return {**sports, "legs": [*locked, *kept], "removed_by_reads": removed,
+            "vetoed": vetoed}
+
+
 def render_md(doc: dict[str, Any], date: str) -> str:
     lines = [
         f"# Kupon {date} - 11_coupon.json",
@@ -250,6 +275,9 @@ def main() -> int:
         return 2
     sports_path = run / SPORTS_ARTIFACT
     sports = _load(sports_path) if sports_path.exists() else None
+    at = timeutil.now()
+    if sports is not None:
+        sports = prepare_sports(run, sports, at)
     try:
         requests = load_read_requests(run / "read_requests.json")
     except ValueError as exc:
@@ -260,7 +288,7 @@ def main() -> int:
         {int(s["sofascore_event_id"]): s for s in _load(samples_path)}
         if samples_path.exists() else {}
     )
-    now = timeutil.now().isoformat().replace("+00:00", "Z")
+    now = at.isoformat().replace("+00:00", "Z")
     doc = assemble(conf, sports, requests, samples, now, args.date)
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
