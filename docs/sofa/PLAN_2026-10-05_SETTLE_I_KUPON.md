@@ -1,7 +1,8 @@
 # Plan 2026-10-05: naprawa SETTLE i jeden kupon ze statystyk
 
-Status: PLAN v4 — decyzje operatora D1–D7 naniesione, dwie recenzje
-adwersaryjne (15 + 21 uwag) i raport po `/sofa-day` 10-05 uwzględnione. Nic z
+Status: PLAN v5.1 (po recenzji części 3/K13–K14, 6, 7) — decyzje operatora D1–D7, dwie recenzje adwersaryjne
+(15 + 21 uwag), raport po `/sofa-day` 10-05, tabela nóg zdjętych 10-05 (K13,
+K14), flow agentowy plik po pliku (część 6) i sprzątanie (część 7). Nic z
 tego nie jest wdrożone. Wdrożenie: osobna sesja, `/sofa-day` 10-05 zakończony.
 
 Dla wdrażającego: każdy krok kończy się testem w `tests/sofa/`, pełnym
@@ -68,7 +69,7 @@ pewność tylko ze statystyk.
    położenia worktree — potwierdzić). Zmienia to, co produkuje SAMPLES, więc
    scalić przed K9 (przebudowa i tak zaczyna nową epokę) albo świadomie
    odłożyć.
-2. **Faza A (K0–K12)** dla piłki i tenisa, przebudowa 10-05 (K9). Każda godzina
+2. **Faza A (K0–K14)** dla piłki i tenisa, przebudowa 10-05 (K9). Każda godzina
    zwłoki to więcej nóg zablokowanych starą regułą.
 3. **Część 4 (SETTLE) przed porannym rozliczeniem 10-06**: A1, A3, A2, A4, A5,
    potem 4B, 4C, 4D. Po wdrożeniu zrestartować pętle `shadow_daily` /
@@ -259,6 +260,54 @@ różni się od niego o > 30 min — zapytanie przez mostek tylko dla takich
 meczów. Blokada i `capture_closing` biorą odświeżony zegar, gdy jest. Test:
 zegar RESOLVE wcześniejszy o 70 min od obu świeżych zegarów → bramka i
 `capture_closing` biorą świeży.
+
+**K13. Krzywa łącząca OVER i UNDER zawyża cienki kierunek** (weryfikator
+10-05: Estudiantes – Gimnasia Mendoza i Córdoba – Tenerife, rożne 1. połowa
+U5,5). Sprawdzone w `config/sofa_confidence_calibration.json`:
+`corners_1h_total|UNDER` przy p 0,75–0,80 ma w `thin_by_market_direction`
+n = 225, realizacja 0,724, dolna granica 0,663 (poniżej `min_market_bucket`
+400, więc brak w `by_market_direction`); `Calibration.realised`
+(`confidence.py:1058`) spada wtedy na `by_market` łączący oba kierunki
+(0,750–0,800: n = 428, dolna granica 0,712) i drukuje 0,712 ≥ 0,70. Opis w
+`_doc` pliku mówi, że cienki kubełek kierunku ogranicza pulę — dziś działa to
+tylko przy spadku do puli sportu/globalnej, nie do `by_market`. Zmiana: gdy
+istnieje cienki kubełek kierunku dla p, wynik = min(dolna granica wybranej
+krzywej, dolna granica cienkiego kubełka) także dla `by_market` (krzywa obu
+kierunków jest pulą): jeden helper `_cap_by_thin(market, direction, p, hit)`
+wołany przy zwrocie `by_market` (`confidence.py:1114-1116`) i przy puli
+(`:1170-1178`); krzywe klas przejmują go przez `for_class`. Bez refitu (dane są
+w pliku). Skutek policzony offline (kalibracja 6fea99fd, artefakty 10-05, wg
+recenzenta): oficjalny — 0 nóg pod 0,70 (obie nogi rożnych U5,5 zdjął już
+WATCH weryfikatora), Chapelton – Waterhouse gole 1. poł. O0,5 0,7312 → 0,7094
+(zostaje); WARIANT — Estudiantes 0,6627 × 1,29 = 0,855 → `NEGATIVE_LEG_EV`,
+Córdoba 0,6627 (zostaje), Chapelton j.w. W pliku 67 komórek z kubełkiem rynku
+powyżej cienkiego, 8 przecina 0,70. Test
+`tests/sofa/test_thin_bucket_caps_the_pool.py::test_a_measured_bucket_is_never_capped`
+odwrócić (świadoma zmiana decyzji z 10-04); poprawić `_doc` w
+`fit_confidence.py:342` i komentarz `confidence.py:913-917` (nie `_doc`
+zainstalowanego pliku — sha256 w manifeście kopii). Zmiana reguły kuponu =
+granica porównywalności (K0), wdrożenie między dniami. Test: przypadek
+`corners_1h_total|UNDER` p 0,75–0,80 → 0,663 → `BELOW_CONFIDENCE_FLOOR`.
+
+**K14. Mecz przełożony/odwołany po wydruku.** (Herrestads – Grebbestads
+10-05, event 17211301, NIE jest takim przypadkiem — sprawdzone: to mecz
+zaległy za 15458084 przełożony 10-02, `notstarted`, flaga
+`MAKEUP_FIXTURE(postponed 2026-10-02, event 15458084)` była na nodze w
+artefakcie; reguła operatora: flaga pokazywana, nie bramka.) Dziś: SETTLE
+daje VOID (`run_settle.py:173`); mecz zniknięty z oferty Superbetu odpada przy
+odświeżeniu OFFER jako `NO_FETCHED_AT`/`STALE_PRICE`. Brak: `Fixture` nie
+zapisuje statusu Sofascore. Zmiana: RESOLVE zapisuje `sofascore_status` z
+`/event/{id}`, które już pobiera (`resolve.py:940-950`); przy przebudowie
+osobny krok tylko dla meczów drukowanych czyta `/event/{id}` (cache
+`sofa_event_detail`, TTL 60 min; bez mostka → `UNVERIFIED`, bez odmowy) —
+nie w OFFER (OFFER jest tylko Superbet). postponed / canceled / abandoned →
+`FIXTURE_NOT_AS_SCHEDULED` (odmowa w CONFIDENCE, nota w PDF); świeży
+`startTimestamp` = czwarty zegar w `kickoff_clocks` (łączy się z K12). Noga
+zablokowana (`locked_print`) meczu przełożonego zostaje i rozlicza się jako
+zwrot. Analityk przy `MAKEUP_FIXTURE` dostaje w PDF i w `11_coupon.json`
+mecz pierwotny (id, data przełożenia), żeby nie zgadywał. Testy: status
+postponed → odmowa; brak mostka → bez odmowy; noga zablokowana + postponed →
+zostaje, zwrot.
 
 ---
 
@@ -529,6 +578,163 @@ przypiętym id; `stats_only` dla starej daty z `SOFA_NOW`; czytelnik 11 vs 08;
 `forecast_p` ≠ `model_p`; dwa wiersze ledgera dla 10-05; `LegRead` nogi sportu;
 brak pliku kalibracji → exit 1, kupon piłki/tenisa zbudowany; okno UTC dnia
 dla sportów; C5.
+
+---
+
+## Część 6. Flow agentowy `/sofa-day` — każdy plik
+
+Kontrakty ładują się przy starcie sesji: po zmianach `/sofa-day` uruchamiać
+tylko w nowej sesji. Każdy plik po edycji: `pytest tests/sofa/test_agentic_config.py
+tests/sofa/test_documented_commands.py` (sprawdzają frontmatter, narzędzia,
+komendy i flagi) w głównym checkoutcie.
+
+| plik | zmiana |
+|---|---|
+| `.claude/commands/sofa-day.md` (prompt dnia) | Sekwencja: ensure_bridge → settle D-1 (+ `audit_settle_identity`) → ledger → BOARD..SHEET → CONFIDENCE (piłka/tenis) → SPORT_IDENTITY → SHADOW/CS2 snapshot → SPORT_CONFIDENCE → COUPON_ASSEMBLY (`11_coupon.json`) → analitycy na top 30 (piłka, tenis, `sofa-analyst-sport` per sport) → scalenie wet/odczytów → przebudowa od CONFIDENCE → PDF → audyty (`audit_coupon`, `audit_variants` C1–C3, U1–U3) → `sofa-verifier` → przebudowa → raport. Usunąć: WARIANT, cztery `sofa-sport-runner`, kupony sportowe, WSZYSTKIE. Szablon raportu: jeden kupon, sekcje sportów, top 30 przeczytane, liczba nóg poza top 30, nogi zdjęte (`removed_by_reads`) z powodem — jak tabela 10-05 |
+| `.claude/commands/sofa-analyze.md` | Top 30 z `11_coupon.json` + „dodatkowo: <pozycje>” → `read_requests.json` (K4); analityk wg sportu nogi |
+| `.claude/commands/sofa-rebuild.md` | Kolejność przebudowy z `COUPON_ASSEMBLY`; bez WARIANT/WSZYSTKIE; epoka (K0) |
+| `.claude/commands/sofa-verify.md` | Weryfikuje `11_coupon.json`: top 30 + buildery + nogi sportów (U3 snapshot); nogi zablokowane nie są defektem |
+| `.claude/commands/sofa-settle.md` | 7c per sekcja sportu, 7f (`removed_by_reads`), zwroty (`MOVED_BEYOND_VOID`, `AWARDED`), `audit_settle_identity`; bez 7d dla nowych dni |
+| `.claude/agents/sofa-runner.md` | Jak `sofa-day.md`; brak WARIANT; analitycy na top 30 z 11; dodatkowe na życzenie operatora |
+| `.claude/agents/sofa-analyst-football.md`, `sofa-analyst-tennis.md` | Czytają nogi swojego sportu z top 30 w `11_coupon.json` (+ `read_requests.json`); liczby na nodze: pewność (próbka, skalibrowana), próbka k/n, model (`forecast_p`) — cena tylko jako filtr; WATCH rozliczany osobno (7f) |
+| `.claude/agents/sofa-analyst-sport.md` (nowy) | Analityk hokeja/koszykówki/siatkówki/CS2 (`--sport`), tylko odczyt, te same zasady odczytów/wet co piłka; tożsamość meczu z `sport_fixtures.json` |
+| `.claude/agents/sofa-sport-runner.md` | Usunąć z `.claude/agents/` (historia w git), NIE do `.claude/legacy/` (to katalog `simple`); treść o czytaniu nóg sportów przenieść do `sofa-analyst-sport.md`, które musi powstać w tym samym commicie co pierwsza wzmianka (`test_named_agents_and_commands_exist`) |
+| `.claude/agents/sofa-verifier.md` | Weryfikuje 11; nogi sportów z surowego snapshotu; nogi zablokowane nie NO_BET |
+| `.claude/agents/sofa-settler.md` | Jak `sofa-settle.md`; ledger per epoka; bez WARIANT/WSZYSTKIE dla nowych dni |
+| `.claude/agents/sofa-market-scout.md` | Bez zmian logiki; słownik: pewność ≠ cena |
+| `.claude/skills/sofa-pipeline/SKILL.md` + `references/{stages,artifacts,arithmetic,traps}.md` | Nowe etapy i artefakty (`11_coupon.json`, `08_confidence_sports.json`, `sport_fixtures.json`, `read_requests.json`, `07_settled_printed.json`), „pewność bez ceny”, K13; pułapka: `06_coupon.json` i `p_bar` są cenowe |
+| `.claude/skills/sofa-analysis-core/SKILL.md` + `references/{veto-contract,evidence-rules,context-sources}.md` | `LegRead` dla sportów (F7), top 30 + dodatkowe, 7f |
+| `.claude/skills/football-analysis/*`, `tennis-analysis/*` | Tylko słownik (pewność/próbka/model), bez zmian metody |
+| `docs/sofa/AGENTIC_FLOW.md`, `PIPELINE.md`, `RUNBOOK.md`, `REFERENCE.md`, `CONFIG.md`, `VERIFY_PROTOCOL.md`, `README.md` | Opis jednego kuponu, nowych etapów i plików konfiguracji (`sofa_sport_confidence_calibration.json`, `sofa_name_stopwords.json`); usunąć opis WARIANT/WSZYSTKIE/kuponów sportowych jako bieżących (zostaje akapit historyczny) |
+| `CLAUDE.md` | K8 + tabela Entry points, lista Agents (bez `sofa-sport-runner`, z `sofa-analyst-sport`), Hard rules o WARIANT / kuponach sportowych / WSZYSTKIE (akapit historyczny z datą), Commands |
+| `docs/sofa/MODELE_HOKEJ_KOSZ_SIATKA.md` | opis kuponów sportowych jako historyczny (link z `backfill_event_stats.py:26` zostaje) |
+| `scripts/sofa/cs2_daily.py`, `shadow_daily.py` | kroki `settle_sport_coupon` tylko dla dni sprzed wycofania; pętle uruchomić od nowa po zmianie (pętla czyta plan przy starcie) |
+| `.claude/settings.local.json`, `.claude/skills/bet-slip-audit/*` | bez zmian (brak hooków); nie kopiować sekretów z `env` |
+| `AGENTS.md`, `ARCHITECTURE.md`, `README.md` (katalog główny) | opis jednego kuponu i nowych etapów zamiast WARIANT / kuponów sportowych / WSZYSTKIE |
+
+Ograniczenia testów: `test_agentic_config` wymaga, żeby każdy `sofa-*` w
+backtickach istniał jako agent/komenda; nowy agent: nazwa = nazwa pliku,
+narzędzia bez Write/Edit, skille istnieją, YAML się parsuje, opis > 40 znaków,
+bez bzzoiro; ścieżki w każdym żywym `.claude/**/*.md` muszą istnieć (przenosiny
+z 7.2 razem z poprawą ścieżek); `test_documented_commands` wymaga > 50 komend i
+wzmianki o `shadow_daily.py`; etap wołany przez `--only` musi być w
+`STAGE_MODULES`. `DEFAULT_SEQUENCE` kończy się na COUPON — CONFIDENCE i nowe
+etapy są poza nim.
+
+Test nowy: `tests/sofa/test_agentic_flow_consistency.py` — każdy etap z
+`DEFAULT_SEQUENCE` występuje w `sofa-day.md` i `sofa-runner.md`; żaden plik w
+`.claude/agents`, `.claude/commands`, `.claude/skills` nie opisuje WARIANT,
+WSZYSTKIE ani kuponów sportowych jako bieżących (lista dozwolonych akapitów
+historycznych z datą; `sofa-*` w akapicie historycznym bez backticków);
+każdy nowy etap ma moduł w `STAGE_MODULES` i występuje w `sofa-day.md`.
+
+---
+
+## Część 7. Sprzątanie (po Fazach A–B, przed pierwszym `/sofa-day` w nowym kształcie)
+
+Zasada: nic nie znika bez kopii i bez listy w commicie; dane potrzebne do
+rozliczeń i refitu zostają.
+
+**7.1 Pamięć** (`~/.claude/projects/-Users-mkoziol-projects-bet/memory/`, poza
+gitem): kopia `tar` całego katalogu do `data/backup_memory_<data>.tar.gz`
+przed zmianą. Stan 10-05: 212 notatek, 150 w `MEMORY.md`, 62 nieindeksowane
+(wszystkie z dawnego pipeline'u `simple`, wymienione w `legacy-simple-index.md`).
+- Notatki z banerem SUPERSEDED / FIXED / „Stan 2026-09-23”, których lekcja jest
+  już w kodzie lub CLAUDE.md → usunąć z indeksu i pliku, lekcję (jedno zdanie)
+  przenieść do `sofa-lessons-history.md`.
+- Notatki o zasadach operatora (feedback) i stałych pułapkach (np. dwa
+  interpretery `.venv`, `git stash`, mostek, payload Sofascore) zostają.
+- Notatki sprzeczne z decyzjami 10-05 (WARIANT, kupony sportowe, WSZYSTKIE,
+  pewność z ceny, korekta ceny faworytów jako pewność) → zaktualizować albo
+  usunąć.
+- 62 notatki `simple` → pliki usunięte dopiero po sprawdzeniu, że lekcja jest
+  w `legacy-simple-index.md` (jedno zdanie na notatkę); notatki o WARIANT /
+  kuponach sportowych — po przepisaniu CLAUDE.md (część 6), nie przed.
+- Cel: `MEMORY.md` < 15 KB, każda linia < 150 znaków, zero linków do
+  nieistniejących plików.
+
+**7.2 Dokumentacja** (`docs/sofa/`): `NASTEPNA_SESJA_2026-10-04.md` (wykonana)
+→ `docs/sofa/history/`; raporty dzienne/nocne (`RAPORT_NOC_*`,
+`RAPORT_2026-10-04_*`, `ANALIZA_WYNIKOW_2026-10-04.md`) → `docs/sofa/history/`
+z jednym indeksem `history/README.md`; ten plan po wdrożeniu → `history/`.
+W `docs/sofa/` zostają tylko dokumenty bieżące (część 6). Linki w CLAUDE.md i
+kontraktach przepisane; `test_documented_commands` zielony.
+
+**7.3 Pliki i kod.**
+- Wycofany kod `simple` (`src/bet/simple_stats/` 3,6 MB, `scripts/simple/`
+  1,6 MB, `src/bet/tipsters/` 1,0 MB, `legacy/`, `.claude/legacy/`,
+  `docs/legacy/`): zgodnie z CLAUDE.md zostaje, bo czytają go artefakty i
+  wiersze bazy — przed jakimkolwiek usunięciem przeczytać
+  `docs/legacy/README.md` i decyzja operatora.
+- `.kilo/`: śledzone 12 plików, w tym `.kilo/legacy/` (CLAUDE.md: zostaje);
+  czytają go `src/bet/models/registry.py:98` i `enrichment/.../runner.py:108`
+  (kod `simple`). Do usunięcia tylko nieśledzone `.kilo/node_modules/`
+  (57 MB) — decyzja operatora.
+- Skrypty jednorazowe `regrade_cs2_snapshots`, `fit_no_stats_tournaments`,
+  `measure_sport_admission` importują testy (`test_cs2.py:751`,
+  `test_listing_index_review.py:33`, `test_measure_sport_admission.py:9`) —
+  zostają w `scripts/sofa/`; ewentualne przeniesienie tylko razem z testem w
+  jednym commicie. `run_sport_coupon.py`, `run_multi_coupon.py`,
+  `settle_multi_coupon.py` zostają dla rozliczeń starych dni.
+- Martwe ścieżki kodu po K0–K14 (profil `wariant`, `multi_coupon`,
+  kupony sportowe) zostają, dopóki są stare dni do rozliczenia/ledgera;
+  oznaczone komentarzem z datą wycofania.
+- `runs/sofa/`, `data/` — nic nie usuwać (zapis dni, backupy refitu); stare
+  katalogi scratch (`data/refit_rehearsal_*`) — lista do decyzji operatora.
+
+**7.4 Bazy danych — docelowo jedna** (stan 10-05, dysk zajęty w 90%, 92 GiB
+wolne):
+
+| plik | rozmiar | kto czyta | decyzja |
+|---|---|---|---|
+| `data/sofa.db` | 42 GB | cały pipeline `sofa` (`config.py:66`, `SOFA_DB_PATH`) | **jedyna baza robocza** |
+| `data/backup_2026-10-05/sofa.db` | 40 GB | `verify_db_backup` (`prepare_refit.py:487-510`, tylko manifest `config/backup_<d>/` przed `rebuild-cache-rows` tej daty); `restore` przywraca wyłącznie `config/` — kopia bazy to ręczny powrót. Stan sprzed nocnego replay 10-04/05 (mtime 10-04 16:44) | zostaje (bieżąca epoka) |
+| `data/backup_2026-10-03/sofa.db` | 37 GB | j.w., epoka 10-03 (zastąpiona) | usunąć po potwierdzeniu operatora |
+| `data/backup_2026-10-02/sofa.db` | 30 GB | j.w., refit 10-02 odrzucony | usunąć po potwierdzeniu operatora |
+| `betting/data/betting.db` (+ pusty `last.db`) | 1,4 GB | tylko wycofany kod `simple` (`src/bet/config.py`, `simple_stats/persistence.py`, `enrichment/…`) | archiwum: `sqlite3 .backup` → `xz` do `data/archive/`, plik usunięty; przed tym `docs/legacy/README.md` i decyzja operatora (CLAUDE.md: wiersze `simple` zostają) |
+| `reports/pipeline_runs/2026-07-2*/…/runtime_analysis_shadow.db` ×7 | ~3,8 GB | nikt w `src/`/`scripts/` sofa | archiwum jak wyżej albo usunięcie (operator) |
+| `.mypy_cache/**/cache*.db` | ~40 MB | mypy | ignorować (cache) |
+
+Reguła na przyszłość (do `docs/sofa/CONFIG.md` i `prepare_refit`): jedna kopia
+zapasowa bazy na bieżącą epokę refitu; `prepare_refit backup` po udanym
+`install` wypisuje starsze kopie do usunięcia (nigdy sam nie usuwa). Kopia
+przez `cp -c` (APFS clone) tam, gdzie się da.
+
+**7.5 Worktree agentów** (`.claude/worktrees/`, 1,1 GB, 11 katalogów; 18
+dalszych worktree poza repo, `~/projects/bet-*`, 4 `locked` — poza zakresem):
+dla każdego `git worktree list` + czy gałąź jest scalona; lista do operatora,
+„porzucone” = jego decyzja → `git worktree remove` + usunięcie gałęzi;
+`git stash` nie dotykać (14 stashy); `agent-a074984278560bcfa` (poprawka
+próbek `13756d32`) dopiero po decyzji z części 2, krok 1.
+
+**7.6 Raporty i dokumentacja historyczna** (polecenie operatora: dużo
+starych raportów to legacy).
+- `reports/` (poza gitem, 4,1 GB):
+  - `reports/pipeline_runs/2026-07-*` i `reports/2026-08-24/` — runy pipeline'u
+    `simple` (w tym 7 baz z 7.4): archiwum `xz` do `data/archive/reports_simple.tar.xz`,
+    katalogi usunięte (decyzja operatora; CLAUDE.md: artefakty `simple`
+    zachowujemy — archiwum je zachowuje);
+  - ~40 dziennych plików `reports/sofa_*` (`sofa_audyt_glaboki_*` ×9,
+    `sofa_audyt_rozliczenia_*` ×16, `sofa_audyt_boostow_*`, `sofa_nisze_*`,
+    `sofa_kompletnosc_statystyk_*`, jednorazowe `sofa_przeglad`,
+    `sofa_review_kuponu`, `sofa_weryfikacja_kuponu`, `sofa_kupon_po_naprawie`,
+    `sofa_narzut_bet_buildera`, `sofa_full_settle_2026-09-29`,
+    `sofa_raport_rozliczenia_szczegolowy`) — to wyjścia skryptów
+    (`audit_settlement.py`, `audit_niches.py`, `audit_stat_completeness.py`
+    domyślnie piszą do `reports/`; `confidence.py` wymienia ścieżkę w
+    komentarzu): dni sprzed epoki 10-05 → `reports/archive/2026-09/`,
+    jednorazowe przeglądy → `reports/archive/oneoff/`; w `reports/` tylko
+    bieżące; przed przeniesieniem `grep` nazw w `src/`, `scripts/`, `tests/`,
+    `docs/`, `.claude/`.
+- `docs/sofa/history/` (10 plików + `reports/` 6) i raporty dnia/nocy z 7.2 —
+  jeden indeks `docs/sofa/history/README.md` (data, temat, czy wnioski są już w
+  CLAUDE.md/kodzie); dokumenty, których wnioski są w CLAUDE.md lub kodzie,
+  zostają w historii, nie w `docs/sofa/`.
+- `docs/legacy/` (22 + podkatalogi, `simple`) — zostaje (CLAUDE.md), bez zmian.
+- `docs/sofa/evidence/` — zostaje (dowody payloadów; sprawdzić `grep`, czy
+  testy z nich czytają, zanim cokolwiek ruszyć).
+- `runs/sofa/<d>/` — nic nie usuwać (zapis dni); pliki analiz analityków
+  (`<d>_analiza_*.md`) zostają przy dniu.
 
 ---
 
