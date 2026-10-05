@@ -430,7 +430,11 @@ def _confidence(runs: Path, *extra: str) -> dict[str, Any]:
         [sys.executable, "scripts/sofa/run_confidence.py", "--date", DAY,
          "--runs-dir", str(runs), *extra],
         cwd=REPO, capture_output=True, text=True,
-        env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin"},
+        # The 10-04 rule these tests pin (WATCH removes from the official
+        # coupon, the WARIANT keeps it marked) is the pre-stats-only one:
+        # built before bet.sofa.epochs.STATS_ONLY_FROM_UTC.
+        env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin",
+             "SOFA_NOW": "2026-10-05T07:00:00Z"},
     )
     assert proc.returncode == 0, proc.stderr
     summary: dict[str, Any] = json.loads(proc.stdout.strip().splitlines()[-1])
