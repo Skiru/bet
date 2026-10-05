@@ -87,8 +87,11 @@ Obowiązują od kuponu 10-05; wcześniejsze dni to inny eksperyment i nie są
 łączone z późniejszymi.
 
 - **Kupon oficjalny:** pewność × kurs ≥ 0,90 i marża linii do 15% (do 10-04:
-  x > 1,00 i 10,5%); próg pewności 0,70, 30 pojedynczych na PDF i honorowanie
-  WATCH bez zmian. Próg pewności 0,80 rozważony i odrzucony („chcę mieć dużo
+  x > 1,00 i 10,5%); próg pewności 0,70 i honorowanie WATCH bez zmian. Tego
+  samego ranka zniesiony limit 30 pojedynczych na PDF („nie limituj do 30”):
+  oficjalny drukuje cały artefakt, jak WARIANT (na 10-04 nowa reguła dałaby
+  303 pojedyncze). Każda wydrukowana noga oficjalna nadal wymaga odczytu
+  analityka (C3). Próg pewności 0,80 rozważony i odrzucony („chcę mieć dużo
   opcji”). WARIANT bez zmian (0,65 / x ≥ 0,90 / 15%). Pomiar
   (`measure_disagreement.py`, 09-24..10-04, jedna krzywa, bez limitu marży):
   piłka stara reguła 2574 wierszy ROI −4,5% [−7,2; −2,0], nowa 8871 wierszy

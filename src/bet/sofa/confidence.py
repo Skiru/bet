@@ -640,12 +640,15 @@ def model_above_own_sample(
 #
 # From 2026-10-05 the official coupon takes the variant's two price dials -
 # confidence x odds >= 0.90 and a ladder margin up to 15% - and keeps its own
-# floor (0.70), its 30 printed singles and its honouring of WATCH (the
+# floor (0.70) and its honouring of WATCH (the
 # operator's order of 10-05: "more options to choose from"; a high confidence
 # floor was considered and declined). Made knowing the measurement above: the
 # variant's dials bought volume, not edge, and the coupon's 10.5-15% margin
 # legs returned -12.8% (n=50) against -4.6% (n=78). The official coupon before
-# and after 10-05 is not the same experiment and must not be pooled.
+# and after 10-05 is not the same experiment and must not be pooled. Later
+# that morning the operator also lifted its 30-single page limit ("don't
+# limit to 30"): like the variant it prints its whole artifact. An artifact
+# without `pdf_max_singles` still reads as the 30 its PDF printed.
 #
 # From 2026-09-29 the variant's PDF also prints its stakeable Bet Builders (the
 # operator's request): same predicate as the coupon (`is_stakeable`: best for
@@ -654,7 +657,7 @@ def model_above_own_sample(
 # settlement grades them on their own, never pooled with the coupon's builders.
 PROFILES: dict[str, ConfidenceProfile] = {
     "standard": ConfidenceProfile("standard", 0.70, 0.90, "", "",
-                                  max_overround=0.15),
+                                  max_overround=0.15, pdf_max_singles=None),
     "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
                                  max_overround=0.15, pdf_max_singles=None,
                                  honours_watch=False),

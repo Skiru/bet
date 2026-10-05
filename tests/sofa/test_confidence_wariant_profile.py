@@ -48,7 +48,8 @@ def test_the_official_profile_takes_the_variants_price_dials_since_10_05() -> No
     std = PROFILES["standard"]
     assert std.floor == DEFAULT_FLOOR == 0.70
     assert (std.min_ev, std.max_overround) == (0.90, 0.15)
-    assert std.honours_watch and std.pdf_max_singles == 30
+    # and, the same morning, no page limit: it prints its whole artifact
+    assert std.honours_watch and std.pdf_max_singles is None
     assert confidence_artifact(std) == "08_confidence.json"
     assert std.pdf_suffix == ""
 
@@ -302,7 +303,7 @@ def test_building_the_variant_never_touches_the_official_files(day: Path) -> Non
     # The page limit travels with the artifact, so settlement grades what printed.
     var = json.loads((run / "08_confidence_wariant.json").read_text())
     std = json.loads(before["08_confidence.json"])
-    assert var["pdf_max_singles"] is None and std["pdf_max_singles"] == 30
+    assert var["pdf_max_singles"] is None and std["pdf_max_singles"] is None
     for name, data in before.items():
         assert (run / name).read_bytes() == data, f"{name} was rewritten"
 
@@ -633,12 +634,14 @@ def test_both_profiles_accept_a_ladder_margin_up_to_15_percent() -> None:
         assert var.single_is_fairly_priced(margin) is in_var
 
 
-def test_the_variant_prints_its_whole_artifact_and_the_coupon_its_top_30() -> None:
+def test_both_profiles_print_their_whole_artifact() -> None:
     """2026-09-24: the operator asked for every variant single on the PDF
-    (312 in the artifact, 30 on the page). The official coupon keeps 30."""
+    (312 in the artifact, 30 on the page); 2026-10-05 the same for the
+    official coupon. An artifact without the key is read as the old 30."""
     from bet.sofa.confidence import PDF_MAX_SINGLES, printed_singles
 
-    assert PROFILES["standard"].pdf_max_singles == PDF_MAX_SINGLES == 30
+    assert PDF_MAX_SINGLES == 30
+    assert PROFILES["standard"].pdf_max_singles is None
     assert PROFILES["wariant"].pdf_max_singles is None
     rows = [{"i": i} for i in range(PDF_MAX_SINGLES + 7)]
     assert printed_singles({"singles": rows}) == rows[:PDF_MAX_SINGLES]
