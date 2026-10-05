@@ -1,0 +1,4896 @@
+{
+ "sports": {
+  "hockey": {
+   "fitted_from": {
+    "before": "2026-10-05",
+    "holdout_days": 30,
+    "fit_window_utc": [
+     "2025-09-05T00:00:00Z",
+     "2026-09-05T00:00:00Z"
+    ],
+    "holdout_window_utc": [
+     "2026-09-05T00:00:00Z",
+     "2026-10-05T00:00:00Z"
+    ],
+    "history_games_before": 28518,
+    "settled_dates_fit": [
+     "2026-09-29",
+     "2026-09-30",
+     "2026-10-01"
+    ],
+    "settled_dates_oos": [
+     "2026-10-02",
+     "2026-10-03",
+     "2026-10-04"
+    ],
+    "rows": {
+     "history_fit": 283374,
+     "history_holdout": 111253,
+     "settled_fit": 1945,
+     "superbet_settled": 18271
+    },
+    "games": {
+     "history_fit": 4258,
+     "history_holdout": 1667,
+     "settled_fit": 132,
+     "superbet_settled": 542
+    },
+    "sims": 2000,
+    "max_games": 4000,
+    "forecast_source": "score_model"
+   },
+   "curves": {
+    "handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 42612,
+      "realised": 0.2565,
+      "realised_lo95": 0.2524
+     },
+     "0.600-0.700": {
+      "n": 5677,
+      "realised": 0.6523,
+      "realised_lo95": 0.6398
+     },
+     "0.700-0.750": {
+      "n": 3321,
+      "realised": 0.7218,
+      "realised_lo95": 0.7063
+     },
+     "0.750-0.800": {
+      "n": 3517,
+      "realised": 0.7606,
+      "realised_lo95": 0.7462
+     },
+     "0.800-0.825": {
+      "n": 1969,
+      "realised": 0.8116,
+      "realised_lo95": 0.7937
+     },
+     "0.825-0.850": {
+      "n": 1913,
+      "realised": 0.8265,
+      "realised_lo95": 0.8088
+     },
+     "0.850-0.875": {
+      "n": 2241,
+      "realised": 0.8536,
+      "realised_lo95": 0.8384
+     },
+     "0.875-0.900": {
+      "n": 2492,
+      "realised": 0.8748,
+      "realised_lo95": 0.8612
+     },
+     "0.900-0.925": {
+      "n": 2898,
+      "realised": 0.9044,
+      "realised_lo95": 0.8932
+     },
+     "0.925-0.950": {
+      "n": 4011,
+      "realised": 0.9265,
+      "realised_lo95": 0.918
+     },
+     "0.950-1.010": {
+      "n": 4305,
+      "realised": 0.9675,
+      "realised_lo95": 0.9618
+     }
+    },
+    "period_team_total|OVER": {
+     "0.000-0.600": {
+      "n": 297,
+      "realised": 0.3502,
+      "realised_lo95": 0.2981
+     }
+    },
+    "period_total|OVER": {
+     "0.000-0.600": {
+      "n": 224,
+      "realised": 0.4018,
+      "realised_lo95": 0.3398
+     }
+    },
+    "period_total|UNDER": {
+     "0.000-0.600": {
+      "n": 228,
+      "realised": 0.3465,
+      "realised_lo95": 0.2877
+     }
+    },
+    "result_1x2|DRAW": {
+     "0.000-0.600": {
+      "n": 4258,
+      "realised": 0.2076,
+      "realised_lo95": 0.1957
+     }
+    },
+    "result_1x2|TEAM": {
+     "0.000-0.600": {
+      "n": 7629,
+      "realised": 0.363,
+      "realised_lo95": 0.3522
+     },
+     "0.600-0.700": {
+      "n": 571,
+      "realised": 0.62,
+      "realised_lo95": 0.5795
+     }
+    },
+    "team_total|OVER": {
+     "0.000-0.600": {
+      "n": 39562,
+      "realised": 0.1994,
+      "realised_lo95": 0.1955
+     },
+     "0.600-0.700": {
+      "n": 3660,
+      "realised": 0.6194,
+      "realised_lo95": 0.6036
+     },
+     "0.700-0.750": {
+      "n": 1896,
+      "realised": 0.7178,
+      "realised_lo95": 0.6971
+     },
+     "0.750-0.800": {
+      "n": 2214,
+      "realised": 0.752,
+      "realised_lo95": 0.7336
+     },
+     "0.800-0.825": {
+      "n": 1180,
+      "realised": 0.778,
+      "realised_lo95": 0.7534
+     },
+     "0.825-0.850": {
+      "n": 1061,
+      "realised": 0.82,
+      "realised_lo95": 0.7957
+     },
+     "0.850-0.875": {
+      "n": 1120,
+      "realised": 0.8643,
+      "realised_lo95": 0.843
+     },
+     "0.875-0.900": {
+      "n": 1203,
+      "realised": 0.877,
+      "realised_lo95": 0.8572
+     },
+     "0.900-0.925": {
+      "n": 1600,
+      "realised": 0.9175,
+      "realised_lo95": 0.903
+     },
+     "0.925-0.950": {
+      "n": 2594,
+      "realised": 0.9337,
+      "realised_lo95": 0.9235
+     }
+    },
+    "team_total|UNDER": {
+     "0.000-0.600": {
+      "n": 24133,
+      "realised": 0.3112,
+      "realised_lo95": 0.3054
+     },
+     "0.600-0.700": {
+      "n": 4337,
+      "realised": 0.6696,
+      "realised_lo95": 0.6554
+     },
+     "0.700-0.750": {
+      "n": 2409,
+      "realised": 0.741,
+      "realised_lo95": 0.7231
+     },
+     "0.750-0.800": {
+      "n": 2722,
+      "realised": 0.7957,
+      "realised_lo95": 0.7802
+     },
+     "0.800-0.825": {
+      "n": 1636,
+      "realised": 0.827,
+      "realised_lo95": 0.8079
+     },
+     "0.825-0.850": {
+      "n": 1720,
+      "realised": 0.8535,
+      "realised_lo95": 0.836
+     },
+     "0.850-0.875": {
+      "n": 1946,
+      "realised": 0.8762,
+      "realised_lo95": 0.8608
+     },
+     "0.875-0.900": {
+      "n": 2238,
+      "realised": 0.8986,
+      "realised_lo95": 0.8854
+     },
+     "0.900-0.925": {
+      "n": 2835,
+      "realised": 0.9157,
+      "realised_lo95": 0.9049
+     },
+     "0.925-0.950": {
+      "n": 3661,
+      "realised": 0.9418,
+      "realised_lo95": 0.9338
+     },
+     "0.950-1.010": {
+      "n": 8516,
+      "realised": 0.9703,
+      "realised_lo95": 0.9665
+     }
+    },
+    "total|OVER": {
+     "0.000-0.600": {
+      "n": 25069,
+      "realised": 0.2037,
+      "realised_lo95": 0.1987
+     },
+     "0.600-0.700": {
+      "n": 2625,
+      "realised": 0.6168,
+      "realised_lo95": 0.598
+     },
+     "0.700-0.750": {
+      "n": 1386,
+      "realised": 0.7186,
+      "realised_lo95": 0.6944
+     },
+     "0.750-0.800": {
+      "n": 1503,
+      "realised": 0.7585,
+      "realised_lo95": 0.7362
+     },
+     "0.800-0.825": {
+      "n": 802,
+      "realised": 0.8142,
+      "realised_lo95": 0.7858
+     },
+     "0.825-0.850": {
+      "n": 885,
+      "realised": 0.8362,
+      "realised_lo95": 0.8103
+     },
+     "0.850-0.875": {
+      "n": 1034,
+      "realised": 0.8559,
+      "realised_lo95": 0.8332
+     },
+     "0.875-0.900": {
+      "n": 1163,
+      "realised": 0.8779,
+      "realised_lo95": 0.8578
+     },
+     "0.900-0.925": {
+      "n": 1294,
+      "realised": 0.9158,
+      "realised_lo95": 0.8994
+     },
+     "0.925-0.950": {
+      "n": 1618,
+      "realised": 0.9345,
+      "realised_lo95": 0.9214
+     }
+    },
+    "total|UNDER": {
+     "0.000-0.600": {
+      "n": 17508,
+      "realised": 0.3029,
+      "realised_lo95": 0.2961
+     },
+     "0.600-0.700": {
+      "n": 2840,
+      "realised": 0.6739,
+      "realised_lo95": 0.6565
+     },
+     "0.700-0.750": {
+      "n": 1681,
+      "realised": 0.7692,
+      "realised_lo95": 0.7484
+     },
+     "0.750-0.800": {
+      "n": 1881,
+      "realised": 0.7937,
+      "realised_lo95": 0.7749
+     },
+     "0.800-0.825": {
+      "n": 1029,
+      "realised": 0.8503,
+      "realised_lo95": 0.8272
+     },
+     "0.825-0.850": {
+      "n": 1195,
+      "realised": 0.8653,
+      "realised_lo95": 0.8447
+     },
+     "0.850-0.875": {
+      "n": 1394,
+      "realised": 0.8788,
+      "realised_lo95": 0.8606
+     },
+     "0.875-0.900": {
+      "n": 1498,
+      "realised": 0.9099,
+      "realised_lo95": 0.8943
+     },
+     "0.900-0.925": {
+      "n": 1913,
+      "realised": 0.9347,
+      "realised_lo95": 0.9227
+     },
+     "0.925-0.950": {
+      "n": 2216,
+      "realised": 0.9481,
+      "realised_lo95": 0.9381
+     },
+     "0.950-1.010": {
+      "n": 4258,
+      "realised": 0.9713,
+      "realised_lo95": 0.9659
+     }
+    },
+    "winner|TEAM": {
+     "0.000-0.600": {
+      "n": 6349,
+      "realised": 0.4374,
+      "realised_lo95": 0.4252
+     },
+     "0.600-0.700": {
+      "n": 1352,
+      "realised": 0.6346,
+      "realised_lo95": 0.6086
+     },
+     "0.700-0.750": {
+      "n": 358,
+      "realised": 0.6844,
+      "realised_lo95": 0.6345
+     },
+     "0.750-0.800": {
+      "n": 223,
+      "realised": 0.7937,
+      "realised_lo95": 0.7359
+     }
+    }
+   },
+   "curve_source": {
+    "handicap|TEAM": "history",
+    "period_team_total|OVER": "superbet_settled",
+    "period_total|OVER": "superbet_settled",
+    "period_total|UNDER": "superbet_settled",
+    "result_1x2|DRAW": "history",
+    "result_1x2|TEAM": "history",
+    "team_total|OVER": "history",
+    "team_total|UNDER": "history",
+    "total|OVER": "history",
+    "total|UNDER": "history",
+    "winner|TEAM": "history"
+   },
+   "admitted": [
+    "handicap|TEAM",
+    "team_total|OVER",
+    "total|OVER"
+   ],
+   "not_calibrated": {
+    "period_1x2|DRAW": "NO_FIT_BUCKET_WITH_N>=200",
+    "period_1x2|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
+    "period_handicap|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
+    "period_team_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "period_team_total|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
+    "period_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "period_total|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "result_1x2|DRAW": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "result_1x2|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "team_total|UNDER": "OVERSTATES: history_holdout bucket 0.850-0.875 confidence above realised by 0.0314",
+    "total|UNDER": "OVERSTATES: history_holdout bucket 0.800-0.825 confidence above realised by 0.0347",
+    "winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
+   },
+   "oos": {
+    "history_holdout": {
+     "handicap|TEAM": {
+      "n": 29432,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 16728,
+        "confidence": 0.2524,
+        "realised": 0.2654,
+        "gap": -0.013
+       },
+       "0.600-0.700": {
+        "n": 2233,
+        "confidence": 0.6398,
+        "realised": 0.6449,
+        "gap": -0.0051
+       },
+       "0.700-0.750": {
+        "n": 1272,
+        "confidence": 0.7063,
+        "realised": 0.7107,
+        "gap": -0.0044
+       },
+       "0.750-0.800": {
+        "n": 1372,
+        "confidence": 0.7462,
+        "realised": 0.7573,
+        "gap": -0.0111
+       },
+       "0.800-0.825": {
+        "n": 745,
+        "confidence": 0.7937,
+        "realised": 0.7987,
+        "gap": -0.005
+       },
+       "0.825-0.850": {
+        "n": 803,
+        "confidence": 0.8088,
+        "realised": 0.8032,
+        "gap": 0.0056
+       },
+       "0.850-0.875": {
+        "n": 875,
+        "confidence": 0.8384,
+        "realised": 0.8389,
+        "gap": -0.0005
+       },
+       "0.875-0.900": {
+        "n": 984,
+        "confidence": 0.8612,
+        "realised": 0.8587,
+        "gap": 0.0025
+       },
+       "0.900-0.925": {
+        "n": 1167,
+        "confidence": 0.8932,
+        "realised": 0.8835,
+        "gap": 0.0097
+       },
+       "0.925-0.950": {
+        "n": 1564,
+        "confidence": 0.918,
+        "realised": 0.9214,
+        "gap": -0.0034
+       },
+       "0.950-1.010": {
+        "n": 1689,
+        "confidence": 0.9618,
+        "realised": 0.9485,
+        "gap": 0.0133
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.52404,
+      "logloss_model": 0.48468,
+      "realised": 0.5,
+      "confidence": 0.4926,
+      "realised_minus_confidence": [
+       0.0074,
+       0.0068,
+       0.0081
+      ],
+      "printable": {
+       "n": 10471,
+       "games": 1667,
+       "confidence": 0.8449,
+       "realised": 0.8439,
+       "realised_minus_confidence": [
+        -0.001,
+        -0.0103,
+        0.0076
+       ]
+      }
+     },
+     "result_1x2|DRAW": {
+      "n": 1667,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1667,
+        "confidence": 0.1957,
+        "realised": 0.1914,
+        "gap": 0.0043
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.48825,
+      "logloss_model": 0.48684,
+      "realised": 0.1914,
+      "confidence": 0.1957,
+      "realised_minus_confidence": [
+       -0.0043,
+       -0.0229,
+       0.0149
+      ]
+     },
+     "result_1x2|TEAM": {
+      "n": 3159,
+      "uncovered": 175,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 2871,
+        "confidence": 0.3522,
+        "realised": 0.3643,
+        "gap": -0.0121
+       },
+       "0.600-0.700": {
+        "n": 288,
+        "confidence": 0.5795,
+        "realised": 0.6111,
+        "gap": -0.0316
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.65748,
+      "logloss_model": 0.64104,
+      "realised": 0.3868,
+      "confidence": 0.3729,
+      "realised_minus_confidence": [
+       0.0139,
+       0.0033,
+       0.0241
+      ]
+     },
+     "team_total|OVER": {
+      "n": 21991,
+      "uncovered": 21,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 15496,
+        "confidence": 0.1955,
+        "realised": 0.2173,
+        "gap": -0.0218
+       },
+       "0.600-0.700": {
+        "n": 1438,
+        "confidence": 0.6036,
+        "realised": 0.6356,
+        "gap": -0.032
+       },
+       "0.700-0.750": {
+        "n": 756,
+        "confidence": 0.6971,
+        "realised": 0.709,
+        "gap": -0.0119
+       },
+       "0.750-0.800": {
+        "n": 862,
+        "confidence": 0.7336,
+        "realised": 0.7483,
+        "gap": -0.0147
+       },
+       "0.800-0.825": {
+        "n": 425,
+        "confidence": 0.7534,
+        "realised": 0.7741,
+        "gap": -0.0207
+       },
+       "0.825-0.850": {
+        "n": 426,
+        "confidence": 0.7957,
+        "realised": 0.8357,
+        "gap": -0.04
+       },
+       "0.850-0.875": {
+        "n": 454,
+        "confidence": 0.843,
+        "realised": 0.8722,
+        "gap": -0.0292
+       },
+       "0.875-0.900": {
+        "n": 538,
+        "confidence": 0.8572,
+        "realised": 0.8736,
+        "gap": -0.0164
+       },
+       "0.900-0.925": {
+        "n": 649,
+        "confidence": 0.903,
+        "realised": 0.9014,
+        "gap": 0.0016
+       },
+       "0.925-0.950": {
+        "n": 947,
+        "confidence": 0.9235,
+        "realised": 0.9208,
+        "gap": 0.0027
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.51366,
+      "logloss_model": 0.45627,
+      "realised": 0.3852,
+      "confidence": 0.3647,
+      "realised_minus_confidence": [
+       0.0205,
+       0.0119,
+       0.029
+      ],
+      "printable": {
+       "n": 4301,
+       "games": 1667,
+       "confidence": 0.8361,
+       "realised": 0.8493,
+       "realised_minus_confidence": [
+        0.0132,
+        0.0014,
+        0.0246
+       ]
+      }
+     },
+     "team_total|UNDER": {
+      "n": 22012,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 9459,
+        "confidence": 0.3054,
+        "realised": 0.3048,
+        "gap": 0.0006
+       },
+       "0.600-0.700": {
+        "n": 1680,
+        "confidence": 0.6554,
+        "realised": 0.6708,
+        "gap": -0.0154
+       },
+       "0.700-0.750": {
+        "n": 989,
+        "confidence": 0.7231,
+        "realised": 0.7088,
+        "gap": 0.0143
+       },
+       "0.750-0.800": {
+        "n": 1045,
+        "confidence": 0.7802,
+        "realised": 0.7675,
+        "gap": 0.0127
+       },
+       "0.800-0.825": {
+        "n": 667,
+        "confidence": 0.8079,
+        "realised": 0.8171,
+        "gap": -0.0092
+       },
+       "0.825-0.850": {
+        "n": 643,
+        "confidence": 0.836,
+        "realised": 0.8383,
+        "gap": -0.0023
+       },
+       "0.850-0.875": {
+        "n": 768,
+        "confidence": 0.8608,
+        "realised": 0.8294,
+        "gap": 0.0314
+       },
+       "0.875-0.900": {
+        "n": 903,
+        "confidence": 0.8854,
+        "realised": 0.8782,
+        "gap": 0.0072
+       },
+       "0.900-0.925": {
+        "n": 1114,
+        "confidence": 0.9049,
+        "realised": 0.9004,
+        "gap": 0.0045
+       },
+       "0.925-0.950": {
+        "n": 1410,
+        "confidence": 0.9338,
+        "realised": 0.9191,
+        "gap": 0.0147
+       },
+       "0.950-1.010": {
+        "n": 3334,
+        "confidence": 0.9665,
+        "realised": 0.9586,
+        "gap": 0.0079
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.4849,
+      "logloss_model": 0.45615,
+      "realised": 0.6143,
+      "confidence": 0.618,
+      "realised_minus_confidence": [
+       -0.0037,
+       -0.0123,
+       0.0044
+      ],
+      "printable": {
+       "n": 10873,
+       "games": 1667,
+       "confidence": 0.8843,
+       "realised": 0.8748,
+       "realised_minus_confidence": [
+        -0.0094,
+        -0.0177,
+        -0.001
+       ]
+      }
+     },
+     "total|OVER": {
+      "n": 14720,
+      "uncovered": 11,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 9852,
+        "confidence": 0.1987,
+        "realised": 0.2236,
+        "gap": -0.0249
+       },
+       "0.600-0.700": {
+        "n": 1048,
+        "confidence": 0.598,
+        "realised": 0.6536,
+        "gap": -0.0556
+       },
+       "0.700-0.750": {
+        "n": 524,
+        "confidence": 0.6944,
+        "realised": 0.7214,
+        "gap": -0.027
+       },
+       "0.750-0.800": {
+        "n": 587,
+        "confidence": 0.7362,
+        "realised": 0.7751,
+        "gap": -0.0389
+       },
+       "0.800-0.825": {
+        "n": 339,
+        "confidence": 0.7858,
+        "realised": 0.8319,
+        "gap": -0.0461
+       },
+       "0.825-0.850": {
+        "n": 380,
+        "confidence": 0.8103,
+        "realised": 0.8316,
+        "gap": -0.0213
+       },
+       "0.850-0.875": {
+        "n": 371,
+        "confidence": 0.8332,
+        "realised": 0.8679,
+        "gap": -0.0347
+       },
+       "0.875-0.900": {
+        "n": 416,
+        "confidence": 0.8578,
+        "realised": 0.8846,
+        "gap": -0.0268
+       },
+       "0.900-0.925": {
+        "n": 560,
+        "confidence": 0.8994,
+        "realised": 0.9107,
+        "gap": -0.0113
+       },
+       "0.925-0.950": {
+        "n": 643,
+        "confidence": 0.9214,
+        "realised": 0.9285,
+        "gap": -0.0071
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.51111,
+      "logloss_model": 0.45134,
+      "realised": 0.4155,
+      "confidence": 0.3884,
+      "realised_minus_confidence": [
+       0.0271,
+       0.0154,
+       0.0395
+      ],
+      "printable": {
+       "n": 3296,
+       "games": 1667,
+       "confidence": 0.84,
+       "realised": 0.8647,
+       "realised_minus_confidence": [
+        0.0247,
+        0.0097,
+        0.0395
+       ]
+      }
+     },
+     "total|UNDER": {
+      "n": 14731,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 6916,
+        "confidence": 0.2961,
+        "realised": 0.2854,
+        "gap": 0.0107
+       },
+       "0.600-0.700": {
+        "n": 1094,
+        "confidence": 0.6565,
+        "realised": 0.66,
+        "gap": -0.0035
+       },
+       "0.700-0.750": {
+        "n": 661,
+        "confidence": 0.7484,
+        "realised": 0.7474,
+        "gap": 0.001
+       },
+       "0.750-0.800": {
+        "n": 743,
+        "confidence": 0.7749,
+        "realised": 0.7739,
+        "gap": 0.001
+       },
+       "0.800-0.825": {
+        "n": 429,
+        "confidence": 0.8272,
+        "realised": 0.7925,
+        "gap": 0.0347
+       },
+       "0.825-0.850": {
+        "n": 455,
+        "confidence": 0.8447,
+        "realised": 0.8527,
+        "gap": -0.008
+       },
+       "0.850-0.875": {
+        "n": 500,
+        "confidence": 0.8606,
+        "realised": 0.874,
+        "gap": -0.0134
+       },
+       "0.875-0.900": {
+        "n": 652,
+        "confidence": 0.8943,
+        "realised": 0.8773,
+        "gap": 0.017
+       },
+       "0.900-0.925": {
+        "n": 715,
+        "confidence": 0.9227,
+        "realised": 0.9119,
+        "gap": 0.0108
+       },
+       "0.925-0.950": {
+        "n": 899,
+        "confidence": 0.9381,
+        "realised": 0.9355,
+        "gap": 0.0026
+       },
+       "0.950-1.010": {
+        "n": 1667,
+        "confidence": 0.9659,
+        "realised": 0.9652,
+        "gap": 0.0007
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.48434,
+      "logloss_model": 0.45104,
+      "realised": 0.5841,
+      "confidence": 0.5907,
+      "realised_minus_confidence": [
+       -0.0067,
+       -0.02,
+       0.0056
+      ],
+      "printable": {
+       "n": 6721,
+       "games": 1667,
+       "confidence": 0.8832,
+       "realised": 0.879,
+       "realised_minus_confidence": [
+        -0.0042,
+        -0.0161,
+        0.0083
+       ]
+      }
+     },
+     "winner|TEAM": {
+      "n": 3194,
+      "uncovered": 140,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 2392,
+        "confidence": 0.4252,
+        "realised": 0.4348,
+        "gap": -0.0096
+       },
+       "0.600-0.700": {
+        "n": 520,
+        "confidence": 0.6086,
+        "realised": 0.5808,
+        "gap": 0.0278
+       },
+       "0.700-0.750": {
+        "n": 172,
+        "confidence": 0.6345,
+        "realised": 0.7558,
+        "gap": -0.1213
+       },
+       "0.750-0.800": {
+        "n": 110,
+        "confidence": 0.7359,
+        "realised": 0.7545,
+        "gap": -0.0186
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.6748,
+      "logloss_model": 0.65947,
+      "realised": 0.4869,
+      "confidence": 0.477,
+      "realised_minus_confidence": [
+       0.0098,
+       0.0055,
+       0.0143
+      ],
+      "printable": {
+       "n": 110,
+       "games": 110,
+       "confidence": 0.7359,
+       "realised": 0.7545,
+       "realised_minus_confidence": [
+        0.0186,
+        -0.0632,
+        0.1005
+       ]
+      }
+     }
+    },
+    "superbet_settled": {
+     "handicap|TEAM": {
+      "n": 1934,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1267,
+        "confidence": 0.2524,
+        "realised": 0.4002,
+        "gap": -0.1478
+       },
+       "0.600-0.700": {
+        "n": 283,
+        "confidence": 0.6398,
+        "realised": 0.6184,
+        "gap": 0.0214
+       },
+       "0.700-0.750": {
+        "n": 137,
+        "confidence": 0.7063,
+        "realised": 0.7007,
+        "gap": 0.0056
+       },
+       "0.750-0.800": {
+        "n": 104,
+        "confidence": 0.7462,
+        "realised": 0.7019,
+        "gap": 0.0443
+       },
+       "0.800-0.825": {
+        "n": 45,
+        "confidence": 0.7937,
+        "realised": 0.8222,
+        "gap": -0.0285
+       },
+       "0.825-0.850": {
+        "n": 35,
+        "confidence": 0.8088,
+        "realised": 0.8857,
+        "gap": -0.0769
+       },
+       "0.850-0.875": {
+        "n": 32,
+        "confidence": 0.8384,
+        "realised": 0.75,
+        "gap": 0.0884
+       },
+       "0.875-0.900": {
+        "n": 12,
+        "confidence": 0.8612,
+        "realised": 0.9167,
+        "gap": -0.0555
+       },
+       "0.900-0.925": {
+        "n": 11,
+        "confidence": 0.8932,
+        "realised": 0.8182,
+        "gap": 0.075
+       },
+       "0.925-0.950": {
+        "n": 5,
+        "confidence": 0.918,
+        "realised": 0.4,
+        "gap": 0.518
+       },
+       "0.950-1.010": {
+        "n": 3,
+        "confidence": 0.9618,
+        "realised": 0.6667,
+        "gap": 0.2951
+       }
+      },
+      "games": 259,
+      "logloss_confidence": 0.68682,
+      "logloss_model": 0.63653,
+      "realised": 0.5,
+      "confidence": 0.4104,
+      "realised_minus_confidence": [
+       0.0896,
+       0.0846,
+       0.0946
+      ],
+      "printable": {
+       "n": 384,
+       "games": 210,
+       "confidence": 0.7626,
+       "realised": 0.7422,
+       "realised_minus_confidence": [
+        -0.0205,
+        -0.0717,
+        0.0293
+       ]
+      }
+     },
+     "period_1x2|DRAW": {
+      "n": 0,
+      "uncovered": 422,
+      "buckets": {}
+     },
+     "period_1x2|TEAM": {
+      "n": 0,
+      "uncovered": 844,
+      "buckets": {}
+     },
+     "period_handicap|TEAM": {
+      "n": 0,
+      "uncovered": 782,
+      "buckets": {}
+     },
+     "period_team_total|OVER": {
+      "n": 818,
+      "uncovered": 201,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 818,
+        "confidence": 0.2981,
+        "realised": 0.3594,
+        "gap": -0.0613
+       }
+      },
+      "games": 207,
+      "logloss_confidence": 0.66175,
+      "logloss_model": 0.60087,
+      "realised": 0.3594,
+      "confidence": 0.2981,
+      "realised_minus_confidence": [
+       0.0613,
+       0.0255,
+       0.0953
+      ]
+     },
+     "period_team_total|UNDER": {
+      "n": 0,
+      "uncovered": 1019,
+      "buckets": {}
+     },
+     "period_total|OVER": {
+      "n": 633,
+      "uncovered": 321,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 633,
+        "confidence": 0.3398,
+        "realised": 0.4139,
+        "gap": -0.0741
+       }
+      },
+      "games": 346,
+      "logloss_confidence": 0.69012,
+      "logloss_model": 0.65152,
+      "realised": 0.4139,
+      "confidence": 0.3398,
+      "realised_minus_confidence": [
+       0.0741,
+       0.0298,
+       0.1179
+      ]
+     },
+     "period_total|UNDER": {
+      "n": 655,
+      "uncovered": 299,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 655,
+        "confidence": 0.2877,
+        "realised": 0.3588,
+        "gap": -0.0711
+       }
+      },
+      "games": 364,
+      "logloss_confidence": 0.66452,
+      "logloss_model": 0.60717,
+      "realised": 0.3588,
+      "confidence": 0.2877,
+      "realised_minus_confidence": [
+       0.0711,
+       0.0309,
+       0.111
+      ]
+     },
+     "result_1x2|DRAW": {
+      "n": 489,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 489,
+        "confidence": 0.1957,
+        "realised": 0.2004,
+        "gap": -0.0047
+       }
+      },
+      "games": 489,
+      "logloss_confidence": 0.50104,
+      "logloss_model": 0.50403,
+      "realised": 0.2004,
+      "confidence": 0.1957,
+      "realised_minus_confidence": [
+       0.0047,
+       -0.0301,
+       0.0395
+      ]
+     },
+     "result_1x2|TEAM": {
+      "n": 927,
+      "uncovered": 51,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 854,
+        "confidence": 0.3522,
+        "realised": 0.3642,
+        "gap": -0.012
+       },
+       "0.600-0.700": {
+        "n": 73,
+        "confidence": 0.5795,
+        "realised": 0.6575,
+        "gap": -0.078
+       }
+      },
+      "games": 489,
+      "logloss_confidence": 0.65604,
+      "logloss_model": 0.63819,
+      "realised": 0.3873,
+      "confidence": 0.3701,
+      "realised_minus_confidence": [
+       0.0172,
+       -0.0036,
+       0.0362
+      ]
+     },
+     "team_total|OVER": {
+      "n": 2283,
+      "uncovered": 36,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1461,
+        "confidence": 0.1955,
+        "realised": 0.3867,
+        "gap": -0.1912
+       },
+       "0.600-0.700": {
+        "n": 290,
+        "confidence": 0.6036,
+        "realised": 0.6241,
+        "gap": -0.0205
+       },
+       "0.700-0.750": {
+        "n": 134,
+        "confidence": 0.6971,
+        "realised": 0.6418,
+        "gap": 0.0553
+       },
+       "0.750-0.800": {
+        "n": 135,
+        "confidence": 0.7336,
+        "realised": 0.6741,
+        "gap": 0.0595
+       },
+       "0.800-0.825": {
+        "n": 41,
+        "confidence": 0.7534,
+        "realised": 0.7073,
+        "gap": 0.0461
+       },
+       "0.825-0.850": {
+        "n": 54,
+        "confidence": 0.7957,
+        "realised": 0.8519,
+        "gap": -0.0562
+       },
+       "0.850-0.875": {
+        "n": 38,
+        "confidence": 0.843,
+        "realised": 0.9211,
+        "gap": -0.0781
+       },
+       "0.875-0.900": {
+        "n": 40,
+        "confidence": 0.8572,
+        "realised": 0.95,
+        "gap": -0.0928
+       },
+       "0.900-0.925": {
+        "n": 39,
+        "confidence": 0.903,
+        "realised": 0.8205,
+        "gap": 0.0825
+       },
+       "0.925-0.950": {
+        "n": 51,
+        "confidence": 0.9235,
+        "realised": 0.8824,
+        "gap": 0.0411
+       }
+      },
+      "games": 474,
+      "logloss_confidence": 0.69742,
+      "logloss_model": 0.61757,
+      "realised": 0.5028,
+      "confidence": 0.3835,
+      "realised_minus_confidence": [
+       0.1193,
+       0.0918,
+       0.1454
+      ],
+      "printable": {
+       "n": 398,
+       "games": 235,
+       "confidence": 0.8079,
+       "realised": 0.794,
+       "realised_minus_confidence": [
+        -0.0139,
+        -0.0528,
+        0.0259
+       ]
+      }
+     },
+     "team_total|UNDER": {
+      "n": 2319,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1518,
+        "confidence": 0.3054,
+        "realised": 0.3768,
+        "gap": -0.0714
+       },
+       "0.600-0.700": {
+        "n": 311,
+        "confidence": 0.6554,
+        "realised": 0.6463,
+        "gap": 0.0091
+       },
+       "0.700-0.750": {
+        "n": 139,
+        "confidence": 0.7231,
+        "realised": 0.6475,
+        "gap": 0.0756
+       },
+       "0.750-0.800": {
+        "n": 122,
+        "confidence": 0.7802,
+        "realised": 0.6885,
+        "gap": 0.0917
+       },
+       "0.800-0.825": {
+        "n": 50,
+        "confidence": 0.8079,
+        "realised": 0.8,
+        "gap": 0.0079
+       },
+       "0.825-0.850": {
+        "n": 43,
+        "confidence": 0.836,
+        "realised": 0.7907,
+        "gap": 0.0453
+       },
+       "0.850-0.875": {
+        "n": 53,
+        "confidence": 0.8608,
+        "realised": 0.8302,
+        "gap": 0.0306
+       },
+       "0.875-0.900": {
+        "n": 29,
+        "confidence": 0.8854,
+        "realised": 0.7931,
+        "gap": 0.0923
+       },
+       "0.900-0.925": {
+        "n": 30,
+        "confidence": 0.9049,
+        "realised": 0.9,
+        "gap": 0.0049
+       },
+       "0.925-0.950": {
+        "n": 16,
+        "confidence": 0.9338,
+        "realised": 0.9375,
+        "gap": -0.0037
+       },
+       "0.950-1.010": {
+        "n": 8,
+        "confidence": 0.9665,
+        "realised": 0.75,
+        "gap": 0.2165
+       }
+      },
+      "games": 474,
+      "logloss_confidence": 0.6485,
+      "logloss_model": 0.60999,
+      "realised": 0.4899,
+      "confidence": 0.4573,
+      "realised_minus_confidence": [
+       0.0325,
+       0.0061,
+       0.0586
+      ],
+      "printable": {
+       "n": 490,
+       "games": 256,
+       "confidence": 0.8024,
+       "realised": 0.7408,
+       "realised_minus_confidence": [
+        -0.0615,
+        -0.1076,
+        -0.0177
+       ]
+      }
+     },
+     "total|OVER": {
+      "n": 1618,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1051,
+        "confidence": 0.1987,
+        "realised": 0.4034,
+        "gap": -0.2047
+       },
+       "0.600-0.700": {
+        "n": 277,
+        "confidence": 0.598,
+        "realised": 0.6318,
+        "gap": -0.0338
+       },
+       "0.700-0.750": {
+        "n": 127,
+        "confidence": 0.6944,
+        "realised": 0.6929,
+        "gap": 0.0015
+       },
+       "0.750-0.800": {
+        "n": 73,
+        "confidence": 0.7362,
+        "realised": 0.7397,
+        "gap": -0.0035
+       },
+       "0.800-0.825": {
+        "n": 21,
+        "confidence": 0.7858,
+        "realised": 0.7619,
+        "gap": 0.0239
+       },
+       "0.825-0.850": {
+        "n": 22,
+        "confidence": 0.8103,
+        "realised": 0.6818,
+        "gap": 0.1285
+       },
+       "0.850-0.875": {
+        "n": 22,
+        "confidence": 0.8332,
+        "realised": 0.8636,
+        "gap": -0.0304
+       },
+       "0.875-0.900": {
+        "n": 12,
+        "confidence": 0.8578,
+        "realised": 0.75,
+        "gap": 0.1078
+       },
+       "0.900-0.925": {
+        "n": 6,
+        "confidence": 0.8994,
+        "realised": 0.8333,
+        "gap": 0.0661
+       },
+       "0.925-0.950": {
+        "n": 7,
+        "confidence": 0.9214,
+        "realised": 0.8571,
+        "gap": 0.0643
+       }
+      },
+      "games": 474,
+      "logloss_confidence": 0.72649,
+      "logloss_model": 0.63689,
+      "realised": 0.5012,
+      "confidence": 0.3654,
+      "realised_minus_confidence": [
+       0.1358,
+       0.1007,
+       0.1738
+      ],
+      "printable": {
+       "n": 163,
+       "games": 139,
+       "confidence": 0.7886,
+       "realised": 0.7607,
+       "realised_minus_confidence": [
+        -0.0279,
+        -0.1018,
+        0.0415
+       ]
+      }
+     },
+     "total|UNDER": {
+      "n": 1618,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1134,
+        "confidence": 0.2961,
+        "realised": 0.4118,
+        "gap": -0.1157
+       },
+       "0.600-0.700": {
+        "n": 271,
+        "confidence": 0.6565,
+        "realised": 0.6605,
+        "gap": -0.004
+       },
+       "0.700-0.750": {
+        "n": 103,
+        "confidence": 0.7484,
+        "realised": 0.6699,
+        "gap": 0.0785
+       },
+       "0.750-0.800": {
+        "n": 61,
+        "confidence": 0.7749,
+        "realised": 0.8197,
+        "gap": -0.0448
+       },
+       "0.800-0.825": {
+        "n": 10,
+        "confidence": 0.8272,
+        "realised": 0.8,
+        "gap": 0.0272
+       },
+       "0.825-0.850": {
+        "n": 19,
+        "confidence": 0.8447,
+        "realised": 0.8947,
+        "gap": -0.05
+       },
+       "0.850-0.875": {
+        "n": 9,
+        "confidence": 0.8606,
+        "realised": 0.7778,
+        "gap": 0.0828
+       },
+       "0.875-0.900": {
+        "n": 6,
+        "confidence": 0.8943,
+        "realised": 1.0,
+        "gap": -0.1057
+       },
+       "0.900-0.925": {
+        "n": 5,
+        "confidence": 0.9227,
+        "realised": 0.8,
+        "gap": 0.1227
+       }
+      },
+      "games": 474,
+      "logloss_confidence": 0.67518,
+      "logloss_model": 0.63689,
+      "realised": 0.4988,
+      "confidence": 0.4203,
+      "realised_minus_confidence": [
+       0.0784,
+       0.0437,
+       0.1144
+      ],
+      "printable": {
+       "n": 213,
+       "games": 177,
+       "confidence": 0.7812,
+       "realised": 0.7559,
+       "realised_minus_confidence": [
+        -0.0254,
+        -0.0877,
+        0.0335
+       ]
+      }
+     },
+     "winner|TEAM": {
+      "n": 957,
+      "uncovered": 45,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 724,
+        "confidence": 0.4252,
+        "realised": 0.4323,
+        "gap": -0.0071
+       },
+       "0.600-0.700": {
+        "n": 155,
+        "confidence": 0.6086,
+        "realised": 0.5935,
+        "gap": 0.0151
+       },
+       "0.700-0.750": {
+        "n": 49,
+        "confidence": 0.6345,
+        "realised": 0.8163,
+        "gap": -0.1818
+       },
+       "0.750-0.800": {
+        "n": 29,
+        "confidence": 0.7359,
+        "realised": 0.7241,
+        "gap": 0.0118
+       }
+      },
+      "games": 501,
+      "logloss_confidence": 0.67334,
+      "logloss_model": 0.65913,
+      "realised": 0.4869,
+      "confidence": 0.475,
+      "realised_minus_confidence": [
+       0.0119,
+       0.004,
+       0.0201
+      ],
+      "printable": {
+       "n": 29,
+       "games": 29,
+       "confidence": 0.7359,
+       "realised": 0.7241,
+       "realised_minus_confidence": [
+        -0.0118,
+        -0.1842,
+        0.1262
+       ]
+      }
+     }
+    }
+   }
+  },
+  "basketball": {
+   "fitted_from": {
+    "before": "2026-10-05",
+    "holdout_days": 30,
+    "fit_window_utc": [
+     "2025-09-05T00:00:00Z",
+     "2026-09-05T00:00:00Z"
+    ],
+    "holdout_window_utc": [
+     "2026-09-05T00:00:00Z",
+     "2026-10-05T00:00:00Z"
+    ],
+    "history_games_before": 48530,
+    "settled_dates_fit": [
+     "2026-09-29",
+     "2026-09-30",
+     "2026-10-01"
+    ],
+    "settled_dates_oos": [
+     "2026-10-02",
+     "2026-10-03",
+     "2026-10-04"
+    ],
+    "rows": {
+     "history_fit": 422266,
+     "history_holdout": 159031,
+     "settled_fit": 2404,
+     "superbet_settled": 25101
+    },
+    "games": {
+     "history_fit": 3874,
+     "history_holdout": 1459,
+     "settled_fit": 113,
+     "superbet_settled": 567
+    },
+    "sims": 2000,
+    "max_games": 4000,
+    "forecast_source": "score_model"
+   },
+   "curves": {
+    "h1_handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 574,
+      "realised": 0.4791,
+      "realised_lo95": 0.4385
+     }
+    },
+    "h1_team_total|OVER": {
+     "0.000-0.600": {
+      "n": 300,
+      "realised": 0.42,
+      "realised_lo95": 0.3655
+     }
+    },
+    "h1_team_total|UNDER": {
+     "0.000-0.600": {
+      "n": 302,
+      "realised": 0.543,
+      "realised_lo95": 0.4867
+     }
+    },
+    "h1_total|OVER": {
+     "0.000-0.600": {
+      "n": 310,
+      "realised": 0.3581,
+      "realised_lo95": 0.3067
+     }
+    },
+    "h1_total|UNDER": {
+     "0.000-0.600": {
+      "n": 318,
+      "realised": 0.6006,
+      "realised_lo95": 0.5459
+     }
+    },
+    "handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 54236,
+      "realised": 0.223,
+      "realised_lo95": 0.2195
+     },
+     "0.600-0.700": {
+      "n": 7748,
+      "realised": 0.6597,
+      "realised_lo95": 0.649
+     },
+     "0.700-0.750": {
+      "n": 3783,
+      "realised": 0.7423,
+      "realised_lo95": 0.7281
+     },
+     "0.750-0.800": {
+      "n": 7754,
+      "realised": 0.7846,
+      "realised_lo95": 0.7753
+     },
+     "0.800-0.825": {
+      "n": 3954,
+      "realised": 0.8189,
+      "realised_lo95": 0.8066
+     },
+     "0.825-0.850": {
+      "n": 3741,
+      "realised": 0.8434,
+      "realised_lo95": 0.8314
+     },
+     "0.850-0.875": {
+      "n": 4012,
+      "realised": 0.8714,
+      "realised_lo95": 0.8607
+     },
+     "0.875-0.900": {
+      "n": 3712,
+      "realised": 0.8979,
+      "realised_lo95": 0.8877
+     },
+     "0.900-0.925": {
+      "n": 4036,
+      "realised": 0.9106,
+      "realised_lo95": 0.9014
+     },
+     "0.925-0.950": {
+      "n": 3585,
+      "realised": 0.942,
+      "realised_lo95": 0.9338
+     },
+     "0.950-1.010": {
+      "n": 4163,
+      "realised": 0.9589,
+      "realised_lo95": 0.9525
+     }
+    },
+    "result_1x2|DRAW": {
+     "0.000-0.600": {
+      "n": 3874,
+      "realised": 0.0423,
+      "realised_lo95": 0.0364
+     }
+    },
+    "result_1x2|TEAM": {
+     "0.000-0.600": {
+      "n": 5327,
+      "realised": 0.3574,
+      "realised_lo95": 0.3447
+     },
+     "0.600-0.700": {
+      "n": 1005,
+      "realised": 0.6507,
+      "realised_lo95": 0.6207
+     },
+     "0.700-0.750": {
+      "n": 426,
+      "realised": 0.7277,
+      "realised_lo95": 0.6835
+     },
+     "0.750-0.800": {
+      "n": 339,
+      "realised": 0.8024,
+      "realised_lo95": 0.7567
+     }
+    },
+    "team_total|OVER": {
+     "0.000-0.600": {
+      "n": 54236,
+      "realised": 0.2263,
+      "realised_lo95": 0.2228
+     },
+     "0.600-0.700": {
+      "n": 7748,
+      "realised": 0.6316,
+      "realised_lo95": 0.6208
+     },
+     "0.700-0.750": {
+      "n": 7621,
+      "realised": 0.7387,
+      "realised_lo95": 0.7288
+     },
+     "0.750-0.800": {
+      "n": 7717,
+      "realised": 0.7921,
+      "realised_lo95": 0.7829
+     },
+     "0.800-0.825": {
+      "n": 245,
+      "realised": 0.7673,
+      "realised_lo95": 0.7106
+     },
+     "0.825-0.850": {
+      "n": 7486,
+      "realised": 0.842,
+      "realised_lo95": 0.8335
+     },
+     "0.875-0.900": {
+      "n": 7491,
+      "realised": 0.8944,
+      "realised_lo95": 0.8872
+     },
+     "0.900-0.925": {
+      "n": 255,
+      "realised": 0.8549,
+      "realised_lo95": 0.8064
+     },
+     "0.925-0.950": {
+      "n": 7353,
+      "realised": 0.9461,
+      "realised_lo95": 0.9407
+     },
+     "0.950-1.010": {
+      "n": 395,
+      "realised": 0.9316,
+      "realised_lo95": 0.9024
+     }
+    },
+    "team_total|UNDER": {
+     "0.000-0.600": {
+      "n": 54236,
+      "realised": 0.2397,
+      "realised_lo95": 0.2361
+     },
+     "0.600-0.700": {
+      "n": 7748,
+      "realised": 0.6602,
+      "realised_lo95": 0.6495
+     },
+     "0.750-0.800": {
+      "n": 7748,
+      "realised": 0.7534,
+      "realised_lo95": 0.7436
+     },
+     "0.800-0.825": {
+      "n": 7457,
+      "realised": 0.7954,
+      "realised_lo95": 0.7861
+     },
+     "0.825-0.850": {
+      "n": 291,
+      "realised": 0.8419,
+      "realised_lo95": 0.7956
+     },
+     "0.850-0.875": {
+      "n": 7717,
+      "realised": 0.8475,
+      "realised_lo95": 0.8393
+     },
+     "0.900-0.925": {
+      "n": 7748,
+      "realised": 0.8958,
+      "realised_lo95": 0.8888
+     },
+     "0.950-1.010": {
+      "n": 7748,
+      "realised": 0.9418,
+      "realised_lo95": 0.9364
+     }
+    },
+    "total|OVER": {
+     "0.000-0.600": {
+      "n": 27118,
+      "realised": 0.2374,
+      "realised_lo95": 0.2324
+     },
+     "0.600-0.700": {
+      "n": 3874,
+      "realised": 0.6373,
+      "realised_lo95": 0.6221
+     },
+     "0.700-0.750": {
+      "n": 3770,
+      "realised": 0.7358,
+      "realised_lo95": 0.7215
+     },
+     "0.750-0.800": {
+      "n": 3863,
+      "realised": 0.7857,
+      "realised_lo95": 0.7724
+     },
+     "0.825-0.850": {
+      "n": 3739,
+      "realised": 0.8409,
+      "realised_lo95": 0.8288
+     },
+     "0.875-0.900": {
+      "n": 3698,
+      "realised": 0.8894,
+      "realised_lo95": 0.8789
+     },
+     "0.925-0.950": {
+      "n": 3566,
+      "realised": 0.9448,
+      "realised_lo95": 0.9368
+     },
+     "0.950-1.010": {
+      "n": 308,
+      "realised": 0.9578,
+      "realised_lo95": 0.9291
+     }
+    },
+    "total|UNDER": {
+     "0.000-0.600": {
+      "n": 27118,
+      "realised": 0.2378,
+      "realised_lo95": 0.2327
+     },
+     "0.600-0.700": {
+      "n": 3874,
+      "realised": 0.6448,
+      "realised_lo95": 0.6296
+     },
+     "0.750-0.800": {
+      "n": 3874,
+      "realised": 0.7398,
+      "realised_lo95": 0.7258
+     },
+     "0.800-0.825": {
+      "n": 3874,
+      "realised": 0.7891,
+      "realised_lo95": 0.776
+     },
+     "0.850-0.875": {
+      "n": 3874,
+      "realised": 0.8382,
+      "realised_lo95": 0.8262
+     },
+     "0.900-0.925": {
+      "n": 3874,
+      "realised": 0.8867,
+      "realised_lo95": 0.8763
+     },
+     "0.950-1.010": {
+      "n": 3874,
+      "realised": 0.9357,
+      "realised_lo95": 0.9276
+     }
+    },
+    "winner|TEAM": {
+     "0.000-0.600": {
+      "n": 5147,
+      "realised": 0.3724,
+      "realised_lo95": 0.3593
+     },
+     "0.600-0.700": {
+      "n": 1055,
+      "realised": 0.6559,
+      "realised_lo95": 0.6267
+     },
+     "0.700-0.750": {
+      "n": 473,
+      "realised": 0.7188,
+      "realised_lo95": 0.6767
+     },
+     "0.750-0.800": {
+      "n": 334,
+      "realised": 0.8323,
+      "realised_lo95": 0.7885
+     }
+    }
+   },
+   "curve_source": {
+    "h1_handicap|TEAM": "superbet_settled",
+    "h1_team_total|OVER": "superbet_settled",
+    "h1_team_total|UNDER": "superbet_settled",
+    "h1_total|OVER": "superbet_settled",
+    "h1_total|UNDER": "superbet_settled",
+    "handicap|TEAM": "history",
+    "result_1x2|DRAW": "history",
+    "result_1x2|TEAM": "history",
+    "team_total|OVER": "history",
+    "team_total|UNDER": "history",
+    "total|OVER": "history",
+    "total|UNDER": "history",
+    "winner|TEAM": "history"
+   },
+   "admitted": [],
+   "not_calibrated": {
+    "h1_1x2|DRAW": "NO_FIT_BUCKET_WITH_N>=200",
+    "h1_1x2|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
+    "h1_handicap|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "h1_team_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "h1_team_total|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "h1_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "h1_total|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "handicap|TEAM": "OVERSTATES: superbet_settled bucket 0.600-0.700 confidence above realised by 0.0852",
+    "result_1x2|DRAW": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "result_1x2|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "team_total|OVER": "OVERSTATES: superbet_settled bucket 0.600-0.700 confidence above realised by 0.0327",
+    "team_total|UNDER": "OVERSTATES: superbet_settled bucket 0.600-0.700 confidence above realised by 0.1036",
+    "total|OVER": "OVERSTATES: superbet_settled bucket 0.700-0.750 confidence above realised by 0.1120",
+    "total|UNDER": "OVERSTATES: superbet_settled bucket 0.600-0.700 confidence above realised by 0.0343",
+    "winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
+   },
+   "oos": {
+    "history_holdout": {
+     "handicap|TEAM": {
+      "n": 37934,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 20426,
+        "confidence": 0.2195,
+        "realised": 0.2274,
+        "gap": -0.0079
+       },
+       "0.600-0.700": {
+        "n": 2918,
+        "confidence": 0.649,
+        "realised": 0.6621,
+        "gap": -0.0131
+       },
+       "0.700-0.750": {
+        "n": 1407,
+        "confidence": 0.7281,
+        "realised": 0.7285,
+        "gap": -0.0004
+       },
+       "0.750-0.800": {
+        "n": 2942,
+        "confidence": 0.7753,
+        "realised": 0.7801,
+        "gap": -0.0048
+       },
+       "0.800-0.825": {
+        "n": 1485,
+        "confidence": 0.8066,
+        "realised": 0.8256,
+        "gap": -0.019
+       },
+       "0.825-0.850": {
+        "n": 1413,
+        "confidence": 0.8314,
+        "realised": 0.8309,
+        "gap": 0.0005
+       },
+       "0.850-0.875": {
+        "n": 1507,
+        "confidence": 0.8607,
+        "realised": 0.8686,
+        "gap": -0.0079
+       },
+       "0.875-0.900": {
+        "n": 1423,
+        "confidence": 0.8877,
+        "realised": 0.8805,
+        "gap": 0.0072
+       },
+       "0.900-0.925": {
+        "n": 1495,
+        "confidence": 0.9014,
+        "realised": 0.9144,
+        "gap": -0.013
+       },
+       "0.925-0.950": {
+        "n": 1355,
+        "confidence": 0.9338,
+        "realised": 0.9277,
+        "gap": 0.0061
+       },
+       "0.950-1.010": {
+        "n": 1563,
+        "confidence": 0.9525,
+        "realised": 0.9495,
+        "gap": 0.003
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.49395,
+      "logloss_model": 0.46368,
+      "realised": 0.5,
+      "confidence": 0.4934,
+      "realised_minus_confidence": [
+       0.0066,
+       0.0066,
+       0.0066
+      ],
+      "printable": {
+       "n": 14590,
+       "games": 1459,
+       "confidence": 0.8458,
+       "realised": 0.8492,
+       "realised_minus_confidence": [
+        0.0034,
+        -0.0061,
+        0.0126
+       ]
+      }
+     },
+     "result_1x2|DRAW": {
+      "n": 1459,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1459,
+        "confidence": 0.0364,
+        "realised": 0.037,
+        "gap": -0.0006
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.15833,
+      "logloss_model": 0.16159,
+      "realised": 0.037,
+      "confidence": 0.0364,
+      "realised_minus_confidence": [
+       0.0006,
+       -0.0083,
+       0.0109
+      ]
+     },
+     "result_1x2|TEAM": {
+      "n": 2666,
+      "uncovered": 252,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1988,
+        "confidence": 0.3447,
+        "realised": 0.3737,
+        "gap": -0.029
+       },
+       "0.600-0.700": {
+        "n": 392,
+        "confidence": 0.6207,
+        "realised": 0.6327,
+        "gap": -0.012
+       },
+       "0.700-0.750": {
+        "n": 159,
+        "confidence": 0.6835,
+        "realised": 0.717,
+        "gap": -0.0335
+       },
+       "0.750-0.800": {
+        "n": 127,
+        "confidence": 0.7567,
+        "realised": 0.7402,
+        "gap": 0.0165
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.65395,
+      "logloss_model": 0.6246,
+      "realised": 0.4497,
+      "confidence": 0.4251,
+      "realised_minus_confidence": [
+       0.0246,
+       0.0164,
+       0.0327
+      ],
+      "printable": {
+       "n": 127,
+       "games": 127,
+       "confidence": 0.7567,
+       "realised": 0.7402,
+       "realised_minus_confidence": [
+        -0.0165,
+        -0.0953,
+        0.0543
+       ]
+      }
+     },
+     "team_total|OVER": {
+      "n": 37858,
+      "uncovered": 76,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 20426,
+        "confidence": 0.2228,
+        "realised": 0.201,
+        "gap": 0.0218
+       },
+       "0.600-0.700": {
+        "n": 2918,
+        "confidence": 0.6208,
+        "realised": 0.6347,
+        "gap": -0.0139
+       },
+       "0.700-0.750": {
+        "n": 2864,
+        "confidence": 0.7288,
+        "realised": 0.7455,
+        "gap": -0.0167
+       },
+       "0.750-0.800": {
+        "n": 2912,
+        "confidence": 0.7829,
+        "realised": 0.7988,
+        "gap": -0.0159
+       },
+       "0.800-0.825": {
+        "n": 66,
+        "confidence": 0.7106,
+        "realised": 0.8485,
+        "gap": -0.1379
+       },
+       "0.825-0.850": {
+        "n": 2836,
+        "confidence": 0.8335,
+        "realised": 0.854,
+        "gap": -0.0205
+       },
+       "0.875-0.900": {
+        "n": 2806,
+        "confidence": 0.8872,
+        "realised": 0.9088,
+        "gap": -0.0216
+       },
+       "0.900-0.925": {
+        "n": 112,
+        "confidence": 0.8064,
+        "realised": 0.9375,
+        "gap": -0.1311
+       },
+       "0.925-0.950": {
+        "n": 2747,
+        "confidence": 0.9407,
+        "realised": 0.9574,
+        "gap": -0.0167
+       },
+       "0.950-1.010": {
+        "n": 171,
+        "confidence": 0.9024,
+        "realised": 0.9474,
+        "gap": -0.045
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.47356,
+      "logloss_model": 0.44218,
+      "realised": 0.4845,
+      "confidence": 0.4876,
+      "realised_minus_confidence": [
+       -0.003,
+       -0.013,
+       0.0066
+      ],
+      "printable": {
+       "n": 14514,
+       "games": 1459,
+       "confidence": 0.8334,
+       "realised": 0.8534,
+       "realised_minus_confidence": [
+        0.02,
+        0.0101,
+        0.0308
+       ]
+      }
+     },
+     "team_total|UNDER": {
+      "n": 37932,
+      "uncovered": 2,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 20426,
+        "confidence": 0.2361,
+        "realised": 0.2341,
+        "gap": 0.002
+       },
+       "0.600-0.700": {
+        "n": 2918,
+        "confidence": 0.6495,
+        "realised": 0.6868,
+        "gap": -0.0373
+       },
+       "0.750-0.800": {
+        "n": 2918,
+        "confidence": 0.7436,
+        "realised": 0.7817,
+        "gap": -0.0381
+       },
+       "0.800-0.825": {
+        "n": 2882,
+        "confidence": 0.7861,
+        "realised": 0.8289,
+        "gap": -0.0428
+       },
+       "0.825-0.850": {
+        "n": 36,
+        "confidence": 0.7956,
+        "realised": 0.7778,
+        "gap": 0.0178
+       },
+       "0.850-0.875": {
+        "n": 2916,
+        "confidence": 0.8393,
+        "realised": 0.8748,
+        "gap": -0.0355
+       },
+       "0.900-0.925": {
+        "n": 2918,
+        "confidence": 0.8888,
+        "realised": 0.9225,
+        "gap": -0.0337
+       },
+       "0.950-1.010": {
+        "n": 2918,
+        "confidence": 0.9364,
+        "realised": 0.9578,
+        "gap": -0.0214
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.48206,
+      "logloss_model": 0.44205,
+      "realised": 0.5146,
+      "confidence": 0.4997,
+      "realised_minus_confidence": [
+       0.0149,
+       0.0049,
+       0.0251
+      ],
+      "printable": {
+       "n": 14588,
+       "games": 1459,
+       "confidence": 0.8389,
+       "realised": 0.873,
+       "realised_minus_confidence": [
+        0.0342,
+        0.0239,
+        0.0448
+       ]
+      }
+     },
+     "total|OVER": {
+      "n": 18780,
+      "uncovered": 187,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 10213,
+        "confidence": 0.2324,
+        "realised": 0.1965,
+        "gap": 0.0359
+       },
+       "0.600-0.700": {
+        "n": 1459,
+        "confidence": 0.6221,
+        "realised": 0.6326,
+        "gap": -0.0105
+       },
+       "0.700-0.750": {
+        "n": 1420,
+        "confidence": 0.7215,
+        "realised": 0.7507,
+        "gap": -0.0292
+       },
+       "0.750-0.800": {
+        "n": 1446,
+        "confidence": 0.7724,
+        "realised": 0.8126,
+        "gap": -0.0402
+       },
+       "0.825-0.850": {
+        "n": 1400,
+        "confidence": 0.8288,
+        "realised": 0.8657,
+        "gap": -0.0369
+       },
+       "0.875-0.900": {
+        "n": 1383,
+        "confidence": 0.8789,
+        "realised": 0.919,
+        "gap": -0.0401
+       },
+       "0.925-0.950": {
+        "n": 1311,
+        "confidence": 0.9368,
+        "realised": 0.9687,
+        "gap": -0.0319
+       },
+       "0.950-1.010": {
+        "n": 148,
+        "confidence": 0.9291,
+        "realised": 0.973,
+        "gap": -0.0439
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.46545,
+      "logloss_model": 0.43107,
+      "realised": 0.4829,
+      "confidence": 0.488,
+      "realised_minus_confidence": [
+       -0.0051,
+       -0.0181,
+       0.0075
+      ],
+      "printable": {
+       "n": 7108,
+       "games": 1459,
+       "confidence": 0.8276,
+       "realised": 0.8635,
+       "realised_minus_confidence": [
+        0.0359,
+        0.0225,
+        0.0504
+       ]
+      }
+     },
+     "total|UNDER": {
+      "n": 18967,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 10213,
+        "confidence": 0.2327,
+        "realised": 0.2269,
+        "gap": 0.0058
+       },
+       "0.600-0.700": {
+        "n": 1459,
+        "confidence": 0.6296,
+        "realised": 0.6888,
+        "gap": -0.0592
+       },
+       "0.750-0.800": {
+        "n": 1459,
+        "confidence": 0.7258,
+        "realised": 0.7875,
+        "gap": -0.0617
+       },
+       "0.800-0.825": {
+        "n": 1459,
+        "confidence": 0.776,
+        "realised": 0.8341,
+        "gap": -0.0581
+       },
+       "0.850-0.875": {
+        "n": 1459,
+        "confidence": 0.8262,
+        "realised": 0.8821,
+        "gap": -0.0559
+       },
+       "0.900-0.925": {
+        "n": 1459,
+        "confidence": 0.8763,
+        "realised": 0.9246,
+        "gap": -0.0483
+       },
+       "0.950-1.010": {
+        "n": 1459,
+        "confidence": 0.9276,
+        "realised": 0.9657,
+        "gap": -0.0381
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.47543,
+      "logloss_model": 0.43023,
+      "realised": 0.5132,
+      "confidence": 0.4916,
+      "realised_minus_confidence": [
+       0.0216,
+       0.0089,
+       0.0345
+      ],
+      "printable": {
+       "n": 7295,
+       "games": 1459,
+       "confidence": 0.8264,
+       "realised": 0.8788,
+       "realised_minus_confidence": [
+        0.0524,
+        0.0386,
+        0.066
+       ]
+      }
+     },
+     "winner|TEAM": {
+      "n": 2642,
+      "uncovered": 276,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1929,
+        "confidence": 0.3593,
+        "realised": 0.3888,
+        "gap": -0.0295
+       },
+       "0.600-0.700": {
+        "n": 395,
+        "confidence": 0.6267,
+        "realised": 0.6101,
+        "gap": 0.0166
+       },
+       "0.700-0.750": {
+        "n": 174,
+        "confidence": 0.6767,
+        "realised": 0.7414,
+        "gap": -0.0647
+       },
+       "0.750-0.800": {
+        "n": 144,
+        "confidence": 0.7885,
+        "realised": 0.7639,
+        "gap": 0.0246
+       }
+      },
+      "games": 1459,
+      "logloss_confidence": 0.65749,
+      "logloss_model": 0.6274,
+      "realised": 0.4656,
+      "confidence": 0.4436,
+      "realised_minus_confidence": [
+       0.022,
+       0.0154,
+       0.029
+      ],
+      "printable": {
+       "n": 144,
+       "games": 144,
+       "confidence": 0.7885,
+       "realised": 0.7639,
+       "realised_minus_confidence": [
+        -0.0246,
+        -0.0941,
+        0.0379
+       ]
+      }
+     }
+    },
+    "superbet_settled": {
+     "h1_1x2|DRAW": {
+      "n": 0,
+      "uncovered": 186,
+      "buckets": {}
+     },
+     "h1_1x2|TEAM": {
+      "n": 0,
+      "uncovered": 372,
+      "buckets": {}
+     },
+     "h1_handicap|TEAM": {
+      "n": 1294,
+      "uncovered": 294,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1294,
+        "confidence": 0.4385,
+        "realised": 0.5023,
+        "gap": -0.0638
+       }
+      },
+      "games": 347,
+      "logloss_confidence": 0.70134,
+      "logloss_model": 0.71713,
+      "realised": 0.5023,
+      "confidence": 0.4385,
+      "realised_minus_confidence": [
+       0.0638,
+       0.0439,
+       0.0835
+      ]
+     },
+     "h1_team_total|OVER": {
+      "n": 476,
+      "uncovered": 197,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 476,
+        "confidence": 0.3655,
+        "realised": 0.4076,
+        "gap": -0.0421
+       }
+      },
+      "games": 129,
+      "logloss_confidence": 0.67972,
+      "logloss_model": 0.70149,
+      "realised": 0.4076,
+      "confidence": 0.3655,
+      "realised_minus_confidence": [
+       0.0421,
+       -0.0296,
+       0.1146
+      ]
+     },
+     "h1_team_total|UNDER": {
+      "n": 576,
+      "uncovered": 97,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 576,
+        "confidence": 0.4867,
+        "realised": 0.559,
+        "gap": -0.0723
+       }
+      },
+      "games": 128,
+      "logloss_confidence": 0.69664,
+      "logloss_model": 0.72865,
+      "realised": 0.559,
+      "confidence": 0.4867,
+      "realised_minus_confidence": [
+       0.0723,
+       0.0011,
+       0.1437
+      ]
+     },
+     "h1_total|OVER": {
+      "n": 593,
+      "uncovered": 223,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 593,
+        "confidence": 0.3067,
+        "realised": 0.4621,
+        "gap": -0.1554
+       }
+      },
+      "games": 290,
+      "logloss_confidence": 0.74314,
+      "logloss_model": 0.69198,
+      "realised": 0.4621,
+      "confidence": 0.3067,
+      "realised_minus_confidence": [
+       0.1554,
+       0.0854,
+       0.2293
+      ]
+     },
+     "h1_total|UNDER": {
+      "n": 723,
+      "uncovered": 93,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 723,
+        "confidence": 0.5459,
+        "realised": 0.5339,
+        "gap": 0.012
+       }
+      },
+      "games": 322,
+      "logloss_confidence": 0.69114,
+      "logloss_model": 0.74051,
+      "realised": 0.5339,
+      "confidence": 0.5459,
+      "realised_minus_confidence": [
+       -0.012,
+       -0.0793,
+       0.0527
+      ]
+     },
+     "handicap|TEAM": {
+      "n": 4704,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 3380,
+        "confidence": 0.2195,
+        "realised": 0.4524,
+        "gap": -0.2329
+       },
+       "0.600-0.700": {
+        "n": 752,
+        "confidence": 0.649,
+        "realised": 0.5638,
+        "gap": 0.0852
+       },
+       "0.700-0.750": {
+        "n": 239,
+        "confidence": 0.7281,
+        "realised": 0.6444,
+        "gap": 0.0837
+       },
+       "0.750-0.800": {
+        "n": 155,
+        "confidence": 0.7753,
+        "realised": 0.6968,
+        "gap": 0.0785
+       },
+       "0.800-0.825": {
+        "n": 59,
+        "confidence": 0.8066,
+        "realised": 0.7119,
+        "gap": 0.0947
+       },
+       "0.825-0.850": {
+        "n": 39,
+        "confidence": 0.8314,
+        "realised": 0.7692,
+        "gap": 0.0622
+       },
+       "0.850-0.875": {
+        "n": 20,
+        "confidence": 0.8607,
+        "realised": 0.8,
+        "gap": 0.0607
+       },
+       "0.875-0.900": {
+        "n": 16,
+        "confidence": 0.8877,
+        "realised": 0.875,
+        "gap": 0.0127
+       },
+       "0.900-0.925": {
+        "n": 15,
+        "confidence": 0.9014,
+        "realised": 0.8,
+        "gap": 0.1014
+       },
+       "0.925-0.950": {
+        "n": 15,
+        "confidence": 0.9338,
+        "realised": 0.8,
+        "gap": 0.1338
+       },
+       "0.950-1.010": {
+        "n": 14,
+        "confidence": 0.9525,
+        "realised": 0.7857,
+        "gap": 0.1668
+       }
+      },
+      "games": 559,
+      "logloss_confidence": 0.77868,
+      "logloss_model": 0.67626,
+      "realised": 0.5,
+      "confidence": 0.3564,
+      "realised_minus_confidence": [
+       0.1436,
+       0.1354,
+       0.1523
+      ],
+      "printable": {
+       "n": 572,
+       "games": 169,
+       "confidence": 0.7806,
+       "realised": 0.6976,
+       "realised_minus_confidence": [
+        -0.083,
+        -0.1608,
+        -0.0063
+       ]
+      }
+     },
+     "result_1x2|DRAW": {
+      "n": 249,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 249,
+        "confidence": 0.0364,
+        "realised": 0.0442,
+        "gap": -0.0078
+       }
+      },
+      "games": 249,
+      "logloss_confidence": 0.18181,
+      "logloss_model": 0.18787,
+      "realised": 0.0442,
+      "confidence": 0.0364,
+      "realised_minus_confidence": [
+       0.0078,
+       -0.0163,
+       0.0359
+      ]
+     },
+     "result_1x2|TEAM": {
+      "n": 468,
+      "uncovered": 30,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 363,
+        "confidence": 0.3447,
+        "realised": 0.3747,
+        "gap": -0.03
+       },
+       "0.600-0.700": {
+        "n": 60,
+        "confidence": 0.6207,
+        "realised": 0.6833,
+        "gap": -0.0626
+       },
+       "0.700-0.750": {
+        "n": 22,
+        "confidence": 0.6835,
+        "realised": 0.7273,
+        "gap": -0.0438
+       },
+       "0.750-0.800": {
+        "n": 23,
+        "confidence": 0.7567,
+        "realised": 0.8696,
+        "gap": -0.1129
+       }
+      },
+      "games": 249,
+      "logloss_confidence": 0.64439,
+      "logloss_model": 0.59778,
+      "realised": 0.4551,
+      "confidence": 0.4163,
+      "realised_minus_confidence": [
+       0.0389,
+       0.0195,
+       0.058
+      ],
+      "printable": {
+       "n": 23,
+       "games": 23,
+       "confidence": 0.7567,
+       "realised": 0.8696,
+       "realised_minus_confidence": [
+        0.1129,
+        -0.061,
+        0.2433
+       ]
+      }
+     },
+     "team_total|OVER": {
+      "n": 2318,
+      "uncovered": 9,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1750,
+        "confidence": 0.2228,
+        "realised": 0.4383,
+        "gap": -0.2155
+       },
+       "0.600-0.700": {
+        "n": 386,
+        "confidence": 0.6208,
+        "realised": 0.5881,
+        "gap": 0.0327
+       },
+       "0.700-0.750": {
+        "n": 91,
+        "confidence": 0.7288,
+        "realised": 0.6154,
+        "gap": 0.1134
+       },
+       "0.750-0.800": {
+        "n": 56,
+        "confidence": 0.7829,
+        "realised": 0.6071,
+        "gap": 0.1758
+       },
+       "0.800-0.825": {
+        "n": 19,
+        "confidence": 0.7106,
+        "realised": 0.5263,
+        "gap": 0.1843
+       },
+       "0.825-0.850": {
+        "n": 13,
+        "confidence": 0.8335,
+        "realised": 0.5385,
+        "gap": 0.295
+       },
+       "0.875-0.900": {
+        "n": 2,
+        "confidence": 0.8872,
+        "realised": 1.0,
+        "gap": -0.1128
+       },
+       "0.900-0.925": {
+        "n": 1,
+        "confidence": 0.8064,
+        "realised": 1.0,
+        "gap": -0.1936
+       }
+      },
+      "games": 274,
+      "logloss_confidence": 0.77402,
+      "logloss_model": 0.69456,
+      "realised": 0.4763,
+      "confidence": 0.3307,
+      "realised_minus_confidence": [
+       0.1456,
+       0.0955,
+       0.199
+      ],
+      "printable": {
+       "n": 182,
+       "games": 62,
+       "confidence": 0.7532,
+       "realised": 0.6044,
+       "realised_minus_confidence": [
+        -0.1488,
+        -0.2764,
+        -0.0165
+       ]
+      }
+     },
+     "team_total|UNDER": {
+      "n": 2237,
+      "uncovered": 90,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1735,
+        "confidence": 0.2361,
+        "realised": 0.5061,
+        "gap": -0.27
+       },
+       "0.600-0.700": {
+        "n": 414,
+        "confidence": 0.6495,
+        "realised": 0.5459,
+        "gap": 0.1036
+       },
+       "0.750-0.800": {
+        "n": 48,
+        "confidence": 0.7436,
+        "realised": 0.6458,
+        "gap": 0.0978
+       },
+       "0.800-0.825": {
+        "n": 15,
+        "confidence": 0.7861,
+        "realised": 0.6667,
+        "gap": 0.1194
+       },
+       "0.825-0.850": {
+        "n": 12,
+        "confidence": 0.7956,
+        "realised": 0.8333,
+        "gap": -0.0377
+       },
+       "0.850-0.875": {
+        "n": 9,
+        "confidence": 0.8393,
+        "realised": 0.6667,
+        "gap": 0.1726
+       },
+       "0.900-0.925": {
+        "n": 4,
+        "confidence": 0.8888,
+        "realised": 1.0,
+        "gap": -0.1112
+       }
+      },
+      "games": 274,
+      "logloss_confidence": 0.82599,
+      "logloss_model": 0.69808,
+      "realised": 0.5208,
+      "confidence": 0.3338,
+      "realised_minus_confidence": [
+       0.187,
+       0.1358,
+       0.2356
+      ],
+      "printable": {
+       "n": 88,
+       "games": 38,
+       "confidence": 0.7743,
+       "realised": 0.6932,
+       "realised_minus_confidence": [
+        -0.0811,
+        -0.2559,
+        0.0679
+       ]
+      }
+     },
+     "total|OVER": {
+      "n": 4322,
+      "uncovered": 72,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 3213,
+        "confidence": 0.2324,
+        "realised": 0.4376,
+        "gap": -0.2052
+       },
+       "0.600-0.700": {
+        "n": 706,
+        "confidence": 0.6221,
+        "realised": 0.6048,
+        "gap": 0.0173
+       },
+       "0.700-0.750": {
+        "n": 210,
+        "confidence": 0.7215,
+        "realised": 0.6095,
+        "gap": 0.112
+       },
+       "0.750-0.800": {
+        "n": 146,
+        "confidence": 0.7724,
+        "realised": 0.6507,
+        "gap": 0.1217
+       },
+       "0.825-0.850": {
+        "n": 31,
+        "confidence": 0.8288,
+        "realised": 0.6452,
+        "gap": 0.1836
+       },
+       "0.875-0.900": {
+        "n": 16,
+        "confidence": 0.8789,
+        "realised": 0.5,
+        "gap": 0.3789
+       }
+      },
+      "games": 564,
+      "logloss_confidence": 0.76159,
+      "logloss_model": 0.69249,
+      "realised": 0.4822,
+      "confidence": 0.3447,
+      "realised_minus_confidence": [
+       0.1374,
+       0.0893,
+       0.1889
+      ],
+      "printable": {
+       "n": 403,
+       "games": 104,
+       "confidence": 0.7544,
+       "realised": 0.6228,
+       "realised_minus_confidence": [
+        -0.1316,
+        -0.2425,
+        -0.0216
+       ]
+      }
+     },
+     "total|UNDER": {
+      "n": 4123,
+      "uncovered": 271,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 3130,
+        "confidence": 0.2327,
+        "realised": 0.4783,
+        "gap": -0.2456
+       },
+       "0.600-0.700": {
+        "n": 771,
+        "confidence": 0.6296,
+        "realised": 0.5953,
+        "gap": 0.0343
+       },
+       "0.750-0.800": {
+        "n": 159,
+        "confidence": 0.7258,
+        "realised": 0.6289,
+        "gap": 0.0969
+       },
+       "0.800-0.825": {
+        "n": 47,
+        "confidence": 0.776,
+        "realised": 0.6383,
+        "gap": 0.1377
+       },
+       "0.850-0.875": {
+        "n": 16,
+        "confidence": 0.8262,
+        "realised": 0.625,
+        "gap": 0.2012
+       }
+      },
+      "games": 565,
+      "logloss_confidence": 0.79827,
+      "logloss_model": 0.69357,
+      "realised": 0.5084,
+      "confidence": 0.3344,
+      "realised_minus_confidence": [
+       0.1739,
+       0.1246,
+       0.2299
+      ],
+      "printable": {
+       "n": 222,
+       "games": 62,
+       "confidence": 0.7437,
+       "realised": 0.6306,
+       "realised_minus_confidence": [
+        -0.113,
+        -0.2384,
+        0.0138
+       ]
+      }
+     },
+     "winner|TEAM": {
+      "n": 1000,
+      "uncovered": 84,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 738,
+        "confidence": 0.3593,
+        "realised": 0.3984,
+        "gap": -0.0391
+       },
+       "0.600-0.700": {
+        "n": 152,
+        "confidence": 0.6267,
+        "realised": 0.6118,
+        "gap": 0.0149
+       },
+       "0.700-0.750": {
+        "n": 58,
+        "confidence": 0.6767,
+        "realised": 0.7241,
+        "gap": -0.0474
+       },
+       "0.750-0.800": {
+        "n": 52,
+        "confidence": 0.7885,
+        "realised": 0.8269,
+        "gap": -0.0384
+       }
+      },
+      "games": 542,
+      "logloss_confidence": 0.65887,
+      "logloss_model": 0.62207,
+      "realised": 0.472,
+      "confidence": 0.4407,
+      "realised_minus_confidence": [
+       0.0313,
+       0.0211,
+       0.0418
+      ],
+      "printable": {
+       "n": 52,
+       "games": 52,
+       "confidence": 0.7885,
+       "realised": 0.8269,
+       "realised_minus_confidence": [
+        0.0384,
+        -0.077,
+        0.1346
+       ]
+      }
+     }
+    }
+   }
+  },
+  "volleyball": {
+   "fitted_from": {
+    "before": "2026-10-05",
+    "holdout_days": 30,
+    "fit_window_utc": [
+     "2025-09-05T00:00:00Z",
+     "2026-09-05T00:00:00Z"
+    ],
+    "holdout_window_utc": [
+     "2026-09-05T00:00:00Z",
+     "2026-10-05T00:00:00Z"
+    ],
+    "history_games_before": 20319,
+    "settled_dates_fit": [
+     "2026-09-29",
+     "2026-09-30",
+     "2026-10-01"
+    ],
+    "settled_dates_oos": [
+     "2026-10-02",
+     "2026-10-03",
+     "2026-10-04"
+    ],
+    "rows": {
+     "history_fit": 259640,
+     "history_holdout": 96986,
+     "settled_fit": 218,
+     "superbet_settled": 3230
+    },
+    "games": {
+     "history_fit": 3881,
+     "history_holdout": 1456,
+     "settled_fit": 35,
+     "superbet_settled": 223
+    },
+    "sims": 2000,
+    "max_games": 4000,
+    "forecast_source": "score_model"
+   },
+   "curves": {
+    "points_handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 54334,
+      "realised": 0.2027,
+      "realised_lo95": 0.1993
+     },
+     "0.600-0.700": {
+      "n": 7762,
+      "realised": 0.6753,
+      "realised_lo95": 0.6648
+     },
+     "0.700-0.750": {
+      "n": 3795,
+      "realised": 0.7607,
+      "realised_lo95": 0.7469
+     },
+     "0.750-0.800": {
+      "n": 7751,
+      "realised": 0.8116,
+      "realised_lo95": 0.8028
+     },
+     "0.800-0.825": {
+      "n": 3869,
+      "realised": 0.8558,
+      "realised_lo95": 0.8444
+     },
+     "0.825-0.850": {
+      "n": 3874,
+      "realised": 0.8663,
+      "realised_lo95": 0.8552
+     },
+     "0.850-0.875": {
+      "n": 3952,
+      "realised": 0.9036,
+      "realised_lo95": 0.894
+     },
+     "0.875-0.900": {
+      "n": 3748,
+      "realised": 0.9173,
+      "realised_lo95": 0.908
+     },
+     "0.900-0.925": {
+      "n": 4059,
+      "realised": 0.9396,
+      "realised_lo95": 0.9319
+     },
+     "0.925-0.950": {
+      "n": 3621,
+      "realised": 0.9663,
+      "realised_lo95": 0.9599
+     },
+     "0.950-1.010": {
+      "n": 4141,
+      "realised": 0.9739,
+      "realised_lo95": 0.9686
+     }
+    },
+    "points_total|OVER": {
+     "0.000-0.600": {
+      "n": 27167,
+      "realised": 0.2384,
+      "realised_lo95": 0.2333
+     },
+     "0.600-0.700": {
+      "n": 3881,
+      "realised": 0.6465,
+      "realised_lo95": 0.6313
+     },
+     "0.700-0.750": {
+      "n": 3772,
+      "realised": 0.7627,
+      "realised_lo95": 0.7489
+     },
+     "0.750-0.800": {
+      "n": 3877,
+      "realised": 0.8189,
+      "realised_lo95": 0.8065
+     },
+     "0.825-0.850": {
+      "n": 3756,
+      "realised": 0.8807,
+      "realised_lo95": 0.87
+     },
+     "0.875-0.900": {
+      "n": 3713,
+      "realised": 0.9249,
+      "realised_lo95": 0.9159
+     },
+     "0.925-0.950": {
+      "n": 3704,
+      "realised": 0.9687,
+      "realised_lo95": 0.9626
+     }
+    },
+    "points_total|UNDER": {
+     "0.000-0.600": {
+      "n": 27167,
+      "realised": 0.2133,
+      "realised_lo95": 0.2085
+     },
+     "0.600-0.700": {
+      "n": 3881,
+      "realised": 0.6439,
+      "realised_lo95": 0.6287
+     },
+     "0.750-0.800": {
+      "n": 3881,
+      "realised": 0.7483,
+      "realised_lo95": 0.7344
+     },
+     "0.800-0.825": {
+      "n": 3879,
+      "realised": 0.7925,
+      "realised_lo95": 0.7794
+     },
+     "0.850-0.875": {
+      "n": 3881,
+      "realised": 0.8377,
+      "realised_lo95": 0.8257
+     },
+     "0.900-0.925": {
+      "n": 3881,
+      "realised": 0.8822,
+      "realised_lo95": 0.8717
+     },
+     "0.950-1.010": {
+      "n": 3881,
+      "realised": 0.9273,
+      "realised_lo95": 0.9187
+     }
+    },
+    "set_handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 20628,
+      "realised": 0.3031,
+      "realised_lo95": 0.2968
+     },
+     "0.600-0.700": {
+      "n": 3529,
+      "realised": 0.6532,
+      "realised_lo95": 0.6373
+     },
+     "0.700-0.750": {
+      "n": 1779,
+      "realised": 0.7077,
+      "realised_lo95": 0.6861
+     },
+     "0.750-0.800": {
+      "n": 1915,
+      "realised": 0.7734,
+      "realised_lo95": 0.7541
+     },
+     "0.800-0.825": {
+      "n": 967,
+      "realised": 0.8108,
+      "realised_lo95": 0.7849
+     },
+     "0.825-0.850": {
+      "n": 984,
+      "realised": 0.8496,
+      "realised_lo95": 0.8259
+     },
+     "0.850-0.875": {
+      "n": 997,
+      "realised": 0.8736,
+      "realised_lo95": 0.8516
+     },
+     "0.875-0.900": {
+      "n": 1074,
+      "realised": 0.8864,
+      "realised_lo95": 0.866
+     },
+     "0.900-0.925": {
+      "n": 1101,
+      "realised": 0.9201,
+      "realised_lo95": 0.9026
+     },
+     "0.925-0.950": {
+      "n": 1107,
+      "realised": 0.9494,
+      "realised_lo95": 0.9349
+     },
+     "0.950-1.010": {
+      "n": 503,
+      "realised": 0.9702,
+      "realised_lo95": 0.9514
+     }
+    },
+    "sets_total|OVER": {
+     "0.000-0.600": {
+      "n": 5578,
+      "realised": 0.2723,
+      "realised_lo95": 0.2608
+     },
+     "0.600-0.700": {
+      "n": 2160,
+      "realised": 0.6023,
+      "realised_lo95": 0.5815
+     }
+    },
+    "sets_total|UNDER": {
+     "0.000-0.600": {
+      "n": 3392,
+      "realised": 0.4375,
+      "realised_lo95": 0.4209
+     },
+     "0.600-0.700": {
+      "n": 1065,
+      "realised": 0.7221,
+      "realised_lo95": 0.6944
+     },
+     "0.700-0.750": {
+      "n": 1496,
+      "realised": 0.76,
+      "realised_lo95": 0.7377
+     },
+     "0.750-0.800": {
+      "n": 697,
+      "realised": 0.8164,
+      "realised_lo95": 0.7859
+     },
+     "0.800-0.825": {
+      "n": 236,
+      "realised": 0.7839,
+      "realised_lo95": 0.7271
+     }
+    },
+    "winner|TEAM": {
+     "0.000-0.600": {
+      "n": 4720,
+      "realised": 0.2987,
+      "realised_lo95": 0.2858
+     },
+     "0.600-0.700": {
+      "n": 897,
+      "realised": 0.6711,
+      "realised_lo95": 0.6397
+     },
+     "0.700-0.750": {
+      "n": 407,
+      "realised": 0.7518,
+      "realised_lo95": 0.7077
+     },
+     "0.750-0.800": {
+      "n": 391,
+      "realised": 0.8056,
+      "realised_lo95": 0.7635
+     },
+     "0.800-0.825": {
+      "n": 205,
+      "realised": 0.8683,
+      "realised_lo95": 0.8152
+     },
+     "0.950-1.010": {
+      "n": 295,
+      "realised": 0.9729,
+      "realised_lo95": 0.9474
+     }
+    }
+   },
+   "curve_source": {
+    "points_handicap|TEAM": "history",
+    "points_total|OVER": "history",
+    "points_total|UNDER": "history",
+    "set_handicap|TEAM": "history",
+    "sets_total|OVER": "history",
+    "sets_total|UNDER": "history",
+    "winner|TEAM": "history"
+   },
+   "admitted": [
+    "points_total|UNDER",
+    "sets_total|UNDER"
+   ],
+   "not_calibrated": {
+    "points_handicap|TEAM": "OVERSTATES: history_holdout bucket 0.700-0.750 confidence above realised by 0.0413",
+    "points_total|OVER": "OVERSTATES_PRINTABLE: superbet_settled n=11 confidence 0.7594 realised 0.2727 (realised-confidence -0.4866, 95% upper -0.1604)",
+    "set_handicap|TEAM": "OVERSTATES_PRINTABLE: superbet_settled n=61 confidence 0.8299 realised 0.6393 (realised-confidence -0.1906, 95% upper -0.0791)",
+    "set_points_total|OVER": "NO_FIT_BUCKET_WITH_N>=200",
+    "set_points_total|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
+    "set_winner|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
+    "sets_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
+   },
+   "oos": {
+    "history_holdout": {
+     "points_handicap|TEAM": {
+      "n": 37856,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 20384,
+        "confidence": 0.1993,
+        "realised": 0.2091,
+        "gap": -0.0098
+       },
+       "0.600-0.700": {
+        "n": 2912,
+        "confidence": 0.6648,
+        "realised": 0.6693,
+        "gap": -0.0045
+       },
+       "0.700-0.750": {
+        "n": 1420,
+        "confidence": 0.7469,
+        "realised": 0.7056,
+        "gap": 0.0413
+       },
+       "0.750-0.800": {
+        "n": 2907,
+        "confidence": 0.8028,
+        "realised": 0.8063,
+        "gap": -0.0035
+       },
+       "0.800-0.825": {
+        "n": 1432,
+        "confidence": 0.8444,
+        "realised": 0.8848,
+        "gap": -0.0404
+       },
+       "0.825-0.850": {
+        "n": 1483,
+        "confidence": 0.8552,
+        "realised": 0.8422,
+        "gap": 0.013
+       },
+       "0.850-0.875": {
+        "n": 1481,
+        "confidence": 0.894,
+        "realised": 0.9169,
+        "gap": -0.0229
+       },
+       "0.875-0.900": {
+        "n": 1409,
+        "confidence": 0.908,
+        "realised": 0.8943,
+        "gap": 0.0137
+       },
+       "0.900-0.925": {
+        "n": 1516,
+        "confidence": 0.9319,
+        "realised": 0.9472,
+        "gap": -0.0153
+       },
+       "0.925-0.950": {
+        "n": 1352,
+        "confidence": 0.9599,
+        "realised": 0.9445,
+        "gap": 0.0154
+       },
+       "0.950-1.010": {
+        "n": 1560,
+        "confidence": 0.9686,
+        "realised": 0.9769,
+        "gap": -0.0083
+       }
+      },
+      "games": 1456,
+      "logloss_confidence": 0.46119,
+      "logloss_model": 0.42562,
+      "realised": 0.5,
+      "confidence": 0.4938,
+      "realised_minus_confidence": [
+       0.0062,
+       0.0061,
+       0.0062
+      ],
+      "printable": {
+       "n": 14560,
+       "games": 1456,
+       "confidence": 0.872,
+       "realised": 0.8734,
+       "realised_minus_confidence": [
+        0.0014,
+        -0.0073,
+        0.0098
+       ]
+      }
+     },
+     "points_total|OVER": {
+      "n": 18729,
+      "uncovered": 199,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 10192,
+        "confidence": 0.2333,
+        "realised": 0.2324,
+        "gap": 0.0009
+       },
+       "0.600-0.700": {
+        "n": 1456,
+        "confidence": 0.6313,
+        "realised": 0.6655,
+        "gap": -0.0342
+       },
+       "0.700-0.750": {
+        "n": 1416,
+        "confidence": 0.7489,
+        "realised": 0.7966,
+        "gap": -0.0477
+       },
+       "0.750-0.800": {
+        "n": 1473,
+        "confidence": 0.8065,
+        "realised": 0.8398,
+        "gap": -0.0333
+       },
+       "0.825-0.850": {
+        "n": 1397,
+        "confidence": 0.87,
+        "realised": 0.8883,
+        "gap": -0.0183
+       },
+       "0.875-0.900": {
+        "n": 1406,
+        "confidence": 0.9159,
+        "realised": 0.9374,
+        "gap": -0.0215
+       },
+       "0.925-0.950": {
+        "n": 1389,
+        "confidence": 0.9626,
+        "realised": 0.9719,
+        "gap": -0.0093
+       }
+      },
+      "games": 1456,
+      "logloss_confidence": 0.47199,
+      "logloss_model": 0.44317,
+      "realised": 0.5132,
+      "confidence": 0.5011,
+      "realised_minus_confidence": [
+       0.0121,
+       -0.0015,
+       0.0247
+      ],
+      "printable": {
+       "n": 7081,
+       "games": 1456,
+       "confidence": 0.8599,
+       "realised": 0.886,
+       "realised_minus_confidence": [
+        0.0262,
+        0.0125,
+        0.0386
+       ]
+      }
+     },
+     "points_total|UNDER": {
+      "n": 18928,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 10192,
+        "confidence": 0.2085,
+        "realised": 0.1986,
+        "gap": 0.0099
+       },
+       "0.600-0.700": {
+        "n": 1456,
+        "confidence": 0.6287,
+        "realised": 0.647,
+        "gap": -0.0183
+       },
+       "0.750-0.800": {
+        "n": 1456,
+        "confidence": 0.7344,
+        "realised": 0.7479,
+        "gap": -0.0135
+       },
+       "0.800-0.825": {
+        "n": 1456,
+        "confidence": 0.7794,
+        "realised": 0.8049,
+        "gap": -0.0255
+       },
+       "0.850-0.875": {
+        "n": 1456,
+        "confidence": 0.8257,
+        "realised": 0.8455,
+        "gap": -0.0198
+       },
+       "0.900-0.925": {
+        "n": 1456,
+        "confidence": 0.8717,
+        "realised": 0.8949,
+        "gap": -0.0232
+       },
+       "0.950-1.010": {
+        "n": 1456,
+        "confidence": 0.9187,
+        "realised": 0.9416,
+        "gap": -0.0229
+       }
+      },
+      "games": 1456,
+      "logloss_confidence": 0.47681,
+      "logloss_model": 0.44136,
+      "realised": 0.4825,
+      "confidence": 0.4783,
+      "realised_minus_confidence": [
+       0.0041,
+       -0.0089,
+       0.0166
+      ],
+      "printable": {
+       "n": 7280,
+       "games": 1456,
+       "confidence": 0.826,
+       "realised": 0.847,
+       "realised_minus_confidence": [
+        0.021,
+        0.0051,
+        0.0365
+       ]
+      }
+     },
+     "set_handicap|TEAM": {
+      "n": 12548,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 7458,
+        "confidence": 0.2968,
+        "realised": 0.3115,
+        "gap": -0.0147
+       },
+       "0.600-0.700": {
+        "n": 1260,
+        "confidence": 0.6373,
+        "realised": 0.6421,
+        "gap": -0.0048
+       },
+       "0.700-0.750": {
+        "n": 668,
+        "confidence": 0.6861,
+        "realised": 0.7246,
+        "gap": -0.0385
+       },
+       "0.750-0.800": {
+        "n": 681,
+        "confidence": 0.7541,
+        "realised": 0.7548,
+        "gap": -0.0007
+       },
+       "0.800-0.825": {
+        "n": 342,
+        "confidence": 0.7849,
+        "realised": 0.7719,
+        "gap": 0.013
+       },
+       "0.825-0.850": {
+        "n": 379,
+        "confidence": 0.8259,
+        "realised": 0.8259,
+        "gap": 0.0
+       },
+       "0.850-0.875": {
+        "n": 385,
+        "confidence": 0.8516,
+        "realised": 0.8338,
+        "gap": 0.0178
+       },
+       "0.875-0.900": {
+        "n": 385,
+        "confidence": 0.866,
+        "realised": 0.8857,
+        "gap": -0.0197
+       },
+       "0.900-0.925": {
+        "n": 388,
+        "confidence": 0.9026,
+        "realised": 0.884,
+        "gap": 0.0186
+       },
+       "0.925-0.950": {
+        "n": 481,
+        "confidence": 0.9349,
+        "realised": 0.9252,
+        "gap": 0.0097
+       },
+       "0.950-1.010": {
+        "n": 121,
+        "confidence": 0.9514,
+        "realised": 0.9669,
+        "gap": -0.0155
+       }
+      },
+      "games": 1455,
+      "logloss_confidence": 0.57244,
+      "logloss_model": 0.53713,
+      "realised": 0.5,
+      "confidence": 0.4898,
+      "realised_minus_confidence": [
+       0.0102,
+       0.0089,
+       0.0116
+      ],
+      "printable": {
+       "n": 3162,
+       "games": 1455,
+       "confidence": 0.8448,
+       "realised": 0.8406,
+       "realised_minus_confidence": [
+        -0.0042,
+        -0.0203,
+        0.011
+       ]
+      }
+     },
+     "sets_total|OVER": {
+      "n": 2906,
+      "uncovered": 1,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 2172,
+        "confidence": 0.2608,
+        "realised": 0.2703,
+        "gap": -0.0095
+       },
+       "0.600-0.700": {
+        "n": 734,
+        "confidence": 0.5815,
+        "realised": 0.5981,
+        "gap": -0.0166
+       }
+      },
+      "games": 1456,
+      "logloss_confidence": 0.60663,
+      "logloss_model": 0.56423,
+      "realised": 0.3531,
+      "confidence": 0.3418,
+      "realised_minus_confidence": [
+       0.0113,
+       -0.0073,
+       0.0306
+      ]
+     },
+     "sets_total|UNDER": {
+      "n": 2527,
+      "uncovered": 380,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1233,
+        "confidence": 0.4209,
+        "realised": 0.4347,
+        "gap": -0.0138
+       },
+       "0.600-0.700": {
+        "n": 385,
+        "confidence": 0.6944,
+        "realised": 0.7039,
+        "gap": -0.0095
+       },
+       "0.700-0.750": {
+        "n": 522,
+        "confidence": 0.7377,
+        "realised": 0.7739,
+        "gap": -0.0362
+       },
+       "0.750-0.800": {
+        "n": 281,
+        "confidence": 0.7859,
+        "realised": 0.7936,
+        "gap": -0.0077
+       },
+       "0.800-0.825": {
+        "n": 106,
+        "confidence": 0.7271,
+        "realised": 0.934,
+        "gap": -0.2069
+       }
+      },
+      "games": 1427,
+      "logloss_confidence": 0.61067,
+      "logloss_model": 0.60722,
+      "realised": 0.6066,
+      "confidence": 0.5814,
+      "realised_minus_confidence": [
+       0.0252,
+       0.0033,
+       0.0463
+      ],
+      "printable": {
+       "n": 909,
+       "games": 909,
+       "confidence": 0.7514,
+       "realised": 0.7987,
+       "realised_minus_confidence": [
+        0.0473,
+        0.0216,
+        0.0736
+       ]
+      }
+     },
+     "winner|TEAM": {
+      "n": 2548,
+      "uncovered": 364,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1737,
+        "confidence": 0.2858,
+        "realised": 0.308,
+        "gap": -0.0222
+       },
+       "0.600-0.700": {
+        "n": 292,
+        "confidence": 0.6397,
+        "realised": 0.6164,
+        "gap": 0.0233
+       },
+       "0.700-0.750": {
+        "n": 166,
+        "confidence": 0.7077,
+        "realised": 0.7048,
+        "gap": 0.0029
+       },
+       "0.750-0.800": {
+        "n": 140,
+        "confidence": 0.7635,
+        "realised": 0.7429,
+        "gap": 0.0206
+       },
+       "0.800-0.825": {
+        "n": 68,
+        "confidence": 0.8152,
+        "realised": 0.7059,
+        "gap": 0.1093
+       },
+       "0.950-1.010": {
+        "n": 145,
+        "confidence": 0.9474,
+        "realised": 0.9931,
+        "gap": -0.0457
+       }
+      },
+      "games": 1456,
+      "logloss_confidence": 0.59042,
+      "logloss_model": 0.53293,
+      "realised": 0.4427,
+      "confidence": 0.4319,
+      "realised_minus_confidence": [
+       0.0108,
+       0.003,
+       0.0191
+      ],
+      "printable": {
+       "n": 519,
+       "games": 519,
+       "confidence": 0.8038,
+       "realised": 0.7958,
+       "realised_minus_confidence": [
+        -0.008,
+        -0.0422,
+        0.0256
+       ]
+      }
+     }
+    },
+    "superbet_settled": {
+     "points_handicap|TEAM": {
+      "n": 308,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 206,
+        "confidence": 0.1993,
+        "realised": 0.4709,
+        "gap": -0.2716
+       },
+       "0.600-0.700": {
+        "n": 37,
+        "confidence": 0.6648,
+        "realised": 0.5676,
+        "gap": 0.0972
+       },
+       "0.700-0.750": {
+        "n": 24,
+        "confidence": 0.7469,
+        "realised": 0.625,
+        "gap": 0.1219
+       },
+       "0.750-0.800": {
+        "n": 19,
+        "confidence": 0.8028,
+        "realised": 0.6316,
+        "gap": 0.1712
+       },
+       "0.800-0.825": {
+        "n": 5,
+        "confidence": 0.8444,
+        "realised": 0.6,
+        "gap": 0.2444
+       },
+       "0.825-0.850": {
+        "n": 3,
+        "confidence": 0.8552,
+        "realised": 0.3333,
+        "gap": 0.5219
+       },
+       "0.850-0.875": {
+        "n": 3,
+        "confidence": 0.894,
+        "realised": 0.0,
+        "gap": 0.894
+       },
+       "0.875-0.900": {
+        "n": 5,
+        "confidence": 0.908,
+        "realised": 0.2,
+        "gap": 0.708
+       },
+       "0.900-0.925": {
+        "n": 4,
+        "confidence": 0.9319,
+        "realised": 0.5,
+        "gap": 0.4319
+       },
+       "0.925-0.950": {
+        "n": 2,
+        "confidence": 0.9599,
+        "realised": 1.0,
+        "gap": -0.0401
+       }
+      },
+      "games": 90,
+      "logloss_confidence": 0.86918,
+      "logloss_model": 0.77783,
+      "realised": 0.5,
+      "confidence": 0.3847,
+      "realised_minus_confidence": [
+       0.1153,
+       0.0834,
+       0.1492
+      ],
+      "printable": {
+       "n": 65,
+       "games": 37,
+       "confidence": 0.8129,
+       "realised": 0.5538,
+       "realised_minus_confidence": [
+        -0.259,
+        -0.4729,
+        -0.0566
+       ]
+      }
+     },
+     "points_total|OVER": {
+      "n": 238,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 206,
+        "confidence": 0.2333,
+        "realised": 0.5437,
+        "gap": -0.3104
+       },
+       "0.600-0.700": {
+        "n": 21,
+        "confidence": 0.6313,
+        "realised": 0.5714,
+        "gap": 0.0599
+       },
+       "0.700-0.750": {
+        "n": 9,
+        "confidence": 0.7489,
+        "realised": 0.2222,
+        "gap": 0.5267
+       },
+       "0.750-0.800": {
+        "n": 2,
+        "confidence": 0.8065,
+        "realised": 0.5,
+        "gap": 0.3065
+       }
+      },
+      "games": 172,
+      "logloss_confidence": 0.90163,
+      "logloss_model": 0.73289,
+      "realised": 0.5336,
+      "confidence": 0.2927,
+      "realised_minus_confidence": [
+       0.2409,
+       0.1388,
+       0.3477
+      ],
+      "printable": {
+       "n": 11,
+       "games": 8,
+       "confidence": 0.7594,
+       "realised": 0.2727,
+       "realised_minus_confidence": [
+        -0.4866,
+        -0.7604,
+        -0.1604
+       ]
+      }
+     },
+     "points_total|UNDER": {
+      "n": 231,
+      "uncovered": 7,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 183,
+        "confidence": 0.2085,
+        "realised": 0.4754,
+        "gap": -0.2669
+       },
+       "0.600-0.700": {
+        "n": 41,
+        "confidence": 0.6287,
+        "realised": 0.4146,
+        "gap": 0.2141
+       },
+       "0.750-0.800": {
+        "n": 3,
+        "confidence": 0.7344,
+        "realised": 0.3333,
+        "gap": 0.4011
+       },
+       "0.800-0.825": {
+        "n": 4,
+        "confidence": 0.7794,
+        "realised": 0.25,
+        "gap": 0.5294
+       }
+      },
+      "games": 169,
+      "logloss_confidence": 0.85826,
+      "logloss_model": 0.73672,
+      "realised": 0.4589,
+      "confidence": 0.2998,
+      "realised_minus_confidence": [
+       0.1591,
+       0.0627,
+       0.263
+      ],
+      "printable": {
+       "n": 7,
+       "games": 4,
+       "confidence": 0.7601,
+       "realised": 0.2857,
+       "realised_minus_confidence": [
+        -0.4744,
+        -0.7614,
+        0.2431
+       ]
+      }
+     },
+     "set_handicap|TEAM": {
+      "n": 470,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 312,
+        "confidence": 0.2968,
+        "realised": 0.4263,
+        "gap": -0.1295
+       },
+       "0.600-0.700": {
+        "n": 65,
+        "confidence": 0.6373,
+        "realised": 0.6462,
+        "gap": -0.0089
+       },
+       "0.700-0.750": {
+        "n": 32,
+        "confidence": 0.6861,
+        "realised": 0.6562,
+        "gap": 0.0299
+       },
+       "0.750-0.800": {
+        "n": 16,
+        "confidence": 0.7541,
+        "realised": 0.5625,
+        "gap": 0.1916
+       },
+       "0.800-0.825": {
+        "n": 9,
+        "confidence": 0.7849,
+        "realised": 0.5556,
+        "gap": 0.2293
+       },
+       "0.825-0.850": {
+        "n": 9,
+        "confidence": 0.8259,
+        "realised": 0.2222,
+        "gap": 0.6037
+       },
+       "0.850-0.875": {
+        "n": 8,
+        "confidence": 0.8516,
+        "realised": 1.0,
+        "gap": -0.1484
+       },
+       "0.875-0.900": {
+        "n": 7,
+        "confidence": 0.866,
+        "realised": 0.5714,
+        "gap": 0.2946
+       },
+       "0.900-0.925": {
+        "n": 3,
+        "confidence": 0.9026,
+        "realised": 1.0,
+        "gap": -0.0974
+       },
+       "0.925-0.950": {
+        "n": 5,
+        "confidence": 0.9349,
+        "realised": 1.0,
+        "gap": -0.0651
+       },
+       "0.950-1.010": {
+        "n": 4,
+        "confidence": 0.9514,
+        "realised": 0.75,
+        "gap": 0.2014
+       }
+      },
+      "games": 176,
+      "logloss_confidence": 0.70539,
+      "logloss_model": 0.69126,
+      "realised": 0.5,
+      "confidence": 0.4396,
+      "realised_minus_confidence": [
+       0.0604,
+       0.0468,
+       0.0751
+      ],
+      "printable": {
+       "n": 61,
+       "games": 43,
+       "confidence": 0.8299,
+       "realised": 0.6393,
+       "realised_minus_confidence": [
+        -0.1906,
+        -0.3113,
+        -0.0791
+       ]
+      }
+     },
+     "set_points_total|OVER": {
+      "n": 0,
+      "uncovered": 172,
+      "buckets": {}
+     },
+     "set_points_total|UNDER": {
+      "n": 0,
+      "uncovered": 172,
+      "buckets": {}
+     },
+     "set_winner|TEAM": {
+      "n": 0,
+      "uncovered": 812,
+      "buckets": {}
+     },
+     "sets_total|OVER": {
+      "n": 188,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 122,
+        "confidence": 0.2608,
+        "realised": 0.2705,
+        "gap": -0.0097
+       },
+       "0.600-0.700": {
+        "n": 66,
+        "confidence": 0.5815,
+        "realised": 0.6212,
+        "gap": -0.0397
+       }
+      },
+      "games": 94,
+      "logloss_confidence": 0.61304,
+      "logloss_model": 0.60232,
+      "realised": 0.3936,
+      "confidence": 0.3734,
+      "realised_minus_confidence": [
+       0.0202,
+       -0.0559,
+       0.1
+      ]
+     },
+     "sets_total|UNDER": {
+      "n": 182,
+      "uncovered": 6,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 91,
+        "confidence": 0.4209,
+        "realised": 0.4286,
+        "gap": -0.0077
+       },
+       "0.600-0.700": {
+        "n": 34,
+        "confidence": 0.6944,
+        "realised": 0.7059,
+        "gap": -0.0115
+       },
+       "0.700-0.750": {
+        "n": 37,
+        "confidence": 0.7377,
+        "realised": 0.7568,
+        "gap": -0.0191
+       },
+       "0.750-0.800": {
+        "n": 14,
+        "confidence": 0.7859,
+        "realised": 0.8571,
+        "gap": -0.0712
+       },
+       "0.800-0.825": {
+        "n": 6,
+        "confidence": 0.7271,
+        "realised": 1.0,
+        "gap": -0.2729
+       }
+      },
+      "games": 94,
+      "logloss_confidence": 0.61105,
+      "logloss_model": 0.6081,
+      "realised": 0.5989,
+      "confidence": 0.5746,
+      "realised_minus_confidence": [
+       0.0243,
+       -0.0566,
+       0.1011
+      ],
+      "printable": {
+       "n": 57,
+       "games": 57,
+       "confidence": 0.7484,
+       "realised": 0.807,
+       "realised_minus_confidence": [
+        0.0586,
+        -0.046,
+        0.1578
+       ]
+      }
+     },
+     "winner|TEAM": {
+      "n": 397,
+      "uncovered": 47,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 278,
+        "confidence": 0.2858,
+        "realised": 0.3669,
+        "gap": -0.0811
+       },
+       "0.600-0.700": {
+        "n": 48,
+        "confidence": 0.6397,
+        "realised": 0.5417,
+        "gap": 0.098
+       },
+       "0.700-0.750": {
+        "n": 20,
+        "confidence": 0.7077,
+        "realised": 0.55,
+        "gap": 0.1577
+       },
+       "0.750-0.800": {
+        "n": 27,
+        "confidence": 0.7635,
+        "realised": 0.7407,
+        "gap": 0.0228
+       },
+       "0.800-0.825": {
+        "n": 6,
+        "confidence": 0.8152,
+        "realised": 0.6667,
+        "gap": 0.1485
+       },
+       "0.950-1.010": {
+        "n": 18,
+        "confidence": 0.9474,
+        "realised": 1.0,
+        "gap": -0.0526
+       }
+      },
+      "games": 222,
+      "logloss_confidence": 0.64633,
+      "logloss_model": 0.58505,
+      "realised": 0.4559,
+      "confidence": 0.4203,
+      "realised_minus_confidence": [
+       0.0356,
+       0.0147,
+       0.0543
+      ],
+      "printable": {
+       "n": 71,
+       "games": 71,
+       "confidence": 0.7988,
+       "realised": 0.7465,
+       "realised_minus_confidence": [
+        -0.0523,
+        -0.1552,
+        0.0382
+       ]
+      }
+     }
+    }
+   }
+  },
+  "cs2": {
+   "fitted_from": {
+    "before": "2026-10-05",
+    "holdout_days": 30,
+    "fit_window_utc": [
+     "2025-09-05T00:00:00Z",
+     "2026-09-05T00:00:00Z"
+    ],
+    "holdout_window_utc": [
+     "2026-09-05T00:00:00Z",
+     "2026-10-05T00:00:00Z"
+    ],
+    "history_games_before": 15055,
+    "settled_dates_fit": [],
+    "settled_dates_oos": [
+     "2026-09-28",
+     "2026-09-29",
+     "2026-09-30",
+     "2026-10-01",
+     "2026-10-02",
+     "2026-10-03",
+     "2026-10-04"
+    ],
+    "rows": {
+     "history_fit": 370118,
+     "history_holdout": 48942,
+     "superbet_settled": 2042
+    },
+    "games": {
+     "history_fit": 11429,
+     "history_holdout": 1371,
+     "superbet_settled": 165
+    },
+    "sims": null,
+    "max_games": null,
+    "forecast_source": "cs2_engine"
+   },
+   "curves": {
+    "map_team_rounds|OVER": {
+     "0.000-0.600": {
+      "n": 66624,
+      "realised": 0.5574,
+      "realised_lo95": 0.5536
+     },
+     "0.600-0.700": {
+      "n": 63999,
+      "realised": 0.6366,
+      "realised_lo95": 0.6329
+     },
+     "0.700-0.750": {
+      "n": 16057,
+      "realised": 0.6951,
+      "realised_lo95": 0.6879
+     },
+     "0.750-0.800": {
+      "n": 5280,
+      "realised": 0.7297,
+      "realised_lo95": 0.7176
+     },
+     "0.800-0.825": {
+      "n": 630,
+      "realised": 0.7905,
+      "realised_lo95": 0.757
+     }
+    },
+    "map_team_rounds|UNDER": {
+     "0.000-0.600": {
+      "n": 151904,
+      "realised": 0.3865,
+      "realised_lo95": 0.384
+     },
+     "0.600-0.700": {
+      "n": 788,
+      "realised": 0.6536,
+      "realised_lo95": 0.6197
+     }
+    },
+    "map_winner|TEAM": {
+     "0.000-0.600": {
+      "n": 36383,
+      "realised": 0.4627,
+      "realised_lo95": 0.4576
+     },
+     "0.600-0.700": {
+      "n": 6686,
+      "realised": 0.6466,
+      "realised_lo95": 0.635
+     },
+     "0.700-0.750": {
+      "n": 1139,
+      "realised": 0.7155,
+      "realised_lo95": 0.6886
+     },
+     "0.750-0.800": {
+      "n": 360,
+      "realised": 0.7472,
+      "realised_lo95": 0.6999
+     }
+    },
+    "match_winner|TEAM": {
+     "0.000-0.600": {
+      "n": 14857,
+      "realised": 0.4366,
+      "realised_lo95": 0.4287
+     },
+     "0.600-0.700": {
+      "n": 3110,
+      "realised": 0.6347,
+      "realised_lo95": 0.6176
+     },
+     "0.700-0.750": {
+      "n": 994,
+      "realised": 0.7233,
+      "realised_lo95": 0.6947
+     },
+     "0.750-0.800": {
+      "n": 581,
+      "realised": 0.7573,
+      "realised_lo95": 0.7208
+     }
+    }
+   },
+   "curve_source": {
+    "map_team_rounds|OVER": "history",
+    "map_team_rounds|UNDER": "history",
+    "map_winner|TEAM": "history",
+    "match_winner|TEAM": "history"
+   },
+   "admitted": [],
+   "not_calibrated": {
+    "map_team_rounds|OVER": "OVERSTATES: superbet_settled bucket 0.600-0.700 confidence above realised by 0.0575",
+    "map_team_rounds|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "map_winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "match_winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
+   },
+   "oos": {
+    "history_holdout": {
+     "map_team_rounds|OVER": {
+      "n": 20417,
+      "uncovered": 39,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 9344,
+        "confidence": 0.5536,
+        "realised": 0.5693,
+        "gap": -0.0157
+       },
+       "0.600-0.700": {
+        "n": 8188,
+        "confidence": 0.6329,
+        "realised": 0.6365,
+        "gap": -0.0036
+       },
+       "0.700-0.750": {
+        "n": 2168,
+        "confidence": 0.6879,
+        "realised": 0.6983,
+        "gap": -0.0104
+       },
+       "0.750-0.800": {
+        "n": 636,
+        "confidence": 0.7176,
+        "realised": 0.7075,
+        "gap": 0.0101
+       },
+       "0.800-0.825": {
+        "n": 81,
+        "confidence": 0.757,
+        "realised": 0.8025,
+        "gap": -0.0455
+       }
+      },
+      "games": 1226,
+      "logloss_confidence": 0.66175,
+      "logloss_model": 0.66213,
+      "realised": 0.6152,
+      "confidence": 0.6056,
+      "realised_minus_confidence": [
+       0.0096,
+       0.0022,
+       0.017
+      ],
+      "printable": {
+       "n": 717,
+       "games": 259,
+       "confidence": 0.7221,
+       "realised": 0.7183,
+       "realised_minus_confidence": [
+        -0.0038,
+        -0.0368,
+        0.0299
+       ]
+      }
+     },
+     "map_team_rounds|UNDER": {
+      "n": 20456,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 20353,
+        "confidence": 0.384,
+        "realised": 0.3833,
+        "gap": 0.0007
+       },
+       "0.600-0.700": {
+        "n": 103,
+        "confidence": 0.6197,
+        "realised": 0.5534,
+        "gap": 0.0663
+       }
+      },
+      "games": 1226,
+      "logloss_confidence": 0.66581,
+      "logloss_model": 0.66137,
+      "realised": 0.3841,
+      "confidence": 0.3852,
+      "realised_minus_confidence": [
+       -0.001,
+       -0.0081,
+       0.0059
+      ]
+     },
+     "map_winner|TEAM": {
+      "n": 5524,
+      "uncovered": 36,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 4387,
+        "confidence": 0.4576,
+        "realised": 0.4543,
+        "gap": 0.0033
+       },
+       "0.600-0.700": {
+        "n": 919,
+        "confidence": 0.635,
+        "realised": 0.6518,
+        "gap": -0.0168
+       },
+       "0.700-0.750": {
+        "n": 162,
+        "confidence": 0.6886,
+        "realised": 0.7531,
+        "gap": -0.0645
+       },
+       "0.750-0.800": {
+        "n": 56,
+        "confidence": 0.6999,
+        "realised": 0.6429,
+        "gap": 0.057
+       }
+      },
+      "games": 1235,
+      "logloss_confidence": 0.67817,
+      "logloss_model": 0.66302,
+      "realised": 0.4978,
+      "confidence": 0.4963,
+      "realised_minus_confidence": [
+       0.0015,
+       -0.0014,
+       0.0044
+      ]
+     },
+     "match_winner|TEAM": {
+      "n": 2392,
+      "uncovered": 78,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1758,
+        "confidence": 0.4287,
+        "realised": 0.4204,
+        "gap": 0.0083
+       },
+       "0.600-0.700": {
+        "n": 402,
+        "confidence": 0.6176,
+        "realised": 0.6517,
+        "gap": -0.0341
+       },
+       "0.700-0.750": {
+        "n": 140,
+        "confidence": 0.6947,
+        "realised": 0.7286,
+        "gap": -0.0339
+       },
+       "0.750-0.800": {
+        "n": 92,
+        "confidence": 0.7208,
+        "realised": 0.7283,
+        "gap": -0.0075
+       }
+      },
+      "games": 1235,
+      "logloss_confidence": 0.66611,
+      "logloss_model": 0.6446,
+      "realised": 0.4891,
+      "confidence": 0.4872,
+      "realised_minus_confidence": [
+       0.0019,
+       -0.0027,
+       0.0065
+      ],
+      "printable": {
+       "n": 92,
+       "games": 92,
+       "confidence": 0.7208,
+       "realised": 0.7283,
+       "realised_minus_confidence": [
+        0.0075,
+        -0.0904,
+        0.0944
+       ]
+      }
+     }
+    },
+    "superbet_settled": {
+     "map_team_rounds|OVER": {
+      "n": 570,
+      "uncovered": 14,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 195,
+        "confidence": 0.5536,
+        "realised": 0.5846,
+        "gap": -0.031
+       },
+       "0.600-0.700": {
+        "n": 252,
+        "confidence": 0.6329,
+        "realised": 0.5754,
+        "gap": 0.0575
+       },
+       "0.700-0.750": {
+        "n": 86,
+        "confidence": 0.6879,
+        "realised": 0.6977,
+        "gap": -0.0098
+       },
+       "0.750-0.800": {
+        "n": 25,
+        "confidence": 0.7176,
+        "realised": 0.52,
+        "gap": 0.1976
+       },
+       "0.800-0.825": {
+        "n": 12,
+        "confidence": 0.757,
+        "realised": 0.4167,
+        "gap": 0.3403
+       }
+      },
+      "games": 37,
+      "logloss_confidence": 0.68386,
+      "logloss_model": 0.69138,
+      "realised": 0.5912,
+      "confidence": 0.6204,
+      "realised_minus_confidence": [
+       -0.0292,
+       -0.0687,
+       0.0113
+      ],
+      "printable": {
+       "n": 37,
+       "games": 13,
+       "confidence": 0.7304,
+       "realised": 0.4865,
+       "realised_minus_confidence": [
+        -0.2439,
+        -0.4134,
+        -0.0843
+       ]
+      }
+     },
+     "map_team_rounds|UNDER": {
+      "n": 584,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 584,
+        "confidence": 0.384,
+        "realised": 0.411,
+        "gap": -0.027
+       }
+      },
+      "games": 37,
+      "logloss_confidence": 0.67873,
+      "logloss_model": 0.70082,
+      "realised": 0.411,
+      "confidence": 0.384,
+      "realised_minus_confidence": [
+       0.027,
+       -0.0125,
+       0.0651
+      ]
+     },
+     "map_winner|TEAM": {
+      "n": 538,
+      "uncovered": 6,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 437,
+        "confidence": 0.4576,
+        "realised": 0.4508,
+        "gap": 0.0068
+       },
+       "0.600-0.700": {
+        "n": 67,
+        "confidence": 0.635,
+        "realised": 0.6866,
+        "gap": -0.0516
+       },
+       "0.700-0.750": {
+        "n": 29,
+        "confidence": 0.6886,
+        "realised": 0.7586,
+        "gap": -0.07
+       },
+       "0.750-0.800": {
+        "n": 5,
+        "confidence": 0.6999,
+        "realised": 0.6,
+        "gap": 0.0999
+       }
+      },
+      "games": 110,
+      "logloss_confidence": 0.67423,
+      "logloss_model": 0.65572,
+      "realised": 0.4981,
+      "confidence": 0.4944,
+      "realised_minus_confidence": [
+       0.0037,
+       -0.006,
+       0.013
+      ]
+     },
+     "match_winner|TEAM": {
+      "n": 310,
+      "uncovered": 20,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 233,
+        "confidence": 0.4287,
+        "realised": 0.3991,
+        "gap": 0.0296
+       },
+       "0.600-0.700": {
+        "n": 53,
+        "confidence": 0.6176,
+        "realised": 0.6792,
+        "gap": -0.0616
+       },
+       "0.700-0.750": {
+        "n": 16,
+        "confidence": 0.6947,
+        "realised": 0.6875,
+        "gap": 0.0072
+       },
+       "0.750-0.800": {
+        "n": 8,
+        "confidence": 0.7208,
+        "realised": 0.875,
+        "gap": -0.1542
+       }
+      },
+      "games": 165,
+      "logloss_confidence": 0.65918,
+      "logloss_model": 0.61425,
+      "realised": 0.4742,
+      "confidence": 0.4823,
+      "realised_minus_confidence": [
+       -0.0081,
+       -0.0234,
+       0.0067
+      ],
+      "printable": {
+       "n": 8,
+       "games": 8,
+       "confidence": 0.7208,
+       "realised": 0.875,
+       "realised_minus_confidence": [
+        0.1542,
+        -0.0958,
+        0.2792
+       ]
+      }
+     }
+    }
+   }
+  }
+ },
+ "_doc": "Statistics-only confidence of the hockey / basketball / volleyball / CS2 coupon legs, fitted by scripts/sofa/fit_sport_confidence.py. A leg's confidence is the realised_lo95 of the bucket its model probability (score_model / cs2_engine) falls in, for an ADMITTED key (family|OVER/UNDER/DRAW/TEAM) only; a key in not_calibrated, a bucket absent from the curve (n < min_bucket) or a sport absent from this file is NOT_CALIBRATED. No price is an input.",
+ "edges": [
+  0.0,
+  0.6,
+  0.7,
+  0.75,
+  0.8,
+  0.825,
+  0.85,
+  0.875,
+  0.9,
+  0.925,
+  0.95,
+  1.01
+ ],
+ "min_bucket": 200,
+ "max_overstatement": 0.03,
+ "unfitted_constants": [
+  "LINE_QUANTILES",
+  "CS2_TEAM_ROUND_LINES",
+  "MIN_BUCKET",
+  "MAX_OVERSTATEMENT",
+  "REBUILD_DAYS"
+ ],
+ "fitted_from": {
+  "before": "2026-10-05",
+  "fitted_at_utc": "2026-10-05T08:06:31+00:00",
+  "db_path": "/Users/mkoziol/projects/bet/data/sofa.db",
+  "sports": [
+   "basketball",
+   "cs2",
+   "hockey",
+   "volleyball"
+  ],
+  "never_mid_day": true,
+  "max_history_date": "2026-10-04"
+ }
+}
