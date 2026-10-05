@@ -56,6 +56,7 @@ from scripts.sofa.cs2_daily import (  # noqa: E402
     REPO,
     _at,
     _command_of,
+    identity_steps,
     loop,
 )
 from scripts.sofa.cs2_daily import already_running as _already_running  # noqa: E402
@@ -223,6 +224,8 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
             _at(args.date, args.snapshots_until, day_offset=1),
             _at(args.date, args.settle_at, day_offset=1),
             after_snapshots=chain if args.chain else None,
+            each_snapshot=identity_steps(
+                args.date, ["hockey", "basketball", "volleyball"]),
         )
     finally:
         # Gone when the loop is: a live pid file means a live loop.

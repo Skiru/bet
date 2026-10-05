@@ -36,7 +36,7 @@ import argparse
 import subprocess
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -195,6 +195,22 @@ def plan(
     return snapshot, morning, audit
 
 
+def identity_steps(date: str, sports: Sequence[str]) -> list[list[str]]:
+    """SPORT_IDENTITY for D and D+1 after every snapshot (2026-10-05 night).
+
+    Sofascore's events/next never lists a started game, so a game is pinned
+    only by an identity run BEFORE its start - and on 10-05 the first run of
+    the day was at 08:22Z: four CS2 series (two of them ESL Pro League), eight
+    hockey / basketball / volleyball games and every game after 00:00Z were
+    lost to NOT_IDENTIFIED before the day's coupon was built. A snapshot
+    writes a next-day game into its own day's file, so D+1 is asked too. An
+    IDENTIFIED record is pinned and never asked again; bridge needed (none:
+    the run fails, the loop goes on)."""
+    flags = [x for sp in sports for x in ("--sport", sp)]
+    return [["scripts/sofa/run_sport_identity.py", "--date", d, *flags]
+            for d in (date, next_day(date))]
+
+
 def run(
     date: str,
     interval_min: int,
@@ -221,6 +237,7 @@ def run(
         sleep=sleep,
         runner=runner,
         after_snapshots=after_snapshots,
+        each_snapshot=identity_steps(date, ["cs2"]),
     )
 
 
@@ -258,13 +275,18 @@ def loop(
     sleep: Callable[[float], None] = time.sleep,
     runner: Callable[[list[str]], int] = step,
     after_snapshots: Callable[[], None] | None = None,
+    each_snapshot: Sequence[list[str]] = (),
 ) -> int:
     """Snapshot every interval until `until`, then the morning steps, then
     the audit. Shared with shadow_daily.py. `after_snapshots` runs once, when
-    the snapshots end (cs2_daily's --chain)."""
+    the snapshots end (cs2_daily's --chain). `each_snapshot` runs after every
+    snapshot (SPORT_IDENTITY, identity_steps); its exits say nothing about
+    the day - a game Sofascore does not know is a PARTIAL every time."""
     worst = 0
     while clock() < until:
         worst = max(worst, _guarded(runner, snapshot))
+        for extra in each_snapshot:
+            _guarded(runner, extra)
         remaining = (until - clock()).total_seconds()
         if remaining <= 0:
             break

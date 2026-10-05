@@ -45,7 +45,12 @@ def test_a_day_runs_snapshots_then_the_morning_steps_in_order() -> None:
     snaps = [t for t, c in calls if "CS2" in c and "--only" in c and c[-1] == "CS2"]
     # 21:45, 22:15, 22:45, 23:15 - never at or after 23:30.
     assert [t.strftime("%H:%M") for t in snaps] == ["21:45", "22:15", "22:45", "23:15"]
-    morning = [(t, c) for t, c in calls if c[-1] != "CS2"]
+    identity = [c for _, c in calls if c[0].endswith("run_sport_identity.py")]
+    # SPORT_IDENTITY for D and D+1 after each of the 4 snapshots
+    assert len(identity) == 8 and {c[2] for c in identity} == {
+        "2026-09-29", "2026-09-30"}
+    morning = [(t, c) for t, c in calls
+               if c[-1] != "CS2" and c not in identity]
     assert morning[0][0] == settle_at and morning[0][1][-1] == "CS2_SETTLE"
     assert morning[0][1][2] == "2026-09-29"
     # the day before again: its STATS_PENDING series and night series

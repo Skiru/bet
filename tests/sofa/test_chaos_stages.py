@@ -1007,3 +1007,30 @@ def test_backfill_event_stats_measured_sport_resumes_route_by_route(
     _use(monkeypatch, third)
     assert _main(monkeypatch, backfill_event_stats, argv) == 0
     assert third.calls == []
+
+
+def test_daily_loop_runs_sport_identity_after_every_snapshot_and_ignores_its_exit():
+    # 2026-10-05 night: the first SPORT_IDENTITY of 10-05 ran at 08:22Z, after
+    # games Sofascore's events/next no longer listed; the loops now pin D and
+    # D+1 after each snapshot, and an identity PARTIAL never worsens the day.
+    from scripts.sofa import cs2_daily
+
+    steps = cs2_daily.identity_steps("2026-09-29", ["hockey", "volleyball"])
+    assert steps == [
+        ["scripts/sofa/run_sport_identity.py", "--date", d, "--sport", "hockey",
+         "--sport", "volleyball"] for d in ("2026-09-29", "2026-09-30")]
+    calls: list[str] = []
+
+    def runner(cmd: list[str]) -> int:
+        calls.append(cmd[-1] if cmd[0].endswith("identity.py") else cmd[0])
+        return 1 if cmd[0].endswith("identity.py") else 0
+
+    clock = _Clock(datetime(2026, 9, 29, 22, 0, tzinfo=UTC))
+    code = cs2_daily.loop(
+        ["snap"], [], ["audit"], 30, cs2_daily._at("2026-09-29", "23:30"),
+        cs2_daily._at("2026-09-29", "05:00", day_offset=1),
+        clock=clock.now, sleep=clock.sleep, runner=runner,
+        each_snapshot=steps)
+    assert code == 0
+    assert calls[:3] == ["snap", "volleyball", "volleyball"]
+    assert calls.count("snap") == 3 and calls.count("volleyball") == 6
