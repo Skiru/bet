@@ -820,3 +820,59 @@ def test_printed_after_start_survives_the_merge_once():
     a = carry_over(_late_doc(), "standard", now, lambda eid, ko: True)
     b = carry_over(_late_doc(), "standard", now, lambda eid, ko: True)
     assert len(merge_locked(a, b).printed_after_start) == 1
+
+
+def test_the_real_start_decides_not_the_printed_clock():
+    # 10-05, the 09:19:49Z print: Grenier's printed clock said 09:00Z but the
+    # match began 09:40Z (FIXTURE_CHECK); Bronzetti - Crawley (printed 09:10Z)
+    # was still "notstarted" at 10:28Z; Siniakov began 09:00Z. The first two
+    # were printed before their start and are locked, the third is not.
+    from bet.sofa.locked_print import started_by_evidence
+
+    doc = _late_doc()
+    doc["singles"] = [
+        {**doc["singles"][0], "sofascore_event_id": 11},   # Grenier
+        {**doc["singles"][0], "sofascore_event_id": 12,    # Bronzetti
+         "kickoff_utc": "2026-10-05T09:10:00Z"},
+        {**doc["singles"][0], "sofascore_event_id": 13},   # Siniakov
+    ]
+    status = {
+        11: {"status": "inprogress", "start_utc": "2026-10-05T09:40:00Z",
+             "checked_at_utc": "2026-10-05T10:28:50Z"},
+        12: {"status": "notstarted", "start_utc": "2026-10-05T09:10:00Z",
+             "checked_at_utc": "2026-10-05T10:28:50Z"},
+        13: {"status": "inprogress", "start_utc": "2026-10-05T09:00:00Z",
+             "checked_at_utc": "2026-10-05T10:28:50Z"},
+    }
+    now = datetime(2026, 10, 5, 10, 46, tzinfo=UTC)
+    out = carry_over(doc, "standard", now, lambda eid, ko: True,
+                     started_by=started_by_evidence({}, status))
+    assert sorted(s["sofascore_event_id"] for s in out.singles) == [11, 12]
+    assert [x["sofascore_event_id"] for x in out.printed_after_start] == [13]
+
+
+def test_superbet_start_signal_before_the_print_wins_and_unverified_falls_back():
+    from bet.sofa.locked_print import started_by_evidence
+
+    at = datetime(2026, 10, 5, 9, 19, 49, tzinfo=UTC)
+    # Superbet saw it under way at 09:05Z, even if Sofascore's start is later
+    started = started_by_evidence(
+        {1: "2026-10-05T09:05:00Z"},
+        {1: {"status": "inprogress", "start_utc": "2026-10-05T09:40:00Z",
+             "checked_at_utc": "2026-10-05T10:28:50Z"}})
+    assert started(1, "2026-10-05T09:30:00Z", at)
+    # seen only after the print: the fresh start decides
+    later = started_by_evidence(
+        {1: "2026-10-05T09:45:00Z"},
+        {1: {"status": "inprogress", "start_utc": "2026-10-05T09:40:00Z",
+             "checked_at_utc": "2026-10-05T10:28:50Z"}})
+    assert not later(1, "2026-10-05T09:00:00Z", at)
+    # UNVERIFIED / no check: the printed clock
+    none = started_by_evidence({}, {1: {"status": "UNVERIFIED"}})
+    assert none(1, "2026-10-05T09:00:00Z", at)
+    assert not none(1, "2026-10-05T09:30:00Z", at)
+    # "notstarted" read BEFORE the print says nothing about the print
+    early = started_by_evidence(
+        {}, {1: {"status": "notstarted", "start_utc": "2026-10-05T09:00:00Z",
+                 "checked_at_utc": "2026-10-05T08:29:00Z"}})
+    assert early(1, "2026-10-05T09:00:00Z", at)

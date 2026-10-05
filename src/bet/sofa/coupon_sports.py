@@ -32,7 +32,7 @@ from typing import Any
 from bet.sofa import sport_coupon as sc
 from bet.sofa.confidence import SHEET_SPORTS, too_close_to_kickoff
 from bet.sofa.contracts import LegRead, Veto
-from bet.sofa.locked_print import printed_after_its_start
+from bet.sofa.locked_print import printed_after_its_start, started_by_printed_kickoff
 from bet.sofa.veto import read_refusal, veto_matches
 
 MEASURED_SPORTS = ("hockey", "basketball", "volleyball", "cs2")
@@ -182,10 +182,13 @@ def started(leg: Mapping[str, Any], now: datetime,
 def locked_sport_legs(
     printed: Mapping[str, Any] | None, now: datetime,
     fresh: FreshClock | None = None,
+    printed_after_start: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """The measured-sport singles of the last printed coupon whose match has
     started (or is inside the kickoff margin) at `now` on the current clocks:
-    kept as printed."""
+    kept as printed. A leg whose match had started before that print (its
+    current clock, else the printed one, at or before the print) is never
+    locked; it is appended to `printed_after_start` when one is given."""
     if not printed:
         return []
     created = str(printed.get("pdf_rendered_at_utc")
@@ -202,8 +205,23 @@ def locked_sport_legs(
         if not started(leg, now, fresh):
             continue
         # Its match had started before that print (PDF rendered after the
-        # kickoff): never a bet made before the start, never locked.
-        if printed_after_its_start(leg, created):
+        # start): never a bet made before the start, never locked.
+        clocks = fresh(leg) if fresh is not None else []
+
+        def started_by(event_id: int, printed_kickoff: str | None, at: datetime,
+                       clocks: list[datetime] = clocks) -> bool:
+            if clocks:
+                return min(clocks) <= at
+            return started_by_printed_kickoff(event_id, printed_kickoff, at)
+
+        if printed_after_its_start(leg, created, started_by):
+            if printed_after_start is not None:
+                printed_after_start.append({
+                    "key": list(sport_key(leg)),
+                    "match": leg.get("match"),
+                    "kickoff_utc": leg.get("kickoff_utc"),
+                    "printed_at_utc": str(leg.get("printed_at_utc") or created),
+                })
             continue
         out.append({
             **{k: v for k, v in leg.items() if k not in ("position", "block")},

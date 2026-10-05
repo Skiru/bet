@@ -94,6 +94,7 @@ from bet.sofa.locked_print import (  # noqa: E402
     kickoff_clocks,
     leg_key,
     merge_locked,
+    started_by_evidence,
 )
 from bet.sofa.players import (  # noqa: E402
     is_player_metric,
@@ -892,9 +893,20 @@ def main() -> int:
             fs.refreshed_start(fixture_status.get(event_id)) if so else None,
         )
 
+    # When the match REALLY started, for "was the leg printed before it":
+    # Superbet's start signal seen by then, else FIXTURE_CHECK's fresh read
+    # (not started when checked = not started by then; else its start), else
+    # the printed clock. The kickoff gate above stays on the earliest clock.
+    started_by = started_by_evidence(
+        {o["sofascore_event_id"]: str(o["superbet_started_utc"])
+         for o in offers if o.get("superbet_started_utc")},
+        fixture_status,
+    )
+
     locked = carry_over(
         previous, profile.name, now, is_locked, pdf_printed=previous_printed,
         sports=frozenset({"football", "tennis"}) if so else None,
+        started_by=started_by,
     )
     # Stats-only: the coupon as its PDF last printed it (PRINTED_MANIFEST)
     # is carried over too, so an unprinted rebuild in between cannot drop a
@@ -909,7 +921,8 @@ def main() -> int:
             return 2
         locked = merge_locked(
             carry_over(manifest, profile.name, now, is_locked, pdf_printed=True,
-                       sports=frozenset({"football", "tennis"})),
+                       sports=frozenset({"football", "tennis"}),
+                       started_by=started_by),
             locked,
         )
     locked_keys = locked.keys

@@ -42,6 +42,11 @@ NOT_AS_SCHEDULED = frozenset({
     "postponed", "canceled", "cancelled", "abandoned",
     "interrupted", "suspended", "willcontinue",
 })
+# A fresh status of a match that had not begun when it was read (the lock's
+# "printed before its start", locked_print.printed_after_its_start).
+# "canceled" is not here: Sofascore files an abandoned match (code 90) under
+# it too, after a kickoff.
+NOT_YET_STARTED = frozenset({"notstarted", "delayed", "postponed"})
 CLOCK_GAP_MIN = 30.0
 UNVERIFIED = "UNVERIFIED"
 

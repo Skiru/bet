@@ -207,3 +207,17 @@ def test_a_sport_leg_whose_match_started_before_the_pdf_render_is_not_locked():
                "singles": [cs.normalize(_sport_leg(position=3, block=2))]}
     now = datetime(2026, 10, 7, 18, 30, tzinfo=UTC)
     assert cs.locked_sport_legs(printed, now) == []
+
+
+def test_a_sport_leg_moved_after_the_print_is_locked_and_a_late_one_recorded():
+    printed = {"profile": "standard", "epoch": "stats_only",
+               "created_at_utc": "2026-10-07T09:00:00Z",
+               "pdf_rendered_at_utc": "2026-10-07T18:10:00Z",
+               "singles": [cs.normalize(_sport_leg(position=3, block=2))]}
+    now = datetime(2026, 10, 7, 18, 30, tzinfo=UTC)
+    # printed clock 18:00Z, but the current clock says it began 18:20Z
+    moved = lambda leg: [datetime(2026, 10, 7, 18, 20, tzinfo=UTC)]  # noqa: E731
+    assert len(cs.locked_sport_legs(printed, now, moved)) == 1
+    late: list[dict[str, object]] = []
+    assert cs.locked_sport_legs(printed, now, None, late) == []
+    assert [x["printed_at_utc"] for x in late] == ["2026-10-07T18:10:00Z"]

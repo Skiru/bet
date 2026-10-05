@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, cast
 
+from bet.sofa import fixture_status as fs
 from bet.sofa.confidence import printed_builders, printed_singles, too_close_to_kickoff
 
 LegKey = tuple[int, str, str, float, str]
@@ -159,16 +160,63 @@ def _stamp(
     }
 
 
-def printed_after_its_start(item: Mapping[str, Any], created: str) -> bool:
+# "Had this match started by time t?" - (event id, printed kickoff, t).
+StartedBy = Callable[[int, str | None, datetime], bool]
+
+
+def started_by_printed_kickoff(
+    event_id: int, printed_kickoff: str | None, at: datetime
+) -> bool:
+    """The fallback: only the clock the leg was printed with."""
+    return bool(printed_kickoff) and _utc(str(printed_kickoff)) <= at
+
+
+def started_by_evidence(
+    superbet_started_utc: Mapping[int, str],
+    fixture_status: Mapping[int, Mapping[str, Any]],
+) -> StartedBy:
+    """When a match REALLY started, from what the day holds: Superbet's start
+    signal seen by then (OFFER's superbet_started_utc) says it had; else
+    FIXTURE_CHECK's fresh read - a status of a match not yet begun, read at or
+    after t, says it had not, any other status compares its fresh start;
+    else the printed clock. The kickoff GATE stays on the earliest clock."""
+
+    def started_by(event_id: int, printed_kickoff: str | None, at: datetime) -> bool:
+        seen = superbet_started_utc.get(event_id)
+        if seen and _utc(seen) <= at:
+            return True
+        entry = fixture_status.get(event_id)
+        if entry and entry.get("status") not in (None, fs.UNVERIFIED):
+            checked = entry.get("checked_at_utc")
+            if (entry["status"] in fs.NOT_YET_STARTED and checked
+                    and _utc(str(checked)) >= at):
+                return False
+            if entry.get("start_utc"):
+                return _utc(str(entry["start_utc"])) <= at
+        return started_by_printed_kickoff(event_id, printed_kickoff, at)
+
+    return started_by
+
+
+def printed_after_its_start(
+    item: Mapping[str, Any], created: str, started_by: StartedBy | None = None
+) -> bool:
     """The print the leg is carried from (its own printed_at_utc if an earlier
-    rebuild locked it, else this print) came at or after its printed kickoff -
-    audit_variants C2's "printed after its kickoff". 10-05: the PDF was
-    rendered 09:19Z and twelve tennis legs starting 09:00-09:10Z were locked."""
+    rebuild locked it, else this print) came after its match had REALLY
+    started. `started_by` reads the real start (CONFIDENCE: Superbet's start
+    signal, FIXTURE_CHECK's fresh status and start); without it the printed
+    kickoff is all there is. 10-05: the PDF was rendered 09:19Z; Grenier's
+    printed clock said 09:00Z but the match began 09:40Z, and Bronzetti -
+    Crawley (printed 09:10Z) had not begun at 10:28Z - both printed before
+    their start, both kept; the legs that really began 09:00-09:10Z are not."""
+    printed_at = _utc(str(item.get("printed_at_utc") or created))
     kickoff = item.get("kickoff_utc")
-    if not isinstance(kickoff, str) or not kickoff:
-        return False
-    printed_at = str(item.get("printed_at_utc") or created)
-    return _utc(kickoff) <= _utc(printed_at)
+    check = started_by or started_by_printed_kickoff
+    return check(
+        int(item["sofascore_event_id"]),
+        str(kickoff) if isinstance(kickoff, str) and kickoff else None,
+        printed_at,
+    )
 
 
 def _late(item: Mapping[str, Any], created: str, kind: str) -> dict[str, Any]:
@@ -189,6 +237,7 @@ def carry_over(
     is_locked: Callable[[int, str | None], bool],
     pdf_printed: bool = True,
     sports: frozenset[str] | None = None,
+    started_by: StartedBy | None = None,
 ) -> LockedPrint:
     """The printed legs and builders of `previous` that a rebuild at `now`
     must keep. `is_locked(event_id, printed_kickoff)` is the kickoff gate.
@@ -205,6 +254,10 @@ def carry_over(
     that also holds the measured sports' legs, which build_coupon.py locks.
     The dials of the build the leg was printed in include its `epoch`
     (bet.sofa.epochs) where that build wrote one; none is the old rule.
+
+    `started_by`: when the match really started (printed_after_its_start); a
+    leg whose match had started before the print it comes from is never
+    locked - it is listed in `printed_after_start`.
     """
     if not previous or previous.get("profile", "standard") != profile_name:
         return LockedPrint()
@@ -228,7 +281,7 @@ def carry_over(
         if sports is not None and str(s.get("sport") or "football") not in sports:
             continue
         if is_locked(int(s["sofascore_event_id"]), s.get("kickoff_utc")):
-            if printed_after_its_start(s, created):
+            if printed_after_its_start(s, created, started_by):
                 out.printed_after_start.append(_late(s, created, "single"))
                 continue
             out.singles.append(_stamp(s, created, dials))
@@ -242,7 +295,7 @@ def carry_over(
             continue
         if not is_locked(eid, b.get("kickoff_utc")):
             continue
-        if printed_after_its_start(b, created):
+        if printed_after_its_start(b, created, started_by):
             out.printed_after_start.append(_late(b, created, "builder"))
             continue
         out.builders.append(_stamp(b, created, dials))

@@ -211,7 +211,8 @@ def prepare_sports(
           and pdf.stat().st_mtime >= eleven.stat().st_mtime):
         printed = _load(eleven)
     fresh_clock = cs.fresh_kickoffs(run.parent, run.name, at)
-    locked = cs.locked_sport_legs(printed, at, fresh_clock)
+    late_prints: list[dict[str, Any]] = []
+    locked = cs.locked_sport_legs(printed, at, fresh_clock, late_prints)
     locked_keys = {cs.sport_key(x) for x in locked}
     fresh = [cs.normalize(x) for x in sports.get("legs") or []
              if cs.sport_key(cs.normalize(x)) not in locked_keys]
@@ -225,6 +226,8 @@ def prepare_sports(
     _, late, _ = cs.apply_reads(locked, vetoes, reads)
     return {**sports, "legs": [*locked, *kept], "removed_by_reads": removed,
             "vetoed": vetoed, "started_since_build": len(started),
+            # printed after their match had started: never locked (F7, 10-05)
+            **({"printed_after_start": late_prints} if late_prints else {}),
             "locked_late_refusals": [
                 {"key": list(cs.sport_key(x)), "refusal": x["refusal"]} for x in late]}
 
