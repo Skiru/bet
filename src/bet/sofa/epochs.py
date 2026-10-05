@@ -176,3 +176,54 @@ def model_fixes_enabled(at: datetime | None = None) -> bool:
     if MODEL_FIXES_FROM_UTC is None:
         return False
     return (at if at is not None else datetime.now(UTC)) >= MODEL_FIXES_FROM_UTC
+
+
+# Plan 2026-10-05_PRODUCTION_GRADE, F1.1 follow-up: a club whose name carries
+# "&" (Dagenham & Redbridge, Havant & Waterlooville, H&W Welders) is a subject
+# of its own per-team markets when the subject equals one of the listing's own
+# participant names (market_mapper.subject_is_combination); before, every "&"
+# was read as Superbet's combination operator and the club's goals_for /
+# goals_1h_for / goals_2h_for went to unmapped_markets (37 occurrences on
+# 2026-09-18..10-05, 0 combinations admitted by the rule on the same names).
+# It ADDS rungs, and so legs, to OFFER - so never mid-day: an OFFER (or the
+# closing capture) of a day >= AMPERSAND_SUBJECTS_DATE built at or after the
+# moment. 10-05 was live when it was written.
+AMPERSAND_SUBJECTS_DATE = "2026-10-06"
+AMPERSAND_SUBJECTS_FROM_UTC: datetime | None = datetime(2026, 10, 6, tzinfo=UTC)
+
+
+def ampersand_subjects(date: str, build_at: datetime | None = None) -> bool:
+    """May OFFER read a "&" club name as a subject (AMPERSAND_SUBJECTS_FROM_UTC)?"""
+    if AMPERSAND_SUBJECTS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= AMPERSAND_SUBJECTS_DATE and at >= AMPERSAND_SUBJECTS_FROM_UTC
+
+
+# K13b (plan 2026-10-05_PRODUCTION_GRADE section 7, the verifier's open
+# suspicion of 10-05): where a market's own curve has a hole at p - no market,
+# direction or thin bucket there, but measured buckets elsewhere - the pool
+# that stands in may not claim more than the market's own nearest bucket below
+# p (confidence.Calibration.cap_pool_by_neighbour). Moss - Kongsvinger
+# goals_1h_total O0.5 printed 0.815 off pooled:football at p 0.803 against its
+# own 0.709 / 0.731 below. Measured before it was set (scripts/sofa/
+# measure_pool_holes.py, settled rows p >= 0.70, 95% bootstrap over matches):
+# the rows the cap moves are all live (57 rows, 48 matches; goals_1h_total
+# OVER 0.80-0.825 and goals_2h_for OVER 0.70-0.75) - the pool claimed 0.775,
+# they realised 0.649, -12.6 pp [-24.1, -1.2]; capped they claim 0.618,
+# +3.1 pp [-8.4, +14.4]. Thin (two cells), but the interval excludes 0. A
+# market with NO bucket of its own read off the pool over-claims too (-14.1
+# pp [-21.0, -7.2], 290 rows) - not touched by this rule. It changes
+# which legs print, so never mid-day: CONFIDENCE of a day >= POOL_NEIGHBOUR_
+# CAP_DATE built at or after the moment. 10-05 was live when it was written.
+POOL_NEIGHBOUR_CAP_DATE = "2026-10-06"
+POOL_NEIGHBOUR_CAP_FROM_UTC: datetime | None = datetime(2026, 10, 6, tzinfo=UTC)
+
+
+def pool_neighbour_cap(date: str, build_at: datetime | None = None) -> bool:
+    """Does CONFIDENCE cap a pool's read of a hole by the market's own
+    nearest bucket below (POOL_NEIGHBOUR_CAP_FROM_UTC)?"""
+    if POOL_NEIGHBOUR_CAP_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= POOL_NEIGHBOUR_CAP_DATE and at >= POOL_NEIGHBOUR_CAP_FROM_UTC

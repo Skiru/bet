@@ -84,6 +84,7 @@ from bet.sofa.engine import (  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
     STATS_ONLY_FROM_UTC,
+    pool_neighbour_cap,
     settleability_gate,
     sheet_epoch,
 )
@@ -377,6 +378,11 @@ def main() -> int:
         # K2: no anti-selection shrink toward the price; K13: a thin
         # direction bucket caps the market curve as it caps a pool.
         cal = dataclasses.replace(cal, gap_shrink_k=0.0, cap_market_by_thin=True)
+    if pool_neighbour_cap(args.date, now):
+        # K13b (from epochs.POOL_NEIGHBOUR_CAP_FROM_UTC): a pool filling a
+        # hole inside a market's own curve is capped by the market's own
+        # nearest bucket below p (Calibration.cap_pool_by_neighbour).
+        cal = dataclasses.replace(cal, cap_pool_by_neighbour=True)
     # Plan PRODUCTION_GRADE F2.1: the curves measure_calibration.py found
     # failing (config/sofa_curve_status.json). Lists nothing until the
     # operator sets epochs.CURVE_STATUS_FROM_UTC, between days.
@@ -1200,6 +1206,8 @@ def main() -> int:
         "pdf_max_singles": pdf_max_singles,
         "prints_builders": profile.prints_builders,
         **({"gap_shrink_k": cal.gap_shrink_k} if cal.gap_shrink_k > 0 else {}),
+        # Written only when K13b acts, so an older build reads as it did.
+        **({"pool_neighbour_cap": True} if cal.cap_pool_by_neighbour else {}),
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         # Written only when something was carried over, so an artifact

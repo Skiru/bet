@@ -1144,6 +1144,66 @@ class Calibration:
     # by_market (both directions) n=428, lo95 0.712, printed at 0.712.
     # Off, a lookup is exactly what it was before 10-05.
     cap_market_by_thin: bool = False
+    # K13b (epochs.POOL_NEIGHBOUR_CAP_FROM_UTC; set by CONFIDENCE). Where the
+    # market's own rows say nothing at p - no market, direction or thin
+    # bucket there - but the market HAS measured buckets, the pool stands in
+    # for a hole inside the market's range and may not claim more than the
+    # market's own nearest bucket below p (see _own_neighbour_cap). Found by
+    # the verifier on 10-05: Moss - Kongsvinger goals_1h_total O0.5 printed
+    # 0.815 off pooled:football at p 0.803, where goals_1h_total|OVER's own
+    # 0.75-0.80 bucket bounds 0.709 and by_market's 0.731. Off, a lookup is
+    # exactly what it was.
+    cap_pool_by_neighbour: bool = False
+
+    def _own_neighbour_cap(
+        self, market: str, direction: str | None, p: float,
+        hit: tuple[float, str, int],
+    ) -> tuple[float, str, int]:
+        """`hit` (a pool's read), or the market's own nearest bucket below p
+        where that bounds it lower.
+
+        The nearest bucket below p of the market's direction (its own curve
+        or a thin bucket) and of the market curve (both directions); the
+        lower of the two bounds. A curve is monotone in p, so the realised
+        rate in a hole is at least the bucket below's - capping there can
+        only under-claim, never claim what the market has not shown. A hole
+        with no bucket below it above the catch-all (CATCH_ALL_BUCKET_TOP)
+        is left to the pool.
+        """
+        candidates: list[tuple[float, str, int]] = []
+        curves: list[tuple[str, dict[str, dict[str, Any]]]] = []
+        if direction:
+            key = direction_key(market, direction)
+            merged = {
+                **self.thin_by_market_direction.get(key, {}),
+                **self.by_market_direction.get(key, {}),
+            }
+            curves.append((f"market_below:{key}", merged))
+        curves.append((f"market_below:{market}", self.by_market.get(market, {})))
+        for source, curve in curves:
+            below = self._nearest_below(curve, p)
+            if below is not None:
+                candidates.append((below["realised_lo95"], source, below["n"]))
+        if not candidates:
+            return hit
+        cap = min(candidates, key=lambda c: c[0])
+        return cap if cap[0] < hit[0] else hit
+
+    @staticmethod
+    def _nearest_below(
+        curve: dict[str, dict[str, Any]], p: float
+    ) -> dict[str, Any] | None:
+        best: tuple[float, dict[str, Any]] | None = None
+        for key, entry in curve.items():
+            _, hi = (float(x) for x in key.split("-"))
+            # The catch-all bottom bucket (0.00-0.60) bounds nothing about a
+            # claim of 0.70+: on the settled rows it capped goals_2h_for OVER
+            # 0.70-0.75 at ~0.24 and the capped claims under-stated by 23 pp.
+            if hi <= CATCH_ALL_BUCKET_TOP:
+                continue
+            if hi <= p and (best is None or hi > best[0]):
+                best = (hi, entry)
+        return best[1] if best is not None else None
 
     def _cap_by_thin(
         self, market: str, direction: str | None, p: float,
@@ -1236,6 +1296,7 @@ class Calibration:
             by_market_direction=section.get("by_market_direction", {}),
             thin_by_market_direction=section.get("thin_by_market_direction", {}),
             cap_market_by_thin=self.cap_market_by_thin,
+            cap_pool_by_neighbour=self.cap_pool_by_neighbour,
         )
 
     def _direction_entry(
@@ -1385,7 +1446,24 @@ class Calibration:
         # ~0.755, and six such legs printed on 2026-10-03: the pool's bound is
         # tight because it measures other markets. See fit_confidence.
         # MIN_THIN_BUCKET for the leave-one-day-out measurement.
-        return self._cap_by_thin(market, direction, p, pooled)
+        capped = self._cap_by_thin(market, direction, p, pooled)
+        if self.cap_pool_by_neighbour and capped is pooled and not self._own_at(
+            market, direction, p
+        ):
+            return self._own_neighbour_cap(market, direction, p, pooled)
+        return capped
+
+    def _own_at(self, market: str, direction: str | None, p: float) -> bool:
+        """Does the market have a bucket of its own (thin included) at p?"""
+        if self._find(self.by_market.get(market, {}), p) is not None:
+            return True
+        if not direction:
+            return False
+        key = direction_key(market, direction)
+        return any(
+            self._find(curve.get(key, {}), p) is not None
+            for curve in (self.by_market_direction, self.thin_by_market_direction)
+        )
 
     def _unproven_ceiling(self) -> float:
         """The lowest measured ceiling among empirical markets with a curve.

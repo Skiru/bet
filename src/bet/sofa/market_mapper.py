@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from collections.abc import Sequence
 
 # Letters NFD cannot help with. Stripping diacritics by decomposing to NFD and
 # dropping the combining marks works for ó ż ę ą ś ć ń ź — each is a letter plus
@@ -484,6 +485,38 @@ _SUBJECT_IS_SCOPE = re.compile(
     r"^(?:[12]\.\s?polowa\b|\d+\.?\s?set\b|x\.?\s?set\b)"
 )
 _SUBJECT_IS_COMBINATION = re.compile(r"[&;]")
+# ";" joins the legs of a Superbet Bet Builder / parlay and is never part of a
+# participant's name. "&" is both: the combination operator of Superbet's
+# combined markets ("Mecz & liczba gemow", "Podwojna szansa & ...", "Mecz &
+# Deportivo Cali liczba goli (2.5)") AND a character of real club names
+# ("Dagenham & Redbridge - liczba goli", "H&W Welders - liczba goli").
+_SUBJECT_IS_PARLAY = re.compile(r";")
+
+
+def _same_name(a: str, b: str) -> bool:
+    return " ".join(fold(a).split()) == " ".join(fold(b).split())
+
+
+def subject_is_combination(subject: str, sides: Sequence[str] = ()) -> bool:
+    """Is a captured subject a combination rather than a participant?
+
+    ";" always is. "&" is unless the WHOLE subject is, after the fold, one of
+    the listing's own participant names (`sides`: Superbet's matchName split
+    on "·", the names Superbet writes into its own market names). Measured
+    over the unmapped names of 2026-09-18..10-05 (F1.1 follow-up): every
+    team-shaped "&" subject that was a club equalled its listing's side
+    exactly (Dagenham & Redbridge, Havant & Waterlooville, Wingate &
+    Finchley, H&W Welders, MEG & Centre FC, Hampton & Richmond, Walton &
+    Hersham, Rushden & Diamonds); every combination captured a prefix that
+    is no side ("mecz &", "zwyciezca &", "mecz & deportivo cali"). No
+    `sides` - the rule before 2026-10-06 (epochs.AMPERSAND_SUBJECTS_FROM_UTC)
+    - refuses every "&" as it always did.
+    """
+    if _SUBJECT_IS_PARLAY.search(subject):
+        return True
+    if "&" not in subject:
+        return False
+    return not any(side and _same_name(subject, side) for side in sides)
 
 # Phrases that describe the *shape of the question*, not a competitor. The
 # team patterns are deliberately loose — "<player> liczba gemow" has no dash,
@@ -509,7 +542,15 @@ _SUBJECT_IS_NOT_A_SIDE = re.compile(
 )
 
 
-def classify_market(market_name: str | None) -> tuple[str, str] | None:
+def classify_market(
+    market_name: str | None, sides: Sequence[str] = ()
+) -> tuple[str, str] | None:
+    """(market, subject) for a Superbet market name, or None.
+
+    `sides` are the listing's own participant names; only they can make a
+    subject containing "&" a participant (see subject_is_combination).
+    Empty - every caller before 2026-10-06 - is the old rule exactly.
+    """
     folded = fold(market_name)
     if not folded:
         return None
@@ -521,7 +562,7 @@ def classify_market(market_name: str | None) -> tuple[str, str] | None:
             team = m.group("team")
             if _SUBJECT_IS_SCOPE.match(team):
                 return None
-            if _SUBJECT_IS_COMBINATION.search(team):
+            if subject_is_combination(team, sides):
                 return None
             if _SUBJECT_IS_PROPOSITION.search(team):
                 return None

@@ -36,6 +36,7 @@ from bet.sofa.confidence import (
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
+from bet.sofa.epochs import ampersand_subjects
 from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
@@ -237,8 +238,11 @@ def main() -> int:
                   "not starting a second one", file=sys.stderr)
             return 2
         claim_loop(day_dir)
+    # The rule OFFER read the day's rungs with, so a printed "&" club's leg
+    # finds its close.
     fetcher = OfferFetcher(SuperbetClient(
-        base_url="https://production-superbet-offer-pl.freetls.fastly.net"))
+        base_url="https://production-superbet-offer-pl.freetls.fastly.net"),
+        ampersand_subjects=ampersand_subjects(args.date))
     try:
         return loop(day_dir, fetcher, repeat=args.loop)
     finally:

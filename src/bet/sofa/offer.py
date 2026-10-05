@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -9,7 +9,12 @@ from bet.sofa.market_mapper import (
     classify_market,
     classify_player_market,
 )
-from bet.sofa.superbet import event_started, odds_items, superbet_kickoff
+from bet.sofa.superbet import (
+    event_started,
+    odds_items,
+    split_match_name,
+    superbet_kickoff,
+)
 from bet.sofa.timeutil import now
 
 
@@ -67,6 +72,7 @@ ClassifiedOdd = tuple[str, str, float, str]
 
 def classify_odd(
     item: Mapping[str, Any],
+    sides: Sequence[str] = (),
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -78,6 +84,11 @@ def classify_odd(
     boosted leg with exactly the classification OFFER used for the same odd;
     a second copy would drift from this one, as every duplicated predicate in
     this repo has.
+
+    `sides` - the listing's own participant names (`listing_sides`) - lets a
+    club whose name carries "&" be a subject (market_mapper.
+    subject_is_combination); empty, the default, refuses every "&" as before
+    2026-10-06.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -85,7 +96,7 @@ def classify_odd(
     raw_line = item.get("specialBetValue")
     selection_name = item.get("name")
 
-    classified = classify_market(market_name)
+    classified = classify_market(market_name, sides)
     if classified:
         market, subject = classified
 
@@ -123,9 +134,18 @@ def classify_odd(
     return None, str(market_name)
 
 
+def listing_sides(payload: Mapping[str, Any] | None) -> tuple[str, ...]:
+    """Superbet's own two participant names of an event payload (matchName)."""
+    side_a, side_b = split_match_name(str((payload or {}).get("matchName") or ""))
+    return tuple(side for side in (side_a, side_b) if side)
+
+
 class OfferFetcher:
-    def __init__(self, client: Any) -> None:
+    def __init__(self, client: Any, ampersand_subjects: bool = False) -> None:
         self.client = client
+        # epochs.ampersand_subjects(date): read a club named with "&" as a
+        # subject when it is the listing's own side. Off is the old rule.
+        self.ampersand_subjects = ampersand_subjects
         # (superbet_event_id, error) per listing that failed. One Superbet
         # error used to raise out of fetch_offers and FAIL the whole OFFER -
         # and with it the chain - over a single listing (a removed event
@@ -185,9 +205,10 @@ class OfferFetcher:
                     seen_kickoff = seen
 
                 fetched_at = now()
+                sides = listing_sides(payload) if self.ampersand_subjects else ()
 
                 for item in items:
-                    classified_odd, unmapped_label = classify_odd(item)
+                    classified_odd, unmapped_label = classify_odd(item, sides)
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)
                     if classified_odd is None:
