@@ -8,7 +8,7 @@
 | `market` | str \| null | yes (may be null) | `null` = every market on that fixture |
 | `subject` | str \| null | yes | `null` = every subject. `""` is *the match-level subject*, which is **not** the same as `null`. |
 | `line` | float \| null | yes | `null` = every line |
-| `direction` | `"OVER" \| "UNDER"` \| null | yes | `null` = both |
+| `direction` | `"OVER" \| "UNDER"` \| null | yes | `null` = both. A veto has no other side and no period, so a measured-sport leg (`T1`, `ODD`, a set, a map) takes a read, not a veto - see *`reads.json`* below |
 | `reason_class` | enum | yes | `SAMPLE_UNINFORMATIVE \| CONTEXT \| PRICE \| OTHER` |
 | `reason` | str | yes | free text. The operator reads this; write it for them. |
 | `context` | enum \| null | no (defaults to null) | **only with `reason_class: "CONTEXT"`**, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS`. Any other class with a `context` fails validation. |
@@ -27,12 +27,18 @@ its artifact, so the previous build stays on disk looking current.
 `runs/sofa/<date>/vetoes.json`, a bare array. Written **after SHEET and before
 COUPON**. Read by:
 
-- `scripts/sofa/run_coupon.py` → gates `06_coupon.json`, drop reason `VETOED`
-- `scripts/sofa/run_confidence.py` → gates `08_confidence.json` and therefore
-  the PDF, refusal reason `VETOED`
+- `scripts/sofa/run_coupon.py` → gates `06_coupon.json` (the old VALUE
+  selector, not the coupon), drop reason `VETOED`
+- `scripts/sofa/run_confidence.py` → gates `08_confidence.json`, refusal
+  reason `VETOED`
+- `scripts/sofa/build_coupon.py` (COUPON_ASSEMBLY) → applies the vetoes to
+  the measured-sport legs of `08_confidence_sports.json` as it assembles
+  `11_coupon.json`, and therefore the PDF
 
-Both print `UNMATCHED_VETO: {...}` to stderr for an entry that matched no sheet
-row, and both count `vetoes_applied` / `vetoes_unmatched` in their summary.
+The first two print `UNMATCHED_VETO: {...}` to stderr for an entry that
+matched no sheet row, and count `vetoes_applied` / `vetoes_unmatched` in
+their summary. A sport veto shows there as unmatched; it acts in
+COUPON_ASSEMBLY.
 
 Until 2026-09-21 only the first of those read the file. A veto removed a row
 from the singles — which are not the coupon — and left the identical rung
@@ -123,7 +129,7 @@ look: `context-sources.md`.
 
 `reason_class` is recorded and read; it does **not** change the arithmetic
 (except `SAMPLE_UNINFORMATIVE`, which SHEET also reads to price the rung at
-the market alone). Every class removes the row outright, from every profile.
+the market alone). Every class removes the row outright, from the coupon and from the old VALUE selector alike.
 A veto has no softer form; the graded per-leg verdict (KEEP / WATCH /
 NO_BET) lives in `reads.json`, below - not in tiers, which the retired
 pipeline had and this one does not.
@@ -172,45 +178,77 @@ validate before every rebuild.
 
 `runs/sofa/<date>/reads.json`, a bare array of `LegRead`
 (`src/bet/sofa/contracts.py`, `strict`, `extra="forbid"` - an invented key
-fails the whole file, as with vetoes). Read by COUPON (`run_coupon.py`) and
-CONFIDENCE (`run_confidence.py`, both profiles); written by the runner from
-your second JSON block and from the verifier's.
+fails the whole file, as with vetoes). Read by CONFIDENCE
+(`run_confidence.py`, football / tennis), COUPON_ASSEMBLY (`build_coupon.py`,
+the measured-sport legs) and the old COUPON stage (`run_coupon.py`); written
+by the runner from your second JSON block and from the verifier's.
 
 | field | type | meaning |
 |---|---|---|
 | `sofascore_event_id` | int | the fixture |
-| `market` / `subject` / `line` / `direction` | as in `Veto`, nullable | `null` covers every value - the veto's matching rule, and its widening trap |
+| `market` | str \| null | as in `Veto`; for a measured-sport leg the leg's `family` (`total`, `team_total`, `handicap`, `winner`, ...) |
+| `subject` / `line` | as in `Veto`, nullable | `null` covers every value - the veto's matching rule, and its widening trap |
+| `direction` | str \| null | `OVER` / `UNDER`, or a measured sport's side: `T1` / `T2` / `DRAW` / `ODD` / `EVEN` / `YES` / `NO` / an exact score `"3:1"` (`contracts.READ_SIDES`; anything else fails validation) |
+| `period` | int \| null, optional | a measured sport's period - hockey period, basketball quarter, volleyball set, CS2 map; `0` the whole match; `null` (the default) covers every period |
 | `verdict` | `"KEEP" \| "WATCH" \| "NO_BET"` | your verdict on the leg |
 | `author` | `"analyst" \| "verifier"` | you are always `"analyst"` |
-| `reason` | non-empty str | the operator reads it; for WATCH it is printed on the WARIANT leg |
-| `context` | enum \| null | the `context` tags above, when the reason is one of them; else `null` |
+| `reason` | non-empty str | the operator reads it; it rides on the leg as `reads` |
+| `context` | enum \| null, optional | the `context` tags above, when the reason is one of them; else leave it out |
 
-What each verdict does, in code (`veto.read_refusal`):
+What each verdict does, in code (`veto.read_refusal`, the coupon honours
+WATCH; `coupon_sports.apply_reads` for a sport leg):
 
-| verdict | official coupon (`08_confidence.json`, `KUPON_<d>.pdf`, and `06_coupon`) | WARIANT |
-|---|---|---|
-| `KEEP` | nothing removed; records that the leg was read | nothing removed |
-| `WATCH` | removed, refused reason `WATCHED` | **kept**, the leg carries `"reads": [...]` and the PDF prints `WATCH (analyst): <reason>` - the operator's decision of 2026-10-04, so the ledger can measure whether WATCH removes losers |
-| `NO_BET` | removed, `READ_NO_BET` | removed, `READ_NO_BET` |
+| verdict | the coupon (`11_coupon.json`, `KUPON_<d>.pdf`; also `06_coupon`) |
+|---|---|
+| `KEEP` | nothing removed; records that the leg was read |
+| `WATCH` | removed, refusal `WATCHED`, into `removed_by_reads` |
+| `NO_BET` | removed, refusal `READ_NO_BET`, into `removed_by_reads` |
 
-- **One read per printed leg you read**: the best 30 singles (the first 30
-  of `singles`) and every stakeable builder leg in `08_confidence.json`, and
-  WARIANT legs where you reached them. `audit_variants.py` C3 (days from
-  2026-10-05) fails the day when one of those legs has no read with
-  `author: "analyst"`, or any printed leg carries WATCH / NO_BET - so a leg you read and kept still needs its
-  `KEEP`. A fixture-wide `KEEP` (`market: null`) covers every rung on it and
-  is fine when that is your read of the whole fixture.
+A leg that passed every gate and a read removed (or the automatic
+`MODEL_ABOVE_OWN_SAMPLE` WATCH on a football leg) is listed in
+`removed_by_reads` of `11_coupon.json` and graded on its own at its printed
+price: audit_settlement 7h ("Nogi zdjęte przez odczyt"), ledger variant
+`removed:reads`. It is never in the coupon's result.
+
+- **Who reads what.** One read per leg of your read set:
+  `confidence.legs_requiring_read(doc, load_read_requests(run /
+  "read_requests.json"))` - the first 30 unlocked positions of
+  `11_coupon.json`, every printed builder leg, and every entry of
+  `read_requests.json` (`{"position": n}` or `{"group_key": "sofa:<id>",
+  "market"?, "line"?, "direction"?}`, each with `requested_by` and
+  `at_utc`; the operator's "dodatkowo" in `/sofa-analyze`), your sport's
+  part of it. `audit_variants.py` C3 fails the day when one of those legs
+  has no read with `author: "analyst"`, or any printed leg carries WATCH /
+  NO_BET - so a leg you read and kept still needs its `KEEP`. A
+  fixture-wide `KEEP` (`market: null`) covers every rung on it and is fine
+  when that is your read of the whole fixture.
+- **A locked leg** (printed by an earlier build, match started, carried from
+  `12_printed.json`) stays on the coupon whatever a read now says; C3 reads
+  it as of its print, and a refusing read on it is a note, not a defect.
 - **A read is a verdict on a leg; a veto is a verdict on a sample.** A sample
   that does not describe the fixture, or a context that breaks every rung,
   is still a veto (`SAMPLE_UNINFORMATIVE`, `CONTEXT`, ...): it removes
   everywhere and is graded by class in 7e. Do not write the same fault twice
-  as a veto and a `NO_BET`.
+  as a veto and a `NO_BET`. The exception is a measured-sport leg: a veto
+  cannot name its side or period, so write a `NO_BET` read.
 - `WATCH` is for the leg you would not stake but cannot call broken - the
   2026-10-04 Farense - Chaves UNDER 3.5 (analyst WATCH: Chaves 4/5/4/5 goals;
   the read had no field and the leg was printed and lost 4-0). `BUY ≈ KILL`
   is a WATCH.
 - A read that matches nothing prints `UNMATCHED_READ` and is counted as
-  `reads_unmatched` in CONFIDENCE's summary. It did nothing.
+  `reads_unmatched` in CONFIDENCE's summary. `run_confidence.py` sees only
+  football and tennis rows, so a measured-sport read always shows there as
+  unmatched; it takes effect in COUPON_ASSEMBLY - confirm it in
+  `11_coupon.json` (`removed_by_reads`, or the leg's `reads`).
+
+A measured-sport read:
+
+```json
+[{"sofascore_event_id": 16310568, "market": "total", "subject": null,
+  "line": 3.5, "direction": "OVER", "period": 0, "verdict": "NO_BET",
+  "author": "analyst", "context": "SCHEDULE",
+  "reason": "mecz przełożony (hltv.org, liquipedia.net)"}]
+```
 
 Validate before you hand it over:
 

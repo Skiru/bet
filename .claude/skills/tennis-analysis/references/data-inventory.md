@@ -39,14 +39,15 @@ On a Monday board (2026-09-21) tennis produced 25 markets and 3,026 rows;
 
 | market | estimator | so `p_central` … |
 |---|---|---|
-| `games_total`, `games_won_for`, `sets_total`, `handicap_games` with a `TENNIS_RATING` note (`tennis_rating.RATED_MARKETS`) | rating blended with the price (`blend_with_price`) | **0.25·rating p + 0.75·`market_p`** (`W_TENNIS_RATING = 0.25`, unfitted); the rating alone only on a rung with no price |
-| `sets_total`, `games_won_for`, `games_set{1,2}_total`, `games_won_set{1,2,3}_for` without the rating (`EMPIRICAL_FREQUENCY_METRICS`) | empirical frequency **shrunk to the rung's price** (`p_empirical_shrunk_to_price`, note `P_SHRUNK_TO_PRICE`) | **w·hits/n + (1−w)·`market_p`**, w = n/(n+30) (`K_TENNIS_LADDER_CENTRE`; 0.25 at n=10); the raw hit rate only on a rung with no price |
+| stats-only row (`epoch: "stats_only"`), any market | the sample's estimator alone (`run_sheet.process_fixture`, `stats_only`) - no rating blended with the price, no shrink to the rung's price, no ladder centre | holds **no price**; the rating is `forecast_p` (`tennis_rating`) beside it, never a gate |
+| older row: `games_total`, `games_won_for`, `sets_total`, `handicap_games` with a `TENNIS_RATING` note (`tennis_rating.RATED_MARKETS`) | rating blended with the price (`blend_with_price`) | **0.25·rating p + 0.75·`market_p`** (`W_TENNIS_RATING = 0.25`, unfitted); the rating alone only on a rung with no price |
+| older row: `sets_total`, `games_won_for`, `games_set{1,2}_total`, `games_won_set{1,2,3}_for` without the rating (`EMPIRICAL_FREQUENCY_METRICS`) | empirical frequency **shrunk to the rung's price** (`p_empirical_shrunk_to_price`, note `P_SHRUNK_TO_PRICE`) | **w·hits/n + (1−w)·`market_p`**, w = n/(n+30) (`K_TENNIS_LADDER_CENTRE`; 0.25 at n=10); the raw hit rate only on a rung with no price |
 | `games_total` (unrated), `aces_*`, `double_faults_*`, `serve_points_*`, `most_*` | count model (centre may carry `CENTRE_SHRUNK_TO_LADDER`) | will **not** equal the hit rate, and should not |
 | `tiebreaks_total` | non-count | refused by CONFIDENCE (`NOT_IN_CALIBRATION_FIT`) |
 
-So a priced tennis row whose `p_central` sits near `market_p` and far from
-`hits/n` is the code working (`scripts/sofa/run_sheet.py`, `process_fixture`),
-not a defect.
+So on an older row a `p_central` near `market_p` and far from `hits/n` was
+the code working (`scripts/sofa/run_sheet.py`, `process_fixture`); on a
+stats-only row it is a coincidence worth a look.
 
 `sets_total` is bounded — on a best-of-three it is 2 or 3 and nothing else.
 Integrating a bell curve over two bars took its error from +16.0 pp to +4.0 pp
@@ -130,11 +131,11 @@ Three buckets per metric: `side_a`, `side_b`, `h2h`. **`h2h` never reaches a
 ## Where the centre comes from
 
 ```
-w_c    = n / (n + 2)              K_CENTRE for tennis
+w_c    = n / (n + 5)              K_CENTRE for tennis (by_sport)
 centre = w_c·sample_mean + (1 − w_c)·prior
 ```
 
-At n=10 the sample owns **83%** of the centre against football's 29%. There is
+At n=10 the sample owns **67%** of the centre against football's 40%. There is
 very little prior holding a tennis row up — which cuts both ways: a clean
 sample is respected, and a bad one is not corrected.
 

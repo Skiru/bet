@@ -1,7 +1,22 @@
 # The stages — what each one does, what it costs, how it fails
 
-Source of truth: `DEFAULT_SEQUENCE` in `scripts/sofa/run_pipeline.py`. Fifty
-lines; read them rather than guessing.
+Source of truth: `DEFAULT_SEQUENCE` in `scripts/sofa/run_pipeline.py` (BOARD,
+RESOLVE, OFFER, SAMPLES, OFFER, SHEET, COUPON - it ends at COUPON) and
+`STAGE_MODULES` beside it: the sequence plus SETTLE, CS2, CS2_SETTLE, SHADOW,
+SHADOW_SETTLE, FIXTURE_CHECK, SPORT_IDENTITY, SPORT_CONFIDENCE and
+COUPON_ASSEMBLY, each reachable with `--only`. CONFIDENCE
+(`run_confidence.py`) and the PDF (`build_coupon_pdf.py`) are scripts outside
+`STAGE_MODULES`: there is no `--only CONFIDENCE`. Read them rather than
+guessing.
+
+The day after the sequence (stats-only epoch, a day >= 2026-10-05 built at or
+after 07:15Z, `bet.sofa.epochs`):
+
+```
+[FIXTURE_CHECK, in a rebuild] → CONFIDENCE → 08_confidence.json            football, tennis
+--only SHADOW, --only CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → 08_confidence_sports.json
+COUPON_ASSEMBLY → 11_coupon.json → PDF → KUPON_<d>.pdf + 12_printed.json   the coupon
+```
 
 Every stage is runnable on its own against the artifacts already on disk.
 `run_pipeline.py` only sequences them, and a stage that raises fails **that
@@ -227,7 +242,17 @@ instead of 5.
 
 ## SHEET (E8) — `scripts/sofa/run_sheet.py`, `src/bet/sofa/engine.py`
 
-The pricing. One row per rung; see `arithmetic.md` for the chain.
+One row per rung; see `arithmetic.md` for the chain.
+
+In the stats-only epoch every row carries `epoch: "stats_only"`, and SHEET
+keeps the price out of `p_central` (K1): no tennis ladder centre, no tennis
+rating blended with `market_p`, no empirical shrink to the rung's price, no
+`K_DERIVED_CENTRE` handicap centre on the ladder. The rating is written beside
+it as `forecast_p` / `forecast_source` (K11; uncalibrated, never a gate).
+`p_bar`, `required_odds`, `surplus` and the verdict below are still computed
+and still priced - they are the old selector's numbers, not the coupon's.
+CONFIDENCE refuses a sheet without the stats-only epoch, so a rebuild under
+the rule starts here.
 
 `notes[]` vocabulary actually observed on a day (2026-09-21, 5,674 rows):
 
@@ -250,7 +275,9 @@ Verdicts: `VALUE | LEAN | BELOW_BAR | NO_PRICE | BLOCKED`.
 
 ## COUPON (E9) — `src/bet/sofa/coupon.py`, `scripts/sofa/run_coupon.py`
 
-Selects singles from VALUE rows and **records every exclusion** in
+**The old priced VALUE-singles selector, not the coupon** (the coupon is
+`11_coupon.json`, COUPON_ASSEMBLY below). It stays in the sequence and
+`audit_coupon.py` still audits it. Selects singles from VALUE rows and **records every exclusion** in
 `06_dropped.json`. Nothing here recomputes a probability.
 
 ```
@@ -284,81 +311,191 @@ up banned from the builder and dominant in the singles.
 
 `UNMATCHED_VETO` goes to stderr for any veto that matched nothing.
 
+## FIXTURE_CHECK — `scripts/sofa/run_fixture_check.py`, `src/bet/sofa/fixture_status.py`
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>
+```
+
+**Bridge.** In a rebuild, after OFFER and before CONFIDENCE (K12, K14). Reads
+`/event/{id}` (the cache's `sofa_event_detail` first, 60 min for an unplayed
+match) for every match the coupon artifact prints (`coupon_artifact`) and
+every match whose Superbet start (`superbet_kickoff_seen_utc`) moved more than
+30 min (`CLOCK_GAP_MIN`) from RESOLVE's Sofascore start. Writes
+`runs/sofa/<d>/fixture_status.json`: per event `status`, `start_utc`, `why`
+(printed / moved clock), `checked_at_utc`.
+
+- A `postponed` / `canceled` / `cancelled` / `abandoned` match is
+  `FIXTURE_NOT_AS_SCHEDULED` in CONFIDENCE (refused; a locked leg of it stays
+  and SETTLE refunds it).
+- A fresh `startTimestamp` replaces RESOLVE's frozen Sofascore clock for the
+  kickoff gate, the lock and `capture_closing` (the earliest clock is still
+  the rule).
+- No bridge: every event `UNVERIFIED` - shown, never a refusal - and exit 1.
+  A 403 stops the requests at once; the rest stays `UNVERIFIED`.
+
 ## CONFIDENCE — `src/bet/sofa/confidence.py`, `scripts/sofa/run_confidence.py`
 
 A different question from COUPON: not "is this worth its price" but "how often
-does this actually happen". Offline; reads the sheet, offer, fixtures, samples
-and `vetoes.json` and `reads.json`.
+does this actually happen". Offline; reads the sheet, offer, fixtures,
+samples, `fixture_status.json`, `vetoes.json` and `reads.json`. Football and
+tennis only (the sheet's sports); writes `08_confidence.json` / `.md` - on a
+stats-only day the input of COUPON_ASSEMBLY, not the coupon.
 
 ```
---date D  [--profile standard|wariant]  [--floor F]  [--runs-dir runs/sofa]
+--date D  [--floor F]  [--runs-dir runs/sofa]
 ```
 
-Leave `--floor` out to build the real coupon: it defaults to the profile's
-floor (`confidence.PROFILES`: `standard` 0.70 -> `08_confidence.json`,
-`wariant` 0.65 -> `08_confidence_wariant.json`). Passing a floor builds a
-different experiment under the official file name.
+Leave `--floor` out: the official floor is 0.70 (`confidence.PROFILES`
+`standard`: floor 0.70, `min_ev` 0.90, `max_overround` 0.15, honours WATCH).
+Passing a floor builds a different experiment under the official file name.
 
-Every number is the **lower bound** of the measured realised rate, fitted on
-1,868,474 settled rows, so a thin bucket reads as less confident rather than
-more precise. The curve **tops out at 0.9202** — the 0.900–0.925 and
-0.925–0.950 buckets both realise 0.9083, which is the model saying it has run
-out of resolution. There is no 98% leg.
+Every number is the **lower bound** of the measured realised rate, so a thin
+bucket reads as less confident rather than more precise. The curve **tops out
+at 0.9202** (`CONFIDENCE_CEILING`) - the model has run out of resolution.
+There is no 98% leg.
 
-Leg refusal vocabulary (the `refused` counter in the stage summary):
-`NO_PRICE`, `ODDS_TOO_LOW` (below `1/0.9202 = 1.0867` — below that a leg
-cannot have positive EV under this curve, whatever the fixture), `NO_FIXTURE`,
-`VETOED`, `KICKED_OFF`, `NO_FETCHED_AT`, `STALE_PRICE`,
-`NOT_IN_CALIBRATION_FIT`, `DERIVED_NOT_CALIBRATABLE`, `NOT_CALIBRATED`,
-`BELOW_CONFIDENCE_FLOOR`, `DISAGREES_WITH_PRICE`, `NEGATIVE_LEG_EV`,
+**Stats-only epoch** (`epoch: "stats_only"` on the artifact and every leg):
+
+- refuses (exit 2) a `05_sheet.json` not built under the rule - a rebuild
+  starts at SHEET;
+- `MAX_DISAGREEMENT` (`DISAGREES_WITH_PRICE`) and `UNREACHABLE_BAR` are off
+  (K2); `gap_shrink_k` is 0;
+- a price that moved since SHEET re-prices the leg: x, the margin and
+  `ODDS_TOO_LOW` are judged at the fresh odds in `04_offer.json` instead of
+  `PRICE_MOVED_SINCE_SHEET` (that refusal stays for old-epoch builds);
+- K13: a thin direction bucket (`thin_by_market_direction`) caps the
+  two-direction `by_market` curve too (`cap_market_by_thin`), as it caps the
+  pools - the lower of the two Wilson lower bounds, recorded as
+  `calibrated_on: market_thin:<market>|<direction>`;
+- `FIXTURE_NOT_AS_SCHEDULED` from `fixture_status.json` (else RESOLVE's own
+  status); a fresh start from it feeds the kickoff clocks;
+- reads, and the automatic football `MODEL_ABOVE_OWN_SAMPLE`, apply at the
+  END of the chain (K6): a leg that passed every gate and a WATCH / NO_BET
+  removed goes to `removed_by_reads` (with `refusal` and `reason` = the
+  author(s) or `auto`), graded on its own, never in the coupon's result;
+- each leg carries `forecast_p` / `forecast_source` beside `model_p`;
+- singles sort by `confidence.coupon_sort_key` (confidence, earlier start,
+  match, market, line - never the price);
+- Bet Builders: one leg per quantity family chosen by confidence
+  (`best_leg_per_quantity(..., by_confidence=True)`), the pool and the
+  builders ordered by `combined_probability`, each builder carrying
+  `stakeable_rule: "x>=0.90"`; stakeable = `best_for_fixture` and
+  combined_probability x `odds_after_haircut` >= 0.90 (`is_stakeable`).
+  The 2-, 3- and 4-leg builders are prefixes of one pool, so
+  `best_for_fixture` is nearly always the 2-leg one - not a defect.
+
+Leg refusal vocabulary (the `refused` counter): `NO_PRICE`, `ODDS_TOO_LOW`
+(below `1/0.9202 = 1.0867`), `NO_FIXTURE`, `VETOED`,
+`FIXTURE_NOT_AS_SCHEDULED`, `KICKED_OFF`, `NO_FETCHED_AT`, `STALE_PRICE`,
+`PRICE_MOVED_SINCE_SHEET` (old epoch), `NOT_IN_CALIBRATION_FIT`,
+`UNREACHABLE_BAR` (old epoch), `CROSS_LEAGUE_UNLINKED`, `FRIENDLY_FIXTURE`,
+`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED`, `PLAYER_PROP_NOT_ADMITTED`,
+`TENNIS_SET_MARKET_NOT_ADMITTED`, `NOT_CALIBRATED`, `NO_CLASS_CURVE`,
+`CATCH_ALL_BUCKET`, `BELOW_CONFIDENCE_FLOOR`, `DISAGREES_WITH_PRICE` (old
+epoch), `NEGATIVE_LEG_EV` (x = confidence x odds below the profile's 0.90),
 `LINE_BEYOND_SAMPLE`, `MODE_LOSES`, `THIN_SAMPLE_FOR_BUILDER`,
 `SAMPLE_CROSSES_SEASON` (oldest observation over 180 days), `STALE_SAMPLE`
-(newest over `MAX_SAMPLE_AGE_DAYS = 60` — **the same constant COUPON uses**,
-shared since 2026-09-21 so the staked path can never again be the more
-permissive one), `BUILDER_LEGS_INCOHERENT`, `READ_NO_BET` (both profiles)
-and, on the official profile only, `WATCHED` (a WATCH read; the WARIANT
-keeps the leg with `reads`) and `MODEL_ABOVE_OWN_SAMPLE` (football, n >= 5:
-`model_p` more than `MAX_OWN_SAMPLE_GAP = 0.15` above the leg's
-`sample_hit_rate`; the WARIANT keeps the leg with
-`MODEL_ABOVE_OWN_SAMPLE(+gap)` in `context_flags`). Since 2026-10-04 every
-leg carries `sample_hit_rate`, and `context_flags` when the fixture's
-schedule (`bet.sofa.schedule`) tags it `MAKEUP_FIXTURE(...)`,
-`LONG_LAYOFF(...)` (>= 21 days) or `CONGESTED(...)` (>= 3 matches in 7 days)
+(newest over `MAX_SAMPLE_AGE_DAYS = 60` - the same constant COUPON uses),
+`BUILDER_LEGS_INCOHERENT`, `READ_NO_BET`, `WATCHED`, `MODEL_ABOVE_OWN_SAMPLE`
+(football, n >= 5: `model_p` more than `MAX_OWN_SAMPLE_GAP = 0.15` above the
+leg's `sample_hit_rate`). A single prints only on a ladder whose margin is
+<= 15% (`single_is_fairly_priced`). Every leg carries `sample_hit_rate`, and
+`context_flags` (`MAKEUP_FIXTURE(...)`, `LONG_LAYOFF(...)`, `CONGESTED(...)`)
 - shown, never gated.
 
-`NOT_CALIBRATED` is the big one and it is the honest refusal: neither the
-market's own curve nor the pooled one covers that bucket, so the leg is
-refused rather than served the model's own number. **A market with its own
-curve may not borrow the pooled curve above the top of its own measured
-range** — silence above a market's ceiling is evidence, not a gap. The sport's
-own pool (`pooled:tennis`) is tried before the global one, because the global
-pool is almost entirely football counts. A market in
-`confidence.AWAITING_OWN_CURVE` (football player props, the new per-half /
-saves / throw-in / goal-kick / tackle markets, tennis per-set serve markets
-`TENNIS_PER_SET_SERVE` and full-match serve points `TENNIS_SERVE_POINTS`
-since 2026-09-30) never borrows a pool: without its own
-curve it is `NOT_CALIBRATED`.
+A read for a measured-sport leg matches no sheet row, so `run_confidence.py`
+prints it as `UNMATCHED_READ` on stderr - expected; COUPON_ASSEMBLY applies
+it (check `removed_by_reads` / the leg's `reads` in `11_coupon.json`).
 
-Empirical-frequency metrics (`sets_total`, `games_won_for`,
-`games_won_set{1,2,3}_for`) are **no longer
-banned** from the fit: they carry measured curves, capped at their own ceiling.
-They were banned once, and the ban deleted tennis from the good path while
-`games_won_for` — 1,084 of a Monday sheet's 3,026 tennis rows — remained the
-largest component of the VALUE path, whose measured ROI is negative.
+`NOT_CALIBRATED` is the honest refusal: neither the market's own curve nor the
+pooled one covers that bucket, so the leg is refused rather than served the
+model's own number. **A market with its own curve may not borrow the pooled
+curve above the top of its own measured range** - silence above a market's
+ceiling is evidence, not a gap. The sport's own pool (`pooled:tennis`) is
+tried before the global one. A market in `confidence.AWAITING_OWN_CURVE`
+(football player props, the new per-half / saves / throw-in / goal-kick /
+tackle markets, tennis `TENNIS_PER_SET_SERVE` and `TENNIS_SERVE_POINTS`)
+never borrows a pool: without its own curve it is `NOT_CALIBRATED`.
 
-Builders: same fixture, **one leg per quantity family** (a team's goals and
-the match total are one quantity counted twice — measured lambda 2.165), 2–4
-legs, ranked by **leg EV** not by confidence — **at both levels**: the family's
-representative (`best_leg_per_quantity`) and the ordering of the pool. Ranking
-by confidence is ranking by shortness of price, and that was the root of the
-2026-09-20 defect. Fixing only the pool ordering left it alive one level down:
-replayed over 2026-09-19's 5,334 legs, choosing the representative by
-confidence put a **negative**-EV leg into 530 family slots that had a better
-one available.
+Locked legs: a rebuild reads the previous coupon artifact and, in the
+stats-only epoch, `12_printed.json` (the last print) too, and carries over, unchanged, every printed single and
+stakeable builder whose match has started or is inside the kickoff margin
+(`bet.sofa.locked_print`); a leg a rebuild drops before its start stays
+dropped.
 
-A slip is stakeable when `is_stakeable(b)` — `best_for_fixture` **and**
-`ev_after_haircut > 0`. Report `stakeable_builders`, not `builders`; both are
-in the summary since 2026-09-21 precisely because they disagree.
+## SPORT_IDENTITY — `scripts/sofa/run_sport_identity.py`, `src/bet/sofa/sport_identity.py`
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d> [--sport hockey --sport cs2]
+```
+
+**Bridge**, after fresh `--only SHADOW` and `--only CS2` snapshots (it reads
+D's and D+1's snapshot files). One `team/<id>/events/next/0` request per
+match (cached with the events TTL); team ids from the DB read-only. Writes
+`runs/sofa/<d>/sport_fixtures.json` (one record per Superbet event:
+`superbet_event_id`, `sport`, `sofascore_event_id`, `home_id`, `away_id`,
+`home_is_team1`, `competition_id`, `match_method`, `name_scores`,
+`start_gap_h`, `matched_at_utc`, `status` `IDENTIFIED` / `NOT_IDENTIFIED` /
+`DUPLICATE_*`). An `IDENTIFIED` record is pinned and never asked again;
+SETTLE grades the sport leg by that pinned id. A refusal stops the run (no
+retry). Exit 0; 1 an event not identified or the bridge refused; 2 no
+snapshot of any sport.
+
+## SPORT_CONFIDENCE — `scripts/sofa/run_sport_confidence.py`, `src/bet/sofa/sport_confidence.py`
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d>
+```
+
+**No bridge.** Reads `sport_fixtures.json`, the SHADOW / CS2 snapshots,
+`config/sofa_sport_confidence_calibration.json` (`fit_sport_confidence.py`,
+between days only) and the DB read-only; writes
+`runs/sofa/<d>/08_confidence_sports.json` and nothing else. Per Superbet side
+of an event starting in [D 00:00Z, D+1 00:00Z): identified, not started
+(earliest clock), the newest pre-start snapshot no older than
+the price-age limit (`MAX_PRICE_AGE`), an allowed market
+(`sport_confidence.ALLOWED_MARKETS` / `CS2_FAMILIES`), a whole outcome group;
+volleyball needs a tournament with a SETTLED event in the last 14 days.
+Confidence = the `realised_lo95` of the calibrated bucket of the model's p
+(`score_model` / `cs2_engine`, no price); then the coupon's price filters:
+floor 0.70, odds >= 1/0.9202, margin <= 15%, x >= 0.90.
+
+Refusals: `NOT_IDENTIFIED`, `DUPLICATE_*`, `KICKED_OFF`, `STALE_PRICE`,
+`MARKET_NOT_ALLOWED`, `NOT_CALIBRATED`, `BELOW_FLOOR`, `BELOW_MIN_X`, and the
+volleyball tournament rule. Exit 0; 1 when a sport is `NOT_CALIBRATED` (no
+file, no section, nothing admitted) or `sport_fixtures.json` is missing - the
+artifact is still written and the football / tennis coupon still built; 2 a
+crash.
+
+## COUPON_ASSEMBLY — `scripts/sofa/build_coupon.py`
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>
+```
+
+**Offline**, after CONFIDENCE and SPORT_CONFIDENCE, before the PDF. From
+`08_confidence.json` (it refuses, exit 2, a missing one, a non-standard
+profile, a non-stats-only epoch, or one older than `05_sheet.json` /
+`vetoes.json` / `reads.json` / the calibration file) plus
+`08_confidence_sports.json` where it exists, writes `11_coupon.json` and
+`11_coupon.md`:
+
+- fresh singles inside the day's UTC window in `confidence.coupon_order` -
+  one block per match (`group_key` `sofa:<id>`) at the place of its best leg,
+  positions 1..N;
+- legs locked from the last print first, outside the numbering (sport legs
+  via `coupon_sports.locked_sport_legs`);
+- printed builders numbered `B1..`, named in their match's block;
+- vetoes and reads applied to the sport legs here (`coupon_sports.apply_reads`);
+  `removed_by_reads` from both sources;
+- `read_requests` copied from `read_requests.json`, each with the positions
+  it `covers`; a request covering nothing is `UNMATCHED_READ_REQUEST` on
+  stderr; an unreadable file (or an entry without `requested_by` / `at_utc`)
+  is exit 2.
+
+Exit 0; 1 when `08_confidence_sports.json` is missing (football / tennis
+coupon still assembled); 2 a refusal.
 
 ## PDF — `scripts/sofa/build_coupon_pdf.py`
 
@@ -366,16 +503,29 @@ in the summary since 2026-09-21 precisely because they disagree.
 --date D  --runs-dir runs/sofa  --out PATH
 ```
 
-Renders only slips passing `is_stakeable`. **`picks: 0` is a legitimate and
-frequent answer.** Needs `reportlab`, which is in `dependencies`.
+On a stats-only day it renders `11_coupon.json` (`coupon_artifact`) and
+refuses a stats-only `08_confidence.json` without it. Guards (exit 2):
+`STALE_CONFIDENCE` - `08_confidence.json` older than `05_sheet.json`,
+`vetoes.json`, `reads.json` or `config/sofa_confidence_calibration.json`;
+`STALE_COUPON` - `11_coupon.json` older than `08_confidence.json`,
+`08_confidence_sports.json` or `read_requests.json`. Then it writes
+`runs/sofa/<d>/12_printed.json` (`locked_print.PRINTED_MANIFEST`: the 11
+document + `pdf`, `pdf_rendered_at_utc`) - only for the day's own PDF, never
+for an `--out` render. The next rebuild locks from it, so **a provisional
+PDF locks legs** whose match then starts.
 
-Since 2026-10-01 it marks, never enforces: `ta sama drabina: N` (N singles on
-one ladder, `confidence.ladder_key`), `start przed renderem PDF` (a leg inside
-CONFIDENCE's kickoff margin at render time - kept, `WARNING` on stderr), and a
-builder prints only `kurs po narzucie` - never the product of its legs'
-prices. Rendered to a temporary file and moved into place.
+Every single prints; builders on their own pages B1.., referenced in the
+match block; locked legs in their own section; a column "model"
+(`forecast_p`) beside "pewność". Marks, never enforced: `ta sama drabina: N`,
+`start przed renderem PDF`; a builder prints only `kurs po narzucie`, never
+the product of its legs' prices. Rendered to a temporary file and moved into
+place. Needs `reportlab`.
 
-## SETTLE (E10) — `src/bet/sofa/settle.py`
+Retired 2026-10-05: `--profile wariant` (and `run_confidence.py --profile
+wariant`) is refused for builds after 07:15Z; historical WARIANT files of
+earlier days stay.
+
+## SETTLE (E10) — `src/bet/sofa/settle.py`, `scripts/sofa/run_settle.py`
 
 Grades a **finished** day. Running it against today finds every fixture
 unfinished. It is the only writer that puts a Superbet price next to an
@@ -390,6 +540,23 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-1> --include-unpriced
 #     also grades rows Superbet never quoted
 ```
+
+- A match whose Sofascore start moved more than 48 h (`VOID_AFTER`) from the
+  earliest clock the pipeline held (`MOVED_BEYOND_VOID`) or with an awarded result (`AWARDED`) is a **refund**
+  (0 u.) - never a loss, never a `sofa_settled_row`; recorded in
+  `07_settle_skips.json` (`settle.REFUND_REASONS`).
+- A player prop is graded only from the player's own squad (the side SAMPLES
+  found him in); a candidate in the other squad within the matcher's margin,
+  or a hit in both when no side is known, is `PLAYER_AMBIGUOUS`, never a
+  guess.
+- A printed leg the final sheet has no row for is graded into
+  `07_settled_printed.json` (`settle.PRINTED_SETTLED_FILE`), never into
+  `sofa_settled_row`.
+- Measured-sport legs never reach `sofa_settled_row` or `fit_confidence`;
+  they are graded from the sport's `settled.json` (SHADOW_SETTLE /
+  CS2_SETTLE) against the id pinned in `sport_fixtures.json`
+  (`NOT_GRADED:ID_CHANGED` otherwise). `audit_settle_identity.py` checks the
+  pins after the D-1 settle.
 
 `PARTIAL` is the normal verdict — unfinished matches and provider stat gaps.
 
@@ -430,9 +597,11 @@ written atomically.
 | script | question |
 |---|---|
 | `audit_coupon.py --date D` | structure, arithmetic re-derived from each row's own fields, anti-selection distributions. Exit 1 = findings. |
-| `audit_settlement.py --date D` | of everything forecast, how much came in and why not. **Section 7c is the PDF coupon's real result**; 7 and 7b are input material, not bets. |
+| `audit_settlement.py --date D` | of everything forecast, how much came in and why not. **Section 7c is the PDF coupon's real result** (on a stats-only day per sport x epoch, measured sports graded at the printed price, refunds apart); 7h the legs `removed_by_reads`; 7 and 7b are input material, not bets. |
 | `audit_day_deep.py --date D` | per market: was the miss systematic or dispersion; and would today's gates still have made yesterday's bet |
 | `audit_sample_bias.py --date D` | does the sample measure what the book settles |
+| `audit_variants.py --date D` | C1 freshness, C2 every printed single obeys its dials, C3 every leg in `legs_requiring_read` has an analyst read, U1 the order of 11 = `coupon_order`, U2 every fresh football / tennis single is stats_only, U3 every fresh sport leg re-derived from the raw Superbet snapshot. Exit 0 / 1 findings / 2 bad file. |
+| `audit_settle_identity.py --from D --to D` | the measured sports' pinned ids: `ID_USED_TWICE`, `MOVED_GRADED`, `NAME_BELOW`, `ORIENTATION_IDS`, `ID_CHANGED`, `IDENTITY_STATE`, `IDENTITY_PENDING`. Exit 0/1/2. |
 
 ## Pre-commit gates
 

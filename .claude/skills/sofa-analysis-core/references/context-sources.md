@@ -1,4 +1,4 @@
-# Where the context lives — sources for a `CONTEXT` veto
+# Where the context lives — sources for a `CONTEXT` veto or a read
 
 Superbet prices off the same statistics we sample. What neither of us holds is
 the context: what the match is worth, who plays, what the fixture list did to
@@ -6,7 +6,9 @@ the squad. Other people write that up every day; this file says where, so the
 read is found rather than re-derived.
 
 **None of these sources is measured.** Whether a context veto removes losers
-is exactly what `audit_vetoes.py` exists to answer, per `context` tag, and it
+is exactly what `audit_vetoes.py` exists to answer, per `context` tag; a
+`WATCH` / `NO_BET` read carrying the same tag removes the leg into
+`removed_by_reads`, graded apart in audit_settlement 7h. The vetoes' table
 had one `CONTEXT` fixture to go on when this file was written (2026-09-23). A
 source earns trust from that table, not from its reputation.
 
@@ -49,9 +51,21 @@ standings page away and are a fact, not an opinion.
 | withdrawals, retirements, schedule | Tennis Explorer; the tournament's official site and social accounts | a retirement in the last month is `SCHEDULE`/`ABSENCES` material |
 | ITF / UTR | almost nothing is published | say so; do not manufacture a source |
 
+## Hockey, basketball, volleyball, CS2
+
+The measured sports' legs (`sofa-analyst-sport`) need one question answered:
+is there a fact that makes the leg wrong to take as printed.
+
+| what | where to look | notes |
+|---|---|---|
+| CS2 roster, stand-ins, best-of, postponement | HLTV, Liquipedia | two domains; a stand-in matters for winner / handicap / map lines |
+| hockey / basketball / volleyball schedule, postponement, format | the league's or federation's own site, then a second domain | a friendly with a fixed number of periods or sets is a format the line may not assume |
+| overtime / shoot-out scope | Superbet's market rules, not a preview | `SCHEDULE` is not the tag for it; leave `context` out |
+
 ## Tipsters
 
-Tipsters pick 1X2, winners and BTTS; `sofa` stakes counting markets. On
+Tipsters pick 1X2, winners and BTTS; football and tennis on the coupon are
+counting markets. On
 2026-09-01 the retired pipeline's tipster step took 86 picks from zawodtyper
 and typersi and could use **one** of them across 217 fixtures
 (`docs/legacy/AUDYT_TIPSTERZY_2026-09-01.md`). A tipster's *reasoning*

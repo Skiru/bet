@@ -1,31 +1,93 @@
 ---
-description: Run the sofa analysts over a day that already has a sheet, merge their vetoes into vetoes.json and their per-leg reads into reads.json, and rebuild the coupon and PDF. No Sofascore, no bridge, no SAMPLES.
-argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
+description: Run the sofa analysts over a day that already has its coupon artifact (11_coupon.json) - the first 30 positions, every printed builder leg and the operator's extra positions ("dodatkowo") - merge their vetoes into vetoes.json and their per-leg reads into reads.json, and rebuild the coupon and PDF. No Sofascore, no SAMPLES.
+argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD [dodatkowo: <pozycje>]"
 ---
 
-Take a day whose sheet already exists, get the per-sport human read, and turn
-it into the two artifacts the machine consumes: `vetoes.json` (a broken
-sample or context - removes everywhere) and `reads.json` (one KEEP / WATCH /
-NO_BET per printed leg).
+Take a day whose coupon artifact already exists, get the per-sport human
+read, and turn it into the two artifacts the machine consumes:
+`vetoes.json` (a broken sample or context - removes everywhere) and
+`reads.json` (one KEEP / WATCH / NO_BET per leg read).
 
-Both are read by **COUPON and CONFIDENCE**, so this command always ends in a
-rebuild. A veto or a read that is written and not rebuilt has done nothing.
+Both are read by **CONFIDENCE and COUPON_ASSEMBLY**, so this command always
+ends in a rebuild. A veto or a read that is written and not rebuilt has done
+nothing.
 
-## Step 0 — check the day is analysable
+## Step 0 - the day, the extra positions, and what must be read
+
+`$ARGUMENTS` is `<day> [dodatkowo: <n>, <n>, ...]`. The day is
+`dzisiaj`/`today`, `wczoraj`/`yesterday` or `YYYY-MM-DD` (empty = today,
+UTC). Everything after `dodatkowo:` is a list of coupon positions the
+operator wants read beyond the first 30.
 
 ```bash
 ls -la runs/sofa/<date>/
-.venv/bin/python -c "
-import json, collections
-rows = json.load(open('runs/sofa/<date>/05_sheet.json'))
-by = collections.Counter((r['sport'], r['verdict']) for r in rows)
-print('sheet rows', len(rows))
-for k, v in sorted(by.items()): print(' ', k, v)
-c = json.load(open('runs/sofa/<date>/08_confidence.json'))
-print('legs', len(c['legs']), 'builders', len(c['builders']),
-      'stakeable', sum(1 for b in c['builders']
-                       if b.get('best_for_fixture') and b.get('ev_after_haircut', -1) > 0))
-"
+```
+
+- No `05_sheet.json` -> nothing to analyse; the day needs `/sofa-day`.
+- No `11_coupon.json` (COUPON_ASSEMBLY) -> build the chain first
+  (`/sofa-rebuild`): the analysts read **what the coupon prints**, in its
+  order, not the VALUE singles of `06_coupon.json`.
+
+### 0a - "dodatkowo": append the operator's requests BEFORE the analysts
+
+Positions shift after every rebuild, so resolve each requested position
+against the **current** `11_coupon.json` and store the leg it names
+(`group_key` + rung), not the number. Fall back to `{"position": n}` only
+when the position names no leg. Append, never rewrite, and validate with
+`confidence.load_read_requests` (an entry without `requested_by` and
+`at_utc` raises - a request that silently does nothing reads like one that
+was honoured):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python - <<'PY'
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from bet.sofa.confidence import load_read_requests
+
+date, asked = "<date>", [31, 45, 52]          # the positions after "dodatkowo:"
+run = Path("runs/sofa") / date
+doc = json.loads((run / "11_coupon.json").read_text())
+by_pos = {int(s["position"]): s for s in doc["singles"] if s.get("position") is not None}
+path = run / "read_requests.json"
+current = json.loads(path.read_text()) if path.exists() else []
+now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+for n in asked:
+    leg = by_pos.get(n)
+    if leg is None:
+        print("NO LEG AT POSITION", n, "- stored as a position request")
+        current.append({"position": n, "requested_by": "operator", "at_utc": now})
+        continue
+    current.append({"group_key": leg["group_key"], "market": leg["market"],
+                    "line": leg.get("line"), "direction": leg["direction"],
+                    "requested_by": "operator", "at_utc": now})
+    print(n, leg["match"], leg["market"], leg.get("line"), leg["direction"])
+path.write_text(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+print(len(load_read_requests(path)), "requests in read_requests.json")
+PY
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>   # 11 is STALE_COUPON against a newer read_requests.json
+```
+
+`build_coupon.py` prints `UNMATCHED_READ_REQUEST` for a request that covers
+nothing - report each.
+
+### 0b - the legs each analyst gets
+
+```bash
+PYTHONPATH=src:. .venv/bin/python - <<'PY'
+import collections, json
+from pathlib import Path
+from bet.sofa.confidence import legs_requiring_read, load_read_requests
+run = Path("runs/sofa") / "<date>"
+doc = json.loads((run / "11_coupon.json").read_text())
+sport_of = {f["sofascore_event_id"]: f["sport"]
+            for f in json.loads((run / "02_fixtures.json").read_text())}
+legs = legs_requiring_read(doc, load_read_requests(run / "read_requests.json"))
+by = collections.Counter(x.get("sport") or sport_of.get(x["sofascore_event_id"]) for x in legs)
+print("to read", len(legs), dict(by), "| printed singles", len(doc["singles"]),
+      "builders", len(doc["builders"]), "removed_by_reads", len(doc["removed_by_reads"]))
+print("sports", {k: (v["status"], v["legs"]) for k, v in (doc.get("sports") or {}).items()})
+PY
 # the run id: the last non-empty run_id of a SAMPLES request on that date (or the id the day was run with)
 .venv/bin/python -c "
 import json
@@ -35,47 +97,53 @@ print('run_id', ids[-1] if ids else 'NOT FOUND - say so')
 "
 ```
 
-No `05_sheet.json` → nothing to analyse; the day needs `/sofa-day`.
-No `08_confidence.json` → run `run_confidence.py` first, because the analysts
-must grade **what is actually staked**, not only the VALUE singles.
+That set is `confidence.legs_requiring_read`: the first 30 unlocked
+positions of `11_coupon.json`, every printed builder leg, and every
+`read_requests.json` entry - exactly what `audit_variants` C3 checks. The
+rest of the coupon prints unread (the operator's order of 2026-10-05). A
+`locked` leg (printed by an earlier build, its match started) stays as
+printed whatever a read says.
 
-## Step 1 — launch both analysts, concurrently
+## Step 1 - launch the analysts, concurrently
 
-In **one** message, so they run in parallel:
+One analyst per sport that has legs in the set, all in **one** message so
+they run in parallel:
 
 ```
-Task -> sofa-analyst-football   "date <date>; run <run_id>; <n> football fixtures, <n> VALUE, <n> legs, <n> stakeable builders; <anything that failed in the run>"
-Task -> sofa-analyst-tennis     "date <date>; run <run_id>; <n> tennis fixtures, <n> VALUE, <n> legs, <n> stakeable builders; <anything that failed>"
+Task -> sofa-analyst-football   "date <date>; run <run_id>; <n> football legs to read (<k> asked by the operator: positions ...); <anything that failed in the run>"
+Task -> sofa-analyst-tennis     "date <date>; run <run_id>; <n> tennis legs to read (...); <anything that failed>"
+Task -> sofa-analyst-sport      "sport hockey; date <date>; <n> legs to read (...); <anything that failed>"   # one per measured sport with legs: hockey / basketball / volleyball / cs2
 ```
 
-Give each the counts you just computed, the run id, and what failed. Do **not**
-give either your own opinion about a fixture — you would be asking it to
-confirm you.
+Give each the counts you just computed, the run id, the operator's extra
+positions and what failed. Do **not** give any of them your own opinion
+about a fixture - you would be asking it to confirm you. A sport with no
+legs in the set gets no analyst; say so.
 
-Each returns Polish markdown and two fenced JSON arrays: the vetoes (`[]` is
-the normal, healthy answer and is not a failed analysis), then the reads -
-one `LegRead` (`author: "analyst"`) per printed leg it read. Write them to
-`/tmp/<sport>_vetoes.json` and `/tmp/<sport>_reads.json` (`football` /
-`tennis`) with a quoted heredoc. An analyst that returned no reads block has
-not followed its contract - say so, never invent its reads.
+Each returns Polish markdown and fenced JSON: the football and tennis
+analysts return the vetoes (`[]` is the normal, healthy answer) and then the
+reads; `sofa-analyst-sport` returns reads only (a veto's direction is only
+`OVER` / `UNDER` and has no period, so it cannot name a sport side). Write
+them to `/tmp/<sport>_vetoes.json` and `/tmp/<sport>_reads.json` with a
+quoted heredoc. An analyst that returned no reads block has not followed its
+contract - say so, never invent its reads.
 
-## Step 2 — validate, then merge
+## Step 2 - validate, then merge
 
 ```bash
 .venv/bin/python - <<'PY'
-import json, sys
+import json, os, sys
 sys.path.insert(0, "src")
 from pydantic import RootModel
 from bet.sofa.contracts import SheetRow, Veto
 from bet.sofa.veto import find_unmatched_vetoes
 
 date = "<date>"
-fresh = json.loads(open("/tmp/football_vetoes.json").read()) \
-      + json.loads(open("/tmp/tennis_vetoes.json").read())
+fresh = [v for s in ("football", "tennis") if os.path.exists(f"/tmp/{s}_vetoes.json")
+         for v in json.loads(open(f"/tmp/{s}_vetoes.json").read())]
 # The day may already hold vetoes (an earlier build, a rebuild): keep them.
 # A veto can only remove a row, so carrying one over is conservative; list
 # them so the operator sees what was not re-issued today.
-import os
 path = f"runs/sofa/{date}/vetoes.json"
 earlier = json.loads(open(path).read()) if os.path.exists(path) else []
 key = lambda v: json.dumps(v, sort_keys=True)
@@ -86,10 +154,8 @@ for v in carried:
     print("  CARRIED:", json.dumps(v, ensure_ascii=False))
 
 # Validation first: extra="forbid" means an invented key (action, player,
-# event_id) fails the whole file, and the run stops: COUPON raises (FAILED,
-# exit 2 through run_pipeline.py) and run_confidence.py dies on an uncaught
-# ValidationError, exit 1 - which reads as PARTIAL. Neither rewrites its
-# artifact, so the previous 06/08 files and PDF stay on disk looking current.
+# event_id) fails the whole file, and every stage that reads it refuses -
+# the previous artifacts and PDF stay on disk looking current.
 vetoes = RootModel[list[Veto]].model_validate(merged).root
 rows = RootModel[list[SheetRow]].model_validate_json(
     open(f"runs/sofa/{date}/05_sheet.json").read()).root
@@ -99,8 +165,7 @@ print(f"{len(vetoes)} vetoes, {len(unmatched)} match nothing")
 for v in unmatched:
     print("  UNMATCHED:", v.model_dump_json())
 
-open(f"runs/sofa/{date}/vetoes.json", "w").write(
-    json.dumps(merged, indent=2, ensure_ascii=False) + "\n")
+open(path, "w").write(json.dumps(merged, indent=2, ensure_ascii=False) + "\n")
 PY
 ```
 
@@ -108,34 +173,35 @@ Three things to check before you accept a veto list:
 
 1. **Unmatched entries.** Report every one. It did nothing.
 2. **Width.** There is no player field. A veto with `subject: null` covers
-   every subject on that fixture — count what it hits before writing it.
+   every subject on that fixture - count what it hits before writing it.
 3. **Duplication of a code gate.** `STALE_PRICE`, `STALE_SAMPLE`,
    `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
-   `THIN_SAMPLE_FOR_BUILDER` and (football, official profile)
-   `MODEL_ABOVE_OWN_SAMPLE` are already enforced. A veto for one of those adds
-   nothing and buries the real reasons in noise.
+   `THIN_SAMPLE_FOR_BUILDER` and (football) `MODEL_ABOVE_OWN_SAMPLE` are
+   already enforced. A veto for one of those adds nothing and buries the
+   real reasons in noise.
 
-Then merge the reads - appended to whatever `reads.json` holds (an earlier
-pass, the verifier), never editing or dropping one: WATCH and NO_BET win
-over KEEP whoever wrote them, so carrying one over is conservative.
+Then merge the reads of every analyst - appended to whatever `reads.json`
+holds (an earlier pass, the verifier), never editing or dropping one: WATCH
+and NO_BET win over KEEP whoever wrote them, so carrying one over is
+conservative.
 
 ```bash
 .venv/bin/python - <<'PY'
-import json, os, sys
+import glob, json, os, sys
 sys.path.insert(0, "src")
 from pydantic import RootModel
 from bet.sofa.contracts import LegRead
 
 date = "<date>"
-fresh = [r for f in ("/tmp/football_reads.json", "/tmp/tennis_reads.json")
+fresh = [r for f in sorted(glob.glob("/tmp/*_reads.json"))
          for r in json.loads(open(f).read())]
 path = f"runs/sofa/{date}/reads.json"
 earlier = json.loads(open(path).read()) if os.path.exists(path) else []
 key = lambda r: json.dumps(r, sort_keys=True)
 seen = {key(r) for r in earlier}
 merged = earlier + [r for r in fresh if key(r) not in seen]
-# strict, extra="forbid": one bad entry fails the whole file - and COUPON and
-# CONFIDENCE with it. Validate before writing.
+# strict, extra="forbid": one bad entry fails the whole file - and
+# CONFIDENCE and COUPON_ASSEMBLY with it. Validate before writing.
 RootModel[list[LegRead]].model_validate_json(json.dumps(merged))
 open(path, "w").write(json.dumps(merged, indent=2, ensure_ascii=False) + "\n")
 print(f"{len(fresh)} fresh reads, {len(merged)} in reads.json:",
@@ -144,83 +210,81 @@ PY
 PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; print(len(load_reads('runs/sofa/<date>/reads.json')))"
 ```
 
-What a read does: `NO_BET` removes the leg from every profile
-(`READ_NO_BET`); `WATCH` removes it from the official coupon (`WATCHED`) and
-**keeps** it in the WARIANT, printed `WATCH (<author>): <reason>` - the
-operator's decision of 2026-10-04, so the ledger can measure whether WATCH
-removes losers; `KEEP` removes nothing. Count what each WATCH / NO_BET will
-hit, as for a veto - `subject: null` covers every subject on the fixture.
+Clear `/tmp/*_reads.json` and `/tmp/*_vetoes.json` from an earlier day
+before Step 1, or the glob merges them in.
 
-## Step 3 — rebuild
+What a read does: `WATCH` and `NO_BET` both remove the leg from the coupon;
+a leg that passed every gate and a read (or the automatic football
+`MODEL_ABOVE_OWN_SAMPLE`) removed lands in `removed_by_reads` of
+`11_coupon.json`, graded on its own (audit_settlement 7h, ledger
+`removed:reads`) and never in the coupon's result. `KEEP` removes nothing
+and records that the leg was read. Count what each WATCH / NO_BET will hit,
+as for a veto - `subject: null` covers every subject on the fixture, a
+`period: null` every period of a sport leg.
 
-If the offer is more than 45 minutes old and the day is still live, refresh it
-first and re-run SHEET before the rebuild below - a moved price is refused
-(`PRICE_MOVED_SINCE_SHEET`) otherwise, and the empty result will look like an
-analytical conclusion:
+## Step 3 - rebuild
 
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET
-```
-
-Then:
+If the football / tennis offer is more than 45 minutes old and the day is
+still live, refresh it first (`/sofa-rebuild` step 1). On a stats-only day a
+moved price re-prices the leg at the fresh odds - no SHEET re-run is needed
+for a refresh.
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON   # 06_coupon.json, the priced VALUE selector audit_coupon checks - not the coupon
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
-# WARIANT WSZYSTKIE prints the official singles verbatim: re-assemble it after any rebuild
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
 ```
 
-The variant is rebuilt too: it reads the same `vetoes.json` and
-`reads.json`, and a variant PDF built before the merge prints legs the
-analysts just vetoed. `build_coupon_pdf.py` refuses (exit 2,
-`STALE_CONFIDENCE`) a profile whose confidence artifact is older than
-`vetoes.json` or `05_sheet.json` - but **not** `reads.json`; only
-`audit_variants` C1 catches that, so never skip `run_confidence.py` after a
-reads merge. Read each summary's `refused` counts (`WATCHED`, `READ_NO_BET`,
-`MODEL_ABOVE_OWN_SAMPLE`) and every `UNMATCHED_READ` line on stderr.
+`build_coupon_pdf.py` refuses `STALE_CONFIDENCE` (08 older than
+`05_sheet.json` / `vetoes.json` / `reads.json` / the calibration) and
+`STALE_COUPON` (11 older than `08_confidence.json` /
+`08_confidence_sports.json` / `read_requests.json`), so the order above is
+the only one that renders. Read each summary's `refused` counts (`WATCHED`,
+`READ_NO_BET`, `MODEL_ABOVE_OWN_SAMPLE`). `run_confidence.py` sees only
+football and tennis rows: it prints a sport read as `UNMATCHED_READ` on
+stderr, which is expected - sport reads take effect in COUPON_ASSEMBLY, so
+confirm each in `11_coupon.json` (`removed_by_reads`, or the leg's `reads`).
+Any other `UNMATCHED_READ` is a read that did nothing - report it.
 
-`audit_variants` C3 (days from 2026-10-05) fails a leg the official PDF
-prints without an analyst's read, or despite a WATCH / NO_BET. A rebuild can
-put a leg on the PDF that no analyst read (a removed leg lets a builder take
-another): send exactly those legs to that sport's analyst, merge its reads,
-rebuild and re-audit.
+`audit_variants` C3 fails a leg in the read set without an `author:
+"analyst"` read, or a printed leg carrying WATCH / NO_BET. A rebuild moves
+positions: a removed leg lets the next one into the first 30, and a removed
+builder leg lets a builder take another. Send exactly those legs to that
+sport's analyst, merge its reads, rebuild and re-audit until C3 is clean. A
+refusing read on a locked leg is a note, not a defect.
 
-WARIANT WSZYSTKIE excludes a sport coupon built more than 6 h before the
-assembly (`STALE`): rebuild that sport with a `sofa-sport-runner` first if the
-operator wants it on the page. After 06:00 Warsaw on D+1 the day's window is
-closed and `run_multi_coupon.py` refuses (exit 2) - the variant is final;
-skip it and say so.
-
-## Step 4 — save the read and report the delta
+## Step 4 - save the read and report the delta
 
 Save each analyst's markdown as `runs/sofa/<date>/<date>_analiza_<sport>.md`.
 
 ```
-ANALIZA:  piłka <n> meczów przeczytanych z <n>; tenis <n> z <n>
+ANALIZA:  piłka <n> nóg przeczytanych · tenis <n> · hokej / kosz / siatka / CS2 <n> · dodatkowo (operator) <n> pozycji
 WETA:     <n> zastosowanych (<n> SAMPLE_UNINFORMATIVE / <n> CONTEXT / <n> PRICE / <n> OTHER), <n> bez dopasowania
-READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> · C3 <n> drukowanych nóg bez odczytu (musi być 0)
-KUPON:    single <n> → <n>; PDF <n> → <n> pozycji
-WARIANT:  PDF <n> → <n> pozycji (NIE kupon)
-WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 · audyt wariantów <n> znalezisk
-ZDJĘTE:   <which rows the vetoes and the WATCH / NO_BET reads removed, and from which product; WATCH legs kept in the WARIANT>
-NIE PRZECZYTANO: <fixtures neither analyst reached, and why>
+READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> (poza odczytami sportów) · C3 <n> (musi być 0)
+KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — pozycje <n> → <n>, buildery <n> → <n>, nogi w grze (zablokowane) <n>
+ZDJĘTE:   <removed_by_reads: each leg, the read and its author>
+POZA TOP 30: <n> pozycji drukowanych bez odczytu (zasada operatora)
+NIE PRZECZYTANO: <legs in the read set no analyst reached, and why>
 ```
 
-Say explicitly which fixtures were **not** read. On a Sunday board of 1000+
-football fixtures nobody reads them all, and an unread fixture must be named
-rather than silently absent.
+Say explicitly which legs of the read set were **not** read. An unread leg
+must be named rather than silently absent.
 
 ## Hard rules
 
-- Never edit an analyst's veto reasons to make them fit. If an entry is wrong,
-  drop it and say you dropped it.
+- Never edit an analyst's veto or read reasons to make them fit. If an entry
+  is wrong, drop it and say you dropped it.
 - Never write a veto or a read of your own into the files. You merge; the
-  analysts (and the verifier) judge.
+  analysts (and the verifier) judge. The operator's `read_requests.json`
+  entries are requests to read, never verdicts.
 - A veto can only remove. There is no promotion in `sofa`.
+- Never print a combined / builder price outside what `confidence.py`
+  computed; no stake sizing.
 - Never read, echo or log `.env` values.
+
+Retired 2026-10-05: the WARIANT (`--profile wariant` is refused from
+07:15Z) and the separate sport coupons and their assembly (from 08:30Z).
+This command no longer builds them; their files up to that morning stay as
+the historical record.

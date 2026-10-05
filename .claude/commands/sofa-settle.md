@@ -1,5 +1,5 @@
 ---
-description: Settle a finished sofa day, read what it actually did (section 7c is the PDF coupon's real result), and decide whether to re-fit the constants — which is a deliberate step and never happens mid-day.
+description: Settle a finished sofa day (every sport on the coupon), read what it actually did (section 7c is the coupon's real result, 7h the legs a read removed, refunds apart), audit the settle identities, record the ledger per epoch, and decide whether to re-fit the constants - which is a deliberate step and never happens mid-day.
 argument-hint: wczoraj | YYYY-MM-DD
 ---
 
@@ -16,13 +16,14 @@ short form.
 unfinished. It needs the bridge, so run it before a live day starts, not
 during one.
 
-## 1 — settle
+## 1 - settle
 
 ```bash
 .venv/bin/python scripts/sofa/ensure_bridge.py      # brings the bridge up if it is down, then runs check_bridge.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SETTLE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # CS2 shadow; exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<date>.done exists or the pid in daily_<date>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<date>.done exists or the pid in daily_<date>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <date> --to <date>
 # Statistic gaps close days later: re-settle <date-4> (D-5 when <date> is D-1) and correct rows graded
 # off an early snapshot. Both write sofa_settled_row, which record_results.py reads - so before 1b:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <date-4> --refetch-stat-gaps
@@ -33,32 +34,61 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
 could not be graded is not a loss.** Counting a blind row as a loss understates
 the model exactly as much as counting it as a win overstates it.
 
+What SETTLE does since 2026-10-05:
+
+- **Refunds:** a match moved by more than 48 h (`MOVED_BEYOND_VOID`) or
+  awarded (`AWARDED`) is a refund - 0 u., never a loss, never a
+  `sofa_settled_row` (it is in `07_settle_skips.json`).
+- **Player props** are graded only from the player's own squad; a name found
+  in both or neither is `PLAYER_AMBIGUOUS`, never a guess.
+- **A printed leg without a sheet row** is graded into
+  `runs/sofa/<date>/07_settled_printed.json`, never into `sofa_settled_row`.
+- **Measured-sport legs** (hockey, basketball, volleyball, CS2 on the coupon)
+  never reach `sofa_settled_row` or `fit_confidence`; they are graded from the
+  sport's `settled.json` (SHADOW_SETTLE / CS2_SETTLE) against the
+  `sofascore_event_id` pinned in `sport_fixtures.json` before the match - a
+  changed id is `NOT_GRADED:ID_CHANGED`. Before the sport's settle has run,
+  its legs read pending.
+- **`audit_settle_identity.py`** (exit 0 / 1 findings / 2) checks the
+  identities SETTLE graded by: `ID_USED_TWICE`, `MOVED_GRADED`, `NAME_BELOW`,
+  `ORIENTATION_IDS`, `ID_CHANGED`, `IDENTITY_STATE`, `IDENTITY_PENDING`. A
+  finding is a defect to name, never a result.
+
 `run_settle.py --date <D-1> --include-unpriced` also grades rows Superbet
-never quoted — the flag is the stage script's, **not** `run_pipeline.py`'s, so
+never quoted - the flag is the stage script's, **not** `run_pipeline.py`'s, so
 it is unreachable through `--only SETTLE`. They cannot reach
 the `K_PRICE` fitter, but they are real forecasts and they are the only way to
 say what the whole board did.
 
-## 1b — every variant, and the ledger (every day)
+## 1b - the measurements and the ledger (every day)
 
 `<date>` is D-1 on a normal morning, so `<date-7>`..`<date>` is the
 D-8..D-1 window every agent uses (`sofa-settler`, `sofa-runner`, `/sofa-day`).
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <date-7> --to <date>   # D-8..D-1: legs after 00:00Z settle into the next day's file; a leg waiting > 7 days becomes NOT_GRADED:GAVE_UP
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <date-7> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <date> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <date> --to <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <date-7> --to <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <date-6> --to <date>    # D-7..D-1; one table per variant, never pooled; ROI with its by-match 95% interval ("-" under 20 matches)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <date-6> --to <date>    # D-7..D-1; one table per variant and epoch, never pooled; ROI with its by-match 95% interval ("-" under 20 matches)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <date-1> --to <date>        # closing line value - read it first: it answers in tens of legs
 ```
 
 One ledger row per (date, variant) in `runs/sofa/ledger/results.jsonl`;
-re-running a date replaces its rows. Each variant stands alone - official,
-wariant, sport:<sport>, multi, `rule:<sport>` (the price-only rule replayed
-on the day, chosen before the outcome) - and `measure:<sport>` records the
-price against the outcome (`favourite_side` two-way lines only, comparable
-across the 09-30 cutover; `by_shape`, `by_family`, `players` beside it).
+re-running a date replaces its rows. Each variant stands alone:
+
+- `official` - the coupon (7c); on a stats-only day the legs selected under
+  the stats-only rule, with one section per sport;
+- `official:pre_stats_only` - legs locked from the 10-05 morning print,
+  selected under the earlier rule;
+- `removed:reads` - the legs a read removed (7h), never in the coupon's
+  result;
+- `measure:<sport>` (Superbet's price against the outcome, the favourite
+  side of two-way lines) and `rule:<sport>` - evidence, not bets.
+
+`audit_ledger.py` splits every variant by epoch group (`do 10-04` /
+`10-05 rano` / `stats_only`) and never sums the groups: the coupon before
+and after 2026-10-05 07:15Z is not one experiment.
+
 Exit 0 = graded as far as the settles allow (pending legs are shown in the
 table, never an exit code); 1 = a `MISMATCH` (two graders disagree on a leg -
 a defect, name it) or an unreadable file (named in the table); 2 = a crash,
@@ -67,47 +97,56 @@ into the next day's file and is graded the morning after (the loops' 05:00Z
 / 05:15Z steps settle D and D-1 and record both days), so the next run's
 `--from <date-7>` window closes it too. If `regrade_settled.py` changed a row
 older than `<date-7>`, re-run `record_results.py --from <that date> --to <date>`.
-Before the sport's SETTLE has written
-`settled.json`, `measure:<sport>` is absent, not pending - check every
-`measure:*` row is present.
+Before the sport's SETTLE has written `settled.json`, `measure:<sport>` is
+absent, not pending - check every `measure:*` row is present.
 
-## 2 — read it, in the right order
+## 2 - read it, in the right order
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <date>
 ```
 
-**Section 7c of `audit_settlement` is the PDF coupon's real result.** Sections
-7 and 7b are input material — legs and candidates — **not bets**. Reporting 7
-or 7b as the day's result is the same error as calling `06_coupon.json` the
-coupon, and it has inverted a day before.
+**Section 7c of `audit_settlement` is the coupon's real result.** On a
+stats-only day it is one table per sport x epoch plus the measured sports'
+table (graded at the printed price against the pinned id), closed by
+**"Suma kuponu"**. Refunds (`MOVED_BEYOND_VOID`, `AWARDED`) are counted
+apart at 0 u. Sections 7 and 7b are input material - legs and candidates -
+**not bets**. Reporting 7 or 7b as the day's result is the same error as
+calling `06_coupon.json` the coupon, and it has inverted a day before.
 
-Report the paths separately and never pool them: the VALUE singles
-(−20.4% on 2026-09-20), the PDF (+8.2% the same day), and WARIANT (7d).
+**Section 7h ("Nogi zdjęte przez odczyt")** grades the legs a WATCH / NO_BET
+read (or the automatic `MODEL_ABOVE_OWN_SAMPLE`) removed. It answers whether
+the reads remove losers; it is never added to 7c.
+
+Report the paths separately and never pool them: the coupon (7c, per
+section), the legs the reads removed (7h), and the priced VALUE singles of
+`06_coupon.json` (input material, not a bet).
 
 `audit_day_deep` answers the two questions after: per market, was the miss
 **systematic** or **dispersion**; and **would today's gates still have made
 yesterday's bet?** A gate that cannot be shown to have removed a real loss is
-decoration. Never judge one on hit rate — 92.5% winners once returned −3.5%.
+decoration. Never judge one on hit rate - 92.5% winners once returned -3.5%.
 
-### 2b — the niche scanner (evidence, not a bet list)
+### 2b - the niche scanner (evidence, not a bet list)
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17 --to <date>
 ```
 
-Run it after settlement, then re-run `audit_settlement` so section 7h reads the
-new artifact. It asks whether any league x market x direction cell beats
-Superbet's price **out of sample and over its own margin** (walk-forward,
-shrunk toward market and price, Benjamini-Hochberg over every cell scanned).
-Read it as evidence: "BRAK NISZY" is the expected and honest answer at this
-data volume. A **candidate** is a thing to measure further, never a leg; a
-**watch-list** cell is not even that. Never feed it into COUPON, CONFIDENCE,
-SHEET or the vetoes, never move a gate or constant because of it, and never
-pool 7h with 7c or 7d.
+Run it after settlement, then re-run `audit_settlement` so its niche section
+reads the new artifact (that section is also headed "7h" - a numbering
+collision in `audit_settlement.py`; it is not the removed-by-reads table). It
+asks whether any league x market x direction cell beats Superbet's price
+**out of sample and over its own margin** (walk-forward, shrunk toward market
+and price, Benjamini-Hochberg over every cell scanned). Read it as evidence:
+"BRAK NISZY" is the expected and honest answer at this data volume. A
+**candidate** is a thing to measure further, never a leg; a **watch-list**
+cell is not even that. Never feed it into SHEET, CONFIDENCE, the coupon or
+the vetoes, never move a gate or constant because of it, and never pool it
+with 7c.
 
-## 3 — re-fit only when there is a reason
+## 3 - re-fit only when there is a reason
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_constants.py --db-path data/sofa.db --config-dir config
@@ -116,43 +155,62 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_constants.py --db-path data/s
 `fit_constants.py` is **outside `DEFAULT_SEQUENCE` on purpose.** Re-fitting
 mid-day breaks comparability with yesterday's run. Re-fit when the settled
 table has grown materially, a coherence check is failing, or a baseline is
-demonstrably wrong. **Not because a day went badly.**
+demonstrably wrong. **Not because a day went badly.** A full refit goes
+through `prepare_refit.py`, between days, one step at a time. The same holds
+for `fit_sport_confidence.py --before <d>`
+(`config/sofa_sport_confidence_calibration.json`, the measured sports'
+confidence curves): between days only, never mid-day.
 
 After a fit, always report: `fitted_from` and how much it moved,
 `half_match_coherence`, and every constant's `status`. **A `null` with
-`NOT_FITTED` is the correct output, not a gap** — `K_PRICE`'s Brier curve is
+`NOT_FITTED` is the correct output, not a gap** - `K_PRICE`'s Brier curve is
 monotone to `w = 0`, so there is no interior optimum and the plateau rule
 refusing to name a value is information.
 
-## 4 — config hygiene
+## 4 - config hygiene
 
 - `config/sofa_market_reliability.json` is owned by `fit_constants.py` **only**.
   `calibrate_from_cache.py --out` writes an ungated curve for inspection and
   must never target it: when two writers shared it, an empty file overwrote a
   measured one and reported success.
-- `config/sofa_league_baselines.json` — check `fitted_from` and
-  `half_match_coherence`. Corners half-match priors were **24–32% too high** for
+- `config/sofa_league_baselines.json` - check `fitted_from` and
+  `half_match_coherence`. Corners half-match priors were **24-32% too high** for
   two days; fixing them took a day's VALUE from 142 to 99, and the rows that
   vanished were exactly the ones external verification had already rejected.
-- `config/sofa_confidence_calibration.json` — check each market's measured
+- `config/sofa_confidence_calibration.json` - check each market's measured
   ceiling. A market with its own curve may **not** borrow the pooled one above
   the top of its own measured range.
+- `config/sofa_sport_confidence_calibration.json` - a sport absent from it is
+  `NOT_CALIBRATED` and prints no legs; say which sports are on the coupon.
 
 ## Report back
 
 ```
-SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody)
-SINGLE:   <n> wierszy VALUE · <w>/<n> · ROI <…>
-PDF:      <n> slipów (sekcja 7c) · <w>/<n> · ROI <…>
-WARIANTY: WARIANT <u> · CS2 <u> · HOKEJ <u> · KOSZ <u> · SIATKA <u> · WSZYSTKIE <u> j. (osobno) · pending <n>
+SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n>)
+KUPON:    sekcja 7c · <sport> [<epoka>]: <w>/<n> · ROI <…> · … · Suma kuponu <u> j.
+SPORTY:   hokej / kosz / siatka / CS2 na kuponie: <w>/<n> · <u> j. · pending <n>
+ZDJĘTE:   sekcja 7h · <w>/<n> · <u> j. (osobno, nie kupon)
+TOŻSAMOŚĆ: audit_settle_identity <n> znalezisk (<check>: <n>) · PLAYER_AMBIGUOUS <n>
 POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
-LEDGER:   <n> wierszy zapisanych dla <date>
+LEDGER:   <n> wierszy zapisanych dla <date> · per epoka (do 10-04 / 10-05 rano / stats_only), nigdy sumowane
+CLV:      <variant>: <x%> [lo; hi], n nóg
 RYNKI:    <families that lost, systematic vs dispersion>
 BRAMKI:   <per gate: caught / cost / missed>
-NISZE:    <verdict (section 7h) · candidates · selector OOS ROI vs baseline>
+NISZE:    <verdict · candidates · selector OOS ROI vs baseline>
 FIT:      <re-fitted or not, and why>
 UWAGA:    <the one thing that would change tomorrow's run>
 ```
 
 A settled result is a fact about the day, **not about the decision that made
 it**. Never let "it won" into the reasoning for the next one.
+
+## Historical: the retired variants (days up to 2026-10-05 morning)
+
+Retired 2026-10-05: WARIANT and WARIANT WSZYSTKIE (07:15Z) and the separate
+sport coupons (08:30Z). Their files up to that morning stay and are graded as
+before: `audit_settlement` prints section 7d only for a day that has a
+WARIANT, and the ledger keeps `wariant`, `sport:<sport>` and `multi` rows
+for those days. While such a date is still inside the D-8 window, grade it
+with `settle_sport_coupon.py --from <date-7> --to 2026-10-05` and
+`settle_multi_coupon.py --from <date-7> --to 2026-10-05` before
+`record_results.py`. Never pool those historical rows with the coupon.

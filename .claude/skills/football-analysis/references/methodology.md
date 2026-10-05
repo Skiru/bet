@@ -19,9 +19,10 @@ hold is named too, because that is where your contribution is.
   Karlis & Ntzoufras (2003) — bivariate Poisson. Boshnakov et al. (2017) —
   Weibull count models for goals. *Implication for us:* `sofa` has **no
   external model and no consensus** — the only reference price is Superbet's
-  own other side, power-devigged into `market_p`. So "past frequency ≠ edge"
-  has to be checked against that one number, and when the rung is one-sided
-  (`NO_MARKET_MARGINAL`) there is no check at all. Half splits: first halves
+  own other side, power-devigged into `market_p`. On the coupon that price
+  is only the betting condition; "past frequency ≠ edge" is answered by the
+  calibrated pewność, not by the price, and when the rung is one-sided
+  (`NO_MARKET_MARGINAL`) there is no devigged price at all. Half splits: first halves
   carry ~45% of goals, not 50%, and `sofa`'s own coherence check reports the
   goals halves inconsistent with the full match by −13% and −17%.
 - **Corners, shots, fouls, cards.** Variance exceeds the mean (team-level
@@ -39,8 +40,11 @@ hold is named too, because that is where your contribution is.
   population mean (James–Stein; Efron & Morris 1975) happens **twice** in
   `sofa`, and conflating them is a common error. First the *centre* is shrunk
   toward the league baseline at `w_c = n/(n + K_CENTRE)` — football
-  `K_CENTRE = 25`, fitted. Then the *probability* is shrunk toward the
-  devigged price at `w = n/(n + K_PRICE)`, `K_PRICE = 10.0` and `NOT_FITTED`.
+  `K_CENTRE = 15`, fitted. Then, for the old VALUE selector only, the
+  *probability* is shrunk toward the devigged price at `w = n/(n + K_PRICE)`,
+  `K_PRICE = 10.0` and `NOT_FITTED` - that is `p_bar`, priced; the coupon's
+  pewność is the calibrated `p_central`, with no price in it on a stats-only
+  day.
   Wilson (1927) survives as the `p_low_cap` / `laplace_cap` in `bar_reason`,
   which hold `p_central` back when the sample is thin or perfect. A 4/4 is four
   matches; 16/20 beats 3/3.
@@ -158,6 +162,8 @@ gives you the span.
   adequate quality (method §104). Per-team "to score" and 0.5 lines are house
   markets that sit at or under consensus (ledger 2026-08-30/31: −0.1 to −5.6pp
   on five such legs).
+- On the coupon none of this is evidence for a leg: the price is only the
+  betting condition (x = confidence x odds >= 0.90, ladder margin <= 15%).
 - Kelly / stake sizing is deliberately out of scope for every agent.
 
 ## 10. Correlation and slips

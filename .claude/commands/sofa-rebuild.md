@@ -1,21 +1,23 @@
 ---
-description: Rebuild one sofa day's coupon and PDF from the artifacts already on disk — no bridge, no Sofascore, no SAMPLES. For when code changed, an analyst or the verifier produced vetoes or reads, or the offer went stale.
+description: Rebuild one sofa day's coupon (11_coupon.json) and PDF from the artifacts already on disk - no SAMPLES; the bridge only for FIXTURE_CHECK. For when code changed, an analyst or the verifier produced vetoes or reads, the operator asked for more reads, or the offer went stale.
 argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 
 Rebuild `KUPON_<date>.pdf` from artifacts that already exist. This is the last
 mile of `/sofa-day` on its own: the sheet in, the operator's PDF out.
 
-**Nothing here touches Sofascore or the bridge.** RESOLVE and SAMPLES are the
-expensive stages and neither runs. The only network call is to Superbet, and
-only if you refresh the offer.
+**RESOLVE and SAMPLES never run here** - they are the expensive stages. The
+only Sofascore call is FIXTURE_CHECK (one `/event/{id}` per printed match,
+through the bridge); the only other network call is to Superbet, and only if
+you refresh a price.
 
-Use it when: the code changed since the sheet was built, an analyst handed back
-vetoes, the offer behind the file went stale, or you want the PDF regenerated.
+Use it when: the code changed since the sheet was built, an analyst or the
+verifier handed back vetoes or reads, the operator added `read_requests.json`
+entries, a price went stale, or you want the PDF regenerated.
 
 Run every step. **Do not stop to ask permission between them.**
 
-## Step 0 — resolve the day and take inventory
+## Step 0 - resolve the day, the epoch, and take inventory
 
 `$ARGUMENTS` is `dzisiaj`/`today`, `wczoraj`/`yesterday`, or `YYYY-MM-DD`;
 empty means today. The betting day is **UTC**.
@@ -27,32 +29,42 @@ ls -la runs/sofa/<date>/
 
 Two inputs are not optional:
 
-- **`05_sheet.json` missing** → there is nothing to rebuild. The day needs
+- **`05_sheet.json` missing** -> there is nothing to rebuild. The day needs
   `/sofa-day <date>`, not this command. Say so and stop.
-- **`02_fixtures.json` missing** → stop as well. Without it COUPON cannot name
-  a fixture, cannot apply the kickoff gate, and `determine_side` cannot resolve
-  a `subject` to a side.
+- **`02_fixtures.json` missing** -> stop as well. Without it no stage can name
+  a fixture, apply the kickoff gate, or resolve a `subject` to a side.
 
-`04_offer.json` is required by COUPON and CONFIDENCE both. `vetoes.json` is
-optional and **`[]` is the healthy default**. `reads.json` (per-leg KEEP /
-WATCH / NO_BET from the analysts and the verifier) is optional to the code,
-but from 2026-10-05 `audit_variants` C3 fails any of the best 30 official
-singles or a printed builder leg without an analyst's read - a rebuild that prints a leg nobody read needs
-that sport's analyst on exactly those legs (`/sofa-analyze` step 2 merge).
+`04_offer.json` is required by CONFIDENCE. `vetoes.json` is optional and
+**`[]` is the healthy default**. `reads.json` (per-leg KEEP / WATCH / NO_BET
+from the analysts and the verifier) and `read_requests.json` (the operator's
+extra legs to read) are optional to the code, but `audit_variants` C3 fails
+any leg of `confidence.legs_requiring_read` - the first 30 unlocked positions
+of `11_coupon.json`, every printed builder leg, every `read_requests.json`
+entry - without an analyst's read. A rebuild that moves an unread leg into
+that set needs that sport's analyst on exactly those legs (`/sofa-analyze`).
+
+**The epoch (`bet.sofa.epochs`, K0).** A build of a day >= 2026-10-05 made at
+or after 07:15Z (`STATS_ONLY_FROM_UTC`) is stats-only: confidence from the
+statistics alone, the price only the betting condition, one coupon artifact
+`11_coupon.json`. From 08:30Z (`SPORTS_ON_COUPON_FROM_UTC`) the hockey,
+basketball, volleyball and CS2 legs print on the same coupon. A rebuild of
+such a day always builds under that rule; an older day rebuilds under its
+own. State which epoch the rebuild is in. The coupon before and after the
+cutover is not one experiment.
 
 State the resolved date, what is present, and the age of each file. A sheet
 built this morning against an offer refreshed at noon is a different object
 from one where both are old.
 
-## Step 1 — is the price still a price?
+## Step 1 - is the price still a price?
 
-Both COUPON and CONFIDENCE refuse a rung whose `fetched_at_utc` is more than
-**45 minutes** old. If the offer is older than that, a rebuild will empty the
+CONFIDENCE refuses a rung whose `fetched_at_utc` is more than **45 minutes**
+old (`STALE_PRICE`). If the offer is older than that, a rebuild will empty the
 coupon for a reason that looks like a modelling result.
 
 ```bash
 .venv/bin/python -c "
-import json, datetime
+import json
 o = json.load(open('runs/sofa/<date>/04_offer.json'))
 ts = [r['fetched_at_utc'] for f in o for r in f.get('rungs', [])]
 print('rungs', len(ts), 'oldest', min(ts), 'newest', max(ts))
@@ -66,32 +78,37 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-
 ```
 
 `--min-minutes-to-kickoff` matters on a late refresh: without it the stage
-re-prices the whole board including matches already played — on 2026-09-20 that
+re-prices the whole board including matches already played - on 2026-09-20 that
 was 890 finished fixtures paid for to reach the 185 still open, at ~90 minutes
 for a full pass.
 
-**After a refresh, re-run SHEET** (offline, no bridge):
+**No SHEET re-run for a refresh on a stats-only day.** No probability read the
+price, so CONFIDENCE judges a moved price at the fresh odds (x, margin,
+`ODDS_TOO_LOW`). `PRICE_MOVED_SINCE_SHEET` remains only for builds of the old
+epoch, where a refresh still needs SHEET first.
+
+**SHEET first when the rule or the engine changed:** a code change to SHEET,
+a config file SHEET reads, or a sheet built before the stats-only cutover -
+CONFIDENCE refuses (exit 2) a SHEET not built under the stats-only rule on a
+stats-only build ("a rebuild starts at SHEET"):
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET --run-id <id>
 ```
 
-A row carries the price SHEET priced it at. Since 2026-09-25 COUPON and
-CONFIDENCE refuse a row whose side the refreshed offer quotes at a different
-price (`PRICE_MOVED_SINCE_SHEET`) or no longer quotes at all — they do not
-swap the new odds in, because `market_p`, `p_central` and `required_odds`
-were computed from the old ones. Before that fix they timed the fresh offer
-and printed the stale price: 16 of 351 variant legs on 2026-09-25. Skipping
-SHEET after a refresh is therefore not wrong, but it silently costs every leg
-whose price moved.
+Say which change forced it: a rebuilt sheet is not comparable with the one
+before it. SHEET parses the whole football history - ~30 s on a rebuild, up
+to ~10 min when the listings changed; a SHEET that looks hung is parsing.
 
 If the day is **over**, do not refresh. Say the prices are historical and that
 every gate downstream will now refuse them, which is correct behaviour.
 
-## Step 2 — vetoes, if there are any
+## Step 2 - vetoes and reads, if there are any
 
 If an analyst produced vetoes, validate before writing and before any
-rebuild — a malformed entry stops the run: COUPON raises (`run_pipeline.py` reports it FAILED, exit 2) and `run_confidence.py` dies on an uncaught `ValidationError` with exit 1 - which reads as PARTIAL unless the traceback is read. Neither writes its artifact, so yesterday's build stays on disk looking current:
+rebuild - a malformed entry stops the run (`extra="forbid"`: one invented key
+fails the whole file) and no stage rewrites its artifact, so yesterday's
+build stays on disk looking current:
 
 ```bash
 .venv/bin/python - <<'PY'
@@ -115,89 +132,103 @@ PY
 Report every unmatched veto. It did nothing, and a silent no-op reads exactly
 like a veto that was honoured.
 
-If `reads.json` exists, validate it the same way before the rebuild
-(strict, `extra="forbid"` - one bad entry fails COUPON and CONFIDENCE):
+If `reads.json` or `read_requests.json` exists, validate them the same way
+before the rebuild:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; print(len(load_reads('runs/sofa/<date>/reads.json')))"
+PYTHONPATH=src:. .venv/bin/python -c "from pathlib import Path; from bet.sofa.confidence import load_read_requests; print(len(load_read_requests(Path('runs/sofa/<date>/read_requests.json'))))"
 ```
 
-`NO_BET` removes the leg from every profile; `WATCH` removes it from the
-official coupon and keeps it, marked, in the WARIANT; `KEEP` removes
-nothing. CONFIDENCE prints `UNMATCHED_READ` on stderr for a read that
-matched no row - report each.
+`WATCH` and `NO_BET` both remove the leg from the coupon into
+`removed_by_reads` (graded apart, audit_settlement 7h); `KEEP` removes
+nothing. CONFIDENCE prints `UNMATCHED_READ` on stderr for a read that matched
+no football / tennis row - a sport read always shows there and takes effect
+in COUPON_ASSEMBLY; any other one is a read that did nothing - report it.
 
-## Step 3 — rebuild
+## Step 3 - rebuild, in this order
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON
+# 1. FIXTURE_CHECK (bridge): /event/{id} for the printed matches and the moved clocks -> fixture_status.json
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only FIXTURE_CHECK
+# 2. CONFIDENCE (football, tennis) -> 08_confidence.json
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
+# 3. only when the sport prices are stale (older than sport_coupon.MAX_PRICE_AGE, 3 h) and the day is live:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SPORT_IDENTITY     # bridge; only new events are asked, an IDENTIFIED one is pinned
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SPORT_CONFIDENCE   # -> 08_confidence_sports.json
+# 4. COUPON_ASSEMBLY -> 11_coupon.json (vetoes and reads on the sport legs are applied here)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>
+# 5. PDF -> KUPON_<date>.pdf and 12_printed.json (what was printed; the next rebuild locks from it)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
-# the operator's variant (floor 0.65, confidence x odds >= 0.90, margin <= 15%), beside the coupon, never instead of it
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date> --profile wariant
-```
-
-Then WARIANT WSZYSTKIE - a rebuilt official PDF makes it stale (it prints
-the official singles verbatim), so it is re-assembled every time:
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <date>
+# 6. the audit of the coupon artifact
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
 ```
 
-A sport coupon older than 6 h is excluded from it (exit 1, reason printed):
-rebuild that sport with a `sofa-sport-runner` first if the operator wants it
-on the page.
+- **FIXTURE_CHECK** replaces RESOLVE's frozen Sofascore clock with a fresh
+  `/event` start (K12) for the gate, the lock and `capture_closing`; a
+  postponed / cancelled / abandoned printed match is
+  `FIXTURE_NOT_AS_SCHEDULED` and CONFIDENCE refuses it (K14). **No bridge =
+  UNVERIFIED, not a refusal:** it exits 1, the status is shown on the page,
+  nothing is refused - say so in the report. A 403 stops it at once; never
+  retry into a refusal.
+- **Locked legs** - the legs `12_printed.json` holds whose match has started -
+  are carried over as printed (`locked: true`, `printed_at_utc`,
+  `printed_under`, first on the page and unnumbered). That is the operator's
+  rule (a leg printed before its start counts), not a defect; a leg removed
+  before its start stays removed.
+- `build_coupon.py` refuses an `08_confidence.json` not built under the
+  stats-only rule, or one stale against `05_sheet.json` / `vetoes.json` /
+  `reads.json` / the calibration. `build_coupon_pdf.py` refuses
+  `STALE_CONFIDENCE` and `STALE_COUPON` (11 older than `08_confidence.json`,
+  `08_confidence_sports.json` or `read_requests.json`). After any change to
+  vetoes, reads or requests, re-run from step 2.
+- `SPORT_CONFIDENCE` exits 1 when a sport is `NOT_CALIBRATED` or
+  `sport_fixtures.json` is missing; the artifact is still written and the
+  football / tennis coupon is still built - name the sport that is absent.
+- `run_pipeline.py --only COUPON` writes `06_coupon.json`, the priced VALUE
+  selector that `audit_coupon.py` audits. It is not the coupon; re-run it
+  only to keep that audit in step with the vetoes.
 
-Only while the day's window is open: after 06:00 Warsaw on D+1 the variant
-is final and `run_multi_coupon.py` refuses (exit 2) - skip it and say so.
+Never re-run `fit_constants.py` or any `fit_*` as part of a rebuild.
 
-Both COUPON and CONFIDENCE read `vetoes.json` and `reads.json`, so both must
-be re-run after either changes — rebuilding only the singles leaves the
-vetoed rung standing as a leg of the Bet Builder the PDF stakes.
-`build_coupon_pdf.py`'s `STALE_CONFIDENCE` guard does not look at
-`reads.json` (only `audit_variants` C1 does): after a reads change never
-render the PDF without re-running `run_confidence.py` first.
-
-Do **not** re-run SHEET unless OFFER was refreshed (Step 1), or the engine or
-a config file changed. If the engine or a config changed,
-say which, because a rebuilt sheet is not comparable with the one before it.
-
-Never re-run `fit_constants.py` as part of a rebuild.
-
-## Step 4 — verify
+## Step 4 - verify
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
 ```
 
-Then hand it to `sofa-verifier` unless the operator explicitly asked for a bare
-rebuild, and name `KUPON_<date>_WARIANT.pdf` in the verifier's prompt
-(`audit_variants` C1/C2 checks its structure and rule; only the verifier
-re-derives its legs).
+`audit_variants` C1-C3 and U1-U3 must be clean (U3 re-derives every fresh
+sport leg from the raw Superbet snapshot). Then hand the day to
+`sofa-verifier` unless the operator explicitly asked for a bare rebuild.
 
 ## Report back
 
 ```
-KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — <n> pozycji (było <n>)
-WARIANT:  runs/sofa/<date>/KUPON_<date>_WARIANT.pdf — <n> pozycji (NIE kupon; 0.65 / x ≥ 0.90)
-WSZYSTKIE: runs/sofa/multi/<date>/KUPON_<date>_WSZYSTKIE.pdf — <n> pozycji, sekcje <k>/5 · audyt wariantów <n> znalezisk
-SINGLE:   <n> wierszy VALUE → <n> w kuponie, <n> odrzuconych (powody)
+EPOKA:    <stats_only | old> · sporty na kuponie: <tak/nie>
+KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — <n> pozycji (było <n>) · buildery <n> · w grze (zablokowane) <n>
+SPORTY:   hokej <n> · kosz <n> · siatka <n> · CS2 <n> nóg · <sport>: NOT_CALIBRATED / brak sport_fixtures.json
+START:    FIXTURE_CHECK <OK | UNVERIFIED (brak mostka)> · FIXTURE_NOT_AS_SCHEDULED <n>
 WETA:     <n> zastosowanych, <n> bez dopasowania
-READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · zdjęte z kuponu WATCHED <n> / READ_NO_BET <n> / MODEL_ABOVE_OWN_SAMPLE <n> · UNMATCHED_READ <n> · C3 <n>
+READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · removed_by_reads <n> · UNMATCHED_READ <n> (poza sportami) · C3 <n>
 CENA:     oferta z <ts>, wiek <n> min <"świeża" | "przeterminowana — to tłumaczy pustki">
-ZMIANA:   <what moved and why — code, vetoes, or the price>
+ZMIANA:   <what moved and why — code, vetoes, reads, or the price>
 ```
 
 ## Hard rules
 
 - A thin rebuild is not fixed by re-running it. If the day produced nothing,
-  say so and **say which gate emptied it** — read `06_dropped.json` and count
-  by reason. The two that dominate are `DISAGREES_WITH_PRICE` (the model sits
-  more than 0.10 above the devigged price — measured negative, not cautious)
-  and `KICKOFF_TOO_SOON` (the *earlier* of the two clocks). On 2026-09-21 they
-  were 84 and 34 of 118 VALUE rows, and the coupon was correctly empty.
-- `06_coupon.json` is not the coupon. The PDF is.
+  say so and **say which gate emptied it** - read the `refused` counts in the
+  CONFIDENCE summary and in `08_confidence_sports.json`.
+- `06_coupon.json` is not the coupon, and neither is `08_confidence.json`.
+  The PDF is; `11_coupon.json` is what it prints.
 - Never invent a price; never re-run SAMPLES here.
+- Never print a combined / builder price outside what `confidence.py`
+  computed.
 - Never read, echo or log `.env` values.
+
+Retired 2026-10-05: the WARIANT (refused from 07:15Z) and the separate sport
+coupons with their assembly (from 08:30Z). A rebuild no longer builds them;
+their files up to that morning stay as the historical record.

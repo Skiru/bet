@@ -5,26 +5,46 @@ commonest analytical error in this pipeline.
 
 - **SHEET → COUPON** asks *is this worth its price*. It ranks by `surplus`.
   Measured on 6,187 priced rows, the model **loses that argument to the price
-  itself** (Brier 0.2067 against 0.1845).
-- **CONFIDENCE → PDF** asks *how often does this happen*. It ranks by measured
-  realised rate. Over 1,868,474 settled rows the model is calibrated to within
-  0.3 pp everywhere up to about 0.90.
+  itself** (Brier 0.2067 against 0.1845). `p_bar`, `required_odds`,
+  `surplus` and VALUE are this chain: still computed in SHEET and COUPON,
+  still audited by `audit_coupon.py`, and **not the coupon's arithmetic**.
+- **CONFIDENCE → COUPON_ASSEMBLY → PDF** asks *how often does this happen*.
+  It ranks by measured realised rate. Over 1,868,474 settled rows the model is
+  calibrated to within 0.3 pp everywhere up to about 0.90.
 
-The second question is the one the model can answer. That is why the PDF, not
-`06_coupon.json`, is the product.
+The second question is the one the model can answer. That is why the PDF
+(from `11_coupon.json` on a stats-only day), not `06_coupon.json`, is the
+product.
+
+## Confidence without the price (stats-only epoch, from 2026-10-05 07:15Z)
+
+```
+p_central   = the statistics alone (no ladder centre, no rating x market_p blend,
+              no empirical shrink to the rung's price, no handicap centre on the ladder)
+confidence  = the calibration curve's realised_lo95 at p_central (Chain 2, with the K13 cap)
+forecast_p  = the rating's own number ("model"): printed beside, uncalibrated, never a gate or a sort key
+x           = confidence × offered_odds                  print when x >= 0.90 (NEGATIVE_LEG_EV below)
+condition   : ladder margin <= 15%, odds >= 1/0.9202, not started, fresh price
+order       = confidence ↓, kickoff ↑, match, market, line (confidence.coupon_order) - no price, no EV
+```
+
+The price enters only as the betting condition. `MAX_DISAGREEMENT` and
+`UNREACHABLE_BAR` are off; a price that moved since SHEET is re-judged at the
+fresh odds (nothing upstream read it). Floor 0.70.
 
 ---
 
-## Chain 1 — the price bar (`src/bet/sofa/engine.py`)
+## Chain 1 — the old priced bar (`src/bet/sofa/engine.py`; still computed, not the coupon's)
 
 ```
 prior   = league baseline, else global baseline      config/sofa_league_baselines.json
-w_c     = n / (n + K_CENTRE)                         football 25.0, tennis 2.0  (FITTED)
+w_c     = n / (n + K_CENTRE)                         football 15.0, tennis 5.0  (FITTED, refit 2026-10-03)
 centre  = w_c·sample_mean + (1 − w_c)·prior          (= sample_mean when no baseline exists)
 
 p_central:
-    tennis rated markets -> 0.25·rating + 0.75·market_p       (note TENNIS_RATING)
-    tennis empirical, priced -> w·hits/n + (1−w)·market_p, w = n/(n+30)
+    tennis rated markets -> 0.25·rating + 0.75·market_p       (note TENNIS_RATING; old epoch only)
+    tennis empirical, priced -> w·hits/n + (1−w)·market_p, w = n/(n+30)   (old epoch only)
+    stats-only epoch: tennis from the sample's own estimator, no market_p
     other empirical    -> frequency around the shifted centre
     football counts    -> negative binomial around `centre`
     everything else    -> normal, support floored at −0.5
@@ -67,24 +87,24 @@ p_bar         == w·(p_central − calibration_correction) + (1 − w)·market_p
 `p_central` itself is only reproducible approximately from `centre` and
 `sample_sd` (measured: 5 of 63 rows landed outside a 0.024 tolerance). Rebuild
 `p_central` against **the sample's own hit rate** in `03_samples.json` instead
-— that is the check that matters. For tennis they are equal only on a rung
-with no price: a priced `TENNIS_RATING` row is 0.25·rating + 0.75·`market_p`
-(`W_TENNIS_RATING`), a priced `P_SHRUNK_TO_PRICE` row is
-w·hits/n + (1−w)·`market_p` with w = n/(n+30) (`K_TENNIS_LADDER_CENTRE`).
-Re-derive from the row's notes; a gap to the raw hit rate is not a defect.
+— that is the check that matters. On an old-epoch row a priced tennis rung
+was pulled onto the price: `TENNIS_RATING` 0.25·rating + 0.75·`market_p`
+(`W_TENNIS_RATING`), `P_SHRUNK_TO_PRICE` w·hits/n + (1−w)·`market_p` with
+w = n/(n+30) (`K_TENNIS_LADDER_CENTRE`). On a stats-only row (`epoch:
+"stats_only"`) `p_central` must not move with `market_p` at all. Re-derive
+from the row's epoch and notes.
 
 ### Three things that look wrong and are not
 
 1. `centre` ≠ `sample_mean`. It is the mean after shrinkage; the difference is
-   `K_CENTRE` working. At `K_CENTRE = 25` a football sample of n=8 contributes
-   **24%** of its own centre — so before trusting any `*_1h_*` / `*_2h_*` row,
-   compute `n/(n+25)` and say out loud how much of it is the league prior.
+   `K_CENTRE` working. At football `K_CENTRE = 15` a sample of n=8 contributes
+   **35%** of its own centre — so before trusting any `*_1h_*` / `*_2h_*` row,
+   compute `n/(n+15)` and say out loud how much of it is the league prior.
 2. `ladder_centre` / `ladder_sigma` describe **the bookmaker's ladder**. A
    `ladder_sigma` of 0.003 is a normal value for a ladder, not a suspiciously
    tight distribution of ours.
-3. For tennis, `p_central` is a blend with the price (see above), not the raw
-   hit rate.
-   Football goes through a negative binomial and will differ — but a gap above
+3. For an old-epoch tennis row, `p_central` is a blend with the price (see
+   above), not the raw hit rate. Football goes through a negative binomial and will differ — but a gap above
    ~15 pp means the league prior, not the team, is doing the work.
 
 ### The devig is power, not proportional
@@ -97,8 +117,18 @@ favourites by ~7 pp. `market_p` is the power devig.
 ## Chain 2 — confidence (`src/bet/sofa/confidence.py`)
 
 ```
-confidence = Calibration.realised(market, p_central, sport).realised_lo95
+confidence = Calibration.realised(market, p_central, sport, direction, klass) -> realised_lo95
+K13 (stats-only, cap_market_by_thin): where thin_by_market_direction has a bucket for (market, direction, p),
+    confidence = min(lo95 of the curve chosen, lo95 of the thin direction bucket)   - for by_market and the pools
 ```
+
+K13 because a curve joining OVER and UNDER overstates a thin direction: on
+2026-10-05 `corners_1h_total|UNDER` at p 0.75–0.80 had a thin direction bucket
+of n = 225 (lower bound 0.663) under the 400-row `min_market_bucket`, so the
+lookup fell to the two-direction `by_market` curve (n = 428, lower bound
+0.712) and printed 0.712 >= 0.70. With the cap it is 0.663 →
+`BELOW_CONFIDENCE_FLOOR`. A capped leg reads `calibrated_on:
+market_thin:<market>|<direction>`.
 
 The **lower bound** of what rows claiming that much actually did. Lookup order:
 the market's own curve → (refuse if `p` is at or above that market's measured
@@ -137,14 +167,18 @@ the coupon.
 ```
 CONFIDENCE_CEILING   = 0.9202     the curve's resolution limit; there is no 98% leg
 MIN_ODDS_FOR_CEILING = 1/0.9202 = 1.0867
-MAX_DISAGREEMENT     = 0.10       confidence − 1/odds above this is refused
+MAX_DISAGREEMENT     = 0.10       p_central − market_p above this is refused - old epoch only (off in stats_only)
 MIN_BUILDER_SAMPLE   = 10         observations, not `sample_size`
 MAX_BUILDER_SAMPLE_AGE_DAYS = 180
 MIN/MAX_BUILDER_LEGS = 2 / 4
 BUILDER_CORRELATION_HAIRCUT = 0.12
 ```
 
-### Why `MAX_DISAGREEMENT` exists
+### Why `MAX_DISAGREEMENT` existed (old epoch)
+
+Off in the stats-only epoch (operator decision D1, 2026-10-05): confidence no
+longer reads the price, so the gap to it is no longer the gate. The evidence
+that made it a gate:
 
 Grouped by how far the model sat above the devigged market, on 6,187 priced
 rows:
@@ -169,12 +203,18 @@ combined_p  = min(product_p, empirical_joint)      the joint may demote, never p
 odds_product     = Π offered_odds_i
 odds_after_haircut = odds_product · (1 − 0.12)     or the operator's screen price, which wins
 ev_after_haircut   = combined_p · odds_after_haircut − 1
-is_stakeable = best_for_fixture and ev_after_haircut > 0
+is_stakeable = best_for_fixture and combined_p · odds_after_haircut >= 0.90   (stats-only, stakeable_rule "x>=0.90")
+is_stakeable = best_for_fixture and ev_after_haircut > 0                       (old epoch: a builder without stakeable_rule)
 ```
 
-**One leg per quantity family, not per market**, and that one is chosen by
-**leg EV**, not by confidence — choosing by confidence is choosing by shortness
-of price, and it put a negative-EV leg into 530 of 2026-09-19's family slots.
+**One leg per quantity family, not per market.** In the stats-only epoch
+(K10) that leg is chosen by confidence, the pool is ordered by confidence and
+the builders by `combined_probability`; `best_for_fixture` is the highest
+`combined_probability`. Because the 2-, 3- and 4-leg builders are prefixes of
+one pool, it is nearly always the 2-leg one. Before the epoch the leg was
+chosen by **leg EV** (choosing by confidence was then choosing by shortness of
+price and put a negative-EV leg into 530 of 2026-09-19's family slots); the
+price filter x >= 0.90 on every leg is what now keeps that out.
 A team's goals and the match total are the same quantity counted twice —
 measured lambda 2.165 on 84 rung pairs, up to 8.37. Multiplying them sells two
 legs as four. Families:
@@ -206,6 +246,22 @@ number in the pipeline.
 
 ---
 
+## Chain 3 — the measured sports (`src/bet/sofa/sport_confidence.py`)
+
+```
+p_model    = score_model.line_probability (hockey, basketball, volleyball) / cs2_engine (CS2) - no price
+confidence = realised_lo95 (Wilson) of p_model's bucket in config/sofa_sport_confidence_calibration.json,
+             for an admitted key (family|side); a bucket with n < 200 (MIN_BUCKET) is unused;
+             a key whose out-of-sample confidence overstates realised by > 0.03 (MAX_OVERSTATEMENT) is not admitted
+forecast_p = p_model ; sample_hit_rate = sample_k / sample_n (shown, never a gate)
+print when confidence >= 0.70, odds >= 1.0867, group margin <= 15%, x = confidence × odds >= 0.90
+```
+
+No curve for the sport or key → `NOT_CALIBRATED`. The file is fitted by
+`fit_sport_confidence.py --before <d>`, between days only.
+
+---
+
 ## The one loop where a day affects the next
 
 ```
@@ -214,6 +270,6 @@ number in the pipeline.
 
 Nothing else carries state between days. That is why a stale config file is
 both silent and expensive: `sofa_league_baselines.json` shipped corners priors
-24–32% too high for two days, and at `K_CENTRE = 25` those priors owned 76% of
-the centre on half-match rows. Check `fitted_from` and `half_match_coherence`
+24–32% too high for two days, and at the then `K_CENTRE = 25` those priors
+owned 76% of the centre on half-match rows. Check `fitted_from` and `half_match_coherence`
 before trusting a sheet.

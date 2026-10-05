@@ -24,7 +24,7 @@ A build of a day >= 2026-10-05 made after 07:15Z is **stats-only**:
   under the rule (a rebuild starts at SHEET).
 - **Reads at the end of the chain:** a leg that passed every gate and a
   WATCH / NO_BET (or the automatic MODEL_ABOVE_OWN_SAMPLE) removed is in
-  `removed_by_reads`, graded on its own (audit_settlement 7h, ledger
+  `removed_by_reads`, graded on its own (audit_settlement 7i, ledger
   `removed:reads`), never in the coupon's result. Analysts read the first 30
   positions, every printed builder leg and whatever the operator adds to
   `read_requests.json` (`/sofa-analyze` "dodatkowo: ..."); C3 checks that set.
@@ -171,15 +171,17 @@ Source of truth for the order: `DEFAULT_SEQUENCE` in
 | you want | use |
 |---|---|
 | a full betting day - the one coupon (11_coupon.json + PDF), the measured sports, D-1 settled and recorded for every variant | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
-| the per-sport read over an existing sheet | `/sofa-analyze` |
-| coupon + PDF from artifacts on disk | `/sofa-rebuild` |
-| adversarial verification of a built day | `/sofa-verify` |
-| settle D-1 and decide about constants | `/sofa-settle` |
+| the analysts' read of an existing coupon (top 30 + builder legs; "dodatkowo: <pozycje>" adds to `read_requests.json`) | `/sofa-analyze` |
+| coupon (11_coupon.json) + PDF from artifacts on disk (FIXTURE_CHECK, CONFIDENCE, COUPON_ASSEMBLY, PDF) | `/sofa-rebuild` |
+| adversarial verification of a built day (11_coupon.json, sport legs via U3) | `/sofa-verify` |
+| settle D-1 (7c per sport, 7h, refunds, identity audit) and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,
-`sofa-verifier`, `sofa-settler`, `sofa-market-scout`, `sofa-sport-runner`
-(one measured sport's experimental coupon; four run in parallel). Skills preloaded into
+`sofa-analyst-sport` (hockey / basketball / volleyball / CS2 legs on the one
+coupon, one instance per sport, read-only), `sofa-verifier`, `sofa-settler`,
+`sofa-market-scout`. (The per-sport coupon runner agent was retired
+2026-10-05 with the separate sport coupons.) Skills preloaded into
 them: `sofa-pipeline`, `sofa-analysis-core`, `football-analysis`,
 `tennis-analysis`.
 
@@ -280,29 +282,39 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   the 10.5% margin - the two settings are different experiments). It is built into its
   own files, settled beside the coupon (audit_settlement section 7d), and its
   result is never pooled with the coupon's.
-- **CS2 is a measurement, not a coupon market.** `CS2` / `CS2_SETTLE` write
-  only `runs/sofa/cs2/<date>/` and test whether Superbet's devigged CS2 price
-  already matches the outcomes. Superbet `sportId=190` is *virtual* football
-  and `75` is e-football - neither is a real sport; never add them.
-- **Hockey, basketball and volleyball are a measurement too** (since
-  2026-09-29): `SHADOW` / `SHADOW_SETTLE` write only
-  `runs/sofa/shadow/<sport>/<date>/`, grade Superbet's lines (two-way, and
-  since 2026-09-30 1X2 / odd-even / yes-no / exact score as whole groups) against
-  Sofascore's score, and never feed or gate the coupon. Superbet `157`
-  (e-hockey) and `70` (e-basketball) are simulations - never add them.
-- **The per-sport experimental coupons are not the coupon** (since
-  2026-09-30, the operator's order): `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`
-  are built by `run_sport_coupon.py` into the measurement's own directory
-  (`runs/sofa/cs2/<d>/`, `runs/sofa/shadow/<sport>/<d>/`), never into
-  `runs/sofa/<d>/`. Price-only - the coupon reads no model (score_model.py and
-  the CS2 engine are measurements), so the
-  probability is Superbet's devigged price (since 2026-10-05 recalibrated for
-  hockey and basketball, fitted on the shadow lines - still no model) and EV
-  at that price is minus the margin; singles only; graded by `settle_sport_coupon.py` per sport and never
-  pooled with the coupon or with each other. The rule replayed on the one
-  settled hockey day (09-29) went 33/46 against a mean fair p of 85.1%,
-  ROI -17.7%. The CS2 / SHADOW rules above still hold: nothing from these
-  sports feeds or gates the coupon.
+- **CS2 / CS2_SETTLE are a measurement** (since 2026-09-28): they write only
+  `runs/sofa/cs2/<date>/` and test whether Superbet's devigged CS2 price
+  already matches the outcomes. From 2026-10-05 08:30Z
+  (`epochs.SPORTS_ON_COUPON_FROM_UTC`) those snapshots are also what the
+  coupon's CS2 legs are priced from and graded by: SPORT_IDENTITY pins the
+  series' Sofascore id before the start, SPORT_CONFIDENCE reads the CS2
+  engine through `config/sofa_sport_confidence_calibration.json` (fitted
+  without prices, between days only) into `08_confidence_sports.json`, and
+  COUPON_ASSEMBLY prints the legs that pass on `11_coupon.json`. The
+  measurement itself still feeds and gates nothing. Superbet `sportId=190` is
+  *virtual* football and `75` is e-football - neither is a real sport; never
+  add them.
+- **Hockey, basketball and volleyball: SHADOW / SHADOW_SETTLE stay a
+  measurement too** (since 2026-09-29): they write only
+  `runs/sofa/shadow/<sport>/<date>/` and grade Superbet's lines (two-way, and
+  since 2026-09-30 1X2 / odd-even / yes-no / exact score as whole groups)
+  against Sofascore's score. From 2026-10-05 08:30Z their calibrated legs
+  (score model -> calibration, price only the condition: x >= 0.90, group
+  margin <= 15%, a fresh pre-start snapshot) print on the one coupon exactly
+  like CS2's above, graded at the printed price against the pinned id
+  (`NOT_GRADED:ID_CHANGED` otherwise), in their own 7c table, never in
+  `sofa_settled_row` or `fit_confidence`. A sport without a calibration is
+  `NOT_CALIBRATED` (exit 1) and the rest of the coupon still builds.
+  Superbet `157` (e-hockey) and `70` (e-basketball) are simulations - never
+  add them.
+- **The separate per-sport experimental coupons are retired** (history,
+  2026-09-30 - 2026-10-05 08:30Z): `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`
+  were price-only coupons built by `run_sport_coupon.py` into the measurement's
+  own directory, graded by `settle_sport_coupon.py` per sport and never pooled
+  (the rule replayed on the one settled hockey day, 09-29, went 33/46 against a
+  mean fair p of 85.1%, ROI -17.7%). `run_sport_coupon.py` refuses a build
+  after 08:30Z on 10-05; the files up to then stay and are graded as before
+  (D5), and `config/sofa_sport_price_calibration.json` belongs to that history.
 - **`KUPON_<d>_WSZYSTKIE.pdf` is not the coupon either** (2026-09-30 - the
   morning of 2026-10-05; retired, `run_multi_coupon.py` refuses newer days):
   an assembly in `runs/sofa/multi/<d>/` of what the official PDF and the four

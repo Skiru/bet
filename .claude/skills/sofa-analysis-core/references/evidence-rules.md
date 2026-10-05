@@ -42,27 +42,26 @@ silent drop.
 ## How much of the centre is the sample, and how much is the league
 
 ```
-w_c = n / (n + K_CENTRE)      football K_CENTRE = 25, tennis 2
+w_c = n / (n + K_CENTRE)      football K_CENTRE = 15, tennis 5 (config/sofa_engine_constants.json, by_sport)
 ```
 
-At n=10 a football row's centre is **29%** its own sample and 71% the league
-baseline. At n=8 it is 24%. State this number for any row you grade, and
+At n=10 a football row's centre is **40%** its own sample and 60% the league
+baseline. At n=8 it is 35%. State this number for any row you grade, and
 always for a `*_1h_*` / `*_2h_*` row — the half-match baselines are fitted on a
 smaller, different population than the full-match ones, and a stale baselines
 file has already shipped corners priors 24–32% too high for two days.
 
-Tennis `p_central` does **not** equal the sample's hit rate on a priced rung
-(`scripts/sofa/run_sheet.py`, `process_fixture`). A row with a
-`TENNIS_RATING` note (`games_total`, `games_won_for`, `sets_total`,
-`handicap_games` - `tennis_rating.RATED_MARKETS`) is
-`0.25·rating p + 0.75·market_p` (`blend_with_price`, `W_TENNIS_RATING = 0.25`,
-unfitted). An empirical-frequency row without the rating (`sets_total`,
-`games_won_for`, per-set games - `EMPIRICAL_FREQUENCY_METRICS`) carries
-`P_SHRUNK_TO_PRICE`: `w·hits/n + (1−w)·market_p`, `w = n/(n+30)`
-(`p_empirical_shrunk_to_price`, `K_TENNIS_LADDER_CENTRE = 30`; 0.25 at n=10).
-Only where the rung has no price is it the rating alone or the raw hit rate.
-A priced tennis `p_central` sitting near `market_p` and far from `hits/n` is
-the code working, not a defect.
+On a stats-only row (`epoch: "stats_only"`, builds from 2026-10-05 07:15Z)
+`p_central` holds **no price**: no ladder centre, no rating blended with the
+price, no empirical shrink to the rung's price (`scripts/sofa/run_sheet.py`,
+`process_fixture`, `stats_only`). A rated tennis row is priced by the
+sample's estimator, and the rating (football and tennis) is published beside
+it as `forecast_p` - the **model**, uncalibrated, never a gate. On an older
+row a priced tennis rung was pulled onto the price: `TENNIS_RATING`
+`0.25·rating p + 0.75·market_p` (`blend_with_price`), `P_SHRUNK_TO_PRICE`
+`w·hits/n + (1−w)·market_p`, `w = n/(n+30)` - there a `p_central` near
+`market_p` was the code working; on a stats-only row it would be a
+coincidence worth a look.
 
 **Where the football prior came from** is on the row since 2026-09-23. In
 order: the fitted league entry (no note); `PRIOR_FROM_DAY_SAMPLES` - the
@@ -70,7 +69,7 @@ league's mean over the day's own sampled matches, this fixture's sample
 excluded, n >= 30; `PRIOR_FROM_TEAMS_LEAGUES` - a cup tie priced on the leagues
 its sides actually play in; otherwise the **global** pool, which is every
 league on earth (3.29 goals). A row with no PRIOR note and no fitted league is
-on the global pool - say so, because at n=10 that pool owns 71% of the centre
+on the global pool - say so, because at n=10 that pool owns 60% of the centre
 and it is the defect that put Gaucho A2 OVER 1.5 legs on the 2026-09-23 PDF.
 Half-match metrics never take a day or teams' prior (Sofascore's period split
 is wrong in some leagues while the full time is right).
@@ -97,8 +96,10 @@ so a veto for "one player's history wearing a match's name" is no longer needed.
 
 `kickoff_utc` is Sofascore's, `superbet_kickoff_utc` is Superbet's. For ITF
 tennis they disagree by up to 11 h, and the error runs the wrong way: **a
-finished match looks upcoming** on Sofascore's clock. COUPON takes the
-earlier of the two; CONFIDENCE reads Sofascore's.
+finished match looks upcoming** on Sofascore's clock. SHEET, COUPON and
+CONFIDENCE gate on the earliest clock (Sofascore's - replaced by
+FIXTURE_CHECK's fresh `/event` start in `fixture_status.json` where it ran -,
+Superbet's, and Superbet's own start signal).
 
 For your own decision point, take the **earlier**. Quote both when they
 disagree by more than an hour, and say so.
@@ -123,16 +124,21 @@ Do not re-derive these, and do not veto for them — the gate already fired:
 | already enforced | where |
 |---|---|
 | price older than 45 min | COUPON `STALE_PRICE`, CONFIDENCE `STALE_PRICE` |
-| newest observation older than 60 days | COUPON `STALE_SAMPLE` |
+| the match has started (earliest clock) | CONFIDENCE `KICKED_OFF` |
+| printed match postponed / cancelled / abandoned (FIXTURE_CHECK) | CONFIDENCE `FIXTURE_NOT_AS_SCHEDULED` |
+| newest observation older than 60 days | COUPON and CONFIDENCE `STALE_SAMPLE` |
 | kickoff less than 15 min out, on the earlier clock | COUPON `KICKOFF_TOO_SOON` |
-| odds below 1.25 (singles) / 1.0867 (legs) | `ODDS_TOO_LOW` |
+| odds below 1.25 (old singles) / 1.0867 (coupon legs) | `ODDS_TOO_LOW` |
+| x = confidence x odds below 0.90 | CONFIDENCE `NEGATIVE_LEG_EV` |
+| confidence below the 0.70 floor | CONFIDENCE `BELOW_CONFIDENCE_FLOOR` |
 | line outside everything the sample has seen | CONFIDENCE `LINE_BEYOND_SAMPLE` |
 | `p_central` at or above this market's own measured calibration ceiling | COUPON `ABOVE_MEASURED_CEILING`, CONFIDENCE `NOT_CALIBRATED` |
 | a second row of the same mechanism family on one fixture | COUPON `FAMILY_SLOT_TAKEN` |
 | modal outcome loses | CONFIDENCE `MODE_LOSES` |
+| football model more than 0.15 above its own sample's hit rate | CONFIDENCE `MODEL_ABOVE_OWN_SAMPLE` (automatic WATCH, into `removed_by_reads`) |
 | fewer than 10 observations for a builder leg | `THIN_SAMPLE_FOR_BUILDER` |
 | oldest observation past 180 days for a builder leg | `SAMPLE_CROSSES_SEASON` |
-| model more than 0.10 above the devigged price | `DISAGREES_WITH_PRICE` |
+| model more than 0.10 above the devigged price | `DISAGREES_WITH_PRICE` - old-epoch builds only; off on a stats-only day, as `UNREACHABLE_BAR` |
 | a joint/comparative market has no calibration | `DERIVED_NOT_CALIBRATABLE` |
 | a builder mixing `goals UNDER` with `corners OVER` | `BUILDER_LEGS_INCOHERENT` |
 
@@ -169,6 +175,7 @@ External verification, when you do it:
 - **Never fetch odds off the open web, and never from another book's feed.**
   The only price that exists for `sofa` is Superbet's, in `04_offer.json`; a
   price from anywhere else is not the price this coupon is measured against.
+  And Superbet's price is only the betting filter - never a reason in a read.
   If a live re-quote is needed, it goes through the same `OfferFetcher` the
   pipeline used — that is `sofa-market-scout`'s job, not yours.
 - If a tool returns `requires re-authorization`, stop retrying and list the

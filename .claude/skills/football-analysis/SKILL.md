@@ -1,6 +1,6 @@
 ---
 name: football-analysis
-description: How to analyse one football fixture's counting markets in the sofa pipeline (goals, corners, cards as booking points, fouls, shots, shots on target, offsides, per-team and per-half lines, and the derived both_over/handicap/most markets) - round and stakes, second legs, derbies, referee, absences, venue, opponent class, game script, distribution over mean, which rung, price last. Use when reading a sofa football sheet, grading VALUE rows, judging a Bet Builder leg, or writing vetoes. Preloaded into sofa-analyst-football.
+description: How to analyse one football fixture's counting markets in the sofa pipeline (goals, corners, cards as booking points, fouls, shots, shots on target, offsides, per-team and per-half lines, and the derived both_over/handicap/most markets) - round and stakes, second legs, derbies, referee, absences, venue, opponent class, game script, distribution over mean, which rung; on a leg pewność (confidence), próbka k/n and model (forecast_p), the price only as the betting filter. Use when reading a sofa football sheet or the coupon's football legs, judging a Bet Builder leg, or writing vetoes and reads. Preloaded into sofa-analyst-football.
 ---
 
 # Football analysis — the method, mapped to what `sofa` actually holds
@@ -45,19 +45,25 @@ Two consequences, both load-bearing:
 
 ## What the code already does — do not re-derive or veto for it
 
-Shrinks the sample toward a fitted league baseline at `K_CENTRE = 25`; prices
+Shrinks the sample toward a fitted league baseline at `K_CENTRE = 15`; prices
 football counts through a negative binomial (overdispersion is in the model);
-power-devigs the offered price; blends toward it at `w = n/(n+10)`; checks the
-book's whole ladder where it can (only 52.4% of ladders are checkable);
-enforces price age 45 min, sample age 60 days, kickoff 15 min on the earlier
-clock, odds floors, one mechanism family per fixture; and for builder legs
+calibrates that probability into the leg's **pewność** (`confidence`) - on a
+stats-only day with no price in it; publishes the rating beside it as
+**model** (`forecast_p`, uncalibrated, never a gate); power-devigs the
+offered price (`market_p`) and, for the old VALUE selector only, blends
+toward it at `w = n/(n+10)` (`p_bar`, priced, `06_coupon.json`); applies the
+price only as the betting condition (x = confidence x odds >= 0.90, ladder
+margin <= 15%); enforces price age 45 min, sample age 60 days, the start on
+the earliest clock, odds floors, one mechanism family per fixture, the
+automatic `MODEL_ABOVE_OWN_SAMPLE` WATCH; and for builder legs
 enforces sample ≥ 10 observations, ≤ 180 days, mode-must-not-lose,
 line-inside-sample, tempo coherence and the 12% correlation haircut.
 
 ## The protocol
 
-For every fixture carrying a `VALUE` row, every fixture with a leg in
-`08_confidence.json`, and any fixture you intend to veto. Full template:
+For every fixture with a football leg in your read set (the first 30
+positions of `11_coupon.json`, every printed builder leg, `read_requests.json`
+- see `sofa-analysis-core`), and any fixture you intend to veto. Full template:
 `references/event-protocol.md`.
 
 1. **Identity & both clocks.** From `02_fixtures.json`: `identity`
@@ -100,8 +106,8 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
    - `sample_hit_rate` on the leg against `model_p`: above 0.15 the code
      already refused it from the official coupon (`MODEL_ABOVE_OWN_SAMPLE`);
      a smaller gap is still yours to weigh.
-4. **Shrinkage share.** `w_c = n/(n+25)`. State it. At n=10 the league prior
-   owns **71%** of the centre. For any `*_1h_*` / `*_2h_*` row state it twice
+4. **Shrinkage share.** `w_c = n/(n+15)`. State it. At n=10 the league prior
+   owns **60%** of the centre. For any `*_1h_*` / `*_2h_*` row state it twice
    — half-match baselines are fitted on a smaller, different population, and a
    stale baselines file has already shipped corners priors 24–32% too high.
 5. **Distribution.** From the observations: min, max, median, mode, and where
@@ -129,19 +135,22 @@ For every fixture carrying a `VALUE` row, every fixture with a leg in
    favourite from Superbet's own ladders in `04_offer.json` (goals, handicap
    and `most_*` rungs where offered), or say the scenarios are unweighted.
 10. **The ladder.** All rungs in `04_offer.json` for this market, with
-    `p_central` / `p_bar` / `offered_odds` / `surplus` per rung. Note
+    `p_central` and `offered_odds` per rung (and the leg's pewność, próbka
+    k/n and model where it is one). Note
     `NO_LADDER_CHECK` where it appears: that row passed *without* the ladder
     test, which is not the same as passing it.
 11. **Correlation**, for anything that may become a builder leg: the mechanism,
     the direction, and the one scenario that kills every leg at once. Never
     multiply. `confidence.py` owns the combined number.
-12. **Price — last.** `required_odds` against `offered_odds`; `surplus` and its
-    suspicion threshold (+0.40); the price's own `fetched_at_utc`.
+12. **Price — only the filter.** `offered_odds`, x = confidence x odds
+    against 0.90, the price's own `fetched_at_utc`. The code has applied it;
+    it is never a reason for or against the leg.
 13. **Buy case / kill case.** The strongest fact for, the strongest fact
     against, which wins. `BUY ≈ KILL` → WATCH at most.
-14. **Verdict** `KEEP / WATCH / NO BET` — a read entry for every printed leg
-    (WATCH drops it from the official coupon and keeps it, marked, in the
-    WARIANT; NO_BET drops it from both) — and the veto entry if any.
+14. **Verdict** `KEEP / WATCH / NO_BET` — a read entry for every leg of
+    your read set (WATCH and NO_BET both remove it from the coupon into
+    `removed_by_reads`, graded apart in audit_settlement 7h) — and the veto
+    entry if any.
 
 ## Kill cases this repo has already paid for
 
@@ -165,7 +174,8 @@ Check every read against these.
   against a ladder median of 5.76 — the sample described a different
   team-state. Look for `LADDER_DISAGREES` / `LADDER_SPREAD_DISAGREES`.
 - **Past frequency read as an edge.** A team scoring in twelve straight is not
-  a 92% claim; devig the price and compare before speaking.
+  a 92% claim; the calibrated pewność is the claim, and próbka 12/12 is only
+  the sample it came from.
 - **Certainty for free.** A 0.5 UNDER or 5.5 goals UNDER at 1.01–1.05 tops a
   sheet by hit rate and is not a bet. Never lead with one. CONFIDENCE refuses
   anything under 1.0867 for exactly this reason.
@@ -177,14 +187,15 @@ Check every read against these.
   rule before trusting any counting UNDER: some go straight to penalties, some
   play 30 minutes, and "90 minutes" means different things.
 - **Half-match rows on a thin sample.** `corners_2h_*` has 62 matches in the
-  entire settled history. At n=8 the row is 76% league prior.
-- **A high surplus.** Above +0.40 is suspect *by definition*; the selector sorts
-  on exactly the quantity that grows when `p` is wrong.
+  entire settled history. At n=8 the row is 65% league prior.
+- **A high surplus** (`06_coupon.json`, the old VALUE selector - not the
+  coupon). Above +0.40 is suspect *by definition*; that selector sorts on
+  exactly the quantity that grows when `p` is wrong.
 
 ## Football-specific output requirements
 
 Per fixture, always state — even when the answer is "none": round and stakes
 and where you read them; the referee with `games`, or explicitly that there is
 none; absences per side with how you checked; the venue; the modal game-script
-scenario; the shrinkage share `n/(n+25)`; and which gates the code already
+scenario; the shrinkage share `n/(n+15)`; and which gates the code already
 applied, so a veto of yours does not silently duplicate one.

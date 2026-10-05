@@ -4,7 +4,8 @@
 `config/tennis_surface_map.json`, `config/tennis_match_format.json`,
 `SURFACE_MISMATCH`, `p_low` or a tier system, those belong to the retired
 `simple` pipeline. `sofa` scopes the sample on the fixture's own
-`ground_type` and `default_period_count`, ranks by `p_central` → `p_bar`, and
+`ground_type` and `default_period_count`, orders the coupon by the calibrated
+confidence (`p_bar` is the old VALUE selector's, priced), and
 has no tiers. What it does not hold is named at each step, because that is
 where your contribution is.
 
@@ -138,8 +139,8 @@ Per-player form is ten matches; after the surface and format scope it is often
 neighbouring rungs means the sample has no observation between them — the model
 separates the prices, not the evidence.
 
-`K_CENTRE = 2` for tennis, so shrinkage barely helps: at n=10 the sample owns
-83% of the centre against football's 29%. A clean sample is respected and a bad
+`K_CENTRE = 5` for tennis, so shrinkage helps little: at n=10 the sample owns
+67% of the centre against football's 40%. A clean sample is respected and a bad
 one is not corrected.
 
 A wrong human is worse than a small sample. `identity: FUZZY` on a tennis name
@@ -150,7 +151,8 @@ is a real risk — names collide — and it must never be reported as confirmed.
 There is no odds feed, no model and no MCP for tennis here. The only reference
 price is Superbet's own other side, power-devigged into `market_p`, and when
 the rung is one-sided there is none at all (`NO_MARKET_MARGINAL`, `p_bar = p`).
-Decide the rung blind, then look at the price.
+Decide the rung blind. On the coupon the price is only the betting condition
+(x = confidence x odds >= 0.90, ladder margin <= 15%) - never evidence.
 
 Tennis **is** settled and calibrated now: 56,581 settled rows, its own pooled
 curve (`pooled:tennis`), and per-market curves where the row count allows. Two

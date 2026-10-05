@@ -129,7 +129,7 @@ claim about one side.
 ## Where the centre comes from
 
 ```
-w_c    = n / (n + 25)                     K_CENTRE for football, FITTED
+w_c    = n / (n + 15)                     K_CENTRE for football, FITTED
 centre = w_c·sample_mean + (1 − w_c)·prior
 ```
 
@@ -139,7 +139,7 @@ go through a **negative binomial** around that centre — overdispersion is in
 the model, which is why `p_central` does not equal the sample hit rate for
 football and should not.
 
-At n=10 the league prior owns **71%** of the centre. On half-match markets say
+At n=10 the league prior owns **60%** of the centre. On half-match markets say
 so explicitly: those baselines are fitted on a smaller and different population
 than the full-match ones (the goals halves are internally inconsistent by −13%
 and −17%, reported by `half_match_coherence` and not yet equalised), and a

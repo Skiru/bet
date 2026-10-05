@@ -12,10 +12,49 @@ that does not exist. Read `DEFAULT_SEQUENCE`.
 
 ## The product
 
-**`06_coupon.json` is not the coupon.** Three files on disk call themselves
-one. The VALUE-singles selector returned **−20.4%** on 2026-09-20 while the
-PDF's Bet Builders returned **+8.2%** the same day. Reporting `06_coupon` as
-the day's result inverts the day.
+**`06_coupon.json` is not the coupon.** The VALUE-singles selector returned
+**−20.4%** on 2026-09-20 while the PDF's Bet Builders returned **+8.2%** the
+same day. Reporting `06_coupon` as the day's result inverts the day.
+
+**`06_coupon.json`, `p_bar`, `required_odds`, `surplus` and VALUE are still
+priced.** The stats-only epoch took the price out of `p_central` and the
+coupon, not out of the old selector: SHEET still computes the bar, COUPON
+still selects on it, `audit_coupon.py` still audits it. None of it is the
+coupon's confidence, order or price rule. A `p_bar` next to a stats-only
+`confidence` is two different questions, not a disagreement to resolve.
+
+**`08_confidence.json` is not the coupon on a stats-only day - `11_coupon.json`
+is.** 08 holds only football and tennis, no positions, no blocks, no measured
+sport legs and no sport locks; the PDF refuses a stats-only 08 without an 11.
+Read "what was printed" through `confidence.coupon_artifact()` (11 where it
+exists, else 08), and what the PDF actually rendered from `12_printed.json`.
+
+**Retired 2026-10-05, historical records only:** the WARIANT PDF, the separate
+sport coupons `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf` and
+`KUPON_<d>_WSZYSTKIE.pdf` built that morning (before 07:15Z / 08:30Z) are
+records of what was printed then, graded as before - never the coupon, never
+pooled with it, and refused (exit 2) if anyone tries to build them again.
+
+**A provisional PDF locks legs.** A stats-only day's own PDF writes `12_printed.json`,
+and the next rebuild carries over, unchanged, every printed leg whose match
+has started (`locked_print`) - whatever reads or prices arrived since. So a
+"quick look" PDF before the analysts' reads is a print: a leg on it that
+starts before the rebuild stays on the coupon even if a read would have
+removed it (shown in `locked_late_refusals`, never acted on). Render the PDF
+when the coupon is meant.
+
+**Positions shift after a rebuild.** `position` in `11_coupon.json` is
+recomputed every assembly (a leg locks, a read removes one, a price moves).
+Name a leg in `read_requests.json` by `{"group_key": "sofa:<id>", "market",
+"line", "direction"}`, not by `{"position": n}`, unless the request is
+written against the build the operator is looking at.
+
+**`UNMATCHED_READ` for a sport read in `run_confidence.py` is expected.**
+CONFIDENCE sees only football / tennis sheet rows, so a read for a hockey /
+basketball / volleyball / CS2 leg matches nothing there and is printed on its
+stderr. COUPON_ASSEMBLY applies it (`coupon_sports.apply_reads`): check the
+leg's `reads` / `removed_by_reads` in `11_coupon.json`, not the CONFIDENCE
+stderr.
 
 **`ev_if_product_priced` is not an EV.** Superbet applies its own correlation
 adjustment and that adjustment is the whole margin (measured 8.8–19.6%).
@@ -31,8 +70,8 @@ fixtures up as 79 independent bets with 46 of 148 legs repeated.
 
 ## Selection
 
-**Anti-selection is structural.** The coupon ranks on `surplus /
-required_odds`, and `surplus = offered − 1.10/p_bar` grows as `p` is
+**Anti-selection is structural** - in the old VALUE selector. COUPON
+(`06_coupon.json`) ranks on `surplus / required_odds`, and `surplus = offered − 1.10/p_bar` grows as `p` is
 overstated, so the rows most likely to be wrong sort to the top. **A surplus
 above +0.40 is suspect by definition.** Check the distribution of VALUE across
 markets, leagues and `sample_size`: if it concentrates in the weakest
@@ -40,15 +79,16 @@ measurement, it is an artifact, not an edge. An over-representation of fourth
 tiers and youth leagues means *lack of data* is winning, not skill.
 
 **Stale samples are actively selected for.** A sample that has stopped tracking
-a player disagrees with the current price more often, and the coupon ranks on
-exactly that disagreement. On 2026-09-21 the day's highest-surplus single
+a player disagrees with the current price more often, and the VALUE selector
+ranks on exactly that disagreement. On 2026-09-21 the day's highest-surplus single
 (+2.741 at 5.90) rested on a sample whose newest match was 105 days old, and
 one row reached the coupon on a sample 193 days old. `MAX_SAMPLE_AGE_DAYS = 60`
 closed it; the *shape* of the error is the durable lesson.
 
-**Half-match rows lean on a global prior.** At `K_CENTRE = 25` a sample of n=8
-contributes 24% of its own centre. Before trusting a `*_1h_*` / `*_2h_*` row,
-compute `n/(n+25)` and say how much of it is the league. `corners_2h_*` has 62
+**Half-match rows lean on a global prior.** At football `K_CENTRE = 15`
+(since the 2026-10-03 refit; 25 before) a sample of n=8 contributes 35% of
+its own centre. Before trusting a `*_1h_*` / `*_2h_*` row, compute
+`n/(n+15)` and say how much of it is the league. `corners_2h_*` has 62
 matches in the entire settled history.
 
 **A stale baselines file is silent.** `config/sofa_league_baselines.json`
@@ -73,6 +113,13 @@ are recent, so a Monday (~100 football fixtures) against three weekends (~1000)
 trips "matching regression" every time. **Check the RESOLVE rate instead** —
 72–90% is normal — before believing it.
 
+**RESOLVE's clock goes stale during the day.** 2026-10-05, Shanghai: RESOLVE
+read 06:20Z, Superbet moved the match to 07:30Z, and a 06:12Z rebuild refused
+three singles as "starting soon" and took their closing prices ~80 min early.
+FIXTURE_CHECK (`run_fixture_check.py`, bridge) re-reads `/event/{id}` for the
+printed matches and the moved clocks before CONFIDENCE; without the bridge
+the events are `UNVERIFIED` and the frozen clock stands.
+
 **Board size is the calendar, not a fault.** 2026-09-20: 1040 football
 fixtures. 2026-09-21: 102.
 
@@ -89,7 +136,7 @@ it is one we never looked at.
 **The confidence curve is fitted on a probability that does not ship.**
 Open, measured 2026-09-21, **not fixed**. `run_sheet.py` shrinks the sample
 mean toward the league baseline (`centre = w_c·mean + (1−w_c)·prior`,
-`K_CENTRE = 25` for football) and prices `p_central` from that centre.
+then `K_CENTRE = 25` for football) and prices `p_central` from that centre.
 `fit_confidence.py` recomputes its own `p` from the **raw** `sample_mean` and
 skips the shrinkage entirely. So every curve the count metrics are served from
 is keyed on a model that never ships.
@@ -109,8 +156,8 @@ about them):
 That last row is the proof rather than an aside: tennis barely shrinks, so
 tennis barely diverges. The gap *is* the shrinkage.
 
-Everything gated on `realised_lo95` inherits it — the 0.80 confidence floor,
-`MAX_DISAGREEMENT`, `leg_is_ev_positive`, and the `ABOVE_MEASURED_CEILING`
+Everything gated on `realised_lo95` inherits it — the confidence floor, the
+x >= 0.90 price condition, and the `ABOVE_MEASURED_CEILING`
 drop on the singles. `fit_constants.py` was corrected for exactly this;
 `fit_confidence.py` was not. **Treat a football market's measured ceiling as
 approximate until it is.**

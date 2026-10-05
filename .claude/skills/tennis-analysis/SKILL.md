@@ -1,6 +1,6 @@
 ---
 name: tennis-analysis
-description: How to analyse one tennis match's length and serve markets in the sofa pipeline (total games, a player's games won, total sets, aces, double faults, serve points, per-set variants, and the derived most_/handicap_ markets) - surface first, format second, opponent quality of the sample, serve/return decomposition, hold vs break, scoreline arithmetic for every rung, schedule and fatigue, price last. Use when reading a sofa tennis sheet, grading VALUE rows, judging a tennis Bet Builder leg, or writing vetoes. Preloaded into sofa-analyst-tennis.
+description: How to analyse one tennis match's length and serve markets in the sofa pipeline (total games, a player's games won, total sets, aces, double faults, serve points, per-set variants, and the derived most_/handicap_ markets) - surface first, format second, opponent quality of the sample, serve/return decomposition, hold vs break, scoreline arithmetic for every rung, schedule and fatigue; on a leg pewność (confidence), próbka k/n and model (forecast_p), the price only as the betting filter. Use when reading a sofa tennis sheet or the coupon's tennis legs, judging a tennis Bet Builder leg, or writing vetoes and reads. Preloaded into sofa-analyst-tennis.
 ---
 
 # Tennis analysis — the method, mapped to what `sofa` actually holds
@@ -18,9 +18,10 @@ from football in four ways that change everything below.
    schedule history.
 3. **Every market is a function of match length.** A short match settles every
    UNDER at once, so a two-leg tennis slip is usually one bet with two prices.
-4. **`K_CENTRE` for tennis is 2**, against football's 25. A tennis row is
-   almost entirely its own sample — at n=10 the sample owns **83%** of the
-   centre. There is far less league prior propping it up, in both directions.
+4. **`K_CENTRE` for tennis is 5**, against football's 15
+   (`config/sofa_engine_constants.json`, `by_sport`). A tennis row is mostly
+   its own sample — at n=10 the sample owns **67%** of the centre. There is
+   far less prior propping it up, in both directions.
 
 Tennis is usually about two thirds of the board.
 
@@ -51,11 +52,16 @@ twelve games, so the distribution has a loser mode spread over 0–11 and a
 winner mode stacked on 12+. Across 570 observations in one day: 10:17, 11:10,
 **12:159**, 13:84. Superbet's line sits at **11.5, in the trough.** A normal
 CDF puts smooth density exactly where the real distribution has almost none.
-On a priced rung that frequency is then pulled onto the price (note
-`P_SHRUNK_TO_PRICE`: w·hits/n + (1−w)·`market_p`, w = n/(n+30)), and where the
-rating has the match (`TENNIS_RATING`, also `games_total` / `handicap_games`)
-`p_central` is 0.25·rating + 0.75·`market_p` instead - see
+On a stats-only row (`epoch: "stats_only"`, builds from 2026-10-05 07:15Z)
+that frequency is taken around the shrunk centre with **no price in it**, and
+the rating is published beside it as the **model** (`forecast_p`,
+`tennis_rating`, uncalibrated, never a gate). On an older row it was pulled
+onto the price (`P_SHRUNK_TO_PRICE`, `TENNIS_RATING`) - see
 `references/data-inventory.md`. Neither equals the raw hit rate, by design.
+On a leg, three numbers stand side by side: **pewność** (`confidence`, the
+calibrated curve), **próbka** k/n (`sample_hit_rate` x `sample_size`) and
+**model**; the price is only the betting condition (x = confidence x odds
+>= 0.90, ladder margin <= 15%).
 
 For every other tennis metric `p_central` comes from a count model, so it will
 **not** equal the sample hit rate.
@@ -72,10 +78,11 @@ For every other tennis metric `p_central` comes from a count model, so it will
 - whether the competition's surface pin is right at Challenger/ITF level, where
   coverage is thinnest
 
-## The protocol — surface first, format second, price last
+## The protocol — surface first, format second, the price only as the filter
 
-For every tennis fixture with a `VALUE` row, every fixture appearing in
-`08_confidence.json`, and any fixture you intend to veto.
+For every tennis fixture with a leg in your read set (the first 30 positions
+of `11_coupon.json`, every printed builder leg, `read_requests.json` - see
+`sofa-analysis-core`), and any fixture you intend to veto.
 
 1. **Identity, both clocks, format, surface.** From `02_fixtures.json`:
    `competition_name`, `ground_type`, `default_period_count` (for tennis this
@@ -120,13 +127,16 @@ For every tennis fixture with a `VALUE` row, every fixture appearing in
    the market. **`sofa` carries no match-odds price**, so the favourite's
    strength is not in the artifacts — say so or source it and label it.
 9. **Ladder and tail.** Every rung Superbet posts for this market with
-   `p_central` / `p_bar` / `offered` / `required` / `surplus`. A third set adds
-   12–15 games to a two-set match — the tail is huge and one-sided.
-10. **Price — last, and there is often nothing to check it against.** When the
-    rung is one-sided, `market_p` is null, the bar is unanchored
-    (`NO_MARKET_MARGINAL`), and `p_bar` is just `p`. Say so.
-11. **Buy case / kill case → verdict** `KEEP / WATCH / NO BET` + the read
-    entry for every printed leg + the veto entry.
+   `p_central` and `offered` (and the leg's pewność, próbka k/n and model
+   where it is one). A third set adds 12–15 games to a two-set match — the
+   tail is huge and one-sided.
+10. **Price — only the filter.** `offered_odds`, x = confidence x odds
+    against 0.90, the price's `fetched_at_utc`. The code applied it; it is
+    never a reason for or against the leg. A one-sided rung has `market_p`
+    null (`NO_MARKET_MARGINAL`) - say so.
+11. **Buy case / kill case → verdict** `KEEP / WATCH / NO_BET` + the read
+    entry for every leg of your read set (WATCH and NO_BET remove it into
+    `removed_by_reads`, graded apart in audit_settlement 7h) + the veto entry.
 
 ## Kill cases this repo has already paid for
 

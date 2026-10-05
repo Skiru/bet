@@ -30,7 +30,7 @@ goals halves dominate, and `fouls_total` produced **4**.
   per-team 4.5, which asks 70% of a coin-flip market.
 - **Half-match warning.** `corners_2h_*` has **62 matches** in the entire
   settled history, and its league baselines were 24–32% too high for two days.
-  At n=8 the row is 76% league prior. Compute `n/(n+25)` and say it.
+  At n=8 the row is 65% league prior. Compute `n/(n+15)` and say it.
 
 ## Cards — `cards_points_total`, `cards_points_for`
 
@@ -102,7 +102,8 @@ goals halves dominate, and `fouls_total` produced **4**.
 - **Kill cases:** a 0.5 OVER or 5.5 UNDER at 1.01–1.05 topping a sheet by hit
   rate — certainty for free is not a bet, and CONFIDENCE refuses anything under
   1.0867 for exactly that reason; a second leg whose aggregate changes who must
-  score; a past-frequency streak read as an edge (devig the price first).
+  score; a past-frequency streak read as an edge (the pewność is the claim,
+  not the streak).
 
 ## Offsides — `offsides_total`, `offsides_for`
 
