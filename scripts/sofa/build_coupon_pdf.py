@@ -906,7 +906,9 @@ def render_stats_only(
                 Paragraph(str(leg.get("position")), small),
                 Paragraph(match_cell, small),
                 Paragraph(
-                    escape(str(leg["display_market"])) if leg.get("display_market")
+                    escape(str(leg["display_market"])) + (
+                        f" — ta sama drabina: {n_rungs}" if n_rungs > 1 else "")
+                    if leg.get("display_market")
                     else f"{leg.get('market')}{escape(subj)}", small),
                 Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
                           f"{leg.get('direction')}", small),
