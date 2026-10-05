@@ -114,7 +114,13 @@ def curve_status_enforced(date: str, build_at: datetime | None = None) -> bool:
 #   stakeable at that price; without one it is refused BUILDER_NO_SCREEN_PRICE.
 COUPON_STRUCTURE_DATE = "2026-10-06"
 COUPON_STRUCTURE_FROM_UTC = datetime(2026, 10, 6, 0, 0, 0, tzinfo=UTC)
-BUILDER_SCREEN_PRICE_FROM_UTC = datetime(2026, 10, 6, 0, 0, 0, tzinfo=UTC)
+# Switched off by the operator on 2026-10-05 (~12:45Z, before it ever acted):
+# "jeżeli chodzi o buildery to nie wyceniaj mi ich, sam będę widział". sofa
+# prints a builder's legs and its combined probability; the price is the one
+# the operator sees on Superbet's screen. A recorded screen price
+# (09_screen_prices.json) is still carried as a note; nothing is refused for
+# want of one. None = off.
+BUILDER_SCREEN_PRICE_FROM_UTC: datetime | None = None
 
 
 def coupon_form_active(date: str, build_at: datetime | None = None) -> bool:
@@ -126,9 +132,13 @@ def coupon_form_active(date: str, build_at: datetime | None = None) -> bool:
 def builder_screen_price_required(
     date: str, build_at: datetime | None = None
 ) -> bool:
-    """Does a Bet Builder need a recorded screen price to print (F4.4)?"""
+    """Does a Bet Builder need a recorded screen price to print (F4.4)?
+    False while BUILDER_SCREEN_PRICE_FROM_UTC is None (operator, 2026-10-05)."""
+    if BUILDER_SCREEN_PRICE_FROM_UTC is None:
+        return False
     at = build_at if build_at is not None else timeutil.now()
-    return date >= COUPON_STRUCTURE_DATE and at >= BUILDER_SCREEN_PRICE_FROM_UTC
+    return (date >= BUILDER_SCREEN_PRICE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= BUILDER_SCREEN_PRICE_FROM_UTC)
 
 
 # Plan 2026-10-05_PRODUCTION_GRADE, F0.6: from this build time (and for a day

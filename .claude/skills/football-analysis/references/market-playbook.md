@@ -197,9 +197,10 @@ slip:
 - the shared mechanism, and the one scenario that kills every leg together;
 - whether the legs really are different quantities (a team's goals and the
   match total are the same quantity — measured lambda 2.165);
-- whether the price the operator can see on the screen beats
-  `odds_after_haircut`. If he has the screen price, it wins outright over the
-  12% estimate.
+- the price is NOT yours to state: since 2026-10-05 the operator reads a
+  builder's price off Superbet's screen himself ("nie wyceniaj mi ich, sam
+  będę widział") - never quote `fair_odds` / `odds_after_haircut` / an EV of a
+  builder in a report.
 
 **Never print a combined price of your own.** Prefer mechanism 1 + mechanism 2
 over the same market three times.

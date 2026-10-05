@@ -16,6 +16,7 @@ from reportlab.platypus import KeepTogether, Paragraph, Table
 
 from bet.sofa import builder_screen as bs
 from bet.sofa import coupon_form as cf
+from bet.sofa import epochs
 from bet.sofa.confidence import is_stakeable, printed_builders
 from bet.sofa.epochs import builder_screen_price_required, coupon_form_active
 from bet.sofa.leg_relations import RELATIONS
@@ -142,12 +143,18 @@ def test_coupon_form_file_is_validated(tmp_path: Path) -> None:
 
 def test_the_epoch_gates_start_on_the_6th() -> None:
     at = datetime.datetime(2026, 10, 6, 0, 30, tzinfo=UTC)
-    assert not builder_screen_price_required("2026-10-05", at)
-    assert builder_screen_price_required("2026-10-06", at)
-    assert not builder_screen_price_required(
-        "2026-10-06", datetime.datetime(2026, 10, 5, 23, 0, tzinfo=UTC))
     assert coupon_form_active("2026-10-06", at)
     assert not coupon_form_active("2026-10-05", at)
+
+
+def test_the_builder_screen_price_is_never_required() -> None:
+    # The operator, 2026-10-05: "nie wyceniaj mi ich, sam będę widział" -
+    # a builder prints with its legs and combined p, no screen price needed.
+    assert epochs.BUILDER_SCREEN_PRICE_FROM_UTC is None
+    for day, at in (("2026-10-05", datetime.datetime(2026, 10, 5, 13, 0, tzinfo=UTC)),
+                    ("2026-10-06", datetime.datetime(2026, 10, 6, 0, 30, tzinfo=UTC)),
+                    ("2026-12-01", datetime.datetime(2026, 12, 1, 9, 0, tzinfo=UTC))):
+        assert not builder_screen_price_required(day, at)
 
 
 def _prices(tmp_path: Path, doc: dict[str, Any]) -> dict[str, bs.ScreenPrice]:
@@ -268,7 +275,10 @@ def test_no_ladder_prints_as_independent_positions_without_a_description() -> No
     assert corners and LADDER_PHRASE not in corners[0]
     joined = "\n".join(rows)
     assert "Ekspozycja na mecz" in joined and "Pozycje 1-30 stoją na" in joined
-    assert "brak kursu z ekranu" in joined  # B1 has no screen price recorded
+    # sofa does not price a builder (operator, 2026-10-05): no fair / after-
+    # haircut price of ours, the operator reads Superbet's screen
+    assert "sprawdź na ekranie Superbetu" in joined
+    assert "kurs po narzucie" not in joined and "kurs uczciwy" not in joined
 
 
 def test_a_malformed_screen_price_file_refuses_the_assembly(
@@ -285,7 +295,8 @@ def test_a_malformed_screen_price_file_refuses_the_assembly(
     (runs / DAY / bs.SCREEN_PRICES_FILE).write_text(json.dumps({}))
     assert _build_coupon(runs, monkeypatch) == 1
     doc = _coupon(runs)
-    # a day after 10-06: the rule is on, and the artifact says so
-    assert doc["builder_screen_prices"]["required"] is True
+    # a day after 10-06: the screen price is never required (operator,
+    # 2026-10-05: sofa does not price builders), and the artifact says so
+    assert doc["builder_screen_prices"]["required"] is False
     assert doc["coupon_form"]["active"] is True and not doc["coupon_form"]["applied"]
     assert {"relations", "ladders", "exposure"} <= set(doc)

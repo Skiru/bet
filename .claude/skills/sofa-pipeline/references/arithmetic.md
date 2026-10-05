@@ -203,7 +203,7 @@ combined_p  = min(product_p, empirical_joint)      the joint may demote, never p
 odds_product     = Π offered_odds_i
 odds_after_haircut = odds_product · (1 − 0.12)     or the operator's screen price, which wins
 ev_after_haircut   = combined_p · odds_after_haircut − 1
-is_stakeable = best_for_fixture and combined_p · odds_after_haircut >= 0.90   (stats-only, stakeable_rule "x>=0.90")
+is_stakeable = best_for_fixture and combined_p · odds_after_haircut >= 0.90   (stats-only, stakeable_rule "x>=0.90"; internal - since 2026-10-05 no builder price is printed or reported, the operator reads the screen)
 is_stakeable = best_for_fixture and ev_after_haircut > 0                       (old epoch: a builder without stakeable_rule)
 ```
 

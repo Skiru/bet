@@ -188,24 +188,17 @@ _REFUSAL_PL = {
 }
 
 
-def builder_price_lines(b: Mapping[str, Any], body: ParagraphStyle) -> list[Any]:
-    """Under a printed builder: its screen price, or that it has none."""
-    if b.get("screen_odds") is not None:
-        x = float(b["combined_probability"]) * float(b["screen_odds"])
-        when = str(b.get("screen_odds_fetched_at_utc") or "")[11:16]
-        return [Paragraph(
-            f"<b>kurs z ekranu Superbetu {b['screen_odds']}</b> "
-            f"({escape(str(b.get('screen_odds_source') or '—'))}"
-            + (f", odczyt {when}Z" if when else "") + ") • x = p × kurs z ekranu "
-            f"<b>{x:.2f}</b>", body)]
-    problem = b.get("screen_price_problem")
-    if problem:
-        return [Paragraph(
-            "<font color='#b25b00'>kurs z ekranu odrzucony: "
-            f"{escape(_REFUSAL_PL.get(str(problem), str(problem)))}</font> — kurs "
-            "po narzucie to szacunek", body)]
-    return [Paragraph("<font color='#b25b00'>brak kursu z ekranu</font> — kurs po "
-                      "narzucie to szacunek, nie cena Superbetu", body)]
+def builder_screen_note(b: Mapping[str, Any], body: ParagraphStyle) -> list[Any]:
+    """Under a printed builder: the screen price the operator recorded, if
+    any (09_screen_prices.json) - his own reading, shown back; nothing when
+    none was recorded (sofa does not price builders, operator 2026-10-05)."""
+    if b.get("screen_odds") is None:
+        return []
+    when = str(b.get("screen_odds_fetched_at_utc") or "")[11:16]
+    return [Paragraph(
+        f"zapisany kurs z ekranu Superbetu {b['screen_odds']} "
+        f"({escape(str(b.get('screen_odds_source') or '—'))}"
+        + (f", odczyt {when}Z" if when else "") + ")", body)]
 
 
 def refused_builder_flowables(
@@ -221,9 +214,9 @@ def refused_builder_flowables(
         "Od 2026-10-06 builder drukuje się tylko z kursem odczytanym z ekranu "
         "Superbetu (runs/sofa/&lt;d&gt;/09_screen_prices.json: kurs, czas "
         "odczytu, źródło, opcjonalnie nogi). Zbuduj slip na ekranie, wpisz kurs "
-        "i przebuduj kupon. Kurs po narzucie poniżej to szacunek.", small)]
+        "i przebuduj kupon.", small)]
     rows: list[list[Any]] = [[Paragraph(h, small) for h in (
-        "mecz", "nogi", "łączne p", "kurs po narzucie (szac.)", "powód")]]
+        "mecz", "nogi", "łączne p", "powód")]]
     for b in refused:
         legs = "<br/>".join(
             f"{escape(str(x.get('market')))}"
@@ -234,9 +227,8 @@ def refused_builder_flowables(
                       f"{str(b.get('kickoff_utc') or '')[11:16]}Z</font>", small),
             Paragraph(legs, small),
             Paragraph(f"{float(b.get('combined_probability') or 0):.3f}", small),
-            Paragraph(str(b.get("odds_after_haircut") or "—"), small),
             Paragraph(escape(_REFUSAL_PL.get(str(b["refusal"]), str(b["refusal"]))),
                       small),
         ])
-    out.append(_table(rows, [48*mm, 66*mm, 16*mm, 22*mm, 26*mm]))
+    out.append(_table(rows, [48*mm, 76*mm, 16*mm, 38*mm]))
     return out

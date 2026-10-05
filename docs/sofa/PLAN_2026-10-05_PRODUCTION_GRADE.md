@@ -172,7 +172,7 @@ test są, ale kryterium wymaga dni, decyzji operatora albo refitu.
 | F4.1 | **spełnione** | `leg_relations.py`: test na wszystkich parach kluczy (>50 000 par); 10-05: 430/430 par z etykietą |
 | F4.2 | **spełnione** | każda drabina pod nagłówkiem „ta sama zmienna”; forma „jeden szczebel” wyłączona (decyzja) |
 | F4.3 | **spełnione** (raport) | sekcja „Ekspozycja na mecz”; 10-05: pozycje 1-30 na 4 meczach; limit - decyzja |
-| F4.4 | zbudowane, od 10-06 | builder bez ceny z ekranu (`09_screen_prices.json`) się nie drukuje; Superbet nie ma API ceny buildera - wpis ręczny |
+| F4.4 | **zamknięte decyzją operatora** | 2026-10-05: „nie wyceniaj mi ich, sam będę widział” - sofa nie drukuje kursu buildera (PDF: łączne p i „sprawdź na ekranie Superbetu”); bramka ceny z ekranu wyłączona (`BUILDER_SCREEN_PRICE_FROM_UTC = None`) |
 | F5.1 | **spełnione** | `REJESTR_TESTOW.md` + `config/sofa_test_registry.json`, 5 testów PROPOSED (do zatwierdzenia), walidator |
 | F5.2 | **nie spełnione** | `closing.jsonl` w 5 z 17 dni; dziura 09-19..09-30 (283 nogi) zostaje; od 10-01 prawie 100% |
 | F5.3, F5.4 | zapisane | kryteria w rejestrze; rozstrzygnięcie po ~4 400 pozycjach |

@@ -65,7 +65,7 @@ from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
 from scripts.sofa.coupon_structure_pdf import (  # noqa: E402
-    builder_price_lines,
+    builder_screen_note,
     exposure_flowables,
     ladder_header,
     ladder_marker,
@@ -1072,22 +1072,21 @@ def render_stats_only(
             ])
         block.append(_table(rows, [7*mm, 70*mm, 18*mm, 16*mm, 16*mm, 48*mm]))
         block.append(Spacer(1, 4))
-        after = b.get("odds_after_haircut")
-        x_b = (float(b["combined_probability"]) * float(after)) if after else None
+        # The operator, 2026-10-05: "nie wyceniaj mi ich, sam będę widział" -
+        # no builder price of ours on the page (fair / after-haircut / x / EV);
+        # the price is Superbet's screen. The legs' own odds above are
+        # Superbet's prices of the singles, not a builder price.
         block.append(Paragraph(
             f"<b>{b['n_legs']} nogi</b> • łączne p "
-            f"<b>{b['combined_probability']:.3f}</b> • kurs uczciwy "
-            f"{b['fair_odds']} • kurs po narzucie "
-            f"<b>{after if after else '—'}</b>"
-            + (f" • x = p × kurs po narzucie <b>{x_b:.2f}</b>"
-               if x_b is not None else "")
-            + f" • EV {displayed_ev(b) or 0.0:+.3f} (informacyjnie)", body))
-        block.extend(builder_price_lines(b, body))
+            f"<b>{b['combined_probability']:.3f}</b> • kurs buildera: "
+            "<b>sprawdź na ekranie Superbetu</b> (sofa nie wycenia builderów)",
+            body))
+        block.extend(builder_screen_note(b, body))
         block.append(Paragraph(
-            "Wybrany po łącznym prawdopodobieństwie (najwyższe dla meczu), nie po "
-            "EV. Builder 2-, 3- i 4-nogowy powstaje z jednej puli, więc "
-            "najczęściej najwyższe p ma 2-nogowy. Superbet nie wycenia buildera "
-            "iloczynem nóg — porównaj z ekranem.", small))
+            "Wybrany po łącznym prawdopodobieństwie (najwyższe dla meczu). "
+            "Builder 2-, 3- i 4-nogowy powstaje z jednej puli, więc najczęściej "
+            "najwyższe p ma 2-nogowy. Łączne p mnoży nogi (zakłada "
+            "niezależność); Superbet nie wycenia buildera iloczynem nóg.", small))
         story.append(KeepTogether(block))
 
 

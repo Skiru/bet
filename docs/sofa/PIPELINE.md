@@ -1046,14 +1046,17 @@ niego 08).
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają
     dopiero od `epochs.COUPON_STRUCTURE_FROM_UTC` (dzień ≥ 2026-10-06).
-  - `builders_refused` / `builder_screen_prices` — F4.4: od
-    `epochs.BUILDER_SCREEN_PRICE_FROM_UTC` (dzień ≥ 2026-10-06) Bet Builder
-    drukuje się tylko z kursem z ekranu Superbetu zapisanym w
-    `09_screen_prices.json` i jest stawialny po nim (łączne p × kurs z ekranu
-    ≥ 0,90); bez niego `BUILDER_NO_SCREEN_PRICE` (albo `…_UNTIMED`,
-    `…_AFTER_START`, `…_OTHER_SLIP`, `BUILDER_SCREEN_X_BELOW`) — na liście, nie
-    po cichu. Żaden endpoint Superbetu używany w repo nie wycenia buildera;
-    kurs wpisuje operator (format w `bet.sofa.builder_screen`).
+  - `builders_refused` / `builder_screen_prices` — F4.4, **wyłączone decyzją
+    operatora 2026-10-05** („jeżeli chodzi o buildery to nie wyceniaj mi ich,
+    sam będę widział”): `epochs.BUILDER_SCREEN_PRICE_FROM_UTC = None`, więc
+    żaden builder nie odpada za brak kursu z ekranu, a PDF nie drukuje
+    naszego kursu buildera (ani uczciwego, ani po narzucie, ani x, ani EV) -
+    tylko nogi (każda z kursem pojedynczym Superbetu), łączne p i „kurs
+    buildera: sprawdź na ekranie Superbetu”. Kurs wpisany przez operatora do
+    `09_screen_prices.json` jest pokazywany jako jego notatka. Wybór buildera
+    bez zmian (najwyższe łączne p meczu, wewnętrznie x po narzucie ≥ 0,90).
+    Kod bramki (`…_UNTIMED`, `…_AFTER_START`, `…_OTHER_SLIP`,
+    `BUILDER_SCREEN_X_BELOW`) zostaje, nieaktywny.
 
 ## 10c. FIXTURE_CHECK — czy mecz drukowany nadal jest grany (od 2026-10-05)
 

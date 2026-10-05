@@ -4,10 +4,13 @@
 
 Written 2026-10-05 mid-day, so the 10-05 coupon is unaffected; a day >= 2026-10-06
 built after 00:00Z gets:
-- **A Bet Builder prints only with a screen price** (`BUILDER_SCREEN_PRICE_FROM_UTC`,
-  F4.4): the operator records Superbet's screen odds in `runs/sofa/<d>/09_screen_prices.json`
-  (`bet.sofa.builder_screen`); without one the builder is `BUILDER_NO_SCREEN_PRICE`, listed,
-  never silent. No API prices a builder, so with no file there are no builders.
+- **sofa does not price a Bet Builder** (operator, 2026-10-05 ~12:45Z: "nie wyceniaj mi
+  ich, sam będę widział"): the PDF prints a builder's legs (each with Superbet's single
+  price) and its combined p, and "kurs buildera: sprawdź na ekranie Superbetu" - no fair /
+  after-haircut odds, no x, no EV. The F4.4 screen-price gate is OFF
+  (`BUILDER_SCREEN_PRICE_FROM_UTC = None`); a screen price the operator records in
+  `09_screen_prices.json` is shown back as his note. Selection is unchanged (best combined p
+  per fixture; the internal haircut x >= 0.90 still decides stakeable, never printed).
 - **NOT_SETTLEABLE** (`SETTLEABILITY_FROM_UTC`, F0.6): (competition, family) cells listed in
   `config/sofa_settleability.json` (6 corner cells, `fit_settleability.py --before 2026-10-05`;
   refit between days) are refused by CONFIDENCE.
@@ -20,7 +23,8 @@ curve stops printing), `MODEL_FIXES_FROM_UTC` (F2.2 tennis NB dispersion, other-
 with the next refit). Mid-day 10-05 (correctness, live at once): the print record is
 append-only (`printed/<ts>.json`, the lock reads the first print), FIXTURE_CHECK asks the
 candidate matches too and records the real tennis start and the UNVERIFIED reason, the one
-rebuild command `rebuild_day.py`, a measured sport's T2 handicap printed as the side's own line.
+rebuild command `rebuild_day.py`, a measured sport's T2 handicap printed as the side's own line,
+no builder price on the PDF (operator).
 State per item: section 7 of the plan.
 
 ## Stats-only coupon epoch (2026-10-05 07:15Z, `bet.sofa.epochs.STATS_ONLY_FROM_UTC`)
