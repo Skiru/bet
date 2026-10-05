@@ -14,8 +14,11 @@ settled table, never a curve.
 
 Per Superbet side of an event whose kickoff is in [D 00:00Z, D+1 00:00Z):
 an identified fixture (else NOT_IDENTIFIED, or its DUPLICATE_* state), not
+postponed / cancelled / interrupted by FIXTURE_CHECK's read of its pinned id
+(fixture_status.json; FIXTURE_NOT_AS_SCHEDULED, K14), not
 started (KICKED_OFF: inside the coupon's kickoff margin of the earlier of
-Superbet's and Sofascore's start), the event's newest pre-start snapshot no
+Superbet's and Sofascore's start - FIXTURE_CHECK's fresh one where read, K12),
+the event's newest pre-start snapshot no
 older than sport_coupon.MAX_PRICE_AGE (STALE_PRICE), volleyball's
 tournament with a SETTLED event in the last 14 days, an allowed market
 (sport_confidence.ALLOWED_MARKETS / CS2_FAMILIES), a whole outcome group.
@@ -49,6 +52,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import cs2, cs2_engine, curve_status, shadow, sport_coupon  # noqa: E402
+from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -63,6 +67,7 @@ FLOOR = PROFILES["standard"].floor  # 0.70
 MIN_ODDS = MIN_ODDS_FOR_CEILING  # 1/0.9202
 
 OK, NOT_CALIBRATED, NOT_IDENTIFIED = "OK", "NOT_CALIBRATED", "NOT_IDENTIFIED"
+FIXTURE_NOT_AS_SCHEDULED = "FIXTURE_NOT_AS_SCHEDULED"
 
 
 class Forecaster(Protocol):
@@ -194,9 +199,18 @@ def sport_status(sport: str, fixtures_doc: Mapping[str, Any] | None,
 def build_sport(sport: str, date: str, runs_dir: str,
                 fixtures_doc: Mapping[str, Any] | None,
                 calibration: scf.SportCalibration | None,
-                forecaster: Forecaster, at: datetime
+                forecaster: Forecaster, at: datetime,
+                fixture_status: Mapping[int, Mapping[str, Any]] | None = None,
                 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """`fixture_status` (fixture_status.json by Sofascore id, FIXTURE_CHECK):
+    a pinned game postponed / cancelled / interrupted ... is refused
+    FIXTURE_NOT_AS_SCHEDULED (K14, as CONFIDENCE refuses a football / tennis
+    match; a locked leg is COUPON_ASSEMBLY's and stays), and a fresh
+    Sofascore start replaces SPORT_IDENTITY's pinned one in the kickoff gate
+    (K12). None / no entry: exactly as before (UNVERIFIED refuses nothing)."""
     status = sport_status(sport, fixtures_doc, calibration)
+    fixture_status = fixture_status or {}
+    not_scheduled: list[dict[str, Any]] = []
     fixtures = si.fixtures_by_event(fixtures_doc)
     start, end = si.day_window(date)
     events = si.snapshot_events(runs_dir, sport, date, at)
@@ -229,9 +243,19 @@ def build_sport(sport: str, date: str, runs_dir: str,
             _bump(refused, NOT_IDENTIFIED if state == si.NOT_IDENTIFIED else state,
                   n_sides)
             continue
+        entry = fixture_status.get(int(fixture["sofascore_event_id"]))
+        off_schedule = fs.not_as_scheduled(entry)
+        if off_schedule is not None:
+            _bump(refused, FIXTURE_NOT_AS_SCHEDULED, n_sides)
+            not_scheduled.append({
+                "sofascore_event_id": int(fixture["sofascore_event_id"]),
+                "superbet_event_id": str(ev.superbet_event_id),
+                "status": off_schedule, "match": f"{ev.team1} - {ev.team2}"})
+            continue
         kickoff = sb_kickoff
-        if fixture.get("sofascore_start_utc"):
-            kickoff = min(kickoff, _utc(str(fixture["sofascore_start_utc"])))
+        sofa_start = fs.refreshed_start(entry) or fixture.get("sofascore_start_utc")
+        if sofa_start:
+            kickoff = min(kickoff, _utc(str(sofa_start)))
         if kickoff - at < sport_coupon.KICKOFF_MARGIN:
             _bump(refused, "KICKED_OFF", n_sides)
             continue
@@ -274,8 +298,12 @@ def build_sport(sport: str, date: str, runs_dir: str,
             k, n = forecaster.sample(sport, fixture, ev, ln)
             legs.append(leg_dict(sport, ev, fixture, ln, family, conf, p, k, n,
                                  margin, kickoff, newest))
-    return {"status": status, "refused": dict(sorted(refused.items())),
-            "legs": len(legs)}, legs
+    entry_out: dict[str, Any] = {"status": status,
+                                 "refused": dict(sorted(refused.items())),
+                                 "legs": len(legs)}
+    if not_scheduled:
+        entry_out["fixtures_not_as_scheduled"] = not_scheduled
+    return entry_out, legs
 
 
 def price_filter(confidence: float, odds: float, margin: float) -> str | None:
@@ -335,6 +363,7 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
           ) -> tuple[dict[str, Any], int]:
     fixtures_doc = si.load_fixtures(Path(runs_dir) / date / si.FIXTURES_FILE)
     calibration = scf.SportCalibration.load(calibration_path)
+    fixture_status = fs.load(Path(runs_dir) / date)
     doc: dict[str, Any] = {
         "created_at_utc": si.iso(at),
         "date": date,
@@ -352,7 +381,7 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     }
     for sport in sports:
         entry, legs = build_sport(sport, date, runs_dir, fixtures_doc, calibration,
-                                  forecaster, at)
+                                  forecaster, at, fixture_status)
         doc["sports"][sport] = entry
         doc["legs"] += legs
     doc["legs"].sort(key=lambda g: (-g["confidence"], g["kickoff_utc"],

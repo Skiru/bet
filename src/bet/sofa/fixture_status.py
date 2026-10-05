@@ -117,13 +117,20 @@ def events_to_check(
     seen_kickoff: Mapping[int, str],
     printed_ids: set[int],
     candidate_ids: set[int] | None = None,
+    sport_ids: Iterable[int] | None = None,
 ) -> dict[int, str]:
     """{event id: why} - every printed match, every match whose Superbet
     clock moved more than CLOCK_GAP_MIN from RESOLVE's Sofascore clock, and
     (F0.4) every match a leg of the coming build could be printed on
     (`candidate_ids`, run_fixture_check.candidate_event_ids): K14 caught a
     halted match only after it had been printed once, because the check
-    asked nothing about a match no PDF had held yet."""
+    asked nothing about a match no PDF had held yet.
+
+    `sport_ids` (run_fixture_check.sport_event_ids): the pinned Sofascore ids
+    of the measured sports' events (hockey, basketball, volleyball, CS2) -
+    not in 02_fixtures.json, so until 2026-10-05 a printed sport leg was
+    never asked and a postponed game would have printed. "printed" when a
+    print holds it (`printed_ids`), else "candidate"."""
     out: dict[int, str] = {}
     for fx in fixtures:
         eid = int(fx["sofascore_event_id"])
@@ -134,6 +141,9 @@ def events_to_check(
             out[eid] = "printed"
         elif candidate_ids and eid in candidate_ids:
             out[eid] = "candidate"
+    for eid in sport_ids or ():
+        if int(eid) not in out:
+            out[int(eid)] = "printed" if int(eid) in printed_ids else "candidate"
     return out
 
 

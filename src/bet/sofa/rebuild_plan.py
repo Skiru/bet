@@ -44,7 +44,7 @@ from typing import Any
 from bet.sofa import epochs, sport_coupon
 from bet.sofa import fixture_status as fs
 from bet.sofa import sport_identity as si
-from bet.sofa.locked_print import kickoff_clocks
+from bet.sofa.locked_print import starts_after
 
 # run_offer.py --min-minutes-to-kickoff: a fixture starting sooner is not
 # re-priced (CONFIDENCE refuses it at 15 min anyway).
@@ -158,11 +158,14 @@ def observe_offer(
 ) -> tuple[int, int, datetime | None, datetime | None]:
     """(fixtures with a rung, open ones, oldest open rung, newest rung).
 
-    Open = a refresh with --min-minutes-to-kickoff re-prices it (run_offer's
-    clock: the earlier of RESOLVE's two, coupon.effective_kickoff) AND
-    CONFIDENCE would not refuse it as kicked off (every clock it holds,
-    locked_print.kickoff_clocks, with FIXTURE_CHECK's fresh start). Only an
-    open fixture's price can be refreshed and only its age empties a coupon.
+    Open = a refresh with --min-minutes-to-kickoff re-prices it AND
+    CONFIDENCE would not refuse it as kicked off: one predicate for both,
+    locked_print.starts_after (every clock CONFIDENCE holds, with
+    FIXTURE_CHECK's fresh start), and Superbet not reporting it under way.
+    Only an open fixture's price can be refreshed and only its age empties a
+    coupon. Until 10-05 this also required RESOLVE's two frozen clocks to be
+    ahead (run_offer's old filter): a match moved later (Gaubas, 12:30Z ->
+    13:30Z) was not open, so its stale price triggered no refresh.
     """
     by_id = {f.get("sofascore_event_id"): f for f in fixtures}
     cutoff = now + timedelta(minutes=OFFER_MIN_MINUTES_TO_KICKOFF)
@@ -181,14 +184,8 @@ def observe_offer(
         fx = by_id.get(eid)
         if fx is None or o.get("superbet_started_utc"):
             continue
-        frozen = [_utc(str(t)) for t in (fx.get("kickoff_utc"),
-                                         fx.get("superbet_kickoff_utc")) if t]
-        if not frozen or min(frozen) <= cutoff:
-            continue
         entry = status.get(int(eid)) if eid is not None else None
-        clocks = kickoff_clocks(fx, o.get("superbet_kickoff_seen_utc"),
-                                fs.refreshed_start(entry))
-        if not clocks or min(clocks) <= cutoff:
+        if not starts_after(fx, o.get("superbet_kickoff_seen_utc"), entry, cutoff):
             continue
         open_n += 1
         low = min(stamps)
@@ -197,9 +194,9 @@ def observe_offer(
         # No offer yet: open is what a first OFFER would price.
         open_n = sum(
             1 for fx in fixtures
-            if (clocks := [_utc(str(t)) for t in (fx.get("kickoff_utc"),
-                                                   fx.get("superbet_kickoff_utc"))
-                           if t]) and min(clocks) > cutoff)
+            if starts_after(fx, None, status.get(int(fx["sofascore_event_id"]))
+                            if fx.get("sofascore_event_id") is not None else None,
+                            cutoff))
     return priced, open_n, oldest, newest
 
 

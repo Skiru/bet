@@ -455,7 +455,8 @@ def test_candidates_are_priced_unstarted_sheet_fixtures_and_the_coupons(tmp_path
         {"sofascore_event_id": 2, "offered_odds": 1.5},   # under way
         {"sofascore_event_id": 3, "offered_odds": None},  # unpriced
     ]))
-    # a leg of the provisional coupon (and a sport leg, which K14 never reads)
+    # a leg of the provisional coupon, and a sport leg (K14 for the sports
+    # since 2026-10-05: its pinned id is asked too - it is printed here)
     (run / "11_coupon.json").write_text(json.dumps({
         "singles": [{"sofascore_event_id": 4},
                     {"sofascore_event_id": 900, "sport": "hockey"}]}))
@@ -463,9 +464,9 @@ def test_candidates_are_priced_unstarted_sheet_fixtures_and_the_coupons(tmp_path
     # FIXTURE_CHECK: 4 is on the coupon artifact (asked as printed, first);
     # the cap drops the furthest candidates, never a printed match
     targets, over = targets_for(run, fx, [], T0)
-    assert targets == {4: "printed", 1: "candidate"} and over == []
+    assert targets == {4: "printed", 900: "printed", 1: "candidate"} and over == []
     targets, over = targets_for(run, fx, [], T0, max_candidates=0)
-    assert targets == {4: "printed"} and over == [1]
+    assert targets == {4: "printed", 900: "printed"} and over == [1]
 
 
 # ---------------------------------------------------------------------------
@@ -513,3 +514,92 @@ def test_the_confidence_artifact_and_the_pdf_say_why(two_legs, monkeypatch):
     # an artifact from before F0.5: the count, with the reason unknown
     old = " ".join(fixture_status_notes({"fixture_status_unverified": 1}))
     assert "powód niezapisany: 1" in old
+
+
+# ---------------------------------------------------------------------------
+# K14 for the measured sports (2026-10-05): FIXTURE_CHECK asks the pinned ids
+# ---------------------------------------------------------------------------
+
+
+def _sport_single(eid: int = 900, sb: str = "sb9",
+                  kickoff: str = "2026-10-07T12:00:00Z") -> dict[str, Any]:
+    return cs.normalize({
+        "sport": "hockey", "group_key": f"sofa:{eid}", "sofascore_event_id": eid,
+        "superbet_event_id": sb, "market_id": 623, "family": "total",
+        "period": 0, "subject": "", "line": 5.5, "side": "OVER",
+        "confidence": 0.84, "odds": 1.15, "overround": 0.06,
+        "kickoff_utc": kickoff, "match": "A - B"})
+
+
+def test_fixture_check_asks_the_pinned_ids_of_the_sport_legs(tmp_path):
+    """10-05: four hockey / volleyball legs printed, none of their games in
+    fixture_status.json - a postponed game would have printed. The printed
+    ones, SPORT_CONFIDENCE's legs and every identified game still ahead are
+    asked; a started or unidentified one is not."""
+    from scripts.sofa.run_fixture_check import sport_event_ids
+
+    run = tmp_path / DAY
+    run.mkdir()
+    fx = [{"sofascore_event_id": 1, "kickoff_utc": KO[1],
+           "superbet_kickoff_utc": KO[1]}]
+    (run / "05_sheet.json").write_text(json.dumps(
+        [{"sofascore_event_id": 1, "offered_odds": 1.5}]))
+    (run / "11_coupon.json").write_text(json.dumps(
+        {"singles": [_sport_single(900)]}))
+    (run / "08_confidence_sports.json").write_text(json.dumps(
+        {"legs": [_sport_single(901, "sb10", "2026-10-07T15:00:00Z")]}))
+    (run / cs.SPORT_FIXTURES_FILE).write_text(json.dumps({"fixtures": [
+        {"sport": "cs2", "superbet_event_id": "c1", "sofascore_event_id": 902,
+         "status": "IDENTIFIED", "kickoff_utc": "2026-10-07T16:00:00Z",
+         "sofascore_start_utc": "2026-10-07T16:00:00Z"},
+        {"sport": "hockey", "superbet_event_id": "h0", "sofascore_event_id": 903,
+         "status": "IDENTIFIED", "kickoff_utc": "2026-10-07T08:00:00Z"},  # started
+        {"sport": "hockey", "superbet_event_id": "h1", "sofascore_event_id": 904,
+         "status": "DUPLICATE_SOFASCORE_ID", "kickoff_utc": "2026-10-07T20:00:00Z"},
+    ]}))
+    assert set(sport_event_ids(run, T0)) == {900, 901, 902}
+    targets, over = targets_for(run, fx, [], T0)
+    assert targets == {900: "printed", 1: "candidate", 901: "candidate",
+                       902: "candidate"} and over == []
+    # the cap bounds the candidates together; a printed sport game stays
+    targets, over = targets_for(run, fx, [], T0, max_candidates=1)
+    assert targets == {900: "printed", 1: "candidate"} and over == [901, 902]
+
+
+def test_c2_finds_a_printed_sport_leg_that_vanished(tmp_path):
+    """C2 covered football / tennis only: a printed hockey leg whose game
+    started must be locked on the coupon or in its printed_after_start."""
+    from scripts.sofa.audit_variants import audit_print_record
+
+    run = tmp_path / DAY
+    run.mkdir()
+    leg = _sport_single(900)
+    base = {"profile": "standard", "created_at_utc": "2026-10-07T09:00:00Z",
+            "pdf_max_singles": None}
+    record_print(run, {**base, "singles": [leg],
+                       "pdf_rendered_at_utc": "2026-10-07T09:01:00Z"})
+    started = started_by_evidence({}, {})
+    coupon = {"created_at_utc": "2026-10-07T12:10:00Z", "pdf_max_singles": None,
+              "built_from": {"08_confidence.json": "2026-10-07T12:09:00Z"},
+              "singles": []}
+    found = audit_print_record(run, coupon, "official", started)
+    assert any("hockey A - B total p0 5.5 OVER" in f and "gone from the coupon" in f
+               for f in found), found
+    # its game had not started at the build: not a finding
+    early = {**coupon, "created_at_utc": "2026-10-07T11:00:00Z"}
+    assert audit_print_record(run, early, "official", started) == []
+    # locked as printed: clean
+    locked = {**coupon, "singles": [
+        {**leg, "locked": True, "printed_at_utc": "2026-10-07T09:01:00Z"}]}
+    assert audit_print_record(run, locked, "official", started) == []
+    # printed after its start (recorded by COUPON_ASSEMBLY): clean
+    late = {**coupon, "printed_after_start": [
+        {"kind": "single", "sport": "hockey", "sofascore_event_id": 900,
+         "key": list(cs.sport_key(leg))}]}
+    assert audit_print_record(run, late, "official", started) == []
+    # a locked sport leg on no printed render is a finding too
+    ghost = {**coupon, "singles": [
+        {**_sport_single(905, "sb5"), "locked": True,
+         "printed_at_utc": "2026-10-07T09:01:00Z"}]}
+    assert any("locked but on no printed render" in f
+               for f in audit_print_record(run, ghost, "official", started))

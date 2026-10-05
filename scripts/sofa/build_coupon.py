@@ -46,6 +46,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import builder_screen as bs  # noqa: E402
 from bet.sofa import coupon_form as cf  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
+from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -184,6 +185,8 @@ def assemble(
         k: v for k, v in conf.items()
         if k not in ("singles", "legs", "builders", "removed_by_reads")
     }
+    late_all = [*(conf.get("printed_after_start") or []),
+                *((sports or {}).get("printed_after_start") or [])]
     doc.update({
         "created_at_utc": now_utc,
         "coupon": COUPON_ARTIFACT,
@@ -207,6 +210,10 @@ def assemble(
         ],
         "read_requests": asked,
         "outside_day_window": outside_window,
+        # Printed after their match had started: never locked (locked_print,
+        # coupon_sports.locked_sport_legs). The sports' entries were dropped
+        # here until 10-05, so C2 could not tell such a leg from a vanished one.
+        **({"printed_after_start": late_all} if late_all else {}),
         **({"sports": sports.get("sports")} if sports else {}),
         **structure,
         "builders_refused": bs.refused_builders(builders),
@@ -289,12 +296,21 @@ def prepare_sports(
     # a bet any more (the artifact is not re-timed by itself).
     started = [x for x in fresh if cs.started(x, at, fresh_clock)]
     fresh = [x for x in fresh if not cs.started(x, at, fresh_clock)]
+    # K14 for the sports: a game FIXTURE_CHECK read as postponed / cancelled
+    # / interrupted after SPORT_CONFIDENCE ran is not a bet (SPORT_CONFIDENCE
+    # refuses it when the check came first). A locked leg stays (SETTLE
+    # refunds a game moved > 48 h).
+    status = fs.load(run)
+    off_schedule = [x for x in fresh if fs.not_as_scheduled(
+        status.get(int(x["sofascore_event_id"])))]
+    fresh = [x for x in fresh if x not in off_schedule]
     kept, removed, vetoed = cs.apply_reads(fresh, vetoes, reads)
     # A veto / read covering a locked leg does not remove it (its match is
     # under way): shown, never acted on - like locked_late_refusals.
     _, late, _ = cs.apply_reads(locked, vetoes, reads)
     return {**sports, "legs": [*locked, *kept], "removed_by_reads": removed,
             "vetoed": vetoed, "started_since_build": len(started),
+            "not_as_scheduled_since_build": len(off_schedule),
             # printed after their match had started: never locked (F7, 10-05)
             **({"printed_after_start": late_prints} if late_prints else {}),
             "locked_late_refusals": [

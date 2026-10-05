@@ -120,6 +120,27 @@ def kicked_off(
     )
 
 
+def starts_after(
+    fixture: Mapping[str, Any] | None,
+    seen_kickoff: str | None,
+    status_entry: Mapping[str, Any] | None,
+    cutoff: datetime,
+) -> bool:
+    """The earliest of CONFIDENCE's clocks (kickoff_clocks, FIXTURE_CHECK's
+    fresh start from `status_entry` included) is after `cutoff`.
+
+    The one "can this fixture still be priced" predicate of OFFER's
+    --min-minutes-to-kickoff refresh and the rebuild plan's "open fixture".
+    Until 2026-10-05 OFFER skipped on RESOLVE's frozen clocks alone, while
+    CONFIDENCE gated on the refreshed ones: Gaubas (frozen 12:30Z, fresh
+    13:30Z) and Monteiro - Moller (12:30Z, fresh 13:00Z / Superbet 12:55Z)
+    were skipped by the 12:22Z refresh and printed on 39-minute-old prices.
+    No clock at all is not open (the gate refuses it too).
+    """
+    clocks = kickoff_clocks(fixture, seen_kickoff, fs.refreshed_start(status_entry))
+    return bool(clocks) and min(clocks) > cutoff
+
+
 @dataclass
 class LockedPrint:
     """What a rebuild carries over from the previous artifact."""

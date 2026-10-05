@@ -1,18 +1,19 @@
 import argparse
 import json
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import IO, Any
 
 from pydantic import RootModel
 
+from bet.sofa import fixture_status as fs
 from bet.sofa import timeutil
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
-from bet.sofa.coupon import effective_kickoff
+from bet.sofa.locked_print import starts_after
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.stage import set_stage
 from bet.sofa.superbet import SuperbetClient
@@ -41,6 +42,42 @@ def merge_with_previous(
     refreshed_ids = {o["sofascore_event_id"] for o in fresh}
     kept = [o for o in previous if o["sofascore_event_id"] not in refreshed_ids]
     return fresh + kept, len(kept)
+
+
+def _z(t: datetime | None) -> str | None:
+    return t.isoformat().replace("+00:00", "Z") if t is not None else None
+
+
+def refresh_targets(
+    fixtures: list[Fixture],
+    previous: list[dict[str, Any]],
+    status: dict[int, dict[str, Any]],
+    cutoff: datetime,
+) -> list[Fixture]:
+    """The fixtures a --min-minutes-to-kickoff refresh re-prices: those whose
+    earliest clock - CONFIDENCE's clocks (locked_print.kickoff_clocks):
+    RESOLVE's two, Superbet's as the previous OFFER saw it, and
+    FIXTURE_CHECK's fresh start (fixture_status.json) replacing the frozen
+    ones - is after `cutoff`. The predicate is locked_print.starts_after,
+    the one the rebuild plan's "open fixture" reads.
+
+    Filtering on Sofascore's clock alone re-priced 22 ITF fixtures already in
+    play on 2026-09-23 (it runs 7-9 h late there); filtering on RESOLVE's two
+    frozen clocks alone skipped Gaubas and Monteiro - Moller on 2026-10-05
+    (frozen 12:30Z, fresh 13:30Z / 13:00Z), which CONFIDENCE then printed on
+    a 39-minute-old price."""
+    seen = {
+        int(o["sofascore_event_id"]): str(o["superbet_kickoff_seen_utc"])
+        for o in previous if o.get("superbet_kickoff_seen_utc")
+    }
+    kept: list[Fixture] = []
+    for f in fixtures:
+        eid = int(f.sofascore_event_id)
+        frozen = {"kickoff_utc": _z(f.kickoff_utc),
+                  "superbet_kickoff_utc": _z(f.superbet_kickoff_utc)}
+        if starts_after(frozen, seen.get(eid), status.get(eid), cutoff):
+            kept.append(f)
+    return kept
 
 
 def main() -> int:
@@ -95,10 +132,14 @@ def main() -> int:
     skipped_kicked_off = 0
     if args.min_minutes_to_kickoff is not None:
         cutoff = timeutil.now() + timedelta(minutes=args.min_minutes_to_kickoff)
-        # The earlier clock, as COUPON reads it. Filtering on Sofascore's
-        # alone re-priced 22 ITF fixtures already in play on 2026-09-23: it
-        # runs 7-9 h late there, so a started match looked upcoming.
-        kept = [f for f in fixtures if effective_kickoff(f) > cutoff]
+        # CONFIDENCE's clocks, not RESOLVE's frozen ones (refresh_targets).
+        run = Path(config.runs_dir) / args.date
+        prev_path = run / "04_offer.json"
+        previous_offer = (
+            json.loads(prev_path.read_text(encoding="utf-8"))
+            if prev_path.exists() else []
+        )
+        kept = refresh_targets(fixtures, previous_offer, fs.load(run), cutoff)
         skipped_kicked_off = len(fixtures) - len(kept)
         fixtures = kept
 

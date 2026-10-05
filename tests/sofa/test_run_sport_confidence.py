@@ -314,3 +314,49 @@ def test_a_snapshot_taken_after_the_clock_is_not_read(tmp_path: Path):
     over = [g for g in doc["legs"] if g["market_id"] == 623]
     assert [g["odds"] for g in over] == [1.30]
     assert over[0]["price_fetched_at_utc"] == "2026-10-06T14:30:00Z"
+
+
+def _status(tmp: Path, events: dict[int, dict[str, Any]]) -> None:
+    (tmp / DATE).mkdir(parents=True, exist_ok=True)
+    (tmp / DATE / "fixture_status.json").write_text(json.dumps(
+        {"events": {str(k): v for k, v in events.items()}}))
+
+
+@pytest.mark.parametrize("state", ["postponed", "canceled", "interrupted"])
+def test_a_pinned_game_not_as_scheduled_is_refused(tmp_path: Path, state: str):
+    # K14 for the measured sports (2026-10-05): FIXTURE_CHECK reads the
+    # pinned id; a postponed / cancelled / halted game prints nothing.
+    _write(tmp_path, "hockey", [_snapshot()])
+    _fixtures(tmp_path, [_fixture()])
+    _status(tmp_path, {9001: {"status": state, "start_utc": "2026-10-06T18:00:00Z",
+                              "why": "printed"}})
+    doc, _ = _build(tmp_path, _calibration(tmp_path))
+    hockey = doc["sports"]["hockey"]
+    assert doc["legs"] == []
+    assert hockey["refused"]["FIXTURE_NOT_AS_SCHEDULED"] == 4
+    assert hockey["fixtures_not_as_scheduled"] == [{
+        "sofascore_event_id": 9001, "superbet_event_id": "1", "status": state,
+        "match": "Sparta Praha - Kometa Brno"}]
+
+
+def test_an_unverified_or_absent_check_refuses_nothing(tmp_path: Path):
+    _write(tmp_path, "hockey", [_snapshot()])
+    _fixtures(tmp_path, [_fixture()])
+    baseline, _ = _build(tmp_path, _calibration(tmp_path))
+    _status(tmp_path, {9001: {"status": "UNVERIFIED", "reason": "NO_BRIDGE"},
+                       9002: {"status": "postponed"}})  # another game
+    doc, _ = _build(tmp_path, _calibration(tmp_path))
+    assert len(doc["legs"]) == len(baseline["legs"]) == 2
+    assert "FIXTURE_NOT_AS_SCHEDULED" not in doc["sports"]["hockey"]["refused"]
+
+
+def test_a_fresh_start_replaces_the_pinned_one_in_the_kickoff_gate(tmp_path: Path):
+    # K12: SPORT_IDENTITY pinned 18:00Z; Sofascore now says 15:10Z (inside the
+    # margin at 15:00Z) - the gate reads the fresh start, as CONFIDENCE does.
+    _write(tmp_path, "hockey", [_snapshot()])
+    _fixtures(tmp_path, [_fixture()])
+    _status(tmp_path, {9001: {"status": "notstarted",
+                              "start_utc": "2026-10-06T15:10:00Z"}})
+    doc, _ = _build(tmp_path, _calibration(tmp_path))
+    assert doc["legs"] == []
+    assert doc["sports"]["hockey"]["refused"]["KICKED_OFF"] == 4

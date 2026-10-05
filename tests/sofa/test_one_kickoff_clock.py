@@ -66,7 +66,11 @@ def test_every_gate_reads_the_shared_clock():
     import scripts.sofa.run_coupon as coup
     import scripts.sofa.run_offer as offer
 
-    assert "effective_kickoff(f) > cutoff" in inspect.getsource(offer)
+    # Since 2026-10-05 OFFER's refresh filter reads CONFIDENCE's clocks
+    # (locked_print.starts_after over kickoff_clocks), not RESOLVE's frozen
+    # two: a match moved later was skipped and printed on a stale price.
+    assert "starts_after(" in inspect.getsource(offer)
+    assert "effective_kickoff(f) > cutoff" not in inspect.getsource(offer)
     assert "f.kickoff_utc > cutoff" not in inspect.getsource(offer)
     # Since 2026-10-05 CONFIDENCE's gate is locked_print.kicked_off, the one
     # predicate that both refuses a fresh row and locks a printed leg.
@@ -76,3 +80,5 @@ def test_every_gate_reads_the_shared_clock():
     assert "too_close_to_kickoff(clocks, now)" not in inspect.getsource(conf)
     assert "too_close_to_kickoff(\n        kickoff_clocks(" in inspect.getsource(lp)
     assert "minutes=MIN_MINUTES_TO_KICKOFF" in inspect.getsource(coup)
+    assert "kickoff_clocks(fixture, seen_kickoff, fs.refreshed_start(" in (
+        inspect.getsource(lp.starts_after))

@@ -41,6 +41,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    COUPON_ARTIFACT,
     SHEET_SPORTS,
     coupon_artifact,
     printed_builders,
@@ -121,6 +122,56 @@ def candidate_event_ids(
     return sorted(ids, key=lambda e: (start(e), e))
 
 
+def sport_event_ids(run: Path, at: datetime) -> dict[int, datetime]:
+    """{pinned Sofascore id: start} of every measured-sport event (hockey,
+    basketball, volleyball, CS2) the coming build could print a leg on or a
+    print holds (K14 for the sports): a sport leg of 08_confidence_sports.json
+    or 11_coupon.json (singles, legs, the legs a read removed), of any render
+    of the print history, and every IDENTIFIED event of sport_fixtures.json
+    (SPORT_IDENTITY's pin) whose earliest start is still ahead - the
+    superset of what SPORT_CONFIDENCE, which runs after this check, can print.
+    /event/{id} answers for every one of them, CS2 included (settle_cs2 and
+    settle_shadow grade the pinned ids through the same route)."""
+    from bet.sofa.coupon_sports import SPORT_FIXTURES_FILE, is_measured
+
+    def _t(raw: Any) -> datetime | None:
+        return (datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+                if raw else None)
+
+    out: dict[int, datetime] = {}
+
+    def add(eid: Any, start: Any) -> None:
+        if eid is None:
+            return
+        t = _t(start) or datetime.max.replace(tzinfo=at.tzinfo)
+        out[int(eid)] = min(t, out.get(int(eid), t))
+
+    for name in ("08_confidence_sports.json", COUPON_ARTIFACT):
+        path = run / name
+        if not path.exists():
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        for key in ("singles", "legs", "removed_by_reads"):
+            for x in doc.get(key) or []:
+                if is_measured(x):
+                    add(x.get("sofascore_event_id"), x.get("kickoff_utc"))
+    for render in print_history(run):
+        for x in printed_singles(render):
+            if is_measured(x):
+                add(x.get("sofascore_event_id"), x.get("kickoff_utc"))
+    path = run / SPORT_FIXTURES_FILE
+    if path.exists():
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        for f in doc.get("fixtures") or []:
+            if f.get("status") != "IDENTIFIED" or f.get("sofascore_event_id") is None:
+                continue
+            starts = [t for t in (_t(f.get("kickoff_utc")),
+                                  _t(f.get("sofascore_start_utc"))) if t]
+            if starts and min(starts) > at:
+                add(f["sofascore_event_id"], min(starts).isoformat())
+    return out
+
+
 def failure_reason(exc: BaseException) -> str:
     """fixture_status.UNVERIFIED_REASONS from what the client raised
     (bet.sofa.client._execute: 404 returns None and never gets here)."""
@@ -195,9 +246,15 @@ def targets_for(
         for o in offers if o.get("superbet_kickoff_seen_utc")
     }
     candidates = candidate_event_ids(run, fixtures, seen, at)
+    sports = sport_event_ids(run, at)
     targets = fs.events_to_check(
-        fixtures, seen, printed_event_ids(run), set(candidates))
+        fixtures, seen, printed_event_ids(run), set(candidates), sports)
     rank = {eid: i for i, eid in enumerate(candidates)}
+    # A sport candidate after the football / tennis ones, nearest start first
+    # (the cap bounds both together; a printed sport leg is never capped).
+    for i, eid in enumerate(sorted((e for e in sports if e not in rank),
+                                   key=lambda e: (sports[e], e))):
+        rank[eid] = len(candidates) + i
     ordered = dict(sorted(
         targets.items(),
         key=lambda kv: (kv[1] == "candidate", rank.get(kv[0], -1), kv[0])))
@@ -233,6 +290,7 @@ def main() -> int:
     )
     targets, over_cap = targets_for(run, fixtures, offers, now(),
                                     args.max_candidates)
+    sport_ids = set(sport_event_ids(run, now()))
 
     from bet.sofa.cache import SofaCache
     from bet.sofa.client import SofascoreClient
@@ -262,6 +320,7 @@ def main() -> int:
             "clock_gap": sum(1 for e in events.values() if e["why"] == "clock_gap"),
             "candidate": sum(1 for e in events.values() if e["why"] == "candidate"),
             "candidates_over_cap": len(over_cap),
+            "sport_events": sum(1 for eid in events if eid in sport_ids),
             "unverified": unverified, "unverified_reasons": reasons,
             "stopped": stopped,
             "provider_refused": reasons.get(fs.PROVIDER_REFUSED, 0) > 0,

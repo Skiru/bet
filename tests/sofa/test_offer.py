@@ -268,3 +268,46 @@ def test_a_blocked_odd_is_not_an_offer():
     assert (rung.market, rung.line) == ("goals_total", 2.5)
     assert rung.over_odds == 2.0
     assert rung.under_odds is None
+
+
+def test_refresh_reprices_on_confidences_clocks_not_resolves_frozen_ones():
+    """2026-10-05 12:22Z: `--min-minutes-to-kickoff 20` skipped Gaubas
+    (RESOLVE 12:30Z, fresh 13:30Z) and Monteiro - Moller (RESOLVE 12:30Z,
+    fresh 13:00Z, Superbet 12:55Z) on RESOLVE's frozen clocks, while
+    CONFIDENCE gated on the fresh ones and printed both on 39-min-old prices.
+    The refresh reads the same clocks as CONFIDENCE (locked_print.starts_after)."""
+    from datetime import UTC, datetime
+
+    from bet.sofa.contracts import Fixture
+    from scripts.sofa.run_offer import refresh_targets
+
+    def fx(eid: int, hh: int, mm: int) -> Fixture:
+        ko = datetime(2026, 10, 5, hh, mm, tzinfo=UTC)
+        return Fixture.model_construct(
+            sofascore_event_id=eid, kickoff_utc=ko, superbet_kickoff_utc=ko)
+
+    fixtures = [fx(17248626, 12, 30),   # Gaubas
+                fx(17248631, 12, 30),   # Monteiro - Moller
+                fx(3, 12, 30),          # not moved, check UNVERIFIED
+                fx(4, 15, 0),           # Superbet moved it earlier
+                fx(5, 15, 0)]           # an ordinary open match
+    previous = [
+        {"sofascore_event_id": 17248626,
+         "superbet_kickoff_seen_utc": "2026-10-05T13:30:00Z"},
+        {"sofascore_event_id": 17248631,
+         "superbet_kickoff_seen_utc": "2026-10-05T12:55:00Z"},
+        {"sofascore_event_id": 3, "superbet_kickoff_seen_utc": "2026-10-05T12:30:00Z"},
+        {"sofascore_event_id": 4, "superbet_kickoff_seen_utc": "2026-10-05T12:35:00Z"},
+    ]
+    status = {
+        17248626: {"status": "notstarted", "start_utc": "2026-10-05T13:30:00Z"},
+        17248631: {"status": "notstarted", "start_utc": "2026-10-05T13:00:00Z"},
+        3: {"status": "UNVERIFIED", "reason": "NO_BRIDGE"},
+    }
+    cutoff = datetime(2026, 10, 5, 12, 42, tzinfo=UTC)  # 12:22Z + 20 min
+    kept = {f.sofascore_event_id
+            for f in refresh_targets(fixtures, previous, status, cutoff)}
+    assert kept == {17248626, 17248631, 5}
+    # No fixture_status.json and no newer Superbet clock: exactly as before.
+    assert {f.sofascore_event_id
+            for f in refresh_targets(fixtures, [], {}, cutoff)} == {4, 5}

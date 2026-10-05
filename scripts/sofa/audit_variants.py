@@ -28,7 +28,10 @@ files on disk, not from the artifact's own fields:
       WARIANT: >= min_ev), margin <= max_overround, not started at build;
       a locked single (bet.sofa.locked_print, since 2026-10-05: printed by an
       earlier build, its match started before this one) is checked against
-      the build that printed it - its printed_at_utc and printed_under dials
+      the build that printed it - its printed_at_utc and printed_under dials;
+      a printed leg whose match started is on the coupon (locked) or in its
+      printed_after_start - football / tennis and, since 2026-10-05, the
+      measured sports' legs (audit_sport_print_record)
   U1  (11_coupon.json, stats-only days) the fresh singles stand in
       confidence.coupon_order, numbered 1..N, the locked ones first and
       unnumbered; U2 every fresh football / tennis single carries the
@@ -534,18 +537,65 @@ def audit_print_record(
             out.append(f"C2 {tag} builder {b.get('match')}: printed "
                        f"{b.get('printed_at_utc')}, its match started, gone from "
                        "the coupon")
+    out += audit_sport_print_record(run, doc, tag, history, late_keys)
     if not (run / PRINTED_HISTORY_DIR).is_dir():
         return out
     on_record = history_keys(history)
     for s in printed_singles(doc):
-        if (s.get("locked") and str(s.get("sport") or "football") in SHEET_SPORTS
-                and tuple(leg_key(s)) not in on_record):
+        if not s.get("locked"):
+            continue
+        if str(s.get("sport") or "football") in SHEET_SPORTS:
+            key: tuple[Any, ...] = tuple(leg_key(s))
+        else:
+            from bet.sofa.coupon_sports import sport_key
+
+            key = tuple(sport_key(s))
+        if key not in on_record:
             out.append(f"C2 {tag} {s.get('match')} {s['market']} {s.get('line')}: "
                        "locked but on no printed render")
     for x in late:
         if x.get("key") is not None and tuple(x["key"]) not in on_record:
             out.append(f"C2 {tag} {x.get('match')} {x['key']}: printed_after_start "
                        "without a print record")
+    return out
+
+
+def audit_sport_print_record(
+    run: Path, doc: dict[str, Any], tag: str, history: list[dict[str, Any]],
+    late_keys: set[tuple[Any, ...]],
+) -> list[str]:
+    """C2's "none vanishes" for the measured sports (hockey, basketball,
+    volleyball, CS2), on COUPON_ASSEMBLY's own rule (build_coupon.
+    prepare_sports): the print record as first_prints builds it on the
+    sports' current clocks (coupon_sports.fresh_kickoffs / started_by_clock),
+    at 11_coupon.json's build. Every printed sport leg whose game had started
+    by then is on the coupon - locked - or in printed_after_start. Until
+    2026-10-05 C2 checked football / tennis only."""
+    from bet.sofa import coupon_sports as cs
+
+    created = doc.get("created_at_utc")
+    if not created:
+        return []
+    built = _utc(str(created))
+    clock = cs.started_by_clock(cs.fresh_kickoffs(run.parent, run.name, built))
+    record = first_prints(history, built, clock) or {}
+    on_coupon = {tuple(cs.sport_key(s)) for s in printed_singles(doc)
+                 if cs.is_measured(s)}
+    out: list[str] = []
+    for s in printed_singles(record):
+        if not cs.is_measured(s):
+            continue
+        key = tuple(cs.sport_key(s))
+        if key in on_coupon or key in late_keys:
+            continue
+        if clock(s, built):
+            out.append(f"C2 {tag} {s.get('sport')} {s.get('match')} "
+                       f"{s.get('family') or s.get('market')} p{s.get('period') or 0} "
+                       f"{s.get('line')} {s.get('side') or s.get('direction')}: "
+                       f"printed {s.get('printed_at_utc')} "
+                       f"({s.get('printed_in') or PRINTED_MANIFEST}), its game "
+                       "started, gone from the coupon - neither locked nor "
+                       "printed_after_start")
     return out
 
 

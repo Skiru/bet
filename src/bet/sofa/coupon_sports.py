@@ -157,18 +157,26 @@ FreshClock = Callable[[Mapping[str, Any]], list[datetime]]
 
 def fresh_kickoffs(runs_dir: Path, date: str, at: datetime) -> FreshClock:
     """A leg's current start clocks: Superbet's in the latest snapshot of
-    its event and Sofascore's from SPORT_IDENTITY (sport_fixtures.json).
+    its event and Sofascore's from SPORT_IDENTITY (sport_fixtures.json) -
+    replaced by FIXTURE_CHECK's fresh read of the pinned id where there is
+    one (fixture_status.json, K12, as SPORT_CONFIDENCE's gate reads it).
     A printed kickoff goes stale when Superbet moves the match; the lock and
     the started check must read the clock as it is now (review 2026-10-05)."""
+    from bet.sofa import fixture_status as fs
     from bet.sofa import sport_identity as si
 
     events: dict[str, dict[str, Any]] = {}
     starts: dict[str, str] = {}
+    status = fs.load(Path(runs_dir) / date)
     path = Path(runs_dir) / date / SPORT_FIXTURES_FILE
     if path.exists():
         for f in json.loads(path.read_text(encoding="utf-8")).get("fixtures") or []:
-            if f.get("sofascore_start_utc"):
-                starts[str(f["superbet_event_id"])] = str(f["sofascore_start_utc"])
+            sid = f.get("sofascore_event_id")
+            fresh = (fs.refreshed_start(status.get(int(sid)))
+                     if sid is not None else None)
+            start = fresh or f.get("sofascore_start_utc")
+            if start:
+                starts[str(f["superbet_event_id"])] = str(start)
 
     def clocks(leg: Mapping[str, Any]) -> list[datetime]:
         sport = str(leg.get("sport"))
@@ -252,6 +260,8 @@ def locked_sport_legs(
         if printed_after_its_start(leg, created, started_by):
             if printed_after_start is not None:
                 printed_after_start.append({
+                    "kind": "single", "sport": leg.get("sport"),
+                    "sofascore_event_id": int(leg["sofascore_event_id"]),
                     "key": list(sport_key(leg)),
                     "match": leg.get("match"),
                     "kickoff_utc": leg.get("kickoff_utc"),

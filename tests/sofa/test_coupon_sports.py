@@ -221,3 +221,75 @@ def test_a_sport_leg_moved_after_the_print_is_locked_and_a_late_one_recorded():
     late: list[dict[str, object]] = []
     assert cs.locked_sport_legs(printed, now, None, late) == []
     assert [x["printed_at_utc"] for x in late] == ["2026-10-07T18:10:00Z"]
+
+
+def _status(run, events: dict[int, dict[str, Any]]) -> None:
+    import json
+
+    (run / "fixture_status.json").write_text(json.dumps(
+        {"events": {str(k): v for k, v in events.items()}}))
+
+
+def test_a_postponed_sport_game_leaves_the_coupon_and_a_locked_leg_stays(tmp_path):
+    """K14 for the measured sports at COUPON_ASSEMBLY: a game FIXTURE_CHECK
+    read as postponed after SPORT_CONFIDENCE ran is not printed fresh; a leg
+    printed before its start and now locked stays (SETTLE refunds it)."""
+    import json
+
+    from scripts.sofa.build_coupon import prepare_sports
+
+    run = tmp_path / "2026-10-07"
+    run.mkdir()
+    printed_leg = cs.normalize(_sport_leg(kickoff_utc="2026-10-07T12:00:00Z"))
+    eleven = {"profile": "standard", "epoch": "stats_only",
+              "created_at_utc": "2026-10-07T09:00:00Z", "singles": [printed_leg]}
+    (run / "12_printed.json").write_text(json.dumps(
+        {**eleven, "pdf_rendered_at_utc": "2026-10-07T09:01:00Z"}))
+    (run / "vetoes.json").write_text("[]")
+    (run / "reads.json").write_text("[]")
+    late_game = _sport_leg(sofascore_event_id=901, superbet_event_id="sb10",
+                           group_key="sofa:901", kickoff_utc="2026-10-07T18:00:00Z")
+    open_game = _sport_leg(sofascore_event_id=902, superbet_event_id="sb11",
+                           group_key="sofa:902", kickoff_utc="2026-10-07T19:00:00Z")
+    _status(run, {900: {"status": "postponed"}, 901: {"status": "postponed"},
+                  902: {"status": "notstarted"}})
+    doc = prepare_sports(run, {"legs": [late_game, open_game]},
+                         datetime(2026, 10, 7, 12, 5, tzinfo=UTC))
+    assert [(x["sofascore_event_id"], bool(x.get("locked"))) for x in doc["legs"]] == [
+        (900, True), (902, False)]
+    assert doc["not_as_scheduled_since_build"] == 1
+
+
+def test_the_fresh_sofascore_start_replaces_the_pinned_one_in_the_sport_clock(tmp_path):
+    import json
+
+    run = tmp_path / "2026-10-07"
+    run.mkdir()
+    (run / cs.SPORT_FIXTURES_FILE).write_text(json.dumps({"fixtures": [
+        {"sport": "hockey", "superbet_event_id": "sb9", "sofascore_event_id": 900,
+         "status": "IDENTIFIED", "sofascore_start_utc": "2026-10-07T18:00:00Z"}]}))
+    at = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
+    leg = _sport_leg()
+    assert cs.fresh_kickoffs(tmp_path, "2026-10-07", at)(leg) == [
+        datetime(2026, 10, 7, 18, 0, tzinfo=UTC)]
+    _status(run, {900: {"status": "notstarted", "start_utc": "2026-10-07T17:00:00Z"}})
+    assert cs.fresh_kickoffs(tmp_path, "2026-10-07", at)(leg) == [
+        datetime(2026, 10, 7, 17, 0, tzinfo=UTC)]
+    _status(run, {900: {"status": "UNVERIFIED", "reason": "NO_BRIDGE"}})
+    assert cs.fresh_kickoffs(tmp_path, "2026-10-07", at)(leg) == [
+        datetime(2026, 10, 7, 18, 0, tzinfo=UTC)]
+
+
+def test_a_sport_leg_printed_after_its_start_is_recorded_on_the_coupon():
+    """locked_sport_legs' printed_after_start reaches 11_coupon.json (it was
+    dropped in assemble until 10-05), so C2 can tell it from a vanished leg."""
+    conf = {"singles": [], "legs": [], "builders": [], "profile": "standard",
+            "printed_after_start": [{"kind": "single", "key": [1, "goals_total",
+                                                               "", 2.5, "OVER"]}]}
+    late = {"kind": "single", "sport": "hockey", "sofascore_event_id": 900,
+            "key": [900, "total", 0, "", 5.5, "OVER"]}
+    sports = {"legs": [], "printed_after_start": [late]}
+    doc = assemble(conf, sports, [], {}, "2026-10-07T12:00:00Z", "2026-10-07")
+    assert doc["printed_after_start"] == [*conf["printed_after_start"], late]
+    assert assemble(conf, None, [], {}, "2026-10-07T12:00:00Z")[
+        "printed_after_start"] == conf["printed_after_start"]

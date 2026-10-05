@@ -367,3 +367,30 @@ def test_runner_stops_after_a_hard_failure_and_goes_on_after_a_soft_one(
         ("A", "PARTIAL"), ("B", "FAILED"), ("C", "FAILED"), ("D", "SKIPPED")]
     assert summary["step_summaries"]["A"]["metrics"] == {"n": 1}
     assert len(list((tmp_path / DATE).glob("rebuild_*.log"))) == 1
+
+
+def test_match_moved_later_is_open_and_its_stale_price_refreshed(
+        tmp_path: Path) -> None:
+    # 10-05 12:22Z, Gaubas: RESOLVE froze 12:30Z, FIXTURE_CHECK read 13:30Z
+    # (Superbet 13:30Z too). On the frozen clocks it looked inside run_offer's
+    # 20 min, so neither the plan nor OFFER re-priced it, and CONFIDENCE -
+    # which gates on the fresh clock - printed it on a 39-min-old price.
+    now = datetime(2026, 10, 5, 12, 22, tzinfo=UTC)
+    frozen = datetime(2026, 10, 5, 12, 30, tzinfo=UTC)
+    write_day(tmp_path, kickoff=frozen,
+              fetched=datetime(2026, 10, 5, 11, 43, tzinfo=UTC))
+    run = tmp_path / DATE
+    offer = json.loads((run / "04_offer.json").read_text())
+    offer[0]["superbet_kickoff_seen_utc"] = "2026-10-05T13:30:00Z"
+    (run / "04_offer.json").write_text(json.dumps(offer))
+    (run / "fixture_status.json").write_text(json.dumps({"events": {"1": {
+        "status": "notstarted", "start_utc": "2026-10-05T13:30:00Z",
+        "why": "clock_gap", "checked_at_utc": "2026-10-05T11:43:38Z"}}}))
+    state = rp.observe(str(tmp_path), DATE, now, LIMIT)
+    assert state.open_fixtures == 1
+    assert "OFFER" in rp.build_plan(state, run_id="t").names()
+    # Without the fresh start the frozen clock is all there is: not open.
+    (run / "fixture_status.json").unlink()
+    offer[0]["superbet_kickoff_seen_utc"] = z(frozen)
+    (run / "04_offer.json").write_text(json.dumps(offer))
+    assert rp.observe(str(tmp_path), DATE, now, LIMIT).open_fixtures == 0
