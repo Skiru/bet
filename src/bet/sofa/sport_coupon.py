@@ -971,13 +971,16 @@ def rule_history(
                     if x["superbet_event_id"] == eid and _utc(x["fetched_at_utc"]) < at
                 ],
             ).get(eid)
-            if ev_now is None:
+            # The last pre-start snapshot can carry no lines (volleyball
+            # 15058980, 10-04: 0 lines at 21:03Z and 21:33Z): no price, no pick.
+            newest = None if ev_now is None else _newest(ev_now)
+            if ev_now is None or newest is None:
                 continue
             counts: dict[str, int] = {}
             cands = candidates(
                 sport,
                 {eid: ev_now},
-                _utc(max(ev_now.fetched_at.values(), key=_utc)),
+                newest,
                 rule,
                 counts,
                 check_clock=False,

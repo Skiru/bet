@@ -451,6 +451,36 @@ def test_rule_history_chooses_before_the_outcome_and_keeps_a_push_void(
     assert h["n"] == 0 and h["void"] == 1 and h["days"] == ["2026-09-29"]
 
 
+def test_rule_history_skips_an_event_whose_last_snapshot_has_no_lines(
+    tmp_path: Path,
+) -> None:
+    # 10-04, volleyball 15058980: the snapshots before the start carried 0
+    # lines, and max() over an empty fetched_at crashed record_results.
+    d = write_snaps(
+        tmp_path,
+        "hockey",
+        "2026-09-29",
+        [
+            snap(
+                "1",
+                [*total_pair("1", 1.20, 4.20, 6.0)],
+                AT - timedelta(days=1, hours=2),
+                kickoff=AT - timedelta(days=1),
+            ),
+            snap(
+                "1",
+                [],
+                AT - timedelta(days=1, hours=1),
+                kickoff=AT - timedelta(days=1),
+            ),
+        ],
+    )
+    settled = {"date": "2026-09-29", "events": {"1": hockey_event()}}
+    (d / "settled.json").write_text(json.dumps(settled), encoding="utf-8")
+    h = sc.rule_history(str(tmp_path), "hockey", ["2026-09-29"], sc.Rule())
+    assert h["n"] == 0 and h["void"] == 0 and h["days"] == ["2026-09-29"]
+
+
 # --- labels ---------------------------------------------------------------------------
 
 
