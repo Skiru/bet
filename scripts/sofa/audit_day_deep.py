@@ -46,6 +46,7 @@ from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
     builder_legs_are_coherent,
     coupon_artifact,
+    is_sheet_sport,
     printed_singles,
     is_stakeable,
     line_is_beyond_sample,
@@ -144,7 +145,9 @@ def main() -> int:
             "single": True,
             "legs": [{**s_, "odds": s_["offered_odds"]}],
         }
-        for s_ in printed_singles(conf)
+        # The measured sports' legs on a stats-only coupon are not sheet
+        # rows and are graded by sport_coupon (plan F7).
+        for s_ in printed_singles(conf) if is_sheet_sport(s_)
     ]
     leg_index = {(l["sofascore_event_id"], l["market"], l["subject"], l["line"],
                   l["direction"]): l for l in conf["legs"]}
