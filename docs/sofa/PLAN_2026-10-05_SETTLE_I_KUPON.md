@@ -131,7 +131,7 @@ nie zależy po wyłączeniu `K_DERIVED_CENTRE`; stary dzień — bez zmian.
 
 **K3. Artefakt kuponu, kolejność, grupowanie, pozycje.**
 - **Kupon = `runs/sofa/<d>/11_coupon.json` od Fazy A.** Pisze go nowy
-  `scripts/sofa/build_coupon.py --date <d>` z `08_confidence.json` (w Fazie B
+  `build_coupon.py --date <d>` (nowy, w `scripts/sofa`) z `08_confidence.json` (w Fazie B
   także z `08_confidence_sports.json`). Pozycje 1..N, `blocks`,
   `removed_by_reads`, `epoch`, nogi zablokowane — tylko w 11.
   `08_confidence.json` zostaje selekcją piłki/tenisa i wejściem SETTLE/refitu
@@ -401,7 +401,7 @@ kuponem (F1) i nieoceniane. To samo dla 4B. Test.
 
 ### 4D. Wspólne
 
-**D-a.** `scripts/sofa/audit_settle_identity.py` (offline, tylko odczyt): id
+**D-a.** `audit_settle_identity.py` (nowy, w `scripts/sofa`) (offline, tylko odczyt): id
 użyte > 1 raz, |przesunięcie| > 48 h a ocenione, wynik nazw < 82 po
 którejkolwiek stronie, `ID_CHANGED`, `DUPLICATE_*`, `MOVED_TO`. Exit 1 przy
 znalezisku. Wołany w `/sofa-day` po rozliczeniu D-1 i w `/sofa-settle`.
@@ -465,7 +465,7 @@ bramkuje; **model** = `forecast_p = p_model` (K11). Cena tylko jako filtr D1;
 korekta ceny faworytów (`config/sofa_sport_price_calibration.json`) przestaje
 znaczyć cokolwiek dla kuponu (zostaje w historii kuponów sportowych).
 
-**F4. Kalibracja bez cen.** Nowy `scripts/sofa/fit_sport_confidence.py --sport
+**F4. Kalibracja bez cen.** Nowy `fit_sport_confidence.py --sport
 <s> --before <d>` (nigdy w trakcie dnia):
 - historia, walk-forward (`build_model` przed każdym meczem):
   `line_probability` na syntetycznym `ShadowLine` z `market_id` rodziny i
