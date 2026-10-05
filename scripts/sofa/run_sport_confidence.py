@@ -199,7 +199,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
     status = sport_status(sport, fixtures_doc, calibration)
     fixtures = si.fixtures_by_event(fixtures_doc)
     start, end = si.day_window(date)
-    events, _ = sport_coupon.day_events(runs_dir, sport, date)  # type: ignore[arg-type]
+    events = si.snapshot_events(runs_dir, sport, date, at)
     settled_tournaments = (
         sport_coupon.settled_tournaments(runs_dir, sport, date)
         if sport in sport_coupon.SETTLED_TOURNAMENT_SPORTS else None)

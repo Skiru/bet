@@ -303,3 +303,14 @@ def test_the_db_forecaster_orients_the_model_to_superbets_team1():
     assert p_away_as_t1 == pytest.approx(p_away, abs=0.03)
     unrated = _fixture(sb="3", home_id=999, away_id=200, competition_id=5)
     assert fc.probability("hockey", unrated, ev, t1) is None
+
+
+def test_a_snapshot_taken_after_the_clock_is_not_read(tmp_path: Path):
+    later = _snapshot(fetched="2026-10-06T16:00:00Z", lines=[
+        _line(623, "total", "OVER", 1.10, 4.5), _line(623, "total", "UNDER", 6.0, 4.5)])
+    _write(tmp_path, "hockey", [_snapshot(), later])
+    _fixtures(tmp_path, [_fixture()])
+    doc, _ = _build(tmp_path, _calibration(tmp_path))
+    over = [g for g in doc["legs"] if g["market_id"] == 623]
+    assert [g["odds"] for g in over] == [1.30]
+    assert over[0]["price_fetched_at_utc"] == "2026-10-06T14:30:00Z"

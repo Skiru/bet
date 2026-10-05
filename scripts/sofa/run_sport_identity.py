@@ -49,7 +49,7 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
               if r.get("status") == si.IDENTIFIED}
     events: list[si.BoardEvent] = []
     for sport in sports:
-        events += si.board_events(runs_dir, sport, date)
+        events += si.board_events(runs_dir, sport, date, at)
     resolver = si.TeamResolver(conn, int(at.timestamp()))
     records, summary = si.identify(events, client, cache, resolver.team_id, at,
                                    date, pinned)
