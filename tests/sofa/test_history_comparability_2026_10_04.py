@@ -598,3 +598,52 @@ def test_the_replay_reads_a_knockout_target_from_the_newest_ten() -> None:
     # The league target reads its eight league matches; the knockout one the
     # newest ten (cup ties included).
     assert sizes[50] == 8 and sizes[60] == 10
+
+
+def test_an_old_two_squad_clash_does_not_empty_the_goal_pool(
+    harness: tuple[MagicMock, SofaCache, MagicMock],
+) -> None:
+    # 2026-10-05, Carshalton - Eastbourne (Isthmian Premier): Eastbourne's
+    # listing held a Sussex Senior Cup tie and a National League South match
+    # on one day in February, on a page the walk never read but the
+    # listed-event index did. The goal pool ran finish_history over every
+    # match back to 2024, one_squad_per_entity said "one id, two squads" and
+    # emptied the WHOLE pool, so the goal sample silently fell back to the
+    # newest ten - three cup ties included - while the sample proper (page 0
+    # only) never saw the clash. The pool now keeps the stretch after it.
+    client, cache, superbet = harness
+    old = [
+        _played(1001, 200, 2998, 1501, 0, 0, comp=336,
+                unique="Taça de Portugal", round_name="Round 1"),
+        _played(1002, 200, 2998, 1502, 3, 3),
+        *(_played(1010 + i, 210 + 7 * i, 2998, 1600 + i, 2, 2) for i in range(5)),
+    ]
+    # Page 1 is cached (so indexed) but never read: page 0 alone yields ten
+    # usable matches, and the indexed events beyond it reach only the pool.
+    cache.save_entity_events(2998, "last", 1, {"events": old, "hasNextPage": False})
+    res = process_fixture_samples(
+        _fixture(), client, cache, superbet, SofaConfig(sample_n=10, min_sample=5)
+    )
+    ids = {o.sofascore_event_id for o in res.metrics["goals_total"].side_a}
+    assert ids == {100, 101, 102, 103, 104, 105}
+    # The sample proper still never saw the clash.
+    assert not [g for g in res.gaps if g.reason.value == "ENTITY_CONFLICT"]
+
+
+def test_the_pool_cut_keeps_only_matches_after_the_newest_clash() -> None:
+    from bet.sofa.samples import finish_history
+
+    def at(eid: int, days_ago: int, opp: int) -> dict[str, Any]:
+        # A different score each: a same-score pair this close is one match
+        # re-listed, not two squads.
+        return _played(eid, days_ago, 2998, opp, eid, 0)
+
+    events = [at(1, 300, 11), at(2, 300, 12),  # oldest clash
+              at(3, 250, 13),
+              at(4, 100, 14), at(5, 100, 15),  # newest clash, same day
+              at(6, 50, 16), at(7, 10, 17)]
+    kickoff = int(KICKOFF.timestamp())
+    assert finish_history(events, 2998, "football", 239, kickoff, 99) == []
+    cut = finish_history(events, 2998, "football", 239, kickoff, 99,
+                         cut_at_conflict=True)
+    assert [e["id"] for e in cut] == [7, 6]

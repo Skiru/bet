@@ -518,10 +518,20 @@ def get_historical_events(
             if admit(event, report=False):
                 pool.append(event)
                 pooled.add(event.get("id"))
+        # cut_at_conflict: the pool reaches years back (five pages and the
+        # index), so a two-squad clash long before the newest ten emptied the
+        # whole pool and the goal sample fell back to the newest ten without
+        # a word (2026-10-05: Eastbourne Borough - Sussex Senior Cup and
+        # National League South on one day in February 2026; AS Nestos
+        # Chrysoupolis - two matches 23.5 h apart in 2025). The pool keeps
+        # the stretch after the newest clash instead; the cache replay the
+        # curves are fitted on (calibrate_from_cache.recent_for) runs no
+        # two-squad check on a history at all.
         pool_out.extend(
             finish_history(
                 pool, entity_id, sport, fixture_competition,
                 int(fixture.kickoff_utc.timestamp()), len(pool) + 1, None,
+                cut_at_conflict=True,
             )
         )
 
@@ -539,6 +549,8 @@ def finish_history(
     kickoff_ts: int,
     sample_n: int,
     gaps: list[GapEntry] | None = None,
+    *,
+    cut_at_conflict: bool = False,
 ) -> list[dict[str, Any]]:
     """The admitted events of one side, made into its sample.
 
@@ -547,6 +559,11 @@ def finish_history(
     entity; then the newest `sample_n`, newest first. Its own function so
     the cache replay (calibrate_from_cache, player markets) builds a side's
     history with exactly this code rather than a copy of it.
+
+    ``cut_at_conflict`` (the goal-sample pool only): a two-squad clash keeps
+    the matches after the newest clashing pair instead of emptying the side.
+    The sample proper keeps the old rule - its candidates are the pages the
+    walk read, so a clash there is a clash near the sample.
     """
     # The sample is the most recent `sample_n`, newest first.
     events = one_listing_per_match(events)
@@ -586,7 +603,12 @@ def finish_history(
                     )
                 )
             events = [e for e in events if e.get("id") not in reserve]
-        events, conflict = one_squad_per_entity(events, entity_id)
+        events, conflict, after = _one_squad(events, entity_id)
+        while conflict is not None and cut_at_conflict and after is not None:
+            events, conflict, after = _one_squad(
+                [e for e in events if int(e.get("startTimestamp") or 0) > after],
+                entity_id,
+            )
         if conflict is not None:
             if gaps is not None:
                 gaps.append(
@@ -676,6 +698,15 @@ def one_squad_per_entity(
       Ascenso Nacional, 19:00 and 21:30 on 2026-09-11). The side then has
       no sample, because its listing describes two teams.
     """
+    kept, conflict, _ = _one_squad(events, entity_id)
+    return kept, conflict
+
+
+def _one_squad(
+    events: list[dict[str, Any]], entity_id: int
+) -> tuple[list[dict[str, Any]], str | None, int | None]:
+    """one_squad_per_entity, plus on a clash the start of the later match of
+    the first clashing pair (walking oldest first); None without a clash."""
 
     def start(e: dict[str, Any]) -> int:
         return int(e.get("startTimestamp") or 0)
@@ -712,8 +743,8 @@ def one_squad_per_entity(
         return events, (
             f"events {clash.get('id')} and {event.get('id')} are {gap_h:.1f} h "
             "apart against different opponents - one id, two squads"
-        )
-    return [e for e in kept if id(e) not in dropped], None
+        ), start(event)
+    return [e for e in kept if id(e) not in dropped], None, None
 
 
 def _match_key(
