@@ -10,7 +10,10 @@ re-run of a date replaces that date's rows, so the ledger is idempotent.
 
 Variants, each graded at its own printed price and never added to another:
 
-    official         KUPON_<d>.pdf singles and builders (audit_settlement 7c)
+    official         KUPON_<d>.pdf singles and builders (audit_settlement 7c);
+                     on a stats-only day split by epoch (+ official:pre_stats_only)
+                     with one section per sport
+    removed:reads    legs a read removed from a stats-only coupon (7f)
     wariant          KUPON_<d>_WARIANT.pdf (7d)
     sport:<sport>    KUPON_<d>_<SPORT>.pdf for cs2 / hockey / basketball / volleyball
     multi            KUPON_<d>_WSZYSTKIE.pdf, its total and its sections
@@ -47,13 +50,15 @@ from bet.sofa import multi_coupon as mc  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
+    is_sheet_sport,
     printed_builders,
     printed_singles,
     profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import one_side_per_line, summarize, write_atomic  # noqa: E402
-from bet.sofa.locked_print import printed_leg_keys  # noqa: E402
+from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
+from bet.sofa.locked_print import leg_key, printed_leg_keys  # noqa: E402
 from scripts.sofa import settle_multi_coupon, settle_sport_coupon  # noqa: E402
 
 LEDGER_DIR = "ledger"
@@ -110,7 +115,58 @@ def estimated_builders(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return mc.summarize_units([r for r in rows if r.get("odds_measured") is False])
 
 
+def position_epoch(item: dict[str, Any], artifact_epoch_: str) -> str:
+    """The epoch a printed position was selected in: a locked leg's own build
+    (`printed_under.epoch`, none = the old rule), else the artifact's."""
+    if item.get("locked"):
+        return str((item.get("printed_under") or {}).get("epoch") or OLD)
+    return artifact_epoch_
+
+
+def _confidence_row(
+    date: str,
+    variant: str,
+    singles: list[dict[str, Any]],
+    builders: list[dict[str, Any]],
+    rows: dict[Any, dict[str, Any]],
+    epoch: str,
+) -> dict[str, Any]:
+    by_sport: dict[str, list[dict[str, Any]]] = {}
+    for g in [*singles, *builders]:
+        sport = str(g["source"].get("sport") or "football")
+        by_sport.setdefault(sport, []).append(g)
+    return {
+        "date": date,
+        "variant": variant,
+        # bet.sofa.epochs: which rule selected these positions (K7).
+        "epoch": epoch,
+        "singles": mc.summarize_units(singles),
+        "builders": mc.summarize_units(builders),
+        "total": mc.summarize_units(singles + builders),
+        # One section per sport, never in place of the total (K7).
+        "sections": {sp: mc.summarize_units(g) for sp, g in sorted(by_sport.items())},
+        "estimated_builders": estimated_builders(builders),
+        "by_match": by_match(singles + builders),
+        "pending": _pending(singles + builders),
+        # moved beyond 48 h / awarded: 0 units, never a loss and
+        # never "unsettled" (also in `outcomes` as REFUND)
+        "refunded": settle_multi_coupon.refunded(singles + builders),
+        "outcomes": _outcomes(singles + builders),
+        "settled_rows_in_db": len(rows),
+    }
+
+
 def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
+    """`official` and `wariant`, graded as 7c / 7d grade them.
+
+    On a day the coupon artifact is stats-only (11_coupon.json, plan
+    2026-10-05 K7) the official coupon is split by the rule that selected each
+    position: `official` (epoch stats_only - the fresh positions and the
+    legs locked from a stats-only build) and `official:pre_stats_only` (legs
+    locked from a build before STATS_ONLY_FROM_UTC - on 10-05 the morning's).
+    The legs a read removed are `removed:reads`, graded the same way and
+    never part of the coupon's result (K6, 7f). The measured sports' legs
+    are graded by sport_coupon, not here."""
     out = []
     for variant, profile in (("official", "standard"), ("wariant", "wariant")):
         # The coupon artifact (11_coupon.json on a stats-only day, K3).
@@ -118,37 +174,56 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
-        ids = {int(x["sofascore_event_id"]) for x in printed_singles(doc)}
-        ids |= {int(x["sofascore_event_id"]) for x in printed_builders(doc)}
+        doc_epoch = artifact_epoch(doc)
+        p_singles = [s for s in printed_singles(doc) if is_sheet_sport(s)]
+        p_builders = printed_builders(doc)
+        ids = {int(x["sofascore_event_id"]) for x in p_singles}
+        ids |= {int(x["sofascore_event_id"]) for x in p_builders}
         # The printed keys: the same rows 7c / 7d grade (A5), the A4 file and
         # the refunds (moved beyond 48 h / awarded).
         rows, screen = settle_multi_coupon.official_rows(
-            runs_dir, date, db_path, profile, ids, keys=printed_leg_keys(doc)
+            runs_dir, date, db_path, profile, ids,
+            keys=printed_leg_keys(doc, sheet_sports_only=True),
         )
         singles, builders = settle_multi_coupon.grade_confidence_positions(
-            [{"source": s} for s in printed_singles(doc)],
-            [{"source": b} for b in printed_builders(doc)],
+            [{"source": s} for s in p_singles],
+            [{"source": b} for b in p_builders],
             rows,
             screen,
             settle_ran=settle_multi_coupon.ran_on(rows, date),
         )
-        out.append(
-            {
-                "date": date,
-                "variant": variant,
-                "singles": mc.summarize_units(singles),
-                "builders": mc.summarize_units(builders),
-                "total": mc.summarize_units(singles + builders),
-                "estimated_builders": estimated_builders(builders),
-                "by_match": by_match(singles + builders),
-                "pending": _pending(singles + builders),
-                # moved beyond 48 h / awarded: 0 units, never a loss and
-                # never "unsettled" (also in `outcomes` as REFUND)
-                "refunded": settle_multi_coupon.refunded(singles + builders),
-                "outcomes": _outcomes(singles + builders),
-                "settled_rows_in_db": len(rows),
+        if doc_epoch != STATS_ONLY:
+            out.append(_confidence_row(
+                date, variant, singles, builders, rows, doc_epoch))
+            continue
+        for name, keep in ((variant, True), (f"{variant}:pre_stats_only", False)):
+            sel_s = [g for g in singles
+                     if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
+            sel_b = [g for g in builders
+                     if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
+            if keep or sel_s or sel_b:
+                out.append(_confidence_row(
+                    date, name, sel_s, sel_b, rows, STATS_ONLY if keep else OLD))
+        removed = [r for r in doc.get("removed_by_reads") or [] if is_sheet_sport(r)]
+        if removed:
+            r_rows, _ = settle_multi_coupon.official_rows(
+                runs_dir, date, db_path, profile,
+                {int(r["sofascore_event_id"]) for r in removed},
+                keys={leg_key(r) for r in removed},
+            )
+            r_singles, _ = settle_multi_coupon.grade_confidence_positions(
+                [{"source": r} for r in removed], [], r_rows, {},
+                settle_ran=settle_multi_coupon.ran_on(r_rows, date),
+            )
+            row = _confidence_row(date, "removed:reads", r_singles, [], r_rows,
+                                  STATS_ONLY)
+            row["by_reason"] = {
+                reason: mc.summarize_units(
+                    [g for g in r_singles if g["source"].get("reason") == reason])
+                for reason in sorted(
+                    {str(g["source"].get("reason")) for g in r_singles})
             }
-        )
+            out.append(row)
     return out
 
 

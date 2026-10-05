@@ -1044,8 +1044,9 @@ def test_the_ledger_reader_keeps_every_variant_apart(tmp_path: Path) -> None:
     path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     loaded = audit_ledger.load(str(tmp_path), "2026-09-28", "2026-09-29")
     text = "\n".join(audit_ledger.render(loaded, None))
-    assert "| official | 2 | 3 | 3 | 2 | 1 | -0.20 |" in text
-    assert "| sport:hockey | 1 | 1 | 1 | 0 | 1 | -1.00 |" in text
+    # split by rule epoch since 2026-10-05 (K7); both days are "do 10-04"
+    assert "| official [do 10-04] | 2 | 3 | 3 | 2 | 1 | -0.20 |" in text
+    assert "| sport:hockey [do 10-04] | 1 | 1 | 1 | 0 | 1 | -1.00 |" in text
     fam = "\n".join(audit_ledger.render(loaded, "sport:hockey"))
     assert "| total | 1 | 0 | -1.00 |" in fam and "official" not in fam
 

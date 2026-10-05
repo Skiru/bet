@@ -47,5 +47,6 @@ def test_the_sport_coupons_run_until_the_sports_are_on_the_coupon(monkeypatch):
 def test_the_retirement_is_read_from_the_epoch_module(script):
     from pathlib import Path
 
-    text = (Path(__file__).resolve().parents[2] / "scripts" / "sofa" / script).read_text()
+    root = Path(__file__).resolve().parents[2]
+    text = (root / "scripts" / "sofa" / script).read_text()
     assert "from bet.sofa.epochs import" in text

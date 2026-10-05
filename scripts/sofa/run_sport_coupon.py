@@ -48,8 +48,8 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.epochs import sports_on_coupon  # noqa: E402
 from bet.sofa.cs2 import append_records, write_atomic  # noqa: E402
+from bet.sofa.epochs import sports_on_coupon  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 WARSAW = ZoneInfo("Europe/Warsaw")

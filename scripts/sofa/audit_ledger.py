@@ -128,28 +128,53 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
     return text
 
 
+# The comparability groups a variant's days fall in (plan 2026-10-05, K7):
+# the rules changed on the morning of 10-05 (official dials) and again at the
+# stats-only cutover (bet.sofa.epochs). One table row per (variant, group),
+# never summed across groups.
+EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only")
+
+
+def epoch_group(row: dict[str, Any]) -> str:
+    if row.get("epoch") == "stats_only":
+        return "stats_only"
+    if str(row.get("date", "")) < "2026-10-05":
+        return "do 10-04"
+    return "10-05 rano"
+
+
 def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
     out: list[str] = []
     by_variant: dict[str, list[dict[str, Any]]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for r in rows:
         by_variant.setdefault(r["variant"], []).append(r)
-    bets = sorted(v for v in by_variant if not v.startswith("measure:"))
+        if not str(r["variant"]).startswith("measure:"):
+            grouped.setdefault(f"{r['variant']} [{epoch_group(r)}]", []).append(r)
+    bets = sorted(
+        grouped,
+        key=lambda k: (k.rsplit(" [", 1)[0],
+                       EPOCH_GROUPS.index(k.rsplit(" [", 1)[1].rstrip("]"))),
+    )
     out += [
         "| variant | days | positions | settled | won | lost | units "
         "| of which estimated builders | ROI | ROI 95% (by match) |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for v in bets:
-        if variant and v != variant:
+        if variant and v.rsplit(" [", 1)[0] != variant:
             continue
-        t = totals(by_variant[v])
+        t = totals(grouped[v])
         roi = "-" if t["roi"] is None else f"{t['roi']:+.1%}"
         out.append(
             f"| {v} | {t['days']} | {t['positions']} | {t['settled']} | "
             f"{t['won']} | {t['lost']} | {t['units']:+.2f} | "
-            f"{estimated_text(by_variant[v])} | {roi} | "
-            f"{interval_text(by_variant[v])} |"
+            f"{estimated_text(grouped[v])} | {roi} | "
+            f"{interval_text(grouped[v])} |"
         )
+    out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
+            "stats_only): the coupon before and after each cutover is not one "
+            "experiment, so the groups are never added."]
     out += ["", f"A 3% edge needs ~{BETS_FOR_3PCT} settled positions to show at "
             "2 sigma; a ROI over a few dozen is noise until its interval says "
             "otherwise. CLV (audit_clv.py) answers sooner. An estimated builder "
