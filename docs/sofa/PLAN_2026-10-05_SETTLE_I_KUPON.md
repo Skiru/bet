@@ -62,7 +62,9 @@ pewność tylko ze statystyk.
    PDF i artefaktów 10-05 (oficjalny, WARIANT, cztery kupony sportowe,
    WSZYSTKIE) do `data/analysis_2026-10-05/md5_before.txt`. Pliki D5 nie są
    nadpisywane (md5 sprawdzone na końcu).
-1. **Decyzja operatora o poprawce próbek** (raport runu): gałąź
+1. **WYKONANE 2026-10-05:** poprawka próbek scalona na `main` (`6133857a`,
+   z `13756d32`; 2919 testów zielonych w głównym checkoutcie, także
+   `test_agentic_config`), worktree i gałąź usunięte. Opis pierwotny: gałąź
    `worktree-agent-a074984278560bcfa`, commit `13756d32` („an old two-squad
    clash no longer empties the goal-sample pool”). Przed scaleniem: testy w
    głównym checkoutcie (11 porażek `test_agentic_config` w worktree wynika z
@@ -682,7 +684,14 @@ kontraktach przepisane; `test_documented_commands` zielony.
 - `runs/sofa/`, `data/` — nic nie usuwać (zapis dni, backupy refitu); stare
   katalogi scratch (`data/refit_rehearsal_*`) — lista do decyzji operatora.
 
-**7.4 Bazy danych — docelowo jedna** (stan 10-05, dysk zajęty w 90%, 92 GiB
+**7.4 Bazy danych — WYKONANE 2026-10-05 (operator):** usunięte
+`data/backup_2026-10-02/sofa.db`, `data/backup_2026-10-03/sofa.db`,
+`betting/data/betting.db` (+ `-shm`, `-wal`, `last.db`,
+`betting.db.bak-2026-06-02`) i 7 × `runtime_analysis_shadow.db` w
+`reports/pipeline_runs/`; zostały `data/sofa.db` i
+`data/backup_2026-10-05/sofa.db`; wolne miejsce 91 → 164 GiB; CLAUDE.md
+zaktualizowany. Do zrobienia z 7.4 zostaje tylko reguła na przyszłość (niżej).
+Stan sprzed usunięcia, dla porządku — **docelowo jedna** (stan 10-05, dysk zajęty w 90%, 92 GiB
 wolne):
 
 | plik | rozmiar | kto czyta | decyzja |

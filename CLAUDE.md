@@ -48,8 +48,9 @@ refit): `refused_markets = ["shots_total|UNDER", "fouls_total|UNDER", "shots_for
 order, against the recommendation: one-sided prices, no ROI evidence - the
 props now print at their OVER curve's realised rate, e.g. fouls/tackles
 OVER claimed 0.725 realise 0.56). Report `data/refit_2026-10-03/compare_report.md`;
-backups `config/backup_2026-10-03` (with the keys), `config/backup_2026-10-03_prekeys`,
-`data/backup_2026-10-03/sofa.db`. Measure the admitted props separately
+backups `config/backup_2026-10-03` (with the keys), `config/backup_2026-10-03_prekeys`
+(the DB copy `data/backup_2026-10-03/sofa.db` was deleted 2026-10-05 on the operator's
+order; only the current epoch's DB copy is kept). Measure the admitted props separately
 before the next refit.
 
 **Between 10-03 and 10-04 (night, ~22:35Z):** `config/sofa_tennis_tier_baselines.json`
@@ -376,7 +377,11 @@ Keep that boundary.
 ## What is retired
 
 `src/bet/simple_stats/`, `scripts/simple/`, `src/bet/tipsters/`, `legacy/`,
-`.claude/legacy/`, `.kilo/legacy/`, `docs/legacy/`. They are kept because their
-artifacts and database rows are still on disk. Do not take stage names,
+`.claude/legacy/`, `.kilo/legacy/`, `docs/legacy/`. The code and documents are kept as a
+record; their databases (`betting/data/betting.db` and its backup, the
+`reports/pipeline_runs/*/runtime_analysis_shadow.db` files) were deleted 2026-10-05 on the
+operator's order, so the retired code no longer runs against real data. `data/sofa.db` is
+the only working database; `data/backup_<epoch>/sofa.db` holds one copy for the current
+refit epoch. Do not take stage names,
 quantities (`p_low`, CALL/LEAN/WEAK/DROP) or artifact names from them, and do
 not "restore" one without reading `docs/legacy/README.md` first.
