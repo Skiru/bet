@@ -60,7 +60,6 @@ and no vocabulary, and there is no mapping between them.
 | | |
 |---|---|
 | [`docs/sofa/`](docs/sofa/) | the current pipeline — runbook, full flow, agentic orchestration, verification protocol, config |
-| [`docs/legacy/`](docs/legacy/) | the retired `simple` / S0–S10 / tipster / multisport work. Historical record; describes no running code |
 | [`CLAUDE.md`](CLAUDE.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) | working agreement for agents, and where the code lives |
 
 ## Layout
@@ -76,8 +75,8 @@ runs/sofa/<date>/      one directory per betting day
 .claude/               agents, commands and skills for the current pipeline
 ```
 
-Retired and not in service: `src/bet/simple_stats/`, `scripts/simple/`,
-`src/bet/tipsters/`, `legacy/`, `.claude/legacy/`, `.kilo/legacy/`.
+Only `sofa` lives here: the retired `simple` pipeline and everything else was
+deleted 2026-10-05 (in git history; every branch in `data/archive/branches_2026-10-05.bundle`).
 
 ## Three things that have cost money
 

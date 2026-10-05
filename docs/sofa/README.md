@@ -12,8 +12,8 @@ osobne kupony sportowe od 08:30Z; pliki do poranka 10-05 zostają i są
 rozliczane po staremu.
 
 **Nie ma etapu `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` ani
-`TIPSTERS`.** To słownik wycofanego pipeline'u `simple`, którego dokumentacja
-leży w [`../legacy/`](../legacy/). Oba pipeline'y nie dzielą ani linii kodu,
+`TIPSTERS`.** To słownik wycofanego pipeline'u `simple`, usuniętego z repozytorium
+2026-10-05 (jest w historii gita). Oba pipeline'y nie dzielą ani linii kodu,
 ani jednej nazwy etapu.
 
 ```

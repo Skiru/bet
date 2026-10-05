@@ -446,14 +446,15 @@ Operator-facing documentation in `docs/sofa/` is **Polish** (so are the
 analysts' reports). Code, tests and the `.claude/` contracts are **English**.
 Keep that boundary.
 
-## What is retired
+## Only `sofa` is in this repository
 
-`src/bet/simple_stats/`, `scripts/simple/`, `src/bet/tipsters/`, `legacy/`,
-`.claude/legacy/`, `.kilo/legacy/`, `docs/legacy/`. The code and documents are kept as a
-record; their databases (`betting/data/betting.db` and its backup, the
-`reports/pipeline_runs/*/runtime_analysis_shadow.db` files) were deleted 2026-10-05 on the
-operator's order, so the retired code no longer runs against real data. `data/sofa.db` is
-the only working database; `data/backup_<epoch>/sofa.db` holds one copy for the current
-refit epoch. Do not take stage names,
-quantities (`p_low`, CALL/LEAN/WEAK/DROP) or artifact names from them, and do
-not "restore" one without reading `docs/legacy/README.md` first.
+Everything that was not `sofa` - the retired `simple` pipeline (`src/bet/simple_stats/`,
+`scripts/simple/`), tipsters, enrichment, discovery, `legacy/`, `.claude/legacy/`,
+`.kilo/`, `docs/legacy/`, their tests, configs, databases and run directories, and every
+worktree and branch but `main` - was deleted 2026-10-05 (in git history; every branch in `data/archive/branches_2026-10-05.bundle`) on the operator's order ("only the sofa
+pipeline matters"). Two things moved into sofa instead of being lost: the slip calculator
+(`scripts/sofa/audit_slip.py`, `bet.sofa.slip_audit`) and the operator's method
+(`docs/sofa/SUPERBET_BET_BUILDER_METHOD_v3.md`). `data/sofa.db` is the only working
+database; `data/backup_<epoch>/sofa.db` holds one copy for the current refit epoch. Do not
+take stage names, quantities (`p_low`, CALL/LEAN/WEAK/DROP) or artifact names from the old
+vocabulary.

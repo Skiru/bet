@@ -31,7 +31,7 @@ BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
 
 **Nie ma etapu `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` ani
 `TIPSTERS`.** To słownik wycofanego pipeline'u `simple`
-(`scripts/simple/`, `src/bet/simple_stats/`, dokumentacja w `docs/legacy/`).
+(usuniętego z repozytorium 2026-10-05; jest w historii gita).
 Oba pipeline'y **nie dzielą ani linii kodu, ani jednej nazwy etapu**, i nie
 istnieje mapowanie między nimi. Sięgnięcie po słownik `simple` to najczęstszy
 sposób na zmarnowanie pierwszego kwadransa sesji — zdarzyło się 2026-09-21

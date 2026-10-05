@@ -10,7 +10,7 @@ Two pipelines exist in this repository and they share no code.
 
 | | `simple` (retired) | `sofa` (current) |
 |---|---|---|
-| code | `scripts/simple/`, `src/bet/simple_stats/` | `scripts/sofa/`, `src/bet/sofa/` |
+| code | deleted 2026-10-05 (git history) | `scripts/sofa/`, `src/bet/sofa/` |
 | stats | bzzoiro, ESPN, highlightly | **Sofascore only** |
 | prices | Superbet | Superbet |
 | stages | DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE | **BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON**, then the stages outside the sequence (below) |
@@ -18,7 +18,7 @@ Two pipelines exist in this repository and they share no code.
 | fixture key | `event_id`, a 64-char hash | `sofascore_event_id`, an integer; a coupon block is `group_key` = `sofa:<sofascore_event_id>` |
 | sports | football, tennis, baseball | football, tennis from the board and the sheet (`SPORT_IDS = {"football": 5, "tennis": 2}`); hockey / basketball / volleyball / CS2 on the same coupon since 2026-10-05 08:30Z (`epochs.SPORTS_ON_COUPON_FROM_UTC`) through SPORT_CONFIDENCE |
 | product | `<date>_kupony.md` | **`KUPON_<date>.pdf`**, rendered from `11_coupon.json` |
-| agentic config | `.claude/legacy/` | `.claude/agents/sofa-*` |
+| agentic config | deleted 2026-10-05 | `.claude/agents/sofa-*` |
 
 **There is no DISCOVER, no ENRICH, no ANALYZE, no TIPSTERS.** Reaching for
 `simple`'s vocabulary is the single most common way to start a `sofa` session
@@ -339,5 +339,5 @@ kept in step with the code:
 | `docs/sofa/history/` | dated run reports and findings — historical, may be stale |
 
 Those documents are Polish, this configuration is English, and that boundary
-is deliberate. `docs/legacy/` describes the retired `simple` pipeline: take no
-stage name, quantity or artifact name from it.
+is deliberate. The retired `simple` pipeline was deleted on 2026-10-05: take no
+stage name, quantity or artifact name from its vocabulary.

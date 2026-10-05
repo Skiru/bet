@@ -9,23 +9,20 @@ for every sport on it: football and tennis, and since 2026-10-05 08:30Z
 hockey, basketball, volleyball and CS2. It imports **nothing** from the older trees; that was a decision,
 not an accident: the knowledge transferred, the code did not.
 
-| | in service | retired |
-|---|---|---|
-| library | `src/bet/sofa/` | `src/bet/simple_stats/`, `src/bet/tipsters/`, `src/bet/enrichment/`, `src/bet/discovery/`, `legacy/` |
-| entry points | `scripts/sofa/` | `scripts/simple/`, `legacy/pipeline_steps/` |
-| stages | BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (+ CONFIDENCE, SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, and FIXTURE_CHECK in a rebuild; SETTLE and FIT outside the sequence) | DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE; S0–S10 |
-| stats sources | Sofascore only | bzzoiro, ESPN, highlightly, OddsPapi, api-football, sportdb |
-| fixture key | `sofascore_event_id` (int) | `event_id` (64-char hash) |
-| ranking quantity | legs by measured `confidence` (statistics only since 2026-10-05; the price only as the betting condition); `p_central` → `p_bar` for the priced VALUE selector | `p_low`, tiers CALL/LEAN/WEAK/DROP |
-| product | `runs/sofa/<date>/KUPON_<date>.pdf` | `runs/<date>/<date>_kupony.md` |
-| tests | `tests/sofa/` (699, offline) | `tests/simple_stats/`, `tests/tipsters/`, … |
-| agentic config | `.claude/agents`, `.claude/commands`, `.claude/skills` | `.claude/legacy/`, `.kilo/legacy/` |
-| docs | `docs/sofa/` | `docs/legacy/` |
+| | in service |
+|---|---|
+| library | `src/bet/sofa/` |
+| entry points | `scripts/sofa/` |
+| stages | BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (+ CONFIDENCE, SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, and FIXTURE_CHECK in a rebuild; SETTLE and FIT outside the sequence) |
+| stats source | Sofascore only (prices: Superbet) |
+| fixture key | `sofascore_event_id` (int) |
+| ranking quantity | legs by measured `confidence` (statistics only since 2026-10-05; the price only as the betting condition); `p_central` → `p_bar` for the priced VALUE selector |
+| product | `runs/sofa/<date>/KUPON_<date>.pdf` |
+| tests | `tests/sofa/` (offline) |
+| agentic config | `.claude/agents`, `.claude/commands`, `.claude/skills` |
+| docs | `docs/sofa/` |
 
-The retired code is not deleted because the artifacts and the database rows it
-produced are still on disk and still read. `legacy/` does not even import — 16
-files there carry unresolved merge markers. Nothing in this document below the
-line above describes it further; see `docs/legacy/README.md`.
+Everything else (the retired `simple` pipeline and its trees) was deleted 2026-10-05 (in git history; every branch in `data/archive/branches_2026-10-05.bundle`).
 
 ## 2. Modules of `src/bet/sofa/`
 

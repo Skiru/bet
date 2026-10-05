@@ -1,5 +1,5 @@
 ---
-description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet) - settle and record D-1 (every sport, the ledger, the settle identity audit), build the one stats-only coupon of every sport (football, tennis, and since 2026-10-05 08:30Z hockey, basketball, volleyball and CS2) into 11_coupon.json and KUPON_<date>.pdf, with the analysts' reads on the best 30 positions and every printed builder leg, then verify it. This is the CURRENT pipeline; the simple one is archived in .claude/legacy.
+description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet) - settle and record D-1 (every sport, the ledger, the settle identity audit), build the one stats-only coupon of every sport (football, tennis, and since 2026-10-05 08:30Z hockey, basketball, volleyball and CS2) into 11_coupon.json and KUPON_<date>.pdf, with the analysts' reads on the best 30 positions and every printed builder leg, then verify it. This is the only pipeline in the repository.
 argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
 ---
 

@@ -39,13 +39,11 @@ profile = "black"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["scripts/_archive", ".venv", ".kilo", ".kilocode"]
+norecursedirs = [".venv"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-markers"
 markers = [
-    "api_sports_live: live API-Sports certification tests requiring explicit opt-in",
-    "espn_live: live ESPN integration tests requiring network access and explicit opt-in",
     "sofa_live: live Sofascore calls, opt-in, never in CI",
 ]
 
@@ -68,9 +66,6 @@ ignore_missing_imports = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bet"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"config/provider_registry.json" = "bet/config/provider_registry.json"
 
 [build-system]
 requires = ["hatchling"]

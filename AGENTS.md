@@ -21,7 +21,7 @@ Two things to know before anything else:
    (08:30Z); their files up to that morning stay and are graded as before.
 2. **There is no `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` or
    `TIPSTERS` stage.** Those belong to the retired `simple` pipeline
-   (`docs/legacy/`). The two share no code and no vocabulary.
+   (deleted from the repository 2026-10-05). The two share no vocabulary.
 
 | | |
 |---|---|
@@ -34,4 +34,4 @@ Two things to know before anything else:
 
 Runtime configuration: Claude Code loads `.claude/agents`, `.claude/commands`
 and `.claude/skills`. Kilocode's configuration drove the retired pipeline and
-is parked, unloaded, in `.kilo/legacy/`.
+was deleted with it (2026-10-05).

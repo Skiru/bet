@@ -68,7 +68,7 @@ Tipsters pick 1X2, winners and BTTS; football and tennis on the coupon are
 counting markets. On
 2026-09-01 the retired pipeline's tipster step took 86 picks from zawodtyper
 and typersi and could use **one** of them across 217 fixtures
-(`docs/legacy/AUDYT_TIPSTERZY_2026-09-01.md`). A tipster's *reasoning*
+(the tipster audit of 2026-09-01, in git history). A tipster's *reasoning*
 ("rotating before the derby") is a context lead to verify on a second domain;
 a tipster's *pick* is not evidence of anything. Only sources with a complete,
 timestamped public record (Blogabet, Tipstrr, OLBG, BettingExpert) are worth

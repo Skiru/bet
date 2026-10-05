@@ -6,7 +6,7 @@ description: Price a Superbet leg, Bet Builder or SUPERBETS slip before recommen
 # Audit the price before you audit the fixture
 
 > For a **Bet Builder** slip, this audit is the second half of the job. The
-> first half is `docs/legacy/SUPERBET_BET_BUILDER_METHOD_v3.md` §39-§44: correlation,
+> first half is `docs/sofa/SUPERBET_BET_BUILDER_METHOD_v3.md` §39-§44: correlation,
 > the contradiction test (a concrete scoreline that satisfies every leg at
 > once), the common-outcome test, and the builder score -- which is explicitly
 > *not* the product of the leg probabilities. A slip that is correctly priced
@@ -32,9 +32,9 @@ pipeline generated a row for it.
   slip. **If the operator has the screen price, it wins outright over that
   estimate** — a measurement beats an estimate — and the whole question becomes
   `combined_probability × screen_odds − 1`.
-- **`scripts/simple/audit_slip.py` belongs to the archived `simple` pipeline**
-  and still runs. It is the consensus-fitting tool below. Nothing in `sofa`
-  calls it, and nothing in it reads a `sofa` artifact.
+- **`scripts/sofa/audit_slip.py`** (moved from the retired `simple` tree on
+  2026-10-05, with `bet.sofa.slip_audit`) is the consensus-fitting tool
+  below. No sofa stage calls it, and it reads no sofa artifact.
 
 ## What this is for
 
@@ -79,17 +79,17 @@ matter, because the price was already at or under fair.
 
 ```bash
 # team to score, from the consensus block
-python3 scripts/simple/audit_slip.py --price 1.48 \
+python3 scripts/sofa/audit_slip.py --price 1.48 \
     --market team_to_score --side away \
     --home-win 1.50 --draw 4.43 --away-win 5.45 --over-25 1.52 --under-25 2.41
 
 # a range builder
-python3 scripts/simple/audit_slip.py --price 2.05 \
+python3 scripts/sofa/audit_slip.py --price 2.05 \
     --market 1h_over_0_5_under_2_5_and_2h_over_0_5 \
     --home-win 7.47 --draw 4.23 --away-win 1.45 --over-25 2.01 --under-25 1.81
 
 # a market the odds feed has no line for: Wilson bound off a real sample
-python3 scripts/simple/audit_slip.py --price 1.42 --market sample --hits 5 --sample-size 6
+python3 scripts/sofa/audit_slip.py --price 1.42 --market sample --hits 5 --sample-size 6
 ```
 
 `--market sample` is the weaker answer and labels itself as such. Use it for
@@ -285,8 +285,8 @@ it. Specifically:
   7,516 matches for goals and halves, 700 for corners, shots and fouls.
 - [`reference/coverage.md`](reference/coverage.md) — what bzzoiro can and cannot
   price, and how to say so.
-- `src/bet/simple_stats/slip_audit.py` — the arithmetic, with tests in
-  `tests/simple_stats/test_slip_audit.py` that carry the ledger as a
+- `src/bet/sofa/slip_audit.py` — the arithmetic, with tests in
+  `tests/sofa/test_slip_audit.py` that carry the ledger as a
   regression. Archived pipeline, still runnable, reads no `sofa` artifact.
 - `src/bet/sofa/confidence.py` — `sofa`'s own answer for a Bet Builder:
   `BUILDER_CORRELATION_HAIRCUT`, `QUANTITY_FAMILIES`, `builder_odds` (where a

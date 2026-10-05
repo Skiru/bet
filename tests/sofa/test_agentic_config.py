@@ -32,11 +32,9 @@ LIVE_MD = sorted(
     if "legacy" not in p.parts and "worktrees" not in p.parts
 )
 
-# `simple` is retired. One exception, and it is named rather than implied:
-# scripts/simple/audit_slip.py is a standalone EV calculator over a bookmaker
-# consensus. It runs no stage, reads no `sofa` artifact, and the bet-slip-audit
-# skill says so where it uses it.
-LEGACY_SCRIPT_ALLOWLIST = {"scripts/simple/audit_slip.py"}
+# `simple` is deleted (2026-10-05); its one tool the bet-slip-audit skill
+# used moved to scripts/sofa/audit_slip.py. Nothing may name scripts/simple.
+LEGACY_SCRIPT_ALLOWLIST: set[str] = set()
 
 
 def _frontmatter(path: Path) -> tuple[dict[str, str], str]:
