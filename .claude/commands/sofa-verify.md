@@ -142,8 +142,17 @@ concentrates. Count, for the printed legs:
 
 The verifier writes no file. Whoever ran it **appends** that array to
 `runs/sofa/<date>/reads.json` (validated as `list[LegRead]`, then
-`load_reads`) and rebuilds: `run_confidence.py` -> `build_coupon.py` ->
-`build_coupon_pdf.py`, then re-runs `audit_variants.py` (C1, C3 clean). WATCH
+`load_reads`) and rebuilds with the one rebuild command, nothing else:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
+```
+
+It refreshes a stale offer / sport snapshot first (only while the day is
+live), runs FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, the
+PDF and `audit_variants.py` / `audit_coupon.py` in order (C1, C3 clean). Never
+run the stage scripts by hand for a rebuild: a hand-run CONFIDENCE on a
+stale offer empties the coupon to its locked legs (2026-10-05). WATCH
 and NO_BET both remove the leg into `removed_by_reads` (graded apart,
 audit_settlement 7i, never in the coupon's result). On a past day whose
 legs have started, do not rebuild: report the array as not applied.

@@ -337,9 +337,10 @@ free. Say so; do not manufacture a source.
      coupon's result.
    - `context` only with a CONTEXT-type judgement (`MOTIVATION | ROTATION |
      ABSENCES | DERBY | SCHEDULE | CONDITIONS`), else `null`.
-   - The caller appends the array to `reads.json` and rebuilds
-     `run_confidence.py` -> `build_coupon.py` -> `build_coupon_pdf.py`, then
-     `audit_variants.py`. `run_confidence.py` prints `UNMATCHED_READ` for
+   - The caller appends the array to `reads.json` and rebuilds with the one
+     rebuild command, `scripts/sofa/rebuild_day.py --date <date>` (stale
+     prices refreshed first, then CONFIDENCE -> COUPON_ASSEMBLY -> PDF ->
+     `audit_variants.py`). `run_confidence.py` prints `UNMATCHED_READ` for
      every sport read (it sees only football and tennis rows) - expected; the
      sport read takes effect in COUPON_ASSEMBLY. Any other `UNMATCHED_READ`
      did nothing - check your keys against `11_coupon.json` first.

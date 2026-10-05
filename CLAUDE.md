@@ -172,7 +172,7 @@ Source of truth for the order: `DEFAULT_SEQUENCE` in
 |---|---|
 | a full betting day - the one coupon (11_coupon.json + PDF), the measured sports, D-1 settled and recorded for every variant | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
 | the analysts' read of an existing coupon (top 30 + builder legs; "dodatkowo: <pozycje>" adds to `read_requests.json`) | `/sofa-analyze` |
-| coupon (11_coupon.json) + PDF from artifacts on disk (FIXTURE_CHECK, CONFIDENCE, COUPON_ASSEMBLY, PDF) | `/sofa-rebuild` |
+| coupon (11_coupon.json) + PDF from artifacts on disk, one command (`rebuild_day.py`: stale prices first, then FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, audits) | `/sofa-rebuild` |
 | adversarial verification of a built day (11_coupon.json, sport legs via U3) | `/sofa-verify` |
 | settle D-1 (7c per sport, 7i, refunds, identity audit) and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
@@ -196,6 +196,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 # SHEET parses the whole football history (913k matches since the 09-30 backfill): ~10 min the first time a day's listings change, ~30 s on a rebuild (pickle under data/cache/, keyed on the DB's listings/stats and the parser version). A SHEET that looks hung for 10 minutes is parsing - do not kill it.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps   # every morning: statistic gaps (corners etc.) close days later; then regrade_settled.py --apply
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]   # THE rebuild, never the stage scripts by hand: OFFER if the open prices near 45 min, SHADOW (horizon to the farthest start) / CS2 if near 3 h, SPORT_IDENTITY, SHEET only if its epoch is refused, FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, audit_variants + audit_coupon; a day that is over refreshes nothing
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>   # FIXTURE_CHECK in a rebuild, before CONFIDENCE: /event status + fresh start of printed matches and moved clocks -> fixture_status.json (bridge; none = UNVERIFIED)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>        # COUPON_ASSEMBLY: 11_coupon.json, the coupon of a stats-only day (exit 1 while 08_confidence_sports.json is absent)

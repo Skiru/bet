@@ -21,11 +21,12 @@ Kolejność `/sofa-day` (od 2026-10-05, jeden kupon ze statystyk):
 8. analitycy na `legs_requiring_read` (top 30 + nogi builderów +
    `read_requests.json`): `sofa-analyst-football`, `sofa-analyst-tennis`,
    `sofa-analyst-sport` per sport mierzony (część 3);
-9. scalenie wet i odczytów, przebudowa od CONFIDENCE (FIXTURE_CHECK
-   najpierw) → `build_coupon.py` → PDF (`build_coupon_pdf.py`, pisze
-   `12_printed.json`) (część 4);
+9. scalenie wet i odczytów, przebudowa jednym poleceniem
+   `rebuild_day.py` (stare ceny odświeżone najpierw, potem FIXTURE_CHECK →
+   CONFIDENCE → SPORT_CONFIDENCE → `build_coupon.py` → PDF, pisze
+   `12_printed.json`, → `audit_variants.py` + `audit_coupon.py`) (część 4);
 10. `audit_coupon.py`, `audit_variants.py` (C1–C3, U1–U3), `sofa-verifier`,
-    dopisanie jego odczytów, przebudowa (część 5);
+    dopisanie jego odczytów, przebudowa `rebuild_day.py` (część 5);
 11. raport (część 8).
 
 ---
@@ -304,22 +305,57 @@ powiedzieć, że się go pominęło (C3 to pokaże).
 
 ## 4. Przebudowa i PDF
 
+Przebudowa to **jedno polecenie** (plan production grade F0.2) — nigdy
+ręczny ciąg skryptów etapów. 2026-10-05 dwie przebudowy poszły na starych
+cenach: CONFIDENCE na ofercie starszej niż 45 min opróżnił
+`08_confidence.json` do nóg zablokowanych (`STALE_PRICE`), a SHADOW z
+domyślnym horyzontem 3 h pominął mecz hokeja o 15:30Z.
+
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <data> --min-minutes-to-kickoff 20    # tylko gdy cena > 45 min
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <data>                       # FIXTURE_CHECK, most
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <data>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <data>                    # gdy odświeżono SHADOW/CS2
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <data>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <data>                        # KUPON_<data>.pdf + 12_printed.json
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <data> --dry-run   # plan z powodami, nic nie uruchamia
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <data>             # przebudowa [--skip-audits]
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <data> --loop >> runs/sofa/<data>/capture_closing.log 2>&1 &   # cena zamknięcia nóg (CLV), bez mostu
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <data>   # boosty; powtórz kilka razy w ciągu dnia
 ```
 
-- Odśwież OFFER, jeśli poprzedni jest starszy niż **45 minut** — inaczej
-  CONFIDENCE odrzuci każdą cenę (`STALE_PRICE`), a pusty wynik będzie
-  wyglądał na wniosek analityczny. W epoce stats-only przesunięta cena nie
-  odrzuca nogi, tylko przelicza x na świeżym kursie; SHEET po odświeżeniu nie
-  jest potrzebny (zmiana kodu albo reguły — tak, od SHEET).
+Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
+
+- **OFFER** (`run_offer.py --min-minutes-to-kickoff 20`), gdy najstarsza
+  cena meczu, który jeszcze można zagrać, jest starsza niż limit CONFIDENCE
+  (`SOFA_PRICE_MAX_AGE_MIN`, 45 min) minus 15 min zapasu — przebudowa trwa
+  minuty, a limit sprawdza CONFIDENCE, nie start przebudowy. Bez tego
+  CONFIDENCE odrzuci każdą cenę (`STALE_PRICE`), a pusty wynik wygląda na
+  wniosek analityczny. W epoce stats-only przesunięta cena nie odrzuca nogi,
+  tylko przelicza x na świeżym kursie; SHEET po odświeżeniu nie jest
+  potrzebny.
+- **SHADOW** (`run_shadow.py --horizon-h <do najdalszego otwartego
+  startu>`), gdy najnowsza cena otwartego meczu hokeja / kosza / siatki jest
+  starsza niż `sport_coupon.MAX_PRICE_AGE` (3 h) minus 30 min albo ostatnia
+  migawka pominęła mecz zaczynający się za jej horyzontem 3 h; **CS2**
+  (`--only CS2`) na tej samej regule wieku; po świeżej migawce
+  `ensure_bridge.py` + **SPORT_IDENTITY** (most).
+- **SHEET** (`--only SHEET`) tylko, gdy CONFIDENCE by go odrzucił (arkusz
+  nie zbudowany pod regułą stats-only, `epochs.sheet_epoch`). Zmiany kodu
+  SHEET albo jego konfiguracji polecenie nie wykrywa — wtedy najpierw
+  `run_pipeline.py --only SHEET` ręcznie i napisz, co go wymusiło.
+- **COUPON** (`--only COUPON`, `06_coupon.json` — wejście `audit_coupon`, nie
+  kupon) tylko, gdy jest starszy niż arkusz / weta / odczyty.
+- potem `ensure_bridge.py`, **FIXTURE_CHECK**, **CONFIDENCE**,
+  **SPORT_CONFIDENCE**, **COUPON_ASSEMBLY** (`build_coupon.py`), **PDF**
+  (`build_coupon_pdf.py` → `KUPON_<data>.pdf` + `12_printed.json`),
+  `audit_variants.py`, `audit_coupon.py`.
+
+Dzień zakończony (żaden mecz nie da się już zagrać): ceny nie są
+odświeżane, plan mówi `DAY_OVER` — ceny są historyczne i każda bramka
+cenowa je odrzuci, i to jest poprawne. Każdy krok to podproces z tym samym
+poleceniem co w dokumentacji; jedna zwięzła linia na krok, pełne wyjście w
+`runs/sofa/<data>/rebuild_<ts>.log`, na końcu `SOFA_SUMMARY` (`stage:
+REBUILD`). Kod 0 OK / 1 PARTIAL / 2 FAILED: krok FAILED zatrzymuje dalsze
+(SKIPPED, ich artefakty nietknięte) — poza krokami mostu (`ensure_bridge`,
+FIXTURE_CHECK, SPORT_IDENTITY), migawkami sportów (SHADOW, CS2) i COUPON (06),
+które dają PARTIAL. Odmawia przy ustawionym `SOFA_NOW`, honoruje
+`SOFA_RUNS_DIR`. `--skip-audits` pomija oba audyty i mówi to w podsumowaniu.
+
 - **FIXTURE_CHECK** (`run_fixture_check.py`, most) w każdej przebudowie, po
   OFFER, przed CONFIDENCE: `/event/{id}` dla meczów drukowanych i
   przesuniętych zegarów → `fixture_status.json`. Mecz przełożony / odwołany /
@@ -327,8 +363,6 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <data>   # b
   zastępuje zamrożony zegar RESOLVE dla bramki, blokady i
   `capture_closing`. Bez mostu: `UNVERIFIED`, nic nie odrzucone, kod 1.
   403 przerywa od razu.
-- `--min-minutes-to-kickoff` przyjmuje tylko `run_offer.py`; `run_pipeline.py`
-  kończy się na niej kodem 2.
 - `build_coupon_pdf.py` odmawia (kod 2): `STALE_CONFIDENCE`, gdy
   `08_confidence.json` jest starsze niż `05_sheet.json`, `vetoes.json`,
   `reads.json` albo kalibracja; `STALE_COUPON`, gdy `11_coupon.json` jest

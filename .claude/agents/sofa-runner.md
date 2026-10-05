@@ -42,7 +42,7 @@ The order of a run:
 | 4 | measured sports and the one coupon (provisional) | SHADOW, CS2, SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY |
 | 5 | the analysts on `legs_requiring_read` | Task: football, tennis, `sofa-analyst-sport` per sport |
 | 6 | merge vetoes and reads | heredocs below |
-| 7 | rebuild and print | FIXTURE_CHECK, CONFIDENCE, [SPORT_CONFIDENCE], COUPON_ASSEMBLY, PDF |
+| 7 | rebuild and print | `rebuild_day.py` (stale prices first, then FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, audits) |
 | 8 | audits, verifier, append its reads, rebuild | `audit_coupon.py`, `audit_variants.py`, `sofa-verifier`, step 7 again |
 
 ## The first thing you must not do
@@ -468,36 +468,42 @@ matches no football / tennis sheet row, so `run_confidence.py` lists it as
 
 ## Step 7 — rebuild and the PDF
 
-Refresh OFFER first if the last one is over 45 minutes old; late in the day
-run `run_offer.py` directly - `run_pipeline.py` does not take the flag and
-exits 2 on it - so the stage does not re-price fixtures already played. In
-the stats-only epoch a moved price re-prices the leg (x at the fresh odds),
-so an OFFER refresh needs no SHEET re-run:
+The rebuild is ONE command (plan production grade F0.2) - never the stage
+scripts by hand: on 2026-10-05 a hand-run CONFIDENCE on a >45-min offer
+emptied `08_confidence.json` to its locked legs, and a SHADOW with its 3 h
+horizon left a 15:30Z hockey game on a stale price. Dry run first, then run:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_offer.py --date <date> --min-minutes-to-kickoff 20
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date> --dry-run
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 ```
 
-Then, in this order:
-
-```bash
-# bridge: /event/{id} of every printed match and every moved clock -> fixture_status.json;
-# postponed / cancelled / abandoned = FIXTURE_NOT_AS_SCHEDULED in CONFIDENCE; no bridge = UNVERIFIED, exit 1, nothing refused
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only FIXTURE_CHECK
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
-# only if the sport snapshots were refreshed since step 4 (else the sport legs keep their build):
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SPORT_CONFIDENCE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
-```
+It decides from the files' ages and the clock (`bet.sofa.rebuild_plan`) and
+runs, in order: OFFER (`run_offer.py --min-minutes-to-kickoff 20`) when an
+open fixture's price would be past CONFIDENCE's 45 min by the time it runs;
+SHADOW (`run_shadow.py --horizon-h` to the farthest open start) / CS2 when a
+sport price nears its 3 h limit or SHADOW skipped an event beyond its
+horizon, then `ensure_bridge.py` + SPORT_IDENTITY; SHEET only when
+CONFIDENCE would refuse the sheet's epoch; COUPON (06, audit_coupon's input)
+when older than its inputs; then FIXTURE_CHECK (bridge; no bridge =
+UNVERIFIED, nothing refused), CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY,
+PDF (`11_coupon.json` -> `KUPON_<date>.pdf` + `12_printed.json`),
+`audit_variants.py` and `audit_coupon.py`. A day that is over refreshes no
+price (`DAY_OVER` in its notes). One compact line per step, the full output
+in `runs/sofa/<date>/rebuild_<ts>.log`, a final `SOFA_SUMMARY` (`stage:
+REBUILD`); exit 0 / 1 PARTIAL / 2 FAILED - a FAILED step stops the rest,
+except the bridge steps, the sport snapshots and COUPON (PARTIAL). A SHEET
+forced by a code change to SHEET is not detected: run `--only SHEET` first
+and say why. In the stats-only epoch a moved price re-prices the leg (x at
+the fresh odds), so an OFFER refresh needs no SHEET re-run.
 
 `build_coupon_pdf.py` renders `11_coupon.json` (it refuses a stats-only day
 without one) and writes `12_printed.json`. It exits 2 on `STALE_CONFIDENCE`
 (`08_confidence.json` older than `05_sheet.json`, `vetoes.json`,
 `reads.json` or the calibration file) and on `STALE_COUPON` (`11_coupon.json`
 older than `08_confidence.json`, `08_confidence_sports.json` or
-`read_requests.json`): run the missing step, never work around it. After
-any reads merge run the whole chain above - never only the PDF.
+`read_requests.json`): fix the cause and re-run `rebuild_day.py`, never work
+around it. After any reads merge run the whole rebuild - never only the PDF.
 
 Read `stakeable_builders`, not `builders`. A builder is chosen and ordered by
 `combined_probability` and stakeable when combined probability x odds after
@@ -516,6 +522,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <date>
 ```
 
 ## Step 8 — verify, and do not skip this
+
+`rebuild_day.py` ran both audits as its last steps (their verdicts are in its
+summary); read their full output in its log, or re-run them:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
@@ -549,9 +558,8 @@ distributions for anti-selection, and checks the sport legs against their
 snapshots and pinned identities. Locked legs are not defects. It ends with
 its rows-not-to-stake as a fenced JSON array of `LegRead` (`author:
 "verifier"`; WATCH for a judgement, NO_BET for a defect). **Append** it to
-`reads.json` (step 6), rebuild (step 7: FIXTURE_CHECK, CONFIDENCE,
-COUPON_ASSEMBLY, PDF), then `audit_coupon.py` and `audit_variants.py` again -
-C1 and C3 clean. An empty verifier array needs no rebuild; say so.
+`reads.json` (step 6), rebuild (step 7: `rebuild_day.py`, which re-runs
+`audit_variants.py` and `audit_coupon.py`) - C1 and C3 clean. An empty verifier array needs no rebuild; say so.
 
 ## Traps that have actually cost something
 

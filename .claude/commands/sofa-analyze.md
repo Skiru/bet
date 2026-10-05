@@ -224,24 +224,24 @@ as for a veto - `subject: null` covers every subject on the fixture, a
 
 ## Step 3 - rebuild
 
-If the football / tennis offer is more than 45 minutes old and the day is
-still live, refresh it first (`/sofa-rebuild` step 1). On a stats-only day a
-moved price re-prices the leg at the fresh odds - no SHEET re-run is needed
-for a refresh.
+The one rebuild command, nothing else (`/sofa-rebuild`; plan production
+grade F0.2). It refreshes a stale football / tennis offer or sport snapshot
+first (only while the day is live - on a stats-only day a moved price
+re-prices the leg at the fresh odds, no SHEET re-run), re-runs COUPON
+(`06_coupon.json`, the priced VALUE selector `audit_coupon` checks - not the
+coupon) when it is older than the vetoes / reads, then FIXTURE_CHECK,
+CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, the PDF and both audits:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON   # 06_coupon.json, the priced VALUE selector audit_coupon checks - not the coupon
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date> --dry-run   # the plan and its reasons
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 ```
 
 `build_coupon_pdf.py` refuses `STALE_CONFIDENCE` (08 older than
 `05_sheet.json` / `vetoes.json` / `reads.json` / the calibration) and
 `STALE_COUPON` (11 older than `08_confidence.json` /
-`08_confidence_sports.json` / `read_requests.json`), so the order above is
-the only one that renders. Read each summary's `refused` counts (`WATCHED`,
+`08_confidence_sports.json` / `read_requests.json`); the rebuild runs them
+in the only order that renders. Read each summary's `refused` counts (`WATCHED`,
 `READ_NO_BET`, `MODEL_ABOVE_OWN_SAMPLE`). `run_confidence.py` sees only
 football and tennis rows: it prints a sport read as `UNMATCHED_READ` on
 stderr, which is expected - sport reads take effect in COUPON_ASSEMBLY, so

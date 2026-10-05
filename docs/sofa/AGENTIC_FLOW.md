@@ -16,7 +16,7 @@ Mechanika etapów jest w [`PIPELINE.md`](PIPELINE.md). Tutaj są **role**.
 |---|---|---|
 | `/sofa-day [data]` | cały dzień: most (ensure_bridge) → SETTLE D-1 + `audit_settle_identity` → dziennik (record_results, audit_ledger, audit_clv) → BOARD…COUPON → CONFIDENCE (piłka, tenis) → świeże migawki SHADOW i CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY (`11_coupon.json`) → analitycy na nogach do przeczytania → scalenie wet i odczytów → przebudowa od CONFIDENCE → PDF → audit_coupon + audit_variants → sofa-verifier → odczyty weryfikatora → przebudowa → raport | Sofascore (most) + Superbet |
 | `/sofa-analyze [data]` | analitycy nad gotowym kuponem (`11_coupon.json`), także pozycje „dodatkowo: …” operatora (`read_requests.json`), scalenie wet i odczytów (`reads.json`), przebudowa | tylko Superbet (opcjonalnie) |
-| `/sofa-rebuild [data]` | przebudowa kuponu i PDF z artefaktów z dysku (FIXTURE_CHECK potrzebuje mostu) | Superbet (opcjonalnie), most dla FIXTURE_CHECK |
+| `/sofa-rebuild [data]` | przebudowa kuponu i PDF z artefaktów z dysku jednym poleceniem `rebuild_day.py` (stare ceny najpierw; FIXTURE_CHECK i SPORT_IDENTITY potrzebują mostu) | Superbet (gdy cena stara), most dla FIXTURE_CHECK / SPORT_IDENTITY |
 | `/sofa-verify [data]` | adwersaryjna weryfikacja zbudowanego dnia | Superbet (ceny na żywo) + web |
 | `/sofa-settle [data]` | rozliczenie dnia zakończonego i decyzja o fitowaniu | Sofascore (most) |
 
@@ -138,9 +138,12 @@ operator: /sofa-day 2026-10-06
    │                     markdown → runs/sofa/<data>/<data>_analiza_<sport>.md
    │                     walidacja → vetoes.json; dopisanie + walidacja → reads.json
    │
-   ├─ 7. przebudowa      [OFFER, jeśli cena > 45 min] → FIXTURE_CHECK (most) → run_confidence.py
-   │                     → [świeże SHADOW/CS2 + SPORT_CONFIDENCE, jeśli ceny sportów stare]
+   ├─ 7. przebudowa      rebuild_day.py --date <d> (jedno polecenie, F0.2): [OFFER, gdy cena
+   │                     blisko 45 min] → [SHADOW z horyzontem do najdalszego startu / CS2,
+   │                     gdy ceny sportów blisko 3 h] → [SPORT_IDENTITY] → [SHEET, gdy epoka]
+   │                     → FIXTURE_CHECK (most) → run_confidence.py → SPORT_CONFIDENCE
    │                     → build_coupon.py → build_coupon_pdf.py (KUPON_<d>.pdf + 12_printed.json)
+   │                     → audit_variants.py + audit_coupon.py
    │                     → capture_closing.py --loop (CLV) + run_boosts.py
    │
    ├─ 8. audyty          audit_coupon.py (05/06, arytmetyka) + audit_variants.py (C1–C3, U1–U3)
@@ -164,6 +167,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d> 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d>      # bez mostu
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>              # COUPON_ASSEMBLY, offline
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>         # tylko w przebudowie, po OFFER, przed CONFIDENCE; most
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]   # przebudowa (krok 7): jedyne polecenie, nigdy powyższe skrypty ręcznie
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
@@ -251,14 +255,16 @@ Z tego wynikają rzeczy, które trzeba robić dokładnie tak:
    operatora 2026-10-05). Nogi zablokowane czyta się w stanie z chwili
    wydruku — odmowa, która dziś je obejmuje, to notatka, nie defekt.
 2. **Po zapisaniu wet i odczytów przebudowa idzie od CONFIDENCE** (z
-   FIXTURE_CHECK przed nim) przez `build_coupon.py` do PDF. Strażnik
+   FIXTURE_CHECK przed nim) przez `build_coupon.py` do PDF — zawsze jednym
+   poleceniem `rebuild_day.py`, które najpierw odświeża stare ceny. Strażnik
    `STALE_CONFIDENCE` w `build_coupon_pdf.py` porównuje `08_confidence.json`
    z `05_sheet.json`, `vetoes.json`, `reads.json` i kalibracją;
    `STALE_COUPON` porównuje `11_coupon.json` z `08_confidence.json`,
    `08_confidence_sports.json` i `read_requests.json`. Sam PDF bez
    `build_coupon.py` odmówi. `06_coupon.json` (COUPON) też czyta weta — to
    selektor cenowy, nie kupon; `run_pipeline.py --only COUPON` utrzymuje go
-   zgodnym dla `audit_coupon.py`.
+   zgodnym dla `audit_coupon.py` (`rebuild_day.py` robi to, gdy 06 jest
+   starszy niż arkusz / weta / odczyty).
 3. **Weto i odczyt, które nie trafiły, muszą zostać zgłoszone.** Etapy
    drukują `UNMATCHED_VETO` / `UNMATCHED_READ`; cichy no-op czyta się
    identycznie jak weto uszanowane.
