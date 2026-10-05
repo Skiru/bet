@@ -390,7 +390,10 @@ Leg refusal vocabulary (the `refused` counter): `NO_PRICE`, `ODDS_TOO_LOW`
 `FIXTURE_NOT_AS_SCHEDULED`, `KICKED_OFF`, `NO_FETCHED_AT`, `STALE_PRICE`,
 `PRICE_MOVED_SINCE_SHEET` (old epoch), `NOT_IN_CALIBRATION_FIT`,
 `UNREACHABLE_BAR` (old epoch), `CROSS_LEAGUE_UNLINKED`, `FRIENDLY_FIXTURE`,
-`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED`, `PLAYER_PROP_NOT_ADMITTED`,
+`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED`, `NOT_SETTLEABLE` (from
+2026-10-06: a (competition, market family) cell of
+`config/sofa_settleability.json` - printed legs ungraded at D+3 for want of
+the statistic), `PLAYER_PROP_NOT_ADMITTED`,
 `TENNIS_SET_MARKET_NOT_ADMITTED`, `NOT_CALIBRATED`, `NO_CLASS_CURVE`,
 `CATCH_ALL_BUCKET`, `BELOW_CONFIDENCE_FLOOR`, `DISAGREES_WITH_PRICE` (old
 epoch), `NEGATIVE_LEG_EV` (x = confidence x odds below the profile's 0.90),

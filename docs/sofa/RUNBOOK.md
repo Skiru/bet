@@ -105,10 +105,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 # Luki statystyk zamykają się po kilku dniach (2026-10-01): Sofascore publikuje rożne/strzały/faule niższych lig
-# kilka dni po kartkach, a cache pyta ponownie dopiero mecz sprzed >= 4 dni - więc co rano ponowne rozliczenie D-5
-# (dopisuje tylko brakujące wiersze) i poprawa wierszy rozliczonych z wczesnego snapshotu:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
+# kilka dni po kartkach (National League, Primera B Nacional: D+5..D+7), a samo D-5 zostawiało wydrukowane nogi
+# bez rozliczenia (F0.6) - więc co rano przegląd: każdy dzień D-14..D-2 z wydrukowaną nogą, którą SETTLE może
+# jeszcze rozliczyć, i zawsze D-5 (jego niewycenione wiersze czytają fity), z --refetch-stat-gaps, potem raz
+# regrade_settled.py --apply. Wymaga mostka: wyjście 1 z NO_BRIDGE = nic nie rozliczono ponownie:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>
 # przypięte id sportów mierzonych (ID_USED_TWICE, MOVED_GRADED, NAME_BELOW, ORIENTATION_IDS, ID_CHANGED, ...):
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <D-1> --to <D-1>
 # dziennik:

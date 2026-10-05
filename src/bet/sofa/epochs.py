@@ -129,3 +129,18 @@ def builder_screen_price_required(
     """Does a Bet Builder need a recorded screen price to print (F4.4)?"""
     at = build_at if build_at is not None else timeutil.now()
     return date >= COUPON_STRUCTURE_DATE and at >= BUILDER_SCREEN_PRICE_FROM_UTC
+
+
+# Plan 2026-10-05_PRODUCTION_GRADE, F0.6: from this build time (and for a day
+# from SETTLEABILITY_DATE on) CONFIDENCE refuses a leg whose (competition,
+# market family) is listed in config/sofa_settleability.json -
+# NOT_SETTLEABLE. 10-05 was live when the gate was written, so its coupon
+# (and any rebuild of it) stays under the rule it was printed by.
+SETTLEABILITY_DATE = "2026-10-06"
+SETTLEABILITY_FROM_UTC = datetime(2026, 10, 6, 0, 0, 0, tzinfo=UTC)
+
+
+def settleability_gate(date: str, build_at: datetime | None = None) -> bool:
+    """Does a build of `date` at `build_at` (default: now) refuse NOT_SETTLEABLE?"""
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= SETTLEABILITY_DATE and at >= SETTLEABILITY_FROM_UTC

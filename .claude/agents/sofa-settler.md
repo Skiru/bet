@@ -28,11 +28,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --on
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <D-1> --to <D-1>
 # Statistic gaps close days later (2026-10-01): Sofascore publishes a lower league's corners/shots/fouls
-# days after the cards, and the cache re-asks only a match >= 4 days old - so re-settle D-5 every morning
-# (inserts only the rows that were missing) and correct rows graded off an early snapshot.
-# Both write sofa_settled_row, which record_results.py reads - so they run BEFORE Step 1b, never after:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
+# days after the cards (National League, Primera B Nacional: D+5..D+7), and D-5 alone left printed legs
+# ungraded for good (F0.6) - so every morning the sweep re-settles each day D-14..D-2 that still holds a
+# printed leg SETTLE could grade, plus D-5 always (its unpriced rows feed the fits), with
+# --refetch-stat-gaps, then regrade_settled.py --apply once. Bridge required: exit 1 with NO_BRIDGE =
+# nothing re-settled. It writes sofa_settled_row, which record_results.py reads - so BEFORE Step 1b:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>
 ```
 
 SETTLE is **not** in `DEFAULT_SEQUENCE`, by design: run it against today and it
@@ -137,7 +138,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
 ```
 
-(The D-5 re-settle and `regrade_settled.py --apply` already ran in Step 1,
+(The re-settle sweep and its `regrade_settled.py --apply` already ran in Step 1,
 before the ledger. `regrade_settled.py` is not date-scoped: if it reports a
 change on a date older than D-8, re-run
 `record_results.py --from <that date> --to <D-1>`.)

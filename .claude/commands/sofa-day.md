@@ -175,10 +175,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 # was every settled match the match it claims to be (offline; exit 1 = a finding, all listed):
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <D-1> --to <D-1>
 # Statistic gaps close days later (2026-10-01): Sofascore publishes a lower league's corners/shots/fouls
-# days after the cards, and the cache re-asks only a match >= 4 days old - so re-settle D-5 every morning
-# (inserts only the rows that were missing) and correct rows graded off an early snapshot:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-5> --refetch-stat-gaps
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
+# days after the cards (National League, Primera B Nacional: D+5..D+7), and D-5 alone left printed legs
+# ungraded for good (F0.6) - so every morning the sweep re-settles each day D-14..D-2 that still holds a
+# printed leg SETTLE could grade, plus D-5 always (its unpriced rows feed the fits), with
+# --refetch-stat-gaps (inserts only the rows that were missing), then regrade_settled.py --apply once for
+# rows graded off an early snapshot. Bridge required: exit 1 with NO_BRIDGE = nothing re-settled:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>
 ```
 
 SHADOW / SHADOW_SETTLE and CS2 / CS2_SETTLE stay a measurement of

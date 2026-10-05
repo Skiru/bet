@@ -24,10 +24,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --o
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2_SETTLE   # exit 1 = retry later, never blocks SETTLE. ONLY when runs/sofa/cs2/daily_<date>.done exists or the pid in daily_<date>.pid is not running (the loop settles at 05:00Z itself; a cs2_watchdog.py retries hourly only if one was started for that date - `pgrep -f cs2_watchdog` - and then do not run it by hand)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW_SETTLE   # ONLY when no loop for that date is alive: runs/sofa/shadow/daily_<date>.pid gone or its pid not running (the loop settles at 05:15Z itself; two at once lose updates)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <date> --to <date>
-# Statistic gaps close days later: re-settle <date-4> (D-5 when <date> is D-1) and correct rows graded
-# off an early snapshot. Both write sofa_settled_row, which record_results.py reads - so before 1b:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <date-4> --refetch-stat-gaps
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --apply
+# Statistic gaps close days later (F0.6): re-settle every day <date-13>..<date-1> (D-14..D-2 when <date>
+# is D-1) that still holds a printed leg SETTLE could grade, and <date-4> (D-5) always, with
+# --refetch-stat-gaps; then regrade_settled.py --apply once for rows graded off an early snapshot.
+# Bridge required (exit 1 NO_BRIDGE = nothing re-settled). Writes sofa_settled_row, which
+# record_results.py reads - so before 1b:
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <date-13> --to <date-1> --include-day <date-4>
 ```
 
 `PARTIAL` is the normal verdict. Read `07_settle_skips.json`: **a row that

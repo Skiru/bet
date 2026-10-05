@@ -84,6 +84,7 @@ from bet.sofa.engine import (  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
     STATS_ONLY_FROM_UTC,
+    settleability_gate,
     sheet_epoch,
 )
 from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
@@ -105,6 +106,8 @@ from bet.sofa.players import (  # noqa: E402
 )
 from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.schedule import FixtureSchedule  # noqa: E402
+from bet.sofa.settleability import REFUSAL_CODE as NOT_SETTLEABLE  # noqa: E402
+from bet.sofa.settleability import Settleability  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
     load_vetoes,
@@ -378,6 +381,18 @@ def main() -> int:
     # failing (config/sofa_curve_status.json). Lists nothing until the
     # operator sets epochs.CURVE_STATUS_FROM_UTC, between days.
     failed_curves = curve_status.for_build(args.date, now)
+    # F0.6 (from epochs.SETTLEABILITY_FROM_UTC): the fitted (competition,
+    # family) cells whose printed legs went ungraded at D+3 for want of the
+    # statistic (config/sofa_settleability.json, fit_settleability.py).
+    settle_gate = (
+        Settleability.load() if settleability_gate(args.date, now) else None
+    )
+    if settle_gate is not None and not settle_gate.fitted:
+        print(
+            "SETTLEABILITY_NOT_FITTED: config/sofa_settleability.json is absent; "
+            "NOT_SETTLEABLE refuses nothing (fit_settleability.py --before <d>)",
+            file=sys.stderr,
+        )
     # Superbet's own side names, for the match class ("(K)" = women's).
     board_sides: dict[str, tuple[str, str]] = {}
     board_path = run_dir / "01_board.json"
@@ -642,6 +657,12 @@ def main() -> int:
         # See Calibration.refused_markets: the operator's own refusals.
         if cal.refused_by_operator(row["market"], row.get("direction")):
             refused["OPERATOR_REFUSED"] += 1
+            continue
+        # A leg nobody can grade is a tip nobody can check (F0.6).
+        if settle_gate is not None and settle_gate.refuses(
+            fx.get("competition_id"), row["market"]
+        ):
+            refused[NOT_SETTLEABLE] += 1
             continue
 
         sides = next(
