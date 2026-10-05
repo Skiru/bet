@@ -53,6 +53,7 @@ from bet.sofa import cs2, shadow  # noqa: E402
 from bet.sofa import multi_coupon as mc  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    MAX_OVERROUND,
     PROFILES,
     confidence_artifact,
     printed_builders,
@@ -194,12 +195,7 @@ def audit_sport(
             if fld not in doc:
                 out.append(f"S5 {sport}: no {fld} on a build after {REPLAY_CUTOVER}")
     rule_doc = doc["rule"]
-    rule = sc.Rule(
-        rule_doc["floor"],
-        rule_doc["max_overround"],
-        rule_doc["min_odds"],
-        rule_doc["max_legs"],
-    )
+    rule = sc.Rule.from_dict(rule_doc)
     at = _utc(doc["created_at_utc"])
     # Exactly what the build read: the first `snapshot_lines` of each file.
     # A snapshot loop that stamps a record before the build and writes it
@@ -234,8 +230,13 @@ def audit_sport(
                     f"S2 {name}: {why_locked}"
                 )
             continue
-        if leg["fair_p"] < rule.floor - TOL:
-            out.append(f"S2 {name}: fair_p {leg['fair_p']} below floor")
+        p = rule.probability(float(leg["fair_p"]))
+        if abs(p - float(leg.get("p", leg["fair_p"]))) > TOL:
+            out.append(f"S2 {name}: p {leg.get('p')} != {p:.4f} from fair_p")
+        if p < rule.floor - TOL:
+            out.append(f"S2 {name}: p {p:.4f} below floor")
+        if rule.min_x is not None and p * leg["odds"] < rule.min_x - TOL:
+            out.append(f"S2 {name}: p x odds {p * leg['odds']:.4f} below {rule.min_x}")
         if leg["odds"] < round(rule.min_odds, 4) - TOL:
             out.append(f"S2 {name}: odds {leg['odds']} below min")
         if leg["overround"] > rule.max_overround + TOL:
@@ -243,7 +244,13 @@ def audit_sport(
         if sc.is_player_family(str(leg["family"])):
             out.append(f"S2 {name}: a player line")
         unsettleable = doc.get("unsettleable_tournaments") or {}
-        why_ungradeable = sc.ungradeable_reason(leg.get("tournament"), unsettleable)
+        why_ungradeable = sc.ungradeable_reason(
+            leg.get("tournament"),
+            unsettleable,
+            (doc.get("settled_tournaments") or [])
+            if rule.requires_settled_tournament
+            else None,
+        )
         if why_ungradeable is not None:
             out.append(f"S2 {name}: {why_ungradeable} ({leg.get('tournament')})")
         kickoff = _utc(leg["kickoff_utc"])
@@ -317,6 +324,7 @@ def audit_sport(
         since=since,
         unsettleable=doc.get("unsettleable_tournaments") or {},
         refused_events=doc.get("refused_events") or {},
+        settled=doc.get("settled_tournaments"),
     )
     locked = [leg for leg in legs if leg.get("locked")]
     replay, _ = sc.select(sport, cands, vetoes, rule, locked)
@@ -357,8 +365,13 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
             f"C1 {tag}: {pdf.name} is older than {name} - it prints another build"
         )
     floor = float(doc.get("confidence_floor", profile.floor))
-    min_ev = doc.get("min_ev", profile.min_ev)
-    max_ov = float(doc.get("max_overround", profile.max_overround))
+    # An official artifact without the dials predates them and was printed
+    # under x > 1.0 and MAX_OVERROUND (the official rule until 2026-10-04).
+    old_official = profile_name == "standard"
+    min_ev = doc.get("min_ev", None if old_official else profile.min_ev)
+    max_ov = float(doc.get(
+        "max_overround", MAX_OVERROUND if old_official else profile.max_overround
+    ))
     built = _utc(str(doc["created_at_utc"])) if doc.get("created_at_utc") else None
     for single in printed_singles(doc):
         conf, odds = float(single["confidence"]), float(single["offered_odds"])

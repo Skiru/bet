@@ -39,12 +39,16 @@ DAY = "2026-01-01"
 # ---------------------------------------------------------------------------
 
 
-def test_the_official_profile_is_what_the_stage_always_did() -> None:
+def test_the_official_profile_takes_the_variants_price_dials_since_10_05() -> None:
+    """2026-10-05, the operator's order: the official coupon accepts
+    confidence x odds >= 0.90 and a ladder margin up to 15%, and keeps its
+    own floor of 0.70 (until 10-04: x > 1.0 strictly, margin <= 10.5%)."""
     from scripts.sofa.run_confidence import DEFAULT_FLOOR
 
     std = PROFILES["standard"]
     assert std.floor == DEFAULT_FLOOR == 0.70
-    assert std.min_ev is None
+    assert (std.min_ev, std.max_overround) == (0.90, 0.15)
+    assert std.honours_watch and std.pdf_max_singles == 30
     assert confidence_artifact(std) == "08_confidence.json"
     assert std.pdf_suffix == ""
 
@@ -60,8 +64,8 @@ def test_the_variant_is_the_operators_setting_and_writes_elsewhere() -> None:
     ("confidence", "odds", "standard", "wariant"),
     [
         (0.80, 1.30, True, True),  # x = 1.04
-        (0.80, 1.25, False, True),  # x = 1.00 exactly: official is strict
-        (0.75, 1.20, False, True),  # x = 0.90: the variant's edge, inclusive
+        (0.80, 1.25, True, True),  # x = 1.00 exactly
+        (0.75, 1.20, True, True),  # x = 0.90: the edge, inclusive (both since 10-05)
         (0.75, 1.19, False, False),  # x = 0.8925
     ],
 )
@@ -69,10 +73,13 @@ def test_the_price_dial(
     confidence: float, odds: float, standard: bool, wariant: bool
 ) -> None:
     assert PROFILES["standard"].clears_price(confidence, odds) is standard
-    assert PROFILES["standard"].clears_price(confidence, odds) is leg_is_ev_positive(
-        confidence, odds
-    )
     assert PROFILES["wariant"].clears_price(confidence, odds) is wariant
+
+
+def test_the_old_official_rule_is_still_strict() -> None:
+    # min_ev None (the official rule until 10-04) and the builders' own test
+    assert not leg_is_ev_positive(0.80, 1.25)
+    assert leg_is_ev_positive(0.80, 1.30)
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +256,8 @@ def test_each_profile_selects_what_its_dials_say(day: Path) -> None:
     run = day / DAY
     std = _run("run_confidence.py", day, "--runs-dir", str(day))
     assert std.returncode == 0, std.stderr
-    assert _singles(run / "08_confidence.json") == set()
+    # B clears the official floor and x >= 0.90; A is under the floor
+    assert _singles(run / "08_confidence.json") == {2}
     assert not (run / "08_confidence_wariant.json").exists()
 
     var = _run("run_confidence.py", day, "--runs-dir", str(day), "--profile", "wariant")
@@ -262,7 +270,8 @@ def test_each_profile_selects_what_its_dials_say(day: Path) -> None:
         0.9,
     )
     assert doc["max_overround"] == 0.15
-    assert json.loads((run / "08_confidence.json").read_text())["max_overround"] == 0.105
+    std_doc = json.loads((run / "08_confidence.json").read_text())
+    assert (std_doc["min_ev"], std_doc["max_overround"]) == (0.9, 0.15)
     assert json.loads(std.stdout.strip().splitlines()[-1])["profile"] == "standard"
 
 
@@ -373,9 +382,9 @@ def test_settlement_grades_the_variant_beside_the_coupon(day: Path) -> None:
     section = text.split("## 7d. WARIANT", 1)[1].split("## 8.", 1)[0]
     assert "| pojedynczych na kuponie | 2 |" in section
     assert "| weszło / nie weszło | 1 / 1 |" in section
-    # both rows are variant-only: the official coupon printed neither
+    # A is variant-only (under the official floor); B is on both since 10-05
     assert (
-        "**tylko w wariancie** (nie ma ich na oficjalnym kuponie): 2 pozycji" in section
+        "**tylko w wariancie** (nie ma ich na oficjalnym kuponie): 1 pozycji" in section
     )
     assert f"{ODDS_A - 2.0:+.2f} j." in section
 
@@ -607,17 +616,18 @@ def test_settlement_grades_only_the_singles_the_pdf_printed(
     assert "Brak `08_confidence.json`" in section
 
 
-def test_the_variant_accepts_a_dearer_ladder_and_the_coupon_does_not() -> None:
-    """2026-09-23: the operator's variant takes a ladder margin up to 15%; the
-    official coupon keeps 10.5%, which held on all five settled days."""
+def test_both_profiles_accept_a_ladder_margin_up_to_15_percent() -> None:
+    """2026-09-23: the operator's variant takes a ladder margin up to 15%;
+    since 2026-10-05 the official coupon does too. MAX_OVERROUND stays the
+    measured 10.5% threshold (and the reading of old official artifacts)."""
     from bet.sofa.confidence import MAX_OVERROUND
 
     std, var = PROFILES["standard"], PROFILES["wariant"]
-    assert std.max_overround == MAX_OVERROUND == 0.105
-    assert var.max_overround == 0.15
+    assert MAX_OVERROUND == 0.105
+    assert std.max_overround == var.max_overround == 0.15
     for margin, in_std, in_var in [
-        (0.0888, True, True), (0.105, True, True), (0.1117, False, True),
-        (0.15, False, True), (0.1501, False, False), (None, False, False),
+        (0.0888, True, True), (0.105, True, True), (0.1117, True, True),
+        (0.15, True, True), (0.1501, False, False), (None, False, False),
     ]:
         assert std.single_is_fairly_priced(margin) is in_std
         assert var.single_is_fairly_priced(margin) is in_var

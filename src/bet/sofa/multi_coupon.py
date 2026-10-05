@@ -194,9 +194,9 @@ def sport_positions(
             "competition": leg.get("tournament"),
             "kickoff_utc": leg["kickoff_utc"],
             "odds": leg["odds"],
-            "probability": leg["fair_p"],
+            "probability": leg.get("p", leg["fair_p"]),
             "probability_kind": PROBABILITY_KIND["sport"],
-            "p_x_odds": leg["fair_p_x_odds"],
+            "p_x_odds": leg.get("p_x_odds", leg["fair_p_x_odds"]),
             "started": _utc(leg["kickoff_utc"]) <= at,
             "source": leg,
         }

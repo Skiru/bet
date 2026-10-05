@@ -591,7 +591,7 @@ def main() -> int:
         # `ev_if_product_priced` is prod(confidence * odds) - 1, so a leg
         # whose own product is below 1 drags every slip it joins.
         # The wariant profile relaxes exactly this gate, and says by how much
-        # (ConfidenceProfile.min_ev); the official one keeps x > 1.0.
+        # (ConfidenceProfile.min_ev); since 2026-10-05 the official one does too.
         if not profile.clears_price(realised_lo, odds):
             refused["NEGATIVE_LEG_EV"] += 1
             continue
@@ -925,7 +925,7 @@ def main() -> int:
 
     lines = [
         f"# Confidence view — {args.date}"
-        + ("" if profile.min_ev is None else f" — WARIANT ({profile.name})"),
+        + ("" if profile.name == "standard" else f" — WARIANT ({profile.name})"),
         "",
         f"Built {out['created_at_utc']}. Floor: measured lower bound >= {args.floor}. "
         + (
@@ -933,8 +933,9 @@ def main() -> int:
             if profile.min_ev is None
             else f"Price: confidence x odds >= {profile.min_ev:.2f} (a price up to "
             f"{1 - profile.min_ev:.0%} below fair is accepted), ladder margin "
-            f"<= {profile.max_overround:.1%}. NOT the official coupon - settled "
-            "beside it."
+            f"<= {profile.max_overround:.1%}."
+            + ("" if profile.name == "standard"
+               else " NOT the official coupon - settled beside it.")
         ),
         "",
         "`confidence` is the **lower bound of the realised rate** for this market at "

@@ -87,6 +87,11 @@ def build(
     events, snapshots = sc.day_events(runs_dir, sport, date, stats)
     counts: dict[str, int] = {"events": len(events)}
     unsettleable = sc.unsettleable_tournaments(runs_dir, sport, date)
+    settled = (
+        sc.settled_tournaments(runs_dir, sport, date)
+        if rule.requires_settled_tournament
+        else None
+    )
     # A CS2 side the series store has never seen is one CS2_SETTLE will not
     # find either (09-30: "Winners series 1x1", 30/30 NOT_ON_SOFASCORE).
     # Recorded, so audit_variants replays exactly what this build refused.
@@ -107,6 +112,7 @@ def build(
         since=sc.day_end(sc.prev_date(date)),
         unsettleable=unsettleable,
         refused_events=refused,
+        settled=settled,
     )
     vetoes = sc.load_vetoes(directory)
     previous = load_previous(directory, date)
@@ -138,11 +144,18 @@ def build(
         .isoformat()
         .replace("+00:00", "Z"),
         "probability": "fair_p = Superbet's price devigged over the market's "
-        "whole outcome group; no model",
+        "whole outcome group; no model"
+        + (
+            "; p = a + c * logit(fair_p) (fit_sport_price_calibration.py), "
+            "printed and gated on"
+            if rule.calibration is not None
+            else ""
+        ),
         "rule": rule.as_dict(),
         "UNFITTED_CONSTANTS": list(sc.UNFITTED_CONSTANTS),
         # what the build refused as ungradeable, and the evidence for each
         "unsettleable_tournaments": unsettleable,
+        **({"settled_tournaments": settled} if settled is not None else {}),
         "refused_events": refused,
         "snapshots": snapshots,
         # what this build read, so audit_variants replays exactly it
@@ -165,6 +178,13 @@ def build(
         },
         "legs": legs,
     }
+
+
+def shown_p(leg: dict[str, Any], sep: str = " ") -> str:
+    """The printed probability; a recalibrated one with the price beside it."""
+    if "p" not in leg:
+        return f"{leg['fair_p']:.3f}"
+    return f"{leg['p']:.3f}{sep}(cena {leg['fair_p']:.3f})"
 
 
 def audit_key(leg: dict[str, Any]) -> tuple[Any, ...]:
@@ -205,8 +225,8 @@ def render_md(doc: dict[str, Any]) -> str:
             if f.get("n")
         ),
         "",
-        "| start | mecz | rozgrywki | zakład | kurs | fair p | marża "
-        "| fair p × kurs | wiek ceny |",
+        "| start | mecz | rozgrywki | zakład | kurs | p | marża "
+        "| p × kurs | wiek ceny |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for leg in doc["legs"]:
@@ -215,8 +235,8 @@ def render_md(doc: dict[str, Any]) -> str:
             f"{' (w toku)' if leg.get('locked') else ''} | "
             f"{leg['match_name']} | "
             f"{leg.get('tournament') or '-'} | {leg['label']} | {leg['odds']:.2f} | "
-            f"{leg['fair_p']:.3f} | {leg['overround']:.1%} | "
-            f"{leg['fair_p_x_odds']:.3f} | "
+            f"{shown_p(leg)} | {leg['overround']:.1%} | "
+            f"{leg.get('p_x_odds', leg['fair_p_x_odds']):.3f} | "
             + ("wydruk " + local(leg["price_fetched_at_utc"]) if leg.get("locked")
                else f"{leg['price_age_min']} min")
             + " |"
@@ -289,10 +309,36 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
         Paragraph(f"Kupon eksperymentalny — {sc.SPORT_PL[sport]} — {doc['date']}", h1),
         Paragraph(
             f"Zbudowany {doc['created_at_utc']} &nbsp;•&nbsp; {len(doc['legs'])} "
-            f"pojedynczych &nbsp;•&nbsp; fair p ≥ {doc['rule']['floor']:.2f} "
+            f"pojedynczych &nbsp;•&nbsp; p ≥ {doc['rule']['floor']:.2f} "
             f"&nbsp;•&nbsp; marża linii ≤ {doc['rule']['max_overround']:.1%} "
-            f"&nbsp;•&nbsp; kurs ≥ {doc['rule']['min_odds']:.3f}",
+            f"&nbsp;•&nbsp; kurs ≥ {doc['rule']['min_odds']:.3f}"
+            + (
+                f" &nbsp;•&nbsp; p × kurs ≥ {doc['rule']['min_x']:.2f}"
+                if doc["rule"].get("min_x") is not None
+                else ""
+            ),
             sub,
+        ),
+        *(
+            [Paragraph(
+                "<b>Od 05.10 (decyzja operatora)</b> p to cena po korekcie "
+                f"a + c·logit(fair p) (c = {cal['c']:.3f}): cena Superbetu bez "
+                "marży przeceniała faworytów tego sportu o 3–4 pkt proc. "
+                "Korekta czyni drukowane p uczciwym; ROI w pomiarze się nie "
+                "zmienił. W nawiasie cena bez marży.",
+                body,
+            )]
+            if (cal := doc["rule"].get("price_calibration"))
+            else []
+        ),
+        *(
+            [Paragraph(
+                "<b>Od 05.10</b> tylko turnieje z co najmniej jednym "
+                "rozliczonym meczem w ostatnich 14 dniach pomiaru.",
+                body,
+            )]
+            if doc["rule"].get("requires_settled_tournament")
+            else []
         ),
         Spacer(1, 3 * mm),
         Paragraph(
@@ -347,7 +393,7 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
                 "mecz / rozgrywki",
                 "zakład",
                 "kurs",
-                "fair p",
+                "p",
                 "marża",
                 "p×kurs",
             )
@@ -367,9 +413,9 @@ def render_pdf(doc: dict[str, Any], path: Path) -> None:
                 ),
                 Paragraph(leg["label"], body),
                 Paragraph(f"<b>{leg['odds']:.2f}</b>", body),
-                Paragraph(f"{leg['fair_p']:.3f}", body),
+                Paragraph(shown_p(leg, "<br/>"), body),
                 Paragraph(f"{leg['overround']:.1%}", body),
-                Paragraph(f"{leg['fair_p_x_odds']:.3f}", body),
+                Paragraph(f"{leg.get('p_x_odds', leg['fair_p_x_odds']):.3f}", body),
             ]
         )
     if not doc["legs"]:
@@ -491,7 +537,6 @@ def main() -> int:
         print(_frozen, file=sys.stderr)
         return 2
     at = now()
-    rule = sc.Rule(max_legs=args.max_legs)
     sports = sc.SPORT_KEYS if args.sport == "all" else (args.sport,)
     # A day whose window has closed is a record, not a board: rebuilding it
     # would print an empty coupon over the one that was printed.
@@ -520,6 +565,7 @@ def main() -> int:
                 # the clock is read inside the lock: a runner that waited for
                 # another builds at its own time, after the build it follows
                 at = now()
+                rule = sc.rule_for(sport, args.date, args.max_legs)
                 doc = build(sport, args.date, config.runs_dir, at, rule)
                 write_outputs(sport, args.date, config.runs_dir, doc)
         except Exception as exc:  # one sport failing never stops the others

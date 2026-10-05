@@ -364,7 +364,7 @@ def main() -> int:
     )
     S: list[Any] = []
     title = f"Kupon — {args.date}"
-    if profile.min_ev is not None:
+    if profile.name != "standard":
         title += " — WARIANT"
     S.append(Paragraph(title, H1))
     S.append(Paragraph(
@@ -375,12 +375,23 @@ def main() -> int:
         + ("" if profile.min_ev is None
            else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"
                 f" &nbsp;•&nbsp; marża rynku ≤ {profile.max_overround:.0%}"), SUB))
-    if profile.min_ev is not None:
+    if profile.name == "standard" and profile.min_ev is not None:
+        S.append(Paragraph(
+            "<b>Od 05.10 (decyzja operatora)</b> oficjalny kupon przyjmuje "
+            f"pewność × kurs ≥ {profile.min_ev:.2f} (kurs do "
+            f"{1 - profile.min_ev:.0%} poniżej uczciwego) i marżę rynku do "
+            f"{profile.max_overround:.0%}; wcześniej x &gt; 1,00 i 10,5%. "
+            "Te same ustawienia w wariancie dawały więcej zakładów, nie "
+            "przewagę; nogi kuponu z marżą 10,5–15% traciły dotąd −12,8% "
+            "(n=50) wobec −4,6% (n=78). Wyniki sprzed 05.10 to inny "
+            "eksperyment i nie są z nimi łączone.", SUB))
+    if profile.name != "standard" and profile.min_ev is not None:
         S.append(Paragraph(
             "<font color='#b25b00'><b>To nie jest oficjalny kupon.</b></font> Wariant "
             f"przyjmuje pewność od {doc_json['confidence_floor']} i kurs do "
             f"{1 - profile.min_ev:.0%} poniżej uczciwego (wg tej pewności), przy "
-            f"marży rynku do {profile.max_overround:.0%} (oficjalny: 10,5%). "
+            f"marży rynku do {profile.max_overround:.0%} (oficjalny: 15% od "
+            "05.10, wcześniej 10,5%). "
             "Wersja z marżą 10,5% dała na 18–22.09 <b>−3,2%</b> na zakład wobec "
             "−2,9% oficjalnego; rynki z marżą 10,5–15% traciły tam o 1–2 pkt "
             "proc. więcej niż tańsze. Od 23.09 mierzony w tym ustawieniu, "
@@ -463,7 +474,7 @@ def main() -> int:
     else:
         x_rule = (
             "<b>x</b> to <b>pewność × kurs</b>. Powyżej <b>1,00</b> cena płaci za "
-            "ryzyko; w tym wariancie przyjmowane są też pozycje od "
+            "ryzyko; na tej liście przyjmowane są też pozycje od "
             f"<b>{profile.min_ev:.2f}</b> do 1,00 — czyli kurs do "
             f"{1 - profile.min_ev:.0%} <b>poniżej</b> uczciwego. Każda pozycja z "
             "x &lt; 1,00 jest świadomie przepłacona: to koszt większej liczby "

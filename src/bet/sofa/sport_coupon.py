@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import math
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -59,7 +60,8 @@ from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from bet.sofa import cs2, shadow
-from bet.sofa.confidence import MAX_OVERROUND, MIN_ODDS_FOR_CEILING
+from bet.sofa.confidence import MAX_OVERROUND, MIN_ODDS_FOR_CEILING, PROFILES
+from bet.sofa.config import config_path
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD
 
 SportKey = Literal["cs2", "hockey", "basketball", "volleyball"]
@@ -91,6 +93,26 @@ UNSETTLEABLE_MIN_EVENTS = 2
 UNSETTLEABLE_ALL_MIN_EVENTS = 1
 UNSETTLEABLE_LOOKBACK_DAYS = 14
 NOT_FOUND_STATES = frozenset({"NOT_ON_SOFASCORE"})
+
+# The rule from 2026-10-05 on (the operator's order of that morning). Days
+# before RULE_CUTOVER keep the rule they were printed under (`rule_for`), so
+# the record of a past day never changes with today's settings:
+# - the official coupon's price dials: fair_p x odds >= MIN_X (a price up to
+#   10% below fair) and a margin up to the official max_overround (15%);
+# - hockey and basketball print a recalibrated probability,
+#   a + c * logit(fair_p) (scripts/sofa/fit_sport_price_calibration.py):
+#   Superbet's devigged price over-rates their favourites by 3-4 pp
+#   (data/analysis_2026-10-04_shadow/RAPORT.md, section 2; volleyball's c is
+#   ~1.05, no correction). The floor and MIN_X read that probability. It makes
+#   the printed p honest; the measurement found no ROI in it;
+# - a volleyball leg needs a tournament with at least one SETTLED event in
+#   the last UNSETTLEABLE_LOOKBACK_DAYS settled days: on 10-04 20 of the
+#   coupon's 38 legs came from tournaments Sofascore does not carry.
+RULE_CUTOVER = "2026-10-05"
+MIN_X = 0.90
+CALIBRATED_SPORTS: tuple[SportKey, ...] = ("hockey", "basketball")
+SETTLED_TOURNAMENT_SPORTS: tuple[SportKey, ...] = ("volleyball",)
+PRICE_CALIBRATION_FILE = "sofa_sport_price_calibration.json"
 UNFITTED_CONSTANTS = (
     "FLOOR",
     "MAX_OVERROUND",
@@ -100,6 +122,7 @@ UNFITTED_CONSTANTS = (
     "UNSETTLEABLE_SHARE",
     "UNSETTLEABLE_MIN_EVENTS",
     "UNSETTLEABLE_ALL_MIN_EVENTS",
+    "MIN_X",
 )
 
 COUPON_FILE = "sport_coupon.json"
@@ -395,12 +418,38 @@ def describe(sport: SportKey, leg: dict[str, Any]) -> str:
     return f"{label}: {team} ({hcp:+g})"
 
 
+def calibrated_p(fair_p: float, a: float, c: float) -> float:
+    """a + c * logit(fair_p), back on the probability scale."""
+    p = min(max(fair_p, 1e-9), 1 - 1e-9)
+    return 1 / (1 + math.exp(-(a + c * math.log(p / (1 - p)))))
+
+
+def load_price_calibration(sport: SportKey) -> tuple[float, float]:
+    """The fitted (a, c) of a sport in CALIBRATED_SPORTS. A missing file or
+    sport is an error, never an uncalibrated coupon printed as calibrated."""
+    doc = json.loads(config_path(PRICE_CALIBRATION_FILE).read_text(encoding="utf-8"))
+    fit = doc["sports"][sport]
+    return float(fit["a"]), float(fit["c"])
+
+
 @dataclass(frozen=True)
 class Rule:
+    """The defaults are the rule of the days before RULE_CUTOVER; `rule_for`
+    gives the rule a date is built under."""
+
     floor: float = FLOOR
     max_overround: float = MAX_OVERROUND
     min_odds: float = MIN_ODDS
     max_legs: int = MAX_LEGS
+    min_x: float | None = None
+    calibration: tuple[float, float] | None = None
+    requires_settled_tournament: bool = False
+
+    def probability(self, fair_p: float) -> float:
+        """The probability the coupon prints and gates on."""
+        if self.calibration is None:
+            return fair_p
+        return calibrated_p(fair_p, *self.calibration)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -411,8 +460,43 @@ class Rule:
             "kickoff_margin_min": int(KICKOFF_MARGIN.total_seconds() // 60),
             "max_price_age_min": int(MAX_PRICE_AGE.total_seconds() // 60),
             "day_end": f"{DAY_END_HOUR_WARSAW:02d}:00 Europe/Warsaw, D+1",
-            "rank": "fair_p * odds, then fair_p",
+            "rank": "p * odds, then p (p = fair_p, or its calibration)",
+            "min_x": self.min_x,
+            "price_calibration": (
+                None if self.calibration is None
+                else {"a": self.calibration[0], "c": self.calibration[1]}
+            ),
+            "requires_settled_tournament": self.requires_settled_tournament,
         }
+
+    @classmethod
+    def from_dict(cls, doc: dict[str, Any]) -> Rule:
+        """The rule an artifact was built under (absent keys: the old rule)."""
+        cal = doc.get("price_calibration")
+        return cls(
+            float(doc["floor"]),
+            float(doc["max_overround"]),
+            float(doc["min_odds"]),
+            int(doc["max_legs"]),
+            None if doc.get("min_x") is None else float(doc["min_x"]),
+            None if cal is None else (float(cal["a"]), float(cal["c"])),
+            bool(doc.get("requires_settled_tournament", False)),
+        )
+
+
+def rule_for(sport: SportKey, date: str, max_legs: int = MAX_LEGS) -> Rule:
+    """The rule the coupon of `date` is built under (see RULE_CUTOVER)."""
+    if date < RULE_CUTOVER:
+        return Rule(max_legs=max_legs)
+    return Rule(
+        max_overround=PROFILES["standard"].max_overround,
+        max_legs=max_legs,
+        min_x=MIN_X,
+        calibration=(
+            load_price_calibration(sport) if sport in CALIBRATED_SPORTS else None
+        ),
+        requires_settled_tournament=sport in SETTLED_TOURNAMENT_SPORTS,
+    )
 
 
 def side_filter(
@@ -421,12 +505,16 @@ def side_filter(
     """Why a side cannot be a leg, or None if it can."""
     if fair_p is None:
         return "NO_DEVIG"
-    if fair_p < rule.floor:
+    p = rule.probability(fair_p)
+    if p < rule.floor:
         return "BELOW_FLOOR"
     if odds < rule.min_odds:
         return "BELOW_MIN_ODDS"
     if margin > rule.max_overround:
         return "MARGIN_TOO_HIGH"
+    # Rounded like the coupon's own x test: 0.75 x 1.20 must clear 0.90.
+    if rule.min_x is not None and round(p * odds, 9) < rule.min_x:
+        return "BELOW_MIN_X"
     if margin < 0:
         # the book never pays out more than it takes in: a negative margin is
         # a stale or misread group, not a price
@@ -469,9 +557,10 @@ def _rank(leg: dict[str, Any]) -> tuple[float, float, float, str, str]:
     the likelier, then the lower margin, then - so that a tie at the cut is
     never decided by file order - the earlier kickoff and the lower event id
     (both inverted, being strings)."""
+    p = leg.get("p", leg["fair_p"])
     return (
-        leg["_x"] if "_x" in leg else leg["fair_p"] * leg["odds"],
-        leg.get("_p", leg["fair_p"]),
+        leg["_x"] if "_x" in leg else p * leg["odds"],
+        leg.get("_p", p),
         -float(leg.get("overround") or 0.0),
         _inv(str(leg.get("kickoff_utc") or "")),
         _inv(str(leg["superbet_event_id"]).rjust(12, "0")),
@@ -529,13 +618,33 @@ def unsettleable_tournaments(
     }
 
 
+def settled_tournaments(runs_dir: str, sport: SportKey, date: str) -> list[str]:
+    """Tournaments with at least one SETTLED event over the last
+    UNSETTLEABLE_LOOKBACK_DAYS settled days strictly before `date`."""
+    names: set[str] = set()
+    day = date
+    for _ in range(UNSETTLEABLE_LOOKBACK_DAYS):
+        day = prev_date(day)
+        settled = load_settled(runs_dir, sport, day)
+        for ev in ((settled or {}).get("events") or {}).values():
+            if ev.get("state") == "SETTLED" and ev.get("tournament"):
+                names.add(str(ev["tournament"]))
+    return sorted(names)
+
+
 def ungradeable_reason(
-    tournament: str | None, unsettleable: dict[str, str] | None
+    tournament: str | None,
+    unsettleable: dict[str, str] | None,
+    settled: list[str] | None = None,
 ) -> str | None:
+    """Why nobody will be able to grade an event of this tournament. `settled`
+    None: the rule does not ask for a settled tournament."""
     if is_friendly(tournament):
         return "friendly_tournament"
     if unsettleable and tournament in unsettleable:
         return "unsettleable_tournament"
+    if settled is not None and tournament not in settled:
+        return "tournament_never_settled"
     return None
 
 
@@ -602,6 +711,7 @@ def candidates(
     since: datetime | None = None,
     unsettleable: dict[str, str] | None = None,
     refused_events: dict[str, str] | None = None,
+    settled: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Every side of every event in the window that the rule admits.
 
@@ -627,7 +737,11 @@ def candidates(
             continue
         if not ev.fetched_at:
             continue
-        why_not = ungradeable_reason(ev.tournament, unsettleable)
+        why_not = ungradeable_reason(
+            ev.tournament,
+            unsettleable,
+            (settled or []) if rule.requires_settled_tournament else None,
+        )
         if sport == "cs2" and why_not is None:
             if not ev.tournament:
                 # run_cs2 leaves the tournament None when Superbet's struct
@@ -670,6 +784,7 @@ def candidates(
             if why is not None:
                 _bump(counts, why)
                 continue
+            p = rule.probability(fair_p)
             out.append(
                 {
                     **line.as_dict(),
@@ -677,8 +792,15 @@ def candidates(
                     "fair_p": round(fair_p, 4),
                     "overround": round(margin, 4),
                     "fair_p_x_odds": round(fair_p * line.odds, 4),
-                    "_x": fair_p * line.odds,
-                    "_p": fair_p,
+                    # the probability printed and gated on; == fair_p unless
+                    # the rule recalibrates the price (hockey, basketball)
+                    **(
+                        {"p": round(p, 4), "p_x_odds": round(p * line.odds, 4)}
+                        if rule.calibration is not None
+                        else {}
+                    ),
+                    "_x": p * line.odds,
+                    "_p": p,
                     "match_name": ev.match_name,
                     "team1": ev.team1,
                     "team2": ev.team2,
@@ -823,6 +945,11 @@ def rule_history(
         if settled is None:
             continue
         days.append(date)
+        known = (
+            settled_tournaments(runs_dir, sport, date)
+            if rule.requires_settled_tournament
+            else None
+        )
         snaps = load_snapshots(day_dir(runs_dir, sport, date) / cs2.SNAPSHOTS_FILE)
         events = latest_events(sport, snaps)
         for eid, stored in (settled.get("events") or {}).items():
@@ -854,6 +981,7 @@ def rule_history(
                 rule,
                 counts,
                 check_clock=False,
+                settled=known,
             )
             if not cands:
                 continue

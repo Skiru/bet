@@ -392,6 +392,30 @@ def test_the_official_and_wariant_artifacts_are_audited(tmp_path: Path) -> None:
     assert any("prints another build" in f for f in got)
 
 
+def test_an_official_artifact_without_its_dials_is_audited_by_the_old_rule(
+    tmp_path: Path,
+) -> None:
+    """Since 2026-10-05 the official profile is x >= 0.90 / margin <= 15%; an
+    official artifact that carries no dials predates them and must still be
+    checked against x > 1.0 and 10.5%, not against today's looser rule."""
+    import os
+
+    from tests.sofa.test_multi_coupon import official_single, write_official
+
+    run = write_official(tmp_path, [official_single(1, "corners_total", 1.30, 0.77)])
+    conf = run / "08_confidence.json"
+    doc = json.loads(conf.read_text(encoding="utf-8"))
+    for key in ("min_ev", "max_overround"):
+        doc.pop(key, None)
+    # x = 0.95 and a 12% margin: fine today, both defects under the old rule
+    doc["singles"][0].update(confidence=0.76, offered_odds=1.25, overround=0.12)
+    t = conf.stat().st_mtime
+    conf.write_text(json.dumps(doc), encoding="utf-8")
+    os.utime(conf, (t, t))
+    got = audit_variants.audit_confidence(str(tmp_path), DATE, "standard")
+    assert any("<= 1" in f for f in got) and any("above 0.105" in f for f in got)
+
+
 # --- the scenarios named in review round 2 (2026-09-30) ----------------------------
 
 

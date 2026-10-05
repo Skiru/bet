@@ -533,8 +533,8 @@ PDF_MAX_SINGLES = 30
 class ConfidenceProfile:
     """One setting of the two dials the operator chooses between.
 
-    `min_ev` None is the official rule, `leg_is_ev_positive` (x > 1.0,
-    strictly). A number is a price TOLERANCE: the leg is accepted while
+    `min_ev` None is `leg_is_ev_positive` (x > 1.0, strictly) - the official
+    rule until 2026-10-04. A number is a price TOLERANCE: the leg is accepted while
     confidence x odds >= min_ev, i.e. up to (1 - min_ev) below the price its
     own confidence asks for. `suffix` names the variant's artifacts, so the
     official coupon's files are never overwritten by a variant.
@@ -638,13 +638,23 @@ def model_above_own_sample(
 # the five days. Variant results before and after this date are not the same
 # experiment and must not be pooled.
 #
+# From 2026-10-05 the official coupon takes the variant's two price dials -
+# confidence x odds >= 0.90 and a ladder margin up to 15% - and keeps its own
+# floor (0.70), its 30 printed singles and its honouring of WATCH (the
+# operator's order of 10-05: "more options to choose from"; a high confidence
+# floor was considered and declined). Made knowing the measurement above: the
+# variant's dials bought volume, not edge, and the coupon's 10.5-15% margin
+# legs returned -12.8% (n=50) against -4.6% (n=78). The official coupon before
+# and after 10-05 is not the same experiment and must not be pooled.
+#
 # From 2026-09-29 the variant's PDF also prints its stakeable Bet Builders (the
 # operator's request): same predicate as the coupon (`is_stakeable`: best for
 # its fixture, EV > 0 after the 12% correlation haircut), built from the
 # variant's looser legs. They were never measured before being added; 7d of the
 # settlement grades them on their own, never pooled with the coupon's builders.
 PROFILES: dict[str, ConfidenceProfile] = {
-    "standard": ConfidenceProfile("standard", 0.70, None, "", ""),
+    "standard": ConfidenceProfile("standard", 0.70, 0.90, "", "",
+                                  max_overround=0.15),
     "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
                                  max_overround=0.15, pdf_max_singles=None,
                                  honours_watch=False),

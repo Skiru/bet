@@ -242,7 +242,7 @@ def test_confidence_artifacts_carry_unfitted_constants(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("profile", "margin"), [("standard", "10.5%"), ("wariant", "15.0%")]
+    ("profile", "margin"), [("standard", "15.0%"), ("wariant", "15.0%")]
 )
 def test_the_pdf_quotes_the_margin_its_own_artifact_was_selected_under(
     tmp_path: Path, profile: str, margin: str
@@ -256,5 +256,4 @@ def test_the_pdf_quotes_the_margin_its_own_artifact_was_selected_under(
     suffix = "_WARIANT" if profile == "wariant" else ""
     text = " ".join(_pdf_text(day / DAY / f"KUPON_{DAY}{suffix}.pdf").split())
     assert f"Powyżej {margin} noga nie trafia" in text
-    if profile == "wariant":
-        assert "Powyżej 10.5% noga" not in text
+    assert "Powyżej 10.5% noga" not in text

@@ -288,7 +288,8 @@ def main() -> int:
             try:
                 with sc.dir_lock(sc.day_dir(runs_dir, sport, args.date)):
                     sdoc = run_sport_coupon.build(
-                        sport, args.date, runs_dir, now(), sc.Rule()
+                        sport, args.date, runs_dir, now(),
+                        sc.rule_for(sport, args.date),
                     )
                     run_sport_coupon.write_outputs(sport, args.date, runs_dir, sdoc)
             except Exception as exc:  # the sport's section is then refused

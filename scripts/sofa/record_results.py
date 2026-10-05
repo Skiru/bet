@@ -277,7 +277,7 @@ def rule_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
     for sport in sc.SPORT_KEYS:
         if sc.load_settled(runs_dir, sport, date) is None:
             continue
-        h = sc.rule_history(runs_dir, sport, [date], sc.Rule())
+        h = sc.rule_history(runs_dir, sport, [date], sc.rule_for(sport, date))
         n = int(h.get("n", 0))
         wins = int(h.get("wins", 0))
         other = int(h.get("void", 0)) + int(h.get("ungradeable", 0))

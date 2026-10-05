@@ -118,7 +118,7 @@ def test_profile_floor_and_price_rule(db: Path, tmp_path: Path) -> None:
         # confidence 0.67 (under the 0.70 floor), 0.67 x 1.40 = 0.938 >= 0.90:
         # wariant only
         {"sofascore_event_id": 4, "p_central": 0.65, "market_p": 0.62},
-        # confidence 0.75 x 1.25 = 0.9375: wariant only (fails x > 1)
+        # confidence 0.75 x 1.25 = 0.9375: both since 10-05 (x >= 0.90)
         {"sofascore_event_id": 6, "p_central": 0.80, "offered_odds": 1.25},
         # confidence 0.75 x 1.15 = 0.8625: neither
         {"sofascore_event_id": 8, "p_central": 0.80, "offered_odds": 1.15},
@@ -126,7 +126,7 @@ def test_profile_floor_and_price_rule(db: Path, tmp_path: Path) -> None:
     _, _, gated, _ = _gated(db, tmp_path)
     std = measure_profile(gated, PROFILES["standard"], 7, 50, 20)
     war = measure_profile(gated, PROFILES["wariant"], 7, 50, 20)
-    assert std["admitted"].n + std["refused"].n == 1
+    assert std["admitted"].n + std["refused"].n == 2
     assert war["admitted"].n + war["refused"].n == 3
 
 
