@@ -94,7 +94,7 @@ refit): `refused_markets = ["shots_total|UNDER", "fouls_total|UNDER", "shots_for
 order, against the recommendation: one-sided prices, no ROI evidence - the
 props now print at their OVER curve's realised rate, e.g. fouls/tackles
 OVER claimed 0.725 realise 0.56). Report `data/refit_2026-10-03/compare_report.md`;
-backups `config/backup_2026-10-03` (with the keys), `config/backup_2026-10-03_prekeys`
+backups `config/backup_2026-10-03` (with the keys), `config/backup_2026-10-03_prekeys`, `config/backup_2026-10-04_tennis/` and `config/backup_2026-10-04_g1h/` were deleted 2026-10-05 on the operator's order - only `config/backup_2026-10-05` (the current epoch) remains
 (the DB copy `data/backup_2026-10-03/sofa.db` was deleted 2026-10-05 on the operator's
 order; only the current epoch's DB copy is kept). Measure the admitted props separately
 before the next refit.
