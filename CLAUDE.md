@@ -452,6 +452,13 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   the operator had to solve the challenge by hand. Working hypothesis
   (unmeasured): under sustained load a token lasts ~25 min. A refusal is a
   signal to slow down - never refresh tokens pre-emptively to outrun it.
+- **Superbet has a breaker too (since 2026-10-05, F6.1):** `SuperbetClient` uses the
+  Sofascore breaker's rule and `SOFA_BREAKER_*` settings - 3 failures (403 / 429 / 5xx /
+  timeout; a 404 is an answer) open it, then one half-open probe per doubling cooldown.
+  OFFER stops asking and keeps the unasked fixtures' previous entries (old timestamps, so
+  CONFIDENCE refuses them STALE_PRICE); SHADOW / CS2 stop at it and an all-refused snapshot
+  is FAILED (exit 2). The daily loops log and retry a failed or killed step;
+  `capture_closing --loop` stops (exit 2) after 12 failed passes in a row.
 - **Measure the round trip, not the wall clock around the client.** The token
   bucket sits *inside* `client.event_statistics()`, so timing that call
   reports our own rate limiting as if it were browser latency — it read a flat
