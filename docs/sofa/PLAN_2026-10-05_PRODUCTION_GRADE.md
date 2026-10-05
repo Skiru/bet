@@ -191,6 +191,9 @@ odrzucają FIXTURE_NOT_AS_SCHEDULED; C2 obejmuje nogi sportów; Superbet ma
 bezpiecznik; 9 naruszeń kontraktu z testów chaosu naprawionych; sofa nie wycenia
 builderów (decyzja operatora).
 
-Otwarte podejrzenie weryfikatora (w pomiarze `measure_pool_holes.py`): ograniczenie cienkiego koszyka
-kierunku nie działa, gdy rynek nie ma własnego koszyka (Moss G1H O0.5 z
-`pooled:football`) - zmiana reguły, nie w trakcie dnia.
+Podejrzenie weryfikatora zmierzone (`measure_pool_holes.py`): pula, która
+wypełnia dziurę w krzywej rynku, zawyżała (57 nóg, 48 meczów: deklarowane 0,775,
+zrealizowane 0,649, -12,6 pp [-24,1; -1,2]); ograniczenie najbliższym własnym
+koszykiem poniżej (K13b) od 2026-10-06. Rynki bez żadnej własnej krzywej czytane
+z puli też zawyżają (-14,1 pp [-21,0; -7,2], 290 nóg) - osobna decyzja operatora.
+Nazwy klubów z „&” mapowane od 2026-10-06 (37 wystąpień 09-18..10-05).

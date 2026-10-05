@@ -18,6 +18,12 @@ built after 00:00Z gets:
   `max_positions_per_match` exist, OFF unless `config/sofa_coupon_form.json` sets them
   (operator decision). Every ladder prints under a "ta sama zmienna" header and the PDF has an
   exposure-per-match section - labels, from 10-05 on.
+- **K13b pool cap** (`POOL_NEIGHBOUR_CAP_FROM_UTC`): a pooled read where the market has
+  its own buckets but none at p is capped by the market's own nearest bucket below
+  (catch-all excluded); measured on live rows the pool claimed 0.775, realised 0.649
+  (-12.6 pp [-24.1; -1.2], 57 rows / 48 matches - thin, two cells).
+- **"&" club names** (`AMPERSAND_SUBJECTS_FROM_UTC`): "Dagenham & Redbridge goals" maps
+  when the name equals a listing side; ";" stays a parlay.
 Disabled until the operator sets them between days: `CURVE_STATUS_FROM_UTC` (F2.1, a failing
 curve stops printing), `MODEL_FIXES_FROM_UTC` (F2.2 tennis NB dispersion, other-division note;
 with the next refit). Mid-day 10-05 (correctness, live at once): the print record is
