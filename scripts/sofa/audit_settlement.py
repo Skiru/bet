@@ -412,7 +412,7 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
     the operator recorded one and the haircut estimate otherwise. Shared by
     the official coupon (7c) and, since 2026-09-29, the variant (7d)."""
     out: list[str] = []
-    A = out.append
+    emit = out.append
 
     def slip_odds(b: dict[str, Any]) -> tuple[float, bool]:
         """What this slip really paid, and whether we measured it."""
@@ -427,10 +427,11 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
     lw = ll = lu = 0
     for b in picks:
         outs = []
-        for L in b["legs"]:
-            g = by_key.get((b["sofascore_event_id"], L["market"], L["subject"] or "",
-                            float(L["line"]), L["direction"]))
-            outs.append((L, g))
+        for leg in b["legs"]:
+            g = by_key.get((b["sofascore_event_id"], leg["market"],
+                            leg["subject"] or "", float(leg["line"]),
+                            leg["direction"]))
+            outs.append((leg, g))
             if g is not None and g["outcome"] == REFUND:
                 pass  # counted with its slip
             elif g is None or g["outcome"] == "PUSH":
@@ -453,46 +454,47 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
             sl, sn = sl + 1, sn + 1
             sret -= 1.0
         slip_rows.append((b, status, outs))
-    A(_table(["", "liczba"],
-             [[f"slipów {printed_on}", len(picks)],
-              ["rozliczonych", sn],
-              ["WESZŁO (cały slip)", sw],
-              ["NIE WESZŁO", sl],
-              *([["ZWROT (mecz przesunięty > 48 h / przyznany), 0 j.", sz]]
-                if sz else []),
-              ["nierozliczonych", su],
-              ["% slipów trafionych", _pct(sw, sn)],
-              ["nóg: weszło / nie weszło", f"{lw} / {ll}"],
-              ["% nóg trafionych", _pct(lw, lw + ll)],
-              ["deklarowane combined_probability (śr.)",
-               f"{sum(b['combined_probability'] for b in picks) / len(picks):.3f}" if picks else "—"],
-              ["cen z ekranu", f"{n_measured} / {sw} wygranych slipów"],
-              ["wynik przy 1 j. na slip", f"{sret:+.2f} j."],
-              ["ROI", f"{100.0 * sret / sn:+.1f}%" if sn else "—"]]))
-    A("")
+    emit(_table(["", "liczba"],
+                [[f"slipów {printed_on}", len(picks)],
+                 ["rozliczonych", sn],
+                 ["WESZŁO (cały slip)", sw],
+                 ["NIE WESZŁO", sl],
+                 *([["ZWROT (mecz przesunięty > 48 h / przyznany), 0 j.", sz]]
+                   if sz else []),
+                 ["nierozliczonych", su],
+                 ["% slipów trafionych", _pct(sw, sn)],
+                 ["nóg: weszło / nie weszło", f"{lw} / {ll}"],
+                 ["% nóg trafionych", _pct(lw, lw + ll)],
+                 ["deklarowane combined_probability (śr.)",
+                  (f"{sum(b['combined_probability'] for b in picks) / len(picks):.3f}"
+                   if picks else "—")],
+                 ["cen z ekranu", f"{n_measured} / {sw} wygranych slipów"],
+                 ["wynik przy 1 j. na slip", f"{sret:+.2f} j."],
+                 ["ROI", f"{100.0 * sret / sn:+.1f}%" if sn else "—"]]))
+    emit("")
     if n_measured < sw:
-        A(f"**Kurs slipa jest w większości szacowany.** Zmierzonych cen z "
-          f"ekranu: {n_measured} z {sw}. Reszta to iloczyn kursów nóg "
-          f"pomniejszony o {BUILDER_CORRELATION_HAIRCUT:.0%} — zmierzony "
-          "narzut Superbeta za korelację (8,8% / 15,8% / 19,6% na trzech "
-          "slipach z 2026-09-20). Wcześniejsze wersje tego raportu liczyły "
-          "sam iloczyn i zawyżały ROI o kilkanaście punktów procentowych. "
-          "Żeby to przestało być szacunkiem, wpisz ceny do "
-          f"`{screen_file}` (klucz: `sofascore_event_id`).")
-        A("")
-    A(f"Do tego {sn} slipów to próbka, w której odchylenie standardowe "
-      "wyniku sięga kilku jednostek: to nie jest dowód przewagi, to brak "
-      "dowodu straty.")
-    A("")
-    A("### Slip po slipie")
-    A("")
+        emit(f"**Kurs slipa jest w większości szacowany.** Zmierzonych cen z "
+             f"ekranu: {n_measured} z {sw}. Reszta to iloczyn kursów nóg "
+             f"pomniejszony o {BUILDER_CORRELATION_HAIRCUT:.0%} — zmierzony "
+             "narzut Superbeta za korelację (8,8% / 15,8% / 19,6% na trzech "
+             "slipach z 2026-09-20). Wcześniejsze wersje tego raportu liczyły "
+             "sam iloczyn i zawyżały ROI o kilkanaście punktów procentowych. "
+             "Żeby to przestało być szacunkiem, wpisz ceny do "
+             f"`{screen_file}` (klucz: `sofascore_event_id`).")
+        emit("")
+    emit(f"Do tego {sn} slipów to próbka, w której odchylenie standardowe "
+         "wyniku sięga kilku jednostek: to nie jest dowód przewagi, to brak "
+         "dowodu straty.")
+    emit("")
+    emit("### Slip po slipie")
+    emit("")
     rows = []
     for b, status, outs in sorted(slip_rows, key=lambda x: (x[1] != "NIE WESZŁO",)):
-        broke = [f"{L['market']} {L['subject'] or ''} {L['direction']} {L['line']:g} "
-                 f"(padło {g['actual_value']:g})"
-                 for L, g in outs if g is not None and g["outcome"] == "LOSS"]
-        missing = [f"{L['market']} {L['subject'] or ''}".strip()
-                   for L, g in outs if g is None]
+        broke = [f"{leg['market']} {leg['subject'] or ''} {leg['direction']} "
+                 f"{leg['line']:g} (padło {g['actual_value']:g})"
+                 for leg, g in outs if g is not None and g["outcome"] == "LOSS"]
+        missing = [f"{leg['market']} {leg['subject'] or ''}".strip()
+                   for leg, g in outs if g is None]
         reason = ("; ".join(broke) if broke
                   else ("brak rozliczenia: " + ", ".join(missing) if missing
                         else "wszystkie nogi weszły"))
@@ -502,9 +504,9 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
         rows.append([b["match"], b["n_legs"], f"{b['odds_if_product']:.2f}",
                      f"{odds:.2f}" + ("" if measured else " (szac.)"),
                      f"{b['combined_probability']:.3f}", status, reason])
-    A(_table(["mecz", "nóg", "iloczyn", "kurs użyty", "p slipa", "wynik",
-              "co położyło slip"], rows))
-    A("")
+    emit(_table(["mecz", "nóg", "iloczyn", "kurs użyty", "p slipa", "wynik",
+                 "co położyło slip"], rows))
+    emit("")
     return out
 
 
@@ -530,9 +532,11 @@ def main() -> int:
     sheet = json.loads((run_dir / "05_sheet.json").read_text())
     fixtures = json.loads((run_dir / "02_fixtures.json").read_text())
     coupon_path = run_dir / "06_coupon.json"
-    coupon = json.loads(coupon_path.read_text())["singles"] if coupon_path.exists() else []
+    coupon = (json.loads(coupon_path.read_text())["singles"]
+              if coupon_path.exists() else [])
     settled_path = run_dir / "07_settled.json"
-    settled_artifact = json.loads(settled_path.read_text()) if settled_path.exists() else []
+    settled_artifact = (json.loads(settled_path.read_text())
+                        if settled_path.exists() else [])
 
     settled_db = _load_settled(config.db_path, args.date)
     by_key = settled_by_key(
@@ -587,60 +591,63 @@ def main() -> int:
             ungraded_reasons[f"BRAK_ODCZYTU_METRYKI: {row['market']}"] += 1
 
     lines: list[str] = []
-    A = lines.append
+    emit = lines.append
 
-    A(f"# Audyt rozliczenia — {args.date}")
-    A("")
-    A("Wygenerowane przez `scripts/sofa/audit_settlement.py`. Źródła: "
-      f"`{run_dir}/05_sheet.json` (co prognozowaliśmy), tabela "
-      f"`sofa_settled_row` w `{config.db_path}` (co się wydarzyło), "
-      f"`{run_dir}/06_coupon.json` (co trafiło na kupon).")
-    A("")
+    emit(f"# Audyt rozliczenia — {args.date}")
+    emit("")
+    emit("Wygenerowane przez `scripts/sofa/audit_settlement.py`. Źródła: "
+         f"`{run_dir}/05_sheet.json` (co prognozowaliśmy), tabela "
+         f"`sofa_settled_row` w `{config.db_path}` (co się wydarzyło), "
+         f"`{run_dir}/06_coupon.json` (co trafiło na kupon).")
+    emit("")
 
     # ---- 1. zakres -------------------------------------------------------
-    A("## 1. Zakres")
-    A("")
+    emit("## 1. Zakres")
+    emit("")
     priced = [r for r in sheet if r.get("offered_odds")]
-    A(_table(
+    emit(_table(
         ["", "liczba"],
         [["fixture'ów na tablicy", len(fixture_by_id)],
-         ["fixture'ów z choć jednym wierszem", len({r['sofascore_event_id'] for r in sheet})],
+         ["fixture'ów z choć jednym wierszem",
+          len({r['sofascore_event_id'] for r in sheet})],
          ["wierszy (rynek × linia × strona) rozważonych", len(sheet)],
          ["— w tym z ceną Superbeta", len(priced)],
          ["— w tym bez ceny (NO_PRICE)", len(sheet) - len(priced)],
          ["wierszy rozliczonych", len(settled_db)],
          ["fixture'ów rozliczonych", len(graded_event_ids)],
          ["wierszy nierozliczonych", len(ungraded)]]))
-    A("")
+    emit("")
 
     # ---- 2. wynik --------------------------------------------------------
-    A("## 2. Ile weszło, ile nie weszło")
-    A("")
+    emit("## 2. Ile weszło, ile nie weszło")
+    emit("")
     c = Counter(r["outcome"] for r in settled_db)
     decided: Any = c["WIN"] + c["LOSS"]
-    A(_table(
+    emit(_table(
         ["wynik", "liczba", "% rozstrzygniętych", "% wszystkich rozważonych"],
-        [["WESZŁO (WIN)", c["WIN"], _pct(c["WIN"], decided), _pct(c["WIN"], len(sheet))],
-         ["NIE WESZŁO (LOSS)", c["LOSS"], _pct(c["LOSS"], decided), _pct(c["LOSS"], len(sheet))],
+        [["WESZŁO (WIN)", c["WIN"], _pct(c["WIN"], decided),
+          _pct(c["WIN"], len(sheet))],
+         ["NIE WESZŁO (LOSS)", c["LOSS"], _pct(c["LOSS"], decided),
+          _pct(c["LOSS"], len(sheet))],
          ["ZWROT (PUSH)", c["PUSH"], "—", _pct(c["PUSH"], len(sheet))],
          ["NIEROZLICZONE", len(ungraded), "—", _pct(len(ungraded), len(sheet))]]))
-    A("")
-    A("**Czytaj to ostrożnie.** Arkusz trzyma obie strony każdego szczebla — "
-      "OVER i UNDER tej samej linii — więc jedna z nich musi wejść. Odsetek "
-      "trafień liczony na całej tablicy dąży do 50% z konstrukcji i nie jest "
-      "wynikiem. Wynikiem są sekcje 5 (co wybrało sito), 7 (co poszło na "
-      "kupon) i 8 (czy prawdopodobieństwa są uczciwe).")
-    A("")
-    A("PUSH to linia całkowita trafiona co do jednego — stawka wraca, żadna "
-      "strona nie wygrała. Liczenie jej po którejkolwiek stronie to fikcyjna "
-      "przewaga, więc siedzi w osobnym wierszu.")
-    A("")
+    emit("")
+    emit("**Czytaj to ostrożnie.** Arkusz trzyma obie strony każdego szczebla — "
+         "OVER i UNDER tej samej linii — więc jedna z nich musi wejść. Odsetek "
+         "trafień liczony na całej tablicy dąży do 50% z konstrukcji i nie jest "
+         "wynikiem. Wynikiem są sekcje 5 (co wybrało sito), 7 (co poszło na "
+         "kupon) i 8 (czy prawdopodobieństwa są uczciwe).")
+    emit("")
+    emit("PUSH to linia całkowita trafiona co do jednego — stawka wraca, żadna "
+         "strona nie wygrała. Liczenie jej po którejkolwiek stronie to fikcyjna "
+         "przewaga, więc siedzi w osobnym wierszu.")
+    emit("")
 
     # ---- 3. dlaczego nie weszło -----------------------------------------
-    A("## 3. Dlaczego nie weszło — wiersze rozliczone i przegrane")
-    A("")
-    A("Tu powód jest arytmetyczny: znamy wynik, linia go nie objęła.")
-    A("")
+    emit("## 3. Dlaczego nie weszło — wiersze rozliczone i przegrane")
+    emit("")
+    emit("Tu powód jest arytmetyczny: znamy wynik, linia go nie objęła.")
+    emit("")
     losses = [r for r in settled_db if r["outcome"] == "LOSS"]
     fam_loss: dict[str, Counter[Any]] = defaultdict(Counter)
     for r in settled_db:
@@ -648,13 +655,15 @@ def main() -> int:
     rows = []
     for fam, cc in sorted(fam_loss.items(), key=lambda kv: -sum(kv[1].values())):
         d = cc["WIN"] + cc["LOSS"]
-        rows.append([fam, sum(cc.values()), cc["WIN"], cc["LOSS"], cc["PUSH"], _pct(cc["WIN"], d)])
-    A(_table(["rodzina rynku", "rozliczone", "weszło", "nie weszło", "zwrot", "% trafień"], rows))
-    A("")
+        rows.append([fam, sum(cc.values()), cc["WIN"], cc["LOSS"], cc["PUSH"],
+                     _pct(cc["WIN"], d)])
+    emit(_table(["rodzina rynku", "rozliczone", "weszło", "nie weszło", "zwrot",
+                 "% trafień"], rows))
+    emit("")
 
     # the single most common shape of a miss, per family
-    A("### Najczęstszy kształt pudła")
-    A("")
+    emit("### Najczęstszy kształt pudła")
+    emit("")
     rows = []
     by_fam_loss: dict[str, list[dict[Any, Any]]] = defaultdict(list)
     for r in losses:
@@ -665,50 +674,51 @@ def main() -> int:
         miss.sort()
         med = miss[len(miss) // 2] if miss else 0.0
         rows.append([fam, len(rs), over, len(rs) - over, f"{med:g}"])
-    A(_table(["rodzina", "pudeł", "pudła na OVER", "pudła na UNDER",
-              "mediana odchylenia od linii"], rows))
-    A("")
-    A("Przewaga pudeł po jednej stronie to nie pech, tylko przesunięcie "
-      "środka próbki względem tego, co się dzieje.")
-    A("")
+    emit(_table(["rodzina", "pudeł", "pudła na OVER", "pudła na UNDER",
+                 "mediana odchylenia od linii"], rows))
+    emit("")
+    emit("Przewaga pudeł po jednej stronie to nie pech, tylko przesunięcie "
+         "środka próbki względem tego, co się dzieje.")
+    emit("")
 
     # ---- 4. dlaczego nie rozliczone -------------------------------------
-    A("## 4. Dlaczego nie rozliczone — wiersze bez oceny")
-    A("")
-    A("Tu powód jest luką, nie błędem. Taki wiersz **nie jest przegraną** i "
-      "nie wolno go doliczać do pudeł.")
-    A("")
+    emit("## 4. Dlaczego nie rozliczone — wiersze bez oceny")
+    emit("")
+    emit("Tu powód jest luką, nie błędem. Taki wiersz **nie jest przegraną** i "
+         "nie wolno go doliczać do pudeł.")
+    emit("")
     if stage_skips:
-        A("Powody zapisane przez sam etap SETTLE (`07_settle_skips.json`) — "
-          "pełna lista, nie próbka:")
-        A("")
-        A(_table(["powód", "wierszy"], [[k, v] for k, v in stage_skips.items()]))
-        A("")
-        A("Słownik: `NOT_FINISHED` — mecz jeszcze się nie skończył (w toku, "
-          "przerwany, nierozpoczęty; ponowny SETTLE może go rozliczyć); "
-          "`FINISHED_ABNORMALLY` — krecz, walkower, wynik przyznany; "
-          "`CANCELED` / `ABANDONED` / `POSTPONED` — odwołany, przerwany na "
-          "stałe, przełożony; `NO_EVENT` — Sofascore nie "
-          "zna tego zdarzenia; `<rynek>:<GAP>` — mecz się odbył, ale dostawca "
-          "nie ma odczytu tej statystyki; `SUBJECT_NOT_MATCHED` — wiersz "
-          "dotyczy drużyny/zawodnika, którego nie dało się jednoznacznie "
-          "przypisać do żadnej ze stron (odmowa zgadywania: zła strona "
-          "odwraca pomiar, a nie tylko go psuje); `PROVIDER_ERROR` — awaria "
-          "po stronie dostawcy.")
-        A("")
-        A("Rekonstrukcja z artefaktów, dla porównania:")
-        A("")
+        emit("Powody zapisane przez sam etap SETTLE (`07_settle_skips.json`) — "
+             "pełna lista, nie próbka:")
+        emit("")
+        emit(_table(["powód", "wierszy"], [[k, v] for k, v in stage_skips.items()]))
+        emit("")
+        emit("Słownik: `NOT_FINISHED` — mecz jeszcze się nie skończył (w toku, "
+             "przerwany, nierozpoczęty; ponowny SETTLE może go rozliczyć); "
+             "`FINISHED_ABNORMALLY` — krecz, walkower, wynik przyznany; "
+             "`CANCELED` / `ABANDONED` / `POSTPONED` — odwołany, przerwany na "
+             "stałe, przełożony; `NO_EVENT` — Sofascore nie "
+             "zna tego zdarzenia; `<rynek>:<GAP>` — mecz się odbył, ale dostawca "
+             "nie ma odczytu tej statystyki; `SUBJECT_NOT_MATCHED` — wiersz "
+             "dotyczy drużyny/zawodnika, którego nie dało się jednoznacznie "
+             "przypisać do żadnej ze stron (odmowa zgadywania: zła strona "
+             "odwraca pomiar, a nie tylko go psuje); `PROVIDER_ERROR` — awaria "
+             "po stronie dostawcy.")
+        emit("")
+        emit("Rekonstrukcja z artefaktów, dla porównania:")
+        emit("")
     if ungraded_reasons:
-        A(_table(["powód", "wierszy"],
-                 [[k, v] for k, v in ungraded_reasons.most_common(25)]))
+        emit(_table(["powód", "wierszy"],
+                    [[k, v] for k, v in ungraded_reasons.most_common(25)]))
     else:
-        A("Brak — rozliczone zostało wszystko.")
-    A("")
+        emit("Brak — rozliczone zostało wszystko.")
+    emit("")
     unsettled_events = sorted({r["sofascore_event_id"] for r in ungraded
                                if r["sofascore_event_id"] not in graded_event_ids})
     if unsettled_events:
-        A(f"### Fixture'y bez ani jednego rozliczonego wiersza ({len(unsettled_events)})")
-        A("")
+        emit("### Fixture'y bez ani jednego rozliczonego wiersza "
+             f"({len(unsettled_events)})")
+        emit("")
         rows = []
         for eid in unsettled_events[:60]:
             f = fixture_by_id.get(eid, {})
@@ -717,45 +727,51 @@ def main() -> int:
                          f.get("sport", "?"),
                          f.get("kickoff_utc", "?"),
                          sum(1 for r in ungraded if r["sofascore_event_id"] == eid)])
-        A(_table(["event_id", "mecz", "sport", "start (UTC)", "wierszy straconych"], rows))
+        emit(_table(["event_id", "mecz", "sport", "start (UTC)",
+                     "wierszy straconych"], rows))
         if len(unsettled_events) > 60:
-            A("")
-            A(f"…oraz {len(unsettled_events) - 60} dalszych.")
-        A("")
+            emit("")
+            emit(f"…oraz {len(unsettled_events) - 60} dalszych.")
+        emit("")
 
     # ---- 5. po werdykcie -------------------------------------------------
-    A("## 5. Po werdykcie — czy sito coś wybierało")
-    A("")
+    emit("## 5. Po werdykcie — czy sito coś wybierało")
+    emit("")
     rows = []
     for verdict in ("VALUE", "LEAN", "BELOW_BAR", "NO_PRICE"):
-        vr = [r for r in settled_db if (sheet_by_key.get(_key(r)) or {}).get("verdict") == verdict]
+        vr = [r for r in settled_db
+              if (sheet_by_key.get(_key(r)) or {}).get("verdict") == verdict]
         cc = Counter(r["outcome"] for r in vr)
         d = cc["WIN"] + cc["LOSS"]
         in_sheet = sum(1 for r in sheet if r["verdict"] == verdict)
-        rows.append([verdict, in_sheet, len(vr), cc["WIN"], cc["LOSS"], cc["PUSH"], _pct(cc["WIN"], d)])
-    A(_table(["werdykt", "na tablicy", "rozliczone", "weszło", "nie weszło", "zwrot", "% trafień"], rows))
-    A("")
+        rows.append([verdict, in_sheet, len(vr), cc["WIN"], cc["LOSS"], cc["PUSH"],
+                     _pct(cc["WIN"], d)])
+    emit(_table(["werdykt", "na tablicy", "rozliczone", "weszło", "nie weszło",
+                 "zwrot", "% trafień"], rows))
+    emit("")
 
     # ---- 6. po sporcie ---------------------------------------------------
-    A("## 6. Po sporcie")
-    A("")
+    emit("## 6. Po sporcie")
+    emit("")
     rows = []
     for sport in sorted({r["sport"] for r in settled_db}):
         sr = [r for r in settled_db if r["sport"] == sport]
         cc = Counter(r["outcome"] for r in sr)
         d = cc["WIN"] + cc["LOSS"]
-        rows.append([sport, len(sr), cc["WIN"], cc["LOSS"], cc["PUSH"], _pct(cc["WIN"], d)])
-    A(_table(["sport", "rozliczone", "weszło", "nie weszło", "zwrot", "% trafień"], rows))
-    A("")
+        rows.append([sport, len(sr), cc["WIN"], cc["LOSS"], cc["PUSH"],
+                     _pct(cc["WIN"], d)])
+    emit(_table(["sport", "rozliczone", "weszło", "nie weszło", "zwrot",
+                 "% trafień"], rows))
+    emit("")
 
     # ---- 7. kupon --------------------------------------------------------
     # Not "the coupon": 06_coupon.json holds the VALUE singles, and the PDF
     # is what gets staked (7c). The old heading said the opposite.
-    A("## 7. Pojedyncze VALUE (06_coupon.json) — materiał wejściowy, nie kupon")
-    A("")
+    emit("## 7. Pojedyncze VALUE (06_coupon.json) — materiał wejściowy, nie kupon")
+    emit("")
     if not coupon:
-        A("06_coupon.json nie ma ani jednej pozycji (albo pliku brak). "
-          "Kupon z PDF jest w sekcji 7c.")
+        emit("06_coupon.json nie ma ani jednej pozycji (albo pliku brak). "
+             "Kupon z PDF jest w sekcji 7c.")
     else:
         graded_legs: list[tuple[dict[str, Any], Any]]
         ungraded_legs: list[tuple[dict[str, Any], Any]]
@@ -765,42 +781,47 @@ def main() -> int:
             (graded_legs if got else ungraded_legs).append((leg, got))
         cc = Counter(g["outcome"] for _, g in graded_legs)
         d = cc["WIN"] + cc["LOSS"]
-        A(_table(["", "liczba"],
-                 [["nóg na kuponie", len(coupon)],
-                  ["rozliczonych", len(graded_legs)],
-                  ["WESZŁO", cc["WIN"]],
-                  ["NIE WESZŁO", cc["LOSS"]],
-                  ["ZWROT", cc["PUSH"]],
-                  ["nierozliczonych", len(ungraded_legs)],
-                  ["% trafień", _pct(cc["WIN"], d)]]))
-        A("")
+        emit(_table(["", "liczba"],
+                    [["nóg na kuponie", len(coupon)],
+                     ["rozliczonych", len(graded_legs)],
+                     ["WESZŁO", cc["WIN"]],
+                     ["NIE WESZŁO", cc["LOSS"]],
+                     ["ZWROT", cc["PUSH"]],
+                     ["nierozliczonych", len(ungraded_legs)],
+                     ["% trafień", _pct(cc["WIN"], d)]]))
+        emit("")
         stake_return = sum(
             (g["offered_odds"] - 1.0) if g["outcome"] == "WIN"
             else (0.0 if g["outcome"] == "PUSH" else -1.0)
             for _, g in graded_legs if g["offered_odds"])
         n_staked = sum(1 for _, g in graded_legs if g["offered_odds"])
-        A(f"Przy stawce 1 jednostki na każdą rozliczoną nogę: wynik "
-          f"**{stake_return:+.2f} j.** na {n_staked} nogach, ROI "
-          f"**{100.0 * stake_return / n_staked:+.1f}%**." if n_staked else "")
-        A("")
-        A("### Noga po nodze")
-        A("")
+        emit(f"Przy stawce 1 jednostki na każdą rozliczoną nogę: wynik "
+             f"**{stake_return:+.2f} j.** na {n_staked} nogach, ROI "
+             f"**{100.0 * stake_return / n_staked:+.1f}%**." if n_staked else "")
+        emit("")
+        emit("### Noga po nodze")
+        emit("")
         rows = []
-        for leg, got in sorted(graded_legs, key=lambda x: (x[1]["outcome"] != "LOSS", -(x[0].get("offered_odds") or 0))):
+        for leg, got in sorted(graded_legs,
+                               key=lambda x: (x[1]["outcome"] != "LOSS",
+                                              -(x[0].get("offered_odds") or 0))):
             rows.append([
                 leg.get("match_name", leg["sofascore_event_id"]),
                 f"{leg['market']} {leg.get('subject') or ''}".strip(),
                 f"{leg['direction']} {leg['line']:g}",
                 f"{leg.get('offered_odds') or 0:.2f}",
                 f"{leg.get('p_bar', 0):.3f}",
-                {"WIN": "WESZŁO", "LOSS": "NIE WESZŁO", "PUSH": "ZWROT"}[got["outcome"]],
-                _reason_for_loss(got) if got["outcome"] == "LOSS" else f"padło {got['actual_value']:g}",
+                {"WIN": "WESZŁO", "LOSS": "NIE WESZŁO",
+                 "PUSH": "ZWROT"}[got["outcome"]],
+                (_reason_for_loss(got) if got["outcome"] == "LOSS"
+                 else f"padło {got['actual_value']:g}"),
             ])
-        A(_table(["mecz", "rynek", "linia", "kurs", "p_bar", "wynik", "powód"], rows))
-        A("")
+        emit(_table(["mecz", "rynek", "linia", "kurs", "p_bar", "wynik", "powód"],
+                    rows))
+        emit("")
         if ungraded_legs:
-            A(f"### Nogi bez rozliczenia ({len(ungraded_legs)})")
-            A("")
+            emit(f"### Nogi bez rozliczenia ({len(ungraded_legs)})")
+            emit("")
             rows = []
             for leg, _ in ungraded_legs:
                 eid = leg["sofascore_event_id"]
@@ -810,8 +831,8 @@ def main() -> int:
                 rows.append([leg.get("match_name", eid),
                              f"{leg['market']} {leg.get('subject') or ''}".strip(),
                              f"{leg['direction']} {leg['line']:g}", reason])
-            A(_table(["mecz", "rynek", "linia", "powód"], rows))
-            A("")
+            emit(_table(["mecz", "rynek", "linia", "powód"], rows))
+            emit("")
 
     # ---- 7b/7c. the coupon that was actually printed ---------------------
     #
@@ -829,52 +850,59 @@ def main() -> int:
         conf = json.loads(conf_path.read_text())
         # What the PDF printed, not everything the artifact holds.
         official_singles = printed_singles(conf)
-        A("## 7b. Lista pewnościowa — wszystkie nogi nad progiem")
-        A("")
+        emit("## 7b. Lista pewnościowa — wszystkie nogi nad progiem")
+        emit("")
         legs = conf["legs"]
-        graded = [(L, by_key[_key({**L, "sofascore_event_id": L["sofascore_event_id"]})])
-                  for L in legs
-                  if _key({**L, "sofascore_event_id": L["sofascore_event_id"]}) in by_key]
-        decided = [(L, g) for L, g in graded if g["outcome"] != "PUSH"]
+        graded = [
+            (conf_leg, by_key[_key({**conf_leg, "sofascore_event_id":
+                                    conf_leg["sofascore_event_id"]})])
+            for conf_leg in legs
+            if _key({**conf_leg, "sofascore_event_id":
+                     conf_leg["sofascore_event_id"]}) in by_key]
+        decided = [(conf_leg, g) for conf_leg, g in graded
+                   if g["outcome"] != "PUSH"]
         won = sum(1 for _, g in decided if g["outcome"] == "WIN")
-        ret = sum((L["offered_odds"] - 1.0) if g["outcome"] == "WIN" else -1.0
-                  for L, g in decided)
-        declared = sum(L["confidence"] for L, _ in decided) / len(decided) if decided else 0.0
-        A(_table(["", "liczba"],
-                 [["nóg nad progiem", len(legs)],
-                  ["rozliczonych", len(decided)],
-                  ["nierozliczonych", len(legs) - len(graded)],
-                  ["WESZŁO", won],
-                  ["NIE WESZŁO", len(decided) - won],
-                  ["% trafień", _pct(won, len(decided))],
-                  ["deklarowana pewność (śr.)", f"{declared:.3f}"],
-                  ["ROI przy 1 j. na nogę", f"{100.0 * ret / len(decided):+.1f}%" if decided else "—"]]))
-        A("")
-        A("`confidence` to **dolne ograniczenie** zrealizowanego odsetka, nie "
-          "deklaracja modelu. Jeśli rzeczywistość wychodzi powyżej niego, "
-          "krzywa działa. Ujemne ROI przy poprawnej kalibracji znaczy jedno: "
-          "marża Superbeta na krótkich kursach jest większa niż nasza "
-          "przewaga — mamy rację co do meczu i i tak płacimy za nią za dużo.")
-        A("")
+        ret = sum((conf_leg["offered_odds"] - 1.0) if g["outcome"] == "WIN" else -1.0
+                  for conf_leg, g in decided)
+        declared = (sum(conf_leg["confidence"] for conf_leg, _ in decided)
+                    / len(decided) if decided else 0.0)
+        emit(_table(["", "liczba"],
+                    [["nóg nad progiem", len(legs)],
+                     ["rozliczonych", len(decided)],
+                     ["nierozliczonych", len(legs) - len(graded)],
+                     ["WESZŁO", won],
+                     ["NIE WESZŁO", len(decided) - won],
+                     ["% trafień", _pct(won, len(decided))],
+                     ["deklarowana pewność (śr.)", f"{declared:.3f}"],
+                     ["ROI przy 1 j. na nogę",
+                      f"{100.0 * ret / len(decided):+.1f}%" if decided else "—"]]))
+        emit("")
+        emit("`confidence` to **dolne ograniczenie** zrealizowanego odsetka, nie "
+             "deklaracja modelu. Jeśli rzeczywistość wychodzi powyżej niego, "
+             "krzywa działa. Ujemne ROI przy poprawnej kalibracji znaczy jedno: "
+             "marża Superbeta na krótkich kursach jest większa niż nasza "
+             "przewaga — mamy rację co do meczu i i tak płacimy za nią za dużo.")
+        emit("")
         rows = []
         cb: dict[int, list[Any]] = defaultdict(list)
-        for L, g in decided:
-            cb[min(int(L["confidence"] * 20), 19)].append((L, g))
+        for conf_leg, g in decided:
+            cb[min(int(conf_leg["confidence"] * 20), 19)].append((conf_leg, g))
         for k in sorted(cb):
             rs = cb[k]
-            dec = sum(L["confidence"] for L, _ in rs) / len(rs)
+            dec = sum(conf_leg["confidence"] for conf_leg, _ in rs) / len(rs)
             real = sum(1 for _, g in rs if g["outcome"] == "WIN") / len(rs)
             rows.append([f"{k / 20:.2f}–{(k + 1) / 20:.2f}", len(rs),
                          f"{dec:.3f}", f"{real:.3f}", f"{real - dec:+.3f}"])
-        A(_table(["kubełek confidence", "nóg", "deklarowane", "rzeczywiste", "różnica"], rows))
-        A("")
+        emit(_table(["kubełek confidence", "nóg", "deklarowane", "rzeczywiste",
+                     "różnica"], rows))
+        emit("")
 
-        A("## 7c. KUPON Z PDF — to, co naprawdę poszło na typ")
-        A("")
-        A("PDF renderuje te Bet Buildery, które mają `best_for_fixture` i "
-          "dodatnie EV. To jest kupon. Sekcja 7 (pojedynki VALUE) i 7b (cała "
-          "lista nóg) to materiał wejściowy, nie zakład.")
-        A("")
+        emit("## 7c. KUPON Z PDF — to, co naprawdę poszło na typ")
+        emit("")
+        emit("PDF renderuje te Bet Buildery, które mają `best_for_fixture` i "
+             "dodatnie EV. To jest kupon. Sekcja 7 (pojedynki VALUE) i 7b (cała "
+             "lista nóg) to materiał wejściowy, nie zakład.")
+        emit("")
         # Screen prices, when the operator recorded them. Key: the fixture's
         # sofascore_event_id as a string. A measured price always beats the
         # haircut estimate, and until this file exists for a day, every slip
@@ -888,30 +916,30 @@ def main() -> int:
         # reported as "0 slips" without one word about what was on the page.
         all_singles = conf.get("singles") or []
         singles = printed_singles(conf)
-        A("### Zakłady pojedyncze z PDF")
-        A("")
+        emit("### Zakłady pojedyncze z PDF")
+        emit("")
         if not singles:
-            A("PDF nie drukował pojedynczych.")
-            A("")
+            emit("PDF nie drukował pojedynczych.")
+            emit("")
         else:
             # The measured sports' legs (F7) are graded by sport_coupon, not
             # from sofa_settled_row: their own table below, then the sum.
             sport_singles = [s for s in singles if not is_sheet_sport(s)]
             sheet_singles = [s for s in singles if is_sheet_sport(s)]
             res = settle_singles(sheet_singles, coupon_by_key)
-            A(_table(["", "liczba"],
-                     singles_summary_rows(len(sheet_singles), res)))
+            emit(_table(["", "liczba"],
+                        singles_summary_rows(len(sheet_singles), res)))
             if sport_singles:
                 lines.extend(render_sport_singles(
                     sport_singles, res, config.runs_dir, args.date))
-            A("")
-            A("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
-              "nich operator wziął. Kurs to `offered_odds` z artefaktu.")
+            emit("")
+            emit("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
+                 "nich operator wziął. Kurs to `offered_odds` z artefaktu.")
             if len(all_singles) > len(singles):
-                A(f"Artefakt miał {len(all_singles)} pojedynczych; PDF drukuje "
-                  f"pierwsze {len(singles)} po pewności i tylko te są tu "
-                  "rozliczone.")
-            A("")
+                emit(f"Artefakt miał {len(all_singles)} pojedynczych; PDF drukuje "
+                     f"pierwsze {len(singles)} po pewności i tylko te są tu "
+                     "rozliczone.")
+            emit("")
             if artifact_epoch(conf) == STATS_ONLY:
                 lines.extend(render_stats_only_split(singles, coupon_by_key))
 
@@ -947,33 +975,33 @@ def main() -> int:
         var_singles = printed_singles(var)
         # An artifact from before 2026-09-23 13:30 UTC carries no
         # max_overround: the variant then used the official 10.5%.
-        A("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}, marża ≤ {:.1%})"
-          " — nie kupon".format(
-              var.get("confidence_floor", PROFILES["wariant"].floor),
-              var.get("min_ev", PROFILES["wariant"].min_ev),
-              var.get("max_overround", MAX_OVERROUND)))
-        A("")
+        emit("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}, marża ≤ {:.1%})"
+             " — nie kupon".format(
+                 var.get("confidence_floor", PROFILES["wariant"].floor),
+                 var.get("min_ev", PROFILES["wariant"].min_ev),
+                 var.get("max_overround", MAX_OVERROUND)))
+        emit("")
         var_builders_printed = prints_builders(var)
-        A("Rozliczany obok oficjalnego kuponu, na tych samych rozliczonych "
-          "wierszach i po swoich wydrukowanych kursach. "
-          + ("Od 2026-09-29 PDF wariantu drukuje też Bet Buildery; są "
-             "rozliczone niżej osobno i nigdy nie są sumowane z builderami "
-             "kuponu (7c). " if var_builders_printed else
-             "Tylko pojedyncze — PDF wariantu z tego dnia nie drukował Bet "
-             "Builderów. ")
-          + "Przed dodaniem zmierzony na 18–22.09: −3,2% na zakład wobec "
-          "−2,9% oficjalnego.")
-        A("")
+        emit("Rozliczany obok oficjalnego kuponu, na tych samych rozliczonych "
+             "wierszach i po swoich wydrukowanych kursach. "
+             + ("Od 2026-09-29 PDF wariantu drukuje też Bet Buildery; są "
+                "rozliczone niżej osobno i nigdy nie są sumowane z builderami "
+                "kuponu (7c). " if var_builders_printed else
+                "Tylko pojedyncze — PDF wariantu z tego dnia nie drukował Bet "
+                "Builderów. ")
+             + "Przed dodaniem zmierzony na 18–22.09: −3,2% na zakład wobec "
+             "−2,9% oficjalnego.")
+        emit("")
         if not var_singles:
-            A("Wariant nie wydrukował pojedynczych.")
+            emit("Wariant nie wydrukował pojedynczych.")
         else:
             vres = settle_singles(var_singles, coupon_by_key)
-            A(_table(["", "liczba"], singles_summary_rows(len(var_singles), vres)))
+            emit(_table(["", "liczba"], singles_summary_rows(len(var_singles), vres)))
             if len(var_all) > len(var_singles):
-                A("")
-                A(f"Artefakt wariantu miał {len(var_all)} pojedynczych; PDF "
-                  f"drukuje pierwsze {len(var_singles)} po pewności i tylko te "
-                  "są tu rozliczone.")
+                emit("")
+                emit(f"Artefakt wariantu miał {len(var_all)} pojedynczych; PDF "
+                     f"drukuje pierwsze {len(var_singles)} po pewności i tylko te "
+                     "są tu rozliczone.")
             official_keys = {
                 (o["sofascore_event_id"], o["market"], o["subject"], o["line"],
                  o["direction"]) for o in official_singles}
@@ -981,24 +1009,25 @@ def main() -> int:
                     if (x["sofascore_event_id"], x["market"], x["subject"], x["line"],
                         x["direction"]) not in official_keys]
             ores = settle_singles(only, coupon_by_key)
-            A("")
+            emit("")
             if conf_path.exists():
-                A(f"Z tego **tylko w wariancie** (nie ma ich na oficjalnym kuponie): "
-                  f"{len(only)} pozycji, rozliczonych {ores['settled']}, weszło "
-                  f"{ores['won']}, wynik {ores['units']:+.2f} j."
-                  + (f", ROI {100.0 * ores['units'] / ores['settled']:+.1f}%"
-                     if ores["settled"] else "")
-                  + ". To jest dokładnie to, co wariant dokłada.")
+                emit("Z tego **tylko w wariancie** (nie ma ich na oficjalnym "
+                     f"kuponie): {len(only)} pozycji, rozliczonych "
+                     f"{ores['settled']}, weszło {ores['won']}, wynik "
+                     f"{ores['units']:+.2f} j."
+                     + (f", ROI {100.0 * ores['units'] / ores['settled']:+.1f}%"
+                        if ores["settled"] else "")
+                     + ". To jest dokładnie to, co wariant dokłada.")
             else:
                 # Without the official artifact every variant single would
                 # read as "variant-only", which is a claim about a comparison
                 # that was never made.
-                A("Brak `08_confidence.json` z tego dnia, więc nie da się "
-                  "powiedzieć, co wariant dokłada ponad oficjalny kupon.")
-        A("")
+                emit("Brak `08_confidence.json` z tego dnia, więc nie da się "
+                     "powiedzieć, co wariant dokłada ponad oficjalny kupon.")
+        emit("")
         if var_builders_printed:
-            A("### Bet Buildery wariantu")
-            A("")
+            emit("### Bet Buildery wariantu")
+            emit("")
             # Its own screen-price file: the variant's slip on a fixture is a
             # different slip from the coupon's on the same fixture (2026-09-29
             # Botafogo: 4 legs in both, only one leg in common).
@@ -1006,8 +1035,8 @@ def main() -> int:
             vscreen = screen_odds_by_event(vscreen_path)
             vpicks = printed_builders(var)
             if not vpicks:
-                A("Wariant nie wydrukował żadnego Bet Buildera.")
-                A("")
+                emit("Wariant nie wydrukował żadnego Bet Buildera.")
+                emit("")
             else:
                 lines.extend(render_builders(vpicks, coupon_by_key, vscreen,
                                              vscreen_path.name,
@@ -1059,11 +1088,11 @@ def main() -> int:
     lines.extend(section_7h(Path("reports"), args.date))
 
     # ---- 8. kalibracja ---------------------------------------------------
-    A("## 8. Kalibracja — czy 70% znaczy 70%")
-    A("")
-    A("Liczone na `p_bar`, czyli na tej liczbie, którą kupon faktycznie "
-      "porównuje z kursem. PUSH-e wyrzucone.")
-    A("")
+    emit("## 8. Kalibracja — czy 70% znaczy 70%")
+    emit("")
+    emit("Liczone na `p_bar`, czyli na tej liczbie, którą kupon faktycznie "
+         "porównuje z kursem. PUSH-e wyrzucone.")
+    emit("")
     buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in settled_db:
         if r["outcome"] == "PUSH":
@@ -1075,25 +1104,28 @@ def main() -> int:
         rs = buckets[label]
         pred = sum(r["p_bar"] for r in rs) / len(rs)
         real = sum(1 for r in rs if r["outcome"] == "WIN") / len(rs)
-        rows.append([label, len(rs), f"{pred:.3f}", f"{real:.3f}", f"{real - pred:+.3f}"])
-    A(_table(["kubełek p_bar", "wierszy", "prognoza (śr. p_bar)", "rzeczywistość", "różnica"], rows))
-    A("")
-    A("Dodatnia różnica = byliśmy zbyt ostrożni, ujemna = zbyt pewni.")
-    A("")
+        rows.append([label, len(rs), f"{pred:.3f}", f"{real:.3f}",
+                     f"{real - pred:+.3f}"])
+    emit(_table(["kubełek p_bar", "wierszy", "prognoza (śr. p_bar)",
+                 "rzeczywistość", "różnica"], rows))
+    emit("")
+    emit("Dodatnia różnica = byliśmy zbyt ostrożni, ujemna = zbyt pewni.")
+    emit("")
 
-    A("## 9. Czego ten raport nie mówi")
-    A("")
-    A("- ROI liczone jest tylko tam, gdzie znamy kurs Superbeta z dnia. "
-      "Wiersze NO_PRICE mają rozliczony wynik i żadnej ceny, więc wchodzą do "
-      "kalibracji, a nie do rachunku pieniędzy.")
-    A("- Wiersz nierozliczony nie jest przegraną. Sekcja 4 trzyma je osobno "
-      "celowo; wrzucenie ich do pudeł zaniżyłoby model dokładnie tak samo, "
-      "jak wrzucenie do trafień by go zawyżyło.")
-    A("- `07_settled.json` z tego dnia ma "
-      f"{len(settled_artifact)} wierszy; baza ma {len(settled_db)}. "
-      "Rozjazd oznacza, że dzień rozliczano więcej niż raz.")
+    emit("## 9. Czego ten raport nie mówi")
+    emit("")
+    emit("- ROI liczone jest tylko tam, gdzie znamy kurs Superbeta z dnia. "
+         "Wiersze NO_PRICE mają rozliczony wynik i żadnej ceny, więc wchodzą do "
+         "kalibracji, a nie do rachunku pieniędzy.")
+    emit("- Wiersz nierozliczony nie jest przegraną. Sekcja 4 trzyma je osobno "
+         "celowo; wrzucenie ich do pudeł zaniżyłoby model dokładnie tak samo, "
+         "jak wrzucenie do trafień by go zawyżyło.")
+    emit("- `07_settled.json` z tego dnia ma "
+         f"{len(settled_artifact)} wierszy; baza ma {len(settled_db)}. "
+         "Rozjazd oznacza, że dzień rozliczano więcej niż raz.")
 
-    out = Path(args.out) if args.out else Path("reports") / f"sofa_audyt_rozliczenia_{args.date}.md"
+    out = (Path(args.out) if args.out
+           else Path("reports") / f"sofa_audyt_rozliczenia_{args.date}.md")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines), encoding="utf-8")
     print(f"WROTE {out} ({len(lines)} lines)")

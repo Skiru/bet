@@ -1126,7 +1126,8 @@ def main() -> int:
             -b["combined_probability"], b["kickoff_utc"], b["sofascore_event_id"],
             b["n_legs"]))
     else:
-        builders.sort(key=lambda b: (-b["ev_after_haircut"], -b["combined_probability"]))
+        builders.sort(key=lambda b: (-b["ev_after_haircut"],
+                                     -b["combined_probability"]))
 
     # A fixture emits a 2-, 3- and 4-leg builder off the same ranked pool, so
     # the smaller ones are SUBSETS of the larger. Staking all three is staking
@@ -1304,7 +1305,8 @@ def main() -> int:
         ),
         "## Legs",
         "",
-        "| conf | odds | implied | shading | leg EV | market | line | match | kickoff |",
+        "| conf | odds | implied | shading | leg EV | market | line | match "
+        "| kickoff |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for leg in legs[:60]:
@@ -1365,7 +1367,8 @@ def main() -> int:
         "`combined p` is the lower of the leg product and the empirical joint — how "
         "often every leg held in the same past match. `joint` shows that count.",
         "",
-        "| legs | combined p | joint | fair odds | product | after haircut | EV | match | selection |",
+        "| legs | combined p | joint | fair odds | product | after haircut | EV "
+        "| match | selection |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for b in [x for x in builders if x["best_for_fixture"]][:40]:

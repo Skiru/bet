@@ -28,7 +28,7 @@ import json
 import statistics
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,13 +44,12 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     PROFILES,
-    builder_legs_are_coherent,
     coupon_artifact,
     is_sheet_sport,
-    printed_singles,
     is_stakeable,
     line_is_beyond_sample,
     mode_loses,
+    printed_singles,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
@@ -99,7 +98,7 @@ def main() -> int:
     settled = {key(dict(r)): dict(r) for r in conn.execute(
         "SELECT * FROM sofa_settled_row WHERE run_date = ?", (args.date,))}
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     def observations(
         eid: int, market: str, subject: str
@@ -149,28 +148,30 @@ def main() -> int:
         # rows and are graded by sport_coupon (plan F7).
         for s_ in printed_singles(conf) if is_sheet_sport(s_)
     ]
-    leg_index = {(l["sofascore_event_id"], l["market"], l["subject"], l["line"],
-                  l["direction"]): l for l in conf["legs"]}
+    leg_index = {(conf_leg["sofascore_event_id"], conf_leg["market"],
+                  conf_leg["subject"], conf_leg["line"],
+                  conf_leg["direction"]): conf_leg for conf_leg in conf["legs"]}
 
     # Every coupon leg, with its outcome, its evidence, and which of today's
     # gates it would now fail. One row = one staked position.
     k: Any
     positions = []
     for slip_id, b in enumerate(picks):
-        for L in b["legs"]:
-            k = (b["sofascore_event_id"], L["market"], L["subject"], L["line"],
-                 L["direction"])
+        for slip_leg in b["legs"]:
+            k = (b["sofascore_event_id"], slip_leg["market"], slip_leg["subject"],
+                 slip_leg["line"], slip_leg["direction"])
             g = settled.get(k)
             meta = leg_index.get(k, {})
-            vals, age = observations(k[0], L["market"], L["subject"])
+            vals, age = observations(k[0], slip_leg["market"], slip_leg["subject"])
             gates = []
-            if not PROFILES["standard"].clears_price(L["confidence"], L["odds"]):
+            if not PROFILES["standard"].clears_price(slip_leg["confidence"],
+                                                     slip_leg["odds"]):
                 gates.append("NEGATIVE_LEG_EV")
-            if L["odds"] < MIN_ODDS_FOR_CEILING:
+            if slip_leg["odds"] < MIN_ODDS_FOR_CEILING:
                 gates.append("ODDS_TOO_LOW")
-            if line_is_beyond_sample(L["line"], L["direction"], vals):
+            if line_is_beyond_sample(slip_leg["line"], slip_leg["direction"], vals):
                 gates.append("LINE_BEYOND_SAMPLE")
-            if mode_loses(L["line"], L["direction"], vals):
+            if mode_loses(slip_leg["line"], slip_leg["direction"], vals):
                 gates.append("MODE_LOSES")
             if len(vals) < MIN_BUILDER_SAMPLE:
                 gates.append("THIN_SAMPLE_FOR_BUILDER")
@@ -179,9 +180,9 @@ def main() -> int:
             positions.append({
                 "slip": b["match"] + (" (single)" if b.get("single") else ""),
                 "slip_id": slip_id, "eid": b["sofascore_event_id"],
-                "market": L["market"], "subject": L["subject"],
-                "line": L["line"], "direction": L["direction"],
-                "odds": L["odds"], "confidence": L["confidence"],
+                "market": slip_leg["market"], "subject": slip_leg["subject"],
+                "line": slip_leg["line"], "direction": slip_leg["direction"],
+                "odds": slip_leg["odds"], "confidence": slip_leg["confidence"],
                 "outcome": g["outcome"] if g else None,
                 "actual": g["actual_value"] if g else None,
                 "sample": sorted(vals), "sample_age": age,
@@ -193,22 +194,22 @@ def main() -> int:
             })
 
     lines: list[str] = []
-    A = lines.append
-    A(f"# Głęboki audyt typowania — {args.date}")
-    A("")
-    A("Przedmiotem jest **kupon, który naprawdę poszedł**: buildery renderowane "
-      "do PDF (`best_for_fixture` i dodatnie EV) oraz single drukowane w PDF — "
-      "nie pojedynki VALUE z `06_coupon.json`.")
-    A("")
+    emit = lines.append
+    emit(f"# Głęboki audyt typowania — {args.date}")
+    emit("")
+    emit("Przedmiotem jest **kupon, który naprawdę poszedł**: buildery renderowane "
+         "do PDF (`best_for_fixture` i dodatnie EV) oraz single drukowane w PDF — "
+         "nie pojedynki VALUE z `06_coupon.json`.")
+    emit("")
 
     # ---- 1. per market, what actually happened --------------------------
-    A("## 1. Każdy rynek na kuponie — wynik faktyczny")
-    A("")
+    emit("## 1. Każdy rynek na kuponie — wynik faktyczny")
+    emit("")
     n_singles = sum(1 for b in picks if b.get("single"))
     graded = [p for p in positions if p["outcome"] in ("WIN", "LOSS")]
-    A(f"{len(picks)} slipów ({len(picks) - n_singles} builderów, {n_singles} "
-      f"singli), {len(positions)} nóg, rozliczonych {len(graded)}.")
-    A("")
+    emit(f"{len(picks)} slipów ({len(picks) - n_singles} builderów, {n_singles} "
+         f"singli), {len(positions)} nóg, rozliczonych {len(graded)}.")
+    emit("")
     if not graded:
         # Sections 1-4 all divide by the settled population. A day on which the
         # PDF staked nothing — 2026-09-22 shipped 0 picks, and 2026-09-21 also
@@ -216,14 +217,14 @@ def main() -> int:
         # ROI, then ZeroDivisionError on len(graded). The script exits 1 for
         # "findings found", so the crash was indistinguishable from a result.
         # An absence of bets is not a 0% day and must not be rendered as one.
-        A("**Brak rozliczonych nóg — ten dzień nie postawił nic.**")
-        A("")
-        A("To nie jest wynik 0% ani strata. Sekcje 1-4 mierzą populację "
-          "rozliczonych pozycji, a ta jest pusta, więc żadnego ROI, żadnej "
-          "klasyfikacji przegranych i żadnej kontrfaktycznej oceny bramek nie "
-          "da się dla tego dnia policzyć. Bramek nie testowano — dzień bez "
-          "zakładu nie jest sprawdzianem dla żadnej z nich.")
-        A("")
+        emit("**Brak rozliczonych nóg — ten dzień nie postawił nic.**")
+        emit("")
+        emit("To nie jest wynik 0% ani strata. Sekcje 1-4 mierzą populację "
+             "rozliczonych pozycji, a ta jest pusta, więc żadnego ROI, żadnej "
+             "klasyfikacji przegranych i żadnej kontrfaktycznej oceny bramek nie "
+             "da się dla tego dnia policzyć. Bramek nie testowano — dzień bez "
+             "zakładu nie jest sprawdzianem dla żadnej z nich.")
+        emit("")
         out = (Path(args.out) if args.out
                else Path("reports") / f"sofa_audyt_glaboki_{args.date}.md")
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -246,18 +247,18 @@ def main() -> int:
             f"{statistics.median(margins):+g}",
             f"{statistics.mean(centre_err):+.2f}" if centre_err else "—",
         ])
-    A(table(["rynek", "nóg", "weszło", "nie weszło", "% trafień",
-             "mediana zapasu do linii", "śr. (wynik − nasz środek)"], rows))
-    A("")
-    A("**Zapas do linii** to odległość wyniku od linii po stronie, której "
-      "potrzebowaliśmy: dodatni = weszło i o ile, ujemny = pudło i o ile. "
-      "**(wynik − nasz środek)** mierzy, czy środek próbki stał w dobrym "
-      "miejscu: systematycznie dodatni znaczy, że zaniżaliśmy ten rynek.")
-    A("")
+    emit(table(["rynek", "nóg", "weszło", "nie weszło", "% trafień",
+                "mediana zapasu do linii", "śr. (wynik − nasz środek)"], rows))
+    emit("")
+    emit("**Zapas do linii** to odległość wyniku od linii po stronie, której "
+         "potrzebowaliśmy: dodatni = weszło i o ile, ujemny = pudło i o ile. "
+         "**(wynik − nasz środek)** mierzy, czy środek próbki stał w dobrym "
+         "miejscu: systematycznie dodatni znaczy, że zaniżaliśmy ten rynek.")
+    emit("")
 
     # ---- 2. every single position, with its actual value ----------------
-    A("## 2. Pozycja po pozycji — co padło")
-    A("")
+    emit("## 2. Pozycja po pozycji — co padło")
+    emit("")
     rows = []
     for p in sorted(positions, key=lambda x: (x["outcome"] != "LOSS", x["slip"])):
         subj = f" {p['subject']}" if p["subject"] else ""
@@ -276,12 +277,12 @@ def main() -> int:
         rows.append([p["slip"][:34], f"{p['market']}{subj}"[:34],
                      f"{p['direction']} {p['line']:g}", f"{p['odds']:.2f}",
                      f"{p['confidence']:.3f}", res, why])
-    A(table(["mecz", "rynek", "linia", "kurs", "conf", "wynik", "co padło"], rows))
-    A("")
+    emit(table(["mecz", "rynek", "linia", "kurs", "conf", "wynik", "co padło"], rows))
+    emit("")
 
     # ---- 3. why the losses lost -----------------------------------------
-    A("## 3. Dlaczego przegrane przegrały — klasyfikacja")
-    A("")
+    emit("## 3. Dlaczego przegrane przegrały — klasyfikacja")
+    emit("")
     losses = [p for p in graded if p["outcome"] == "LOSS"]
     diag = defaultdict(list)
     for p in losses:
@@ -301,58 +302,59 @@ def main() -> int:
             diag["ZWYKŁA_ZMIENNOŚĆ — w rozrzucie próbki"].append(p)
     rows = [[k, len(v), pct(len(v), len(losses))]
             for k, v in sorted(diag.items(), key=lambda kv: -len(kv[1]))]
-    A(table(["klasa", "pudeł", "udział"], rows))
-    A("")
+    emit(table(["klasa", "pudeł", "udział"], rows))
+    emit("")
     for k, v in sorted(diag.items(), key=lambda kv: -len(kv[1])):
-        A(f"**{k}**")
-        A("")
-        A(table(["mecz", "rynek", "linia", "padło", "próbka"],
-                [[p["slip"][:30], f"{p['market']} {p['subject']}".strip()[:30],
-                  f"{p['direction']} {p['line']:g}", f"{p['actual']:g}",
-                  str(p["sample"])[:52]] for p in v]))
-        A("")
+        emit(f"**{k}**")
+        emit("")
+        emit(table(["mecz", "rynek", "linia", "padło", "próbka"],
+                   [[p["slip"][:30], f"{p['market']} {p['subject']}".strip()[:30],
+                     f"{p['direction']} {p['line']:g}", f"{p['actual']:g}",
+                     str(p["sample"])[:52]] for p in v]))
+        emit("")
 
     # ---- 4. the counterfactual ------------------------------------------
-    A("## 4. Kontrfaktyczna: czy dzisiejszy pipeline zagrałby to jeszcze raz?")
-    A("")
-    A("Każda bramka dodana 2026-09-20 jest twierdzeniem, że pewna klasa nóg "
-      "traci pieniądze. Poniżej to twierdzenie zderzone z wczorajszym wynikiem.")
-    A("")
-    A("**Miernik.** Pierwsza wersja tego audytu oceniała bramkę odsetkiem pudeł "
-      "wśród nóg, które usuwa. To jest zły miernik i dał odwrotną odpowiedź: "
-      "bramka na krótkie kursy usuwała nogi, z których 100% weszło, więc "
-      "wyglądała na błąd. Zmierzone na 2 492 rozliczonych nogach tego dnia, "
-      "nogi poniżej kursu 1,0867 **weszły w 92,5% i zwróciły −3,5%** "
-      "(−87,7 jednostki). Noga może wygrywać dziewięć razy na dziesięć i "
-      "tracić pieniądze — dlatego bramkę ocenia się **zwrotem**, nie trafieniami.")
-    A("")
+    emit("## 4. Kontrfaktyczna: czy dzisiejszy pipeline zagrałby to jeszcze raz?")
+    emit("")
+    emit("Każda bramka dodana 2026-09-20 jest twierdzeniem, że pewna klasa nóg "
+         "traci pieniądze. Poniżej to twierdzenie zderzone z wczorajszym wynikiem.")
+    emit("")
+    emit("**Miernik.** Pierwsza wersja tego audytu oceniała bramkę odsetkiem pudeł "
+         "wśród nóg, które usuwa. To jest zły miernik i dał odwrotną odpowiedź: "
+         "bramka na krótkie kursy usuwała nogi, z których 100% weszło, więc "
+         "wyglądała na błąd. Zmierzone na 2 492 rozliczonych nogach tego dnia, "
+         "nogi poniżej kursu 1,0867 **weszły w 92,5% i zwróciły −3,5%** "
+         "(−87,7 jednostki). Noga może wygrywać dziewięć razy na dziesięć i "
+         "tracić pieniądze — dlatego bramkę ocenia się **zwrotem**, nie trafieniami.")
+    emit("")
     # The coupon is 83 legs; the day's confidence list is 5,334, of which most
     # settled. Judging a gate on the 83 gives it a sample of a dozen or two
     # and a verdict that flips on one result. The same gate evaluated over
     # every settled leg of the day has two orders of magnitude more power, and
     # is the authoritative column below.
     population = []
-    for L in conf["legs"]:
-        k = (L["sofascore_event_id"], L["market"], L["subject"], L["line"],
-             L["direction"])
+    for conf_leg in conf["legs"]:
+        k = (conf_leg["sofascore_event_id"], conf_leg["market"], conf_leg["subject"],
+             conf_leg["line"], conf_leg["direction"])
         g = settled.get(k)
         if not g or g["outcome"] not in ("WIN", "LOSS"):
             continue
-        vals, age = observations(k[0], L["market"], L["subject"])
+        vals, age = observations(k[0], conf_leg["market"], conf_leg["subject"])
         gates = []
-        if not PROFILES["standard"].clears_price(L["confidence"], L["offered_odds"]):
+        if not PROFILES["standard"].clears_price(conf_leg["confidence"],
+                                                 conf_leg["offered_odds"]):
             gates.append("NEGATIVE_LEG_EV")
-        if L["offered_odds"] < MIN_ODDS_FOR_CEILING:
+        if conf_leg["offered_odds"] < MIN_ODDS_FOR_CEILING:
             gates.append("ODDS_TOO_LOW")
-        if line_is_beyond_sample(L["line"], L["direction"], vals):
+        if line_is_beyond_sample(conf_leg["line"], conf_leg["direction"], vals):
             gates.append("LINE_BEYOND_SAMPLE")
-        if mode_loses(L["line"], L["direction"], vals):
+        if mode_loses(conf_leg["line"], conf_leg["direction"], vals):
             gates.append("MODE_LOSES")
         if len(vals) < MIN_BUILDER_SAMPLE:
             gates.append("THIN_SAMPLE_FOR_BUILDER")
         if age is not None and age > MAX_BUILDER_SAMPLE_AGE_DAYS:
             gates.append("SAMPLE_CROSSES_SEASON")
-        population.append({"odds": L["offered_odds"], "outcome": g["outcome"],
+        population.append({"odds": conf_leg["offered_odds"], "outcome": g["outcome"],
                            "gates": gates})
 
     def roi_of(group: list[dict[str, Any]]) -> tuple[Any, Any, Any]:
@@ -360,7 +362,6 @@ def main() -> int:
             return None, None, None
         ret = sum((x["odds"] - 1.0) if x["outcome"] == "WIN" else -1.0
                   for x in group)
-        w = sum(1 for x in group if x["outcome"] == "WIN")
         return len(group), ret, 100.0 * ret / len(group)
 
     pop_n, pop_ret, pop_roi = roi_of(population)
@@ -370,25 +371,25 @@ def main() -> int:
         # script exited 1, which is also its "findings found" code, so a crash
         # was indistinguishable from a result. An absence of bets is not an ROI
         # of zero and must not be printed as one.
-        A("Brak rozliczonych nóg listy pewnościowej dla tego dnia — "
-          "**nie ma ROI populacji**. To nie jest wynik 0%, tylko brak zakładów.")
+        emit("Brak rozliczonych nóg listy pewnościowej dla tego dnia — "
+             "**nie ma ROI populacji**. To nie jest wynik 0%, tylko brak zakładów.")
     else:
-        A(f"Kolumna rozstrzygająca to **cały dzień**: {pop_n} rozliczonych nóg "
-          f"listy pewnościowej, nie {len(graded)} z kuponu. Punkt odniesienia dla "
-          f"całej populacji: **{pop_roi:+.1f}%**.")
-    A("")
+        emit(f"Kolumna rozstrzygająca to **cały dzień**: {pop_n} rozliczonych nóg "
+             f"listy pewnościowej, nie {len(graded)} z kuponu. Punkt odniesienia dla "
+             f"całej populacji: **{pop_roi:+.1f}%**.")
+    emit("")
     # Minimum n below which this audit refuses to pronounce. Twenty legs of
     # one day flip on a single result; the earlier draft of this table called
     # ODDS_TOO_LOW unjustified off 28 legs that all happened to win, against
     # 2,492 legs of the same class that returned -3.5%.
-    MIN_N_FOR_VERDICT = 200
+    min_n_for_verdict = 200
     # And a materiality band. The first version of this column declared
     # LINE_BEYOND_SAMPLE "justified" on -4.3% against a population -4.2% —
     # a tenth of a point, pronounced as a finding. Every class on this day
     # loses about four percent, because that is roughly Superbet's margin on
     # these prices; a gate has to beat that by a visible margin to have
     # separated anything.
-    MATERIAL_PP = 1.5
+    material_pp = 1.5
 
     rows = []
     for gate in ("NEGATIVE_LEG_EV", "ODDS_TOO_LOW", "LINE_BEYOND_SAMPLE",
@@ -396,17 +397,17 @@ def main() -> int:
         pn, pret, proi = roi_of([x for x in population if gate in x["gates"]])
         if pn is None:
             verdict, pop_cell = "nie wystąpiła tego dnia", "—"
-        elif pn < MIN_N_FOR_VERDICT:
+        elif pn < min_n_for_verdict:
             verdict = f"za mała próbka (n={pn}) — nie rozstrzygam"
             pop_cell = f"{proi:+.1f}% (n={pn})"
-        elif proi < pop_roi - MATERIAL_PP:
+        elif proi < pop_roi - material_pp:
             verdict = "uzasadniona — klasa traci istotnie więcej"
             pop_cell = f"**{proi:+.1f}%** (n={pn})"
-        elif proi > pop_roi + MATERIAL_PP:
+        elif proi > pop_roi + material_pp:
             verdict = "PRZECIW — klasa radzi sobie istotnie lepiej"
             pop_cell = f"**{proi:+.1f}%** (n={pn})"
         else:
-            verdict = (f"nierozstrzygalne — w paśmie ±{MATERIAL_PP} pkt proc. "
+            verdict = (f"nierozstrzygalne — w paśmie ±{material_pp} pkt proc. "
                        "od reszty dnia")
             pop_cell = f"{proi:+.1f}% (n={pn})"
         caught = [p for p in graded if gate in p["gates"]]
@@ -415,39 +416,39 @@ def main() -> int:
             continue
         _, ret, roi = roi_of(caught)
         rows.append([gate, len(caught), f"{roi:+.1f}%", pop_cell, verdict])
-    A(table(["bramka", "nóg z kuponu", "ich ROI (n mały!)",
-             "ROI klasy na całym dniu", "ocena"], rows))
-    A("")
+    emit(table(["bramka", "nóg z kuponu", "ich ROI (n mały!)",
+                "ROI klasy na całym dniu", "ocena"], rows))
+    emit("")
     base_ret = sum((p["odds"] - 1.0) if p["outcome"] == "WIN" else -1.0
                    for p in graded)
-    A(f"Punkt odniesienia — wszystkie {len(graded)} nóg kuponu stawiane "
-      f"pojedynczo: **{base_ret:+.2f} j., "
-      f"{100.0 * base_ret / len(graded):+.1f}%**.")
-    A("")
-    A("### Co z tej tabeli faktycznie wynika")
-    A("")
-    A(f"Każda klasa nóg tego dnia traci około {abs(pop_roi):.0f}% na "
-      "pojedynczych zakładach, bo tyle mniej więcej wynosi marża Superbeta na "
-      "tych cenach. **Żadna bramka nie separuje klasy istotnie gorszej od "
-      "reszty** — co znaczy, że ROI pojedynczej nogi jest złym testem dla "
-      "bramki, która dotyczy nóg **mnożonych**.")
-    A("")
-    A("Argument za tymi bramkami jest arytmetyczny, nie empiryczny, i jeden "
-      "dzień go nie rozstrzygnie. Noga o pewności 0,92 i kursie 1,06 mnoży "
-      "prawdopodobieństwo slipa przez 0,92, a jego kurs tylko przez 1,06: "
-      "iloczyn 0,975, więc obniża EV slipa **niezależnie od tego, czy tego "
-      "dnia weszła**. Wczoraj weszła 36 razy na 36 i to nie jest kontrargument "
-      "— to jest dokładnie to, jak wygląda noga 92-procentowa na próbce 36.")
-    A("")
-    A("Uczciwe podsumowanie: `LINE_BEYOND_SAMPLE` i `THIN_SAMPLE_FOR_BUILDER` "
-      "mają słabe wsparcie w danych i mocne w rozumowaniu; `ODDS_TOO_LOW` i "
-      "`NEGATIVE_LEG_EV` mają wsparcie **wyłącznie** arytmetyczne i trzeba je "
-      "zweryfikować na wyniku slipów przez kilka dni, a nie na ROI nóg.")
-    A("")
+    emit(f"Punkt odniesienia — wszystkie {len(graded)} nóg kuponu stawiane "
+         f"pojedynczo: **{base_ret:+.2f} j., "
+         f"{100.0 * base_ret / len(graded):+.1f}%**.")
+    emit("")
+    emit("### Co z tej tabeli faktycznie wynika")
+    emit("")
+    emit(f"Każda klasa nóg tego dnia traci około {abs(pop_roi):.0f}% na "
+         "pojedynczych zakładach, bo tyle mniej więcej wynosi marża Superbeta na "
+         "tych cenach. **Żadna bramka nie separuje klasy istotnie gorszej od "
+         "reszty** — co znaczy, że ROI pojedynczej nogi jest złym testem dla "
+         "bramki, która dotyczy nóg **mnożonych**.")
+    emit("")
+    emit("Argument za tymi bramkami jest arytmetyczny, nie empiryczny, i jeden "
+         "dzień go nie rozstrzygnie. Noga o pewności 0,92 i kursie 1,06 mnoży "
+         "prawdopodobieństwo slipa przez 0,92, a jego kurs tylko przez 1,06: "
+         "iloczyn 0,975, więc obniża EV slipa **niezależnie od tego, czy tego "
+         "dnia weszła**. Wczoraj weszła 36 razy na 36 i to nie jest kontrargument "
+         "— to jest dokładnie to, jak wygląda noga 92-procentowa na próbce 36.")
+    emit("")
+    emit("Uczciwe podsumowanie: `LINE_BEYOND_SAMPLE` i `THIN_SAMPLE_FOR_BUILDER` "
+         "mają słabe wsparcie w danych i mocne w rozumowaniu; `ODDS_TOO_LOW` i "
+         "`NEGATIVE_LEG_EV` mają wsparcie **wyłącznie** arytmetyczne i trzeba je "
+         "zweryfikować na wyniku slipów przez kilka dni, a nie na ROI nóg.")
+    emit("")
 
     # slip-level counterfactual
-    A("### Efekt na poziomie slipów")
-    A("")
+    emit("### Efekt na poziomie slipów")
+    emit("")
     kept_slips, killed_slips, trimmed = [], [], []
     for slip_id, b in enumerate(picks):
         # By slip, not by fixture: a builder and a single can share one.
@@ -486,18 +487,19 @@ def main() -> int:
 
     before_ret, before_n = money(kept_slips + killed_slips + trimmed, False)
     after_ret, after_n = money(kept_slips + trimmed, True)
-    A(table(["", "slipów", "wynik (1 j./slip)", "ROI"],
-            [["kupon, który poszedł", before_n, f"{before_ret:+.2f} j.",
-              pct_roi(before_ret, before_n)],
-             ["po dzisiejszych bramkach", after_n, f"{after_ret:+.2f} j.",
-              pct_roi(after_ret, after_n)]]))
-    A("")
-    A(f"Bramki usunęłyby **{len(killed_slips)}** slipów w całości "
-      f"(zostawały <2 nogi) i przycięłyby **{len(trimmed)}**; "
-      f"**{len(kept_slips)}** przeszłoby bez zmian.")
-    A("")
+    emit(table(["", "slipów", "wynik (1 j./slip)", "ROI"],
+               [["kupon, który poszedł", before_n, f"{before_ret:+.2f} j.",
+                 pct_roi(before_ret, before_n)],
+                ["po dzisiejszych bramkach", after_n, f"{after_ret:+.2f} j.",
+                 pct_roi(after_ret, after_n)]]))
+    emit("")
+    emit(f"Bramki usunęłyby **{len(killed_slips)}** slipów w całości "
+         f"(zostawały <2 nogi) i przycięłyby **{len(trimmed)}**; "
+         f"**{len(kept_slips)}** przeszłoby bez zmian.")
+    emit("")
 
-    out = Path(args.out) if args.out else Path("reports") / f"sofa_audyt_glaboki_{args.date}.md"
+    out = (Path(args.out) if args.out
+           else Path("reports") / f"sofa_audyt_glaboki_{args.date}.md")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines), encoding="utf-8")
     print(f"WROTE {out}")
