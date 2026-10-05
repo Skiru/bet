@@ -20,10 +20,25 @@ Kończy się werdyktem i **żadną rekomendacją stawki**.
 
 ## 0. Co jest weryfikowane
 
-**Kuponem jest PDF.** `06_coupon.json` trzyma single VALUE, których zmierzony
+**Kuponem jest PDF**, a od 2026-10-05 jego jedynym artefaktem jest
+`runs/sofa/<data>/11_coupon.json` (COUPON_ASSEMBLY: piłka i tenis z
+`08_confidence.json`, hokej / koszykówka / siatkówka / CS2 z
+`08_confidence_sports.json`). Weryfikujesz: **top 30** (pierwsze 30 pozycji
+niezablokowanych), **każdą nogę wydrukowanego buildera**, pozycje z
+`read_requests.json` i **nogi sportów mierzonych** (z surowej migawki).
+Nogi zablokowane (mecz się zaczął, noga była w poprzednim wydruku,
+`12_printed.json`) są zapisem wydruku: nie oznaczaj ich `NO_BET` za to, że
+dziś by nie przeszły — co najwyżej notatka.
+
+`06_coupon.json` trzyma single VALUE (selektor cenowy), których zmierzony
 wynik to **−20,4%** (2026-09-20) wobec **+8,2%** PDF-a tego samego dnia.
-Weryfikuj **oba** produkty i **w każdej tabeli nazwij, który jest który**.
-Nazwanie pliku singli „kuponem" odwraca dzień.
+W **każdej tabeli nazwij, który plik jest który**. Nazwanie pliku singli
+„kuponem" odwraca dzień.
+
+Pewność na nodze jest od 2026-10-05 07:15Z (epoka `stats_only`) wyłącznie ze
+statystyk; cena jest tylko filtrem (x = pewność × kurs ≥ 0,90, marża ≤ 15%,
+świeża cena, mecz niezaczęty). `forecast_p` („model”) jest nieskalibrowany i
+niczego nie bramkuje — rozjazd modelu z pewnością nie jest defektem.
 
 ---
 
@@ -63,40 +78,43 @@ Poza tym sprawdź ręcznie:
   usuwaj.
 - **`UNMATCHED_VETO`**, jeśli weta w ogóle były.
 
-### 1b. Warianty obok kuponu (od 2026-09-30)
+### 1b. Kupon: `audit_variants.py` (C1–C3, U1–U3)
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <data>
 ```
 
-Wyjście `0` = brak znalezisk, `1` = są znaleziska, `2` = zły plik. Linie pod
-`notes (not defects):` to zablokowane nogi sportów, których nie da się
-potwierdzić (`UNVERIFIABLE` — zbudowane, zanim istniał dziennik buildów): nie
-są znaleziskiem, ale też nie są „zaliczone” — wymień je w raporcie. S1–S5
-przeliczają każdy z czterech kuponów sportów (CS2, hokej, koszykówka,
-siatkówka) z surowych migawek: skrót PDF, reguła na każdej nowej nodze, każda
-cena i devig z rekordu migawki, jedna noga na mecz, żadnej zawetowanej nogi,
-cały wybór odtworzony tak, jak migawki stały w chwili budowy. M1–M3 sprawdzają
-WARIANT WSZYSTKIE: skrót PDF, każda sekcja równa temu, co jej źródło drukuje
-teraz, nic zapisanego do `runs/sofa/<data>/`. „nothing to check” to nie jest
-zaliczenie — powiedz, które warianty istniały. Dla nogi sportu dopytaj
-Superbet o żywą cenę jak w 2c (strona i cała grupa wyników) i sprawdź, czy
-rynek rozlicza się tak, jak mówi etykieta (czas podstawowy czy z dogrywką,
-format meczu towarzyskiego).
+Wyjście `0` = brak znalezisk, `1` = są znaleziska, `2` = zły plik.
 
-**WARIANT** (`08_confidence_wariant.json` → `KUPON_<data>_WARIANT.pdf`; próg
-0,65, pewność × kurs ≥ 0,90, marża do 15%, drukuje każdy singiel):
-`audit_variants` C1/C2 sprawdza jego świeżość (także wobec `reads.json`),
-profil i regułę każdej wydrukowanej pozycji, ale **nóg z próbek nie odtwarza
-żaden skrypt** —
-`audit_coupon` go nie otwiera. Zastosuj 2a–2d do każdej pozycji, którą drukuje, a której nie
-ma oficjalny PDF. Raportuj go osobno, nigdy łącznie z kuponem. Noga
-WARIANTU z `reads` (WATCH) albo `MODEL_ABOVE_OWN_SAMPLE(...)` w
-`context_flags` została w nim celowo — oficjalny kupon ją zdjął.
+- **C1** — artefakt swojego profilu, nie starszy niż arkusz i weta; PDF nie
+  starszy od artefaktu.
+- **C2** — każdy wydrukowany singiel spełnia swoje pokrętła; noga
+  zablokowana sprawdzana wobec `printed_under`.
+- **C3** — każda noga z `confidence.legs_requiring_read` (top 30, nogi
+  wydrukowanych builderów, `read_requests.json`) ma odczyt
+  `author: "analyst"`, a żadna wydrukowana nie ma WATCH ani NO_BET.
+- **U1** — świeże single `11_coupon.json` w kolejności `coupon_order`,
+  numerowane 1..N, zablokowane na górze bez numeru.
+- **U2** — każdy świeży singiel piłki i tenisa niesie epokę `stats_only`.
+- **U3** — każda świeża noga sportu mierzonego odtworzona z surowej migawki
+  Superbetu z chwili budowy `08_confidence_sports.json`: kurs, czas i wiek
+  ceny, marża grupy ≤ 15%, x ≥ 0,90, pewność = kubełek kalibracji
+  `forecast_p`.
 
-`audit_variants` C3 (dni od 2026-10-05): każda noga, którą drukuje oficjalny
-PDF — singiel albo noga buildera — ma w `reads.json` odczyt z
-`author: "analyst"` i żadna nie ma odczytu WATCH ani NO_BET.
+Linie pod `notes (not defects):` nie są znaleziskiem, ale też nie są
+„zaliczone” — wymień je w raporcie. „nothing to check” to nie jest
+zaliczenie — powiedz, czego nie było. Dla nogi sportu U3 sprawdza migawkę,
+nie dzisiejszą cenę: dopytaj Superbet o żywą cenę jak w 2c (strona i cała
+grupa wyników), sprawdź tożsamość meczu w `sport_fixtures.json`
+(`IDENTIFIED`, `home_is_team1`) i czy rynek rozlicza się tak, jak mówi
+etykieta (czas podstawowy czy z dogrywką, okres, format).
+
+Historyczne (wycofane 2026-10-05: WARIANT i WSZYSTKIE od 07:15Z, kupony
+sportowe od 08:30Z; pliki do poranka 10-05 zostają i są rozliczane po
+staremu): S1–S5 (kupony sportów) i M1–M3 (WARIANT WSZYSTKIE) odpalają się
+tylko dla tych dni, a dla późniejszych buildów są notatkami. WARIANT
+(`08_confidence_wariant.json` → `KUPON_<data>_WARIANT.pdf`) weryfikuje się
+tylko dla dnia, który go ma — osobno, nigdy łącznie z kuponem.
 
 ---
 
@@ -104,8 +122,9 @@ PDF — singiel albo noga buildera — ma w `reads.json` odczyt z
 
 Audyt sprawdza wiersz **wobec niego samego**. Wiersz, którego wszystkie pola
 są wzajemnie spójne i wszystkie zbudowane na złej próbce, przechodzi go bez
-zająknięcia. Dlatego dla **każdej pozycji, którą stawia PDF**, i dla **każdego
-singla z nadwyżką > +0,40**:
+zająknięcia. Dlatego dla **każdej pozycji top 30, każdej nogi buildera i
+każdej nogi sportu mierzonego**, którą drukuje PDF (dla nogi sportu 2a to
+odtworzenie z migawki i `sport_fixtures.json`, nie z `03_samples.json`):
 
 ### 2a. Odtwórz wiersz z surowych obserwacji
 
@@ -185,7 +204,12 @@ wierszy reguła odrzuciła na zegarze, który był tym błędnym.
 COUPON rankuje po **względnej przewadze cenowej** (`surplus / required_odds`),
 a każda miara nadwyżki rośnie, gdy `p` jest **zawyżone**. Wiersze najbardziej
 podatne na błąd są więc najczęściej wybierane. To własność mechanizmu, nie
-hipoteza o dniu, i z niej biorą się konkretne kontrole:
+hipoteza o dniu, i z niej biorą się konkretne kontrole
+(dotyczą `06_coupon.json`). Kupon (`11_coupon.json`) od 2026-10-05 sortuje po
+pewności, nie po cenie — tam test antyselekcji to: czy top 30 skupia się w
+jednym rynku, jednej lidze, cienkich kubełkach krzywej (`calibration_n`) albo
+w jednym sporcie mierzonym, i ile szczebli jednej drabiny stoi obok siebie.
+Kontrole selektora VALUE:
 
 - **Rozkład po rynkach.** Koncentracja VALUE w najsłabszym pomiarze (cienkie
   próbki, niemierzalne drabiny, brak własnej krzywej) to artefakt, nie
@@ -232,15 +256,18 @@ produkuj źródła.
 5. **Lista wierszy, których nie postawiłbyś, mimo że pipeline je wybrał, wraz
    z powodem dla każdego.** To jest produkt. Prozą **i** na samym końcu jako
    jedna ogrodzona tablica JSON obiektów `LegRead`
-   (`src/bet/sofa/contracts.py`, strict, `extra="forbid"`; wszystkie
-   dziewięć kluczy, `author: "verifier"`): `verdict: "NO_BET"` za defekt
-   (zła strona, nieaktualna albo błędna cena, arytmetyka, która się nie
-   odtwarza), `"WATCH"` za osąd; `[]`, gdy lista jest pusta. Weryfikator nie
-   pisze pliku — zlecający dopisuje tablicę do `reads.json`, przebudowuje
-   COUPON, CONFIDENCE i PDF obu profili oraz WARIANT WSZYSTKIE i powtarza
-   `audit_coupon` + `audit_variants`. NO_BET zdejmuje nogę z kuponu i z
-   WARIANTU; WATCH zdejmuje ją z kuponu, a w WARIANCIE zostawia z nadrukiem
-   `WATCH (verifier): <powód>`.
+   (`src/bet/sofa/contracts.py`, strict, `extra="forbid"`; klucze
+   `sofascore_event_id`, `market`, `subject`, `line`, `direction`, `verdict`,
+   `author: "verifier"`, `reason`, opcjonalnie `context` i `period`; dla nogi
+   sportu `market` = rodzina, `direction` = strona T1/T2/DRAW/ODD/EVEN/YES/NO
+   albo wynik „3:1”, `period` = okres / kwarta / set / mapa): `verdict:
+   "NO_BET"` za defekt (zła strona, nieaktualna albo błędna cena,
+   arytmetyka, która się nie odtwarza, zła tożsamość meczu), `"WATCH"` za
+   osąd; `[]`, gdy lista jest pusta. Weryfikator nie pisze pliku — zlecający
+   dopisuje tablicę do `reads.json`, przebudowuje od CONFIDENCE (FIXTURE_CHECK
+   najpierw) przez `build_coupon.py` do PDF i powtarza `audit_coupon` +
+   `audit_variants`. NO_BET i WATCH zdejmują nogę z kuponu do
+   `removed_by_reads` (rozliczana osobno, `audit_settlement` 7h).
 
 Na koniec werdykt i **żadna rekomendacja stawki**. Kupon bywa technicznie
 poprawny i mimo to niewart stawiania: `K_PRICE` i `MAX_LADDER_SIGMA` są

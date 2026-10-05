@@ -1,12 +1,34 @@
 # Modele dla hokeja, koszykówki i siatkówki — przegląd literatury i projekt
 
-Stan: 2026-10-02. Dokument badawczo-projektowy. **Nic tutaj nie zasila
-kuponu oficjalnego ani go nie bramkuje.** Hokej, koszykówka i siatkówka są
-pomiarem (`SHADOW` / `SHADOW_SETTLE`, `runs/sofa/shadow/<sport>/<data>/`), a
-kupony sportowe (`KUPON_<d>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`) są dziś
-cenowe. Każdy model opisany niżej wchodzi najpierw jako pomiar z etykietą
-`UNFITTED_CONSTANTS` / „measurement”, a jego wynik nigdy nie jest łączony
-z wynikiem kuponu ani innych wariantów.
+Stan: 2026-10-02 (dokument badawczo-projektowy), z dopiskiem 2026-10-05.
+
+**Od 2026-10-05 08:30Z (`bet.sofa.epochs.SPORTS_ON_COUPON_FROM_UTC`)
+nogi hokeja, koszykówki, siatkówki i CS2 drukują się na jednym kuponie**
+(`runs/sofa/<d>/KUPON_<d>.pdf`, artefakt `11_coupon.json`). Ich pewność to
+model wyników (`src/bet/sofa/score_model.py`) albo silnik CS2
+(`src/bet/sofa/cs2_engine.py`) przepuszczony przez krzywą kalibracji bez
+cen — `config/sofa_sport_confidence_calibration.json`
+(`scripts/sofa/fit_sport_confidence.py --before <d>`, tylko między dniami;
+dolna granica Wilsona kubełka, `realised_lo95` tylko dla klucza
+dopuszczonego, `min_bucket` 200, `max_overstatement` 0,03). Etapy:
+SPORT_IDENTITY (`run_sport_identity.py`, przypięte id Sofascore →
+`sport_fixtures.json`) i SPORT_CONFIDENCE (`run_sport_confidence.py` →
+`08_confidence_sports.json`); cena jest tylko filtrem (x ≥ 0,90, marża grupy
+≤ 15%, cena nie starsza niż 3 h). Model niesie się na nodze jako
+`forecast_p` (`forecast_source` `score_model` / `cs2_engine`). Pomiar
+poza próbą: [`RAPORT_KALIBRACJA_SPORTOW_2026-10-05.md`](RAPORT_KALIBRACJA_SPORTOW_2026-10-05.md).
+Pomiar `SHADOW` / `SHADOW_SETTLE` (`runs/sofa/shadow/<sport>/<data>/`)
+zostaje i jest wejściem tych etapów.
+
+Historyczne (wycofane 2026-10-05 od 08:30Z): osobne kupony sportowe
+(`KUPON_<d>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`, `run_sport_coupon.py`) były
+cenowe — pewność z devigu Superbetu, od rana 10-05 przekalibrowana
+`config/sofa_sport_price_calibration.json` — i nie czytały żadnego modelu.
+Ich pliki do poranka 10-05 zostają i są rozliczane po staremu
+(`settle_sport_coupon.py`). Tekst poniżej (2026-10-02) opisuje drogę modelu
+do tamtych kuponów; tam, gdzie mówi „kupon sportowy”, czytaj go jako zapis
+historyczny. Wynik każdego modelu jako pomiaru nadal nigdy nie jest łączony
+z wynikiem kuponu.
 
 Cel ustalony przez operatora (2026-10-02): **pobicie ceny Superbetu NIE jest
 celem.** Operator przyjmuje wniosek literatury, że te rynki są trudne do
@@ -350,6 +372,12 @@ nieobecny kolega przejmujący posiadania), o której rynek wie, a my nie.
 
 ### B.1 Reguła awansu (zastępuje „blend CI < 0”)
 
+> Dopisek 2026-10-05: reguła poniżej była napisana dla wycofanych kuponów
+> sportowych. Na jednym kuponie model wchodzi inaczej — przez krzywą
+> `config/sofa_sport_confidence_calibration.json` i warunek F6 (pewność poza
+> próbą nie wyższa od zrealizowanej o > 3 pp w kubełkach z n ≥ 200), opisany
+> w planie `PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5.
+
 Model nogi `p_model` przechodzi z pomiaru do **selekcji w kuponie sportowym**
 (nigdy do kuponu oficjalnego), gdy na **≥ 2 rozliczonych dniach** i
 **≥ 30 meczach** danej rodziny (rodzina = `family` z `shadow.MARKETS` /
@@ -393,7 +421,9 @@ rynki o niskiej marży.
 Etykiety zostają: wiersz z modelu niesie `UNFITTED_CONSTANTS` dopóki stałe
 nie zostały dopasowane poza próbą, a kupon sportowy pozostaje
 „eksperymentalny” i rozliczany osobno (`settle_sport_coupon.py`, ledger per
-wariant).
+wariant) — historyczne: kupony sportowe wycofane 2026-10-05; od tego dnia
+nogi tych sportów rozlicza 7c kuponu (tabela sportów mierzonych, po
+przypiętym id).
 
 ### B.2 Wspólne zasady pomiaru
 

@@ -8,6 +8,7 @@ w złym momencie jest błędem, nie stratą minuty.
 ```
 05_sheet + wyniki ──► SETTLE ──► data/sofa.db ──► fit_constants.py ──► config/*.json ──► SHEET
                                        └──────► fit_confidence.py ──► sofa_confidence_calibration.json
+historia wyników hokej/kosz/siatka/CS2 + linie SHADOW/CS2 ──► fit_sport_confidence.py ──► sofa_sport_confidence_calibration.json ──► SPORT_CONFIDENCE
 ```
 
 ---
@@ -28,6 +29,9 @@ w złym momencie jest błędem, nie stratą minuty.
 | `sofa_board_exclusions.json` | ręcznie, z pomiarem | `board.py` | **pusty jest poprawny** — wykluczenie bez pomiaru to cięcie pokrycia w przebraniu oszczędności |
 | `sofa_no_stats_tournaments.json` | `fit_no_stats_tournaments.py` (poza sekwencją) | `samples.py` | `fitted_at_utc`, `min_events` ≥ 10, `events_examined`; każdy wpis to turniej, który **ani razu** nie oddał `/event/{id}/statistics` |
 | `sofa_name_aliases.json` | ręcznie | `names.py` | aliasy PL→EN (111 wpisów): `anglia → england` itd. |
+| `sofa_sport_confidence_calibration.json` (od 2026-10-05) | `fit_sport_confidence.py --before <d>` — **tylko między dniami** | `sport_confidence.py` → `run_sport_confidence.py` (SPORT_CONFIDENCE) | krzywe per sport × rodzina nad prawdopodobieństwem modelu wyników / silnika CS2 (bez cen); `realised_lo95` kubełka tylko dla klucza **dopuszczonego** (`admitted`, `rodzina\|strona`), `min_bucket` 200, `max_overstatement` 0,03 (pewność poza próbą nie wyższa od zrealizowanej o > 3 pp — F6), `not_calibrated`, `oos`, `fitted_from` (`before`, `never_mid_day`, `max_history_date`). Brak pliku albo sportu w nim → nogi tego sportu `NOT_CALIBRATED`, SPORT_CONFIDENCE kod 1, kupon piłki i tenisa budowany dalej |
+| `sofa_name_stopwords.json` (od 2026-10-05) | ręcznie (`description`, `added`, `words`) | `resolve.py` (`name_stopwords`, `shadow_opponent_agrees`) | słowa, które nigdy same nie potwierdzają przeciwnika w sporcie shadow (hokej, koszykówka, siatkówka) w jednowyrazowej regule SHADOW_SETTLE: nazwy miejsc dzielone przez kilka klubów (`tel`, `aviv`, `texas`, `state` …); czytane obok `resolve._GENERIC_NAME_TOKENS` |
+| `sofa_sport_price_calibration.json` | `fit_sport_price_calibration.py --before <d>` | `sport_coupon.py` | **historyczne** — korekta ceny faworytów dla kuponów sportowych wycofanych 2026-10-05 08:30Z; nic nie znaczy dla kuponu (pewność sportów idzie z `sofa_sport_confidence_calibration.json`) |
 
 ### Tempo, zakładki i współbieżność — co z czym chodzi w parze
 
@@ -440,6 +444,20 @@ dokłada krok 2); po kolei jest czytelniej.
    weryfikacją sha256 przed i po.
 
 **Poza tym narzędziem:** `fit_tennis_rating.py --cut`,
-`fit_tennis_tier_baselines.py`, `measure_side_correlations.py` — osobne
-fity, nie ruszane tutaj. Dopuszczenie propsa (`admitted_player_markets`) to
+`fit_tennis_tier_baselines.py`, `measure_side_correlations.py`,
+`fit_sport_confidence.py --before <d>` (krzywe sportów mierzonych) — osobne
+fity, nie ruszane tutaj, każdy tylko między dniami. Dopuszczenie propsa (`admitted_player_markets`) to
 osobna, ręczna decyzja po przeczytaniu raportu.
+
+### Kopie zapasowe bazy — reguła (od 2026-10-05)
+
+Jedna kopia zapasowa bazy na bieżącą epokę refitu
+(`data/backup_<epoka>/sofa.db`); `prepare_refit` wypisuje starsze kopie do
+usunięcia, nigdy sam nie usuwa; kopia przez `cp -c` (klon APFS) tam, gdzie
+się da. **Stan kodu 2026-10-05:** to jest reguła, nie zachowanie skryptu —
+`prepare_refit.py backup --db` kopiuje dziś przez `shutil.copy2` i nie
+wypisuje starszych kopii; wypisywanie i klon APFS są zaplanowane (plan
+2026-10-05, część 7.4). Do tego czasu starsze kopie wskazuje i usuwa
+człowiek, na decyzję operatora (tak było 2026-10-05: usunięte
+`data/backup_2026-10-02/` i `data/backup_2026-10-03/`, została
+`data/backup_2026-10-05/sofa.db`).

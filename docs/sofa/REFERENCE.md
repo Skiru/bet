@@ -104,6 +104,14 @@ Zamiast szukać w ciemno całych lig, szukamy meczu poprzez drużynę z Superbet
 3. Pobierz ID tej encji (najlepiej 1-3 pierwsze wyniki `type: "team"`).
 4. Pobierz najbliższe spotkania: `GET /team/{id}/events/next/0` (i ewentualnie `last/0` jeśli data to dziś lub wczoraj).
 5. Znajdź zdarzenie, w którym data (`startTimestamp`) i drużyna przeciwna (Away/Home Team na Sofascore) zgadzają się z Superbetem.
+
+To samo zapytanie `GET /team/{id}/events/next/0` (jedno na mecz, cache z TTL
+listingów) wykonuje od 2026-10-05 SPORT_IDENTITY
+(`scripts/sofa/run_sport_identity.py`, `src/bet/sofa/sport_identity.py`) dla
+hokeja, koszykówki, siatkówki i CS2: id drużyny z cache offline, druga
+drużyna sprawdzana w odpowiedzi (obie nazwy powyżej progu, start ±1 h od
+Superbetu, unikalność w dniu); wynik przypięty w
+`runs/sofa/<d>/sport_fixtures.json` i nigdy nie szukany ponownie.
 6. Pobierz `GET /event/{id}` – dostaniesz wszystkie statystyki, składy, **a także strukturę turnieju** (np. `cupRoundType`, `round`), bez posiadania tej wiedzy z góry.
 
 **Zmierzony wskaźnik sukcesu Algorytmu B:**
@@ -136,6 +144,14 @@ Wniosek: **Algorytm B jest w pełni samowystarczalny i powinien być domyślnym 
     * `venue` (stadium name, city, capacity)
     * `referee` (id, name, country)
 * **Dowód:** `event_16363633_details.json`
+
+* **Kto czyta od 2026-10-05:** FIXTURE_CHECK (`scripts/sofa/run_fixture_check.py`,
+  `src/bet/sofa/fixture_status.py`) pyta `/event/{id}` dla meczów
+  drukowanych i przesuniętych zegarów (Superbet różny od RESOLVE o > 30 min,
+  `CLOCK_GAP_MIN`), najpierw z cache (`sofa_event_detail`, 60 min dla meczu
+  nierozegranego). `status.type` ∈ {`postponed`, `canceled`, `cancelled`,
+  `abandoned`} → `FIXTURE_NOT_AS_SCHEDULED`; świeży `startTimestamp`
+  zastępuje zamrożony zegar RESOLVE. Bez mostu: `UNVERIFIED`.
 
 ### 3. Statystyki Meczowe - Piłka Nożna
 * **Endpoint:** `GET /event/{id}/statistics`
