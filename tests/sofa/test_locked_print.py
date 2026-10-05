@@ -779,3 +779,44 @@ def test_an_unprinted_build_still_carries_what_it_had_locked(
     locked = [s for s in third["singles"] if s.get("locked")]
     assert [s["sofascore_event_id"] for s in locked] == [2]
     assert locked[0]["printed_at_utc"] == first["created_at_utc"]
+
+
+def _late_doc() -> dict[str, Any]:
+    def single(eid: int, kickoff: str) -> dict[str, Any]:
+        return {"sofascore_event_id": eid, "match": f"M{eid}",
+                "market": "games_won_for", "subject": "a", "line": 11.5,
+                "direction": "UNDER",
+                "kickoff_utc": kickoff, "confidence": 0.8, "odds": 1.3}
+    return {"profile": "standard", "epoch": "stats_only", "pdf_max_singles": None,
+            "created_at_utc": "2026-10-05T08:40:41Z",
+            "pdf_rendered_at_utc": "2026-10-05T09:19:49Z",
+            # 1 started before the render, 2 after it, 3 was locked earlier
+            "singles": [single(1, "2026-10-05T09:00:00Z"),
+                        single(2, "2026-10-05T09:30:00Z"),
+                        {**single(3, "2026-10-05T08:00:00Z"),
+                         "locked": True, "printed_at_utc": "2026-10-05T07:00:00Z"}]}
+
+
+def test_a_leg_whose_match_started_before_the_pdf_render_is_not_locked():
+    # 10-05: the PDF was rendered 09:19:49Z; twelve tennis legs starting
+    # 09:00-09:10Z were locked with printed_at_utc 09:19:49Z and C2 flagged
+    # them "printed after its kickoff". The operator's rule counts a leg
+    # printed BEFORE its start only.
+    now = datetime(2026, 10, 5, 10, 18, tzinfo=UTC)
+    out = carry_over(_late_doc(), "standard", now, lambda eid, ko: True)
+    assert sorted(s["sofascore_event_id"] for s in out.singles) == [2, 3]
+    # the earlier print's stamp is kept, not moved to this render
+    stamps = {s["sofascore_event_id"]: s["printed_at_utc"] for s in out.singles}
+    assert stamps[3] == "2026-10-05T07:00:00Z"
+    late = [(x["sofascore_event_id"], x["printed_at_utc"])
+            for x in out.printed_after_start]
+    assert late == [(1, "2026-10-05T09:19:49Z")]
+
+
+def test_printed_after_start_survives_the_merge_once():
+    from bet.sofa.locked_print import merge_locked
+
+    now = datetime(2026, 10, 5, 10, 18, tzinfo=UTC)
+    a = carry_over(_late_doc(), "standard", now, lambda eid, ko: True)
+    b = carry_over(_late_doc(), "standard", now, lambda eid, ko: True)
+    assert len(merge_locked(a, b).printed_after_start) == 1

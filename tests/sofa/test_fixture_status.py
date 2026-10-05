@@ -51,6 +51,17 @@ def test_postponed_is_refused_unverified_is_not():
     assert fs.refreshed_start({"status": fs.UNVERIFIED, "start_utc": "x"}) is None
 
 
+def test_a_halted_match_re_dated_is_not_as_scheduled():
+    # El Porvenir - Canuelas (15276945), 10-05: kicked off 10-03, halted at
+    # 0-0, startTimestamp moved to 10-05 18:00Z with status "interrupted".
+    assert fs.not_as_scheduled({"status": "interrupted"}) == "interrupted"
+    assert fs.not_as_scheduled({"status": "suspended"}) == "suspended"
+    assert fs.not_as_scheduled({"status": "willcontinue"}) == "willcontinue"
+    assert fs.not_as_scheduled(None, "interrupted") == "interrupted"
+    # a start delayed by minutes has not kicked off
+    assert fs.not_as_scheduled({"status": "delayed"}) is None
+
+
 def test_only_printed_matches_and_moved_clocks_are_asked():
     other = {**FX, "sofascore_event_id": 8}
     printed = {**FX, "sofascore_event_id": 9}

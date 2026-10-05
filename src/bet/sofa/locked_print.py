@@ -126,6 +126,10 @@ class LockedPrint:
     # artifact's `legs` (the PDF reads a builder leg's numbers from there).
     legs: list[dict[str, Any]] = field(default_factory=list)
     previous_created_at_utc: str | None = None
+    # Printed legs whose match had started before the print they come from
+    # (PDF rendered after the kickoff): never a bet made before the start, so
+    # never locked - recorded here, not dropped in silence.
+    printed_after_start: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def keys(self) -> set[LegKey]:
@@ -152,6 +156,29 @@ def _stamp(
         "locked": True,
         "printed_at_utc": item.get("printed_at_utc", created),
         "printed_under": item.get("printed_under", dials),
+    }
+
+
+def printed_after_its_start(item: Mapping[str, Any], created: str) -> bool:
+    """The print the leg is carried from (its own printed_at_utc if an earlier
+    rebuild locked it, else this print) came at or after its printed kickoff -
+    audit_variants C2's "printed after its kickoff". 10-05: the PDF was
+    rendered 09:19Z and twelve tennis legs starting 09:00-09:10Z were locked."""
+    kickoff = item.get("kickoff_utc")
+    if not isinstance(kickoff, str) or not kickoff:
+        return False
+    printed_at = str(item.get("printed_at_utc") or created)
+    return _utc(kickoff) <= _utc(printed_at)
+
+
+def _late(item: Mapping[str, Any], created: str, kind: str) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "key": list(leg_key(item)) if kind == "single" else None,
+        "sofascore_event_id": int(item["sofascore_event_id"]),
+        "match": item.get("match"),
+        "kickoff_utc": item.get("kickoff_utc"),
+        "printed_at_utc": str(item.get("printed_at_utc") or created),
     }
 
 
@@ -201,6 +228,9 @@ def carry_over(
         if sports is not None and str(s.get("sport") or "football") not in sports:
             continue
         if is_locked(int(s["sofascore_event_id"]), s.get("kickoff_utc")):
+            if printed_after_its_start(s, created):
+                out.printed_after_start.append(_late(s, created, "single"))
+                continue
             out.singles.append(_stamp(s, created, dials))
             k = leg_key(s)
             if k not in seen:
@@ -211,6 +241,9 @@ def carry_over(
         if not pdf_printed and not b.get("locked"):
             continue
         if not is_locked(eid, b.get("kickoff_utc")):
+            continue
+        if printed_after_its_start(b, created):
+            out.printed_after_start.append(_late(b, created, "builder"))
             continue
         out.builders.append(_stamp(b, created, dials))
         for x in b.get("legs") or []:
@@ -252,6 +285,12 @@ def merge_locked(first: LockedPrint, second: LockedPrint) -> LockedPrint:
         if leg_key(x) not in seen_legs:
             seen_legs.add(leg_key(x))
             out.legs.append(x)
+    late: set[tuple[Any, ...]] = set()
+    for item in [*first.printed_after_start, *second.printed_after_start]:
+        ident = (item["kind"], item["sofascore_event_id"], str(item["key"]))
+        if ident not in late:
+            late.add(ident)
+            out.printed_after_start.append(item)
     return out
 
 

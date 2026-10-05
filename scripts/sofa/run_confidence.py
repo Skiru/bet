@@ -945,6 +945,11 @@ def main() -> int:
             rung = [eid_, market_, subject_, line_, direction_]
             late_refusals.append({"key": rung, "as": kind, "refusal": why})
             print(f"LOCKED_DESPITE_LATE_REFUSAL: {why} {kind} {rung}", file=sys.stderr)
+    for late_print in locked.printed_after_start:
+        print(f"NOT_LOCKED_PRINTED_AFTER_START: {late_print['kind']} "
+              f"{late_print['match']} {late_print['key']} kickoff "
+              f"{late_print['kickoff_utc']} printed {late_print['printed_at_utc']}",
+              file=sys.stderr)
 
     # K3 (stats-only): confidence, the earlier start, the match - never EV.
     if so:
@@ -1159,6 +1164,12 @@ def main() -> int:
             }
             if locked else {}
         ),
+        # Printed legs whose match had started before that print: never
+        # locked (locked_print.printed_after_its_start), listed here.
+        **(
+            {"printed_after_start": locked.printed_after_start}
+            if locked.printed_after_start else {}
+        ),
         # Written only when reads.json holds any, so a day without reads is
         # byte-for-byte what it was before 2026-10-04.
         **(
@@ -1338,6 +1349,7 @@ def main() -> int:
             "locked_singles": len(locked.singles),
             "locked_builders": len(locked.builders),
             "locked_late_refusals": len(late_refusals),
+            "printed_after_start": len(locked.printed_after_start),
             "vetoes_applied": len(vetoes) - len(unmatched),
             "vetoes_unmatched": len(unmatched),
             "vetoed_rungs": len(vetoed_keys),

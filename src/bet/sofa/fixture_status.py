@@ -33,8 +33,15 @@ from typing import Any
 
 FIXTURE_STATUS_FILE = "fixture_status.json"
 # Sofascore status.type values of a match that will not be played as
-# scheduled.
-NOT_AS_SCHEDULED = frozenset({"postponed", "canceled", "cancelled", "abandoned"})
+# scheduled. A match that kicked off and was halted (interrupted 80,
+# suspended 81, willcontinue 140) is not one either: El Porvenir - Canuelas,
+# 10-05, was halted at 0-0 on 10-03 and re-dated with status "interrupted",
+# and passed the gate as an ordinary pre-match fixture. "delayed" (61, start
+# delayed) has not started and stays out.
+NOT_AS_SCHEDULED = frozenset({
+    "postponed", "canceled", "cancelled", "abandoned",
+    "interrupted", "suspended", "willcontinue",
+})
 CLOCK_GAP_MIN = 30.0
 UNVERIFIED = "UNVERIFIED"
 

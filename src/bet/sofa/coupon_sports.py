@@ -32,6 +32,7 @@ from typing import Any
 from bet.sofa import sport_coupon as sc
 from bet.sofa.confidence import SHEET_SPORTS, too_close_to_kickoff
 from bet.sofa.contracts import LegRead, Veto
+from bet.sofa.locked_print import printed_after_its_start
 from bet.sofa.veto import read_refusal, veto_matches
 
 MEASURED_SPORTS = ("hockey", "basketball", "volleyball", "cs2")
@@ -199,6 +200,10 @@ def locked_sport_legs(
         if not is_measured(leg):
             continue
         if not started(leg, now, fresh):
+            continue
+        # Its match had started before that print (PDF rendered after the
+        # kickoff): never a bet made before the start, never locked.
+        if printed_after_its_start(leg, created):
             continue
         out.append({
             **{k: v for k, v in leg.items() if k not in ("position", "block")},

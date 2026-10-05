@@ -198,3 +198,12 @@ def test_settle_starts_from_the_id_pinned_before_the_match(tmp_path):
     # an earlier record with its own id keeps it
     assert cs.seeded({"sofascore_event_id": 5}, seeds["a"]) == {"sofascore_event_id": 5}
     assert cs.seeded({"state": "PENDING"}, seeds["b"])["sofascore_event_id"] == 22
+
+
+def test_a_sport_leg_whose_match_started_before_the_pdf_render_is_not_locked():
+    printed = {"profile": "standard", "epoch": "stats_only",
+               "created_at_utc": "2026-10-07T09:00:00Z",
+               "pdf_rendered_at_utc": "2026-10-07T18:10:00Z",
+               "singles": [cs.normalize(_sport_leg(position=3, block=2))]}
+    now = datetime(2026, 10, 7, 18, 30, tzinfo=UTC)
+    assert cs.locked_sport_legs(printed, now) == []
