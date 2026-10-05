@@ -37,7 +37,10 @@ from bet.sofa.confidence import builder_odds  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
 from scripts.sofa.audit_settlement import (  # noqa: E402
+    REFUND,
+    Key,
     _key,
+    coupon_settled_by_key,
     settled_by_key,
     slip_status,
 )
@@ -69,6 +72,10 @@ def grade_confidence_positions(
         g = by_key.get(_key(p["source"]))
         if g is None:
             outcome = missing
+        elif g["outcome"] == REFUND:
+            # Moved beyond 48 h / awarded: the stake back, 0 units - its own
+            # count, never UNSETTLED (A1 / A3, 2026-10-05).
+            outcome = REFUND
         elif g["outcome"] == "PUSH":
             outcome = "VOID"
         else:
@@ -86,7 +93,9 @@ def grade_confidence_positions(
             )
             outs.append(None if g is None else g["outcome"])
         status = slip_status(outs)
-        outcome = {"NIE WESZŁO": "LOSS", "WESZŁO": "WIN"}.get(status, missing)
+        outcome = {"NIE WESZŁO": "LOSS", "WESZŁO": "WIN", "ZWROT": REFUND}.get(
+            status, missing
+        )
         real = screen.get(str(src["sofascore_event_id"]))
         odds = float(real) if real is not None else builder_odds(src["odds_if_product"])
         graded_builders.append(
@@ -107,17 +116,27 @@ def official_rows(
     db_path: str,
     profile: str = "standard",
     event_ids: set[int] | None = None,
+    keys: set[Key] | None = None,
 ) -> tuple[dict[Any, dict[str, Any]], dict[str, Any]]:
     """The day's settled rows and the profile's screen prices, read exactly
     where audit_settlement 7c / 7d reads them: the database
     (sofa_settled_row, which regrade_settled.py corrects - 07_settled.json
     is not), and the profile's own screen file (a variant's slip on a fixture
-    is a different slip from the coupon's)."""
+    is a different slip from the coupon's).
+
+    With `keys` (the printed legs) the rows are audit_settlement's
+    coupon_settled_by_key - the one source 7c / 7d read (A5): other-date rows
+    of the printed events, the A4 file, the refunds."""
     if not Path(db_path).exists():
         # Never "nothing settled": with no database every position would read
         # PENDING and overwrite a graded ledger row. A missing DB is a failure.
         raise FileNotFoundError(f"settled-row database not found: {db_path}")
-    rows = settled_by_key(db_path, date, event_ids or set())
+    if keys is not None:
+        rows = coupon_settled_by_key(
+            db_path, mc.official_dir(runs_dir, date), date, keys
+        )
+    else:
+        rows = settled_by_key(db_path, date, event_ids or set())
     path = mc.official_dir(runs_dir, date) / SCREEN_FILE[profile]
     screen = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     return rows, screen
@@ -126,9 +145,10 @@ def official_rows(
 def grade_official(
     runs_dir: str, date: str, section: dict[str, Any], db_path: str
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    ids = {int(p["source"]["sofascore_event_id"]) for p in section.get("singles", [])}
-    ids |= {int(b["source"]["sofascore_event_id"]) for b in section.get("builders", [])}
-    rows, screen = official_rows(runs_dir, date, db_path, event_ids=ids)
+    keys = section_keys(section)
+    rows, screen = official_rows(
+        runs_dir, date, db_path, event_ids={k[0] for k in keys}, keys=keys
+    )
     return grade_confidence_positions(
         section.get("singles", []),
         section.get("builders", []),
@@ -136,6 +156,24 @@ def grade_official(
         screen,
         settle_ran=ran_on(rows, date),
     )
+
+
+def section_keys(section: dict[str, Any]) -> set[Key]:
+    """Every leg key a confidence section prints - its singles and the legs
+    of its builders (the positions carry the artifact row under `source`)."""
+    keys = {_key(p["source"]) for p in section.get("singles", [])}
+    for b in section.get("builders", []):
+        src = b["source"]
+        keys |= {
+            _key({**leg, "sofascore_event_id": src["sofascore_event_id"]})
+            for leg in src.get("legs") or []
+        }
+    return keys
+
+
+def refunded(rows: list[dict[str, Any]]) -> int:
+    """Positions refunded (moved beyond 48 h / awarded): 0 units, own count."""
+    return sum(1 for r in rows if r.get("outcome") == REFUND)
 
 
 def ran_on(rows: dict[Any, dict[str, Any]], date: str) -> bool:
@@ -163,8 +201,14 @@ def settle_day(runs_dir: str, date: str, db_path: str) -> dict[str, Any] | None:
             singles, builders = grade_official(runs_dir, date, sec, db_path)
             graded = singles + builders
             result["sections"][key] = {
-                "singles": mc.summarize_units(singles),
-                "builders": mc.summarize_units(builders),
+                "singles": {
+                    **mc.summarize_units(singles),
+                    "refunded": refunded(singles),
+                },
+                "builders": {
+                    **mc.summarize_units(builders),
+                    "refunded": refunded(builders),
+                },
                 "rows": graded,
             }
         else:
@@ -175,7 +219,10 @@ def settle_day(runs_dir: str, date: str, db_path: str) -> dict[str, Any] | None:
                 "rows": graded,
             }
         everything += graded
-    result["variant_total"] = mc.summarize_units(everything)
+    result["variant_total"] = {
+        **mc.summarize_units(everything),
+        "refunded": refunded(everything),
+    }
     write_atomic(
         out / mc.MULTI_SETTLED, json.dumps(result, ensure_ascii=False, indent=2)
     )
@@ -194,9 +241,9 @@ def _main() -> int:
     )
     print(
         "| day | section | positions | settled | won | lost | not counted "
-        "| units | ROI |"
+        "| refund | units | ROI |"
     )
-    print("|---|---|---|---|---|---|---|---|---|")
+    print("|---|---|---|---|---|---|---|---|---|---|")
     open_rows = 0
     for day in days(args.start, args.end):
         try:
@@ -219,7 +266,7 @@ def _main() -> int:
                 print(
                     f"| {day} | {key} {part} | {s['positions']} | {s['settled']} | "
                     f"{s['won']} | {s['lost']} | {s['not_counted']} | "
-                    f"{s['units']:+.2f} | {roi} |"
+                    f"{s.get('refunded', 0)} | {s['units']:+.2f} | {roi} |"
                 )
             # a defect, not a wait: two graders disagreeing on a leg
             open_rows += sum(1 for r in sec["rows"] if r["outcome"] == "MISMATCH")
@@ -228,7 +275,7 @@ def _main() -> int:
         print(
             f"| {day} | **variant total** | {t['positions']} | {t['settled']} | "
             f"{t['won']} | {t['lost']} | {t['not_counted']} | "
-            f"{t['units']:+.2f} | {roi} |"
+            f"{t.get('refunded', 0)} | {t['units']:+.2f} | {roi} |"
         )
     return 1 if open_rows else 0
 

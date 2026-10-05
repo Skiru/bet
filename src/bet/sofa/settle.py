@@ -12,8 +12,9 @@ cannot measure **ROI**. Do not report the second from the first.
 from __future__ import annotations
 
 import statistics
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from bet.sofa.contracts import Direction, GapReason
@@ -48,6 +49,70 @@ Outcome = Literal["WIN", "LOSS", "PUSH"]
 # enumerate abnormal codes we have never seen, and the one we missed would
 # quietly become a settled row.
 NORMAL_FINISH_STATUS_CODE = 100
+
+# Superbet voids a bet on a match not played within 48 h of the start it was
+# offered at (Regulamin 5.E.1.a). One constant for every sport: shadow.py and
+# its settle read it from here.
+VOID_AFTER = timedelta(hours=48)
+
+# SETTLE skip reasons that are a REFUND of the stake (0 units), never a loss
+# and never "unsettled": the match was moved more than VOID_AFTER from the
+# start the leg was printed at (Everton 2026-09-24: event 16997888 moved 66 h,
+# graded LOSS), or Sofascore marks the result awarded (a forfeit, not a
+# played contest).
+MOVED_BEYOND_VOID = "MOVED_BEYOND_VOID"
+AWARDED = "AWARDED"
+REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED})
+
+# A4 (2026-10-05): the grades of printed legs the final SHEET had no row for,
+# beside 07_settled.json and never in sofa_settled_row (no forecast columns).
+PRINTED_SETTLED_FILE = "07_settled_printed.json"
+
+
+def moved_beyond_void(event: Mapping[str, Any], kickoffs: Sequence[datetime]) -> bool:
+    """Did Sofascore's start move more than VOID_AFTER from the earliest
+    clock the pipeline held for the fixture (locked_print.kickoff_clocks:
+    02_fixtures kickoff_utc, superbet_kickoff_utc, superbet_kickoff_seen_utc)?
+
+    Either direction: a match brought forward 66 h is as void as one put back
+    66 h. No start or no clock says nothing, so it is never "moved".
+    """
+    start = event.get("startTimestamp")
+    if not isinstance(start, (int, float)) or isinstance(start, bool) or start <= 0:
+        return False
+    if not kickoffs:
+        return False
+    started = datetime.fromtimestamp(start, UTC)
+    return abs(started - min(kickoffs)) > VOID_AFTER
+
+
+def settle_completed(event: Mapping[str, Any]) -> bool:
+    """May SETTLE grade this event? `is_completed_event` and not awarded.
+
+    Only the settle path asks this. `is_completed_event` itself is unchanged:
+    samples, ratings, the cache replay and the tennis prior read it, and an
+    awarded match there is a history question decided elsewhere. An awarded
+    result is status code 100 "Ended" with `isAwarded` true (the one cached
+    case, volleyball 17238228: 0-0, winnerCode 2) - it passes
+    `is_completed_event` and has no played score to grade.
+    """
+    return is_completed_event(dict(event)) and not event.get("isAwarded")
+
+
+def refund_event_ids(skips_doc: Mapping[str, Any] | None) -> dict[int, str]:
+    """{event id: refund reason} from a day's 07_settle_skips.json document.
+
+    A day settled before 2026-10-05 carries no such reason and returns {}.
+    """
+    out: dict[int, str] = {}
+    for entry in (skips_doc or {}).get("skipped_events") or []:
+        if not isinstance(entry, Mapping):
+            continue
+        for reason in entry.get("skipped") or {}:
+            if str(reason) in REFUND_REASONS:
+                out[int(entry["sofascore_event_id"])] = str(reason)
+                break
+    return out
 
 
 def settle(actual: float, line: float, direction: Direction) -> Outcome:

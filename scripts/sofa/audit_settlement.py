@@ -43,6 +43,8 @@ from bet.sofa.confidence import (  # noqa: E402
     prints_builders,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.locked_print import printed_leg_keys  # noqa: E402
+from bet.sofa.settle import PRINTED_SETTLED_FILE, refund_event_ids  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
 from scripts.sofa.audit_niches import latest_artifact as latest_niches  # noqa: E402
@@ -54,6 +56,10 @@ from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 
 # A settled row's natural key, as the UNIQUE constraint defines it.
 Key = tuple[int, str, str, float, str]
+
+# A printed leg on an event SETTLE skipped MOVED_BEYOND_VOID / AWARDED: the
+# stake comes back (0 units). Its own count, never a loss, never "unsettled".
+REFUND = "REFUND"
 
 
 def _key(row: dict[str, Any]) -> Key:
@@ -156,6 +162,60 @@ def settled_by_key(
     return by_key
 
 
+def load_printed_settled(run_dir: Path) -> list[dict[str, Any]]:
+    """A4: the day's 07_settled_printed.json - grades of printed legs the
+    final SHEET had no row for (empty on a day without one)."""
+    path = run_dir / PRINTED_SETTLED_FILE
+    if not path.exists():
+        return []
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+
+
+def refund_events(run_dir: Path) -> dict[int, str]:
+    """{event: MOVED_BEYOND_VOID | AWARDED} from the day's 07_settle_skips.json:
+    every leg on such an event is a refund (0 units)."""
+    path = run_dir / "07_settle_skips.json"
+    if not path.exists():
+        return {}
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    return refund_event_ids(doc if isinstance(doc, dict) else None)
+
+
+def coupon_settled_by_key(
+    db_path: str, run_dir: Path, run_date: str, keys: set[Key]
+) -> dict[Key, dict[str, Any]]:
+    """The grades of a day's PRINTED legs - one source for 7c / 7d and the
+    ledger (A5, 2026-10-05: 7c took other-date rows for the sheet's events,
+    the ledger for the printed ones, so a printed leg on an event the sheet
+    no longer held read differently in the two).
+
+    In order: the day's rows and the same keys filed under another date
+    (settled_by_key over the printed events); then the A4 file for a key the
+    database lacks; then a refund for every key on an event SETTLE found
+    moved beyond the void window or awarded - it overrides any row, since a
+    void bet pays the stake back whatever was graded under another date.
+    """
+    by_key = settled_by_key(db_path, run_date, {k[0] for k in keys})
+    for row in load_printed_settled(run_dir):
+        by_key.setdefault(_key(row), row)
+    refunds = refund_events(run_dir)
+    for key in keys:
+        if key[0] in refunds:
+            by_key[key] = {
+                "run_date": run_date,
+                "sofascore_event_id": key[0],
+                "market": key[1],
+                "subject": key[2],
+                "line": key[3],
+                "direction": key[4],
+                "actual_value": None,
+                "outcome": REFUND,
+                "reason": refunds[key[0]],
+            }
+    return by_key
+
+
 def _settled_artifact_loader(
     runs_dir: Path,
 ) -> Callable[[str], list[dict[str, Any]]]:
@@ -182,12 +242,15 @@ def settle_singles(
     singles: list[dict[str, Any]], by_key: dict[Any, Any]
 ) -> dict[str, Any]:
     """Grade the PDF's printed singles at their printed odds."""
-    won = lost = unsettled = 0
+    won = lost = unsettled = refunded = 0
     units = 0.0
     conf_sum = 0.0
     for sgl in singles:
         g = by_key.get((sgl["sofascore_event_id"], sgl["market"], sgl["subject"] or "",
                         float(sgl["line"]), sgl["direction"]))
+        if g is not None and g["outcome"] == REFUND:
+            refunded += 1  # moved > 48 h / awarded: the stake back, 0 units
+            continue
         if g is None or g["outcome"] == "PUSH":
             unsettled += 1
             continue
@@ -200,16 +263,21 @@ def settle_singles(
             units -= 1.0
     settled = won + lost
     return {"won": won, "lost": lost, "unsettled": unsettled, "settled": settled,
-            "units": units,
+            "refunded": refunded, "units": units,
             "mean_confidence": conf_sum / settled if settled else 0.0}
 
 
 def singles_summary_rows(printed: int, res: dict[str, Any]) -> list[list[Any]]:
     """The singles table, shared by the official coupon (7c) and the variant (7d)."""
+    # A refund row only on a day that has one: every earlier report reads
+    # exactly as it did.
+    refund = ([["zwrot (mecz przesunięty > 48 h / przyznany), 0 j.",
+                res["refunded"]]] if res.get("refunded") else [])
     return [
         ["pojedynczych na kuponie", printed],
         ["rozliczonych", res["settled"]],
         ["weszło / nie weszło", f"{res['won']} / {res['lost']}"],
+        *refund,
         ["nierozliczonych", res["unsettled"]],
         ["% trafionych", _pct(res["won"], res["settled"])],
         ["deklarowana pewność (śr.)",
@@ -227,7 +295,13 @@ def slip_status(outcomes: list[str | None]) -> str:
     unsettled leg was checked first, so the 2026-09-22 Accrington slip - one
     leg LOSS in 07_settled.json - was reported as unsettled and left out of
     the day's ROI, which then read -17.7% instead of about -34%.
+
+    A REFUND leg (the match moved beyond 48 h or awarded) voids the slip: a
+    builder's legs are all on one match, so the whole slip is void - ZWROT,
+    0 units, neither won, lost nor unsettled.
     """
+    if any(o == REFUND for o in outcomes):
+        return "ZWROT"
     if any(o == "LOSS" for o in outcomes):
         return "NIE WESZŁO"
     if any(o is None or o == "PUSH" for o in outcomes):
@@ -252,6 +326,7 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
         return builder_odds(b["odds_if_product"]), False
 
     slip_rows, sw, sl, su, sret, sn = [], 0, 0, 0, 0.0, 0
+    sz = 0  # refunded slips (moved > 48 h / awarded): 0 units, own count
     n_measured = 0
     lw = ll = lu = 0
     for b in picks:
@@ -260,14 +335,18 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
             g = by_key.get((b["sofascore_event_id"], L["market"], L["subject"] or "",
                             float(L["line"]), L["direction"]))
             outs.append((L, g))
-            if g is None or g["outcome"] == "PUSH":
+            if g is not None and g["outcome"] == REFUND:
+                pass  # counted with its slip
+            elif g is None or g["outcome"] == "PUSH":
                 lu += 1
             elif g["outcome"] == "WIN":
                 lw += 1
             else:
                 ll += 1
         status = slip_status([None if g is None else g["outcome"] for _, g in outs])
-        if status == "NIEROZLICZONY":
+        if status == "ZWROT":
+            sz += 1
+        elif status == "NIEROZLICZONY":
             su += 1
         elif status == "WESZŁO":
             sw, sn = sw + 1, sn + 1
@@ -283,6 +362,8 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
               ["rozliczonych", sn],
               ["WESZŁO (cały slip)", sw],
               ["NIE WESZŁO", sl],
+              *([["ZWROT (mecz przesunięty > 48 h / przyznany), 0 j.", sz]]
+                if sz else []),
               ["nierozliczonych", su],
               ["% slipów trafionych", _pct(sw, sn)],
               ["nóg: weszło / nie weszło", f"{lw} / {ll}"],
@@ -319,6 +400,8 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
         reason = ("; ".join(broke) if broke
                   else ("brak rozliczenia: " + ", ".join(missing) if missing
                         else "wszystkie nogi weszły"))
+        if status == "ZWROT":
+            reason = "zwrot: mecz przesunięty o > 48 h albo przyznany"
         odds, measured = slip_odds(b)
         rows.append([b["match"], b["n_legs"], f"{b['odds_if_product']:.2f}",
                      f"{odds:.2f}" + ("" if measured else " (szac.)"),
@@ -358,6 +441,16 @@ def main() -> int:
     settled_db = _load_settled(config.db_path, args.date)
     by_key = settled_by_key(
         config.db_path, args.date, {int(r["sofascore_event_id"]) for r in sheet}
+    )
+    # 7c / 7d grade what the PDFs printed from the one source the ledger reads
+    # (A5): the printed keys' rows, the A4 file, the refunds.
+    printed_set: set[Key] = set()
+    for prof in PROFILES.values():
+        prof_path = run_dir / confidence_artifact(prof)
+        if prof_path.exists():
+            printed_set |= printed_leg_keys(json.loads(prof_path.read_text()))
+    coupon_by_key = coupon_settled_by_key(
+        config.db_path, run_dir, args.date, printed_set
     )
 
     fixture_by_id = {f["sofascore_event_id"]: f for f in fixtures}
@@ -690,7 +783,7 @@ def main() -> int:
         screen_path = run_dir / "09_screen_prices.json"
         screen = (json.loads(screen_path.read_text(encoding="utf-8"))
                   if screen_path.exists() else {})
-        lines.extend(render_builders(printed_builders(conf), by_key, screen,
+        lines.extend(render_builders(printed_builders(conf), coupon_by_key, screen,
                                      screen_path.name))
         # The PDF prints singles too (since 2026-09-22), and on 2026-09-23 it
         # printed 216 singles and no builder - a day this section would have
@@ -703,7 +796,7 @@ def main() -> int:
             A("PDF nie drukował pojedynczych.")
             A("")
         else:
-            res = settle_singles(singles, by_key)
+            res = settle_singles(singles, coupon_by_key)
             A(_table(["", "liczba"], singles_summary_rows(len(singles), res)))
             A("")
             A("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
@@ -748,7 +841,7 @@ def main() -> int:
         if not var_singles:
             A("Wariant nie wydrukował pojedynczych.")
         else:
-            vres = settle_singles(var_singles, by_key)
+            vres = settle_singles(var_singles, coupon_by_key)
             A(_table(["", "liczba"], singles_summary_rows(len(var_singles), vres)))
             if len(var_all) > len(var_singles):
                 A("")
@@ -761,7 +854,7 @@ def main() -> int:
             only = [x for x in var_singles
                     if (x["sofascore_event_id"], x["market"], x["subject"], x["line"],
                         x["direction"]) not in official_keys]
-            ores = settle_singles(only, by_key)
+            ores = settle_singles(only, coupon_by_key)
             A("")
             if conf_path.exists():
                 A(f"Z tego **tylko w wariancie** (nie ma ich na oficjalnym kuponie): "
@@ -791,7 +884,7 @@ def main() -> int:
                 A("Wariant nie wydrukował żadnego Bet Buildera.")
                 A("")
             else:
-                lines.extend(render_builders(vpicks, by_key, vscreen,
+                lines.extend(render_builders(vpicks, coupon_by_key, vscreen,
                                              vscreen_path.name,
                                              printed_on="w wariancie"))
 

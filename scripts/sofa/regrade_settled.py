@@ -25,6 +25,25 @@ row is not this script's decision.
 --apply writes every change, old and new, to runs/sofa/regrade_<ts>.json
 first, so it can be undone. No network: the cache is the only input.
 
+Two back-data modes of 2026-10-05 (plan, part 4A):
+
+  --players     live player-prop rows graded again from the cached /lineups
+                with SETTLE's squad rule (run_settle._settle_player: only
+                the squad SAMPLES matched him in; PLAYER_AMBIGUOUS when the
+                other squad holds an equally good name). Flips are applied;
+                a row that is now ambiguous is listed and left alone.
+  --moved-void  live rows of a match Sofascore started more than 48 h from
+                the earliest clock its day held (settle.moved_beyond_void).
+                Superbet voided those bets. The row moves to the day the
+                match was really played when that day's sheet priced the
+                same key (the key is UNIQUE without run_date, so the played
+                day's SETTLE could not insert it), else it is deleted. The
+                original day's 07_settle_skips.json gets MOVED_BEYOND_VOID
+                for the event, so 7c and the ledger read the printed legs as
+                a refund. Every printed leg changed is listed.
+
+Without --apply (or with --dry-run) nothing is written.
+
 Exit 0 OK (or nothing to do), 1 when rows were left alone, 2 on failure.
 """
 
@@ -35,7 +54,7 @@ import json
 import sqlite3
 import sys
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +62,7 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import RetryingConnection
 from bet.sofa.listing_index import listed_events_by_id
+from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
@@ -50,11 +70,20 @@ from bet.sofa.metrics import (
     extract_flat_statistics,
     extract_metric,
 )
-from bet.sofa.players import is_player_metric
-from bet.sofa.settle import settle
+from bet.sofa.players import is_player_metric, player_sample_key, squad_statistics
+from bet.sofa.settle import MOVED_BEYOND_VOID, moved_beyond_void, settle
 from bet.sofa.tennis_score import match_tiebreak_sets
 from scripts.sofa.calibrate_from_cache import market_name, match_values
-from scripts.sofa.run_settle import _settle_derived, _subject_is_home
+from scripts.sofa.run_settle import (
+    _settle_derived,
+    _settle_player,
+    _subject_is_home,
+    load_player_sides,
+    player_own_home,
+    printed_keys,
+    seen_kickoffs,
+    skip_totals,
+)
 
 CALIBRATION = "cache-calibration"
 
@@ -300,6 +329,257 @@ def candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     ]
 
 
+_SELECT_ROW = """
+    SELECT id, run_date, sofascore_event_id, sport, market, subject,
+           line, direction, actual_value, outcome, settled_at
+    FROM sofa_settled_row
+"""
+
+
+def _day_json(runs_dir: Path, day: str, name: str) -> Any:
+    path = runs_dir / day / name
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return None
+
+
+def _fixtures(runs_dir: Path, day: str) -> dict[int, dict[str, Any]]:
+    doc = _day_json(runs_dir, day, "02_fixtures.json")
+    return {int(f["sofascore_event_id"]): f for f in doc or [] if isinstance(f, dict)}
+
+
+def player_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Live player-prop rows (--players)."""
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        _SELECT_ROW + " WHERE run_date != ? AND outcome IN ('WIN', 'LOSS')"
+        " AND market LIKE 'player_%'",
+        (CALIBRATION,),
+    ).fetchall()
+    conn.row_factory = None
+    return [dict(r) for r in rows if is_player_metric(r["market"])]
+
+
+def regrade_players(
+    conn: sqlite3.Connection, runs_dir: Path
+) -> tuple[list[dict[str, Any]], Counter[str], list[dict[str, Any]]]:
+    """(changes, tally, rows left) for --players: every live player row graded
+    again from the cached /lineups with SETTLE's squad rule (A2)."""
+    rows = player_candidates(conn)
+    events = {r["sofascore_event_id"] for r in rows}
+    cached = {
+        int(eid): (sj, lj)
+        for eid, sj, lj in conn.execute(
+            "SELECT sofascore_event_id, statistics_json, lineups_json"
+            " FROM sofa_event_stats"
+        )
+        if eid in events
+    }
+    details = detail_events(conn, events)
+    missing = events - set(details)
+    listings = listing_events(conn, missing) if missing else {}
+    fixtures: dict[str, dict[int, dict[str, Any]]] = {}
+    sides: dict[str, dict[tuple[int, str], str]] = {}
+    changes: list[dict[str, Any]] = []
+    left: list[dict[str, Any]] = []
+    tally: Counter[str] = Counter()
+    for row in rows:
+        eid = row["sofascore_event_id"]
+        day = row["run_date"]
+        if day not in fixtures:
+            fixtures[day] = _fixtures(runs_dir, day)
+            sides[day] = load_player_sides(runs_dir / day)
+        event = details.get(eid) or listings.get(eid)
+        sj, lj = cached.get(eid, (None, None))
+        lineups = json.loads(lj) if lj else None
+        if event is None or not lineups:
+            reason = "NO_EVENT" if event is None else "PLAYER_NO_LINEUPS"
+            tally[f"left:{reason}"] += 1
+            continue
+        statistics = json.loads(sj) if sj else None
+        squads = {
+            True: squad_statistics(lineups, is_home=True, statistics=statistics),
+            False: squad_statistics(lineups, is_home=False, statistics=statistics),
+        }
+        side = sides[day].get(
+            (eid, player_sample_key(row["market"], row["subject"] or ""))
+        )
+        own = player_own_home(side, fixtures[day].get(eid), event)
+        graded = _settle_player(row, squads, own)
+        if isinstance(graded, str):
+            reason = graded.split(":")[-1]
+            tally[f"left:{reason}"] += 1
+            left.append({**row, "reason": reason, "sample_side": side})
+            continue
+        actual, outcome = graded
+        if outcome not in ("WIN", "LOSS"):
+            tally["left:PUSH"] += 1
+            left.append({**row, "reason": "PUSH", "sample_side": side})
+            continue
+        if actual == row["actual_value"] and outcome == row["outcome"]:
+            tally["unchanged"] += 1
+            continue
+        kind = "outcome_flipped" if outcome != row["outcome"] else "actual_changed"
+        tally[kind] += 1
+        changes.append(_change(row, actual, outcome))
+    return changes, tally, left
+
+
+def _change(row: dict[str, Any], actual: float, outcome: str) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "run_date": row["run_date"],
+        "event_id": row["sofascore_event_id"],
+        "market": row["market"],
+        "subject": row["subject"],
+        "line": row["line"],
+        "direction": row["direction"],
+        "old_actual": row["actual_value"],
+        "new_actual": actual,
+        "old_outcome": row["outcome"],
+        "new_outcome": outcome,
+        "old_settled_at": row["settled_at"],
+    }
+
+
+def _key(row: dict[str, Any]) -> tuple[int, str, str, float, str]:
+    return (
+        int(row["sofascore_event_id"]),
+        str(row["market"]),
+        str(row.get("subject") or ""),
+        float(row["line"]),
+        str(row["direction"]),
+    )
+
+
+def moved_void_plan(
+    conn: sqlite3.Connection, runs_dir: Path
+) -> tuple[list[dict[str, Any]], Counter[str]]:
+    """(actions, tally) for --moved-void. One action per live row of a match
+    Sofascore started more than VOID_AFTER from the earliest clock of the
+    row's own day: `move` to the day it was played (that day's sheet priced
+    the key) or `delete`. Each action carries the full row (the undo copy)
+    and whether the original day's PDFs printed the leg."""
+    conn.row_factory = sqlite3.Row
+    rows = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT * FROM sofa_settled_row WHERE run_date != ?", (CALIBRATION,)
+        ).fetchall()
+    ]
+    conn.row_factory = None
+    events = {r["sofascore_event_id"] for r in rows}
+    details = detail_events(conn, events)
+    missing = events - set(details)
+    listings = listing_events(conn, missing) if missing else {}
+
+    fixtures: dict[str, dict[int, dict[str, Any]]] = {}
+    seen: dict[str, dict[int, str]] = {}
+    priced: dict[str, set[tuple[int, str, str, float, str]]] = {}
+    printed: dict[str, set[tuple[int, str, str, float, str]]] = {}
+
+    def load(day: str) -> None:
+        if day in fixtures:
+            return
+        fixtures[day] = _fixtures(runs_dir, day)
+        seen[day] = seen_kickoffs(runs_dir / day)
+        sheet = _day_json(runs_dir, day, "05_sheet.json") or []
+        priced[day] = {
+            _key(r) for r in sheet if isinstance(r, dict) and r.get("offered_odds")
+        }
+        printed[day] = (
+            printed_keys(runs_dir / day) if (runs_dir / day).exists() else set()
+        )
+
+    actions: list[dict[str, Any]] = []
+    tally: Counter[str] = Counter()
+    for row in sorted(rows, key=lambda r: (r["run_date"], r["sofascore_event_id"])):
+        eid = int(row["sofascore_event_id"])
+        day = str(row["run_date"])
+        event = details.get(eid) or listings.get(eid)
+        if event is None:
+            tally["left:NO_EVENT"] += 1
+            continue
+        load(day)
+        fixture = fixtures[day].get(eid)
+        if fixture is None:
+            tally["left:NO_FIXTURE"] += 1
+            continue
+        if not moved_beyond_void(event, kickoff_clocks(fixture, seen[day].get(eid))):
+            continue
+        start = datetime.fromtimestamp(int(event["startTimestamp"]), UTC).date()
+        target = None
+        for offset in (0, -1, 1):
+            cand = (start + timedelta(days=offset)).isoformat()
+            if cand == day:
+                continue
+            load(cand)
+            cand_fixture = fixtures[cand].get(eid)
+            if (
+                _key(row) in priced[cand]
+                and cand_fixture is not None
+                and not moved_beyond_void(
+                    event, kickoff_clocks(cand_fixture, seen[cand].get(eid))
+                )
+            ):
+                target = cand
+                break
+        action = "move" if target else "delete"
+        tally[action] += 1
+        actions.append(
+            {
+                "action": action,
+                "id": row["id"],
+                "run_date": day,
+                "to_run_date": target,
+                "event_id": eid,
+                "market": row["market"],
+                "subject": row["subject"],
+                "line": row["line"],
+                "direction": row["direction"],
+                "outcome": row["outcome"],
+                "printed": _key(row) in printed[day],
+                "printed_on_target": bool(target)
+                and _key(row) in printed[target or ""],
+                "row": row,
+            }
+        )
+    return actions, tally
+
+
+def mark_moved_in_skips(runs_dir: Path, actions: list[dict[str, Any]]) -> list[str]:
+    """Write MOVED_BEYOND_VOID into each original day's 07_settle_skips.json
+    for the events moved (counted per row). Returns the files changed."""
+    per_day: dict[str, Counter[int]] = {}
+    for a in actions:
+        per_day.setdefault(a["run_date"], Counter())[int(a["event_id"])] += 1
+    changed: list[str] = []
+    for day, counts in sorted(per_day.items()):
+        path = runs_dir / day / "07_settle_skips.json"
+        doc = _day_json(runs_dir, day, "07_settle_skips.json")
+        if not isinstance(doc, dict):
+            doc = {"date": day, "skipped_events": []}
+        events = {
+            int(e["sofascore_event_id"]): e
+            for e in doc.get("skipped_events") or []
+            if isinstance(e, dict)
+        }
+        for eid, n in counts.items():
+            entry = events.setdefault(eid, {"sofascore_event_id": eid, "skipped": {}})
+            skipped = dict(entry.get("skipped") or {})
+            skipped[MOVED_BEYOND_VOID] = max(int(skipped.get(MOVED_BEYOND_VOID, 0)), n)
+            entry["skipped"] = skipped
+        doc["skipped_events"] = [events[k] for k in sorted(events)]
+        doc["skipped"] = skip_totals(doc["skipped_events"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        changed.append(str(path))
+    return changed
+
+
 def regrade(
     conn: sqlite3.Connection,
     runs_dir: Path,
@@ -384,60 +664,171 @@ def regrade(
     return changes, tally
 
 
+def _apply_moved_void(
+    conn: sqlite3.Connection,
+    runs_dir: Path,
+    actions: list[dict[str, Any]],
+    at: datetime,
+) -> dict[str, Any]:
+    """Write the undo copy first, then the original days' skip files, then
+    the database: move a row's run_date or delete it."""
+    log = runs_dir / f"regrade_{at:%Y%m%dT%H%M%SZ}.json"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    before: dict[str, Any] = {}
+    for day in sorted({a["run_date"] for a in actions}):
+        before[day] = _day_json(runs_dir, day, "07_settle_skips.json")
+    log.write_text(
+        json.dumps(
+            {"mode": "moved-void", "actions": actions, "skips_before": before},
+            indent=1,
+            ensure_ascii=False,
+            default=str,
+        )
+        + "\n"
+    )
+    skip_files = mark_moved_in_skips(runs_dir, actions)
+    with conn:
+        conn.executemany(
+            "UPDATE sofa_settled_row SET run_date = ? WHERE id = ?",
+            [(a["to_run_date"], a["id"]) for a in actions if a["action"] == "move"],
+        )
+        conn.executemany(
+            "DELETE FROM sofa_settled_row WHERE id = ?",
+            [(a["id"],) for a in actions if a["action"] == "delete"],
+        )
+    return {"log": str(log), "skip_files": skip_files}
+
+
+def printed_lines(actions: list[dict[str, Any]]) -> list[str]:
+    """The printed legs a --moved-void changes, one line each, for the report."""
+    out = []
+    for a in actions:
+        if not (a["printed"] or a["printed_on_target"]):
+            continue
+        if a["action"] == "move":
+            where = f"moved to {a['to_run_date']}"
+            if a["printed_on_target"]:
+                where += " (printed there too)"
+        else:
+            where = "deleted"
+        out.append(
+            f"PRINTED {a['run_date']} event={a['event_id']} {a['market']} "
+            f"{a['subject'] or ''} {a['direction']} {a['line']:g} was {a['outcome']}"
+            f" -> REFUND; row {where}"
+        )
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--apply", action="store_true", help="write; default dry run")
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true", help="write; default dry run")
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report only (the default; explicit for scripted calls)",
+    )
+    kind = parser.add_mutually_exclusive_group()
+    kind.add_argument(
         "--match-tiebreak",
         action="store_true",
         help="re-grade live tennis games rows on matches with a 10-point match "
         "tiebreak (graded before afdb886f with its points summed as games)",
     )
-    parser.add_argument(
+    kind.add_argument(
         "--cards-staff",
         action="store_true",
         help="re-grade card-points rows (live and cache-calibration) on events "
         "with a card shown to staff, which Superbet does not count (2026-10-02)",
     )
+    kind.add_argument(
+        "--players",
+        action="store_true",
+        help="re-grade live player-prop rows from the cached /lineups, matched "
+        "only in the squad SAMPLES found the player in (2026-10-05)",
+    )
+    kind.add_argument(
+        "--moved-void",
+        action="store_true",
+        help="live rows of a match moved more than 48 h from its day's earliest "
+        "clock: move to the played day if that day's sheet priced the key, "
+        "else delete; mark MOVED_BEYOND_VOID in the original day's skips "
+        "(2026-10-05)",
+    )
     args = parser.parse_args()
     config = SofaConfig.from_env()
+    runs_dir = Path(config.runs_dir)
     at = datetime.now(UTC)
+    left_rows: list[dict[str, Any]] = []
+    actions: list[dict[str, Any]] = []
+    changes: list[dict[str, Any]] = []
     try:
         # RetryingConnection: a busy COMMIT is retried, as everywhere else.
         conn = sqlite3.connect(
             config.db_path, timeout=30.0, factory=RetryingConnection
         )
-        changes, tally = regrade(
-            conn,
-            Path(config.runs_dir),
-            match_tiebreak=args.match_tiebreak,
-            cards_staff=args.cards_staff,
-        )
+        if args.moved_void:
+            actions, tally = moved_void_plan(conn, runs_dir)
+        elif args.players:
+            changes, tally, left_rows = regrade_players(conn, runs_dir)
+        else:
+            changes, tally = regrade(
+                conn,
+                runs_dir,
+                match_tiebreak=args.match_tiebreak,
+                cards_staff=args.cards_staff,
+            )
     except (sqlite3.Error, ValueError) as exc:
         print(f"FAILED: {exc}", file=sys.stderr)
         return 2
 
-    by_day = Counter(
-        (c["run_date"], "flip" if c["old_outcome"] != c["new_outcome"] else "actual")
-        for c in changes
-    )
-    metrics: dict[str, Any] = {
-        "applied": args.apply,
-        "tally": dict(tally),
-        "by_day": {f"{d}:{k}": n for (d, k), n in sorted(by_day.items())},
-    }
-    if args.apply and changes:
-        log = Path(config.runs_dir) / f"regrade_{at:%Y%m%dT%H%M%SZ}.json"
-        log.parent.mkdir(parents=True, exist_ok=True)
-        log.write_text(json.dumps(changes, indent=1, ensure_ascii=False) + "\n")
-        stamp = at.isoformat()
-        with conn:
-            conn.executemany(
-                "UPDATE sofa_settled_row SET actual_value = ?, outcome = ?,"
-                " settled_at = ? WHERE id = ?",
-                [(c["new_actual"], c["new_outcome"], stamp, c["id"]) for c in changes],
-            )
-        metrics["log"] = str(log)
+    metrics: dict[str, Any] = {"applied": args.apply, "tally": dict(tally)}
+    if args.moved_void:
+        moves = Counter((a["run_date"], a["action"]) for a in actions)
+        metrics["by_day"] = {f"{d}:{k}": n for (d, k), n in sorted(moves.items())}
+        printed = printed_lines(actions)
+        metrics["printed_changed"] = len(printed)
+        for line in printed:
+            print(line)
+        if args.apply and actions:
+            metrics.update(_apply_moved_void(conn, runs_dir, actions, at))
+    else:
+        by_day = Counter(
+            (c["run_date"], "flip" if c["old_outcome"] != c["new_outcome"]
+             else "actual")
+            for c in changes
+        )
+        metrics["by_day"] = {f"{d}:{k}": n for (d, k), n in sorted(by_day.items())}
+        if args.players:
+            for c in changes:
+                print(
+                    f"PLAYER {c['run_date']} event={c['event_id']} {c['market']} "
+                    f"{c['subject']} {c['direction']} {c['line']:g}: "
+                    f"{c['old_outcome']} ({c['old_actual']:g}) -> "
+                    f"{c['new_outcome']} ({c['new_actual']:g})"
+                )
+            for r in left_rows:
+                if r["reason"] == "PLAYER_AMBIGUOUS":
+                    print(
+                        f"LEFT {r['run_date']} event={r['sofascore_event_id']} "
+                        f"{r['market']} {r['subject']}: PLAYER_AMBIGUOUS "
+                        f"(graded {r['outcome']}, left alone)"
+                    )
+        if args.apply and changes:
+            log = runs_dir / f"regrade_{at:%Y%m%dT%H%M%SZ}.json"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            log.write_text(json.dumps(changes, indent=1, ensure_ascii=False) + "\n")
+            stamp = at.isoformat()
+            with conn:
+                conn.executemany(
+                    "UPDATE sofa_settled_row SET actual_value = ?, outcome = ?,"
+                    " settled_at = ? WHERE id = ?",
+                    [
+                        (c["new_actual"], c["new_outcome"], stamp, c["id"])
+                        for c in changes
+                    ],
+                )
+            metrics["log"] = str(log)
     conn.close()
     left = sum(n for k, n in tally.items() if k.startswith("left:"))
     verdict = "PARTIAL" if left else "OK"

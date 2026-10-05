@@ -38,27 +38,41 @@ from typing import Any, NamedTuple, cast
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
-from bet.sofa.confidence import PROFILES, confidence_artifact
+from bet.sofa.confidence import (
+    PROFILES,
+    confidence_artifact,
+    printed_builders,
+    printed_singles,
+)
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.errors import CircuitOpenError, ProviderError
-from bet.sofa.locked_print import LegKey, leg_key, printed_leg_keys
+from bet.sofa.locked_print import LegKey, kickoff_clocks, leg_key, printed_leg_keys
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import extract_flat_statistics, extract_metric
 from bet.sofa.names import normalize_name
 from bet.sofa.players import (
+    PLAYER_MATCH_MARGIN,
+    PLAYER_MATCH_THRESHOLD,
+    best_player_score,
     extract_player_metric,
     is_player_metric,
     match_player,
+    player_sample_key,
     squad_statistics,
 )
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD, name_score
 from bet.sofa.samples import fetch_lineups
 from bet.sofa.settle import (
+    AWARDED,
+    MOVED_BEYOND_VOID,
+    PRINTED_SETTLED_FILE,
     SettledRow,
     insert_settled_rows,
     is_completed_event,
+    moved_beyond_void,
+    settle_completed,
 )
 from bet.sofa.settle import settle as settle_value
 from bet.sofa.stage import current_stage, set_stage
@@ -74,6 +88,10 @@ _CACHEABLE_STATUS = ("finished", "canceled", "abandoned")
 # `extract_metric` has no reading for them, so they are refused by name here
 # rather than falling through into a fuzzy match against a club.
 _DERIVED_SUBJECTS = frozenset({"1", "2", "__draw__"})
+
+# Marks a printed leg the final SHEET has no row for (A4): graded into
+# 07_settled_printed.json, never into sofa_settled_row.
+PRINTED_ONLY = "_printed_only"
 
 
 def _subject_is_home(subject: str, fixture: dict[str, Any]) -> bool | None:
@@ -175,10 +193,26 @@ def unfinished_reason(event: dict[str, Any]) -> str:
     return "NOT_FINISHED"
 
 
+class Unsettled(str):
+    """A skip reason that still carries the event it was read off, so the
+    caller can ask of an unfinished match whether it was moved beyond the
+    void window (MOVED_BEYOND_VOID decides before NOT_FINISHED does)."""
+
+    event: dict[str, Any] | None
+
+    def __new__(cls, reason: str, event: dict[str, Any] | None = None) -> "Unsettled":
+        obj = super().__new__(cls, reason)
+        obj.event = event
+        return obj
+
+
 def _event_payload(
     client: SofascoreClient, cache: SofaCache, event_id: int, refetch: bool = False
 ) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None] | str:
-    """(listing event, statistics, incidents), or a string saying why not."""
+    """(listing event, statistics, incidents), or a string saying why not.
+
+    An awarded result (settle.settle_completed) is AWARDED - a refund, never
+    graded off its score."""
     detail = client.event(event_id)
     event = (detail or {}).get("event")
     if not event:
@@ -193,7 +227,9 @@ def _event_payload(
     if detail and (event.get("status") or {}).get("type") == "finished":
         cache.save_event_detail(event_id, detail, "finished")
     if not is_completed_event(event):
-        return unfinished_reason(event)
+        return Unsettled(unfinished_reason(event), event)
+    if not settle_completed(event):
+        return Unsettled(AWARDED, event)
 
     start = event.get("startTimestamp")
     cached = None if refetch else cache.get_event_stats(
@@ -351,15 +387,25 @@ def value_rows_return(rows: list[Any]) -> tuple[list[Any], float]:
 
 
 def _settle_player(
-    row: dict[str, Any], squads: dict[bool, dict[str, Any] | None] | None
+    row: dict[str, Any],
+    squads: dict[bool, dict[str, Any] | None] | None,
+    own_home: bool | None = None,
 ) -> tuple[float, str] | str:
     """Grade one player row against the fixture's own squad lists (F54).
 
-    Returns (value, outcome) or a skip reason. The player is matched against
-    each squad exactly the way SAMPLES matched him against the historical
-    ones — same function, same threshold — so a row that could be sampled and
-    a row that can be settled are the same set. A different matcher here
-    would settle a subject the sheet never priced.
+    Returns (value, outcome) or a skip reason. The player is matched the way
+    SAMPLES matched him against the historical squads - same function, same
+    threshold - so a row that could be sampled and a row that can be settled
+    are the same set.
+
+    `own_home` is the squad SAMPLES found him in (03_samples.json
+    `players[..].side`, side_a = home) read onto this event's home / away.
+    Since 2026-10-05 he is matched in that squad only: home used to be
+    searched first, so an away "Weverson" could be graded off a home
+    "Reverson" (token_sort 87.5, over the 85 threshold). A candidate in the
+    OTHER squad within the matcher's margin of the one found is
+    PLAYER_AMBIGUOUS, never a guess. Without a side (no sample record) both
+    squads are searched, and a hit in both is PLAYER_AMBIGUOUS too.
 
     A player who did not take the pitch is PLAYER_DID_NOT_PLAY, not a zero:
     Superbet voids that bet, so settling it as a loss would invent a result
@@ -371,21 +417,82 @@ def _settle_player(
     if not subject:
         return "SUBJECT_NOT_MATCHED"
 
-    for squad in (squads.get(True), squads.get(False)):
+    order = (True, False) if own_home is None else (own_home,)
+    found: list[tuple[bool, str]] = []
+    for home in order:
+        squad = squads.get(home)
         if not squad:
             continue
         matched = match_player(subject, squad)
-        if matched is None:
+        if matched is not None:
+            found.append((home, matched))
+    if not found:
+        return "PLAYER_NOT_MATCHED"
+    if len(found) > 1:
+        return "PLAYER_AMBIGUOUS"
+    home, matched = found[0]
+    squad = squads.get(home) or {}
+    own_score = best_player_score(subject, {matched: squad[matched]})
+    other_score = best_player_score(subject, squads.get(not home))
+    if (
+        other_score >= PLAYER_MATCH_THRESHOLD
+        and other_score > own_score - PLAYER_MATCH_MARGIN
+    ):
+        return "PLAYER_AMBIGUOUS"
+    value = extract_player_metric(row["market"], squad[matched])
+    if value is GapReason.EVENT_NOT_FINISHED:
+        return "PLAYER_DID_NOT_PLAY"
+    if isinstance(value, GapReason):
+        return f"{row['market']}:{value.value}"
+    return float(value), settle_value(float(value), row["line"], row["direction"])
+
+
+def player_sides(samples: list[Any]) -> dict[tuple[int, str], str]:
+    """{(event id, "<market>|<subject>"): "side_a" | "side_b"} from a day's
+    03_samples.json - the squad SAMPLES matched each priced player in."""
+    out: dict[tuple[int, str], str] = {}
+    for fixture in samples:
+        if not isinstance(fixture, dict):
             continue
-        value = extract_player_metric(row["market"], squad[matched])
-        if value is GapReason.EVENT_NOT_FINISHED:
-            return "PLAYER_DID_NOT_PLAY"
-        if isinstance(value, GapReason):
-            return f"{row['market']}:{value.value}"
-        return float(value), settle_value(
-            float(value), row["line"], row["direction"]
-        )
-    return "PLAYER_NOT_MATCHED"
+        eid = fixture.get("sofascore_event_id")
+        for key, sample in (fixture.get("players") or {}).items():
+            side = sample.get("side") if isinstance(sample, dict) else None
+            if isinstance(eid, int) and side in ("side_a", "side_b"):
+                out[(eid, str(key))] = str(side)
+    return out
+
+
+def player_own_home(
+    side: str | None, fixture: dict[str, Any] | None, event: dict[str, Any]
+) -> bool | None:
+    """The sample's side_a / side_b read onto this event's home (True) / away.
+
+    side_a is the fixture's home entity (samples.py samples side_a from
+    home_entity_id). If the event lists the fixture's sides the other way
+    round the reading flips; if it lists neither entity no side is claimed.
+    """
+    if side not in ("side_a", "side_b"):
+        return None
+    sample_home = side == "side_a"
+    if fixture is None:
+        return sample_home
+    event_home = (event.get("homeTeam") or {}).get("id")
+    if event_home is None or event_home == fixture.get("home_entity_id"):
+        return sample_home
+    if event_home == fixture.get("away_entity_id"):
+        return not sample_home
+    return None
+
+
+def load_player_sides(run_dir: Path) -> dict[tuple[int, str], str]:
+    path = run_dir / "03_samples.json"
+    if not path.exists():
+        return {}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    return player_sides(doc if isinstance(doc, list) else [])
 
 
 def _handicap_side(
@@ -438,6 +545,9 @@ class EventFetch(NamedTuple):
     reason: str | None = None
     circuit_open: bool = False
     error: str | None = None
+    # The event a skip reason was read off (Unsettled.event), when there was
+    # one: MOVED_BEYOND_VOID is decided on it before NOT_FINISHED is.
+    event: dict[str, Any] | None = None
 
 
 def _fetch_one(
@@ -462,7 +572,9 @@ def _fetch_one(
     except ProviderError as exc:
         return EventFetch(event_id, reason="PROVIDER_ERROR", error=str(exc))
     if isinstance(payload, str):
-        return EventFetch(event_id, reason=payload)
+        return EventFetch(
+            event_id, reason=str(payload), event=getattr(payload, "event", None)
+        )
     return EventFetch(event_id, payload=payload)
 
 
@@ -698,6 +810,118 @@ def printed_keys(run_dir: Path) -> set[LegKey]:
     return keys
 
 
+def printed_legs(run_dir: Path) -> dict[LegKey, dict[str, Any]]:
+    """Every rung either profile's PDF prints, with what grading it needs
+    (sport, market, subject, line, direction; the price where printed).
+
+    A builder leg carries no sport of its own; the artifact's `legs` row of
+    the same key does."""
+    out: dict[LegKey, dict[str, Any]] = {}
+    for profile in PROFILES.values():
+        path = run_dir / confidence_artifact(profile)
+        if not path.exists():
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        by_key = {}
+        for x in doc.get("legs") or []:
+            k = _sheet_key(x)
+            if k is not None:
+                by_key[k] = x
+        # The same two lists printed_leg_keys reads.
+        for s in printed_singles(doc):
+            k = leg_key(s)
+            out.setdefault(k, {**by_key.get(k, {}), **s})
+        for b in printed_builders(doc):
+            eid = int(b["sofascore_event_id"])
+            for x in b.get("legs") or []:
+                k = leg_key(x, eid)
+                out.setdefault(
+                    k, {**by_key.get(k, {}), **x, "sofascore_event_id": eid}
+                )
+    return out
+
+
+def printed_without_sheet_row(
+    legs: dict[LegKey, dict[str, Any]],
+    sheet: list[dict[str, Any]],
+    fixtures: dict[int, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """A4 (2026-10-05): printed rungs the final SHEET holds no row for.
+
+    A leg printed before its start stays on the coupon (locked_print), but an
+    OFFER re-run after the start drops the started match (run_sheet) and a
+    SHEET re-run then has no row for it - rows_to_consider grades only sheet
+    keys, so 7c / 7d and the ledger kept a printed leg nobody graded. These
+    rows are graded from the /event payload like any other and written to
+    07_settled_printed.json, never to sofa_settled_row: the forecast columns
+    (sample_mean, sample_sd, p_bar) are NOT NULL and unknown here, and a row
+    without them must not feed a curve.
+    """
+    in_sheet = {k for k in (_sheet_key(r) for r in sheet) if k is not None}
+    out: list[dict[str, Any]] = []
+    for key in sorted(legs):
+        if key in in_sheet:
+            continue
+        leg = legs[key]
+        eid, market, subject, line, direction = key
+        sport = leg.get("sport") or (fixtures.get(eid) or {}).get("sport")
+        out.append(
+            {
+                "sofascore_event_id": eid,
+                "sport": sport,
+                "market": market,
+                "subject": subject,
+                "line": line,
+                "direction": direction,
+                "offered_odds": leg.get("offered_odds", leg.get("odds")),
+                PRINTED_ONLY: True,
+            }
+        )
+    return out
+
+
+def seen_kickoffs(run_dir: Path) -> dict[int, str]:
+    """Superbet's start as OFFER last saw it, per fixture (04_offer.json)."""
+    path = run_dir / "04_offer.json"
+    if not path.exists():
+        return {}
+    try:
+        offers = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    return {
+        int(o["sofascore_event_id"]): str(o["superbet_kickoff_seen_utc"])
+        for o in offers if isinstance(o, dict) and o.get("superbet_kickoff_seen_utc")
+    }
+
+
+def printed_settled_row(
+    row: dict[str, Any],
+    run_date: str,
+    competition_id: int | None,
+    value: float,
+    outcome: str,
+    settled_at: str,
+) -> dict[str, Any]:
+    """One A4 row of 07_settled_printed.json: the leg's key, the grade, and
+    where it came from - no forecast columns."""
+    return {
+        "run_date": run_date,
+        "sofascore_event_id": int(row["sofascore_event_id"]),
+        "sport": row.get("sport"),
+        "competition_id": competition_id,
+        "market": row["market"],
+        "subject": row.get("subject") or "",
+        "line": float(row["line"]),
+        "direction": row["direction"],
+        "actual_value": value,
+        "outcome": outcome,
+        "settled_at": settled_at,
+        "offered_odds": row.get("offered_odds"),
+        "source": "event_payload",
+    }
+
+
 def main() -> int:
     set_stage("SETTLE")
     parser = argparse.ArgumentParser()
@@ -770,12 +994,21 @@ def main() -> int:
     considered = rows_to_consider(
         sheet, include_unpriced=args.include_unpriced, printed=printed_keys(run_dir)
     )
+    # A4: printed legs the final sheet holds no row for, graded beside it.
+    printed_only = printed_without_sheet_row(printed_legs(run_dir), sheet, fixtures)
     by_event: dict[int, list[dict[str, Any]]] = {}
-    for row in considered:
+    for row in considered + printed_only:
         by_event.setdefault(row["sofascore_event_id"], []).append(row)
+    # The clocks a fixture was printed under (locked_print.kickoff_clocks):
+    # a match Sofascore now starts more than VOID_AFTER from the earliest of
+    # them is void at Superbet - MOVED_BEYOND_VOID, a refund, no row.
+    seen = seen_kickoffs(run_dir)
+    sides = load_player_sides(run_dir)
 
     settled_at = datetime.now(UTC).isoformat()
     rows: list[SettledRow] = []
+    # A4 grades: 07_settled_printed.json, never sofa_settled_row.
+    printed_rows: list[dict[str, Any]] = []
     skips = SkipLedger()
     events_settled = 0
     breaker_open = False
@@ -804,6 +1037,28 @@ def main() -> int:
     if args.refetch_stat_gaps:
         print(f"REFETCH_STAT_GAPS {len(refetch)} event(s)", file=sys.stderr)
 
+    def emit(
+        row: dict[str, Any],
+        event_id: int,
+        competition_id: int | None,
+        value: float,
+        outcome: str,
+    ) -> None:
+        """A graded row: the DB for a sheet row, 07_settled_printed.json for a
+        printed leg the sheet has no row for (A4)."""
+        if row.get(PRINTED_ONLY):
+            printed_rows.append(
+                printed_settled_row(
+                    row, args.date, competition_id, value, outcome, settled_at
+                )
+            )
+            return
+        rows.append(
+            _settled(
+                row, args.date, event_id, competition_id, value, outcome, settled_at
+            )
+        )
+
     reached: set[int] = set()
     try:
         for fetched in fetch_events_concurrently(
@@ -817,6 +1072,19 @@ def main() -> int:
                 skips.add(event_id, "PROVIDER_ERROR", len(event_rows))
                 breaker_open = True
                 break
+            read_event = (
+                fetched.payload[0] if fetched.payload is not None else fetched.event
+            )
+            if read_event is not None and moved_beyond_void(
+                read_event, kickoff_clocks(fixture, seen.get(event_id))
+            ):
+                # Before NOT_FINISHED and before any grade: Superbet voids a
+                # match not played within 48 h of the start it was offered at,
+                # whatever it then did (Everton 2026-09-24, moved 66 h, had
+                # been graded LOSS). No row: a VOID outcome would read as a
+                # loss in 7c, and fit_confidence does not read `outcome`.
+                skips.add(event_id, MOVED_BEYOND_VOID, len(event_rows))
+                continue
             if fetched.reason is not None:
                 if fetched.error:
                     print(
@@ -875,7 +1143,11 @@ def main() -> int:
                     if lineups_failed:
                         skips.add(event_id, "PROVIDER_ERROR")
                         continue
-                    graded = _settle_player(row, squads)
+                    sample_key = player_sample_key(row["market"], row["subject"] or "")
+                    side = sides.get((event_id, sample_key))
+                    graded = _settle_player(
+                        row, squads, player_own_home(side, fixture, event)
+                    )
                     if isinstance(graded, str):
                         skips.add(event_id, graded)
                         continue
@@ -885,17 +1157,7 @@ def main() -> int:
                         # covered the marginal path only).
                         skips.add(event_id, "PUSH")
                         continue
-                    rows.append(
-                        _settled(
-                            row,
-                            args.date,
-                            event_id,
-                            competition_id,
-                            value,
-                            outcome,
-                            settled_at,
-                        )
-                    )
+                    emit(row, event_id, competition_id, value, outcome)
                     continue
 
                 if is_derived(row["market"]):
@@ -906,17 +1168,7 @@ def main() -> int:
                         skips.add(event_id, graded)
                         continue
                     value, outcome = graded
-                    rows.append(
-                        _settled(
-                            row,
-                            args.date,
-                            event_id,
-                            competition_id,
-                            value,
-                            outcome,
-                            settled_at,
-                        )
-                    )
+                    emit(row, event_id, competition_id, value, outcome)
                     continue
 
                 is_home = _subject_is_home(row["subject"] or "", fixture)
@@ -942,17 +1194,7 @@ def main() -> int:
                 if outcome == "PUSH":
                     skips.add(event_id, "PUSH")
                     continue
-                rows.append(
-                    _settled(
-                        row,
-                        args.date,
-                        event_id,
-                        competition_id,
-                        float(value),
-                        outcome,
-                        settled_at,
-                    )
-                )
+                emit(row, event_id, competition_id, float(value), outcome)
             if breaker_open:
                 # The breaker opened on this event's /lineups: every later
                 # request would be refused without being sent.
@@ -988,10 +1230,12 @@ def main() -> int:
         "value_roi": round(value_return / len(staked), 4) if staked else None,
         "breaker_open": breaker_open,
         "refetched_stat_gaps": len(refetch),
+        "printed_without_sheet_row": len(printed_only),
+        "printed_without_sheet_row_settled": len(printed_rows),
         "skipped": dict(skips.counts.most_common(12)),
     }
 
-    if not rows:
+    if not rows and not printed_rows:
         # Nothing graded is a failure whatever the cause - the breaker
         # included (2026-10-02: a tripped run reported PARTIAL with zero rows).
         verdict = "FAILED" if by_event else "PARTIAL"
@@ -1022,10 +1266,43 @@ def main() -> int:
             loaded_rows = []
         if isinstance(loaded_rows, list):
             previous_rows = [r for r in loaded_rows if isinstance(r, dict)]
+    # An event this run found void (moved beyond 48 h, awarded) keeps no
+    # earlier grade in the artifact: it is a refund now.
+    refunded = {
+        event_id
+        for event_id, reasons in skips.by_event.items()
+        if MOVED_BEYOND_VOID in reasons or AWARDED in reasons
+    }
+    previous_rows = [
+        r for r in previous_rows if int(r["sofascore_event_id"]) not in refunded
+    ]
     current_rows = [dict(vars(r)) for r in rows]
     merged_rows = merge_settled(previous_rows, current_rows)
 
+    printed_path = run_dir / PRINTED_SETTLED_FILE
+    previous_printed: list[dict[str, Any]] = []
+    if printed_path.exists():
+        try:
+            loaded_printed = json.loads(printed_path.read_text(encoding="utf-8"))
+        except ValueError:
+            loaded_printed = []
+        if isinstance(loaded_printed, list):
+            previous_printed = [
+                r for r in loaded_printed
+                if isinstance(r, dict)
+                and int(r["sofascore_event_id"]) not in refunded
+            ]
+    if printed_rows or previous_printed or printed_path.exists():
+        # Written only on a day that has such legs (or had): every other
+        # day's directory stays exactly as it was.
+        write_atomic(
+            printed_path,
+            json.dumps(merge_settled(previous_printed, printed_rows), indent=2),
+        )
+
     processed = {r.sofascore_event_id for r in rows} | {
+        int(r["sofascore_event_id"]) for r in printed_rows
+    } | {
         event_id
         for event_id, reasons in skips.by_event.items()
         if set(reasons) != {"PROVIDER_ERROR"}
