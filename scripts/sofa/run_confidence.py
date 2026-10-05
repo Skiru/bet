@@ -90,10 +90,13 @@ from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
 from bet.sofa.locked_print import (  # noqa: E402
     PRINTED_MANIFEST,
     carry_over,
+    first_prints,
     kicked_off,
     kickoff_clocks,
     leg_key,
+    leg_started_by,
     merge_locked,
+    print_history,
     started_by_evidence,
 )
 from bet.sofa.players import (  # noqa: E402
@@ -915,23 +918,27 @@ def main() -> int:
         sports=frozenset({"football", "tennis"}) if so else None,
         started_by=started_by,
     )
-    # Stats-only: the coupon as its PDF last printed it (PRINTED_MANIFEST)
-    # is carried over too, so an unprinted rebuild in between cannot drop a
-    # leg the operator holds on paper.
-    manifest_path = run_dir / PRINTED_MANIFEST
-    if so and manifest_path.exists():
+    # Stats-only: every leg the PDF ever printed is carried over too, as it
+    # was FIRST printed (F0.1: the append-only history printed/, else
+    # PRINTED_MANIFEST alone), so neither an unprinted rebuild in between nor
+    # a later render that left it out can drop a leg the operator holds on
+    # paper.
+    if so:
         try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest = first_prints(
+                print_history(run_dir), now, leg_started_by(started_by))
         except ValueError as exc:
-            print(f"REFUSED: {PRINTED_MANIFEST} is unreadable ({exc}); it is the "
-                  "record of the last printed coupon", file=sys.stderr)
+            print(f"REFUSED: the print record ({PRINTED_MANIFEST}, printed/) is "
+                  f"unreadable ({exc}); it is the record of the printed coupon",
+                  file=sys.stderr)
             return 2
-        locked = merge_locked(
-            carry_over(manifest, profile.name, now, is_locked, pdf_printed=True,
-                       sports=frozenset({"football", "tennis"}),
-                       started_by=started_by),
-            locked,
-        )
+        if manifest is not None:
+            locked = merge_locked(
+                carry_over(manifest, profile.name, now, is_locked, pdf_printed=True,
+                           sports=frozenset({"football", "tennis"}),
+                           started_by=started_by),
+                locked,
+            )
     locked_keys = locked.keys
     # Never the same leg twice: the gate above already refuses a locked
     # fixture's rows, this holds even if the two ever disagree.
@@ -1222,6 +1229,17 @@ def main() -> int:
                 "fixture_status_unverified": sum(
                     1 for e in fixture_status.values()
                     if e.get("status") == fs.UNVERIFIED),
+                # F0.5: why (404, refused, no bridge, not asked ...), for the PDF.
+                "fixture_status_unverified_reasons": fs.unverified_reasons(
+                    fixture_status.values()),
+                # F0.4: matches this build prints a fresh leg on that
+                # FIXTURE_CHECK never asked about (a first print unchecked).
+                "fixture_status_not_asked": len({
+                    int(x["sofascore_event_id"])
+                    for x in [*singles, *(b_ for b_ in builders if is_stakeable(b_))]
+                    if not x.get("locked")
+                    and int(x["sofascore_event_id"]) not in fixture_status
+                }),
             }
             if so else {}
         ),

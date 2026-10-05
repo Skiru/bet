@@ -37,12 +37,15 @@ Interpretation boundary, decided here and pinned by tests:
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 
 from bet.sofa import fixture_status as fs
+from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import printed_builders, printed_singles, too_close_to_kickoff
 
 LegKey = tuple[int, str, str, float, str]
@@ -177,9 +180,18 @@ def started_by_evidence(
 ) -> StartedBy:
     """When a match REALLY started, from what the day holds: Superbet's start
     signal seen by then (OFFER's superbet_started_utc) says it had; else
-    FIXTURE_CHECK's fresh read - a status of a match not yet begun, read at or
-    after t, says it had not, any other status compares its fresh start;
-    else the printed clock. The kickoff GATE stays on the earliest clock."""
+    FIXTURE_CHECK's fresh read - a tennis match's real first point
+    (`real_start_utc`, fixture_status.real_start: the 1st set's start, or an
+    upper bound on it from a later set - F0.3), else a status of a match not
+    yet begun, read at or after t, says it had not, any other status compares
+    its fresh start; else the printed clock. The kickoff GATE stays on the
+    earliest clock.
+
+    `real_start_utc` comes before `start_utc` because the latter is the
+    order of play's time: 10-05, Dedura-Palomero - Tarvet's said 09:10Z and
+    the first set began 09:14:04Z; Grenier - Kravchenko's 09:40:00Z, the
+    first point 09:40:52Z. As an upper bound in a later set it may call a
+    match "not started by t" for the minutes of the breaks between sets."""
 
     def started_by(event_id: int, printed_kickoff: str | None, at: datetime) -> bool:
         seen = superbet_started_utc.get(event_id)
@@ -187,6 +199,8 @@ def started_by_evidence(
             return True
         entry = fixture_status.get(event_id)
         if entry and entry.get("status") not in (None, fs.UNVERIFIED):
+            if entry.get("real_start_utc"):
+                return _utc(str(entry["real_start_utc"])) <= at
             checked = entry.get("checked_at_utc")
             if (entry["status"] in fs.NOT_YET_STARTED and checked
                     and _utc(str(checked)) >= at):
@@ -227,6 +241,8 @@ def _late(item: Mapping[str, Any], created: str, kind: str) -> dict[str, Any]:
         "match": item.get("match"),
         "kickoff_utc": item.get("kickoff_utc"),
         "printed_at_utc": str(item.get("printed_at_utc") or created),
+        # the render of the print history it comes from (F0.1), where known
+        **({"printed_in": item["printed_in"]} if item.get("printed_in") else {}),
     }
 
 
@@ -316,6 +332,289 @@ def carry_over(
 # held, starting during the analysts' read, was dropped.
 PRINTED_MANIFEST = "12_printed.json"
 
+# The print record is append-only (F0.1, plan 2026-10-05 production grade):
+# every render also writes printed/<render time>.json, never overwritten.
+# 12_printed.json alone was overwritten by every render, and on 10-05 twelve
+# tennis legs left the record that way: a rebuild judged them on a stale
+# clock as printed after their start, dropped them, the next render rewrote
+# 12_printed.json without them, and no later rebuild - with the right
+# evidence by then - could see that they had ever been printed. The lock now
+# reads the whole history (first_prints); 12_printed.json stays as the
+# latest render for every other reader.
+PRINTED_HISTORY_DIR = "printed"
+
+
+def _render_time(doc: Mapping[str, Any]) -> str | None:
+    raw = doc.get("pdf_rendered_at_utc") or doc.get("created_at_utc")
+    return str(raw) if isinstance(raw, str) and raw else None
+
+
+def _history_stem(rendered_at: str) -> str:
+    return _utc(rendered_at).strftime("%Y%m%dT%H%M%S.%fZ")
+
+
+def _write_once(directory: Path, stem: str, text: str) -> Path:
+    """Write a new file, never over an existing one: the same render twice is
+    the same file, another render in the same microsecond gets a suffix."""
+    directory.mkdir(parents=True, exist_ok=True)
+    for n in range(1000):
+        path = directory / (f"{stem}.json" if n == 0 else f"{stem}-{n}.json")
+        try:
+            with path.open("x", encoding="utf-8") as fh:
+                fh.write(text)
+            return path
+        except FileExistsError:
+            if path.read_text(encoding="utf-8") == text:
+                return path
+    raise RuntimeError(f"{directory}: no free name for {stem}")
+
+
+def _dump(doc: Mapping[str, Any]) -> str:
+    return json.dumps(doc, indent=1, ensure_ascii=False) + "\n"
+
+
+def _in_history(history: Path, rendered_at: str) -> bool:
+    if not history.is_dir():
+        return False
+    stem = _history_stem(rendered_at)
+    return any(p.name == f"{stem}.json" or p.name.startswith(f"{stem}-")
+               for p in history.glob("*.json"))
+
+
+def record_print(run: Path, doc: Mapping[str, Any]) -> Path:
+    """Record one PDF render: printed/<render time>.json (append-only) and
+    12_printed.json (the latest render). A 12_printed.json whose render is
+    not in the history yet - a day printed before F0.1, 10-05 - is seeded
+    into it first, under its own pdf_rendered_at_utc, so the render it
+    records is never lost to this overwrite. Returns the history file."""
+    run = Path(run)
+    history = run / PRINTED_HISTORY_DIR
+    latest = run / PRINTED_MANIFEST
+    if latest.exists():
+        try:
+            old = json.loads(latest.read_text(encoding="utf-8"))
+        except ValueError:
+            old = None
+        seen = _render_time(old) if isinstance(old, dict) else None
+        if isinstance(old, dict) and seen and not _in_history(history, seen):
+            _write_once(history, _history_stem(seen), _dump(old))
+    rendered = _render_time(doc)
+    if not rendered:
+        raise ValueError("a print record needs pdf_rendered_at_utc")
+    text = _dump(doc)
+    path = _write_once(history, _history_stem(rendered), text)
+    write_atomic(latest, text)
+    return path
+
+
+def print_history(run: Path) -> list[dict[str, Any]]:
+    """Every render of the day, oldest first, each with `printed_in` (its
+    file). The history directory, plus 12_printed.json when its render is
+    not in it (a day before F0.1: the latest render is all there is, exactly
+    as before). Empty: nothing was ever printed."""
+    run = Path(run)
+    timed: list[tuple[datetime, str, dict[str, Any]]] = []
+    untimed: list[dict[str, Any]] = []
+    history = run / PRINTED_HISTORY_DIR
+    if history.is_dir():
+        for path in history.glob("*.json"):
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            rendered = _render_time(doc)
+            name = f"{PRINTED_HISTORY_DIR}/{path.name}"
+            if rendered:
+                timed.append((_utc(rendered), name, {**doc, "printed_in": name}))
+    latest = run / PRINTED_MANIFEST
+    if latest.exists():
+        doc = json.loads(latest.read_text(encoding="utf-8"))
+        rendered = _render_time(doc)
+        if not rendered:
+            # no render time: a record still (its matches are asked), never
+            # a print the lock can date (carry_over refuses it, as before)
+            untimed.append({**doc, "printed_in": PRINTED_MANIFEST})
+        elif all(t != _utc(rendered) for t, _, _ in timed):
+            timed.append((_utc(rendered), PRINTED_MANIFEST,
+                          {**doc, "printed_in": PRINTED_MANIFEST}))
+    timed.sort(key=lambda x: (x[0], len(x[1]), x[1]))
+    return [*untimed, *(doc for _, _, doc in timed)]
+
+
+# "Had this leg's match started by t?" on whatever clock its sport reads.
+LegStartedBy = Callable[[Mapping[str, Any], datetime], bool]
+
+
+def leg_started_by(started_by: StartedBy | None = None) -> LegStartedBy:
+    """A StartedBy for one leg / builder (its event id and printed clock)."""
+    check = started_by or started_by_printed_kickoff
+
+    def leg_check(item: Mapping[str, Any], at: datetime) -> bool:
+        kickoff = item.get("kickoff_utc")
+        return check(
+            int(item["sofascore_event_id"]),
+            str(kickoff) if isinstance(kickoff, str) and kickoff else None,
+            at,
+        )
+
+    return leg_check
+
+
+def _is_measured(item: Mapping[str, Any]) -> bool:
+    # Same rule as coupon_sports.is_measured (which imports this module).
+    from bet.sofa.confidence import SHEET_SPORTS
+
+    return str(item.get("sport") or "football") not in SHEET_SPORTS
+
+
+def _any_key(leg: Mapping[str, Any]) -> tuple[Any, ...]:
+    # A measured sport's leg is keyed like coupon_sports.sport_key (its side
+    # and period); football / tennis like every grader (leg_key).
+    if _is_measured(leg):
+        from bet.sofa.coupon_sports import sport_key
+
+        return tuple(sport_key(leg))
+    return tuple(leg_key(leg))
+
+
+def _builder_key(b: Mapping[str, Any]) -> tuple[Any, ...]:
+    return (int(b["sofascore_event_id"]), tuple(sorted(
+        (str(x["market"]), str(x.get("subject") or ""), str(x.get("line")),
+         str(x["direction"])) for x in b.get("legs") or [])))
+
+
+def _dials_of(doc: Mapping[str, Any]) -> dict[str, Any]:
+    dials = {k: doc.get(k) for k in DIAL_FIELDS}
+    if doc.get("epoch"):
+        dials["epoch"] = doc["epoch"]
+    return dials
+
+
+def _first_of_each(
+    renders: list[dict[str, Any]],
+    items_of: Callable[[dict[str, Any]], list[dict[str, Any]]],
+    key_of: Callable[[Mapping[str, Any]], tuple[Any, ...]],
+    started: LegStartedBy,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """(item as it counts, the render it comes from) per key - first_prints'
+    rule."""
+    held = [{key_of(x): x for x in items_of(r)} for r in renders]
+    order: list[tuple[Any, ...]] = []
+    known: set[tuple[Any, ...]] = set()
+    for h in held:
+        for k in h:
+            if k not in known:
+                known.add(k)
+                order.append(k)
+    chosen: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for k in order:
+        sample = next(h[k] for h in held if k in h)
+        before = [i for i, r in enumerate(renders)
+                  if not started(sample, _utc(str(_render_time(r))))]
+        retime = False
+        if before and k in held[before[-1]]:
+            i = before[-1]
+            while i > 0 and k in held[i - 1]:
+                i -= 1
+        elif before:
+            after = [j for j in range(before[-1] + 1, len(renders)) if k in held[j]]
+            if not after:
+                continue  # removed by a render before its start: stays removed
+            i, retime = after[0], True
+        else:
+            i = next(j for j, h in enumerate(held) if k in h)
+        render = renders[i]
+        item = dict(held[i][k])
+        if retime or not item.get("printed_at_utc"):
+            item["printed_at_utc"] = str(_render_time(render))
+        if retime or not isinstance(item.get("printed_under"), dict):
+            item["printed_under"] = _dials_of(render)
+        if render.get("printed_in"):
+            item["printed_in"] = render["printed_in"]
+        chosen.append((item, render))
+    return chosen
+
+
+def first_prints(
+    history: list[dict[str, Any]], now: datetime, started: LegStartedBy
+) -> dict[str, Any] | None:
+    """One print record from the whole history: every leg and builder as it
+    was FIRST printed (its printed_at_utc, odds and confidence; the dials of
+    that render in printed_under; the render in printed_in), for carry_over
+    and coupon_sports.locked_sport_legs to judge exactly as they judge one
+    12_printed.json. Renders after `now` are ignored (an as-of replay).
+
+    Which print counts, per leg, with `started(leg, t)` its match's REAL
+    start (started_by_evidence; a measured sport's current clocks):
+
+    * The last render made before its match started decides whether it is
+      on the coupon - the operator held that PDF at the kickoff. On it: the
+      leg counts from the first render of the unbroken run of renders that
+      ends there (a leg a pre-start render removed and a later one printed
+      again was withdrawn in between; the later print is the bet).
+    * Not on it: removed before its start - it stays removed, unless a later
+      render (after the start) printed it; that one is carried with its own
+      render time, so the lock lists it as printed after the start.
+    * No render before its start: the earliest render that holds it, with
+      the printed_at_utc it carries (a leg locked from a print older than
+      the history - 10-05's seeded record), else that render's time.
+
+    One render (a day before F0.1, or one print so far) is returned as it
+    is: the lock behaves exactly as it did on 12_printed.json alone."""
+    renders = [d for d in history
+               if _render_time(d) and _utc(str(_render_time(d))) <= now]
+    if not renders:
+        return None
+    latest = renders[-1]
+    if len(renders) == 1:
+        return latest
+    singles = _first_of_each(renders, printed_singles, _any_key, started)
+    builders = _first_of_each(renders, printed_builders, _builder_key, started)
+    legs: dict[LegKey, dict[str, Any]] = {}
+
+    def add_legs(item: Mapping[str, Any], render: Mapping[str, Any],
+                 keys: list[LegKey]) -> None:
+        by_key = {leg_key(x): x for x in render.get("legs") or []}
+        for k in keys:
+            if k in by_key and k not in legs:
+                legs[k] = {**by_key[k], "printed_at_utc": item["printed_at_utc"],
+                           "printed_under": item["printed_under"]}
+
+    for item, render in singles:
+        if not _is_measured(item):
+            add_legs(item, render, [leg_key(item)])
+    for item, render in builders:
+        add_legs(item, render, [leg_key(x, item["sofascore_event_id"])
+                                for x in item.get("legs") or []])
+    return {
+        **{k: v for k, v in latest.items()
+           if k not in ("singles", "builders", "legs", "printed_in")},
+        # every leg carries its own print, so no page cut applies again
+        "pdf_max_singles": None,
+        "singles": [x for x, _ in singles],
+        "builders": [x for x, _ in builders],
+        "legs": list(legs.values()),
+        "printed_history": [r.get("printed_in") for r in renders],
+    }
+
+
+def history_keys(history: list[dict[str, Any]]) -> set[tuple[Any, ...]]:
+    """Every printed single's key (leg_key; a measured sport's sport_key) and
+    every printed builder's legs (leg_key) in any render of the history."""
+    out: set[tuple[Any, ...]] = set()
+    for r in history:
+        out |= {_any_key(s) for s in printed_singles(r)}
+        for b in printed_builders(r):
+            out |= {tuple(leg_key(x, b["sofascore_event_id"]))
+                    for x in b.get("legs") or []}
+    return out
+
+
+def history_event_ids(history: list[dict[str, Any]]) -> set[int]:
+    """Every match any render of the history printed a single or a builder on."""
+    out: set[int] = set()
+    for r in history:
+        out |= {int(s["sofascore_event_id"]) for s in printed_singles(r)}
+        out |= {int(b["sofascore_event_id"]) for b in printed_builders(r)}
+    return out
+
 
 def merge_locked(first: LockedPrint, second: LockedPrint) -> LockedPrint:
     """Both carry-overs, `first` winning a leg or a fixture both hold."""
@@ -339,8 +638,16 @@ def merge_locked(first: LockedPrint, second: LockedPrint) -> LockedPrint:
             seen_legs.add(leg_key(x))
             out.legs.append(x)
     late: set[tuple[Any, ...]] = set()
+    locked_keys, locked_fixtures = out.keys, out.builder_fixtures
     for item in [*first.printed_after_start, *second.printed_after_start]:
         ident = (item["kind"], item["sofascore_event_id"], str(item["key"]))
+        # Locked from one source (an earlier print), late in the other (a
+        # later render of the same leg): it is locked, not late.
+        if (item["kind"] == "single" and item["key"] is not None
+                and tuple(item["key"]) in locked_keys) or (
+                item["kind"] == "builder"
+                and int(item["sofascore_event_id"]) in locked_fixtures):
+            continue
         if ident not in late:
             late.add(ident)
             out.printed_after_start.append(item)

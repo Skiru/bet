@@ -55,7 +55,7 @@ from bet.sofa.confidence import (  # noqa: E402
     request_covers,
 )
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
-from bet.sofa.locked_print import PRINTED_MANIFEST  # noqa: E402
+from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 
 SPORTS_ARTIFACT = "08_confidence_sports.json"
@@ -200,17 +200,19 @@ def prepare_sports(
     match has started carried over, locked, as printed."""
     vetoes = load_vetoes(run / "vetoes.json")
     reads = load_reads(run / "reads.json")
-    # Only a coupon a PDF was rendered from is "printed" (12_printed.json,
-    # else an 11 whose PDF is at least as new) - a provisional 11 built
-    # before the analysts' read never was (review 2026-10-05).
-    printed: dict[str, Any] | None = None
-    eleven, pdf = run / COUPON_ARTIFACT, run / f"KUPON_{run.name}.pdf"
-    if (run / PRINTED_MANIFEST).exists():
-        printed = _load(run / PRINTED_MANIFEST)
-    elif (eleven.exists() and pdf.exists()
-          and pdf.stat().st_mtime >= eleven.stat().st_mtime):
-        printed = _load(eleven)
+    # Only a coupon a PDF was rendered from is "printed" (the print record:
+    # every render in printed/ with each leg as first printed - F0.1 - else
+    # 12_printed.json; else an 11 whose PDF is at least as new) - a
+    # provisional 11 built before the analysts' read never was (review
+    # 2026-10-05).
     fresh_clock = cs.fresh_kickoffs(run.parent, run.name, at)
+    history = print_history(run)
+    printed: dict[str, Any] | None = first_prints(
+        history, at, cs.started_by_clock(fresh_clock))
+    eleven, pdf = run / COUPON_ARTIFACT, run / f"KUPON_{run.name}.pdf"
+    if not history and (eleven.exists() and pdf.exists()
+                        and pdf.stat().st_mtime >= eleven.stat().st_mtime):
+        printed = _load(eleven)
     late_prints: list[dict[str, Any]] = []
     locked = cs.locked_sport_legs(printed, at, fresh_clock, late_prints)
     locked_keys = {cs.sport_key(x) for x in locked}

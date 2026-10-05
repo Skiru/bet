@@ -390,6 +390,15 @@ class SofaCache:
         fixtures — so it expires. Caching it forever would turn waste into a
         frozen empty referee, which is the trap F17 named and the worse error.
         """
+        dated = self.get_event_detail_dated(sofascore_event_id)
+        return dated[0] if dated is not None else None
+
+    def get_event_detail_dated(
+        self, sofascore_event_id: int
+    ) -> tuple[dict[str, Any], datetime] | None:
+        """get_event_detail with the time the payload was fetched: FIXTURE_CHECK
+        dates a status by when it was READ (a cached "notstarted" up to 60 min
+        old says nothing about the last hour - F0.3, 2026-10-05)."""
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
                 "SELECT fetched_at, status_type, detail_json "
@@ -398,13 +407,13 @@ class SofaCache:
             ).fetchone()
             if not row:
                 return None
+            fetched_at = datetime.fromisoformat(row["fetched_at"])
             if row["status_type"] != "finished":
-                fetched_at = datetime.fromisoformat(row["fetched_at"])
                 if now() - fetched_at > timedelta(
                     minutes=self.config.event_detail_ttl_min
                 ):
                     return None
-            return cast(dict[str, Any], json.loads(row["detail_json"]))
+            return cast(dict[str, Any], json.loads(row["detail_json"])), fetched_at
 
     def save_event_detail(
         self, sofascore_event_id: int, detail: dict[str, Any], status_type: str | None

@@ -68,6 +68,7 @@ from bet.sofa.confidence import (  # noqa: E402
     COUPON_ARTIFACT,
     MAX_OVERROUND,
     PROFILES,
+    SHEET_SPORTS,
     coupon_order,
     legs_requiring_read,
     printed_builders,
@@ -76,7 +77,17 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY  # noqa: E402
-from bet.sofa.locked_print import started_by_evidence  # noqa: E402
+from bet.sofa.locked_print import (  # noqa: E402
+    PRINTED_HISTORY_DIR,
+    PRINTED_MANIFEST,
+    StartedBy,
+    first_prints,
+    history_keys,
+    leg_key,
+    leg_started_by,
+    print_history,
+    started_by_evidence,
+)
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
     matching_reads,
@@ -463,8 +474,78 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
             else _utc(str(single["kickoff_utc"])) <= built
         ):
             out.append(f"C2 {label}: printed after its kickoff")
+    if name == COUPON_ARTIFACT:
+        out += audit_print_record(run, doc, tag, started_by)
     if profile_name == "standard" and date >= READS_CUTOVER:
         out += audit_reads(run, doc, tag)
+    return out
+
+
+def audit_print_record(
+    run: Path, doc: dict[str, Any], tag: str, started_by: StartedBy
+) -> list[str]:
+    """C2 against the print history (F0.1, printed/; 12_printed.json alone on
+    a day before it). 10-05: twelve tennis legs printed at 09:19Z left the
+    record when a later render overwrote 12_printed.json, and nothing could
+    tell. Football / tennis:
+
+    * every printed leg whose match had REALLY started by CONFIDENCE's build
+      (started_by_evidence) is on the coupon - locked - or listed in its
+      printed_after_start: none vanishes;
+    * with a history directory, every locked leg and every
+      printed_after_start entry is on some printed render: nothing is
+      locked or excused without a print record."""
+    history = print_history(run)
+    if not history:
+        return []
+    out: list[str] = []
+    built_raw = (doc.get("built_from") or {}).get("08_confidence.json") or doc.get(
+        "created_at_utc")
+    if not built_raw:
+        return out
+    built = _utc(str(built_raw))
+    on_coupon = {leg_key(s) for s in printed_singles(doc)
+                 if str(s.get("sport") or "football") in SHEET_SPORTS}
+    for b in printed_builders(doc):
+        on_coupon |= {leg_key(x, b["sofascore_event_id"]) for x in b.get("legs") or []}
+    late = doc.get("printed_after_start") or []
+    late_keys = {tuple(x["key"]) for x in late if x.get("key") is not None}
+    late_fixtures = {int(x["sofascore_event_id"]) for x in late
+                     if x.get("kind") == "builder"}
+    record = first_prints(history, built, leg_started_by(started_by)) or {}
+    for s in printed_singles(record):
+        if str(s.get("sport") or "football") not in SHEET_SPORTS:
+            continue
+        k = leg_key(s)
+        if k in on_coupon or k in late_keys:
+            continue
+        if started_by(int(s["sofascore_event_id"]), s.get("kickoff_utc"), built):
+            out.append(f"C2 {tag} {s.get('match')} {s['market']} {s.get('line')} "
+                       f"{s['direction']}: printed {s.get('printed_at_utc')} "
+                       f"({s.get('printed_in') or PRINTED_MANIFEST}), its match "
+                       "started, gone from the coupon - neither locked nor "
+                       "printed_after_start")
+    for b in printed_builders(record):
+        eid = int(b["sofascore_event_id"])
+        keys = {leg_key(x, eid) for x in b.get("legs") or []}
+        if keys <= on_coupon or eid in late_fixtures:
+            continue
+        if started_by(eid, b.get("kickoff_utc"), built):
+            out.append(f"C2 {tag} builder {b.get('match')}: printed "
+                       f"{b.get('printed_at_utc')}, its match started, gone from "
+                       "the coupon")
+    if not (run / PRINTED_HISTORY_DIR).is_dir():
+        return out
+    on_record = history_keys(history)
+    for s in printed_singles(doc):
+        if (s.get("locked") and str(s.get("sport") or "football") in SHEET_SPORTS
+                and tuple(leg_key(s)) not in on_record):
+            out.append(f"C2 {tag} {s.get('match')} {s['market']} {s.get('line')}: "
+                       "locked but on no printed render")
+    for x in late:
+        if x.get("key") is not None and tuple(x["key"]) not in on_record:
+            out.append(f"C2 {tag} {x.get('match')} {x['key']}: printed_after_start "
+                       "without a print record")
     return out
 
 

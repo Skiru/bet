@@ -179,6 +179,25 @@ def started(leg: Mapping[str, Any], now: datetime,
     return too_close_to_kickoff(clocks, now)
 
 
+def started_by_clock(
+    fresh: FreshClock | None = None,
+) -> Callable[[Mapping[str, Any], datetime], bool]:
+    """"Had this sport leg's match started by t": its current clocks (the
+    earliest), else its printed one - the lock's "printed before its start"
+    for a measured sport (locked_sport_legs, locked_print.first_prints)."""
+
+    def check(leg: Mapping[str, Any], at: datetime) -> bool:
+        clocks = fresh(leg) if fresh is not None else []
+        if clocks:
+            return min(clocks) <= at
+        kickoff = leg.get("kickoff_utc")
+        return started_by_printed_kickoff(
+            int(leg["sofascore_event_id"]),
+            str(kickoff) if isinstance(kickoff, str) and kickoff else None, at)
+
+    return check
+
+
 def locked_sport_legs(
     printed: Mapping[str, Any] | None, now: datetime,
     fresh: FreshClock | None = None,
@@ -198,6 +217,7 @@ def locked_sport_legs(
     dials = {k: printed.get(k) for k in ("confidence_floor", "min_ev", "max_overround")}
     if printed.get("epoch"):
         dials["epoch"] = printed["epoch"]
+    leg_started = started_by_clock(fresh)
     out = []
     for leg in printed.get("singles") or []:
         if not is_measured(leg):
@@ -206,13 +226,9 @@ def locked_sport_legs(
             continue
         # Its match had started before that print (PDF rendered after the
         # start): never a bet made before the start, never locked.
-        clocks = fresh(leg) if fresh is not None else []
-
         def started_by(event_id: int, printed_kickoff: str | None, at: datetime,
-                       clocks: list[datetime] = clocks) -> bool:
-            if clocks:
-                return min(clocks) <= at
-            return started_by_printed_kickoff(event_id, printed_kickoff, at)
+                       leg: Mapping[str, Any] = leg) -> bool:
+            return leg_started(leg, at)
 
         if printed_after_its_start(leg, created, started_by):
             if printed_after_start is not None:

@@ -227,11 +227,25 @@ stays dropped.
 ## `fixture_status.json` (FIXTURE_CHECK)
 
 `checked_at_utc`, `events: {"<sofascore_event_id>": {status, status_code,
-status_description, start_utc, why, checked_at_utc}}`. `status` is
-Sofascore's `status.type` or `UNVERIFIED` (no bridge / refused - never a
-refusal). postponed / canceled / cancelled / abandoned is
+status_description, start_utc, [real_start_utc, real_start_basis], why,
+checked_at_utc, [reason]}}`. `status` is Sofascore's `status.type` or
+`UNVERIFIED` (never a refusal) with `reason` (F0.5): `NOT_FOUND` (404),
+`PROVIDER_REFUSED` (403/429), `PROVIDER_ERROR` (5xx), `BAD_PAYLOAD`,
+`NO_BRIDGE` (transport), `CIRCUIT_OPEN`, `NOT_ASKED` (stopped after a
+failure, or over `--max-candidates`); the PDF prints them. `why`: `printed`
+(the coupon artifact or any render of the print history), `clock_gap`, or
+`candidate` (F0.4: a leg of 08 / 11 or a priced sheet row on a match not
+under way - asked before its first print). `checked_at_utc` is when the
+payload was read (a cached one's fetch time). postponed / canceled /
+cancelled / abandoned / interrupted / suspended / willcontinue is
 `FIXTURE_NOT_AS_SCHEDULED` in CONFIDENCE; `start_utc` replaces RESOLVE's
-Sofascore clock for the gate, the lock and `capture_closing`.
+Sofascore clock for the gate, the lock and `capture_closing`. Tennis only:
+`real_start_utc` (F0.3) - the first point, from `time.currentPeriodStartTimestamp`
+minus the lengths of the sets before (`first_set`: exact, in the 1st set;
+`derived`: an upper bound) - decides "printed before its start" in the lock
+ahead of `start_utc` (the order of play's time). CONFIDENCE writes
+`fixture_status_unverified_reasons` and `fixture_status_not_asked` (matches
+with a fresh printed leg FIXTURE_CHECK never asked).
 
 ## `sport_fixtures.json` (SPORT_IDENTITY)
 
@@ -287,13 +301,22 @@ or rebuilt:
 Positions shift after a rebuild: refer to a leg by `group_key` + rung, not by
 its number.
 
-## `12_printed.json`
+## `12_printed.json` and `printed/` (the print record)
 
 What the PDF printed (`locked_print.PRINTED_MANIFEST`): the 11 document it
 rendered plus `pdf` and `pdf_rendered_at_utc`. Written only by the day's own
-PDF render (never `--out`). The next CONFIDENCE / COUPON_ASSEMBLY locks from
-it, so a provisional PDF locks every printed leg whose match starts before
-the rebuild.
+PDF render (never `--out`). Since F0.1 (2026-10-05) every render also writes
+`printed/<YYYYMMDDTHHMMSS.ffffffZ>.json`, never overwritten
+(`locked_print.record_print`; a 12_printed.json not yet in the history is
+seeded into it first); 12_printed.json stays the latest render. The next
+CONFIDENCE / COUPON_ASSEMBLY / FIXTURE_CHECK read the whole history
+(`print_history`, `first_prints`): a printed leg whose match has started is
+locked as FIRST printed (`printed_at_utc`, odds, confidence, `printed_in` =
+its render file), decided by the last render before its REAL start - on it:
+locked; not on it: removed before its start, stays removed. A later render
+that left it out does not remove it (10-05: twelve tennis legs were lost
+that way). audit_variants C2 flags a printed, started leg that is neither on
+the coupon nor in `printed_after_start`, and a locked / late leg on no render.
 
 ## `read_requests.json`
 

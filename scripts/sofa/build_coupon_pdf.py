@@ -43,7 +43,7 @@ from reportlab.platypus import (  # noqa: E402
 
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
-from bet.sofa.atomic import tmp_path, write_atomic  # noqa: E402
+from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
     MIN_MINUTES_TO_KICKOFF,
@@ -62,7 +62,7 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
-from bet.sofa.locked_print import PRINTED_MANIFEST  # noqa: E402
+from bet.sofa.locked_print import record_print  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 # Helvetica's built-in encoding has no Latin-2, so every Polish diacritic in
@@ -495,18 +495,16 @@ def main() -> int:
                           BODY, SMALL, H2, PICK, max_overround)
         pdf.build(S)
         os.replace(tmp_out, out_path)
-        # The record of what this PDF printed (locked_print.PRINTED_MANIFEST):
-        # the next rebuild carries over its legs whose match has started,
-        # whatever unprinted build came in between. Only for the day's own
+        # The record of what this PDF printed (locked_print.record_print):
+        # printed/<render time>.json, append-only (F0.1), and
+        # PRINTED_MANIFEST as the latest render. The next rebuild carries
+        # over every printed leg whose match has started, as first printed,
+        # whatever build or render came in between. Only for the day's own
         # coupon, never for a --out render elsewhere.
         if args.out is None:
-            write_atomic(
-                run / PRINTED_MANIFEST,
-                json.dumps({**doc_json, "pdf": out_path.name,
-                            "pdf_rendered_at_utc": now.isoformat().replace(
-                                "+00:00", "Z")},
-                           indent=1, ensure_ascii=False) + "\n",
-            )
+            record_print(run, {**doc_json, "pdf": out_path.name,
+                               "pdf_rendered_at_utc": now.isoformat().replace(
+                                   "+00:00", "Z")})
         print(json.dumps({
             "stage": "COUPON_PDF", "verdict": "OK", "epoch": STATS_ONLY,
             "metrics": {"picks": len(picks), "singles": len(singles),
@@ -800,6 +798,39 @@ def _table(rows: list[list[Any]], widths: list[float]) -> Table:
     return t
 
 
+# Why FIXTURE_CHECK has no fresh status (fixture_status.UNVERIFIED_REASONS),
+# in the operator's words. Until F0.5 every one printed as "bez mostka"; the
+# one UNVERIFIED match of 10-05 had been asked through a working bridge.
+UNVERIFIED_REASON_PL = {
+    "NOT_FOUND": "Sofascore nie zna meczu (404)",
+    "PROVIDER_REFUSED": "Sofascore odmówił (403/429)",
+    "PROVIDER_ERROR": "błąd Sofascore (5xx)",
+    "BAD_PAYLOAD": "niepełna odpowiedź Sofascore",
+    "NO_BRIDGE": "brak mostka / zerwane połączenie",
+    "CIRCUIT_OPEN": "bezpiecznik otwarty",
+    "NOT_ASKED": "nie pytano - sprawdzanie przerwane po błędzie",
+    "UNKNOWN": "powód niezapisany",
+}
+
+
+def fixture_status_notes(doc: dict[str, Any]) -> list[str]:
+    """The page's notes on FIXTURE_CHECK: how many matches have no fresh
+    status and why (F0.5), and how many printed matches were never asked
+    (F0.4: fixture_status_not_asked)."""
+    out: list[str] = []
+    n = doc.get("fixture_status_unverified")
+    if n:
+        reasons = doc.get("fixture_status_unverified_reasons") or {"UNKNOWN": n}
+        why = ", ".join(
+            f"{UNVERIFIED_REASON_PL.get(str(r), escape(str(r)))}: {c}"
+            for r, c in sorted(reasons.items()))
+        out.append(f"{n} mecz(e/ów) bez świeżego statusu ({why})")
+    if doc.get("fixture_status_not_asked"):
+        out.append(f"{doc['fixture_status_not_asked']} mecz(e/ów) na kuponie bez "
+                   "sprawdzonego statusu (FIXTURE_CHECK o nie nie pytał)")
+    return out
+
+
 def render_stats_only(
     S: list[Any],  # noqa: N803 - the renderer's story, as in main()
     doc: dict[str, Any],
@@ -848,9 +879,7 @@ def render_stats_only(
     for fx in doc.get("fixtures_not_as_scheduled") or []:
         notes.append(f"{escape(str(fx.get('match')))}: {escape(str(fx.get('status')))}"
                      " - nie gra wg terminarza, poza kuponem")
-    if doc.get("fixture_status_unverified"):
-        notes.append(f"{doc['fixture_status_unverified']} mecz(e/ów) bez świeżego "
-                     "statusu (FIXTURE_CHECK bez mostka)")
+    notes += fixture_status_notes(doc)
     if notes:
         S.append(Paragraph("<font color='#b25b00'><b>Uwaga:</b></font> "
                            + "; ".join(notes) + ".", small))
