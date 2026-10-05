@@ -66,10 +66,12 @@ Say all of that on any confident `games_won_for` row you grade.
 ## Cover both products
 
 `06_coupon.json` is not the coupon; `KUPON_<date>.pdf` is (its printed
-singles and its Bet Builders). Grade every tennis leg and builder in
-`08_confidence.json` explicitly - each gets a line in the reads block
-(`KEEP`, `WATCH` or `NO_BET`; a printed leg without your read fails
-`audit_variants` C3) - and open `06_dropped.json` before concluding a row
+singles and its Bet Builders). Grade the tennis legs among the best 30
+official singles (the first 30 of `singles` in `08_confidence.json`, artifact
+order - the operator's limit of 2026-10-05; the PDF prints ~300) and every
+tennis builder leg explicitly - each gets a line in the reads block
+(`KEEP`, `WATCH` or `NO_BET`; such a leg printed without your read fails
+`audit_variants` C3; read a few beyond 30 if you remove any) - and open `06_dropped.json` before concluding a row
 was never generated. Legs carry `sample_hit_rate` (the line's hit rate in
 the leg's own sample) and `context_flags` (`LONG_LAYOFF`, `CONGESTED` from
 the fixture's `schedule` block in `03_samples.json`); the code's

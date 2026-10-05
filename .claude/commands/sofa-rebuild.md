@@ -36,8 +36,8 @@ Two inputs are not optional:
 `04_offer.json` is required by COUPON and CONFIDENCE both. `vetoes.json` is
 optional and **`[]` is the healthy default**. `reads.json` (per-leg KEEP /
 WATCH / NO_BET from the analysts and the verifier) is optional to the code,
-but from 2026-10-05 `audit_variants` C3 fails every printed official leg
-without an analyst's read - a rebuild that prints a leg nobody read needs
+but from 2026-10-05 `audit_variants` C3 fails any of the best 30 official
+singles or a printed builder leg without an analyst's read - a rebuild that prints a leg nobody read needs
 that sport's analyst on exactly those legs (`/sofa-analyze` step 2 merge).
 
 State the resolved date, what is present, and the age of each file. A sheet

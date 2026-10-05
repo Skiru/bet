@@ -696,6 +696,28 @@ def printed_builders(artifact: dict[str, Any]) -> list[dict[str, Any]]:
     return [b for b in artifact.get("builders") or [] if is_stakeable(b)]
 
 
+# How many of the official coupon's printed singles need an analyst's read
+# (audit_variants C3): the best READ_REQUIRED_SINGLES in the artifact's own
+# order (confidence, then the shorter price; locked legs first), plus every
+# leg of a printed builder. The operator's order of 2026-10-05, when the
+# official page limit was lifted and the list grew from 30 to ~300 singles:
+# "analysts read at most the 30 best". The rest prints unread.
+READ_REQUIRED_SINGLES = 30
+
+
+def legs_requiring_read(artifact: dict[str, Any]) -> list[dict[str, Any]]:
+    """The printed legs C3 requires an analyst's read on (see above)."""
+    return [
+        *printed_singles(artifact)[:READ_REQUIRED_SINGLES],
+        *(
+            {**leg, "sofascore_event_id": b["sofascore_event_id"],
+             "match": b.get("match", ""), "locked": bool(b.get("locked"))}
+            for b in printed_builders(artifact)
+            for leg in b.get("legs") or []
+        ),
+    ]
+
+
 def fixture_leg_counts(singles: list[dict[str, Any]]) -> dict[int, int]:
     """How many of these singles stand on each fixture.
 

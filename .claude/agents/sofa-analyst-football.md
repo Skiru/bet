@@ -82,10 +82,14 @@ So your two jobs, in order:
   Builders the operator stakes, **+8.2%** the same day.
 
 A read that grades the singles and never opens the confidence artifact
-describes a day that was never staked. **Grade every football leg and builder
-in `08_confidence.json` explicitly**, including the ones you would leave alone
-- and give each a line in the reads block (`KEEP`, `WATCH` or `NO_BET`): a
-leg the official PDF prints without your read fails `audit_variants` C3.
+describes a day that was never staked. **Grade the football legs among the
+best 30 official singles (the first 30 of `singles` in `08_confidence.json`,
+artifact order) and every football builder leg explicitly**, including the
+ones you would leave alone - and give each a line in the reads block (`KEEP`,
+`WATCH` or `NO_BET`): such a leg printed without your read fails
+`audit_variants` C3. Since 2026-10-05 the official PDF prints every single
+(~300), but the operator ordered that analysts read at most the best 30; read
+a few beyond 30 if you remove any, since a removal moves the next leg up.
 
 `08_confidence_wariant.json` → `KUPON_<date>_WARIANT.pdf` (the operator's
 variant, not the coupon) prints every single at floor 0.65, and it reads the

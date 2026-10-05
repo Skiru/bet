@@ -204,9 +204,11 @@ so the day is rebuilt after they are merged.
 
 After SHEET completes (the sequence will have run COUPON already — that is
 fine, you will rebuild), build a **provisional** CONFIDENCE so the analysts
-read the legs that would print - every printed official leg needs an
-analyst's read (`audit_variants` C3, days from 2026-10-05), and an analyst
-cannot read a leg that is not on disk:
+read the legs that would print - the best 30 official singles (the first 30
+of `singles`) and every printed builder leg need an analyst's read
+(`audit_variants` C3, `confidence.legs_requiring_read`; the rest of the ~300
+printed singles print unread - operator, 2026-10-05), and an analyst cannot
+read a leg that is not on disk. Tell the analysts that limit explicitly. Build:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>

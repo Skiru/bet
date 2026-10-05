@@ -222,8 +222,11 @@ WATCH / NO_BET will hit).
 | `WATCH` | **removed** (`WATCHED`) | **kept**, printed `WATCH (analyst): <reason>` - so the ledger can measure whether WATCH removes losers |
 | `NO_BET` | removed (`READ_NO_BET`) | removed |
 
-A leg the official PDF prints without your `KEEP` fails `audit_variants.py`
-C3, so a leg you leave alone still gets one line. `WATCH` is not a soft
+A leg among the best 30 official singles (the first 30 of `singles` in
+`08_confidence.json`) or on a printed builder that has no read of yours fails
+`audit_variants.py` C3, so such a leg you leave alone still gets one line. The
+singles beyond the 30th print unread (operator, 2026-10-05) - a WATCH or
+NO_BET you do write on one still removes it. `WATCH` is not a soft
 veto and not a hedge: write it for a leg you would not stake. A sample that
 does not describe the fixture is still a veto, not a `NO_BET`.
 

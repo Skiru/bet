@@ -69,9 +69,13 @@ equal to what its source prints now, nothing written into `runs/sofa/<d>/`.
 C1-C2 check the official coupon and WARIANT: the artifact is of its profile
 and not older than `05_sheet.json` / `vetoes.json` / `reads.json`, its PDF is
 not older than it, and every printed single obeys the artifact's own dials.
-C3 (days from 2026-10-05): every leg the official PDF prints - single or
-builder leg - is covered by a read with `author: "analyst"` in `reads.json`,
-and none it prints carries a WATCH or NO_BET read. A C3 finding on your first
+C3 (days from 2026-10-05): the best 30 official singles (the first 30 of
+`singles`) and every printed builder leg are covered by a read with
+`author: "analyst"` in `reads.json` (`confidence.legs_requiring_read`; the
+other singles print unread by the operator's order), and no leg it prints
+carries a WATCH or NO_BET read. Your own adversarial checks cover the same
+best 30 singles plus the builders; name how many printed singles lay beyond
+them, unverified. A C3 finding on your first
 pass is the runner's to close (an unread leg goes back to the analyst); a C3
 finding after your reads were merged means the rebuild did not happen.
 "no findings (nothing to check)" is not a pass - say which variants existed.

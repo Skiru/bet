@@ -148,10 +148,12 @@ Z tego wynikają rzeczy, które trzeba robić dokładnie tak:
 
 1. **Analitycy biegną po SHEET i po wstępnym CONFIDENCE** (oba profile),
    żeby nogi, które się wydrukują, były na dysku. Sekwencja domyślna
-   uruchomi już COUPON — to normalne, przebuduje się go w kroku 4. Każda
-   noga, którą drukuje oficjalny PDF, musi mieć odczyt analityka
-   (`audit_variants` C3, dni od 2026-10-05) — także noga zostawiona w
-   spokoju dostaje `KEEP`.
+   uruchomi już COUPON — to normalne, przebuduje się go w kroku 4. 30
+   najlepszych pojedynczych oficjalnego PDF (pierwsze 30 w `singles`) i każda
+   noga wydrukowanego buildera muszą mieć odczyt analityka (`audit_variants`
+   C3, dni od 2026-10-05) — także noga zostawiona w spokoju dostaje `KEEP`.
+   Od 05.10 oficjalny PDF drukuje wszystkie pojedyncze (~300); reszta
+   drukuje się bez odczytu (decyzja operatora).
 2. **Po zapisaniu wet trzeba przebudować OBA produkty.** `vetoes.json` czytają
    COUPON **i** CONFIDENCE. Przebudowanie samych singli zostawia zawetowany
    szczebel jako nogę Bet Buildera, czyli w pliku, który się stawia. Tak było

@@ -193,11 +193,11 @@ What each verdict does, in code (`veto.read_refusal`):
 | `WATCH` | removed, refused reason `WATCHED` | **kept**, the leg carries `"reads": [...]` and the PDF prints `WATCH (analyst): <reason>` - the operator's decision of 2026-10-04, so the ledger can measure whether WATCH removes losers |
 | `NO_BET` | removed, `READ_NO_BET` | removed, `READ_NO_BET` |
 
-- **One read per printed leg you read**: every single and every stakeable
-  builder leg in `08_confidence.json`, and WARIANT legs where you reached
-  them. `audit_variants.py` C3 (days from 2026-10-05) fails the day when a
-  leg the official PDF prints has no read with `author: "analyst"`, or
-  carries WATCH / NO_BET - so a leg you read and kept still needs its
+- **One read per printed leg you read**: the best 30 singles (the first 30
+  of `singles`) and every stakeable builder leg in `08_confidence.json`, and
+  WARIANT legs where you reached them. `audit_variants.py` C3 (days from
+  2026-10-05) fails the day when one of those legs has no read with
+  `author: "analyst"`, or any printed leg carries WATCH / NO_BET - so a leg you read and kept still needs its
   `KEEP`. A fixture-wide `KEEP` (`market: null`) covers every rung on it and
   is fine when that is your read of the whole fixture.
 - **A read is a verdict on a leg; a veto is a verdict on a sample.** A sample

@@ -193,7 +193,9 @@ reason, context}`, `verdict` ∈ `KEEP | WATCH | NO_BET`, `author` ∈
 keeps it in the WARIANT, where the leg carries `reads` and the PDF prints
 `WATCH (<author>): <reason>`; `KEEP` removes nothing. A read matching no row
 is `UNMATCHED_READ`. `audit_variants` C3 (days from 2026-10-05) requires an
-analyst's read on every leg the official PDF prints. The analysts write
+analyst's read on the best 30 official singles and every printed builder leg
+(`confidence.legs_requiring_read`; the official PDF prints every single since
+2026-10-05, the rest unread). The analysts write
 theirs after a provisional CONFIDENCE, the verifier's are appended after
 verification, and the day is rebuilt after each. `build_coupon_pdf.py`'s
 `STALE_CONFIDENCE` guard does not look at `reads.json` - re-run CONFIDENCE

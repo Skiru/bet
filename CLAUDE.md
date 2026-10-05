@@ -6,8 +6,10 @@ From the 10-05 coupon on (`docs/sofa/RAPORT_NOC_2026-10-05.md` section 4a):
 the **official coupon** takes confidence x odds >= 0.90 and a ladder margin up
 to 15% (until 10-04: x > 1.0, 10.5%) and prints every single in its artifact
 (the 30-single page limit lifted the same morning: "don't limit to 30"); floor
-0.70 and WATCH honoured - unchanged. Every printed official leg still needs an
-analyst read (C3), so the analysts' load grows with the list. A 0.80 confidence floor was considered and declined ("many options").
+0.70 and WATCH honoured - unchanged. Analysts read at most the best 30: C3
+requires an analyst read on the first 30 printed singles (artifact order) and
+every printed builder leg (`confidence.legs_requiring_read`); the rest print
+unread, a WATCH/NO_BET on any printed leg still removes it. A 0.80 confidence floor was considered and declined ("many options").
 Measured (football 09-24..10-04): 2574 rows -4.5% -> 8871 rows -4.8% - volume,
 not edge. **Sport coupons** (`sport_coupon.rule_for`, `RULE_CUTOVER`): p x odds
 >= 0.90, margin <= 15%; hockey and basketball print and gate on

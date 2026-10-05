@@ -61,6 +61,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
     PROFILES,
     confidence_artifact,
+    legs_requiring_read,
     printed_builders,
     printed_singles,
 )
@@ -416,7 +417,8 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
 
 
 def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
-    """C3: every printed official leg was read, and none it prints is WATCH
+    """C3: the printed official legs `legs_requiring_read` names (the best 30
+    singles and every builder leg) were read, and no leg it prints is WATCH
     or NO_BET."""
     path = run / "reads.json"
     printed = [
@@ -430,9 +432,10 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
     ]
     if not printed:
         return []
+    required = {_read_key(x) for x in legs_requiring_read(doc)}
     if not path.exists():
-        return [f"C3 {tag}: reads.json missing - none of {len(printed)} printed "
-                "legs has a recorded read"]
+        return [f"C3 {tag}: reads.json missing - none of {len(required)} legs "
+                "that need a read has one"]
     reads = load_reads(path)
     out: list[str] = []
     for leg in printed:
@@ -447,8 +450,10 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
         label = f"{tag} {leg.get('match', '')} {leg['market']} {leg['line']}"
         # A locked single carries the reads it was printed with.
         carried = [r for r in leg.get("reads") or [] if isinstance(r, dict)]
-        if not any(r.author == "analyst" for r in covering) and not any(
-            r.get("author") == "analyst" for r in carried
+        if (
+            _read_key(leg) in required
+            and not any(r.author == "analyst" for r in covering)
+            and not any(r.get("author") == "analyst" for r in carried)
         ):
             out.append(f"C3 {label}: printed without an analyst's read")
         refused = read_refusal(covering, honours_watch=True)
@@ -462,6 +467,13 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
         elif refused is not None:
             out.append(f"C3 {label}: printed despite {refused}")
     return out
+
+
+def _read_key(leg: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        int(leg["sofascore_event_id"]), str(leg["market"]),
+        str(leg.get("subject") or ""), float(leg["line"]), str(leg["direction"]),
+    )
 
 
 def audit_multi(runs_dir: str, date: str) -> list[str]:

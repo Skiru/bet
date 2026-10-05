@@ -267,8 +267,11 @@ not a failure. Only `FAILED` stops you.
 `vetoes.json` and `reads.json` are read by **COUPON and CONFIDENCE both**, so
 the analysts run after SHEET and the day is rebuilt afterwards. First build
 a **provisional** CONFIDENCE, so the legs that would print are on disk for
-the analysts to read - every leg the official PDF prints needs an analyst's
-read (`audit_variants` C3, days from 2026-10-05):
+the analysts to read - the best 30 official singles (the first 30 of
+`singles`) and every printed builder leg need an analyst's read
+(`audit_variants` C3, days from 2026-10-05; since 2026-10-05 the official PDF
+prints every single, ~300, and the rest print unread - the operator's limit,
+pass it to the analysts):
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
@@ -448,9 +451,10 @@ from the samples, so still hand `08_confidence_wariant.json` /
 `KUPON_<d>_WARIANT.pdf` to `sofa-verifier` explicitly and name it in the
 prompt.
 
-C3 (days from 2026-10-05): every leg the official PDF prints - single or
-builder leg - has a read with `author: "analyst"` in `reads.json`, and none
-it prints carries WATCH / NO_BET. A `printed without an analyst's read`
+C3 (days from 2026-10-05): the best 30 official singles and every printed
+builder leg (`confidence.legs_requiring_read`) have a read with
+`author: "analyst"` in `reads.json`, and no printed leg carries WATCH /
+NO_BET. A `printed without an analyst's read`
 line (a rebuild put an unread leg on the PDF) is closed, not reported:
 send exactly those legs to that sport's analyst, merge its reads, rebuild
 step 4 and re-run the audit.

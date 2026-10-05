@@ -67,8 +67,10 @@ coupon.
 ## 2 — what the audit cannot do
 
 A row whose fields are all mutually consistent and all built on the wrong
-sample passes the audit. So, for every row the PDF stakes and every single
-with `surplus > +0.40`:
+sample passes the audit. So, for every builder the PDF stakes, the best 30
+official singles (the first 30 of `singles` - since 2026-10-05 the PDF prints
+all of them, ~300; say how many lay beyond and were not verified) and every
+single with `surplus > +0.40`:
 
 1. **Rebuild from `03_samples.json`** — n, mean, hits against the line,
    observation dates, opponents. Then walk the chain by hand.

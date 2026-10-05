@@ -513,7 +513,8 @@ summary carries `reads_applied`, `reads_unmatched`, `read_rungs`; each
 unmatched read is `UNMATCHED_READ` on stderr. Appended to, never edited:
 the analysts' reads after a provisional CONFIDENCE, the verifier's after
 verification. `audit_variants` C1 counts it in freshness, C3 (days from
-2026-10-05) requires an analyst's read on every printed official leg.
+2026-10-05) requires an analyst's read on the best 30 printed official
+singles and every printed builder leg (`confidence.legs_requiring_read`).
 
 ## The log
 
