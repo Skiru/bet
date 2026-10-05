@@ -333,7 +333,7 @@ free. Say so; do not manufacture a source.
    - `verdict: "WATCH"` for a **judgement**: the evidence is weak, the sample
      does not describe the fixture, the model sits well above its own sample.
    - Both remove the leg from the coupon into `removed_by_reads`, graded on
-     its own (audit_settlement 7h, ledger `removed:reads`), never in the
+     its own (audit_settlement 7i, ledger `removed:reads`), never in the
      coupon's result.
    - `context` only with a CONTEXT-type judgement (`MOTIVATION | ROTATION |
      ABSENCES | DERBY | SCHEDULE | CONDITIONS`), else `null`.

@@ -1,6 +1,6 @@
 ---
 name: sofa-settler
-description: Owns the settle-and-calibrate loop - the only place where one sofa day affects the next. Runs SETTLE for a finished day (and SHADOW_SETTLE / CS2_SETTLE for the measured sports on the coupon), audits the settle identities, reads audit_settlement (section 7c is the coupon's real result per sport and epoch with "Suma kuponu", 7h the legs a read removed, graded apart; refunds at 0 u.) and audit_day_deep (was the miss systematic or dispersion, and would today's gates still have made yesterday's bet), records the ledger per variant and epoch (record_results.py, never pooled), and decides whether to re-fit constants - which is a deliberate, separate step and must never happen mid-day. Checks the fitted_from metadata and half-match coherence of the config files before anyone trusts a sheet built on them. Use the morning after a day, before a run, or when a constant or a baseline looks wrong. Never runs today's pipeline, never builds a coupon, never recommends a stake.
+description: Owns the settle-and-calibrate loop - the only place where one sofa day affects the next. Runs SETTLE for a finished day (and SHADOW_SETTLE / CS2_SETTLE for the measured sports on the coupon), audits the settle identities, reads audit_settlement (section 7c is the coupon's real result per sport and epoch with "Suma kuponu", 7i the legs a read removed, graded apart; refunds at 0 u.) and audit_day_deep (was the miss systematic or dispersion, and would today's gates still have made yesterday's bet), records the ledger per variant and epoch (record_results.py, never pooled), and decides whether to re-fit constants - which is a deliberate, separate step and must never happen mid-day. Checks the fitted_from metadata and half-match coherence of the config files before anyone trusts a sheet built on them. Use the morning after a day, before a run, or when a constant or a baseline looks wrong. Never runs today's pipeline, never builds a coupon, never recommends a stake.
 tools: Bash, Read, Glob, Grep
 skills:
   - sofa-pipeline
@@ -106,7 +106,7 @@ unreadable file (named in the table). **2** = a crash, or for
 - `official:pre_stats_only` - legs locked from the 10-05 morning print,
   selected under the earlier rule;
 - `removed:reads` - the legs a read (or the automatic
-  `MODEL_ABOVE_OWN_SAMPLE`) removed (7h); never in the coupon's result;
+  `MODEL_ABOVE_OWN_SAMPLE`) removed (7i); never in the coupon's result;
 - `measure:<sport>` - Superbet's price against the outcome on the favourite
   side; `favourite_side` is TWO-WAY lines only, so it is comparable across
   the 09-30 cutover; `by_shape` (two / three / exact), `by_family` and
@@ -151,14 +151,14 @@ table (graded at the printed price against the pinned id), closed by
 7 or 7b as "the day's result" is the same error as calling `06_coupon.json`
 the coupon, and it has inverted a day before.
 
-**Section 7h ("Nogi zdjęte przez odczyt")** grades `removed_by_reads` on its
+**Section 7i ("Nogi zdjęte przez odczyt")** grades `removed_by_reads` on its
 own: whether the WATCH / NO_BET reads remove losers. Never add it to 7c.
 
 Report the products separately and never pool them:
 
 - the **coupon** (`11_coupon.json` -> `KUPON_<date>.pdf`, 7c) per section
   and its "Suma kuponu";
-- the **legs the reads removed** (7h);
+- the **legs the reads removed** (7i);
 - the **VALUE singles** of `06_coupon.json` - the old priced selector, input
   material; measured -20.4% on 2026-09-20 against the PDF's +8.2% the same
   day.
@@ -180,9 +180,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>   # again, so its niche section reads it
 ```
 
-The niche section of `audit_settlement` is also headed "7h" - a numbering
-collision in `audit_settlement.py`, not the removed-by-reads table; name
-which one you quote.
+The niche scanner's section of `audit_settlement` is 7h; the removed-by-reads
+table is 7i (renumbered 2026-10-05, `04094d92`, after the two collided).
 
 It asks whether any cell (competition, or country/tier, x market x direction
 [x price band]) beats Superbet's devigged price by more than its own margin
@@ -300,7 +299,7 @@ all three keys survive a refit.
 SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n>)
 KUPON:    sekcja 7c · <sport> [<epoka>]: <w>/<n> · ROI <…> · … · Suma kuponu <u> j.
 SPORTY:   hokej / kosz / siatka / CS2 na kuponie: <w>/<n> · <u> j. · pending <n> · NOT_GRADED:ID_CHANGED <n>
-ZDJĘTE:   sekcja 7h · <w>/<n> · <u> j. (osobno, nie kupon)
+ZDJĘTE:   sekcja 7i · <w>/<n> · <u> j. (osobno, nie kupon)
 SINGLE:   <n> wierszy VALUE (06_coupon.json, nie kupon) · wynik <…>
 TOŻSAMOŚĆ: audit_settle_identity <n> znalezisk (<check>: <n>) · PLAYER_AMBIGUOUS <n>
 POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
@@ -319,7 +318,7 @@ UWAGA:    <the one thing that would change tomorrow's run>
 - A settled result is a fact about the day, **not about the decision that made
   it**. Never let "it won" into the reasoning for the next one.
 - Never pool a graded loss with an ungraded row, or a refund with a loss.
-- Never pool epochs, or the coupon with 7h.
+- Never pool epochs, or the coupon with 7i.
 - Never hand-edit a constant. Re-fit, or report.
 - Never re-fit mid-day.
 - No stake recommendation. Never read, echo or log `.env` values.

@@ -112,7 +112,7 @@ operator: /sofa-day 2026-10-06
    ├─ 1. SETTLE D-1      → sofa-settler (albo inline)
    │                       run_pipeline --only SETTLE; CS2_SETTLE / SHADOW_SETTLE (pętle dnia)
    │                       audit_settlement §7c = prawdziwy wynik kuponu (per sport + suma),
-   │                       §7h nogi zdjęte przez odczyt (osobno); zwroty liczone osobno
+   │                       §7i nogi zdjęte przez odczyt (osobno); zwroty liczone osobno
    │                       audit_settle_identity.py --from <D-1> --to <D-1>
    │   1a. dziennik      record_results.py (D-8..D-1) → audit_ledger.py → audit_clv.py
    │   1b. pętle dnia    cs2_daily.py --chain, shadow_daily.py --chain (zostają u orkiestratora;
@@ -205,7 +205,7 @@ dociera do maszyny — reszta jest raportem dla operatora.
 
   Noga, która przeszła wszystkie bramki, a zdjął ją odczyt (albo
   automatyczny `MODEL_ABOVE_OWN_SAMPLE`), trafia do `removed_by_reads` w
-  `11_coupon.json` i jest rozliczana osobno: `audit_settlement` sekcja 7h
+  `11_coupon.json` i jest rozliczana osobno: `audit_settlement` sekcja 7i
   („Nogi zdjęte przez odczyt”), dziennik `removed:reads` — nigdy w wyniku
   kuponu. Odczyt, który nic nie trafił, drukuje `UNMATCHED_READ`;
   `run_confidence.py` widzi tylko wiersze piłki i tenisa, więc odczyt nogi
@@ -296,7 +296,7 @@ aktualne. Waliduj przed każdą przebudową.
 ### Dziennik i rozliczenie D-1 — domyślnie
 
 Każdy `/sofa-day` robi, bez pytania, po SETTLE / CS2_SETTLE / SHADOW_SETTLE:
-`audit_settlement.py` (7c per sport, 7h), `audit_settle_identity.py`
+`audit_settlement.py` (7c per sport, 7i), `audit_settle_identity.py`
 (przypięte id sportów mierzonych: `ID_USED_TWICE`, `MOVED_GRADED`,
 `NAME_BELOW`, `ORIENTATION_IDS`, `ID_CHANGED`, `IDENTITY_STATE`,
 `IDENTITY_PENDING`), `audit_shadow.py`, `audit_cs2.py` i `record_results.py`
@@ -454,7 +454,7 @@ czym drugą odpowiedzią jest zwykle „nie".
   mierzonych po kursie z wydruku i po przypiętym id, inaczej
   `NOT_GRADED:ID_CHANGED`), zwroty osobno (`MOVED_BEYOND_VOID` — mecz
   przesunięty o > 48 h, `AWARDED` — walkower; 0 j., nigdy przegrana i nigdy
-  `sofa_settled_row`), 7h `removed_by_reads` osobno; `audit_settle_identity.py`;
+  `sofa_settled_row`), 7i `removed_by_reads` osobno; `audit_settle_identity.py`;
   dziennik `record_results.py` (`runs/sofa/ledger/results.jsonl`, jeden
   wiersz na dzień i wariant); wyniki nigdy się nie sumują. Noga wydrukowana
   bez wiersza arkusza rozlicza się do `07_settled_printed.json`, nie do
@@ -493,9 +493,8 @@ Pyta, czy w jakiejś komórce **liga × rynek × kierunek [× przedział kursu]*
   surowego wzorca ligi, nigdy nie są dowodem złej wyceny.
 
 Pisze `reports/sofa_nisze_<to>.md` (po polsku) i `.json`; `audit_settlement`
-streszcza ostatni werdykt pod nagłówkiem **7h** (ten sam numer co „Nogi
-zdjęte przez odczyt” — kolizja numeracji w `audit_settlement.py`, dwa
-osobne nagłówki) — osobno od 7c (kupon), nigdy z nim nie łączony. Skaner **niczego nie zasila** (COUPON,
+streszcza ostatni werdykt pod nagłówkiem **7h** („Nogi
+zdjęte przez odczyt” to 7i od 2026-10-05, `04094d92`) — osobno od 7c (kupon), nigdy z nim nie łączony. Skaner **niczego nie zasila** (COUPON,
 CONFIDENCE, SHEET, weta), nie zmienia stałych i nie jest w `DEFAULT_SEQUENCE`.
 Pierwszy przebieg (2026-09-17…28): **brak niszy** — 0 z 1506 komórek po BH;
 przewaga +5% ROI wymaga ~7 800 meczów w jednej komórce po korekcie, a największa
@@ -547,9 +546,9 @@ RUN:      <run_id> · <werdykt> · <n> na tablicy → <n> dopasowanych (<x>%) �
 SPORTY:   SPORT_IDENTITY <n> IDENTIFIED / <n> NOT_IDENTIFIED · SPORT_CONFIDENCE <werdykt> · FIXTURE_CHECK <n> sprawdzonych, <n> UNVERIFIED, <n> FIXTURE_NOT_AS_SCHEDULED
 WETA:     <n> zastosowanych, <n> bez dopasowania
 READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> (nogi sportów: sprawdzone w 11)
-ZDJĘTE:   removed_by_reads <n> — <każda noga: sport, mecz, rynek, linia, kierunek, autor, powód (analyst / verifier / auto)>; rozliczane osobno (7h), nie kupon
+ZDJĘTE:   removed_by_reads <n> — <każda noga: sport, mecz, rynek, linia, kierunek, autor, powód (analyst / verifier / auto)>; rozliczane osobno (7i), nie kupon
 ANALIZY:  runs/sofa/<data>/<data>_analiza_<sport>.md (football, tennis, i każdy sport mierzony z nogą do przeczytania)
-SETTLE:   D-1 7c per sport + suma kuponu <u> j.; zwroty <n> (MOVED_BEYOND_VOID / AWARDED); 7h <u> j.; audit_settle_identity <n> znalezisk
+SETTLE:   D-1 7c per sport + suma kuponu <u> j.; zwroty <n> (MOVED_BEYOND_VOID / AWARDED); 7i <u> j.; audit_settle_identity <n> znalezisk
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar ceny, osobno
 D-1 DZIENNIK: official <u> j. · removed:reads <u> j. · measure/rule per sport (każdy osobno, nigdy sumowane; grupy epok) · MISMATCH <n> (audit_ledger.py)
 CLV D-1:  kupon <x%> [lo; hi] (audit_clv.py)

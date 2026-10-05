@@ -267,7 +267,7 @@ produkuj źródła.
    dopisuje tablicę do `reads.json`, przebudowuje od CONFIDENCE (FIXTURE_CHECK
    najpierw) przez `build_coupon.py` do PDF i powtarza `audit_coupon` +
    `audit_variants`. NO_BET i WATCH zdejmują nogę z kuponu do
-   `removed_by_reads` (rozliczana osobno, `audit_settlement` 7h).
+   `removed_by_reads` (rozliczana osobno, `audit_settlement` 7i).
 
 Na koniec werdykt i **żadna rekomendacja stawki**. Kupon bywa technicznie
 poprawny i mimo to niewart stawiania: `K_PRICE` i `MAX_LADDER_SIGMA` są

@@ -210,7 +210,7 @@ Two traps in this object:
 WATCH / NO_BET read or the automatic `MODEL_ABOVE_OWN_SAMPLE` removed - the
 full leg plus `refusal` (`WATCHED` / `READ_NO_BET` / `MODEL_ABOVE_OWN_SAMPLE`)
 and `reason` (`analyst` / `verifier` / `auto`). Graded on its own
-(`audit_settlement` 7h, ledger `removed:reads`), never in the coupon's result.
+(`audit_settlement` 7i, ledger `removed:reads`), never in the coupon's result.
 
 **Locked legs (since 2026-10-05, operator: "a leg printed before its match
 started counts").** A rebuild carries over, unchanged, every printed single
@@ -509,7 +509,7 @@ One JSON row per (`date`, `variant`), written by `record_results.py` (a
 re-run replaces the date's rows), read by `audit_ledger.py` - per variant,
 never pooled. Variants: `official` (7c; on a stats-only day the
 stats_only legs), `official:pre_stats_only` (legs locked from the 2026-10-05
-morning print), `removed:reads` (7h), `rule:<sport>`, `measure:<sport>`;
+morning print), `removed:reads` (7i), `rule:<sport>`, `measure:<sport>`;
 `audit_ledger.py` groups by epoch (do 10-04 / 10-05 rano / stats_only), never
 summed. Historical (retired 2026-10-05): `wariant` (7d), `sport:<sport>` and
 `multi` exist only for days up to the morning of 2026-10-05.

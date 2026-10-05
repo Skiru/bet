@@ -197,7 +197,7 @@ table graded at the printed price, and the coupon's sum. A match moved more
 than 48 h (`MOVED_BEYOND_VOID`) or awarded (`AWARDED`) is a **refund** (0
 units, its own count) - never a loss and never a `sofa_settled_row`. A
 printed leg without a sheet row is graded into `07_settled_printed.json`.
-Section **7h** grades the legs a read removed (`removed_by_reads`) - apart,
+Section **7i** grades the legs a read removed (`removed_by_reads`) - apart,
 never in the coupon's result. Sections 7 and 7b are input material, not bets.
 
 Then record the day - this is the data every later decision about a rule,
@@ -214,7 +214,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D
 
 The ledger's variants on a stats-only day: `official` (the coupon, every
 sport), `official:pre_stats_only` (legs locked from the 10-05 morning print -
-a different experiment), `removed:reads` (7h). `audit_ledger.py` keeps the
+a different experiment), `removed:reads` (7i). `audit_ledger.py` keeps the
 epoch groups apart (10-04 / 10-05 rano / stats_only) and never sums them.
 
 Exit codes of `record_results.py`: **0** = graded as far as the settles
@@ -436,7 +436,7 @@ PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; prin
 
 What a read does: `NO_BET` and `WATCH` both remove the leg from the coupon
 (`READ_NO_BET` / `WATCHED`) into `removed_by_reads` - graded on its own in
-audit_settlement 7h and the ledger's `removed:reads`, never in the coupon's
+audit_settlement 7i and the ledger's `removed:reads`, never in the coupon's
 result; `KEEP` removes nothing and records that the leg was read. A
 measured-sport read (`market` = family, `direction` = side, `period`)
 matches no football / tennis sheet row, so `run_confidence.py` lists it as
@@ -570,7 +570,7 @@ READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (W
 ZDJĘTE:   removed_by_reads <n> - <każda zdjęta noga: mecz, rynek, linia, kierunek, autor, powód>; MODEL_ABOVE_OWN_SAMPLE <n>; FIXTURE_NOT_AS_SCHEDULED <n>
 WETA:     <n> zastosowanych, <n> bez dopasowania
 ANALIZY:  runs/sofa/<date>/<date>_analiza_<sport>.md (każdy sport z nogami do odczytu)
-SETTLE:   D-1 <n> wierszy; 7c kupon <u> j. (per sport), zwroty <n>; 7h zdjęte przez odczyt <u> j. (osobno); tożsamość: <n> znalezisk (audit_settle_identity)
+SETTLE:   D-1 <n> wierszy; 7c kupon <u> j. (per sport), zwroty <n>; 7i zdjęte przez odczyt <u> j. (osobno); tożsamość: <n> znalezisk (audit_settle_identity)
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar
 D-1 WYNIKI: official <u> j. · official:pre_stats_only <u> j. · removed:reads <u> j. (każdy osobno, nigdy sumowane) · MISMATCH <n> (audit_ledger.py)
 CLV D-1:  kupon <x%> [lo; hi] (audit_clv.py)

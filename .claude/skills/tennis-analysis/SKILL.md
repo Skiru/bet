@@ -136,7 +136,7 @@ of `11_coupon.json`, every printed builder leg, `read_requests.json` - see
     null (`NO_MARKET_MARGINAL`) - say so.
 11. **Buy case / kill case → verdict** `KEEP / WATCH / NO_BET` + the read
     entry for every leg of your read set (WATCH and NO_BET remove it into
-    `removed_by_reads`, graded apart in audit_settlement 7h) + the veto entry.
+    `removed_by_reads`, graded apart in audit_settlement 7i) + the veto entry.
 
 ## Kill cases this repo has already paid for
 

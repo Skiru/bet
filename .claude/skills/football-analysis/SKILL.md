@@ -149,7 +149,7 @@ positions of `11_coupon.json`, every printed builder leg, `read_requests.json`
     against, which wins. `BUY ≈ KILL` → WATCH at most.
 14. **Verdict** `KEEP / WATCH / NO_BET` — a read entry for every leg of
     your read set (WATCH and NO_BET both remove it from the coupon into
-    `removed_by_reads`, graded apart in audit_settlement 7h) — and the veto
+    `removed_by_reads`, graded apart in audit_settlement 7i) — and the veto
     entry if any.
 
 ## Kill cases this repo has already paid for

@@ -8,7 +8,7 @@ read is found rather than re-derived.
 **None of these sources is measured.** Whether a context veto removes losers
 is exactly what `audit_vetoes.py` exists to answer, per `context` tag; a
 `WATCH` / `NO_BET` read carrying the same tag removes the leg into
-`removed_by_reads`, graded apart in audit_settlement 7h. The vetoes' table
+`removed_by_reads`, graded apart in audit_settlement 7i. The vetoes' table
 had one `CONTEXT` fixture to go on when this file was written (2026-09-23). A
 source earns trust from that table, not from its reputation.
 

@@ -740,7 +740,7 @@ czyli w produkcie, który się stawia).
 - **Weto może wyłącznie usuwać. W `sofa` nie istnieje promocja wiersza.**
 - Obok wet: `reads.json` (`LegRead`, werdykt o nodze: KEEP / WATCH / NO_BET,
   od 2026-10-05 także strony sportów i `period`) — WATCH i NO_BET zdejmują
-  nogę do `removed_by_reads` w `11_coupon.json` (rozliczana osobno, 7h); oraz
+  nogę do `removed_by_reads` w `11_coupon.json` (rozliczana osobno, 7i); oraz
   `read_requests.json` — prośby operatora o dodatkowy odczyt (pozycja albo
   `group_key`), które poszerzają zbiór `legs_requiring_read`, nie wydruk.
   Szczegóły: [`AGENTIC_FLOW.md`](AGENTIC_FLOW.md), część 2.
@@ -1167,7 +1167,7 @@ się mierzyć ROI.** Nie raportuj drugiego z pierwszego.
 Odczyt: `scripts/sofa/audit_settlement.py --date <d>` — **sekcja 7c to
 prawdziwy wynik kuponu z PDF** (w dniu `stats_only`: tabela per sport ×
 epoka, tabela sportów mierzonych po kursie z wydruku, „Suma kuponu”; zwroty
-osobno); **7h „Nogi zdjęte przez odczyt”** — `removed_by_reads`, osobno,
+osobno); **7i „Nogi zdjęte przez odczyt”** — `removed_by_reads`, osobno,
 nigdy w wyniku kuponu; 7d (WARIANT) tylko dla dni do poranka 2026-10-05
 (historyczne). Sekcje 7 i 7b to materiał wejściowy (legi i kandydaci),
 **nie zakłady**. Potem `scripts/sofa/audit_day_deep.py --date <d>`

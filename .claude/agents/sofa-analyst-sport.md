@@ -144,7 +144,7 @@ strict, `extra="forbid"`), one entry per leg you read:
   `veto-contract.md`; leave it out when none fits.
 - `KEEP` records that you read the leg; `WATCH` (a judgement) and `NO_BET`
   (a defect or a two-source fact) both remove it from the coupon into
-  `removed_by_reads`, graded on its own in audit_settlement 7h - never in
+  `removed_by_reads`, graded on its own in audit_settlement 7i - never in
   the coupon's result.
 - Write reads, not vetoes, for these legs: `Veto.direction` takes only
   `OVER` / `UNDER` and has no period, so a veto cannot name a sport side.

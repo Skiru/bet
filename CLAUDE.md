@@ -174,7 +174,7 @@ Source of truth for the order: `DEFAULT_SEQUENCE` in
 | the analysts' read of an existing coupon (top 30 + builder legs; "dodatkowo: <pozycje>" adds to `read_requests.json`) | `/sofa-analyze` |
 | coupon (11_coupon.json) + PDF from artifacts on disk (FIXTURE_CHECK, CONFIDENCE, COUPON_ASSEMBLY, PDF) | `/sofa-rebuild` |
 | adversarial verification of a built day (11_coupon.json, sport legs via U3) | `/sofa-verify` |
-| settle D-1 (7c per sport, 7h, refunds, identity audit) and decide about constants | `/sofa-settle` |
+| settle D-1 (7c per sport, 7i, refunds, identity audit) and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,

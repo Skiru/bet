@@ -141,7 +141,7 @@ PYTHONPATH=src:. .venv/bin/python -c "from pathlib import Path; from bet.sofa.co
 ```
 
 `WATCH` and `NO_BET` both remove the leg from the coupon into
-`removed_by_reads` (graded apart, audit_settlement 7h); `KEEP` removes
+`removed_by_reads` (graded apart, audit_settlement 7i); `KEEP` removes
 nothing. CONFIDENCE prints `UNMATCHED_READ` on stderr for a read that matched
 no football / tennis row - a sport read always shows there and takes effect
 in COUPON_ASSEMBLY; any other one is a read that did nothing - report it.

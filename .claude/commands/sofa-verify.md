@@ -145,7 +145,7 @@ The verifier writes no file. Whoever ran it **appends** that array to
 `load_reads`) and rebuilds: `run_confidence.py` -> `build_coupon.py` ->
 `build_coupon_pdf.py`, then re-runs `audit_variants.py` (C1, C3 clean). WATCH
 and NO_BET both remove the leg into `removed_by_reads` (graded apart,
-audit_settlement 7h, never in the coupon's result). On a past day whose
+audit_settlement 7i, never in the coupon's result). On a past day whose
 legs have started, do not rebuild: report the array as not applied.
 
 End with a verdict and **no stake recommendation**. A coupon can be technically

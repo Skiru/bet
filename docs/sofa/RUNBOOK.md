@@ -173,7 +173,7 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <tod
 - **Zwroty liczone osobno** (REFUND, 0 j.): `MOVED_BEYOND_VOID` (mecz
   przesunięty o > 48 h) i `AWARDED` (walkower) — nigdy przegrana, nigdy
   `sofa_settled_row` (`07_settle_skips.json`).
-- **7h „Nogi zdjęte przez odczyt”** — `removed_by_reads` z `11_coupon.json`,
+- **7i „Nogi zdjęte przez odczyt”** — `removed_by_reads` z `11_coupon.json`,
   rozliczone osobno, nigdy w wyniku kuponu (dziennik `removed:reads`).
 - Noga wydrukowana bez wiersza arkusza rozlicza się do
   `07_settled_printed.json`, nie do `sofa_settled_row`. Propsy zawodników
@@ -433,6 +433,6 @@ napisałeś**.
 Wzór jest w [`AGENTIC_FLOW.md`](AGENTIC_FLOW.md), część 8: jeden kupon,
 sekcje per sport, top 30 przeczytane, liczba nóg poza top 30, nogi zdjęte
 (`removed_by_reads`) z autorem i powodem, D-1 (7c per sport + suma, zwroty,
-7h, dziennik per epoka, CLV), audyty C1–C3 / U1–U3, weryfikacja.
+7i, dziennik per epoka, CLV), audyty C1–C3 / U1–U3, weryfikacja.
 
 Raporty z konkretnych dni i historia znalezisk: [`history/`](history/).

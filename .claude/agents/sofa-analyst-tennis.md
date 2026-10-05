@@ -140,7 +140,7 @@ comparison of `model_p` with `sample_hit_rate` is still yours.
 
 What your verdict does: `WATCH` (a judgement) and `NO_BET` (a defect or a
 two-source fact) both remove the leg from the coupon into `removed_by_reads`
-of `11_coupon.json`, graded on its own in audit_settlement 7h (ledger
+of `11_coupon.json`, graded on its own in audit_settlement 7i (ledger
 `removed:reads`) and never in the coupon's result. A leg marked `locked` was
 printed by an earlier build (carried from `12_printed.json`) and its match
 has started: it stays on the coupon whatever a read now says - read it only

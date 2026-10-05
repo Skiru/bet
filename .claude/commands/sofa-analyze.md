@@ -216,7 +216,7 @@ before Step 1, or the glob merges them in.
 What a read does: `WATCH` and `NO_BET` both remove the leg from the coupon;
 a leg that passed every gate and a read (or the automatic football
 `MODEL_ABOVE_OWN_SAMPLE`) removed lands in `removed_by_reads` of
-`11_coupon.json`, graded on its own (audit_settlement 7h, ledger
+`11_coupon.json`, graded on its own (audit_settlement 7i, ledger
 `removed:reads`) and never in the coupon's result. `KEEP` removes nothing
 and records that the leg was read. Count what each WATCH / NO_BET will hit,
 as for a veto - `subject: null` covers every subject on the fixture, a

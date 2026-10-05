@@ -250,7 +250,7 @@ score "3:1") and `period` the period / quarter / set / CS2 map (None = all).
 In the stats-only epoch NO_BET and WATCH (and the automatic football
 `MODEL_ABOVE_OWN_SAMPLE`) are applied **at the end of the chain**: a leg that
 passed every gate and a read removed goes to `removed_by_reads` in
-`11_coupon.json`, graded on its own (`audit_settlement` 7h, ledger
+`11_coupon.json`, graded on its own (`audit_settlement` 7i, ledger
 `removed:reads`), never in the coupon's result. KEEP removes nothing.
 
 Who reads: `confidence.legs_requiring_read` — the first 30 unlocked positions

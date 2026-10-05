@@ -597,7 +597,7 @@ written atomically.
 | script | question |
 |---|---|
 | `audit_coupon.py --date D` | structure, arithmetic re-derived from each row's own fields, anti-selection distributions. Exit 1 = findings. |
-| `audit_settlement.py --date D` | of everything forecast, how much came in and why not. **Section 7c is the PDF coupon's real result** (on a stats-only day per sport x epoch, measured sports graded at the printed price, refunds apart); 7h the legs `removed_by_reads`; 7 and 7b are input material, not bets. |
+| `audit_settlement.py --date D` | of everything forecast, how much came in and why not. **Section 7c is the PDF coupon's real result** (on a stats-only day per sport x epoch, measured sports graded at the printed price, refunds apart); 7i the legs `removed_by_reads`; 7 and 7b are input material, not bets. |
 | `audit_day_deep.py --date D` | per market: was the miss systematic or dispersion; and would today's gates still have made yesterday's bet |
 | `audit_sample_bias.py --date D` | does the sample measure what the book settles |
 | `audit_variants.py --date D` | C1 freshness, C2 every printed single obeys its dials, C3 every leg in `legs_requiring_read` has an analyst read, U1 the order of 11 = `coupon_order`, U2 every fresh football / tennis single is stats_only, U3 every fresh sport leg re-derived from the raw Superbet snapshot. Exit 0 / 1 findings / 2 bad file. |

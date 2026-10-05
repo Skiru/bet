@@ -207,7 +207,7 @@ WATCH; `coupon_sports.apply_reads` for a sport leg):
 A leg that passed every gate and a read removed (or the automatic
 `MODEL_ABOVE_OWN_SAMPLE` WATCH on a football leg) is listed in
 `removed_by_reads` of `11_coupon.json` and graded on its own at its printed
-price: audit_settlement 7h ("Nogi zdjęte przez odczyt"), ledger variant
+price: audit_settlement 7i ("Nogi zdjęte przez odczyt"), ledger variant
 `removed:reads`. It is never in the coupon's result.
 
 - **Who reads what.** One read per leg of your read set:

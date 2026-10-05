@@ -1,6 +1,6 @@
 ---
 name: sofa-analysis-core
-description: The contract every sofa sport analyst works under - which legs of the one coupon (11_coupon.json) to read (the first 30 positions, every printed builder leg, read_requests.json), which artifact to open in which order, which number is evidence (pewność, próbka, model) and which is the price (only the betting filter), what may remove a leg and what may never promote one, the vetoes.json schema, the reads.json per-leg verdicts (KEEP / WATCH / NO_BET, with the measured sports' sides and periods) that remove a watched leg into removed_by_reads (graded apart in audit_settlement 7h), the decision point that keeps a search result from contaminating a read, and the report format. Preloaded into sofa-analyst-football, sofa-analyst-tennis and sofa-analyst-sport; the sport skills sit on top of it. Use when reading a sofa coupon or stats sheet, grading coupon legs or Bet Builder legs, or writing vetoes and reads.
+description: The contract every sofa sport analyst works under - which legs of the one coupon (11_coupon.json) to read (the first 30 positions, every printed builder leg, read_requests.json), which artifact to open in which order, which number is evidence (pewność, próbka, model) and which is the price (only the betting filter), what may remove a leg and what may never promote one, the vetoes.json schema, the reads.json per-leg verdicts (KEEP / WATCH / NO_BET, with the measured sports' sides and periods) that remove a watched leg into removed_by_reads (graded apart in audit_settlement 7i), the decision point that keeps a search result from contaminating a read, and the report format. Preloaded into sofa-analyst-football, sofa-analyst-tennis and sofa-analyst-sport; the sport skills sit on top of it. Use when reading a sofa coupon or stats sheet, grading coupon legs or Bet Builder legs, or writing vetoes and reads.
 user-invocable: false
 ---
 
@@ -163,7 +163,7 @@ was never generated, look for it there.
 | `leg_ev`, `shading` | `confidence·odds − 1`, `confidence − 1/odds` | Superbet's builder price, or an edge |
 | `context_flags` | `MAKEUP_FIXTURE` / `LONG_LAYOFF` / `CONGESTED` from the schedule | a gate - shown, never enforced; a question you answer |
 | `reads` | the reads covering the leg | your read, unless you wrote it |
-| `removed_by_reads` (11) | legs that passed every gate and a read (or `MODEL_ABOVE_OWN_SAMPLE`) removed, with `refusal` and `reason` (who) | the coupon - graded apart in audit_settlement 7h, ledger `removed:reads` |
+| `removed_by_reads` (11) | legs that passed every gate and a read (or `MODEL_ABOVE_OWN_SAMPLE`) removed, with `refusal` and `reason` (who) | the coupon - graded apart in audit_settlement 7i, ledger `removed:reads` |
 
 **The one arithmetic rule:** `p_central`, `confidence`, `forecast_p`, `x`
 (and the priced `p_bar` / `required_odds`) come from tested code. Read them; never recompute them in prose.
@@ -247,7 +247,7 @@ only and a veto has no period.
 | `WATCH` | **removed** (`WATCHED`) into `removed_by_reads` |
 | `NO_BET` | **removed** (`READ_NO_BET`) into `removed_by_reads` |
 
-A removed leg is graded on its own - audit_settlement 7h ("Nogi zdjęte przez
+A removed leg is graded on its own - audit_settlement 7i ("Nogi zdjęte przez
 odczyt"), ledger variant `removed:reads` - and never in the coupon's result,
 so the ledger measures whether reads remove losers. A leg of your read set
 that has no read of yours fails `audit_variants.py` C3, so a leg you leave

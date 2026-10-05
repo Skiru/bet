@@ -1,5 +1,5 @@
 ---
-description: Settle a finished sofa day (every sport on the coupon), read what it actually did (section 7c is the coupon's real result, 7h the legs a read removed, refunds apart), audit the settle identities, record the ledger per epoch, and decide whether to re-fit the constants - which is a deliberate step and never happens mid-day.
+description: Settle a finished sofa day (every sport on the coupon), read what it actually did (section 7c is the coupon's real result, 7i the legs a read removed, refunds apart), audit the settle identities, record the ledger per epoch, and decide whether to re-fit the constants - which is a deliberate step and never happens mid-day.
 argument-hint: wczoraj | YYYY-MM-DD
 ---
 
@@ -80,7 +80,7 @@ re-running a date replaces its rows. Each variant stands alone:
   the stats-only rule, with one section per sport;
 - `official:pre_stats_only` - legs locked from the 10-05 morning print,
   selected under the earlier rule;
-- `removed:reads` - the legs a read removed (7h), never in the coupon's
+- `removed:reads` - the legs a read removed (7i), never in the coupon's
   result;
 - `measure:<sport>` (Superbet's price against the outcome, the favourite
   side of two-way lines) and `rule:<sport>` - evidence, not bets.
@@ -115,12 +115,12 @@ apart at 0 u. Sections 7 and 7b are input material - legs and candidates -
 **not bets**. Reporting 7 or 7b as the day's result is the same error as
 calling `06_coupon.json` the coupon, and it has inverted a day before.
 
-**Section 7h ("Nogi zdjęte przez odczyt")** grades the legs a WATCH / NO_BET
+**Section 7i ("Nogi zdjęte przez odczyt")** grades the legs a WATCH / NO_BET
 read (or the automatic `MODEL_ABOVE_OWN_SAMPLE`) removed. It answers whether
 the reads remove losers; it is never added to 7c.
 
 Report the paths separately and never pool them: the coupon (7c, per
-section), the legs the reads removed (7h), and the priced VALUE singles of
+section), the legs the reads removed (7i), and the priced VALUE singles of
 `06_coupon.json` (input material, not a bet).
 
 `audit_day_deep` answers the two questions after: per market, was the miss
@@ -135,8 +135,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17
 ```
 
 Run it after settlement, then re-run `audit_settlement` so its niche section
-reads the new artifact (that section is also headed "7h" - a numbering
-collision in `audit_settlement.py`; it is not the removed-by-reads table). It
+reads the new artifact (that section is 7h; the
+removed-by-reads table is 7i). It
 asks whether any league x market x direction cell beats Superbet's price
 **out of sample and over its own margin** (walk-forward, shrunk toward market
 and price, Benjamini-Hochberg over every cell scanned). Read it as evidence:
@@ -189,7 +189,7 @@ refusing to name a value is information.
 SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n>)
 KUPON:    sekcja 7c · <sport> [<epoka>]: <w>/<n> · ROI <…> · … · Suma kuponu <u> j.
 SPORTY:   hokej / kosz / siatka / CS2 na kuponie: <w>/<n> · <u> j. · pending <n>
-ZDJĘTE:   sekcja 7h · <w>/<n> · <u> j. (osobno, nie kupon)
+ZDJĘTE:   sekcja 7i · <w>/<n> · <u> j. (osobno, nie kupon)
 TOŻSAMOŚĆ: audit_settle_identity <n> znalezisk (<check>: <n>) · PLAYER_AMBIGUOUS <n>
 POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
 LEDGER:   <n> wierszy zapisanych dla <date> · per epoka (do 10-04 / 10-05 rano / stats_only), nigdy sumowane
