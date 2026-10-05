@@ -274,3 +274,32 @@ def test_the_frozen_clock_is_refused_on_the_real_runs_dir(monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["run_sport_confidence.py", "--date", DATE])
     assert rsc.main() == 2
     assert "REFUSED" in capsys.readouterr().err
+
+
+def test_the_db_forecaster_orients_the_model_to_superbets_team1():
+    from types import SimpleNamespace
+
+    from bet.sofa import score_model as sm
+    from bet.sofa.shadow import SPORTS, ShadowLine
+
+    history = [sm.FootballResult(
+        i, i, 5, 100 + i % 4, 200 + i % 4,
+        {**{f"p{k}_for": (1.5, 0.5) for k in (1, 2, 3)},
+         sm.REG_METRIC["hockey"]: (4.5, 1.5)}) for i in range(80)]
+    model = sm.build_model(history, SPORTS["hockey"], cut_ts=10**9)
+    fc = rsc.DbForecaster("unused.db", AT)
+    fc._shadow["hockey"] = (model, scf.TeamGames({}))
+    ev = SimpleNamespace(kickoff_utc="2026-10-06T18:00:00Z", team1="a", team2="b")
+    t1 = ShadowLine("1", 630, "winner", 0, "", None, "T1", 1.5)
+    t2 = ShadowLine("1", 630, "winner", 0, "", None, "T2", 2.5)
+    straight = _fixture(home_id=100, away_id=200, competition_id=5)
+    crossed = _fixture(sb="2", home_id=100, away_id=200, competition_id=5,
+                       home_is_team1=False)
+    p_home = fc.probability("hockey", straight, ev, t1)
+    p_away_as_t1 = fc.probability("hockey", crossed, ev, t1)
+    p_away = fc.probability("hockey", straight, ev, t2)
+    assert p_home is not None and p_away_as_t1 is not None and p_away is not None
+    assert p_home > 0.8  # the home side scores three times as much
+    assert p_away_as_t1 == pytest.approx(p_away, abs=0.03)
+    unrated = _fixture(sb="3", home_id=999, away_id=200, competition_id=5)
+    assert fc.probability("hockey", unrated, ev, t1) is None

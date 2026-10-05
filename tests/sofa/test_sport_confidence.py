@@ -343,3 +343,18 @@ def test_cs2_sample_counts_each_teams_own_maps():
     assert scf.cs2_sample_hit_rate(rounds, "T1", 1, 2, maps, {}) == (10, 10)
     assert scf.cs2_sample_hit_rate(rounds, "T2", 1, 2, maps, {}) == (0, 10)
     assert scf.cs2_sample_hit_rate(rounds, None, 1, 2, maps, {}) == (0, 0)
+
+
+def test_the_printable_region_is_the_official_floor():
+    from bet.sofa.confidence import PROFILES
+
+    assert scf.PRINTABLE_FROM == PROFILES["standard"].floor
+    curves = {"k|TEAM": {"0.800-0.825": {"n": 300, "realised": 0.8,
+                                          "realised_lo95": 0.78},
+                         "0.000-0.600": {"n": 300, "realised": 0.4,
+                                          "realised_lo95": 0.35}}}
+    rows = (_rows("k|TEAM", 0.81, 100, 80, "a") + _rows("k|TEAM", 0.30, 100, 40, "b"))
+    out = scf.evaluate(curves, rows)["k|TEAM"]
+    assert out["n"] == 200
+    assert out["printable"]["n"] == 100 and out["printable"]["realised"] == 0.8
+    assert out["printable"]["confidence"] == 0.78

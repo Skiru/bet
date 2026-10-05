@@ -129,6 +129,10 @@ EDGES = [0.0, 0.60, 0.70, 0.75, 0.80, 0.825, 0.85, 0.875, 0.90, 0.925, 0.95, 1.0
 MIN_BUCKET = 200  # a bucket under this is unused (plan F4)
 MAX_OVERSTATEMENT = 0.03  # F6: OOS confidence above realised by more: refused
 BOOTSTRAP = 2000
+# The rows a coupon could print: confidence at or above the official floor
+# (confidence.PROFILES["standard"].floor; a test holds the two equal). The
+# out-of-sample summary reports them on their own.
+PRINTABLE_FROM = 0.70
 UNFITTED_CONSTANTS = (
     "LINE_QUANTILES",
     "CS2_TEAM_ROUND_LINES",
@@ -310,6 +314,14 @@ def evaluate(curves: Mapping[str, Mapping[str, Mapping[str, Any]]],
             summary["realised"] = round(sum(int(r["y"]) for r, _ in items) / n, 4)
             summary["confidence"] = round(sum(c for _, c in items) / n, 4)
             summary["realised_minus_confidence"] = _bootstrap_gap(items, rng)
+            printable = [(r, c) for r, c in items if c >= PRINTABLE_FROM]
+            if printable:
+                m = len(printable)
+                summary["printable"] = {
+                    "n": m, "games": len({r["game"] for r, _ in printable}),
+                    "confidence": round(sum(c for _, c in printable) / m, 4),
+                    "realised": round(sum(int(r["y"]) for r, _ in printable) / m, 4),
+                    "realised_minus_confidence": _bootstrap_gap(printable, rng)}
         out[key] = summary
     return out
 
