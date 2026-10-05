@@ -362,6 +362,17 @@ def main() -> int:
             )
             return 2
         previous = loaded if isinstance(loaded, dict) else None
+    # "Printed" means a PDF was rendered from that build: the provisional
+    # build before the analysts' read never reaches a PDF, and a leg the
+    # operator never saw is not locked. A build whose PDF is missing or older
+    # than it carries over only the legs it had itself locked from an earlier,
+    # printed build.
+    previous_pdf = run_dir / f"KUPON_{args.date}{profile.pdf_suffix}.pdf"
+    previous_printed = (
+        previous is not None
+        and previous_pdf.exists()
+        and previous_pdf.stat().st_mtime >= previous_path.stat().st_mtime
+    )
 
     # The analyst's vetoes, which until 2026-09-21 this stage did not read.
     # COUPON honoured them and CONFIDENCE did not, so a veto removed a row
@@ -769,7 +780,9 @@ def main() -> int:
             fx_now, seen_kickoff.get(event_id), event_id in started_ids, now
         )
 
-    locked = carry_over(previous, profile.name, now, is_locked)
+    locked = carry_over(
+        previous, profile.name, now, is_locked, pdf_printed=previous_printed
+    )
     locked_keys = locked.keys
     # Never the same leg twice: the gate above already refuses a locked
     # fixture's rows, this holds even if the two ever disagree.

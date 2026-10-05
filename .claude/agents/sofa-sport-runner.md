@@ -29,7 +29,12 @@ fails, report the output and stop; never repair code.
   (blend minus price intervals include 0; on winners the price knows more:
   lineups, goalies). Never quote a model number for a leg. The probability on the page is Superbet's
   own price with the margin removed over the market's whole outcome group
-  (two sides, a 1X2, or the full exact-score set) (`fair_p`). Expected value at a
+  (two sides, a 1X2, or the full exact-score set) (`fair_p`); since 2026-10-05
+  hockey and basketball print and gate on `p = a + c*logit(fair_p)`
+  (`config/sofa_sport_price_calibration.json` - Superbet over-rates their
+  favourites by 3-4 pp; still no model), every sport needs `p x odds >= 0.90`
+  and a margin <= 15%, and a volleyball leg needs a tournament with a settled
+  event (`sport_coupon.rule_for`). Expected value at a
   fair price is negative by the margin, on every leg; the page prints
   `fair p x odds` below 1.00 for exactly that reason. Never describe a leg
   as value, edge or "the model likes it".
@@ -193,7 +198,8 @@ Back to the orchestrator, in English, short:
    that D-1 had none); one line from the audit.
 2. Snapshot freshness at build time; whether you refreshed.
 3. The PDF path and its md5; number of legs; drop counts.
-4. Each leg: start (Warsaw), match, label, odds, fair_p, margin.
+4. Each leg: start (Warsaw), match, label, odds, fair_p (and `p` where the
+   rule recalibrates it), margin.
 5. `rule_history`: n, hit vs mean fair_p, ROI, and the families - with the
    honest note that one or two settled days is not a result.
 6. Vetoes written, with sources, and legs you checked and found nothing on.

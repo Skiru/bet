@@ -43,10 +43,10 @@ from bet.sofa.confidence import (  # noqa: E402
     MAX_BUILDER_SAMPLE_AGE_DAYS,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
+    PROFILES,
     builder_legs_are_coherent,
     printed_singles,
     is_stakeable,
-    leg_is_ev_positive,
     line_is_beyond_sample,
     mode_loses,
 )
@@ -159,7 +159,7 @@ def main() -> int:
             meta = leg_index.get(k, {})
             vals, age = observations(k[0], L["market"], L["subject"])
             gates = []
-            if not leg_is_ev_positive(L["confidence"], L["odds"]):
+            if not PROFILES["standard"].clears_price(L["confidence"], L["odds"]):
                 gates.append("NEGATIVE_LEG_EV")
             if L["odds"] < MIN_ODDS_FOR_CEILING:
                 gates.append("ODDS_TOO_LOW")
@@ -335,7 +335,7 @@ def main() -> int:
             continue
         vals, age = observations(k[0], L["market"], L["subject"])
         gates = []
-        if not leg_is_ev_positive(L["confidence"], L["offered_odds"]):
+        if not PROFILES["standard"].clears_price(L["confidence"], L["offered_odds"]):
             gates.append("NEGATIVE_LEG_EV")
         if L["offered_odds"] < MIN_ODDS_FOR_CEILING:
             gates.append("ODDS_TOO_LOW")

@@ -198,6 +198,15 @@ PDF rendered later from the same JSON keeps such a leg (the JSON is what is
 graded) and, since 2026-10-01, marks it `start przed renderem PDF` with a
 `WARNING` on stderr - count those marks and name every one.
 
+**Locked legs are not a defect** (since 2026-10-05, the operator's order: a
+leg printed before its match started counts). A rebuild carries over, as
+printed, every leg of the previous PDF-rendered build whose match has started:
+`locked: true`, `printed_at_utc`, `printed_under`, marked `w grze - wydrukowane
+przed startem` on the PDF. Check only that `printed_at_utc` is before the
+leg's earlier kickoff clock (audit_variants C2 does it); never NO_BET or WATCH
+a locked leg for having started - such a read is ignored
+(`LOCKED_DESPITE_LATE_REFUSAL`) and only adds noise.
+
 The PDF also marks `ta sama drabina: N` (N singles on one ladder - one
 fixture, market and subject - `confidence.ladder_key`; shown, never
 enforced): name each such ladder, since its rungs are one claim bought N
@@ -288,7 +297,8 @@ manufacture a source.
      sheet wrote it, `""` for a match-level market).
    - `verdict: "NO_BET"` for a **defect**: subject mapped to the wrong side,
      a stale / wrong / vanished price, arithmetic that does not reproduce, a
-     started match, a guard that should have fired. It removes the row from
+     started match (never a `locked` leg - see 2d), a guard that should have
+     fired. It removes the row from
      the official coupon **and** the WARIANT.
    - `verdict: "WATCH"` for a **judgement**: the evidence is weak, the sample
      does not describe the fixture, the model sits well above its own sample.

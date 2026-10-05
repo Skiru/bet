@@ -236,7 +236,9 @@ def audit_sport(
                 )
             continue
         p = rule.probability(float(leg["fair_p"]))
-        if abs(p - float(leg.get("p", leg["fair_p"]))) > TOL:
+        # fair_p is stored rounded to 4 places and p was computed from the
+        # unrounded one: the recomputation can drift by ~1.2e-4
+        if abs(p - float(leg.get("p", leg["fair_p"]))) > 3 * TOL:
             out.append(f"S2 {name}: p {leg.get('p')} != {p:.4f} from fair_p")
         if p < rule.floor - TOL:
             out.append(f"S2 {name}: p {p:.4f} below floor")
@@ -515,7 +517,11 @@ def audit_multi(runs_dir: str, date: str) -> list[str]:
             out.append(f"M2 {key}: its source coupon is gone")
             continue
         sdoc = json.loads(spath.read_text(encoding="utf-8"))
-        want_legs = [(leg_id(x), x["odds"], x["fair_p"]) for x in sdoc["legs"]]
+        # the probability WSZYSTKIE copies: the calibrated p where the coupon
+        # printed one (hockey, basketball since 2026-10-05), else fair_p
+        want_legs = [
+            (leg_id(x), x["odds"], x.get("p", x["fair_p"])) for x in sdoc["legs"]
+        ]
         got_legs = [
             (leg_id(p["source"]), p["odds"], p["probability"]) for p in sec["singles"]
         ]

@@ -145,9 +145,14 @@ def carry_over(
     profile_name: str,
     now: datetime,
     is_locked: Callable[[int, str | None], bool],
+    pdf_printed: bool = True,
 ) -> LockedPrint:
     """The printed legs and builders of `previous` that a rebuild at `now`
     must keep. `is_locked(event_id, printed_kickoff)` is the kickoff gate.
+
+    `pdf_printed` False: no PDF was rendered from `previous` (the provisional
+    build before the analysts' read), so only what it had already locked from
+    an earlier printed build is carried; its own fresh legs were never seen.
 
     Nothing is carried from an artifact of another profile, or from one built
     after `now` (an as-of replay into the past must not import the future).
@@ -163,6 +168,8 @@ def carry_over(
     out = LockedPrint(previous_created_at_utc=created)
     seen: set[LegKey] = set()
     for s in printed_singles(doc):
+        if not pdf_printed and not s.get("locked"):
+            continue
         if is_locked(int(s["sofascore_event_id"]), s.get("kickoff_utc")):
             out.singles.append(_stamp(s, created, dials))
             k = leg_key(s)
@@ -171,6 +178,8 @@ def carry_over(
                 out.legs.append(_stamp(by_key.get(k, s), created, dials))
     for b in printed_builders(doc):
         eid = int(b["sofascore_event_id"])
+        if not pdf_printed and not b.get("locked"):
+            continue
         if not is_locked(eid, b.get("kickoff_utc")):
             continue
         out.builders.append(_stamp(b, created, dials))

@@ -74,7 +74,9 @@ SECTION_PL: dict[str, str] = {
 }
 PROBABILITY_KIND = {
     "official": "confidence",  # calibrated, a lower bound of the realised rate
-    "sport": "fair_p",  # Superbet's price devigged, no model
+    # Superbet's price devigged, no model; since 2026-10-05 hockey and
+    # basketball print it recalibrated (sport_coupon.rule_for)
+    "sport": "fair_p",
 }
 
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -49,15 +50,28 @@ def _z(t: datetime) -> str:
 
 def _fixture(eid: int) -> dict[str, Any]:
     return {
-        "sofascore_event_id": eid, "superbet_event_ids": [f"s{eid}"],
-        "sport": "football", "kickoff_utc": KICKOFF[eid],
-        "home_name": f"Home {eid}", "away_name": f"Away {eid}",
-        "home_entity_id": eid * 10, "away_entity_id": eid * 10 + 1,
-        "competition_name": "Test League", "competition_id": 9, "season_id": 9,
-        "category_name": "Test", "identity": "CONFIRMED", "round_number": None,
-        "round_name": None, "cup_round_type": None, "previous_leg_event_id": None,
-        "venue_name": None, "referee": None, "ground_type": None,
-        "default_period_count": 2, "superbet_kickoff_utc": KICKOFF[eid],
+        "sofascore_event_id": eid,
+        "superbet_event_ids": [f"s{eid}"],
+        "sport": "football",
+        "kickoff_utc": KICKOFF[eid],
+        "home_name": f"Home {eid}",
+        "away_name": f"Away {eid}",
+        "home_entity_id": eid * 10,
+        "away_entity_id": eid * 10 + 1,
+        "competition_name": "Test League",
+        "competition_id": 9,
+        "season_id": 9,
+        "category_name": "Test",
+        "identity": "CONFIRMED",
+        "round_number": None,
+        "round_name": None,
+        "cup_round_type": None,
+        "previous_leg_event_id": None,
+        "venue_name": None,
+        "referee": None,
+        "ground_type": None,
+        "default_period_count": 2,
+        "superbet_kickoff_utc": KICKOFF[eid],
         "kickoff_disagreement_h": 0.0,
     }
 
@@ -65,13 +79,28 @@ def _fixture(eid: int) -> dict[str, Any]:
 def _sheet_row(eid: int) -> dict[str, Any]:
     p = P[eid]
     return {
-        "sofascore_event_id": eid, "sport": "football", "market": "goals_total",
-        "subject": "", "line": 1.5, "direction": "OVER", "sample_size": 20,
-        "sample_mean": 2.6, "sample_sd": 1.2, "centre": 2.6, "p_central": p,
-        "market_p": p - 0.03, "ladder_centre": None, "ladder_sigma": None,
-        "p_bar": p - 0.02, "bar_reason": "none", "required_odds": 1.1 / (p - 0.02),
-        "offered_odds": ODDS[eid][0], "edge": 0.0, "surplus": 0.0,
-        "verdict": "BELOW_BAR", "notes": [],
+        "sofascore_event_id": eid,
+        "sport": "football",
+        "market": "goals_total",
+        "subject": "",
+        "line": 1.5,
+        "direction": "OVER",
+        "sample_size": 20,
+        "sample_mean": 2.6,
+        "sample_sd": 1.2,
+        "centre": 2.6,
+        "p_central": p,
+        "market_p": p - 0.03,
+        "ladder_centre": None,
+        "ladder_sigma": None,
+        "p_bar": p - 0.02,
+        "bar_reason": "none",
+        "required_odds": 1.1 / (p - 0.02),
+        "offered_odds": ODDS[eid][0],
+        "edge": 0.0,
+        "surplus": 0.0,
+        "verdict": "BELOW_BAR",
+        "notes": [],
     }
 
 
@@ -81,32 +110,55 @@ def _samples(eid: int) -> dict[str, Any]:
         {
             "sofascore_event_id": eid * 100 + i,
             "match_date_utc": _z(T0 - timedelta(days=3 + i)),
-            "opponent": "X", "value": float(v), "minutes": None,
-            "competition_id": 9, "season_id": 9, "venue": None,
+            "opponent": "X",
+            "value": float(v),
+            "minutes": None,
+            "competition_id": 9,
+            "season_id": 9,
+            "venue": None,
         }
         for i, v in enumerate(values)
     ]
     return {
-        "sofascore_event_id": eid, "readiness": "READY", "gaps": [], "players": {},
-        "metrics": {"goals_total": {
-            "metric": "goals_total", "side_a": obs[:10], "side_b": obs[10:], "h2h": [],
-        }},
+        "sofascore_event_id": eid,
+        "readiness": "READY",
+        "gaps": [],
+        "players": {},
+        "metrics": {
+            "goals_total": {
+                "metric": "goals_total",
+                "side_a": obs[:10],
+                "side_b": obs[10:],
+                "h2h": [],
+            }
+        },
     }
 
 
 def _write_offer(run: Path, at: datetime) -> None:
-    (run / "04_offer.json").write_text(json.dumps([
-        {
-            "sofascore_event_id": eid, "status": "PRICED", "unmapped_markets": [],
-            "price_collisions": [],
-            "rungs": [{
-                "market": "goals_total", "subject": "", "line": 1.5,
-                "over_odds": ODDS[eid][0], "under_odds": ODDS[eid][1],
-                "fetched_at_utc": _z(at - timedelta(minutes=1)),
-            }],
-        }
-        for eid in (1, 2)
-    ]))
+    (run / "04_offer.json").write_text(
+        json.dumps(
+            [
+                {
+                    "sofascore_event_id": eid,
+                    "status": "PRICED",
+                    "unmapped_markets": [],
+                    "price_collisions": [],
+                    "rungs": [
+                        {
+                            "market": "goals_total",
+                            "subject": "",
+                            "line": 1.5,
+                            "over_odds": ODDS[eid][0],
+                            "under_odds": ODDS[eid][1],
+                            "fetched_at_utc": _z(at - timedelta(minutes=1)),
+                        }
+                    ],
+                }
+                for eid in (1, 2)
+            ]
+        )
+    )
 
 
 @pytest.fixture()
@@ -126,19 +178,42 @@ def day(tmp_path: Path) -> Path:
 
 
 def _build(
-    runs: Path, at: datetime, monkeypatch: pytest.MonkeyPatch, profile: str = "wariant"
+    runs: Path,
+    at: datetime,
+    monkeypatch: pytest.MonkeyPatch,
+    profile: str = "wariant",
+    printed: bool = True,
 ) -> dict[str, Any]:
+    """One CONFIDENCE build; `printed` marks it as having reached a PDF (a
+    KUPON file at least as new as the artifact) - what the next build's
+    carry-over asks before it locks anything."""
     from scripts.sofa import run_confidence
 
     _write_offer(runs / DAY, at)
     monkeypatch.setenv("SOFA_NOW", _z(at))
-    monkeypatch.setattr(sys, "argv", [
-        "run_confidence.py", "--date", DAY, "--runs-dir", str(runs),
-        "--profile", profile,
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_confidence.py",
+            "--date",
+            DAY,
+            "--runs-dir",
+            str(runs),
+            "--profile",
+            profile,
+        ],
+    )
     assert run_confidence.main() == 0
     name = confidence_artifact(PROFILES[profile])
-    doc: dict[str, Any] = json.loads((runs / DAY / name).read_text())
+    path = runs / DAY / name
+    if printed:
+        pdf = runs / DAY / f"KUPON_{DAY}{PROFILES[profile].pdf_suffix}.pdf"
+        if not pdf.exists():
+            pdf.write_bytes(b"%PDF-1.4 stub")
+        t = path.stat().st_mtime + 1
+        os.utime(pdf, (t, t))
+    doc: dict[str, Any] = json.loads(path.read_text())
     return doc
 
 
@@ -162,11 +237,16 @@ def test_a_started_printed_leg_is_carried_over_as_printed(
     singles = second["singles"]
     # Locked first, then the fresh ones.
     assert singles[0]["sofascore_event_id"] == 2 and singles[0]["locked"] is True
-    assert {k: v for k, v in singles[0].items()
-            if k not in ("locked", "printed_at_utc", "printed_under")} == printed2
+    assert {
+        k: v
+        for k, v in singles[0].items()
+        if k not in ("locked", "printed_at_utc", "printed_under")
+    } == printed2
     assert singles[0]["printed_at_utc"] == first["created_at_utc"]
     assert singles[0]["printed_under"] == {
-        "confidence_floor": 0.65, "min_ev": 0.9, "max_overround": 0.15,
+        "confidence_floor": 0.65,
+        "min_ev": 0.9,
+        "max_overround": 0.15,
     }
     assert [s["sofascore_event_id"] for s in singles[1:]] == [1]
     assert "locked" not in singles[1]
@@ -231,22 +311,47 @@ def test_a_leg_removed_before_its_start_stays_removed(
     run = day / DAY
     # Fixture 1 (not started at T1) is vetoed: the rebuild drops it for good.
     # Fixture 2 (started) gets a NO_BET read after its start: it stays.
-    (run / "vetoes.json").write_text(json.dumps([{
-        "sofascore_event_id": 1, "market": None, "subject": None, "line": None,
-        "direction": None, "reason_class": "CONTEXT", "reason": "rotation",
-        "context": None,
-    }]))
-    (run / "reads.json").write_text(json.dumps([{
-        "sofascore_event_id": 2, "market": None, "subject": None, "line": None,
-        "direction": None, "verdict": "NO_BET", "author": "verifier",
-        "reason": "late read",
-    }]))
+    (run / "vetoes.json").write_text(
+        json.dumps(
+            [
+                {
+                    "sofascore_event_id": 1,
+                    "market": None,
+                    "subject": None,
+                    "line": None,
+                    "direction": None,
+                    "reason_class": "CONTEXT",
+                    "reason": "rotation",
+                    "context": None,
+                }
+            ]
+        )
+    )
+    (run / "reads.json").write_text(
+        json.dumps(
+            [
+                {
+                    "sofascore_event_id": 2,
+                    "market": None,
+                    "subject": None,
+                    "line": None,
+                    "direction": None,
+                    "verdict": "NO_BET",
+                    "author": "verifier",
+                    "reason": "late read",
+                }
+            ]
+        )
+    )
     second = _build(day, T1, monkeypatch)
     assert [s["sofascore_event_id"] for s in second["singles"]] == [2]
     assert second["singles"][0]["locked"] is True
     assert second["locked_late_refusals"] == [
-        {"key": [2, "goals_total", "", 1.5, "OVER"], "as": "single",
-         "refusal": "READ_NO_BET"},
+        {
+            "key": [2, "goals_total", "", 1.5, "OVER"],
+            "as": "single",
+            "refusal": "READ_NO_BET",
+        },
     ]
     # Still removed on the next rebuild, after fixture 1 started too: it was
     # not printed by the build before its start, so there is nothing to lock.
@@ -272,11 +377,24 @@ def test_an_artifact_with_nothing_locked_is_what_it_was(
 
 def test_nothing_is_carried_from_another_profile_or_from_the_future() -> None:
     prev = {
-        "profile": "wariant", "created_at_utc": _z(T0), "pdf_max_singles": None,
-        "confidence_floor": 0.65, "min_ev": 0.9, "max_overround": 0.15,
-        "legs": [], "builders": [],
-        "singles": [{"sofascore_event_id": 2, "market": "goals_total", "subject": "",
-                     "line": 1.5, "direction": "OVER", "kickoff_utc": KICKOFF[2]}],
+        "profile": "wariant",
+        "created_at_utc": _z(T0),
+        "pdf_max_singles": None,
+        "confidence_floor": 0.65,
+        "min_ev": 0.9,
+        "max_overround": 0.15,
+        "legs": [],
+        "builders": [],
+        "singles": [
+            {
+                "sofascore_event_id": 2,
+                "market": "goals_total",
+                "subject": "",
+                "line": 1.5,
+                "direction": "OVER",
+                "kickoff_utc": KICKOFF[2],
+            }
+        ],
     }
     always = lambda eid, ko: True  # noqa: E731
     assert carry_over(prev, "standard", T1, always).singles == []
@@ -286,21 +404,39 @@ def test_nothing_is_carried_from_another_profile_or_from_the_future() -> None:
 
 
 def test_a_started_printed_builder_is_carried_whole() -> None:
-    leg = {"market": "goals_total", "subject": "", "line": 1.5, "direction": "OVER",
-           "confidence": 0.8, "odds": 1.4}
+    leg = {
+        "market": "goals_total",
+        "subject": "",
+        "line": 1.5,
+        "direction": "OVER",
+        "confidence": 0.8,
+        "odds": 1.4,
+    }
     leg2 = {**leg, "market": "corners_total", "line": 8.5}
-    full = [{**x, "sofascore_event_id": 2, "offered_odds": x["odds"],
-             "implied_p": 0.7} for x in (leg, leg2)]
+    full = [
+        {**x, "sofascore_event_id": 2, "offered_odds": x["odds"], "implied_p": 0.7}
+        for x in (leg, leg2)
+    ]
     builder = {
-        "sofascore_event_id": 2, "match": "Home 2 - Away 2",
-        "kickoff_utc": KICKOFF[2], "legs": [leg, leg2], "n_legs": 2,
-        "best_for_fixture": True, "ev_after_haircut": 0.05,
+        "sofascore_event_id": 2,
+        "match": "Home 2 - Away 2",
+        "kickoff_utc": KICKOFF[2],
+        "legs": [leg, leg2],
+        "n_legs": 2,
+        "best_for_fixture": True,
+        "ev_after_haircut": 0.05,
         "odds_if_product": 1.96,
     }
     prev = {
-        "profile": "standard", "created_at_utc": _z(T0), "prints_builders": True,
-        "confidence_floor": 0.7, "min_ev": None, "max_overround": 0.105,
-        "singles": [], "legs": full, "builders": [builder],
+        "profile": "standard",
+        "created_at_utc": _z(T0),
+        "prints_builders": True,
+        "confidence_floor": 0.7,
+        "min_ev": None,
+        "max_overround": 0.105,
+        "singles": [],
+        "legs": full,
+        "builders": [builder],
     }
     got = carry_over(prev, "standard", T1, lambda eid, ko: eid == 2)
     assert len(got.builders) == 1 and got.builders[0]["locked"] is True
@@ -327,10 +463,27 @@ def _settle_rows(db: Path, outcomes: dict[int, str]) -> None:
             " sample_mean, sample_sd, p_central, p_bar, market_p, actual_value,"
             " outcome, settled_at, offered_odds, verdict) values"
             " (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (DAY, eid, "football", 9, "goals_total", "", 1.5, "OVER", 20, 2.6, 1.2,
-             P[eid], P[eid] - 0.02, P[eid] - 0.03,
-             3.0 if outcome == "WIN" else 1.0, outcome, _z(T1), ODDS[eid][0],
-             "BELOW_BAR"),
+            (
+                DAY,
+                eid,
+                "football",
+                9,
+                "goals_total",
+                "",
+                1.5,
+                "OVER",
+                20,
+                2.6,
+                1.2,
+                P[eid],
+                P[eid] - 0.02,
+                P[eid] - 0.03,
+                3.0 if outcome == "WIN" else 1.0,
+                outcome,
+                _z(T1),
+                ODDS[eid][0],
+                "BELOW_BAR",
+            ),
         )
     con.commit()
     con.close()
@@ -338,10 +491,22 @@ def _settle_rows(db: Path, outcomes: dict[int, str]) -> None:
 
 def _locked_day(day: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     _build(day, T0, monkeypatch)
-    (day / DAY / "vetoes.json").write_text(json.dumps([{
-        "sofascore_event_id": 1, "market": None, "subject": None, "line": None,
-        "direction": None, "reason_class": "OTHER", "reason": "x", "context": None,
-    }]))
+    (day / DAY / "vetoes.json").write_text(
+        json.dumps(
+            [
+                {
+                    "sofascore_event_id": 1,
+                    "market": None,
+                    "subject": None,
+                    "line": None,
+                    "direction": None,
+                    "reason_class": "OTHER",
+                    "reason": "x",
+                    "context": None,
+                }
+            ]
+        )
+    )
     doc = _build(day, T1, monkeypatch)
     assert [(s["sofascore_event_id"], s.get("locked")) for s in doc["singles"]] == [
         (2, True)
@@ -364,11 +529,23 @@ def test_settlement_and_the_ledger_grade_a_locked_leg(
 
     out = day / "report.md"
     rep = subprocess.run(
-        [sys.executable, "scripts/sofa/audit_settlement.py", "--date", DAY,
-         "--out", str(out)],
-        cwd=REPO, capture_output=True, text=True,
-        env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin",
-             "SOFA_RUNS_DIR": str(day), "SOFA_DB_PATH": str(db)},
+        [
+            sys.executable,
+            "scripts/sofa/audit_settlement.py",
+            "--date",
+            DAY,
+            "--out",
+            str(out),
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        env={
+            "PYTHONPATH": "src:.",
+            "PATH": "/usr/bin:/bin",
+            "SOFA_RUNS_DIR": str(day),
+            "SOFA_DB_PATH": str(db),
+        },
     )
     assert rep.returncode == 0, rep.stderr
     section = out.read_text().split("## 7d. WARIANT", 1)[1].split("## 8.", 1)[0]
@@ -388,8 +565,9 @@ def test_settle_grades_a_printed_rung_the_final_sheet_left_unpriced(
     got = rows_to_consider(sheet, include_unpriced=False, printed=keys)
     assert [r["sofascore_event_id"] for r in got] == [1, 2]
     # Without printed keys the old selection stands.
-    assert [r["sofascore_event_id"] for r in rows_to_consider(
-        sheet, include_unpriced=False)] == [1]
+    assert [
+        r["sofascore_event_id"] for r in rows_to_consider(sheet, include_unpriced=False)
+    ] == [1]
 
 
 def test_audit_variants_checks_a_locked_leg_against_its_own_build(
@@ -420,15 +598,36 @@ def test_c3_does_not_flag_a_locked_leg_for_a_read_after_its_start(
 ) -> None:
     from scripts.sofa import audit_variants as av
 
-    single = {"sofascore_event_id": 2, "match": "Home 2 - Away 2",
-              "market": "goals_total", "subject": "", "line": 1.5,
-              "direction": "OVER", "kickoff_utc": KICKOFF[2]}
+    single = {
+        "sofascore_event_id": 2,
+        "match": "Home 2 - Away 2",
+        "market": "goals_total",
+        "subject": "",
+        "line": 1.5,
+        "direction": "OVER",
+        "kickoff_utc": KICKOFF[2],
+    }
     reads = [
-        {"sofascore_event_id": 2, "market": None, "subject": None, "line": None,
-         "direction": None, "verdict": "KEEP", "author": "analyst", "reason": "ok"},
-        {"sofascore_event_id": 2, "market": None, "subject": None, "line": None,
-         "direction": None, "verdict": "NO_BET", "author": "verifier",
-         "reason": "after the start"},
+        {
+            "sofascore_event_id": 2,
+            "market": None,
+            "subject": None,
+            "line": None,
+            "direction": None,
+            "verdict": "KEEP",
+            "author": "analyst",
+            "reason": "ok",
+        },
+        {
+            "sofascore_event_id": 2,
+            "market": None,
+            "subject": None,
+            "line": None,
+            "direction": None,
+            "verdict": "NO_BET",
+            "author": "verifier",
+            "reason": "after the start",
+        },
     ]
     (tmp_path / "reads.json").write_text(json.dumps(reads))
     av.notes.clear()
@@ -461,9 +660,19 @@ def test_the_pdf_prints_a_locked_leg_marked(
 
     _locked_day(day, monkeypatch)
     pdf = subprocess.run(
-        [sys.executable, "scripts/sofa/build_coupon_pdf.py", "--date", DAY,
-         "--runs-dir", str(day), "--profile", "wariant"],
-        cwd=REPO, capture_output=True, text=True,
+        [
+            sys.executable,
+            "scripts/sofa/build_coupon_pdf.py",
+            "--date",
+            DAY,
+            "--runs-dir",
+            str(day),
+            "--profile",
+            "wariant",
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
         env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin", "SOFA_NOW": _z(T1)},
     )
     assert pdf.returncode == 0, pdf.stderr
@@ -490,13 +699,23 @@ def test_a_started_printed_builder_survives_the_rebuild_and_prints(
     leg["odds"] = one["offered_odds"]
     leg["unfitted_constants"] = []
     builder = {
-        "sofascore_event_id": 2, "match": "Home 2 - Away 2",
-        "competition": "Test League", "kickoff_utc": one["kickoff_utc"],
-        "legs": [leg, leg], "n_legs": 2, "combined_probability": 0.6,
-        "product_probability": 0.6, "empirical_joint_hits": 0,
-        "empirical_joint_n": 0, "fair_odds": 1.67, "odds_if_product": 2.3,
-        "ev_if_product_priced": 0.3, "haircut": 0.12, "odds_after_haircut": 2.0,
-        "ev_after_haircut": 0.2, "best_for_fixture": True,
+        "sofascore_event_id": 2,
+        "match": "Home 2 - Away 2",
+        "competition": "Test League",
+        "kickoff_utc": one["kickoff_utc"],
+        "legs": [leg, leg],
+        "n_legs": 2,
+        "combined_probability": 0.6,
+        "product_probability": 0.6,
+        "empirical_joint_hits": 0,
+        "empirical_joint_n": 0,
+        "fair_odds": 1.67,
+        "odds_if_product": 2.3,
+        "ev_if_product_priced": 0.3,
+        "haircut": 0.12,
+        "odds_after_haircut": 2.0,
+        "ev_after_haircut": 0.2,
+        "best_for_fixture": True,
     }
     first["builders"] = [builder]
     (day / DAY / "08_confidence_wariant.json").write_text(json.dumps(first))
@@ -505,14 +724,27 @@ def test_a_started_printed_builder_survives_the_rebuild_and_prints(
     assert second["locked_builders"] == 1
     got = second["builders"][0]
     assert got["locked"] is True and got["printed_at_utc"] == first["created_at_utc"]
-    assert {k: v for k, v in got.items()
-            if k not in ("locked", "printed_at_utc", "printed_under")} == builder
+    assert {
+        k: v
+        for k, v in got.items()
+        if k not in ("locked", "printed_at_utc", "printed_under")
+    } == builder
     assert sum(1 for b in second["builders"] if b["sofascore_event_id"] == 2) == 1
 
     pdf = subprocess.run(
-        [sys.executable, "scripts/sofa/build_coupon_pdf.py", "--date", DAY,
-         "--runs-dir", str(day), "--profile", "wariant"],
-        cwd=REPO, capture_output=True, text=True,
+        [
+            sys.executable,
+            "scripts/sofa/build_coupon_pdf.py",
+            "--date",
+            DAY,
+            "--runs-dir",
+            str(day),
+            "--profile",
+            "wariant",
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
         env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin", "SOFA_NOW": _z(T1)},
     )
     assert pdf.returncode == 0, pdf.stderr
@@ -523,3 +755,27 @@ def test_a_started_printed_builder_survives_the_rebuild_and_prints(
     flat = " ".join(text.split())
     # The header count, the single and the builder.
     assert flat.count("w grze - wydrukowane przed startem") == 3
+
+
+def test_a_build_that_never_reached_a_pdf_locks_nothing(
+    day: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The provisional build before the analysts' read is never rendered: a
+    leg the operator never saw on a PDF is not locked when its match starts
+    (review 2026-10-05)."""
+    _build(day, T0, monkeypatch, printed=False)
+    second = _build(day, T1, monkeypatch)
+    assert not any(s.get("locked") for s in second["singles"])
+    assert "locked_singles" not in second
+
+
+def test_an_unprinted_build_still_carries_what_it_had_locked(
+    day: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first = _build(day, T0, monkeypatch)  # printed
+    second = _build(day, T1, monkeypatch, printed=False)  # locks 2, no PDF
+    assert second["singles"][0]["locked"] is True
+    third = _build(day, T1 + timedelta(minutes=5), monkeypatch)
+    locked = [s for s in third["singles"] if s.get("locked")]
+    assert [s["sofascore_event_id"] for s in locked] == [2]
+    assert locked[0]["printed_at_utc"] == first["created_at_utc"]

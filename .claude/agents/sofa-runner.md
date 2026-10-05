@@ -213,6 +213,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date> --profile wariant
 ```
 
+Do **not** render a PDF from the provisional build. Since 2026-10-05 a
+rebuild locks (keeps as printed, `locked: true`) the legs of the previous
+build whose match has started - but only of a build a PDF was rendered from
+(`KUPON_<d>[_WARIANT].pdf` at least as new as the artifact). A provisional
+PDF would turn every leg in it into a counted bet the moment its match
+starts, analyst read or not. Locked legs, and `LOCKED_DESPITE_LATE_REFUSAL`
+lines on stderr, are the operator's rule working, not a defect.
+
 Then:
 
 ```

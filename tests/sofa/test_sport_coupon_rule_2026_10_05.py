@@ -245,3 +245,55 @@ def test_the_ledger_replays_a_past_day_under_its_own_rule(
     monkeypatch.setattr(sc, "rule_history", fake)
     record_results.rule_rows("unused", DATE)
     assert seen and all(r == sc.Rule() for r in seen)
+
+
+def test_wszystkie_with_a_calibrated_hockey_section_audits_clean(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, calibration: tuple[float, float]
+) -> None:
+    """M2 compares WSZYSTKIE's probability with the coupon's printed one - the
+    calibrated p, not fair_p (review 2026-10-05: every hockey/basketball day
+    would have been flagged)."""
+    from scripts.sofa import run_multi_coupon
+    from tests.sofa.test_multi_coupon import official_single, write_official
+
+    runs = tmp_path / "runs"
+    monkeypatch.setenv("SOFA_RUNS_DIR", str(runs))
+    at = AT.replace(day=5, month=10)
+    write_snaps(
+        runs,
+        "hockey",
+        NEW,
+        [
+            snap(
+                str(i),
+                total_pair(str(i), 1.20 + i / 100, 4.20),
+                at - timedelta(minutes=5),
+                kickoff=at + timedelta(hours=2 + i),
+            )
+            for i in range(3)
+        ],
+    )
+    monkeypatch.setattr(run_sport_coupon, "now", lambda: at)
+    monkeypatch.setattr("sys.argv", ["x", "--date", NEW, "--sport", "hockey"])
+    assert run_sport_coupon.main() == 0
+    # the helper writes a fixed date; moved to NEW whole, mtimes kept
+    from tests.sofa.test_multi_coupon import DATE as OFFICIAL_DATE
+
+    src = write_official(
+        tmp_path / "o", [official_single(1, "corners_total", 1.30, 0.77)]
+    )
+    (src / f"KUPON_{OFFICIAL_DATE}.pdf").rename(src / f"KUPON_{NEW}.pdf")
+    src.rename(runs / NEW)
+    monkeypatch.setattr(run_multi_coupon, "now", lambda: at + timedelta(minutes=1))
+    monkeypatch.setattr("sys.argv", ["x", "--date", NEW])
+    run_multi_coupon.main()
+    found = audit_variants.audit_multi(str(runs), NEW)
+    assert not [f for f in found if f.startswith("M2 hockey")], found
+
+
+def test_the_deep_audit_judges_the_official_leg_by_its_profile() -> None:
+    from scripts.sofa import audit_day_deep
+
+    src = Path(audit_day_deep.__file__).read_text(encoding="utf-8")
+    assert "leg_is_ev_positive(" not in src
+    assert src.count('PROFILES["standard"].clears_price(') == 2
