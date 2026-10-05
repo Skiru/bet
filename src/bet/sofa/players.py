@@ -336,6 +336,20 @@ def match_player(
     return best_name
 
 
+def best_player_score(
+    superbet_name: str, candidates: dict[str, dict[str, Any]] | None
+) -> float:
+    """The best `match_player` score of `superbet_name` in one squad (0 when
+    the squad or the name is empty). SETTLE uses it to ask whether the OTHER
+    squad holds a candidate as good as the one matched in the player's own."""
+    from rapidfuzz import fuzz
+
+    target = normalize_name(superbet_name.replace(",", " "))
+    if not target or not candidates:
+        return 0.0
+    return max(float(fuzz.token_sort_ratio(target, name)) for name in candidates)
+
+
 def player_sample_key(market: str, subject: str) -> str:
     """How a player sample is keyed in `FixtureSamples.players`.
 

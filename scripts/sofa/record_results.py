@@ -53,6 +53,7 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import one_side_per_line, summarize, write_atomic  # noqa: E402
+from bet.sofa.locked_print import printed_leg_keys  # noqa: E402
 from scripts.sofa import settle_multi_coupon, settle_sport_coupon  # noqa: E402
 
 LEDGER_DIR = "ledger"
@@ -119,8 +120,10 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
         doc = json.loads(path.read_text(encoding="utf-8"))
         ids = {int(x["sofascore_event_id"]) for x in printed_singles(doc)}
         ids |= {int(x["sofascore_event_id"]) for x in printed_builders(doc)}
+        # The printed keys: the same rows 7c / 7d grade (A5), the A4 file and
+        # the refunds (moved beyond 48 h / awarded).
         rows, screen = settle_multi_coupon.official_rows(
-            runs_dir, date, db_path, profile, ids
+            runs_dir, date, db_path, profile, ids, keys=printed_leg_keys(doc)
         )
         singles, builders = settle_multi_coupon.grade_confidence_positions(
             [{"source": s} for s in printed_singles(doc)],
@@ -139,6 +142,9 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
                 "estimated_builders": estimated_builders(builders),
                 "by_match": by_match(singles + builders),
                 "pending": _pending(singles + builders),
+                # moved beyond 48 h / awarded: 0 units, never a loss and
+                # never "unsettled" (also in `outcomes` as REFUND)
+                "refunded": settle_multi_coupon.refunded(singles + builders),
                 "outcomes": _outcomes(singles + builders),
                 "settled_rows_in_db": len(rows),
             }
@@ -190,6 +196,7 @@ def multi_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
             "by_match": by_match(rows),
             "sections": sections,
             "pending": _pending(rows),
+            "refunded": settle_multi_coupon.refunded(rows),
             "outcomes": _outcomes(rows),
         }
     ]

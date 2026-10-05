@@ -80,6 +80,7 @@ from bet.sofa.cs2 import (
     group_overround,
     parity_side,
 )
+from bet.sofa.settle import VOID_AFTER
 
 SportKey = Literal["hockey", "basketball", "volleyball"]
 
@@ -116,7 +117,8 @@ SPORT_BY_SUPERBET_ID: dict[int, ShadowSport] = {
     s.superbet_id: s for s in SPORTS.values()
 }
 
-VOID_AFTER = timedelta(hours=48)
+# VOID_AFTER (48 h) lives in bet.sofa.settle since 2026-10-05, one constant
+# for every sport; imported above and still importable from here.
 # A basketball or hockey game runs ~2.5 h with breaks, volleyball 2 h.
 SETTLE_AFTER = timedelta(hours=4)
 
@@ -693,6 +695,10 @@ def build_result(
     `normaltime` where printed, and `current` no lower than regulation.
     Volleyball: every set a clear win, and the sets won equal to `current`.
     """
+    if detail.get("isAwarded"):
+        # An awarded game is not a result (2026-10-05): Sofascore prints it
+        # "Ended" (volleyball 17238228, 0-0, winnerCode 2) with no played score.
+        return None
     home = detail.get("homeScore") or {}
     away = detail.get("awayScore") or {}
     hp, ap = _periods(home), _periods(away)
