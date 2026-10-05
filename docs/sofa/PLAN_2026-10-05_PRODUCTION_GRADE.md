@@ -183,6 +183,14 @@ test są, ale kryterium wymaga dni, decyzji operatora albo refitu.
 Poprawki znalezione przy weryfikacji 10-05 (po wdrożeniu): handicap T2 sportu
 drukował znak drużyny 1 (Herlev, Esbjerg - zdjęte NO_BET, poprawione w kodzie);
 fałszywy „pominięty przez horyzont” w planie przebudowy (poprawione).
-Otwarte podejrzenie weryfikatora (niezmierzone): ograniczenie cienkiego koszyka
+Druga runda tego samego dnia (po „pushnij i upewnij się”): OFFER pomija mecz na
+tych samych zegarach co CONFIDENCE (`locked_print.starts_after`; 10-05: Gaubas,
+Monteiro - Moller dostałyby świeżą cenę zamiast 39-minutowej); FIXTURE_CHECK pyta
+też przypięte mecze sportów (10-05 13:06Z: 35) i SPORT_CONFIDENCE / COUPON_ASSEMBLY
+odrzucają FIXTURE_NOT_AS_SCHEDULED; C2 obejmuje nogi sportów; Superbet ma
+bezpiecznik; 9 naruszeń kontraktu z testów chaosu naprawionych; sofa nie wycenia
+builderów (decyzja operatora).
+
+Otwarte podejrzenie weryfikatora (w pomiarze `measure_pool_holes.py`): ograniczenie cienkiego koszyka
 kierunku nie działa, gdy rynek nie ma własnego koszyka (Moss G1H O0.5 z
 `pooled:football`) - zmiana reguły, nie w trakcie dnia.
