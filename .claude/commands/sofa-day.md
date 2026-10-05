@@ -7,7 +7,7 @@ Run one betting day through **`sofa`**, from nothing to the PDF coupon, and
 verify it. Unattended: do not stop to ask permission between stages.
 
 **Everything below is the default** (operator's order, 2026-09-30, reshaped
-by the plan of 2026-10-05, `docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md`):
+by the plan of 2026-10-05, `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md`):
 every run settles and records D-1, builds the one coupon of every sport,
 has its best 30 positions read, and verifies it. A step is skipped only when
 the operator asked for a bare run - and then the report names it as skipped.

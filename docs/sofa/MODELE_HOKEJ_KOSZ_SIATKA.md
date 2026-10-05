@@ -376,7 +376,7 @@ nieobecny kolega przejmujący posiadania), o której rynek wie, a my nie.
 > sportowych. Na jednym kuponie model wchodzi inaczej — przez krzywą
 > `config/sofa_sport_confidence_calibration.json` i warunek F6 (pewność poza
 > próbą nie wyższa od zrealizowanej o > 3 pp w kubełkach z n ≥ 200), opisany
-> w planie `PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5.
+> w planie `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5.
 
 Model nogi `p_model` przechodzi z pomiaru do **selekcji w kuponie sportowym**
 (nigdy do kuponu oficjalnego), gdy na **≥ 2 rozliczonych dniach** i

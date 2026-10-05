@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """COUPON_ASSEMBLY - the one coupon of a stats-only day: runs/sofa/<d>/11_coupon.json.
 
-Plan 2026-10-05 (docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md, K3/K4). From
+Plan 2026-10-05 (docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md, K3/K4). From
 the stats-only epoch (bet.sofa.epochs) the coupon is one artifact for every
 sport, ordered by confidence and never by price:
 

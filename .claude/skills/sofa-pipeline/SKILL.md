@@ -335,7 +335,7 @@ kept in step with the code:
 | `docs/sofa/VERIFY_PROTOCOL.md` | the adversarial verification protocol |
 | `docs/sofa/CONFIG.md` | config files, fitted constants, the settle→fit loop |
 | `docs/sofa/REFERENCE.md` | the Sofascore API and why the bridge exists |
-| `docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md` | the stats-only coupon (K0-K14) and the measured sports on it (F1-F8) |
+| `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md` | the stats-only coupon (K0-K14) and the measured sports on it (F1-F8) |
 | `docs/sofa/history/` | dated run reports and findings — historical, may be stale |
 
 Those documents are Polish, this configuration is English, and that boundary

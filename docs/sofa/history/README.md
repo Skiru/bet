@@ -22,3 +22,4 @@ Kolumna „wnioski” mówi, gdzie lekcja żyje dziś.
 | 2026-10-04 | [ANALIZA_WYNIKOW_2026-10-04.md](ANALIZA_WYNIKOW_2026-10-04.md) | wyniki 09-19..10-03 | CLAUDE.md, pamięć |
 | 2026-10-04 | [RAPORT_2026-10-04_POROWNYWALNOSC_HISTORII.md](RAPORT_2026-10-04_POROWNYWALNOSC_HISTORII.md) | porównywalność historii (K1–K4) | CLAUDE.md, `bet.sofa.comparability` |
 | 2026-10-05 | [RAPORT_NOC_2026-10-05.md](RAPORT_NOC_2026-10-05.md) | refit 10-05, przegląd sportów, decyzje 4a | CLAUDE.md (epoka 10-05) |
+| 2026-10-05 | [PLAN_2026-10-05_SETTLE_I_KUPON.md](PLAN_2026-10-05_SETTLE_I_KUPON.md) | naprawa SETTLE i jeden kupon ze statystyk (D1-D7, K0-K14, 4A-4D, F1-F8) | wdrożony 10-05; CLAUDE.md (epoka stats-only), kod |

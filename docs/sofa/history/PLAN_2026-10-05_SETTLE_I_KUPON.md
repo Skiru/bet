@@ -1,6 +1,6 @@
 # Plan 2026-10-05: naprawa SETTLE i jeden kupon ze statystyk
 
-Status: PLAN v5.1 (po recenzji części 3/K13–K14, 6, 7) — decyzje operatora D1–D7, dwie recenzje adwersaryjne
+Status: WDROŻONY 2026-10-05 (commity 951a1811..main; raport wdrożenia w odpowiedzi sesji). Wcześniej: PLAN v5.1 (po recenzji części 3/K13–K14, 6, 7) — decyzje operatora D1–D7, dwie recenzje adwersaryjne
 (15 + 21 uwag), raport po `/sofa-day` 10-05, tabela nóg zdjętych 10-05 (K13,
 K14), flow agentowy plik po pliku (część 6) i sprzątanie (część 7). Nic z
 tego nie jest wdrożone. Wdrożenie: osobna sesja, `/sofa-day` 10-05 zakończony.

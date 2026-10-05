@@ -2,7 +2,7 @@
 
 ## Stats-only coupon epoch (2026-10-05 07:15Z, `bet.sofa.epochs.STATS_ONLY_FROM_UTC`)
 
-Plan `docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md` (operator decisions D1-D7).
+Plan `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md` (operator decisions D1-D7).
 A build of a day >= 2026-10-05 made after 07:15Z is **stats-only**:
 - **Confidence from the statistics alone.** SHEET keeps the price out of
   `p_central` (no tennis ladder centre, no rating blended with the price, no

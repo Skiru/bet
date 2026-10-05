@@ -1,6 +1,6 @@
 """Comparability epochs of the coupon rule.
 
-From 2026-10-05 (docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md, part 3, K0) the
+From 2026-10-05 (docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md, part 3, K0) the
 coupon's confidence comes from the statistics alone: the price no longer
 enters `p_central`, the order or the choice of Bet Builders, and is only the
 condition for placing the bet (confidence x odds >= 0.90, ladder margin <=

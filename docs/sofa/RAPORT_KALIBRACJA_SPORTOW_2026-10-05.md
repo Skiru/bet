@@ -1,6 +1,6 @@
 # Raport: kalibracja pewności hokeja, koszykówki, siatkówki i CS2 (2026-10-05)
 
-Plan `docs/sofa/PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5, F4–F6 (decyzja D2).
+Plan `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5, F4–F6 (decyzja D2).
 Pewność nogi tych sportów = dolna granica Wilsona kubełka krzywej, do którego
 wpada prawdopodobieństwo modelu (`score_model` / `cs2_engine`). **Cena nie wchodzi
 nigdzie**: ani do modelu, ani do krzywej, ani do oceny poza próbą. Liczby poniżej
