@@ -352,30 +352,56 @@ def admission(curves: Mapping[str, Any], checks: Mapping[str, Mapping[str, Any]]
               ) -> tuple[list[str], dict[str, str]]:
     """(admitted keys, key -> why not). `checks` is population -> evaluate().
 
-    A key is admitted when at least one of its out-of-sample buckets has
-    `min_bucket` rows, and no such bucket in ANY population prints a
-    confidence more than `max_overstatement` above what it realised. A key
-    with no out-of-sample bucket that large has no evidence either way and is
-    NOT_CALIBRATED - never admitted on the fit alone.
+    F6 as planned: no out-of-sample bucket of `min_bucket` rows, in ANY
+    population, may print a confidence more than `max_overstatement` above
+    what it realised. Two conditions on top, both about the legs that can
+    actually print (confidence >= PRINTABLE_FROM, the official floor):
+
+    * evidence - at least one printable out-of-sample bucket of
+      `min_bucket` rows. The 0.00-0.60 catch-all bucket is the only large
+      bucket of many keys, and it says nothing about a printed leg; a key
+      without a tested printable bucket is NOT_CALIBRATED, never admitted
+      on the fit alone;
+    * the printable rows of each population pooled: refused when they
+      overstate by more than `max_overstatement` at n >= `min_bucket`, or
+      when the bootstrap's (over games) upper 95% bound of realised minus
+      confidence is below -`max_overstatement` at any n - the settled
+      Superbet lines are few, and a bucket rule alone cannot read them.
     """
     admitted: list[str] = []
     refused: dict[str, str] = {}
     for key in sorted(curves):
-        tested = 0
+        printable_tested = 0
         worst: tuple[float, str, str] | None = None
+        pooled_bad: str | None = None
         for population, result in checks.items():
-            for label, b in ((result.get(key) or {}).get("buckets") or {}).items():
+            entry = result.get(key) or {}
+            for label, b in (entry.get("buckets") or {}).items():
                 if int(b["n"]) < min_bucket:
                     continue
-                tested += 1
+                if float(b["confidence"]) >= PRINTABLE_FROM:
+                    printable_tested += 1
                 gap = float(b["confidence"]) - float(b["realised"])
                 if gap > max_overstatement and (worst is None or gap > worst[0]):
                     worst = (gap, population, label)
+            pr = entry.get("printable")
+            if pr and pooled_bad is None:
+                point, _, hi = (float(x) for x in pr["realised_minus_confidence"])
+                if hi < -max_overstatement or (
+                        int(pr["n"]) >= min_bucket and point < -max_overstatement):
+                    pooled_bad = (
+                        f"OVERSTATES_PRINTABLE: {population} n={pr['n']} "
+                        f"confidence {pr['confidence']:.4f} realised "
+                        f"{pr['realised']:.4f} (realised-confidence {point:+.4f}, "
+                        f"95% upper {hi:+.4f})")
         if worst is not None:
             refused[key] = (f"OVERSTATES: {worst[1]} bucket {worst[2]} "
                             f"confidence above realised by {worst[0]:.4f}")
-        elif tested == 0:
-            refused[key] = f"NO_OOS_BUCKET_WITH_N>={min_bucket}"
+        elif pooled_bad is not None:
+            refused[key] = pooled_bad
+        elif printable_tested == 0:
+            refused[key] = (f"NO_OOS_PRINTABLE_BUCKET_WITH_N>={min_bucket} "
+                            f"(confidence >= {PRINTABLE_FROM})")
         else:
             admitted.append(key)
     return admitted, refused

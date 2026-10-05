@@ -146,8 +146,22 @@ def test_admission_refuses_an_overstating_bucket_and_one_with_no_evidence():
     admitted, refused = scf.admission(curves, checks)
     # a: 0.80 printed, 0.80 realised; b: 0.80 vs 0.76 (4 pp over)
     assert admitted == ["a|OVER"]
-    assert refused["b|OVER"].startswith("OVERSTATES")
-    assert refused["c|OVER"].startswith("NO_OOS_BUCKET")
+    assert refused["b|OVER"].startswith("OVERSTATES: history_holdout bucket")
+    # c: 50 rows only, but 0.20 realised against 0.80 is beyond doubt
+    assert refused["c|OVER"].startswith("OVERSTATES_PRINTABLE")
+
+
+def test_admission_needs_a_tested_printable_bucket():
+    curves = {"d|OVER": {"0.800-0.825": {"n": 300, "realised": 0.82,
+                                          "realised_lo95": 0.80},
+                         "0.000-0.600": {"n": 900, "realised": 0.40,
+                                          "realised_lo95": 0.37}}}
+    # the catch-all bucket is large and honest, the printable one thin
+    rows = _rows("d|OVER", 0.30, 500, 200, "x") + _rows("d|OVER", 0.81, 50, 40, "y")
+    admitted, refused = scf.admission(
+        curves, {"superbet_settled": scf.evaluate(curves, rows)})
+    assert admitted == []
+    assert refused["d|OVER"].startswith("NO_OOS_PRINTABLE_BUCKET")
 
 
 def test_evaluate_bootstraps_over_games_not_lines():
