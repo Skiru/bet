@@ -836,6 +836,24 @@ def render_stats_only(
         "drukowanego buildera; pozostałe drukują się bez odczytu (dodatkowe "
         "na życzenie operatora). Noga zdjęta przez odczyt (WATCH / NO_BET) "
         "nie jest na kuponie i rozlicza się osobno.", small))
+    # F7 / K14: what the page does not hold, said on the page.
+    notes = []
+    for sport, st in sorted((doc.get("sports") or {}).items()):
+        status = st.get("status") if isinstance(st, dict) else st
+        if status and status != "OK":
+            notes.append(f"{escape(str(sport))}: "
+                         + {"NOT_CALIBRATED": "brak kalibracji",
+                            "NOT_IDENTIFIED": "mecze nierozpoznane"}.get(
+                                str(status), escape(str(status))))
+    for fx in doc.get("fixtures_not_as_scheduled") or []:
+        notes.append(f"{escape(str(fx.get('match')))}: {escape(str(fx.get('status')))}"
+                     " - nie gra wg terminarza, poza kuponem")
+    if doc.get("fixture_status_unverified"):
+        notes.append(f"{doc['fixture_status_unverified']} mecz(e/ów) bez świeżego "
+                     "statusu (FIXTURE_CHECK bez mostka)")
+    if notes:
+        S.append(Paragraph("<font color='#b25b00'><b>Uwaga:</b></font> "
+                           + "; ".join(notes) + ".", small))
     S.append(Spacer(1, 4))
 
     locked = [s for s in singles if s.get("locked")]

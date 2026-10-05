@@ -105,6 +105,11 @@ def assemble(
             legs.append(leg)
 
     builders = [dict(b) for b in conf.get("builders") or []]
+    if date is not None:
+        # K3's day window for builders too (a locked one stays).
+        lo_b, hi_b = f"{date}T00:00:00", f"{day_after(date)}T00:00:00"
+        builders = [b for b in builders if b.get("locked")
+                    or lo_b <= str(b.get("kickoff_utc") or "") < hi_b]
     printed_by_match: dict[str, list[str]] = {}
     n_builder = 0
     for b in builders:
