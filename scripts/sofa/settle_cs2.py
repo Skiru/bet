@@ -36,6 +36,8 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa import settle_identity  # noqa: E402
+from bet.sofa import shadow as _shadow  # noqa: E402
 from bet.sofa.client import SofascoreClient  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import (  # noqa: E402
@@ -55,6 +57,7 @@ from bet.sofa.cs2 import (  # noqa: E402
     latest_pre_kickoff,
     pick_event,
     series_only_maps,
+    series_orientation,
     settle_event,
     stats_missing,
     write_atomic,
@@ -72,21 +75,20 @@ from bet.sofa.resolve import NAME_MATCH_THRESHOLD  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
 
-# States that are a fact about the series and are never asked again. VOID is
-# the series' own fate (cancelled, or not played within 48 h - Superbet's
-# rule); GAVE_UP is ours - we could not grade it within GIVE_UP_AFTER - and
-# the two are kept apart so the audit never reports our lookup failure as
-# Superbet voiding the market.
-TERMINAL = {"SETTLED", "VOID", "UNUSUAL", "GAVE_UP"}
-RETRYABLE = {
-    "PENDING",
-    "STATS_PENDING",
-    "NOT_ON_SOFASCORE",
-    "AMBIGUOUS",
-    "DATA_MISMATCH",
-    "ERROR",
-}
+# The event states are one set for every measured sport (bet.sofa.shadow
+# TERMINAL / RETRYABLE / EXCLUDED, plan 2026-10-05 B0): VOID is the series'
+# own fate (cancelled, or not played within 48 h - Superbet's rule); GAVE_UP
+# is ours. UNUSUAL is retryable since 2026-10-05; a walkover or an awarded
+# series is AWARDED (final).
+TERMINAL = _shadow.TERMINAL
+RETRYABLE = _shadow.RETRYABLE
 GIVE_UP_AFTER = timedelta(days=7)
+# C1: a candidate whose start is this far from Superbet's is a different
+# series when Superbet was still quoting a pre-match price this long after
+# Sofascore's start (review 2026-10-04: Hotu - Black Phoenix 12:15 on
+# Sofascore, 18:00 on Superbet, quoted at 17:30).
+START_GAP = timedelta(hours=1)
+QUOTED_AFTER_START = timedelta(minutes=15)
 # Per-player rows land after the score; wait this long for them before
 # settling what can be settled without them.
 STATS_GRACE = timedelta(hours=72)
@@ -194,29 +196,88 @@ def settle_one(
     at: datetime,
     db_path: str | None = None,
     snapshots: list[dict[str, Any]] | None = None,
+    prev: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """One series. `prev`, the series' earlier record: a Sofascore id it
+    carries is PINNED (C2) - /event/{id} is asked directly, never searched
+    for again; a search that finds another id is ID_CHANGED."""
     kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
     record: dict[str, Any] = {
         "match_name": ev.match_name,
+        "team1": ev.team1,
+        "team2": ev.team2,
         "kickoff_utc": ev.kickoff_utc,
         "tournament": ev.tournament,
         "priced_sides": len(ev.sides),
     }
-    found = sofa.find(ev, kickoff)
-    if isinstance(found, str):
-        return {**record, "state": found}
-    event, home_is_t1 = found
+    own = [
+        x for x in snapshots or [] if x.get("superbet_event_id") == ev.superbet_event_id
+    ]
+    if own:
+        record["last_snapshot_utc"] = max(str(x["fetched_at_utc"]) for x in own)
+    pinned = (prev or {}).get("sofascore_event_id")
+    detail: dict[str, Any] | None = None
+    if isinstance(pinned, int):
+        got = (sofa.client.event(pinned) or {}).get("event")
+        detail = got if isinstance(got, dict) and got else None
+    if isinstance(pinned, int) and detail is not None:
+        assert prev is not None
+        event = {**detail, "id": detail.get("id", pinned)}
+        home_is_t1 = pinned_orientation(prev, detail, ev)
+        if home_is_t1 is None:
+            # Neither the ids the series was found with nor the names read the
+            # pinned series one way round: asked again, never guessed.
+            return {**record, "sofascore_event_id": pinned, "state": "AMBIGUOUS"}
+        record.update(
+            {
+                k: prev[k]
+                for k in (
+                    "match_method",
+                    "matched_at_utc",
+                    "sofascore_home_id",
+                    "sofascore_away_id",
+                )
+                if k in prev
+            }
+        )
+        record["pinned_id"] = True
+    else:
+        found = sofa.find(ev, kickoff)
+        if isinstance(found, str):
+            out = {**record, "state": found}
+            if isinstance(pinned, int):
+                out.update({"sofascore_event_id": pinned, "pinned_id_unanswered": True})
+            return out
+        event, home_is_t1 = found
+        if isinstance(pinned, int) and int(event["id"]) != pinned:
+            return {
+                **record,
+                "state": "ID_CHANGED",
+                "sofascore_event_id": pinned,
+                "searched_sofascore_event_id": int(event["id"]),
+                "matched_at_utc": settle_identity.iso(at),
+            }
+        record["match_method"] = "NAME"  # pick_event: both names over the threshold
+        record["matched_at_utc"] = settle_identity.iso(at)
+        record["sofascore_home_id"] = (event.get("homeTeam") or {}).get("id")
+        record["sofascore_away_id"] = (event.get("awayTeam") or {}).get("id")
+    home_name = str((event.get("homeTeam") or {}).get("name"))
+    away_name = str((event.get("awayTeam") or {}).get("name"))
     record.update(
         {
             "sofascore_event_id": event["id"],
-            "sofascore_match": (
-                f"{event['homeTeam']['name']} - {event['awayTeam']['name']}"
-            ),
+            "sofascore_match": f"{home_name} - {away_name}",
+            "sofascore_home": home_name,
+            "sofascore_away": away_name,
             "sofascore_tournament": (event.get("tournament") or {}).get("name"),
             "home_is_team1": home_is_t1,
+            "name_scores": settle_identity.pair_scores(
+                "cs2", ev.team1, ev.team2, home_name, away_name, home_is_t1
+            ),
         }
     )
-    detail = (sofa.client.event(int(event["id"])) or {}).get("event") or event
+    if detail is None:
+        detail = (sofa.client.event(int(event["id"])) or {}).get("event") or event
     # Sofascore's own start: sport_coupon.grade_coupon refuses a printed price
     # taken at or after it (IN_PLAY_PRICE), and rule_history cuts its prices
     # there. Never written before 2026-10-01, so that guard could not fire
@@ -228,6 +289,10 @@ def settle_one(
             .isoformat()
             .replace("+00:00", "Z")
         )
+        sofa_start = datetime.fromtimestamp(int(start_ts), UTC)
+        record["start_gap_h"] = round((sofa_start - kickoff).total_seconds() / 3600, 2)
+        if ambiguous_start(sofa_start, kickoff, own):
+            return {**record, "state": "AMBIGUOUS_START"}
         # Grade the last price before the EARLIER of the two clocks: Superbet
         # moved Spirit - ShindeN 11:30 -> 11:45 -> 12:05 while Sofascore had
         # it start at 12:00, and the 12:00:45 snapshot was graded (review
@@ -246,7 +311,10 @@ def settle_one(
             )
             record["priced_sides"] = len(ev.sides)
             record["cut_at_sofascore_start"] = True
-    state = event_state(detail, kickoff, at)
+    state: str = event_state(detail, kickoff, at)
+    if state in ("FINISHED", "UNUSUAL") and _shadow.is_no_result(detail):
+        # A walkover or an awarded series is no result (5.D.3.b): final.
+        state = "AWARDED"
     if state != "FINISHED":
         return {
             **record,
@@ -328,6 +396,44 @@ def settle_one(
     }
 
 
+def pinned_orientation(
+    prev: dict[str, Any], detail: dict[str, Any], ev: SnapshotEvent
+) -> bool | None:
+    """Home is team1 for a pinned series (C2, B6): from the team ids the
+    series was found with when the record kept them (the same ids -> the
+    stored orientation, swapped -> the other), else from the names - the
+    weaker side over the threshold, one reading clearly better."""
+    home = (detail.get("homeTeam") or {}).get("id")
+    away = (detail.get("awayTeam") or {}).get("id")
+    was_home, was_away = prev.get("sofascore_home_id"), prev.get("sofascore_away_id")
+    stored = prev.get("home_is_team1")
+    if None not in (home, away, was_home, was_away) and isinstance(stored, bool):
+        if (home, away) == (was_home, was_away):
+            return stored
+        if (home, away) == (was_away, was_home):
+            return not stored
+        return None
+    score, home_is_t1 = series_orientation(detail, ev.team1, ev.team2)
+    if score <= NAME_MATCH_THRESHOLD:
+        return None
+    return home_is_t1
+
+
+def ambiguous_start(
+    sofa_start: datetime, kickoff: datetime, snapshots: list[dict[str, Any]]
+) -> bool:
+    """C1: Sofascore's series starts more than START_GAP from Superbet's
+    time, and Superbet still quoted the event pre-match more than
+    QUOTED_AFTER_START after Sofascore's start - it was not that series."""
+    if abs(sofa_start - kickoff) <= START_GAP:
+        return False
+    for snap in snapshots:
+        at = datetime.fromisoformat(str(snap["fetched_at_utc"]).replace("Z", "+00:00"))
+        if sofa_start + QUOTED_AFTER_START < at < kickoff:
+            return True
+    return False
+
+
 def needs_stats(
     key: tuple[str, int, str, float | None, str], maps: list[MapResult]
 ) -> bool:
@@ -344,7 +450,7 @@ def is_waiting(rec: dict[str, Any] | None) -> bool:
     SETTLED series with sides still waiting for data (pending_sides)."""
     if rec is None:
         return True
-    if rec.get("state") in RETRYABLE:
+    if _shadow.is_retryable(rec.get("state")):
         return True
     return rec.get("state") == "SETTLED" and bool(rec.get("pending_sides"))
 
@@ -462,6 +568,11 @@ def settle(
         except ValueError:
             continue
     events = latest_pre_kickoff(snapshots)
+
+    def day_dir(d: str) -> Path:
+        return cs2_day_dir(runs_dir, d)
+
+    snaps = settle_identity.load_snaps(date, day_dir, SNAPSHOTS_FILE)
     out = day / SETTLED_FILE
     done: dict[str, Any] = (
         json.loads(out.read_text(encoding="utf-8")).get("events", {})
@@ -482,7 +593,7 @@ def settle(
     breaker_open = False
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
         prev = done.get(eid)
-        if prev and prev["state"] in TERMINAL and not is_waiting(prev):
+        if prev and _shadow.is_terminal(prev["state"]) and not is_waiting(prev):
             metrics["kept"] += 1
             continue
         kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
@@ -493,7 +604,7 @@ def settle(
             metrics["errors"] += 1
             continue
         try:
-            record = settle_one(ev, sofa, at, db_path, snapshots)
+            record = settle_one(ev, sofa, at, db_path, snapshots, prev=prev)
         except CircuitOpenError:
             breaker_open = True
             metrics["errors"] += 1
@@ -518,12 +629,18 @@ def settle(
         if prev and prev["state"] == "SETTLED" and record["state"] != "SETTLED":
             # A retry of a partly graded series that failed (a lookup, a
             # request) never replaces the grades it already has.
+            changed_to = record.get("searched_sofascore_event_id")
             record = {**prev, "last_retry_state": record["state"]}
-            if at - kickoff > GIVE_UP_AFTER:
+            id_changed = record["last_retry_state"] == "ID_CHANGED"
+            if at - kickoff > GIVE_UP_AFTER or id_changed:
+                # Past the deadline - or the pinned id now names another
+                # series (C2): the grades stay, nothing more is asked.
                 record["gave_up_pending"] = record.get("pending_sides", 0)
                 record["pending_sides"] = 0
                 record.pop("pending_reason", None)
-        if record["state"] in RETRYABLE and at - kickoff > GIVE_UP_AFTER:
+            if id_changed:
+                record["id_changed_to"] = changed_to
+        if _shadow.is_retryable(record["state"]) and at - kickoff > GIVE_UP_AFTER:
             record = {**record, "state": "GAVE_UP", "gave_up_on": record["state"]}
         done[eid] = record
         updated[eid] = record
@@ -538,10 +655,21 @@ def settle(
             else {}
         )
         done = {**current, **updated}
+        # The identity pass (MOVED_TO, WITHDRAWN, DUPLICATE_SUPERBET_TEAM,
+        # DUPLICATE_SOFASCORE_ID) over D-1..D+1, on what is written now.
+        done, identity = settle_identity.reconcile(
+            "cs2", date, done, day_dir, SETTLED_FILE, snaps
+        )
         write_atomic(
             out,
             json.dumps({"date": date, "events": done}, ensure_ascii=False, indent=1),
         )
+    # The neighbours' files after this lock is released - never nested.
+    identity.update(
+        settle_identity.reconcile_neighbours(
+            "cs2", date, done, day_dir, SETTLED_FILE, snaps
+        )
+    )
     states: dict[str, int] = {}
     for rec in done.values():
         states[rec["state"]] = states.get(rec["state"], 0) + 1
@@ -556,7 +684,11 @@ def settle(
         verdict = "OK"
     return {
         "verdict": verdict,
-        "metrics": {**metrics, "states": states},
+        "metrics": {
+            **metrics,
+            "states": states,
+            **({"identity_changes": identity} if identity else {}),
+        },
         "output_path": str(out),
     }
 
@@ -584,6 +716,34 @@ def waiting_dates(runs_dir: str, dates: list[str]) -> list[str]:
     return out
 
 
+def identity_only(runs_dir: str, date: str) -> dict[str, int]:
+    """The identity pass alone over a settled day's file and its neighbours -
+    offline, no bridge (the D-c regrade of days settled before 2026-10-05)."""
+    out = cs2_day_dir(runs_dir, date) / SETTLED_FILE
+    if not out.exists():
+        return {}
+
+    def day_dir(d: str) -> Path:
+        return cs2_day_dir(runs_dir, d)
+
+    snaps = settle_identity.load_snaps(date, day_dir, SNAPSHOTS_FILE)
+    with file_lock(out):
+        events = json.loads(out.read_text(encoding="utf-8")).get("events", {})
+        done, counts = settle_identity.reconcile(
+            "cs2", date, events, day_dir, SETTLED_FILE, snaps
+        )
+        if counts:
+            doc = {"date": date, "events": done}
+            text = json.dumps(doc, ensure_ascii=False, indent=1)
+            write_atomic(out, text)
+    counts.update(
+        settle_identity.reconcile_neighbours(
+            "cs2", date, done, day_dir, SETTLED_FILE, snaps
+        )
+    )
+    return counts
+
+
 def date_range(first: str, last: str) -> list[str]:
     day = datetime.strptime(first, "%Y-%m-%d")
     end = datetime.strptime(last, "%Y-%m-%d")
@@ -605,10 +765,32 @@ def main() -> int:
         "waiting series (cs2_daily's morning sweep of D-7..D-2)",
     )
     parser.add_argument("--sweep-to")
+    parser.add_argument(
+        "--identity-only",
+        action="store_true",
+        help="offline: only the identity pass (MOVED_TO, DUPLICATE_*, WITHDRAWN) "
+        "over the dates' settled files - no bridge, nothing re-settled",
+    )
     args = parser.parse_args()
     if args.sweep_from and not args.sweep_to:
         parser.error("--sweep-from needs --sweep-to")
     config = SofaConfig.from_env()
+    if args.identity_only:
+        for date in [args.date] if args.date else date_range(
+            args.sweep_from, args.sweep_to
+        ):
+            print(
+                "SOFA_SUMMARY: "
+                + json.dumps(
+                    {
+                        "stage": "CS2_IDENTITY",
+                        "date": date,
+                        "changes": identity_only(config.runs_dir, date),
+                    }
+                ),
+                flush=True,
+            )
+        return 0
     if args.date:
         dates = [args.date]
     else:

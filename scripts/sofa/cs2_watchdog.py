@@ -38,7 +38,9 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "src"))
 
+from bet.sofa.shadow import RETRYABLE  # noqa: E402  (one set, plan B0)
 from scripts.sofa.cs2_daily import done_file, pid_file, state_dir  # noqa: E402
 
 BRIDGE_URL = "http://127.0.0.1:8787/health"
@@ -46,14 +48,6 @@ BRIDGE_STALE_S = 180.0
 SETTLE_RETRY = timedelta(hours=1)
 SETTLE_WINDOW = timedelta(days=3)
 ALERT_EVERY = timedelta(minutes=30)
-RETRYABLE = {
-    "PENDING",
-    "STATS_PENDING",
-    "NOT_ON_SOFASCORE",
-    "AMBIGUOUS",
-    "DATA_MISMATCH",
-    "ERROR",
-}
 
 
 @dataclass(frozen=True)

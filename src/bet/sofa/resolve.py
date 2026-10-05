@@ -1,3 +1,5 @@
+import functools
+import json
 import logging
 import re
 from datetime import UTC, datetime
@@ -7,7 +9,7 @@ from rapidfuzz import fuzz
 
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
-from bet.sofa.config import SofaConfig
+from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import Fixture, RefereeRecord, Sport
 from bet.sofa.names import levels_compatible, normalize_name
 
@@ -245,12 +247,33 @@ def _name_parts(norm: str) -> list[str]:
     return [bare, *parts] if len(parts) > 1 else [bare]
 
 
+NAME_STOPWORDS_FILE = "sofa_name_stopwords.json"
+# The one-word rule's minimum word length (plan 2026-10-05, B2): at 4 letters
+# "aviv" confirmed Hapoel Tel Aviv as Maccabi Tel Aviv's opponent.
+SHARED_WORD_MIN_LEN = 5
+
+
+@functools.cache
+def name_stopwords() -> frozenset[str]:
+    """config/sofa_name_stopwords.json's words, beside _GENERIC_NAME_TOKENS.
+    A missing or unreadable file leaves the built-in list alone - it can only
+    ever add refusals, never remove one."""
+    try:
+        doc = json.loads(config_path(NAME_STOPWORDS_FILE).read_text(encoding="utf-8"))
+        words = doc.get("words") if isinstance(doc, dict) else None
+    except (OSError, ValueError):
+        words = None
+    extra = {str(w).casefold() for w in words or [] if isinstance(w, str)}
+    return frozenset(_GENERIC_NAME_TOKENS | extra)
+
+
 def _distinctive_tokens(norm: str) -> set[str]:
+    stop = name_stopwords()
     return {
         t
         for part in _name_parts(norm)
         for t in re.split(r"[\s/\-]+", part)
-        if len(t) >= 4 and t not in _GENERIC_NAME_TOKENS and not t.isdigit()
+        if len(t) >= SHARED_WORD_MIN_LEN and t not in stop and not t.isdigit()
     }
 
 
@@ -608,6 +631,7 @@ class SofaResolver:
         superbet_side_a: str = "",
         superbet_side_b: str = "",
         check_orientation: bool = True,
+        searched_team_id: int | None = None,
     ) -> float | None:
         """How well this event matches, or None if it does not.
 
@@ -691,61 +715,176 @@ class SofaResolver:
         if not candidates:
             return None
 
+        if sport in SPORT_SCOPED_SEARCH and (superbet_side_a or superbet_side_b):
+            scoped = self._scoped_match(
+                event,
+                abs((event_time - kickoff_utc).total_seconds()),
+                expected_opponent,
+                candidates,
+                superbet_side_a,
+                superbet_side_b,
+                searched_team_id,
+            )
+            if scoped is None:
+                return None
+            return float(fuzz.ratio(expected_opponent, scoped[1]))
+
         best_side = max(
             candidates, key=lambda side: name_score(expected_opponent, side)
         )
         if name_score(expected_opponent, best_side) <= NAME_MATCH_THRESHOLD:
-            if sport not in SPORT_SCOPED_SEARCH:
-                return None
-            gap = abs((event_time - kickoff_utc).total_seconds())
-            # The searched team is the board side that is not the opponent;
-            # its side of the event is the one nearest its name, and only the
-            # OTHER side may confirm the opponent.
-            raw_board = (superbet_side_a, superbet_side_b)
-            board = [normalize_name(x) for x in raw_board]
-            searched = [b for b in board if b and b != expected_opponent]
-            if len(searched) != 1:
-                return None
-            own_side = max((home, away), key=lambda side: name_score(searched[0], side))
-            other = away if own_side == home else home
-            # The relaxed check reads the raw names with an elision split
-            # ("Gothiques d'Amiens" -> "gothiques d amiens"), so a word the
-            # ASCII fold glued to its article still counts (2026-09-29/10-02:
-            # Amiens Hockey Elite, C'Chartres Basket Feminin).
-            raw_of = {
-                home: str((event.get("homeTeam") or {}).get("name") or ""),
-                away: str((event.get("awayTeam") or {}).get("name") or ""),
-            }
-            raw_searched = raw_board[board.index(searched[0])]
-            raw_opponent = next(
-                (r for r, b in zip(raw_board, board, strict=True)
-                 if b == expected_opponent),
-                expected_opponent,
-            )
-
-            def split(raw: str) -> str:
-                return normalize_name(raw, split_elisions=True)
-
-            if other not in candidates or not (
-                shadow_opponent_agrees(
-                    expected_opponent, other, gap, searched[0], own_side
-                )
-                or shadow_opponent_agrees(
-                    split(raw_opponent),
-                    split(raw_of[other]),
-                    gap,
-                    split(raw_searched),
-                    split(raw_of[own_side]),
-                )
-            ):
-                return None
-            best_side = other
+            return None
 
         # Report the STRICT similarity of the side that matched, not the score
         # that let it through. This number's only consumer is the CONFIRMED /
         # FUZZY field, which claims the two strings are the same; answering it
         # with a subset score would mark "Lens" ~ "RC Lens" as CONFIRMED.
         return float(fuzz.ratio(expected_opponent, best_side))
+
+    def _scoped_match(
+        self,
+        event: dict[str, Any],
+        gap_s: float,
+        expected_opponent: str,
+        candidates: list[str],
+        superbet_side_a: str,
+        superbet_side_b: str,
+        searched_team_id: int | None = None,
+    ) -> tuple[str, str] | None:
+        """(match method, the event side that is the opponent), or None - the
+        shadow sports' identity rule (SHADOW_SETTLE only; football and tennis
+        never reach it).
+
+        Both board sides must be confirmed (plan 2026-10-05, B2). The SEARCHED
+        team - the board side that is not the opponent - against its own side
+        of the event: the full score (`part_score` > NAME_MATCH_THRESHOLD, on
+        the normalised names and on the elision-split raw ones). Its own side
+        is the one carrying the searched candidate's team id when the caller
+        knows it, else the one nearest its name. Until 2026-10-05 it was not
+        checked at all: "U. De Santiago" was graded as Universidad Catolica -
+        Colo Colo (basketball 17207292, 10-03), Colo Colo's name alone
+        confirming it.
+
+        The opponent against the OTHER side: the full score ("NAME"), or -
+        when both clocks agree within 15 minutes - one shared word of 5+
+        letters outside config/sofa_name_stopwords.json ("SHARED_WORD",
+        `shadow_opponent_agrees`). A SHARED_WORD match is never cached as a
+        verified name (`resolve_entity`).
+        """
+        home = normalize_name((event.get("homeTeam") or {}).get("name", "") or "")
+        away = normalize_name((event.get("awayTeam") or {}).get("name", "") or "")
+        raw_board = (superbet_side_a, superbet_side_b)
+        board = [normalize_name(x) for x in raw_board]
+        searched = [b for b in board if b and b != expected_opponent]
+        if len(searched) == 2:
+            # The opponent was passed in another spelling than the board's
+            # (a caller that dropped the marker): the searched side is the
+            # board side further from it.
+            first, second = (part_score(expected_opponent, b) for b in board)
+            if first == second:
+                return None
+            searched = [board[0] if first < second else board[1]]
+        if len(searched) != 1:
+            return None
+        own_side: str | None = None
+        if searched_team_id is not None:
+            if _team_id(event, "homeTeam") == searched_team_id:
+                own_side = home
+            elif _team_id(event, "awayTeam") == searched_team_id:
+                own_side = away
+        if own_side is None:
+            own_side = max((home, away), key=lambda side: name_score(searched[0], side))
+        other = away if own_side == home else home
+        if other not in candidates:
+            return None
+        # The relaxed checks read the raw names with an elision split
+        # ("Gothiques d'Amiens" -> "gothiques d amiens"), so a word the
+        # ASCII fold glued to its article still counts (2026-09-29/10-02:
+        # Amiens Hockey Elite, C'Chartres Basket Feminin).
+        raw_of = {
+            home: str((event.get("homeTeam") or {}).get("name") or ""),
+            away: str((event.get("awayTeam") or {}).get("name") or ""),
+        }
+        raw_searched = raw_board[board.index(searched[0])]
+        raw_opponent = next(
+            (
+                r
+                for r, b in zip(raw_board, board, strict=True)
+                if b == expected_opponent
+            ),
+            expected_opponent,
+        )
+
+        def split(raw: str) -> str:
+            return normalize_name(raw, split_elisions=True)
+
+        if not (
+            part_score(searched[0], own_side) > NAME_MATCH_THRESHOLD
+            or part_score(split(raw_searched), split(raw_of[own_side]))
+            > NAME_MATCH_THRESHOLD
+        ):
+            return None
+        if part_score(expected_opponent, other) > NAME_MATCH_THRESHOLD:
+            return "NAME", other
+        if shadow_opponent_agrees(
+            expected_opponent, other, gap_s, searched[0], own_side
+        ) or shadow_opponent_agrees(
+            split(raw_opponent),
+            split(raw_of[other]),
+            gap_s,
+            split(raw_searched),
+            split(raw_of[own_side]),
+        ):
+            return "SHARED_WORD", other
+        return None
+
+    def match_method(
+        self,
+        event: dict[str, Any],
+        kickoff_utc: datetime,
+        expected_opponent: str,
+        *,
+        sport: str,
+        superbet_side_a: str,
+        superbet_side_b: str,
+        check_orientation: bool = True,
+        searched_team_id: int | None = None,
+    ) -> str | None:
+        """How a shadow-sport event matched ("NAME" / "SHARED_WORD"), or None
+        when `match_quality` refuses it."""
+        if (
+            self.match_quality(
+                event,
+                kickoff_utc,
+                expected_opponent,
+                sport=sport,
+                superbet_side_a=superbet_side_a,
+                superbet_side_b=superbet_side_b,
+                check_orientation=check_orientation,
+                searched_team_id=searched_team_id,
+            )
+            is None
+        ):
+            return None
+        if sport not in SPORT_SCOPED_SEARCH:
+            return "NAME"
+        start = datetime.fromtimestamp(int(event.get("startTimestamp") or 0), UTC)
+        gap = abs((start - kickoff_utc).total_seconds())
+        home = normalize_name((event.get("homeTeam") or {}).get("name", "") or "")
+        away = normalize_name((event.get("awayTeam") or {}).get("name", "") or "")
+        candidates = [
+            s for s in (home, away) if levels_compatible(expected_opponent, s)
+        ]
+        scoped = self._scoped_match(
+            event,
+            gap,
+            expected_opponent,
+            candidates,
+            superbet_side_a,
+            superbet_side_b,
+            searched_team_id,
+        )
+        return None if scoped is None else scoped[0]
 
     def _is_match(
         self,
@@ -818,11 +957,14 @@ class SofaResolver:
         if not verified and self.cache.get_entity_miss(sport, norm_side):
             return None, None, False
 
-        if cached and verified:
-            # Just verify event exists
-            events = self._fetch_events(cached["sofascore_id"], sport)
-            for e in events:
-                if self._is_match(
+        scoped = sport in SPORT_SCOPED_SEARCH and bool(board_side_a or board_side_b)
+
+        def method_of(e: dict[str, Any], team_id: Any) -> str | None:
+            """How `e` matched (None: it did not). Football and tennis go
+            through `_is_match` exactly as before; a shadow sport also says
+            whether a shared word confirmed the opponent (B2)."""
+            if not scoped:
+                matched = self._is_match(
                     e,
                     kickoff_utc,
                     norm_opp,
@@ -830,8 +972,31 @@ class SofaResolver:
                     superbet_side_a=board_side_a,
                     superbet_side_b=board_side_b,
                     check_orientation=check_orientation,
-                ):
-                    return cached["sofascore_id"], e, False
+                )
+                return "NAME" if matched else None
+            return self.match_method(
+                e,
+                kickoff_utc,
+                norm_opp,
+                sport=sport,
+                superbet_side_a=board_side_a,
+                superbet_side_b=board_side_b,
+                check_orientation=check_orientation,
+                searched_team_id=team_id if isinstance(team_id, int) else None,
+            )
+
+        def tagged(e: dict[str, Any], method: str) -> dict[str, Any]:
+            # A shadow sport's event carries how it matched (D-b); a copy, so
+            # the cached listing is never written into.
+            return {**e, "_match_method": method} if scoped else e
+
+        if cached and verified:
+            # Just verify event exists
+            events = self._fetch_events(cached["sofascore_id"], sport)
+            for e in events:
+                method = method_of(e, cached["sofascore_id"])
+                if method is not None:
+                    return cached["sofascore_id"], tagged(e, method), False
 
         # Miss -> search/all
         if sport in SPORT_SCOPED_SEARCH:
@@ -854,24 +1019,23 @@ class SofaResolver:
             if len(candidates) == 3:
                 break
 
-        matching_events = []
+        matching_events: list[tuple[dict[str, Any], dict[str, Any], str]] = []
 
         for cand in candidates:
             events = self._fetch_events(cand["id"], sport)
             for e in events:
-                if self._is_match(
-                    e,
-                    kickoff_utc,
-                    norm_opp,
-                    sport=sport,
-                    superbet_side_a=board_side_a,
-                    superbet_side_b=board_side_b,
-                    check_orientation=check_orientation,
-                ):
-                    matching_events.append((cand, e))
+                method = method_of(e, cand.get("id"))
+                if method is not None:
+                    matching_events.append((cand, e, method))
 
-        if len(matching_events) == 1:
-            cand, evt = matching_events[0]
+        def remember(cand: dict[str, Any], method: str) -> None:
+            # Only a match both names confirmed makes the searched name a
+            # verified alias: a shared word, like TOURNAMENT and
+            # MUTUAL_LISTING (settle_shadow, no cache writes), is evidence
+            # about one game, not about the name (B2 - "u. de santiago" was
+            # cached as Universidad Catolica, 233778, on 10-04).
+            if method != "NAME":
+                return
             self.cache.save_entity(
                 sport=sport,
                 query_key=norm_side,
@@ -881,23 +1045,20 @@ class SofaResolver:
                 country=cand.get("country", {}).get("name"),
                 status="verified",
             )
-            self.cache.clear_entity_miss(sport, norm_side)
-            return cand["id"], evt, False
+
+        if len(matching_events) == 1:
+            cand, evt, method = matching_events[0]
+            remember(cand, method)
+            if method == "NAME":
+                self.cache.clear_entity_miss(sport, norm_side)
+            return cand["id"], tagged(evt, method), False
         elif len(matching_events) > 1:
             # Check if all matching events are the SAME event (duplicate candidates)
-            event_ids = {e["id"] for _, e in matching_events}
+            event_ids = {e["id"] for _, e, _ in matching_events}
             if len(event_ids) == 1:
-                cand, evt = matching_events[0]
-                self.cache.save_entity(
-                    sport=sport,
-                    query_key=norm_side,
-                    sofascore_id=cand["id"],
-                    sofascore_name=cand.get("name", ""),
-                    entity_type="team",
-                    country=cand.get("country", {}).get("name"),
-                    status="verified",
-                )
-                return cand["id"], evt, False
+                cand, evt, method = matching_events[0]
+                remember(cand, method)
+                return cand["id"], tagged(evt, method), False
             return None, None, True
 
         # Nothing matched. Note this is only reached when the fixture was not

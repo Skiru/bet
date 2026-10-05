@@ -263,7 +263,7 @@ def grade_sport_section(
     """The sport section graded exactly as its own coupon is (sport_coupon)."""
     legs = [p["source"] for p in section.get("singles", [])]
     sources = {leg.get("source_date") or date for leg in legs} | {date}
-    settled = {d: sc.load_settled(runs_dir, sport, d) for d in sources}
+    settled = sc.settled_for(runs_dir, sport, sources)
     return sc.grade_coupon(
         {"sport": sport, "date": date, "legs": legs}, settled, at=timeutil.now()
     )

@@ -13,7 +13,9 @@ through the day, then settle and audit the next morning.
    starts at 05:00Z; that the two do not overlap is expected, not measured),
    then SHADOW_SETTLE for the day, and once more for each of the two days
    before that has snapshots (their pending games get another attempt; D-2's
-   is the one late enough for a postponed game to read VOID). A failed settle
+   is the one late enough for a postponed game to read VOID), then a sweep of
+   D-7..D-3 (`settle_shadow.py --sweep-from/--sweep-to`: only the dates with a
+   game still waiting, decided from the files). A failed settle
    is asked again every 30 min for up to 4 h (cs2_daily.run_morning, with
    the coupon and ledger steps after it), and can be rerun by hand at any
    time (`run_pipeline.py --date <d> --only SHADOW_SETTLE`); it resumes.
@@ -58,6 +60,10 @@ from scripts.sofa.cs2_daily import (  # noqa: E402
 )
 from scripts.sofa.cs2_daily import already_running as _already_running  # noqa: E402
 
+# The morning sweep reaches back this far: settle_shadow's GIVE_UP_AFTER is
+# 7 days, so a waiting game is asked until it settles or is given up on.
+SWEEP_DAYS = 7
+
 
 def state_dir() -> Path:
     return REPO / os.environ.get("SOFA_RUNS_DIR", "runs/sofa") / "shadow"
@@ -85,6 +91,18 @@ def plan(
         ["scripts/sofa/run_pipeline.py", "--date", d, "--only", "SHADOW_SETTLE"]
         for d in days
     ]
+    # D-7..D-3: only the dates whose settled.json still has a waiting game
+    # (decided at run time, from the files - settle_shadow.waiting_sports).
+    # Without it a game still waiting on D-3 was never asked again and never
+    # reached GIVE_UP_AFTER either (plan 2026-10-05 B7, as settle_cs2's
+    # sweep since 2026-10-01).
+    sweep_from, sweep_to = (
+        (day - timedelta(days=n)).strftime("%Y-%m-%d") for n in (SWEEP_DAYS, 3)
+    )
+    morning.append(
+        ["scripts/sofa/settle_shadow.py", "--sweep-from", sweep_from,
+         "--sweep-to", sweep_to]
+    )
     # Each settled day's experimental coupons, straight after the settle that
     # grades them (offline; a pending leg is exit 1, never a blocker).
     morning += [
@@ -92,11 +110,17 @@ def plan(
         for d in days
         for sp in ("hockey", "basketball", "volleyball")
     ]
+    # ...and the swept days' (whatever the sweep changed).
+    morning += [
+        ["scripts/sofa/settle_sport_coupon.py", "--from", sweep_from, "--to",
+         sweep_to, "--sport", sp]
+        for sp in ("hockey", "basketball", "volleyball")
+    ]
     # Then the ledger for every settled day (the 05:15Z step is the last
     # morning settle - CS2's runs at 05:00Z): a day's rows are rewritten
     # whole, so re-recording the day before closes its late legs.
     morning.append(
-        ["scripts/sofa/record_results.py", "--from", min(days), "--to", max(days)]
+        ["scripts/sofa/record_results.py", "--from", sweep_from, "--to", max(days)]
     )
     audit = ["scripts/sofa/audit_shadow.py", "--from", date, "--to", date]
     return snapshot, morning, audit

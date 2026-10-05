@@ -920,6 +920,25 @@ def load_settled(runs_dir: str, sport: SportKey, date: str) -> dict[str, Any] | 
     return doc
 
 
+def settled_for(
+    runs_dir: str, sport: SportKey, dates: set[str]
+) -> dict[str, dict[str, Any] | None]:
+    """settled.json of each date, and of every date a record there MOVED_TO
+    (shadow.MOVED_TO_PREFIX) - what grade_coupon follows a moved event to."""
+    out: dict[str, dict[str, Any] | None] = {}
+    todo = set(dates)
+    while todo:
+        date = todo.pop()
+        if date in out:
+            continue
+        out[date] = doc = load_settled(runs_dir, sport, date)
+        for ev in ((doc or {}).get("events") or {}).values():
+            target = shadow.moved_to_date(ev.get("state"))
+            if target is not None and target not in out:
+                todo.add(target)
+    return out
+
+
 # --- what the rule would have done on the settled days ---------------------------
 
 
@@ -1040,9 +1059,11 @@ def _leg_key(row: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(row.get(k) for k in LEG_KEY)
 
 
-# SETTLE's final states other than SETTLED / VOID: the event will not be
-# graded. Everything else is asked again, so the leg is still pending.
-TERMINAL_UNGRADED = frozenset({"UNUSUAL", "GAVE_UP", "NO_PRE_START_PRICE"})
+# SETTLE's final states other than SETTLED / VOID / AWARDED: the event will
+# not be graded (shadow.TERMINAL, one set for every measured sport since
+# 2026-10-05 - the identity states included). Everything else is asked again,
+# so the leg is still pending. MOVED_TO:<date> is followed to that date's file.
+TERMINAL_UNGRADED = shadow.TERMINAL - {"SETTLED", "VOID", "AWARDED", shadow.MOVED_TO}
 # SETTLE gives up on an event it could not grade within this long of its start
 # (settle_shadow / settle_cs2 GIVE_UP_AFTER) - but only if it is ever run on
 # that date again, and the daily loops settle D and D-1 only. So a
@@ -1072,6 +1093,13 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         maps = [cs2.MapResult(int(a), int(b), {}) for a, b in ev.get("maps") or []]
         if not maps:
             return "UNGRADEABLE"
+        if int(leg.get("map_nr") or 0) and cs2.map_not_played(
+            int(leg["map_nr"]), maps
+        ):
+            # The series ended before this map (a 2-0 has no map 3): a
+            # refund, as Superbet settles it (C4) - also on a series graded
+            # from its score alone, whose map count is the series score's.
+            return "VOID"
         # Settled from the series score alone (cs2.series_only_maps): its
         # placeholder rounds answer the series families and nothing else.
         if ev.get("series_only") and leg["family"] not in cs2.SERIES_FAMILIES:
@@ -1149,6 +1177,18 @@ def grade_coupon(
         source = leg.get("source_date") or coupon["date"]
         events = (settled_by_date.get(source) or {}).get("events") or {}
         ev = events.get(leg["superbet_event_id"])
+        hops = 0
+        while ev is not None and shadow.moved_to_date(ev.get("state")) and hops < 3:
+            # The event's record moved to the file of its last snapshot (B4):
+            # the leg is graded there, at its own printed price.
+            target = shadow.moved_to_date(ev.get("state"))
+            assert target is not None
+            moved = (settled_by_date.get(target) or {}).get("events") or {}
+            ev = moved.get(leg["superbet_event_id"]) or {
+                "state": "PENDING",
+                "moved_to": target,
+            }
+            hops += 1
         if ev is None:
             outcome = "PENDING"
         elif ev.get("state") == "SETTLED" and _priced_in_play(leg, ev):
@@ -1168,7 +1208,8 @@ def grade_coupon(
             other = measured.get(_leg_key(leg))
             if other is not None and outcome in ("WIN", "LOSS") and other != outcome:
                 outcome = "MISMATCH"
-        elif ev.get("state") == "VOID":
+        elif ev.get("state") in ("VOID", "AWARDED"):
+            # An awarded match / walkover is no result: the stake comes back.
             outcome = "VOID"
         elif ev.get("state") in TERMINAL_UNGRADED:
             outcome = f"NOT_GRADED:{ev.get('state')}"
