@@ -963,17 +963,18 @@ def _women_key(name: str, women: bool) -> str:
 
 
 def team_name_index(
-    conn: sqlite3.Connection, slug: str, now_ts: int
+    conn: sqlite3.Connection, slug: str, now_ts: int,
+    window_s: int = TEAM_NAME_WINDOW_S,
 ) -> dict[str, set[int]]:
     """Normalised Sofascore team name -> team ids, from the sport's listed
-    games of the last TEAM_NAME_WINDOW_S. A women's side is keyed with the
-    "(w)" marker normalize_name gives Superbet's "(K)"."""
+    games of the last `window_s` (TEAM_NAME_WINDOW_S). A women's side is
+    keyed with the "(w)" marker normalize_name gives Superbet's "(K)"."""
     from bet.sofa.resolve import sofascore_gender
 
     index: dict[str, set[int]] = {}
     for (text,) in conn.execute(
         "SELECT event_json FROM sofa_listed_event WHERE sport = ? AND start_ts > ?",
-        (slug, int(now_ts) - TEAM_NAME_WINDOW_S),
+        (slug, int(now_ts) - int(window_s)),
     ):
         try:
             event = json.loads(text)

@@ -177,15 +177,27 @@ def test_a_refusal_aborts_the_run_without_a_retry():
 
 def test_one_sofascore_id_for_two_superbet_events_is_a_duplicate():
     listing = [_listed(9001, (10, "Sparta Praha"), (20, "Kometa Brno"))]
-    client = FakeClient({10: listing, 30: listing})
-    teams = {**TEAMS, "Sparta": 30}
+    client = FakeClient({10: listing})
+    teams = {**TEAMS}
     events = [_ev("1", "Sparta Praha", "Kometa Brno"),
               _ev("2", "Sparta", "Brno Kometa", KICK + timedelta(minutes=5))]
-    # no folded name is shared, so C5 does not catch it; both read as 9001
+    # no folded name is shared, so C5 does not catch it; event 2 has no id
+    # of its own and is asked through its query team: both read as 9001
     recs, _ = si.identify(events, client, None, lambda s, n: teams.get(n), AT,
-                          "2026-10-06")
+                          "2026-10-06", query_teams=lambda s, n: 10)
     assert [r["status"] for r in recs] == [si.DUPLICATE_SOFASCORE_ID] * 2
     assert all(r["duplicate_of"] == 9001 for r in recs)
+
+
+def test_a_resolved_id_that_differs_from_the_listing_refuses_the_side():
+    """The name alone no longer carries a side whose resolved id is another
+    team's (F1.2): "Sparta" resolved to 30 is not Sofascore's team 10."""
+    listing = [_listed(9001, (10, "Sparta Praha"), (20, "Kometa Brno"))]
+    teams = {**TEAMS, "Sparta": 30}
+    (r,), _ = si.identify([_ev("2", "Sparta", "Kometa Brno")],
+                          FakeClient({30: listing}), None,
+                          lambda s, n: teams.get(n), AT, "2026-10-06")
+    assert r["status"] == si.NOT_IDENTIFIED
 
 
 def test_only_the_days_utc_window_is_identified():
@@ -279,3 +291,174 @@ def test_the_script_writes_sport_fixtures_into_the_runs_dir(tmp_path: Path,
     # no snapshot of any sport asked: FAILED
     _, code = rsi.run("2026-10-06", ["volleyball"], str(tmp_path), client, None, conn)
     assert code == 2
+
+
+# --- F1.2 (production-grade plan 2026-10-05): recall without losing precision ---
+
+
+def _bb(eid: int, home: tuple[int, str], away: tuple[int, str],
+        start: datetime = KICK, status: str = "notstarted",
+        gender: str = "M") -> dict[str, Any]:
+    e = _listed(eid, home, away, start, slug="basketball")
+    e["status"] = {"type": status}
+    e["homeTeam"]["gender"] = e["awayTeam"]["gender"] = gender
+    return e
+
+
+def _bev(sb: str, t1: str, t2: str, kick: datetime = KICK) -> si.BoardEvent:
+    return _ev(sb, t1, t2, kick, sport="basketball")
+
+
+def test_a_postponed_copy_beside_the_real_game_is_not_a_second_candidate():
+    """10-05 Partizan - Mega: Sofascore listed the game twice at 16:30, one
+    copy postponed (reversed) - refused before."""
+    listing = [_bb(1, (38317, "KK Mega Basket"), (6637, "KK Partizan"),
+                   status="postponed"),
+               _bb(2, (6637, "KK Partizan"), (38317, "KK Mega Basket"))]
+    teams = {"Partizan": 6637, "Mega Basket": 38317}
+    (r,), _ = si.identify([_bev("1", "Partizan", "Mega Basket")],
+                          FakeClient({6637: listing}), None,
+                          lambda s, n: teams.get(n), AT, "2026-10-06")
+    assert r["status"] == si.IDENTIFIED and r["sofascore_event_id"] == 2
+    (r2,), _ = si.identify([_bev("1", "Partizan", "Mega Basket")],
+                           FakeClient({6637: listing[:1]}), None,
+                           lambda s, n: teams.get(n), AT, "2026-10-06")
+    assert r2["status"] == si.NOT_IDENTIFIED and r2["reason"] == "NOT_AS_SCHEDULED"
+
+
+def test_the_womens_marker_does_not_cost_the_name_score():
+    """"Helios VS (K)" scored 81.8 against "Helios VS Basket" on the marker
+    alone; the gender gate reads the marker, the score does not."""
+    listing = [_bb(1, (5, "Helios VS Basket"), (6, "Nyon Basket"), gender="F")]
+    (r,), _ = si.identify([_bev("1", "Helios VS (K)", "Nyon Basket (K)")],
+                          FakeClient({5: listing}), None,
+                          lambda s, n: {"Helios VS (K)": 5}.get(n), AT, "2026-10-06")
+    assert r["status"] == si.IDENTIFIED and r["match_method"] == "LISTING_ID_AND_NAME"
+    men = [_bb(1, (5, "Helios VS Basket"), (6, "Nyon Basket"), gender="M")]
+    (r2,), _ = si.identify([_bev("1", "Helios VS (K)", "Nyon Basket (K)")],
+                           FakeClient({5: men}), None,
+                           lambda s, n: {"Helios VS (K)": 5}.get(n), AT, "2026-10-06")
+    assert r2["status"] == si.NOT_IDENTIFIED  # a men's game is not the women's
+
+
+def test_one_side_by_id_and_the_opponent_by_the_settles_rule():
+    """Sierre - Bellinzona Rockets (09-29): Sofascore's "GDT Bellinzona
+    Snakes" shares one distinctive word and the clocks agree."""
+    listing = [_listed(1, (5573, "HC Sierre"), (77, "GDT Bellinzona Snakes"))]
+    (r,), _ = si.identify([_ev("1", "Sierre", "Bellinzona Rockets")],
+                          FakeClient({5573: listing}), None,
+                          lambda s, n: {"Sierre": 5573}.get(n), AT, "2026-10-06")
+    assert r["status"] == si.IDENTIFIED
+    assert r["match_method"] == "LISTING_ID_AND_OPPONENT" and r["home_is_team1"] is True
+    # the shared word needs both clocks within 15 minutes
+    late = [_listed(1, (5573, "HC Sierre"), (77, "GDT Bellinzona Snakes"),
+                    KICK + timedelta(minutes=30))]
+    (r2,), _ = si.identify([_ev("1", "Sierre", "Bellinzona Rockets")],
+                           FakeClient({5573: late}), None,
+                           lambda s, n: {"Sierre": 5573}.get(n), AT, "2026-10-06")
+    assert r2["status"] == si.NOT_IDENTIFIED
+    # an opponent resolved to another team is never confirmed by a word
+    (r3,), _ = si.identify([_ev("1", "Sierre", "Bellinzona Rockets")],
+                           FakeClient({5573: listing}), None,
+                           lambda s, n: {"Sierre": 5573, "Bellinzona Rockets": 99}.get(n),
+                           AT, "2026-10-06")
+    assert r3["status"] == si.NOT_IDENTIFIED
+
+
+def test_another_squad_of_the_club_is_not_the_club():
+    """"Kataja Talents" (Kataja Basket's 1. Division B side) against
+    Sofascore's "Kataja Basket": the shared "kataja" no longer confirms it."""
+    listing = [_bb(1, (6509, "Kataja Basket"), (176596, "Helsinki Seagulls"))]
+    (r,), _ = si.identify([_bev("1", "Kataja Talents", "Helsinki")],
+                          FakeClient({176596: listing}), None,
+                          lambda s, n: {"Helsinki": 176596}.get(n), AT, "2026-10-06")
+    assert r["status"] == si.NOT_IDENTIFIED
+    assert not si.same_squad("vitality academy", "vitality")
+    assert si.same_squad("kataja basket talents", "kataja talents")
+
+
+def test_cs2_c5_refuses_the_same_pair_only():
+    """A CS2 team plays two series a day against two opponents (09-28..10-04:
+    the team rule refused series the settle found); the same pair twice is a
+    loop or a rematch no start tells apart."""
+    two_opponents = [_ev("1", "Masonic", "Linx Legacy", sport="cs2"),
+                     _ev("2", "Masonic", "STATE", KICK + timedelta(hours=2),
+                         sport="cs2")]
+    assert si.duplicate_team_events(two_opponents) == {}
+    loop = [_ev("1", "DeeKkaa", "-proHor", sport="cs2"),
+            _ev("2", "-proHor", "DeeKkaa", KICK + timedelta(minutes=33), sport="cs2")]
+    assert set(si.duplicate_team_events(loop)) == {"1", "2"}
+    # hockey keeps the team rule: a club does not play twice in 3 h
+    hockey = [_ev("1", "Masonic", "Linx Legacy"),
+              _ev("2", "Masonic", "STATE", KICK + timedelta(hours=2))]
+    assert set(si.duplicate_team_events(hockey)) == {"1", "2"}
+
+
+def test_a_query_only_team_is_asked_but_never_an_id_match():
+    listing = [_bb(1, (233932, "CD Español de Talca"),
+                   (1217902, "Universidad Santiago de Chile"))]
+    client = FakeClient({233932: listing})
+    query = {"Espanol de Talca": 233932}
+    (r,), _ = si.identify([_bev("1", "Espanol de Talca", "U. De Santiago")], client,
+                          None, lambda s, n: None, AT, "2026-10-06",
+                          query_teams=lambda s, n: query.get(n))
+    assert client.calls == [233932]
+    assert r["status"] == si.IDENTIFIED and r["query_only"] is True
+    assert r["match_method"] == "LISTING_NAMES"
+    # the asked team's id alone confirms nothing: the other name must match
+    wrong = [_bb(1, (233932, "CD Español de Talca"), (5, "Colo Colo"))]
+    (r2,), _ = si.identify([_bev("1", "Espanol de Talca", "U. De Santiago")],
+                           FakeClient({233932: wrong}), None, lambda s, n: None, AT,
+                           "2026-10-06", query_teams=lambda s, n: query.get(n))
+    assert r2["status"] == si.NOT_IDENTIFIED
+
+
+def _resolver_db(rows: list[tuple[str, int, dict[str, Any]]]) -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE sofa_entity (sport TEXT, query_key TEXT, "
+                 "sofascore_id INT, status TEXT)")
+    conn.execute("CREATE TABLE sofa_listed_event (sport TEXT, start_ts INT, "
+                 "event_json TEXT)")
+    conn.executemany("INSERT INTO sofa_listed_event VALUES (?, ?, ?)",
+                     [(s, ts, json.dumps(e)) for s, ts, e in rows])
+    return conn
+
+
+def test_the_name_index_covers_an_off_season():
+    """10-05: every NBA team was TEAM_UNRESOLVED - their last game was in
+    April, past player_model's 120 days."""
+    from bet.sofa.player_model import team_name_index
+
+    april = int(datetime(2026, 4, 10, tzinfo=UTC).timestamp())
+    e = _listed(1, (3421, "New York Knicks"), (3424, "Detroit Pistons"),
+                slug="basketball")
+    conn = _resolver_db([("basketball", april, e)])
+    resolver = si.TeamResolver(conn, int(AT.timestamp()))
+    assert resolver.team_id("basketball", "New York Knicks") == 3421
+    assert team_name_index(conn, "basketball", int(AT.timestamp())) == {}
+
+
+def test_query_id_is_the_one_fuzzy_team_of_the_same_squad():
+    ts = int(AT.timestamp()) - 86400
+    rows = [("basketball", ts, _listed(1, (233932, "CD Español de Talca"),
+                                       (416642, "CD Español de Osorno"),
+                                       slug="basketball")),
+            ("basketball", ts, _listed(2, (477919, "ŽKK Zadar U19"),
+                                       (25740, "ŽKK Zadar"), slug="basketball"))]
+    resolver = si.TeamResolver(_resolver_db(rows), int(AT.timestamp()))
+    assert resolver.team_id("basketball", "Espanol de Talca") is None
+    assert resolver.query_id("basketball", "Espanol de Talca") == 233932
+    assert resolver.query_id("basketball", "Zadar") == 25740  # U19 is another squad
+    assert resolver.query_id("basketball", "Espanol") is None  # two teams
+    assert resolver.query_id("cs2", "Anything") is None
+
+
+def test_cs2_ids_fall_back_to_the_name_without_esports_affixes():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE cs2_series (home_id INT, home_name TEXT, "
+                 "away_id INT, away_name TEXT)")
+    conn.execute("INSERT INTO cs2_series VALUES (424876, 'Aurora Gaming', "
+                 "485866, 'BetBoom Team'), (469629, 'Aurora Young Blood', 1, 'X')")
+    resolver = si.TeamResolver(conn, 0)
+    assert resolver.team_id("cs2", "BetBoom") == 485866
+    assert resolver.team_id("cs2", "Aurora") == 424876  # Young Blood is another core
