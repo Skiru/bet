@@ -142,3 +142,47 @@ nie zmienia modelu, a od razu zmienia to, co operator widzi na kuponie.
   Celem jest: każdy rynek ma etykietę (liczymy / nie da się i dlaczego) i nic
   nie znika bez śladu.
 - **Stałości.** Każdy refit to nowa epoka; wyniki epok się nie sumują.
+
+## 7. Stan wdrożenia (2026-10-05, ~12:30Z)
+
+„Zrobione” znaczy: kryterium spełnione na danych. „Zbudowane” znaczy: kod i
+test są, ale kryterium wymaga dni, decyzji operatora albo refitu.
+
+| # | stan | dowód / liczba |
+|---|---|---|
+| F0.1 | **spełnione** | `printed/<ts>.json` tylko dopisywane; blokada czyta pierwszy wydruk; test: noga przeżywa 4 przebudowy bez niej; 10-05 zasiane z `12_printed.json` (md5 identyczne). 12 nóg sprzed tej zmiany nie do odzyskania z rekordu |
+| F0.2 | **spełnione** | `rebuild_day.py`; test „stara oferta -> OFFER przed CONFIDENCE”; na żywo 10-05 11:43Z odświeżył ofertę (46 min) i SHADOW z horyzontem 12,25 h (26 meczów poza 3 h) |
+| F0.3 | **spełnione** | `real_start_utc` z `currentPeriodStartTimestamp` - okresy; Grenier 09:40:52Z, Tarvet 09:14:04Z (z płatnych danych w DB) |
+| F0.4 | **spełnione** | FIXTURE_CHECK pyta też kandydatów (10-05: 135 meczów zamiast 102); test: mecz `interrupted` nie trafia na pierwszy wydruk; na żywo El Porvenir - Cañuelas odrzucony |
+| F0.5 | **spełnione** | powód UNVERIFIED (NOT_FOUND / PROVIDER_REFUSED / NO_BRIDGE ...); PDF 10-05: „Sofascore nie zna meczu (404): 2” |
+| F0.6 | zbudowane, **nie spełnione** | baza: 9,6% wydrukowanych nóg bez rozliczenia po D+3 (225/2 344, 09-25..10-01); rożne 40,3%; codzienny `resettle_sweep.py` D-14..D-2; bramka NOT_SETTLEABLE (6 komórek rożnych) od 10-06; poza próbą 10,2% -> 5,4%. Kryterium 7 dni najwcześniej ~10-13 |
+| F0.7 | **spełnione** | ruff 90 -> 0; test niestabilny nie powtórzył się w 8 przebiegach (w tym 3 tasowane) - nazwa nieznana |
+| F1.1 | **spełnione** (10-05) | 0 UNCLASSIFIED na 18 214 nazwach (27 757 wystąpień): MAPPABLE 239, COMPUTABLE 14 161, NOT_COMPUTABLE 3 814; `docs/sofa/evidence/market_coverage_2026-10-05.md`. Mapowanie propozycji MAPPABLE - decyzja (zmienia kupon) |
+| F1.2 | zbudowane, **nie spełnione** | replay 09-28..10-04: hokej 98,8%, kosz 96,7%, siatka 94,3%, CS2 95,9% meczów, które Sofascore zna; jako odsetek tablicy 97,2 / 90,2 / 51,6 / 55,3%. 0 błędnych id; złote zbiory po 120 przypadków. Blokuje: mecze, których Sofascore nie ma (pętle CS2 1x1), drużyny bez id w cache |
+| F1.3 | **spełnione** | `blocked_families_2026-10-05.md`: każda rodzina z decyzją i pomiarem; pochodne zawyżają (both_over_goals -10,6 pp, handicap_games -11,8 pp) |
+| F1.4 | **spełnione** | `sofascore_stat_inventory_2026-10-05.md`; hokej/kosz/siatka `/statistics` w cache, nieczytane |
+| F1.5 | decyzja operatora | sekcja w raporcie pokrycia |
+| F2.1 | zbudowane, **nierozstrzygnięte** | `measure_calibration.py`; epoka stats-only: 0 rozliczonych -> INSUFFICIENT; stara epoka official 294 nogi, +2,9 pp [-2,9; +8,5]. Bramka „krzywa nie przechodzi -> nie drukuje” wyłączona (`CURVE_STATUS_FROM_UTC = None`) |
+| F2.2 | zmierzone, za flagą | `model_defects_2026-10-05.md`: wariancja NB tenisa (aces_for -0,0139 [-0,0150; -0,0130]) za `MODEL_FIXES_FROM_UTC = None`; NB piłki i kartki trenerów naprawione wcześniej; awans/spadek - sama notatka |
+| F2.3 | **nie spełnione** | 14 stałych opisanych, plan dopasowania; nic nie dopasowano (refit między dniami) |
+| F2.4, F2.5 | **nie spełnione** | czekają na rozliczone dni epoki i refit |
+| F3.1 | zbudowane | cache nie odpowie (wszystkie 51 598 składów pobrane po meczu); sonda `probe_lineup_availability.py` gotowa, nieuruchomiona |
+| F3.2 | zmierzone | runda sezonu poprawia (goals_total -0,00173 [-0,00200; -0,00147]); sędzia i nieobecności - przedział zawiera 0 (notatka); pogoda - brak danych. Nic nie weszło do modelu |
+| F3.3 | decyzja operatora | |
+| F4.1 | **spełnione** | `leg_relations.py`: test na wszystkich parach kluczy (>50 000 par); 10-05: 430/430 par z etykietą |
+| F4.2 | **spełnione** | każda drabina pod nagłówkiem „ta sama zmienna”; forma „jeden szczebel” wyłączona (decyzja) |
+| F4.3 | **spełnione** (raport) | sekcja „Ekspozycja na mecz”; 10-05: pozycje 1-30 na 4 meczach; limit - decyzja |
+| F4.4 | zbudowane, od 10-06 | builder bez ceny z ekranu (`09_screen_prices.json`) się nie drukuje; Superbet nie ma API ceny buildera - wpis ręczny |
+| F5.1 | **spełnione** | `REJESTR_TESTOW.md` + `config/sofa_test_registry.json`, 5 testów PROPOSED (do zatwierdzenia), walidator |
+| F5.2 | **nie spełnione** | `closing.jsonl` w 5 z 17 dni; dziura 09-19..09-30 (283 nogi) zostaje; od 10-01 prawie 100% |
+| F5.3, F5.4 | zapisane | kryteria w rejestrze; rozstrzygnięcie po ~4 400 pozycjach |
+| F6.1 | **częściowo** | `test_chaos.py` 18 testów; naprawione: 3 backfille wychodziły 1 zamiast 2 po otwarciu bezpiecznika; NOT_TESTED: SAMPLES, SETTLE, OFFER, pętle |
+| F6.2 | **spełnione** | `day_status.py` w `/sofa-day` |
+| F6.3 | **nie spełnione** | 7 dni od dziś |
+
+Poprawki znalezione przy weryfikacji 10-05 (po wdrożeniu): handicap T2 sportu
+drukował znak drużyny 1 (Herlev, Esbjerg - zdjęte NO_BET, poprawione w kodzie);
+fałszywy „pominięty przez horyzont” w planie przebudowy (poprawione).
+Otwarte podejrzenie weryfikatora (niezmierzone): ograniczenie cienkiego koszyka
+kierunku nie działa, gdy rynek nie ma własnego koszyka (Moss G1H O0.5 z
+`pooled:football`) - zmiana reguły, nie w trakcie dnia.

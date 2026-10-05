@@ -1,5 +1,28 @@
 # Working agreement — `bet`
 
+## Production-grade epoch 2026-10-06 (`bet.sofa.epochs`, plan `docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md`)
+
+Written 2026-10-05 mid-day, so the 10-05 coupon is unaffected; a day >= 2026-10-06
+built after 00:00Z gets:
+- **A Bet Builder prints only with a screen price** (`BUILDER_SCREEN_PRICE_FROM_UTC`,
+  F4.4): the operator records Superbet's screen odds in `runs/sofa/<d>/09_screen_prices.json`
+  (`bet.sofa.builder_screen`); without one the builder is `BUILDER_NO_SCREEN_PRICE`, listed,
+  never silent. No API prices a builder, so with no file there are no builders.
+- **NOT_SETTLEABLE** (`SETTLEABILITY_FROM_UTC`, F0.6): (competition, family) cells listed in
+  `config/sofa_settleability.json` (6 corner cells, `fit_settleability.py --before 2026-10-05`;
+  refit between days) are refused by CONFIDENCE.
+- **Coupon form dials** (`COUPON_STRUCTURE_FROM_UTC`, F4.2/F4.3): `ladder_form` one-rung and
+  `max_positions_per_match` exist, OFF unless `config/sofa_coupon_form.json` sets them
+  (operator decision). Every ladder prints under a "ta sama zmienna" header and the PDF has an
+  exposure-per-match section - labels, from 10-05 on.
+Disabled until the operator sets them between days: `CURVE_STATUS_FROM_UTC` (F2.1, a failing
+curve stops printing), `MODEL_FIXES_FROM_UTC` (F2.2 tennis NB dispersion, other-division note;
+with the next refit). Mid-day 10-05 (correctness, live at once): the print record is
+append-only (`printed/<ts>.json`, the lock reads the first print), FIXTURE_CHECK asks the
+candidate matches too and records the real tennis start and the UNVERIFIED reason, the one
+rebuild command `rebuild_day.py`, a measured sport's T2 handicap printed as the side's own line.
+State per item: section 7 of the plan.
+
 ## Stats-only coupon epoch (2026-10-05 07:15Z, `bet.sofa.epochs.STATS_ONLY_FROM_UTC`)
 
 Plan `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md` (operator decisions D1-D7).
@@ -199,6 +222,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning (F0.6): statistic gaps (corners etc.) close days later; run_settle --refetch-stat-gaps for every day still holding a gradable printed leg (+ D-5 always), then regrade_settled.py --apply once; bridge (none: exit 1 NO_BRIDGE, nothing done); --dry-run = the plan
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settleability.py --from <d> --to <d> [--with-fit] [--json-out f] [--md-out f]   # share of printed legs with no grade at D+3, by day / family / competition (read-only; docs/sofa/evidence/settleability_2026-10-05.md)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]   # config/sofa_settleability.json: (competition, family) cells CONFIDENCE refuses NOT_SETTLEABLE from 2026-10-06 (epochs.SETTLEABILITY_FROM_UTC); between days only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>   # one status report (F6.2): offer / sport snapshot ages, loops alive, ledger MISMATCH, CLV coverage, coupon vs sources, UNVERIFIED; no network; exit 0 / 1 WARN / 2 broken
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_calibration.py --from <d> --to <d> [--epoch stats_only] [--write-config --before <d>]   # printed confidence vs realised per curve / sport / variant, bootstrap by match (F2.1: PASS n>=300 and |gap|<=2 pp); --write-config lists failed curves in config/sofa_curve_status.json, refused only once epochs.CURVE_STATUS_FROM_UTC is set (None = off; between days)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py   # config/sofa_test_registry.json (F5.1, docs/sofa/REJESTR_TESTOW.md): a test whose data window starts before its registration is refused
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date <d>   # every unmapped Superbet market of the day: MAPPABLE / COMPUTABLE / NOT_COMPUTABLE (F1.1); exit 1 on any UNCLASSIFIED; read-only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_blocked_families.py [--from <d>] [--to <d>]   # refused / not-calibrated families measured on settled rows (F1.3); measurement only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_identity.py --from <d> --to <d> [--sport hockey]   # SPORT_IDENTITY replayed offline vs the settle's id (F1.2; golden sets docs/sofa/evidence/sport_identity_golden_<sport>.json)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_model_defects.py [--start <d>] [--end <d>]   # the deferred model defects out of sample (F2.2); fixes behind epochs.MODEL_FIXES_FROM_UTC (None = off; with the next refit)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/probe_lineup_availability.py --date <d> [--dry-run] [--summary]   # F3.1 probe: are /lineups out 1-3 h before the start (bridge, <= 60 events a pass, stops on a 403); not yet run
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>   # FIXTURE_CHECK in a rebuild, before CONFIDENCE: /event status + fresh start of printed matches and moved clocks -> fixture_status.json (bridge; none = UNVERIFIED)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>        # COUPON_ASSEMBLY: 11_coupon.json, the coupon of a stats-only day (exit 1 while 08_confidence_sports.json is absent)
