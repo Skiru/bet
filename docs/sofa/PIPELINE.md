@@ -1023,6 +1023,37 @@ niego 08).
   pozycji niezablokowanych, każda noga wydrukowanego buildera, prośby z
   `read_requests.json`). Prośba, która nic nie objęła, drukuje
   `UNMATCHED_READ_REQUEST`.
+- **Struktura kuponu (od 2026-10-05, plan production grade F4.1-F4.4;
+  adnotacja, niczego nie wybiera):**
+  - `relations` — dla każdego meczu z ≥ 2 nogami każda para nóg z etykietą
+    (`bet.sofa.leg_relations`): `SAME_VARIABLE_IMPLIES` (U2.5 ⇒ U3.5, pole
+    `implies`), `SAME_VARIABLE_EXCLUSIVE` (O2.5 / U2.5, `complement`),
+    `SAME_VARIABLE_OVERLAP` (O1.5 i U3.5), `DEPENDENT` (total vs drużyna,
+    połowa vs mecz, rożne vs strzały, kartki vs faule, gemy vs sety, pochodne
+    vs składniki, mapa vs seria) albo `INDEPENDENT_ASSUMED` (brak znanego
+    związku — założenie, nie pomiar). Wielkość nogi jest wyprowadzana z mapy
+    rynków (`metrics`, `players`, `derived`, `shadow.MARKETS`, `cs2.FAMILIES`),
+    z okresem i stroną.
+  - `ladders` — nogi jednego meczu będące tą samą zmienną (drabina szczebli,
+    para OVER + UNDER): `ladder_no`, `label`, `rungs`, `over_under_pair`;
+    singiel na drabinie niesie `ladder_no`. 10-05 (replay): 39 drabin wśród
+    pozycji (98 nóg ze 157), 20 par OVER + UNDER; z nogami w grze 53 drabiny.
+  - `exposure` — per mecz: pozycje, udział, suma pewności, nogi w grze,
+    buildery, `worst_case_lost` (ile pozycji zabiera mecz, gdy wszystko na nim
+    przegra); `top_positions_matches` — na ilu meczach stoją pozycje 1-30
+    (10-05: 4).
+  - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
+    `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
+    wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają
+    dopiero od `epochs.COUPON_STRUCTURE_FROM_UTC` (dzień ≥ 2026-10-06).
+  - `builders_refused` / `builder_screen_prices` — F4.4: od
+    `epochs.BUILDER_SCREEN_PRICE_FROM_UTC` (dzień ≥ 2026-10-06) Bet Builder
+    drukuje się tylko z kursem z ekranu Superbetu zapisanym w
+    `09_screen_prices.json` i jest stawialny po nim (łączne p × kurs z ekranu
+    ≥ 0,90); bez niego `BUILDER_NO_SCREEN_PRICE` (albo `…_UNTIMED`,
+    `…_AFTER_START`, `…_OTHER_SLIP`, `BUILDER_SCREEN_X_BELOW`) — na liście, nie
+    po cichu. Żaden endpoint Superbetu używany w repo nie wycenia buildera;
+    kurs wpisuje operator (format w `bet.sofa.builder_screen`).
 
 ## 10c. FIXTURE_CHECK — czy mecz drukowany nadal jest grany (od 2026-10-05)
 
@@ -1048,7 +1079,8 @@ z godziną startu i oznaczeniem sportu (poza piłką), kolumny „pewność”
 próbka; buildery na osobnych stronach z odsyłaczem przy bloku meczu. Odmowy (kod 2): `STALE_CONFIDENCE` — `08_confidence.json`
 starszy niż `05_sheet.json`, `vetoes.json`, `reads.json` albo kalibracja;
 `STALE_COUPON` — `11_coupon.json` starszy niż `08_confidence.json`,
-`08_confidence_sports.json` albo `read_requests.json`. Potem zapisuje
+`08_confidence_sports.json`, `read_requests.json`, `09_screen_prices.json`
+albo `config/sofa_coupon_form.json`. Potem zapisuje
 `12_printed.json` (manifest wydruku), z którego następna przebudowa blokuje
 nogi. Buildery: wyłącznie pozycje przechodzące `is_stakeable`, każda z
 własnym śladem dowodowym. `--profile wariant` (historyczne) odmawia dla
@@ -1057,7 +1089,18 @@ skutkiem narzutu korelacyjnego, nie braku danych.
 
 Oznaczenia na stronie (od 2026-10-01; pokazane, nie egzekwowane):
 
-- **„ta sama drabina: N”** przy singlu, gdy na liście stoi N szczebli jednej
+- **„ta sama zmienna Z<n>”** (dzień `stats_only`, od 2026-10-05, F4.2):
+  przed pierwszym szczeblem każdej drabiny (`ladders` z `11_coupon.json`) wiersz
+  nagłówka przez całą tabelę — mecz, zmienna, wszystkie szczeble z numerami
+  pozycji, „jedna decyzja o jednej wielkości, nie N niezależnych zakładów”,
+  para OVER + UNDER — i dopisek „ta sama zmienna Z<n>” przy każdym szczeblu,
+  także w tabeli nóg w grze. Żaden szczebel nie jest zdejmowany (forma
+  „jeden szczebel” to decyzja operatora, `ladder_form` w CONFIG.md). Pod
+  pozycjami sekcja **„Ekspozycja na mecz”** (`exposure`) i, od 2026-10-06,
+  lista **„Bet Buildery bez kursu z ekranu — nie na kuponie”**; builder
+  wydrukowany pokazuje kurs z ekranu albo „brak kursu z ekranu”.
+- **„ta sama drabina: N”** (dni przed epoką `stats_only`) przy singlu, gdy na
+  liście stoi N szczebli jednej
   drabiny (ten sam mecz, rynek i podmiot, `confidence.ladder_key`), plus
   zdanie nad listą z liczbą takich drabin. Dwa szczeble jednej drabiny to
   jedno twierdzenie o jednej liczbie kupione dwa razy — 2026-09-30 kupon

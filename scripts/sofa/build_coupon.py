@@ -43,10 +43,14 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import builder_screen as bs  # noqa: E402
+from bet.sofa import coupon_form as cf  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
+from bet.sofa import leg_relations as lr  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    BUILDER_MIN_X,
     COUPON_ARTIFACT,
     coupon_order,
     group_key,
@@ -54,7 +58,12 @@ from bet.sofa.confidence import (  # noqa: E402
     load_read_requests,
     request_covers,
 )
-from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
+from bet.sofa.epochs import (  # noqa: E402
+    STATS_ONLY,
+    artifact_epoch,
+    builder_screen_price_required,
+    coupon_form_active,
+)
 from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 
@@ -84,12 +93,23 @@ def assemble(
     samples: dict[int, dict[str, Any]],
     now_utc: str,
     date: str | None = None,
+    form: cf.CouponForm | None = None,
+    form_active: bool = False,
+    screen_prices: dict[str, bs.ScreenPrice] | None = None,
+    screen_required: bool = False,
 ) -> dict[str, Any]:
     """11_coupon.json from its sources. Pure, so a test can pin it.
 
     `date`: the day window (K3) - a fresh leg prints on the coupon of D only
     when its start is in [D 00:00Z, D+1 00:00Z), whatever its sport; a
-    locked leg stays where it was printed."""
+    locked leg stays where it was printed.
+
+    `form` / `form_active`: the coupon-form dials (bet.sofa.coupon_form,
+    F4.2 / F4.3), acting only from epochs.COUPON_STRUCTURE_FROM_UTC.
+    `screen_prices` / `screen_required`: the builders' screen prices
+    (bet.sofa.builder_screen, F4.4); required from
+    epochs.BUILDER_SCREEN_PRICE_FROM_UTC."""
+    form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
     # outside the numbering now, so its old position / block go.
@@ -110,6 +130,8 @@ def assemble(
         lo_b, hi_b = f"{date}T00:00:00", f"{day_after(date)}T00:00:00"
         builders = [b for b in builders if b.get("locked")
                     or lo_b <= str(b.get("kickoff_utc") or "") < hi_b]
+    builders = bs.apply_screen_prices(
+        builders, screen_prices or {}, screen_required, BUILDER_MIN_X)
     printed_by_match: dict[str, list[str]] = {}
     n_builder = 0
     for b in builders:
@@ -124,6 +146,7 @@ def assemble(
         kept = [s for s in fresh if lo <= str(s.get("kickoff_utc") or "") < hi]
         outside_window = len(fresh) - len(kept)
         fresh = kept
+    fresh, removed_by_form = cf.apply_form(fresh, form, form_active)
     blocks_out: list[dict[str, Any]] = []
     ordered: list[dict[str, Any]] = []
     position = 0
@@ -150,6 +173,8 @@ def assemble(
     locked_out = [{**s, "group_key": group_key(s)} for s in locked]
 
     out_singles = [*locked_out, *ordered]
+    structure = coupon_structure(out_singles, builders, form, form_active,
+                                 removed_by_form)
     asked = [
         {**r, "covers": [s.get("position") for s in out_singles
                          if request_covers(r, s)]}
@@ -183,8 +208,50 @@ def assemble(
         "read_requests": asked,
         "outside_day_window": outside_window,
         **({"sports": sports.get("sports")} if sports else {}),
+        **structure,
+        "builders_refused": bs.refused_builders(builders),
+        "builder_screen_prices": {
+            "file": bs.SCREEN_PRICES_FILE,
+            "required": screen_required,
+            "required_from_utc": "2026-10-06T00:00:00Z",
+            "recorded": len(screen_prices or {}),
+            "printed_with_screen_price": sum(
+                1 for b in builders
+                if b.get("builder_no") and b.get("screen_odds") is not None),
+        },
     })
     return doc
+
+
+def coupon_structure(
+    singles: list[dict[str, Any]],
+    builders: list[dict[str, Any]],
+    form: cf.CouponForm,
+    form_active: bool,
+    removed_by_form: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """F4.1-F4.3, annotation of the printed legs: the relation of every pair
+    of legs of one match, the ladders (one variable, two or more rungs - a
+    single carries its `ladder_no`) and the exposure per match. Selects
+    nothing; the coupon form removes only from its epoch (`form_active`)."""
+    index = lr.ladder_index(singles)
+    for leg in singles:
+        if id(leg) in index:
+            leg["ladder_no"] = index[id(leg)]
+    ladders = lr.ladders(singles)
+    for i, lad in enumerate(ladders, 1):
+        lad["ladder_no"] = i
+    return {
+        "relations": lr.match_relations(singles),
+        "ladders": ladders,
+        "exposure": cf.exposure(
+            singles, [b for b in builders if b.get("builder_no")],
+            form.max_positions_per_match),
+        "coupon_form": {**form.as_dict(), "active": form_active,
+                        "applied": form_active and not form.is_default(),
+                        "active_from_utc": "2026-10-06T00:00:00Z"},
+        "removed_by_coupon_form": removed_by_form,
+    }
 
 
 def day_after(date: str) -> str:
@@ -314,8 +381,17 @@ def main() -> int:
         {int(s["sofascore_event_id"]): s for s in _load(samples_path)}
         if samples_path.exists() else {}
     )
+    try:
+        form = cf.load_coupon_form()
+        screen = bs.load_screen_prices(run / bs.SCREEN_PRICES_FILE)
+    except ValueError as exc:
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 2
     now = at.isoformat().replace("+00:00", "Z")
-    doc = assemble(conf, sports, requests, samples, now, args.date)
+    doc = assemble(conf, sports, requests, samples, now, args.date,
+                   form=form, form_active=coupon_form_active(args.date, at),
+                   screen_prices=screen,
+                   screen_required=builder_screen_price_required(args.date, at))
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
     write_atomic(run / COUPON_ARTIFACT.replace(".json", ".md"),
@@ -335,6 +411,11 @@ def main() -> int:
             "read_requests_unmatched": len(unmatched),
             "outside_day_window": doc["outside_day_window"],
             "sports_artifact": sports_path.exists(),
+            "ladders": len(doc["ladders"]),
+            "legs_on_ladders": sum(x["n_rungs"] for x in doc["ladders"]),
+            "top_positions_matches": doc["exposure"]["top_positions_matches"],
+            "removed_by_coupon_form": len(doc["removed_by_coupon_form"]),
+            "builders_refused": len(doc["builders_refused"]),
         },
         "output_path": str(run / COUPON_ARTIFACT),
     }))

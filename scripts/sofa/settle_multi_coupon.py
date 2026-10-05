@@ -33,6 +33,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import multi_coupon as mc  # noqa: E402
+from bet.sofa.builder_screen import screen_odds_by_event  # noqa: E402
 from bet.sofa.confidence import builder_odds  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import write_atomic  # noqa: E402
@@ -138,7 +139,8 @@ def official_rows(
     else:
         rows = settled_by_key(db_path, date, event_ids or set())
     path = mc.official_dir(runs_dir, date) / SCREEN_FILE[profile]
-    screen = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    # bet.sofa.builder_screen: a bare number or a timed entry (F4.4).
+    screen = screen_odds_by_event(path)
     return rows, screen
 
 

@@ -63,6 +63,15 @@ from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
+from scripts.sofa.coupon_structure_pdf import (  # noqa: E402
+    builder_price_lines,
+    exposure_flowables,
+    ladder_header,
+    ladder_marker,
+    ladders_of,
+    refused_builder_flowables,
+    table_with_headers,
+)
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 # Helvetica's built-in encoding has no Latin-2, so every Polish diacritic in
@@ -245,12 +254,15 @@ def coupon_older_than_sources(run: Path) -> str | None:
     eleven = run / "11_coupon.json"
     if not eleven.exists():
         return None
+    # 09_screen_prices.json and the coupon form (F4.2-F4.4): a screen price
+    # or a dial entered after the assembly is not on the coupon yet.
     for source in ("08_confidence.json", "08_confidence_sports.json",
-                   "read_requests.json"):
+                   "read_requests.json", "09_screen_prices.json",
+                   str(config_path("sofa_coupon_form.json"))):
         path = run / source
         if path.exists() and eleven.stat().st_mtime < path.stat().st_mtime:
             return (
-                f"STALE_COUPON: 11_coupon.json is older than {source} - run "
+                f"STALE_COUPON: 11_coupon.json is older than {path.name} - run "
                 "build_coupon.py for this day before the PDF"
             )
     return None
@@ -888,24 +900,38 @@ def render_stats_only(
     locked = [s for s in singles if s.get("locked")]
     fresh = [s for s in singles if not s.get("locked")]
     blocks = {int(b["block"]): b for b in doc.get("blocks") or []}
+    # F4.2: the legs of one variable of a match (a ladder, an OVER + UNDER
+    # pair) under one header "ta sama zmienna" - one decision, not N bets.
+    ladder_of, ladder_docs = ladders_of(doc, singles)
     if locked:
         S.append(Paragraph("W grze — wydrukowane przed startem meczu", h2))
         rows: list[list[Any]] = [[Paragraph(h, small) for h in (
             "mecz", "rynek", "linia", "pewność", "kurs", "wydruk")]]
+        header_rows: list[int] = []
+        headed: set[int] = set()
         for leg in locked:
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
+            lno = ladder_of.get(id(leg))
+            if lno is not None and lno not in headed:
+                headed.add(lno)
+                header_rows.append(len(rows))
+                rows.append([Paragraph(ladder_header(ladder_docs[lno]), small)]
+                            + [""] * 5)
+            subj += ladder_marker(lno)
             rows.append([
                 Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
                           f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>", small),
-                Paragraph(escape(str(leg["display_market"])) if leg.get(
-                    "display_market") else f"{leg.get('market')}{escape(subj)}", small),
+                Paragraph(escape(str(leg["display_market"])) + ladder_marker(lno)
+                          if leg.get("display_market")
+                          else f"{leg.get('market')}{escape(subj)}", small),
                 Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
                           f"{leg.get('direction')}", small),
                 Paragraph(f"{leg['confidence']:.3f}", small),
                 Paragraph(f"{leg.get('offered_odds')}", small),
                 Paragraph(str(leg.get("printed_at_utc") or "")[11:16] + "Z", small),
             ])
-        S.append(_table(rows, [56*mm, 40*mm, 22*mm, 18*mm, 16*mm, 18*mm]))
+        S.append(table_with_headers(
+            _table(rows, [56*mm, 40*mm, 22*mm, 18*mm, 16*mm, 18*mm]), header_rows))
         S.append(Spacer(1, 6))
 
     S.append(Paragraph("Pozycje", h2))
@@ -916,9 +942,11 @@ def render_stats_only(
             "#", "mecz", "rynek", "linia", "pewność", "model", "kurs", "x",
             "marża", "próbka")]]
         seen_block: set[int] = set()
-        # See ladder_leg_counts: rungs of one ladder are one claim bought
-        # several times (the verifier, 10-05: 53 such ladders, unmarked).
-        per_ladder = ladder_leg_counts(fresh)
+        # Rungs of one ladder are one claim bought several times (the
+        # verifier, 10-05: 53 such ladders, unmarked): each ladder gets a
+        # header row before its first rung, and every rung its number.
+        pos_headers: list[int] = []
+        pos_headed: set[int] = set()
         for leg in fresh:
             first = int(leg.get("block") or 0) not in seen_block
             seen_block.add(int(leg.get("block") or 0))
@@ -946,17 +974,20 @@ def render_stats_only(
                                "renderem PDF</b></font>")
             match_cell += watch_label(leg) + context_label(leg)
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
-            n_rungs = per_ladder.get(ladder_key(leg), 1)
-            if n_rungs > 1:
-                subj += f" — ta sama drabina: {n_rungs}"
+            lno = ladder_of.get(id(leg))
+            if lno is not None and lno not in pos_headed:
+                pos_headed.add(lno)
+                pos_headers.append(len(rows))
+                rows.append([Paragraph(ladder_header(ladder_docs[lno]), small)]
+                            + [""] * 9)
+            subj += ladder_marker(lno)
             model = leg.get("forecast_p")
             margin = leg.get("overround")
             rows.append([
                 Paragraph(str(leg.get("position")), small),
                 Paragraph(match_cell, small),
                 Paragraph(
-                    escape(str(leg["display_market"])) + (
-                        f" — ta sama drabina: {n_rungs}" if n_rungs > 1 else "")
+                    escape(str(leg["display_market"])) + ladder_marker(lno)
                     if leg.get("display_market")
                     else f"{leg.get('market')}{escape(subj)}", small),
                 Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
@@ -968,8 +999,13 @@ def render_stats_only(
                 Paragraph("—" if margin is None else f"{float(margin):.1%}", small),
                 Paragraph(single_sample(leg), small),
             ])
-        S.append(_table(rows, [8*mm, 42*mm, 30*mm, 17*mm, 16*mm, 13*mm,
-                               12*mm, 11*mm, 13*mm, 14*mm]))
+        S.append(table_with_headers(_table(rows, [
+            8*mm, 42*mm, 30*mm, 17*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm, 14*mm]),
+            pos_headers))
+    # F4.3: how much of the coupon stands on one match.
+    S.extend(exposure_flowables(doc, body, small, h2))
+    # F4.4: the builders refused for want of a screen price, to price by hand.
+    S.extend(refused_builder_flowables(doc, small, h2))
 
     for b in picks:
         S.append(PageBreak())
@@ -1010,6 +1046,7 @@ def render_stats_only(
             + (f" • x = p × kurs po narzucie <b>{x_b:.2f}</b>"
                if x_b is not None else "")
             + f" • EV {displayed_ev(b) or 0.0:+.3f} (informacyjnie)", body))
+        block.extend(builder_price_lines(b, body))
         block.append(Paragraph(
             "Wybrany po łącznym prawdopodobieństwie (najwyższe dla meczu), nie po "
             "EV. Builder 2-, 3- i 4-nogowy powstaje z jednej puli, więc "

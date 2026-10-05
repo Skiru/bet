@@ -1551,6 +1551,15 @@ def is_stakeable(builder: Mapping[str, Any]) -> bool:
     """
     if not builder.get("best_for_fixture"):
         return False
+    # F4.4 (from 2026-10-06, bet.sofa.builder_screen): refused for its screen
+    # price, or stakeable only at the price Superbet's screen showed.
+    if builder.get("refusal"):
+        return False
+    if builder.get("builder_price_rule") == "screen":
+        p = builder.get("combined_probability")
+        screen = builder.get("screen_odds")
+        return p is not None and screen is not None and round(
+            float(p) * float(screen), 9) >= BUILDER_MIN_X
     # K10 (stats-only epoch): combined probability x the price after the
     # haircut >= 0.90, the singles' own bar. Written into the builder, so an
     # older artifact is read by the predicate it was built with.

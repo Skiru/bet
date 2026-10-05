@@ -100,3 +100,32 @@ def curve_status_enforced(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= CURVE_STATUS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= CURVE_STATUS_FROM_UTC)
+
+
+# Plan 2026-10-05 production grade, F4 (docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md).
+# Two things that change WHICH legs / builders print, so never mid-day: they
+# act only on a day >= COUPON_STRUCTURE_DATE built at or after the moment.
+#
+# * the coupon form (bet.sofa.coupon_form): the ladder form "one_rung" and a
+#   per-match position cap - both OFF by default (operator decision, plan
+#   section 5 point 1); a dial set before this moment is ignored and said so;
+# * the builder screen price (bet.sofa.builder_screen, F4.4): a Bet Builder
+#   prints only with a screen price recorded in 09_screen_prices.json, and is
+#   stakeable at that price; without one it is refused BUILDER_NO_SCREEN_PRICE.
+COUPON_STRUCTURE_DATE = "2026-10-06"
+COUPON_STRUCTURE_FROM_UTC = datetime(2026, 10, 6, 0, 0, 0, tzinfo=UTC)
+BUILDER_SCREEN_PRICE_FROM_UTC = datetime(2026, 10, 6, 0, 0, 0, tzinfo=UTC)
+
+
+def coupon_form_active(date: str, build_at: datetime | None = None) -> bool:
+    """May the coupon-form dials (ladder_form, max_positions_per_match) act?"""
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= COUPON_STRUCTURE_DATE and at >= COUPON_STRUCTURE_FROM_UTC
+
+
+def builder_screen_price_required(
+    date: str, build_at: datetime | None = None
+) -> bool:
+    """Does a Bet Builder need a recorded screen price to print (F4.4)?"""
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= COUPON_STRUCTURE_DATE and at >= BUILDER_SCREEN_PRICE_FROM_UTC

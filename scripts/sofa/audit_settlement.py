@@ -32,6 +32,7 @@ from typing import Any
 
 sys.path.insert(0, "src")
 
+from bet.sofa.builder_screen import screen_odds_by_event  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
     MAX_OVERROUND,
@@ -879,8 +880,7 @@ def main() -> int:
         # haircut estimate, and until this file exists for a day, every slip
         # ROI in this report is an estimate and says so.
         screen_path = run_dir / "09_screen_prices.json"
-        screen = (json.loads(screen_path.read_text(encoding="utf-8"))
-                  if screen_path.exists() else {})
+        screen = screen_odds_by_event(screen_path)
         lines.extend(render_builders(printed_builders(conf), coupon_by_key, screen,
                                      screen_path.name))
         # The PDF prints singles too (since 2026-09-22), and on 2026-09-23 it
@@ -1003,8 +1003,7 @@ def main() -> int:
             # different slip from the coupon's on the same fixture (2026-09-29
             # Botafogo: 4 legs in both, only one leg in common).
             vscreen_path = run_dir / "09_screen_prices_wariant.json"
-            vscreen = (json.loads(vscreen_path.read_text(encoding="utf-8"))
-                       if vscreen_path.exists() else {})
+            vscreen = screen_odds_by_event(vscreen_path)
             vpicks = printed_builders(var)
             if not vpicks:
                 A("Wariant nie wydrukował żadnego Bet Buildera.")
