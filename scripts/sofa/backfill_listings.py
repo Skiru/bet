@@ -65,7 +65,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.cache import SofaCache
-from bet.sofa.client import SofascoreClient
+from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.listing_index import entity_indexed_count, has_index
@@ -367,6 +367,8 @@ class Deepen:
             except ProviderError:
                 with self.lock:
                     self.counts["errors"] += 1
+                if breaker_tripped(self.client):
+                    self.stop.set()  # the failure that opened it
                 return
             if not payload or not isinstance(payload, dict):
                 if _with_retry(lambda: self.cache.save_listing_miss(

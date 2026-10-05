@@ -67,7 +67,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.cache import PROVISIONAL_FETCH_HOURS, SofaCache
-from bet.sofa.client import SofascoreClient
+from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
@@ -541,6 +541,9 @@ class Backfill:
             except ProviderError:
                 with self.lock:
                     self.counts["errors"] += 1
+                if breaker_tripped(self.client):
+                    self.stop.set()  # the failure that opened it
+                    return
                 continue
             ok = isinstance(got, dict) and bool(got)
             if route == "stats":
@@ -590,6 +593,8 @@ class Backfill:
             # must be free to ask again.
             with self.lock:
                 self.counts["errors"] += 1
+            if breaker_tripped(self.client):
+                self.stop.set()  # the failure that opened it
             return
         # None statistics is the asked-and-404 row SAMPLES reads the same way.
         self.cache.save_event_stats(event_id, stats, incidents, "finished")

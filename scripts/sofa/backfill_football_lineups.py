@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.cache import PROVISIONAL_FETCH_HOURS, SofaCache
-from bet.sofa.client import SofascoreClient
+from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
@@ -234,6 +234,8 @@ class Backfill:
         except ProviderError:
             with self.lock:
                 self.counts["errors"] += 1
+            if breaker_tripped(self.client):
+                self.stop.set()  # the failure that opened it
             return
         stored = got if isinstance(got, dict) and got else None
         self.cache.save_event_lineups(eid, stored, "finished")

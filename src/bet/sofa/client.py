@@ -185,6 +185,14 @@ class CircuitBreaker:
             self._cooldown_s = self.base_cooldown_s
 
     @property
+    def tripped(self) -> bool:
+        """The last `threshold` requests (or more) all failed and no success
+        has closed the circuit since - true from the failure that opened it,
+        and still true after the cooldown, when is_open is already False."""
+        with self._lock:
+            return self.failures >= self.threshold
+
+    @property
     def is_open(self) -> bool:
         """Whether the circuit is currently refusing traffic.
 
@@ -195,6 +203,18 @@ class CircuitBreaker:
             if self._opened_at is None:
                 return False
             return self._clock() - self._opened_at < self._cooldown_s
+
+
+def breaker_tripped(client: Any) -> bool:
+    """Did this client's breaker open on its last requests? For a loop that
+    catches ProviderError per item: the failure that opens the breaker is a
+    ProviderError, not a CircuitOpenError, so a loop whose next item never
+    came saw no CircuitOpenError and reported the run PARTIAL (F6.1:
+    backfill_listings / backfill_event_stats / backfill_football_lineups
+    exited 1 after three 403s where their contract says 2). A fake client
+    without a breaker never tripped."""
+    breaker = getattr(client, "breaker", None)
+    return bool(isinstance(breaker, CircuitBreaker) and breaker.tripped)
 
 
 class SofascoreClient:
