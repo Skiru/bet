@@ -48,7 +48,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import cs2, cs2_engine, shadow, sport_coupon  # noqa: E402
+from bet.sofa import cs2, cs2_engine, curve_status, shadow, sport_coupon  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -204,6 +204,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
         sport_coupon.settled_tournaments(runs_dir, sport, date)
         if sport in sport_coupon.SETTLED_TOURNAMENT_SPORTS else None)
     refused: dict[str, int] = {}
+    # Plan PRODUCTION_GRADE F2.1 (bet.sofa.curve_status): off until the
+    # operator sets epochs.CURVE_STATUS_FROM_UTC.
+    failed_curves = curve_status.for_build(date, at)
     legs: list[dict[str, Any]] = []
     for ev in sorted(events.values(), key=lambda e: (e.kickoff_utc,
                                                      str(e.superbet_event_id))):
@@ -259,6 +262,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
             conf = calibration.lookup(sport, family, ln.side, p)
             if conf is None:
                 _bump(refused, NOT_CALIBRATED)
+                continue
+            if failed_curves.refuses(conf.calibrated_on, date):
+                _bump(refused, curve_status.CURVE_FAILED_CALIBRATION)
                 continue
             margin = cs2.group_overround(group_odds)
             why = price_filter(conf.value, ln.odds, margin)

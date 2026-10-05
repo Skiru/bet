@@ -74,3 +74,29 @@ def sheet_epoch(rows: list[Mapping[str, Any]]) -> str | None:
     if not seen:
         return None
     return seen.pop() if len(seen) == 1 else None
+
+
+# Plan docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md F2.1: "a curve that fails
+# stops printing". measure_calibration.py --write-config --before <d> lists the
+# curves whose printed confidence measurably missed their realised rate in
+# config/sofa_curve_status.json (bet.sofa.curve_status); CONFIDENCE and
+# SPORT_CONFIDENCE refuse a leg read off a listed curve with
+# CURVE_FAILED_CALIBRATION - but only for a build at or after this moment.
+#
+# None = disabled: the file may exist and nothing is refused. The operator
+# enables it BETWEEN DAYS, never mid-day (a curve refused halfway through a
+# day makes the morning and afternoon prints two experiments), by setting it
+# to a UTC moment before that day's first build, in its own commit - like
+# STATS_ONLY_FROM_UTC. The day it starts is a new epoch for the ledger.
+CURVE_STATUS_FROM_UTC: datetime | None = None
+
+
+def curve_status_enforced(date: str, build_at: datetime | None = None) -> bool:
+    """Does a build of `date` at `build_at` (default: now) refuse the curves
+    config/sofa_curve_status.json lists? False while CURVE_STATUS_FROM_UTC is
+    None."""
+    if CURVE_STATUS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CURVE_STATUS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CURVE_STATUS_FROM_UTC)

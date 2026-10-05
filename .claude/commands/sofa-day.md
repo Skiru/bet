@@ -506,7 +506,18 @@ summary); read their full output in its log, or re-run them:
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
+# the one status report (read-only, no network): offer age, sport snapshot ages, the
+# capture_closing / shadow_daily / cs2_daily loops, ledger MISMATCH, CLV coverage, coupon
+# staleness, UNVERIFIED fixtures; exit 0 OK / 1 WARN / 2 BROKEN
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <date>
 ```
+
+`day_status.py` goes into the report as `STATUS:` every run. A `loop:capture_closing`
+WARN means printed legs will close with no closing price - a CLV hole, not a zero
+(09-19..09-30 have no `closing.jsonl` at all): start the loop from step 7 before
+reporting. A BROKEN line (ledger MISMATCH, STALE_COUPON, a PDF older than
+`11_coupon.json`) is fixed before the day is reported. `bridge` is always
+NOT_CHECKED there (no network) - say so, never read it as a pass.
 
 `audit_coupon` covers structure and arithmetic of `05_sheet.json` /
 `06_coupon.json` from each row's own fields. `audit_variants` covers the
@@ -582,6 +593,7 @@ SETTLE:   D-1 <n> wierszy; 7c kupon <u> j. (per sport), zwroty <n>; 7i zdjęte p
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar
 D-1 WYNIKI: official <u> j. · official:pre_stats_only <u> j. · removed:reads <u> j. (każdy osobno, nigdy sumowane) · MISMATCH <n> (audit_ledger.py)
 CLV D-1:  kupon <x%> [lo; hi] (audit_clv.py)
+STATUS:   day_status.py <OK/WARN/BROKEN> · oferta <wiek> · sporty <wiek najnowszej migawki> · pętle capture_closing/shadow/cs2 <stan> · MISMATCH <n> · CLV <z ceną>/<po oknie> · UNVERIFIED <n> · mostek NOT_CHECKED
 AUDYT:    audit_coupon <n> · audit_variants <n> znalezisk (C3: <n> nóg bez odczytu analityka - musi być 0; U3: <n>)
 WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych (zapisane w reads.json i przebudowane: tak/nie)
 UWAGA:    <the day's single biggest weakness>

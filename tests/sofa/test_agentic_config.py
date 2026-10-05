@@ -29,7 +29,7 @@ SKILLS = sorted(d for d in (CLAUDE / "skills").iterdir() if d.is_dir())
 LIVE_MD = sorted(
     p
     for p in CLAUDE.rglob("*.md")
-    if "legacy" not in p.parts and "worktrees" not in p.parts
+    if not {"legacy", "worktrees"} & set(p.relative_to(CLAUDE).parts)
 )
 
 # `simple` is deleted (2026-10-05); its one tool the bet-slip-audit skill

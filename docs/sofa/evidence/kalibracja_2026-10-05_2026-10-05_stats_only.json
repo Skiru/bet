@@ -1,0 +1,854 @@
+{
+  "generated_at_utc": "2026-10-05T11:32:46+00:00",
+  "from": "2026-10-05",
+  "to": "2026-10-05",
+  "epoch": "stats_only",
+  "rule": {
+    "min_settled": 300,
+    "max_gap": 0.02,
+    "bootstrap": "matches, 2000 draws, seed 7",
+    "min_matches": 20
+  },
+  "by_variant": [
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "*",
+      "curve": "*",
+      "n_printed": 210,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "*",
+      "curve": "*",
+      "n_printed": 16,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    }
+  ],
+  "by_sport": [
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "builder",
+      "curve": "*",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "*",
+      "n_printed": 102,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "hockey",
+      "curve": "*",
+      "n_printed": 3,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "*",
+      "n_printed": 104,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "*",
+      "n_printed": 12,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "hockey",
+      "curve": "*",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "*",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    }
+  ],
+  "by_curve": [
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "builder",
+      "curve": "builder:combined_probability",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:cards_points_for|UNDER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:corners_1h_total",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:corners_for|OVER",
+      "n_printed": 3,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:corners_for|UNDER",
+      "n_printed": 5,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:corners_total|OVER",
+      "n_printed": 11,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:corners_total|UNDER",
+      "n_printed": 13,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_2h_total|OVER",
+      "n_printed": 10,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_2h_total|UNDER",
+      "n_printed": 7,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_for|OVER",
+      "n_printed": 3,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_for|UNDER",
+      "n_printed": 14,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_total|OVER",
+      "n_printed": 14,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_total|UNDER",
+      "n_printed": 14,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:saves_for|OVER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:saves_for|UNDER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market_thin:goals_1h_total|OVER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market_thin:goals_2h_total|UNDER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "pooled:football",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "hockey",
+      "curve": "hockey:handicap|TEAM",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "hockey",
+      "curve": "hockey:total|OVER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "market:games_total|OVER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "market:games_won_for|OVER",
+      "n_printed": 27,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "market:games_won_for|UNDER",
+      "n_printed": 33,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "tennis_women:market:games_total|OVER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "tennis_women:market:games_total|UNDER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "tennis_women:market:games_won_for|OVER",
+      "n_printed": 17,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "official",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "tennis_women:market:games_won_for|UNDER",
+      "n_printed": 23,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:corners_total|UNDER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_for|UNDER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_total|OVER",
+      "n_printed": 3,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:goals_total|UNDER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:shots_on_target_total|OVER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:shots_on_target_total|UNDER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "football",
+      "curve": "market:shots_total|OVER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "hockey",
+      "curve": "hockey:team_total|OVER",
+      "n_printed": 2,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "market:games_won_for|OVER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    },
+    {
+      "variant": "removed:reads",
+      "epoch": "stats_only",
+      "sport": "tennis",
+      "curve": "market:games_won_for|UNDER",
+      "n_printed": 1,
+      "n_settled": 0,
+      "n_matches": 0,
+      "mean_confidence": null,
+      "realised": null,
+      "gap": null,
+      "ci95": null,
+      "verdict": "INSUFFICIENT",
+      "reason": "n_settled 0 < 300",
+      "days": [
+        "2026-10-05"
+      ]
+    }
+  ],
+  "not_counted": {
+    "official|stats_only": {
+      "PENDING": 210
+    },
+    "removed:reads|stats_only": {
+      "PENDING": 16
+    }
+  }
+}

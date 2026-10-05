@@ -159,8 +159,13 @@ def _confidence_row(
     }
 
 
-def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
-    """`official` and `wariant`, graded as 7c / 7d grade them.
+def graded_confidence(
+    runs_dir: str, date: str, db_path: str
+) -> list[dict[str, Any]]:
+    """The printed positions of `official` and `wariant`, graded as 7c / 7d
+    grade them - one entry per ledger variant: {variant, epoch, singles,
+    builders, rows}. Each position carries the artifact row under `source`
+    and its `outcome` / `odds`; `rows` are the settled rows read.
 
     On a day the coupon artifact is stats-only (11_coupon.json, plan
     2026-10-05 K7) the official coupon is split by the rule that selected each
@@ -169,8 +174,10 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
     locked from a build before STATS_ONLY_FROM_UTC - on 10-05 the morning's).
     The legs a read removed are `removed:reads`, graded the same way and
     never part of the coupon's result (K6, 7i). The measured sports' legs
-    are graded by sport_coupon, not here."""
-    out = []
+    are graded by sport_coupon, not here. Shared with calibration_audit
+    (measure_calibration.py), so the calibration is read off exactly the
+    grades the ledger records."""
+    out: list[dict[str, Any]] = []
     for variant, profile in (("official", "standard"), ("wariant", "wariant")):
         # The coupon artifact (11_coupon.json on a stats-only day, K3).
         path = profile_artifact_path(mc.official_dir(runs_dir, date), PROFILES[profile])
@@ -196,8 +203,8 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
             settle_ran=settle_multi_coupon.ran_on(rows, date),
         )
         if doc_epoch != STATS_ONLY:
-            out.append(_confidence_row(
-                date, variant, singles, builders, rows, doc_epoch))
+            out.append({"variant": variant, "epoch": doc_epoch, "singles": singles,
+                        "builders": builders, "rows": rows})
             continue
         # F7: the measured sports' legs on the coupon, graded at the printed
         # price by sport_coupon, against the identity pinned before the
@@ -214,8 +221,8 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
             sel_b = [g for g in builders
                      if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
             if keep or sel_s or sel_b:
-                out.append(_confidence_row(
-                    date, name, sel_s, sel_b, rows, STATS_ONLY if keep else OLD))
+                out.append({"variant": name, "epoch": STATS_ONLY if keep else OLD,
+                            "singles": sel_s, "builders": sel_b, "rows": rows})
         all_removed = doc.get("removed_by_reads") or []
         removed = [r for r in all_removed if is_sheet_sport(r)]
         removed_sports = [r for r in all_removed if not is_sheet_sport(r)]
@@ -236,15 +243,27 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
                 {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
                 for g in coupon_sports.grade(runs_dir, date, removed_sports, now())
             ]
-            row = _confidence_row(date, "removed:reads", r_singles, [], r_rows,
-                                  STATS_ONLY)
+            out.append({"variant": "removed:reads", "epoch": STATS_ONLY,
+                        "singles": r_singles, "builders": [], "rows": r_rows})
+    return out
+
+
+def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
+    """`official` and `wariant` (and their epoch splits, `removed:reads`),
+    graded as 7c / 7d grade them (graded_confidence), one ledger row each."""
+    out = []
+    for g in graded_confidence(runs_dir, date, db_path):
+        row = _confidence_row(date, g["variant"], g["singles"], g["builders"],
+                              g["rows"], g["epoch"])
+        if g["variant"] == "removed:reads":
+            r_singles = g["singles"]
             row["by_reason"] = {
                 reason: mc.summarize_units(
-                    [g for g in r_singles if g["source"].get("reason") == reason])
+                    [s for s in r_singles if s["source"].get("reason") == reason])
                 for reason in sorted(
-                    {str(g["source"].get("reason")) for g in r_singles})
+                    {str(s["source"].get("reason")) for s in r_singles})
             }
-            out.append(row)
+        out.append(row)
     return out
 
 

@@ -1,0 +1,88 @@
+{
+  "_doc": "Pre-registered tests (plan docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md F5.1-F5.4). Human-readable copy: docs/sofa/REJESTR_TESTOW.md. A test is judged only on data strictly AFTER its registration date (data_window.from > registered_on); scripts/sofa/check_test_registry.py refuses a file that breaks this. A rule never changes after registration: a changed rule is a new test with a new id and a new date. Status PROPOSED = written, not yet approved by the operator; on approval registered_on and data_window.from move to the approval day if it is later.",
+  "schema_version": 1,
+  "statuses": ["PROPOSED", "REGISTERED", "RUNNING", "PASSED", "FAILED", "STOPPED_FUTILE", "WITHDRAWN"],
+  "tests": [
+    {
+      "id": "T-F51-01-football-goals-total-blend",
+      "registered_on": "2026-10-05",
+      "status": "PROPOSED",
+      "hypothesis": "The football model's p_central carries information on goals_total beyond Superbet's devigged price, enough that a rolling blend selects OVER legs with a positive return at the printed price.",
+      "rule": "For each football 05_sheet.json row with market goals_total, direction OVER, a two-sided Superbet price (market_p by power devig) and offered_odds: p_blend = sigmoid(a + b*logit(p_central) + c*logit(market_p)), a, b, c fitted by logistic regression on settled goals_total rows (both directions) of sofa_settled_row with run_date strictly before the bet day, from 2026-10-06 on only. Take the row when p_blend * offered_odds > 1.05. Graded at offered_odds from sofa_settled_row (WIN pays odds - 1, LOSS -1, PUSH / refund not counted).",
+      "population": "football, goals_total OVER, priced pre-start rows of SHEET in the stats-only epoch (p_central from the statistics alone); every line; one leg per (match, line).",
+      "data_window": {"from": "2026-10-06", "to": "2027-04-05"},
+      "required_n": {"legs": 4400, "matches_min": 100, "basis": "plan section 1 / F5.3: ~4,400 positions to show a 3% edge with a lower bound > 0. The 2026-10-03 night test of this rule produced 160 bets / 82 matches in 6 days (~27 / day), so ~165 days; the window end is the cap."},
+      "evaluation": "ROI with a 95% interval from resampling matches (as audit_ledger). CLV is not available for unprinted rows (capture_closing records printed legs only), so ROI is the criterion.",
+      "stop_criterion": "PASSED: at the final look (n >= 4,400 or the window end) the ROI lower 95% bound > 0. STOPPED_FUTILE: at an interim look (every 1,100 legs, only from 300 legs and 100 matches) the ROI upper 95% bound < 0. FAILED: the final look without PASSED. Interim looks never declare PASSED.",
+      "evidence": [
+        {"source": "docs/sofa/history/RAPORT_NOC_2026-10-04.md", "line": 60, "quote": "tylko football goals_total (b = 0.50 [0.26; 0.75], od ratingu 09-23); najlepsza reguła +6.7% [−15.9; +29.3] na 160 zakładach — szum"},
+        {"source": "data/night_2026-10-03/edge/RAPORT.md (not in git)", "quote": "football goals_total | 7 074 / 1 791 | 0,496 [0,258; 0,753]; goals_total OVER m 0,05: 160 / 82, +6,7% [−15,9; +29,3]; measure_model_information.py on the same rows b = 0,4961 [0,2699; 0,7213]"}
+      ],
+      "caveat": "b was measured on the OLD epoch's p_central (09-24..10-02), which is not the stats-only p_central; nothing of that measurement is reused - the blend is refitted on the new epoch's own rows only."
+    },
+    {
+      "id": "T-F51-02-hockey-totals",
+      "registered_on": "2026-10-05",
+      "status": "PROPOSED",
+      "hypothesis": "Hockey totals legs printed on the one coupon from the score model through its price-free calibration (SPORT_CONFIDENCE) beat Superbet's closing price.",
+      "rule": "The hockey legs of `official` in 11_coupon.json (stats-only epoch) whose family is total or team_total, exactly as run_sport_confidence.py prints them with config/sofa_sport_confidence_calibration.json as installed on 2026-10-05 (admitted hockey keys handicap|TEAM, team_total|OVER, total|OVER; x >= 0.90, group margin <= 15%). A refit of that file is a new test.",
+      "population": "hockey, families total / team_total, printed official legs, both locked and fresh; graded by settle (coupon_sports.grade) at the printed price; CLV against the last pre-start snapshot (audit_clv `official:hockey`).",
+      "data_window": {"from": "2026-10-06", "to": "2027-01-05"},
+      "required_n": {"legs": 300, "matches_min": 100, "basis": "plan F5.3 CLV criterion (>= 300 legs / >= 100 matches)."},
+      "evaluation": "mean CLV = odds_taken x devigged close - 1, 95% interval from resampling matches (audit_clv.py); ROI beside it, never instead.",
+      "stop_criterion": "PASSED: at >= 300 legs and >= 100 matches the CLV lower 95% bound > 0. FAILED: at the same point the upper bound < 0, or the window end without PASSED. Looked at once, at the first day both counts are reached.",
+      "evidence": [
+        {"source": "docs/sofa/PIPELINE.md", "line": 1541, "quote": "hokej b = 0,98 [−0,07; 2,14] przy wadze ceny c = 0,10"},
+        {"source": "docs/sofa/MODELE_HOKEJ_KOSZ_SIATKA.md", "line": 56, "quote": "totale niosą informację ponad cenę (hokej b 0,98 [−0,07; 2,14], kosz 0,70), zwycięzcy nie (b ≤ 0)"}
+      ],
+      "caveat": "b 0.98 has an interval containing 0 and came from two days (09-29, 09-30) of the price-only shadow measurement; it is a reason to test, not evidence of an edge. Which hockey families made up 'totals' in that measurement is not stated in the cited docs; this test fixes it as total + team_total."
+    },
+    {
+      "id": "T-F51-03-boosts-separate-pool",
+      "registered_on": "2026-10-05",
+      "status": "PROPOSED",
+      "hypothesis": "Superbet's single boosted prices, taken as boosted, have a positive expected value at the devigged pre-boost market.",
+      "rule": "Every boost in runs/sofa/<d>/10_boosts.json with combo false and fair_p set (the devigged pre-boost market; Boost.ev_at_fair = boosted_price x fair_p - 1) and a sofa fixture to settle against, taken once per odd_uuid at its first observation. A separate pool: never on the coupon, never added to it.",
+      "population": "single boosts only (combinations get no probability: confidence.py rule); every sport the board settles.",
+      "data_window": {"from": "2026-10-06", "to": "2027-01-05"},
+      "required_n": {"legs": 300, "matches_min": 100, "basis": "plan F5.3 CLV / ROI arithmetic applied to the pool; no measured boost volume per day was found in docs/sofa, so the duration is unknown."},
+      "evaluation": "ROI at the boosted price with a 95% interval from resampling matches (audit_boosts.py / audit_settlement 7f); mean ev_at_fair beside it.",
+      "stop_criterion": "PASSED: at >= 300 settled boosts and >= 100 matches the ROI lower 95% bound > 0. FAILED: the upper bound < 0 at that point, or the window end without PASSED.",
+      "evidence": [
+        {"source": "docs/sofa/history/RAPORT_NOC_2026-10-04.md", "line": 68, "quote": "Boosty Superbetu: 12 pojedynczych dwustronnych, średnie EV przy zdewigowanej cenie +0.1% — nie źródło zysku."},
+        {"source": "docs/sofa/PIPELINE.md", "line": 1125, "quote": "Przewaga u bukmachera „miękkiego\", jeśli jest, leży w propsach, boostach i wolno poruszanych liniach — to hipoteza do pomiaru przez CLV, nie reguła."}
+      ]
+    },
+    {
+      "id": "T-F53-coupon-edge",
+      "registered_on": "2026-10-05",
+      "status": "PROPOSED",
+      "hypothesis": "The official stats-only coupon (11_coupon.json -> KUPON_<d>.pdf) beats the price.",
+      "rule": "Every printed single of ledger variant `official` (epoch stats_only), football and tennis legs against capture_closing's close (audit_clv `official`), measured-sport legs against their graded pre-start close (`official:<sport>`); builders apart (`official:builder_leg`, never in the criterion). ROI from the ledger (record_results.py / audit_ledger.py, variant official). A rule change (refit, a new gate, a new epoch) starts a new test.",
+      "population": "official, stats_only epoch, from 2026-10-06 on; official:pre_stats_only and older days never counted.",
+      "data_window": {"from": "2026-10-06", "to": null},
+      "required_n": {"clv_legs": 300, "clv_matches": 100, "roi_positions": 4400, "basis": "plan F5.3 (docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md line 105): ~150 positions a day, ~30 days for 4,400."},
+      "evaluation": "CLV: mean odds_taken x devigged close - 1, 95% interval from resampling matches (audit_clv.py). ROI: ledger units / settled, 95% interval from resampling matches (audit_ledger.py).",
+      "stop_criterion": "PASSED (an edge): CLV lower 95% bound > 0 on >= 300 legs and >= 100 matches, OR ROI lower 95% bound > 0 on >= 4,400 positions. Checked once per settled day; a refit / rule change ends this test (STOPPED) and registers a new one.",
+      "evidence": [
+        {"source": "docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md", "line": 105, "quote": "CLV: dolna granica 95% > 0 na >= 300 nogach / >= 100 meczach albo ROI: dolna granica > 0 na ~4 400 pozycjach (przy ~150 pozycjach dziennie ~30 dni)"},
+        {"source": "docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md", "line": 34, "quote": "CLV official 09-19..10-04: -4,32% [-4,71; -3,93], 86 nóg, 19% bije zamknięcie; ROI official -0,8% [-9,1; +7,7] (294 rozliczone - szum)"}
+      ]
+    },
+    {
+      "id": "T-F54-coupon-failure",
+      "registered_on": "2026-10-05",
+      "status": "PROPOSED",
+      "hypothesis": "Failure criterion of the coupon, written before its results (plan F5.4).",
+      "rule": "After F2 (calibration per curve, measure_calibration.py) and on the T-F53-coupon-edge population: if the official coupon's CLV stays < 0 with its whole 95% interval below 0 on >= 300 legs and >= 100 matches, the conclusion is 'no edge': the coupon remains an information tool, not a bet.",
+      "population": "as T-F53-coupon-edge.",
+      "data_window": {"from": "2026-10-06", "to": null},
+      "required_n": {"clv_legs": 300, "clv_matches": 100, "basis": "plan F5.3 / F5.4"},
+      "evaluation": "as T-F53-coupon-edge (audit_clv.py, variant official).",
+      "stop_criterion": "FAILED (no edge) as soon as both counts are reached with the CLV upper 95% bound < 0 after F2 is complete; the operator approves this criterion now, before results (plan section 5, decision 5).",
+      "evidence": [
+        {"source": "docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md", "line": 106, "quote": "jeśli po F2 i F5.3 CLV zostaje < 0 z przedziałem: wniosek „brak przewagi”, kupon pozostaje narzędziem informacyjnym, nie zakładem"}
+      ]
+    }
+  ]
+}

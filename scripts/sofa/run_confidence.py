@@ -35,8 +35,8 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from pydantic import RootModel  # noqa: E402
 
+from bet.sofa import curve_status, timeutil  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
-from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -371,6 +371,10 @@ def main() -> int:
         # K2: no anti-selection shrink toward the price; K13: a thin
         # direction bucket caps the market curve as it caps a pool.
         cal = dataclasses.replace(cal, gap_shrink_k=0.0, cap_market_by_thin=True)
+    # Plan PRODUCTION_GRADE F2.1: the curves measure_calibration.py found
+    # failing (config/sofa_curve_status.json). Lists nothing until the
+    # operator sets epochs.CURVE_STATUS_FROM_UTC, between days.
+    failed_curves = curve_status.for_build(args.date, now)
     # Superbet's own side names, for the match class ("(K)" = women's).
     board_sides: dict[str, tuple[str, str]] = {}
     board_path = run_dir / "01_board.json"
@@ -666,6 +670,9 @@ def main() -> int:
             refused["NOT_CALIBRATED"] += 1
             continue
         realised_lo, source, n_cal = hit
+        if failed_curves.refuses(source, args.date):
+            refused[curve_status.CURVE_FAILED_CALIBRATION] += 1
+            continue
         # See Calibration.shrink_for_gap: off (k = 0) unless the operator put
         # gap_shrink_k into the calibration file. Applied before the floor and
         # the price gate, so a shrunk leg is judged on the number it prints.
