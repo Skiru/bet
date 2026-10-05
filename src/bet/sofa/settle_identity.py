@@ -400,6 +400,12 @@ def plan_identity(
             want = desired.get((date, eid))
             marked = "pre_identity_state" in rec
             if want is None:
+                # A MOVED_TO whose target day is outside the snapshots this
+                # pass can see is evidence this pass lacks, not a doubt gone
+                # (review 2026-10-05): kept as it is.
+                target = shadow_moved_to(str(rec.get("state") or ""))
+                if marked and target is not None and target not in snaps:
+                    continue
                 if marked:
                     changes[(date, eid)] = {"state": rec["pre_identity_state"]}
                 continue
@@ -407,6 +413,12 @@ def plan_identity(
                 continue
             changes[(date, eid)] = want
     return changes
+
+
+def shadow_moved_to(state: str) -> str | None:
+    """The target date of a MOVED_TO:<date> state, else None."""
+    prefix = "MOVED_TO:"
+    return state[len(prefix):] if state.startswith(prefix) else None
 
 
 def apply_change(rec: dict[str, Any], change: Change) -> dict[str, Any]:

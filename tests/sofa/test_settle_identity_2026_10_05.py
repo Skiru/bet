@@ -1107,3 +1107,15 @@ def test_a_settle_two_days_back_does_not_revert_a_moved_mark(tmp_path: Path) -> 
     settle("2026-10-01")  # the morning's D-2 settle
     assert state("2026-10-02") == "MOVED_TO:2026-10-03"
     assert state("2026-10-03") == "SETTLED"
+
+
+def test_a_move_beyond_the_visible_snapshots_is_not_reverted() -> None:
+    from bet.sofa import settle_identity as sid
+
+    rec = {"state": "MOVED_TO:2026-10-09", "pre_identity_state": "SETTLED",
+           "moved_from_state": "SETTLED"}
+    files = {"2026-10-05": {"E": rec}}
+    snaps: dict[str, Any] = {d: {} for d in ("2026-10-03", "2026-10-04",
+                                              "2026-10-05", "2026-10-06",
+                                              "2026-10-07")}
+    assert sid.plan_identity("shadow", files, snaps) == {}
