@@ -193,6 +193,9 @@ def test_a_new_day_builds_audits_clean_and_prints_the_calibrated_p(
     )
     monkeypatch.setenv("SOFA_RUNS_DIR", str(runs))
     monkeypatch.setattr(run_sport_coupon, "now", lambda: at)
+    # The morning-of-10-05 sport coupon rule, before the sports went on the
+    # one coupon (epochs.SPORTS_ON_COUPON_FROM_UTC) and WSZYSTKIE retired.
+    monkeypatch.setattr(run_sport_coupon, "sports_on_coupon", lambda *a: False)
     monkeypatch.setattr("sys.argv", ["x", "--date", NEW, "--sport", "hockey"])
     assert run_sport_coupon.main() == 0
     doc = json.loads((d / sc.COUPON_FILE).read_text(encoding="utf-8"))
@@ -274,6 +277,9 @@ def test_wszystkie_with_a_calibrated_hockey_section_audits_clean(
         ],
     )
     monkeypatch.setattr(run_sport_coupon, "now", lambda: at)
+    # The morning-of-10-05 sport coupon rule, before the sports went on the
+    # one coupon (epochs.SPORTS_ON_COUPON_FROM_UTC) and WSZYSTKIE retired.
+    monkeypatch.setattr(run_sport_coupon, "sports_on_coupon", lambda *a: False)
     monkeypatch.setattr("sys.argv", ["x", "--date", NEW, "--sport", "hockey"])
     assert run_sport_coupon.main() == 0
     # the helper writes a fixed date; moved to NEW whole, mtimes kept
@@ -285,6 +291,7 @@ def test_wszystkie_with_a_calibrated_hockey_section_audits_clean(
     (src / f"KUPON_{OFFICIAL_DATE}.pdf").rename(src / f"KUPON_{NEW}.pdf")
     src.rename(runs / NEW)
     monkeypatch.setattr(run_multi_coupon, "now", lambda: at + timedelta(minutes=1))
+    monkeypatch.setattr(run_multi_coupon, "stats_only", lambda *a: False)
     monkeypatch.setattr("sys.argv", ["x", "--date", NEW])
     run_multi_coupon.main()
     found = audit_variants.audit_multi(str(runs), NEW)

@@ -36,7 +36,9 @@ STATS_ONLY_FROM_UTC = datetime(2026, 10, 5, 7, 15, 0, tzinfo=UTC)
 # their separate experimental coupons (run_sport_coupon.py) stop. None until
 # F7 is installed - until then the separate coupons are the only record of
 # those sports, so they are not stopped earlier (K5).
-SPORTS_ON_COUPON_FROM_UTC: datetime | None = None
+# Installed 2026-10-05 08:30Z, with the 10-05 rebuild that put the first
+# hockey legs on the coupon.
+SPORTS_ON_COUPON_FROM_UTC: datetime | None = datetime(2026, 10, 5, 8, 30, 0, tzinfo=UTC)
 
 
 def sports_on_coupon(date: str, build_at: datetime | None = None) -> bool:
