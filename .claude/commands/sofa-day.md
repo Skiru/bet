@@ -298,6 +298,16 @@ tail -f -n 0 <log> | grep -E "^--- |: OK|: PARTIAL|: FAILED|STAGE_EXCEPTION|Trac
 `PARTIAL` on RESOLVE / OFFER / SAMPLES is the **normal shape of a healthy run**,
 not a failure. Only `FAILED` stops you.
 
+Once OFFER has written `04_offer.json`, label every Superbet market it could
+not read (a report, never an input; offline, seconds):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date <date>   # runs/sofa/<date>/market_coverage.{json,md}: MAPPABLE / COMPUTABLE / NOT_COMPUTABLE per name; exit 1 = UNCLASSIFIED names (a rule is missing - listed, report the count)
+```
+
+A MAPPABLE line is a proposal: mapping a market changes the coupon, so it
+lands between days behind an epoch, never mid-day.
+
 ## Step 3 — CONFIDENCE, football and tennis (provisional)
 
 ```bash

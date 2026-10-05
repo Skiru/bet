@@ -1,0 +1,1466 @@
+{
+ "date": "2026-10-05",
+ "stage": "MARKET_COVERAGE",
+ "sources": [
+  "01_board.json",
+  "02_fixtures.json",
+  "04_offer.json"
+ ],
+ "fixtures": 305,
+ "fixtures_missing_from_02": 0,
+ "offered_market_instances": 32618,
+ "mapped": {
+  "instances": 4861,
+  "by_sport": {
+   "tennis": 1917,
+   "football": 2944
+  },
+  "by_market": {
+   "player_assists_for": 489,
+   "player_shots_for": 380,
+   "player_shots_on_target_for": 357,
+   "player_fouls_for": 260,
+   "player_tackles_for": 209,
+   "games_won_for": 184,
+   "games_won_set1_for": 184,
+   "games_won_set2_for": 184,
+   "sets_total": 103,
+   "handicap_games": 98,
+   "games_total": 98,
+   "games_set2_total": 98,
+   "games_set1_total": 98,
+   "player_offsides_for": 86,
+   "goals_for": 76,
+   "goals_1h_for": 74,
+   "goals_2h_for": 74,
+   "goals_total": 62,
+   "both_over_goals": 62,
+   "corners_for": 52,
+   "most_games": 50,
+   "tiebreaks_total": 50,
+   "aces_set2_for": 44,
+   "serve_points_for": 44,
+   "double_faults_for": 44,
+   "aces_for": 44,
+   "serve_points_set2_for": 44,
+   "aces_set1_for": 44,
+   "double_faults_set2_for": 44,
+   "double_faults_set1_for": 44,
+   "serve_points_set1_for": 44,
+   "corners_total": 43,
+   "corners_1h_total": 42,
+   "goals_1h_total": 37,
+   "goals_2h_total": 37,
+   "corners_1h_for": 36,
+   "cards_points_for": 32,
+   "most_corners": 26,
+   "both_over_corners": 25,
+   "serve_points_set1_total": 22,
+   "double_faults_set1_total": 22,
+   "most_double_faults_set2": 22,
+   "most_serve_points_set1": 22,
+   "most_aces": 22,
+   "serve_points_total": 22,
+   "most_serve_points": 22,
+   "aces_set1_total": 22,
+   "aces_total": 22,
+   "most_serve_points_set2": 22,
+   "double_faults_total": 22,
+   "double_faults_set2_total": 22,
+   "most_aces_set1": 22,
+   "most_double_faults_set1": 22,
+   "serve_points_set2_total": 22,
+   "most_aces_set2": 22,
+   "aces_set2_total": 22,
+   "handicap_corners": 20,
+   "cards_points_total": 18,
+   "shots_for": 18,
+   "saves_for": 18,
+   "shots_on_target_for": 18,
+   "most_cards_points": 16,
+   "most_corners_1h": 16,
+   "fouls_for": 16,
+   "offsides_for": 16,
+   "both_over_cards_points": 15,
+   "goal_kicks_for": 10,
+   "tackles_for": 10,
+   "throw_ins_for": 10,
+   "most_shots": 9,
+   "shots_on_target_total": 9,
+   "most_shots_on_target": 9,
+   "shots_1h_total": 9,
+   "both_over_shots": 9,
+   "saves_total": 9,
+   "both_over_shots_on_target": 9,
+   "shots_total": 9,
+   "shots_on_target_1h_total": 9,
+   "shots_on_target_2h_for": 8,
+   "offsides_1h_for": 8,
+   "saves_1h_for": 8,
+   "fouls_1h_for": 8,
+   "corners_2h_for": 8,
+   "shots_1h_for": 8,
+   "throw_ins_1h_for": 8,
+   "throw_ins_2h_for": 8,
+   "both_over_fouls": 8,
+   "shots_2h_for": 8,
+   "both_over_offsides": 8,
+   "fouls_2h_for": 8,
+   "offsides_total": 8,
+   "fouls_total": 8,
+   "shots_on_target_1h_for": 8,
+   "offsides_2h_for": 8,
+   "goal_kicks_total": 5,
+   "throw_ins_total": 5,
+   "tackles_total": 5,
+   "corners_2h_total": 4,
+   "most_corners_2h": 4,
+   "throw_ins_2h_total": 4,
+   "most_shots_1h": 4,
+   "handicap_shots_on_target": 4,
+   "handicap_cards_points": 4,
+   "fouls_2h_total": 4,
+   "offsides_1h_total": 4,
+   "shots_2h_total": 4,
+   "shots_on_target_2h_total": 4,
+   "saves_1h_total": 4,
+   "most_shots_2h": 4,
+   "fouls_1h_total": 4,
+   "offsides_2h_total": 4,
+   "throw_ins_1h_total": 4
+  },
+  "counting": "distinct (fixture, market, subject) over 04_offer rungs; most_/handicap_ counted once per (fixture, market) - one Superbet market for all selections"
+ },
+ "unmapped": {
+  "occurrences": 27757,
+  "distinct_names": 18214,
+  "by_sport": {
+   "football": 12941,
+   "tennis": 14816
+  },
+  "counting": "one occurrence = one (fixture, name) in 04_offer unmapped_markets"
+ },
+ "by_label": {
+  "MAPPABLE": {
+   "occurrences": 512,
+   "distinct_names": 239
+  },
+  "COMPUTABLE": {
+   "occurrences": 22050,
+   "distinct_names": 14161
+  },
+  "NOT_COMPUTABLE": {
+   "occurrences": 5195,
+   "distinct_names": 3814
+  },
+  "UNCLASSIFIED": {
+   "occurrences": 0,
+   "distinct_names": 0
+  }
+ },
+ "by_sport_label": {
+  "football": {
+   "COMPUTABLE": 12269,
+   "MAPPABLE": 345,
+   "NOT_COMPUTABLE": 327
+  },
+  "tennis": {
+   "COMPUTABLE": 9781,
+   "NOT_COMPUTABLE": 4868,
+   "MAPPABLE": 167
+  }
+ },
+ "families": [
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.team_scores_half",
+   "note": "goals_1h_for / goals_2h_for OVER 0.5 (tak/nie)",
+   "occurrences": 148,
+   "distinct_templates": 4,
+   "examples": [
+    "1.połowa - Smederevo strzeli gola",
+    "1.połowa - Vozdovac strzeli gola",
+    "2.połowa - Smederevo strzeli gola"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.handicap_games_set",
+   "note": "handicap_games_set1 / _set2 (games_won_set1_for; handicap z zakresem seta jak most_ w _MOST_SCOPED)",
+   "occurrences": 112,
+   "distinct_templates": 2,
+   "examples": [
+    "1. set - handicap gemy",
+    "2. set - handicap gemy"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.team_scores",
+   "note": "goals_for OVER 0.5 (tak/nie)",
+   "occurrences": 76,
+   "distinct_templates": 2,
+   "examples": [
+    "Smederevo strzeli gola",
+    "Vozdovac strzeli gola",
+    "Loznica strzeli gola"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.btts_half",
+   "note": "both_over_goals w połowie (zakres połowy na kształcie both_over; goals_1h_for / goals_2h_for są metrykami)",
+   "occurrences": 74,
+   "distinct_templates": 2,
+   "examples": [
+    "1.połowa - obie drużyny strzelą",
+    "2.połowa - obie drużyny strzelą"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.deciding_set_played",
+   "note": "sets_total OVER 2.5 (Bo3) / 4.5 (Bo5) - odpowiedź tak/nie na drabinie, którą już wyceniamy",
+   "occurrences": 55,
+   "distinct_templates": 1,
+   "examples": [
+    "Zostanie rozegrany 3. set"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_saves",
+   "note": "both_over_saves (saves_for jest metryką; brak nazwy w _DERIVED_METRIC_NAMES)",
+   "occurrences": 9,
+   "distinct_templates": 1,
+   "examples": [
+    "Każda z drużyn powyżej X obronionych strzałów przez bramkarza"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.handicap_shots_half",
+   "note": "handicap_shots_1h (shots_1h_for)",
+   "occurrences": 8,
+   "distinct_templates": 2,
+   "examples": [
+    "1. połowa - liczba strzałów - handicap",
+    "2. połowa - liczba strzałów - handicap"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.handicap_corners_half",
+   "note": "handicap_corners_1h / _2h (corners_1h_for; handicap z zakresem połowy jak most_ w _MOST_SCOPED)",
+   "occurrences": 8,
+   "distinct_templates": 2,
+   "examples": [
+    "1. połowa - rzuty rożne - handicap",
+    "2. połowa - rzuty rożne - handicap"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_throw_ins",
+   "note": "both_over_throw_ins (throw_ins_for; Superbet pisze 'Każda drużyna', nie 'Każda z drużyn')",
+   "occurrences": 5,
+   "distinct_templates": 1,
+   "examples": [
+    "Każda drużyna powyżej X rzutów z autu"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_goal_kicks",
+   "note": "both_over_goal_kicks (goal_kicks_for)",
+   "occurrences": 5,
+   "distinct_templates": 1,
+   "examples": [
+    "Każda drużyna powyżej X wybić od bramki"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_saves_half",
+   "note": "both_over_saves_1h (saves_1h_for jest metryką)",
+   "occurrences": 4,
+   "distinct_templates": 1,
+   "examples": [
+    "1. połowa - każda z drużyn powyżej X obronionych strzałów przez bramkarza"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_tackles",
+   "note": "both_over_tackles (tackles_for)",
+   "occurrences": 4,
+   "distinct_templates": 1,
+   "examples": [
+    "Każda z drużyn powyżej X odbiorów"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.handicap_shots",
+   "note": "handicap_shots (shots_for; wzorzec 'liczba X - handicap' nie łapie 'Strzały - Handicap')",
+   "occurrences": 4,
+   "distinct_templates": 1,
+   "examples": [
+    "Strzały - Handicap"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "superbet_combo",
+   "note": "łączny rozkład części (jak combined_probability buildera)",
+   "occurrences": 7037,
+   "distinct_templates": 2572,
+   "examples": [
+    "Poniżej 4.5 gola w meczu; Powyżej 0.5 gola w meczu; Poniżej 2.5 gola w 1.połowie",
+    "Poniżej 4.5 gola w meczu; Smederevo strzeli powyżej 0.5 gola",
+    "Poniżej 4.5 gola w meczu; Smederevo wygra lub zremisuje"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "superbet_combo",
+   "note": "łączny rozkład części (jak combined_probability buildera)",
+   "occurrences": 6794,
+   "distinct_templates": 122,
+   "examples": [
+    "1. set - Joao Domingues wygra 6:0, 6:1 lub 6:2; 2. set - Joao Domingues wygra 6:0, 6:1 lub 6:2",
+    "1. set - Joao Domingues wygra 6:3 lub 6:4; 2. set - Joao Domingues wygra 6:3 lub 6:4",
+    "1. set - Joao Domingues wygra 6:3 lub 6:4; 2. set - Joao Domingues wygra 7:5 lub 7:6"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.result_combo",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 1265,
+   "distinct_templates": 12,
+   "examples": [
+    "Mecz & liczba goli (2.5)",
+    "Mecz & liczba goli (3.5)",
+    "Mecz & liczba goli (4.5)"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.sets",
+   "note": "model setów/gemów z wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "occurrences": 1240,
+   "distinct_templates": 17,
+   "examples": [
+    "Dokładna liczba setów",
+    "Dokładny wynik",
+    "Handicap setowy"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.set_score",
+   "note": "rozkład wyniku seta - wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "occurrences": 552,
+   "distinct_templates": 6,
+   "examples": [
+    "1. set - dokładny wynik",
+    "1. set - liczba gemów nieparzysta/parzysta",
+    "1. set - multiwynik"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.result_half",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 437,
+   "distinct_templates": 16,
+   "examples": [
+    "1.połowa - 1X2",
+    "1.połowa - podwójna szansa",
+    "2.połowa - 1X2"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.set_winner",
+   "note": "model setów/gemów z wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "occurrences": 349,
+   "distinct_templates": 4,
+   "examples": [
+    "1. set - zwycięzca & liczba gemów",
+    "1. set/mecz",
+    "2. set - zwycięzca & liczba gemów"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.result",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 344,
+   "distinct_templates": 7,
+   "examples": [
+    "Mecz",
+    "Podwójna szansa",
+    "Zakład bez remisu"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.ht_ft",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 340,
+   "distinct_templates": 5,
+   "examples": [
+    "1. połowa lub mecz",
+    "1. połowa/mecz",
+    "1. połowa/mecz & liczba goli (1.5)"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.games_distribution",
+   "note": "rozkład gemów z wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "occurrences": 337,
+   "distinct_templates": 5,
+   "examples": [
+    "Którykolwiek set zakończy się do zera",
+    "Mecz & liczba gemów",
+    "Nieparzysta/parzysta liczba gemów"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.winner",
+   "note": "model zwycięzcy (tennis_rating - forecast bez kalibracji) / wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "occurrences": 297,
+   "distinct_templates": 3,
+   "examples": [
+    "Zwycięzca",
+    "Zwycięzca & każdy z graczy wygra seta",
+    "Zwycięzcy setów"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goal_timing",
+   "note": "minuta/kolejność goli - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 282,
+   "distinct_templates": 13,
+   "examples": [
+    "1. gol",
+    "1. połowa - 1. gol",
+    "1. gol & mecz"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.result_or",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 276,
+   "distinct_templates": 12,
+   "examples": [
+    "Cypr wygra lub którakolwiek drużyna zachowa czyste konto",
+    "Cypr wygra lub obie drużyny strzelą gola",
+    "Cypr wygra lub poniżej X goli w meczu"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.halves",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 224,
+   "distinct_templates": 8,
+   "examples": [
+    "Połowa z większą liczbą goli",
+    "Wynik dowolnej połowy meczu",
+    "Gol w obu połowach"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.btts_combo",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 215,
+   "distinct_templates": 3,
+   "examples": [
+    "Obie drużyny strzelą gola & powyżej 2.5 gola",
+    "Obie drużyny strzelą gola lub powyżej 2.5 gola",
+    "Liczba goli & obie drużyny strzelą"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goals_for_distribution",
+   "note": "rozkład goals_for (dokładna liczba, parzystość, przedziały) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 192,
+   "distinct_templates": 8,
+   "examples": [
+    "Armenia U21 - przedział goli w każdej połowie",
+    "Czarnogóra U21 - przedział goli w każdej połowie",
+    "Cypr - dokładna liczba goli"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_goals",
+   "note": "gole zawodnika z incydentów (player, minuta, assist1) / /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "occurrences": 179,
+   "distinct_templates": 14,
+   "examples": [
+    "Którykolwiek z zawodników strzeli gola",
+    "Obaj zawodnicy strzelą gola",
+    "Zawodnik - strzeli 1. gola"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goal_sequence",
+   "note": "przebieg wyniku z kolejności goli - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 168,
+   "distinct_templates": 6,
+   "examples": [
+    "Armenia U21 będzie prowadzić w dowolnym momencie",
+    "Armenia U21 strzeli co najmniej 2 gole z rzędu",
+    "Armenia U21 wygra wcześniej przegrywając"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goals_distribution",
+   "note": "rozkład goals_total (dokładna liczba, parzystość, przedziały) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 165,
+   "distinct_templates": 4,
+   "examples": [
+    "Nieparzysta/parzysta liczba goli",
+    "Przedział goli",
+    "Przedział goli w każdej połowie"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.side_result",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 160,
+   "distinct_templates": 6,
+   "examples": [
+    "Smederevo wygra obie połowy",
+    "Smederevo zdobędzie gola w obu połowach",
+    "Vozdovac wygra obie połowy"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goals_half_for_distribution",
+   "note": "rozkład goals_1h_for / goals_2h_for - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 132,
+   "distinct_templates": 6,
+   "examples": [
+    "1.połowa - Cypr - dokładna liczba goli",
+    "1.połowa - Cypr przedział goli",
+    "1.połowa - Łotwa - dokładna liczba goli"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.corners_distribution",
+   "note": "rozkład corners_* (parzystość, przedziały) z /statistics",
+   "occurrences": 121,
+   "distinct_templates": 6,
+   "examples": [
+    "1.połowa - nieparzysta/parzysta liczba rzutów rożnych",
+    "1.połowa - przedział rzutów rożnych",
+    "Cypr - przedział rzutów rożnych"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goals_halves_for",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 102,
+   "distinct_templates": 4,
+   "examples": [
+    "Armenia U21 - 1.połowa liczba goli & 2.połowa liczba goli",
+    "Czarnogóra U21 - 1.połowa liczba goli & 2.połowa liczba goli",
+    "Cypr - 1.połowa liczba goli & 2.połowa liczba goli"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.tiebreak_set",
+   "note": "tie-break w secie N z wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "occurrences": 100,
+   "distinct_templates": 2,
+   "examples": [
+    "Tiebreak lub Super Tiebreak w decydującym secie",
+    "Tiebreak w X. secie"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.cards_half_or_exact",
+   "note": "kartki w połowie / dokładna liczba z minutą kartki - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 91,
+   "distinct_templates": 12,
+   "examples": [
+    "1. połowa - liczba kartek",
+    "1. połowa - Cypr liczba kartek",
+    "1. połowa - Łotwa liczba kartek"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goals_halves",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "occurrences": 89,
+   "distinct_templates": 3,
+   "examples": [
+    "1.Połowa - liczba goli & liczba goli w meczu",
+    "1.połowa liczba goli & 2.połowa liczba goli",
+    "1.połowa liczba goli lub 2.połowa liczba goli"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.red_cards",
+   "note": "card|red, card|yellowRed - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 62,
+   "distinct_templates": 6,
+   "examples": [
+    "1.połowa - liczba czerwonych kartek",
+    "Liczba czerwonych kartek",
+    "Liczba czerwonych kartek Cypr"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.points",
+   "note": "pointsTotal w /statistics (ALL i okresy setów); brak metryki",
+   "occurrences": 60,
+   "distinct_templates": 6,
+   "examples": [
+    "1. set - Daniil Medvedev liczba punktów",
+    "1. set - Novak Djokovic liczba punktów",
+    "2. set - Daniil Medvedev liczba punktów"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_goal_detail",
+   "note": "bodyPart / situation / współrzędne gola (footballPassingNetworkAction) - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 44,
+   "distinct_templates": 5,
+   "examples": [
+    "Zawodnik - strzeli gola głową",
+    "Zawodnik - strzeli gola lewą nogą",
+    "Zawodnik - strzeli gola prawą nogą"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.any_player",
+   "note": "maksimum po zawodnikach - /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "occurrences": 43,
+   "distinct_templates": 6,
+   "examples": [
+    "Którykolwiek z zawodników odda powyżej X strzałów",
+    "Którykolwiek z zawodników strzeli powyżej X goli",
+    "Którykolwiek z zawodników odda powyżej X celnych strzałów"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.woodwork",
+   "note": "klucz hitWoodwork w /statistics (tylko część meczów - pokrycie do zmierzenia); brak metryki",
+   "occurrences": 42,
+   "distinct_templates": 3,
+   "examples": [
+    "Kenia - Liczba strzałów w obramowanie bramki",
+    "Liczba strzałów w obramowanie bramki",
+    "Rwanda - Liczba strzałów w obramowanie bramki"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.penalties",
+   "note": "goal|penalty + inGamePenalty|missed - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 41,
+   "distinct_templates": 6,
+   "examples": [
+    "Liczba przyznanych rzutów karnych",
+    "1.połowa - Belgia - liczba przyznanych rzutów karnych",
+    "1.połowa - Francja - liczba przyznanych rzutów karnych"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_pair",
+   "note": "suma/łączny rozkład dwóch zawodników - /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "occurrences": 40,
+   "distinct_templates": 40,
+   "examples": [
+    "Cherki, Rayan & De Ketelaere, Charles każdy odda 1+ celnych strzałów i każdy zostanie sfaulowany",
+    "Cherki, Rayan & De Ketelaere, Charles oddadzą łącznie 3+ celnych strzałów",
+    "Dembele, Ousmane & Lois Openda każdy odda 1+ celnych strzałów i każdy zostanie sfaulowany"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_cards",
+   "note": "kartki zawodnika z incydentów - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 39,
+   "distinct_templates": 3,
+   "examples": [
+    "Zawodnik - otrzyma 1. kartkę",
+    "Zawodnik - otrzyma czerwoną kartkę",
+    "Zawodnik - otrzyma kartkę"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.service_points",
+   "note": "punkty serwisowe zawodnika = mianownik firstServeAccuracy w /statistics (\"62/87\" -> 87); brak metryki",
+   "occurrences": 30,
+   "distinct_templates": 3,
+   "examples": [
+    "Daniil Medvedev liczba serwisów",
+    "Liczba serwisów",
+    "Novak Djokovic liczba serwisów"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_woodwork",
+   "note": "klucz hitWoodwork w /lineups - /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "occurrences": 29,
+   "distinct_templates": 29,
+   "examples": [
+    "Cherki, Rayan odda strzał w obramowanie bramki",
+    "De Ketelaere, Charles odda strzał w obramowanie bramki",
+    "Dembele, Ousmane odda strzał w obramowanie bramki"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.card_timing",
+   "note": "minuta kartki - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 28,
+   "distinct_templates": 4,
+   "examples": [
+    "1. kartka",
+    "Kartka od 0:00 do 0:59 minuty",
+    "Kartka od 1:00 do 1:59 minuty"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.own_goals",
+   "note": "goal|ownGoal - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 23,
+   "distinct_templates": 1,
+   "examples": [
+    "Liczba goli samobójczych"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.double_faults_unknown_shape",
+   "note": "double_faults_* są metrykami, ale kształt wyborów tego rynku nie jest zapisany w 04_offer - sprawdzić payload przed mapowaniem",
+   "occurrences": 22,
+   "distinct_templates": 1,
+   "examples": [
+    "Podwójne błędy"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goal_method",
+   "note": "bodyPart / situation / goalType gola (footballPassingNetworkAction, ~26 tys. meczów) - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 15,
+   "distinct_templates": 1,
+   "examples": [
+    "Sposób zdobycia 1. gola"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.incident_specials",
+   "note": "incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json) (addedTime)",
+   "occurrences": 15,
+   "distinct_templates": 4,
+   "examples": [
+    "Czerwona kartka lub gol w doliczonym czasie 2. połowy",
+    "Którykolwiek zawodnik otrzyma kartkę w doliczonym czasie 2. połowy",
+    "Obie drużyny otrzymają czerwoną kartkę"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.person_cards",
+   "note": "kartka zawodnika lub trenera (incydent card: player / manager) - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 10,
+   "distinct_templates": 10,
+   "examples": [
+    "Zinedine Zidane & Mark van Bommel każdy otrzyma kartkę",
+    "Roberto Mancini & Vincenzo Montella każdy otrzyma kartkę",
+    "Roberto Mancini otrzyma kartkę"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goalkeeper_specials",
+   "note": "wasFouled / goalAssist bramkarza - /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "occurrences": 8,
+   "distinct_templates": 2,
+   "examples": [
+    "Każdy bramkarz zostanie sfaulowany",
+    "Którykolwiek bramkarz zaliczy asystę"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_fouled",
+   "note": "klucz wasFouled w /lineups (market_mapper 2026-09-29 uznał, że żaden klucz tego nie dowodzi - do weryfikacji na rozliczeniu) - /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "occurrences": 6,
+   "distinct_templates": 1,
+   "examples": [
+    "Zawodnik - liczba fauli na zawodniku"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.saves_halves",
+   "note": "goalkeeperSaves w okresach 1ST/2ND /statistics (saves_2h nie jest metryką)",
+   "occurrences": 4,
+   "distinct_templates": 1,
+   "examples": [
+    "Każdy bramkarz obroni strzał w każdej połowie"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.substitutions",
+   "note": "substitution - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "occurrences": 1,
+   "distinct_templates": 1,
+   "examples": [
+    "Każda z drużyn wykorzysta wszystkie 5 zmian"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "NOT_COMPUTABLE",
+   "family": "superbet_combo",
+   "note": "co najmniej jedna część NOT_COMPUTABLE (rozbicie na części niżej)",
+   "occurrences": 3111,
+   "distinct_templates": 21,
+   "examples": [
+    "1. set - dokładny wynik po 4 gemach: 2:2; 2. set - dokładny wynik po 4 gemach: 2:2",
+    "1. set - dokładny wynik po 6 gemach: 3:3; 2. set - dokładny wynik po 6 gemach: 3:3",
+    "Dokładny wynik - Joao Domingues 1. gem serwisowy - Joao Domingues do 0; 1. set - zwycięzca - Joao Domingues"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "NOT_COMPUTABLE",
+   "family": "tn.game_order",
+   "note": "brak historii gem po gemie: wynik seta nie mówi, kto wygrał który gem ani jaki był stan po N gemach (/point-by-point nie w cache); model z częstości utrzymań serwisu (serviceGamesWon) dałby liczbę, której nie da się skalibrować ani rozliczyć",
+   "occurrences": 1020,
+   "distinct_templates": 6,
+   "examples": [
+    "1. set - będzie prowadzić po 2 gemach",
+    "1. set - będzie prowadzić po 4 gemach",
+    "1. set - będzie prowadzić po 6 gemach"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "NOT_COMPUTABLE",
+   "family": "tn.points_in_game",
+   "note": "brak historii punkt po punkcie (Sofascore /point-by-point nie jest pobierane do cache): wyniku nie widać ani w historii, ani w SETTLE - model punktu dałby liczbę, której nie da się skalibrować ani rozliczyć",
+   "occurrences": 736,
+   "distinct_templates": 6,
+   "examples": [
+    "Dokładny wynik - wynik po 3 punktach w 1. gemie serwisowym Joao Domingues",
+    "Dokładny wynik - wynik po 3 punktach w 1. gemie serwisowym Vilius Gaubas",
+    "Dokładny wynik - wynik po 4 punktach w 1. gemie serwisowym Joao Domingues"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.non_goal_event_timing",
+   "note": "brak kolejności/minuty zdarzeń innych niż gole i kartki (incydenty Sofascore nie zawierają rożnych, fauli, strzałów, autów, wybić, spalonych)",
+   "occurrences": 206,
+   "distinct_templates": 25,
+   "examples": [
+    "Kto pierwszy wykona X rzutów różnych",
+    "Kto wykona 1. rzut rożny",
+    "Ostatni rzut rożny"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.player_shot_detail",
+   "note": "brak części ciała / miejsca strzałów niebędących golem (shotmap nie w cache; /lineups podaje tylko sumy)",
+   "occurrences": 76,
+   "distinct_templates": 9,
+   "examples": [
+    "Zawodnik - liczba celnych strzałów głową",
+    "Zawodnik - liczba celnych strzałów lewą nogą",
+    "Zawodnik - liczba celnych strzałów prawą nogą"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.var_review",
+   "note": "brak źródła: incydent varDecision zapisuje decyzję, nie podejście sędziego do monitora",
+   "occurrences": 15,
+   "distinct_templates": 4,
+   "examples": [
+    "Sędzia podejdzie do monitora VAR co najmniej dwa razy",
+    "Sędzia podejdzie do monitora VAR i nie zmieni pierwotnej decyzji",
+    "Sędzia podejdzie do monitora VAR i po weryfikacji podyktuje rzut karny"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.player_pair_fouled_each_other",
+   "note": "brak źródła: /lineups nie mówi, kto kogo sfaulował",
+   "occurrences": 14,
+   "distinct_templates": 14,
+   "examples": [
+    "Cherki, Rayan & De Ketelaere, Charles sfaulują się nawzajem",
+    "Doue, Desire & Castagne, Timothy sfaulują się nawzajem",
+    "Olise, Michael & De Cuyper, Maxim sfaulują się nawzajem"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.specials",
+   "note": "brak źródła w danych Sofascore (zdarzenie spoza statystyk meczu)",
+   "occurrences": 8,
+   "distinct_templates": 2,
+   "examples": [
+    "Każda drużyna wykona rzut rożny z każdego narożnika boiska",
+    "Strzelec zdejmie koszulkę podczas celebrowania gola"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.player_goal_detail_unknown",
+   "note": "brak źródła: bodyPart gola zna tylko right-foot/left-foot/head/other",
+   "occurrences": 4,
+   "distinct_templates": 1,
+   "examples": [
+    "Zawodnik - strzeli gola z przewrotki"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "fb.player_tackled",
+   "note": "brak klucza: /lineups ma totalTackle (wykonane), nie odbiory na zawodniku",
+   "occurrences": 3,
+   "distinct_templates": 1,
+   "examples": [
+    "Zawodnik - liczba odbiorów na zawodniku"
+   ]
+  },
+  {
+   "sport": "football",
+   "label": "NOT_COMPUTABLE",
+   "family": "boost",
+   "note": "promocja Superbetu bez zdefiniowanej wielkości (boost; osobny snapshot run_boosts)",
+   "occurrences": 1,
+   "distinct_templates": 1,
+   "examples": [
+    "Boost"
+   ]
+  },
+  {
+   "sport": "tennis",
+   "label": "NOT_COMPUTABLE",
+   "family": "boost",
+   "note": "promocja Superbetu bez zdefiniowanej wielkości (boost; osobny snapshot run_boosts)",
+   "occurrences": 1,
+   "distinct_templates": 1,
+   "examples": [
+    "Boost"
+   ]
+  }
+ ],
+ "combo_parts": [
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.winner",
+   "note": "model zwycięzcy (tennis_rating - forecast bez kalibracji) / wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "parts": 4131
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.games_set_total",
+   "note": "games_set1_total / games_set2_total",
+   "parts": 3534
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.side_result",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "parts": 3265
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.goals_total",
+   "note": "goals_total",
+   "parts": 3201
+  },
+  {
+   "sport": "tennis",
+   "label": "NOT_COMPUTABLE",
+   "family": "tn.points_in_game",
+   "note": "brak historii punkt po punkcie (Sofascore /point-by-point nie jest pobierane do cache): wyniku nie widać ani w historii, ani w SETTLE - model punktu dałby liczbę, której nie da się skalibrować ani rozliczyć",
+   "parts": 2200
+  },
+  {
+   "sport": "tennis",
+   "label": "NOT_COMPUTABLE",
+   "family": "tn.game_order",
+   "note": "brak historii gem po gemie: wynik seta nie mówi, kto wygrał który gem ani jaki był stan po N gemach (/point-by-point nie w cache); model z częstości utrzymań serwisu (serviceGamesWon) dałby liczbę, której nie da się skalibrować ani rozliczyć",
+   "parts": 2074
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.player_sot",
+   "note": "player_shots_on_target_for",
+   "parts": 2042
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.set_score",
+   "note": "rozkład wyniku seta - wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "parts": 1881
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.goals_for",
+   "note": "goals_for",
+   "parts": 1746
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.games_total",
+   "note": "games_total",
+   "parts": 1057
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.set_winner",
+   "note": "model setów/gemów z wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "parts": 1005
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.sets_total",
+   "note": "sets_total",
+   "parts": 920
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_goals",
+   "note": "gole zawodnika z incydentów (player, minuta, assist1) / /lineups (statystyki zawodnika; w cache ~4,5 tys. meczów piłki)",
+   "parts": 875
+  },
+  {
+   "sport": "tennis",
+   "label": "COMPUTABLE",
+   "family": "tn.sets",
+   "note": "model setów/gemów z wyniki setów (homeScore.periodN + periodNTieBreak w listingu)",
+   "parts": 842
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.corners_total",
+   "note": "corners_total",
+   "parts": 760
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.tiebreaks_total",
+   "note": "tiebreaks_total",
+   "parts": 679
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.corners_for",
+   "note": "corners_for",
+   "parts": 662
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.cards_total",
+   "note": "cards_points_total",
+   "parts": 658
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.games_won_for",
+   "note": "games_won_for",
+   "parts": 620
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.player_shots",
+   "note": "player_shots_for",
+   "parts": 607
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.handicap_games",
+   "note": "handicap_games",
+   "parts": 595
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.player_fouls",
+   "note": "player_fouls_for",
+   "parts": 588
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.handicap_games_set",
+   "note": "handicap_games_set1 / _set2 (games_won_set1_for; handicap z zakresem seta jak most_ w _MOST_SCOPED)",
+   "parts": 576
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_corners",
+   "note": "both_over_corners",
+   "parts": 477
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.person_cards",
+   "note": "kartka zawodnika lub trenera (incydent card: player / manager) - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "parts": 452
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.aces_for",
+   "note": "aces_for",
+   "parts": 440
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.goals_half_total",
+   "note": "goals_1h_total / goals_2h_total",
+   "parts": 420
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.btts",
+   "note": "both_over_goals 0.5",
+   "parts": 420
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.most_aces_set",
+   "note": "most_aces_set1 / most_aces_set2",
+   "parts": 382
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.most_corners",
+   "note": "most_corners",
+   "parts": 345
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_cards",
+   "note": "both_over_cards_points",
+   "parts": 317
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.games_won_set_for",
+   "note": "games_won_set1_for / _set2_ / _set3_",
+   "parts": 316
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.aces_total",
+   "note": "aces_total",
+   "parts": 286
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.aces_set_for",
+   "note": "aces_set1_for / aces_set2_for",
+   "parts": 264
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.cards_for",
+   "note": "cards_points_for",
+   "parts": 259
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.player_tackles",
+   "note": "player_tackles_for",
+   "parts": 248
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.sot_total",
+   "note": "shots_on_target_total",
+   "parts": 240
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.goal_sequence",
+   "note": "przebieg wyniku z kolejności goli - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "parts": 219
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.sot_for",
+   "note": "shots_on_target_for",
+   "parts": 217
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.player_goal_detail",
+   "note": "bodyPart / situation / współrzędne gola (footballPassingNetworkAction) - incydenty Sofascore (gole/kartki z minutą i zawodnikiem, sofa_event_stats.incidents_json)",
+   "parts": 192
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.double_faults_total",
+   "note": "double_faults_total",
+   "parts": 154
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.goals_half_for",
+   "note": "goals_1h_for / goals_2h_for",
+   "parts": 116
+  },
+  {
+   "sport": "football",
+   "label": "COMPUTABLE",
+   "family": "fb.halves",
+   "note": "model wyniku (łączny rozkład goli obu stron) - historia goli (wynik + połowy w listingu, goal_for obu stron)",
+   "parts": 102
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.shots_total",
+   "note": "shots_total",
+   "parts": 90
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.double_faults_set_for",
+   "note": "double_faults_set1_for / double_faults_set2_for",
+   "parts": 88
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.fouls_for",
+   "note": "fouls_for",
+   "parts": 68
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.offsides_total",
+   "note": "offsides_total",
+   "parts": 56
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.shots_for",
+   "note": "shots_for",
+   "parts": 49
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.fouls_total",
+   "note": "fouls_total",
+   "parts": 45
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.double_faults_for",
+   "note": "double_faults_for",
+   "parts": 43
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.most_sot",
+   "note": "most_shots_on_target",
+   "parts": 42
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.tackles_for",
+   "note": "tackles_for",
+   "parts": 27
+  },
+  {
+   "sport": "tennis",
+   "label": "MAPPABLE",
+   "family": "tn.aces_set_total",
+   "note": "aces_set1_total / aces_set2_total",
+   "parts": 22
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.both_over_sot",
+   "note": "both_over_shots_on_target",
+   "parts": 18
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.tackles_total",
+   "note": "tackles_total",
+   "parts": 18
+  },
+  {
+   "sport": "football",
+   "label": "MAPPABLE",
+   "family": "fb.most_cards",
+   "note": "most_cards_points",
+   "parts": 14
+  }
+ ],
+ "unclassified": [],
+ "inputs": {
+  "01_board.json": {
+   "sha256": "0918590f5468b1d1c51e1805bfe2b87a4304503175297fa49c164a2537af9cba",
+   "mtime_utc": "2026-10-05T04:57:04+00:00"
+  },
+  "02_fixtures.json": {
+   "sha256": "8ef7c0233e00f79d3f6b4199505da12706d1c3ac132bba3be929707674ff0d9f",
+   "mtime_utc": "2026-10-05T05:33:47+00:00"
+  },
+  "04_offer.json": {
+   "sha256": "98d78e299c56ef1567023c3714d630291cfa86ece4398e2df0319a57e7414be2",
+   "mtime_utc": "2026-10-05T11:43:17+00:00"
+  }
+ }
+}
