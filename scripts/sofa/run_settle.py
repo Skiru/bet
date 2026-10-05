@@ -38,10 +38,12 @@ from typing import Any, NamedTuple, cast
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
+from bet.sofa.confidence import PROFILES, confidence_artifact
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.locked_print import LegKey, leg_key, printed_leg_keys
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import extract_flat_statistics, extract_metric
 from bet.sofa.names import normalize_name
@@ -650,7 +652,10 @@ def skip_totals(events: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def rows_to_consider(
-    sheet: list[dict[str, Any]], *, include_unpriced: bool
+    sheet: list[dict[str, Any]],
+    *,
+    include_unpriced: bool,
+    printed: frozenset[LegKey] | set[LegKey] = frozenset(),
 ) -> list[dict[str, Any]]:
     """Which sheet rows this run will try to grade.
 
@@ -660,10 +665,37 @@ def rows_to_consider(
     whole board — those rows are real forecasts we made and stand behind, and
     grading them is the only way a backfill can account for every market
     considered rather than only the part that carried a price.
+
+    ``printed`` - the rungs the day's PDFs printed (locked_print.
+    printed_leg_keys) - are graded whatever the final sheet says about their
+    price: since 2026-10-05 a leg printed before its match started stays on
+    the coupon, and a SHEET re-run after the start may have stripped its rung
+    to NO_PRICE (an in-play price), which would leave 7c / 7d and the ledger
+    with a printed leg nobody graded.
     """
     if include_unpriced:
         return list(sheet)
-    return [r for r in sheet if r.get("offered_odds")]
+    return [
+        r for r in sheet
+        if r.get("offered_odds") or (printed and _sheet_key(r) in printed)
+    ]
+
+
+def _sheet_key(row: dict[str, Any]) -> LegKey | None:
+    try:
+        return leg_key(row)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def printed_keys(run_dir: Path) -> set[LegKey]:
+    """Every rung either confidence profile's PDF prints for the day."""
+    keys: set[LegKey] = set()
+    for profile in PROFILES.values():
+        path = run_dir / confidence_artifact(profile)
+        if path.exists():
+            keys |= printed_leg_keys(json.loads(path.read_text(encoding="utf-8")))
+    return keys
 
 
 def main() -> int:
@@ -735,7 +767,9 @@ def main() -> int:
     # K_PRICE needs market_p, and market_p comes from the offer. So the
     # default is priced-only. --include-unpriced widens it to the whole
     # board, for a backfill that has to account for every market considered.
-    considered = rows_to_consider(sheet, include_unpriced=args.include_unpriced)
+    considered = rows_to_consider(
+        sheet, include_unpriced=args.include_unpriced, printed=printed_keys(run_dir)
+    )
     by_event: dict[int, list[dict[str, Any]]] = {}
     for row in considered:
         by_event.setdefault(row["sofascore_event_id"], []).append(row)

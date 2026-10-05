@@ -165,6 +165,23 @@ def context_label(leg: dict[str, Any]) -> str:
             f"{escape(', '.join(str(f) for f in flags))}</font>")
 
 
+# A leg the previous build printed and whose match started before this
+# rebuild (bet.sofa.locked_print, the operator's decision of 2026-10-05): it
+# counts, stays on the page as printed, and says so.
+LOCKED_LABEL = "w grze - wydrukowane przed startem"
+
+
+def locked_label(item: dict[str, Any]) -> str:
+    """The mark on a locked single or builder, with the build it was printed
+    in; empty for everything else."""
+    if not item.get("locked"):
+        return ""
+    at = str(item.get("printed_at_utc") or "")
+    when = f" (wydruk {at[11:16]}Z)" if len(at) >= 16 else ""
+    return (f"<br/><font size=6.5 color='#1f5fa8'><b>{LOCKED_LABEL}</b>"
+            f"{escape(when)}</font>")
+
+
 def started_at_render(leg: dict[str, Any], now: datetime.datetime) -> bool:
     """Is this printed leg inside CONFIDENCE's kickoff margin at render time?
 
@@ -340,7 +357,9 @@ def main() -> int:
     # global 10.5% even on the variant, whose limit is 15% and whose rows
     # print margins above 10.5% one column over.
     max_overround = doc_json.get("max_overround", MAX_OVERROUND)
-    picks.sort(key=lambda b: -b[ev_key])
+    # Locked builders first (they are already in play), then by EV.
+    picks.sort(key=lambda b: (not b.get("locked"), -b[ev_key]))
+    n_locked = sum(1 for x in [*singles, *picks] if x.get("locked"))
 
     ss = getSampleStyleSheet()
     H1 = ParagraphStyle("H1", parent=ss["Title"], fontName=BOLD, fontSize=19,
@@ -370,7 +389,8 @@ def main() -> int:
     S.append(Paragraph(
         f"Zbudowany {doc_json['created_at_utc']} &nbsp;•&nbsp; "
         f"{len(picks)} zakładów łączonych, {len(singles)} pojedynczych "
-        f"&nbsp;•&nbsp; "
+        + (f"(w tym {n_locked} {LOCKED_LABEL}) " if n_locked else "")
+        + "&nbsp;•&nbsp; "
         f"próg pewności {doc_json['confidence_floor']}"
         + ("" if profile.min_ev is None
            else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"
@@ -527,7 +547,9 @@ def main() -> int:
             if n_rungs > 1:
                 same += (f"<br/><font size=6.5 color='#b23b3b'>ta sama drabina: "
                          f"{n_rungs}</font>")
-            if started_at_render(leg, now):
+            if leg.get("locked"):
+                same += locked_label(leg)
+            elif started_at_render(leg, now):
                 same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                          "renderem PDF</b></font>")
             same += watch_label(leg) + context_label(leg)
@@ -572,7 +594,7 @@ def main() -> int:
             f"{fxr.get('competition_name') or '—'}"
             + (f" • {fxr.get('round_name')}" if fxr.get("round_name") else "")
             + f" • start {ko}Z"
-            + _referee(fxr), SMALL))
+            + _referee(fxr) + locked_label(b), SMALL))
         block.append(Spacer(1, 3))
 
         rows = [["#", "zakład", "pewność", "kurs", "implik.", "zaniżenie",
@@ -664,7 +686,9 @@ def main() -> int:
 
     pdf.build(S)
     os.replace(tmp_out, out_path)
-    late = [leg for leg in singles if started_at_render(leg, now)]
+    # A locked leg started on purpose: it is the record, not a late print.
+    late = [leg for leg in singles
+            if not leg.get("locked") and started_at_render(leg, now)]
     if late:
         print(
             f"WARNING: {len(late)} printed single(s) kick off within "

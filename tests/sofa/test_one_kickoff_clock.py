@@ -68,5 +68,11 @@ def test_every_gate_reads_the_shared_clock():
 
     assert "effective_kickoff(f) > cutoff" in inspect.getsource(offer)
     assert "f.kickoff_utc > cutoff" not in inspect.getsource(offer)
-    assert "too_close_to_kickoff(clocks, now)" in inspect.getsource(conf)
+    # Since 2026-10-05 CONFIDENCE's gate is locked_print.kicked_off, the one
+    # predicate that both refuses a fresh row and locks a printed leg.
+    import bet.sofa.locked_print as lp
+
+    assert "kicked_off(" in inspect.getsource(conf)
+    assert "too_close_to_kickoff(clocks, now)" not in inspect.getsource(conf)
+    assert "too_close_to_kickoff(\n        kickoff_clocks(" in inspect.getsource(lp)
     assert "minutes=MIN_MINUTES_TO_KICKOFF" in inspect.getsource(coup)

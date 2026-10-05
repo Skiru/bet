@@ -81,6 +81,12 @@ from bet.sofa.engine import (  # noqa: E402
     has_calibratable_model,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.locked_print import (  # noqa: E402
+    carry_over,
+    kickoff_clocks,
+    kicked_off,
+    leg_key,
+)
 from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
@@ -337,6 +343,26 @@ def main() -> int:
     # that fixes the time fixes it here too.
     now = timeutil.now()
 
+    # The previous build of THIS profile, read before it is overwritten: the
+    # legs it printed whose match has started since are carried over as
+    # printed (bet.sofa.locked_print - the operator's decision of
+    # 2026-10-05). An unreadable previous artifact refuses the build rather
+    # than overwrite the only record of what was printed.
+    previous: dict[str, Any] | None = None
+    previous_path = run_dir / artifact
+    if previous_path.exists():
+        try:
+            loaded = json.loads(previous_path.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            print(
+                f"REFUSED: the previous {artifact} is unreadable ({exc}); it is "
+                "the only record of the legs already printed - move it aside "
+                "deliberately before rebuilding",
+                file=sys.stderr,
+            )
+            return 2
+        previous = loaded if isinstance(loaded, dict) else None
+
     # The analyst's vetoes, which until 2026-09-21 this stage did not read.
     # COUPON honoured them and CONFIDENCE did not, so a veto removed a row
     # from 06_coupon.json — the VALUE singles, which the runbook is explicit
@@ -418,17 +444,16 @@ def main() -> int:
         # whose two clocks disagreed by 2.0 h, and the gap reaches 11.0 h
         # elsewhere on that board. The staked path was the one reading the
         # wrong clock.
-        clocks = [
-            datetime.fromisoformat(t.replace("Z", "+00:00"))
-            for t in (
-                fx.get("kickoff_utc"),
-                fx.get("superbet_kickoff_utc"),
-                seen_kickoff.get(row["sofascore_event_id"]),
-            )
-            if t
-        ]
-        started = row["sofascore_event_id"] in started_ids
-        if started or too_close_to_kickoff(clocks, now):
+        # The same predicate locks an already printed leg (locked_print), so
+        # a fixture's fresh rows are refused exactly when its printed legs
+        # are carried over.
+        clocks = kickoff_clocks(fx, seen_kickoff.get(row["sofascore_event_id"]))
+        if kicked_off(
+            fx,
+            seen_kickoff.get(row["sofascore_event_id"]),
+            row["sofascore_event_id"] in started_ids,
+            now,
+        ):
             refused["KICKED_OFF"] += 1
             continue
         # The leg is GATED on the earlier clock, so it must be PRINTED on the
@@ -730,6 +755,55 @@ def main() -> int:
             }
         )
 
+    # Legs the previous build of this profile printed and whose match has
+    # started (or is inside the kickoff margin) by now: kept exactly as
+    # printed, first on the page (locked_print). A leg the previous build
+    # printed and this one drops BEFORE its match starts is not here - the
+    # operator saw this PDF before the kickoff.
+    def is_locked(event_id: int, printed_kickoff: str | None) -> bool:
+        fx_now = fixtures.get(event_id)
+        if fx_now is None:
+            # No fixture any more: the printed (earliest) clock is all there is.
+            return too_close_to_kickoff(kickoff_clocks(None, printed_kickoff), now)
+        return kicked_off(
+            fx_now, seen_kickoff.get(event_id), event_id in started_ids, now
+        )
+
+    locked = carry_over(previous, profile.name, now, is_locked)
+    locked_keys = locked.keys
+    # Never the same leg twice: the gate above already refuses a locked
+    # fixture's rows, this holds even if the two ever disagree.
+    legs = [leg for leg in legs if leg_key(leg) not in locked_keys]
+    # A veto or a NO_BET / WATCH read covering a locked leg does not remove
+    # it (its match is under way); it is recorded and shown, never acted on.
+    late_refusals: list[dict[str, Any]] = []
+    locked_rungs = [("single", leg_key(s_)) for s_ in locked.singles] + [
+        ("builder_leg", leg_key(x_, b_["sofascore_event_id"]))
+        for b_ in locked.builders
+        for x_ in b_.get("legs") or []
+    ]
+    for kind, (eid_, market_, subject_, line_, direction_) in locked_rungs:
+        if any(
+            veto_matches(
+                v, sofascore_event_id=eid_, market=market_, subject=subject_,
+                line=line_, direction=direction_,
+            )
+            for v in vetoes
+        ):
+            why: str | None = "VETOED"
+        else:
+            why = read_refusal(
+                matching_reads(
+                    reads, sofascore_event_id=eid_, market=market_,
+                    subject=subject_, line=line_, direction=direction_,
+                ),
+                profile.honours_watch,
+            )
+        if why is not None:
+            rung = [eid_, market_, subject_, line_, direction_]
+            late_refusals.append({"key": rung, "as": kind, "refusal": why})
+            print(f"LOCKED_DESPITE_LATE_REFUSAL: {why} {kind} {rung}", file=sys.stderr)
+
     legs.sort(key=lambda r: (-r["leg_ev"], -r["confidence"]))
 
     # Singles. Deliberately NOT ranked by `leg_ev` — see MAX_OVERROUND for why
@@ -742,6 +816,14 @@ def main() -> int:
          if profile.single_is_fairly_priced(leg.get("overround"))),
         key=lambda r: (-r["confidence"], r["offered_odds"]),
     )
+    # Locked singles first; the fresh ones fill the room left on the page
+    # (printed_singles cuts the list at pdf_max_singles).
+    singles = [*locked.singles, *singles]
+    pdf_max_singles = profile.pdf_max_singles
+    if pdf_max_singles is not None and len(locked.singles) > pdf_max_singles:
+        # Only if the page limit was lowered between two builds: a printed
+        # leg is never pushed off the page by the limit.
+        pdf_max_singles = len(locked.singles)
 
     # Bet Builders: same fixture, one leg per market family, 2-4 legs.
     builders: list[dict[str, Any]] = []
@@ -836,7 +918,8 @@ def main() -> int:
     # Every builder stays in the artifact because comparing 2 against 4 on one
     # fixture is exactly how the operator picks; only one per fixture is
     # marked as stakeable.
-    best_seen: set[int] = set()
+    # A fixture whose printed builder is locked keeps that one as its stake.
+    best_seen: set[int] = set(locked.builder_fixtures)
     for b in builders:
         eid = b["sofascore_event_id"]
         b["best_for_fixture"] = eid not in best_seen
@@ -844,6 +927,8 @@ def main() -> int:
 
     for leg in legs:
         leg.pop("_obs_by_match", None)
+    legs = [*locked.legs, *legs]
+    builders = [*locked.builders, *builders]
 
     # T27, applied here too: a veto that matched no row on the sheet is a typo
     # or a row that moved between the analyst's read and this rebuild. Either
@@ -891,11 +976,22 @@ def main() -> int:
         "confidence_floor": args.floor,
         "min_ev": profile.min_ev,
         "max_overround": profile.max_overround,
-        "pdf_max_singles": profile.pdf_max_singles,
+        "pdf_max_singles": pdf_max_singles,
         "prints_builders": profile.prints_builders,
         **({"gap_shrink_k": cal.gap_shrink_k} if cal.gap_shrink_k > 0 else {}),
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
+        # Written only when something was carried over, so an artifact
+        # without a locked leg is byte-for-byte what it was before 2026-10-05.
+        **(
+            {
+                "locked_from_utc": locked.previous_created_at_utc,
+                "locked_singles": len(locked.singles),
+                "locked_builders": len(locked.builders),
+                "locked_late_refusals": late_refusals,
+            }
+            if locked else {}
+        ),
         # Written only when reads.json holds any, so a day without reads is
         # byte-for-byte what it was before 2026-10-04.
         **(
@@ -990,6 +1086,8 @@ def main() -> int:
         subj = f" {leg['subject']}" if leg["subject"] else ""
         n_same = per_fixture[int(leg["sofascore_event_id"])]
         same = f" (ten sam mecz: {n_same} nóg)" if n_same > 1 else ""
+        if leg.get("locked"):
+            same += " (w grze - wydrukowane przed startem)"
         lines.append(
             f"| {leg['confidence']:.3f} | {leg['offered_odds']} | "
             f"{leg['leg_ev'] + 1.0:.2f} | "
@@ -1053,6 +1151,9 @@ def main() -> int:
                 if profile.prints_builders else 0
             ),
             "fixtures_with_legs": len(by_fixture), "refused": dict(refused),
+            "locked_singles": len(locked.singles),
+            "locked_builders": len(locked.builders),
+            "locked_late_refusals": len(late_refusals),
             "vetoes_applied": len(vetoes) - len(unmatched),
             "vetoes_unmatched": len(unmatched),
             "vetoed_rungs": len(vetoed_keys),

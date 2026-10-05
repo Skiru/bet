@@ -180,6 +180,22 @@ Two traps in this object:
   smaller ones are **subsets** of the larger. Staking all three is staking one
   opinion three times. `best_for_fixture` marks the one.
 
+**Locked legs (since 2026-10-05, operator: "a leg printed before its match
+started counts").** A rebuild of CONFIDENCE reads the previous artifact of the
+same profile and carries over, unchanged, every printed single and printed
+stakeable builder whose match has started or is inside the kickoff margin
+(`bet.sofa.locked_print`; the same `kicked_off` predicate that refuses fresh
+rows). They carry `locked: true`, `printed_at_utc` (the build that printed
+them) and `printed_under` (that build's floor / min_ev / max_overround), come
+first in `singles` / `builders` / `legs`, and fresh singles fill the remaining
+`pdf_max_singles`. The artifact then carries `locked_from_utc`,
+`locked_singles`, `locked_builders` and `locked_late_refusals` (a veto or a
+NO_BET / WATCH read now covering a locked leg - shown, never acted on); an
+artifact with nothing locked has none of these keys. A leg a rebuild drops
+BEFORE its start (veto, read, moved price) stays dropped. The PDF marks a
+locked leg `w grze - wydrukowane przed startem (wydruk HH:MMZ)`;
+audit_variants checks it against `printed_at_utc` / `printed_under`.
+
 ## `KUPON_<date>.pdf`
 
 The product. Only `is_stakeable` slips — `best_for_fixture` **and**

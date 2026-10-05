@@ -25,12 +25,17 @@ files on disk, not from the artifact's own fields:
       and its PDF is not older than it
   C2  every printed single obeys the dials the artifact was built with:
       confidence >= floor, the price rule (official: confidence x odds > 1;
-      WARIANT: >= min_ev), margin <= max_overround, not started at build
+      WARIANT: >= min_ev), margin <= max_overround, not started at build;
+      a locked single (bet.sofa.locked_print, since 2026-10-05: printed by an
+      earlier build, its match started before this one) is checked against
+      the build that printed it - its printed_at_utc and printed_under dials
   C3  (days from READS_CUTOVER on) every leg the official PDF prints - single
       or builder leg - was read by an analyst (reads.json, contracts.LegRead),
       and none it prints carries a WATCH or NO_BET read (the official profile
       honours both; 2026-10-04, Farense - Chaves: a WATCH had no field and
-      the leg was printed)
+      the leg was printed); a locked leg is read as of its print - a
+      refusing read now covering it is a note (it came after the start, or
+      the earlier build would have refused it), never a defect
 
 No network. Exit 0 when nothing is found, 1 with findings, 2 on a bad file.
 """
@@ -364,18 +369,33 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
         out.append(
             f"C1 {tag}: {pdf.name} is older than {name} - it prints another build"
         )
-    floor = float(doc.get("confidence_floor", profile.floor))
+    doc_floor = float(doc.get("confidence_floor", profile.floor))
     # An official artifact without the dials predates them and was printed
     # under x > 1.0 and MAX_OVERROUND (the official rule until 2026-10-04).
     old_official = profile_name == "standard"
-    min_ev = doc.get("min_ev", None if old_official else profile.min_ev)
-    max_ov = float(doc.get(
+    doc_min_ev = doc.get("min_ev", None if old_official else profile.min_ev)
+    doc_max_ov = float(doc.get(
         "max_overround", MAX_OVERROUND if old_official else profile.max_overround
     ))
-    built = _utc(str(doc["created_at_utc"])) if doc.get("created_at_utc") else None
+    doc_built = (
+        _utc(str(doc["created_at_utc"])) if doc.get("created_at_utc") else None
+    )
     for single in printed_singles(doc):
         conf, odds = float(single["confidence"]), float(single["offered_odds"])
         label = f"{tag} {single['match']} {single['market']} {single['line']}"
+        floor, min_ev, max_ov, built = doc_floor, doc_min_ev, doc_max_ov, doc_built
+        if single.get("locked"):
+            # Valid in the build it came from, not in this one: its clock and
+            # its dials are the earlier build's (bet.sofa.locked_print).
+            printed_at = single.get("printed_at_utc")
+            under = single.get("printed_under")
+            if not printed_at or not isinstance(under, dict):
+                out.append(f"C2 {label}: locked without printed_at_utc / printed_under")
+                continue
+            floor = float(under.get("confidence_floor", doc_floor))
+            min_ev = under.get("min_ev")
+            max_ov = float(under.get("max_overround", doc_max_ov))
+            built = _utc(str(printed_at))
         if conf < floor - TOL:
             out.append(f"C2 {label}: confidence {conf} below floor {floor}")
         if min_ev is None:
@@ -401,7 +421,7 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
         *printed_singles(doc),
         *(
             {**leg, "sofascore_event_id": b["sofascore_event_id"],
-             "match": b.get("match", "")}
+             "match": b.get("match", ""), "locked": bool(b.get("locked"))}
             for b in printed_builders(doc)
             for leg in b.get("legs") or []
         ),
@@ -423,10 +443,21 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
             direction=str(leg["direction"]),
         )
         label = f"{tag} {leg.get('match', '')} {leg['market']} {leg['line']}"
-        if not any(r.author == "analyst" for r in covering):
+        # A locked single carries the reads it was printed with.
+        carried = [r for r in leg.get("reads") or [] if isinstance(r, dict)]
+        if not any(r.author == "analyst" for r in covering) and not any(
+            r.get("author") == "analyst" for r in carried
+        ):
             out.append(f"C3 {label}: printed without an analyst's read")
         refused = read_refusal(covering, honours_watch=True)
-        if refused is not None:
+        if refused is not None and leg.get("locked"):
+            # Printed before its match started; a read refusing it now did
+            # not remove it (bet.sofa.locked_print). Shown, not a defect.
+            notes.append(
+                f"C3 {label}: locked (printed before the start), now covered "
+                f"by {refused}"
+            )
+        elif refused is not None:
             out.append(f"C3 {label}: printed despite {refused}")
     return out
 
