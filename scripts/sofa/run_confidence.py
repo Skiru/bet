@@ -430,7 +430,7 @@ def main() -> int:
 
     legs: list[dict[str, Any]] = []
     # K6 (stats-only): a leg that passed every gate and was removed by a read
-    # (reads.json) or by the automatic WATCH - graded on its own (7f), never
+    # (reads.json) or by the automatic WATCH - graded on its own (7h), never
     # in the coupon's result.
     removed_by_reads: list[dict[str, Any]] = []
     refused: dict[str, int] = defaultdict(int)

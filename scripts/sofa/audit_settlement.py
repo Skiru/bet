@@ -39,12 +39,14 @@ from bet.sofa.confidence import (  # noqa: E402
     builder_odds,
     confidence_artifact,
     coupon_artifact,
+    is_sheet_sport,
     printed_builders,
     profile_artifact_path,
     printed_singles,
     prints_builders,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import printed_leg_keys  # noqa: E402
 from bet.sofa.settle import PRINTED_SETTLED_FILE, refund_event_ids  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
@@ -267,6 +269,58 @@ def settle_singles(
     return {"won": won, "lost": lost, "unsettled": unsettled, "settled": settled,
             "refunded": refunded, "units": units,
             "mean_confidence": conf_sum / settled if settled else 0.0}
+
+
+def render_stats_only_split(
+    singles: list[dict[str, Any]], by_key: dict[Any, Any]
+) -> list[str]:
+    """7c on a stats-only coupon (plan K7): the printed singles per sport and
+    per rule epoch - the legs locked from a pre-stats-only build (the
+    morning of 10-05) are a different experiment and are shown apart. The
+    sections are not added to anything; the total above is the coupon's."""
+    out = ["#### Pojedyncze wg sportu i reguły (epoka)", ""]
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for s in singles:
+        epoch = (
+            str((s.get("printed_under") or {}).get("epoch") or OLD)
+            if s.get("locked") else str(s.get("epoch") or OLD)
+        )
+        groups[(str(s.get("sport") or "football"), epoch)].append(s)
+    rows = []
+    for (sport, epoch), group in sorted(groups.items()):
+        res = settle_singles(group, by_key)
+        rows.append([sport, epoch, len(group), res["settled"],
+                     f"{res['won']} / {res['lost']}", res["refunded"],
+                     f"{res['units']:+.2f} j.",
+                     f"{100.0 * res['units'] / res['settled']:+.1f}%"
+                     if res["settled"] else "—"])
+    out.append(_table(["sport", "epoka", "pozycji", "rozliczonych",
+                       "weszło / nie", "zwrot", "wynik", "ROI"], rows))
+    out.append("")
+    return out
+
+
+def render_removed_by_reads(
+    removed: list[dict[str, Any]], by_key: dict[Any, Any]
+) -> list[str]:
+    """7h: the legs that passed every gate and a read removed (WATCH /
+    NO_BET of an analyst or the verifier, or the automatic
+    MODEL_ABOVE_OWN_SAMPLE), graded at their printed price - never part of
+    the coupon's result (plan K6; the plan calls it 7f, which is the boosts'
+    section already)."""
+    out = ["## 7h. Nogi zdjęte przez odczyt — nie kupon, rozliczone osobno", ""]
+    res = settle_singles(removed, by_key)
+    out.append(_table(["", "liczba"], singles_summary_rows(len(removed), res)))
+    out.append("")
+    rows = []
+    for reason in sorted({str(r.get("reason")) for r in removed}):
+        group = [r for r in removed if str(r.get("reason")) == reason]
+        g = settle_singles(group, by_key)
+        rows.append([reason, len(group), f"{g['won']} / {g['lost']}",
+                     f"{g['units']:+.2f} j."])
+    out.append(_table(["kto zdjął", "nóg", "weszło / nie", "wynik"], rows))
+    out.append("")
+    return out
 
 
 def singles_summary_rows(printed: int, res: dict[str, Any]) -> list[list[Any]]:
@@ -811,6 +865,16 @@ def main() -> int:
                   f"pierwsze {len(singles)} po pewności i tylko te są tu "
                   "rozliczone.")
             A("")
+            if artifact_epoch(conf) == STATS_ONLY:
+                lines.extend(render_stats_only_split(singles, coupon_by_key))
+
+        # ---- 7h. the legs a read removed (stats-only days, plan K6) -----
+        removed = [r for r in conf.get("removed_by_reads") or []
+                   if is_sheet_sport(r)]
+        if removed:
+            removed_by_key = coupon_settled_by_key(
+                config.db_path, run_dir, args.date, {_key(r) for r in removed})
+            lines.extend(render_removed_by_reads(removed, removed_by_key))
 
     # ---- 7d. the operator's variant, settled beside the coupon ----------
     #

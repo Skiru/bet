@@ -13,7 +13,7 @@ Variants, each graded at its own printed price and never added to another:
     official         KUPON_<d>.pdf singles and builders (audit_settlement 7c);
                      on a stats-only day split by epoch (+ official:pre_stats_only)
                      with one section per sport
-    removed:reads    legs a read removed from a stats-only coupon (7f)
+    removed:reads    legs a read removed from a stats-only coupon (7h)
     wariant          KUPON_<d>_WARIANT.pdf (7d)
     sport:<sport>    KUPON_<d>_<SPORT>.pdf for cs2 / hockey / basketball / volleyball
     multi            KUPON_<d>_WSZYSTKIE.pdf, its total and its sections
@@ -165,7 +165,7 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
     legs locked from a stats-only build) and `official:pre_stats_only` (legs
     locked from a build before STATS_ONLY_FROM_UTC - on 10-05 the morning's).
     The legs a read removed are `removed:reads`, graded the same way and
-    never part of the coupon's result (K6, 7f). The measured sports' legs
+    never part of the coupon's result (K6, 7h). The measured sports' legs
     are graded by sport_coupon, not here."""
     out = []
     for variant, profile in (("official", "standard"), ("wariant", "wariant")):
