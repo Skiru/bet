@@ -119,6 +119,11 @@ class Fixture(BaseModel):
     # "postponed" / "canceled" here refuses the fixture in a stats-only
     # CONFIDENCE as FIXTURE_NOT_AS_SCHEDULED. Absent before 10-05.
     sofascore_status: str | None = None
+    # Both sides national teams (Sofascore's homeTeam/awayTeam `national`),
+    # read by RESOLVE from 2026-10-06; None when the payload did not say
+    # (older days). CONFIDENCE judges such a sample by count, not by age
+    # (epochs.NATIONAL_SAMPLE_AGE_FROM_UTC).
+    national_teams: bool | None = None
 
 
 class Observation(BaseModel):

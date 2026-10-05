@@ -84,6 +84,7 @@ from bet.sofa.engine import (  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
     STATS_ONLY_FROM_UTC,
+    national_sample_by_count,
     pool_neighbour_cap,
     settleability_gate,
     sheet_epoch,
@@ -387,6 +388,7 @@ def main() -> int:
     # failing (config/sofa_curve_status.json). Lists nothing until the
     # operator sets epochs.CURVE_STATUS_FROM_UTC, between days.
     failed_curves = curve_status.for_build(args.date, now)
+    national_by_count = national_sample_by_count(args.date, now)
     # F0.6 (from epochs.SETTLEABILITY_FROM_UTC): the fitted (competition,
     # family) cells whose printed legs went ungraded at D+3 for want of the
     # statistic (config/sofa_settleability.json, fit_settleability.py).
@@ -767,9 +769,17 @@ def main() -> int:
         if len(values) < MIN_BUILDER_SAMPLE:
             refused["THIN_SAMPLE_FOR_BUILDER"] += 1
             continue
+        national_age: list[str] = []
         if oldest_days is not None and oldest_days > MAX_BUILDER_SAMPLE_AGE_DAYS:
-            refused["SAMPLE_CROSSES_SEASON"] += 1
-            continue
+            # epochs.NATIONAL_SAMPLE_AGE_FROM_UTC: two national teams play
+            # ~10 matches a year; their sample is judged by count, its age
+            # shown on the leg.
+            fx_nat = fx_models.get(row["sofascore_event_id"])
+            if national_by_count and fx_nat is not None and fx_nat.national_teams:
+                national_age.append(f"NATIONAL_SAMPLE_AGE(oldest {oldest_days} d)")
+            else:
+                refused["SAMPLE_CROSSES_SEASON"] += 1
+                continue
         # How far BACK a sample reaches and whether it is still CURRENT are
         # two questions, and until 2026-09-21 this stage only asked the first.
         # The coupon asked the second and refused at 60 days; the PDF — the
@@ -848,7 +858,7 @@ def main() -> int:
                 **(
                     {"context_flags": flags}
                     if (flags := schedule_flags(row["sofascore_event_id"])
-                        + auto_watch)
+                        + national_age + auto_watch)
                     else {}
                 ),
                 "offered_odds": odds,

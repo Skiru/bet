@@ -1167,7 +1167,18 @@ def parse_fixture(
         superbet_kickoff_utc=superbet_kickoff_utc,
         kickoff_disagreement_h=kickoff_gap_h(kickoff_utc, superbet_kickoff_utc),
         sofascore_status=(event.get("status") or {}).get("type"),
+        national_teams=national_teams(event),
     )
+
+
+def national_teams(event: dict[str, Any]) -> bool | None:
+    """Are both sides of a Sofascore event national teams? None when the
+    payload carries no `national` on either side."""
+    flags = [(event.get(side) or {}).get("national")
+             for side in ("homeTeam", "awayTeam")]
+    if all(f is None for f in flags):
+        return None
+    return all(bool(f) for f in flags)
 
 
 def resolve_league(

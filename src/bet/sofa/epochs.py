@@ -227,3 +227,29 @@ def pool_neighbour_cap(date: str, build_at: datetime | None = None) -> bool:
         return False
     at = build_at if build_at is not None else timeutil.now()
     return date >= POOL_NEIGHBOUR_CAP_DATE and at >= POOL_NEIGHBOUR_CAP_FROM_UTC
+
+
+# 2026-10-05 night (docs/sofa/evidence/national_samples_2026-10-05.md): a
+# national team plays ~10 matches a year, so a ten-match sample always reaches
+# past MAX_BUILDER_SAMPLE_AGE_DAYS (180) and SAMPLE_CROSSES_SEASON refused 157
+# national-team legs on 10-05 that had passed every price and curve gate (all
+# 8 Nations League fixtures; France only through its World Cup). Measured on
+# 21,209 competitive national-team matches: trimming the sample to 180 days
+# makes goals_for WORSE (log-loss +0.022 [+0.018, +0.027]) and the cache
+# calibration at p >= 0.70 is flat by sample age (+0.005 / +0.004 / +0.001 for
+# 180-400 / 400-730 / >730 days). From this moment a fixture of two national
+# teams is judged by the sample's count (THIN_SAMPLE_FOR_BUILDER) and its age
+# is shown on the leg (NATIONAL_SAMPLE_AGE), never gated. Changes which legs
+# print, so never mid-day: a day >= NATIONAL_SAMPLE_AGE_DATE built at or after
+# the moment. 10-05 was live when it was written.
+NATIONAL_SAMPLE_AGE_DATE = "2026-10-06"
+NATIONAL_SAMPLE_AGE_FROM_UTC: datetime | None = datetime(2026, 10, 6, tzinfo=UTC)
+
+
+def national_sample_by_count(date: str, build_at: datetime | None = None) -> bool:
+    """Is a national-team fixture's sample judged by count, not age
+    (NATIONAL_SAMPLE_AGE_FROM_UTC)?"""
+    if NATIONAL_SAMPLE_AGE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= NATIONAL_SAMPLE_AGE_DATE and at >= NATIONAL_SAMPLE_AGE_FROM_UTC
