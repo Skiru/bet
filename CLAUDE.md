@@ -2,7 +2,7 @@
 
 ## Operator decisions 2026-10-05 (morning, before the 10-05 day)
 
-From the 10-05 coupon on (`docs/sofa/RAPORT_NOC_2026-10-05.md` section 4a):
+From the 10-05 coupon on (`docs/sofa/history/RAPORT_NOC_2026-10-05.md` section 4a):
 the **official coupon** takes confidence x odds >= 0.90 and a ladder margin up
 to 15% (until 10-04: x > 1.0, 10.5%) and prints every single in its artifact
 (the 30-single page limit lifted the same morning: "don't limit to 30"); floor
@@ -25,7 +25,7 @@ The official coupon before and after 10-05 is not one experiment.
 ## Refit epoch 2026-10-05 (installed 02:52Z, before the 10-05 day)
 
 `6fea99fd`, fitted after settling 10-04 on a cache replay rebuilt with the
-night's fixes (`docs/sofa/RAPORT_NOC_2026-10-05.md`: same-competition goal
+night's fixes (`docs/sofa/history/RAPORT_NOC_2026-10-05.md`: same-competition goal
 samples for league fixtures only - measured worse on knockouts; a
 self-contradicting score is no count; tennis games and tiebreaks off the set
 score; retirements, walkovers, Coverage canceled and tennis exhibitions out of
@@ -78,7 +78,7 @@ both late on matches Superbet had already started or moved (Seggerman - Tajima: 
 says nothing; only the clocks see it.
 
 **2026-10-04 (afternoon), history comparability - code changes what history produces from
-10-05 on; no refit installed** (report `docs/sofa/RAPORT_2026-10-04_POROWNYWALNOSC_HISTORII.md`,
+10-05 on; no refit installed** (report `docs/sofa/history/RAPORT_2026-10-04_POROWNYWALNOSC_HISTORII.md`,
 measurements `data/analysis_2026-10-04_history/`). After Farense - Chaves U3.5 lost 4-0:
 - `bet.sofa.comparability` is the ONE "does this past match count" rule for every history
   reader (samples, football/tennis rating, tennis prior, cache replay - which had no friendly
