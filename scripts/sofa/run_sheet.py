@@ -53,6 +53,8 @@ from bet.sofa.engine import (
     uses_empirical_frequency,
     winning_boundary,
 )
+from bet.sofa.epochs import STATS_ONLY
+from bet.sofa.epochs import stats_only as stats_only_epoch
 from bet.sofa.football_rating import (
     CROSS_LEAGUE_UNLINKED_NOTE,
     RATING_UNFITTED,
@@ -783,6 +785,45 @@ def tennis_forecast(
     )
 
 
+def football_forecast_p(
+    market: str,
+    sport: str,
+    values: list[float],
+    mean: float,
+    variance: float,
+    n: int,
+    rated_centre: float,
+    boundary: float,
+    direction: Literal["OVER", "UNDER"],
+) -> float | None:
+    """The football rating's own P(selection wins) - K11's "model" number.
+
+    The same predictive distribution SHEET prices a row with
+    (`sheet_predictive_sd`, the same estimator), centred on the rating's
+    expected count instead of the sample's shrunk centre. Not calibrated,
+    never a gate, never an order: shown beside the calibrated confidence.
+    """
+    if uses_empirical_frequency(market):
+        p = p_empirical_centred_raw(values, boundary, direction, rated_centre - mean)
+    else:
+        sd = sheet_predictive_sd(market, sport, mean, variance, n, rated_centre)
+        p = sheet_count_p_raw(market, rated_centre, sd, boundary, direction)
+    return None if outside_model_resolution(p) else p
+
+
+# Fields a stats-only sheet row carries; an old-rule row is written without
+# them, so a sheet built before 2026-10-05 is byte-for-byte what it was.
+STATS_ONLY_ROW_FIELDS = ("epoch", "forecast_p", "forecast_source")
+
+
+def sheet_row_json(row: SheetRow) -> dict[str, Any]:
+    out = row.model_dump(mode="json")
+    if out.get("epoch") is None:
+        for key in STATS_ONLY_ROW_FIELDS:
+            out.pop(key, None)
+    return out
+
+
 def process_fixture(
     fixture: Fixture,
     samples: FixtureSamples,
@@ -797,7 +838,16 @@ def process_fixture(
     rating: MatchForecast | None = None,
     football: FootballForecast | None = None,
     tennis_tiers: dict[str, Any] | None = None,
+    stats_only: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
+    enters p_central - no ladder centre, no rating blended with the price, no
+    empirical shrink to the rung's price, no handicap centre pulled onto the
+    ladder. A rated tennis row is then priced by the sample's estimator, as
+    the cache replay the curves were fitted on prices it, and the rating
+    (football and tennis) is published beside it as `forecast_p` - shown,
+    never calibrated, never a gate. `p_bar` / `required_odds` stay priced:
+    06_coupon.json is not the coupon."""
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
 
@@ -1018,7 +1068,8 @@ def process_fixture(
         # data pins it" (above) - never fitted on probability. A row priced
         # through it says so, like any other constant nobody fitted.
         row_unfitted = list(unfitted)
-        if fixture.sport == "tennis" and ladder_target is not None:
+        rated: tuple[float, str] | None = None
+        if fixture.sport == "tennis" and ladder_target is not None and not stats_only:
             row_unfitted.append("K_TENNIS_LADDER_CENTRE")
             w_c = n / (n + K_TENNIS_LADDER_CENTRE)
             centre = w_c * mean + (1 - w_c) * ladder_target
@@ -1126,6 +1177,23 @@ def process_fixture(
                 if rating is not None
                 else None
             )
+            # The second number (K11): the rating's own forecast, never
+            # blended with the price. Written only in the stats-only epoch.
+            forecast_p: float | None = None
+            forecast_source: str | None = None
+            if stats_only:
+                if p_rating is not None:
+                    forecast_p, forecast_source = p_rating, "tennis_rating"
+                elif rated is not None:
+                    forecast_p = football_forecast_p(
+                        rung.market, fixture.sport, values, mean, variance, n,
+                        rated[0], boundary, direction,
+                    )
+                    forecast_source = (
+                        "football_rating" if forecast_p is not None else None)
+                # The rating no longer prices the row (K1): its estimator is
+                # the sample's, as in the cache replay.
+                p_rating = None
             # A tennis p already pulled onto Superbet's price (the rating blend
             # with a price, the empirical shrink to the rung's price) is not
             # the estimator the reliability curve was fitted on. See
@@ -1145,7 +1213,7 @@ def process_fixture(
                 rung_price = market_ps.get(
                     (rung.market, rung.subject, rung.line, direction)
                 )
-                if fixture.sport == "tennis" and (
+                if fixture.sport == "tennis" and not stats_only and (
                     rung_price is not None or ladder_target is not None
                 ):
                     # The ladder shrink in probability space, not on the
@@ -1309,6 +1377,7 @@ def process_fixture(
                     row_unfitted = [*row_unfitted, "W_TENNIS_RATING"]
             tennis_price_shrink = (
                 p_rating is None
+                and not stats_only
                 and fixture.sport == "tennis"
                 and uses_empirical_frequency(rung.market)
                 and (m_p is not None or ladder_target is not None)
@@ -1336,6 +1405,7 @@ def process_fixture(
                 )
             elif (
                 p_rating is None
+                and not stats_only
                 and fixture.sport == "tennis"
                 and ladder_target is not None
                 and abs(centre - mean) > 1e-9
@@ -1464,6 +1534,11 @@ def process_fixture(
                 surplus=surplus,
                 verdict=verdict,
                 notes=notes,
+                epoch=STATS_ONLY if stats_only else None,
+                forecast_p=(
+                    round(forecast_p, 4) if forecast_p is not None else None
+                ),
+                forecast_source=forecast_source,
             )
             rows.append(row)
 
@@ -1483,11 +1558,19 @@ def process_fixture(
                 reliability, market, p, direction
             ),
         ),
-        rating_p=(rating.probability if rating is not None else None),
-        rating_note=(
-            partial(rating_note, rating) if rating is not None else None
+        rating_p=(
+            rating.probability if rating is not None and not stats_only else None
         ),
+        rating_note=(
+            partial(rating_note, rating)
+            if rating is not None and not stats_only else None
+        ),
+        stats_only=stats_only,
     )
+    if stats_only:
+        derived_rows = [
+            r.model_copy(update={"epoch": STATS_ONLY}) for r in derived_rows
+        ]
     rows.extend(derived_rows)
     skipped.extend(derived_skipped)
 
@@ -1575,6 +1658,9 @@ def main() -> int:
 
     all_rows = []
     skip_reasons: dict[str, int] = {}
+    # See bet.sofa.epochs: from the 10-05 stats-only rebuild on, the price
+    # no longer enters p_central.
+    stats_only = stats_only_epoch(args.date)
 
     try:
         for offer in offers:
@@ -1615,6 +1701,7 @@ def main() -> int:
                     else None
                 ),
                 tennis_tiers,
+                stats_only=stats_only,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
@@ -1625,7 +1712,7 @@ def main() -> int:
         write_atomic(
             sheet_path,
             json.dumps(
-                [r.model_dump(mode="json") for r in all_rows],
+                [sheet_row_json(r) for r in all_rows],
                 indent=2,
                 ensure_ascii=False,
             ),
@@ -1645,6 +1732,7 @@ def main() -> int:
         "verdict": "OK",
         "metrics": {
             "rows_generated": len(all_rows),
+            "epoch": STATS_ONLY if stats_only else "old",
             "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).

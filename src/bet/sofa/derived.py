@@ -419,7 +419,10 @@ def price_derived_rungs(
     correction_for: Callable[[str, float, str], float] | None = None,
     rating_p: Callable[[str, str | None, float, str], float | None] | None = None,
     rating_note: Callable[[str | None, float, float | None], str] | None = None,
+    stats_only: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
+    """`stats_only` (bet.sofa.epochs): the handicap centre is not pulled onto
+    the ladder (K_DERIVED_CENTRE), so p_central does not read the price."""
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
 
@@ -555,7 +558,7 @@ def price_derived_rungs(
         # scope and must keep seeing the unshifted distribution.
         centre_shrunk_to: float | None = None
         raw_diff_mean = stats_a.mean - stats_b.mean
-        if market.startswith("handicap_"):
+        if market.startswith("handicap_") and not stats_only:
             diff_ladder = _ladder_diff_centre(handicap_ladders, fixture)
             if diff_ladder is not None:
                 diff_model = stats_a.mean - stats_b.mean

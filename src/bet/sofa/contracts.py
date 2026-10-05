@@ -271,6 +271,14 @@ class SheetRow(BaseModel):
     surplus: float | None
     verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"]
     notes: list[str]
+    # bet.sofa.epochs: "stats_only" on a row built under the 2026-10-05 rule
+    # (the price is not in p_central); absent on an older sheet.
+    epoch: str | None = None
+    # K11: the rating's own forecast (football_rating / tennis_rating), never
+    # blended with the price and never calibrated - shown beside the
+    # confidence, never a gate. Stats-only rows only.
+    forecast_p: float | None = None
+    forecast_source: str | None = None
 
 
 ContextSignal = Literal[
