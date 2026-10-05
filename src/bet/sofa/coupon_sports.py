@@ -60,6 +60,9 @@ def normalize(leg: Mapping[str, Any]) -> dict[str, Any]:
     out.setdefault("sample_size", leg.get("sample_n"))
     out.setdefault("unfitted_constants", [])
     out["display_market"] = display_market(leg)
+    # Selected under the stats-only rule (SPORT_CONFIDENCE exists only in
+    # that epoch); a locked leg keeps the epoch of the build that printed it.
+    out.setdefault("epoch", "stats_only")
     return out
 
 
@@ -129,11 +132,59 @@ def apply_reads(
     return kept, removed, vetoed
 
 
+FreshClock = Callable[[Mapping[str, Any]], list[datetime]]
+
+
+def fresh_kickoffs(runs_dir: Path, date: str, at: datetime) -> FreshClock:
+    """A leg's current start clocks: Superbet's in the latest snapshot of
+    its event and Sofascore's from SPORT_IDENTITY (sport_fixtures.json).
+    A printed kickoff goes stale when Superbet moves the match; the lock and
+    the started check must read the clock as it is now (review 2026-10-05)."""
+    from bet.sofa import sport_identity as si
+
+    events: dict[str, dict[str, Any]] = {}
+    starts: dict[str, str] = {}
+    path = Path(runs_dir) / date / SPORT_FIXTURES_FILE
+    if path.exists():
+        for f in json.loads(path.read_text(encoding="utf-8")).get("fixtures") or []:
+            if f.get("sofascore_start_utc"):
+                starts[str(f["superbet_event_id"])] = str(f["sofascore_start_utc"])
+
+    def clocks(leg: Mapping[str, Any]) -> list[datetime]:
+        sport = str(leg.get("sport"))
+        if sport not in events:
+            try:
+                events[sport] = si.snapshot_events(str(runs_dir), sport, date, at)
+            except (OSError, ValueError):
+                events[sport] = {}
+        out: list[datetime] = []
+        ev = events[sport].get(str(leg.get("superbet_event_id")))
+        if ev is not None and getattr(ev, "kickoff_utc", None):
+            out.append(_utc(str(ev.kickoff_utc)))
+        if str(leg.get("superbet_event_id")) in starts:
+            out.append(_utc(starts[str(leg["superbet_event_id"])]))
+        return out
+
+    return clocks
+
+
+def started(leg: Mapping[str, Any], now: datetime,
+            fresh: FreshClock | None = None) -> bool:
+    """Inside the kickoff margin on the current clocks (the printed one when
+    no current clock is known)."""
+    clocks = fresh(leg) if fresh is not None else []
+    if not clocks:
+        clocks = [_utc(str(leg["kickoff_utc"]))]
+    return too_close_to_kickoff(clocks, now)
+
+
 def locked_sport_legs(
-    printed: Mapping[str, Any] | None, now: datetime
+    printed: Mapping[str, Any] | None, now: datetime,
+    fresh: FreshClock | None = None,
 ) -> list[dict[str, Any]]:
     """The measured-sport singles of the last printed coupon whose match has
-    started (or is inside the kickoff margin) at `now`: kept as printed."""
+    started (or is inside the kickoff margin) at `now` on the current clocks:
+    kept as printed."""
     if not printed:
         return []
     created = str(printed.get("pdf_rendered_at_utc")
@@ -147,7 +198,7 @@ def locked_sport_legs(
     for leg in printed.get("singles") or []:
         if not is_measured(leg):
             continue
-        if not too_close_to_kickoff([_utc(str(leg["kickoff_utc"]))], now):
+        if not started(leg, now, fresh):
             continue
         out.append({
             **{k: v for k, v in leg.items() if k not in ("position", "block")},

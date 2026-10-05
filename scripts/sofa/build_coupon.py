@@ -195,17 +195,33 @@ def prepare_sports(
     match has started carried over, locked, as printed."""
     vetoes = load_vetoes(run / "vetoes.json")
     reads = load_reads(run / "reads.json")
-    fresh = [cs.normalize(x) for x in sports.get("legs") or []]
-    kept, removed, vetoed = cs.apply_reads(fresh, vetoes, reads)
-    printed_path = run / PRINTED_MANIFEST
-    if not printed_path.exists() and (run / COUPON_ARTIFACT).exists():
-        printed_path = run / COUPON_ARTIFACT
-    printed = _load(printed_path) if printed_path.exists() else None
-    locked = cs.locked_sport_legs(printed, at)
+    # Only a coupon a PDF was rendered from is "printed" (12_printed.json,
+    # else an 11 whose PDF is at least as new) - a provisional 11 built
+    # before the analysts' read never was (review 2026-10-05).
+    printed: dict[str, Any] | None = None
+    eleven, pdf = run / COUPON_ARTIFACT, run / f"KUPON_{run.name}.pdf"
+    if (run / PRINTED_MANIFEST).exists():
+        printed = _load(run / PRINTED_MANIFEST)
+    elif (eleven.exists() and pdf.exists()
+          and pdf.stat().st_mtime >= eleven.stat().st_mtime):
+        printed = _load(eleven)
+    fresh_clock = cs.fresh_kickoffs(run.parent, run.name, at)
+    locked = cs.locked_sport_legs(printed, at, fresh_clock)
     locked_keys = {cs.sport_key(x) for x in locked}
-    kept = [x for x in kept if cs.sport_key(x) not in locked_keys]
+    fresh = [cs.normalize(x) for x in sports.get("legs") or []
+             if cs.sport_key(cs.normalize(x)) not in locked_keys]
+    # A fresh leg whose match has started since SPORT_CONFIDENCE ran is not
+    # a bet any more (the artifact is not re-timed by itself).
+    started = [x for x in fresh if cs.started(x, at, fresh_clock)]
+    fresh = [x for x in fresh if not cs.started(x, at, fresh_clock)]
+    kept, removed, vetoed = cs.apply_reads(fresh, vetoes, reads)
+    # A veto / read covering a locked leg does not remove it (its match is
+    # under way): shown, never acted on - like locked_late_refusals.
+    _, late, _ = cs.apply_reads(locked, vetoes, reads)
     return {**sports, "legs": [*locked, *kept], "removed_by_reads": removed,
-            "vetoed": vetoed}
+            "vetoed": vetoed, "started_since_build": len(started),
+            "locked_late_refusals": [
+                {"key": list(cs.sport_key(x)), "refusal": x["refusal"]} for x in late]}
 
 
 def render_md(doc: dict[str, Any], date: str) -> str:

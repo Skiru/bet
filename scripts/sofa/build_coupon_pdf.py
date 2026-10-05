@@ -850,8 +850,10 @@ def render_stats_only(
             rows.append([
                 Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
                           f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>", small),
-                Paragraph(f"{leg.get('market')}{escape(subj)}", small),
-                Paragraph(f"{leg.get('line')} {leg.get('direction')}", small),
+                Paragraph(escape(str(leg["display_market"])) if leg.get(
+                    "display_market") else f"{leg.get('market')}{escape(subj)}", small),
+                Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
+                          f"{leg.get('direction')}", small),
                 Paragraph(f"{leg['confidence']:.3f}", small),
                 Paragraph(f"{leg.get('offered_odds')}", small),
                 Paragraph(str(leg.get("printed_at_utc") or "")[11:16] + "Z", small),

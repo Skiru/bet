@@ -442,9 +442,20 @@ def window(date: str) -> list[str]:
 Snaps = dict[str, dict[str, SnapInfo]]
 
 
+def snaps_window(date: str) -> list[str]:
+    """D-2..D+2: every date a record of D-1..D+1 (the files a settle of D
+    rewrites) can have moved to or from. With D-1..D+1 only, a settle of D-2
+    rewrote D-1 without seeing D's snapshot and reverted D-1's MOVED_TO:D
+    every morning - the game was counted on both days again (review
+    2026-10-05)."""
+    day = datetime.strptime(date, "%Y-%m-%d")
+    return [(day + timedelta(days=n)).strftime("%Y-%m-%d") for n in range(-2, 3)]
+
+
 def load_snaps(date: str, day_dir: Callable[[str], Path], snapshots_file: str) -> Snaps:
-    """The snapshot index of every date of `date`'s window."""
-    return {d: snapshot_index(day_dir(d) / snapshots_file) for d in window(date)}
+    """The snapshot index of every date a record of `date`'s window can
+    involve (snaps_window)."""
+    return {d: snapshot_index(day_dir(d) / snapshots_file) for d in snaps_window(date)}
 
 
 def _files(

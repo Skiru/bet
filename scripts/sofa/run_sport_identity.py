@@ -60,8 +60,17 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
         "created_at_utc": si.iso(at),
         "date": date,
         "day_window_utc": [si.iso(t) for t in si.day_window(date)],
-        "sports_run": sports,
+        # Every sport with records in the file, not only this run's: a
+        # `--sport hockey` re-run must not make SPORT_CONFIDENCE read the
+        # other sports as never identified (review 2026-10-05).
         **summary,
+        "sports_run": sorted(
+            set(sports) | set((prior or {}).get("sports_run") or [])),
+        **(
+            {"sports": {**((prior or {}).get("sports") or {}),
+                        **(summary.get("sports") or {})}}
+            if isinstance(summary.get("sports"), dict) else {}
+        ),
         "fixtures": kept + records,
     }
     write_atomic(out, json.dumps(doc, indent=1, ensure_ascii=False) + "\n")

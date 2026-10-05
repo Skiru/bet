@@ -116,3 +116,65 @@ def test_the_coupon_orders_both_sources_together():
         (1, 900), (2, 1)]
     assert doc["built_from"]["08_confidence_sports.json"] == "y"
     assert doc["removed_by_reads"] == [{"sofascore_event_id": 5}]
+
+
+def _printed(**extra: Any) -> dict[str, Any]:
+    return {"profile": "standard", "epoch": "stats_only",
+            "created_at_utc": "2026-10-07T09:00:00Z",
+            "pdf_rendered_at_utc": "2026-10-07T09:01:00Z",
+            "singles": [cs.normalize(_sport_leg(**extra))]}
+
+
+def test_a_match_moved_earlier_locks_on_the_fresh_clock():
+    """Review 2026-10-05: printed for 18:00, moved to 12:00, rebuilt 12:30 -
+    the leg was dropped (the lock read the printed clock)."""
+    now = datetime(2026, 10, 7, 12, 30, tzinfo=UTC)
+    moved = lambda leg: [datetime(2026, 10, 7, 12, 0, tzinfo=UTC)]  # noqa: E731
+    assert cs.locked_sport_legs(_printed(), now) == []
+    assert len(cs.locked_sport_legs(_printed(), now, moved)) == 1
+    later = lambda leg: [datetime(2026, 10, 7, 22, 0, tzinfo=UTC)]  # noqa: E731
+    at_18 = datetime(2026, 10, 7, 17, 50, tzinfo=UTC)
+    assert cs.locked_sport_legs(_printed(), at_18, later) == []
+
+
+def _run(tmp_path, pdf_newer: bool, manifest: bool, reads: list[dict[str, Any]]):
+    import json
+    import os
+
+    from scripts.sofa.build_coupon import prepare_sports
+
+    run = tmp_path / "2026-10-07"
+    run.mkdir()
+    eleven = {"profile": "standard", "epoch": "stats_only",
+              "created_at_utc": "2026-10-07T09:00:00Z",
+              "singles": [cs.normalize(_sport_leg(kickoff_utc="2026-10-07T12:00:00Z"))]}
+    (run / "11_coupon.json").write_text(json.dumps(eleven))
+    pdf = run / "KUPON_2026-10-07.pdf"
+    pdf.write_bytes(b"%PDF")
+    t = (run / "11_coupon.json").stat().st_mtime + (5 if pdf_newer else -5)
+    os.utime(pdf, (t, t))
+    if manifest:
+        (run / "12_printed.json").write_text(json.dumps(
+            {**eleven, "pdf_rendered_at_utc": "2026-10-07T09:01:00Z"}))
+    (run / "vetoes.json").write_text("[]")
+    (run / "reads.json").write_text(json.dumps(reads))
+    sports = {"legs": [_sport_leg(kickoff_utc="2026-10-07T12:00:00Z")]}
+    return prepare_sports(run, sports, datetime(2026, 10, 7, 12, 5, tzinfo=UTC))
+
+
+WATCH = {"sofascore_event_id": 900, "market": "total", "subject": None, "line": 5.5,
+         "direction": "OVER", "verdict": "WATCH", "author": "verifier", "reason": "r"}
+
+
+def test_an_unprinted_build_locks_nothing(tmp_path):
+    doc = _run(tmp_path, pdf_newer=False, manifest=False, reads=[])
+    assert not any(x.get("locked") for x in doc["legs"])
+    # and the started fresh leg is not printed either
+    assert doc["legs"] == [] and doc["started_since_build"] == 1
+
+
+def test_a_read_on_a_locked_sport_leg_is_a_late_refusal_not_a_removal(tmp_path):
+    doc = _run(tmp_path, pdf_newer=True, manifest=True, reads=[WATCH])
+    assert [x.get("locked") for x in doc["legs"]] == [True]
+    assert doc["removed_by_reads"] == []
+    assert doc["locked_late_refusals"][0]["refusal"] == "WATCHED"

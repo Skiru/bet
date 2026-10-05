@@ -1063,3 +1063,47 @@ def test_old_records_without_the_new_fields_read_as_before() -> None:
     }
     assert si.record_name_scores("shadow", old) == {"team1": 100.0, "team2": 100.0}
     assert si.record_name_scores("shadow", {"state": "NOT_ON_SOFASCORE"}) is None
+
+
+def test_a_settle_two_days_back_does_not_revert_a_moved_mark(tmp_path: Path) -> None:
+    """Review 2026-10-05: settling D-2 rewrote D-1 without D's snapshot in
+    view and reverted D-1's MOVED_TO:D every morning (double counting)."""
+    import json as _json
+
+    from bet.sofa import settle_identity as sid
+
+    def dd(d: str) -> Path:
+        p = tmp_path / d
+        p.mkdir(exist_ok=True)
+        return p
+
+    def snap(d: str, at: str) -> None:
+        with open(dd(d) / "snaps.jsonl", "a") as f:
+            f.write(_json.dumps({"superbet_event_id": "E", "fetched_at_utc": at,
+                                 "kickoff_utc": "2026-10-03T23:30:00Z",
+                                 "team1": "A Team", "team2": "B Team"}) + "\n")
+
+    snap("2026-10-02", "2026-10-02T10:00:00Z")
+    snap("2026-10-03", "2026-10-03T20:00:00Z")
+    rec = {"state": "SETTLED", "sofascore_event_id": 1,
+           "match_name": "A Team · B Team",
+           "sofascore_match": "A Team - B Team", "home_is_team1": True}
+    for d in ("2026-10-01", "2026-10-02", "2026-10-03"):
+        (dd(d) / "settled.json").write_text(_json.dumps(
+            {"date": d, "events": {} if d == "2026-10-01" else {"E": dict(rec)}}))
+
+    def settle(date: str) -> None:
+        ev = sid.load_events(dd(date) / "settled.json")
+        snaps = sid.load_snaps(date, dd, "snaps.jsonl")
+        done, _ = sid.reconcile("shadow", date, ev, dd, "settled.json", snaps)
+        (dd(date) / "settled.json").write_text(_json.dumps({"date": date, "events": done}))
+        sid.reconcile_neighbours("shadow", date, done, dd, "settled.json", snaps)
+
+    def state(d: str) -> str:
+        return str(sid.load_events(dd(d) / "settled.json")["E"]["state"])
+
+    settle("2026-10-03")
+    assert state("2026-10-02") == "MOVED_TO:2026-10-03"
+    settle("2026-10-01")  # the morning's D-2 settle
+    assert state("2026-10-02") == "MOVED_TO:2026-10-03"
+    assert state("2026-10-03") == "SETTLED"

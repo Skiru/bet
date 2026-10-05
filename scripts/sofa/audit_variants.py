@@ -496,8 +496,10 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
             sofascore_event_id=int(leg["sofascore_event_id"]),
             market=str(leg["market"]),
             subject=str(leg.get("subject") or ""),
-            line=float(leg["line"]),
+            # None on a winner / 1X2 sport leg; a sport read names its period
+            line=float(leg["line"]) if leg.get("line") is not None else None,
             direction=str(leg["direction"]),
+            period=int(leg["period"]) if leg.get("period") is not None else None,
         )
         label = f"{tag} {leg.get('match', '')} {leg['market']} {leg['line']}"
         # A locked single carries the reads it was printed with.

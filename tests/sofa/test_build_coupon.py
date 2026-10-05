@@ -238,3 +238,21 @@ def test_u1_u2_hold_on_an_assembled_coupon_and_catch_a_shuffle():
     assert any(f.startswith("U1") for f in found)
     old = {**doc, "singles": [{**s, "epoch": None} for s in doc["singles"]]}
     assert any(f.startswith("U2") for f in audit_coupon_order(old, "official"))
+
+
+def test_c3_reads_a_line_less_sport_leg_by_its_period(tmp_path):
+    import json as _json
+
+    from scripts.sofa.audit_variants import audit_reads
+
+    leg = {"sofascore_event_id": 9, "market": "winner", "subject": "", "line": None,
+           "direction": "T1", "period": 2, "sport": "hockey", "position": 1,
+           "confidence": 0.8, "kickoff_utc": "2026-10-07T18:00:00Z", "match": "A - B"}
+    doc = {"positions": 1, "singles": [leg], "builders": [], "pdf_max_singles": None}
+    read = {"sofascore_event_id": 9, "market": "winner", "subject": None, "line": None,
+            "direction": "T1", "verdict": "WATCH", "author": "analyst", "reason": "r",
+            "period": 1}
+    (tmp_path / "reads.json").write_text(_json.dumps([read]))
+    found = audit_reads(tmp_path, doc, "official")
+    # the period-1 WATCH neither refuses nor reads the period-2 leg
+    assert found == ["C3 official A - B winner None: printed without an analyst's read"]

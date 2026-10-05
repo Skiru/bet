@@ -250,8 +250,12 @@ def settle_singles(
     units = 0.0
     conf_sum = 0.0
     for sgl in singles:
-        g = by_key.get((sgl["sofascore_event_id"], sgl["market"], sgl["subject"] or "",
-                        float(sgl["line"]), sgl["direction"]))
+        # A measured sport's leg arrives graded (coupon_sports.grade).
+        g = {"outcome": sgl["_outcome"]} if "_outcome" in sgl else by_key.get(
+            (sgl["sofascore_event_id"], sgl["market"], sgl["subject"] or "",
+             float(sgl["line"]), sgl["direction"]))
+        if g is not None and str(g["outcome"]) not in ("WIN", "LOSS", "PUSH", REFUND):
+            g = None  # pending / not graded
         if g is not None and g["outcome"] == REFUND:
             refunded += 1  # moved > 48 h / awarded: the stake back, 0 units
             continue
@@ -912,12 +916,22 @@ def main() -> int:
                 lines.extend(render_stats_only_split(singles, coupon_by_key))
 
         # ---- 7i. the legs a read removed (stats-only days, plan K6) -----
-        removed = [r for r in conf.get("removed_by_reads") or []
-                   if is_sheet_sport(r)]
-        if removed:
+        all_removed = conf.get("removed_by_reads") or []
+        removed = [r for r in all_removed if is_sheet_sport(r)]
+        removed_sports = [r for r in all_removed if not is_sheet_sport(r)]
+        if removed or removed_sports:
+            from bet.sofa import coupon_sports
+            from bet.sofa.timeutil import now as _now
+
             removed_by_key = coupon_settled_by_key(
                 config.db_path, run_dir, args.date, {_key(r) for r in removed})
-            lines.extend(render_removed_by_reads(removed, removed_by_key))
+            graded_sports = [
+                {**g, "_outcome": g["outcome"], "offered_odds": g["odds"]}
+                for g in coupon_sports.grade(
+                    config.runs_dir, args.date, removed_sports, _now())
+            ]
+            lines.extend(render_removed_by_reads(
+                [*removed, *graded_sports], removed_by_key))
 
     # ---- 7d. the operator's variant, settled beside the coupon ----------
     #
