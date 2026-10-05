@@ -81,6 +81,38 @@ Sporty mierzone:
 5. **Populacja gemów tenisa w replayu** (mecze bez `/statistics`) — zmierzyć
    osobno przed włączeniem.
 
+### 4a. Decyzje operatora — 2026-10-05 rano, przed dniem 10-05
+
+Obowiązują od kuponu 10-05; wcześniejsze dni to inny eksperyment i nie są
+łączone z późniejszymi.
+
+- **Kupon oficjalny:** pewność × kurs ≥ 0,90 i marża linii do 15% (do 10-04:
+  x > 1,00 i 10,5%); próg pewności 0,70, 30 pojedynczych na PDF i honorowanie
+  WATCH bez zmian. Próg pewności 0,80 rozważony i odrzucony („chcę mieć dużo
+  opcji”). WARIANT bez zmian (0,65 / x ≥ 0,90 / 15%). Pomiar
+  (`measure_disagreement.py`, 09-24..10-04, jedna krzywa, bez limitu marży):
+  piłka stara reguła 2574 wierszy ROI −4,5% [−7,2; −2,0], nowa 8871 wierszy
+  −4,8% [−6,1; −3,4]; tenis 151 wierszy −5,1% [−15,3; +5,3] → 3559 wierszy
+  −3,8% [−5,7; −1,9]. Więcej wyboru przy tej samej stracie na zakład — nie
+  przewaga. Commit `ec7af960`.
+- **Pkt 1 — tak:** noga wydrukowana przed startem meczu się liczy. Przebudowa
+  zachowuje na kuponie (zablokowane, „w grze”) nogi, których mecz już
+  wystartował; noga usunięta przebudową *przed* startem zostaje usunięta.
+- **Pkt 2 — bez zmian:** krecz jak dotąd (rynki rozstrzygnięte przed kreczem
+  nie są rozliczane).
+- **Pkt 3 — tak**, plus kupony sportowe (CS2, hokej, koszykówka, siatkówka):
+  p × kurs ≥ 0,90 i marża do 15%; hokej i koszykówka drukują i progują
+  p = a + c·logit(fair p) (`scripts/sofa/fit_sport_price_calibration.py`,
+  `config/sofa_sport_price_calibration.json`, linie 09-29..10-03: hokej
+  c = 0,893, LODO 0,869–0,914; koszykówka c = 0,888, LODO 0,845–0,918).
+  Uwaga: devig Superbetu zrzuca marżę na outsidera, faworyt ma x ≈ 0,95 nawet
+  przy 15% marży — próg 0,90 rzadko decyduje.
+- **Pkt 4 — tak:** noga siatkówki wymaga turnieju z ≥1 rozliczonym meczem
+  w ostatnich 14 dniach pomiaru.
+- **Pkt 5 — tak:** zmierzyć osobno przed następnym refitem.
+- **Propsy piłkarskie zostają** w `admitted_player_markets` (operator).
+- Commity nocy wypchnięte na `origin/main`.
+
 ## 5. Inne sporty — pomiar (`data/analysis_2026-10-04_shadow/RAPORT.md`)
 
 Na 5 rozliczonych dniach żaden model (hokej, koszykówka, siatkówka) nie bije

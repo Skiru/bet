@@ -1,5 +1,23 @@
 # Working agreement — `bet`
 
+## Operator decisions 2026-10-05 (morning, before the 10-05 day)
+
+From the 10-05 coupon on (`docs/sofa/RAPORT_NOC_2026-10-05.md` section 4a):
+the **official coupon** takes confidence x odds >= 0.90 and a ladder margin up
+to 15% (until 10-04: x > 1.0, 10.5%); floor 0.70, 30 singles, WATCH honoured -
+unchanged. A 0.80 confidence floor was considered and declined ("many options").
+Measured (football 09-24..10-04): 2574 rows -4.5% -> 8871 rows -4.8% - volume,
+not edge. **Sport coupons** (`sport_coupon.rule_for`, `RULE_CUTOVER`): p x odds
+>= 0.90, margin <= 15%; hockey and basketball print and gate on
+p = a + c*logit(fair_p) (`config/sofa_sport_price_calibration.json`, fitted by
+`fit_sport_price_calibration.py --before <d>`, never mid-day); a volleyball leg
+needs a tournament with a SETTLED event in the last 14 days. **A leg printed
+before its start counts**: a rebuild keeps (locked) the legs whose match had
+started; a leg removed before its start stays removed. Unchanged by decision:
+tennis retirements, the seven admitted player props. Before the next refit:
+measure the tennis games population of replay matches without `/statistics`.
+The official coupon before and after 10-05 is not one experiment.
+
 ## Refit epoch 2026-10-05 (installed 02:52Z, before the 10-05 day)
 
 `6fea99fd`, fitted after settling 10-04 on a cache replay rebuilt with the
@@ -164,6 +182,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # the whole shadow day, unattended; morning settles D, D-1 and D-2 (a postponed game voids only 48 h on), grades their sport coupons, records them; --chain starts D+1 after the 05:15Z settle
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_coupon.py --date <d> --sport {cs2|hockey|basketball|volleyball|all}   # experimental per-sport coupon, beside the measurement
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <d> --to <d> [--sport hockey]   # grade it at the printed price (after CS2_SETTLE / SHADOW_SETTLE)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_price_calibration.py --before <d> [--dry-run]   # hockey/basketball price recalibration a + c*logit(fair_p) -> config/sofa_sport_price_calibration.json; between days only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_multi_coupon.py --date <d>        # WARIANT WSZYSTKIE: the official PDF + four sport coupons, verbatim, runs/sofa/multi/<d>/
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>          # re-derive the sport coupons from raw snapshots; WSZYSTKIE vs its sources
@@ -190,7 +209,9 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
 - **Never invent** a number, a fixture, a price or an availability.
 - **`KUPON_<date>_WARIANT.pdf` is not the coupon either.** It is the
   operator's variant (floor 0.65, confidence x odds >= 0.90, and since
-  2026-09-23 13:30 UTC a ladder margin up to 15% against the coupon's 10.5%),
+  2026-09-23 13:30 UTC a ladder margin up to 15% against the coupon's 10.5%;
+  since 2026-10-05 the coupon shares both price dials and differs by its 0.70
+  floor, 30 singles and honouring WATCH),
   measured -3.2% per bet against the official -2.9% before it was added (with
   the 10.5% margin - the two settings are different experiments). It is built into its
   own files, settled beside the coupon (audit_settlement section 7d), and its
@@ -211,8 +232,9 @@ SAMPLES is the normal shape of a healthy run; only `FAILED` stops you.
   (`runs/sofa/cs2/<d>/`, `runs/sofa/shadow/<sport>/<d>/`), never into
   `runs/sofa/<d>/`. Price-only - the coupon reads no model (score_model.py and
   the CS2 engine are measurements), so the
-  probability is Superbet's devigged price and EV at that price is minus the
-  margin; singles only; graded by `settle_sport_coupon.py` per sport and never
+  probability is Superbet's devigged price (since 2026-10-05 recalibrated for
+  hockey and basketball, fitted on the shadow lines - still no model) and EV
+  at that price is minus the margin; singles only; graded by `settle_sport_coupon.py` per sport and never
   pooled with the coupon or with each other. The rule replayed on the one
   settled hockey day (09-29) went 33/46 against a mean fair p of 85.1%,
   ROI -17.7%. The CS2 / SHADOW rules above still hold: nothing from these
