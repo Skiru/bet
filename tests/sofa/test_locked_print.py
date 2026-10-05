@@ -586,6 +586,15 @@ def test_audit_variants_checks_a_locked_leg_against_its_own_build(
     path.write_text(json.dumps(doc))
     c2 = [f for f in audit_confidence(str(day), DAY, "wariant") if f.startswith("C2")]
     assert len(c2) == 1 and "printed after its kickoff" in c2[0]
+    # ... unless the match REALLY began after the print (FIXTURE_CHECK's
+    # fresh start; 10-05, Grenier: printed clock 09:00Z, began 09:40Z).
+    status = day / DAY / "fixture_status.json"
+    status.write_text(json.dumps({"checked_at_utc": "2026-01-01T12:00:00Z", "events": {
+        "2": {"status": "inprogress", "start_utc": "2026-01-01T11:40:00Z",
+              "checked_at_utc": "2026-01-01T12:00:00Z"}}}))
+    c2 = [f for f in audit_confidence(str(day), DAY, "wariant") if f.startswith("C2")]
+    assert c2 == []
+    status.unlink()
     # And one without its print stamp cannot be checked: a finding.
     del doc["singles"][0]["printed_at_utc"]
     path.write_text(json.dumps(doc))

@@ -61,6 +61,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import cs2, shadow  # noqa: E402
+from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import multi_coupon as mc  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -75,6 +76,7 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY  # noqa: E402
+from bet.sofa.locked_print import started_by_evidence  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
     matching_reads,
@@ -355,6 +357,19 @@ def audit_sport(
     return out
 
 
+def _superbet_started(run: Path) -> dict[int, str]:
+    """{event id: superbet_started_utc} from the day's 04_offer.json."""
+    path = run / "04_offer.json"
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    offers = raw if isinstance(raw, list) else raw.get("fixtures") or []
+    return {
+        int(o["sofascore_event_id"]): str(o["superbet_started_utc"])
+        for o in offers if o.get("superbet_started_utc")
+    }
+
+
 def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
     """C1/C2 for one confidence profile. The dials are the artifact's own
     (confidence_floor, min_ev, max_overround): a day is checked against the
@@ -411,6 +426,10 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
     doc_built = (
         _utc(str(doc["created_at_utc"])) if doc.get("created_at_utc") else None
     )
+    # A locked single is judged on when its match REALLY started (the lock's
+    # rule, locked_print.started_by_evidence), not on its printed clock: 10-05,
+    # Grenier was printed 09:00Z, began 09:40Z, after the 09:19Z print.
+    started_by = started_by_evidence(_superbet_started(run), fs.load(run))
     for single in printed_singles(doc):
         conf, odds = float(single["confidence"]), float(single["offered_odds"])
         label = f"{tag} {single['match']} {single['market']} {single['line']}"
@@ -437,7 +456,12 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
         ov = single.get("overround")
         if ov is None or float(ov) > max_ov + TOL:
             out.append(f"C2 {label}: margin {ov} above {max_ov}")
-        if built is not None and _utc(str(single["kickoff_utc"])) <= built:
+        if built is not None and (
+            started_by(int(single["sofascore_event_id"]),
+                       str(single["kickoff_utc"]), built)
+            if single.get("locked")
+            else _utc(str(single["kickoff_utc"])) <= built
+        ):
             out.append(f"C2 {label}: printed after its kickoff")
     if profile_name == "standard" and date >= READS_CUTOVER:
         out += audit_reads(run, doc, tag)

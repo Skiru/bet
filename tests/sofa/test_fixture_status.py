@@ -91,3 +91,20 @@ def test_an_event_payload_gives_status_and_start():
                          "startTimestamp": 1759670400}}
     e = fs.entry_from_payload(payload, "printed", datetime(2026, 10, 5, tzinfo=UTC))
     assert e["status"] == "postponed" and e["start_utc"].startswith("2025-10-05")
+
+
+def test_a_match_only_on_the_printed_record_is_still_checked(tmp_path):
+    # 10-05: a rebuild took Grenier's leg off 11_coupon.json while the
+    # operator held it on the 09:19Z PDF; FIXTURE_CHECK stopped asking, so
+    # the lock judged it on the stale printed clock.
+    import json
+
+    from scripts.sofa.run_fixture_check import printed_event_ids
+
+    run = tmp_path / "2026-10-05"
+    run.mkdir()
+    eleven = {"pdf_max_singles": None, "singles": [{"sofascore_event_id": 1}]}
+    printed = {"pdf_max_singles": None, "singles": [{"sofascore_event_id": 2}]}
+    (run / "11_coupon.json").write_text(json.dumps(eleven))
+    (run / "12_printed.json").write_text(json.dumps(printed))
+    assert printed_event_ids(run) == {1, 2}

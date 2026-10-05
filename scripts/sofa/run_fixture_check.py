@@ -39,17 +39,23 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.errors import SofaError  # noqa: E402
+from bet.sofa.locked_print import PRINTED_MANIFEST  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 
 def printed_event_ids(run: Path) -> set[int]:
-    path = coupon_artifact(run)
-    if not path.exists():
-        return set()
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    ids = {int(s["sofascore_event_id"]) for s in printed_singles(doc)}
-    ids |= {int(b["sofascore_event_id"]) for b in printed_builders(doc)}
+    """The matches of the coupon artifact and of the last printed coupon
+    (PRINTED_MANIFEST): the lock judges "printed before its start" on the
+    fresh start of a leg the operator holds on paper even after a rebuild
+    took it off the artifact (10-05: Grenier, Bronzetti - Crawley)."""
+    ids: set[int] = set()
+    for path in (coupon_artifact(run), run / PRINTED_MANIFEST):
+        if not path.exists():
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        ids |= {int(s["sofascore_event_id"]) for s in printed_singles(doc)}
+        ids |= {int(b["sofascore_event_id"]) for b in printed_builders(doc)}
     return ids
 
 
