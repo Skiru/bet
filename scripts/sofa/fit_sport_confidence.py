@@ -166,6 +166,11 @@ def _f(v: Any, nd: int = 3) -> str:
     return "-" if v is None else f"{v:.{nd}f}"
 
 
+def _k(key: str) -> str:
+    """A curve key in a Markdown cell: its "|" escaped."""
+    return key.replace("|", "\\|")
+
+
 def tables_markdown(doc: dict[str, Any]) -> str:
     """The calibration file's per-sport results as Markdown (report F5)."""
     out: list[str] = []
@@ -189,13 +194,14 @@ def tables_markdown(doc: dict[str, Any]) -> str:
             for pop, res in sec["oos"].items():
                 r = res.get(key)
                 if not r or not r.get("n"):
-                    out.append(f"| {key} | {status} | {pop} | 0 | | | | | | | | | | |")
+                    out.append(f"| {_k(key)} | {status} | {pop} | 0 |"
+                               + " |" * 10)
                     continue
                 gap = r["realised_minus_confidence"]
                 pr = r.get("printable") or {}
                 pgap = pr.get("realised_minus_confidence")
                 out.append(
-                    f"| {key} | {status} | {pop} | {r['n']} | {r['games']} | "
+                    f"| {_k(key)} | {status} | {pop} | {r['n']} | {r['games']} | "
                     f"{_f(r['confidence'])} | {_f(r['realised'])} | "
                     f"{gap[0]:+.3f} [{gap[1]:+.3f}; {gap[2]:+.3f}] | "
                     f"{_f(r['logloss_confidence'], 4)} | {_f(r['logloss_model'], 4)} | "
@@ -210,7 +216,7 @@ def tables_markdown(doc: dict[str, Any]) -> str:
             for pop, res in sec["oos"].items():
                 for label, b in ((res.get(key) or {}).get("buckets") or {}).items():
                     if b["n"] >= scf.MIN_BUCKET:
-                        out.append(f"| {key} | {pop} | {label} | {b['n']} | "
+                        out.append(f"| {_k(key)} | {pop} | {label} | {b['n']} | "
                                    f"{_f(b['confidence'])} | {_f(b['realised'])} | "
                                    f"{b['gap']:+.3f} |")
         out.append("")

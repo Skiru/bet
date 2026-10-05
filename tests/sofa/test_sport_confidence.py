@@ -393,5 +393,5 @@ def test_the_fit_scripts_tables_read_the_calibration_file():
         "curves": curves, "admitted": ["total|OVER"], "not_calibrated": {},
         "oos": {"history_holdout": oos}}}}
     text = fsc.tables_markdown(doc)
-    assert "| total|OVER | ADMITTED | history_holdout | 250 |" in text
+    assert "| total\\|OVER | ADMITTED | history_holdout | 250 |" in text
     assert "0.800-0.825" in text
