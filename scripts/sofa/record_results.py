@@ -47,9 +47,9 @@ from bet.sofa import multi_coupon as mc  # noqa: E402
 from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
-    confidence_artifact,
     printed_builders,
     printed_singles,
+    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import one_side_per_line, summarize, write_atomic  # noqa: E402
@@ -112,7 +112,8 @@ def estimated_builders(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
     out = []
     for variant, profile in (("official", "standard"), ("wariant", "wariant")):
-        path = mc.official_dir(runs_dir, date) / confidence_artifact(PROFILES[profile])
+        # The coupon artifact (11_coupon.json on a stats-only day, K3).
+        path = profile_artifact_path(mc.official_dir(runs_dir, date), PROFILES[profile])
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))

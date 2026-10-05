@@ -38,7 +38,7 @@ from typing import Any, NamedTuple, cast
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
-from bet.sofa.confidence import PROFILES, confidence_artifact
+from bet.sofa.confidence import PROFILES, profile_artifact_path
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import get_connection, migrate
@@ -692,9 +692,11 @@ def printed_keys(run_dir: Path) -> set[LegKey]:
     """Every rung either confidence profile's PDF prints for the day."""
     keys: set[LegKey] = set()
     for profile in PROFILES.values():
-        path = run_dir / confidence_artifact(profile)
+        # The coupon artifact (11_coupon.json on a stats-only day, K3).
+        path = profile_artifact_path(run_dir, profile)
         if path.exists():
-            keys |= printed_leg_keys(json.loads(path.read_text(encoding="utf-8")))
+            keys |= printed_leg_keys(
+                json.loads(path.read_text(encoding="utf-8")), sheet_sports_only=True)
     return keys
 
 

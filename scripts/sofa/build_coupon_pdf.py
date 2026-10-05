@@ -49,17 +49,19 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_MINUTES_TO_KICKOFF,
     PROFILES,
     confidence_artifact,
+    coupon_artifact,
     displayed_ev,
     fixture_leg_counts,
     ladder_key,
     ladder_leg_counts,
     printed_builders,
     printed_singles,
-    quantity_family,
+    profile_retired,
     too_close_to_kickoff,
 )
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 # Helvetica's built-in encoding has no Latin-2, so every Polish diacritic in
@@ -236,6 +238,40 @@ def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
     return None
 
 
+def coupon_older_than_sources(run: Path) -> str | None:
+    """Why 11_coupon.json must not be printed: it is older than one of the
+    artifacts it was assembled from (build_coupon.py, K3)."""
+    eleven = run / "11_coupon.json"
+    if not eleven.exists():
+        return None
+    for source in ("08_confidence.json", "08_confidence_sports.json",
+                   "read_requests.json"):
+        path = run / source
+        if path.exists() and eleven.stat().st_mtime < path.stat().st_mtime:
+            return (
+                f"STALE_COUPON: 11_coupon.json is older than {source} - run "
+                "build_coupon.py for this day before the PDF"
+            )
+    return None
+
+
+def single_sample(leg: dict[str, Any]) -> str:
+    """The leg's own sample on the page: k/n where the leg carries its hit
+    rate, else n."""
+    rate, n = leg.get("sample_hit_rate"), leg.get("sample_observations")
+    if leg.get("sample_k") is not None and leg.get("sample_n"):
+        return f"{leg['sample_k']}/{leg['sample_n']}"
+    if rate is not None and n:
+        return f"{round(float(rate) * int(n))}/{n}"
+    return f"n={leg.get('sample_size', '—')}"
+
+
+def leg_x(leg: dict[str, Any]) -> float:
+    if leg.get("x") is not None:
+        return float(leg["x"])
+    return float(leg["confidence"]) * float(leg["offered_odds"])
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--date", required=True)
@@ -264,9 +300,21 @@ def main() -> int:
     if refusal:
         print(refusal, file=sys.stderr)
         return 2
-    doc_json = json.loads(
-        (run / confidence_artifact(profile)).read_text(encoding="utf-8")
-    )
+    now = timeutil.now()  # the one clock (bet.sofa.timeutil)
+    if profile_retired(profile, args.date, now):
+        print(f"REFUSED: the {profile.name} profile is retired (plan "
+              "2026-10-05, K5: one coupon)", file=sys.stderr)
+        return 2
+    # The coupon artifact (K3): 11_coupon.json on a stats-only day.
+    artifact = confidence_artifact(profile)
+    if profile.name == "standard":
+        artifact = coupon_artifact(run).name
+    doc_json = json.loads((run / artifact).read_text(encoding="utf-8"))
+    so = artifact_epoch(doc_json) == STATS_ONLY
+    if so and artifact != "11_coupon.json":
+        print("REFUSED: a stats-only 08_confidence.json is not the coupon - "
+              "run build_coupon.py first (11_coupon.json)", file=sys.stderr)
+        return 2
     # The artifact names the profile it was built with. A variant JSON renamed
     # into the official slot (or the reverse) must not print under the wrong
     # banner, because the banner is what tells the operator which one he holds.
@@ -278,7 +326,8 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-    stale = confidence_older_than_sheet(run, confidence_artifact(profile))
+    stale = confidence_older_than_sheet(run, confidence_artifact(profile)) or (
+        coupon_older_than_sources(run) if so else None)
     if stale:
         print(stale, file=sys.stderr)
         return 2
@@ -289,7 +338,6 @@ def main() -> int:
     raw = (run / "02_fixtures.json").read_bytes()
     fx_obj = {f.sofascore_event_id: f for f in RootModel[list[Fixture]].model_validate_json(raw).root}
     fx_raw = {f["sofascore_event_id"]: f for f in json.loads(raw)}
-    now = timeutil.now()  # the one clock (bet.sofa.timeutil)
 
     legs_idx = {
         (l["sofascore_event_id"], l["market"], l["subject"], l["line"], l["direction"]): l
@@ -357,8 +405,12 @@ def main() -> int:
     # global 10.5% even on the variant, whose limit is 15% and whose rows
     # print margins above 10.5% one column over.
     max_overround = doc_json.get("max_overround", MAX_OVERROUND)
-    # Locked builders first (they are already in play), then by EV.
-    picks.sort(key=lambda b: (not b.get("locked"), -b[ev_key]))
+    # Locked builders first (they are already in play), then by EV - or, in
+    # the stats-only epoch (K10), by the combined probability.
+    if so:
+        picks.sort(key=lambda b: (not b.get("locked"), -b["combined_probability"]))
+    else:
+        picks.sort(key=lambda b: (not b.get("locked"), -b[ev_key]))
     n_locked = sum(1 for x in [*singles, *picks] if x.get("locked"))
 
     ss = getSampleStyleSheet()
@@ -436,6 +488,20 @@ def main() -> int:
             "— te stałe nie są dopasowane do rozliczeń. Liczby w tym kuponie na nich "
             "stoją; traktuj je jako niezmierzone.", SUB))
     S.append(Spacer(1, 7))
+
+    if so:
+        render_stats_only(S, doc_json, singles, picks, legs_idx, now,
+                          BODY, SMALL, H2, PICK, max_overround)
+        pdf.build(S)
+        os.replace(tmp_out, out_path)
+        print(json.dumps({
+            "stage": "COUPON_PDF", "verdict": "OK", "epoch": STATS_ONLY,
+            "metrics": {"picks": len(picks), "singles": len(singles),
+                        "positions": doc_json.get("positions"),
+                        "locked": n_locked},
+            "output_path": str(out_path),
+        }))
+        return 0
 
     S.append(Paragraph("Jak czytać ten kupon", H2))
     S.append(Paragraph(
@@ -704,6 +770,179 @@ def main() -> int:
         "output_path": str(out_path),
     }))
     return 0
+
+
+def _table(rows: list[list[Any]], widths: list[float]) -> Table:
+    t = Table(rows, colWidths=widths, repeatRows=1)
+    t.setStyle(TableStyle([
+        ("FONT", (0, 0), (-1, 0), BOLD, 7.6),
+        ("TEXTCOLOR", (0, 0), (-1, 0), MUTED),
+        ("BACKGROUND", (0, 0), (-1, 0), BAND),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, RULE),
+        ("LINEBELOW", (0, 1), (-1, -2), 0.25, RULE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    return t
+
+
+def render_stats_only(
+    S: list[Any],  # noqa: N803 - the renderer's story, as in main()
+    doc: dict[str, Any],
+    singles: list[dict[str, Any]],
+    picks: list[dict[str, Any]],
+    legs_idx: dict[tuple[Any, ...], dict[str, Any]],
+    now: datetime.datetime,
+    body: ParagraphStyle,
+    small: ParagraphStyle,
+    h2: ParagraphStyle,
+    pick: ParagraphStyle,
+    max_overround: float,
+) -> None:
+    """The one coupon of a stats-only day (plan 2026-10-05, K3/K10/K11)."""
+    S.append(Paragraph("Jak czytać ten kupon", h2))
+    S.append(Paragraph(
+        "<b>pewność</b> pochodzi wyłącznie ze statystyk: to dolna granica "
+        "zmierzonej realizacji dla tej oceny próbki (krzywa kalibracji na "
+        "rozliczonej historii). Cena Superbeta <b>nie</b> wchodzi do pewności, "
+        "kolejności ani wyboru builderów — jest tylko warunkiem postawienia: "
+        f"<b>x = pewność × kurs ≥ {doc.get('min_ev') or 0.90:.2f}</b> i marża "
+        f"drabiny ≤ {max_overround:.0%}. Kolejność: pewność malejąco, potem "
+        "wcześniejszy start; nogi jednego meczu stoją razem, blok na miejscu "
+        "najlepszej nogi.", body))
+    S.append(Paragraph(
+        "<b>model</b> to druga liczba: prognoza z ratingu (piłka: siła ataku i "
+        "obrony z ligi; tenis: rating zawodników), bez ceny. Jest "
+        "<b>nieskalibrowana</b> i niczego nie bramkuje — pokazana obok, żeby "
+        "było widać, gdzie rating i próbka się rozchodzą. "
+        "„—” = brak ratingu.",
+        body))
+    S.append(Paragraph(
+        "Analitycy czytają <b>30 pierwszych pozycji</b> i każdą nogę "
+        "drukowanego buildera; pozostałe drukują się bez odczytu (dodatkowe "
+        "na życzenie operatora). Noga zdjęta przez odczyt (WATCH / NO_BET) "
+        "nie jest na kuponie i rozlicza się osobno.", small))
+    S.append(Spacer(1, 4))
+
+    locked = [s for s in singles if s.get("locked")]
+    fresh = [s for s in singles if not s.get("locked")]
+    blocks = {int(b["block"]): b for b in doc.get("blocks") or []}
+    if locked:
+        S.append(Paragraph(f"W grze — {LOCKED_LABEL}", h2))
+        rows: list[list[Any]] = [[Paragraph(h, small) for h in (
+            "mecz", "rynek", "linia", "pewność", "kurs", "wydruk")]]
+        for leg in locked:
+            subj = f" ({leg['subject']})" if leg.get("subject") else ""
+            rows.append([
+                Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
+                          f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>", small),
+                Paragraph(f"{leg.get('market')}{escape(subj)}", small),
+                Paragraph(f"{leg.get('line')} {leg.get('direction')}", small),
+                Paragraph(f"{leg['confidence']:.3f}", small),
+                Paragraph(f"{leg.get('offered_odds')}", small),
+                Paragraph(str(leg.get("printed_at_utc") or "")[11:16] + "Z", small),
+            ])
+        S.append(_table(rows, [56*mm, 40*mm, 22*mm, 18*mm, 16*mm, 18*mm]))
+        S.append(Spacer(1, 6))
+
+    S.append(Paragraph("Pozycje", h2))
+    if not fresh:
+        S.append(Paragraph("Dziś żadna noga nie przeszła filtrów.", body))
+    else:
+        rows = [[Paragraph(h, small) for h in (
+            "#", "mecz", "rynek", "linia", "pewność", "model", "kurs", "x",
+            "marża", "próbka")]]
+        seen_block: set[int] = set()
+        for leg in fresh:
+            first = int(leg.get("block") or 0) not in seen_block
+            seen_block.add(int(leg.get("block") or 0))
+            match_cell = ""
+            if first:
+                blk = blocks.get(int(leg.get("block") or 0), {})
+                refs = blk.get("builders") or []
+                match_cell = (
+                    f"<b>{escape(str(leg.get('match', '')))}</b><br/><font size=6.5>"
+                    f"{str(leg.get('kickoff_utc') or '')[11:16]}Z"
+                    + (f" • {escape(str(leg['sport']))}"
+                       if leg.get("sport") not in (None, "football") else "")
+                    + "</font>"
+                    + (f"<br/><font size=6.5 color='#1f5fa8'>Bet Builder: "
+                       f"{', '.join(refs)} (osobna strona)</font>" if refs else "")
+                )
+                mk = leg.get("makeup_of")
+                if mk:
+                    match_cell += (
+                        f"<br/><font size=6.5 color='#b25b00'>mecz zaległy za "
+                        f"{mk['sofascore_event_id']} (przełożony "
+                        f"{str(mk.get('postponed_utc') or '?')[:10]})</font>")
+            if started_at_render(leg, now):
+                match_cell += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
+                               "renderem PDF</b></font>")
+            match_cell += watch_label(leg) + context_label(leg)
+            subj = f" ({leg['subject']})" if leg.get("subject") else ""
+            model = leg.get("forecast_p")
+            margin = leg.get("overround")
+            rows.append([
+                Paragraph(str(leg.get("position")), small),
+                Paragraph(match_cell, small),
+                Paragraph(f"{leg.get('market')}{escape(subj)}", small),
+                Paragraph(f"{leg.get('line')} {leg.get('direction')}", small),
+                Paragraph(f"<b>{leg['confidence']:.3f}</b>", small),
+                Paragraph("—" if model is None else f"{float(model):.3f}", small),
+                Paragraph(f"<b>{leg.get('offered_odds')}</b>", small),
+                Paragraph(f"{leg_x(leg):.2f}", small),
+                Paragraph("—" if margin is None else f"{float(margin):.1%}", small),
+                Paragraph(single_sample(leg), small),
+            ])
+        S.append(_table(rows, [8*mm, 44*mm, 30*mm, 17*mm, 14*mm, 13*mm,
+                               12*mm, 11*mm, 13*mm, 14*mm]))
+
+    for b in picks:
+        S.append(PageBreak())
+        block: list[Any] = []
+        no = b.get("builder_no") or "B"
+        block.append(Paragraph(f"Bet Builder {no}. {escape(str(b['match']))}", pick))
+        block.append(Paragraph(
+            f"{escape(str(b.get('competition') or '—'))} • start "
+            f"{str(b['kickoff_utc'])[11:16]}Z" + locked_label(b), small))
+        block.append(Spacer(1, 3))
+        rows = [[Paragraph(h, small) for h in (
+            "#", "zakład", "pewność", "model", "kurs", "kalibracja")]]
+        for j, x in enumerate(b["legs"], 1):
+            key = (b["sofascore_event_id"], x["market"], x["subject"],
+                   x["line"], x["direction"])
+            leg = legs_idx.get(key, x)
+            sub = f" {x['subject']}" if x.get("subject") else ""
+            model = leg.get("forecast_p")
+            rows.append([
+                Paragraph(str(j), small),
+                Paragraph(f"<b>{x['market']}{escape(sub)}</b> {x['line']} "
+                          f"{x['direction']}", small),
+                Paragraph(f"{float(leg['confidence']):.3f}", small),
+                Paragraph("—" if model is None else f"{float(model):.3f}", small),
+                Paragraph(f"{x['odds']}", small),
+                Paragraph(f"{str(leg.get('calibrated_on', '')).replace('market:', '')}"
+                          f"<br/>n={leg.get('calibration_n', '—')}", small),
+            ])
+        block.append(_table(rows, [7*mm, 70*mm, 18*mm, 16*mm, 16*mm, 48*mm]))
+        block.append(Spacer(1, 4))
+        after = b.get("odds_after_haircut")
+        x_b = (float(b["combined_probability"]) * float(after)) if after else None
+        block.append(Paragraph(
+            f"<b>{b['n_legs']} nogi</b> • łączne p "
+            f"<b>{b['combined_probability']:.3f}</b> • kurs uczciwy "
+            f"{b['fair_odds']} • kurs po narzucie "
+            f"<b>{after if after else '—'}</b>"
+            + (f" • x = p × kurs po narzucie <b>{x_b:.2f}</b>"
+               if x_b is not None else "")
+            + f" • EV {displayed_ev(b) or 0.0:+.3f} (informacyjnie)", body))
+        block.append(Paragraph(
+            "Wybrany po łącznym prawdopodobieństwie (najwyższe dla meczu), nie po "
+            "EV. Builder 2-, 3- i 4-nogowy powstaje z jednej puli, więc "
+            "najczęściej najwyższe p ma 2-nogowy. Superbet nie wycenia buildera "
+            "iloczynem nóg — porównaj z ekranem.", small))
+        S.append(KeepTogether(block))
 
 
 if __name__ == "__main__":

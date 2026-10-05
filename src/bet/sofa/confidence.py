@@ -698,6 +698,23 @@ def coupon_artifact(run_dir: Path) -> Path:
     return eleven if eleven.exists() else Path(run_dir) / "08_confidence.json"
 
 
+def profile_artifact_path(run_dir: Path, profile: ConfidenceProfile) -> Path:
+    """What a profile printed on a day: the coupon artifact for the official
+    coupon (coupon_artifact), the variant's own file for the WARIANT."""
+    if profile.name == "standard":
+        return coupon_artifact(run_dir)
+    return Path(run_dir) / confidence_artifact(profile)
+
+
+# The sports CONFIDENCE prices and SETTLE grades from the sheet; the measured
+# sports' legs on the coupon are graded by sport_coupon (plan, F7).
+SHEET_SPORTS = frozenset({"football", "tennis"})
+
+
+def is_sheet_sport(leg: Mapping[str, Any]) -> bool:
+    return str(leg.get("sport") or "football") in SHEET_SPORTS
+
+
 # The stats-only order (K3): confidence, then the earlier start, then the
 # match, market and line - never the price or the EV.
 def coupon_sort_key(leg: Mapping[str, Any]) -> tuple[Any, ...]:

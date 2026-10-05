@@ -39,7 +39,7 @@ from bet.sofa.boosts import (  # noqa: E402
     is_boosted_event,
     merge_snapshots,
 )
-from bet.sofa.confidence import leg_is_ev_positive  # noqa: E402
+from bet.sofa.confidence import coupon_artifact, leg_is_ev_positive  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.superbet import SuperbetClient  # noqa: E402
@@ -151,7 +151,8 @@ def render(boosts: list[Boost], run_dir: Path, at: datetime) -> list[str]:
         for r in json.loads(sheet_path.read_text()):
             sheet[_key(int(r["sofascore_event_id"]), r)] = r
     legs_conf: dict[RowKey, dict[str, Any]] = {}
-    conf_path = run_dir / "08_confidence.json"
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    conf_path = coupon_artifact(run_dir)
     if conf_path.exists():
         for leg in json.loads(conf_path.read_text()).get("legs") or []:
             legs_conf[_key(int(leg["sofascore_event_id"]), leg)] = leg

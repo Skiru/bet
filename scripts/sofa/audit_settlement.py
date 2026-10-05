@@ -38,6 +38,7 @@ from bet.sofa.confidence import (  # noqa: E402
     PROFILES,
     builder_odds,
     confidence_artifact,
+    coupon_artifact,
     printed_builders,
     printed_singles,
     prints_builders,
@@ -631,7 +632,8 @@ def main() -> int:
     # subset of `builders` with `best_for_fixture` and a positive EV. Auditing
     # the first and calling it "the coupon" is how a losing day gets reported
     # as a winning one, or the reverse.
-    conf_path = run_dir / "08_confidence.json"
+    # The coupon artifact: 11_coupon.json on a stats-only day (K3).
+    conf_path = coupon_artifact(run_dir)
     official_singles: list[dict[str, Any]] = []
     if conf_path.exists():
         conf = json.loads(conf_path.read_text())

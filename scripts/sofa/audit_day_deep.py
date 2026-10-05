@@ -45,6 +45,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_ODDS_FOR_CEILING,
     PROFILES,
     builder_legs_are_coherent,
+    coupon_artifact,
     printed_singles,
     is_stakeable,
     line_is_beyond_sample,
@@ -85,7 +86,8 @@ def main() -> int:
 
     cfg = SofaConfig.from_env()
     run = Path(cfg.runs_dir) / args.date
-    conf = json.loads((run / "08_confidence.json").read_text())
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    conf = json.loads(coupon_artifact(run).read_text())
     samples = {s["sofascore_event_id"]: s
                for s in json.loads((run / "03_samples.json").read_text())}
     raw = (run / "02_fixtures.json").read_bytes()

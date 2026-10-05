@@ -163,7 +163,8 @@ def missing_closes(runs: Path, day: str) -> list[str]:
         return []
     built = [
         name
-        for name in ("08_confidence.json", "08_confidence_wariant.json")
+        for name in ("08_confidence.json", "08_confidence_wariant.json",
+                     "11_coupon.json")
         if (day_dir / name).exists()
     ]
     if not built:

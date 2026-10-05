@@ -202,11 +202,19 @@ def carry_over(
     return out
 
 
-def printed_leg_keys(artifact: Mapping[str, Any]) -> set[LegKey]:
+def printed_leg_keys(
+    artifact: Mapping[str, Any], sheet_sports_only: bool = False
+) -> set[LegKey]:
     """Every rung the PDF built from this artifact prints - singles and the
-    legs of printed builders, locked or not."""
+    legs of printed builders, locked or not. `sheet_sports_only`: football and
+    tennis only (a coupon artifact also holds the measured sports' legs,
+    which SETTLE does not grade)."""
     doc = dict(artifact)
-    keys = {leg_key(s) for s in printed_singles(doc)}
+    keys = {
+        leg_key(s) for s in printed_singles(doc)
+        if not sheet_sports_only or str(s.get("sport") or "football") in (
+            "football", "tennis")
+    }
     for b in printed_builders(doc):
         keys |= {leg_key(x, b["sofascore_event_id"]) for x in b.get("legs") or []}
     return keys

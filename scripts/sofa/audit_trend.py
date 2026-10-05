@@ -36,8 +36,8 @@ from typing import Any
 from bet.sofa.confidence import (
     MAX_OVERROUND,
     PROFILES,
-    confidence_artifact,
     printed_singles,
+    profile_artifact_path,
 )
 
 # The variant's own margin limit; the band edges are the two limits in use.
@@ -125,7 +125,7 @@ def build_trend(
             continue
         seen = False
         for profile in PROFILES.values():
-            path = day_dir / confidence_artifact(profile)
+            path = profile_artifact_path(day_dir, profile)
             if not path.exists():
                 continue
             doc = json.loads(path.read_text(encoding="utf-8"))

@@ -26,7 +26,12 @@ from typing import Any
 from pydantic import RootModel
 
 from bet.sofa.clv import CLOSE_MAX_MINUTES, CLOSE_MIN_MINUTES
-from bet.sofa.confidence import printed_builders, printed_singles
+from bet.sofa.confidence import (
+    coupon_artifact,
+    is_sheet_sport,
+    printed_builders,
+    printed_singles,
+)
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
@@ -50,11 +55,14 @@ def printed_legs(day_dir: Path) -> list[tuple[str, dict[str, Any]]]:
     not the product of its legs, so a leg's CLV is not the slip's."""
     out: list[tuple[str, dict[str, Any]]] = []
     for variant, name in VARIANTS.items():
-        path = day_dir / name
+        # The official coupon is the coupon artifact (11_coupon.json on a
+        # stats-only day, K3); its measured-sport legs close from their own
+        # snapshots, not from this football / tennis offer fetch.
+        path = coupon_artifact(day_dir) if variant == "official" else day_dir / name
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
-        out += [(variant, leg) for leg in printed_singles(doc)]
+        out += [(variant, leg) for leg in printed_singles(doc) if is_sheet_sport(leg)]
         for b in printed_builders(doc):
             for leg in b.get("legs", []):
                 out.append((f"{variant}:builder_leg", {

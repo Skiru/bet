@@ -60,10 +60,10 @@ from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
     PROFILES,
-    confidence_artifact,
     legs_requiring_read,
     printed_builders,
     printed_singles,
+    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
@@ -352,8 +352,9 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
     rule it was printed under, not today's."""
     profile = PROFILES[profile_name]
     run = mc.official_dir(runs_dir, date)
-    name = confidence_artifact(profile)
-    path = run / name
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    path = profile_artifact_path(run, profile)
+    name = path.name
     if not path.exists():
         return []
     doc = json.loads(path.read_text(encoding="utf-8"))
@@ -565,8 +566,8 @@ def main() -> int:
             checked.append("multi")
         findings += audit_multi(runs_dir, args.date)
         for prof, tag in (("standard", "official"), ("wariant", "wariant")):
-            art = mc.official_dir(runs_dir, args.date) / confidence_artifact(
-                PROFILES[prof]
+            art = profile_artifact_path(
+                mc.official_dir(runs_dir, args.date), PROFILES[prof]
             )
             if art.exists():
                 checked.append(tag)
