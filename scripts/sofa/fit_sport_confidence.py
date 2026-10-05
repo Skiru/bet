@@ -39,6 +39,7 @@ import argparse
 import json
 import pickle
 import sys
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -195,8 +196,11 @@ def main() -> int:
     doc.setdefault("sports", {})
     summary: dict[str, Any] = {}
     for sport in sports:
+        t0 = time.monotonic()
         section, rows = fit_sport(sport, args.before, args, config.db_path,
                                   config.runs_dir)
+        print(f"{sport}: {section['fitted_from']['rows']} in "
+              f"{time.monotonic() - t0:.0f} s", file=sys.stderr, flush=True)
         doc["sports"][sport] = section
         summary[sport] = {"admitted": section["admitted"],
                           "not_calibrated": section["not_calibrated"],
