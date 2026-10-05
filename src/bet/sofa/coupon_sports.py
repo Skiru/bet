@@ -59,7 +59,32 @@ def normalize(leg: Mapping[str, Any]) -> dict[str, Any]:
     out["leg_ev"] = round(float(leg["confidence"]) * odds - 1.0, 4)
     out.setdefault("sample_size", leg.get("sample_n"))
     out.setdefault("unfitted_constants", [])
+    out["display_market"] = display_market(leg)
     return out
+
+
+def display_market(leg: Mapping[str, Any]) -> str:
+    """How the PDF names a sport leg's market: the family, the team instead
+    of T1 / T2 (T1 is the first name of `match`), the period / map."""
+    teams = str(leg.get("match") or "").split(" - ", 1)
+    def team(code: str) -> str:
+        if code == "T1" and teams:
+            return teams[0]
+        if code == "T2" and len(teams) > 1:
+            return teams[1]
+        return code
+    label = str(leg.get("family"))
+    subject = str(leg.get("subject") or "")
+    if subject:
+        label += f" ({team(subject)})"
+    if leg.get("sport") == "cs2" and leg.get("map_nr"):
+        label += f", mapa {leg['map_nr']}"
+    elif int(leg.get("period") or 0):
+        label += f", okres {leg['period']}"
+    side = str(leg.get("side") or "")
+    if side in ("T1", "T2"):
+        label += f" — {team(side)}"
+    return label
 
 
 def sport_key(leg: Mapping[str, Any]) -> SportKey:

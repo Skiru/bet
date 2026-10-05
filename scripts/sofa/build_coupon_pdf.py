@@ -905,8 +905,11 @@ def render_stats_only(
             rows.append([
                 Paragraph(str(leg.get("position")), small),
                 Paragraph(match_cell, small),
-                Paragraph(f"{leg.get('market')}{escape(subj)}", small),
-                Paragraph(f"{leg.get('line')} {leg.get('direction')}", small),
+                Paragraph(
+                    escape(str(leg["display_market"])) if leg.get("display_market")
+                    else f"{leg.get('market')}{escape(subj)}", small),
+                Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
+                          f"{leg.get('direction')}", small),
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"<b>{leg.get('offered_odds')}</b>", small),
