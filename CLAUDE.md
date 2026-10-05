@@ -1,5 +1,19 @@
 # Working agreement — `bet`
 
+## Refit epoch 2026-10-05 (installed 02:52Z, before the 10-05 day)
+
+`6fea99fd`, fitted after settling 10-04 on a cache replay rebuilt with the
+night's fixes (`docs/sofa/RAPORT_NOC_2026-10-05.md`: same-competition goal
+samples for league fixtures only - measured worse on knockouts; a
+self-contradicting score is no count; tennis games and tiebreaks off the set
+score; retirements, walkovers, Coverage canceled and tennis exhibitions out of
+the replay; HISTORY_PARSER_VERSION 2026-10-04.5). 1,089,163 replayed matches;
+curves on 57.17M rows. K_CENTRE football 15 / tennis 5 unchanged; curves 92 ->
+94, none removed; operator keys carried over. Report
+`data/refit_2026-10-05/compare_report.md`; backups `config/backup_2026-10-05`,
+`data/backup_2026-10-05/sofa.db`. Days before 10-05 are a different epoch.
+Open operator decisions: section 4 of the night report.
+
 ## Refit epoch 2026-10-03 (installed 06:45Z, before the 10-03 day)
 
 Fitted on 55.2M settled rows (cache replay rebuilt: 1.05M matches, 1.197M

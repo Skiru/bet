@@ -19,9 +19,15 @@ sportów z poprawkami, testami i weryfikacją na żywo. Wszystkie commity na
 - Na prawdziwej bazie: `backup --db` (`data/backup_2026-10-05/sofa.db`,
   `config/backup_2026-10-05/`), potem `rebuild-cache-rows` — cztery razy, bo
   przegląd zmieniał to, co produkuje historia; ostatni na kodzie `50a236f0`.
-- **Zostaje rano:** rozliczenie 10-04 i ledger → `regrade_settled.py`
-  (najpierw na sucho) → `fit` → `compare --days 2026-10-03 2026-10-04
-  --with-sheet` → `install --confirm`, jeśli raport czysty.
+- **Rano (01:58–02:52Z), zrobione:** SETTLE 10-04 (588/596 meczów, 23 208
+  wierszy) → refetch luk 09-30 → `regrade_settled --apply` (8 odwróconych
+  wyników 09-24, 61 wartości) → ledger 09-27..10-04 (10-04: oficjalny 19/10,
+  −3,28 j., −11,3%; WARIANT 303/169, −50,92 j., −10,8%) → `fit` → `compare
+  --days 2026-10-03 2026-10-04 --with-sheet` → **`install` (commit `6fea99fd`)**.
+  K_CENTRE piłka 15 / tenis 5 bez zmian, krzywe 92 → 94 (żadna nie znikła),
+  half_match_coherence OK; replay oficjalnego kuponu 10-03 34 → 36 nóg, 10-04
+  32 → 32. Klucze operatora przeniesione. Uwaga: 39 starych wierszy, których
+  nowy kod nie rozlicza (np. Buxton), regrade zostawia z dawnym wynikiem.
 
 ## 2. Poprawki (przegląd: 5 recenzentów + 2 rundy przeglądu własnych poprawek)
 
