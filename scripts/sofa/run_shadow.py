@@ -45,6 +45,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records  # noqa: E402
+from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.shadow import (  # noqa: E402
     SNAPSHOTS_FILE,
     SPORT_BY_SUPERBET_ID,
@@ -54,7 +55,12 @@ from bet.sofa.shadow import (  # noqa: E402
     shadow_day_dir,
 )
 from bet.sofa.stage import set_stage  # noqa: E402
-from bet.sofa.superbet import SuperbetClient, odds_items, split_match_name  # noqa: E402
+from bet.sofa.superbet import (  # noqa: E402
+    SuperbetClient,
+    odds_items,
+    snapshot_verdict,
+    split_match_name,
+)
 from bet.sofa.timeutil import now  # noqa: E402
 from scripts.sofa.run_cs2 import tournament_names  # noqa: E402
 
@@ -131,7 +137,9 @@ def snapshot(
     }
     seen = {k: recorded_events(p) for k, p in paths.items()}
     records: dict[tuple[SportKey, str], list[dict[str, Any]]] = {k: [] for k in paths}
-    for r in rows:
+    fetched_ok = 0
+    not_reached = 0
+    for index, r in enumerate(rows):
         sport = SPORT_BY_SUPERBET_ID[int(r["sportId"])]
         m = metrics[sport.key]
         try:
@@ -162,9 +170,15 @@ def snapshot(
             continue
         try:
             payload = client.event_odds(event_id)
+        except CircuitOpenError:
+            # Superbet refused enough in a row (F6.1): nobody else is asked
+            # this snapshot; the loop's next snapshot tries again.
+            not_reached = len(rows) - index
+            break
         except Exception:
             m["fetch_failed"] += 1
             continue
+        fetched_ok += 1
         fetched_at = stamp()
         lines = parse_event(odds_items(payload), sport.key, event_id, team1, team2)
         if not lines and event_id not in seen[(sport.key, day)]:
@@ -205,7 +219,9 @@ def snapshot(
         append_records(paths[key], recs)
     failed = sum(m["fetch_failed"] for m in metrics.values())
     result: dict[str, Any] = {
-        "verdict": "PARTIAL" if failed else "OK",
+        "verdict": snapshot_verdict(failed, fetched_ok, not_reached),
+        "breaker_open": bool(not_reached),
+        "board_rows_not_reached": not_reached,
         "metrics": metrics,
         "output_path": str(Path(runs_dir) / "shadow"),
     }

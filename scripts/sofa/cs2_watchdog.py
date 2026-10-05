@@ -41,7 +41,12 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "src"))
 
 from bet.sofa.shadow import RETRYABLE  # noqa: E402  (one set, plan B0)
-from scripts.sofa.cs2_daily import done_file, pid_file, state_dir  # noqa: E402
+from scripts.sofa.cs2_daily import (  # noqa: E402
+    already_running,
+    done_file,
+    pid_file,
+    state_dir,
+)
 
 BRIDGE_URL = "http://127.0.0.1:8787/health"
 BRIDGE_STALE_S = 180.0
@@ -105,12 +110,11 @@ def bridge_health() -> tuple[bool, float | None]:
 
 
 def pid_alive(date: str) -> bool:
-    try:
-        pid = int(pid_file(date).read_text(encoding="utf-8").strip())
-        os.kill(pid, 0)
-        return True
-    except (OSError, ValueError):
-        return False
+    """A live cs2_daily.py for this date. Through cs2_daily.already_running,
+    which reads the pid's command line: `os.kill(pid, 0)` alone read a stale
+    pid file whose number now belongs to another process as a live loop, and
+    the watchdog never relaunched the day (F6.1)."""
+    return already_running(pid_file(date), date) is not None
 
 
 def retryable_series(date: str) -> int | None:

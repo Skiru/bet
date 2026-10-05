@@ -41,8 +41,14 @@ from bet.sofa.cs2 import (  # noqa: E402
     cs2_day_dir,
     parse_event,
 )
+from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
-from bet.sofa.superbet import SuperbetClient, odds_items, split_match_name  # noqa: E402
+from bet.sofa.superbet import (  # noqa: E402
+    SuperbetClient,
+    odds_items,
+    snapshot_verdict,
+    split_match_name,
+)
 from bet.sofa.timeutil import now  # noqa: E402
 
 
@@ -82,7 +88,9 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
         "fetch_failed": 0,
     }
     records = []
-    for r in rows:
+    fetched_ok = 0
+    not_reached = 0
+    for index, r in enumerate(rows):
         try:
             kickoff = datetime.fromisoformat(
                 str(r.get("utcDate")).replace("Z", "+00:00")
@@ -101,9 +109,15 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
         event_id = str(r.get("eventId"))
         try:
             payload = client.event_odds(event_id)
+        except CircuitOpenError:
+            # Superbet refused enough in a row (F6.1): nobody else is asked
+            # this snapshot; the loop's next snapshot tries again.
+            not_reached = len(rows) - index
+            break
         except Exception:
             metrics["fetch_failed"] += 1
             continue
+        fetched_ok += 1
         lines = parse_event(odds_items(payload), event_id, team1, team2)
         if not lines:
             continue
@@ -128,8 +142,13 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
     # snapshot, never corrupts an earlier one.
     if records:
         append_records(out, records)
-    verdict = "PARTIAL" if metrics["fetch_failed"] else "OK"
-    return {"verdict": verdict, "metrics": metrics, "output_path": str(out)}
+    return {
+        "verdict": snapshot_verdict(metrics["fetch_failed"], fetched_ok, not_reached),
+        "breaker_open": bool(not_reached),
+        "board_rows_not_reached": not_reached,
+        "metrics": metrics,
+        "output_path": str(out),
+    }
 
 
 def main() -> int:

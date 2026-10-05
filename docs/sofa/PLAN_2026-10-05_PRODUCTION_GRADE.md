@@ -176,7 +176,7 @@ test są, ale kryterium wymaga dni, decyzji operatora albo refitu.
 | F5.1 | **spełnione** | `REJESTR_TESTOW.md` + `config/sofa_test_registry.json`, 5 testów PROPOSED (do zatwierdzenia), walidator |
 | F5.2 | **nie spełnione** | `closing.jsonl` w 5 z 17 dni; dziura 09-19..09-30 (283 nogi) zostaje; od 10-01 prawie 100% |
 | F5.3, F5.4 | zapisane | kryteria w rejestrze; rozstrzygnięcie po ~4 400 pozycjach |
-| F6.1 | **częściowo** | `test_chaos.py` 18 testów; naprawione: 3 backfille wychodziły 1 zamiast 2 po otwarciu bezpiecznika; NOT_TESTED: SAMPLES, SETTLE, OFFER, pętle |
+| F6.1 | **częściowo** | `test_chaos.py` 18 testów + `test_chaos_stages.py` (SAMPLES, SETTLE z `--refetch-stat-gaps`, `resettle_sweep.py`, OFFER, SHADOW / CS2, pętle, sonda half-open, `backfill_event_stats` hokej/kosz/siatka); naprawione: 3 backfille wychodziły 1 zamiast 2 po otwarciu bezpiecznika; Superbet bez bezpiecznika (OFFER/SHADOW/CS2/CLV pytały każde zdarzenie po 403 i timeoucie) - teraz ten sam bezpiecznik co Sofascore, OFFER zachowuje poprzednią cenę nieodpytanych; SETTLE z odmową na ostatnich zdarzeniach mówił `breaker_open: false` (sweep szedł dalej w 403); SAMPLES przeniesione z poprzedniego przebiegu = OK; migawka SHADOW/CS2 z samymi odmowami = PARTIAL; krok pętli zabity sygnałem (-9) = sukces; watchdog CS2 brał cudzy pid za żywą pętlę; `capture_closing --loop` zawsze 0 i ginął na błędzie między przebiegami. NOT_TESTED: `run_boosts.py` (jeden błąd Superbetu kończy przebieg), krok pętli, który wisi (brak limitu czasu) |
 | F6.2 | **spełnione** | `day_status.py` w `/sofa-day` |
 | F6.3 | **nie spełnione** | 7 dni od dziś |
 

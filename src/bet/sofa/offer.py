@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
+from bet.sofa.errors import CircuitOpenError
 from bet.sofa.market_mapper import (
     classify_derived_market,
     classify_market,
@@ -130,10 +131,27 @@ class OfferFetcher:
         # and with it the chain - over a single listing (a removed event
         # answers 404, which raise_for_status turns into an exception).
         self.errors: list[tuple[str, str]] = []
+        # Fixtures never asked because Superbet's breaker opened (F6.1): the
+        # fetch stops at the first CircuitOpenError instead of failing the
+        # rest of the board one listing at a time. Not a price fact - the
+        # caller keeps what it knew about them.
+        self.not_reached: list[int] = []
+
+    @property
+    def breaker_open(self) -> bool:
+        return bool(self.not_reached)
 
     def fetch_offers(self, fixtures: list[Fixture]) -> list[FixtureOffer]:
+        # Per call: a long-lived fetcher (capture_closing's loop) asks again
+        # on its next pass, when the client's breaker lets a probe through.
+        self.not_reached = []
         results = []
-        for fixture in fixtures:
+        for index, fixture in enumerate(fixtures):
+            if self.not_reached:
+                self.not_reached.extend(
+                    f.sofascore_event_id for f in fixtures[index:]
+                )
+                break
             combined_odds: dict[tuple[str, str, float], dict[str, Any]] = {}
             unmapped = set()
 
@@ -143,6 +161,10 @@ class OfferFetcher:
             for su_id in fixture.superbet_event_ids:
                 try:
                     payload = self.client.event_odds(su_id)
+                except CircuitOpenError:
+                    # Superbet refused enough in a row: nobody else is asked.
+                    self.not_reached.append(fixture.sofascore_event_id)
+                    break
                 except Exception as exc:  # noqa: BLE001 - one listing, not the stage
                     self.errors.append((str(su_id), f"{type(exc).__name__}: {exc}"))
                     failed += 1
@@ -229,6 +251,9 @@ class OfferFetcher:
                     )
                 )
 
+            if self.not_reached and self.not_reached[-1] == fixture.sofascore_event_id:
+                # Half asked (a second listing never was): not an offer.
+                continue
             if failed and failed == len(fixture.superbet_event_ids):
                 # Nothing was read, so nothing is known: no entry, rather than
                 # an empty one that a filtered refresh's merge would let

@@ -172,6 +172,11 @@ def run_once(day_dir: Path, fetcher: Any, now: datetime | None = None) -> int:
         new_errors = (getattr(fetcher, "errors", []) or [])[seen:]
         if e not in offers and new_errors:
             errors[e] = "; ".join(f"{sid}: {msg}" for sid, msg in new_errors)[:200]
+        elif e not in offers and e in (getattr(fetcher, "not_reached", []) or []):
+            # Superbet's breaker is open (F6.1): not asked, so not "pulled" -
+            # without the error audit_clv read the record as the market gone
+            # and dropped the leg's earlier good close.
+            errors[e] = "BREAKER_OPEN: Superbet refused in a row; not asked"
     records: list[dict[str, Any]] = []
     for variant, leg in legs:
         offer = offers.get(leg["sofascore_event_id"])
@@ -234,20 +239,63 @@ def main() -> int:
         claim_loop(day_dir)
     fetcher = OfferFetcher(SuperbetClient(
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"))
+    try:
+        return loop(day_dir, fetcher, repeat=args.loop)
+    finally:
+        if args.loop:
+            # Gone when the loop is: a live pid file means a live loop.
+            (day_dir / PID_FILE).unlink(missing_ok=True)
+
+
+# Passes in a row that raised before the loop stops loudly (exit 2): an hour
+# of a broken day directory is not a loop worth keeping alive in silence.
+MAX_FAILED_PASSES = 12
+
+
+def loop(
+    day_dir: Path,
+    fetcher: Any,
+    *,
+    repeat: bool = True,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    sleep: Callable[[float], None] = time.sleep,
+    once: Callable[..., int] | None = None,
+) -> int:
+    """Pass after pass until the last printed leg is inside its close window.
+
+    Exit 0 when every pass ran, 1 when one raised (it is logged as
+    pass_failed and the loop goes on - F6.1: the loop used to end 0 whatever
+    its passes did, and a failure reading the legs between passes killed it
+    with nobody told), 2 after MAX_FAILED_PASSES failed passes in a row."""
+    once = once or run_once
+    failed_passes = 0
+    in_a_row = 0
     while True:
+        ok = True
         try:
-            n = run_once(day_dir, fetcher)
+            n = once(day_dir, fetcher)
         except Exception as exc:  # noqa: BLE001 - an unattended loop survives
             print(json.dumps({"pass_failed": repr(exc)[:300]}), flush=True)
-            n = 0
-        now = datetime.now(UTC)
+            n, ok = 0, False
+        now = clock()
         print(json.dumps({"ts_utc": now.isoformat(), "closes_written": n}), flush=True)
-        legs = printed_legs(day_dir)
-        if not args.loop or not legs or all(
+        try:
+            legs = printed_legs(day_dir)
+        except Exception as exc:  # noqa: BLE001 - same: log, go on
+            print(json.dumps({"pass_failed": "printed_legs: " + repr(exc)[:280]}),
+                  flush=True)
+            legs, ok = None, False
+        failed_passes += not ok
+        in_a_row = 0 if ok else in_a_row + 1
+        if in_a_row >= MAX_FAILED_PASSES:
+            print(json.dumps({"loop_stopped": f"{in_a_row} failed passes in a row"}),
+                  flush=True)
+            return 2
+        if not repeat or (legs is not None and (not legs or all(
                 minutes_to(leg["kickoff_utc"], now) < CLOSE_MIN_MINUTES
-                for _, leg in legs):
-            return 0
-        time.sleep(LOOP_SLEEP_S)
+                for _, leg in legs))):
+            return 1 if failed_passes else 0
+        sleep(LOOP_SLEEP_S)
 
 
 if __name__ == "__main__":

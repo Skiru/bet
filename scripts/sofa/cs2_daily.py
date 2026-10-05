@@ -77,7 +77,35 @@ def step(args: list[str]) -> int:
         flush=True,
     )
     env_cmd = [PYTHON, *args]
-    return subprocess.call(env_cmd, cwd=REPO)
+    try:
+        code = subprocess.call(env_cmd, cwd=REPO)
+    except (OSError, subprocess.SubprocessError) as exc:
+        # The step never started (fork / exec failed): FAILED, and the loop
+        # goes on - it used to raise out of the loop and end the day.
+        print(f"STEP_NOT_STARTED {' '.join(args)}: {exc}", flush=True)
+        return 2
+    return exit_code(code, args)
+
+
+def exit_code(code: int, args: list[str]) -> int:
+    """A step's exit as the loop reads it. A step killed by a signal returns
+    a negative code, which `max(worst, code)` read as better than OK - an
+    OOM-killed settle was a silent success, never retried (F6.1)."""
+    if code < 0:
+        print(f"STEP_KILLED by signal {-code}: {' '.join(args)}", flush=True)
+        return 2
+    return code
+
+
+def _guarded(runner: Callable[[list[str]], int], cmd: list[str]) -> int:
+    """One step through `runner`; an exception is that step FAILED (logged),
+    never the end of an unattended loop."""
+    try:
+        return exit_code(runner(cmd), cmd)
+    except Exception as exc:  # noqa: BLE001 - an unattended loop survives
+        print(f"STEP_FAILED {' '.join(cmd)}: {type(exc).__name__}: {exc}",
+              flush=True)
+        return 2
 
 
 def _command_of(pid: int) -> str:
@@ -236,7 +264,7 @@ def loop(
     the snapshots end (cs2_daily's --chain)."""
     worst = 0
     while clock() < until:
-        worst = max(worst, runner(snapshot))
+        worst = max(worst, _guarded(runner, snapshot))
         remaining = (until - clock()).total_seconds()
         if remaining <= 0:
             break
@@ -252,7 +280,7 @@ def loop(
     worst = max(
         worst, run_morning(morning, clock=clock, sleep=sleep, runner=runner)
     )
-    runner(audit)  # a report; its exit code says nothing about the day
+    _guarded(runner, audit)  # a report; its exit code says nothing about the day
     return min(worst, 2)
 
 
@@ -279,7 +307,7 @@ def run_morning(
     retry_for_s: float = RETRY_FOR_S,
 ) -> int:
     """The morning steps once, then their retries; the worst final exit."""
-    codes = [runner(cmd) for cmd in morning]
+    codes = [_guarded(runner, cmd) for cmd in morning]
 
     def name(i: int) -> str:
         return Path(morning[i][0]).name
@@ -304,7 +332,7 @@ def run_morning(
         )
         for i in range(len(morning)):
             if retryable(i) or (i > first and name(i) in RERUN_AFTER_RETRY):
-                codes[i] = runner(morning[i])
+                codes[i] = _guarded(runner, morning[i])
     return max(codes, default=0)
 
 
@@ -347,14 +375,20 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
             flush=True,
         )
 
-    code = run(
-        args.date,
-        args.interval_min,
-        until,
-        settle_at,
-        args.backfill_minutes,
-        after_snapshots=chain if args.chain else None,
-    )
+    try:
+        code = run(
+            args.date,
+            args.interval_min,
+            until,
+            settle_at,
+            args.backfill_minutes,
+            after_snapshots=chain if args.chain else None,
+        )
+    finally:
+        # Gone when the loop is (as shadow_daily): a live pid file means a
+        # live loop. A loop that raised writes no .done, so the watchdog
+        # relaunches it.
+        pid_file(args.date).unlink(missing_ok=True)
     done_file(args.date).write_text(
         json.dumps({"exit": code, "at": datetime.now(UTC).isoformat()}),
         encoding="utf-8",

@@ -162,10 +162,25 @@ def main() -> int:
 
     # See merge_with_previous: a filtered refresh may never shrink the file.
     carried_forward = 0
-    if args.min_minutes_to_kickoff is not None and out_path.exists():
+    previous: list[dict[str, Any]] = []
+    if out_path.exists():
         with open(out_path, encoding="utf-8") as f:
             previous = json.load(f)
+    if args.min_minutes_to_kickoff is not None and previous:
         dumped, carried_forward = merge_with_previous(dumped, previous)
+    # Fixtures Superbet's open breaker kept this run from asking (F6.1): what
+    # the previous file knew about them stays - "not asked" is not "no price".
+    # Their fetched_at_utc stays too, so every freshness gate still sees the
+    # price for the age it is. A full run used to drop them from the day.
+    not_reached = set(fetcher.not_reached)
+    carried_not_reached = 0
+    if not_reached and previous:
+        written = {o["sofascore_event_id"] for o in dumped}
+        unasked = [o for o in previous
+                if o["sofascore_event_id"] in not_reached
+                and o["sofascore_event_id"] not in written]
+        dumped = dumped + unasked
+        carried_not_reached = len(unasked)
 
     write_atomic(out_path, json.dumps(dumped, indent=2))
 
@@ -190,16 +205,27 @@ def main() -> int:
         "price_collisions": total_collisions,
         "empty_offers": empty_offers,
         "fetch_errors": len(fetcher.errors),
+        "breaker_open": fetcher.breaker_open,
+        "not_reached_breaker_open": len(not_reached),
+        "carried_forward_not_reached": carried_not_reached,
     }
     for su_id, err in fetcher.errors[:20]:
         print(f"OFFER_FETCH_ERROR superbet={su_id}: {err}", file=sys.stderr)
+    if not_reached:
+        print(
+            f"OFFER_BREAKER_OPEN: Superbet's breaker opened; {len(not_reached)} "
+            f"fixture(s) not asked, {carried_not_reached} kept from the "
+            "previous offer",
+            file=sys.stderr,
+        )
 
     # Fixtures on the board with no priced rung at all, and market names we
     # could not classify, are both diagnostics the operator has to see — a
     # market Superbet added should surface as unmapped, not vanish (T16).
     if fixtures and empty_offers == len(offers):
         verdict = "FAILED"
-    elif empty_offers or total_unmapped or total_collisions or fetcher.errors:
+    elif (empty_offers or total_unmapped or total_collisions or fetcher.errors
+          or not_reached):
         verdict = "PARTIAL"
     else:
         verdict = "OK"

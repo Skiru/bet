@@ -9,7 +9,9 @@ from typing import Any
 
 from curl_cffi import requests
 
+from bet.sofa.client import CircuitBreaker
 from bet.sofa.config import SofaConfig
+from bet.sofa.errors import CircuitOpenError
 from bet.sofa.stage import current_stage
 from bet.sofa.timeutil import now
 
@@ -34,12 +36,29 @@ _USER_AGENT = (
 )
 
 
+# Superbet answers that say "slow down" or "not now", not "no such event": a
+# refusal, a rate limit, a server error. A 404 (a removed event) is an answer.
+_REFUSAL_STATUSES = frozenset({403, 429})
+
+
+def _is_breaker_failure(status: int | None) -> bool:
+    """A request the breaker counts against Superbet: refused (403/429), a
+    server error, or no answer at all (timeout, connection - status None)."""
+    return status is None or status in _REFUSAL_STATUSES or 500 <= status < 600
+
+
 class SuperbetClient:
     # Class-level default so a client built without a configured run id -
     # tests stub __init__ - still logs a well-formed row.
     run_id: str = ""
+    # None on a stubbed client: no breaker, every request goes out.
+    breaker: CircuitBreaker | None = None
 
-    def __init__(self, base_url: str = DEFAULT_BASE_URL) -> None:
+    def __init__(
+        self,
+        base_url: str = DEFAULT_BASE_URL,
+        breaker: CircuitBreaker | None = None,
+    ) -> None:
         self.base_url = base_url.strip().rstrip("/")
         self.session: requests.Session[Any] = requests.Session(
             impersonate="chrome124"
@@ -50,6 +69,19 @@ class SuperbetClient:
         self.log_path = Path(config.runs_dir) / "run.log.jsonl"
         self.run_id = config.run_id
         self._log_lock = threading.Lock()
+        # F6.1 (2026-10-05): a refusal is a signal to slow down. Every caller
+        # (OFFER, SAMPLES' fallback, SHADOW, CS2, closing capture, boosts)
+        # caught Superbet's exception per event and went straight on to the
+        # next, so a Superbet that refused or timed out was asked once per
+        # event on the board - ~1,000 refused requests in one OFFER. The same
+        # breaker as Sofascore's: SOFA_BREAKER_THRESHOLD consecutive failures
+        # open it, CircuitOpenError without a request until the cooldown, one
+        # half-open probe, a failed probe doubles the wait.
+        self.breaker = breaker or CircuitBreaker(
+            config.breaker_threshold,
+            cooldown_s=config.breaker_cooldown_s,
+            max_cooldown_s=config.breaker_max_cooldown_s,
+        )
 
     def _log(
         self,
@@ -79,20 +111,34 @@ class SuperbetClient:
 
     def _get_json(self, path: str, params: dict[str, Any] | None = None) -> Any:
         url = f"{self.base_url}{path}"
+        breaker = self.breaker
+        if breaker is not None and not breaker.allow():
+            raise CircuitOpenError("Superbet circuit breaker is open")
         start_t = time.monotonic()
+        response = None
         try:
             response = self.session.get(url, params=params, timeout=25.0)
-            elapsed = int((time.monotonic() - start_t) * 1000)
-            status = response.status_code
-            self._log(current_stage(), "GET", url, status, elapsed, False, "CLOSED")
             response.raise_for_status()
         except Exception as e:
             elapsed = int((time.monotonic() - start_t) * 1000)
-            status = getattr(e, "response", None)
-            if status is not None:
-                status = status.status_code
-            self._log(current_stage(), "GET", url, status, elapsed, False, "CLOSED")
+            # Not `or`: a Response may be falsy when it is not ok.
+            failed = getattr(e, "response", None)
+            if failed is None:
+                failed = response
+            status = getattr(failed, "status_code", None)
+            if breaker is not None:
+                if _is_breaker_failure(status):
+                    breaker.record_failure()
+                else:
+                    breaker.record_success()  # answered: e.g. 404, removed
+            self._log(current_stage(), "GET", url, status, elapsed, False,
+                      self._breaker_state())
             raise
+        elapsed = int((time.monotonic() - start_t) * 1000)
+        if breaker is not None:
+            breaker.record_success()
+        self._log(current_stage(), "GET", url, response.status_code, elapsed,
+                  False, self._breaker_state())
 
         try:
             body = response.json()
@@ -105,6 +151,15 @@ class SuperbetClient:
         if "data" in body:
             return body["data"]
         return body
+
+    def _breaker_state(self) -> str:
+        breaker = self.breaker
+        return "OPEN" if breaker is not None and breaker.is_open else "CLOSED"
+
+    @property
+    def breaker_tripped(self) -> bool:
+        """The last requests all failed and nothing has closed the breaker."""
+        return self.breaker is not None and self.breaker.tripped
 
     def events_by_date(
         self,
@@ -203,6 +258,18 @@ def event_started(odds_data: dict[str, Any] | None) -> bool:
         return True
     states = odds_data.get("offerStateStatus")
     return isinstance(states, dict) and LIVE_OFFER_STATE in states
+
+
+def snapshot_verdict(failed: int, fetched_ok: int, not_reached: int) -> str:
+    """A SHADOW / CS2 snapshot's verdict: FAILED when events were asked and
+    not one answered (before F6.1 a snapshot whose every fetch was refused
+    said PARTIAL with nothing on disk), PARTIAL on any failed fetch or an open
+    breaker, else OK."""
+    if (failed or not_reached) and not fetched_ok:
+        return "FAILED"
+    if failed or not_reached:
+        return "PARTIAL"
+    return "OK"
 
 
 def split_match_name(match_name: str | None) -> tuple[str, str]:

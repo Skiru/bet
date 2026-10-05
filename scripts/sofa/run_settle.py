@@ -37,7 +37,7 @@ from typing import Any, NamedTuple, cast
 
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
-from bet.sofa.client import SofascoreClient
+from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.confidence import (
     PROFILES,
     is_sheet_sport,
@@ -1211,6 +1211,11 @@ def main() -> int:
         with get_connection(config.db_path) as conn:
             inserted = insert_settled_rows(conn, rows)
 
+    # The refusals that open the breaker are ProviderErrors: when they are the
+    # day's last events no later fetch meets the open breaker, and the run said
+    # breaker_open False - so resettle_sweep.py went on to the next day and
+    # into the next refusals (F6.1).
+    breaker_open = breaker_open or breaker_tripped(client)
     if breaker_open:
         # The events the breaker kept this run from asking for, on the record:
         # PROVIDER_ERROR-only, so a merge keeps an earlier run's reasons.

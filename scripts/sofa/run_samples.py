@@ -18,7 +18,7 @@ from pydantic import RootModel
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
-from bet.sofa.client import SofascoreClient
+from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
     Fixture,
@@ -121,11 +121,17 @@ def samples_verdict(
     unreachable: bool,
     coverage_partial: bool,
     provider_faulted: int,
+    carried_over: int = 0,
 ) -> str:
-    """FAILED with nothing READY, PARTIAL on any named shortfall, else OK."""
+    """FAILED with nothing READY, PARTIAL on any named shortfall, else OK.
+
+    A sample carried over from the previous run on a provider fault is a
+    shortfall too: the day was not asked. Before F6.1 a refused SAMPLES whose
+    every fixture was carried over exited OK - a silent success.
+    """
     if ready == 0 and n_fixtures:
         return "FAILED"
-    if unreachable or coverage_partial or provider_faulted:
+    if unreachable or coverage_partial or provider_faulted or carried_over:
         return "PARTIAL"
     return "OK"
 
@@ -354,6 +360,7 @@ def main() -> int:
         unreachable=bool(unreachable),
         coverage_partial=coverage_partial,
         provider_faulted=provider_faulted,
+        carried_over=carried_over,
     )
 
     summary = {
@@ -364,6 +371,9 @@ def main() -> int:
             "output_samples": len(all_samples),
             "carried_over_on_provider_fault": carried_over,
             "provider_fault_fixtures": provider_faulted,
+            # The breaker ended the stage open (F6.1): every fixture after it
+            # was BLOCKED CIRCUIT_OPEN or carried over without a request.
+            "breaker_open": breaker_tripped(client),
             "total_metrics_extracted": total_metrics,
             "readiness": dict(readiness_counts),
             "readiness_by_sport": {k: dict(v) for k, v in readiness_by_sport.items()},
