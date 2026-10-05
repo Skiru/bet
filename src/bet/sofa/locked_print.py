@@ -175,6 +175,10 @@ def carry_over(
     doc = dict(previous)
     by_key = {leg_key(x): x for x in doc.get("legs") or []}
     out = LockedPrint(previous_created_at_utc=created)
+    # A printed-coupon manifest (PRINTED_MANIFEST) knows when the PDF was
+    # rendered; that, not the build, is when the operator saw the leg.
+    rendered = previous.get("pdf_rendered_at_utc")
+    created = str(rendered) if isinstance(rendered, str) else created
     seen: set[LegKey] = set()
     for s in printed_singles(doc):
         if not pdf_printed and not s.get("locked"):
@@ -199,6 +203,40 @@ def carry_over(
             if k not in seen and k in by_key:
                 seen.add(k)
                 out.legs.append(_stamp(by_key[k], created, dials))
+    return out
+
+
+# The coupon as its PDF last printed it (plan 2026-10-05, review of K3): the
+# PDF writes it after every render, so a rebuild carries over the legs of
+# the last PRINTED coupon even when an unprinted rebuild (the provisional
+# build before the analysts' read) came in between. Without it the next
+# build read the newest artifact, whose PDF was older than it, and locked
+# only what that artifact had locked itself - a leg on the PDF the operator
+# held, starting during the analysts' read, was dropped.
+PRINTED_MANIFEST = "12_printed.json"
+
+
+def merge_locked(first: LockedPrint, second: LockedPrint) -> LockedPrint:
+    """Both carry-overs, `first` winning a leg or a fixture both hold."""
+    out = LockedPrint(
+        previous_created_at_utc=first.previous_created_at_utc
+        or second.previous_created_at_utc
+    )
+    seen: set[LegKey] = set()
+    for s in [*first.singles, *second.singles]:
+        if leg_key(s) not in seen:
+            seen.add(leg_key(s))
+            out.singles.append(s)
+    fixtures: set[int] = set()
+    for b in [*first.builders, *second.builders]:
+        if int(b["sofascore_event_id"]) not in fixtures:
+            fixtures.add(int(b["sofascore_event_id"]))
+            out.builders.append(b)
+    seen_legs: set[LegKey] = set()
+    for x in [*first.legs, *second.legs]:
+        if leg_key(x) not in seen_legs:
+            seen_legs.add(leg_key(x))
+            out.legs.append(x)
     return out
 
 

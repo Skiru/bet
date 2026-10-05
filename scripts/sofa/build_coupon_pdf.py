@@ -43,7 +43,7 @@ from reportlab.platypus import (  # noqa: E402
 
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
-from bet.sofa.atomic import tmp_path  # noqa: E402
+from bet.sofa.atomic import tmp_path, write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MAX_OVERROUND,
     MIN_MINUTES_TO_KICKOFF,
@@ -62,6 +62,7 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
+from bet.sofa.locked_print import PRINTED_MANIFEST  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 # Helvetica's built-in encoding has no Latin-2, so every Polish diacritic in
@@ -494,6 +495,18 @@ def main() -> int:
                           BODY, SMALL, H2, PICK, max_overround)
         pdf.build(S)
         os.replace(tmp_out, out_path)
+        # The record of what this PDF printed (locked_print.PRINTED_MANIFEST):
+        # the next rebuild carries over its legs whose match has started,
+        # whatever unprinted build came in between. Only for the day's own
+        # coupon, never for a --out render elsewhere.
+        if args.out is None:
+            write_atomic(
+                run / PRINTED_MANIFEST,
+                json.dumps({**doc_json, "pdf": out_path.name,
+                            "pdf_rendered_at_utc": now.isoformat().replace(
+                                "+00:00", "Z")},
+                           indent=1, ensure_ascii=False) + "\n",
+            )
         print(json.dumps({
             "stage": "COUPON_PDF", "verdict": "OK", "epoch": STATS_ONLY,
             "metrics": {"picks": len(picks), "singles": len(singles),

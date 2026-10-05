@@ -87,10 +87,12 @@ from bet.sofa.epochs import (  # noqa: E402
 )
 from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
 from bet.sofa.locked_print import (  # noqa: E402
+    PRINTED_MANIFEST,
     carry_over,
     kicked_off,
     kickoff_clocks,
     leg_key,
+    merge_locked,
 )
 from bet.sofa.players import (  # noqa: E402
     is_player_metric,
@@ -877,6 +879,22 @@ def main() -> int:
         previous, profile.name, now, is_locked, pdf_printed=previous_printed,
         sports=frozenset({"football", "tennis"}) if so else None,
     )
+    # Stats-only: the coupon as its PDF last printed it (PRINTED_MANIFEST)
+    # is carried over too, so an unprinted rebuild in between cannot drop a
+    # leg the operator holds on paper.
+    manifest_path = run_dir / PRINTED_MANIFEST
+    if so and manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            print(f"REFUSED: {PRINTED_MANIFEST} is unreadable ({exc}); it is the "
+                  "record of the last printed coupon", file=sys.stderr)
+            return 2
+        locked = merge_locked(
+            carry_over(manifest, profile.name, now, is_locked, pdf_printed=True,
+                       sports=frozenset({"football", "tennis"})),
+            locked,
+        )
     locked_keys = locked.keys
     # Never the same leg twice: the gate above already refuses a locked
     # fixture's rows, this holds even if the two ever disagree.

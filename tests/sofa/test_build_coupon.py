@@ -179,3 +179,46 @@ def test_a_makeup_fixture_carries_its_original():
     doc = assemble(_conf_doc(singles), None, [], samples, "now")
     assert doc["singles"][0]["makeup_of"] == {
         "sofascore_event_id": 15458084, "postponed_utc": "2026-10-02T15:00:00Z"}
+
+
+def test_a_locked_leg_loses_its_old_position():
+    locked = _single(1, 0.95, "2026-10-07T08:00:00Z", locked=True, position=1, block=1)
+    fresh = _single(2, 0.90, "2026-10-07T12:00:00Z")
+    doc = assemble(_conf_doc([locked, fresh]), None,
+                   [{"position": 1, "requested_by": "operator", "at_utc": "t"}],
+                   {}, "now")
+    assert "position" not in doc["singles"][0] and "block" not in doc["singles"][0]
+    assert doc["read_requests"][0]["covers"] == [1]
+    assert [x["sofascore_event_id"] for x in legs_requiring_read(doc)] == [2]
+
+
+def test_a_fresh_leg_outside_the_utc_day_is_not_on_the_days_coupon():
+    legs = [_single(1, 0.9, "2026-10-07T23:30:00Z"),
+            _single(2, 0.9, "2026-10-08T00:30:00Z"),
+            _single(3, 0.9, "2026-10-06T23:00:00Z", locked=True)]
+    doc = assemble(_conf_doc(legs), None, [], {}, "now", "2026-10-07")
+    assert [s["sofascore_event_id"] for s in doc["singles"]] == [3, 1]
+    assert doc["outside_day_window"] == 1
+
+
+def test_the_last_printed_coupon_is_carried_over_past_an_unprinted_build():
+    """Review of K3 (2026-10-05): a leg the PDF printed whose match starts
+    while an unprinted rebuild is the newest artifact still locks."""
+    from datetime import UTC, datetime
+
+    from bet.sofa.locked_print import carry_over, merge_locked
+
+    printed = {"profile": "standard", "created_at_utc": "2026-10-07T08:00:00Z",
+               "pdf_rendered_at_utc": "2026-10-07T08:01:00Z", "epoch": "stats_only",
+               "singles": [_single(1, 0.9, "2026-10-07T09:00:00Z")], "legs": [],
+               "builders": [], "pdf_max_singles": None}
+    unprinted = {**printed, "created_at_utc": "2026-10-07T08:30:00Z", "singles": []}
+    now = datetime(2026, 10, 7, 9, 5, tzinfo=UTC)
+    started = lambda eid, ko: True  # noqa: E731
+    newest_only = carry_over(unprinted, "standard", now, started, pdf_printed=False)
+    assert not newest_only.singles
+    both = merge_locked(
+        carry_over(printed, "standard", now, started, pdf_printed=True), newest_only)
+    assert [s["sofascore_event_id"] for s in both.singles] == [1]
+    assert both.singles[0]["printed_at_utc"] == "2026-10-07T08:01:00Z"
+    assert both.singles[0]["printed_under"]["epoch"] == "stats_only"

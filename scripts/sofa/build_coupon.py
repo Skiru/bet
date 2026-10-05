@@ -31,6 +31,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -79,10 +80,20 @@ def assemble(
     requests: list[dict[str, Any]],
     samples: dict[int, dict[str, Any]],
     now_utc: str,
+    date: str | None = None,
 ) -> dict[str, Any]:
-    """11_coupon.json from its sources. Pure, so a test can pin it."""
+    """11_coupon.json from its sources. Pure, so a test can pin it.
+
+    `date`: the day window (K3) - a fresh leg prints on the coupon of D only
+    when its start is in [D 00:00Z, D+1 00:00Z), whatever its sport; a
+    locked leg stays where it was printed."""
     singles = list(conf.get("singles") or [])
-    locked = [s for s in singles if s.get("locked")]
+    # A locked leg was numbered in the build that printed it; it prints
+    # outside the numbering now, so its old position / block go.
+    locked = [
+        {k: v for k, v in s.items() if k not in ("position", "block")}
+        for s in singles if s.get("locked")
+    ]
     fresh = [s for s in singles if not s.get("locked")]
     legs = list(conf.get("legs") or [])
     if sports:
@@ -99,6 +110,12 @@ def assemble(
             b["builder_no"] = f"B{n_builder}"
             printed_by_match.setdefault(group_key(b), []).append(b["builder_no"])
 
+    outside_window = 0
+    if date is not None:
+        lo, hi = f"{date}T00:00:00", f"{day_after(date)}T00:00:00"
+        kept = [s for s in fresh if lo <= str(s.get("kickoff_utc") or "") < hi]
+        outside_window = len(fresh) - len(kept)
+        fresh = kept
     blocks_out: list[dict[str, Any]] = []
     ordered: list[dict[str, Any]] = []
     position = 0
@@ -156,9 +173,14 @@ def assemble(
             *((sports or {}).get("removed_by_reads") or []),
         ],
         "read_requests": asked,
+        "outside_day_window": outside_window,
         **({"sports": sports.get("sports")} if sports else {}),
     })
     return doc
+
+
+def day_after(date: str) -> str:
+    return (datetime.date.fromisoformat(date) + datetime.timedelta(days=1)).isoformat()
 
 
 def render_md(doc: dict[str, Any], date: str) -> str:
@@ -239,7 +261,7 @@ def main() -> int:
         if samples_path.exists() else {}
     )
     now = timeutil.now().isoformat().replace("+00:00", "Z")
-    doc = assemble(conf, sports, requests, samples, now)
+    doc = assemble(conf, sports, requests, samples, now, args.date)
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
     write_atomic(run / COUPON_ARTIFACT.replace(".json", ".md"),
@@ -257,6 +279,7 @@ def main() -> int:
             "removed_by_reads": len(doc["removed_by_reads"]),
             "read_requests": len(doc["read_requests"]),
             "read_requests_unmatched": len(unmatched),
+            "outside_day_window": doc["outside_day_window"],
             "sports_artifact": sports_path.exists(),
         },
         "output_path": str(run / COUPON_ARTIFACT),
