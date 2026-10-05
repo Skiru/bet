@@ -118,7 +118,16 @@ SETTLED_ONLY_FAMILIES: dict[str, frozenset[str]] = {
 
 # Where a synthetic line sits: the game's own simulated distribution at these
 # quantiles (the model's, never a price's), half a point off an integer.
-LINE_QUANTILES = (0.1, 0.25, 0.5, 0.75, 0.9)
+# Five quantiles (the first fit, 2026-10-05) left basketball's p bunched at
+# ~0.75 and ~0.90 - every bucket between them empty, so a leg there could
+# never be calibrated; thirteen fill the grid.
+LINE_QUANTILES = (0.05, 0.1, 0.15, 0.2, 0.25, 0.35, 0.5, 0.65, 0.75, 0.8, 0.85,
+                  0.9, 0.95)
+# A synthetic line the simulation puts (almost) entirely on one side is past
+# the game's support - volleyball's "sets UNDER 5.5" won every time and filled
+# the 0.95-1.01 bucket with certainties no posted line has. Such a line is
+# not scored.
+DEGENERATE_P = 0.01
 # CS2 team rounds on one map: the lines Superbet posted on the settled days
 # 09-28..10-04 (10.5 / 11.5 / 12.5 are 85% of them).
 CS2_TEAM_ROUND_LINES = (9.5, 10.5, 11.5, 12.5)
@@ -489,6 +498,8 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
         for line in synthetic_lines(sport, mid, sims):
             p = line_probability(line, sims, sport)
             if p is None:
+                continue
+            if line.line is not None and not DEGENERATE_P <= p <= 1 - DEGENERATE_P:
                 continue
             actual = actual_value(line, game.result, sport)
             if actual is None:

@@ -222,6 +222,8 @@ def test_walk_forward_rows_carry_no_price():
         assert not {"odds", "fair_p", "overround", "price"} & set(r)
         assert r["market_id"] in scf.HISTORY_MARKETS["hockey"]
         assert r["key"] == scf.curve_key(r["family"], r["side"])
+        if r["line"] is not None:  # no line past the game's simulated support
+            assert scf.DEGENERATE_P <= r["p"] <= 1 - scf.DEGENERATE_P
 
 
 def test_synthetic_lines_sit_on_the_games_own_distribution():
@@ -231,10 +233,13 @@ def test_synthetic_lines_sit_on_the_games_own_distribution():
             for g in range(10)]
     lines = scf.synthetic_lines(HOCKEY, 623, sims)  # regulation total = g + 1
     totals = sorted({ln.line for ln in lines})
-    assert totals == [1.5, 3.5, 5.5, 7.5, 9.5]
+    # the simulated totals 1..10 at each quantile, half a point up
+    assert totals == sorted({1 + int(q * 9) + 0.5 for q in scf.LINE_QUANTILES})
+    assert totals[0] == 1.5 and totals[-1] == 9.5
     assert {ln.side for ln in lines} == {"OVER", "UNDER"}
     hcp = scf.synthetic_lines(HOCKEY, 604, sims)  # margin = g - 1
-    assert {ln.line for ln in hcp} == {0.5, -1.5, -3.5, -5.5, -7.5}
+    assert {ln.line for ln in hcp} == {-(int(q * 9) - 1 + 0.5)
+                                       for q in scf.LINE_QUANTILES}
 
 
 # --- F3: the sample ----------------------------------------------------------------
