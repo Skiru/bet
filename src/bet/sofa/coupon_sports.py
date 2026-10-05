@@ -91,6 +91,25 @@ def display_market(leg: Mapping[str, Any]) -> str:
     return label
 
 
+def display_line(leg: Mapping[str, Any]) -> str:
+    """How the PDF writes a leg's line. A measured sport's handicap `line` is
+    TEAM 1's handicap (shadow.SportLine, cs2.Cs2Line - the settle reads it so),
+    so the side T2 holds the opposite one: 10-05, "Herlev Eagles -1.5 T2"
+    @1.30 printed beside Superbet's "Herlev Eagles (1.5)" - the priced and
+    graded outcome was Herlev +1.5, and "Esbjerg Energy (-0.5)" @1.70 was a
+    different live bet from the printed Esbjerg leg (verifier). The handicap
+    is written signed, as the side's own."""
+    line = leg.get("line")
+    if line is None:
+        return ""
+    family = str(leg.get("family") or leg.get("market") or "")
+    side = str(leg.get("side") or leg.get("direction") or "")
+    if is_measured(leg) and family.endswith("handicap") and side in ("T1", "T2"):
+        own = float(line) if side == "T1" else -float(line)
+        return f"{own:+g}"
+    return f"{line}"
+
+
 def sport_key(leg: Mapping[str, Any]) -> SportKey:
     line = leg.get("line")
     return (

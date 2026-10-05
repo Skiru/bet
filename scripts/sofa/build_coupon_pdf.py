@@ -41,6 +41,7 @@ from reportlab.platypus import (  # noqa: E402
     TableStyle,
 )
 
+from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
@@ -924,8 +925,7 @@ def render_stats_only(
                 Paragraph(escape(str(leg["display_market"])) + ladder_marker(lno)
                           if leg.get("display_market")
                           else f"{leg.get('market')}{escape(subj)}", small),
-                Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
-                          f"{leg.get('direction')}", small),
+                Paragraph(f"{cs.display_line(leg)} {leg.get('direction')}", small),
                 Paragraph(f"{leg['confidence']:.3f}", small),
                 Paragraph(f"{leg.get('offered_odds')}", small),
                 Paragraph(str(leg.get("printed_at_utc") or "")[11:16] + "Z", small),
@@ -990,8 +990,7 @@ def render_stats_only(
                     escape(str(leg["display_market"])) + ladder_marker(lno)
                     if leg.get("display_market")
                     else f"{leg.get('market')}{escape(subj)}", small),
-                Paragraph(f"{'' if leg.get('line') is None else leg.get('line')} "
-                          f"{leg.get('direction')}", small),
+                Paragraph(f"{cs.display_line(leg)} {leg.get('direction')}", small),
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"<b>{leg.get('offered_odds')}</b>", small),

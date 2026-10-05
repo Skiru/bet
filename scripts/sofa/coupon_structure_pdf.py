@@ -25,6 +25,7 @@ from reportlab.lib.units import mm  # noqa: E402
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle  # noqa: E402
 
 from bet.sofa import builder_screen as bs  # noqa: E402
+from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
 
 HEADER_BAND = colors.HexColor("#eef3fa")
@@ -61,7 +62,7 @@ def _rungs_word(n: int) -> str:
 
 
 def _rung_text(r: Mapping[str, Any], short: bool = False) -> str:
-    line = "" if r.get("line") is None else f"{r['line']} "
+    line = "" if r.get("line") is None else f"{cs.display_line(r)} "
     where = "w grze" if r.get("position") is None else f"#{r['position']}"
     if short:
         return f"{line}{r.get('direction')} ({where})"

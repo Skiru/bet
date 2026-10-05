@@ -745,6 +745,10 @@ def leg_ref(leg: Mapping[str, Any]) -> dict[str, Any]:
         out["period"] = leg.get("period")
     if leg.get("locked"):
         out["locked"] = True
+    # The PDF writes a measured sport's handicap as the side's own
+    # (coupon_sports.display_line), which needs the sport.
+    if leg.get("sport"):
+        out["sport"] = leg.get("sport")
     return out
 
 
