@@ -195,6 +195,19 @@ def test_shadow_event_skipped_by_the_horizon_triggers_a_refresh(tmp_path: Path) 
     assert float(shadow.argv[-1]) >= 8.0
 
 
+def test_shadow_event_priced_recently_is_not_lagging(tmp_path: Path) -> None:
+    # 10-05 12:01Z: the rebuild's full-horizon SHADOW priced the late game
+    # 18 min ago; the loop's 3 h snapshot came after it. Not a reason to
+    # ask Superbet again.
+    write_day(tmp_path, kickoff=NOW + timedelta(hours=3),
+              fetched=NOW - timedelta(minutes=5))
+    write_hockey(tmp_path, [
+        (NOW - timedelta(minutes=18), "late", NOW + timedelta(hours=8)),
+        (NOW - timedelta(minutes=1), "soon", NOW + timedelta(hours=1)),
+    ])
+    assert "SHADOW" not in plan_for(tmp_path).names()
+
+
 def test_stale_cs2_is_refreshed_through_the_pipeline() -> None:
     state = rp.DayState(
         DATE, NOW, LIMIT, open_fixtures=0, offer_fixtures=1,

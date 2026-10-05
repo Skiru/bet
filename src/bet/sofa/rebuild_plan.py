@@ -60,6 +60,12 @@ SHADOW_DEFAULT_HORIZON_H = 3.0
 # An open SHADOW event whose newest record is this much older than the
 # file's newest snapshot was skipped by that snapshot (beyond its horizon).
 SHADOW_LAG = timedelta(minutes=15)
+# ...and only counts when its own price is at least this old: shadow_daily
+# snapshots every ~30 min with the 3 h horizon, so right after a rebuild's
+# full-horizon SHADOW the loop's next snapshot made every later event look
+# "skipped" while its price was 18 min old (10-05 12:01Z: 13 hockey and 15
+# basketball events, a needless SHADOW on every rebuild).
+SHADOW_LAG_MIN_AGE = timedelta(minutes=60)
 SHADOW_SPORTS = ("hockey", "basketball", "volleyball")
 SPORTS = (*SHADOW_SPORTS, "cs2")
 
@@ -226,6 +232,7 @@ def observe_sport(runs_dir: str, sport: str, date: str, now: datetime) -> SportS
         horizon = timedelta(hours=SHADOW_DEFAULT_HORIZON_H)
         lagging = sum(1 for kickoff, top in rows
                       if newest_any - top > SHADOW_LAG
+                      and now - top >= SHADOW_LAG_MIN_AGE
                       and kickoff - newest_any > horizon)
     return SportState(sport, n, open_n, oldest, farthest, lagging, newest_any)
 
