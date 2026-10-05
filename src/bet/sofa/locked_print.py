@@ -146,6 +146,7 @@ def carry_over(
     now: datetime,
     is_locked: Callable[[int, str | None], bool],
     pdf_printed: bool = True,
+    sports: frozenset[str] | None = None,
 ) -> LockedPrint:
     """The printed legs and builders of `previous` that a rebuild at `now`
     must keep. `is_locked(event_id, printed_kickoff)` is the kickoff gate.
@@ -156,6 +157,12 @@ def carry_over(
 
     Nothing is carried from an artifact of another profile, or from one built
     after `now` (an as-of replay into the past must not import the future).
+
+    `sports`: only singles of these sports (a leg without `sport` is
+    football / tennis) - CONFIDENCE reading a coupon artifact (11_coupon.json)
+    that also holds the measured sports' legs, which build_coupon.py locks.
+    The dials of the build the leg was printed in include its `epoch`
+    (bet.sofa.epochs) where that build wrote one; none is the old rule.
     """
     if not previous or previous.get("profile", "standard") != profile_name:
         return LockedPrint()
@@ -163,12 +170,16 @@ def carry_over(
     if not isinstance(created, str) or _utc(created) > now:
         return LockedPrint()
     dials = {k: previous.get(k) for k in DIAL_FIELDS}
+    if previous.get("epoch"):
+        dials["epoch"] = previous["epoch"]
     doc = dict(previous)
     by_key = {leg_key(x): x for x in doc.get("legs") or []}
     out = LockedPrint(previous_created_at_utc=created)
     seen: set[LegKey] = set()
     for s in printed_singles(doc):
         if not pdf_printed and not s.get("locked"):
+            continue
+        if sports is not None and str(s.get("sport") or "football") not in sports:
             continue
         if is_locked(int(s["sofascore_event_id"]), s.get("kickoff_utc")):
             out.singles.append(_stamp(s, created, dials))

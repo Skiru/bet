@@ -341,7 +341,9 @@ def main() -> int:
             "rung are complements, so the pooled curve describes neither. "
             "thin_by_market_direction holds the direction buckets with "
             "min_thin_bucket..min_market_bucket rows: where the lookup falls "
-            "to a pool, the pool is capped at that bucket's realised_lo95."
+            "to a pool, the pool is capped at that bucket's realised_lo95; "
+            "from the 2026-10-05 stats-only epoch so is the by_market curve "
+            "(both directions pooled) - see Calibration.cap_market_by_thin."
         ),
         "fitted_from": {"db_path": args.db_path, "scored_rows": scored, **stamp},
         "min_market_bucket": MIN_MARKET_BUCKET,

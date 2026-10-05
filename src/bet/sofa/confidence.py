@@ -37,6 +37,7 @@ from typing import Any
 
 from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
+from bet.sofa.epochs import STATS_ONLY_FROM_UTC
 from bet.sofa.players import is_player_metric
 
 # Resolved against the repo, not the working directory: run from anywhere
@@ -557,6 +558,10 @@ class ConfidenceProfile:
     # leg. The official coupon honours it; the WARIANT keeps a WATCH leg,
     # marked, so the ledger can measure WATCH (operator, 2026-10-04).
     honours_watch: bool = True
+    # From this build time on (with a day in the stats-only epoch) the
+    # profile is no longer built - its days stay readable for the
+    # settlement, the ledger and the refit (plan 2026-10-05, K5).
+    retired_from_utc: datetime | None = None
 
     def single_is_fairly_priced(self, leg_overround: float | None) -> bool:
         return leg_overround is not None and leg_overround <= self.max_overround
@@ -658,10 +663,84 @@ def model_above_own_sample(
 PROFILES: dict[str, ConfidenceProfile] = {
     "standard": ConfidenceProfile("standard", 0.70, 0.90, "", "",
                                   max_overround=0.15, pdf_max_singles=None),
+    # Retired with the stats-only epoch (2026-10-05, the operator: one
+    # coupon; WATCH is graded on its own, audit_settlement 7f).
     "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
                                  max_overround=0.15, pdf_max_singles=None,
-                                 honours_watch=False),
+                                 honours_watch=False,
+                                 retired_from_utc=STATS_ONLY_FROM_UTC),
 }
+
+
+def profile_retired(profile: ConfidenceProfile, date: str, build_at: datetime) -> bool:
+    """Is a build of `profile` for `date` at `build_at` refused (K5)?"""
+    from bet.sofa.epochs import STATS_ONLY_DATE
+
+    return (
+        profile.retired_from_utc is not None
+        and date >= STATS_ONLY_DATE
+        and build_at >= profile.retired_from_utc
+    )
+
+
+# The coupon artifact (plan 2026-10-05, K3). From the stats-only epoch the
+# coupon is runs/sofa/<d>/11_coupon.json, assembled by build_coupon.py from
+# 08_confidence.json (football, tennis) and 08_confidence_sports.json; it is
+# a superset of the 08 format (singles, builders, legs, the dials), so every
+# reader of "what was printed" reads it the same way. A day without it is a
+# day before the epoch, and its coupon is 08_confidence.json as it always was.
+COUPON_ARTIFACT = "11_coupon.json"
+
+
+def coupon_artifact(run_dir: Path) -> Path:
+    """11_coupon.json where it exists, else 08_confidence.json."""
+    eleven = Path(run_dir) / COUPON_ARTIFACT
+    return eleven if eleven.exists() else Path(run_dir) / "08_confidence.json"
+
+
+# The stats-only order (K3): confidence, then the earlier start, then the
+# match, market and line - never the price or the EV.
+def coupon_sort_key(leg: Mapping[str, Any]) -> tuple[Any, ...]:
+    return (
+        -float(leg["confidence"]),
+        str(leg.get("kickoff_utc") or ""),
+        int(leg["sofascore_event_id"]),
+        str(leg.get("market") or leg.get("family") or ""),
+        str(leg.get("subject") or ""),
+        float(leg.get("line") or 0.0),
+        str(leg.get("direction") or leg.get("side") or ""),
+    )
+
+
+def group_key(leg: Mapping[str, Any]) -> str:
+    """One match, across sports: `sofa:<sofascore_event_id>`."""
+    return str(leg.get("group_key") or f"sofa:{int(leg['sofascore_event_id'])}")
+
+
+@dataclass
+class Block:
+    """The legs of one match, best first, printed together (K3)."""
+
+    group_key: str
+    legs: list[dict[str, Any]]
+
+
+def coupon_order(legs: list[dict[str, Any]]) -> list[Block]:
+    """Blocks of one match each, ordered by their best leg (confidence
+    descending, earlier start, match id); inside a block by confidence, then
+    market and line. No price and no EV in either key."""
+    blocks: dict[str, list[dict[str, Any]]] = {}
+    for leg in legs:
+        blocks.setdefault(group_key(leg), []).append(leg)
+    out = [Block(k, sorted(v, key=coupon_sort_key)) for k, v in blocks.items()]
+    out.sort(key=lambda b: coupon_sort_key(b.legs[0]))
+    return out
+
+
+# K10: a stats-only builder is stakeable when its combined probability times
+# the price after the correlation haircut clears the singles' own bar.
+STAKEABLE_RULE_X = "x>=0.90"
+BUILDER_MIN_X = 0.90
 
 
 def printed_singles(artifact: dict[str, Any]) -> list[dict[str, Any]]:
@@ -705,8 +784,44 @@ def printed_builders(artifact: dict[str, Any]) -> list[dict[str, Any]]:
 READ_REQUIRED_SINGLES = 30
 
 
-def legs_requiring_read(artifact: dict[str, Any]) -> list[dict[str, Any]]:
-    """The printed legs C3 requires an analyst's read on (see above)."""
+def legs_requiring_read(
+    artifact: dict[str, Any],
+    requests: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """The printed legs C3 requires an analyst's read on (see above).
+
+    A coupon artifact (11_coupon.json, K4) numbers its fresh singles 1..N:
+    the first READ_REQUIRED_SINGLES positions that are not locked, every leg
+    of a printed builder, and every position or leg the operator asked for in
+    runs/sofa/<d>/read_requests.json (`requests`, else the copy the artifact
+    carries). An older artifact keeps the 30 first printed singles, locked
+    ones included, as its C3 was run.
+    """
+    if artifact.get("positions") is not None:
+        asked = (
+            requests if requests is not None
+            else artifact.get("read_requests") or []
+        )
+        singles = printed_singles(artifact)
+        fresh = [s for s in singles if not s.get("locked")]
+        chosen = [
+            s for s in fresh
+            if int(s.get("position") or 0) <= READ_REQUIRED_SINGLES
+        ]
+        picked = {id(s) for s in chosen}
+        for s in singles:
+            if id(s) not in picked and any(request_covers(r, s) for r in asked):
+                chosen.append(s)
+                picked.add(id(s))
+        return [
+            *chosen,
+            *(
+                {**leg, "sofascore_event_id": b["sofascore_event_id"],
+                 "match": b.get("match", ""), "locked": bool(b.get("locked"))}
+                for b in printed_builders(artifact)
+                for leg in b.get("legs") or []
+            ),
+        ]
     return [
         *printed_singles(artifact)[:READ_REQUIRED_SINGLES],
         *(
@@ -716,6 +831,50 @@ def legs_requiring_read(artifact: dict[str, Any]) -> list[dict[str, Any]]:
             for leg in b.get("legs") or []
         ),
     ]
+
+
+def request_covers(request: Mapping[str, Any], leg: Mapping[str, Any]) -> bool:
+    """Does one read_requests.json entry ask for this printed leg (K4)?
+
+    `{"position": n}` names a position on the coupon; `{"group_key", "market"?,
+    "line"?, "direction"?}` names a match and, optionally, a rung - a field
+    left out covers every value."""
+    if request.get("position") is not None:
+        return leg.get("position") is not None and int(leg["position"]) == int(
+            request["position"])
+    if request.get("group_key") is None or group_key(leg) != request["group_key"]:
+        return False
+    for field_ in ("market", "line", "direction"):
+        want = request.get(field_)
+        if want is None:
+            continue
+        have = leg.get(field_)
+        if field_ == "line":
+            if have is None or float(have) != float(want):
+                return False
+        elif have != want:
+            return False
+    return True
+
+
+def load_read_requests(path: Path) -> list[dict[str, Any]]:
+    """runs/sofa/<d>/read_requests.json; a missing file is no request. An
+    unreadable one or an entry without `requested_by` raises - a request
+    that silently does nothing reads like one that was honoured."""
+    if not path.exists():
+        return []
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(doc, list):
+        raise ValueError(f"{path}: a list of requests expected")
+    for entry in doc:
+        if not isinstance(entry, dict) or not (
+                entry.get("requested_by") and entry.get("at_utc")):
+            raise ValueError(
+                f"{path}: every request needs requested_by and at_utc: {entry!r}")
+        if entry.get("position") is None and entry.get("group_key") is None:
+            raise ValueError(
+                f"{path}: a request names a position or a group_key: {entry!r}")
+    return doc
 
 
 def fixture_leg_counts(singles: list[dict[str, Any]]) -> dict[int, int]:
@@ -828,6 +987,7 @@ MIN_BUILDER_LEGS = 2
 
 def best_leg_per_quantity(
     legs: list[dict[str, Any]],
+    by_confidence: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """One representative per quantity family, chosen by **leg EV**.
 
@@ -839,12 +999,21 @@ def best_leg_per_quantity(
     its shortest-priced sibling before the EV ordering ever ran. That is the
     2026-09-20 defect surviving one level below the sort that was supposed to
     have removed it.
+
+    `by_confidence` (the stats-only epoch, operator's decision D3 of
+    2026-10-05): the representative is the most confident leg of its family
+    (ties: coupon_sort_key) - the price is no longer a ranking key.
     """
     best: dict[str, dict[str, Any]] = {}
     for leg in legs:
         family = quantity_family(leg["market"])
         current = best.get(family)
-        if current is None or leg["leg_ev"] > current["leg_ev"]:
+        if current is None:
+            best[family] = leg
+        elif by_confidence:
+            if coupon_sort_key(leg) < coupon_sort_key(current):
+                best[family] = leg
+        elif leg["leg_ev"] > current["leg_ev"]:
             best[family] = leg
     return best
 
@@ -913,8 +1082,10 @@ class Calibration:
     # The direction buckets too thin for by_market_direction
     # (fit_confidence.MIN_THIN_BUCKET..MIN_MARKET_BUCKET rows). Never read as
     # a curve: where the lookup falls to a pool, the pool may not claim more
-    # than this bucket's own lower bound (see realised). A file fitted before
-    # 2026-10-04 has no such section and reads exactly as it always did.
+    # than this bucket's own lower bound (see realised) - and, in the
+    # stats-only epoch (cap_market_by_thin), neither may the market's own
+    # curve, which pools both directions. A file fitted before 2026-10-04
+    # has no such section and reads exactly as it always did.
     thin_by_market_direction: dict[str, dict[str, dict[str, Any]]] = field(
         default_factory=dict
     )
@@ -947,6 +1118,28 @@ class Calibration:
     # (the default, and what a file without the key reads) changes nothing.
     # See shrink_for_gap.
     gap_shrink_k: float = 0.0
+    # K13 (plan 2026-10-05; the stats-only epoch only, set by CONFIDENCE).
+    # The market curve `by_market` pools OVER and UNDER, so where a
+    # direction's own bucket is too thin for by_market_direction the market
+    # curve is a pool as much as the sport pool is, and is capped by the thin
+    # bucket the same way. Found by the verifier on 10-05:
+    # corners_1h_total|UNDER at p 0.75-0.80 - thin bucket n=225, lo95 0.663;
+    # by_market (both directions) n=428, lo95 0.712, printed at 0.712.
+    # Off, a lookup is exactly what it was before 10-05.
+    cap_market_by_thin: bool = False
+
+    def _cap_by_thin(
+        self, market: str, direction: str | None, p: float,
+        hit: tuple[float, str, int],
+    ) -> tuple[float, str, int]:
+        """`hit`, or the direction's thin bucket where that bounds it lower."""
+        if not direction:
+            return hit
+        key = direction_key(market, direction)
+        thin = self._find(self.thin_by_market_direction.get(key, {}), p)
+        if thin is not None and thin["realised_lo95"] < hit[0]:
+            return thin["realised_lo95"], f"market_thin:{key}", thin["n"]
+        return hit
 
     def shrink_for_gap(
         self, confidence: float, p_central: float, market_p: float | None
@@ -1025,6 +1218,7 @@ class Calibration:
             pooled_by_sport=section.get("pooled_by_sport", {}),
             by_market_direction=section.get("by_market_direction", {}),
             thin_by_market_direction=section.get("thin_by_market_direction", {}),
+            cap_market_by_thin=self.cap_market_by_thin,
         )
 
     def _direction_entry(
@@ -1105,7 +1299,10 @@ class Calibration:
         own = self.by_market.get(market, {})
         entry = self._find(own, p)
         if entry is not None:
-            return entry["realised_lo95"], f"market:{market}", entry["n"]
+            hit = entry["realised_lo95"], f"market:{market}", entry["n"]
+            if self.cap_market_by_thin:
+                return self._cap_by_thin(market, direction, p, hit)
+            return hit
         # See AWAITING_OWN_CURVE: no pool may stand in for a market that has
         # no measured curve of its own yet.
         if not own and market in AWAITING_OWN_CURVE:
@@ -1171,12 +1368,7 @@ class Calibration:
         # ~0.755, and six such legs printed on 2026-10-03: the pool's bound is
         # tight because it measures other markets. See fit_confidence.
         # MIN_THIN_BUCKET for the leave-one-day-out measurement.
-        if direction:
-            key = direction_key(market, direction)
-            thin = self._find(self.thin_by_market_direction.get(key, {}), p)
-            if thin is not None and thin["realised_lo95"] < pooled[0]:
-                return thin["realised_lo95"], f"market_thin:{key}", thin["n"]
-        return pooled
+        return self._cap_by_thin(market, direction, p, pooled)
 
     def _unproven_ceiling(self) -> float:
         """The lowest measured ceiling among empirical markets with a curve.
@@ -1342,6 +1534,14 @@ def is_stakeable(builder: Mapping[str, Any]) -> bool:
     """
     if not builder.get("best_for_fixture"):
         return False
+    # K10 (stats-only epoch): combined probability x the price after the
+    # haircut >= 0.90, the singles' own bar. Written into the builder, so an
+    # older artifact is read by the predicate it was built with.
+    if builder.get("stakeable_rule") == STAKEABLE_RULE_X:
+        p = builder.get("combined_probability")
+        odds = builder.get("odds_after_haircut")
+        return p is not None and odds is not None and round(
+            float(p) * float(odds), 9) >= BUILDER_MIN_X
     # Older artifacts predate the haircut and carry only the product EV.
     key = (
         "ev_after_haircut" if "ev_after_haircut" in builder else "ev_if_product_priced"

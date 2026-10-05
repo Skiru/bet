@@ -16,7 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import itertools
+import dataclasses
 import json
 import math
 import os
@@ -33,61 +33,71 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from pydantic import RootModel  # noqa: E402
+
 from bet.sofa import timeutil  # noqa: E402
-from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
-from bet.sofa.samples import is_friendly_fixture  # noqa: E402
+from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
-    disagrees_with_price,
-    too_close_to_kickoff,
     BUILDER_CORRELATION_HAIRCUT,
     MAX_BUILDER_LEGS,
-    MIN_BUILDER_LEGS,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
+    MIN_BUILDER_LEGS,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
+    PROFILES,
+    STAKEABLE_RULE_X,
     Calibration,
-    model_above_own_sample,
-    own_hit_rate,
     best_leg_per_quantity,
     builder_legs_are_coherent,
     builder_odds,
-    is_derived,
-    is_stakeable,
     combined_probability,
+    confidence_artifact,
+    coupon_artifact,
+    coupon_sort_key,
+    disagrees_with_price,
     empirical_joint,
     fair_odds,
     fixture_leg_counts,
     has_cross_league_unlinked_note,
-    match_class,
     has_unreachable_bar_note,
+    is_derived,
+    is_stakeable,
     joint_probability,
-    PROFILES,
-    confidence_artifact,
-    overround,
     line_is_beyond_sample,
+    match_class,
     mode_loses,
+    model_above_own_sample,
+    overround,
+    own_hit_rate,
+    profile_retired,
     reads_catch_all_bucket,
+    too_close_to_kickoff,
+)
+from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.contracts import Fixture  # noqa: E402
+from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
+from bet.sofa.engine import (  # noqa: E402
+    has_calibratable_model,
+)
+from bet.sofa.epochs import (  # noqa: E402
+    STATS_ONLY,
+    STATS_ONLY_FROM_UTC,
+    sheet_epoch,
+)
+from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
+from bet.sofa.locked_print import (  # noqa: E402
+    carry_over,
+    kicked_off,
+    kickoff_clocks,
+    leg_key,
 )
 from bet.sofa.players import (  # noqa: E402
     is_player_metric,
     player_observations,
 )
-from scripts.sofa.run_sheet import determine_side  # noqa: E402
-from pydantic import RootModel  # noqa: E402
-from bet.sofa.contracts import Fixture  # noqa: E402
+from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.schedule import FixtureSchedule  # noqa: E402
-from bet.sofa.engine import (  # noqa: E402
-    has_calibratable_model,
-)
-from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.locked_print import (  # noqa: E402
-    carry_over,
-    kickoff_clocks,
-    kicked_off,
-    leg_key,
-)
-from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
     load_vetoes,
@@ -95,6 +105,7 @@ from bet.sofa.veto import (  # noqa: E402
     read_refusal,
     veto_matches,
 )
+from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 # A leg below this is not what the operator means by a strong read. The floor
 # is on the measured LOWER bound, not on what the model claims.
@@ -216,6 +227,29 @@ def main() -> int:
         print(refusal, file=sys.stderr)
         return 2
     sheet = json.loads((run_dir / "05_sheet.json").read_text(encoding="utf-8"))
+    # One clock for every stage (bet.sofa.timeutil), so a rebuild or a test
+    # that fixes the time fixes it here too.
+    now = timeutil.now()
+    # bet.sofa.epochs (plan 2026-10-05, K0): from the stats-only rebuild of
+    # 10-05 on, the coupon's confidence is the statistics' alone.
+    so = stats_only_epoch(args.date, now)
+    # K5: the WARIANT is no longer built for a stats-only day.
+    if profile_retired(profile, args.date, now):
+        print(
+            f"REFUSED: the {profile.name} profile is retired from "
+            f"{STATS_ONLY_FROM_UTC.isoformat()} (plan 2026-10-05, K5: one "
+            "coupon); its earlier days stay readable",
+            file=sys.stderr,
+        )
+        return 2
+    if so and sheet and sheet_epoch(sheet) != STATS_ONLY:
+        print(
+            "REFUSED: this is a stats-only build and 05_sheet.json was not "
+            f"built under that rule (epoch {sheet_epoch(sheet)!r}); a rebuild "
+            "starts at SHEET",
+            file=sys.stderr,
+        )
+        return 2
     fixtures = {
         f["sofascore_event_id"]: f
         for f in json.loads((run_dir / "02_fixtures.json").read_text(encoding="utf-8"))
@@ -329,6 +363,10 @@ def main() -> int:
                 margins[key] = rung_margin
 
     cal = Calibration.load(args.calibration) if args.calibration else Calibration.load()
+    if so:
+        # K2: no anti-selection shrink toward the price; K13: a thin
+        # direction bucket caps the market curve as it caps a pool.
+        cal = dataclasses.replace(cal, gap_shrink_k=0.0, cap_market_by_thin=True)
     # Superbet's own side names, for the match class ("(K)" = women's).
     board_sides: dict[str, tuple[str, str]] = {}
     board_path = run_dir / "01_board.json"
@@ -339,23 +377,22 @@ def main() -> int:
             if isinstance(entry, dict) and entry.get("superbet_event_id"):
                 board_sides[str(entry["superbet_event_id"])] = (
                     str(entry.get("side_a") or ""), str(entry.get("side_b") or ""))
-    # One clock for every stage (bet.sofa.timeutil), so a rebuild or a test
-    # that fixes the time fixes it here too.
-    now = timeutil.now()
-
     # The previous build of THIS profile, read before it is overwritten: the
     # legs it printed whose match has started since are carried over as
     # printed (bet.sofa.locked_print - the operator's decision of
     # 2026-10-05). An unreadable previous artifact refuses the build rather
     # than overwrite the only record of what was printed.
     previous: dict[str, Any] | None = None
-    previous_path = run_dir / artifact
+    # Stats-only: what was printed is the coupon artifact (11_coupon.json
+    # once build_coupon.py has run, the morning's 08 before it) - K3.
+    previous_path = coupon_artifact(run_dir) if so else run_dir / artifact
     if previous_path.exists():
         try:
             loaded = json.loads(previous_path.read_text(encoding="utf-8"))
         except ValueError as exc:
             print(
-                f"REFUSED: the previous {artifact} is unreadable ({exc}); it is "
+                f"REFUSED: the previous {previous_path.name} is unreadable "
+                f"({exc}); it is "
                 "the only record of the legs already printed - move it aside "
                 "deliberately before rebuilding",
                 file=sys.stderr,
@@ -390,6 +427,10 @@ def main() -> int:
     read_keys: set[tuple[Any, ...]] = set()
 
     legs: list[dict[str, Any]] = []
+    # K6 (stats-only): a leg that passed every gate and was removed by a read
+    # (reads.json) or by the automatic WATCH - graded on its own (7f), never
+    # in the coupon's result.
+    removed_by_reads: list[dict[str, Any]] = []
     refused: dict[str, int] = defaultdict(int)
     for row in sheet:
         odds = row.get("offered_odds")
@@ -444,7 +485,9 @@ def main() -> int:
                 )
             )
         read_refused = read_refusal(row_reads, profile.honours_watch)
-        if read_refused is not None:
+        # Stats-only: the read is applied at the END of the chain (K6), so a
+        # leg it removes is known to have passed everything else.
+        if read_refused is not None and not so:
             refused[read_refused] += 1
             continue
         # The EARLIER of the two clocks, as coupon.py has done since F26 —
@@ -489,9 +532,17 @@ def main() -> int:
         # in) and required_odds were all computed from the sheet's price, so
         # swapping the odds alone would pair a new price with an old
         # probability. Re-running SHEET is what re-prices a leg.
+        sheet_odds: float | None = None
         if not math.isclose(fresh_odds[key], odds, abs_tol=1e-9):
-            refused["PRICE_MOVED_SINCE_SHEET"] += 1
-            continue
+            if not so:
+                refused["PRICE_MOVED_SINCE_SHEET"] += 1
+                continue
+            # K2: in the stats-only epoch no probability read the price, so
+            # the leg is judged at the fresh price (x, margin, ODDS_TOO_LOW).
+            sheet_odds, odds = odds, fresh_odds[key]
+            if odds < MIN_ODDS:
+                refused["ODDS_TOO_LOW"] += 1
+                continue
 
         # A metric with no model at all is refused. Empirical-frequency
         # metrics are NOT in that class any more: since 2026-09-21
@@ -533,7 +584,8 @@ def main() -> int:
         #
         # On 2026-09-23 COUPON selected zero VALUE singles, so the whole PDF
         # came from here, and 29 of the 30 printed singles carried this note.
-        if has_unreachable_bar_note(row.get("notes")):
+        # Not in the stats-only epoch (D1): it is a statement about the price.
+        if not so and has_unreachable_bar_note(row.get("notes")):
             refused["UNREACHABLE_BAR"] += 1
             continue
         # See has_cross_league_unlinked_note: two football sides that share
@@ -613,7 +665,9 @@ def main() -> int:
         # See MAX_DISAGREEMENT. Shading means the book pays us less than the
         # event is worth; this is the opposite case, where we claim far more
         # than the book does, and it is measured to end below a coin flip.
-        if disagrees_with_price(
+        # Off in the stats-only epoch (D1; measured 09-24..10-04: refused
+        # -3.7% [-9.6; +2.1] against admitted -4.8% [-6.1; -3.4]).
+        if not so and disagrees_with_price(
             row["p_central"],
             row.get("market_p"),
             realised_lo,
@@ -676,13 +730,25 @@ def main() -> int:
             row["market"],
         )
         auto_watch: list[str] = []
+        removal: tuple[str, str] | None = None
         if own_gap is not None:
             if profile.honours_watch:
-                refused["MODEL_ABOVE_OWN_SAMPLE"] += 1
-                continue
-            auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
+                if not so:
+                    refused["MODEL_ABOVE_OWN_SAMPLE"] += 1
+                    continue
+                removal = ("MODEL_ABOVE_OWN_SAMPLE", "auto")
+                auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
+            else:
+                auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
+        if so and read_refused is not None:
+            # A person's read before the automatic one: who removed it.
+            refusing = [
+                r for r in row_reads
+                if r.verdict == ("NO_BET" if read_refused == "READ_NO_BET" else "WATCH")
+            ]
+            removal = (read_refused, "+".join(sorted({r.author for r in refusing})))
 
-        legs.append(
+        leg = (
             {
                 "sofascore_event_id": row["sofascore_event_id"],
                 "match": f"{fx['home_name']} - {fx['away_name']}",
@@ -759,12 +825,39 @@ def main() -> int:
                     ]}
                     if row_reads else {}
                 ),
+                # The stats-only epoch (K0/K11): the second number, never
+                # calibrated, never a gate; the price the sheet carried when
+                # the leg was re-priced at the fresh one (K2).
+                **(
+                    {
+                        "epoch": STATS_ONLY,
+                        "forecast_p": row.get("forecast_p"),
+                        "forecast_source": row.get("forecast_source"),
+                        **(
+                            {"sheet_odds": sheet_odds}
+                            if sheet_odds is not None else {}
+                        ),
+                    }
+                    if so else {}
+                ),
                 # Not serialised: the builder needs to intersect legs on the
                 # matches they came from. Stripped before the artifact is
                 # written.
                 "_obs_by_match": obs_by_match,
             }
         )
+        if removal is not None:
+            refused[removal[0]] += 1
+            # Only a leg the page would have printed as a single is "removed
+            # from the coupon"; the rest was never on it.
+            if profile.single_is_fairly_priced(leg.get("overround")):
+                removed_by_reads.append({
+                    **{k: v for k, v in leg.items() if not k.startswith("_")},
+                    "refusal": removal[0],
+                    "reason": removal[1],
+                })
+            continue
+        legs.append(leg)
 
     # Legs the previous build of this profile printed and whose match has
     # started (or is inside the kickoff margin) by now: kept exactly as
@@ -781,7 +874,8 @@ def main() -> int:
         )
 
     locked = carry_over(
-        previous, profile.name, now, is_locked, pdf_printed=previous_printed
+        previous, profile.name, now, is_locked, pdf_printed=previous_printed,
+        sports=frozenset({"football", "tennis"}) if so else None,
     )
     locked_keys = locked.keys
     # Never the same leg twice: the gate above already refuses a locked
@@ -817,7 +911,11 @@ def main() -> int:
             late_refusals.append({"key": rung, "as": kind, "refusal": why})
             print(f"LOCKED_DESPITE_LATE_REFUSAL: {why} {kind} {rung}", file=sys.stderr)
 
-    legs.sort(key=lambda r: (-r["leg_ev"], -r["confidence"]))
+    # K3 (stats-only): confidence, the earlier start, the match - never EV.
+    if so:
+        legs.sort(key=coupon_sort_key)
+    else:
+        legs.sort(key=lambda r: (-r["leg_ev"], -r["confidence"]))
 
     # Singles. Deliberately NOT ranked by `leg_ev` — see MAX_OVERROUND for why
     # that ordering is inverted against the settled outcomes. A single is
@@ -827,7 +925,10 @@ def main() -> int:
     singles = sorted(
         (leg for leg in legs
          if profile.single_is_fairly_priced(leg.get("overround"))),
-        key=lambda r: (-r["confidence"], r["offered_odds"]),
+        key=(
+            coupon_sort_key if so
+            else lambda r: (-r["confidence"], r["offered_odds"])
+        ),
     )
     # Locked singles first; the fresh ones fill the room left on the page
     # (printed_singles cuts the list at pdf_max_singles).
@@ -855,7 +956,14 @@ def main() -> int:
         # it alive one level down — a family's EV-positive leg was discarded in
         # favour of its shortest-priced sibling *before* the EV ordering ever
         # ran, so the pool it ranked was already the wrong pool.
-        pool = sorted(best_leg_per_quantity(group).values(), key=lambda r: -r["leg_ev"])
+        # Stats-only (D3, K10): chosen and ordered by confidence instead.
+        pool = (
+            sorted(best_leg_per_quantity(group, by_confidence=True).values(),
+                   key=coupon_sort_key)
+            if so
+            else sorted(best_leg_per_quantity(group).values(),
+                        key=lambda r: -r["leg_ev"])
+        )
         if len(pool) < MIN_BUILDER_LEGS:
             continue
         for size in range(MIN_BUILDER_LEGS, min(MAX_BUILDER_LEGS, len(pool)) + 1):
@@ -920,9 +1028,17 @@ def main() -> int:
                     "haircut": BUILDER_CORRELATION_HAIRCUT,
                     "odds_after_haircut": round(effective_odds, 3),
                     "ev_after_haircut": round(p * effective_odds - 1.0, 4),
+                    # K10: which predicate decides it (confidence.is_stakeable).
+                    **({"stakeable_rule": STAKEABLE_RULE_X} if so else {}),
                 }
             )
-    builders.sort(key=lambda b: (-b["ev_after_haircut"], -b["combined_probability"]))
+    if so:
+        # K10: the most likely combination first; best_for_fixture follows.
+        builders.sort(key=lambda b: (
+            -b["combined_probability"], b["kickoff_utc"], b["sofascore_event_id"],
+            b["n_legs"]))
+    else:
+        builders.sort(key=lambda b: (-b["ev_after_haircut"], -b["combined_probability"]))
 
     # A fixture emits a 2-, 3- and 4-leg builder off the same ranked pool, so
     # the smaller ones are SUBSETS of the larger. Staking all three is staking
@@ -986,6 +1102,9 @@ def main() -> int:
     out = {
         "created_at_utc": now.isoformat().replace("+00:00", "Z"),
         "profile": profile.name,
+        # bet.sofa.epochs; written only in the stats-only epoch, so an older
+        # build is byte-for-byte what it was.
+        **({"epoch": STATS_ONLY, "stakeable_rule": STAKEABLE_RULE_X} if so else {}),
         "confidence_floor": args.floor,
         "min_ev": profile.min_ev,
         "max_overround": profile.max_overround,
@@ -1023,6 +1142,7 @@ def main() -> int:
             }
         ),
         "legs": legs,
+        **({"removed_by_reads": removed_by_reads} if so else {}),
         "singles": [
             {k: v for k, v in s_.items() if not k.startswith("_")} for s_ in singles
         ],
@@ -1173,6 +1293,8 @@ def main() -> int:
             "reads_applied": len(reads) - len(reads_unmatched),
             "reads_unmatched": len(reads_unmatched),
             "read_rungs": len(read_keys),
+            "epoch": STATS_ONLY if so else "old",
+            "removed_by_reads": len(removed_by_reads),
         },
         "output_path": str(run_dir / artifact),
     }))

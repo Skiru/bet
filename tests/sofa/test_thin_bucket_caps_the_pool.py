@@ -145,3 +145,54 @@ def test_fit_writes_only_the_thin_band(tmp_path: Path) -> None:
     assert entry["realised"] == round(120 / (MIN_THIN_BUCKET + 50), 4)
     assert entry["realised_lo95"] < entry["realised"]
     assert "0.875-0.900" in doc["by_market_direction"]["goals_1h_total|UNDER"]
+
+
+def test_in_the_stats_only_epoch_a_measured_market_bucket_is_capped_too() -> None:
+    # K13 (2026-10-05): by_market pools OVER and UNDER, so a thin direction
+    # bucket bounds it like it bounds a pool. Off, the lookup is unchanged
+    # (test_a_measured_bucket_is_never_capped).
+    from dataclasses import replace
+
+    thin = {"goals_1h_total|UNDER": {
+        "0.875-0.900": {"n": 150, "realised": 0.70, "realised_lo95": 0.62}}}
+    cal = replace(_cal(thin), cap_market_by_thin=True)
+    hit = cal.realised("goals_1h_total", 0.88, "football", "UNDER")
+    assert hit == (0.62, "market_thin:goals_1h_total|UNDER", 150)
+    # the other direction has no thin bucket: the market curve stands
+    assert cal.realised("goals_1h_total", 0.88, "football", "OVER") == (
+        0.8509, "market:goals_1h_total", 410)
+
+
+def test_corners_1h_under_of_2026_10_05_falls_below_the_floor() -> None:
+    # The verifier's case (Estudiantes - Gimnasia Mendoza, Cordoba -
+    # Tenerife): the installed file's own numbers, see confidence.py K13.
+    from dataclasses import replace
+
+    cal = Calibration(
+        pooled={}, pooled_by_sport={},
+        by_market={"corners_1h_total": {
+            "0.750-0.800": {"n": 428, "realised": 0.754, "realised_lo95": 0.712}}},
+        thin_by_market_direction={"corners_1h_total|UNDER": {
+            "0.750-0.800": {"n": 225, "realised": 0.724, "realised_lo95": 0.663}}},
+    )
+    assert cal.realised("corners_1h_total", 0.77, "football", "UNDER")[0] == 0.712
+    capped = replace(cal, cap_market_by_thin=True)
+    lo, source, n = capped.realised("corners_1h_total", 0.77, "football", "UNDER")
+    assert (lo, n) == (0.663, 225) and lo < 0.70  # BELOW_CONFIDENCE_FLOOR
+
+
+def test_a_class_curve_inherits_the_cap() -> None:
+    from dataclasses import replace
+
+    cal = Calibration(
+        pooled={}, by_market={}, pooled_by_sport={},
+        by_class={"women": {
+            "by_market": {"corners_1h_total": {
+                "0.750-0.800": {"n": 428, "realised": 0.754, "realised_lo95": 0.712}}},
+            "thin_by_market_direction": {"corners_1h_total|UNDER": {
+                "0.750-0.800": {"n": 225, "realised": 0.724, "realised_lo95": 0.663}}},
+        }},
+    )
+    capped = replace(cal, cap_market_by_thin=True)
+    hit = capped.realised("corners_1h_total", 0.77, "football", "UNDER", "women")
+    assert hit is not None and hit[0] == 0.663
