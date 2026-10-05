@@ -162,16 +162,73 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     return section, rows
 
 
+def _f(v: Any, nd: int = 3) -> str:
+    return "-" if v is None else f"{v:.{nd}f}"
+
+
+def tables_markdown(doc: dict[str, Any]) -> str:
+    """The calibration file's per-sport results as Markdown (report F5)."""
+    out: list[str] = []
+    for sport, sec in (doc.get("sports") or {}).items():
+        ff = sec["fitted_from"]
+        out.append(f"### {sport}\n")
+        fit_w = ff["fit_window_utc"]
+        out.append(f"fit {fit_w[0][:10]}..{fit_w[1][:10]}, "
+                   f"holdout {ff['holdout_window_utc'][0][:10]}.."
+                   f"{ff['holdout_window_utc'][1][:10]}; rows {ff['rows']}; "
+                   f"games {ff['games']}\n")
+        out.append("| key | status | population | n | games | conf. | realised | "
+                   "realised-conf. [95%] | log-loss conf. | log-loss model | "
+                   "printable n | printable conf. | printable realised | "
+                   "printable gap [95%] |")
+        out.append("|" + "---|" * 14)
+        keys = sorted(set(sec["curves"]) | set(sec["not_calibrated"]))
+        for key in keys:
+            status = ("ADMITTED" if key in sec["admitted"]
+                      else "NOT_CALIBRATED: " + sec["not_calibrated"].get(key, ""))
+            for pop, res in sec["oos"].items():
+                r = res.get(key)
+                if not r or not r.get("n"):
+                    out.append(f"| {key} | {status} | {pop} | 0 | | | | | | | | | | |")
+                    continue
+                gap = r["realised_minus_confidence"]
+                pr = r.get("printable") or {}
+                pgap = pr.get("realised_minus_confidence")
+                out.append(
+                    f"| {key} | {status} | {pop} | {r['n']} | {r['games']} | "
+                    f"{_f(r['confidence'])} | {_f(r['realised'])} | "
+                    f"{gap[0]:+.3f} [{gap[1]:+.3f}; {gap[2]:+.3f}] | "
+                    f"{_f(r['logloss_confidence'], 4)} | {_f(r['logloss_model'], 4)} | "
+                    f"{pr.get('n', 0)} | {_f(pr.get('confidence'))} | "
+                    f"{_f(pr.get('realised'))} | "
+                    + (f"{pgap[0]:+.3f} [{pgap[1]:+.3f}; {pgap[2]:+.3f}]"
+                       if pgap else "-") + " |")
+        out.append("\nBuckets (out of sample, n >= 200 only; conf. = curve lo95):\n")
+        out.append("| key | population | bucket | n | conf. | realised | gap |")
+        out.append("|---|---|---|---|---|---|---|")
+        for key in keys:
+            for pop, res in sec["oos"].items():
+                for label, b in ((res.get(key) or {}).get("buckets") or {}).items():
+                    if b["n"] >= scf.MIN_BUCKET:
+                        out.append(f"| {key} | {pop} | {label} | {b['n']} | "
+                                   f"{_f(b['confidence'])} | {_f(b['realised'])} | "
+                                   f"{b['gap']:+.3f} |")
+        out.append("")
+    return "\n".join(out)
+
+
 def _iso(ts: int) -> str:
     return datetime.fromtimestamp(ts, UTC).isoformat().replace("+00:00", "Z")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--sport", required=True,
-                    choices=[*scf.SPORT_KEYS, "all"])
-    ap.add_argument("--before", required=True,
+    ap.add_argument("--sport", choices=[*scf.SPORT_KEYS, "all"])
+    ap.add_argument("--before",
                     help="fit on history strictly before this date (UTC)")
+    ap.add_argument("--tables", action="store_true",
+                    help="fit nothing: print --out's curves, admission and "
+                    "out-of-sample checks as Markdown tables")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the summary, write no config")
     ap.add_argument("--holdout-days", type=int, default=30)
@@ -188,6 +245,12 @@ def main() -> int:
     ap.add_argument("--events-cache", default=None,
                     help="directory of <sport>.pkl score_model.load_events dumps")
     args = ap.parse_args()
+    if args.tables:
+        path = Path(args.out) if args.out else config_path(scf.CALIBRATION_FILE)
+        print(tables_markdown(json.loads(path.read_text(encoding="utf-8"))))
+        return 0
+    if not args.sport or not args.before:
+        ap.error("--sport and --before are required (or --tables)")
     config = SofaConfig.from_env()
     sports = list(scf.SPORT_KEYS) if args.sport == "all" else [args.sport]
     out_path = Path(args.out) if args.out else config_path(scf.CALIBRATION_FILE)

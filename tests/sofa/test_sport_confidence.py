@@ -358,3 +358,21 @@ def test_the_printable_region_is_the_official_floor():
     assert out["n"] == 200
     assert out["printable"]["n"] == 100 and out["printable"]["realised"] == 0.8
     assert out["printable"]["confidence"] == 0.78
+
+
+def test_the_fit_scripts_tables_read_the_calibration_file():
+    from scripts.sofa import fit_sport_confidence as fsc
+
+    curves = scf.fit_curves(_rows("total|OVER", 0.81, 250, 205))
+    oos = scf.evaluate(curves, _rows("total|OVER", 0.81, 250, 200, "o"))
+    doc = {"sports": {"hockey": {
+        "fitted_from": {"fit_window_utc": ["2025-09-05T00:00:00Z",
+                                           "2026-09-05T00:00:00Z"],
+                        "holdout_window_utc": ["2026-09-05T00:00:00Z",
+                                               "2026-10-05T00:00:00Z"],
+                        "rows": {}, "games": {}},
+        "curves": curves, "admitted": ["total|OVER"], "not_calibrated": {},
+        "oos": {"history_holdout": oos}}}}
+    text = fsc.tables_markdown(doc)
+    assert "| total|OVER | ADMITTED | history_holdout | 250 |" in text
+    assert "0.800-0.825" in text
