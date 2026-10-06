@@ -18,7 +18,7 @@ import pytest
 
 from bet.sofa import cs2, shadow
 from bet.sofa import settle_identity as si
-from bet.sofa import sport_coupon as sc
+from bet.sofa import sport_day as sd
 from bet.sofa.config import SofaConfig
 from bet.sofa.names import normalize_name
 from bet.sofa.resolve import SofaResolver, name_stopwords, superbet_gender
@@ -67,7 +67,7 @@ def test_every_settle_reads_one_set_of_states() -> None:
     ):
         assert shadow.is_terminal(state) and shadow.is_excluded(state)
     assert shadow.moved_to_date("MOVED_TO:2026-10-03") == "2026-10-03"
-    assert sc.TERMINAL_UNGRADED >= shadow.EXCLUDED - {shadow.MOVED_TO}
+    assert sd.TERMINAL_UNGRADED >= shadow.EXCLUDED - {shadow.MOVED_TO}
 
 
 def _graded(outcome: str = "WIN") -> dict[str, Any]:
@@ -255,17 +255,17 @@ def test_a_moved_coupon_leg_is_graded_from_the_later_file(tmp_path: Path) -> Non
             m for m, s in shadow.MARKETS["basketball"].items() if s.kind == "winner"
         )
     for d, rec in ((d1, {"state": "MOVED_TO:2026-10-03"}), (d2, result)):
-        day = sc.day_dir(str(tmp_path), "basketball", d)
+        day = sd.day_dir(str(tmp_path), "basketball", d)
         day.mkdir(parents=True)
         (day / "settled.json").write_text(json.dumps({"events": {"15132383": rec}}))
-    settled_docs = sc.settled_for(str(tmp_path), "basketball", {d1})
+    settled_docs = sd.settled_for(str(tmp_path), "basketball", {d1})
     assert set(settled_docs) == {d1, d2}  # the moved-to file is loaded too
-    (graded,) = sc.grade_coupon(
+    (graded,) = sd.grade_legs(
         {"sport": "basketball", "date": d1, "legs": [leg]}, settled_docs
     )
     assert graded["outcome"] == "WIN"
     # the target file not settled yet: pending, not lost
-    (pending,) = sc.grade_coupon(
+    (pending,) = sd.grade_legs(
         {"sport": "basketball", "date": d1, "legs": [leg]}, {d1: settled_docs[d1]}
     )
     assert pending["outcome"] == "PENDING:PENDING"
@@ -825,7 +825,7 @@ def test_an_awarded_match_is_final_and_a_refund(tmp_path: Path, detail: dict) ->
     rec = settled(tmp_path)["1"]
     assert rec["state"] == "AWARDED" and "graded" not in rec
     leg = {"superbet_event_id": "1", "kickoff_utc": "2026-09-28T16:00:00Z"}
-    (out,) = sc.grade_coupon(
+    (out,) = sd.grade_legs(
         {"sport": "hockey", "date": DATE, "legs": [leg]},
         {DATE: {"events": {"1": rec}}},
     )
@@ -979,9 +979,9 @@ def test_a_map_never_played_is_a_refund() -> None:
         "team2": "B",
     }
     ev = {"state": "SETTLED", "maps": [[m.t1_rounds, m.t2_rounds] for m in maps]}
-    assert sc._grade_leg("cs2", leg, ev) == "VOID"
+    assert sd._grade_leg("cs2", leg, ev) == "VOID"
     # ...also on a series graded from its score alone
-    assert sc._grade_leg("cs2", leg, {**ev, "series_only": True}) == "VOID"
+    assert sd._grade_leg("cs2", leg, {**ev, "series_only": True}) == "VOID"
     snap = cs2.SnapshotEvent("1", "A·B", "A", "B", "2026-10-01T10:00:00Z", None)
     for side, odds in (("OVER", 1.8), ("UNDER", 1.95)):
         line = cs2.Cs2Line("1", "map_rounds_total", 3, "", 21.5, side, odds)

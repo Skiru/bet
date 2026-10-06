@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Closing line value of every printed variant, per variant, never pooled.
+"""Closing line value of the coupon's printed legs, per group, never pooled.
 
-  * sport coupons (CS2, hockey, basketball, volleyball): each printed leg
-    against the price its line was graded at - the latest pre-start
-    snapshot (bet.sofa.clv.sport_coupon_rows);
-  * the official PDF and the WARIANT: each printed leg against the closing
-    price capture_closing.py recorded in runs/sofa/<d>/closing.jsonl.
+  * football / tennis singles and builder legs: against the closing price
+    capture_closing.py recorded in runs/sofa/<d>/closing.jsonl;
+  * the measured sports' legs (CS2, hockey, basketball, volleyball): against
+    the price their line was graded at - the latest pre-start snapshot
+    (bet.sofa.clv.graded_close_rows).
+
+Rows of the retired variants (WARIANT, the separate sport coupons) are no
+longer read.
 
 Mean CLV = odds_taken x devigged closing probability - 1, with a 95%
 interval from resampling whole matches, and the share of legs priced above
@@ -28,8 +31,8 @@ from typing import Any
 from bet.sofa.clv import (  # noqa: E402
     MIN_CLUSTERS,
     ClvRow,
+    graded_close_rows,
     is_close,
-    sport_coupon_rows,
     summarize,
     two_way_close,
 )
@@ -65,32 +68,12 @@ def _next_day(day: str) -> str:
     return d.strftime("%Y-%m-%d")
 
 
-def sport_rows(runs: Path, day: str) -> list[ClvRow]:
-    """A day's sport-coupon legs against their graded close. A leg that starts
-    after midnight UTC (NHL, NBA, a night CS2 series) is graded into the next
-    day's settled.json, so both files are read."""
-    out: list[ClvRow] = []
-    for sport, (sub, keys) in SPORT_DIRS.items():
-        coupon = _json(runs / sub / day / "sport_coupon.json")
-        if not coupon:
-            continue
-        graded: list[dict[str, Any]] = []
-        for d in (day, _next_day(day)):
-            settled = _json(runs / sub / d / "settled.json")
-            if not settled:
-                continue
-            events = settled.get("events", {})
-            graded += [g for e in (events.values() if isinstance(events, dict)
-                                   else events)
-                       if isinstance(e, dict) for g in e.get("graded", [])]
-        out += sport_coupon_rows(coupon, graded, f"sport:{sport}", keys)
-    return out
-
-
 def coupon_sport_rows(runs: Path, day: str) -> list[ClvRow]:
     """F7: the measured sports' legs printed on the one coupon
-    (11_coupon.json) against the same graded close as a sport coupon's - the
-    last pre-start snapshot SHADOW_SETTLE / CS2_SETTLE graded."""
+    (11_coupon.json) against the last pre-start snapshot SHADOW_SETTLE /
+    CS2_SETTLE graded. A leg that starts after midnight UTC (NHL, NBA, a
+    night CS2 series) is graded into the next day's settled.json, so both
+    files are read."""
     doc = _json(runs / day / "11_coupon.json")
     if not doc:
         return []
@@ -108,7 +91,7 @@ def coupon_sport_rows(runs: Path, day: str) -> list[ClvRow]:
             graded += [g for e in (events.values() if isinstance(events, dict)
                                    else events)
                        if isinstance(e, dict) for g in e.get("graded", [])]
-        out += sport_coupon_rows({"legs": legs}, graded, f"official:{sport}", keys)
+        out += graded_close_rows({"legs": legs}, graded, f"official:{sport}", keys)
     return out
 
 
@@ -157,8 +140,7 @@ def main() -> int:
     runs = Path(args.runs_dir)
     rows: list[ClvRow] = []
     for day in _days(args.date_from, args.date_to):
-        rows += sport_rows(runs, day) + closing_rows(runs, day) + coupon_sport_rows(
-            runs, day)
+        rows += closing_rows(runs, day) + coupon_sport_rows(runs, day)
     variants = sorted({r.variant for r in rows})
     print(f"# CLV {args.date_from}..{args.date_to} - Superbet's own close, power devig")
     print("| variant | legs | matches | mean CLV | 95% (by match) | above close |")
@@ -173,7 +155,7 @@ def main() -> int:
               f"{ci} | {s.beat_share:.0%} |")
     if not rows:
         print("no leg with a recorded close in the window")
-    # An official / WARIANT day with no closing file prints no row above, and
+    # A coupon day with no closing file prints no row above, and
     # a missing row reads like "nothing to measure". Name it (2026-10-01).
     for day in _days(args.date_from, args.date_to):
         for line in missing_closes(runs, day):
@@ -182,15 +164,14 @@ def main() -> int:
 
 
 def missing_closes(runs: Path, day: str) -> list[str]:
-    """`NO_CLOSING_FILE` for a day whose official / WARIANT artifact exists
+    """`NO_CLOSING_FILE` for a day whose coupon artifact exists
     but whose closing.jsonl does not: capture_closing.py never ran for it."""
     day_dir = runs / day
     if (day_dir / "closing.jsonl").exists():
         return []
     built = [
         name
-        for name in ("08_confidence.json", "08_confidence_wariant.json",
-                     "11_coupon.json")
+        for name in ("08_confidence.json", "11_coupon.json")
         if (day_dir / name).exists()
     ]
     if not built:

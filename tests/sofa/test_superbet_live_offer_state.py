@@ -40,7 +40,7 @@ from tests.sofa.test_price_moved_since_sheet import (
     _day,
     _offer,
     _single_ids,
-    _variant,
+    _confidence,
 )
 
 
@@ -211,12 +211,12 @@ def test_confidence_refuses_a_leg_of_a_match_superbet_reports_started(
     (tmp_path / "plain").mkdir()
     (tmp_path / "started").mkdir()
     plain = [_offer(1, ODDS_A, UNDER_A), _offer(2, ODDS_B, UNDER_B)]
-    assert _single_ids(_variant(_day(tmp_path / "plain", plain, []))) == {1, 2}
+    assert _single_ids(_confidence(_day(tmp_path / "plain", plain, []))) == {1, 2}
 
     started = _offer(2, ODDS_B, UNDER_B)
     started["superbet_started_utc"] = "2026-09-25T04:31:00Z"
     offers = [_offer(1, ODDS_A, UNDER_A), started]
-    assert _single_ids(_variant(_day(tmp_path / "started", offers, []))) == {1}
+    assert _single_ids(_confidence(_day(tmp_path / "started", offers, []))) == {1}
 
 
 # ---------------------------------------------------------------------------
@@ -284,4 +284,4 @@ def test_confidence_gates_on_a_start_superbet_moved_earlier(tmp_path: Path) -> N
     moved = _offer(2, ODDS_B, UNDER_B)
     moved["superbet_kickoff_seen_utc"] = soon
     offers = [_offer(1, ODDS_A, UNDER_A), moved]
-    assert _single_ids(_variant(_day(tmp_path, offers, []))) == {1}
+    assert _single_ids(_confidence(_day(tmp_path, offers, []))) == {1}

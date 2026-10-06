@@ -46,10 +46,10 @@ from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    CONFIDENCE_ARTIFACT,
+    COUPON_PROFILE,
     MAX_OVERROUND,
     MIN_MINUTES_TO_KICKOFF,
-    PROFILES,
-    confidence_artifact,
     coupon_artifact,
     displayed_ev,
     fixture_leg_counts,
@@ -57,7 +57,6 @@ from bet.sofa.confidence import (  # noqa: E402
     ladder_leg_counts,
     printed_builders,
     printed_singles,
-    profile_retired,
     too_close_to_kickoff,
 )
 from bet.sofa.config import config_path  # noqa: E402
@@ -160,8 +159,8 @@ def unfitted_constants(
 
 
 def watch_label(leg: dict[str, Any]) -> str:
-    """The WATCH a profile kept (the WARIANT does; the official coupon
-    refuses the leg), printed on the leg so it is never staked unread."""
+    """A WATCH on a printed leg (a locked leg read after its print), shown on
+    the leg so it is never staked unread."""
     watched = [r for r in leg.get("reads") or [] if r.get("verdict") == "WATCH"]
     if not watched:
         return ""
@@ -224,23 +223,18 @@ def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
     conf = run / artifact
     if not conf.exists():
         return None
-    # vetoes.json too (review 2026-09-29): /sofa-analyze merged new vetoes and
-    # rebuilt only the standard profile, so the variant PDF printed legs the
-    # analysts had just vetoed. No real day 09-22..09-30 has a vetoes.json
-    # newer than its confidence artifacts. reads.json likewise (2026-10-04):
-    # a WATCH merged after CONFIDENCE must not print on the official PDF.
+    # vetoes.json and reads.json too (2026-09-29, 2026-10-04): a veto or a
+    # WATCH merged after CONFIDENCE must not print on the PDF.
     for newer in ("05_sheet.json", "vetoes.json", "reads.json"):
         path = run / newer
         if path.exists() and conf.stat().st_mtime < path.stat().st_mtime:
             return (
                 f"STALE_CONFIDENCE: {artifact} is older than {newer} - run "
-                "run_confidence.py for this day (and profile) before the PDF"
+                "run_confidence.py for this day before the PDF"
             )
     # The operator's refused_markets / admitted_player_markets live in the
     # calibration file (review 2026-10-04): a PDF-only re-render after an
-    # entry was added would print the newly refused market. The PDF only -
-    # WSZYSTKIE and its settle read past days that a refit install makes
-    # "older" without anything to rebuild.
+    # entry was added would print the newly refused market.
     calibration = config_path("sofa_confidence_calibration.json")
     if calibration.exists() and conf.stat().st_mtime < calibration.stat().st_mtime:
         return (
@@ -297,14 +291,8 @@ def main() -> int:
         "--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa")
     )
     ap.add_argument("--out", default=None)
-    ap.add_argument(
-        "--profile",
-        choices=sorted(PROFILES),
-        default="standard",
-        help="wariant renders 08_confidence_wariant.json to KUPON_<date>_WARIANT.pdf",
-    )
     args = ap.parse_args()
-    profile = PROFILES[args.profile]
+    profile = COUPON_PROFILE
 
     run = Path(args.runs_dir) / args.date
     frozen = timeutil.frozen_clock_refusal(args.runs_dir)
@@ -316,32 +304,24 @@ def main() -> int:
         print(refusal, file=sys.stderr)
         return 2
     now = timeutil.now()  # the one clock (bet.sofa.timeutil)
-    if profile_retired(profile, args.date, now):
-        print(f"REFUSED: the {profile.name} profile is retired (plan "
-              "2026-10-05, K5: one coupon)", file=sys.stderr)
-        return 2
     # The coupon artifact (K3): 11_coupon.json on a stats-only day.
-    artifact = confidence_artifact(profile)
-    if profile.name == "standard":
-        artifact = coupon_artifact(run).name
+    artifact = coupon_artifact(run).name
     doc_json = json.loads((run / artifact).read_text(encoding="utf-8"))
     so = artifact_epoch(doc_json) == STATS_ONLY
     if so and artifact != "11_coupon.json":
         print("REFUSED: a stats-only 08_confidence.json is not the coupon - "
               "run build_coupon.py first (11_coupon.json)", file=sys.stderr)
         return 2
-    # The artifact names the profile it was built with. A variant JSON renamed
-    # into the official slot (or the reverse) must not print under the wrong
-    # banner, because the banner is what tells the operator which one he holds.
+    # The artifact names the profile it was built with; a retired variant's
+    # JSON (renamed into the coupon's slot) never prints as the coupon.
     built_with = doc_json.get("profile", "standard")
     if built_with != profile.name:
         print(
-            f"{confidence_artifact(profile)} was built with profile {built_with!r}, "
-            f"not {profile.name!r}",
+            f"{artifact} was built with profile {built_with!r}, not {profile.name!r}",
             file=sys.stderr,
         )
         return 2
-    stale = confidence_older_than_sheet(run, confidence_artifact(profile)) or (
+    stale = confidence_older_than_sheet(run, CONFIDENCE_ARTIFACT) or (
         coupon_older_than_sources(run) if so else None)
     if stale:
         print(stale, file=sys.stderr)
@@ -446,7 +426,7 @@ def main() -> int:
     pick = ParagraphStyle("PICK", parent=ss["Normal"], fontName=BOLD, fontSize=10.5,
                           textColor=INK, spaceAfter=1)
 
-    out_path = Path(args.out or (run / f"KUPON_{args.date}{profile.pdf_suffix}.pdf"))
+    out_path = Path(args.out or (run / f"KUPON_{args.date}.pdf"))
     # Rendered beside the target and moved into place: a crash mid-render
     # must never leave a truncated KUPON_*.pdf where the coupon was.
     tmp_out = tmp_path(out_path)
@@ -458,8 +438,6 @@ def main() -> int:
     )
     story: list[Any] = []
     title = f"Kupon — {args.date}"
-    if profile.name != "standard":
-        title += " — WARIANT"
     story.append(Paragraph(title, h1))
     story.append(Paragraph(
         f"Zbudowany {doc_json['created_at_utc']} &nbsp;•&nbsp; "
@@ -470,32 +448,16 @@ def main() -> int:
         + ("" if profile.min_ev is None
            else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"
                 f" &nbsp;•&nbsp; marża rynku ≤ {profile.max_overround:.0%}"), subtitle))
-    if profile.name == "standard" and profile.min_ev is not None:
+    if profile.min_ev is not None:
         story.append(Paragraph(
             "<b>Od 05.10 (decyzja operatora)</b> oficjalny kupon przyjmuje "
             f"pewność × kurs ≥ {profile.min_ev:.2f} (kurs do "
             f"{1 - profile.min_ev:.0%} poniżej uczciwego) i marżę rynku do "
             f"{profile.max_overround:.0%}; wcześniej x &gt; 1,00 i 10,5%. "
-            "Te same ustawienia w wariancie dawały więcej zakładów, nie "
+            "Zmierzone wcześniej dawały więcej zakładów, nie "
             "przewagę; nogi kuponu z marżą 10,5–15% traciły dotąd −12,8% "
             "(n=50) wobec −4,6% (n=78). Wyniki sprzed 05.10 to inny "
             "eksperyment i nie są z nimi łączone.", subtitle))
-    if profile.name != "standard" and profile.min_ev is not None:
-        story.append(Paragraph(
-            "<font color='#b25b00'><b>To nie jest oficjalny kupon.</b></font> Wariant "
-            f"przyjmuje pewność od {doc_json['confidence_floor']} i kurs do "
-            f"{1 - profile.min_ev:.0%} poniżej uczciwego (wg tej pewności), przy "
-            f"marży rynku do {profile.max_overround:.0%} (oficjalny: 15% od "
-            "05.10, wcześniej 10,5%). "
-            "Wersja z marżą 10,5% dała na 18–22.09 <b>−3,2%</b> na zakład wobec "
-            "−2,9% oficjalnego; rynki z marżą 10,5–15% traciły tam o 1–2 pkt "
-            "proc. więcej niż tańsze. Od 23.09 mierzony w tym ustawieniu, "
-            "obok oficjalnego (sekcja 7d raportu rozliczenia)."
-            + (" <b>Od 29.09 drukuje też Bet Buildery</b> — z luźniejszych nóg "
-               "wariantu, tą samą regułą co kupon (najlepszy dla meczu, EV &gt; 0 "
-               "po 12% narzutu). Nie były mierzone przed dodaniem; rozliczane "
-               "osobno, nigdy razem z builderami kuponu."
-               if doc_json.get("prints_builders") else ""), subtitle))
     sheet_doc = json.loads((run / "05_sheet.json").read_text(encoding="utf-8"))
     sheet_rows = sheet_doc if isinstance(sheet_doc, list) else sheet_doc["rows"]
     # A builder's legs carry no event id of their own; it is on the builder.

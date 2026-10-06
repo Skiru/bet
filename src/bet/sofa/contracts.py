@@ -347,10 +347,8 @@ class LegRead(BaseModel):
     vetoes, matched like a veto (a None field covers every value), and is
     consequential:
 
-    * NO_BET removes the row from every profile, as a veto does;
-    * WATCH removes it from the official coupon and keeps it, marked, in the
-      WARIANT - the operator's decision of 2026-10-04, so the ledger can
-      measure whether WATCH removes losers;
+    * NO_BET and WATCH remove the row from the coupon (a veto by another
+      name); the ledger grades the removed legs apart (removed:reads);
     * KEEP removes nothing; it records that the row was read.
     """
 

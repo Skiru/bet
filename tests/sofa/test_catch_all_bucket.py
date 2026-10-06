@@ -15,7 +15,7 @@ from pathlib import Path
 
 from bet.sofa.confidence import (
     CATCH_ALL_BUCKET_TOP,
-    PROFILES,
+    COUPON_PROFILE,
     Calibration,
     reads_catch_all_bucket,
 )
@@ -44,12 +44,12 @@ def _cal(tmp_path: Path) -> Calibration:
 
 
 def test_the_bottom_bucket_clears_every_floor_on_its_own(tmp_path: Path) -> None:
-    # The defect: the curve alone lets a p = 0.05 claim through both floors.
+    # The defect: the curve alone lets a p = 0.05 claim through the floor.
     hit = _cal(tmp_path).realised(
         "player_offsides_for", 0.05, "football", "UNDER"
     )
     assert hit is not None
-    assert all(hit[0] >= profile.floor for profile in PROFILES.values())
+    assert hit[0] >= COUPON_PROFILE.floor
 
 
 def test_a_claim_in_the_catch_all_bucket_is_refused() -> None:
@@ -66,10 +66,10 @@ def test_the_gate_follows_the_fit_grid() -> None:
     assert fit_confidence.EDGES[1] == CATCH_ALL_BUCKET_TOP
 
 
-def test_the_bucket_top_sits_below_every_profile_floor() -> None:
+def test_the_bucket_top_sits_below_the_floor() -> None:
     # A claim the gate lets through is at least 0.60; a floor at or below that
     # would make the curve's bottom bucket the binding rule again.
-    assert all(profile.floor > CATCH_ALL_BUCKET_TOP for profile in PROFILES.values())
+    assert COUPON_PROFILE.floor > CATCH_ALL_BUCKET_TOP
 
 
 def test_confidence_and_the_disagreement_replay_apply_it() -> None:

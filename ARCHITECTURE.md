@@ -1,13 +1,12 @@
 # Architecture
 
-What runs, where it lives, and what is kept only as a record.
+What runs and where it lives.
 
 ## 1. One pipeline is in service
 
 **`sofa`** — Sofascore statistics, Superbet prices, one coupon PDF per day
 for every sport on it: football and tennis, and since 2026-10-05 08:30Z
-hockey, basketball, volleyball and CS2. It imports **nothing** from the older trees; that was a decision,
-not an accident: the knowledge transferred, the code did not.
+hockey, basketball, volleyball and CS2.
 
 | | in service |
 |---|---|
@@ -41,7 +40,7 @@ Everything else (the retired `simple` pipeline and its trees) was deleted 2026-1
 | `epochs.py` | `STATS_ONLY_FROM_UTC` (2026-10-05 07:15Z) and `SPORTS_ON_COUPON_FROM_UTC` (08:30Z) — which rule a build is under |
 | `sport_identity.py` | SPORT_IDENTITY: pre-match Sofascore id of a hockey / basketball / volleyball / CS2 event, pinned in `sport_fixtures.json` |
 | `sport_confidence.py`, `score_model.py`, `cs2_engine.py` | SPORT_CONFIDENCE: the score model / CS2 engine probability read through `config/sofa_sport_confidence_calibration.json` |
-| `coupon_sports.py`, `locked_print.py` | the measured sports' legs on the one coupon (reads, locks, grading by the pinned id); legs locked from the last print (`12_printed.json`) |
+| `coupon_sports.py`, `sport_day.py`, `locked_print.py` | the measured sports' legs on the one coupon (reads, locks, grading by the pinned id); a measured sport's day on disk (snapshots, stored results, `grade_legs` at the printed price); legs locked from the last print (`12_printed.json`) |
 | `fixture_status.py` | FIXTURE_CHECK: a printed match postponed / cancelled / abandoned, and its fresh start |
 | `shadow.py`, `cs2.py` | the SHADOW / CS2 price measurement and its settlement; their snapshots feed SPORT_CONFIDENCE |
 | `settle.py` | grade a finished day against Sofascore, with the price |
@@ -90,10 +89,7 @@ expensive, and why re-fitting mid-day is an error rather than a wasted minute.
 - **Two products, and they disagree.** `06_coupon.json` (VALUE singles,
   measured −20.4% on 2026-09-20) and the PDF (Bet Builders, +8.2% the same
   day). Only the PDF is staked; since 2026-10-05 it renders `11_coupon.json`,
-  the one coupon artifact. The operator's variant (WARIANT), WARIANT
-  WSZYSTKIE and the separate per-sport coupons were retired 2026-10-05
-  (historical: their files up to that morning stay and are graded as
-  before).
+  the one coupon artifact.
 
 ## 5. Where to read further
 

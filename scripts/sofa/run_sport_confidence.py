@@ -19,7 +19,7 @@ postponed / cancelled / interrupted by FIXTURE_CHECK's read of its pinned id
 started (KICKED_OFF: inside the coupon's kickoff margin of the earlier of
 Superbet's and Sofascore's start - FIXTURE_CHECK's fresh one where read, K12),
 the event's newest pre-start snapshot no
-older than sport_coupon.MAX_PRICE_AGE (STALE_PRICE), volleyball's
+older than sport_day.MAX_PRICE_AGE (STALE_PRICE), volleyball's
 tournament with a SETTLED event in the last 14 days, an allowed market
 (sport_confidence.ALLOWED_MARKETS / CS2_FAMILIES), a whole outcome group.
 The model's probability (score_model / cs2_engine, no price) is read
@@ -51,19 +51,19 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import cs2, cs2_engine, curve_status, shadow, sport_coupon  # noqa: E402
+from bet.sofa import cs2, cs2_engine, curve_status, shadow, sport_day  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
-from bet.sofa.confidence import MIN_ODDS_FOR_CEILING, PROFILES  # noqa: E402
+from bet.sofa.confidence import COUPON_PROFILE, MIN_ODDS_FOR_CEILING  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 ARTIFACT = "08_confidence_sports.json"
-MIN_X = PROFILES["standard"].min_ev  # 0.90, the official coupon's
-MAX_OVERROUND = PROFILES["standard"].max_overround  # 0.15
-FLOOR = PROFILES["standard"].floor  # 0.70
+MIN_X = COUPON_PROFILE.min_ev  # 0.90, the official coupon's
+MAX_OVERROUND = COUPON_PROFILE.max_overround  # 0.15
+FLOOR = COUPON_PROFILE.floor  # 0.70
 MIN_ODDS = MIN_ODDS_FOR_CEILING  # 1/0.9202
 
 OK, NOT_CALIBRATED, NOT_IDENTIFIED = "OK", "NOT_CALIBRATED", "NOT_IDENTIFIED"
@@ -215,8 +215,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
     start, end = si.day_window(date)
     events = si.snapshot_events(runs_dir, sport, date, at)
     settled_tournaments = (
-        sport_coupon.settled_tournaments(runs_dir, sport, date)
-        if sport in sport_coupon.SETTLED_TOURNAMENT_SPORTS else None)
+        sport_day.settled_tournaments(runs_dir, sport, date)
+        if sport in sport_day.SETTLED_TOURNAMENT_SPORTS else None)
     refused: dict[str, int] = {}
     # Plan PRODUCTION_GRADE F2.1 (bet.sofa.curve_status): off until the
     # operator sets epochs.CURVE_STATUS_FROM_UTC.
@@ -241,7 +241,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
         # counted NOT_IDENTIFIED were games already under way - a counter
         # that sent the diagnosis the wrong way.
         if (fixture is None or fixture.get("status") != si.IDENTIFIED) \
-                and sb_kickoff - at < sport_coupon.KICKOFF_MARGIN:
+                and sb_kickoff - at < sport_day.KICKOFF_MARGIN:
             _bump(refused, "KICKED_OFF", n_sides)
             continue
         if status == NOT_IDENTIFIED or fixture is None:
@@ -265,10 +265,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
         sofa_start = fs.refreshed_start(entry) or fixture.get("sofascore_start_utc")
         if sofa_start:
             kickoff = min(kickoff, _utc(str(sofa_start)))
-        if kickoff - at < sport_coupon.KICKOFF_MARGIN:
+        if kickoff - at < sport_day.KICKOFF_MARGIN:
             _bump(refused, "KICKED_OFF", n_sides)
             continue
-        if at - _utc(newest) > sport_coupon.MAX_PRICE_AGE:
+        if at - _utc(newest) > sport_day.MAX_PRICE_AGE:
             _bump(refused, "STALE_PRICE", n_sides)
             continue
         if settled_tournaments is not None and ev.tournament not in settled_tournaments:
@@ -384,9 +384,9 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
         "rule": {"floor": FLOOR, "min_x": MIN_X, "max_overround": MAX_OVERROUND,
                  "min_odds": round(MIN_ODDS, 4),
                  "kickoff_margin_min": int(
-                     sport_coupon.KICKOFF_MARGIN.total_seconds() // 60),
+                     sport_day.KICKOFF_MARGIN.total_seconds() // 60),
                  "max_price_age_min": int(
-                     sport_coupon.MAX_PRICE_AGE.total_seconds() // 60),
+                     sport_day.MAX_PRICE_AGE.total_seconds() // 60),
                  "day_window_utc": [si.iso(t) for t in si.day_window(date)]},
         "sports": {},
         "legs": [],

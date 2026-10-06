@@ -89,13 +89,12 @@ def _under(over: float) -> float:
     return round(1.0 / (1.05 - 1.0 / over), 2)
 
 
-def _run(runs: Path, monkeypatch: pytest.MonkeyPatch, profile: str = "standard") -> int:
+def _run(runs: Path, monkeypatch: pytest.MonkeyPatch) -> int:
     from scripts.sofa import run_confidence
 
     monkeypatch.setenv("SOFA_NOW", _z(T0))
     monkeypatch.setattr(sys, "argv", [
-        "run_confidence.py", "--date", DAY, "--runs-dir", str(runs),
-        "--profile", profile])
+        "run_confidence.py", "--date", DAY, "--runs-dir", str(runs)])
     return int(run_confidence.main())
 
 
@@ -119,12 +118,6 @@ def test_a_sheet_from_the_old_rule_is_refused(tmp_path, monkeypatch, capsys):
     runs = _day(tmp_path, [row], {1: KO[1]}, {1: (1.30, 3.30)})
     assert _run(runs, monkeypatch) == 2
     assert "starts at SHEET" in capsys.readouterr().err
-
-
-def test_the_wariant_is_retired(tmp_path, monkeypatch, capsys):
-    runs = _day(tmp_path, [_row(1, 0.72, 1.30, 0.69)], {1: KO[1]}, {1: (1.30, 3.30)})
-    assert _run(runs, monkeypatch, "wariant") == 2
-    assert "retired" in capsys.readouterr().err
 
 
 def test_a_model_far_above_the_price_is_not_refused(tmp_path, monkeypatch):

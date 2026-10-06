@@ -195,8 +195,8 @@ by the runner from your second JSON block and from the verifier's.
 | `reason` | non-empty str | the operator reads it; it rides on the leg as `reads` |
 | `context` | enum \| null, optional | the `context` tags above, when the reason is one of them; else leave it out |
 
-What each verdict does, in code (`veto.read_refusal`, the coupon honours
-WATCH; `coupon_sports.apply_reads` for a sport leg):
+What each verdict does, in code (`veto.read_refusal`;
+`coupon_sports.apply_reads` for a sport leg):
 
 | verdict | the coupon (`11_coupon.json`, `KUPON_<d>.pdf`; also `06_coupon`) |
 |---|---|

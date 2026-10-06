@@ -132,7 +132,7 @@ def load_screen_prices(path: Path) -> dict[str, ScreenPrice]:
 
 def screen_odds_by_event(path: Path) -> dict[str, float]:
     """{fixture id: screen odds} - what the settlement grades a printed
-    builder at (audit_settlement 7c / 7d, settle_multi_coupon)."""
+    builder at (audit_settlement 7c, the ledger)."""
     return {k: v.odds for k, v in load_screen_prices(path).items()}
 
 

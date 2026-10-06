@@ -1,31 +1,17 @@
 #!/usr/bin/env python3
-"""Verify every variant of one day against its own sources.
+"""Verify the coupon of one day against its own sources.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date 2026-09-30
 
-audit_coupon.py covers the official coupon. This covers what sits beside it:
-the four sport coupons and WARIANT WSZYSTKIE. Every check re-derives from the
+audit_coupon.py checks the coupon's structure; this re-derives it from the
 files on disk, not from the artifact's own fields:
 
-  S1  the sport coupon's JSON names its PDF (sha256)
-  S2  every new (unlocked) leg obeys the rule it was printed under: fair_p,
-      odds, margin, no player line, kickoff inside the window, price age
-  S3  every leg's price and devig recomputed from the raw snapshot record it
-      names (price_fetched_at_utc): odds, the whole group, fair_p, margin
-  S4  one leg per event, no more than max_legs, no vetoed leg printed
-  S5  the selection replayed from the snapshots as they stood at build time
-      gives the same legs (locked legs taken as printed)
-  M1  WARIANT WSZYSTKIE names its PDF (sha256)
-  M2  each section equals its source as the source stands now: the official
-      printed singles / builders, each sport's legs - a source rebuilt after
-      the assembly makes the variant stale
-  M3  nothing of either was written into runs/sofa/<d>/
-  C1  the official coupon and WARIANT (08_confidence[_wariant].json): the
-      artifact is of its profile, not older than 05_sheet.json / vetoes.json,
-      and its PDF is not older than it
+  C1  the coupon artifact (11_coupon.json; 08_confidence.json on a day
+      before the stats-only epoch) is not older than its sources, and its
+      PDF is not older than it
   C2  every printed single obeys the dials the artifact was built with:
-      confidence >= floor, the price rule (official: confidence x odds > 1;
-      WARIANT: >= min_ev), margin <= max_overround, not started at build;
+      confidence >= floor, confidence x odds >= min_ev (> 1 on an artifact
+      without one), margin <= max_overround, not started at build;
       a locked single (bet.sofa.locked_print, since 2026-10-05: printed by an
       earlier build, its match started before this one) is checked against
       the build that printed it - its printed_at_utc and printed_under dials;
@@ -35,14 +21,14 @@ files on disk, not from the artifact's own fields:
   U1  (11_coupon.json, stats-only days) the fresh singles stand in
       confidence.coupon_order, numbered 1..N, the locked ones first and
       unnumbered; U2 every fresh football / tennis single carries the
-      stats-only epoch. On such a day M2's official section and C1's
-      staleness of the retired WARIANT are notes, not findings: both files
-      are the record of the morning's pre-stats-only print (plan K7).
-  C3  (days from READS_CUTOVER on) every leg the official PDF prints - single
-      or builder leg - was read by an analyst (reads.json, contracts.LegRead),
-      and none it prints carries a WATCH or NO_BET read (the official profile
-      honours both; 2026-10-04, Farense - Chaves: a WATCH had no field and
-      the leg was printed); a locked leg is read as of its print - a
+      stats-only epoch.
+  U3  every fresh measured-sport leg re-derived from the raw Superbet
+      snapshot: price, group margin, x, price age, calibration bucket.
+  C3  (days from READS_CUTOVER on) every leg the PDF must have read
+      (confidence.legs_requiring_read) was read by an analyst (reads.json,
+      contracts.LegRead), and none it prints carries a WATCH or NO_BET read
+      (2026-10-04, Farense - Chaves: a WATCH had no field and the leg was
+      printed); a locked leg is read as of its print - a
       refusing read now covering it is a note (it came after the start, or
       the earlier build would have refused it), never a defect
 
@@ -63,20 +49,17 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import cs2, shadow  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
-from bet.sofa import multi_coupon as mc  # noqa: E402
-from bet.sofa import sport_coupon as sc  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     COUPON_ARTIFACT,
+    COUPON_PROFILE,
     MAX_OVERROUND,
-    PROFILES,
     SHEET_SPORTS,
+    coupon_artifact,
     coupon_order,
     legs_requiring_read,
     printed_builders,
     printed_singles,
-    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY  # noqa: E402
@@ -98,12 +81,6 @@ from bet.sofa.veto import (  # noqa: E402
 )
 
 TOL = 1e-4
-# From this build time on, a sport coupon must name its PDF by sha256 and
-# record what it read (snapshot_lines, vetoes_applied); earlier ones were
-# written before those fields existed and are checked the lenient way.
-HASH_CUTOVER = "2026-09-30T07:30:00Z"
-# From this build time on, the replay fields must be there too.
-REPLAY_CUTOVER = "2026-09-30T12:00:00Z"
 # The first day whose flow writes reads.json (C3).
 READS_CUTOVER = "2026-10-05"
 
@@ -112,263 +89,7 @@ def _utc(raw: str) -> datetime:
     return datetime.fromisoformat(raw.replace("Z", "+00:00"))
 
 
-def leg_id(leg: dict[str, Any]) -> tuple[Any, ...]:
-    return tuple(leg.get(k) for k in sc.LEG_KEY)
-
-
-def _shape(sport: sc.SportKey, leg: dict[str, Any]) -> cs2.Shape:
-    if sport == "cs2":
-        return cs2.group_shape(str(leg["family"]))
-    return shadow.group_shape(sport, int(leg["market_id"]))
-
-
-def _record_group(
-    snaps: list[dict[str, Any]], leg: dict[str, Any]
-) -> dict[str, float] | None:
-    """The leg's whole outcome group in the snapshot record it names."""
-    key = [
-        k
-        for k in ("market_id", "family", "period", "map_nr", "subject", "line")
-        if k in leg
-    ]
-    for rec in snaps:
-        if (
-            rec["superbet_event_id"] != leg["superbet_event_id"]
-            or rec["fetched_at_utc"] != leg["price_fetched_at_utc"]
-        ):
-            continue
-        group = {
-            ln["side"]: float(ln["odds"])
-            for ln in rec["lines"]
-            if all(ln.get(k) == leg.get(k) for k in key)
-        }
-        if group:
-            return group
-    return None
-
-
-# The build log started on 2026-09-30; only a leg locked in a first record of
-# that day can come from a build the log never saw.
-BUILD_LOG_STARTED = "2026-09-30"
-
-
-def locked_leg_problem(d: Path, doc: dict[str, Any], leg: dict[str, Any]) -> str | None:
-    """Why a locked leg is not provably the leg an earlier build printed.
-
-    It must appear, identical, in a logged build that ran at least
-    KICKOFF_MARGIN before its kickoff. Without any logged build before this
-    one (the log started 2026-09-30) it cannot be checked - a note, not a
-    defect."""
-    log = d / sc.BUILDS_FILE
-    earlier = []
-    if log.exists():
-        for line in log.read_text(encoding="utf-8").splitlines():
-            try:
-                rec = json.loads(line)
-            except ValueError:
-                continue
-            if str(rec.get("created_at_utc")) < str(doc["created_at_utc"]):
-                earlier.append(rec)
-    if not earlier:
-        return "UNVERIFIABLE: locked, and no earlier build is logged"
-    fields = (*sc.LEG_KEY, "odds", "fair_p", "price_fetched_at_utc")
-    want = tuple(leg.get(k) for k in fields)
-    # The leg's first logged appearance already locked means the build that
-    # created it predates the log: it cannot be checked either. 2026-09-30:
-    # Paqt-Rune Eaters and CSB-FEU were locked in the first logged build
-    # (06:58Z), created at ~06:14Z before the log existed (sofa-verifier).
-    # Only the log's very first record can hold a leg locked by a build the
-    # log never saw; a leg that first appears locked in any later record was
-    # inherited from nowhere and stays a defect.
-    first_rec = min(earlier, key=lambda r: str(r.get("created_at_utc")))
-    if str(first_rec.get("created_at_utc"))[:10] <= BUILD_LOG_STARTED and any(
-        tuple(old.get(k) for k in sc.LEG_KEY) == want[: len(sc.LEG_KEY)]
-        and old.get("locked")
-        for old in first_rec.get("legs", [])
-    ):
-        return "UNVERIFIABLE: locked already in the log's first build"
-    for rec in earlier:
-        for old in rec.get("legs", []):
-            if tuple(old.get(k) for k in fields) == want and (
-                _utc(leg["kickoff_utc"]) - _utc(str(rec["created_at_utc"]))
-                >= sc.KICKOFF_MARGIN
-            ):
-                return None
-    return "locked leg not printed, as it stands, by any earlier build before kickoff"
-
-
 notes: list[str] = []
-
-
-def audit_sport(
-    runs_dir: str,
-    sport: sc.SportKey,
-    date: str,
-    notes_out: list[str] | None = None,
-) -> list[str]:
-    """Findings for one sport coupon; notes (not defects) go to `notes_out`,
-    or the module's `notes` for main."""
-    notes_list = notes if notes_out is None else notes_out
-    d = sc.day_dir(runs_dir, sport, date)
-    path = d / sc.COUPON_FILE
-    if not path.exists():
-        return []
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    out: list[str] = []
-    why = sc.pdf_matches(doc, path, d / sc.pdf_name(sport, date))
-    if why:
-        out.append(f"S1 {sport}: {why}")
-    modern = str(doc["created_at_utc"]) >= HASH_CUTOVER
-    if modern and not doc.get("pdf_sha256"):
-        out.append(f"S1 {sport}: no pdf_sha256 on a build after {HASH_CUTOVER}")
-    if str(doc["created_at_utc"]) >= REPLAY_CUTOVER:
-        for fld in ("snapshot_lines", "vetoes_applied"):
-            if fld not in doc:
-                out.append(f"S5 {sport}: no {fld} on a build after {REPLAY_CUTOVER}")
-    rule_doc = doc["rule"]
-    rule = sc.Rule.from_dict(rule_doc)
-    at = _utc(doc["created_at_utc"])
-    # Exactly what the build read: the first `snapshot_lines` of each file.
-    # A snapshot loop that stamps a record before the build and writes it
-    # after would otherwise read as a different selection.
-    upto = doc.get("snapshot_lines") or {}
-    for src, n in upto.items():
-        _, lines_now, _ = sc.read_snapshots(
-            sc.day_dir(runs_dir, sport, src) / cs2.SNAPSHOTS_FILE
-        )
-        if lines_now < n:
-            out.append(
-                f"S5 {sport}: {src} snapshots have {lines_now} lines, the build "
-                f"read {n} - the file was truncated or restored"
-            )
-    snaps = {
-        src: sc.load_snapshots(
-            sc.day_dir(runs_dir, sport, src) / cs2.SNAPSHOTS_FILE,
-            upto.get(src) if upto else None,
-        )
-        for src in (date, sc.next_date(date))
-    }
-    legs = doc["legs"]
-    for leg in legs:
-        name = (
-            f"{sport} {leg['match_name']} {leg['family']} {leg['side']} "
-            f"{leg.get('line')}"
-        )
-        if leg.get("locked"):
-            why_locked = locked_leg_problem(d, doc, leg)
-            if why_locked:
-                (notes_list if why_locked.startswith("UNVERIFIABLE") else out).append(
-                    f"S2 {name}: {why_locked}"
-                )
-            continue
-        p = rule.probability(float(leg["fair_p"]))
-        # fair_p is stored rounded to 4 places and p was computed from the
-        # unrounded one: the recomputation can drift by ~1.2e-4
-        if abs(p - float(leg.get("p", leg["fair_p"]))) > 3 * TOL:
-            out.append(f"S2 {name}: p {leg.get('p')} != {p:.4f} from fair_p")
-        if p < rule.floor - TOL:
-            out.append(f"S2 {name}: p {p:.4f} below floor")
-        if rule.min_x is not None and p * leg["odds"] < rule.min_x - TOL:
-            out.append(f"S2 {name}: p x odds {p * leg['odds']:.4f} below {rule.min_x}")
-        if leg["odds"] < round(rule.min_odds, 4) - TOL:
-            out.append(f"S2 {name}: odds {leg['odds']} below min")
-        if leg["overround"] > rule.max_overround + TOL:
-            out.append(f"S2 {name}: margin {leg['overround']} above max")
-        if sc.is_player_family(str(leg["family"])):
-            out.append(f"S2 {name}: a player line")
-        unsettleable = doc.get("unsettleable_tournaments") or {}
-        why_ungradeable = sc.ungradeable_reason(
-            leg.get("tournament"),
-            unsettleable,
-            (doc.get("settled_tournaments") or [])
-            if rule.requires_settled_tournament
-            else None,
-        )
-        if why_ungradeable is not None:
-            out.append(f"S2 {name}: {why_ungradeable} ({leg.get('tournament')})")
-        kickoff = _utc(leg["kickoff_utc"])
-        if kickoff - at < sc.KICKOFF_MARGIN or kickoff >= sc.day_end(date):
-            out.append(f"S2 {name}: kickoff outside the window at build")
-        if at - _utc(leg["price_fetched_at_utc"]) > sc.MAX_PRICE_AGE:
-            out.append(f"S2 {name}: price older than {sc.MAX_PRICE_AGE}")
-        src = leg.get("source_date") or date
-        group = _record_group(snaps.get(src, []), leg)
-        if group is None:
-            out.append(
-                f"S3 {name}: no snapshot record at {leg['price_fetched_at_utc']}"
-            )
-            continue
-        if group != {k: float(v) for k, v in leg["group_odds"].items()}:
-            out.append(f"S3 {name}: group odds {leg['group_odds']} != snapshot {group}")
-        if abs(group.get(leg["side"], -1) - leg["odds"]) > TOL:
-            out.append(
-                f"S3 {name}: odds {leg['odds']} != snapshot {group.get(leg['side'])}"
-            )
-        fair = cs2.group_fair(group, _shape(sport, leg))
-        if fair is None:
-            out.append(f"S3 {name}: the snapshot group is not a whole market")
-        else:
-            if abs(fair[leg["side"]] - leg["fair_p"]) > TOL:
-                out.append(
-                    f"S3 {name}: fair_p {leg['fair_p']} != {fair[leg['side']]:.4f}"
-                )
-            if abs(cs2.group_overround(group) - leg["overround"]) > TOL:
-                out.append(
-                    f"S3 {name}: margin {leg['overround']} recomputes differently"
-                )
-    events = [leg["superbet_event_id"] for leg in legs]
-    if len(events) != len(set(events)):
-        out.append(f"S4 {sport}: an event carries two legs")
-    if len(legs) > rule.max_legs:
-        out.append(f"S4 {sport}: {len(legs)} legs > max {rule.max_legs}")
-    now_vetoes = sc.load_vetoes(d)
-    vetoes = doc.get("vetoes_applied", now_vetoes)
-    if "vetoes_applied" in doc and now_vetoes != vetoes:
-        out.append(
-            f"S4 {sport}: vetoes.json changed after the build - rebuild the coupon"
-        )
-    for leg in legs:
-        if not leg.get("locked") and any(sc.veto_matches(v, leg) for v in vetoes):
-            out.append(f"S4 {sport}: vetoed leg printed: {leg['match_name']}")
-    # S5 - replay the selection from the snapshots as they stood at build time.
-    events_then: dict[str, Any] = {}
-    for src in (date, sc.next_date(date)):
-        then = (
-            snaps[src]
-            if upto
-            else [s for s in snaps[src] if _utc(s["fetched_at_utc"]) <= at]
-        )
-        for eid, ev in sc.latest_events(sport, then).items():
-            ev.source_date = src
-            have = events_then.get(eid)
-            if have is None or max(ev.fetched_at.values(), key=_utc) > max(
-                have.fetched_at.values(), key=_utc
-            ):
-                events_then[eid] = ev
-    counts: dict[str, int] = {}
-    since = sc.day_end(sc.prev_date(date)) if "window_start_utc" in doc else None
-    cands = sc.candidates(
-        sport,
-        events_then,
-        at,
-        rule,
-        counts,
-        until=sc.day_end(date),
-        since=since,
-        unsettleable=doc.get("unsettleable_tournaments") or {},
-        refused_events=doc.get("refused_events") or {},
-        settled=doc.get("settled_tournaments"),
-    )
-    locked = [leg for leg in legs if leg.get("locked")]
-    replay, _ = sc.select(sport, cands, vetoes, rule, locked)
-    if {leg_id(x) for x in replay} != {leg_id(x) for x in legs}:
-        missing = {leg_id(x) for x in replay} - {leg_id(x) for x in legs}
-        extra = {leg_id(x) for x in legs} - {leg_id(x) for x in replay}
-        out.append(
-            f"S5 {sport}: replayed selection differs: would print {sorted(missing)}, "
-            f"printed {sorted(extra)}"
-        )
-    return out
 
 
 def _superbet_started(run: Path) -> dict[int, str]:
@@ -384,59 +105,45 @@ def _superbet_started(run: Path) -> dict[int, str]:
     }
 
 
-def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
-    """C1/C2 for one confidence profile. The dials are the artifact's own
+def audit_confidence(runs_dir: str, date: str) -> list[str]:
+    """C1/C2 for the coupon. The dials are the artifact's own
     (confidence_floor, min_ev, max_overround): a day is checked against the
     rule it was printed under, not today's."""
-    profile = PROFILES[profile_name]
-    run = mc.official_dir(runs_dir, date)
+    run = Path(runs_dir) / date
     # The coupon artifact (11_coupon.json on a stats-only day, K3).
-    path = profile_artifact_path(run, profile)
+    path = coupon_artifact(run)
     name = path.name
     if not path.exists():
         return []
     doc = json.loads(path.read_text(encoding="utf-8"))
-    tag = "official" if profile_name == "standard" else "wariant"
+    tag = "official"
     out: list[str] = []
-    if doc.get("profile", "standard") != profile_name:
+    if doc.get("profile", "standard") != "standard":
         out.append(f"C1 {tag}: {name} was built with profile {doc.get('profile')!r}")
-    # K7: a retired profile's artifact on a day that moved to the stats-only
-    # coupon (11_coupon.json) is the record of what was printed before the
-    # cutover - it cannot be rebuilt, so a newer sheet is not staleness.
-    record_only = (
-        profile.retired_from_utc is not None
-        and (run / COUPON_ARTIFACT).exists()
-    )
-    if record_only:
-        notes.append(f"C1 {tag}: {name} is the pre-stats-only record "
-                     f"(built {doc.get('created_at_utc')}); staleness not checked")
     sources = (
         ("08_confidence.json", "08_confidence_sports.json", "read_requests.json")
         if name == COUPON_ARTIFACT
         else ("05_sheet.json", "vetoes.json", "reads.json")
     )
-    for newer in () if record_only else sources:
+    for newer in sources:
         other = run / newer
         if other.exists() and other.stat().st_mtime > path.stat().st_mtime:
             out.append(f"C1 {tag}: {name} is older than {newer} (STALE_CONFIDENCE)")
     if name == COUPON_ARTIFACT:
         out += audit_coupon_order(doc, tag)
         out += audit_sport_legs(runs_dir, date, doc, tag)
-    pdf = run / f"KUPON_{date}{profile.pdf_suffix}.pdf"
+    pdf = run / f"KUPON_{date}.pdf"
     if not pdf.exists():
         out.append(f"C1 {tag}: {pdf.name} missing - the artifact was never printed")
     elif path.stat().st_mtime > pdf.stat().st_mtime:
         out.append(
             f"C1 {tag}: {pdf.name} is older than {name} - it prints another build"
         )
-    doc_floor = float(doc.get("confidence_floor", profile.floor))
-    # An official artifact without the dials predates them and was printed
-    # under x > 1.0 and MAX_OVERROUND (the official rule until 2026-10-04).
-    old_official = profile_name == "standard"
-    doc_min_ev = doc.get("min_ev", None if old_official else profile.min_ev)
-    doc_max_ov = float(doc.get(
-        "max_overround", MAX_OVERROUND if old_official else profile.max_overround
-    ))
+    doc_floor = float(doc.get("confidence_floor", COUPON_PROFILE.floor))
+    # An artifact without the dials predates them and was printed under
+    # x > 1.0 and MAX_OVERROUND (the rule until 2026-10-04).
+    doc_min_ev = doc.get("min_ev")
+    doc_max_ov = float(doc.get("max_overround", MAX_OVERROUND))
     doc_built = (
         _utc(str(doc["created_at_utc"])) if doc.get("created_at_utc") else None
     )
@@ -479,7 +186,7 @@ def audit_confidence(runs_dir: str, date: str, profile_name: str) -> list[str]:
             out.append(f"C2 {label}: printed after its kickoff")
     if name == COUPON_ARTIFACT:
         out += audit_print_record(run, doc, tag, started_by)
-    if profile_name == "standard" and date >= READS_CUTOVER:
+    if date >= READS_CUTOVER:
         out += audit_reads(run, doc, tag)
     return out
 
@@ -665,7 +372,7 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
             and not any(r.get("author") == "analyst" for r in carried)
         ):
             out.append(f"C3 {label}: printed without an analyst's read")
-        refused = read_refusal(covering, honours_watch=True)
+        refused = read_refusal(covering)
         if refused is not None and leg.get("locked"):
             # Printed before its match started; a read refusing it now did
             # not remove it (bet.sofa.locked_print). Shown, not a defect.
@@ -697,7 +404,7 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
     from bet.sofa import coupon_sports as cs
     from bet.sofa import cs2
     from bet.sofa import sport_confidence as scf
-    from bet.sofa import sport_coupon as spc
+    from bet.sofa import sport_day as spc
     from bet.sofa import sport_identity as si
     from bet.sofa.config import config_path
     from scripts.sofa import run_sport_confidence as rsc
@@ -767,89 +474,6 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
 MAX_SPORT_OVERROUND = 0.15
 
 
-def audit_multi(runs_dir: str, date: str) -> list[str]:
-    out_dir = mc.multi_dir(runs_dir, date)
-    path = out_dir / mc.MULTI_FILE
-    if not path.exists():
-        return []
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    out: list[str] = []
-    pdf = out_dir / mc.pdf_name(date)
-    if not pdf.exists() or sc.file_sha256(pdf) != doc.get("pdf_sha256"):
-        out.append("M1 multi: the PDF is not the one the JSON was printed as")
-    for key, sec in doc["sections"].items():
-        if sec["status"] != "OK":
-            continue
-        if key == "official" and (
-            mc.official_dir(runs_dir, date) / COUPON_ARTIFACT
-        ).exists():
-            # K7: the official coupon moved to the stats-only epoch after this
-            # assembly; WSZYSTKIE is the record of the earlier version (M1
-            # still pins its PDF) and no longer has a source to equal.
-            notes.append(
-                f"M2 official: WSZYSTKIE {date} is the record of the "
-                f"pre-stats-only coupon (pdf sha256 {doc.get('pdf_sha256')}); "
-                "the coupon is 11_coupon.json")
-            continue
-        if key == "official":
-            conf_path = mc.official_dir(runs_dir, date) / "08_confidence.json"
-            conf = json.loads(conf_path.read_text(encoding="utf-8"))
-            want = [
-                (
-                    s["sofascore_event_id"],
-                    s["market"],
-                    s.get("subject") or "",
-                    s["line"],
-                    s["direction"],
-                    s["offered_odds"],
-                )
-                for s in printed_singles(conf)
-            ]
-            got = [
-                (
-                    p["source"]["sofascore_event_id"],
-                    p["source"]["market"],
-                    p["source"].get("subject") or "",
-                    p["source"]["line"],
-                    p["source"]["direction"],
-                    p["odds"],
-                )
-                for p in sec["singles"]
-            ]
-            if want != got:
-                out.append(
-                    "M2 official: the section is not what KUPON prints now "
-                    "(rebuild the variant)"
-                )
-            wb = [b["sofascore_event_id"] for b in printed_builders(conf)]
-            if wb != [b["source"]["sofascore_event_id"] for b in sec["builders"]]:
-                out.append("M2 official builders differ from KUPON's")
-            continue
-        sp: sc.SportKey = key
-        spath = sc.day_dir(runs_dir, sp, date) / sc.COUPON_FILE
-        if not spath.exists():
-            out.append(f"M2 {key}: its source coupon is gone")
-            continue
-        sdoc = json.loads(spath.read_text(encoding="utf-8"))
-        # the probability WSZYSTKIE copies: the calibrated p where the coupon
-        # printed one (hockey, basketball since 2026-10-05), else fair_p
-        want_legs = [
-            (leg_id(x), x["odds"], x.get("p", x["fair_p"])) for x in sdoc["legs"]
-        ]
-        got_legs = [
-            (leg_id(p["source"]), p["odds"], p["probability"]) for p in sec["singles"]
-        ]
-        if want_legs != got_legs:
-            out.append(
-                f"M2 {key}: the section is not what its coupon prints now "
-                "(rebuild the variant)"
-            )
-    for name in (mc.MULTI_FILE, mc.pdf_name(date), sc.COUPON_FILE):
-        if (mc.official_dir(runs_dir, date) / name).exists():
-            out.append(f"M3 {name} found inside runs/sofa/{date}/")
-    return out
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--date", required=True)
@@ -859,20 +483,9 @@ def main() -> int:
     checked: list[str] = []
     notes.clear()
     try:
-        for sport in sc.SPORT_KEYS:
-            if (sc.day_dir(runs_dir, sport, args.date) / sc.COUPON_FILE).exists():
-                checked.append(sport)
-            findings += audit_sport(runs_dir, sport, args.date)
-        if (mc.multi_dir(runs_dir, args.date) / mc.MULTI_FILE).exists():
-            checked.append("multi")
-        findings += audit_multi(runs_dir, args.date)
-        for prof, tag in (("standard", "official"), ("wariant", "wariant")):
-            art = profile_artifact_path(
-                mc.official_dir(runs_dir, args.date), PROFILES[prof]
-            )
-            if art.exists():
-                checked.append(tag)
-            findings += audit_confidence(runs_dir, args.date, prof)
+        if coupon_artifact(Path(runs_dir) / args.date).exists():
+            checked.append("official")
+        findings += audit_confidence(runs_dir, args.date)
     except (OSError, ValueError, KeyError) as exc:
         print(f"AUDIT_VARIANTS: bad file: {type(exc).__name__}: {exc}")
         return 2

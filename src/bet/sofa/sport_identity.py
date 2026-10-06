@@ -145,20 +145,20 @@ def snapshot_events(runs_dir: str, sport: str, date: str,
                     at: datetime | None = None) -> dict[str, Any]:
     """Each Superbet event of D's and D+1's snapshot files as its last
     pre-start record quoted it, tagged with the file (`source_date`), as
-    sport_coupon.day_events reads them - but only records fetched at or
+    sport_day.day_events reads them - but only records fetched at or
     before `at`: a replay under SOFA_NOW must not read a price taken after
     its own clock. An event in both files keeps the newer record."""
-    from bet.sofa import sport_coupon
+    from bet.sofa import sport_day
 
     out: dict[str, Any] = {}
     nxt = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime(
         "%Y-%m-%d")
     for source in (date, nxt):
-        path = sport_coupon.day_dir(runs_dir, sport, source) / cs2.SNAPSHOTS_FILE  # type: ignore[arg-type]
-        snaps = sport_coupon.load_snapshots(path)
+        path = sport_day.day_dir(runs_dir, sport, source) / cs2.SNAPSHOTS_FILE  # type: ignore[arg-type]
+        snaps = sport_day.load_snapshots(path)
         if at is not None:
             snaps = [s for s in snaps if _utc(str(s["fetched_at_utc"])) <= at]
-        for eid, ev in sport_coupon.latest_events(sport, snaps).items():  # type: ignore[arg-type]
+        for eid, ev in sport_day.latest_events(sport, snaps).items():  # type: ignore[arg-type]
             ev.source_date = source
             have = out.get(eid)
             if have is None or _newest(ev) > _newest(have):

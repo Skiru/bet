@@ -55,13 +55,7 @@ SHADOW/CS2 snapshot ─→ SPORT_IDENTITY ─→ sport_fixtures.json
 - `06_coupon.json` (selektor VALUE, `p_bar`, `required_odds`) zostaje cenowy i
   **nie jest kuponem**.
 
-Wycofane 2026-10-05 (historyczne): WARIANT i WARIANT WSZYSTKIE od 07:15Z,
-osobne kupony sportowe (`KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`) od
-08:30Z; `run_confidence.py --profile wariant`, `run_multi_coupon.py` i
-`run_sport_coupon.py` odmawiają (kod 2) dla późniejszych buildów. Pliki do
-poranka 10-05 zostają i są rozliczane po staremu (7d, `settle_sport_coupon.py`,
-`settle_multi_coupon.py`). Agent sofa-sport-runner usunięty tego samego dnia;
-nogi sportów czyta `sofa-analyst-sport`.
+Nogi sportów mierzonych czyta `sofa-analyst-sport`.
 
 ### Agenci — wykonawcy z własnym kontekstem
 
@@ -306,14 +300,12 @@ Każdy `/sofa-day` robi, bez pytania, po SETTLE / CS2_SETTLE / SHADOW_SETTLE:
 (przypięte id sportów mierzonych: `ID_USED_TWICE`, `MOVED_GRADED`,
 `NAME_BELOW`, `ORIENTATION_IDS`, `ID_CHANGED`, `IDENTITY_STATE`,
 `IDENTITY_PENDING`), `audit_shadow.py`, `audit_cs2.py` i `record_results.py`
-(dziennik `runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i wariant:
-`official`, `official:pre_stats_only`, `removed:reads`, `measure:<sport>`,
-`rule:<sport>`), czytany przez `audit_ledger.py` — grupy epok (do 10-04 /
+(dziennik `runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i grupę:
+`official`, `official:pre_stats_only`, `removed:reads`, `measure:<sport>`),
+czytany przez `audit_ledger.py` — grupy epok (do 10-04 /
 10-05 rano / stats_only), nigdy łącznie. Kod 0 także przy pozycjach
 oczekujących (widać je w tabeli); 1 tylko przy `MISMATCH` albo nieczytelnym
-pliku; 2 przy awarii lub braku bazy. Dla dni do poranka 10-05 (historyczne,
-wycofane 2026-10-05) dochodzą `settle_sport_coupon.py` i
-`settle_multi_coupon.py` oraz wiersze `wariant` / `sport:<sport>` / `multi`.
+pliku; 2 przy awarii lub braku bazy.
 
 ## 3. Kontrakt analityka
 
@@ -387,7 +379,7 @@ milczenie.
 
 - wetować za bramkę, którą kod już stosuje (`STALE_PRICE`, `STALE_SAMPLE`,
   `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
-  `THIN_SAMPLE_FOR_BUILDER`, a w piłce na profilu oficjalnym
+  `THIN_SAMPLE_FOR_BUILDER`, a w piłce
   `MODEL_ABOVE_OWN_SAMPLE`) — to dopisuje szum, w którym giną prawdziwe powody;
 - podawać `FUZZY` jako potwierdzoną tożsamość;
 - brać ceny z otwartego webu ani z innego bukmachera czy agregatora — jedyna
@@ -462,11 +454,10 @@ czym drugą odpowiedzią jest zwykle „nie".
   przesunięty o > 48 h, `AWARDED` — walkower; 0 j., nigdy przegrana i nigdy
   `sofa_settled_row`), 7i `removed_by_reads` osobno; `audit_settle_identity.py`;
   dziennik `record_results.py` (`runs/sofa/ledger/results.jsonl`, jeden
-  wiersz na dzień i wariant); wyniki nigdy się nie sumują. Noga wydrukowana
+  wiersz na dzień i grupę); wyniki nigdy się nie sumują. Noga wydrukowana
   bez wiersza arkusza rozlicza się do `07_settled_printed.json`, nie do
   `sofa_settled_row`; nogi sportów nigdy nie trafiają do `sofa_settled_row`
-  ani `fit_confidence`. 7d (WARIANT) i kupony sportowe rozlicza tylko dla dni
-  do poranka 2026-10-05 (historyczne, wycofane 2026-10-05).
+  ani `fit_confidence`.
 
 Szczegóły higieny plików konfiguracyjnych: [`CONFIG.md`](CONFIG.md).
 

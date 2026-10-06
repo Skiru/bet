@@ -10,9 +10,9 @@ K2  a goal sample is the side's REGULAR matches of the fixture's own
     competition when it has enough (measured; corners etc. untouched);
 K3  a make-up fixture, rest and congestion are computed (schedule) and shown;
 K4  an analyst's or the verifier's read is persisted (reads.json) and
-    consequential: NO_BET removes everywhere, WATCH removes from the official
-    coupon and stays, marked, in the WARIANT; a football leg whose model sits
-    more than 0.15 over its own sample's hit rate is an automatic WATCH.
+    consequential: NO_BET and WATCH remove the leg from the coupon; a football
+    leg whose model sits more than 0.15 over its own sample's hit rate is an
+    automatic WATCH.
 """
 
 from __future__ import annotations
@@ -309,13 +309,13 @@ def test_a_read_needs_a_reason_and_no_extra_keys() -> None:
         LegRead.model_validate({**_read().model_dump(), "severity": "high"})
 
 
-def test_watch_removes_only_where_the_profile_honours_it() -> None:
+def test_watch_and_no_bet_remove_keep_does_not() -> None:
     watch, nobet, keep = _read(), _read(verdict="NO_BET"), _read(verdict="KEEP")
-    assert read_refusal([watch], honours_watch=True) == "WATCHED"
-    assert read_refusal([watch], honours_watch=False) is None
-    assert read_refusal([nobet], honours_watch=False) == "READ_NO_BET"
-    assert read_refusal([keep], honours_watch=True) is None
-    assert read_refusal([], honours_watch=True) is None
+    assert read_refusal([watch]) == "WATCHED"
+    assert read_refusal([nobet]) == "READ_NO_BET"
+    assert read_refusal([watch, nobet]) == "READ_NO_BET"
+    assert read_refusal([keep]) is None
+    assert read_refusal([]) is None
 
 
 def test_reads_match_like_vetoes() -> None:
@@ -430,9 +430,9 @@ def _confidence(runs: Path, *extra: str) -> dict[str, Any]:
         [sys.executable, "scripts/sofa/run_confidence.py", "--date", DAY,
          "--runs-dir", str(runs), *extra],
         cwd=REPO, capture_output=True, text=True,
-        # The 10-04 rule these tests pin (WATCH removes from the official
-        # coupon, the WARIANT keeps it marked) is the pre-stats-only one:
-        # built before bet.sofa.epochs.STATS_ONLY_FROM_UTC.
+        # The 10-04 rule these tests pin (a refused leg leaves the artifact)
+        # is the pre-stats-only one: built before
+        # bet.sofa.epochs.STATS_ONLY_FROM_UTC.
         env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin",
              "SOFA_NOW": "2026-10-05T07:00:00Z"},
     )
@@ -452,14 +452,9 @@ def test_the_gap_gate_is_an_automatic_watch(conf_day: Path) -> None:
     legs = _legs(conf_day, "08_confidence.json")
     assert set(legs) == {1}
     assert legs[1]["sample_hit_rate"] == pytest.approx(0.85)
-    _confidence(conf_day, "--profile", "wariant")
-    wariant = _legs(conf_day, "08_confidence_wariant.json")
-    assert 2 in wariant
-    assert any(f.startswith("MODEL_ABOVE_OWN_SAMPLE")
-               for f in wariant[2]["context_flags"])
 
 
-def test_a_watch_leaves_the_coupon_and_stays_marked_in_the_wariant(
+def test_a_watch_leaves_the_coupon(
     conf_day: Path,
 ) -> None:
     (conf_day / DAY / "reads.json").write_text(json.dumps([
@@ -468,20 +463,14 @@ def test_a_watch_leaves_the_coupon_and_stays_marked_in_the_wariant(
     summary = _confidence(conf_day)
     assert summary["metrics"]["refused"].get("WATCHED") == 1
     assert 1 not in _legs(conf_day, "08_confidence.json")
-    _confidence(conf_day, "--profile", "wariant")
-    leg = _legs(conf_day, "08_confidence_wariant.json")[1]
-    assert leg["reads"] == [{"verdict": "WATCH", "author": "analyst",
-                             "reason": "Chaves 4/5/4/5 goals"}]
 
 
-def test_no_bet_leaves_both_profiles(conf_day: Path) -> None:
+def test_no_bet_leaves_the_coupon(conf_day: Path) -> None:
     (conf_day / DAY / "reads.json").write_text(json.dumps([
         _read(sofascore_event_id=1, verdict="NO_BET", author="verifier").model_dump(),
     ]))
     _confidence(conf_day)
-    _confidence(conf_day, "--profile", "wariant")
     assert 1 not in _legs(conf_day, "08_confidence.json")
-    assert 1 not in _legs(conf_day, "08_confidence_wariant.json")
 
 
 def test_a_read_that_covers_nothing_is_reported(conf_day: Path) -> None:
@@ -491,7 +480,7 @@ def test_a_read_that_covers_nothing_is_reported(conf_day: Path) -> None:
     summary = _confidence(conf_day)
     assert summary["metrics"]["reads_unmatched"] == 1
     doc = json.loads((conf_day / DAY / "08_confidence.json").read_text())
-    assert doc["reads_unmatched"] == 1 and doc["honours_watch"] is True
+    assert doc["reads_unmatched"] == 1
 
 
 # --- review 2026-10-04 -----------------------------------------------------------

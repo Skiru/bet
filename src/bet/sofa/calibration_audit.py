@@ -10,7 +10,7 @@ older day = the old rule), and variants are never pooled
 
 The grades are not re-derived here: scripts/sofa/measure_calibration.py
 reads them through record_results.graded_confidence, the function the ledger
-records 7c / 7d / 7i from, and hands this module the graded positions.
+records 7c / 7i from, and hands this module the graded positions.
 
     gap = mean printed confidence - realised hit rate   (> 0: over-confident)
 

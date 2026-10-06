@@ -22,10 +22,10 @@ DAY = "2026-09-26"
 H = st.horizon_end(DAY)  # 2026-09-30T00:00Z
 
 
-def _leg(eid: int = 1, market: str = "corners_total", cid: int | None = 173,
-         profiles: tuple[str, ...] = ("standard",)) -> st.PrintedLeg:
+def _leg(eid: int = 1, market: str = "corners_total",
+         cid: int | None = 173) -> st.PrintedLeg:
     return st.PrintedLeg(DAY, (eid, market, "", 9.5, "UNDER"), "football", cid,
-                         "National League", set(profiles))
+                         "National League")
 
 
 # --- reasons and families ---------------------------------------------------
@@ -168,22 +168,19 @@ def _single(eid: int, market: str = "corners_total") -> dict[str, Any]:
             "offered_odds": 1.3, "competition": "From the leg"}
 
 
-def test_printed_legs_unites_the_profiles(tmp_path: Path) -> None:
+def test_printed_legs_are_what_the_pdf_printed(tmp_path: Path) -> None:
     run = tmp_path / DAY
     run.mkdir()
     (run / "02_fixtures.json").write_text(json.dumps([
         {"sofascore_event_id": 1, "sport": "football", "competition_id": 173,
          "competition_name": "National League"}]))
-    # The official PDF printed the first single only (pdf_max_singles 1).
+    # The PDF printed the first two singles only (pdf_max_singles 2).
     (run / "08_confidence.json").write_text(json.dumps(
-        {"singles": [_single(1), _single(2)], "pdf_max_singles": 1, "builders": []}))
-    (run / "08_confidence_wariant.json").write_text(json.dumps(
-        {"singles": [_single(1), _single(3, "goals_total")],
-         "pdf_max_singles": None, "builders": []}))
+        {"singles": [_single(1), _single(3, "goals_total"), _single(2)],
+         "pdf_max_singles": 2, "builders": []}))
     legs = st.printed_legs(run, DAY, st.load_fixtures(run))
     by_eid = {lg.key[0]: lg for lg in legs}
     assert set(by_eid) == {1, 3}
-    assert by_eid[1].profiles == {"standard", "wariant"}
     assert by_eid[1].competition_id == 173
     assert by_eid[3].competition_id is None
     assert by_eid[3].competition_name == "From the leg"

@@ -37,7 +37,6 @@ from typing import Any
 
 from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
-from bet.sofa.epochs import STATS_ONLY_FROM_UTC
 from bet.sofa.players import is_player_metric
 
 # Resolved against the repo, not the working directory: run from anywhere
@@ -532,36 +531,22 @@ PDF_MAX_SINGLES = 30
 
 @dataclass(frozen=True)
 class ConfidenceProfile:
-    """One setting of the two dials the operator chooses between.
+    """The coupon's dials.
 
-    `min_ev` None is `leg_is_ev_positive` (x > 1.0, strictly) - the official
-    rule until 2026-10-04. A number is a price TOLERANCE: the leg is accepted while
-    confidence x odds >= min_ev, i.e. up to (1 - min_ev) below the price its
-    own confidence asks for. `suffix` names the variant's artifacts, so the
-    official coupon's files are never overwritten by a variant.
+    `min_ev` None is `leg_is_ev_positive` (x > 1.0, strictly) - the rule
+    until 2026-10-04, still how an artifact without `min_ev` is read. A
+    number is a price TOLERANCE: the leg is accepted while confidence x odds
+    >= min_ev, i.e. up to (1 - min_ev) below the price its own confidence
+    asks for.
     """
 
     name: str
     floor: float
     min_ev: float | None
-    suffix: str
-    pdf_suffix: str
     # The ladder margin a leg may carry and still be printed as a single.
     max_overround: float = MAX_OVERROUND
     # How many singles the PDF prints; None prints the whole artifact.
     pdf_max_singles: int | None = PDF_MAX_SINGLES
-    # Whether the PDF prints this profile's stakeable Bet Builders. Written
-    # into the artifact, so a variant artifact from before 2026-09-29 (whose
-    # PDF printed none) is never graded as if it had.
-    prints_builders: bool = True
-    # Whether an analyst's or the verifier's WATCH (reads.json) removes a
-    # leg. The official coupon honours it; the WARIANT keeps a WATCH leg,
-    # marked, so the ledger can measure WATCH (operator, 2026-10-04).
-    honours_watch: bool = True
-    # From this build time on (with a day in the stats-only epoch) the
-    # profile is no longer built - its days stay readable for the
-    # settlement, the ledger and the refit (plan 2026-10-05, K5).
-    retired_from_utc: datetime | None = None
 
     def single_is_fairly_priced(self, leg_overround: float | None) -> bool:
         return leg_overround is not None and leg_overround <= self.max_overround
@@ -576,9 +561,9 @@ class ConfidenceProfile:
 
 # A football leg whose model sits more than this above the hit rate of its own
 # sample (the share of the sample's observations the line would have won) is
-# an automatic WATCH (2026-10-04): the official coupon refuses it, the WARIANT
-# keeps it marked. The threshold is the sofa-verifier's, written before it was
-# measured; measured on 51,567 settled priced football rows with
+# an automatic WATCH (2026-10-04): the coupon refuses it. The threshold is
+# the sofa-verifier's, written before it was measured; measured on 51,567
+# settled priced football rows with
 # p_central >= 0.65, 2026-09-19..10-03 (scripts/sofa/measure_own_sample_gap.py,
 # data/analysis_2026-10-04_history/own_sample_gap_football.md): gap > 0.15
 # realised 2.1 pp under the devigged price [-3.9; -0.3], ROI -8.2%
@@ -621,66 +606,16 @@ def model_above_own_sample(
     return gap if gap > MAX_OWN_SAMPLE_GAP else None
 
 
-# The official coupon, and the operator's variant of 2026-09-23: "65% and up to
-# 10% below the price". Measured before it was added, leave-one-day-out over
-# 18-22.09 (scripts/sofa/sweep_confidence_gates.py, stored p_central, each day
-# on a curve that never saw it):
-#
-#     profile    bets   hit    ROI     95% CI (match bootstrap)
-#     standard   1655   0.749  -2.9%   -6.6 .. +0.4
-#     wariant    5802   0.768  -3.2%   -5.0 .. -1.6     tennis -5.4% (n=136)
-#
-# About the same loss per bet on 3.5x the bets: it buys volume, not edge. It is
-# a variant to be settled beside the official coupon, never a replacement, and
-# `audit_settlement` grades both. The disagreement limit is the same in both -
-# without MAX_DISAGREEMENT the variant measured -5.0%.
-#
-# From 2026-09-23 13:30 UTC the variant also accepts a ladder margin up to 15%
-# (the official coupon keeps MAX_OVERROUND = 10.5%). The operator's choice, made
-# knowing the measurement: over 18-22.09, short-priced (1.09-1.60) settled rows
-# returned -5.5% at <=10.5% margin (n=22,478), -7.1% at 10.5-13% (n=7,726) and
-# -6.7% at 13-16% (n=1,082); 10.5-13% was worse than <=10.5% on every one of
-# the five days. Variant results before and after this date are not the same
-# experiment and must not be pooled.
-#
-# From 2026-10-05 the official coupon takes the variant's two price dials -
-# confidence x odds >= 0.90 and a ladder margin up to 15% - and keeps its own
-# floor (0.70) and its honouring of WATCH (the
-# operator's order of 10-05: "more options to choose from"; a high confidence
-# floor was considered and declined). Made knowing the measurement above: the
-# variant's dials bought volume, not edge, and the coupon's 10.5-15% margin
-# legs returned -12.8% (n=50) against -4.6% (n=78). The official coupon before
-# and after 10-05 is not the same experiment and must not be pooled. Later
-# that morning the operator also lifted its 30-single page limit ("don't
-# limit to 30"): like the variant it prints its whole artifact. An artifact
-# without `pdf_max_singles` still reads as the 30 its PDF printed.
-#
-# From 2026-09-29 the variant's PDF also prints its stakeable Bet Builders (the
-# operator's request): same predicate as the coupon (`is_stakeable`: best for
-# its fixture, EV > 0 after the 12% correlation haircut), built from the
-# variant's looser legs. They were never measured before being added; 7d of the
-# settlement grades them on their own, never pooled with the coupon's builders.
-PROFILES: dict[str, ConfidenceProfile] = {
-    "standard": ConfidenceProfile("standard", 0.70, 0.90, "", "",
-                                  max_overround=0.15, pdf_max_singles=None),
-    # Retired with the stats-only epoch (2026-10-05, the operator: one
-    # coupon; WATCH is graded on its own, audit_settlement 7f).
-    "wariant": ConfidenceProfile("wariant", 0.65, 0.90, "_wariant", "_WARIANT",
-                                 max_overround=0.15, pdf_max_singles=None,
-                                 honours_watch=False,
-                                 retired_from_utc=STATS_ONLY_FROM_UTC),
-}
-
-
-def profile_retired(profile: ConfidenceProfile, date: str, build_at: datetime) -> bool:
-    """Is a build of `profile` for `date` at `build_at` refused (K5)?"""
-    from bet.sofa.epochs import STATS_ONLY_DATE
-
-    return (
-        profile.retired_from_utc is not None
-        and date >= STATS_ONLY_DATE
-        and build_at >= profile.retired_from_utc
-    )
+# The coupon's dials since 2026-10-05 (operator): confidence >= 0.70,
+# confidence x odds >= 0.90, a ladder margin up to 15%, every passing single
+# printed ("don't limit to 30"). Measured before the change (football
+# 09-24..10-04): 2574 rows -4.5% -> 8871 rows -4.8% - volume, not edge; the
+# 10.5-15% margin legs returned -12.8% (n=50) against -4.6% (n=78). A 0.80
+# floor was considered and declined. An artifact carries the dials it was
+# built with, so an older day is read under its own (no `min_ev`: x > 1.0,
+# no `max_overround`: MAX_OVERROUND, no `pdf_max_singles`: 30).
+COUPON_PROFILE = ConfidenceProfile("standard", 0.70, 0.90,
+                                   max_overround=0.15, pdf_max_singles=None)
 
 
 # The coupon artifact (plan 2026-10-05, K3). From the stats-only epoch the
@@ -698,16 +633,8 @@ def coupon_artifact(run_dir: Path) -> Path:
     return eleven if eleven.exists() else Path(run_dir) / "08_confidence.json"
 
 
-def profile_artifact_path(run_dir: Path, profile: ConfidenceProfile) -> Path:
-    """What a profile printed on a day: the coupon artifact for the official
-    coupon (coupon_artifact), the variant's own file for the WARIANT."""
-    if profile.name == "standard":
-        return coupon_artifact(run_dir)
-    return Path(run_dir) / confidence_artifact(profile)
-
-
 # The sports CONFIDENCE prices and SETTLE grades from the sheet; the measured
-# sports' legs on the coupon are graded by sport_coupon (plan, F7).
+# sports' legs on the coupon are graded by coupon_sports (plan, F7).
 SHEET_SPORTS = frozenset({"football", "tennis"})
 
 
@@ -763,11 +690,9 @@ BUILDER_MIN_X = 0.90
 def printed_singles(artifact: dict[str, Any]) -> list[dict[str, Any]]:
     """The singles the PDF built from this artifact actually prints.
 
-    Since 2026-09-24 the operator's variant prints every single in its
-    artifact (the operator asked for the whole list, not the top 30). The
-    limit is written into the artifact, so an artifact from before that
-    carries no `pdf_max_singles` and is still read as the 30 its PDF printed -
-    the settlement of 2026-09-23 must not start grading rows nobody saw.
+    The limit is written into the artifact (None = every single, since
+    2026-10-05); an older artifact without `pdf_max_singles` is read as the
+    30 its PDF printed - a settlement must not grade rows nobody saw.
     """
     singles: list[dict[str, Any]] = artifact.get("singles") or []
     limit = artifact.get("pdf_max_singles", PDF_MAX_SINGLES)
@@ -782,10 +707,8 @@ def prints_builders(artifact: dict[str, Any]) -> bool:
 def printed_builders(artifact: dict[str, Any]) -> list[dict[str, Any]]:
     """The Bet Builders the PDF built from this artifact actually prints.
 
-    `is_stakeable` builders, on an artifact whose profile prints builders.
-    An artifact without `prints_builders` predates 2026-09-29: the official
-    coupon (min_ev None) printed its builders, the variant printed none, and
-    the settlement of those days must not start grading slips nobody saw.
+    `is_stakeable` builders. An artifact without `prints_builders` predates
+    2026-09-29, when the coupon (min_ev None) printed its builders.
     """
     if not prints_builders(artifact):
         return []
@@ -938,9 +861,7 @@ def ladder_leg_counts(singles: list[dict[str, Any]]) -> dict[tuple[int, str, str
     return counts
 
 
-def confidence_artifact(profile: ConfidenceProfile) -> str:
-    """08_confidence.json, or the variant's own file."""
-    return f"08_confidence{profile.suffix}.json"
+CONFIDENCE_ARTIFACT = "08_confidence.json"
 
 
 def line_is_beyond_sample(

@@ -45,16 +45,16 @@ def test_the_interval_resamples_matches_not_legs():
     assert -0.2 < s.ci95[0] < s.ci95[1] < 0.2
 
 
-def test_sport_coupon_legs_match_their_graded_close():
+def test_sport_legs_match_their_graded_close():
     keys = ("superbet_event_id", "market_id", "period", "subject", "line", "side")
     leg = {"superbet_event_id": "9", "market_id": 1, "period": 0, "subject": "",
            "line": 5.5, "side": "OVER", "odds": 1.95, "label": "total"}
     graded = [{**{k: leg[k] for k in keys}, "odds": 1.80, "partner_odds": 2.0,
                "minutes_before_kickoff": 10}]
-    rows = clv.sport_coupon_rows({"legs": [leg]}, graded, "sport:hockey", keys)
+    rows = clv.graded_close_rows({"legs": [leg]}, graded, "official:hockey", keys)
     assert len(rows) == 1 and rows[0].odds_close == 1.80 and rows[0].beat
     stale = [{**graded[0], "minutes_before_kickoff": 300}]
-    assert clv.sport_coupon_rows({"legs": [leg]}, stale, "sport:hockey", keys) == []
+    assert clv.graded_close_rows({"legs": [leg]}, stale, "official:hockey", keys) == []
 
 
 def _leg(minutes, now):
@@ -114,23 +114,24 @@ def test_the_capture_reads_what_the_pdf_prints_and_builder_legs_apart(tmp_path):
 
 
 def test_a_sport_leg_after_midnight_is_found_in_the_next_days_settle(tmp_path):
-    from scripts.sofa.audit_clv import sport_rows
+    from scripts.sofa.audit_clv import coupon_sport_rows
 
-    leg = {"superbet_event_id": "9", "market_id": 1, "period": 0, "subject": "",
-           "line": 5.5, "side": "OVER", "odds": 1.95, "label": "total",
-           "kickoff_utc": "2026-10-02T01:00:00Z"}
-    d1 = tmp_path / "shadow" / "hockey" / "2026-10-01"
+    leg = {"sport": "hockey", "superbet_event_id": "9", "market_id": 1, "period": 0,
+           "subject": "", "line": 5.5, "side": "OVER", "odds": 1.95,
+           "label": "total", "kickoff_utc": "2026-10-02T01:00:00Z"}
+    (tmp_path / "2026-10-01").mkdir()
+    (tmp_path / "2026-10-01" / "11_coupon.json").write_text(
+        json.dumps({"singles": [leg]}))
     d2 = tmp_path / "shadow" / "hockey" / "2026-10-02"
-    d1.mkdir(parents=True)
     d2.mkdir(parents=True)
-    (d1 / "sport_coupon.json").write_text(json.dumps({"legs": [leg]}))
     graded = {**{k: leg[k] for k in ("superbet_event_id", "market_id", "period",
                                      "subject", "line", "side")},
               "odds": 1.80, "partner_odds": 2.0, "minutes_before_kickoff": 10}
     (d2 / "settled.json").write_text(json.dumps(
         {"events": {"9": {"graded": [graded]}}}))
-    rows = sport_rows(tmp_path, "2026-10-01")
+    rows = coupon_sport_rows(tmp_path, "2026-10-01")
     assert len(rows) == 1 and rows[0].odds_close == 1.80
+    assert rows[0].variant == "official:hockey"
 
 
 

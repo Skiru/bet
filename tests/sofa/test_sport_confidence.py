@@ -365,9 +365,9 @@ def test_cs2_sample_counts_each_teams_own_maps():
 
 
 def test_the_printable_region_is_the_official_floor():
-    from bet.sofa.confidence import PROFILES
+    from bet.sofa.confidence import COUPON_PROFILE
 
-    assert scf.PRINTABLE_FROM == PROFILES["standard"].floor
+    assert scf.PRINTABLE_FROM == COUPON_PROFILE.floor
     curves = {"k|TEAM": {"0.800-0.825": {"n": 300, "realised": 0.8,
                                           "realised_lo95": 0.78},
                          "0.000-0.600": {"n": 300, "realised": 0.4,

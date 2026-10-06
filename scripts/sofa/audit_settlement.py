@@ -35,16 +35,11 @@ sys.path.insert(0, "src")
 from bet.sofa.builder_screen import screen_odds_by_event  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
-    MAX_OVERROUND,
-    PROFILES,
     builder_odds,
-    confidence_artifact,
     coupon_artifact,
     is_sheet_sport,
     printed_builders,
     printed_singles,
-    prints_builders,
-    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
@@ -145,7 +140,7 @@ def _load_settled_elsewhere(
                 # Never a cache-replay row (review 2026-10-04): a
                 # rebuild-cache-rows wrote one for Hellas Kagran - Vienna
                 # Amateure, which live SETTLE had skipped as NOT_FINISHED,
-                # and 7d / the ledger graded the printed leg from it.
+                # and the ledger graded the printed leg from it.
                 "SELECT * FROM sofa_settled_row WHERE run_date != ? "
                 "AND run_date != 'cache-calibration' "
                 f"AND sofascore_event_id IN ({marks})",
@@ -190,7 +185,7 @@ def refund_events(run_dir: Path) -> dict[int, str]:
 def coupon_settled_by_key(
     db_path: str, run_dir: Path, run_date: str, keys: set[Key]
 ) -> dict[Key, dict[str, Any]]:
-    """The grades of a day's PRINTED legs - one source for 7c / 7d and the
+    """The grades of a day's PRINTED legs - one source for 7c and the
     ledger (A5, 2026-10-05: 7c took other-date rows for the sheet's events,
     the ledger for the printed ones, so a printed leg on an event the sheet
     no longer held read differently in the two).
@@ -310,7 +305,7 @@ def render_sport_singles(
     date: str,
 ) -> list[str]:
     """7c, the measured sports' singles (F7): graded at the printed price by
-    sport_coupon against the pinned identity; then the coupon's sum of both
+    coupon_sports against the pinned identity; then the coupon's sum of both
     tables (units only - each table is its own population)."""
     from bet.sofa import coupon_sports
     from bet.sofa.timeutil import now as _now
@@ -364,7 +359,7 @@ def render_removed_by_reads(
 
 
 def singles_summary_rows(printed: int, res: dict[str, Any]) -> list[list[Any]]:
-    """The singles table, shared by the official coupon (7c) and the variant (7d)."""
+    """The singles table of the coupon (7c)."""
     # A refund row only on a day that has one: every earlier report reads
     # exactly as it did.
     refund = ([["zwrot (mecz przesunięty > 48 h / przyznany), 0 j.",
@@ -405,12 +400,135 @@ def slip_status(outcomes: list[str | None]) -> str:
     return "WESZŁO"
 
 
+# --- the coupon's positions graded for the ledger -------------------------------
+# record_results.py and measure_calibration.py read the coupon's result through
+# these, so the ledger grades exactly what 7c grades.
+
+SCREEN_FILE = "09_screen_prices.json"
+
+
+def grade_confidence_positions(
+    singles: list[dict[str, Any]],
+    builders: list[dict[str, Any]],
+    rows: list[dict[str, Any]] | dict[Any, dict[str, Any]],
+    screen: dict[str, Any],
+    settle_ran: bool | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Printed confidence singles and builders graded as 7c grades
+    them: the same key, PUSH not counted, one lost leg loses a slip,
+    a builder at its screen price when recorded, else the haircut estimate.
+
+    Each position is a dict with the artifact row under `source`.
+    """
+    by_key = rows if isinstance(rows, dict) else {_key(r): r for r in rows}
+    # SETTLE ran for the day when it wrote any row: a position still absent
+    # then will never be graded (7c's "nierozliczonych"), which is not the
+    # same as waiting for SETTLE.
+    if settle_ran is None:
+        settle_ran = bool(rows)
+    missing = "UNSETTLED" if settle_ran else "PENDING"
+    graded_singles = []
+    for p in singles:
+        g = by_key.get(_key(p["source"]))
+        if g is None:
+            outcome = missing
+        elif g["outcome"] == REFUND:
+            # Moved beyond 48 h / awarded: the stake back, 0 units - its own
+            # count, never UNSETTLED (A1 / A3, 2026-10-05).
+            outcome = REFUND
+        elif g["outcome"] == "PUSH":
+            outcome = "VOID"
+        else:
+            outcome = str(g["outcome"])
+        graded_singles.append(
+            {**p, "odds": p["source"]["offered_odds"], "outcome": outcome}
+        )
+    graded_builders = []
+    for b in builders:
+        src = b["source"]
+        outs = []
+        for leg in src.get("legs") or []:
+            g = by_key.get(
+                _key({**leg, "sofascore_event_id": src["sofascore_event_id"]})
+            )
+            outs.append(None if g is None else g["outcome"])
+        status = slip_status(outs)
+        outcome = {"NIE WESZŁO": "LOSS", "WESZŁO": "WIN", "ZWROT": REFUND}.get(
+            status, missing
+        )
+        real = screen.get(str(src["sofascore_event_id"]))
+        odds = float(real) if real is not None else builder_odds(src["odds_if_product"])
+        graded_builders.append(
+            {**b, "outcome": outcome, "odds": odds, "odds_measured": real is not None}
+        )
+    return graded_singles, graded_builders
+
+
+def official_rows(
+    runs_dir: str,
+    date: str,
+    db_path: str,
+    event_ids: set[int] | None = None,
+    keys: set[Key] | None = None,
+) -> tuple[dict[Any, dict[str, Any]], dict[str, Any]]:
+    """The day's settled rows and screen prices, read exactly where 7c reads
+    them: the database (sofa_settled_row, which regrade_settled.py corrects -
+    07_settled.json is not) and 09_screen_prices.json.
+
+    With `keys` (the printed legs) the rows are coupon_settled_by_key - the
+    one source 7c reads (A5): other-date rows of the printed events, the A4
+    file, the refunds."""
+    if not Path(db_path).exists():
+        # Never "nothing settled": with no database every position would read
+        # PENDING and overwrite a graded ledger row. A missing DB is a failure.
+        raise FileNotFoundError(f"settled-row database not found: {db_path}")
+    run_dir = Path(runs_dir) / date
+    if keys is not None:
+        rows = coupon_settled_by_key(db_path, run_dir, date, keys)
+    else:
+        rows = settled_by_key(db_path, date, event_ids or set())
+    # bet.sofa.builder_screen: a bare number or a timed entry (F4.4).
+    screen = screen_odds_by_event(run_dir / SCREEN_FILE)
+    return rows, screen
+
+
+def refunded(rows: list[dict[str, Any]]) -> int:
+    """Positions refunded (moved beyond 48 h / awarded): 0 units, own count."""
+    return sum(1 for r in rows if r.get("outcome") == REFUND)
+
+
+def ran_on(rows: dict[Any, dict[str, Any]], date: str) -> bool:
+    """SETTLE ran for `date`: some row is filed under it (rows found under
+    other dates do not say so)."""
+    return any(r.get("run_date") == date for r in rows.values())
+
+
+def summarize_units(
+    rows: list[dict[str, Any]], odds_key: str = "odds"
+) -> dict[str, Any]:
+    """Flat one unit per position: WIN pays odds - 1, LOSS costs 1, anything
+    else is not counted."""
+    decided = [r for r in rows if r["outcome"] in ("WIN", "LOSS")]
+    wins = sum(1 for r in decided if r["outcome"] == "WIN")
+    units = sum(
+        float(r[odds_key]) - 1.0 if r["outcome"] == "WIN" else -1.0 for r in decided
+    )
+    return {
+        "positions": len(rows),
+        "settled": len(decided),
+        "won": wins,
+        "lost": len(decided) - wins,
+        "not_counted": len(rows) - len(decided),
+        "units": round(units, 4),
+        "roi": round(units / len(decided), 4) if decided else None,
+    }
+
+
 def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
                     screen: dict[str, Any],
                     screen_file: str, printed_on: str = "na kuponie") -> list[str]:
     """The printed Bet Builders graded slip by slip, at the screen price when
-    the operator recorded one and the haircut estimate otherwise. Shared by
-    the official coupon (7c) and, since 2026-09-29, the variant (7d)."""
+    the operator recorded one and the haircut estimate otherwise (7c)."""
     out: list[str] = []
     emit = out.append
 
@@ -515,7 +633,7 @@ NICHES_HEADING = "## 7h. Skaner nisz — ostatni werdykt poza próbą (pomiar, n
 
 def section_7h(reports_dir: Path, date: str) -> list[str]:
     """The niche scanner's latest out-of-sample verdict, for a window ending by
-    `date`. Kept apart from 7c (the coupon) and 7d (the variant) and never pooled
+    `date`. Kept apart from 7c (the coupon) and never pooled
     with them: the scanner bets nothing, it measures whether a league cell beats
     Superbet's price out of sample."""
     return render_niches(latest_niches(reports_dir, date), NICHES_HEADING)
@@ -542,15 +660,14 @@ def main() -> int:
     by_key = settled_by_key(
         config.db_path, args.date, {int(r["sofascore_event_id"]) for r in sheet}
     )
-    # 7c / 7d grade what the PDFs printed from the one source the ledger reads
+    # 7c grades what the PDF printed from the one source the ledger reads
     # (A5): the printed keys' rows, the A4 file, the refunds.
     printed_set: set[Key] = set()
-    for prof in PROFILES.values():
-        # The coupon artifact (11_coupon.json on a stats-only day, K3).
-        prof_path = profile_artifact_path(run_dir, prof)
-        if prof_path.exists():
-            printed_set |= printed_leg_keys(
-                json.loads(prof_path.read_text()), sheet_sports_only=True)
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    printed_path = coupon_artifact(run_dir)
+    if printed_path.exists():
+        printed_set = printed_leg_keys(
+            json.loads(printed_path.read_text()), sheet_sports_only=True)
     coupon_by_key = coupon_settled_by_key(
         config.db_path, run_dir, args.date, printed_set
     )
@@ -845,11 +962,8 @@ def main() -> int:
     # as a winning one, or the reverse.
     # The coupon artifact: 11_coupon.json on a stats-only day (K3).
     conf_path = coupon_artifact(run_dir)
-    official_singles: list[dict[str, Any]] = []
     if conf_path.exists():
         conf = json.loads(conf_path.read_text())
-        # What the PDF printed, not everything the artifact holds.
-        official_singles = printed_singles(conf)
         emit("## 7b. Lista pewnościowa — wszystkie nogi nad progiem")
         emit("")
         legs = conf["legs"]
@@ -922,7 +1036,7 @@ def main() -> int:
             emit("PDF nie drukował pojedynczych.")
             emit("")
         else:
-            # The measured sports' legs (F7) are graded by sport_coupon, not
+            # The measured sports' legs (F7) are graded by coupon_sports, not
             # from sofa_settled_row: their own table below, then the sum.
             sport_singles = [s for s in singles if not is_sheet_sport(s)]
             sheet_singles = [s for s in singles if is_sheet_sport(s)]
@@ -960,87 +1074,6 @@ def main() -> int:
             ]
             lines.extend(render_removed_by_reads(
                 [*removed, *graded_sports], removed_by_key))
-
-    # ---- 7d. the operator's variant, settled beside the coupon ----------
-    #
-    # 08_confidence_wariant.json exists only on days the variant was built
-    # (run_confidence --profile wariant). It is graded here, on the same
-    # settled rows and at its own printed odds, so "65% and up to 10% below
-    # the price" is judged day by day against the official coupon rather than
-    # remembered as a good or a bad idea.
-    var_path = run_dir / confidence_artifact(PROFILES["wariant"])
-    if var_path.exists():
-        var = json.loads(var_path.read_text(encoding="utf-8"))
-        var_all = var.get("singles") or []
-        var_singles = printed_singles(var)
-        # An artifact from before 2026-09-23 13:30 UTC carries no
-        # max_overround: the variant then used the official 10.5%.
-        emit("## 7d. WARIANT (pewność ≥ {:.2f}, pewność × kurs ≥ {}, marża ≤ {:.1%})"
-             " — nie kupon".format(
-                 var.get("confidence_floor", PROFILES["wariant"].floor),
-                 var.get("min_ev", PROFILES["wariant"].min_ev),
-                 var.get("max_overround", MAX_OVERROUND)))
-        emit("")
-        var_builders_printed = prints_builders(var)
-        emit("Rozliczany obok oficjalnego kuponu, na tych samych rozliczonych "
-             "wierszach i po swoich wydrukowanych kursach. "
-             + ("Od 2026-09-29 PDF wariantu drukuje też Bet Buildery; są "
-                "rozliczone niżej osobno i nigdy nie są sumowane z builderami "
-                "kuponu (7c). " if var_builders_printed else
-                "Tylko pojedyncze — PDF wariantu z tego dnia nie drukował Bet "
-                "Builderów. ")
-             + "Przed dodaniem zmierzony na 18–22.09: −3,2% na zakład wobec "
-             "−2,9% oficjalnego.")
-        emit("")
-        if not var_singles:
-            emit("Wariant nie wydrukował pojedynczych.")
-        else:
-            vres = settle_singles(var_singles, coupon_by_key)
-            emit(_table(["", "liczba"], singles_summary_rows(len(var_singles), vres)))
-            if len(var_all) > len(var_singles):
-                emit("")
-                emit(f"Artefakt wariantu miał {len(var_all)} pojedynczych; PDF "
-                     f"drukuje pierwsze {len(var_singles)} po pewności i tylko te "
-                     "są tu rozliczone.")
-            official_keys = {
-                (o["sofascore_event_id"], o["market"], o["subject"], o["line"],
-                 o["direction"]) for o in official_singles}
-            only = [x for x in var_singles
-                    if (x["sofascore_event_id"], x["market"], x["subject"], x["line"],
-                        x["direction"]) not in official_keys]
-            ores = settle_singles(only, coupon_by_key)
-            emit("")
-            if conf_path.exists():
-                emit("Z tego **tylko w wariancie** (nie ma ich na oficjalnym "
-                     f"kuponie): {len(only)} pozycji, rozliczonych "
-                     f"{ores['settled']}, weszło {ores['won']}, wynik "
-                     f"{ores['units']:+.2f} j."
-                     + (f", ROI {100.0 * ores['units'] / ores['settled']:+.1f}%"
-                        if ores["settled"] else "")
-                     + ". To jest dokładnie to, co wariant dokłada.")
-            else:
-                # Without the official artifact every variant single would
-                # read as "variant-only", which is a claim about a comparison
-                # that was never made.
-                emit("Brak `08_confidence.json` z tego dnia, więc nie da się "
-                     "powiedzieć, co wariant dokłada ponad oficjalny kupon.")
-        emit("")
-        if var_builders_printed:
-            emit("### Bet Buildery wariantu")
-            emit("")
-            # Its own screen-price file: the variant's slip on a fixture is a
-            # different slip from the coupon's on the same fixture (2026-09-29
-            # Botafogo: 4 legs in both, only one leg in common).
-            vscreen_path = run_dir / "09_screen_prices_wariant.json"
-            vscreen = screen_odds_by_event(vscreen_path)
-            vpicks = printed_builders(var)
-            if not vpicks:
-                emit("Wariant nie wydrukował żadnego Bet Buildera.")
-                emit("")
-            else:
-                lines.extend(render_builders(vpicks, coupon_by_key, vscreen,
-                                             vscreen_path.name,
-                                             printed_on="w wariancie"))
 
     # ---- 7e. the analysts' vetoes, graded ---------------------------------
     #

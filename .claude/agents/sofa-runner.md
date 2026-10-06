@@ -25,11 +25,9 @@ steps 5 and 8 must run in the main session.
 `runs/sofa/<d>/11_coupon.json` (COUPON_ASSEMBLY), printed as
 `runs/sofa/<d>/KUPON_<d>.pdf`; confidence from the statistics alone, the
 price only the condition (confidence x odds >= 0.90, margin <= 15%, floor
-0.70, WATCH honoured); positions 1..N by confidence, then the earlier start,
-the legs of one match together; locked legs (printed earlier, match
-started) first and unnumbered. Retired 2026-10-05 (history only, refused if
-asked): WARIANT and WARIANT WSZYSTKIE from 07:15Z, the separate per-sport
-coupons and their four parallel runner agents from 08:30Z.
+0.70, a WATCH or NO_BET read removes the leg); positions 1..N by confidence,
+then the earlier start, the legs of one match together; locked legs (printed
+earlier, match started) first and unnumbered.
 
 The order of a run:
 
@@ -180,16 +178,6 @@ Re-run `record_results.py --from <D-8> --to <D-1>` after a late settle or a
 `regrade_settled.py`. A result is a fact about the day, never a reason for
 today's choice.
 
-Historical, until 2026-10-13 (while D-8 still reaches 2026-10-05): the
-retired variants of days up to the 10-05 morning are graded by their own
-scripts and recorded under their old ledger names - the daily loops run
-those steps for their days; by hand only for a date a loop did not cover:
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>   # retired 2026-10-05 08:30Z: old days' per-sport coupons only
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>   # retired 2026-10-05 07:15Z: old days' WSZYSTKIE only
-```
-
 ## Step 1b — start today's measurement loops
 
 The loops snapshot the measured sports' prices all day (the coupon's
@@ -273,7 +261,7 @@ working, not a defect.
 
 Fresh prices first (Superbet only, no bridge) - the sport legs are priced
 from the newest pre-start snapshot and refused as `STALE_PRICE` past
-`sport_coupon.MAX_PRICE_AGE`; night games live in D+1's file:
+`sport_day.MAX_PRICE_AGE`; night games live in D+1's file:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW
@@ -622,9 +610,7 @@ UWAGA:    <the day's single biggest weakness>
 - **`06_coupon.json` is not the coupon. The PDF is** (`11_coupon.json` is what
   it prints). The VALUE-singles selector returned −20.4% on 2026-09-20 while
   the PDF returned +8.2% the same day. Reporting the wrong file inverts the day.
-- Never pool a result across variants or epochs, and never build a retired
-  variant: a refusal (exit 2) of `--profile wariant` or of the old per-sport /
-  WSZYSTKIE scripts on a day from 2026-10-05 is the retirement working.
+- Never pool a result across ledger variants or epochs.
 - **Never re-fit constants mid-day.** `fit_constants.py`, `fit_confidence.py`
   and `fit_sport_confidence.py` are outside the sequence on purpose. If a
   constant looks wrong, report it — `sofa-settler` owns that decision and it is

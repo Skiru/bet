@@ -41,19 +41,19 @@ from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_CORRELATION_HAIRCUT,
+    CONFIDENCE_ARTIFACT,
+    COUPON_PROFILE,
     MAX_BUILDER_LEGS,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
     MIN_BUILDER_LEGS,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
-    PROFILES,
     STAKEABLE_RULE_X,
     Calibration,
     best_leg_per_quantity,
     builder_legs_are_coherent,
     builder_odds,
     combined_probability,
-    confidence_artifact,
     coupon_artifact,
     coupon_sort_key,
     disagrees_with_price,
@@ -71,7 +71,6 @@ from bet.sofa.confidence import (  # noqa: E402
     model_above_own_sample,
     overround,
     own_hit_rate,
-    profile_retired,
     reads_catch_all_bucket,
     too_close_to_kickoff,
 )
@@ -83,7 +82,6 @@ from bet.sofa.engine import (  # noqa: E402
 )
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
-    STATS_ONLY_FROM_UTC,
     national_sample_by_count,
     pool_neighbour_cap,
     settleability_gate,
@@ -151,12 +149,7 @@ from scripts.sofa.run_sheet import determine_side  # noqa: E402
 # make every leg negative — measured, rows at p_bar 0.85-0.95 priced 1.20-1.35
 # returned +1.94%. Lowering the floor buys volume; lowering the EV gate would
 # just buy the wrong side more often.
-#
-# The official profile keeps both. The `wariant` profile (confidence.PROFILES)
-# lowers both on purpose, at the operator's request, into its own artifacts -
-# measured -3.2% against the official -2.9% before it was added, i.e. the price
-# of volume, not an edge. It never writes 08_confidence.json.
-DEFAULT_FLOOR = 0.70
+DEFAULT_FLOOR = COUPON_PROFILE.floor
 # Superbet's own shading is accepted, but a price below this is not a shaded
 # price, it is a rounding error with a stake attached.
 #
@@ -181,23 +174,6 @@ def unfitted_from_notes(notes: list[str] | None) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--date", required=True)
-    ap.add_argument(
-        "--profile",
-        choices=sorted(PROFILES),
-        default="standard",
-        help=(
-            "standard = the official coupon (08_confidence.json). wariant = "
-            "floor 0.65, a price up to 10%% below fair and a ladder margin up "
-            "to 15%% (the coupon: 10.5%%), written to its own "
-            "08_confidence_wariant.* so the official files are untouched."
-        ),
-    )
-    ap.add_argument(
-        "--floor",
-        type=float,
-        default=None,
-        help="override the profile's floor (standard: 0.70, wariant: 0.65)",
-    )
     # The same directory every other stage reads (SofaConfig.runs_dir). A
     # hard-coded default let a scratch rebuild under SOFA_RUNS_DIR overwrite
     # the real day's 08_confidence.json and PDF on 2026-09-23.
@@ -212,10 +188,9 @@ def main() -> int:
         "--runs-dir or it overwrites the day's real confidence view",
     )
     args = ap.parse_args()
-    profile = PROFILES[args.profile]
-    if args.floor is None:
-        args.floor = profile.floor
-    artifact = confidence_artifact(profile)
+    profile = COUPON_PROFILE
+    floor = profile.floor
+    artifact = CONFIDENCE_ARTIFACT
 
     run_dir = Path(args.runs_dir) / args.date
     frozen = timeutil.frozen_clock_refusal(args.runs_dir)
@@ -245,15 +220,6 @@ def main() -> int:
     # bet.sofa.epochs (plan 2026-10-05, K0): from the stats-only rebuild of
     # 10-05 on, the coupon's confidence is the statistics' alone.
     so = stats_only_epoch(args.date, now)
-    # K5: the WARIANT is no longer built for a stats-only day.
-    if profile_retired(profile, args.date, now):
-        print(
-            f"REFUSED: the {profile.name} profile is retired from "
-            f"{STATS_ONLY_FROM_UTC.isoformat()} (plan 2026-10-05, K5: one "
-            "coupon); its earlier days stay readable",
-            file=sys.stderr,
-        )
-        return 2
     if so and sheet and sheet_epoch(sheet) != STATS_ONLY:
         print(
             "REFUSED: this is a stats-only build and 05_sheet.json was not "
@@ -411,7 +377,7 @@ def main() -> int:
             if isinstance(entry, dict) and entry.get("superbet_event_id"):
                 board_sides[str(entry["superbet_event_id"])] = (
                     str(entry.get("side_a") or ""), str(entry.get("side_b") or ""))
-    # The previous build of THIS profile, read before it is overwritten: the
+    # The previous build, read before it is overwritten: the
     # legs it printed whose match has started since are carried over as
     # printed (bet.sofa.locked_print - the operator's decision of
     # 2026-10-05). An unreadable previous artifact refuses the build rather
@@ -438,7 +404,7 @@ def main() -> int:
     # operator never saw is not locked. A build whose PDF is missing or older
     # than it carries over only the legs it had itself locked from an earlier,
     # printed build.
-    previous_pdf = run_dir / f"KUPON_{args.date}{profile.pdf_suffix}.pdf"
+    previous_pdf = run_dir / f"KUPON_{args.date}.pdf"
     previous_printed = (
         previous is not None
         and previous_pdf.exists()
@@ -454,7 +420,7 @@ def main() -> int:
     vetoes = load_vetoes(run_dir / "vetoes.json")
     vetoed_keys: set[tuple[Any, ...]] = set()
     # The analysts' and the verifier's reads (contracts.LegRead, 2026-10-04):
-    # NO_BET refuses everywhere, WATCH where the profile honours it, and a
+    # NO_BET and WATCH refuse, and a
     # read that covers a printed leg rides on the leg so the ledger can tell
     # a watched leg from the rest.
     reads = load_reads(run_dir / "reads.json")
@@ -521,7 +487,7 @@ def main() -> int:
                     row["direction"],
                 )
             )
-        read_refused = read_refusal(row_reads, profile.honours_watch)
+        read_refused = read_refusal(row_reads)
         # Stats-only: the read is applied at the END of the chain (K6), so a
         # leg it removes is known to have passed everything else.
         if read_refused is not None and not so:
@@ -712,7 +678,7 @@ def main() -> int:
         realised_lo = cal.shrink_for_gap(
             realised_lo, row["p_central"], row.get("market_p")
         )
-        if realised_lo < args.floor:
+        if realised_lo < floor:
             refused["BELOW_CONFIDENCE_FLOOR"] += 1
             continue
         # See CATCH_ALL_BUCKET_TOP: the bottom bucket's lower bound is an
@@ -738,8 +704,7 @@ def main() -> int:
         # this the builder reported an EV it was simultaneously destroying:
         # `ev_if_product_priced` is prod(confidence * odds) - 1, so a leg
         # whose own product is below 1 drags every slip it joins.
-        # The wariant profile relaxes exactly this gate, and says by how much
-        # (ConfidenceProfile.min_ev); since 2026-10-05 the official one does too.
+        # Since 2026-10-05 relaxed by ConfidenceProfile.min_ev (x >= 0.90).
         if not profile.clears_price(realised_lo, odds):
             refused["NEGATIVE_LEG_EV"] += 1
             continue
@@ -789,8 +754,7 @@ def main() -> int:
         if newest_days is not None and newest_days > MAX_SAMPLE_AGE_DAYS:
             refused["STALE_SAMPLE"] += 1
             continue
-        # An automatic WATCH (confidence.MAX_OWN_SAMPLE_GAP): refused where
-        # the profile honours WATCH, kept and marked where it does not.
+        # An automatic WATCH (confidence.MAX_OWN_SAMPLE_GAP).
         own_gap = model_above_own_sample(
             row["sport"], row["p_central"], values, row["line"], row["direction"],
             row["market"],
@@ -798,14 +762,11 @@ def main() -> int:
         auto_watch: list[str] = []
         removal: tuple[str, str] | None = None
         if own_gap is not None:
-            if profile.honours_watch:
-                if not so:
-                    refused["MODEL_ABOVE_OWN_SAMPLE"] += 1
-                    continue
-                removal = ("MODEL_ABOVE_OWN_SAMPLE", "auto")
-                auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
-            else:
-                auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
+            if not so:
+                refused["MODEL_ABOVE_OWN_SAMPLE"] += 1
+                continue
+            removal = ("MODEL_ABOVE_OWN_SAMPLE", "auto")
+            auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
         if so and read_refused is not None:
             # A person's read before the automatic one: who removed it.
             refusing = [
@@ -853,8 +814,7 @@ def main() -> int:
                     is not None else None
                 ),
                 # bet.sofa.schedule's tags for the fixture (make-up fixture,
-                # long layoff, congestion) and an automatic WATCH this profile
-                # kept, written only when there is one.
+                # long layoff, congestion), written only when there is one.
                 **(
                     {"context_flags": flags}
                     if (flags := schedule_flags(row["sofascore_event_id"])
@@ -881,9 +841,8 @@ def main() -> int:
                 # said it zero times - only the PDF banner re-read the sheet.
                 "unfitted_constants": unfitted_from_notes(row.get("notes")),
                 # The reads that cover the leg (reads.json), written only when
-                # there is one - a WATCH leg the WARIANT kept is marked, so the
-                # ledger can grade WATCH; an artifact without reads is
-                # byte-for-byte what it was before 2026-10-04.
+                # there is one; an artifact without reads is byte-for-byte what
+                # it was before 2026-10-04.
                 **(
                     {"reads": [
                         {"verdict": r.verdict, "author": r.author, "reason": r.reason}
@@ -925,7 +884,7 @@ def main() -> int:
             continue
         legs.append(leg)
 
-    # Legs the previous build of this profile printed and whose match has
+    # Legs the previous build printed and whose match has
     # started (or is inside the kickoff margin) by now: kept exactly as
     # printed, first on the page (locked_print). A leg the previous build
     # printed and this one drops BEFORE its match starts is not here - the
@@ -1003,7 +962,6 @@ def main() -> int:
                     reads, sofascore_event_id=eid_, market=market_,
                     subject=subject_, line=line_, direction=direction_,
                 ),
-                profile.honours_watch,
             )
         if why is not None:
             rung = [eid_, market_, subject_, line_, direction_]
@@ -1204,17 +1162,17 @@ def main() -> int:
     for r in reads_unmatched:
         print(f"UNMATCHED_READ: {r.model_dump_json()}", file=sys.stderr)
 
-    out = {
+    out: dict[str, Any] = {
         "created_at_utc": now.isoformat().replace("+00:00", "Z"),
         "profile": profile.name,
         # bet.sofa.epochs; written only in the stats-only epoch, so an older
         # build is byte-for-byte what it was.
         **({"epoch": STATS_ONLY, "stakeable_rule": STAKEABLE_RULE_X} if so else {}),
-        "confidence_floor": args.floor,
+        "confidence_floor": floor,
         "min_ev": profile.min_ev,
         "max_overround": profile.max_overround,
         "pdf_max_singles": pdf_max_singles,
-        "prints_builders": profile.prints_builders,
+        "prints_builders": True,
         **({"gap_shrink_k": cal.gap_shrink_k} if cal.gap_shrink_k > 0 else {}),
         # Written only when K13b acts, so an older build reads as it did.
         **({"pool_neighbour_cap": True} if cal.cap_pool_by_neighbour else {}),
@@ -1241,7 +1199,6 @@ def main() -> int:
         # byte-for-byte what it was before 2026-10-04.
         **(
             {
-                "honours_watch": profile.honours_watch,
                 "reads_applied": len(reads) - len(reads_unmatched),
                 "reads_unmatched": len(reads_unmatched),
             }
@@ -1293,18 +1250,15 @@ def main() -> int:
     )
 
     lines = [
-        f"# Confidence view — {args.date}"
-        + ("" if profile.name == "standard" else f" — WARIANT ({profile.name})"),
+        f"# Confidence view — {args.date}",
         "",
-        f"Built {out['created_at_utc']}. Floor: measured lower bound >= {args.floor}. "
+        f"Built {out['created_at_utc']}. Floor: measured lower bound >= {floor}. "
         + (
             "Price: confidence x odds > 1.00."
             if profile.min_ev is None
             else f"Price: confidence x odds >= {profile.min_ev:.2f} (a price up to "
             f"{1 - profile.min_ev:.0%} below fair is accepted), ladder margin "
             f"<= {profile.max_overround:.1%}."
-            + ("" if profile.name == "standard"
-               else " NOT the official coupon - settled beside it.")
         ),
         "",
         "`confidence` is the **lower bound of the realised rate** for this market at "
@@ -1418,13 +1372,7 @@ def main() -> int:
             # after the measured correlation haircut. A summary that disagrees
             # with the artifact downstream of it is worse than no summary.
             "best_for_fixture": sum(1 for b in builders if b["best_for_fixture"]),
-            # What the PDF prints, so a profile that prints no builders
-            # cannot report stakeable ones (the variant said 2 over 0 on
-            # 2026-09-29, before it printed builders).
-            "stakeable_builders": (
-                sum(1 for b in builders if is_stakeable(b))
-                if profile.prints_builders else 0
-            ),
+            "stakeable_builders": sum(1 for b in builders if is_stakeable(b)),
             "fixtures_with_legs": len(by_fixture), "refused": dict(refused),
             "locked_singles": len(locked.singles),
             "locked_builders": len(locked.builders),

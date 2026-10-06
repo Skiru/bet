@@ -3,15 +3,14 @@
 The operator's decision of 2026-10-05: "a leg printed on the coupon before
 its match started counts". Until then a rebuild of CONFIDENCE after the first
 kickoffs dropped every leg whose match had started (the kickoff gate refuses
-it, rightly, as a NEW bet), and since 7c / 7d of audit_settlement and the
+it, rightly, as a NEW bet), and since 7c of audit_settlement and the
 ledger grade what the artifact prints, those legs were never graded: on
 2026-10-03 one official and 66 WARIANT legs vanished this way, on 10-04 21
 WARIANT legs.
 
-The fix is the per-sport coupons' (sport_coupon.locked_legs / select): before
-a profile's artifact is overwritten, the previous artifact of the SAME profile
-is read, and every leg it printed whose match has started - or is inside the
-kickoff margin - at the rebuild is carried over unchanged, `locked: true`,
+The fix: before the artifact is overwritten, the previous artifact is read,
+and every leg it printed whose match has started - or is inside the kickoff
+margin - at the rebuild is carried over unchanged, `locked: true`,
 with its printed price and confidence, the build it was printed in
 (`printed_at_utc`) and the dials that build applied (`printed_under`), so an
 auditor can check it against the rule and the clock it was printed under.

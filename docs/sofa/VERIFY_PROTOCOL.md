@@ -86,7 +86,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <data>
 
 Wyjście `0` = brak znalezisk, `1` = są znaleziska, `2` = zły plik.
 
-- **C1** — artefakt swojego profilu, nie starszy niż arkusz i weta; PDF nie
+- **C1** — artefakt kuponu nie starszy niż arkusz i weta; PDF nie
   starszy od artefaktu.
 - **C2** — każdy wydrukowany singiel spełnia swoje pokrętła; noga
   zablokowana sprawdzana wobec `printed_under`.
@@ -108,13 +108,6 @@ nie dzisiejszą cenę: dopytaj Superbet o żywą cenę jak w 2c (strona i cała
 grupa wyników), sprawdź tożsamość meczu w `sport_fixtures.json`
 (`IDENTIFIED`, `home_is_team1`) i czy rynek rozlicza się tak, jak mówi
 etykieta (czas podstawowy czy z dogrywką, okres, format).
-
-Historyczne (wycofane 2026-10-05: WARIANT i WSZYSTKIE od 07:15Z, kupony
-sportowe od 08:30Z; pliki do poranka 10-05 zostają i są rozliczane po
-staremu): S1–S5 (kupony sportów) i M1–M3 (WARIANT WSZYSTKIE) odpalają się
-tylko dla tych dni, a dla późniejszych buildów są notatkami. WARIANT
-(`08_confidence_wariant.json` → `KUPON_<data>_WARIANT.pdf`) weryfikuje się
-tylko dla dnia, który go ma — osobno, nigdy łącznie z kuponem.
 
 ---
 

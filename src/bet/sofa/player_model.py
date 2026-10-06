@@ -2,9 +2,7 @@
 
 A MEASUREMENT. SHADOW_SETTLE writes its probability beside each graded player
 line (settle_shadow.attach_player_model) and measure_player_props.py scores it
-against Superbet's devigged price. Nothing here feeds or gates the football /
-tennis coupon, and the per-sport experimental coupons (sport_coupon.py) are
-price-only and do not read it.
+against Superbet's devigged price. Nothing here feeds or gates the coupon.
 
 The sample. For a line on player P in game G (teams A and B), the history is
 each team's own `last` listing (sofa_listing_event) strictly before the

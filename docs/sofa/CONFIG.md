@@ -33,7 +33,6 @@ historia wyników hokej/kosz/siatka/CS2 + linie SHADOW/CS2 ──► fit_sport_c
 | `sofa_sport_confidence_calibration.json` (od 2026-10-05) | `fit_sport_confidence.py --before <d>` — **tylko między dniami** | `sport_confidence.py` → `run_sport_confidence.py` (SPORT_CONFIDENCE) | krzywe per sport × rodzina nad prawdopodobieństwem modelu wyników / silnika CS2 (bez cen); `realised_lo95` kubełka tylko dla klucza **dopuszczonego** (`admitted`, `rodzina\|strona`), `min_bucket` 200, `max_overstatement` 0,03 (pewność poza próbą nie wyższa od zrealizowanej o > 3 pp — F6), `not_calibrated`, `oos`, `fitted_from` (`before`, `never_mid_day`, `max_history_date`). Brak pliku albo sportu w nim → nogi tego sportu `NOT_CALIBRATED`, SPORT_CONFIDENCE kod 1, kupon piłki i tenisa budowany dalej |
 | `sofa_name_stopwords.json` (od 2026-10-05) | ręcznie (`description`, `added`, `words`) | `resolve.py` (`name_stopwords`, `shadow_opponent_agrees`) | słowa, które nigdy same nie potwierdzają przeciwnika w sporcie shadow (hokej, koszykówka, siatkówka) w jednowyrazowej regule SHADOW_SETTLE: nazwy miejsc dzielone przez kilka klubów (`tel`, `aviv`, `texas`, `state` …); czytane obok `resolve._GENERIC_NAME_TOKENS` |
 | `sofa_coupon_form.json` (od 2026-10-05, F4.2 / F4.3; **plik nie istnieje = ustawienia domyślne**) | ręcznie, decyzja operatora (plan production grade, sekcja 5 pkt 1) | `coupon_form.load_coupon_form` → `build_coupon.py` | `{"ladder_form": "group" \| "one_rung", "max_positions_per_match": null \| N}`. `group` (domyślnie): każdy szczebel drabiny się drukuje, zgrupowany pod „ta sama zmienna”; `one_rung`: jeden szczebel na zmienną meczu (najwyższe x), reszta do `removed_by_coupon_form`; N: pierwsze N pozycji meczu w kolejności kuponu. Zmienia to, CO się drukuje, więc działa dopiero od `epochs.COUPON_STRUCTURE_FROM_UTC` (dzień ≥ 2026-10-06), nigdy w trakcie dnia; zła wartość = odmowa COUPON_ASSEMBLY (kod 2) |
-| `sofa_sport_price_calibration.json` | `fit_sport_price_calibration.py --before <d>` | `sport_coupon.py` | **historyczne** — korekta ceny faworytów dla kuponów sportowych wycofanych 2026-10-05 08:30Z; nic nie znaczy dla kuponu (pewność sportów idzie z `sofa_sport_confidence_calibration.json`) |
 
 ### Tempo, zakładki i współbieżność — co z czym chodzi w parze
 
@@ -377,7 +376,7 @@ tenis 2 → 5, piłka bez zmian (25); `half_match_coherence` gorsza
 (`goals_for` −15,9% wobec −10,8%, nowa pozycja `goals_total` −14,1%); 82
 nowe krzywe `by_market_direction`; krzywe `player_*` są tylko w kubełku
 0–0,6 (`player_shots_for` n=1974, zrealizowane 0,27). Replay 09-30/10-01:
-WARIANT 10-01 80 → 103 nogi, oficjalny 4 → 7.
+oficjalny 10-01 4 → 7 nóg.
 
 `all-prep` robi kroki 1–4 jednym poleceniem (`--with-cache-rows --confirm`
 dokłada krok 2); po kolei jest czytelniej.
@@ -423,8 +422,8 @@ dokłada krok 2); po kolei jest czytelniej.
    `by_class`, każda krzywa `player_*` z `n` i `realised` (pod decyzję
    `admitted_player_markets`), `fitted_from`. Potem **replay kuponu**: każdy
    dzień kopiowany (z czasami modyfikacji, jak `cp -p`) do
-   `data/refit_<data>/replay/{old,new}/runs/sofa/<dzień>/`, CONFIDENCE (oba
-   profile) i PDF puszczone z zegarem zamrożonym na `created_at_utc`
+   `data/refit_<data>/replay/{old,new}/runs/sofa/<dzień>/`, CONFIDENCE
+   i PDF puszczone z zegarem zamrożonym na `created_at_utc`
    prawdziwego artefaktu, raz na kopii starego configu, raz na nowym.
    Wynik fitu to różnica **old vs new** (nogi wypadłe, dodane, zmiana
    pewności); osobno „dryf kodu” — prawdziwy artefakt vs replay na starym

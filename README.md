@@ -11,10 +11,7 @@ One coupon for every sport on it: football and tennis
 (`SPORT_IDS = {"football": 5, "tennis": 2}` on the board), and since
 2026-10-05 08:30Z hockey, basketball, volleyball and CS2 (from the SHADOW /
 CS2 snapshots). Confidence comes from the statistics alone; the price is only
-the betting condition. The retired `simple` code is kept only because its
-artifacts are still on disk. Retired 2026-10-05 (historical): WARIANT, WARIANT
-WSZYSTKIE and the separate sport coupons; their files up to that morning stay
-and are graded as before.
+the betting condition.
 
 ## The day, in one line
 

@@ -28,7 +28,7 @@ from bet.sofa.settle import (
     refund_event_ids,
     settle_completed,
 )
-from scripts.sofa import audit_settlement, run_settle, settle_multi_coupon
+from scripts.sofa import audit_settlement, run_settle
 
 DATE = "2026-09-24"
 KICKOFF = datetime(2026, 9, 24, 18, 0, tzinfo=UTC)
@@ -383,7 +383,7 @@ def test_a_moved_leg_is_a_refund_in_7c_and_the_ledger_never_a_loss(
 
 def test_a_refunded_builder_is_zwrot() -> None:
     assert audit_settlement.slip_status(["REFUND", "REFUND"]) == "ZWROT"
-    [], [b] = settle_multi_coupon.grade_confidence_positions(
+    [], [b] = audit_settlement.grade_confidence_positions(
         [], [{"source": {"sofascore_event_id": 1, "odds_if_product": 3.0,
                          "legs": [{"market": "goals_total", "subject": "",
                                    "line": 2.5, "direction": "OVER"}]}}],

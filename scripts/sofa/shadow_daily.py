@@ -19,8 +19,7 @@ through the day, then settle and audit the next morning.
    is asked again every 30 min for up to 4 h (cs2_daily.run_morning, with
    the coupon and ledger steps after it), and can be rerun by hand at any
    time (`run_pipeline.py --date <d> --only SHADOW_SETTLE`); it resumes.
-3. settle_sport_coupon.py for each settled day and sport (the experimental
-   coupons, offline), record_results.py for those days (the ledger), then
+3. record_results.py for those days (the ledger, offline), then
    audit_shadow.py for the day, into the log.
 4. With --chain, when the snapshots end (before the morning steps, so their
    retries never delay it), start the NEXT day's loop (itself with --chain), detached,
@@ -104,19 +103,6 @@ def plan(
         ["scripts/sofa/settle_shadow.py", "--sweep-from", sweep_from,
          "--sweep-to", sweep_to]
     )
-    # Each settled day's experimental coupons, straight after the settle that
-    # grades them (offline; a pending leg is exit 1, never a blocker).
-    morning += [
-        ["scripts/sofa/settle_sport_coupon.py", "--from", d, "--to", d, "--sport", sp]
-        for d in days
-        for sp in ("hockey", "basketball", "volleyball")
-    ]
-    # ...and the swept days' (whatever the sweep changed).
-    morning += [
-        ["scripts/sofa/settle_sport_coupon.py", "--from", sweep_from, "--to",
-         sweep_to, "--sport", sp]
-        for sp in ("hockey", "basketball", "volleyball")
-    ]
     # Then the ledger for every settled day (the 05:15Z step is the last
     # morning settle - CS2's runs at 05:00Z): a day's rows are rewritten
     # whole, so re-recording the day before closes its late legs.

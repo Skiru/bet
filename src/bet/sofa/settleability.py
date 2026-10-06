@@ -3,7 +3,7 @@
 Three readers share this module:
 
 * ``scripts/sofa/measure_settleability.py`` - for each day, the share of
-  printed legs (the official coupon and, on older days, the WARIANT) that had
+  printed legs that had
   no grade by the end of D+``horizon_days`` (UTC), by market family and by
   competition. Read-only.
 * ``scripts/sofa/resettle_sweep.py`` - which of the days D-14..D-2 still hold a
@@ -37,11 +37,10 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.confidence import (
-    PROFILES,
+    coupon_artifact,
     is_sheet_sport,
     printed_builders,
     printed_singles,
-    profile_artifact_path,
     quantity_family,
 )
 from bet.sofa.config import config_path
@@ -165,7 +164,6 @@ class PrintedLeg:
     sport: str
     competition_id: int | None
     competition_name: str
-    profiles: set[str] = field(default_factory=set)
 
     @property
     def market(self) -> str:
@@ -197,37 +195,35 @@ def load_fixtures(run_dir: Path) -> dict[int, dict[str, Any]]:
 def printed_legs(
     run_dir: Path, run_date: str, fixtures: Mapping[int, Mapping[str, Any]]
 ) -> list[PrintedLeg]:
-    """Every football / tennis rung a profile's PDF printed for the day - the
+    """Every football / tennis rung the coupon's PDF printed for the day - the
     same lists SETTLE grades (run_settle.printed_legs: printed_singles and
-    the legs of printed_builders, measured sports left to sport_coupon)."""
+    the legs of printed_builders, measured sports left to coupon_sports)."""
     out: dict[LegKey, PrintedLeg] = {}
-    for profile in PROFILES.values():
-        doc = _read_json(profile_artifact_path(Path(run_dir), profile))
-        if not isinstance(doc, dict):
-            continue
-        raw: list[tuple[dict[str, Any], LegKey]] = []
-        for s in printed_singles(doc):
-            if is_sheet_sport(s):
-                raw.append((s, leg_key(s)))
-        for b in printed_builders(doc):
-            eid = int(b["sofascore_event_id"])
-            for x in b.get("legs") or []:
-                if is_sheet_sport({**x, "sport": x.get("sport", b.get("sport"))}):
-                    raw.append(({**x, "sofascore_event_id": eid}, leg_key(x, eid)))
-        for leg, key in raw:
-            fx = fixtures.get(key[0]) or {}
-            if key not in out:
-                cid = fx.get("competition_id")
-                out[key] = PrintedLeg(
-                    run_date=run_date,
-                    key=key,
-                    sport=str(leg.get("sport") or fx.get("sport") or "football"),
-                    competition_id=int(cid) if isinstance(cid, int) else None,
-                    competition_name=str(
-                        fx.get("competition_name") or leg.get("competition") or "?"
-                    ),
-                )
-            out[key].profiles.add(profile.name)
+    doc = _read_json(coupon_artifact(Path(run_dir)))
+    if not isinstance(doc, dict):
+        return []
+    raw: list[tuple[dict[str, Any], LegKey]] = []
+    for s in printed_singles(doc):
+        if is_sheet_sport(s):
+            raw.append((s, leg_key(s)))
+    for b in printed_builders(doc):
+        eid = int(b["sofascore_event_id"])
+        for x in b.get("legs") or []:
+            if is_sheet_sport({**x, "sport": x.get("sport", b.get("sport"))}):
+                raw.append(({**x, "sofascore_event_id": eid}, leg_key(x, eid)))
+    for leg, key in raw:
+        fx = fixtures.get(key[0]) or {}
+        if key not in out:
+            cid = fx.get("competition_id")
+            out[key] = PrintedLeg(
+                run_date=run_date,
+                key=key,
+                sport=str(leg.get("sport") or fx.get("sport") or "football"),
+                competition_id=int(cid) if isinstance(cid, int) else None,
+                competition_name=str(
+                    fx.get("competition_name") or leg.get("competition") or "?"
+                ),
+            )
     return [out[k] for k in sorted(out, key=str)]
 
 

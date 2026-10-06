@@ -8,8 +8,8 @@ ledger variant (plan docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md, F2.1).
     ... --write-config --before 2026-10-07                   # between days
 
 Every printed position is read graded exactly as the ledger records it
-(record_results.graded_confidence: audit_settlement 7c / 7d / 7i for football
-and tennis, sport_coupon for the measured sports' legs on the one coupon) and
+(record_results.graded_confidence: audit_settlement 7c / 7i for football
+and tennis, coupon_sports for the measured sports' legs on the one coupon) and
 measured by bet.sofa.calibration_audit: gap = mean confidence - realised, a 95%
 interval from resampling matches, PASS / FAIL / INSUFFICIENT per curve.
 Variants (and so epochs) are never pooled.
@@ -49,8 +49,8 @@ from bet.sofa.clv import MIN_CLUSTERS  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import OLD, STATS_ONLY  # noqa: E402
 from bet.sofa.fit_meta import fit_stamp  # noqa: E402
+from bet.sofa.settleability import date_range as days  # noqa: E402
 from scripts.sofa.record_results import graded_confidence  # noqa: E402
-from scripts.sofa.settle_sport_coupon import days  # noqa: E402
 
 EPOCHS = {"stats_only": (STATS_ONLY,), "old": (OLD,), "all": (STATS_ONLY, OLD)}
 CONFIG_VARIANT = "official"
@@ -118,8 +118,8 @@ def render_md(doc: dict[str, Any], variants: list[ca.CurveResult],
         "`scripts/sofa/measure_calibration.py` (plan "
         "`docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md`, F2.1). Tylko odczyt: "
         "nogi ocenione dokładnie tak, jak zapisuje je ledger "
-        "(`record_results.graded_confidence`: 7c / 7d / 7i, sporty przez "
-        "`sport_coupon`).",
+        "(`record_results.graded_confidence`: 7c / 7i, sporty przez "
+        "`coupon_sports`).",
         "",
         "- **luka = średnia pewność - realizacja** (dodatnia = pewność zawyżona);",
         "  przedział 95% z losowania całych **meczów** (nie nóg; 2000 prób,",
@@ -132,7 +132,7 @@ def render_md(doc: dict[str, Any], variants: list[ca.CurveResult],
         "- Warianty (a więc epoki) **nigdy nie są sumowane**: `official` "
         "(stats_only od 2026-10-05 07:15Z), `official:pre_stats_only` "
         "(nogi zablokowane z porannego wydruku 10-05), `official` dnia sprzed "
-        "10-05 (stara reguła), `wariant` (wycofany), `removed:reads` (nogi "
+        "10-05 (stara reguła), `removed:reads` (nogi "
         "zdjęte odczytem - nie kupon).",
         "- Wiersze „sport” i „wariant” (krzywa `*`) sumują krzywe danego sportu / "
         "wariantu - to podsumowanie, nie werdykt o żadnej krzywej.",

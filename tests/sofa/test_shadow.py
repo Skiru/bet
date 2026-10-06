@@ -1096,17 +1096,8 @@ def test_daily_plan() -> None:
         "scripts/sofa/settle_shadow.py",
         "--sweep-from", "2026-09-21", "--sweep-to", "2026-09-25",
     ]
-    # then each settled day's experimental coupons, after every settle, and
-    # the swept range's
-    assert [(c[0], c[2], c[4], c[-1]) for c in morning[3:-1]] == [
-        ("scripts/sofa/settle_sport_coupon.py", d, d, sp)
-        for d in (DATE, "2026-09-27")
-        for sp in ("hockey", "basketball", "volleyball")
-    ] + [
-        ("scripts/sofa/settle_sport_coupon.py", "2026-09-21", "2026-09-25", sp)
-        for sp in ("hockey", "basketball", "volleyball")
-    ]
     # and last, the ledger for every day the morning may have changed
+    assert len(morning) == 4
     assert morning[-1] == [
         "scripts/sofa/record_results.py", "--from", "2026-09-21", "--to", DATE
     ]
@@ -2671,9 +2662,6 @@ def test_daily_plan_settles_d_minus_2_so_a_postponed_game_can_void() -> None:
     _, morning, _ = shadow_daily.plan(DATE, retry_two_before=True)
     settles = [c[2] for c in morning if c[-1] == "SHADOW_SETTLE"]
     assert settles == [DATE, "2026-09-27", "2026-09-26"]
-    assert ("scripts/sofa/settle_sport_coupon.py", "2026-09-26", "hockey") in {
-        (c[0], c[2], c[-1]) for c in morning
-    }
     # the ledger from the sweep's first day (B7) through D
     assert morning[-1][1:] == ["--from", "2026-09-21", "--to", DATE]
     # D-2's 05:15Z settle is past VOID_AFTER even for a 23:59Z start; D-1's

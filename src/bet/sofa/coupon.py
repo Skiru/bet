@@ -261,7 +261,7 @@ def build_coupon(
             line=row.line,
             direction=row.direction,
         )
-        read_refused = read_refusal(row_reads, honours_watch=True)
+        read_refused = read_refusal(row_reads)
         if read_refused is not None:
             cause = "NO_BET" if read_refused == "READ_NO_BET" else "WATCH"
             reason = next(r.reason for r in row_reads if r.verdict == cause)

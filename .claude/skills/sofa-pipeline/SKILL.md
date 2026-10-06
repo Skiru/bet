@@ -97,12 +97,6 @@ selected on price advantage — **−20.4% on 2026-09-20**, the same day the
 PDF's Bet Builders returned **+8.2%**. Reporting it as "the coupon" inverts
 the day.
 
-Historical (retired 2026-10-05): the WARIANT (`--profile wariant`, retired
-07:15Z), WARIANT WSZYSTKIE (07:15Z) and the separate sport coupons
-`KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf` (08:30Z) are refused
-(exit 2) for later builds. Their files up to the morning of 2026-10-05 stay
-and are graded as before; none was ever the coupon or pooled with it.
-
 ### 2. Confidence comes without the price.
 
 In the stats-only epoch SHEET keeps the price out of `p_central` (no tennis
@@ -117,8 +111,8 @@ The price is **only the betting condition**: x = confidence × odds >= 0.90,
 ladder margin <= 15%, odds >= 1/0.9202 (`ODDS_TOO_LOW`), not started
 (`KICKED_OFF`, earliest clock), fresh price (`STALE_PRICE`).
 `MAX_DISAGREEMENT` and `UNREACHABLE_BAR` are off; a moved price re-prices the
-leg (x at the fresh odds) instead of `PRICE_MOVED_SINCE_SHEET`. Floor 0.70,
-WATCH honoured. Bet Builders are chosen and ordered by
+leg (x at the fresh odds) instead of `PRICE_MOVED_SINCE_SHEET`. Floor 0.70; a
+WATCH or NO_BET read removes the leg. Bet Builders are chosen and ordered by
 `combined_probability`, stakeable at combined p × odds after haircut >= 0.90
 (`stakeable_rule: "x>=0.90"`). The coupon is ordered by confidence, then the
 earlier start, legs of one match together (`confidence.coupon_order`) — no

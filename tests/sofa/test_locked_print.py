@@ -1,10 +1,9 @@
 """A leg printed before its match started counts (operator, 2026-10-05).
 
 A rebuild of CONFIDENCE after the first kickoffs used to drop every printed
-leg whose match had started, so 7c / 7d and the ledger never graded it (10-03:
-1 official and 66 WARIANT legs; 10-04: 21 WARIANT legs). bet.sofa.locked_print
-carries such legs over from the previous artifact of the same profile, as
-printed. These tests pin: the carry-over, no duplicate, the page's room, a
+leg whose match had started, so 7c and the ledger never graded it (10-03:
+67 legs; 10-04: 21). bet.sofa.locked_print carries such legs over from the
+previous artifact, as printed. These tests pin: the carry-over, no duplicate, the page's room, a
 pre-start removal staying removed, an artifact with nothing locked unchanged,
 the graders grading a locked leg, and the audits not flagging it.
 """
@@ -24,9 +23,9 @@ from typing import Any
 import pytest
 
 from bet.sofa.confidence import (
-    PROFILES,
+    CONFIDENCE_ARTIFACT,
+    COUPON_PROFILE,
     Calibration,
-    confidence_artifact,
     printed_singles,
 )
 from bet.sofa.db import migrate
@@ -38,10 +37,9 @@ T0 = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
 # Fixture 2 kicks off first; the rebuild at T1 is five minutes into it.
 KICKOFF = {1: "2026-01-01T18:00:00Z", 2: "2026-01-01T11:00:00Z"}
 T1 = datetime(2026, 1, 1, 11, 5, tzinfo=UTC)
-# Row 1 passes only the variant's floor, row 2 the official floor (both print
-# in the WARIANT, which is profile-stable while the official dials move).
-P = {1: 0.66, 2: 0.72}
-ODDS = {1: (1.62, 2.30), 2: (1.30, 3.30)}
+# Both rows print on the coupon; row 2 has the higher confidence.
+P = {1: 0.72, 2: 0.78}
+ODDS = {1: (1.40, 2.75), 2: (1.30, 3.30)}
 
 
 def _z(t: datetime) -> str:
@@ -164,10 +162,13 @@ def _write_offer(run: Path, at: datetime) -> None:
 @pytest.fixture()
 def day(tmp_path: Path) -> Path:
     cal = Calibration.load()
-    for eid in (1, 2):  # the rows print in the WARIANT on today's curve
+    confs = {}
+    for eid in (1, 2):  # both rows print on today's curve
         got = cal.realised("goals_total", P[eid], "football")
-        assert got is not None and got[0] >= 0.65, got
+        assert got is not None and got[0] >= 0.70, got
         assert got[0] * ODDS[eid][0] >= 0.90, got
+        confs[eid] = got[0]
+    assert confs[2] > confs[1]
     run = tmp_path / DAY
     run.mkdir()
     (run / "02_fixtures.json").write_text(json.dumps([_fixture(1), _fixture(2)]))
@@ -181,7 +182,6 @@ def _build(
     runs: Path,
     at: datetime,
     monkeypatch: pytest.MonkeyPatch,
-    profile: str = "wariant",
     printed: bool = True,
 ) -> dict[str, Any]:
     """One CONFIDENCE build; `printed` marks it as having reached a PDF (a
@@ -200,15 +200,12 @@ def _build(
             DAY,
             "--runs-dir",
             str(runs),
-            "--profile",
-            profile,
         ],
     )
     assert run_confidence.main() == 0
-    name = confidence_artifact(PROFILES[profile])
-    path = runs / DAY / name
+    path = runs / DAY / CONFIDENCE_ARTIFACT
     if printed:
-        pdf = runs / DAY / f"KUPON_{DAY}{PROFILES[profile].pdf_suffix}.pdf"
+        pdf = runs / DAY / f"KUPON_{DAY}.pdf"
         if not pdf.exists():
             pdf.write_bytes(b"%PDF-1.4 stub")
         t = path.stat().st_mtime + 1
@@ -244,7 +241,7 @@ def test_a_started_printed_leg_is_carried_over_as_printed(
     } == printed2
     assert singles[0]["printed_at_utc"] == first["created_at_utc"]
     assert singles[0]["printed_under"] == {
-        "confidence_floor": 0.65,
+        "confidence_floor": 0.70,
         "min_ev": 0.9,
         "max_overround": 0.15,
     }
@@ -275,10 +272,12 @@ def test_a_locked_leg_is_never_duplicated(
 def test_locked_legs_take_the_room_first(
     day: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    one = dataclasses.replace(PROFILES["wariant"], pdf_max_singles=1)
-    monkeypatch.setitem(PROFILES, "wariant", one)
+    from scripts.sofa import run_confidence
+
+    one = dataclasses.replace(COUPON_PROFILE, pdf_max_singles=1)
+    monkeypatch.setattr(run_confidence, "COUPON_PROFILE", one)
     first = _build(day, T0, monkeypatch)
-    # Ranked by confidence: fixture 2 (official floor) wins the one slot.
+    # Ranked by confidence: fixture 2 wins the one slot.
     assert [s["sofascore_event_id"] for s in printed_singles(first)] == [2]
     second = _build(day, T1, monkeypatch)
     # Fixture 2 is locked and fills the page; fixture 1 is in the artifact
@@ -291,11 +290,13 @@ def test_locked_legs_take_the_room_first(
 def test_a_lowered_page_limit_never_pushes_a_locked_leg_off(
     day: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    two = dataclasses.replace(PROFILES["wariant"], pdf_max_singles=2)
-    monkeypatch.setitem(PROFILES, "wariant", two)
+    from scripts.sofa import run_confidence
+
+    two = dataclasses.replace(COUPON_PROFILE, pdf_max_singles=2)
+    monkeypatch.setattr(run_confidence, "COUPON_PROFILE", two)
     _build(day, T0, monkeypatch)
-    monkeypatch.setitem(
-        PROFILES, "wariant", dataclasses.replace(two, pdf_max_singles=1)
+    monkeypatch.setattr(
+        run_confidence, "COUPON_PROFILE", dataclasses.replace(two, pdf_max_singles=1)
     )
     both_started = datetime(2026, 1, 1, 18, 5, tzinfo=UTC)
     after = _build(day, both_started, monkeypatch)
@@ -377,10 +378,10 @@ def test_an_artifact_with_nothing_locked_is_what_it_was(
 
 def test_nothing_is_carried_from_another_profile_or_from_the_future() -> None:
     prev = {
-        "profile": "wariant",
+        "profile": "standard",
         "created_at_utc": _z(T0),
         "pdf_max_singles": None,
-        "confidence_floor": 0.65,
+        "confidence_floor": 0.70,
         "min_ev": 0.9,
         "max_overround": 0.15,
         "legs": [],
@@ -397,10 +398,10 @@ def test_nothing_is_carried_from_another_profile_or_from_the_future() -> None:
         ],
     }
     always = lambda eid, ko: True  # noqa: E731
-    assert carry_over(prev, "standard", T1, always).singles == []
-    assert carry_over(prev, "wariant", T0 - timedelta(minutes=1), always).singles == []
-    assert len(carry_over(prev, "wariant", T1, always).singles) == 1
-    assert carry_over(None, "wariant", T1, always).singles == []
+    assert carry_over(prev, "wariant", T1, always).singles == []
+    assert carry_over(prev, "standard", T0 - timedelta(minutes=1), always).singles == []
+    assert len(carry_over(prev, "standard", T1, always).singles) == 1
+    assert carry_over(None, "standard", T1, always).singles == []
 
 
 def test_a_started_printed_builder_is_carried_whole() -> None:
@@ -524,7 +525,7 @@ def test_settlement_and_the_ledger_grade_a_locked_leg(
     from scripts.sofa.record_results import confidence_rows
 
     rows = {r["variant"]: r for r in confidence_rows(str(day), DAY, str(db))}
-    singles = rows["wariant"]["singles"]
+    singles = rows["official"]["singles"]
     assert (singles["settled"], singles["won"]) == (1, 1), singles
 
     out = day / "report.md"
@@ -548,7 +549,7 @@ def test_settlement_and_the_ledger_grade_a_locked_leg(
         },
     )
     assert rep.returncode == 0, rep.stderr
-    section = out.read_text().split("## 7d. WARIANT", 1)[1].split("## 8.", 1)[0]
+    section = out.read_text().split("## 7c.", 1)[1].split("## 7e.", 1)[0]
     assert "| pojedynczych na kuponie | 1 |" in section
     assert "| weszło / nie weszło | 1 / 0 |" in section
 
@@ -576,15 +577,15 @@ def test_audit_variants_checks_a_locked_leg_against_its_own_build(
     from scripts.sofa.audit_variants import audit_confidence
 
     _locked_day(day, monkeypatch)
-    c2 = [f for f in audit_confidence(str(day), DAY, "wariant") if f.startswith("C2")]
+    c2 = [f for f in audit_confidence(str(day), DAY) if f.startswith("C2")]
     assert c2 == []
 
-    path = day / DAY / "08_confidence_wariant.json"
+    path = day / DAY / "08_confidence.json"
     doc = json.loads(path.read_text())
     # A locked leg printed after its kickoff is still a defect.
     doc["singles"][0]["printed_at_utc"] = KICKOFF[2]
     path.write_text(json.dumps(doc))
-    c2 = [f for f in audit_confidence(str(day), DAY, "wariant") if f.startswith("C2")]
+    c2 = [f for f in audit_confidence(str(day), DAY) if f.startswith("C2")]
     assert len(c2) == 1 and "printed after its kickoff" in c2[0]
     # ... unless the match REALLY began after the print (FIXTURE_CHECK's
     # fresh start; 10-05, Grenier: printed clock 09:00Z, began 09:40Z).
@@ -592,13 +593,13 @@ def test_audit_variants_checks_a_locked_leg_against_its_own_build(
     status.write_text(json.dumps({"checked_at_utc": "2026-01-01T12:00:00Z", "events": {
         "2": {"status": "inprogress", "start_utc": "2026-01-01T11:40:00Z",
               "checked_at_utc": "2026-01-01T12:00:00Z"}}}))
-    c2 = [f for f in audit_confidence(str(day), DAY, "wariant") if f.startswith("C2")]
+    c2 = [f for f in audit_confidence(str(day), DAY) if f.startswith("C2")]
     assert c2 == []
     status.unlink()
     # And one without its print stamp cannot be checked: a finding.
     del doc["singles"][0]["printed_at_utc"]
     path.write_text(json.dumps(doc))
-    c2 = [f for f in audit_confidence(str(day), DAY, "wariant") if f.startswith("C2")]
+    c2 = [f for f in audit_confidence(str(day), DAY) if f.startswith("C2")]
     assert len(c2) == 1 and "locked without printed_at_utc" in c2[0]
 
 
@@ -648,18 +649,14 @@ def test_c3_does_not_flag_a_locked_leg_for_a_read_after_its_start(
     assert len(fresh) == 1 and "printed despite READ_NO_BET" in fresh[0]
 
 
-def test_wszystkie_and_closing_capture_read_a_locked_leg_verbatim(
+def test_closing_capture_reads_a_locked_leg(
     day: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from bet.sofa.multi_coupon import official_positions
     from scripts.sofa.capture_closing import printed_legs
 
-    doc = _locked_day(day, monkeypatch)
-    pos = official_positions(doc, T1)["singles"]
-    assert [p["source"] for p in pos] == doc["singles"]
-    assert pos[0]["odds"] == ODDS[2][0] and pos[0]["started"] is True
+    _locked_day(day, monkeypatch)
     legs = printed_legs(day / DAY)
-    assert [(v, leg["sofascore_event_id"]) for v, leg in legs] == [("wariant", 2)]
+    assert [(v, leg["sofascore_event_id"]) for v, leg in legs] == [("official", 2)]
 
 
 def test_the_pdf_prints_a_locked_leg_marked(
@@ -676,8 +673,6 @@ def test_the_pdf_prints_a_locked_leg_marked(
             DAY,
             "--runs-dir",
             str(day),
-            "--profile",
-            "wariant",
         ],
         cwd=REPO,
         capture_output=True,
@@ -689,7 +684,7 @@ def test_the_pdf_prints_a_locked_leg_marked(
     assert "WARNING" not in pdf.stderr
     text = " ".join(
         p.extract_text()
-        for p in PdfReader(str(day / DAY / f"KUPON_{DAY}_WARIANT.pdf")).pages
+        for p in PdfReader(str(day / DAY / f"KUPON_{DAY}.pdf")).pages
     )
     flat = " ".join(text.split())
     assert "w grze - wydrukowane przed startem" in flat
@@ -727,7 +722,7 @@ def test_a_started_printed_builder_survives_the_rebuild_and_prints(
         "best_for_fixture": True,
     }
     first["builders"] = [builder]
-    (day / DAY / "08_confidence_wariant.json").write_text(json.dumps(first))
+    (day / DAY / "08_confidence.json").write_text(json.dumps(first))
 
     second = _build(day, T1, monkeypatch)
     assert second["locked_builders"] == 1
@@ -748,8 +743,6 @@ def test_a_started_printed_builder_survives_the_rebuild_and_prints(
             DAY,
             "--runs-dir",
             str(day),
-            "--profile",
-            "wariant",
         ],
         cwd=REPO,
         capture_output=True,
@@ -759,7 +752,7 @@ def test_a_started_printed_builder_survives_the_rebuild_and_prints(
     assert pdf.returncode == 0, pdf.stderr
     text = " ".join(
         p.extract_text()
-        for p in PdfReader(str(day / DAY / f"KUPON_{DAY}_WARIANT.pdf")).pages
+        for p in PdfReader(str(day / DAY / f"KUPON_{DAY}.pdf")).pages
     )
     flat = " ".join(text.split())
     # The header count, the single and the builder.

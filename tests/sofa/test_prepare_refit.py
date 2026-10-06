@@ -696,7 +696,7 @@ def test_cli_refusal_exits_two(tmp_path: Path) -> None:
 
 def test_printed_legs_reads_builder_legs_in_the_real_shape() -> None:
     """A builder leg has no fixture id and names its price `odds`
-    (08_confidence_wariant.json, 2026-10-01); only stakeable builders print."""
+    (a 2026-10-01 artifact); only stakeable builders print."""
     leg = {"market": "corners_total", "subject": "", "line": 8.5,
            "direction": "OVER", "confidence": 0.8, "odds": 1.3}
     builder = {"sofascore_event_id": 7, "match": "A - B", "legs": [leg],

@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from bet.sofa import cs2
-from bet.sofa import sport_coupon as sc
+from bet.sofa import sport_day as sd
 
 
 def detail(home: int, away: int, status: str = "finished") -> dict[str, Any]:
@@ -64,6 +64,6 @@ def test_a_coupon_leg_on_rounds_is_never_graded_from_placeholders() -> None:
     winner = {**base, "family": "match_winner", "line": None, "side": "T1"}
     rounds = {**base, "family": "rounds_total", "line": 40.5, "side": "OVER"}
     on_map = {**base, "family": "map_winner", "map_nr": 1, "line": None, "side": "T1"}
-    assert sc._grade_leg("cs2", winner, ev) == "WIN"
-    assert sc._grade_leg("cs2", rounds, ev) == "UNGRADEABLE"
-    assert sc._grade_leg("cs2", on_map, ev) == "UNGRADEABLE"
+    assert sd._grade_leg("cs2", winner, ev) == "WIN"
+    assert sd._grade_leg("cs2", rounds, ev) == "UNGRADEABLE"
+    assert sd._grade_leg("cs2", on_map, ev) == "UNGRADEABLE"

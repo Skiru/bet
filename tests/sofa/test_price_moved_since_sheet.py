@@ -14,8 +14,8 @@ them had no odds, so a withdrawn side passed NO_FETCHED_AT at its old price.
 
 Also here, since they were found in the same review: CONFIDENCE ignored
 SOFA_PRICE_MAX_AGE_MIN (COUPON honoured it), the confidence artifacts carried
-no UNFITTED_CONSTANTS, and the variant's PDF quoted the official 10.5% margin
-as its own limit.
+no UNFITTED_CONSTANTS, and the PDF quoted a margin limit that was not its
+artifact's own.
 """
 
 from __future__ import annotations
@@ -25,11 +25,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung, SheetRow
 from bet.sofa.coupon import build_coupon
-from tests.sofa.test_confidence_wariant_profile import (
+from tests.sofa.confidence_day import (
     DAY,
     NOW,
     ODDS_A,
@@ -173,13 +171,10 @@ def _day(tmp_path: Path, offers: list[dict[str, Any]], notes: list[str]) -> Path
     return tmp_path
 
 
-def _variant(day: Path, env: dict[str, str] | None = None) -> dict[str, Any]:
-    proc = _run(
-        "run_confidence.py", day, "--runs-dir", str(day), "--profile", "wariant",
-        env=env,
-    )
+def _confidence(day: Path, env: dict[str, str] | None = None) -> dict[str, Any]:
+    proc = _run("run_confidence.py", day, "--runs-dir", str(day), env=env)
     assert proc.returncode == 0, proc.stderr
-    return dict(json.loads((day / DAY / "08_confidence_wariant.json").read_text()))
+    return dict(json.loads((day / DAY / "08_confidence.json").read_text()))
 
 
 def _single_ids(doc: dict[str, Any]) -> set[int]:
@@ -190,15 +185,15 @@ def test_confidence_ships_both_legs_when_the_offer_matches_the_sheet(
     tmp_path: Path,
 ) -> None:
     offers = [_offer(1, ODDS_A, UNDER_A), _offer(2, ODDS_B, UNDER_B)]
-    assert _single_ids(_variant(_day(tmp_path, offers, []))) == {1, 2}
+    assert _single_ids(_confidence(_day(tmp_path, offers, []))) == {1, 2}
 
 
 def test_confidence_refuses_a_leg_whose_price_moved_after_sheet(
     tmp_path: Path,
 ) -> None:
-    # Leg 2's OVER moved 1.30 -> 1.24 in the refresh; the sheet still says 1.30.
+    # Leg 2's OVER moved 1.20 -> 1.24 in the refresh; the sheet still says 1.20.
     offers = [_offer(1, ODDS_A, UNDER_A), _offer(2, 1.24, UNDER_B)]
-    doc = _variant(_day(tmp_path, offers, []))
+    doc = _confidence(_day(tmp_path, offers, []))
     assert _single_ids(doc) == {1}
     assert all(leg["sofascore_event_id"] != 2 for leg in doc["legs"])
 
@@ -209,7 +204,7 @@ def test_confidence_refuses_a_side_the_refresh_no_longer_prices(
     withdrawn = _offer(2, ODDS_B, UNDER_B)
     withdrawn["rungs"][0]["over_odds"] = None
     offers = [_offer(1, ODDS_A, UNDER_A), withdrawn]
-    doc = _variant(_day(tmp_path, offers, []))
+    doc = _confidence(_day(tmp_path, offers, []))
     assert _single_ids(doc) == {1}
     # Not merely missing from the singles (the margin filter did that much):
     # gone from the leg pool the builders are made of.
@@ -224,36 +219,32 @@ def test_confidence_honours_the_price_age_the_coupon_honours(
     for o in offers:
         o["rungs"][0]["fetched_at_utc"] = old
     day = _day(tmp_path, offers, [])
-    assert _single_ids(_variant(day)) == {1, 2}  # 30 min < the default 45
-    assert _single_ids(_variant(day, env={"SOFA_PRICE_MAX_AGE_MIN": "20"})) == set()
+    assert _single_ids(_confidence(day)) == {1, 2}  # 30 min < the default 45
+    assert _single_ids(_confidence(day, env={"SOFA_PRICE_MAX_AGE_MIN": "20"})) == set()
 
 
 def test_confidence_artifacts_carry_unfitted_constants(tmp_path: Path) -> None:
     offers = [_offer(1, ODDS_A, UNDER_A), _offer(2, ODDS_B, UNDER_B)]
     day = _day(tmp_path, offers, ["UNFITTED_CONSTANTS: K_PRICE, W_FOOTBALL_RATING"])
-    doc = _variant(day)
+    doc = _confidence(day)
     assert doc["unfitted_constants"] == ["K_PRICE", "W_FOOTBALL_RATING"]
     assert all(
         s["unfitted_constants"] == ["K_PRICE", "W_FOOTBALL_RATING"]
         for s in doc["singles"]
     )
-    md = (day / DAY / "08_confidence_wariant.md").read_text()
+    md = (day / DAY / "08_confidence.md").read_text()
     assert "UNFITTED_CONSTANTS: K_PRICE, W_FOOTBALL_RATING" in md
 
 
-@pytest.mark.parametrize(
-    ("profile", "margin"), [("standard", "15.0%"), ("wariant", "15.0%")]
-)
 def test_the_pdf_quotes_the_margin_its_own_artifact_was_selected_under(
-    tmp_path: Path, profile: str, margin: str
+    tmp_path: Path,
 ) -> None:
     offers = [_offer(1, ODDS_A, UNDER_A), _offer(2, ODDS_B, UNDER_B)]
     day = _day(tmp_path, offers, [])
-    args = ("--runs-dir", str(day), "--profile", profile)
+    args = ("--runs-dir", str(day))
     assert _run("run_confidence.py", day, *args).returncode == 0
     pdf = _run("build_coupon_pdf.py", day, *args)
     assert pdf.returncode == 0, pdf.stderr
-    suffix = "_WARIANT" if profile == "wariant" else ""
-    text = " ".join(_pdf_text(day / DAY / f"KUPON_{DAY}{suffix}.pdf").split())
-    assert f"Powyżej {margin} noga nie trafia" in text
+    text = " ".join(_pdf_text(day / DAY / f"KUPON_{DAY}.pdf").split())
+    assert "Powyżej 15.0% noga nie trafia" in text
     assert "Powyżej 10.5% noga" not in text

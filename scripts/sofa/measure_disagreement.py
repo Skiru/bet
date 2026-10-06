@@ -20,7 +20,7 @@ What is reproduced, per settled row (sofa_settled_row, run_date in range):
     02_fixtures.json / 01_board.json the way run_confidence.py derives it
     (competition id alone where the artifacts are absent or --no-artifacts);
     a row the lookup refuses (NOT_CALIBRATED / NO_CLASS_CURVE) is skipped;
-  * each profile's floor and price rule (confidence.PROFILES), MIN_ODDS
+  * the coupon's floor and price rule (confidence.COUPON_PROFILE), MIN_ODDS
     (MIN_ODDS_FOR_CEILING), and the exclusions CONFIDENCE makes from the
     market alone: no model, derived markets, player props, friendlies.
 
@@ -44,7 +44,7 @@ operator's, taken between days, with a coupon replay before it is installed
 opens the DB read-only.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_disagreement.py \\
-        --from 2026-09-24 --to 2026-10-01 [--sport football] [--profile both]
+        --from 2026-09-24 --to 2026-10-01 [--sport football]
 """
 
 from __future__ import annotations
@@ -67,11 +67,11 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from bet.sofa.clv import MIN_CLUSTERS, cluster_ratio_interval  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    COUPON_PROFILE,
     DEFAULT_CALIBRATION,
     MAX_DISAGREEMENT,
     MIN_ODDS_FOR_CEILING,
     PLAYER_PROP_MARKETS,
-    PROFILES,
     Calibration,
     ConfidenceProfile,
     disagrees_with_price,
@@ -486,8 +486,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--to", dest="last", required=True, type=parse_day)
     ap.add_argument("--sport", choices=("football", "tennis", "all"),
                     default="football")
-    ap.add_argument("--profile", choices=("standard", "wariant", "both"),
-                    default="both")
     ap.add_argument("--db-path", default=str(_REPO / "data" / "sofa.db"))
     ap.add_argument("--calibration", default=str(DEFAULT_CALIBRATION))
     ap.add_argument("--runs-dir", default=str(_REPO / "runs" / "sofa"),
@@ -509,7 +507,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     sports = ("football", "tennis") if args.sport == "all" else (args.sport,)
-    profiles = ("standard", "wariant") if args.profile == "both" else (args.profile,)
     conn = connect_ro(args.db_path)
     try:
         rows, dropped = load_rows(conn, args.first, args.last, sports)
@@ -563,20 +560,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         "dropped": dict(dropped), "curve_refused": dict(skipped),
         "not_reproduced": list(NOT_REPRODUCED), "profiles": {},
     }
-    for name in profiles:
-        cells = measure_profile(gated, PROFILES[name], args.seed, args.boot,
-                                args.min_clusters)
-        print(render_profile(name, PROFILES[name], cells))
-        print()
-        doc["profiles"][name] = {
-            "floor": PROFILES[name].floor, "min_ev": PROFILES[name].min_ev,
-            "cells": {k: c.__dict__ for k, c in cells.items()},
-            "verdict": verdict(cells),
-        }
+    profile = COUPON_PROFILE
+    cells = measure_profile(gated, profile, args.seed, args.boot, args.min_clusters)
+    print(render_profile(profile.name, profile, cells))
+    print()
+    doc["profiles"][profile.name] = {
+        "floor": profile.floor, "min_ev": profile.min_ev,
+        "cells": {k: c.__dict__ for k, c in cells.items()},
+        "verdict": verdict(cells),
+    }
     print(
         "caveat: the coupon's legs depend on the curves at build time; this reads "
         "one calibration file for every day, and a refit changes which rows clear "
-        "each profile. Measurement only - the threshold decision is the operator's, "
+        "the coupon. Measurement only - the threshold decision is the operator's, "
         "between days, with a coupon replay before install."
     )
     if args.json_out:

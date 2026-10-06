@@ -29,12 +29,6 @@ sport legs and no sport locks; the PDF refuses a stats-only 08 without an 11.
 Read "what was printed" through `confidence.coupon_artifact()` (11 where it
 exists, else 08), and what the PDF actually rendered from `12_printed.json`.
 
-**Retired 2026-10-05, historical records only:** the WARIANT PDF, the separate
-sport coupons `KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf` and
-`KUPON_<d>_WSZYSTKIE.pdf` built that morning (before 07:15Z / 08:30Z) are
-records of what was printed then, graded as before - never the coupon, never
-pooled with it, and refused (exit 2) if anyone tries to build them again.
-
 **A provisional PDF locks legs.** A stats-only day's own PDF writes `12_printed.json`,
 and the next rebuild carries over, unchanged, every printed leg whose match
 has started (`locked_print`) - whatever reads or prices arrived since. So a

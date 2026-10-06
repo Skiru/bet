@@ -17,7 +17,7 @@ import pytest
 from bet.sofa import calibration_audit as ca
 from bet.sofa import curve_status, epochs
 from scripts.sofa import check_test_registry, day_status, measure_calibration
-from tests.sofa.test_confidence_wariant_profile import (  # noqa: F401
+from tests.sofa.confidence_day import (  # noqa: F401
     DAY,
     _run,
     day,
@@ -291,9 +291,9 @@ def test_confidence_refuses_a_listed_curve_only_when_enabled(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     run = day / DAY
-    off = _run("run_confidence.py", day, "--runs-dir", str(day), "--profile", "wariant")
+    off = _run("run_confidence.py", day, "--runs-dir", str(day))
     assert off.returncode == 0, off.stderr
-    doc = json.loads((run / "08_confidence_wariant.json").read_text())
+    doc = json.loads((run / "08_confidence.json").read_text())
     curves = {leg["calibrated_on"] for leg in doc["singles"]}
     assert len(doc["singles"]) == 2 and curves
     status = tmp_path / "sofa_curve_status.json"
@@ -312,8 +312,6 @@ def test_confidence_refuses_a_listed_curve_only_when_enabled(
                 DAY,
                 "--runs-dir",
                 str(day),
-                "--profile",
-                "wariant",
             ],
         )
         with pytest.raises(SystemExit) as done:
@@ -321,9 +319,7 @@ def test_confidence_refuses_a_listed_curve_only_when_enabled(
                 str(REPO / "scripts/sofa/run_confidence.py"), run_name="__main__"
             )
         assert done.value.code in (0, None, 1)
-        out: dict[str, Any] = json.loads(
-            (run / "08_confidence_wariant.json").read_text()
-        )
+        out: dict[str, Any] = json.loads((run / "08_confidence.json").read_text())
         summary = [
             json.loads(line)
             for line in capsys.readouterr().out.splitlines()

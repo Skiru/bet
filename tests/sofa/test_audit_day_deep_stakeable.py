@@ -163,11 +163,10 @@ def test_audit_day_deep_grades_the_pdf_singles(tmp_path: Path) -> None:
     five bets the day actually made.
     """
     import json
-    import shutil
     import sqlite3
 
     from bet.sofa.db import migrate
-    from tests.sofa.test_confidence_wariant_profile import (
+    from tests.sofa.confidence_day import (
         DAY,
         NOW,
         ODDS_A,
@@ -199,13 +198,13 @@ def test_audit_day_deep_grades_the_pdf_singles(tmp_path: Path) -> None:
         )
     )
     (run / "vetoes.json").write_text("[]")
-    var = _run(
-        "run_confidence.py", tmp_path, "--runs-dir", str(tmp_path), "--profile",
-        "wariant",
-    )
-    assert var.returncode == 0, var.stderr
-    # Two singles and no builder, standing in for the official artifact.
-    shutil.copy(run / "08_confidence_wariant.json", run / "08_confidence.json")
+    built = _run("run_confidence.py", tmp_path, "--runs-dir", str(tmp_path))
+    assert built.returncode == 0, built.stderr
+    # Two singles and no builder.
+    doc = json.loads((run / "08_confidence.json").read_text())
+    assert len(doc["singles"]) == 2 and not [
+        b for b in doc["builders"] if b.get("best_for_fixture")
+        and b.get("ev_after_haircut", -1) > 0]
 
     db = tmp_path / "s.db"
     migrate(str(db))

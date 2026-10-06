@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record what every variant and every measurement did on a settled day.
+"""Record what the coupon and every measurement did on a settled day.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --date 2026-09-30
     ... --from 2026-09-28 --to 2026-09-30
@@ -14,19 +14,17 @@ Variants, each graded at its own printed price and never added to another:
                      on a stats-only day split by epoch (+ official:pre_stats_only)
                      with one section per sport
     removed:reads    legs a read removed from a stats-only coupon (7i)
-    wariant          KUPON_<d>_WARIANT.pdf (7d)
-    sport:<sport>    KUPON_<d>_<SPORT>.pdf for cs2 / hockey / basketball / volleyball
-    multi            KUPON_<d>_WSZYSTKIE.pdf, its total and its sections
 
-and, not bets but the evidence under the price-only rule:
+and, not bets but evidence:
 
     measure:<sport>  Superbet's price against the outcome - the favourite side
                      of every graded line (cs2.one_side_per_line), its hit
                      against its devigged probability, Brier and flat ROI
 
-A variant whose artifact does not exist that day is absent, not a zero.
-Also `rule:<sport>` - the price-only rule replayed on the day, chosen before
-the outcome - so the rule has a record even on a day no coupon was built.
+A variant whose artifact does not exist that day is absent, not a zero. Rows
+of the retired variants (wariant, multi, sport:<sport>, rule:<sport>; up to
+the morning of 2026-10-05) are no longer produced; a re-run keeps the ones
+the ledger already holds.
 
 Offline. Exit 0 = recorded (pending legs are shown, not failed); 1 = a
 MISMATCH: the coupon's grader and the measurement's disagree on a leg; 2 = a
@@ -47,21 +45,21 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import coupon_sports, shadow  # noqa: E402
-from bet.sofa import multi_coupon as mc  # noqa: E402
-from bet.sofa import sport_coupon as sc  # noqa: E402
+from bet.sofa import sport_day as sd  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
-    PROFILES,
+    coupon_artifact,
     is_sheet_sport,
     printed_builders,
     printed_singles,
-    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import one_side_per_line, summarize, write_atomic  # noqa: E402
 from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import leg_key, printed_leg_keys  # noqa: E402
+from bet.sofa.settleability import date_range  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
-from scripts.sofa import settle_multi_coupon, settle_sport_coupon  # noqa: E402
+from scripts.sofa import audit_settlement as settle_audit  # noqa: E402
+from scripts.sofa.audit_settlement import summarize_units  # noqa: E402
 
 LEDGER_DIR = "ledger"
 LEDGER_FILE = "results.jsonl"
@@ -76,15 +74,28 @@ def ledger_path(runs_dir: str) -> Path:
     return Path(runs_dir) / LEDGER_DIR / LEDGER_FILE
 
 
+# The variants this script no longer produces; their recorded rows are kept.
+RETIRED_VARIANTS = ("wariant", "multi")
+RETIRED_PREFIXES = ("sport:", "rule:")
+
+
+def is_retired(variant: str) -> bool:
+    return variant in RETIRED_VARIANTS or variant.startswith(RETIRED_PREFIXES)
+
+
+def is_pending(outcome: str) -> bool:
+    return outcome == "PENDING" or outcome.startswith("PENDING:")
+
+
 def _pending(rows: list[dict[str, Any]]) -> int:
-    return sum(1 for r in rows if settle_sport_coupon.is_pending(str(r["outcome"])))
+    return sum(1 for r in rows if is_pending(str(r["outcome"])))
 
 
 def match_key(row: dict[str, Any]) -> str:
     """The match one graded position belongs to - the cluster audit_ledger
     resamples (legs of one match share its game script and are not
-    independent). A Sofascore id for the official / WARIANT positions, a
-    Superbet id for a sport coupon's."""
+    independent). A Sofascore id for a football / tennis position, a
+    Superbet id for a measured sport's."""
     src = row.get("source") if isinstance(row.get("source"), dict) else row
     assert isinstance(src, dict)
     if src.get("sofascore_event_id") is not None:
@@ -98,7 +109,7 @@ def by_match(
     rows: list[dict[str, Any]], odds_key: str = "odds"
 ) -> dict[str, list[float]]:
     """{match: [units, settled]} over the decided positions, graded exactly
-    as mc.summarize_units grades them (WIN pays odds - 1, LOSS costs 1)."""
+    as summarize_units grades them (WIN pays odds - 1, LOSS costs 1)."""
     out: dict[str, list[float]] = {}
     for r in rows:
         if r["outcome"] not in ("WIN", "LOSS"):
@@ -115,7 +126,7 @@ def estimated_builders(rows: list[dict[str, Any]]) -> dict[str, Any]:
     BUILDER_HAIRCUT) because no screen price was recorded for them - what
     audit_settlement 7c marks "(szac.)". Their units are an estimate of what
     Superbet would have paid, not a price it printed."""
-    return mc.summarize_units([r for r in rows if r.get("odds_measured") is False])
+    return summarize_units([r for r in rows if r.get("odds_measured") is False])
 
 
 def position_epoch(item: dict[str, Any], artifact_epoch_: str) -> str:
@@ -143,17 +154,17 @@ def _confidence_row(
         "variant": variant,
         # bet.sofa.epochs: which rule selected these positions (K7).
         "epoch": epoch,
-        "singles": mc.summarize_units(singles),
-        "builders": mc.summarize_units(builders),
-        "total": mc.summarize_units(singles + builders),
+        "singles": summarize_units(singles),
+        "builders": summarize_units(builders),
+        "total": summarize_units(singles + builders),
         # One section per sport, never in place of the total (K7).
-        "sections": {sp: mc.summarize_units(g) for sp, g in sorted(by_sport.items())},
+        "sections": {sp: summarize_units(g) for sp, g in sorted(by_sport.items())},
         "estimated_builders": estimated_builders(builders),
         "by_match": by_match(singles + builders),
         "pending": _pending(singles + builders),
         # moved beyond 48 h / awarded: 0 units, never a loss and
         # never "unsettled" (also in `outcomes` as REFUND)
-        "refunded": settle_multi_coupon.refunded(singles + builders),
+        "refunded": settle_audit.refunded(singles + builders),
         "outcomes": _outcomes(singles + builders),
         "settled_rows_in_db": len(rows),
     }
@@ -162,10 +173,10 @@ def _confidence_row(
 def graded_confidence(
     runs_dir: str, date: str, db_path: str
 ) -> list[dict[str, Any]]:
-    """The printed positions of `official` and `wariant`, graded as 7c / 7d
-    grade them - one entry per ledger variant: {variant, epoch, singles,
-    builders, rows}. Each position carries the artifact row under `source`
-    and its `outcome` / `odds`; `rows` are the settled rows read.
+    """The coupon's printed positions, graded as 7c grades them - one entry
+    per ledger variant: {variant, epoch, singles, builders, rows}. Each
+    position carries the artifact row under `source` and its `outcome` /
+    `odds`; `rows` are the settled rows read.
 
     On a day the coupon artifact is stats-only (11_coupon.json, plan
     2026-10-05 K7) the official coupon is split by the rule that selected each
@@ -174,83 +185,81 @@ def graded_confidence(
     locked from a build before STATS_ONLY_FROM_UTC - on 10-05 the morning's).
     The legs a read removed are `removed:reads`, graded the same way and
     never part of the coupon's result (K6, 7i). The measured sports' legs
-    are graded by sport_coupon, not here. Shared with calibration_audit
+    are graded by coupon_sports. Shared with calibration_audit
     (measure_calibration.py), so the calibration is read off exactly the
     grades the ledger records."""
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    path = coupon_artifact(Path(runs_dir) / date)
+    if not path.exists():
+        return []
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc_epoch = artifact_epoch(doc)
+    p_singles = [s for s in printed_singles(doc) if is_sheet_sport(s)]
+    p_builders = printed_builders(doc)
+    ids = {int(x["sofascore_event_id"]) for x in p_singles}
+    ids |= {int(x["sofascore_event_id"]) for x in p_builders}
+    # The printed keys: the same rows 7c grades (A5), the A4 file and the
+    # refunds (moved beyond 48 h / awarded).
+    rows, screen = settle_audit.official_rows(
+        runs_dir, date, db_path, ids,
+        keys=printed_leg_keys(doc, sheet_sports_only=True),
+    )
+    singles, builders = settle_audit.grade_confidence_positions(
+        [{"source": s} for s in p_singles],
+        [{"source": b} for b in p_builders],
+        rows,
+        screen,
+        settle_ran=settle_audit.ran_on(rows, date),
+    )
+    if doc_epoch != STATS_ONLY:
+        return [{"variant": "official", "epoch": doc_epoch, "singles": singles,
+                 "builders": builders, "rows": rows}]
     out: list[dict[str, Any]] = []
-    for variant, profile in (("official", "standard"), ("wariant", "wariant")):
-        # The coupon artifact (11_coupon.json on a stats-only day, K3).
-        path = profile_artifact_path(mc.official_dir(runs_dir, date), PROFILES[profile])
-        if not path.exists():
-            continue
-        doc = json.loads(path.read_text(encoding="utf-8"))
-        doc_epoch = artifact_epoch(doc)
-        p_singles = [s for s in printed_singles(doc) if is_sheet_sport(s)]
-        p_builders = printed_builders(doc)
-        ids = {int(x["sofascore_event_id"]) for x in p_singles}
-        ids |= {int(x["sofascore_event_id"]) for x in p_builders}
-        # The printed keys: the same rows 7c / 7d grade (A5), the A4 file and
-        # the refunds (moved beyond 48 h / awarded).
-        rows, screen = settle_multi_coupon.official_rows(
-            runs_dir, date, db_path, profile, ids,
-            keys=printed_leg_keys(doc, sheet_sports_only=True),
-        )
-        singles, builders = settle_multi_coupon.grade_confidence_positions(
-            [{"source": s} for s in p_singles],
-            [{"source": b} for b in p_builders],
-            rows,
-            screen,
-            settle_ran=settle_multi_coupon.ran_on(rows, date),
-        )
-        if doc_epoch != STATS_ONLY:
-            out.append({"variant": variant, "epoch": doc_epoch, "singles": singles,
-                        "builders": builders, "rows": rows})
-            continue
-        # F7: the measured sports' legs on the coupon, graded at the printed
-        # price by sport_coupon, against the identity pinned before the
-        # match; one section per sport beside football / tennis.
-        sport_legs = [s for s in printed_singles(doc) if not is_sheet_sport(s)]
-        if sport_legs:
-            singles = singles + [
-                {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
-                for g in coupon_sports.grade(runs_dir, date, sport_legs, now())
-            ]
-        for name, keep in ((variant, True), (f"{variant}:pre_stats_only", False)):
-            sel_s = [g for g in singles
-                     if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
-            sel_b = [g for g in builders
-                     if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
-            if keep or sel_s or sel_b:
-                out.append({"variant": name, "epoch": STATS_ONLY if keep else OLD,
-                            "singles": sel_s, "builders": sel_b, "rows": rows})
-        all_removed = doc.get("removed_by_reads") or []
-        removed = [r for r in all_removed if is_sheet_sport(r)]
-        removed_sports = [r for r in all_removed if not is_sheet_sport(r)]
-        if removed or removed_sports:
-            r_rows: dict[Any, dict[str, Any]] = {}
-            r_singles: list[dict[str, Any]] = []
-            if removed:
-                r_rows, _ = settle_multi_coupon.official_rows(
-                    runs_dir, date, db_path, profile,
-                    {int(r["sofascore_event_id"]) for r in removed},
-                    keys={leg_key(r) for r in removed},
-                )
-                r_singles, _ = settle_multi_coupon.grade_confidence_positions(
-                    [{"source": r} for r in removed], [], r_rows, {},
-                    settle_ran=settle_multi_coupon.ran_on(r_rows, date),
-                )
-            r_singles += [
-                {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
-                for g in coupon_sports.grade(runs_dir, date, removed_sports, now())
-            ]
-            out.append({"variant": "removed:reads", "epoch": STATS_ONLY,
-                        "singles": r_singles, "builders": [], "rows": r_rows})
+    # F7: the measured sports' legs on the coupon, graded at the printed
+    # price against the identity pinned before the match; one section per
+    # sport beside football / tennis.
+    sport_legs = [s for s in printed_singles(doc) if not is_sheet_sport(s)]
+    if sport_legs:
+        singles = singles + [
+            {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
+            for g in coupon_sports.grade(runs_dir, date, sport_legs, now())
+        ]
+    for name, keep in (("official", True), ("official:pre_stats_only", False)):
+        sel_s = [g for g in singles
+                 if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
+        sel_b = [g for g in builders
+                 if (position_epoch(g["source"], doc_epoch) == STATS_ONLY) == keep]
+        if keep or sel_s or sel_b:
+            out.append({"variant": name, "epoch": STATS_ONLY if keep else OLD,
+                        "singles": sel_s, "builders": sel_b, "rows": rows})
+    all_removed = doc.get("removed_by_reads") or []
+    removed = [r for r in all_removed if is_sheet_sport(r)]
+    removed_sports = [r for r in all_removed if not is_sheet_sport(r)]
+    if removed or removed_sports:
+        r_rows: dict[Any, dict[str, Any]] = {}
+        r_singles: list[dict[str, Any]] = []
+        if removed:
+            r_rows, _ = settle_audit.official_rows(
+                runs_dir, date, db_path,
+                {int(r["sofascore_event_id"]) for r in removed},
+                keys={leg_key(r) for r in removed},
+            )
+            r_singles, _ = settle_audit.grade_confidence_positions(
+                [{"source": r} for r in removed], [], r_rows, {},
+                settle_ran=settle_audit.ran_on(r_rows, date),
+            )
+        r_singles += [
+            {"source": g, "odds": g["odds"], "outcome": g["outcome"]}
+            for g in coupon_sports.grade(runs_dir, date, removed_sports, now())
+        ]
+        out.append({"variant": "removed:reads", "epoch": STATS_ONLY,
+                    "singles": r_singles, "builders": [], "rows": r_rows})
     return out
 
 
 def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
-    """`official` and `wariant` (and their epoch splits, `removed:reads`),
-    graded as 7c / 7d grade them (graded_confidence), one ledger row each."""
+    """`official` (and its epoch split, `removed:reads`), graded as 7c grades
+    them (graded_confidence), one ledger row each."""
     out = []
     for g in graded_confidence(runs_dir, date, db_path):
         row = _confidence_row(date, g["variant"], g["singles"], g["builders"],
@@ -258,63 +267,13 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
         if g["variant"] == "removed:reads":
             r_singles = g["singles"]
             row["by_reason"] = {
-                reason: mc.summarize_units(
+                reason: summarize_units(
                     [s for s in r_singles if s["source"].get("reason") == reason])
                 for reason in sorted(
                     {str(s["source"].get("reason")) for s in r_singles})
             }
         out.append(row)
     return out
-
-
-def sport_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
-    out = []
-    for sport in sc.SPORT_KEYS:
-        graded = settle_sport_coupon.settle_day(runs_dir, sport, date)
-        if graded is None:
-            continue
-        out.append(
-            {
-                "date": date,
-                "variant": f"sport:{sport}",
-                "total": mc.summarize_units(graded),
-                "by_match": by_match(graded),
-                "by_family": {
-                    fam: mc.summarize_units([g for g in graded if g["family"] == fam])
-                    for fam in sorted({g["family"] for g in graded})
-                },
-                "pending": _pending(graded),
-                "outcomes": _outcomes(graded),
-            }
-        )
-    return out
-
-
-def multi_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
-    res = settle_multi_coupon.settle_day(runs_dir, date, db_path)
-    if res is None:
-        return []
-    sections = {}
-    rows: list[dict[str, Any]] = []
-    for key, sec in res["sections"].items():
-        if "rows" not in sec:
-            sections[key] = {"excluded": sec.get("reason")}
-            continue
-        sections[key] = mc.summarize_units(sec["rows"])
-        rows += sec["rows"]
-    return [
-        {
-            "date": date,
-            "variant": "multi",
-            "total": res["variant_total"],
-            "estimated_builders": estimated_builders(rows),
-            "by_match": by_match(rows),
-            "sections": sections,
-            "pending": _pending(rows),
-            "refunded": settle_multi_coupon.refunded(rows),
-            "outcomes": _outcomes(rows),
-        }
-    ]
 
 
 def _favourite(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -350,8 +309,8 @@ def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
     family in `by_family`, and player lines apart in `players`.
     """
     out = []
-    for sport in sc.SPORT_KEYS:
-        doc = sc.load_settled(runs_dir, sport, date)
+    for sport in sd.SPORT_KEYS:
+        doc = sd.load_settled(runs_dir, sport, date)
         if doc is None:
             continue
         # Only a SETTLED event's lines: an identity state (a duplicate, a
@@ -400,39 +359,6 @@ def measure_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
     return out
 
 
-def rule_rows(runs_dir: str, date: str) -> list[dict[str, Any]]:
-    """What the price-only rule would have done on the day, one side per
-    event chosen before the outcome (sport_coupon.rule_history) - recorded
-    every settled day, whether or not a coupon was built."""
-    out = []
-    for sport in sc.SPORT_KEYS:
-        if sc.load_settled(runs_dir, sport, date) is None:
-            continue
-        h = sc.rule_history(runs_dir, sport, [date], sc.rule_for(sport, date))
-        n = int(h.get("n", 0))
-        wins = int(h.get("wins", 0))
-        other = int(h.get("void", 0)) + int(h.get("ungradeable", 0))
-        out.append(
-            {
-                "date": date,
-                "variant": f"rule:{sport}",
-                "graded_at": "last pre-start price",
-                "total": {
-                    "positions": n + other,
-                    "settled": n,
-                    "won": wins,
-                    "lost": n - wins,
-                    "not_counted": other,
-                    "units": round(float(h.get("roi", 0.0)) * n, 4),
-                    "roi": h.get("roi") if n else None,
-                },
-                "by_family": h.get("by_family", {}),
-                "pending": 0,
-            }
-        )
-    return out
-
-
 def _outcomes(rows: list[dict[str, Any]]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for r in rows:
@@ -459,15 +385,9 @@ def _settled(row: dict[str, Any]) -> int:
 
 
 def record(runs_dir: str, date: str, db_path: str) -> list[dict[str, Any]]:
-    rows = (
-        confidence_rows(runs_dir, date, db_path)
-        + sport_rows(runs_dir, date)
-        + multi_rows(runs_dir, date, db_path)
-        + measure_rows(runs_dir, date)
-        + rule_rows(runs_dir, date)
-    )
+    rows = confidence_rows(runs_dir, date, db_path) + measure_rows(runs_dir, date)
     path = ledger_path(runs_dir)
-    with sc.dir_lock(path.parent):
+    with sd.dir_lock(path.parent):
         return _merge(path, date, rows)
 
 
@@ -482,7 +402,9 @@ def _merge(path: Path, date: str, rows: list[dict[str, Any]]) -> list[dict[str, 
             if line.strip()
         ]
         old = {r["variant"]: r for r in kept if r.get("date") == date}
-        kept = [r for r in kept if r.get("date") != date]
+        # A retired variant's row is history this script cannot rebuild.
+        kept = [r for r in kept
+                if r.get("date") != date or is_retired(str(r.get("variant")))]
         for i, r in enumerate(rows):
             before = old.get(r["variant"])
             if before is not None and _settled(before) > 0 and _read_nothing(r):
@@ -512,7 +434,7 @@ def _main() -> int:
     if args.date:
         dates = [args.date]
     elif args.start and args.end:
-        dates = settle_sport_coupon.days(args.start, args.end)
+        dates = date_range(args.start, args.end)
     else:
         parser.error("--date, or --from and --to")
     config = SofaConfig.from_env()

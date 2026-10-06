@@ -68,7 +68,7 @@ def cluster_ratio_interval(
 
 @dataclass(frozen=True)
 class ClvRow:
-    variant: str  # "official", "wariant", "sport:hockey", ...
+    variant: str  # "official", "official:builder_leg", "official:hockey", ...
     game: str  # cluster key: one match
     leg: str  # a readable label
     odds_taken: float
@@ -140,11 +140,12 @@ def is_close(minutes_before: float | None) -> bool:
             and CLOSE_MIN_MINUTES <= minutes_before <= CLOSE_MAX_MINUTES)
 
 
-def sport_coupon_rows(
+def graded_close_rows(
     coupon: dict[str, Any], graded: Iterable[dict[str, Any]], variant: str,
     key_fields: Sequence[str],
 ) -> list[ClvRow]:
-    """CLV of a sport coupon's printed legs against the settled lines.
+    """CLV of printed measured-sport legs (`coupon["legs"]`) against the
+    settled lines.
 
     SHADOW_SETTLE / CS2_SETTLE grade each line at its latest pre-start
     snapshot - the close - and record that price and its partner (or group)

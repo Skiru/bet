@@ -17,7 +17,7 @@ the operator asked for a bare run - and then the report names it as skipped.
 | **KUPON** | `runs/sofa/<d>/KUPON_<d>.pdf` | **the coupon** - every sport, one artifact |
 | coupon artifact | `runs/sofa/<d>/11_coupon.json` | what the PDF prints: positions 1..N in `coupon_order`, locked legs first, builders B1.., `removed_by_reads` |
 | print record | `runs/sofa/<d>/12_printed.json` | written by the PDF; the next rebuild locks the started legs from it |
-| ledger | `runs/sofa/ledger/results.jsonl` | every variant's and measurement's settled result, one row per (date, variant): `official`, `official:pre_stats_only`, `removed:reads`, `rule:<sport>`, `measure:<sport>`; read with `audit_ledger.py`, per variant and per epoch, never pooled |
+| ledger | `runs/sofa/ledger/results.jsonl` | every variant's and measurement's settled result, one row per (date, variant): `official`, `official:pre_stats_only`, `removed:reads`, `measure:<sport>`; read with `audit_ledger.py`, per variant and per epoch, never pooled |
 
 `06_coupon.json` (the priced VALUE selector) and `08_confidence.json` (the
 football / tennis selection) are inputs, not the coupon.
@@ -26,15 +26,10 @@ football / tennis selection) are inputs, not the coupon.
 2026-10-05 07:15Z; the measured sports from `SPORTS_ON_COUPON_FROM_UTC`
 08:30Z): confidence comes from the statistics alone; the price is only the
 condition - confidence x odds >= 0.90, ladder / group margin <= 15%, odds
->= 1/0.9202, not started, a fresh price; floor 0.70; WATCH honoured. Each leg
+>= 1/0.9202, not started, a fresh price; floor 0.70; a WATCH or NO_BET read removes the leg. Each leg
 prints three numbers: **pewność** (calibrated confidence), **próbka** (k/n of
 its own sample) and **model** (`forecast_p`, uncalibrated, never a gate).
 Order: confidence, then the earlier start, the legs of one match together.
-
-Retired 2026-10-05 (history only): WARIANT and WARIANT WSZYSTKIE (refused
-from 07:15Z), the four separate per-sport experimental coupons and their
-four parallel runner agents (refused from 08:30Z). Their files up to the
-morning of 10-05 stay and are graded as before; nothing builds them again.
 
 `$ARGUMENTS` is `dzisiaj`/`today`, `wczoraj`/`yesterday` or `YYYY-MM-DD`;
 empty means today (`date -u +%F`).
@@ -233,16 +228,6 @@ Re-run `record_results.py --from <D-8> --to <D-1>` after a late settle or a
 `regrade_settled.py`. A result is a fact about the day, never a reason for
 today's choice.
 
-Historical, until 2026-10-13 (while D-8 still reaches 2026-10-05): the
-retired variants of days up to the 10-05 morning are graded by their own
-scripts and recorded under their old ledger names - the daily loops run
-those steps for their days; by hand only for a date a loop did not cover:
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <D-8> --to <D-1>   # retired 2026-10-05 08:30Z: old days' per-sport coupons only
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <D-8> --to <D-1>   # retired 2026-10-05 07:15Z: old days' WSZYSTKIE only
-```
-
 ## Step 1b — start today's measurement loops
 
 The loops snapshot the measured sports' prices all day (the coupon's
@@ -334,7 +319,7 @@ working, not a defect.
 
 Fresh prices first (Superbet only, no bridge) - the sport legs are priced
 from the newest pre-start snapshot and refused as `STALE_PRICE` past
-`sport_coupon.MAX_PRICE_AGE`; night games live in D+1's file:
+`sport_day.MAX_PRICE_AGE`; night games live in D+1's file:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW

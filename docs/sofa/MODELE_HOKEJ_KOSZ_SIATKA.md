@@ -20,21 +20,13 @@ poza próbą: [`RAPORT_KALIBRACJA_SPORTOW_2026-10-05.md`](RAPORT_KALIBRACJA_SPOR
 Pomiar `SHADOW` / `SHADOW_SETTLE` (`runs/sofa/shadow/<sport>/<data>/`)
 zostaje i jest wejściem tych etapów.
 
-Historyczne (wycofane 2026-10-05 od 08:30Z): osobne kupony sportowe
-(`KUPON_<d>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf`, `run_sport_coupon.py`) były
-cenowe — pewność z devigu Superbetu, od rana 10-05 przekalibrowana
-`config/sofa_sport_price_calibration.json` — i nie czytały żadnego modelu.
-Ich pliki do poranka 10-05 zostają i są rozliczane po staremu
-(`settle_sport_coupon.py`). Tekst poniżej (2026-10-02) opisuje drogę modelu
-do tamtych kuponów; tam, gdzie mówi „kupon sportowy”, czytaj go jako zapis
-historyczny. Wynik każdego modelu jako pomiaru nadal nigdy nie jest łączony
-z wynikiem kuponu.
+Wynik każdego modelu jako pomiaru nigdy nie jest łączony z wynikiem kuponu.
 
 Cel ustalony przez operatora (2026-10-02): **pobicie ceny Superbetu NIE jest
 celem.** Operator przyjmuje wniosek literatury, że te rynki są trudne do
 pobicia, i akceptuje grę do ~10% poniżej ceny. Model ma być **prognozą i
-selektorem** (które nogi, które rynki, które ligi) dla kuponów sportowych i
-analizy; cena jest kontekstem, nie poprzeczką. Porównanie model–cena (Brier
+selektorem** (które nogi, które rynki, które ligi) dla nóg tych sportów na
+kuponie i analizy; cena jest kontekstem, nie poprzeczką. Porównanie model–cena (Brier
 względem ceny bez marży, CLV) raportujemy uczciwie jako informację — nigdy
 go nie ukrywamy.
 
@@ -372,38 +364,17 @@ nieobecny kolega przejmujący posiadania), o której rynek wie, a my nie.
 
 ### B.1 Reguła awansu (zastępuje „blend CI < 0”)
 
-> Dopisek 2026-10-05: reguła poniżej była napisana dla wycofanych kuponów
-> sportowych. Na jednym kuponie model wchodzi inaczej — przez krzywą
-> `config/sofa_sport_confidence_calibration.json` i warunek F6 (pewność poza
-> próbą nie wyższa od zrealizowanej o > 3 pp w kubełkach z n ≥ 200), opisany
-> w planie `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5.
+Model nogi `p_model` wchodzi na kupon przez krzywą
+`config/sofa_sport_confidence_calibration.json` i warunek F6 (pewność poza
+próbą nie wyższa od zrealizowanej o > 3 pp w kubełkach z n ≥ 200), opisany
+w planie `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md`, część 5.
+Cena jest warunkiem zakładu: x = pewność × kurs ≥ 0,90, czyli EV przy
+oferowanym kursie nie gorsze niż −10%. Obok tej bramki:
 
-Model nogi `p_model` przechodzi z pomiaru do **selekcji w kuponie sportowym**
-(nigdy do kuponu oficjalnego), gdy na **≥ 2 rozliczonych dniach** i
-**≥ 30 meczach** danej rodziny (rodzina = `family` z `shadow.MARKETS` /
-`PLAYER_MARKETS`):
-
-1. **Skalibrowany** na rozliczonych liniach:
-   - diagram niezawodności w kubełkach `p_model` (np. 0–0,3 / 0,3–0,45 /
-     0,45–0,55 / 0,55–0,7 / 0,7–1), w każdym kubełku z ≥ 20 liniami
-     przedział bootstrapu **po meczach** dla (średnie `p_model` − trafienie)
-     zawiera 0;
-   - nachylenie kalibracji (`y ~ logit p_model`) z przedziałem zawierającym 1;
-   - **obie połówki** po parzystości `sofascore_event_id` dają ten sam obraz
-     (żadna nie łamie powyższego) — tani test, czy wynik nie jest jednym
-     wieczorem;
-   - kalibracja mierzona **w podzbiorze wybranym** przez selektor, nie tylko
-     na wszystkich liniach: model skalibrowany średnio może być przeszacowany
-     dokładnie tam, gdzie się rozjeżdża z ceną (notatka „disagreement with
-     the price is an anti-signal”, 88 tys. wierszy piłki).
-2. **EV przy oferowanym kursie nie gorsze niż −10%**:
-   `EV = p_model × kurs − 1 ≥ −0,10` dla każdej wybranej nogi (ex ante), oraz
-   zrealizowany zwrot wybranych nóg `mean(y × kurs − 1)` ≥ −10% (punkt), z
-   przedziałem bootstrapu po meczach **raportowanym** obok.
-3. **Raportowane zawsze, nie bramkujące:** odległość od ceny
-   (`p_model − fair_p`, średnia i rozkład), Brier modelu vs Brier `fair_p`,
-   test kombinacji b (`measure_model_information.py`), CLV
-   (`capture_closing.py` / `audit_clv.py`), marża grupy.
+- **Raportowane zawsze, nie bramkujące:** odległość od ceny
+  (`p_model − fair_p`, średnia i rozkład), Brier modelu vs Brier `fair_p`,
+  test kombinacji b (`measure_model_information.py`), CLV
+  (`capture_closing.py` / `audit_clv.py`), marża grupy.
 
 Arytmetyka, którą trzeba znać: noga wzięta dokładnie po cenie bez marży ma
 średnio `EV ≈ 1/(1+m) − 1 ≈ −m/(1+m)` (m = overround grupy; metoda
@@ -412,18 +383,13 @@ linie dwudrogowe drużyn (m 4–6%) ≈ −4…−6%, propsy hokeja (6–7%) ≈
 propsy kosza (8–8,6%) ≈ −7,5…−8%, 1X2 (9–11%) ≈ −8,5…−10%, dokładny wynik
 w setach (19%) ≈ −16%. Wniosek: na liniach drużyn próg −10% zostawia
 skalibrowanemu modelowi kilka punktów zapasu, na propsach kosza już tylko
-~2 pp (model przeszacowany o 2 pp w wybranym podzbiorze wystarczy, by
-wypaść), na 1X2 próg leży na samej marży, a dokładny wynik w setach nie
-przejdzie go bez modelu wyraźnie lepszego od ceny. **Wiążąca jest
-kalibracja w wybranym podzbiorze** — i to, że selektor powinien preferować
-rynki o niskiej marży.
+~2 pp (model przeszacowany o 2 pp wystarczy, by wypaść), na 1X2 próg leży
+na samej marży, a dokładny wynik w setach nie przejdzie go bez modelu
+wyraźnie lepszego od ceny.
 
 Etykiety zostają: wiersz z modelu niesie `UNFITTED_CONSTANTS` dopóki stałe
-nie zostały dopasowane poza próbą, a kupon sportowy pozostaje
-„eksperymentalny” i rozliczany osobno (`settle_sport_coupon.py`, ledger per
-wariant) — historyczne: kupony sportowe wycofane 2026-10-05; od tego dnia
-nogi tych sportów rozlicza 7c kuponu (tabela sportów mierzonych, po
-przypiętym id).
+nie zostały dopasowane poza próbą; nogi tych sportów rozlicza 7c kuponu
+(tabela sportów mierzonych, po przypiętym id).
 
 ### B.2 Wspólne zasady pomiaru
 
@@ -547,7 +513,7 @@ punktach/set), punkty przegranego seta jako ucięty NB z inflacją przy
 „deuce” (Egidi & Ntzoufras 2020), set decydujący do 15. Rynki docelowe:
 total setów (`230058`), total punktów (`230060`), punkty seta (`782`),
 dogrywka seta „na przewagi” (`100077`), dokładny wynik (`785` — marża 19%,
-EV po samej cenie ≈ −16%, więc §B.1 pkt 2 wyklucza go, dopóki model nie
+EV po samej cenie ≈ −16%, więc próg x ≥ 0,90 (§B.1) wyklucza go, dopóki model nie
 jest wyraźnie lepszy od ceny).
 **Wejścia:** listingi (period1..5). `/statistics` (asy, błędy serwisu,
 skuteczność przyjęcia) tylko jeśli kształt okaże się użyteczny —

@@ -10,7 +10,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import sqlite3
-import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -612,27 +611,18 @@ def test_a_failing_model_never_alters_the_snapshot(
     ).exists()
 
 
-def test_the_sport_coupons_never_read_the_player_model() -> None:
+def test_the_coupons_sport_legs_never_read_the_player_model() -> None:
+    """Player props of the measured sports stay off the coupon (operator,
+    2026-10-05): the sport-leg path never names the model. (SPORT_IDENTITY
+    imports its team resolver, which forecasts nothing.)"""
     for rel in (
-        "src/bet/sofa/sport_coupon.py",
-        "scripts/sofa/run_sport_coupon.py",
-        "scripts/sofa/settle_sport_coupon.py",
+        "src/bet/sofa/sport_day.py",
+        "src/bet/sofa/coupon_sports.py",
+        "src/bet/sofa/sport_confidence.py",
+        "scripts/sofa/run_sport_confidence.py",
     ):
         text = (REPO / rel).read_text(encoding="utf-8")
         assert "player_model" not in text, rel
-    code = (
-        "import sys; import scripts.sofa.run_sport_coupon; "
-        "import scripts.sofa.settle_sport_coupon; "
-        "sys.exit(1 if 'bet.sofa.player_model' in sys.modules else 0)"
-    )
-    proc = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=REPO,
-        env={"PYTHONPATH": f"{REPO / 'src'}:{REPO}", "PATH": "/usr/bin:/bin"},
-        capture_output=True,
-        text=True,
-    )
-    assert proc.returncode == 0, proc.stderr
 
 
 # --- the measurement -----

@@ -3,11 +3,12 @@
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py \\
         --from 2026-09-19 --to 2026-09-30
-    ... --variant sport:hockey        # one variant, with its families
+    ... --variant official            # one variant
 
 The reader of runs/sofa/ledger/results.jsonl (record_results.py writes it).
-Every variant is its own table: the coupon, WARIANT, each sport coupon, the
-multi-sport variant and each rule replay; the measurements are a separate
+Every variant is its own table: the coupon (official, by epoch), the legs
+removed by reads, and - on days up to the morning of 2026-10-05 - the
+retired variants the ledger still holds; the measurements are a separate
 table (price against outcome, two-way favourite side). Nothing here adds one
 variant's units to another's. Offline. Exit 0, or 2 on a missing ledger.
 """

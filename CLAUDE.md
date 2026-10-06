@@ -122,7 +122,10 @@ for the bet.**
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
 - **Comparability:** the current rules apply from 2026-10-06; earlier days ran
   under other rules and are other experiments - the ledger keeps them in
-  their own groups and they are never summed with the current ones.
+  their own groups and they are never summed with the current ones. Days up
+  to the morning of 2026-10-05 also hold rows of variants whose code is gone
+  (`wariant`, `multi`, `sport:<sport>`, `rule:<sport>`): kept as recorded,
+  never rebuilt.
 
 ## Changing the pipeline
 
@@ -223,7 +226,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning; bridge (none: exit 1, nothing done)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # after D-1's settle; exit 1 on a finding
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant sport:hockey]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant official]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --moved-void --dry-run   # then --apply; --players regrades props from the own squad
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]

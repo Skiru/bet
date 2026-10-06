@@ -79,7 +79,7 @@ and prints every step with its reason and command:
   a stats-only day: CONFIDENCE judges a moved price at the fresh odds.
 - **SHADOW** (`run_shadow.py --horizon-h <to the farthest open start>`) when
   a hockey / basketball / volleyball event's newest price is older than
-  `sport_coupon.MAX_PRICE_AGE` (3 h) minus 30 min, or the last snapshot
+  `sport_day.MAX_PRICE_AGE` (3 h) minus 30 min, or the last snapshot
   skipped an event because it started beyond its 3 h horizon; **CS2**
   (`--only CS2`) on the same age rule; then `ensure_bridge.py` +
   **SPORT_IDENTITY** after a fresh snapshot (or when `sport_fixtures.json`
@@ -221,7 +221,3 @@ ZMIANA:   <what moved and why — code, vetoes, reads, or the price>
 - Never print a combined / builder price outside what `confidence.py`
   computed.
 - Never read, echo or log `.env` values.
-
-Retired 2026-10-05: the WARIANT (refused from 07:15Z) and the separate sport
-coupons with their assembly (from 08:30Z). A rebuild no longer builds them;
-their files up to that morning stay as the historical record.

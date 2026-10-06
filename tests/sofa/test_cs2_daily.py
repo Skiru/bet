@@ -58,13 +58,11 @@ def test_a_day_runs_snapshots_then_the_morning_steps_in_order() -> None:
     # D-7..D-2: settle_cs2 decides at run time which of them still wait
     assert morning[2][1] == ["scripts/sofa/settle_cs2.py", "--sweep-from",
                              "2026-09-22", "--sweep-to", "2026-09-27"]
-    assert morning[3][1][0].endswith("settle_sport_coupon.py")
-    assert morning[3][1][1:] == ["--from", "2026-09-22", "--to", "2026-09-29",
-                                 "--sport", "cs2"]
-    assert morning[4][1][0].endswith("record_results.py")
-    assert morning[4][1][1:] == ["--from", "2026-09-22", "--to", "2026-09-29"]
-    assert morning[5][1][0].endswith("backfill_cs2.py")
-    assert morning[6][1][0].endswith("audit_cs2.py") and "--history" in morning[6][1]
+    assert morning[3][1][0].endswith("record_results.py")
+    assert morning[3][1][1:] == ["--from", "2026-09-22", "--to", "2026-09-29"]
+    assert morning[4][1][0].endswith("backfill_cs2.py")
+    assert morning[5][1][0].endswith("audit_cs2.py") and "--history" in morning[5][1]
+    assert not any("sport_coupon" in c[0] for _, c in calls)
     assert code == 1  # the worst step, the audit not counted
 
 
@@ -199,8 +197,7 @@ def test_a_failed_settle_is_retried_with_its_dependent_steps() -> None:
     assert timedelta(minutes=30) <= first[1] - first[0] <= timedelta(minutes=40)
     after = names[names.index("run_pipeline.py:2026-10-01", 1):]
     # the retry, then the offline steps that read what it wrote, then the audit
-    assert after == ["run_pipeline.py:2026-10-01", "settle_sport_coupon.py",
-                     "record_results.py", "audit_cs2.py"]
+    assert after == ["run_pipeline.py:2026-10-01", "record_results.py", "audit_cs2.py"]
     assert names.count("backfill_cs2.py") == 1, "a backfill is never repeated"
     assert names.count("settle_cs2.py") == 1, "a step that worked is not repeated"
     assert code == 2  # the backfill's own failure still counts

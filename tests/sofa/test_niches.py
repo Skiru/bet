@@ -413,4 +413,4 @@ def test_section_7h_renders_the_latest_artifact_up_to_the_date(tmp_path: Path) -
     # the 09-30 artifact is after the report's date and must not be read
     assert "2026-09-10 … 2026-09-27" in text
     assert "NISZA ZNALEZIONA" in text
-    assert "nie łączyć z 7c ani 7d" in text
+    assert "nie łączyć z 7c." in text

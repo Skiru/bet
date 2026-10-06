@@ -150,17 +150,12 @@ def matching_reads(
     ]
 
 
-def read_refusal(reads: list[LegRead], honours_watch: bool) -> str | None:
-    """Why the reads covering a row refuse it, or None.
-
-    NO_BET refuses in every profile (a veto by another name); WATCH only
-    where the profile honours it - the official coupon does, the WARIANT does
-    not (2026-10-04, the operator's decision), so a WATCH leg stays in the
-    WARIANT and the ledger measures it.
-    """
+def read_refusal(reads: list[LegRead]) -> str | None:
+    """Why the reads covering a row refuse it, or None: NO_BET (a veto by
+    another name) and WATCH both remove the leg from the coupon."""
     verdicts = {r.verdict for r in reads}
     if "NO_BET" in verdicts:
         return "READ_NO_BET"
-    if honours_watch and "WATCH" in verdicts:
+    if "WATCH" in verdicts:
         return "WATCHED"
     return None

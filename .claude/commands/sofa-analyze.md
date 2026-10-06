@@ -283,8 +283,3 @@ must be named rather than silently absent.
 - Never print a combined / builder price outside what `confidence.py`
   computed; no stake sizing.
 - Never read, echo or log `.env` values.
-
-Retired 2026-10-05: the WARIANT (`--profile wariant` is refused from
-07:15Z) and the separate sport coupons and their assembly (from 08:30Z).
-This command no longer builds them; their files up to that morning stay as
-the historical record.

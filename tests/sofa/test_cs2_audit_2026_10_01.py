@@ -4,26 +4,21 @@ F1  a player line without lineups held the whole series STATS_PENDING past
     what the daily loop ever reaches (grace 72 h, loop ~53 h);
 F2  "MIBR (K)" never matched "MIBR fe"; F8 "KUUSAMO" never matched
     "KUUSAMO.gg";
-F3  the CS2 coupon admitted an event with no tournament, and teams the
-    series store had never seen;
 F4  the series-only path dropped non-series sides uncounted, and final;
 F5  a series still waiting on D-2 was never asked again;
 F6  settle never wrote sofascore_start_utc, so IN_PLAY_PRICE could not fire;
-F8b settled.json was read-modified-written without a lock;
-and, from the shadow audit, a tournament whose every seen event was
-NOT_ON_SOFASCORE (1/1) slipped under UNSETTLEABLE_MIN_EVENTS = 2.
+F8b settled.json was read-modified-written without a lock.
 """
 
 from __future__ import annotations
 
 import json
-import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from bet.sofa import cs2
-from bet.sofa import sport_coupon as sc
+from bet.sofa import sport_day as sd
 from scripts.sofa import cs2_daily, settle_cs2
 from tests.sofa.test_cs2_stages import (
     DATE,
@@ -109,70 +104,6 @@ def test_pick_event_finds_the_womens_series() -> None:
     assert hit is not None and hit != "AMBIGUOUS" and hit[0]["id"] == 7
 
 
-# --- F3 -------------------------------------------------------------------------
-
-AT = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
-
-
-def _events(tournament: str | None, t1: str = "GamerLegion", t2: str = "magic") -> Any:
-    fetched = (AT - timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
-    lines = [
-        {"superbet_event_id": "1", "family": "maps_total", "map_nr": 0,
-         "subject": "", "line": 2.5, "side": s, "odds": o}
-        for s, o in (("UNDER", 1.30), ("OVER", 3.40))
-    ]
-    snap = {
-        "fetched_at_utc": fetched, "superbet_event_id": "1",
-        "match_name": f"{t1}·{t2}", "team1": t1, "team2": t2,
-        "kickoff_utc": "2026-09-26T15:00:00Z", "tournament": tournament,
-        "lines": lines,
-    }
-    return sc.latest_events("cs2", [snap])
-
-
-def _cands(events: Any, **kw: Any) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    counts: dict[str, int] = {}
-    rule = sc.Rule()
-    return sc.candidates("cs2", events, AT, rule, counts, **kw), counts
-
-
-def test_a_cs2_event_without_a_tournament_is_refused() -> None:
-    assert _cands(_events("CCT - EU"))[0], "the control admits a leg"
-    cands, counts = _cands(_events(None))
-    assert cands == [] and counts["no_tournament"] == 1
-
-
-def _store(tmp_path: Path, names: list[tuple[str, str]]) -> str:
-    path = tmp_path / "sofa.db"
-    conn = sqlite3.connect(path)
-    conn.execute("CREATE TABLE cs2_series (home_name TEXT, away_name TEXT)")
-    conn.executemany("INSERT INTO cs2_series VALUES (?, ?)", names)
-    conn.commit()
-    conn.close()
-    return str(path)
-
-
-def test_teams_never_in_the_series_store_are_refused(tmp_path: Path) -> None:
-    db = _store(tmp_path, [("GamerLegion", "magic"), ("MIBR fe", "FURIA fe")])
-    known = sc.cs2_known_team_names(db)
-    assert sc.cs2_unseen_team_events(_events("CCT - EU"), known) == {}
-    womens = _events("CCT - EU", "MIBR (K)", "FURIA (K)")
-    assert sc.cs2_unseen_team_events(womens, known) == {}
-    unknown = _events("Winners series 1x1", "Nobody", "magic")
-    refused = sc.cs2_unseen_team_events(unknown, known)
-    assert refused == {"1": "unseen_team"}
-    cands, counts = _cands(unknown, refused_events=refused)
-    assert cands == [] and counts["unseen_team"] == 1
-    # no store, no evidence: nothing refused; and the lookup never creates a DB
-    assert sc.cs2_known_team_names(str(tmp_path / "absent.db")) == []
-    assert not (tmp_path / "absent.db").exists()
-    assert sc.cs2_unseen_team_events(unknown, []) == {}
-
-
-def test_hockey_is_untouched_by_the_cs2_gates() -> None:
-    assert sc.ungradeable_reason(None, None) is None
-
-
 # --- F4 -------------------------------------------------------------------------
 
 
@@ -201,13 +132,13 @@ def test_series_only_counts_add_up_and_map_lines_stay_retryable(
            "team1": "GamerLegion", "team2": "magic",
            "kickoff_utc": "2026-09-26T15:00:00Z"}
     coupon = {"sport": "cs2", "date": DATE, "legs": [leg]}
-    (out,) = sc.grade_coupon(coupon, {DATE: {"events": {"1": rec}}})
+    (out,) = sd.grade_legs(coupon, {DATE: {"events": {"1": rec}}})
     assert out["outcome"] == "PENDING:SERIES_ONLY"
     # past a week: final, still counted
     run_settle(tmp_path, FakeSofascore(games=rounds_less), 24 * 8)
     rec = settled(tmp_path)["1"]
     assert rec["pending_sides"] == 0 and rec["series_only_skipped"] == 2
-    (out,) = sc.grade_coupon(coupon, {DATE: {"events": {"1": rec}}})
+    (out,) = sd.grade_legs(coupon, {DATE: {"events": {"1": rec}}})
     assert out["outcome"] == "UNGRADEABLE"
 
 
@@ -254,7 +185,7 @@ def test_settle_writes_sofascores_start(tmp_path: Path) -> None:
            "team1": "GamerLegion", "team2": "magic",
            "kickoff_utc": "2026-09-26T15:00:00Z",
            "price_fetched_at_utc": "2026-09-26T15:01:00Z"}
-    (out,) = sc.grade_coupon(
+    (out,) = sd.grade_legs(
         {"sport": "cs2", "date": DATE, "legs": [leg]}, {DATE: {"events": {"1": rec}}}
     )
     assert out["outcome"] == "IN_PLAY_PRICE"
@@ -279,23 +210,7 @@ def test_a_concurrent_writers_series_survives_the_merge(tmp_path: Path) -> None:
     assert (path.parent / "settled.json.lock").exists()
 
 
-# --- unsettleable, every sport -----------------------------------------------------
-
-
-def test_a_tournament_never_found_once_is_refused_for_every_sport(
-    tmp_path: Path,
-) -> None:
-    for sport in sc.SPORT_KEYS:
-        d = sc.day_dir(str(tmp_path), sport, "2026-09-30")
-        d.mkdir(parents=True)
-        events = {
-            "1": {"tournament": "Paulista U19", "state": "NOT_ON_SOFASCORE"},
-            "2": {"tournament": "Liga", "state": "SETTLED"},
-        }
-        (d / cs2.SETTLED_FILE).write_text(json.dumps({"events": events}))
-        got = sc.unsettleable_tournaments(str(tmp_path), sport, "2026-10-01")
-        assert got == {"Paulista U19": "1/1"}, sport
-    assert "UNSETTLEABLE_ALL_MIN_EVENTS" in sc.UNFITTED_CONSTANTS
+# --- not found, then retried --------------------------------------------------------
 
 
 def test_a_price_after_sofascores_start_is_never_graded(tmp_path: Path) -> None:

@@ -7,10 +7,6 @@ Pewność jest wyłącznie ze statystyk (od 2026-10-05 07:15Z), cena jest tylko
 warunkiem zakładu (pewność × kurs ≥ 0,90, marża ≤ 15%). Jedynym artefaktem
 kuponu jest `11_coupon.json`; PDF zapisuje obok `12_printed.json`.
 
-Wycofane 2026-10-05 (historyczne): WARIANT i WARIANT WSZYSTKIE od 07:15Z,
-osobne kupony sportowe od 08:30Z; pliki do poranka 10-05 zostają i są
-rozliczane po staremu.
-
 **Nie ma etapu `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` ani
 `TIPSTERS`.** To słownik wycofanego pipeline'u `simple`, usuniętego z repozytorium
 2026-10-05 (jest w historii gita). Oba pipeline'y nie dzielą ani linii kodu,

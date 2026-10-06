@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Record Superbet's closing price of every printed official / WARIANT leg.
+"""Record Superbet's closing price of every printed football / tennis leg.
 
-For each single on 08_confidence.json (the official PDF) and
-08_confidence_wariant.json (the WARIANT) whose kickoff is between
+For each single and builder leg on the coupon artifact (11_coupon.json;
+08_confidence.json before the stats-only epoch) whose kickoff is between
 clv.CLOSE_MIN_MINUTES and clv.CLOSE_MAX_MINUTES away, re-ask Superbet through
 the same OfferFetcher OFFER uses and append the leg's side and its partner to
 runs/sofa/<d>/closing.jsonl. audit_clv.py reads the latest record per leg.
@@ -42,7 +42,6 @@ from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
 from scripts.sofa.cs2_daily import _command_of, already_running
 
-VARIANTS = {"official": "08_confidence.json", "wariant": "08_confidence_wariant.json"}
 LOOP_SLEEP_S = 300
 
 
@@ -52,18 +51,17 @@ def leg_key(leg: dict[str, Any]) -> str:
 
 
 def printed_legs(day_dir: Path) -> list[tuple[str, dict[str, Any]]]:
-    """What the PDFs print - confidence.printed_singles / printed_builders, the
+    """What the PDF prints - confidence.printed_singles / printed_builders, the
     same selection build_coupon_pdf uses - as (variant, leg). A builder's legs
     are their own variant ("<variant>:builder_leg"): Superbet prices the slip,
     not the product of its legs, so a leg's CLV is not the slip's."""
     out: list[tuple[str, dict[str, Any]]] = []
-    for variant, name in VARIANTS.items():
-        # The official coupon is the coupon artifact (11_coupon.json on a
-        # stats-only day, K3); its measured-sport legs close from their own
-        # snapshots, not from this football / tennis offer fetch.
-        path = coupon_artifact(day_dir) if variant == "official" else day_dir / name
-        if not path.exists():
-            continue
+    # The coupon artifact (11_coupon.json on a stats-only day, K3); its
+    # measured-sport legs close from their own snapshots, not from this
+    # football / tennis offer fetch.
+    variant = "official"
+    path = coupon_artifact(day_dir)
+    if path.exists():
         doc = json.loads(path.read_text(encoding="utf-8"))
         out += [(variant, leg) for leg in printed_singles(doc) if is_sheet_sport(leg)]
         for b in printed_builders(doc):

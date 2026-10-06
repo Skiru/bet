@@ -39,11 +39,10 @@ from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.confidence import (
-    PROFILES,
+    coupon_artifact,
     is_sheet_sport,
     printed_builders,
     printed_singles,
-    profile_artifact_path,
 )
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
@@ -359,7 +358,7 @@ def _settle_derived(
             # skip reason "PUSH") it is a skip reason, not a row: no reader
             # of sofa_settled_row expects an outcome other than WIN / LOSS
             # (several score "not WIN" as a loss), and a missing row grades
-            # as not counted in 7c / 7d and the ledger - 0 units, as a push
+            # as not counted in 7c and the ledger - 0 units, as a push
             # pays.
             return "PUSH"
         return float(margin), ("WIN" if margin > -line else "LOSS")
@@ -783,7 +782,7 @@ def rows_to_consider(
     printed_leg_keys) - are graded whatever the final sheet says about their
     price: since 2026-10-05 a leg printed before its match started stays on
     the coupon, and a SHEET re-run after the start may have stripped its rung
-    to NO_PRICE (an in-play price), which would leave 7c / 7d and the ledger
+    to NO_PRICE (an in-play price), which would leave 7c and the ledger
     with a printed leg nobody graded.
     """
     if include_unpriced:
@@ -802,49 +801,46 @@ def _sheet_key(row: dict[str, Any]) -> LegKey | None:
 
 
 def printed_keys(run_dir: Path) -> set[LegKey]:
-    """Every rung either confidence profile's PDF prints for the day."""
-    keys: set[LegKey] = set()
-    for profile in PROFILES.values():
-        # The coupon artifact (11_coupon.json on a stats-only day, K3).
-        path = profile_artifact_path(run_dir, profile)
-        if path.exists():
-            keys |= printed_leg_keys(
-                json.loads(path.read_text(encoding="utf-8")), sheet_sports_only=True)
-    return keys
+    """Every rung the coupon's PDF prints for the day."""
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    path = coupon_artifact(run_dir)
+    if not path.exists():
+        return set()
+    return printed_leg_keys(
+        json.loads(path.read_text(encoding="utf-8")), sheet_sports_only=True)
 
 
 def printed_legs(run_dir: Path) -> dict[LegKey, dict[str, Any]]:
-    """Every rung either profile's PDF prints, with what grading it needs
+    """Every rung the coupon's PDF prints, with what grading it needs
     (sport, market, subject, line, direction; the price where printed).
 
     A builder leg carries no sport of its own; the artifact's `legs` row of
     the same key does."""
     out: dict[LegKey, dict[str, Any]] = {}
-    for profile in PROFILES.values():
-        # The coupon artifact (11_coupon.json on a stats-only day, K3).
-        path = profile_artifact_path(run_dir, profile)
-        if not path.exists():
+    # The coupon artifact (11_coupon.json on a stats-only day, K3).
+    path = coupon_artifact(run_dir)
+    if not path.exists():
+        return out
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    by_key = {}
+    for x in doc.get("legs") or []:
+        k = _sheet_key(x)
+        if k is not None:
+            by_key[k] = x
+    # The same two lists printed_leg_keys reads.
+    for s in printed_singles(doc):
+        # The measured sports' legs are graded by coupon_sports (F7).
+        if not is_sheet_sport(s):
             continue
-        doc = json.loads(path.read_text(encoding="utf-8"))
-        by_key = {}
-        for x in doc.get("legs") or []:
-            k = _sheet_key(x)
-            if k is not None:
-                by_key[k] = x
-        # The same two lists printed_leg_keys reads.
-        for s in printed_singles(doc):
-            # The measured sports' legs are graded by sport_coupon (F7).
-            if not is_sheet_sport(s):
-                continue
-            k = leg_key(s)
-            out.setdefault(k, {**by_key.get(k, {}), **s})
-        for b in printed_builders(doc):
-            eid = int(b["sofascore_event_id"])
-            for x in b.get("legs") or []:
-                k = leg_key(x, eid)
-                out.setdefault(
-                    k, {**by_key.get(k, {}), **x, "sofascore_event_id": eid}
-                )
+        k = leg_key(s)
+        out.setdefault(k, {**by_key.get(k, {}), **s})
+    for b in printed_builders(doc):
+        eid = int(b["sofascore_event_id"])
+        for x in b.get("legs") or []:
+            k = leg_key(x, eid)
+            out.setdefault(
+                k, {**by_key.get(k, {}), **x, "sofascore_event_id": eid}
+            )
     return out
 
 
@@ -858,7 +854,7 @@ def printed_without_sheet_row(
     A leg printed before its start stays on the coupon (locked_print), but an
     OFFER re-run after the start drops the started match (run_sheet) and a
     SHEET re-run then has no row for it - rows_to_consider grades only sheet
-    keys, so 7c / 7d and the ledger kept a printed leg nobody graded. These
+    keys, so 7c and the ledger kept a printed leg nobody graded. These
     rows are graded from the /event payload like any other and written to
     07_settled_printed.json, never to sofa_settled_row: the forecast columns
     (sample_mean, sample_sd, p_bar) are NOT NULL and unknown here, and a row

@@ -165,7 +165,7 @@ in `sofa_settled_row`. Measured-sport legs are graded from their sport's
 
 ```
 created_at_utc, profile, epoch, confidence_floor, min_ev, max_overround,
-honours_watch, pdf_max_singles, prints_builders, stakeable_rule,
+pdf_max_singles, prints_builders, stakeable_rule,
 vetoes_applied, vetoes_unmatched, reads_applied, reads_unmatched,
 fixture_status_checked, fixture_status_unverified, fixtures_not_as_scheduled,
 removed_by_reads, legs: [...], singles: [...], builders: [...]
@@ -513,29 +513,17 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
   (< 30 games), `noise` (gap inside 2 SE), `lead only` (outside, < 7 days of
   data), `signal`. Quote `read`, never a bare gap.
 
-## Retired 2026-10-05: WARIANT, the separate sport coupons, WSZYSTKIE
-
-Historical: up to the morning of 2026-10-05 a day could also carry
-`08_confidence_wariant.json` + `KUPON_<d>_WARIANT.pdf` (refused for builds
-after 07:15Z), the separate sport coupons (`sport_coupon.json`,
-`sport_coupon_builds.jsonl`, `sport_coupon_settled.json`,
-`KUPON_<d>_{CS2,HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf` in the measurement's own
-directory, by `run_sport_coupon.py`, refused after 08:30Z) and WARIANT
-WSZYSTKIE (`runs/sofa/multi/<d>/multi_coupon*.json`,
-`KUPON_<d>_WSZYSTKIE.pdf`, refused after 07:15Z). Those files stay, are
-graded as before (`audit_settlement` 7d, `settle_sport_coupon.py`,
-`settle_multi_coupon.py`) and were never the coupon.
-
 ## `runs/sofa/ledger/results.jsonl` — the ledger
 
 One JSON row per (`date`, `variant`), written by `record_results.py` (a
 re-run replaces the date's rows), read by `audit_ledger.py` - per variant,
 never pooled. Variants: `official` (7c; on a stats-only day the
 stats_only legs), `official:pre_stats_only` (legs locked from the 2026-10-05
-morning print), `removed:reads` (7i), `rule:<sport>`, `measure:<sport>`;
+morning print), `removed:reads` (7i), `measure:<sport>`;
 `audit_ledger.py` groups by epoch (do 10-04 / 10-05 rano / stats_only), never
-summed. Historical (retired 2026-10-05): `wariant` (7d), `sport:<sport>` and
-`multi` exist only for days up to the morning of 2026-10-05.
+summed. Ledger rows named `wariant` / `multi` / `sport:<sport>` /
+`rule:<sport>` are retired variants of days up to 2026-10-05; read, never
+pooled.
 
 - official: `singles`, `builders`, `total` (the summary above),
   `pending`, `settled_rows_in_db`, `outcomes` (count per grade),
@@ -548,9 +536,6 @@ summed. Historical (retired 2026-10-05): `wariant` (7d), `sport:<sport>` and
   20 matches (`clv.MIN_CLUSTERS`) and `- (no per-match record)` when a day
   with settled positions predates the field. `audit_clv` uses the same
   cluster rule.
-- `rule:<sport>`: the old price-only rule replayed on the day (one side per
-  event, chosen before the outcome, at the last pre-start price) - `total`,
-  `by_family`, `graded_at`. Its record even on a day without a coupon.
 - `measure:<sport>`: `events` (count per SETTLE state), `favourite_side`
   (TWO-WAY lines only, so comparable across the 09-30 cutover: `events`,
   `sides`, `mean_fair_p`, `hit`, `gap_pp`, `brier`, `roi`, `median_margin`),

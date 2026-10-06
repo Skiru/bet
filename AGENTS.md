@@ -16,9 +16,7 @@ Two things to know before anything else:
    (which writes `12_printed.json`); `FIXTURE_CHECK` in a rebuild before
    CONFIDENCE. `SETTLE` and `FIT` are deliberately outside the daily
    sequence. Confidence comes from the statistics alone (since 2026-10-05
-   07:15Z); the price is only the betting condition. Retired 2026-10-05:
-   WARIANT and WARIANT WSZYSTKIE (07:15Z) and the separate sport coupons
-   (08:30Z); their files up to that morning stay and are graded as before.
+   07:15Z); the price is only the betting condition.
 2. **There is no `DISCOVER`, `ENRICH`, `ANALYZE`, `MARKET_CONTEXT` or
    `TIPSTERS` stage.** Those belong to the retired `simple` pipeline
    (deleted from the repository 2026-10-05). The two share no vocabulary.
@@ -33,5 +31,4 @@ Two things to know before anything else:
 | where the code lives | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 
 Runtime configuration: Claude Code loads `.claude/agents`, `.claude/commands`
-and `.claude/skills`. Kilocode's configuration drove the retired pipeline and
-was deleted with it (2026-10-05).
+and `.claude/skills`.

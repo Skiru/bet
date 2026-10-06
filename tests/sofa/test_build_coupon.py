@@ -13,11 +13,9 @@ from typing import Any
 import pytest
 
 from bet.sofa.confidence import (
-    PROFILES,
     coupon_artifact,
     legs_requiring_read,
     printed_singles,
-    profile_artifact_path,
     request_covers,
 )
 from scripts.sofa.build_coupon import assemble
@@ -100,13 +98,8 @@ def test_readers_switch_to_11_only_where_it_exists(tmp_path):
     run.mkdir()
     (run / "08_confidence.json").write_text("{}")
     assert coupon_artifact(run).name == "08_confidence.json"
-    assert profile_artifact_path(run, PROFILES["wariant"]).name == (
-        "08_confidence_wariant.json")
     (run / "11_coupon.json").write_text("{}")
     assert coupon_artifact(run).name == "11_coupon.json"
-    assert profile_artifact_path(run, PROFILES["standard"]).name == "11_coupon.json"
-    assert profile_artifact_path(run, PROFILES["wariant"]).name == (
-        "08_confidence_wariant.json")
 
 
 def test_an_old_day_is_not_assembled(tmp_path, monkeypatch, capsys):

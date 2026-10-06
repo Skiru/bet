@@ -11,7 +11,7 @@ bet.sofa.rebuild_plan (offline, tested) from the files' ages and the clock:
    --min-minutes-to-kickoff 20) when the open fixtures' oldest price would be
    STALE_PRICE by the time CONFIDENCE runs; SHADOW (run_shadow.py
    --horizon-h <to the farthest open start>) and CS2 when a sport price
-   nears sport_coupon.MAX_PRICE_AGE or SHADOW skipped an event beyond its
+   nears sport_day.MAX_PRICE_AGE or SHADOW skipped an event beyond its
    horizon; then ensure_bridge + SPORT_IDENTITY;
 2. SHEET only when CONFIDENCE would refuse the sheet (epoch); COUPON
    (06_coupon.json, audit_coupon's input, not the coupon) when it is older

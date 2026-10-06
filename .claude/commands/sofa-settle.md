@@ -85,7 +85,10 @@ re-running a date replaces its rows. Each variant stands alone:
 - `removed:reads` - the legs a read removed (7i), never in the coupon's
   result;
 - `measure:<sport>` (Superbet's price against the outcome, the favourite
-  side of two-way lines) and `rule:<sport>` - evidence, not bets.
+  side of two-way lines) - evidence, not a bet.
+
+Ledger rows named `wariant` / `multi` / `sport:<sport>` / `rule:<sport>` are
+retired variants of days up to 2026-10-05; read, never pooled.
 
 `audit_ledger.py` splits every variant by epoch group (`do 10-04` /
 `10-05 rano` / `stats_only`) and never sums the groups: the coupon before
@@ -205,14 +208,3 @@ UWAGA:    <the one thing that would change tomorrow's run>
 
 A settled result is a fact about the day, **not about the decision that made
 it**. Never let "it won" into the reasoning for the next one.
-
-## Historical: the retired variants (days up to 2026-10-05 morning)
-
-Retired 2026-10-05: WARIANT and WARIANT WSZYSTKIE (07:15Z) and the separate
-sport coupons (08:30Z). Their files up to that morning stay and are graded as
-before: `audit_settlement` prints section 7d only for a day that has a
-WARIANT, and the ledger keeps `wariant`, `sport:<sport>` and `multi` rows
-for those days. While such a date is still inside the D-8 window, grade it
-with `settle_sport_coupon.py --from <date-7> --to 2026-10-05` and
-`settle_multi_coupon.py --from <date-7> --to 2026-10-05` before
-`record_results.py`. Never pool those historical rows with the coupon.

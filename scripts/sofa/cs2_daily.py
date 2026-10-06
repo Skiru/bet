@@ -16,13 +16,12 @@ audit the next morning.
    the day before's night series that settle into this day's file) - it
    needs the bridge; a failed settle is logged and can be rerun by hand at
    any time (`run_pipeline.py --date <d> --only CS2_SETTLE`).
-2b. settle_sport_coupon.py for the experimental CS2 coupons of both days,
-   and record_results.py for both days (the ledger; offline).
+2b. record_results.py for the settled days (the ledger; offline).
 3. A short CS2_BACKFILL (--backfill-minutes, default 6; 0 to skip). It honours
    the cooldown a Sofascore refusal leaves behind, so it never re-hammers.
 3b. A step that FAILED (exit >= 2) is retried every 30 min for up to 4 h,
-   together with the settle_sport_coupon / record_results steps after the
-   first failed one (run_morning); a backfill is never repeated.
+   together with the record_results step after the first failed one
+   (run_morning); a backfill is never repeated.
 4. audit_cs2.py for the day, into the log.
 
 Every step is a separate process, so one crashing never takes the rest down,
@@ -181,10 +180,7 @@ def plan(
         # GIVE_UP_AFTER either (audit 2026-10-01).
         ["scripts/sofa/settle_cs2.py", "--sweep-from", sweep_from,
          "--sweep-to", sweep_to],
-        # the experimental coupons of every day those settles may have
-        # changed, then the ledger for the same days (both offline)
-        ["scripts/sofa/settle_sport_coupon.py", "--from", sweep_from, "--to", date,
-         "--sport", "cs2"],
+        # the ledger for every day those settles may have changed (offline)
         ["scripts/sofa/record_results.py", "--from", sweep_from, "--to", date],
     ]
     if backfill_minutes > 0:
@@ -314,7 +310,7 @@ RETRY_EVERY_S = 30 * 60
 RETRY_FOR_S = 4 * 3600
 # Offline steps that read what a settle wrote: re-run after a retry when they
 # come after the first failed step, whatever their own exit was.
-RERUN_AFTER_RETRY = ("settle_sport_coupon.py", "record_results.py")
+RERUN_AFTER_RETRY = ("record_results.py",)
 # A backfill is capped by time and resumes the next morning; never repeated.
 NEVER_RETRY_PREFIX = "backfill_"
 

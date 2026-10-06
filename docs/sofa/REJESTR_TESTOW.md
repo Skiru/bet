@@ -17,7 +17,7 @@ exit 1, gdy okno danych testu zaczyna się w dniu rejestracji albo przed nim).
    Jeśli operator zatwierdzi test później niż 2026-10-05, `registered_on` i
    `data_window.from` przesuwają się na dzień zatwierdzenia (walidator
    sprawdza je ponownie).
-5. Pule nigdy się nie sumują (ledger: wariant po wariancie).
+5. Pule nigdy się nie sumują (ledger: każda pula osobno).
 
 ## Testy
 
@@ -38,7 +38,7 @@ Pełne reguły (dokładne formuły, źródła cen, sposób rozliczenia) są w
 |---|---|
 | football `goals_total` b = 0,50 [0,26; 0,75] | `docs/sofa/history/RAPORT_NOC_2026-10-04.md` wiersz 60; szczegóły `data/night_2026-10-03/edge/RAPORT.md` (poza gitem): 7 074 wierszy / 1 791 meczów, b = 0,496 [0,258; 0,753]; kontrola `measure_model_information.py` b = 0,4961 [0,2699; 0,7213] |
 | najlepsza reguła `goals_total` OVER, próg 1,05: +6,7% [−15,9; +29,3], 160 zakładów / 82 mecze / 6 dni | jw. (`data/night_2026-10-03/edge/RAPORT.md`, krok 2) |
-| hokej sumy b = 0,98 [−0,07; 2,14] (c = 0,10) | `docs/sofa/PIPELINE.md` wiersz 1541; `docs/sofa/MODELE_HOKEJ_KOSZ_SIATKA.md` wiersz 56 |
+| hokej sumy b = 0,98 [−0,07; 2,14] (c = 0,10) | `docs/sofa/PIPELINE.md` wiersz 1541; `docs/sofa/MODELE_HOKEJ_KOSZ_SIATKA.md` wiersz 48 |
 | boosty: 12 pojedynczych dwustronnych, średnie EV +0,1% | `docs/sofa/history/RAPORT_NOC_2026-10-04.md` wiersz 68 |
 | kryterium F5.3 (CLV 300 nóg / 100 meczów, ROI ~4 400 pozycji, ~150 dziennie) | `docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md` wiersz 105 |
 | kryterium porażki F5.4 | tamże, wiersz 106 |

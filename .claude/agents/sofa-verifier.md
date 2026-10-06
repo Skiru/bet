@@ -360,8 +360,3 @@ technically correct and still not worth staking - `K_PRICE` and
 - Never read, echo or log `.env` values.
 - Check any claim you can check locally, including one handed to you by
   another agent.
-
-Retired 2026-10-05: the WARIANT and the separate sport coupons with their
-assembly. For a day before that morning, `audit_variants` S1-S5 / M1-M3 still
-re-derive those historical files; verify such a day under its own rules and
-never pool it with the coupon.

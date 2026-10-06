@@ -116,7 +116,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na wariant i epokę, nigdy łącznie; ROI z przedziałem 95% po meczach („-” poniżej 20 meczów)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na grupę i epokę, nigdy łącznie; ROI z przedziałem 95% po meczach („-” poniżej 20 meczów)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # CLV kuponu — pierwsza liczba o wczoraj
 ```
 
@@ -136,10 +136,8 @@ wszystkie wiersze `measure:*`, nie tylko kod wyjścia. Po późnym rozliczeniu
 albo `regrade_settled.py` powtórz `record_results.py --from <D-8> --to <D-1>`
 — zastępuje wiersze tych dat.
 
-Dni do poranka 2026-10-05 (historyczne, wycofane 2026-10-05) mają jeszcze
-WARIANT, WSZYSTKIE i kupony sportowe; rozlicza się je po staremu
-(`settle_sport_coupon.py --from <d> --to <d>`, `settle_multi_coupon.py --from <d> --to <d>`,
-sekcja 7d), tylko dla tych dat.
+Wiersze dziennika `wariant` / `multi` / `sport:<sport>` / `rule:<sport>` to
+wycofane warianty dni do 2026-10-05; czyta się je, nigdy nie łączy.
 
 Potem pętle dzisiejszego dnia:
 
@@ -263,7 +261,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <data>    
 kolejności `confidence.coupon_order` (pewność, potem wcześniejszy start, nogi
 meczu razem), pozycje 1..N, nogi zablokowane z poprzedniego wydruku na górze
 bez numeru, buildery B1.., `removed_by_reads`, kopia `read_requests`. Odmawia,
-gdy `08_confidence.json` nie jest profilu standard w epoce stats-only albo jest
+gdy `08_confidence.json` nie jest profilu kuponu (`COUPON_PROFILE`) w epoce stats-only albo jest
 starszy niż arkusz, weta, odczyty lub kalibracja.
 
 ---
@@ -331,7 +329,7 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   potrzebny.
 - **SHADOW** (`run_shadow.py --horizon-h <do najdalszego otwartego
   startu>`), gdy najnowsza cena otwartego meczu hokeja / kosza / siatki jest
-  starsza niż `sport_coupon.MAX_PRICE_AGE` (3 h) minus 30 min albo ostatnia
+  starsza niż `sport_day.MAX_PRICE_AGE` (3 h) minus 30 min albo ostatnia
   migawka pominęła mecz zaczynający się za jej horyzontem 3 h; **CS2**
   (`--only CS2`) na tej samej regule wieku; po świeżej migawce
   `ensure_bridge.py` + **SPORT_IDENTITY** (most).
@@ -383,26 +381,6 @@ które dają PARTIAL. Odmawia przy ustawionym `SOFA_NOW`, honoruje
 Jeśli dzień jest **zakończony**, nie odświeżaj ceny. Powiedz, że ceny są
 historyczne i że każda bramka niżej je teraz odrzuci — bo to poprawne
 zachowanie.
-
-### 4a. Historyczne: WARIANT, kupony sportowe i WSZYSTKIE (wycofane 2026-10-05)
-
-Wycofane 2026-10-05: WARIANT i WSZYSTKIE od 07:15Z, kupony sportowe od
-08:30Z; pliki do poranka 10-05 zostają i są rozliczane po staremu.
-`run_confidence.py --profile wariant`, `build_coupon_pdf.py --profile wariant`,
-`run_multi_coupon.py` i `run_sport_coupon.py` odmawiają (kod 2) dla
-późniejszych buildów. Te kupony leżały w `runs/sofa/<d>/KUPON_<d>_WARIANT.pdf`,
-`runs/sofa/cs2/<d>/KUPON_<d>_CS2.pdf`,
-`runs/sofa/shadow/<sport>/<d>/KUPON_<d>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf` i
-`runs/sofa/multi/<d>/KUPON_<d>_WSZYSTKIE.pdf`; ich wyniki są w dzienniku
-(`wariant`, `sport:<sport>`, `multi`) i nigdy nie są łączone z kuponem.
-Kupon sportowy był czysto cenowy (fair p z devigu, od 10-05 rano
-przekalibrowany `config/sofa_sport_price_calibration.json`), więc przy
-uczciwej cenie tracił średnio tyle, ile marża.
-
-Korekta jednorazowa (30.09): do 30.09 CS2_SETTLE oceniał też linie, które
-Superbet zdjął przed startem, po ich starej cenie. `regrade_cs2_snapshots.py
---from <d> --to <d>` usuwa takie strony offline (kopia: `settled.pre_regrade.json`);
-29.09 miał ich 22 z 302. Po nim `record_results.py` dla tych dni.
 
 ---
 

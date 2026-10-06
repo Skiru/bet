@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """How many printed legs had no grade by D+3? Measured (plan 2026-10-05, F0.6).
 
-For every day in range, every football / tennis leg a profile's PDF printed
-(the official coupon's artifact - 11_coupon.json on a stats-only day, else
-08_confidence.json - and the WARIANT's 08_confidence_wariant.json; the lists
+For every day in range, every football / tennis leg the coupon's PDF printed
+(11_coupon.json on a stats-only day, else 08_confidence.json; the lists
 SETTLE grades: printed_singles and the legs of printed_builders) is looked up
 in sofa_settled_row (the day's row, else the same key under another live
 date; 07_settled_printed.json for a leg with no sheet row) and its first
@@ -100,11 +99,6 @@ def summarise(
     def comp_fam_label(k: tuple[Any, str, str]) -> str:
         return f"{k[1]} [{k[0]}] / {k[2]}"
 
-    per_profile: dict[str, st.Tally] = {}
-    for s in headline:
-        for p in sorted(s.leg.profiles):
-            per_profile.setdefault(p, st.Tally()).add(s)
-
     late_reasons: dict[str, int] = {}
     for s in headline:
         if s.status == st.UNGRADED:
@@ -117,7 +111,6 @@ def summarise(
         "days_closed": closed,
         "days_open": open_days,
         "headline": total.as_dict(),
-        "by_profile": {p: t.as_dict() for p, t in sorted(per_profile.items())},
         "by_day": {
             d: {**_tally(states_by_day[d]).as_dict(), "closed": d in closed}
             for d in sorted(states_by_day)
@@ -177,8 +170,8 @@ def render_md(doc: dict[str, Any], fitted: list[dict[str, Any]] | None = None) -
         "",
         f"Pomiar: `scripts/sofa/measure_settleability.py`, {doc['measured_at_utc']}. "
         "Nogi: wszystko, co wydrukował PDF kuponu (11_coupon.json / "
-        "08_confidence.json) i WARIANTU (08_confidence_wariant.json) - single i nogi "
-        "builderów, piłka i tenis (sporty mierzone rozlicza sport_coupon). Ocena: "
+        "08_confidence.json) - single i nogi builderów, piłka i tenis (sporty "
+        "mierzone rozlicza się osobno). Ocena: "
         "`sofa_settled_row` (wiersz dnia, inaczej ten sam klucz pod inną datą), "
         "`07_settled_printed.json`. Pierwsze "
         "rozliczenie = `settled_at` albo najwcześniejsze `old_settled_at` z "
@@ -200,17 +193,7 @@ def render_md(doc: dict[str, Any], fitted: list[dict[str, Any]] | None = None) -
         "nikt nie rozliczył dnia ponownie), nadal nierozliczone: "
         f"{h['ungraded_now']} {h['ungraded_by_class']}.",
         f"- zwroty / PUSH: {h['voided']} z {h['printed']} wydrukowanych.",
-        "",
-        "## Według profilu",
-        "",
-        "| profil | należne | nierozl. D+3 | % | później | nadal |",
-        "|---|---|---|---|---|---|",
     ]
-    for p, t in doc["by_profile"].items():
-        lines.append(
-            f"| {p} | {t['due']} | {t['unsettled_at_horizon']} | "
-            f"{_pct(t['unsettled_share'])} | {t['graded_later']} | "
-            f"{t['ungraded_now']} |")
     lines += ["", "## Według dnia", "",
               "| dzień | należne | nierozl. D+3 | % | później (proces) | nadal "
               "| horyzont |",
@@ -251,9 +234,8 @@ def render_md(doc: dict[str, Any], fitted: list[dict[str, Any]] | None = None) -
         "tylko ostatnie pobranie, więc nie da się odróżnić, czy feed ligi zamknął "
         "się po D+3, czy nikt nie zapytał wcześniej (do 10-05 ponownie rozliczano "
         "tylko D-5). Dla bramki to górna granica braku danych.",
-        "- Dzień bez `08_confidence_wariant.json` liczy tylko kupon; dni 09-20 i "
-        "09-21 drukowały same buildery. Większość nóg to WARIANT (cały artefakt "
-        "na PDF), kupon do 10-04 drukował 30 singli.",
+        "- Dni 09-20 i 09-21 drukowały same buildery; kupon do 10-04 drukował "
+        "30 singli.",
         "- Pewność, ROI i krzywe nie są tu mierzone - tylko to, czy noga dostała "
         "ocenę.",
         "",

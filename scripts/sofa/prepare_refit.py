@@ -59,8 +59,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from bet.sofa.atomic import write_atomic, write_bytes_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
-    PROFILES,
-    confidence_artifact,
+    CONFIDENCE_ARTIFACT,
     printed_builders,
     printed_singles,
 )
@@ -1300,51 +1299,20 @@ def replay_day(
         guard_day(real, expected)
         env = child_env(SOFA_RUNS_DIR=str(runs), SOFA_CONFIG_DIR=str(cfg))
         stages: list[tuple[str, list[str]]] = []
-        at_standard = frozen_at(real / "08_confidence.json")
+        built_at = frozen_at(real / "08_confidence.json")
         if with_sheet:
             stages.append(("sheet", ["scripts/sofa/run_sheet.py", "--date", day]))
-        for profile in sorted(PROFILES):
-            if not (real / confidence_artifact(PROFILES[profile])).exists():
-                continue
-            stages.append(
-                (
-                    f"confidence_{profile}",
-                    [
-                        "scripts/sofa/run_confidence.py",
-                        "--date",
-                        day,
-                        "--profile",
-                        profile,
-                        "--runs-dir",
-                        str(runs),
-                    ],
-                )
-            )
-            stages.append(
-                (
-                    f"pdf_{profile}",
-                    [
-                        "scripts/sofa/build_coupon_pdf.py",
-                        "--date",
-                        day,
-                        "--profile",
-                        profile,
-                        "--runs-dir",
-                        str(runs),
-                    ],
-                )
-            )
+        for stage, script in (("confidence", "run_confidence.py"),
+                              ("pdf", "build_coupon_pdf.py")):
+            stages.append((stage, [f"scripts/sofa/{script}", "--date", day,
+                                   "--runs-dir", str(runs)]))
         for stage, argv in stages:
-            profile = stage.split("_", 1)[-1]
-            at = at_standard
-            if profile in PROFILES and profile != "standard":
-                at = frozen_at(real / confidence_artifact(PROFILES[profile]))
             cmd = [
                 paths.python,
                 str(Path(__file__).resolve()),
                 "_frozen",
                 "--at",
-                at,
+                built_at,
                 "--",
                 *argv,
             ]
@@ -1353,10 +1321,8 @@ def replay_day(
             if rc not in (0, 1):
                 result.errors.append(f"{label}/{day}/{stage}: exit {rc}")
                 break
-    for profile_name, conf_profile in PROFILES.items():
-        artifact = confidence_artifact(conf_profile)
-        if not (real / artifact).exists():
-            continue
+    artifact = CONFIDENCE_ARTIFACT
+    if (real / artifact).exists():
         real_legs = printed_legs(load_json(real / artifact))
         replayed = {
             label: printed_legs(
@@ -1376,7 +1342,7 @@ def replay_day(
         # The real artifact against the old-config replay: what changed in
         # the code since the day was built, not in the config.
         drift = diff_printed(real_legs, replayed["old"])
-        result.profiles[profile_name] = {
+        result.profiles["standard"] = {
             "printed": {
                 "real": len(real_legs),
                 "old_config": len(replayed["old"]),

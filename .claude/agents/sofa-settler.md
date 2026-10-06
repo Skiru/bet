@@ -88,7 +88,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # closing line value per variant - read it first: it answers in tens of legs
 ```
 
-Exit codes of `record_results.py` (and of the settles): **0** = graded as far
+Exit codes of `record_results.py`: **0** = graded as far
 as the settles allow - pending legs are shown in the table's `pending`
 column, never as an exit code. Pending is the normal shape of D-1: its legs
 after 00:00Z (NHL/NBA, night CS2) settle into today's snapshot file and are
@@ -111,9 +111,10 @@ unreadable file (named in the table). **2** = a crash, or for
 - `measure:<sport>` - Superbet's price against the outcome on the favourite
   side; `favourite_side` is TWO-WAY lines only, so it is comparable across
   the 09-30 cutover; `by_shape` (two / three / exact), `by_family` and
-  `players` carry the rest;
-- `rule:<sport>` - the price-only rule replayed on the settled day, the side
-  chosen before the outcome: evidence, not a bet.
+  `players` carry the rest.
+
+Ledger rows named `wariant` / `multi` / `sport:<sport>` / `rule:<sport>` are
+retired variants of days up to 2026-10-05; read, never pooled.
 
 Every row carries `epoch` and `outcomes`, a count per grade (WIN, LOSS,
 VOID, PENDING:*, UNGRADEABLE, IN_PLAY_PRICE, NOT_GRADED:*, MISMATCH). A
@@ -323,17 +324,3 @@ UWAGA:    <the one thing that would change tomorrow's run>
 - Never hand-edit a constant. Re-fit, or report.
 - Never re-fit mid-day.
 - No stake recommendation. Never read, echo or log `.env` values.
-
-## Historical: the retired variants (days up to the 2026-10-05 morning)
-
-Retired 2026-10-05: WARIANT and WARIANT WSZYSTKIE (from 07:15Z) and the
-separate sport coupons (from 08:30Z). Their files up to that morning stay and
-are graded as before: `audit_settlement` prints section 7d only for a day
-that has a WARIANT, and `record_results.py` keeps writing `wariant`,
-`sport:<sport>` and `multi` rows for those days. While such a date is inside
-the D-8 window, grade it first with
-`settle_sport_coupon.py --from <D-8> --to 2026-10-05` and
-`settle_multi_coupon.py --from <D-8> --to 2026-10-05` (same exit codes as
-`record_results.py`; only the final build's legs are graded, `replaced_legs`
-are recorded only). Report those historical rows on their own line, never
-pooled with the coupon.

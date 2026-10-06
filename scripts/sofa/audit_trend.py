@@ -11,7 +11,7 @@ So this module answers two questions across ALL settled days up to the report's
 date, and changes nothing:
 
   * margin bands - the confidence legs grouped by their ladder's margin, which
-    is the measurement MAX_OVERROUND (and the variant's 15%) rests on. The
+    is the measurement MAX_OVERROUND (and the coupon's 15% since 10-05) rests on. The
     constant's own comment asked to be re-measured once more days settled;
     this is that measurement, repeated every morning.
   * classes - printed singles by sport x market x direction, per day, with the
@@ -34,19 +34,19 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.confidence import (
+    COUPON_PROFILE,
     MAX_OVERROUND,
-    PROFILES,
+    coupon_artifact,
     printed_singles,
-    profile_artifact_path,
 )
 
-# The variant's own margin limit; the band edges are the two limits in use.
-VARIANT_MAX_OVERROUND = PROFILES["wariant"].max_overround
+# The band edges: the coupon's limit until 10-04 and its limit since 10-05.
+COUPON_MAX_OVERROUND = COUPON_PROFILE.max_overround
 MARGIN_BANDS: tuple[tuple[str, float, float], ...] = (
     (f"<= {MAX_OVERROUND:.1%}", -1.0, MAX_OVERROUND),
-    (f"{MAX_OVERROUND:.1%} - {VARIANT_MAX_OVERROUND:.0%}", MAX_OVERROUND,
-     VARIANT_MAX_OVERROUND),
-    (f"> {VARIANT_MAX_OVERROUND:.0%}", VARIANT_MAX_OVERROUND, 10.0),
+    (f"{MAX_OVERROUND:.1%} - {COUPON_MAX_OVERROUND:.0%}", MAX_OVERROUND,
+     COUPON_MAX_OVERROUND),
+    (f"> {COUPON_MAX_OVERROUND:.0%}", COUPON_MAX_OVERROUND, 10.0),
 )
 NO_MARGIN = "bez marży (drabina jednostronna)"
 
@@ -123,33 +123,29 @@ def build_trend(
         by_key = {leg_key(r): r for r in load_settled(day)}
         if not by_key:
             continue
-        seen = False
-        for profile in PROFILES.values():
-            path = profile_artifact_path(day_dir, profile)
-            if not path.exists():
+        path = coupon_artifact(day_dir)
+        if not path.exists():
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if "singles" not in doc:
+            continue
+        bands = trend.margin.setdefault("standard", {})
+        for leg in doc.get("legs") or []:
+            won = _grade(leg, by_key)
+            if won is None:
                 continue
-            doc = json.loads(path.read_text(encoding="utf-8"))
-            if "singles" not in doc:
+            band = margin_band(leg.get("overround"))
+            bands.setdefault(band, {}).setdefault(day, Tally()).add(
+                won, leg["offered_odds"])
+        classes = trend.classes.setdefault("standard", {})
+        for leg in printed_singles(doc):
+            won = _grade(leg, by_key)
+            if won is None:
                 continue
-            seen = True
-            bands = trend.margin.setdefault(profile.name, {})
-            for leg in doc.get("legs") or []:
-                won = _grade(leg, by_key)
-                if won is None:
-                    continue
-                band = margin_band(leg.get("overround"))
-                bands.setdefault(band, {}).setdefault(day, Tally()).add(
-                    won, leg["offered_odds"])
-            classes = trend.classes.setdefault(profile.name, {})
-            for leg in printed_singles(doc):
-                won = _grade(leg, by_key)
-                if won is None:
-                    continue
-                cls = (leg.get("sport") or "?", leg["market"], leg["direction"])
-                classes.setdefault(cls, {}).setdefault(day, Tally()).add(
-                    won, leg["offered_odds"])
-        if seen:
-            trend.days.append(day)
+            cls = (leg.get("sport") or "?", leg["market"], leg["direction"])
+            classes.setdefault(cls, {}).setdefault(day, Tally()).add(
+                won, leg["offered_odds"])
+        trend.days.append(day)
     return trend
 
 
@@ -192,7 +188,7 @@ def render(trend: Trend, heading: str) -> list[str]:
         "### Marża drabiny - na czym stoi MAX_OVERROUND",
         "",
         f"Wszystkie nogi listy pewnościowej, po marży. Kupon drukuje pojedyncze "
-        f"do {MAX_OVERROUND:.1%}, wariant do {VARIANT_MAX_OVERROUND:.0%}. Jeśli "
+        f"do {COUPON_MAX_OVERROUND:.0%} (do 10-04: {MAX_OVERROUND:.1%}). Jeśli "
         "pasmo powyżej progu wychodzi gorzej niż pod nim na kolejnych dniach, "
         "próg jest na miejscu - nawet w dniu, w którym akurat by pomogło.",
         "",

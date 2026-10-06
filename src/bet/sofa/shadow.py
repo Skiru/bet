@@ -603,7 +603,7 @@ class SnapshotEvent:
     tournament: str | None
     sides: dict[SideKey, ShadowLine] = field(default_factory=dict)
     fetched_at: dict[SideKey, str] = field(default_factory=dict)
-    # The snapshot file the event was read from (set by sport_coupon).
+    # The snapshot file the event was read from (set by sport_day).
     source_date: str | None = None
 
 
@@ -1113,8 +1113,8 @@ def shadow_day_dir(runs_dir: str, sport: SportKey, date: str) -> Path:
 
 # --- the event states of a measured sport's settle (shadow sports and CS2) -------
 #
-# One set, read by settle_shadow, settle_cs2, settle_sport_coupon (through
-# sport_coupon.grade_coupon), record_results and cs2_watchdog - before
+# One set, read by settle_shadow, settle_cs2, coupon_sports (through
+# sport_day.grade_legs), record_results and cs2_watchdog - before
 # 2026-10-05 each kept its own copy, and they had drifted (CS2 had no
 # NO_PRE_START_PRICE, the watchdog no UNUSUAL).
 #

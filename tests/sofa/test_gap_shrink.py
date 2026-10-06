@@ -18,7 +18,7 @@ import pytest
 
 from bet.sofa.confidence import Calibration
 from bet.sofa.fit_meta import OPERATOR_KEYS, carry_operator_keys
-from tests.sofa.test_confidence_wariant_profile import (  # noqa: F401
+from tests.sofa.confidence_day import (  # noqa: F401
     DAY,
     _run,
     day,
@@ -71,17 +71,17 @@ def test_run_confidence_shrinks_before_the_floor_and_the_price_gate() -> None:
     source = (REPO / "scripts/sofa/run_confidence.py").read_text()
     i = source.index("realised_lo = cal.shrink_for_gap(")
     assert source.index("realised_lo, source, n_cal = hit") < i
-    assert i < source.index("if realised_lo < args.floor:")
+    assert i < source.index("if realised_lo < floor:")
     assert i < source.index("if not profile.clears_price(realised_lo, odds):")
 
 
 def test_end_to_end_off_and_on(day: Path, tmp_path: Path) -> None:  # noqa: F811
-    """The wariant fixture day: both legs print with the shrink off; with k
-    on, each loses k x its gap (model - price = 0.03), and a large k drops them."""
+    """The fixture day: both legs print with the shrink off; with k on, each
+    loses k x its gap (model - price = 0.03), and a large k drops them."""
     run = day / DAY
-    off = _run("run_confidence.py", day, "--runs-dir", str(day), "--profile", "wariant")
+    off = _run("run_confidence.py", day, "--runs-dir", str(day))
     assert off.returncode == 0, off.stderr
-    doc_off = json.loads((run / "08_confidence_wariant.json").read_text())
+    doc_off = json.loads((run / "08_confidence.json").read_text())
     assert {s["sofascore_event_id"] for s in doc_off["singles"]} == {1, 2}
     assert "gap_shrink_k" not in doc_off
     assert all("confidence_curve" not in leg for leg in doc_off["legs"])
@@ -93,15 +93,15 @@ def test_end_to_end_off_and_on(day: Path, tmp_path: Path) -> None:  # noqa: F811
         cal_doc["gap_shrink_k"] = k
         scratch.write_text(json.dumps(cal_doc))
         on = _run("run_confidence.py", day, "--runs-dir", str(day),
-                  "--profile", "wariant", "--calibration", str(scratch))
+                  "--calibration", str(scratch))
         assert on.returncode == 0, on.stderr
         doc: dict[str, Any] = json.loads(
-            (run / "08_confidence_wariant.json").read_text())
+            (run / "08_confidence.json").read_text())
         assert doc["gap_shrink_k"] == k
         return doc
 
     # k = 0.3: 0.3 x 0.03 = 0.009 off each leg; both still clear the
-    # variant's floor (0.65) and its price tolerance (x >= 0.90).
+    # floor (0.70) and the price tolerance (x >= 0.90).
     small = with_k(0.3)
     assert {s["sofascore_event_id"] for s in small["singles"]} == {1, 2}
     curve = {leg["sofascore_event_id"]: leg["confidence"] for leg in doc_off["legs"]}

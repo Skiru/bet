@@ -160,7 +160,3 @@ legs have started, do not rebuild: report the array as not applied.
 End with a verdict and **no stake recommendation**. A coupon can be technically
 correct and still not worth staking: `UNFITTED_CONSTANTS` stays on every row.
 The stake decision is the operator's.
-
-Retired 2026-10-05: the WARIANT and the separate sport coupons with their
-assembly. For a day before that morning, `audit_variants` S1-S5 / M1-M3 still
-check those historical files; from the cutover they are notes.

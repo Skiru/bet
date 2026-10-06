@@ -125,7 +125,7 @@ def test_the_stage_looks_up_the_legs_own_direction(
 ) -> None:
     """End to end: run_confidence must pass the direction, or the split is dead."""
     from scripts.sofa import run_confidence
-    from tests.sofa import test_confidence_wariant_profile as harness
+    from tests.sofa import confidence_day as harness
 
     run = tmp_path / harness.DAY
     run.mkdir()
@@ -236,7 +236,7 @@ def test_the_pdf_says_when_singles_share_a_match(tmp_path: Path) -> None:
     """Two printed singles on one fixture are marked; a lone one is not."""
     import pypdf
 
-    from tests.sofa import test_confidence_wariant_profile as harness
+    from tests.sofa import confidence_day as harness
 
     run = tmp_path / harness.DAY
     run.mkdir()

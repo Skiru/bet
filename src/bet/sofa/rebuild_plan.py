@@ -16,7 +16,7 @@ that would refuse it, with a margin for the rebuild's own duration:
    fixture that can still be bet is older than the CONFIDENCE limit minus
    OFFER_REFRESH_MARGIN; SHADOW (with a horizon to the farthest open start)
    and CS2 when an open event's newest price is older than
-   sport_coupon.MAX_PRICE_AGE minus SPORT_REFRESH_MARGIN, or a SHADOW event
+   sport_day.MAX_PRICE_AGE minus SPORT_REFRESH_MARGIN, or a SHADOW event
    lagged the latest snapshot because it started beyond the horizon; then
    SPORT_IDENTITY (bridge) after a fresh snapshot;
 2. SHEET only when CONFIDENCE would refuse the sheet (a stats-only build of a
@@ -41,7 +41,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from bet.sofa import epochs, sport_coupon
+from bet.sofa import epochs, sport_day
 from bet.sofa import fixture_status as fs
 from bet.sofa import sport_identity as si
 from bet.sofa.locked_print import starts_after
@@ -219,7 +219,7 @@ def observe_sport(runs_dir: str, sport: str, date: str, now: datetime) -> SportS
         if not (start <= kickoff < end):
             continue
         n += 1
-        if kickoff - now < sport_coupon.KICKOFF_MARGIN:
+        if kickoff - now < sport_day.KICKOFF_MARGIN:
             continue
         open_n += 1
         rows.append((kickoff, top))
@@ -339,7 +339,7 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     if on_coupon:
         refreshed = False
         shadow = [state.sports.get(s, SportState(s)) for s in SHADOW_SPORTS]
-        sport_trigger = sport_coupon.MAX_PRICE_AGE - SPORT_REFRESH_MARGIN
+        sport_trigger = sport_day.MAX_PRICE_AGE - SPORT_REFRESH_MARGIN
 
         def stale(s: SportState) -> bool:
             return (s.oldest_open_price is not None

@@ -38,7 +38,7 @@ output and stop; never repair code.
     - uncalibrated, informational, never a gate and never the sort order.
 - The price is only the betting condition: x = confidence x odds >= 0.90,
   group margin <= 15%, odds >= 1/0.9202, a pre-start snapshot no older than
-  `sport_coupon.MAX_PRICE_AGE`. Never describe a leg as value or edge, and
+  `sport_day.MAX_PRICE_AGE`. Never describe a leg as value or edge, and
   never compute, print or estimate a combined price. No stake advice.
 - `UNFITTED_CONSTANTS` stays on every artifact and in your report.
 

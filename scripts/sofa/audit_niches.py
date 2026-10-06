@@ -543,8 +543,8 @@ def latest_artifact(reports_dir: Path, date: str) -> dict[str, Any] | None:
 def render_section(art: dict[str, Any] | None, heading: str) -> list[str]:
     """audit_settlement's 7h: the scanner's latest out-of-sample verdict.
 
-    Separate from 7c (the coupon) and 7d (the variant) and never pooled with
-    them - the scanner bets nothing.
+    Separate from 7c (the coupon) and never pooled with it -
+    the scanner bets nothing.
     """
     out = [heading, ""]
     if art is None:
@@ -555,7 +555,7 @@ def render_section(art: dict[str, Any] | None, heading: str) -> list[str]:
     out.append(f"Okno {art['from']} … {art['to']}: **{'NISZA ZNALEZIONA' if found else 'BRAK NISZY'}** "
                f"— kandydatów {len(art.get('candidates', []))}, BH na "
                f"{art['bh']['m']} komórkach (FDR {art['bh']['q']:.2f}). Pomiar, nie kupon; "
-               "nie łączyć z 7c ani 7d.")
+               "nie łączyć z 7c.")
     out.append("")
     rows = []
     for s in art.get("scans", []):

@@ -123,9 +123,9 @@ def _days(start: str, end: str) -> list[str]:
 
 
 def settled_events(runs_dir: str, sport: str, date: str) -> dict[str, dict[str, Any]]:
-    from bet.sofa import sport_coupon
+    from bet.sofa import sport_day
 
-    path = sport_coupon.day_dir(runs_dir, sport, date) / "settled.json"  # type: ignore[arg-type]
+    path = sport_day.day_dir(runs_dir, sport, date) / "settled.json"  # type: ignore[arg-type]
     if not path.exists():
         return {}
     doc = json.loads(path.read_text(encoding="utf-8"))

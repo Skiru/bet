@@ -278,7 +278,7 @@ def settle_one(
     )
     if detail is None:
         detail = (sofa.client.event(int(event["id"])) or {}).get("event") or event
-    # Sofascore's own start: sport_coupon.grade_coupon refuses a printed price
+    # Sofascore's own start: sport_day.grade_legs refuses a printed price
     # taken at or after it (IN_PLAY_PRICE), and rule_history cuts its prices
     # there. Never written before 2026-10-01, so that guard could not fire
     # for CS2.

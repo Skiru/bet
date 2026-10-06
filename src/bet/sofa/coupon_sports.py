@@ -8,12 +8,12 @@ football and tennis. This module is what that needs:
 
 * `normalize` - the reader-facing names every 11 reader expects
   (`market` = family, `direction` = side, `offered_odds`, `leg_ev`), the
-  native fields kept, so sport_coupon.grade_coupon grades the leg unchanged;
+  native fields kept, so sport_day.grade_legs grades the leg unchanged;
 * `apply_reads` - vetoes / reads (reads.json, LegRead with `period`): NO_BET
   and WATCH remove, into removed_by_reads, like a football leg;
 * `locked_sport_legs` - legs the last printed coupon carried whose match has
   started: kept as printed (locked_print's rule, for sport legs);
-* `grade` - each leg graded at its printed price by sport_coupon.grade_coupon
+* `grade` - each leg graded at its printed price by sport_day.grade_legs
   from the sport's settled.json, after checking the settled record is the
   match identity pinned before the match (sport_fixtures.json); a different
   id is NOT_GRADED:ID_CHANGED.
@@ -29,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from bet.sofa import sport_coupon as sc
+from bet.sofa import sport_day as sd
 from bet.sofa.confidence import SHEET_SPORTS, too_close_to_kickoff
 from bet.sofa.contracts import LegRead, Veto
 from bet.sofa.locked_print import printed_after_its_start, started_by_printed_kickoff
@@ -142,7 +142,7 @@ def apply_reads(
             leg = {**leg, "reads": [
                 {"verdict": r.verdict, "author": r.author, "reason": r.reason}
                 for r in covering]}
-        refusal = read_refusal(covering, honours_watch=True)
+        refusal = read_refusal(covering)
         if refusal is not None:
             verdict = "NO_BET" if refusal == "READ_NO_BET" else "WATCH"
             removed.append({**leg, "refusal": refusal, "reason": "+".join(
@@ -343,12 +343,12 @@ def grade(
     load: Callable[[str, Any, set[str]], dict[str, dict[str, Any] | None]]
     | None = None,
 ) -> list[dict[str, Any]]:
-    """Every measured-sport leg graded at its printed price (grade_coupon),
+    """Every measured-sport leg graded at its printed price (grade_legs),
     per sport, from the settled.json its event settles into. A settled
     record whose Sofascore id is not the one pinned before the match
     (sport_fixtures.json) is NOT_GRADED:ID_CHANGED - never graded off
     another match."""
-    load = load or (lambda rd, sport, dates: sc.settled_for(rd, sport, dates))
+    load = load or (lambda rd, sport, dates: sd.settled_for(rd, sport, dates))
     pinned = pinned_ids(Path(runs_dir) / date)
     out: list[dict[str, Any]] = []
     for sport in MEASURED_SPORTS:
@@ -357,7 +357,7 @@ def grade(
             continue
         sources = {str(leg.get("source_date") or date) for leg in mine}
         settled = load(runs_dir, sport, sources | {date})
-        graded = sc.grade_coupon({"sport": sport, "date": date, "legs": mine},
+        graded = sd.grade_legs({"sport": sport, "date": date, "legs": mine},
                                  settled, at=at)
         for g in graded:
             src = str(g.get("source_date") or date)

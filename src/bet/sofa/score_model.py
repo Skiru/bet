@@ -1,9 +1,8 @@
 """A score model for hockey, basketball and volleyball - the measured sports.
 
 Until 2026-10-01 these sports had no model: SHADOW recorded Superbet's lines,
-SHADOW_SETTLE graded them, and the experimental sport coupons priced every
-leg at Superbet's own devigged price. This module is the first model of the
-score itself, built on what the pipeline already trusts:
+SHADOW_SETTLE graded them against Superbet's own devigged price. This module
+is the first model of the score itself, built on what the pipeline already trusts:
 
   * the rating is football_rating.RatingBook - opponent-adjusted attack and
     defence ratios per competition, league strength learnt only across
@@ -19,8 +18,8 @@ score itself, built on what the pipeline already trusts:
     with a spread measured on the replayed history; a volleyball set is won
     with a probability read off the two sides' points-per-set expectations.
 
-It prices nothing by itself and gates nothing: sport_coupon decides what, if
-anything, it is allowed to change, and only on measurement.
+It prices nothing by itself and gates nothing: SPORT_CONFIDENCE reads it only
+through a calibration fitted without prices (fit_sport_confidence.py).
 """
 
 from __future__ import annotations

@@ -40,10 +40,10 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from pydantic import RootModel  # noqa: E402
 
 from bet.sofa.confidence import (  # noqa: E402
+    COUPON_PROFILE,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
-    PROFILES,
     coupon_artifact,
     is_sheet_sport,
     is_stakeable,
@@ -145,7 +145,7 @@ def main() -> int:
             "legs": [{**s_, "odds": s_["offered_odds"]}],
         }
         # The measured sports' legs on a stats-only coupon are not sheet
-        # rows and are graded by sport_coupon (plan F7).
+        # rows and are graded by coupon_sports (plan F7).
         for s_ in printed_singles(conf) if is_sheet_sport(s_)
     ]
     leg_index = {(conf_leg["sofascore_event_id"], conf_leg["market"],
@@ -164,7 +164,7 @@ def main() -> int:
             meta = leg_index.get(k, {})
             vals, age = observations(k[0], slip_leg["market"], slip_leg["subject"])
             gates = []
-            if not PROFILES["standard"].clears_price(slip_leg["confidence"],
+            if not COUPON_PROFILE.clears_price(slip_leg["confidence"],
                                                      slip_leg["odds"]):
                 gates.append("NEGATIVE_LEG_EV")
             if slip_leg["odds"] < MIN_ODDS_FOR_CEILING:
@@ -341,7 +341,7 @@ def main() -> int:
             continue
         vals, age = observations(k[0], conf_leg["market"], conf_leg["subject"])
         gates = []
-        if not PROFILES["standard"].clears_price(conf_leg["confidence"],
+        if not COUPON_PROFILE.clears_price(conf_leg["confidence"],
                                                  conf_leg["offered_odds"]):
             gates.append("NEGATIVE_LEG_EV")
         if conf_leg["offered_odds"] < MIN_ODDS_FOR_CEILING:

@@ -296,7 +296,7 @@ Gates, in order, each with its own `06_dropped.json` reason:
 | `KICKOFF_TOO_SOON` | `min(kickoff_utc, superbet_kickoff_utc)` is not more than 15 min out. **The earlier of the two clocks**, deliberately — see RESOLVE. |
 | `ODDS_TOO_LOW` | below `MIN_ODDS_FLOOR = 1.25` |
 | `VETOED` | matched an entry in `vetoes.json` |
-| `READ_NO_BET` / `WATCHED` | a `reads.json` entry with verdict `NO_BET` / `WATCH` covers the row (since 2026-10-04; COUPON honours WATCH like the official profile) |
+| `READ_NO_BET` / `WATCHED` | a `reads.json` entry with verdict `NO_BET` / `WATCH` covers the row (since 2026-10-04; COUPON refuses both the same way) |
 | `STALE_PRICE` | no `fetched_at`, or older than `price_max_age_min` (45) |
 | `DISAGREES_WITH_PRICE` | `p_central − market_p > MAX_DISAGREEMENT = 0.10`. **Measured, not cautious**: past +0.10 the realised rate falls BELOW a coin flip while the claim keeps climbing (+0.30 and up: claims 0.800, realises 0.451 over 328 rows). Until 2026-09-21 this gate existed only on the staked path, so the singles file was the *more permissive* of the two products. It is now routinely the largest single reason a day's coupon is empty — 84 of 118 VALUE rows on 2026-09-21. |
 | `ABOVE_MEASURED_CEILING` | `p_central` is at or above the top of this market's **own measured** calibration range. Only markets that *have* a curve are gated — one with no curve is unmeasured rather than contradicted. `games_won_for` has 9,286 settled rows and no bucket above 0.825, yet seven coupon rows one day claimed 0.900: not an optimistic estimate, a claim about a region the data refuses to describe. |
@@ -346,8 +346,8 @@ stats-only day the input of COUPON_ASSEMBLY, not the coupon.
 --date D  [--floor F]  [--runs-dir runs/sofa]
 ```
 
-Leave `--floor` out: the official floor is 0.70 (`confidence.PROFILES`
-`standard`: floor 0.70, `min_ev` 0.90, `max_overround` 0.15, honours WATCH).
+Leave `--floor` out: the official floor is 0.70 (`confidence.COUPON_PROFILE`:
+floor 0.70, `min_ev` 0.90, `max_overround` 0.15).
 Passing a floor builds a different experiment under the official file name.
 
 Every number is the **lower bound** of the measured realised rate, so a thin
@@ -523,10 +523,6 @@ match block; locked legs in their own section; a column "model"
 `start przed renderem PDF`; a builder prints only `kurs po narzucie`, never
 the product of its legs' prices. Rendered to a temporary file and moved into
 place. Needs `reportlab`.
-
-Retired 2026-10-05: `--profile wariant` (and `run_confidence.py --profile
-wariant`) is refused for builds after 07:15Z; historical WARIANT files of
-earlier days stay.
 
 ## SETTLE (E10) — `src/bet/sofa/settle.py`, `scripts/sofa/run_settle.py`
 

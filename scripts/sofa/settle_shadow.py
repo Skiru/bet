@@ -723,7 +723,7 @@ def settle_one(
         "overtime": result.overtime,
         # The winner as Sofascore decided it: a shootout's deciding goal is
         # not always in `current`, so the score alone cannot say (read back by
-        # sport_coupon.grade_coupon).
+        # sport_day.grade_legs).
         "winner": result.winner,
         **counts,
         "graded": graded,
@@ -934,7 +934,7 @@ def settle_sport(
             unreadable += 1
     events = latest_pre_kickoff(snapshots)
     # An event whose last pre-start record quotes nothing (run_shadow's empty
-    # record) is still settled: its result grades the sport coupon's legs,
+    # record) is still settled: its result grades the coupon's sport legs,
     # and settle_one may re-cut at Sofascore's earlier start and find the
     # last real pre-start price (review round 2, 2026-10-04: Kuanysh (K) -
     # Karaganda (K), a printed leg, would have been dropped). Counted only.

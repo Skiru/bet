@@ -531,7 +531,7 @@ class SnapshotEvent:
     fetched_at: dict[tuple[str, int, str, float | None, str], str] = field(
         default_factory=dict
     )
-    # The snapshot file the event was read from (set by sport_coupon).
+    # The snapshot file the event was read from (set by sport_day).
     source_date: str | None = None
 
 
@@ -1138,7 +1138,7 @@ def append_records(path: Path, records: list[dict[str, Any]]) -> None:
     """Append snapshot records as whole lines, under an exclusive lock.
 
     Every appender goes through here (run_cs2, run_shadow), so a reader's
-    shared lock (sport_coupon.read_snapshots) sees whole records only. A file
+    shared lock (sport_day.read_snapshots) sees whole records only. A file
     whose last write was torn by a crash gets a newline first, so the next
     good record never glues onto the broken one.
     """

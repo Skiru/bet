@@ -828,10 +828,9 @@ trzy pliki, które nazywają się kuponem; stawia się **wyłącznie
 ## 10. CONFIDENCE — legi i Bet Buildery (to jest droga do produktu)
 
 `src/bet/sofa/confidence.py`, `scripts/sofa/run_confidence.py --date <d>
-[--profile standard|wariant] [--floor …] [--runs-dir runs/sofa]` →
-**`08_confidence.json`**, **`08_confidence.md`**. `--floor` to
-`BELOW_CONFIDENCE_FLOOR`; domyślnie **0,70** (`DEFAULT_FLOOR`, profil
-`standard`).
+[--runs-dir runs/sofa] [--calibration <plik>]` →
+**`08_confidence.json`**, **`08_confidence.md`**. Próg
+`BELOW_CONFIDENCE_FLOOR` to **0,70** (`confidence.COUPON_PROFILE`).
 
 **Epoka `stats_only` (od 2026-10-05 07:15Z, `bet.sofa.epochs`).** Pewność
 jest wyłącznie ze statystyk: SHEET trzyma cenę poza `p_central`, a cena jest
@@ -846,13 +845,6 @@ sportów `score_model`, `cs2_engine`) — „model”, nieskalibrowany, nigdy
 bramka. CONFIDENCE odmawia (kod 2) arkusza zbudowanego nie pod tą regułą —
 przebudowa reguły zaczyna się od SHEET. Sortowanie singli:
 `(-confidence, kickoff_utc, sofascore_event_id, market, line)`.
-
-**Historyczne: wariant operatora (`--profile wariant`, 2026-09-23 –
-2026-10-05).** Próg 0,65, x ≥ 0,90, marża do 15%, pliki
-`08_confidence_wariant.json/.md` i `KUPON_<data>_WARIANT.pdf`, rozliczany w 7d.
-Wycofany 2026-10-05 od 07:15Z: `--profile wariant` odmawia (kod 2) dla
-późniejszych buildów; pliki do poranka 10-05 zostają i są rozliczane po
-staremu.
 
 COUPON pyta „czy to warte ceny". CONFIDENCE pyta **inne pytanie**: „jak często
 to się w ogóle zdarza". Na 6187 wierszach z realną ceną model **przegrywa**
@@ -986,7 +978,7 @@ albo silnika CS2 (`cs2_engine`), bez ceny. Pola nogi: `sport`, `group_key`
 `source_date`, `price_fetched_at_utc`, `match`, `competition`. Odmowy:
 `NOT_IDENTIFIED`, `DUPLICATE_*`, `KICKED_OFF` (wcześniejszy z zegarów
 Superbetu i Sofascore), `STALE_PRICE` (najnowsza migawka przed startem
-starsza niż `sport_coupon.MAX_PRICE_AGE` = 3 h), `MARKET_NOT_ALLOWED` (lista
+starsza niż `sport_day.MAX_PRICE_AGE` = 3 h), `MARKET_NOT_ALLOWED` (lista
 `sport_confidence.ALLOWED_MARKETS` / `CS2_FAMILIES`), `NOT_CALIBRATED`,
 `BELOW_FLOOR` (0,70), `BELOW_MIN_X` (x < 0,90), `ODDS_TOO_LOW` (kurs <
 1/0,9202), `MARGIN_TOO_HIGH` (marża grupy > 15%), `INCOMPLETE_GROUP`,
@@ -998,7 +990,7 @@ tak powstaje, kupon piłki i tenisa buduje się dalej.
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 
 `scripts/sofa/build_coupon.py --date <d>` (albo `run_pipeline.py --only
-COUPON_ASSEMBLY`), offline. Wejście: `08_confidence.json` (profil standard,
+COUPON_ASSEMBLY`), offline. Wejście: `08_confidence.json` (profil kuponu `COUPON_PROFILE`,
 epoka `stats_only`; odmowa, gdy jest inny albo starszy niż `05_sheet.json`,
 weta, odczyty lub kalibracja) i `08_confidence_sports.json`. Wyjście:
 **`runs/sofa/<d>/11_coupon.json`** (+ `11_coupon.md`) — nadzbiór formatu 08;
@@ -1086,8 +1078,7 @@ starszy niż `05_sheet.json`, `vetoes.json`, `reads.json` albo kalibracja;
 albo `config/sofa_coupon_form.json`. Potem zapisuje
 `12_printed.json` (manifest wydruku), z którego następna przebudowa blokuje
 nogi. Buildery: wyłącznie pozycje przechodzące `is_stakeable`, każda z
-własnym śladem dowodowym. `--profile wariant` (historyczne) odmawia dla
-buildów po 2026-10-05 07:15Z. **`picks: 0` to odpowiedź legalna i częsta** — i zwykle jest
+własnym śladem dowodowym. **`picks: 0` to odpowiedź legalna i częsta** — i zwykle jest
 skutkiem narzutu korelacyjnego, nie braku danych.
 
 Oznaczenia na stronie (od 2026-10-01; pokazane, nie egzekwowane):
@@ -1108,7 +1099,7 @@ Oznaczenia na stronie (od 2026-10-01; pokazane, nie egzekwowane):
   zdanie nad listą z liczbą takich drabin. Dwa szczeble jednej drabiny to
   jedno twierdzenie o jednej liczbie kupione dwa razy — 2026-09-30 kupon
   wydrukował na jednym meczu corners_total 12.5 poniżej, 11.5 poniżej i 7.5
-  powyżej, a 2026-10-01 WARIANT dziesięć takich drabin (22 wiersze). Limit na
+  powyżej. Limit na
   mecz był testowany wstecz i jest decyzją operatora.
 - **„start przed renderem PDF”**, gdy noga w chwili renderowania jest już
   w marginesie startu CONFIDENCE (`MIN_MINUTES_TO_KICKOFF`, wcześniejszy
@@ -1142,9 +1133,6 @@ dodane trzy pomiary — żaden nie zmienia kuponu:
   niż zysku, więc odpowiada w dziesiątkach nóg, a nie tysiącach. To
   zamknięcie bukmachera „miękkiego" — słabszy test niż zamknięcie ostrej ceny;
   linia, której Superbet nie rusza, to „nietestowane", nie „neutralne".
-  Pierwszy odczyt (kupony sportowe 09-30): −2,3% … −7,1% — kurs prawie się
-  nie rusza, więc CLV ≈ ujemna marża, czego należy oczekiwać po kuponie z
-  samej ceny.
 - **Boosty**: pojedynczy boost dostaje EV wobec swojego rynku sprzed podbicia
   z całym rynkiem zdjętym z marży (`Boost.fair_p`, `ev_at_fair`). Kombinacja
   nie dostaje żadnego prawdopodobieństwa (zasada: żadnej ceny kombinacji poza
@@ -1156,16 +1144,14 @@ dodane trzy pomiary — żaden nie zmienia kuponu:
   2026-10-01; nogi jednego meczu dzielą jego scenariusz, a dzień też nie jest
   jednostką — przy dwóch dniach bootstrap po dniach zwracał tylko ROI tych
   dwóch dni). Poniżej 20 meczów kolumna pokazuje „- (<20 matches)”, a dzień
-  zapisany bez rekordu per mecz (sprzed 2026-10-01 albo powtórka reguły,
-  która zapisuje same sumy) daje „- (no per-match record)” — pominięcie go
+  zapisany bez rekordu per mecz (sprzed 2026-10-01) daje „- (no per-match record)” — pominięcie go
   zniekształciłoby przedział. Rekord dnia niesie `by_match`
   (`{mecz: [jednostki, rozliczone]}`) i `estimated_builders`: buildery
   rozliczone po szacunku `odds_if_product × haircut`, bo nie zapisano kursu
   z ekranu (7c „(szac.)”) — `audit_ledger` pokazuje je w osobnej kolumnie, bo
   to nie jest kurs, który Superbet wydrukował. Pierwszy odczyt (jeszcze po
   dniach, sprzed tej zmiany): oficjalny kupon 09-19..30 −1,8% [−9,0%;
-  +11,1%], WARIANT −3,8% [−5,3%; −1,3%] — przedziały po dniach, nie do
-  porównania z nowymi.
+  +11,1%] — przedział po dniach, nie do porównania z nowymi.
 - **Czego to nie zmienia** (przegląd literatury i praktyki): model z samych
   wyników nie bije ceny na zwycięzcy (rynek zna składy, kontuzje, bramkarza);
   sumy niosą trochę informacji; rynki siatkówki są niezbadane. Przewaga u
@@ -1214,8 +1200,7 @@ Odczyt: `scripts/sofa/audit_settlement.py --date <d>` — **sekcja 7c to
 prawdziwy wynik kuponu z PDF** (w dniu `stats_only`: tabela per sport ×
 epoka, tabela sportów mierzonych po kursie z wydruku, „Suma kuponu”; zwroty
 osobno); **7i „Nogi zdjęte przez odczyt”** — `removed_by_reads`, osobno,
-nigdy w wyniku kuponu; 7d (WARIANT) tylko dla dni do poranka 2026-10-05
-(historyczne). Sekcje 7 i 7b to materiał wejściowy (legi i kandydaci),
+nigdy w wyniku kuponu. Sekcje 7 i 7b to materiał wejściowy (legi i kandydaci),
 **nie zakłady**. Potem `scripts/sofa/audit_day_deep.py --date <d>`
 — czy pudło było **systematyczne** (środek w złym miejscu) czy **dyspersją**,
 i czy dzisiejsze bramki nadal postawiłyby wczorajszy zakład.
@@ -1265,28 +1250,19 @@ runs/sofa/<data>/
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
   reads.json           LegRead[]          werdykty o nogach (KEEP / WATCH / NO_BET)
   read_requests.json                      prośby operatora o dodatkowy odczyt (pozycja albo group_key)
-  08_confidence_wariant.json/.md, KUPON_<data>_WARIANT.pdf
-                                          historyczne (wycofane 2026-10-05 07:15Z): wariant, rozliczany w 7d
   10_boosts.json/.md   Boost[]            boosty Superbeta — NIE są kuponem (run_boosts.py)
 
 runs/sofa/cs2/<data>/   — obok dnia, nigdy w nim
   snapshots.jsonl      linie CS2 Superbeta przed startem serii (run_cs2.py, etap CS2)
   settled.json         te linie ocenione z danych Sofascore (settle_cs2.py, CS2_SETTLE)
-  sport_coupon.json/.md, sport_coupon_builds.jsonl, sport_coupon_settled.json, KUPON_<data>_CS2.pdf
-                       historyczne (wycofane 2026-10-05 08:30Z): kupon eksperymentalny CS2
 
 runs/sofa/shadow/<sport>/<data>/   — sport: hockey | basketball | volleyball
   snapshots.jsonl      linie Superbeta przed startem meczu (run_shadow.py, etap SHADOW)
   settled.json         te linie ocenione z wyniku Sofascore (settle_shadow.py, SHADOW_SETTLE)
-  sport_coupon.json/.md, sport_coupon_builds.jsonl, sport_coupon_settled.json,
-  KUPON_<data>_{HOKEJ,KOSZYKOWKA,SIATKOWKA}.pdf
-                       historyczne (wycofane 2026-10-05 08:30Z): kupon eksperymentalny sportu
 
-runs/sofa/multi/<data>/                   historyczne (wycofane 2026-10-05 07:15Z)
-  multi_coupon.json/.md, multi_coupon_settled.json, KUPON_<data>_WSZYSTKIE.pdf
-
-runs/sofa/ledger/results.jsonl            dziennik: jeden wiersz na (dzień, wariant) — official, official:pre_stats_only, removed:reads,
-                                          measure:<sport>, rule:<sport> (dawniej też wariant, sport:<sport>, multi); record_results.py; czyta audit_ledger.py
+runs/sofa/ledger/results.jsonl            dziennik: jeden wiersz na (dzień, grupę) — official, official:pre_stats_only, removed:reads,
+                                          measure:<sport>; record_results.py; czyta audit_ledger.py
+                                          (wiersze wariant / multi / sport:<sport> / rule:<sport> to wycofane warianty dni do 2026-10-05: czytane, nigdy łączone)
 ```
 
 Od 2026-10-01 każdy artefakt etapu, PDF i plik fitu w `config/` jest
@@ -1308,10 +1284,9 @@ w arkuszu — API ofert Superbeta nie podaje wyników.
 
 Od 2026-09-28 `sofa` mierzy Counter-Strike 2 obok kuponu. To **pomiar, nie
 rynek na kupon**: pytanie brzmi, czy kurs Superbeta po zdjęciu marży już zgadza
-się z tym, co się dzieje — jeśli tak, próbka nie ma czego dodać i CS2 na kupon
-nie trafia. Nic z `runs/sofa/cs2/` nie jest czytane przez etap, który buduje
-kupon. Od 2026-09-30 obok pomiaru jest eksperymentalny `KUPON_<d>_CS2.pdf`
-(tylko cena, bez modelu) — też NIE kupon.
+się z tym, co się dzieje. Pomiar sam niczego nie bramkuje; od 2026-10-05
+08:30Z migawki z `runs/sofa/cs2/` są wejściem SPORT_IDENTITY i
+SPORT_CONFIDENCE (§10a), a `settled.json` rozlicza nogi CS2 na kuponie.
 
 ```
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>   --only CS2         # kilka razy dziennie
@@ -1324,7 +1299,7 @@ Cały dzień CS2 bez obsługi (zapis cen co 30 min do 23:30Z; z `--chain` o
 05:00Z CS2_SETTLE dla D i D-1, potem przegląd D-7..D-2
 (`settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>` — tylko daty, których
 `settled.json` brakuje albo wciąż ma czekającą serię, rozstrzygnięte offline
-z plików), rozliczenie kuponów CS2 i dziennik za D-7..D, krótki backfill
+z plików), dziennik za D-7..D, krótki backfill
 z poszanowaniem karencji i audyt do logu; druga pętla dla tej samej daty
 odmawia, kod 2). Bez przeglądu seria, która wciąż czekała na D-2, nie była
 już nigdy pytana i nie dochodziła nawet do `GAVE_UP` po 7 dniach (audyt
@@ -1365,7 +1340,7 @@ naprawi sam, bo wymaga zamknięcia Chrome. Każda linia logu zaczyna się od
   z `pending_sides` > 0 (`pending_reason` `SERIES_ONLY` / `STATS_PENDING`)
   jest pytany ponownie, a nieudana ponowna próba nigdy nie zastępuje ocen,
   które już są. Rekord ma `sofascore_start_utc` (od 2026-10-01), więc
-  `IN_PLAY_PRICE` kuponu sportowego działa też dla CS2. `settled.json` jest
+  `IN_PLAY_PRICE` nóg sportów na kuponie (`sport_day.grade_legs`) działa też dla CS2. `settled.json` jest
   zapisywany pod blokadą (`<plik>.lock`): równoległe rozliczenie (strażnik,
   ręczne) zachowuje serie, których to nie dotknęło. Nazwy: sufiks „.gg”
   (Superbet „KUUSAMO” / Sofascore „KUUSAMO.gg”) i znaczniki składu kobiet
@@ -1479,9 +1454,7 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   settle i audycie sam startuje pętlę D+1 (też z `--chain`) do
   `daily_<D+1>.log`. Łańcuch zatrzymuje się, zabijając pid z
   `daily_<d>.pid`. Rano po SHADOW_SETTLE (D, D-1 i D-2 — każdy dzień,
-  który ma migawki) pętla rozlicza kupony sportów za te dni
-  (`settle_sport_coupon.py`, tylko dni do 2026-10-05 — historyczne, kupony
-  wycofane 2026-10-05) i zapisuje dziennik (`record_results.py --from
+  który ma migawki) pętla zapisuje dziennik (`record_results.py --from
   <najwcześniejszy> --to D`). D-2 doszło 2026-10-01: przełożony mecz staje
   się `VOID` dopiero 48 h po starcie, a settle D-1 o 05:15Z jest najwyżej
   ~35 h po nim — bez D-2 przełożony mecz nigdy nie był `VOID` i kończył jako
@@ -1590,9 +1563,8 @@ b = 0,98 [−0,07; 2,14] przy wadze ceny c = 0,10, koszykówka b = 0,70
 koszykówka −0,14, CS2 ok. 0): rynek zna składy, kontuzje i bramkarza.
 
 Żaden sport nie przeszedł reguły wejścia (blend lepszy od ceny z przedziałem
-bez zera na co najmniej dwóch dniach), więc kupony sportowe zostały z samej
-ceny (do ich wycofania 2026-10-05). Od 2026-10-05 08:30Z model wchodzi na
-kupon inaczej: nie jako blend z ceną, tylko przez krzywą kalibracji bez cen
+bez zera na co najmniej dwóch dniach). Od 2026-10-05 08:30Z model wchodzi na
+kupon nie jako blend z ceną, tylko przez krzywą kalibracji bez cen
 (`config/sofa_sport_confidence_calibration.json`, §10a), a cena jest tylko
 filtrem. Kandydaci do obserwacji: sumy hokeja i koszykówki, siatkówka. CS2: silnik dostał Elo zawodników (składy zamiast nazw drużyn; na
 historii 0,2382 → 0,2368, bootstrap po seriach [−0,00268; −0,00025]), ale
@@ -1632,16 +1604,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>           # dziennik runs/sofa/ledger/results.jsonl; zastępuje wiersze tych dat
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d>                 # odczyt dziennika: tabela na wariant i epokę, nigdy łącznie
-
-# historyczne (wycofane 2026-10-05) — tylko rozliczenie dni do poranka 10-05:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_sport_coupon.py --from <d> --to <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_multi_coupon.py --from <d> --to <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d>                 # odczyt dziennika: tabela na grupę i epokę, nigdy łącznie
 ```
 
 Kody wyjścia: **0 = OK, 1 = PARTIAL, 2 = FAILED**. Wyjątek od 2026-09-30:
-`record_results.py` (oraz historyczne `settle_sport_coupon.py` i
-`settle_multi_coupon.py`) kończy się `0` także wtedy, gdy pozycje jeszcze czekają (widać je w tabeli,
+`record_results.py` kończy się `0` także wtedy, gdy pozycje jeszcze czekają (widać je w tabeli,
 kolumna `pending`), `1` tylko przy `MISMATCH` (dwa oceniające nie zgadzają
 się co do nogi — to defekt) albo nieczytelnym pliku, `2` przy awarii albo
 (record_results) braku bazy.
@@ -1656,28 +1623,10 @@ odmawiają go czytać (`UPSTREAM_INCOMPLETE`, kod 2), aż czysty RESOLVE usunie
 znacznik. Baza działa w trybie WAL (czytający nie blokują zapisu), a zajęty
 COMMIT jest ponawiany (`bet.sofa.db`).
 
-Historyczne (kupony sportowe i WSZYSTKIE wycofane 2026-10-05; dziennik
-działa tak dalej). Od 2026-10-01 rozliczenie kuponów sportowych, WSZYSTKIE i dziennik sięga
-`--from <D-8>`: noga, która po 7 dniach od startu wciąż czeka
+Od 2026-10-01 rozliczenie nóg sportów mierzonych (`sport_day.grade_legs`) i
+dziennik sięga `--from <D-8>`: noga, która po 7 dniach od startu wciąż czeka
 (`NOT_ON_SOFASCORE`, `DATA_MISMATCH`), staje się `NOT_GRADED:GAVE_UP`, czyli
-nierozliczona, a nie wiecznie „pending”. Kupon sportowy nie bierze już
-sparingów ani turniejów, których pomiar nie znalazł na Sofascore
-(`friendly_tournament`, `unsettleable_tournament`; lista z dowodem w
-`sport_coupon.json`). Turniej jest „nierozliczalny”, gdy w ostatnich 14
-rozliczonych dniach przed D co najmniej połowa z ≥ 2 jego meczów była
-`NOT_ON_SOFASCORE` — albo, od audytu 2026-10-01, gdy **każdy** z jego
-widzianych meczów (≥ 1) był `NOT_ON_SOFASCORE` (`UNSETTLEABLE_ALL_MIN_EVENTS`;
-kupon siatkówki 10-01 wydrukował dwie nogi „Brazylia - Paulista U19” i jedną
-„Szwecja - Puchar Ligi”, każdy z jednym wcześniejszym, nieznalezionym meczem —
-1/1 prześlizgnęło się pod regułą ≥ 2). Turniej niewidziany przechodzi: nie ma
-jeszcze dowodu przeciw niemu. Dwie odmowy tylko dla CS2 (od 2026-10-01):
-`unseen_team` — strona, której magazyn serii (`cs2_series`) nigdy nie widział
-(dopasowanie nazw jak w CS2_SETTLE; „Winners series 1x1” 09-30 poszło 30/30
-`NOT_ON_SOFASCORE`), liczone raz na budowę i zapisane w `refused_events`, żeby
-`audit_variants` powtórzył dokładnie to, co budowa odrzuciła; pusty magazyn
-nie odrzuca niczego — i `no_tournament` — zdarzenie CS2 bez turnieju (gdy
-Superbet nie oddał struktury), którego ani bramka sparingów, ani
-nierozliczalnych nie umie przeczytać. Noga CS2 z serii ocenionej częściowo
+nierozliczona, a nie wiecznie „pending”. Noga CS2 z serii ocenionej częściowo
 (`pending_sides` w `settled.json`) jest `PENDING:<pending_reason>`, nie
 `UNGRADEABLE`, dopóki rekord nie jest ostateczny albo noga nie minie 7 dni.
 

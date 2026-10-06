@@ -35,7 +35,7 @@ def frozen_clock_refusal(runs_dir: str | Path) -> str | None:
     """A refusal message when SOFA_NOW is set and `runs_dir` is the real one.
 
     Review 2026-10-04: only run_pipeline refused a frozen clock, while
-    CONFIDENCE, the PDF and WSZYSTKIE time their kickoff and stale-price
+    CONFIDENCE and the PDF time their kickoff and stale-price
     gates on now() - a shell left over from an as-of replay would print
     started matches and stale prices into the real day. A replay writes a
     scratch runs dir; the real one is refused.

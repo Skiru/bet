@@ -163,7 +163,7 @@ MIN_BUCKET = 200  # a bucket under this is unused (plan F4)
 MAX_OVERSTATEMENT = 0.03  # F6: OOS confidence above realised by more: refused
 BOOTSTRAP = 2000
 # The rows a coupon could print: confidence at or above the official floor
-# (confidence.PROFILES["standard"].floor; a test holds the two equal). The
+# (confidence.COUPON_PROFILE.floor; a test holds the two equal). The
 # out-of-sample summary reports them on their own.
 PRINTABLE_FROM = 0.70
 UNFITTED_CONSTANTS = (
