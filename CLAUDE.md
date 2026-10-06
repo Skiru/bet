@@ -1,5 +1,28 @@
 # Working agreement — `bet`
 
+## Night 2026-10-05/06 - every sport's refusals read, defects fixed (report `docs/sofa/history/RAPORT_NOC_2026-10-06.md`)
+
+Operator: "one coupon, many sports, improve it" (no variants, player props stay off).
+From the 10-06 day on (`bet.sofa.epochs`, none acts on 10-05):
+- **National teams** (`NATIONAL_SAMPLE_AGE_FROM_UTC`): RESOLVE records `national_teams`
+  (both sides' Sofascore `national`); CONFIDENCE judges such a fixture's sample by count,
+  not by the 180-day SAMPLE_CROSSES_SEASON, and shows `NATIONAL_SAMPLE_AGE(oldest N d)`.
+  It refused 157 national-team legs on 10-05 (all 8 Nations League fixtures); trimming to
+  180 days measured worse (goals_for +0.022 log-loss), calibration flat by age
+  (`docs/sofa/evidence/national_samples_2026-10-05.md`).
+- **Sport calibration refit (between days, 00:05Z 10-06):** hockey and volleyball on the
+  full history (`--max-games 20000`), hockey period families now from the history
+  walk-forward: + `period_total|OVER`, `period_team_total|OVER`. Basketball kept
+  NOT_CALIBRATED (h1 UNDER would pass on 7 / 22 settled rows while every full-game key
+  overstates); CS2 unchanged (engine loses to the price, worst on tier-1). Backup
+  `config/backup_2026-10-06_sport_calibration/`.
+- **Sport identity:** the shadow / CS2 daily loops run SPORT_IDENTITY for D and D+1 after
+  every snapshot (a started game is in no Sofascore listing; 10-05's first run was 08:22Z).
+  Names: letter.letter is a word break ("Mac.Ashdod"), U10-U13 are squads, alias
+  "mega superbet". A started unidentified game counts KICKED_OFF.
+- **CS2:** a team-rounds line outside the curve's fitted lines (9.5-12.5) is refused
+  LINE_OUTSIDE_FIT (latent - nothing admitted).
+
 ## Production-grade epoch 2026-10-06 (`bet.sofa.epochs`, plan `docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md`)
 
 Written 2026-10-05 mid-day, so the 10-05 coupon is unaffected; a day >= 2026-10-06
