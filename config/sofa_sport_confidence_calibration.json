@@ -24,365 +24,637 @@
      "2026-10-04"
     ],
     "rows": {
-     "history_fit": 283374,
-     "history_holdout": 111253,
-     "settled_fit": 1945,
-     "superbet_settled": 18271
+     "history_fit": 2396122,
+     "history_holdout": 313284,
+     "settled_fit": 0,
+     "superbet_settled": 20216
     },
     "games": {
-     "history_fit": 4258,
+     "history_fit": 12783,
      "history_holdout": 1667,
-     "settled_fit": 132,
+     "settled_fit": 0,
      "superbet_settled": 542
     },
     "sims": 2000,
-    "max_games": 4000,
+    "max_games": 20000,
     "forecast_source": "score_model"
    },
    "curves": {
     "handicap|TEAM": {
      "0.000-0.600": {
-      "n": 42612,
-      "realised": 0.2565,
-      "realised_lo95": 0.2524
+      "n": 128016,
+      "realised": 0.26,
+      "realised_lo95": 0.2576
      },
      "0.600-0.700": {
-      "n": 5677,
-      "realised": 0.6523,
-      "realised_lo95": 0.6398
+      "n": 17017,
+      "realised": 0.651,
+      "realised_lo95": 0.6438
      },
      "0.700-0.750": {
-      "n": 3321,
-      "realised": 0.7218,
-      "realised_lo95": 0.7063
+      "n": 9879,
+      "realised": 0.7127,
+      "realised_lo95": 0.7037
      },
      "0.750-0.800": {
-      "n": 3517,
-      "realised": 0.7606,
-      "realised_lo95": 0.7462
+      "n": 10653,
+      "realised": 0.7659,
+      "realised_lo95": 0.7578
      },
      "0.800-0.825": {
-      "n": 1969,
-      "realised": 0.8116,
-      "realised_lo95": 0.7937
+      "n": 5795,
+      "realised": 0.7938,
+      "realised_lo95": 0.7832
      },
      "0.825-0.850": {
-      "n": 1913,
-      "realised": 0.8265,
-      "realised_lo95": 0.8088
+      "n": 5930,
+      "realised": 0.8212,
+      "realised_lo95": 0.8113
      },
      "0.850-0.875": {
-      "n": 2241,
-      "realised": 0.8536,
-      "realised_lo95": 0.8384
+      "n": 6584,
+      "realised": 0.8477,
+      "realised_lo95": 0.8388
      },
      "0.875-0.900": {
-      "n": 2492,
-      "realised": 0.8748,
-      "realised_lo95": 0.8612
+      "n": 7419,
+      "realised": 0.8733,
+      "realised_lo95": 0.8655
      },
      "0.900-0.925": {
-      "n": 2898,
-      "realised": 0.9044,
-      "realised_lo95": 0.8932
+      "n": 8907,
+      "realised": 0.8969,
+      "realised_lo95": 0.8904
      },
      "0.925-0.950": {
-      "n": 4011,
-      "realised": 0.9265,
-      "realised_lo95": 0.918
+      "n": 11837,
+      "realised": 0.9268,
+      "realised_lo95": 0.9219
      },
      "0.950-1.010": {
-      "n": 4305,
-      "realised": 0.9675,
-      "realised_lo95": 0.9618
+      "n": 12939,
+      "realised": 0.9608,
+      "realised_lo95": 0.9573
+     }
+    },
+    "period_1x2|DRAW": {
+     "0.000-0.600": {
+      "n": 38349,
+      "realised": 0.2986,
+      "realised_lo95": 0.2941
+     }
+    },
+    "period_1x2|TEAM": {
+     "0.000-0.600": {
+      "n": 75987,
+      "realised": 0.3477,
+      "realised_lo95": 0.3443
+     },
+     "0.600-0.700": {
+      "n": 581,
+      "realised": 0.6661,
+      "realised_lo95": 0.6268
+     }
+    },
+    "period_handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 230725,
+      "realised": 0.2186,
+      "realised_lo95": 0.217
+     },
+     "0.600-0.700": {
+      "n": 36195,
+      "realised": 0.649,
+      "realised_lo95": 0.6441
+     },
+     "0.700-0.750": {
+      "n": 15451,
+      "realised": 0.7106,
+      "realised_lo95": 0.7034
+     },
+     "0.750-0.800": {
+      "n": 12817,
+      "realised": 0.7794,
+      "realised_lo95": 0.7722
+     },
+     "0.800-0.825": {
+      "n": 8354,
+      "realised": 0.8136,
+      "realised_lo95": 0.8051
+     },
+     "0.825-0.850": {
+      "n": 11625,
+      "realised": 0.8353,
+      "realised_lo95": 0.8284
+     },
+     "0.850-0.875": {
+      "n": 14952,
+      "realised": 0.8625,
+      "realised_lo95": 0.8569
+     },
+     "0.875-0.900": {
+      "n": 16550,
+      "realised": 0.8806,
+      "realised_lo95": 0.8756
+     },
+     "0.900-0.925": {
+      "n": 16805,
+      "realised": 0.9087,
+      "realised_lo95": 0.9043
+     },
+     "0.925-0.950": {
+      "n": 21992,
+      "realised": 0.938,
+      "realised_lo95": 0.9348
+     },
+     "0.950-1.010": {
+      "n": 38144,
+      "realised": 0.9706,
+      "realised_lo95": 0.9689
      }
     },
     "period_team_total|OVER": {
      "0.000-0.600": {
-      "n": 297,
-      "realised": 0.3502,
-      "realised_lo95": 0.2981
+      "n": 245301,
+      "realised": 0.1773,
+      "realised_lo95": 0.1758
+     },
+     "0.600-0.700": {
+      "n": 33426,
+      "realised": 0.633,
+      "realised_lo95": 0.6279
+     },
+     "0.700-0.750": {
+      "n": 8706,
+      "realised": 0.6984,
+      "realised_lo95": 0.6886
+     },
+     "0.750-0.800": {
+      "n": 3126,
+      "realised": 0.7633,
+      "realised_lo95": 0.7481
+     },
+     "0.800-0.825": {
+      "n": 640,
+      "realised": 0.8125,
+      "realised_lo95": 0.7804
+     },
+     "0.825-0.850": {
+      "n": 299,
+      "realised": 0.8462,
+      "realised_lo95": 0.8009
+     }
+    },
+    "period_team_total|UNDER": {
+     "0.000-0.600": {
+      "n": 80933,
+      "realised": 0.3954,
+      "realised_lo95": 0.392
+     },
+     "0.600-0.700": {
+      "n": 19518,
+      "realised": 0.6827,
+      "realised_lo95": 0.6761
+     },
+     "0.700-0.750": {
+      "n": 17554,
+      "realised": 0.7387,
+      "realised_lo95": 0.7321
+     },
+     "0.750-0.800": {
+      "n": 19069,
+      "realised": 0.7796,
+      "realised_lo95": 0.7737
+     },
+     "0.800-0.825": {
+      "n": 8597,
+      "realised": 0.8127,
+      "realised_lo95": 0.8043
+     },
+     "0.825-0.850": {
+      "n": 8398,
+      "realised": 0.8369,
+      "realised_lo95": 0.8288
+     },
+     "0.850-0.875": {
+      "n": 9532,
+      "realised": 0.8692,
+      "realised_lo95": 0.8623
+     },
+     "0.875-0.900": {
+      "n": 12935,
+      "realised": 0.8968,
+      "realised_lo95": 0.8914
+     },
+     "0.900-0.925": {
+      "n": 17877,
+      "realised": 0.9214,
+      "realised_lo95": 0.9174
+     },
+     "0.925-0.950": {
+      "n": 23102,
+      "realised": 0.9407,
+      "realised_lo95": 0.9375
+     },
+     "0.950-1.010": {
+      "n": 74240,
+      "realised": 0.9749,
+      "realised_lo95": 0.9737
      }
     },
     "period_total|OVER": {
      "0.000-0.600": {
-      "n": 224,
-      "realised": 0.4018,
-      "realised_lo95": 0.3398
+      "n": 155380,
+      "realised": 0.1918,
+      "realised_lo95": 0.1898
+     },
+     "0.600-0.700": {
+      "n": 14424,
+      "realised": 0.6294,
+      "realised_lo95": 0.6215
+     },
+     "0.700-0.750": {
+      "n": 3371,
+      "realised": 0.7031,
+      "realised_lo95": 0.6874
+     },
+     "0.750-0.800": {
+      "n": 4394,
+      "realised": 0.7877,
+      "realised_lo95": 0.7753
+     },
+     "0.800-0.825": {
+      "n": 4412,
+      "realised": 0.8275,
+      "realised_lo95": 0.8161
+     },
+     "0.825-0.850": {
+      "n": 6194,
+      "realised": 0.8439,
+      "realised_lo95": 0.8346
+     },
+     "0.850-0.875": {
+      "n": 7623,
+      "realised": 0.8627,
+      "realised_lo95": 0.8547
+     },
+     "0.875-0.900": {
+      "n": 8543,
+      "realised": 0.8821,
+      "realised_lo95": 0.8751
+     },
+     "0.900-0.925": {
+      "n": 5577,
+      "realised": 0.9059,
+      "realised_lo95": 0.8979
+     },
+     "0.925-0.950": {
+      "n": 1554,
+      "realised": 0.9241,
+      "realised_lo95": 0.9098
      }
     },
     "period_total|UNDER": {
      "0.000-0.600": {
-      "n": 228,
-      "realised": 0.3465,
-      "realised_lo95": 0.2877
+      "n": 83016,
+      "realised": 0.3036,
+      "realised_lo95": 0.3005
+     },
+     "0.600-0.700": {
+      "n": 16223,
+      "realised": 0.6634,
+      "realised_lo95": 0.6561
+     },
+     "0.700-0.750": {
+      "n": 9204,
+      "realised": 0.7435,
+      "realised_lo95": 0.7345
+     },
+     "0.750-0.800": {
+      "n": 10354,
+      "realised": 0.7936,
+      "realised_lo95": 0.7857
+     },
+     "0.800-0.825": {
+      "n": 6114,
+      "realised": 0.8297,
+      "realised_lo95": 0.8201
+     },
+     "0.825-0.850": {
+      "n": 6550,
+      "realised": 0.8493,
+      "realised_lo95": 0.8404
+     },
+     "0.850-0.875": {
+      "n": 7207,
+      "realised": 0.875,
+      "realised_lo95": 0.8671
+     },
+     "0.875-0.900": {
+      "n": 8639,
+      "realised": 0.8985,
+      "realised_lo95": 0.8919
+     },
+     "0.900-0.925": {
+      "n": 11283,
+      "realised": 0.9239,
+      "realised_lo95": 0.9188
+     },
+     "0.925-0.950": {
+      "n": 14552,
+      "realised": 0.9454,
+      "realised_lo95": 0.9416
+     },
+     "0.950-1.010": {
+      "n": 38335,
+      "realised": 0.9749,
+      "realised_lo95": 0.9733
      }
     },
     "result_1x2|DRAW": {
      "0.000-0.600": {
-      "n": 4258,
-      "realised": 0.2076,
-      "realised_lo95": 0.1957
+      "n": 12783,
+      "realised": 0.2021,
+      "realised_lo95": 0.1952
      }
     },
     "result_1x2|TEAM": {
      "0.000-0.600": {
-      "n": 7629,
-      "realised": 0.363,
-      "realised_lo95": 0.3522
+      "n": 22918,
+      "realised": 0.3671,
+      "realised_lo95": 0.3609
      },
      "0.600-0.700": {
-      "n": 571,
-      "realised": 0.62,
-      "realised_lo95": 0.5795
+      "n": 1737,
+      "realised": 0.6292,
+      "realised_lo95": 0.6063
+     },
+     "0.700-0.750": {
+      "n": 427,
+      "realised": 0.7002,
+      "realised_lo95": 0.6552
+     },
+     "0.750-0.800": {
+      "n": 252,
+      "realised": 0.7698,
+      "realised_lo95": 0.7141
      }
     },
     "team_total|OVER": {
      "0.000-0.600": {
-      "n": 39562,
-      "realised": 0.1994,
-      "realised_lo95": 0.1955
+      "n": 118769,
+      "realised": 0.2041,
+      "realised_lo95": 0.2018
      },
      "0.600-0.700": {
-      "n": 3660,
-      "realised": 0.6194,
-      "realised_lo95": 0.6036
+      "n": 11045,
+      "realised": 0.6216,
+      "realised_lo95": 0.6126
      },
      "0.700-0.750": {
-      "n": 1896,
-      "realised": 0.7178,
-      "realised_lo95": 0.6971
+      "n": 5764,
+      "realised": 0.7049,
+      "realised_lo95": 0.693
      },
      "0.750-0.800": {
-      "n": 2214,
-      "realised": 0.752,
-      "realised_lo95": 0.7336
+      "n": 6498,
+      "realised": 0.7542,
+      "realised_lo95": 0.7436
      },
      "0.800-0.825": {
-      "n": 1180,
-      "realised": 0.778,
-      "realised_lo95": 0.7534
+      "n": 3535,
+      "realised": 0.7827,
+      "realised_lo95": 0.7688
      },
      "0.825-0.850": {
-      "n": 1061,
-      "realised": 0.82,
-      "realised_lo95": 0.7957
+      "n": 3403,
+      "realised": 0.8146,
+      "realised_lo95": 0.8012
      },
      "0.850-0.875": {
-      "n": 1120,
-      "realised": 0.8643,
-      "realised_lo95": 0.843
+      "n": 3295,
+      "realised": 0.8513,
+      "realised_lo95": 0.8387
      },
      "0.875-0.900": {
-      "n": 1203,
-      "realised": 0.877,
-      "realised_lo95": 0.8572
+      "n": 3652,
+      "realised": 0.8708,
+      "realised_lo95": 0.8595
      },
      "0.900-0.925": {
-      "n": 1600,
-      "realised": 0.9175,
-      "realised_lo95": 0.903
+      "n": 4826,
+      "realised": 0.9032,
+      "realised_lo95": 0.8946
      },
      "0.925-0.950": {
-      "n": 2594,
-      "realised": 0.9337,
-      "realised_lo95": 0.9235
+      "n": 7608,
+      "realised": 0.932,
+      "realised_lo95": 0.9262
      }
     },
     "team_total|UNDER": {
      "0.000-0.600": {
-      "n": 24133,
-      "realised": 0.3112,
-      "realised_lo95": 0.3054
+      "n": 72358,
+      "realised": 0.3123,
+      "realised_lo95": 0.3089
      },
      "0.600-0.700": {
-      "n": 4337,
-      "realised": 0.6696,
-      "realised_lo95": 0.6554
+      "n": 13086,
+      "realised": 0.6679,
+      "realised_lo95": 0.6598
      },
      "0.700-0.750": {
-      "n": 2409,
-      "realised": 0.741,
-      "realised_lo95": 0.7231
+      "n": 7175,
+      "realised": 0.738,
+      "realised_lo95": 0.7277
      },
      "0.750-0.800": {
-      "n": 2722,
-      "realised": 0.7957,
-      "realised_lo95": 0.7802
+      "n": 8296,
+      "realised": 0.7869,
+      "realised_lo95": 0.7779
      },
      "0.800-0.825": {
-      "n": 1636,
-      "realised": 0.827,
-      "realised_lo95": 0.8079
+      "n": 4869,
+      "realised": 0.8086,
+      "realised_lo95": 0.7973
      },
      "0.825-0.850": {
-      "n": 1720,
-      "realised": 0.8535,
-      "realised_lo95": 0.836
+      "n": 5131,
+      "realised": 0.8486,
+      "realised_lo95": 0.8385
      },
      "0.850-0.875": {
-      "n": 1946,
-      "realised": 0.8762,
-      "realised_lo95": 0.8608
+      "n": 5825,
+      "realised": 0.8688,
+      "realised_lo95": 0.8599
      },
      "0.875-0.900": {
-      "n": 2238,
-      "realised": 0.8986,
-      "realised_lo95": 0.8854
+      "n": 6826,
+      "realised": 0.8914,
+      "realised_lo95": 0.8838
      },
      "0.900-0.925": {
-      "n": 2835,
-      "realised": 0.9157,
-      "realised_lo95": 0.9049
+      "n": 8483,
+      "realised": 0.9097,
+      "realised_lo95": 0.9034
      },
      "0.925-0.950": {
-      "n": 3661,
-      "realised": 0.9418,
-      "realised_lo95": 0.9338
+      "n": 10958,
+      "realised": 0.9406,
+      "realised_lo95": 0.936
      },
      "0.950-1.010": {
-      "n": 8516,
-      "realised": 0.9703,
-      "realised_lo95": 0.9665
+      "n": 25566,
+      "realised": 0.9676,
+      "realised_lo95": 0.9653
      }
     },
     "total|OVER": {
      "0.000-0.600": {
-      "n": 25069,
-      "realised": 0.2037,
-      "realised_lo95": 0.1987
+      "n": 75333,
+      "realised": 0.2094,
+      "realised_lo95": 0.2065
      },
      "0.600-0.700": {
-      "n": 2625,
-      "realised": 0.6168,
-      "realised_lo95": 0.598
+      "n": 7855,
+      "realised": 0.6306,
+      "realised_lo95": 0.6198
      },
      "0.700-0.750": {
-      "n": 1386,
-      "realised": 0.7186,
-      "realised_lo95": 0.6944
+      "n": 4223,
+      "realised": 0.7073,
+      "realised_lo95": 0.6934
      },
      "0.750-0.800": {
-      "n": 1503,
-      "realised": 0.7585,
-      "realised_lo95": 0.7362
+      "n": 4468,
+      "realised": 0.767,
+      "realised_lo95": 0.7544
      },
      "0.800-0.825": {
-      "n": 802,
-      "realised": 0.8142,
-      "realised_lo95": 0.7858
+      "n": 2410,
+      "realised": 0.79,
+      "realised_lo95": 0.7733
      },
      "0.825-0.850": {
-      "n": 885,
-      "realised": 0.8362,
-      "realised_lo95": 0.8103
+      "n": 2671,
+      "realised": 0.8255,
+      "realised_lo95": 0.8107
      },
      "0.850-0.875": {
-      "n": 1034,
-      "realised": 0.8559,
-      "realised_lo95": 0.8332
+      "n": 3125,
+      "realised": 0.8605,
+      "realised_lo95": 0.8479
      },
      "0.875-0.900": {
-      "n": 1163,
-      "realised": 0.8779,
-      "realised_lo95": 0.8578
+      "n": 3463,
+      "realised": 0.8813,
+      "realised_lo95": 0.8701
      },
      "0.900-0.925": {
-      "n": 1294,
-      "realised": 0.9158,
-      "realised_lo95": 0.8994
+      "n": 3871,
+      "realised": 0.9078,
+      "realised_lo95": 0.8983
      },
      "0.925-0.950": {
-      "n": 1618,
-      "realised": 0.9345,
-      "realised_lo95": 0.9214
+      "n": 4956,
+      "realised": 0.9245,
+      "realised_lo95": 0.9168
      }
     },
     "total|UNDER": {
      "0.000-0.600": {
-      "n": 17508,
-      "realised": 0.3029,
-      "realised_lo95": 0.2961
+      "n": 52661,
+      "realised": 0.3014,
+      "realised_lo95": 0.2975
      },
      "0.600-0.700": {
-      "n": 2840,
-      "realised": 0.6739,
-      "realised_lo95": 0.6565
+      "n": 8574,
+      "realised": 0.6717,
+      "realised_lo95": 0.6617
      },
      "0.700-0.750": {
-      "n": 1681,
-      "realised": 0.7692,
-      "realised_lo95": 0.7484
+      "n": 5004,
+      "realised": 0.748,
+      "realised_lo95": 0.7358
      },
      "0.750-0.800": {
-      "n": 1881,
-      "realised": 0.7937,
-      "realised_lo95": 0.7749
+      "n": 5658,
+      "realised": 0.7945,
+      "realised_lo95": 0.7837
      },
      "0.800-0.825": {
-      "n": 1029,
-      "realised": 0.8503,
-      "realised_lo95": 0.8272
+      "n": 3161,
+      "realised": 0.8447,
+      "realised_lo95": 0.8316
      },
      "0.825-0.850": {
-      "n": 1195,
-      "realised": 0.8653,
-      "realised_lo95": 0.8447
+      "n": 3534,
+      "realised": 0.852,
+      "realised_lo95": 0.8399
      },
      "0.850-0.875": {
-      "n": 1394,
-      "realised": 0.8788,
-      "realised_lo95": 0.8606
+      "n": 4061,
+      "realised": 0.8806,
+      "realised_lo95": 0.8702
      },
      "0.875-0.900": {
-      "n": 1498,
-      "realised": 0.9099,
-      "realised_lo95": 0.8943
+      "n": 4660,
+      "realised": 0.9,
+      "realised_lo95": 0.8911
      },
      "0.900-0.925": {
-      "n": 1913,
-      "realised": 0.9347,
-      "realised_lo95": 0.9227
+      "n": 5715,
+      "realised": 0.9235,
+      "realised_lo95": 0.9164
      },
      "0.925-0.950": {
-      "n": 2216,
-      "realised": 0.9481,
-      "realised_lo95": 0.9381
+      "n": 6675,
+      "realised": 0.9449,
+      "realised_lo95": 0.9391
      },
      "0.950-1.010": {
-      "n": 4258,
-      "realised": 0.9713,
-      "realised_lo95": 0.9659
+      "n": 12783,
+      "realised": 0.9691,
+      "realised_lo95": 0.966
      }
     },
     "winner|TEAM": {
      "0.000-0.600": {
-      "n": 6349,
-      "realised": 0.4374,
-      "realised_lo95": 0.4252
+      "n": 19017,
+      "realised": 0.4366,
+      "realised_lo95": 0.4295
      },
      "0.600-0.700": {
-      "n": 1352,
-      "realised": 0.6346,
-      "realised_lo95": 0.6086
+      "n": 4148,
+      "realised": 0.628,
+      "realised_lo95": 0.6132
      },
      "0.700-0.750": {
-      "n": 358,
-      "realised": 0.6844,
-      "realised_lo95": 0.6345
+      "n": 1039,
+      "realised": 0.7218,
+      "realised_lo95": 0.6938
      },
      "0.750-0.800": {
-      "n": 223,
-      "realised": 0.7937,
-      "realised_lo95": 0.7359
+      "n": 685,
+      "realised": 0.7898,
+      "realised_lo95": 0.7577
+     },
+     "0.800-0.825": {
+      "n": 207,
+      "realised": 0.8309,
+      "realised_lo95": 0.7739
      }
     }
    },
    "curve_source": {
     "handicap|TEAM": "history",
-    "period_team_total|OVER": "superbet_settled",
-    "period_total|OVER": "superbet_settled",
-    "period_total|UNDER": "superbet_settled",
+    "period_1x2|DRAW": "history",
+    "period_1x2|TEAM": "history",
+    "period_handicap|TEAM": "history",
+    "period_team_total|OVER": "history",
+    "period_team_total|UNDER": "history",
+    "period_total|OVER": "history",
+    "period_total|UNDER": "history",
     "result_1x2|DRAW": "history",
     "result_1x2|TEAM": "history",
     "team_total|OVER": "history",
@@ -393,22 +665,22 @@
    },
    "admitted": [
     "handicap|TEAM",
+    "period_team_total|OVER",
+    "period_total|OVER",
     "team_total|OVER",
     "total|OVER"
    ],
    "not_calibrated": {
-    "period_1x2|DRAW": "NO_FIT_BUCKET_WITH_N>=200",
-    "period_1x2|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
-    "period_handicap|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
-    "period_team_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
-    "period_team_total|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
-    "period_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
-    "period_total|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "period_1x2|DRAW": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "period_1x2|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "period_handicap|TEAM": "OVERSTATES_PRINTABLE: superbet_settled n=283 confidence 0.8043 realised 0.7739 (realised-confidence -0.0304, 95% upper +0.0168)",
+    "period_team_total|UNDER": "OVERSTATES_PRINTABLE: superbet_settled n=588 confidence 0.8017 realised 0.7653 (realised-confidence -0.0364, 95% upper -0.0021)",
+    "period_total|UNDER": "OVERSTATES_PRINTABLE: superbet_settled n=305 confidence 0.7850 realised 0.7344 (realised-confidence -0.0505, 95% upper -0.0020)",
     "result_1x2|DRAW": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
     "result_1x2|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
-    "team_total|UNDER": "OVERSTATES: history_holdout bucket 0.850-0.875 confidence above realised by 0.0314",
-    "total|UNDER": "OVERSTATES: history_holdout bucket 0.800-0.825 confidence above realised by 0.0347",
-    "winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
+    "team_total|UNDER": "OVERSTATES: history_holdout bucket 0.850-0.875 confidence above realised by 0.0305",
+    "total|UNDER": "OVERSTATES: history_holdout bucket 0.800-0.825 confidence above realised by 0.0391",
+    "winner|TEAM": "OVERSTATES: history_holdout bucket 0.600-0.700 confidence above realised by 0.0324"
    },
    "oos": {
     "history_holdout": {
@@ -418,90 +690,569 @@
       "buckets": {
        "0.000-0.600": {
         "n": 16728,
-        "confidence": 0.2524,
+        "confidence": 0.2576,
         "realised": 0.2654,
-        "gap": -0.013
+        "gap": -0.0078
        },
        "0.600-0.700": {
         "n": 2233,
-        "confidence": 0.6398,
+        "confidence": 0.6438,
         "realised": 0.6449,
-        "gap": -0.0051
+        "gap": -0.0011
        },
        "0.700-0.750": {
         "n": 1272,
-        "confidence": 0.7063,
+        "confidence": 0.7037,
         "realised": 0.7107,
-        "gap": -0.0044
+        "gap": -0.007
        },
        "0.750-0.800": {
         "n": 1372,
-        "confidence": 0.7462,
+        "confidence": 0.7578,
         "realised": 0.7573,
-        "gap": -0.0111
+        "gap": 0.0005
        },
        "0.800-0.825": {
         "n": 745,
-        "confidence": 0.7937,
+        "confidence": 0.7832,
         "realised": 0.7987,
-        "gap": -0.005
+        "gap": -0.0155
        },
        "0.825-0.850": {
         "n": 803,
-        "confidence": 0.8088,
+        "confidence": 0.8113,
         "realised": 0.8032,
-        "gap": 0.0056
+        "gap": 0.0081
        },
        "0.850-0.875": {
         "n": 875,
-        "confidence": 0.8384,
+        "confidence": 0.8388,
         "realised": 0.8389,
-        "gap": -0.0005
+        "gap": -0.0001
        },
        "0.875-0.900": {
         "n": 984,
-        "confidence": 0.8612,
+        "confidence": 0.8655,
         "realised": 0.8587,
-        "gap": 0.0025
+        "gap": 0.0068
        },
        "0.900-0.925": {
         "n": 1167,
-        "confidence": 0.8932,
+        "confidence": 0.8904,
         "realised": 0.8835,
-        "gap": 0.0097
+        "gap": 0.0069
        },
        "0.925-0.950": {
         "n": 1564,
-        "confidence": 0.918,
+        "confidence": 0.9219,
         "realised": 0.9214,
-        "gap": -0.0034
+        "gap": 0.0005
        },
        "0.950-1.010": {
         "n": 1689,
-        "confidence": 0.9618,
+        "confidence": 0.9573,
         "realised": 0.9485,
-        "gap": 0.0133
+        "gap": 0.0088
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.52404,
+      "logloss_confidence": 0.5238,
       "logloss_model": 0.48468,
       "realised": 0.5,
-      "confidence": 0.4926,
+      "confidence": 0.4961,
       "realised_minus_confidence": [
-       0.0074,
-       0.0068,
-       0.0081
+       0.0039,
+       0.0033,
+       0.0046
       ],
       "printable": {
        "n": 10471,
        "games": 1667,
-       "confidence": 0.8449,
+       "confidence": 0.8455,
        "realised": 0.8439,
        "realised_minus_confidence": [
-        -0.001,
-        -0.0103,
-        0.0076
+        -0.0016,
+        -0.0109,
+        0.0069
+       ]
+      }
+     },
+     "period_1x2|DRAW": {
+      "n": 5001,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 5001,
+        "confidence": 0.2941,
+        "realised": 0.2845,
+        "gap": 0.0096
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.59741,
+      "logloss_model": 0.59441,
+      "realised": 0.2845,
+      "confidence": 0.2941,
+      "realised_minus_confidence": [
+       -0.0096,
+       -0.023,
+       0.003
+      ]
+     },
+     "period_1x2|TEAM": {
+      "n": 9956,
+      "uncovered": 46,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 9843,
+        "confidence": 0.3443,
+        "realised": 0.3518,
+        "gap": -0.0075
+       },
+       "0.600-0.700": {
+        "n": 113,
+        "confidence": 0.6268,
+        "realised": 0.6814,
+        "gap": -0.0546
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.64851,
+      "logloss_model": 0.63554,
+      "realised": 0.3556,
+      "confidence": 0.3475,
+      "realised_minus_confidence": [
+       0.0081,
+       0.0014,
+       0.0148
+      ]
+     },
+     "period_handicap|TEAM": {
+      "n": 55500,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 30478,
+        "confidence": 0.217,
+        "realised": 0.2263,
+        "gap": -0.0093
+       },
+       "0.600-0.700": {
+        "n": 4289,
+        "confidence": 0.6441,
+        "realised": 0.6447,
+        "gap": -0.0006
+       },
+       "0.700-0.750": {
+        "n": 2116,
+        "confidence": 0.7034,
+        "realised": 0.6985,
+        "gap": 0.0049
+       },
+       "0.750-0.800": {
+        "n": 1916,
+        "confidence": 0.7722,
+        "realised": 0.7803,
+        "gap": -0.0081
+       },
+       "0.800-0.825": {
+        "n": 1133,
+        "confidence": 0.8051,
+        "realised": 0.7988,
+        "gap": 0.0063
+       },
+       "0.825-0.850": {
+        "n": 1495,
+        "confidence": 0.8284,
+        "realised": 0.8328,
+        "gap": -0.0044
+       },
+       "0.850-0.875": {
+        "n": 1759,
+        "confidence": 0.8569,
+        "realised": 0.8522,
+        "gap": 0.0047
+       },
+       "0.875-0.900": {
+        "n": 2088,
+        "confidence": 0.8756,
+        "realised": 0.8697,
+        "gap": 0.0059
+       },
+       "0.900-0.925": {
+        "n": 2317,
+        "confidence": 0.9043,
+        "realised": 0.8999,
+        "gap": 0.0044
+       },
+       "0.925-0.950": {
+        "n": 2935,
+        "confidence": 0.9348,
+        "realised": 0.9346,
+        "gap": 0.0002
+       },
+       "0.950-1.010": {
+        "n": 4974,
+        "confidence": 0.9689,
+        "realised": 0.9694,
+        "gap": -0.0005
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.47448,
+      "logloss_model": 0.42811,
+      "realised": 0.5,
+      "confidence": 0.4953,
+      "realised_minus_confidence": [
+       0.0047,
+       0.0041,
+       0.0054
+      ],
+      "printable": {
+       "n": 20733,
+       "games": 1667,
+       "confidence": 0.8736,
+       "realised": 0.8724,
+       "realised_minus_confidence": [
+        -0.0012,
+        -0.006,
+        0.0035
+       ]
+      }
+     },
+     "period_team_total|OVER": {
+      "n": 38043,
+      "uncovered": 58,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 32085,
+        "confidence": 0.1758,
+        "realised": 0.1854,
+        "gap": -0.0096
+       },
+       "0.600-0.700": {
+        "n": 4059,
+        "confidence": 0.6279,
+        "realised": 0.6373,
+        "gap": -0.0094
+       },
+       "0.700-0.750": {
+        "n": 1190,
+        "confidence": 0.6886,
+        "realised": 0.695,
+        "gap": -0.0064
+       },
+       "0.750-0.800": {
+        "n": 522,
+        "confidence": 0.7481,
+        "realised": 0.7682,
+        "gap": -0.0201
+       },
+       "0.800-0.825": {
+        "n": 114,
+        "confidence": 0.7804,
+        "realised": 0.807,
+        "gap": -0.0266
+       },
+       "0.825-0.850": {
+        "n": 73,
+        "confidence": 0.8009,
+        "realised": 0.7945,
+        "gap": 0.0064
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.50363,
+      "logloss_model": 0.42002,
+      "realised": 0.2605,
+      "confidence": 0.2509,
+      "realised_minus_confidence": [
+       0.0096,
+       0.0048,
+       0.0147
+      ],
+      "printable": {
+       "n": 709,
+       "games": 431,
+       "confidence": 0.7587,
+       "realised": 0.7772,
+       "realised_minus_confidence": [
+        0.0184,
+        -0.0131,
+        0.05
+       ]
+      }
+     },
+     "period_team_total|UNDER": {
+      "n": 38101,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 10741,
+        "confidence": 0.392,
+        "realised": 0.3907,
+        "gap": 0.0013
+       },
+       "0.600-0.700": {
+        "n": 2552,
+        "confidence": 0.6761,
+        "realised": 0.681,
+        "gap": -0.0049
+       },
+       "0.700-0.750": {
+        "n": 2177,
+        "confidence": 0.7321,
+        "realised": 0.7193,
+        "gap": 0.0128
+       },
+       "0.750-0.800": {
+        "n": 2371,
+        "confidence": 0.7737,
+        "realised": 0.7663,
+        "gap": 0.0074
+       },
+       "0.800-0.825": {
+        "n": 1147,
+        "confidence": 0.8043,
+        "realised": 0.796,
+        "gap": 0.0083
+       },
+       "0.825-0.850": {
+        "n": 1211,
+        "confidence": 0.8288,
+        "realised": 0.8489,
+        "gap": -0.0201
+       },
+       "0.850-0.875": {
+        "n": 1324,
+        "confidence": 0.8623,
+        "realised": 0.8671,
+        "gap": -0.0048
+       },
+       "0.875-0.900": {
+        "n": 1679,
+        "confidence": 0.8914,
+        "realised": 0.8934,
+        "gap": -0.002
+       },
+       "0.900-0.925": {
+        "n": 2252,
+        "confidence": 0.9174,
+        "realised": 0.9121,
+        "gap": 0.0053
+       },
+       "0.925-0.950": {
+        "n": 2977,
+        "confidence": 0.9375,
+        "realised": 0.9362,
+        "gap": 0.0013
+       },
+       "0.950-1.010": {
+        "n": 9670,
+        "confidence": 0.9737,
+        "realised": 0.971,
+        "gap": 0.0027
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.42515,
+      "logloss_model": 0.41986,
+      "realised": 0.7385,
+      "confidence": 0.7402,
+      "realised_minus_confidence": [
+       -0.0017,
+       -0.0065,
+       0.0031
+      ],
+      "printable": {
+       "n": 24808,
+       "games": 1667,
+       "confidence": 0.8975,
+       "realised": 0.895,
+       "realised_minus_confidence": [
+        -0.0025,
+        -0.0069,
+        0.0017
+       ]
+      }
+     },
+     "period_total|OVER": {
+      "n": 27662,
+      "uncovered": 1,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 20258,
+        "confidence": 0.1898,
+        "realised": 0.2008,
+        "gap": -0.011
+       },
+       "0.600-0.700": {
+        "n": 1890,
+        "confidence": 0.6215,
+        "realised": 0.6222,
+        "gap": -0.0007
+       },
+       "0.700-0.750": {
+        "n": 512,
+        "confidence": 0.6874,
+        "realised": 0.7012,
+        "gap": -0.0138
+       },
+       "0.750-0.800": {
+        "n": 570,
+        "confidence": 0.7753,
+        "realised": 0.8333,
+        "gap": -0.058
+       },
+       "0.800-0.825": {
+        "n": 525,
+        "confidence": 0.8161,
+        "realised": 0.8038,
+        "gap": 0.0123
+       },
+       "0.825-0.850": {
+        "n": 792,
+        "confidence": 0.8346,
+        "realised": 0.8788,
+        "gap": -0.0442
+       },
+       "0.850-0.875": {
+        "n": 1026,
+        "confidence": 0.8547,
+        "realised": 0.8713,
+        "gap": -0.0166
+       },
+       "0.875-0.900": {
+        "n": 1071,
+        "confidence": 0.8751,
+        "realised": 0.8908,
+        "gap": -0.0157
+       },
+       "0.900-0.925": {
+        "n": 777,
+        "confidence": 0.8979,
+        "realised": 0.9112,
+        "gap": -0.0133
+       },
+       "0.925-0.950": {
+        "n": 241,
+        "confidence": 0.9098,
+        "realised": 0.9378,
+        "gap": -0.028
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.49201,
+      "logloss_model": 0.41951,
+      "realised": 0.3607,
+      "confidence": 0.3483,
+      "realised_minus_confidence": [
+       0.0124,
+       0.0055,
+       0.0194
+      ],
+      "printable": {
+       "n": 5002,
+       "games": 1667,
+       "confidence": 0.8522,
+       "realised": 0.8747,
+       "realised_minus_confidence": [
+        0.0225,
+        0.0131,
+        0.0324
+       ]
+      }
+     },
+     "period_total|UNDER": {
+      "n": 27663,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 10907,
+        "confidence": 0.3005,
+        "realised": 0.2904,
+        "gap": 0.0101
+       },
+       "0.600-0.700": {
+        "n": 2154,
+        "confidence": 0.6561,
+        "realised": 0.6727,
+        "gap": -0.0166
+       },
+       "0.700-0.750": {
+        "n": 1152,
+        "confidence": 0.7345,
+        "realised": 0.7387,
+        "gap": -0.0042
+       },
+       "0.750-0.800": {
+        "n": 1365,
+        "confidence": 0.7857,
+        "realised": 0.7604,
+        "gap": 0.0253
+       },
+       "0.800-0.825": {
+        "n": 781,
+        "confidence": 0.8201,
+        "realised": 0.8284,
+        "gap": -0.0083
+       },
+       "0.825-0.850": {
+        "n": 895,
+        "confidence": 0.8404,
+        "realised": 0.8458,
+        "gap": -0.0054
+       },
+       "0.850-0.875": {
+        "n": 975,
+        "confidence": 0.8671,
+        "realised": 0.8605,
+        "gap": 0.0066
+       },
+       "0.875-0.900": {
+        "n": 1111,
+        "confidence": 0.8919,
+        "realised": 0.8848,
+        "gap": 0.0071
+       },
+       "0.900-0.925": {
+        "n": 1427,
+        "confidence": 0.9188,
+        "realised": 0.9061,
+        "gap": 0.0127
+       },
+       "0.925-0.950": {
+        "n": 1896,
+        "confidence": 0.9416,
+        "realised": 0.952,
+        "gap": -0.0104
+       },
+       "0.950-1.010": {
+        "n": 5000,
+        "confidence": 0.9733,
+        "realised": 0.9712,
+        "gap": 0.0021
+       }
+      },
+      "games": 1667,
+      "logloss_confidence": 0.44657,
+      "logloss_model": 0.4195,
+      "realised": 0.6393,
+      "confidence": 0.6435,
+      "realised_minus_confidence": [
+       -0.0042,
+       -0.0111,
+       0.0027
+      ],
+      "printable": {
+       "n": 14602,
+       "games": 1667,
+       "confidence": 0.8979,
+       "realised": 0.895,
+       "realised_minus_confidence": [
+        -0.0028,
+        -0.0096,
+        0.0036
        ]
       }
      },
@@ -511,49 +1262,72 @@
       "buckets": {
        "0.000-0.600": {
         "n": 1667,
-        "confidence": 0.1957,
+        "confidence": 0.1952,
         "realised": 0.1914,
-        "gap": 0.0043
+        "gap": 0.0038
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.48825,
+      "logloss_confidence": 0.48824,
       "logloss_model": 0.48684,
       "realised": 0.1914,
-      "confidence": 0.1957,
+      "confidence": 0.1952,
       "realised_minus_confidence": [
-       -0.0043,
-       -0.0229,
-       0.0149
+       -0.0038,
+       -0.023,
+       0.016
       ]
      },
      "result_1x2|TEAM": {
-      "n": 3159,
-      "uncovered": 175,
+      "n": 3277,
+      "uncovered": 57,
       "buckets": {
        "0.000-0.600": {
         "n": 2871,
-        "confidence": 0.3522,
+        "confidence": 0.3609,
         "realised": 0.3643,
-        "gap": -0.0121
+        "gap": -0.0034
        },
        "0.600-0.700": {
         "n": 288,
-        "confidence": 0.5795,
+        "confidence": 0.6063,
         "realised": 0.6111,
-        "gap": -0.0316
+        "gap": -0.0048
+       },
+       "0.700-0.750": {
+        "n": 69,
+        "confidence": 0.6552,
+        "realised": 0.5942,
+        "gap": 0.061
+       },
+       "0.750-0.800": {
+        "n": 49,
+        "confidence": 0.7141,
+        "realised": 0.7143,
+        "gap": -0.0002
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.65748,
-      "logloss_model": 0.64104,
-      "realised": 0.3868,
-      "confidence": 0.3729,
+      "logloss_confidence": 0.6567,
+      "logloss_model": 0.64216,
+      "realised": 0.3961,
+      "confidence": 0.3939,
       "realised_minus_confidence": [
-       0.0139,
-       0.0033,
-       0.0241
-      ]
+       0.0021,
+       -0.0085,
+       0.0119
+      ],
+      "printable": {
+       "n": 49,
+       "games": 49,
+       "confidence": 0.7141,
+       "realised": 0.7143,
+       "realised_minus_confidence": [
+        0.0002,
+        -0.1223,
+        0.1226
+       ]
+      }
      },
      "team_total|OVER": {
       "n": 21991,
@@ -561,84 +1335,84 @@
       "buckets": {
        "0.000-0.600": {
         "n": 15496,
-        "confidence": 0.1955,
+        "confidence": 0.2018,
         "realised": 0.2173,
-        "gap": -0.0218
+        "gap": -0.0155
        },
        "0.600-0.700": {
         "n": 1438,
-        "confidence": 0.6036,
+        "confidence": 0.6126,
         "realised": 0.6356,
-        "gap": -0.032
+        "gap": -0.023
        },
        "0.700-0.750": {
         "n": 756,
-        "confidence": 0.6971,
+        "confidence": 0.693,
         "realised": 0.709,
-        "gap": -0.0119
+        "gap": -0.016
        },
        "0.750-0.800": {
         "n": 862,
-        "confidence": 0.7336,
+        "confidence": 0.7436,
         "realised": 0.7483,
-        "gap": -0.0147
+        "gap": -0.0047
        },
        "0.800-0.825": {
         "n": 425,
-        "confidence": 0.7534,
+        "confidence": 0.7688,
         "realised": 0.7741,
-        "gap": -0.0207
+        "gap": -0.0053
        },
        "0.825-0.850": {
         "n": 426,
-        "confidence": 0.7957,
+        "confidence": 0.8012,
         "realised": 0.8357,
-        "gap": -0.04
+        "gap": -0.0345
        },
        "0.850-0.875": {
         "n": 454,
-        "confidence": 0.843,
+        "confidence": 0.8387,
         "realised": 0.8722,
-        "gap": -0.0292
+        "gap": -0.0335
        },
        "0.875-0.900": {
         "n": 538,
-        "confidence": 0.8572,
+        "confidence": 0.8595,
         "realised": 0.8736,
-        "gap": -0.0164
+        "gap": -0.0141
        },
        "0.900-0.925": {
         "n": 649,
-        "confidence": 0.903,
+        "confidence": 0.8946,
         "realised": 0.9014,
-        "gap": 0.0016
+        "gap": -0.0068
        },
        "0.925-0.950": {
         "n": 947,
-        "confidence": 0.9235,
+        "confidence": 0.9262,
         "realised": 0.9208,
-        "gap": 0.0027
+        "gap": 0.0054
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.51366,
+      "logloss_confidence": 0.51304,
       "logloss_model": 0.45627,
       "realised": 0.3852,
-      "confidence": 0.3647,
+      "confidence": 0.3702,
       "realised_minus_confidence": [
-       0.0205,
-       0.0119,
-       0.029
+       0.015,
+       0.0063,
+       0.0237
       ],
       "printable": {
        "n": 4301,
        "games": 1667,
-       "confidence": 0.8361,
+       "confidence": 0.8393,
        "realised": 0.8493,
        "realised_minus_confidence": [
-        0.0132,
-        0.0014,
-        0.0246
+        0.01,
+        -0.0019,
+        0.0217
        ]
       }
      },
@@ -648,90 +1422,90 @@
       "buckets": {
        "0.000-0.600": {
         "n": 9459,
-        "confidence": 0.3054,
+        "confidence": 0.3089,
         "realised": 0.3048,
-        "gap": 0.0006
+        "gap": 0.0041
        },
        "0.600-0.700": {
         "n": 1680,
-        "confidence": 0.6554,
+        "confidence": 0.6598,
         "realised": 0.6708,
-        "gap": -0.0154
+        "gap": -0.011
        },
        "0.700-0.750": {
         "n": 989,
-        "confidence": 0.7231,
+        "confidence": 0.7277,
         "realised": 0.7088,
-        "gap": 0.0143
+        "gap": 0.0189
        },
        "0.750-0.800": {
         "n": 1045,
-        "confidence": 0.7802,
+        "confidence": 0.7779,
         "realised": 0.7675,
-        "gap": 0.0127
+        "gap": 0.0104
        },
        "0.800-0.825": {
         "n": 667,
-        "confidence": 0.8079,
+        "confidence": 0.7973,
         "realised": 0.8171,
-        "gap": -0.0092
+        "gap": -0.0198
        },
        "0.825-0.850": {
         "n": 643,
-        "confidence": 0.836,
+        "confidence": 0.8385,
         "realised": 0.8383,
-        "gap": -0.0023
+        "gap": 0.0002
        },
        "0.850-0.875": {
         "n": 768,
-        "confidence": 0.8608,
+        "confidence": 0.8599,
         "realised": 0.8294,
-        "gap": 0.0314
+        "gap": 0.0305
        },
        "0.875-0.900": {
         "n": 903,
-        "confidence": 0.8854,
+        "confidence": 0.8838,
         "realised": 0.8782,
-        "gap": 0.0072
+        "gap": 0.0056
        },
        "0.900-0.925": {
         "n": 1114,
-        "confidence": 0.9049,
+        "confidence": 0.9034,
         "realised": 0.9004,
-        "gap": 0.0045
+        "gap": 0.003
        },
        "0.925-0.950": {
         "n": 1410,
-        "confidence": 0.9338,
+        "confidence": 0.936,
         "realised": 0.9191,
-        "gap": 0.0147
+        "gap": 0.0169
        },
        "0.950-1.010": {
         "n": 3334,
-        "confidence": 0.9665,
+        "confidence": 0.9653,
         "realised": 0.9586,
-        "gap": 0.0079
+        "gap": 0.0067
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.4849,
+      "logloss_confidence": 0.48492,
       "logloss_model": 0.45615,
       "realised": 0.6143,
-      "confidence": 0.618,
+      "confidence": 0.6195,
       "realised_minus_confidence": [
-       -0.0037,
-       -0.0123,
-       0.0044
+       -0.0052,
+       -0.0137,
+       0.0035
       ],
       "printable": {
        "n": 10873,
        "games": 1667,
-       "confidence": 0.8843,
+       "confidence": 0.8835,
        "realised": 0.8748,
        "realised_minus_confidence": [
-        -0.0094,
-        -0.0177,
-        -0.001
+        -0.0087,
+        -0.0176,
+        -0.0002
        ]
       }
      },
@@ -741,84 +1515,84 @@
       "buckets": {
        "0.000-0.600": {
         "n": 9852,
-        "confidence": 0.1987,
+        "confidence": 0.2065,
         "realised": 0.2236,
-        "gap": -0.0249
+        "gap": -0.0171
        },
        "0.600-0.700": {
         "n": 1048,
-        "confidence": 0.598,
+        "confidence": 0.6198,
         "realised": 0.6536,
-        "gap": -0.0556
+        "gap": -0.0338
        },
        "0.700-0.750": {
         "n": 524,
-        "confidence": 0.6944,
+        "confidence": 0.6934,
         "realised": 0.7214,
-        "gap": -0.027
+        "gap": -0.028
        },
        "0.750-0.800": {
         "n": 587,
-        "confidence": 0.7362,
+        "confidence": 0.7544,
         "realised": 0.7751,
-        "gap": -0.0389
+        "gap": -0.0207
        },
        "0.800-0.825": {
         "n": 339,
-        "confidence": 0.7858,
+        "confidence": 0.7733,
         "realised": 0.8319,
-        "gap": -0.0461
+        "gap": -0.0586
        },
        "0.825-0.850": {
         "n": 380,
-        "confidence": 0.8103,
+        "confidence": 0.8107,
         "realised": 0.8316,
-        "gap": -0.0213
+        "gap": -0.0209
        },
        "0.850-0.875": {
         "n": 371,
-        "confidence": 0.8332,
+        "confidence": 0.8479,
         "realised": 0.8679,
-        "gap": -0.0347
+        "gap": -0.02
        },
        "0.875-0.900": {
         "n": 416,
-        "confidence": 0.8578,
+        "confidence": 0.8701,
         "realised": 0.8846,
-        "gap": -0.0268
+        "gap": -0.0145
        },
        "0.900-0.925": {
         "n": 560,
-        "confidence": 0.8994,
+        "confidence": 0.8983,
         "realised": 0.9107,
-        "gap": -0.0113
+        "gap": -0.0124
        },
        "0.925-0.950": {
         "n": 643,
-        "confidence": 0.9214,
+        "confidence": 0.9168,
         "realised": 0.9285,
-        "gap": -0.0071
+        "gap": -0.0117
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.51111,
+      "logloss_confidence": 0.51001,
       "logloss_model": 0.45134,
       "realised": 0.4155,
-      "confidence": 0.3884,
+      "confidence": 0.396,
       "realised_minus_confidence": [
-       0.0271,
-       0.0154,
-       0.0395
+       0.0195,
+       0.0074,
+       0.0324
       ],
       "printable": {
        "n": 3296,
        "games": 1667,
-       "confidence": 0.84,
+       "confidence": 0.8441,
        "realised": 0.8647,
        "realised_minus_confidence": [
-        0.0247,
-        0.0097,
-        0.0395
+        0.0206,
+        0.0061,
+        0.0347
        ]
       }
      },
@@ -828,141 +1602,147 @@
       "buckets": {
        "0.000-0.600": {
         "n": 6916,
-        "confidence": 0.2961,
+        "confidence": 0.2975,
         "realised": 0.2854,
-        "gap": 0.0107
+        "gap": 0.0121
        },
        "0.600-0.700": {
         "n": 1094,
-        "confidence": 0.6565,
+        "confidence": 0.6617,
         "realised": 0.66,
-        "gap": -0.0035
+        "gap": 0.0017
        },
        "0.700-0.750": {
         "n": 661,
-        "confidence": 0.7484,
+        "confidence": 0.7358,
         "realised": 0.7474,
-        "gap": 0.001
+        "gap": -0.0116
        },
        "0.750-0.800": {
         "n": 743,
-        "confidence": 0.7749,
+        "confidence": 0.7837,
         "realised": 0.7739,
-        "gap": 0.001
+        "gap": 0.0098
        },
        "0.800-0.825": {
         "n": 429,
-        "confidence": 0.8272,
+        "confidence": 0.8316,
         "realised": 0.7925,
-        "gap": 0.0347
+        "gap": 0.0391
        },
        "0.825-0.850": {
         "n": 455,
-        "confidence": 0.8447,
+        "confidence": 0.8399,
         "realised": 0.8527,
-        "gap": -0.008
+        "gap": -0.0128
        },
        "0.850-0.875": {
         "n": 500,
-        "confidence": 0.8606,
+        "confidence": 0.8702,
         "realised": 0.874,
-        "gap": -0.0134
+        "gap": -0.0038
        },
        "0.875-0.900": {
         "n": 652,
-        "confidence": 0.8943,
+        "confidence": 0.8911,
         "realised": 0.8773,
-        "gap": 0.017
+        "gap": 0.0138
        },
        "0.900-0.925": {
         "n": 715,
-        "confidence": 0.9227,
+        "confidence": 0.9164,
         "realised": 0.9119,
-        "gap": 0.0108
+        "gap": 0.0045
        },
        "0.925-0.950": {
         "n": 899,
-        "confidence": 0.9381,
+        "confidence": 0.9391,
         "realised": 0.9355,
-        "gap": 0.0026
+        "gap": 0.0036
        },
        "0.950-1.010": {
         "n": 1667,
-        "confidence": 0.9659,
+        "confidence": 0.966,
         "realised": 0.9652,
-        "gap": 0.0007
+        "gap": 0.0008
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.48434,
+      "logloss_confidence": 0.48438,
       "logloss_model": 0.45104,
       "realised": 0.5841,
-      "confidence": 0.5907,
+      "confidence": 0.5916,
       "realised_minus_confidence": [
-       -0.0067,
-       -0.02,
-       0.0056
+       -0.0075,
+       -0.0198,
+       0.0054
       ],
       "printable": {
        "n": 6721,
        "games": 1667,
-       "confidence": 0.8832,
+       "confidence": 0.8828,
        "realised": 0.879,
        "realised_minus_confidence": [
-        -0.0042,
+        -0.0038,
         -0.0161,
-        0.0083
+        0.008
        ]
       }
      },
      "winner|TEAM": {
-      "n": 3194,
-      "uncovered": 140,
+      "n": 3237,
+      "uncovered": 97,
       "buckets": {
        "0.000-0.600": {
         "n": 2392,
-        "confidence": 0.4252,
+        "confidence": 0.4295,
         "realised": 0.4348,
-        "gap": -0.0096
+        "gap": -0.0053
        },
        "0.600-0.700": {
         "n": 520,
-        "confidence": 0.6086,
+        "confidence": 0.6132,
         "realised": 0.5808,
-        "gap": 0.0278
+        "gap": 0.0324
        },
        "0.700-0.750": {
         "n": 172,
-        "confidence": 0.6345,
+        "confidence": 0.6938,
         "realised": 0.7558,
-        "gap": -0.1213
+        "gap": -0.062
        },
        "0.750-0.800": {
         "n": 110,
-        "confidence": 0.7359,
+        "confidence": 0.7577,
         "realised": 0.7545,
-        "gap": -0.0186
+        "gap": 0.0032
+       },
+       "0.800-0.825": {
+        "n": 43,
+        "confidence": 0.7739,
+        "realised": 0.6744,
+        "gap": 0.0995
        }
       },
       "games": 1667,
-      "logloss_confidence": 0.6748,
-      "logloss_model": 0.65947,
-      "realised": 0.4869,
-      "confidence": 0.477,
+      "logloss_confidence": 0.67324,
+      "logloss_model": 0.65976,
+      "realised": 0.4893,
+      "confidence": 0.4888,
       "realised_minus_confidence": [
-       0.0098,
-       0.0055,
-       0.0143
+       0.0006,
+       -0.0034,
+       0.0046
       ],
       "printable": {
-       "n": 110,
-       "games": 110,
-       "confidence": 0.7359,
-       "realised": 0.7545,
+       "n": 153,
+       "games": 153,
+       "confidence": 0.7623,
+       "realised": 0.732,
        "realised_minus_confidence": [
-        0.0186,
-        -0.0632,
-        0.1005
+        -0.0302,
+        -0.0964,
+        0.0412
        ]
       }
      }
@@ -974,178 +1754,541 @@
       "buckets": {
        "0.000-0.600": {
         "n": 1267,
-        "confidence": 0.2524,
+        "confidence": 0.2576,
         "realised": 0.4002,
-        "gap": -0.1478
+        "gap": -0.1426
        },
        "0.600-0.700": {
         "n": 283,
-        "confidence": 0.6398,
+        "confidence": 0.6438,
         "realised": 0.6184,
-        "gap": 0.0214
+        "gap": 0.0254
        },
        "0.700-0.750": {
         "n": 137,
-        "confidence": 0.7063,
+        "confidence": 0.7037,
         "realised": 0.7007,
-        "gap": 0.0056
+        "gap": 0.003
        },
        "0.750-0.800": {
         "n": 104,
-        "confidence": 0.7462,
+        "confidence": 0.7578,
         "realised": 0.7019,
-        "gap": 0.0443
+        "gap": 0.0559
        },
        "0.800-0.825": {
         "n": 45,
-        "confidence": 0.7937,
+        "confidence": 0.7832,
         "realised": 0.8222,
-        "gap": -0.0285
+        "gap": -0.039
        },
        "0.825-0.850": {
         "n": 35,
-        "confidence": 0.8088,
+        "confidence": 0.8113,
         "realised": 0.8857,
-        "gap": -0.0769
+        "gap": -0.0744
        },
        "0.850-0.875": {
         "n": 32,
-        "confidence": 0.8384,
+        "confidence": 0.8388,
         "realised": 0.75,
-        "gap": 0.0884
+        "gap": 0.0888
        },
        "0.875-0.900": {
         "n": 12,
-        "confidence": 0.8612,
+        "confidence": 0.8655,
         "realised": 0.9167,
-        "gap": -0.0555
+        "gap": -0.0512
        },
        "0.900-0.925": {
         "n": 11,
-        "confidence": 0.8932,
+        "confidence": 0.8904,
         "realised": 0.8182,
-        "gap": 0.075
+        "gap": 0.0722
        },
        "0.925-0.950": {
         "n": 5,
-        "confidence": 0.918,
+        "confidence": 0.9219,
         "realised": 0.4,
-        "gap": 0.518
+        "gap": 0.5219
        },
        "0.950-1.010": {
         "n": 3,
-        "confidence": 0.9618,
+        "confidence": 0.9573,
         "realised": 0.6667,
-        "gap": 0.2951
+        "gap": 0.2906
        }
       },
       "games": 259,
-      "logloss_confidence": 0.68682,
+      "logloss_confidence": 0.68447,
       "logloss_model": 0.63653,
       "realised": 0.5,
-      "confidence": 0.4104,
+      "confidence": 0.4147,
       "realised_minus_confidence": [
-       0.0896,
-       0.0846,
-       0.0946
+       0.0853,
+       0.0804,
+       0.0903
       ],
       "printable": {
        "n": 384,
        "games": 210,
-       "confidence": 0.7626,
+       "confidence": 0.764,
        "realised": 0.7422,
        "realised_minus_confidence": [
-        -0.0205,
-        -0.0717,
-        0.0293
+        -0.0218,
+        -0.0734,
+        0.028
        ]
       }
      },
      "period_1x2|DRAW": {
-      "n": 0,
-      "uncovered": 422,
-      "buckets": {}
+      "n": 513,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 513,
+        "confidence": 0.2941,
+        "realised": 0.306,
+        "gap": -0.0119
+       }
+      },
+      "games": 457,
+      "logloss_confidence": 0.61624,
+      "logloss_model": 0.60978,
+      "realised": 0.306,
+      "confidence": 0.2941,
+      "realised_minus_confidence": [
+       0.0119,
+       -0.0274,
+       0.0521
+      ]
      },
      "period_1x2|TEAM": {
-      "n": 0,
-      "uncovered": 844,
-      "buckets": {}
+      "n": 1023,
+      "uncovered": 3,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1015,
+        "confidence": 0.3443,
+        "realised": 0.3448,
+        "gap": -0.0005
+       },
+       "0.600-0.700": {
+        "n": 8,
+        "confidence": 0.6268,
+        "realised": 0.375,
+        "gap": 0.2518
+       }
+      },
+      "games": 457,
+      "logloss_confidence": 0.64534,
+      "logloss_model": 0.62921,
+      "realised": 0.3451,
+      "confidence": 0.3465,
+      "realised_minus_confidence": [
+       -0.0014,
+       -0.0218,
+       0.0186
+      ]
      },
      "period_handicap|TEAM": {
-      "n": 0,
-      "uncovered": 782,
-      "buckets": {}
+      "n": 1062,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 604,
+        "confidence": 0.217,
+        "realised": 0.3344,
+        "gap": -0.1174
+       },
+       "0.600-0.700": {
+        "n": 175,
+        "confidence": 0.6441,
+        "realised": 0.6286,
+        "gap": 0.0155
+       },
+       "0.700-0.750": {
+        "n": 60,
+        "confidence": 0.7034,
+        "realised": 0.6667,
+        "gap": 0.0367
+       },
+       "0.750-0.800": {
+        "n": 57,
+        "confidence": 0.7722,
+        "realised": 0.7895,
+        "gap": -0.0173
+       },
+       "0.800-0.825": {
+        "n": 34,
+        "confidence": 0.8051,
+        "realised": 0.7941,
+        "gap": 0.011
+       },
+       "0.825-0.850": {
+        "n": 41,
+        "confidence": 0.8284,
+        "realised": 0.8049,
+        "gap": 0.0235
+       },
+       "0.850-0.875": {
+        "n": 33,
+        "confidence": 0.8569,
+        "realised": 0.7273,
+        "gap": 0.1296
+       },
+       "0.875-0.900": {
+        "n": 31,
+        "confidence": 0.8756,
+        "realised": 0.871,
+        "gap": 0.0046
+       },
+       "0.900-0.925": {
+        "n": 21,
+        "confidence": 0.9043,
+        "realised": 0.9048,
+        "gap": -0.0005
+       },
+       "0.925-0.950": {
+        "n": 5,
+        "confidence": 0.9348,
+        "realised": 0.6,
+        "gap": 0.3348
+       },
+       "0.950-1.010": {
+        "n": 1,
+        "confidence": 0.9689,
+        "realised": 1.0,
+        "gap": -0.0311
+       }
+      },
+      "games": 118,
+      "logloss_confidence": 0.634,
+      "logloss_model": 0.5996,
+      "realised": 0.5,
+      "confidence": 0.4439,
+      "realised_minus_confidence": [
+       0.0561,
+       0.0498,
+       0.0629
+      ],
+      "printable": {
+       "n": 283,
+       "games": 117,
+       "confidence": 0.8043,
+       "realised": 0.7739,
+       "realised_minus_confidence": [
+        -0.0304,
+        -0.0767,
+        0.0168
+       ]
+      }
      },
      "period_team_total|OVER": {
-      "n": 818,
-      "uncovered": 201,
+      "n": 1382,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
-        "n": 818,
-        "confidence": 0.2981,
-        "realised": 0.3594,
-        "gap": -0.0613
+        "n": 1115,
+        "confidence": 0.1758,
+        "realised": 0.357,
+        "gap": -0.1812
+       },
+       "0.600-0.700": {
+        "n": 218,
+        "confidence": 0.6279,
+        "realised": 0.6147,
+        "gap": 0.0132
+       },
+       "0.700-0.750": {
+        "n": 37,
+        "confidence": 0.6886,
+        "realised": 0.6486,
+        "gap": 0.04
+       },
+       "0.750-0.800": {
+        "n": 10,
+        "confidence": 0.7481,
+        "realised": 1.0,
+        "gap": -0.2519
+       },
+       "0.825-0.850": {
+        "n": 2,
+        "confidence": 0.8009,
+        "realised": 1.0,
+        "gap": -0.1991
        }
       },
-      "games": 207,
-      "logloss_confidence": 0.66175,
-      "logloss_model": 0.60087,
-      "realised": 0.3594,
-      "confidence": 0.2981,
+      "games": 289,
+      "logloss_confidence": 0.72604,
+      "logloss_model": 0.61393,
+      "realised": 0.411,
+      "confidence": 0.2659,
       "realised_minus_confidence": [
-       0.0613,
-       0.0255,
-       0.0953
-      ]
+       0.1451,
+       0.1147,
+       0.176
+      ],
+      "printable": {
+       "n": 12,
+       "games": 11,
+       "confidence": 0.7569,
+       "realised": 1.0,
+       "realised_minus_confidence": [
+        0.2431,
+        0.2299,
+        0.2519
+       ]
+      }
      },
      "period_team_total|UNDER": {
-      "n": 0,
-      "uncovered": 1019,
-      "buckets": {}
+      "n": 1382,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 694,
+        "confidence": 0.392,
+        "realised": 0.4222,
+        "gap": -0.0302
+       },
+       "0.600-0.700": {
+        "n": 100,
+        "confidence": 0.6761,
+        "realised": 0.71,
+        "gap": -0.0339
+       },
+       "0.700-0.750": {
+        "n": 118,
+        "confidence": 0.7321,
+        "realised": 0.678,
+        "gap": 0.0541
+       },
+       "0.750-0.800": {
+        "n": 162,
+        "confidence": 0.7737,
+        "realised": 0.7778,
+        "gap": -0.0041
+       },
+       "0.800-0.825": {
+        "n": 96,
+        "confidence": 0.8043,
+        "realised": 0.7604,
+        "gap": 0.0439
+       },
+       "0.825-0.850": {
+        "n": 84,
+        "confidence": 0.8288,
+        "realised": 0.7857,
+        "gap": 0.0431
+       },
+       "0.850-0.875": {
+        "n": 68,
+        "confidence": 0.8623,
+        "realised": 0.8235,
+        "gap": 0.0388
+       },
+       "0.875-0.900": {
+        "n": 37,
+        "confidence": 0.8914,
+        "realised": 0.8108,
+        "gap": 0.0806
+       },
+       "0.900-0.925": {
+        "n": 18,
+        "confidence": 0.9174,
+        "realised": 0.7778,
+        "gap": 0.1396
+       },
+       "0.925-0.950": {
+        "n": 4,
+        "confidence": 0.9375,
+        "realised": 1.0,
+        "gap": -0.0625
+       },
+       "0.950-1.010": {
+        "n": 1,
+        "confidence": 0.9737,
+        "realised": 1.0,
+        "gap": -0.0263
+       }
+      },
+      "games": 289,
+      "logloss_confidence": 0.61892,
+      "logloss_model": 0.61393,
+      "realised": 0.589,
+      "confidence": 0.5869,
+      "realised_minus_confidence": [
+       0.0021,
+       -0.026,
+       0.0322
+      ],
+      "printable": {
+       "n": 588,
+       "games": 260,
+       "confidence": 0.8017,
+       "realised": 0.7653,
+       "realised_minus_confidence": [
+        -0.0364,
+        -0.0698,
+        -0.0021
+       ]
+      }
      },
      "period_total|OVER": {
-      "n": 633,
-      "uncovered": 321,
+      "n": 1287,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
-        "n": 633,
-        "confidence": 0.3398,
-        "realised": 0.4139,
-        "gap": -0.0741
+        "n": 857,
+        "confidence": 0.1898,
+        "realised": 0.4107,
+        "gap": -0.2209
+       },
+       "0.600-0.700": {
+        "n": 94,
+        "confidence": 0.6215,
+        "realised": 0.5638,
+        "gap": 0.0577
+       },
+       "0.700-0.750": {
+        "n": 20,
+        "confidence": 0.6874,
+        "realised": 0.75,
+        "gap": -0.0626
+       },
+       "0.750-0.800": {
+        "n": 81,
+        "confidence": 0.7753,
+        "realised": 0.8395,
+        "gap": -0.0642
+       },
+       "0.800-0.825": {
+        "n": 100,
+        "confidence": 0.8161,
+        "realised": 0.78,
+        "gap": 0.0361
+       },
+       "0.825-0.850": {
+        "n": 73,
+        "confidence": 0.8346,
+        "realised": 0.8904,
+        "gap": -0.0558
+       },
+       "0.850-0.875": {
+        "n": 40,
+        "confidence": 0.8547,
+        "realised": 0.85,
+        "gap": 0.0047
+       },
+       "0.875-0.900": {
+        "n": 18,
+        "confidence": 0.8751,
+        "realised": 0.8333,
+        "gap": 0.0418
+       },
+       "0.900-0.925": {
+        "n": 4,
+        "confidence": 0.8979,
+        "realised": 0.75,
+        "gap": 0.1479
        }
       },
-      "games": 346,
-      "logloss_confidence": 0.69012,
-      "logloss_model": 0.65152,
-      "realised": 0.4139,
-      "confidence": 0.3398,
+      "games": 503,
+      "logloss_confidence": 0.70819,
+      "logloss_model": 0.60362,
+      "realised": 0.5307,
+      "confidence": 0.3836,
       "realised_minus_confidence": [
-       0.0741,
-       0.0298,
-       0.1179
-      ]
+       0.1471,
+       0.1129,
+       0.1808
+      ],
+      "printable": {
+       "n": 316,
+       "games": 286,
+       "confidence": 0.8192,
+       "realised": 0.8323,
+       "realised_minus_confidence": [
+        0.0131,
+        -0.0304,
+        0.0547
+       ]
+      }
      },
      "period_total|UNDER": {
-      "n": 655,
-      "uncovered": 299,
+      "n": 1287,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
-        "n": 655,
-        "confidence": 0.2877,
-        "realised": 0.3588,
-        "gap": -0.0711
+        "n": 883,
+        "confidence": 0.3005,
+        "realised": 0.3556,
+        "gap": -0.0551
+       },
+       "0.600-0.700": {
+        "n": 99,
+        "confidence": 0.6561,
+        "realised": 0.6667,
+        "gap": -0.0106
+       },
+       "0.700-0.750": {
+        "n": 77,
+        "confidence": 0.7345,
+        "realised": 0.6753,
+        "gap": 0.0592
+       },
+       "0.750-0.800": {
+        "n": 149,
+        "confidence": 0.7857,
+        "realised": 0.7517,
+        "gap": 0.034
+       },
+       "0.800-0.825": {
+        "n": 48,
+        "confidence": 0.8201,
+        "realised": 0.7292,
+        "gap": 0.0909
+       },
+       "0.825-0.850": {
+        "n": 19,
+        "confidence": 0.8404,
+        "realised": 0.7368,
+        "gap": 0.1036
+       },
+       "0.850-0.875": {
+        "n": 10,
+        "confidence": 0.8671,
+        "realised": 0.9,
+        "gap": -0.0329
+       },
+       "0.875-0.900": {
+        "n": 2,
+        "confidence": 0.8919,
+        "realised": 1.0,
+        "gap": -0.1081
        }
       },
-      "games": 364,
-      "logloss_confidence": 0.66452,
-      "logloss_model": 0.60717,
-      "realised": 0.3588,
-      "confidence": 0.2877,
+      "games": 503,
+      "logloss_confidence": 0.63831,
+      "logloss_model": 0.60362,
+      "realised": 0.4693,
+      "confidence": 0.4427,
       "realised_minus_confidence": [
-       0.0711,
-       0.0309,
-       0.111
-      ]
+       0.0266,
+       -0.0066,
+       0.0601
+      ],
+      "printable": {
+       "n": 305,
+       "games": 274,
+       "confidence": 0.785,
+       "realised": 0.7344,
+       "realised_minus_confidence": [
+        -0.0505,
+        -0.1049,
+        -0.002
+       ]
+      }
      },
      "result_1x2|DRAW": {
       "n": 489,
@@ -1153,49 +2296,72 @@
       "buckets": {
        "0.000-0.600": {
         "n": 489,
-        "confidence": 0.1957,
+        "confidence": 0.1952,
         "realised": 0.2004,
-        "gap": -0.0047
+        "gap": -0.0052
        }
       },
       "games": 489,
-      "logloss_confidence": 0.50104,
+      "logloss_confidence": 0.50105,
       "logloss_model": 0.50403,
       "realised": 0.2004,
-      "confidence": 0.1957,
+      "confidence": 0.1952,
       "realised_minus_confidence": [
-       0.0047,
-       -0.0301,
-       0.0395
+       0.0052,
+       -0.0296,
+       0.042
       ]
      },
      "result_1x2|TEAM": {
-      "n": 927,
-      "uncovered": 51,
+      "n": 962,
+      "uncovered": 16,
       "buckets": {
        "0.000-0.600": {
         "n": 854,
-        "confidence": 0.3522,
+        "confidence": 0.3609,
         "realised": 0.3642,
-        "gap": -0.012
+        "gap": -0.0033
        },
        "0.600-0.700": {
         "n": 73,
-        "confidence": 0.5795,
+        "confidence": 0.6063,
         "realised": 0.6575,
-        "gap": -0.078
+        "gap": -0.0512
+       },
+       "0.700-0.750": {
+        "n": 24,
+        "confidence": 0.6552,
+        "realised": 0.4583,
+        "gap": 0.1969
+       },
+       "0.750-0.800": {
+        "n": 11,
+        "confidence": 0.7141,
+        "realised": 0.7273,
+        "gap": -0.0132
        }
       },
       "games": 489,
-      "logloss_confidence": 0.65604,
-      "logloss_model": 0.63819,
-      "realised": 0.3873,
-      "confidence": 0.3701,
+      "logloss_confidence": 0.6573,
+      "logloss_model": 0.6428,
+      "realised": 0.3929,
+      "confidence": 0.3909,
       "realised_minus_confidence": [
-       0.0172,
-       -0.0036,
-       0.0362
-      ]
+       0.002,
+       -0.0161,
+       0.0199
+      ],
+      "printable": {
+       "n": 11,
+       "games": 11,
+       "confidence": 0.7141,
+       "realised": 0.7273,
+       "realised_minus_confidence": [
+        0.0132,
+        -0.2596,
+        0.195
+       ]
+      }
      },
      "team_total|OVER": {
       "n": 2283,
@@ -1203,84 +2369,84 @@
       "buckets": {
        "0.000-0.600": {
         "n": 1461,
-        "confidence": 0.1955,
+        "confidence": 0.2018,
         "realised": 0.3867,
-        "gap": -0.1912
+        "gap": -0.1849
        },
        "0.600-0.700": {
         "n": 290,
-        "confidence": 0.6036,
+        "confidence": 0.6126,
         "realised": 0.6241,
-        "gap": -0.0205
+        "gap": -0.0115
        },
        "0.700-0.750": {
         "n": 134,
-        "confidence": 0.6971,
+        "confidence": 0.693,
         "realised": 0.6418,
-        "gap": 0.0553
+        "gap": 0.0512
        },
        "0.750-0.800": {
         "n": 135,
-        "confidence": 0.7336,
+        "confidence": 0.7436,
         "realised": 0.6741,
-        "gap": 0.0595
+        "gap": 0.0695
        },
        "0.800-0.825": {
         "n": 41,
-        "confidence": 0.7534,
+        "confidence": 0.7688,
         "realised": 0.7073,
-        "gap": 0.0461
+        "gap": 0.0615
        },
        "0.825-0.850": {
         "n": 54,
-        "confidence": 0.7957,
+        "confidence": 0.8012,
         "realised": 0.8519,
-        "gap": -0.0562
+        "gap": -0.0507
        },
        "0.850-0.875": {
         "n": 38,
-        "confidence": 0.843,
+        "confidence": 0.8387,
         "realised": 0.9211,
-        "gap": -0.0781
+        "gap": -0.0824
        },
        "0.875-0.900": {
         "n": 40,
-        "confidence": 0.8572,
+        "confidence": 0.8595,
         "realised": 0.95,
-        "gap": -0.0928
+        "gap": -0.0905
        },
        "0.900-0.925": {
         "n": 39,
-        "confidence": 0.903,
+        "confidence": 0.8946,
         "realised": 0.8205,
-        "gap": 0.0825
+        "gap": 0.0741
        },
        "0.925-0.950": {
         "n": 51,
-        "confidence": 0.9235,
+        "confidence": 0.9262,
         "realised": 0.8824,
-        "gap": 0.0411
+        "gap": 0.0438
        }
       },
       "games": 474,
-      "logloss_confidence": 0.69742,
+      "logloss_confidence": 0.69268,
       "logloss_model": 0.61757,
       "realised": 0.5028,
-      "confidence": 0.3835,
+      "confidence": 0.3894,
       "realised_minus_confidence": [
-       0.1193,
-       0.0918,
-       0.1454
+       0.1135,
+       0.0867,
+       0.1396
       ],
       "printable": {
        "n": 398,
        "games": 235,
-       "confidence": 0.8079,
+       "confidence": 0.8129,
        "realised": 0.794,
        "realised_minus_confidence": [
-        -0.0139,
-        -0.0528,
-        0.0259
+        -0.019,
+        -0.0596,
+        0.0219
        ]
       }
      },
@@ -1290,90 +2456,90 @@
       "buckets": {
        "0.000-0.600": {
         "n": 1518,
-        "confidence": 0.3054,
+        "confidence": 0.3089,
         "realised": 0.3768,
-        "gap": -0.0714
+        "gap": -0.0679
        },
        "0.600-0.700": {
         "n": 311,
-        "confidence": 0.6554,
+        "confidence": 0.6598,
         "realised": 0.6463,
-        "gap": 0.0091
+        "gap": 0.0135
        },
        "0.700-0.750": {
         "n": 139,
-        "confidence": 0.7231,
+        "confidence": 0.7277,
         "realised": 0.6475,
-        "gap": 0.0756
+        "gap": 0.0802
        },
        "0.750-0.800": {
         "n": 122,
-        "confidence": 0.7802,
+        "confidence": 0.7779,
         "realised": 0.6885,
-        "gap": 0.0917
+        "gap": 0.0894
        },
        "0.800-0.825": {
         "n": 50,
-        "confidence": 0.8079,
+        "confidence": 0.7973,
         "realised": 0.8,
-        "gap": 0.0079
+        "gap": -0.0027
        },
        "0.825-0.850": {
         "n": 43,
-        "confidence": 0.836,
+        "confidence": 0.8385,
         "realised": 0.7907,
-        "gap": 0.0453
+        "gap": 0.0478
        },
        "0.850-0.875": {
         "n": 53,
-        "confidence": 0.8608,
+        "confidence": 0.8599,
         "realised": 0.8302,
-        "gap": 0.0306
+        "gap": 0.0297
        },
        "0.875-0.900": {
         "n": 29,
-        "confidence": 0.8854,
+        "confidence": 0.8838,
         "realised": 0.7931,
-        "gap": 0.0923
+        "gap": 0.0907
        },
        "0.900-0.925": {
         "n": 30,
-        "confidence": 0.9049,
+        "confidence": 0.9034,
         "realised": 0.9,
-        "gap": 0.0049
+        "gap": 0.0034
        },
        "0.925-0.950": {
         "n": 16,
-        "confidence": 0.9338,
+        "confidence": 0.936,
         "realised": 0.9375,
-        "gap": -0.0037
+        "gap": -0.0015
        },
        "0.950-1.010": {
         "n": 8,
-        "confidence": 0.9665,
+        "confidence": 0.9653,
         "realised": 0.75,
-        "gap": 0.2165
+        "gap": 0.2153
        }
       },
       "games": 474,
-      "logloss_confidence": 0.6485,
+      "logloss_confidence": 0.64778,
       "logloss_model": 0.60999,
       "realised": 0.4899,
-      "confidence": 0.4573,
+      "confidence": 0.4602,
       "realised_minus_confidence": [
-       0.0325,
-       0.0061,
-       0.0586
+       0.0297,
+       0.0029,
+       0.0556
       ],
       "printable": {
        "n": 490,
        "games": 256,
-       "confidence": 0.8024,
+       "confidence": 0.802,
        "realised": 0.7408,
        "realised_minus_confidence": [
-        -0.0615,
-        -0.1076,
-        -0.0177
+        -0.0612,
+        -0.1063,
+        -0.0172
        ]
       }
      },
@@ -1383,84 +2549,84 @@
       "buckets": {
        "0.000-0.600": {
         "n": 1051,
-        "confidence": 0.1987,
+        "confidence": 0.2065,
         "realised": 0.4034,
-        "gap": -0.2047
+        "gap": -0.1969
        },
        "0.600-0.700": {
         "n": 277,
-        "confidence": 0.598,
+        "confidence": 0.6198,
         "realised": 0.6318,
-        "gap": -0.0338
+        "gap": -0.012
        },
        "0.700-0.750": {
         "n": 127,
-        "confidence": 0.6944,
+        "confidence": 0.6934,
         "realised": 0.6929,
-        "gap": 0.0015
+        "gap": 0.0005
        },
        "0.750-0.800": {
         "n": 73,
-        "confidence": 0.7362,
+        "confidence": 0.7544,
         "realised": 0.7397,
-        "gap": -0.0035
+        "gap": 0.0147
        },
        "0.800-0.825": {
         "n": 21,
-        "confidence": 0.7858,
+        "confidence": 0.7733,
         "realised": 0.7619,
-        "gap": 0.0239
+        "gap": 0.0114
        },
        "0.825-0.850": {
         "n": 22,
-        "confidence": 0.8103,
+        "confidence": 0.8107,
         "realised": 0.6818,
-        "gap": 0.1285
+        "gap": 0.1289
        },
        "0.850-0.875": {
         "n": 22,
-        "confidence": 0.8332,
+        "confidence": 0.8479,
         "realised": 0.8636,
-        "gap": -0.0304
+        "gap": -0.0157
        },
        "0.875-0.900": {
         "n": 12,
-        "confidence": 0.8578,
+        "confidence": 0.8701,
         "realised": 0.75,
-        "gap": 0.1078
+        "gap": 0.1201
        },
        "0.900-0.925": {
         "n": 6,
-        "confidence": 0.8994,
+        "confidence": 0.8983,
         "realised": 0.8333,
-        "gap": 0.0661
+        "gap": 0.065
        },
        "0.925-0.950": {
         "n": 7,
-        "confidence": 0.9214,
+        "confidence": 0.9168,
         "realised": 0.8571,
-        "gap": 0.0643
+        "gap": 0.0597
        }
       },
       "games": 474,
-      "logloss_confidence": 0.72649,
+      "logloss_confidence": 0.71988,
       "logloss_model": 0.63689,
       "realised": 0.5012,
-      "confidence": 0.3654,
+      "confidence": 0.375,
       "realised_minus_confidence": [
-       0.1358,
-       0.1007,
-       0.1738
+       0.1262,
+       0.0896,
+       0.1637
       ],
       "printable": {
        "n": 163,
        "games": 139,
-       "confidence": 0.7886,
+       "confidence": 0.7978,
        "realised": 0.7607,
        "realised_minus_confidence": [
-        -0.0279,
-        -0.1018,
-        0.0415
+        -0.0371,
+        -0.1125,
+        0.0359
        ]
       }
      },
@@ -1470,129 +2636,135 @@
       "buckets": {
        "0.000-0.600": {
         "n": 1134,
-        "confidence": 0.2961,
+        "confidence": 0.2975,
         "realised": 0.4118,
-        "gap": -0.1157
+        "gap": -0.1143
        },
        "0.600-0.700": {
         "n": 271,
-        "confidence": 0.6565,
+        "confidence": 0.6617,
         "realised": 0.6605,
-        "gap": -0.004
+        "gap": 0.0012
        },
        "0.700-0.750": {
         "n": 103,
-        "confidence": 0.7484,
+        "confidence": 0.7358,
         "realised": 0.6699,
-        "gap": 0.0785
+        "gap": 0.0659
        },
        "0.750-0.800": {
         "n": 61,
-        "confidence": 0.7749,
+        "confidence": 0.7837,
         "realised": 0.8197,
-        "gap": -0.0448
+        "gap": -0.036
        },
        "0.800-0.825": {
         "n": 10,
-        "confidence": 0.8272,
+        "confidence": 0.8316,
         "realised": 0.8,
-        "gap": 0.0272
+        "gap": 0.0316
        },
        "0.825-0.850": {
         "n": 19,
-        "confidence": 0.8447,
+        "confidence": 0.8399,
         "realised": 0.8947,
-        "gap": -0.05
+        "gap": -0.0548
        },
        "0.850-0.875": {
         "n": 9,
-        "confidence": 0.8606,
+        "confidence": 0.8702,
         "realised": 0.7778,
-        "gap": 0.0828
+        "gap": 0.0924
        },
        "0.875-0.900": {
         "n": 6,
-        "confidence": 0.8943,
+        "confidence": 0.8911,
         "realised": 1.0,
-        "gap": -0.1057
+        "gap": -0.1089
        },
        "0.900-0.925": {
         "n": 5,
-        "confidence": 0.9227,
+        "confidence": 0.9164,
         "realised": 0.8,
-        "gap": 0.1227
+        "gap": 0.1164
        }
       },
       "games": 474,
-      "logloss_confidence": 0.67518,
+      "logloss_confidence": 0.6743,
       "logloss_model": 0.63689,
       "realised": 0.4988,
-      "confidence": 0.4203,
+      "confidence": 0.4217,
       "realised_minus_confidence": [
-       0.0784,
-       0.0437,
-       0.1144
+       0.0771,
+       0.0429,
+       0.112
       ],
       "printable": {
        "n": 213,
        "games": 177,
-       "confidence": 0.7812,
+       "confidence": 0.7776,
        "realised": 0.7559,
        "realised_minus_confidence": [
-        -0.0254,
-        -0.0877,
-        0.0335
+        -0.0217,
+        -0.0842,
+        0.0401
        ]
       }
      },
      "winner|TEAM": {
-      "n": 957,
-      "uncovered": 45,
+      "n": 972,
+      "uncovered": 30,
       "buckets": {
        "0.000-0.600": {
         "n": 724,
-        "confidence": 0.4252,
+        "confidence": 0.4295,
         "realised": 0.4323,
-        "gap": -0.0071
+        "gap": -0.0028
        },
        "0.600-0.700": {
         "n": 155,
-        "confidence": 0.6086,
+        "confidence": 0.6132,
         "realised": 0.5935,
-        "gap": 0.0151
+        "gap": 0.0197
        },
        "0.700-0.750": {
         "n": 49,
-        "confidence": 0.6345,
+        "confidence": 0.6938,
         "realised": 0.8163,
-        "gap": -0.1818
+        "gap": -0.1225
        },
        "0.750-0.800": {
         "n": 29,
-        "confidence": 0.7359,
+        "confidence": 0.7577,
         "realised": 0.7241,
-        "gap": 0.0118
+        "gap": 0.0336
+       },
+       "0.800-0.825": {
+        "n": 15,
+        "confidence": 0.7739,
+        "realised": 0.6667,
+        "gap": 0.1072
        }
       },
       "games": 501,
-      "logloss_confidence": 0.67334,
-      "logloss_model": 0.65913,
-      "realised": 0.4869,
-      "confidence": 0.475,
+      "logloss_confidence": 0.67127,
+      "logloss_model": 0.65949,
+      "realised": 0.4897,
+      "confidence": 0.4872,
       "realised_minus_confidence": [
-       0.0119,
-       0.004,
-       0.0201
+       0.0025,
+       -0.0048,
+       0.0096
       ],
       "printable": {
-       "n": 29,
-       "games": 29,
-       "confidence": 0.7359,
-       "realised": 0.7241,
+       "n": 44,
+       "games": 44,
+       "confidence": 0.7632,
+       "realised": 0.7045,
        "realised_minus_confidence": [
-        -0.0118,
-        -0.1842,
-        0.1262
+        -0.0587,
+        -0.1961,
+        0.0766
        ]
       }
      }
@@ -3144,279 +4316,349 @@
      "2026-10-04"
     ],
     "rows": {
-     "history_fit": 259640,
+     "history_fit": 518686,
      "history_holdout": 96986,
      "settled_fit": 218,
      "superbet_settled": 3230
     },
     "games": {
-     "history_fit": 3881,
+     "history_fit": 7753,
      "history_holdout": 1456,
      "settled_fit": 35,
      "superbet_settled": 223
     },
     "sims": 2000,
-    "max_games": 4000,
+    "max_games": 20000,
     "forecast_source": "score_model"
    },
    "curves": {
     "points_handicap|TEAM": {
      "0.000-0.600": {
-      "n": 54334,
-      "realised": 0.2027,
-      "realised_lo95": 0.1993
+      "n": 108543,
+      "realised": 0.2032,
+      "realised_lo95": 0.2008
      },
      "0.600-0.700": {
-      "n": 7762,
-      "realised": 0.6753,
-      "realised_lo95": 0.6648
+      "n": 15504,
+      "realised": 0.6743,
+      "realised_lo95": 0.6669
      },
      "0.700-0.750": {
-      "n": 3795,
-      "realised": 0.7607,
-      "realised_lo95": 0.7469
+      "n": 7584,
+      "realised": 0.7563,
+      "realised_lo95": 0.7465
      },
      "0.750-0.800": {
-      "n": 7751,
-      "realised": 0.8116,
-      "realised_lo95": 0.8028
+      "n": 15471,
+      "realised": 0.8111,
+      "realised_lo95": 0.8049
      },
      "0.800-0.825": {
-      "n": 3869,
-      "realised": 0.8558,
-      "realised_lo95": 0.8444
+      "n": 7706,
+      "realised": 0.858,
+      "realised_lo95": 0.8501
      },
      "0.825-0.850": {
-      "n": 3874,
-      "realised": 0.8663,
-      "realised_lo95": 0.8552
+      "n": 7764,
+      "realised": 0.8642,
+      "realised_lo95": 0.8564
      },
      "0.850-0.875": {
-      "n": 3952,
-      "realised": 0.9036,
-      "realised_lo95": 0.894
+      "n": 7916,
+      "realised": 0.904,
+      "realised_lo95": 0.8973
      },
      "0.875-0.900": {
-      "n": 3748,
-      "realised": 0.9173,
-      "realised_lo95": 0.908
+      "n": 7491,
+      "realised": 0.9159,
+      "realised_lo95": 0.9094
      },
      "0.900-0.925": {
-      "n": 4059,
-      "realised": 0.9396,
-      "realised_lo95": 0.9319
+      "n": 8093,
+      "realised": 0.9412,
+      "realised_lo95": 0.9358
      },
      "0.925-0.950": {
-      "n": 3621,
-      "realised": 0.9663,
-      "realised_lo95": 0.9599
+      "n": 7270,
+      "realised": 0.9649,
+      "realised_lo95": 0.9604
      },
      "0.950-1.010": {
-      "n": 4141,
+      "n": 8236,
       "realised": 0.9739,
-      "realised_lo95": 0.9686
+      "realised_lo95": 0.9702
      }
     },
     "points_total|OVER": {
      "0.000-0.600": {
-      "n": 27167,
-      "realised": 0.2384,
-      "realised_lo95": 0.2333
+      "n": 54271,
+      "realised": 0.2408,
+      "realised_lo95": 0.2372
      },
      "0.600-0.700": {
-      "n": 3881,
-      "realised": 0.6465,
-      "realised_lo95": 0.6313
+      "n": 7753,
+      "realised": 0.645,
+      "realised_lo95": 0.6343
      },
      "0.700-0.750": {
-      "n": 3772,
-      "realised": 0.7627,
-      "realised_lo95": 0.7489
+      "n": 7538,
+      "realised": 0.7673,
+      "realised_lo95": 0.7576
      },
      "0.750-0.800": {
-      "n": 3877,
-      "realised": 0.8189,
-      "realised_lo95": 0.8065
+      "n": 7767,
+      "realised": 0.8239,
+      "realised_lo95": 0.8152
+     },
+     "0.800-0.825": {
+      "n": 262,
+      "realised": 0.8588,
+      "realised_lo95": 0.8114
      },
      "0.825-0.850": {
-      "n": 3756,
-      "realised": 0.8807,
-      "realised_lo95": 0.87
+      "n": 7489,
+      "realised": 0.8846,
+      "realised_lo95": 0.8772
+     },
+     "0.850-0.875": {
+      "n": 210,
+      "realised": 0.8667,
+      "realised_lo95": 0.814
      },
      "0.875-0.900": {
-      "n": 3713,
-      "realised": 0.9249,
-      "realised_lo95": 0.9159
+      "n": 7451,
+      "realised": 0.9298,
+      "realised_lo95": 0.9238
+     },
+     "0.900-0.925": {
+      "n": 295,
+      "realised": 0.9288,
+      "realised_lo95": 0.8936
      },
      "0.925-0.950": {
-      "n": 3704,
-      "realised": 0.9687,
-      "realised_lo95": 0.9626
+      "n": 7382,
+      "realised": 0.9698,
+      "realised_lo95": 0.9656
+     },
+     "0.950-1.010": {
+      "n": 371,
+      "realised": 0.9784,
+      "realised_lo95": 0.958
      }
     },
     "points_total|UNDER": {
      "0.000-0.600": {
-      "n": 27167,
-      "realised": 0.2133,
-      "realised_lo95": 0.2085
+      "n": 54271,
+      "realised": 0.2101,
+      "realised_lo95": 0.2067
      },
      "0.600-0.700": {
-      "n": 3881,
-      "realised": 0.6439,
-      "realised_lo95": 0.6287
+      "n": 7753,
+      "realised": 0.6428,
+      "realised_lo95": 0.6321
      },
      "0.750-0.800": {
-      "n": 3881,
-      "realised": 0.7483,
-      "realised_lo95": 0.7344
+      "n": 7753,
+      "realised": 0.7447,
+      "realised_lo95": 0.7349
      },
      "0.800-0.825": {
-      "n": 3879,
-      "realised": 0.7925,
-      "realised_lo95": 0.7794
+      "n": 7751,
+      "realised": 0.791,
+      "realised_lo95": 0.7818
      },
      "0.850-0.875": {
-      "n": 3881,
-      "realised": 0.8377,
-      "realised_lo95": 0.8257
+      "n": 7753,
+      "realised": 0.8345,
+      "realised_lo95": 0.8261
      },
      "0.900-0.925": {
-      "n": 3881,
-      "realised": 0.8822,
-      "realised_lo95": 0.8717
+      "n": 7753,
+      "realised": 0.8795,
+      "realised_lo95": 0.8721
      },
      "0.950-1.010": {
-      "n": 3881,
-      "realised": 0.9273,
-      "realised_lo95": 0.9187
+      "n": 7753,
+      "realised": 0.9285,
+      "realised_lo95": 0.9226
      }
     },
     "set_handicap|TEAM": {
      "0.000-0.600": {
-      "n": 20628,
-      "realised": 0.3031,
-      "realised_lo95": 0.2968
+      "n": 41254,
+      "realised": 0.3046,
+      "realised_lo95": 0.3002
      },
      "0.600-0.700": {
-      "n": 3529,
+      "n": 7004,
       "realised": 0.6532,
-      "realised_lo95": 0.6373
+      "realised_lo95": 0.642
      },
      "0.700-0.750": {
-      "n": 1779,
-      "realised": 0.7077,
-      "realised_lo95": 0.6861
+      "n": 3585,
+      "realised": 0.718,
+      "realised_lo95": 0.703
      },
      "0.750-0.800": {
-      "n": 1915,
-      "realised": 0.7734,
-      "realised_lo95": 0.7541
+      "n": 3806,
+      "realised": 0.7727,
+      "realised_lo95": 0.7591
      },
      "0.800-0.825": {
-      "n": 967,
-      "realised": 0.8108,
-      "realised_lo95": 0.7849
+      "n": 1969,
+      "realised": 0.8177,
+      "realised_lo95": 0.8
      },
      "0.825-0.850": {
-      "n": 984,
-      "realised": 0.8496,
-      "realised_lo95": 0.8259
+      "n": 1959,
+      "realised": 0.828,
+      "realised_lo95": 0.8106
      },
      "0.850-0.875": {
-      "n": 997,
-      "realised": 0.8736,
-      "realised_lo95": 0.8516
+      "n": 2047,
+      "realised": 0.8661,
+      "realised_lo95": 0.8507
      },
      "0.875-0.900": {
-      "n": 1074,
-      "realised": 0.8864,
-      "realised_lo95": 0.866
+      "n": 2108,
+      "realised": 0.8866,
+      "realised_lo95": 0.8724
      },
      "0.900-0.925": {
-      "n": 1101,
-      "realised": 0.9201,
-      "realised_lo95": 0.9026
+      "n": 2176,
+      "realised": 0.9168,
+      "realised_lo95": 0.9045
      },
      "0.925-0.950": {
-      "n": 1107,
-      "realised": 0.9494,
-      "realised_lo95": 0.9349
+      "n": 2196,
+      "realised": 0.9431,
+      "realised_lo95": 0.9326
      },
      "0.950-1.010": {
-      "n": 503,
-      "realised": 0.9702,
-      "realised_lo95": 0.9514
+      "n": 978,
+      "realised": 0.9663,
+      "realised_lo95": 0.953
      }
     },
     "sets_total|OVER": {
      "0.000-0.600": {
-      "n": 5578,
-      "realised": 0.2723,
-      "realised_lo95": 0.2608
+      "n": 11133,
+      "realised": 0.2736,
+      "realised_lo95": 0.2654
      },
      "0.600-0.700": {
-      "n": 2160,
-      "realised": 0.6023,
-      "realised_lo95": 0.5815
+      "n": 4331,
+      "realised": 0.6082,
+      "realised_lo95": 0.5935
      }
     },
     "sets_total|UNDER": {
      "0.000-0.600": {
-      "n": 3392,
-      "realised": 0.4375,
-      "realised_lo95": 0.4209
+      "n": 6793,
+      "realised": 0.436,
+      "realised_lo95": 0.4243
      },
      "0.600-0.700": {
-      "n": 1065,
-      "realised": 0.7221,
-      "realised_lo95": 0.6944
+      "n": 2122,
+      "realised": 0.722,
+      "realised_lo95": 0.7025
      },
      "0.700-0.750": {
-      "n": 1496,
-      "realised": 0.76,
-      "realised_lo95": 0.7377
+      "n": 2997,
+      "realised": 0.7447,
+      "realised_lo95": 0.7288
      },
      "0.750-0.800": {
-      "n": 697,
-      "realised": 0.8164,
-      "realised_lo95": 0.7859
+      "n": 1363,
+      "realised": 0.8217,
+      "realised_lo95": 0.8005
      },
      "0.800-0.825": {
-      "n": 236,
-      "realised": 0.7839,
-      "realised_lo95": 0.7271
+      "n": 492,
+      "realised": 0.8171,
+      "realised_lo95": 0.7805
+     },
+     "0.825-0.850": {
+      "n": 405,
+      "realised": 0.879,
+      "realised_lo95": 0.8436
+     },
+     "0.850-0.875": {
+      "n": 348,
+      "realised": 0.8707,
+      "realised_lo95": 0.8313
+     },
+     "0.875-0.900": {
+      "n": 281,
+      "realised": 0.9039,
+      "realised_lo95": 0.8638
+     },
+     "0.900-0.925": {
+      "n": 262,
+      "realised": 0.8969,
+      "realised_lo95": 0.8542
+     },
+     "0.950-1.010": {
+      "n": 212,
+      "realised": 0.967,
+      "realised_lo95": 0.9334
      }
     },
     "winner|TEAM": {
      "0.000-0.600": {
-      "n": 4720,
-      "realised": 0.2987,
-      "realised_lo95": 0.2858
+      "n": 9519,
+      "realised": 0.3068,
+      "realised_lo95": 0.2976
      },
      "0.600-0.700": {
-      "n": 897,
-      "realised": 0.6711,
-      "realised_lo95": 0.6397
+      "n": 1748,
+      "realised": 0.6825,
+      "realised_lo95": 0.6603
      },
      "0.700-0.750": {
-      "n": 407,
-      "realised": 0.7518,
-      "realised_lo95": 0.7077
+      "n": 798,
+      "realised": 0.7469,
+      "realised_lo95": 0.7156
      },
      "0.750-0.800": {
-      "n": 391,
-      "realised": 0.8056,
-      "realised_lo95": 0.7635
+      "n": 772,
+      "realised": 0.7824,
+      "realised_lo95": 0.7519
      },
      "0.800-0.825": {
-      "n": 205,
-      "realised": 0.8683,
-      "realised_lo95": 0.8152
+      "n": 388,
+      "realised": 0.8686,
+      "realised_lo95": 0.8313
+     },
+     "0.825-0.850": {
+      "n": 347,
+      "realised": 0.8588,
+      "realised_lo95": 0.8182
+     },
+     "0.850-0.875": {
+      "n": 329,
+      "realised": 0.8815,
+      "realised_lo95": 0.8421
+     },
+     "0.875-0.900": {
+      "n": 322,
+      "realised": 0.9286,
+      "realised_lo95": 0.8951
+     },
+     "0.900-0.925": {
+      "n": 343,
+      "realised": 0.9359,
+      "realised_lo95": 0.9048
+     },
+     "0.925-0.950": {
+      "n": 329,
+      "realised": 0.921,
+      "realised_lo95": 0.8867
      },
      "0.950-1.010": {
-      "n": 295,
-      "realised": 0.9729,
-      "realised_lo95": 0.9474
+      "n": 611,
+      "realised": 0.9689,
+      "realised_lo95": 0.9519
      }
     }
    },
@@ -3434,14 +4676,14 @@
     "sets_total|UNDER"
    ],
    "not_calibrated": {
-    "points_handicap|TEAM": "OVERSTATES: history_holdout bucket 0.700-0.750 confidence above realised by 0.0413",
-    "points_total|OVER": "OVERSTATES_PRINTABLE: superbet_settled n=11 confidence 0.7594 realised 0.2727 (realised-confidence -0.4866, 95% upper -0.1604)",
-    "set_handicap|TEAM": "OVERSTATES_PRINTABLE: superbet_settled n=61 confidence 0.8299 realised 0.6393 (realised-confidence -0.1906, 95% upper -0.0791)",
+    "points_handicap|TEAM": "OVERSTATES: history_holdout bucket 0.700-0.750 confidence above realised by 0.0409",
+    "points_total|OVER": "OVERSTATES_PRINTABLE: superbet_settled n=11 confidence 0.7681 realised 0.2727 (realised-confidence -0.4953, 95% upper -0.1691)",
+    "set_handicap|TEAM": "OVERSTATES_PRINTABLE: superbet_settled n=93 confidence 0.7875 realised 0.6452 (realised-confidence -0.1423, 95% upper -0.0437)",
     "set_points_total|OVER": "NO_FIT_BUCKET_WITH_N>=200",
     "set_points_total|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
     "set_winner|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
     "sets_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
-    "winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
+    "winner|TEAM": "OVERSTATES: history_holdout bucket 0.600-0.700 confidence above realised by 0.0439"
    },
    "oos": {
     "history_holdout": {
@@ -3451,159 +4693,183 @@
       "buckets": {
        "0.000-0.600": {
         "n": 20384,
-        "confidence": 0.1993,
+        "confidence": 0.2008,
         "realised": 0.2091,
-        "gap": -0.0098
+        "gap": -0.0083
        },
        "0.600-0.700": {
         "n": 2912,
-        "confidence": 0.6648,
+        "confidence": 0.6669,
         "realised": 0.6693,
-        "gap": -0.0045
+        "gap": -0.0024
        },
        "0.700-0.750": {
         "n": 1420,
-        "confidence": 0.7469,
+        "confidence": 0.7465,
         "realised": 0.7056,
-        "gap": 0.0413
+        "gap": 0.0409
        },
        "0.750-0.800": {
         "n": 2907,
-        "confidence": 0.8028,
+        "confidence": 0.8049,
         "realised": 0.8063,
-        "gap": -0.0035
+        "gap": -0.0014
        },
        "0.800-0.825": {
         "n": 1432,
-        "confidence": 0.8444,
+        "confidence": 0.8501,
         "realised": 0.8848,
-        "gap": -0.0404
+        "gap": -0.0347
        },
        "0.825-0.850": {
         "n": 1483,
-        "confidence": 0.8552,
+        "confidence": 0.8564,
         "realised": 0.8422,
-        "gap": 0.013
+        "gap": 0.0142
        },
        "0.850-0.875": {
         "n": 1481,
-        "confidence": 0.894,
+        "confidence": 0.8973,
         "realised": 0.9169,
-        "gap": -0.0229
+        "gap": -0.0196
        },
        "0.875-0.900": {
         "n": 1409,
-        "confidence": 0.908,
+        "confidence": 0.9094,
         "realised": 0.8943,
-        "gap": 0.0137
+        "gap": 0.0151
        },
        "0.900-0.925": {
         "n": 1516,
-        "confidence": 0.9319,
+        "confidence": 0.9358,
         "realised": 0.9472,
-        "gap": -0.0153
+        "gap": -0.0114
        },
        "0.925-0.950": {
         "n": 1352,
-        "confidence": 0.9599,
+        "confidence": 0.9604,
         "realised": 0.9445,
-        "gap": 0.0154
+        "gap": 0.0159
        },
        "0.950-1.010": {
         "n": 1560,
-        "confidence": 0.9686,
+        "confidence": 0.9702,
         "realised": 0.9769,
-        "gap": -0.0083
+        "gap": -0.0067
        }
       },
       "games": 1456,
-      "logloss_confidence": 0.46119,
+      "logloss_confidence": 0.46101,
       "logloss_model": 0.42562,
       "realised": 0.5,
-      "confidence": 0.4938,
+      "confidence": 0.4956,
       "realised_minus_confidence": [
-       0.0062,
-       0.0061,
-       0.0062
+       0.0044,
+       0.0043,
+       0.0044
       ],
       "printable": {
        "n": 14560,
        "games": 1456,
-       "confidence": 0.872,
+       "confidence": 0.8742,
        "realised": 0.8734,
        "realised_minus_confidence": [
-        0.0014,
-        -0.0073,
-        0.0098
+        -0.0008,
+        -0.0095,
+        0.0077
        ]
       }
      },
      "points_total|OVER": {
-      "n": 18729,
-      "uncovered": 199,
+      "n": 18928,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
         "n": 10192,
-        "confidence": 0.2333,
+        "confidence": 0.2372,
         "realised": 0.2324,
-        "gap": 0.0009
+        "gap": 0.0048
        },
        "0.600-0.700": {
         "n": 1456,
-        "confidence": 0.6313,
+        "confidence": 0.6343,
         "realised": 0.6655,
-        "gap": -0.0342
+        "gap": -0.0312
        },
        "0.700-0.750": {
         "n": 1416,
-        "confidence": 0.7489,
+        "confidence": 0.7576,
         "realised": 0.7966,
-        "gap": -0.0477
+        "gap": -0.039
        },
        "0.750-0.800": {
         "n": 1473,
-        "confidence": 0.8065,
+        "confidence": 0.8152,
         "realised": 0.8398,
-        "gap": -0.0333
+        "gap": -0.0246
+       },
+       "0.800-0.825": {
+        "n": 42,
+        "confidence": 0.8114,
+        "realised": 0.9286,
+        "gap": -0.1172
        },
        "0.825-0.850": {
         "n": 1397,
-        "confidence": 0.87,
+        "confidence": 0.8772,
         "realised": 0.8883,
-        "gap": -0.0183
+        "gap": -0.0111
+       },
+       "0.850-0.875": {
+        "n": 42,
+        "confidence": 0.814,
+        "realised": 0.881,
+        "gap": -0.067
        },
        "0.875-0.900": {
         "n": 1406,
-        "confidence": 0.9159,
+        "confidence": 0.9238,
         "realised": 0.9374,
-        "gap": -0.0215
+        "gap": -0.0136
+       },
+       "0.900-0.925": {
+        "n": 48,
+        "confidence": 0.8936,
+        "realised": 0.8958,
+        "gap": -0.0022
        },
        "0.925-0.950": {
         "n": 1389,
-        "confidence": 0.9626,
+        "confidence": 0.9656,
         "realised": 0.9719,
-        "gap": -0.0093
+        "gap": -0.0063
+       },
+       "0.950-1.010": {
+        "n": 67,
+        "confidence": 0.958,
+        "realised": 0.9701,
+        "gap": -0.0121
        }
       },
       "games": 1456,
-      "logloss_confidence": 0.47199,
-      "logloss_model": 0.44317,
-      "realised": 0.5132,
-      "confidence": 0.5011,
+      "logloss_confidence": 0.46936,
+      "logloss_model": 0.44136,
+      "realised": 0.5175,
+      "confidence": 0.5101,
       "realised_minus_confidence": [
-       0.0121,
-       -0.0015,
-       0.0247
+       0.0074,
+       -0.0059,
+       0.02
       ],
       "printable": {
-       "n": 7081,
+       "n": 7280,
        "games": 1456,
-       "confidence": 0.8599,
-       "realised": 0.886,
+       "confidence": 0.8674,
+       "realised": 0.8871,
        "realised_minus_confidence": [
-        0.0262,
-        0.0125,
-        0.0386
+        0.0197,
+        0.0064,
+        0.032
        ]
       }
      },
@@ -3613,66 +4879,66 @@
       "buckets": {
        "0.000-0.600": {
         "n": 10192,
-        "confidence": 0.2085,
+        "confidence": 0.2067,
         "realised": 0.1986,
-        "gap": 0.0099
+        "gap": 0.0081
        },
        "0.600-0.700": {
         "n": 1456,
-        "confidence": 0.6287,
+        "confidence": 0.6321,
         "realised": 0.647,
-        "gap": -0.0183
+        "gap": -0.0149
        },
        "0.750-0.800": {
         "n": 1456,
-        "confidence": 0.7344,
+        "confidence": 0.7349,
         "realised": 0.7479,
-        "gap": -0.0135
+        "gap": -0.013
        },
        "0.800-0.825": {
         "n": 1456,
-        "confidence": 0.7794,
+        "confidence": 0.7818,
         "realised": 0.8049,
-        "gap": -0.0255
+        "gap": -0.0231
        },
        "0.850-0.875": {
         "n": 1456,
-        "confidence": 0.8257,
+        "confidence": 0.8261,
         "realised": 0.8455,
-        "gap": -0.0198
+        "gap": -0.0194
        },
        "0.900-0.925": {
         "n": 1456,
-        "confidence": 0.8717,
+        "confidence": 0.8721,
         "realised": 0.8949,
-        "gap": -0.0232
+        "gap": -0.0228
        },
        "0.950-1.010": {
         "n": 1456,
-        "confidence": 0.9187,
+        "confidence": 0.9226,
         "realised": 0.9416,
-        "gap": -0.0229
+        "gap": -0.019
        }
       },
       "games": 1456,
-      "logloss_confidence": 0.47681,
+      "logloss_confidence": 0.47662,
       "logloss_model": 0.44136,
       "realised": 0.4825,
-      "confidence": 0.4783,
+      "confidence": 0.4782,
       "realised_minus_confidence": [
-       0.0041,
-       -0.0089,
-       0.0166
+       0.0043,
+       -0.0087,
+       0.0167
       ],
       "printable": {
        "n": 7280,
        "games": 1456,
-       "confidence": 0.826,
+       "confidence": 0.8275,
        "realised": 0.847,
        "realised_minus_confidence": [
-        0.021,
-        0.0051,
-        0.0365
+        0.0195,
+        0.0035,
+        0.035
        ]
       }
      },
@@ -3682,90 +4948,90 @@
       "buckets": {
        "0.000-0.600": {
         "n": 7458,
-        "confidence": 0.2968,
+        "confidence": 0.3002,
         "realised": 0.3115,
-        "gap": -0.0147
+        "gap": -0.0113
        },
        "0.600-0.700": {
         "n": 1260,
-        "confidence": 0.6373,
+        "confidence": 0.642,
         "realised": 0.6421,
-        "gap": -0.0048
+        "gap": -0.0001
        },
        "0.700-0.750": {
         "n": 668,
-        "confidence": 0.6861,
+        "confidence": 0.703,
         "realised": 0.7246,
-        "gap": -0.0385
+        "gap": -0.0216
        },
        "0.750-0.800": {
         "n": 681,
-        "confidence": 0.7541,
+        "confidence": 0.7591,
         "realised": 0.7548,
-        "gap": -0.0007
+        "gap": 0.0043
        },
        "0.800-0.825": {
         "n": 342,
-        "confidence": 0.7849,
+        "confidence": 0.8,
         "realised": 0.7719,
-        "gap": 0.013
+        "gap": 0.0281
        },
        "0.825-0.850": {
         "n": 379,
-        "confidence": 0.8259,
+        "confidence": 0.8106,
         "realised": 0.8259,
-        "gap": 0.0
+        "gap": -0.0153
        },
        "0.850-0.875": {
         "n": 385,
-        "confidence": 0.8516,
+        "confidence": 0.8507,
         "realised": 0.8338,
-        "gap": 0.0178
+        "gap": 0.0169
        },
        "0.875-0.900": {
         "n": 385,
-        "confidence": 0.866,
+        "confidence": 0.8724,
         "realised": 0.8857,
-        "gap": -0.0197
+        "gap": -0.0133
        },
        "0.900-0.925": {
         "n": 388,
-        "confidence": 0.9026,
+        "confidence": 0.9045,
         "realised": 0.884,
-        "gap": 0.0186
+        "gap": 0.0205
        },
        "0.925-0.950": {
         "n": 481,
-        "confidence": 0.9349,
+        "confidence": 0.9326,
         "realised": 0.9252,
-        "gap": 0.0097
+        "gap": 0.0074
        },
        "0.950-1.010": {
         "n": 121,
-        "confidence": 0.9514,
+        "confidence": 0.953,
         "realised": 0.9669,
-        "gap": -0.0155
+        "gap": -0.0139
        }
       },
       "games": 1455,
-      "logloss_confidence": 0.57244,
+      "logloss_confidence": 0.57222,
       "logloss_model": 0.53713,
       "realised": 0.5,
-      "confidence": 0.4898,
+      "confidence": 0.4936,
       "realised_minus_confidence": [
-       0.0102,
-       0.0089,
-       0.0116
+       0.0064,
+       0.0051,
+       0.0078
       ],
       "printable": {
-       "n": 3162,
+       "n": 3830,
        "games": 1455,
-       "confidence": 0.8448,
-       "realised": 0.8406,
+       "confidence": 0.8213,
+       "realised": 0.8204,
        "realised_minus_confidence": [
-        -0.0042,
-        -0.0203,
-        0.011
+        -0.0009,
+        -0.0163,
+        0.0141
        ]
       }
      },
@@ -3775,145 +5041,205 @@
       "buckets": {
        "0.000-0.600": {
         "n": 2172,
-        "confidence": 0.2608,
+        "confidence": 0.2654,
         "realised": 0.2703,
-        "gap": -0.0095
+        "gap": -0.0049
        },
        "0.600-0.700": {
         "n": 734,
-        "confidence": 0.5815,
+        "confidence": 0.5935,
         "realised": 0.5981,
-        "gap": -0.0166
+        "gap": -0.0046
        }
       },
       "games": 1456,
-      "logloss_confidence": 0.60663,
+      "logloss_confidence": 0.60637,
       "logloss_model": 0.56423,
       "realised": 0.3531,
-      "confidence": 0.3418,
+      "confidence": 0.3483,
       "realised_minus_confidence": [
-       0.0113,
-       -0.0073,
-       0.0306
+       0.0048,
+       -0.0138,
+       0.0241
       ]
      },
      "sets_total|UNDER": {
-      "n": 2527,
-      "uncovered": 380,
+      "n": 2864,
+      "uncovered": 43,
       "buckets": {
        "0.000-0.600": {
         "n": 1233,
-        "confidence": 0.4209,
+        "confidence": 0.4243,
         "realised": 0.4347,
-        "gap": -0.0138
+        "gap": -0.0104
        },
        "0.600-0.700": {
         "n": 385,
-        "confidence": 0.6944,
+        "confidence": 0.7025,
         "realised": 0.7039,
-        "gap": -0.0095
+        "gap": -0.0014
        },
        "0.700-0.750": {
         "n": 522,
-        "confidence": 0.7377,
+        "confidence": 0.7288,
         "realised": 0.7739,
-        "gap": -0.0362
+        "gap": -0.0451
        },
        "0.750-0.800": {
         "n": 281,
-        "confidence": 0.7859,
+        "confidence": 0.8005,
         "realised": 0.7936,
-        "gap": -0.0077
+        "gap": 0.0069
        },
        "0.800-0.825": {
         "n": 106,
-        "confidence": 0.7271,
+        "confidence": 0.7805,
         "realised": 0.934,
-        "gap": -0.2069
+        "gap": -0.1535
+       },
+       "0.825-0.850": {
+        "n": 91,
+        "confidence": 0.8436,
+        "realised": 0.8462,
+        "gap": -0.0026
+       },
+       "0.850-0.875": {
+        "n": 69,
+        "confidence": 0.8313,
+        "realised": 0.8841,
+        "gap": -0.0528
+       },
+       "0.875-0.900": {
+        "n": 72,
+        "confidence": 0.8638,
+        "realised": 0.9028,
+        "gap": -0.039
+       },
+       "0.900-0.925": {
+        "n": 49,
+        "confidence": 0.8542,
+        "realised": 0.9388,
+        "gap": -0.0846
+       },
+       "0.950-1.010": {
+        "n": 56,
+        "confidence": 0.9334,
+        "realised": 1.0,
+        "gap": -0.0666
        }
       },
-      "games": 1427,
-      "logloss_confidence": 0.61067,
-      "logloss_model": 0.60722,
-      "realised": 0.6066,
-      "confidence": 0.5814,
+      "games": 1455,
+      "logloss_confidence": 0.57377,
+      "logloss_model": 0.57077,
+      "realised": 0.6418,
+      "confidence": 0.6188,
       "realised_minus_confidence": [
-       0.0252,
-       0.0033,
-       0.0463
+       0.023,
+       0.004,
+       0.0426
       ],
       "printable": {
-       "n": 909,
-       "games": 909,
-       "confidence": 0.7514,
-       "realised": 0.7987,
+       "n": 1631,
+       "games": 1455,
+       "confidence": 0.7658,
+       "realised": 0.7983,
        "realised_minus_confidence": [
-        0.0473,
-        0.0216,
-        0.0736
+        0.0325,
+        0.0125,
+        0.0524
        ]
       }
      },
      "winner|TEAM": {
-      "n": 2548,
-      "uncovered": 364,
+      "n": 2912,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
         "n": 1737,
-        "confidence": 0.2858,
+        "confidence": 0.2976,
         "realised": 0.308,
-        "gap": -0.0222
+        "gap": -0.0104
        },
        "0.600-0.700": {
         "n": 292,
-        "confidence": 0.6397,
+        "confidence": 0.6603,
         "realised": 0.6164,
-        "gap": 0.0233
+        "gap": 0.0439
        },
        "0.700-0.750": {
         "n": 166,
-        "confidence": 0.7077,
+        "confidence": 0.7156,
         "realised": 0.7048,
-        "gap": 0.0029
+        "gap": 0.0108
        },
        "0.750-0.800": {
         "n": 140,
-        "confidence": 0.7635,
+        "confidence": 0.7519,
         "realised": 0.7429,
-        "gap": 0.0206
+        "gap": 0.009
        },
        "0.800-0.825": {
         "n": 68,
-        "confidence": 0.8152,
+        "confidence": 0.8313,
         "realised": 0.7059,
-        "gap": 0.1093
+        "gap": 0.1254
+       },
+       "0.825-0.850": {
+        "n": 83,
+        "confidence": 0.8182,
+        "realised": 0.8675,
+        "gap": -0.0493
+       },
+       "0.850-0.875": {
+        "n": 68,
+        "confidence": 0.8421,
+        "realised": 0.8529,
+        "gap": -0.0108
+       },
+       "0.875-0.900": {
+        "n": 69,
+        "confidence": 0.8951,
+        "realised": 0.8841,
+        "gap": 0.011
+       },
+       "0.900-0.925": {
+        "n": 68,
+        "confidence": 0.9048,
+        "realised": 0.9412,
+        "gap": -0.0364
+       },
+       "0.925-0.950": {
+        "n": 76,
+        "confidence": 0.8867,
+        "realised": 0.9605,
+        "gap": -0.0738
        },
        "0.950-1.010": {
         "n": 145,
-        "confidence": 0.9474,
+        "confidence": 0.9519,
         "realised": 0.9931,
-        "gap": -0.0457
+        "gap": -0.0412
        }
       },
       "games": 1456,
-      "logloss_confidence": 0.59042,
-      "logloss_model": 0.53293,
-      "realised": 0.4427,
-      "confidence": 0.4319,
+      "logloss_confidence": 0.5568,
+      "logloss_model": 0.50566,
+      "realised": 0.5,
+      "confidence": 0.4959,
       "realised_minus_confidence": [
-       0.0108,
-       0.003,
-       0.0191
+       0.0041,
+       -0.0016,
+       0.0099
       ],
       "printable": {
-       "n": 519,
-       "games": 519,
-       "confidence": 0.8038,
-       "realised": 0.7958,
+       "n": 883,
+       "games": 883,
+       "confidence": 0.8318,
+       "realised": 0.8392,
        "realised_minus_confidence": [
-        -0.008,
-        -0.0422,
-        0.0256
+        0.0074,
+        -0.0164,
+        0.0304
        ]
       }
      }
@@ -3925,84 +5251,84 @@
       "buckets": {
        "0.000-0.600": {
         "n": 206,
-        "confidence": 0.1993,
+        "confidence": 0.2008,
         "realised": 0.4709,
-        "gap": -0.2716
+        "gap": -0.2701
        },
        "0.600-0.700": {
         "n": 37,
-        "confidence": 0.6648,
+        "confidence": 0.6669,
         "realised": 0.5676,
-        "gap": 0.0972
+        "gap": 0.0993
        },
        "0.700-0.750": {
         "n": 24,
-        "confidence": 0.7469,
+        "confidence": 0.7465,
         "realised": 0.625,
-        "gap": 0.1219
+        "gap": 0.1215
        },
        "0.750-0.800": {
         "n": 19,
-        "confidence": 0.8028,
+        "confidence": 0.8049,
         "realised": 0.6316,
-        "gap": 0.1712
+        "gap": 0.1733
        },
        "0.800-0.825": {
         "n": 5,
-        "confidence": 0.8444,
+        "confidence": 0.8501,
         "realised": 0.6,
-        "gap": 0.2444
+        "gap": 0.2501
        },
        "0.825-0.850": {
         "n": 3,
-        "confidence": 0.8552,
+        "confidence": 0.8564,
         "realised": 0.3333,
-        "gap": 0.5219
+        "gap": 0.5231
        },
        "0.850-0.875": {
         "n": 3,
-        "confidence": 0.894,
+        "confidence": 0.8973,
         "realised": 0.0,
-        "gap": 0.894
+        "gap": 0.8973
        },
        "0.875-0.900": {
         "n": 5,
-        "confidence": 0.908,
+        "confidence": 0.9094,
         "realised": 0.2,
-        "gap": 0.708
+        "gap": 0.7094
        },
        "0.900-0.925": {
         "n": 4,
-        "confidence": 0.9319,
+        "confidence": 0.9358,
         "realised": 0.5,
-        "gap": 0.4319
+        "gap": 0.4358
        },
        "0.925-0.950": {
         "n": 2,
-        "confidence": 0.9599,
+        "confidence": 0.9604,
         "realised": 1.0,
-        "gap": -0.0401
+        "gap": -0.0396
        }
       },
       "games": 90,
-      "logloss_confidence": 0.86918,
+      "logloss_confidence": 0.8688,
       "logloss_model": 0.77783,
       "realised": 0.5,
-      "confidence": 0.3847,
+      "confidence": 0.3863,
       "realised_minus_confidence": [
-       0.1153,
-       0.0834,
-       0.1492
+       0.1137,
+       0.0818,
+       0.1476
       ],
       "printable": {
        "n": 65,
        "games": 37,
-       "confidence": 0.8129,
+       "confidence": 0.8143,
        "realised": 0.5538,
        "realised_minus_confidence": [
-        -0.259,
-        -0.4729,
-        -0.0566
+        -0.2605,
+        -0.4746,
+        -0.0579
        ]
       }
      },
@@ -4012,48 +5338,48 @@
       "buckets": {
        "0.000-0.600": {
         "n": 206,
-        "confidence": 0.2333,
+        "confidence": 0.2372,
         "realised": 0.5437,
-        "gap": -0.3104
+        "gap": -0.3065
        },
        "0.600-0.700": {
         "n": 21,
-        "confidence": 0.6313,
+        "confidence": 0.6343,
         "realised": 0.5714,
-        "gap": 0.0599
+        "gap": 0.0629
        },
        "0.700-0.750": {
         "n": 9,
-        "confidence": 0.7489,
+        "confidence": 0.7576,
         "realised": 0.2222,
-        "gap": 0.5267
+        "gap": 0.5354
        },
        "0.750-0.800": {
         "n": 2,
-        "confidence": 0.8065,
+        "confidence": 0.8152,
         "realised": 0.5,
-        "gap": 0.3065
+        "gap": 0.3152
        }
       },
       "games": 172,
-      "logloss_confidence": 0.90163,
+      "logloss_confidence": 0.89701,
       "logloss_model": 0.73289,
       "realised": 0.5336,
-      "confidence": 0.2927,
+      "confidence": 0.2968,
       "realised_minus_confidence": [
-       0.2409,
-       0.1388,
-       0.3477
+       0.2368,
+       0.1348,
+       0.3438
       ],
       "printable": {
        "n": 11,
        "games": 8,
-       "confidence": 0.7594,
+       "confidence": 0.7681,
        "realised": 0.2727,
        "realised_minus_confidence": [
-        -0.4866,
-        -0.7604,
-        -0.1604
+        -0.4953,
+        -0.7691,
+        -0.1691
        ]
       }
      },
@@ -4063,48 +5389,48 @@
       "buckets": {
        "0.000-0.600": {
         "n": 183,
-        "confidence": 0.2085,
+        "confidence": 0.2067,
         "realised": 0.4754,
-        "gap": -0.2669
+        "gap": -0.2687
        },
        "0.600-0.700": {
         "n": 41,
-        "confidence": 0.6287,
+        "confidence": 0.6321,
         "realised": 0.4146,
-        "gap": 0.2141
+        "gap": 0.2175
        },
        "0.750-0.800": {
         "n": 3,
-        "confidence": 0.7344,
+        "confidence": 0.7349,
         "realised": 0.3333,
-        "gap": 0.4011
+        "gap": 0.4016
        },
        "0.800-0.825": {
         "n": 4,
-        "confidence": 0.7794,
+        "confidence": 0.7818,
         "realised": 0.25,
-        "gap": 0.5294
+        "gap": 0.5318
        }
       },
       "games": 169,
-      "logloss_confidence": 0.85826,
+      "logloss_confidence": 0.86128,
       "logloss_model": 0.73672,
       "realised": 0.4589,
-      "confidence": 0.2998,
+      "confidence": 0.299,
       "realised_minus_confidence": [
-       0.1591,
-       0.0627,
-       0.263
+       0.1599,
+       0.0634,
+       0.2641
       ],
       "printable": {
        "n": 7,
        "games": 4,
-       "confidence": 0.7601,
+       "confidence": 0.7617,
        "realised": 0.2857,
        "realised_minus_confidence": [
-        -0.4744,
-        -0.7614,
-        0.2431
+        -0.476,
+        -0.763,
+        0.2416
        ]
       }
      },
@@ -4114,90 +5440,90 @@
       "buckets": {
        "0.000-0.600": {
         "n": 312,
-        "confidence": 0.2968,
+        "confidence": 0.3002,
         "realised": 0.4263,
-        "gap": -0.1295
+        "gap": -0.1261
        },
        "0.600-0.700": {
         "n": 65,
-        "confidence": 0.6373,
+        "confidence": 0.642,
         "realised": 0.6462,
-        "gap": -0.0089
+        "gap": -0.0042
        },
        "0.700-0.750": {
         "n": 32,
-        "confidence": 0.6861,
+        "confidence": 0.703,
         "realised": 0.6562,
-        "gap": 0.0299
+        "gap": 0.0467
        },
        "0.750-0.800": {
         "n": 16,
-        "confidence": 0.7541,
+        "confidence": 0.7591,
         "realised": 0.5625,
-        "gap": 0.1916
+        "gap": 0.1966
        },
        "0.800-0.825": {
         "n": 9,
-        "confidence": 0.7849,
+        "confidence": 0.8,
         "realised": 0.5556,
-        "gap": 0.2293
+        "gap": 0.2444
        },
        "0.825-0.850": {
         "n": 9,
-        "confidence": 0.8259,
+        "confidence": 0.8106,
         "realised": 0.2222,
-        "gap": 0.6037
+        "gap": 0.5884
        },
        "0.850-0.875": {
         "n": 8,
-        "confidence": 0.8516,
+        "confidence": 0.8507,
         "realised": 1.0,
-        "gap": -0.1484
+        "gap": -0.1493
        },
        "0.875-0.900": {
         "n": 7,
-        "confidence": 0.866,
+        "confidence": 0.8724,
         "realised": 0.5714,
-        "gap": 0.2946
+        "gap": 0.301
        },
        "0.900-0.925": {
         "n": 3,
-        "confidence": 0.9026,
+        "confidence": 0.9045,
         "realised": 1.0,
-        "gap": -0.0974
+        "gap": -0.0955
        },
        "0.925-0.950": {
         "n": 5,
-        "confidence": 0.9349,
+        "confidence": 0.9326,
         "realised": 1.0,
-        "gap": -0.0651
+        "gap": -0.0674
        },
        "0.950-1.010": {
         "n": 4,
-        "confidence": 0.9514,
+        "confidence": 0.953,
         "realised": 0.75,
-        "gap": 0.2014
+        "gap": 0.203
        }
       },
       "games": 176,
-      "logloss_confidence": 0.70539,
+      "logloss_confidence": 0.70396,
       "logloss_model": 0.69126,
       "realised": 0.5,
-      "confidence": 0.4396,
+      "confidence": 0.4439,
       "realised_minus_confidence": [
-       0.0604,
-       0.0468,
-       0.0751
+       0.0561,
+       0.0426,
+       0.0709
       ],
       "printable": {
-       "n": 61,
-       "games": 43,
-       "confidence": 0.8299,
-       "realised": 0.6393,
+       "n": 93,
+       "games": 63,
+       "confidence": 0.7875,
+       "realised": 0.6452,
        "realised_minus_confidence": [
-        -0.1906,
-        -0.3113,
-        -0.0791
+        -0.1423,
+        -0.2479,
+        -0.0437
        ]
       }
      },
@@ -4222,145 +5548,199 @@
       "buckets": {
        "0.000-0.600": {
         "n": 122,
-        "confidence": 0.2608,
+        "confidence": 0.2654,
         "realised": 0.2705,
-        "gap": -0.0097
+        "gap": -0.0051
        },
        "0.600-0.700": {
         "n": 66,
-        "confidence": 0.5815,
+        "confidence": 0.5935,
         "realised": 0.6212,
-        "gap": -0.0397
+        "gap": -0.0277
        }
       },
       "games": 94,
-      "logloss_confidence": 0.61304,
+      "logloss_confidence": 0.61234,
       "logloss_model": 0.60232,
       "realised": 0.3936,
-      "confidence": 0.3734,
+      "confidence": 0.3806,
       "realised_minus_confidence": [
-       0.0202,
-       -0.0559,
-       0.1
+       0.013,
+       -0.0633,
+       0.0962
       ]
      },
      "sets_total|UNDER": {
-      "n": 182,
-      "uncovered": 6,
+      "n": 188,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
         "n": 91,
-        "confidence": 0.4209,
+        "confidence": 0.4243,
         "realised": 0.4286,
-        "gap": -0.0077
+        "gap": -0.0043
        },
        "0.600-0.700": {
         "n": 34,
-        "confidence": 0.6944,
+        "confidence": 0.7025,
         "realised": 0.7059,
-        "gap": -0.0115
+        "gap": -0.0034
        },
        "0.700-0.750": {
         "n": 37,
-        "confidence": 0.7377,
+        "confidence": 0.7288,
         "realised": 0.7568,
-        "gap": -0.0191
+        "gap": -0.028
        },
        "0.750-0.800": {
         "n": 14,
-        "confidence": 0.7859,
+        "confidence": 0.8005,
         "realised": 0.8571,
-        "gap": -0.0712
+        "gap": -0.0566
        },
        "0.800-0.825": {
         "n": 6,
-        "confidence": 0.7271,
+        "confidence": 0.7805,
         "realised": 1.0,
-        "gap": -0.2729
+        "gap": -0.2195
+       },
+       "0.825-0.850": {
+        "n": 2,
+        "confidence": 0.8436,
+        "realised": 0.5,
+        "gap": 0.3436
+       },
+       "0.850-0.875": {
+        "n": 1,
+        "confidence": 0.8313,
+        "realised": 1.0,
+        "gap": -0.1687
+       },
+       "0.875-0.900": {
+        "n": 2,
+        "confidence": 0.8638,
+        "realised": 1.0,
+        "gap": -0.1362
+       },
+       "0.900-0.925": {
+        "n": 1,
+        "confidence": 0.8542,
+        "realised": 1.0,
+        "gap": -0.1458
        }
       },
       "games": 94,
-      "logloss_confidence": 0.61105,
-      "logloss_model": 0.6081,
-      "realised": 0.5989,
-      "confidence": 0.5746,
+      "logloss_confidence": 0.60314,
+      "logloss_model": 0.60232,
+      "realised": 0.6064,
+      "confidence": 0.5875,
       "realised_minus_confidence": [
-       0.0243,
-       -0.0566,
-       0.1011
+       0.0189,
+       -0.0579,
+       0.0926
       ],
       "printable": {
-       "n": 57,
-       "games": 57,
-       "confidence": 0.7484,
-       "realised": 0.807,
+       "n": 97,
+       "games": 94,
+       "confidence": 0.7406,
+       "realised": 0.7732,
        "realised_minus_confidence": [
-        0.0586,
-        -0.046,
-        0.1578
+        0.0326,
+        -0.0487,
+        0.1128
        ]
       }
      },
      "winner|TEAM": {
-      "n": 397,
-      "uncovered": 47,
+      "n": 444,
+      "uncovered": 0,
       "buckets": {
        "0.000-0.600": {
         "n": 278,
-        "confidence": 0.2858,
+        "confidence": 0.2976,
         "realised": 0.3669,
-        "gap": -0.0811
+        "gap": -0.0693
        },
        "0.600-0.700": {
         "n": 48,
-        "confidence": 0.6397,
+        "confidence": 0.6603,
         "realised": 0.5417,
-        "gap": 0.098
+        "gap": 0.1186
        },
        "0.700-0.750": {
         "n": 20,
-        "confidence": 0.7077,
+        "confidence": 0.7156,
         "realised": 0.55,
-        "gap": 0.1577
+        "gap": 0.1656
        },
        "0.750-0.800": {
         "n": 27,
-        "confidence": 0.7635,
+        "confidence": 0.7519,
         "realised": 0.7407,
-        "gap": 0.0228
+        "gap": 0.0112
        },
        "0.800-0.825": {
         "n": 6,
-        "confidence": 0.8152,
+        "confidence": 0.8313,
         "realised": 0.6667,
-        "gap": 0.1485
+        "gap": 0.1646
+       },
+       "0.825-0.850": {
+        "n": 15,
+        "confidence": 0.8182,
+        "realised": 0.7333,
+        "gap": 0.0849
+       },
+       "0.850-0.875": {
+        "n": 8,
+        "confidence": 0.8421,
+        "realised": 0.875,
+        "gap": -0.0329
+       },
+       "0.875-0.900": {
+        "n": 4,
+        "confidence": 0.8951,
+        "realised": 1.0,
+        "gap": -0.1049
+       },
+       "0.900-0.925": {
+        "n": 7,
+        "confidence": 0.9048,
+        "realised": 1.0,
+        "gap": -0.0952
+       },
+       "0.925-0.950": {
+        "n": 13,
+        "confidence": 0.8867,
+        "realised": 0.9231,
+        "gap": -0.0364
        },
        "0.950-1.010": {
         "n": 18,
-        "confidence": 0.9474,
+        "confidence": 0.9519,
         "realised": 1.0,
-        "gap": -0.0526
+        "gap": -0.0481
        }
       },
       "games": 222,
-      "logloss_confidence": 0.64633,
-      "logloss_model": 0.58505,
-      "realised": 0.4559,
-      "confidence": 0.4203,
+      "logloss_confidence": 0.61447,
+      "logloss_model": 0.56099,
+      "realised": 0.5,
+      "confidence": 0.4766,
       "realised_minus_confidence": [
-       0.0356,
-       0.0147,
-       0.0543
+       0.0234,
+       0.0083,
+       0.0392
       ],
       "printable": {
-       "n": 71,
-       "games": 71,
-       "confidence": 0.7988,
-       "realised": 0.7465,
+       "n": 118,
+       "games": 118,
+       "confidence": 0.8236,
+       "realised": 0.7966,
        "realised_minus_confidence": [
-        -0.0523,
-        -0.1552,
-        0.0382
+        -0.027,
+        -0.0967,
+        0.042
        ]
       }
      }
