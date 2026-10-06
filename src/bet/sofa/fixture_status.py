@@ -62,8 +62,12 @@ BAD_PAYLOAD = "BAD_PAYLOAD"            # HTML for JSON, a payload with no event
 NO_BRIDGE = "NO_BRIDGE"                # the request did not complete (transport)
 CIRCUIT_OPEN = "CIRCUIT_OPEN"          # the breaker refused to send it
 NOT_ASKED = "NOT_ASKED"                # the check stopped at an earlier failure
+# A candidate beyond run_fixture_check.MAX_CANDIDATES: never asked by design.
+# Until 2026-10-06 it was NOT_ASKED and the PDF said "the check stopped after
+# an error" for 113 matches of a run that had no error at all.
+OVER_CAP = "OVER_CAP"
 UNVERIFIED_REASONS = (NOT_FOUND, PROVIDER_REFUSED, PROVIDER_ERROR, BAD_PAYLOAD,
-                      NO_BRIDGE, CIRCUIT_OPEN, NOT_ASKED)
+                      NO_BRIDGE, CIRCUIT_OPEN, NOT_ASKED, OVER_CAP)
 
 
 def _utc(raw: str) -> datetime:

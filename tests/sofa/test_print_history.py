@@ -603,3 +603,14 @@ def test_c2_finds_a_printed_sport_leg_that_vanished(tmp_path):
          "printed_at_utc": "2026-10-07T09:01:00Z"}]}
     assert any("locked but on no printed render" in f
                for f in audit_print_record(run, ghost, "official", started))
+
+
+def test_every_unverified_reason_has_its_own_words_on_the_pdf():
+    # 2026-10-06: 113 candidates over the cap printed as "przerwane po
+    # błędzie" in a run that had no error - OVER_CAP is its own reason.
+    from scripts.sofa import build_coupon_pdf, run_fixture_check
+
+    assert set(fs.UNVERIFIED_REASONS) <= set(build_coupon_pdf.UNVERIFIED_REASON_PL)
+    assert fs.OVER_CAP != fs.NOT_ASKED
+    assert "limit" in build_coupon_pdf.UNVERIFIED_REASON_PL[fs.OVER_CAP]
+    assert "fs.OVER_CAP" in open(run_fixture_check.__file__, encoding="utf-8").read()

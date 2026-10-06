@@ -57,7 +57,7 @@ from bet.sofa.locked_print import (  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
-# More candidate matches than this are not asked (NOT_ASKED, on the PDF):
+# More candidate matches than this are not asked (OVER_CAP, on the PDF):
 # a bound on one rebuild's requests. 10-05 had 145 fixtures with a priced
 # sheet row; printed matches and moved clocks are never capped.
 MAX_CANDIDATES = 250
@@ -301,7 +301,7 @@ def main() -> int:
         targets, client.event, cache.get_event_detail_dated, cache.save_event_detail
     )
     for eid in over_cap:
-        events[eid] = fs.entry_from_payload(None, "candidate", now(), fs.NOT_ASKED)
+        events[eid] = fs.entry_from_payload(None, "candidate", now(), fs.OVER_CAP)
     unverified = sum(1 for e in events.values() if e["status"] == fs.UNVERIFIED)
     not_sched = {
         eid: e["status"] for eid, e in events.items() if fs.not_as_scheduled(e)

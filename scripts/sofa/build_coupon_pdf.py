@@ -859,6 +859,7 @@ UNVERIFIED_REASON_PL = {
     "NO_BRIDGE": "brak mostka / zerwane połączenie",
     "CIRCUIT_OPEN": "bezpiecznik otwarty",
     "NOT_ASKED": "nie pytano - sprawdzanie przerwane po błędzie",
+    "OVER_CAP": "nie pytano - kandydat ponad limit sprawdzanych meczów",
     "UNKNOWN": "powód niezapisany",
 }
 
