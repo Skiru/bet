@@ -26,12 +26,20 @@ przez siłę ligi (`LINKED_BY_STRENGTH`) albo jest `UNLINKED` (w piłce:
 `CROSS_LEAGUE_UNLINKED`, CONFIDENCE odmawia). Reguła działa i w prognozie,
 i w aktualizacji ratingów (mecze beniaminka uczą teraz siły lig).
 
-Zmienia to, co się drukuje, więc za przełącznikiem:
-`epochs.LINK_SHARED_LEAGUE_FROM_UTC = 2026-10-08 00:00Z`
-(`LINK_SHARED_LEAGUE_DATE = 2026-10-08`). Czytany z zegara ściennego (jak
-`MODEL_FIXES_FROM_UTC` - odtworzenia refitu z `SOFA_NOW` mają liczyć regułą
-dnia na żywo); SHEET i SPORT_CONFIDENCE podają datę budowanego dnia, więc
-przebudowa dnia sprzed 10-08 zostaje przy starej regule.
+Zmienia to, co się drukuje, więc za przełącznikiem. Pierwotnie od 2026-10-08
+00:00Z; **operator przesunął go na dzień 10-07** („nic nie postawiłem",
+przebuduj dzisiejszy kupon prawidłowo):
+`epochs.LINK_SHARED_LEAGUE_FROM_UTC = 2026-10-07 06:45Z`
+(`LINK_SHARED_LEAGUE_DATE = 2026-10-07`) - po ostatniej porannej budowie
+(05:05Z), przed przebudową. Poranne druki 10-07 sprzed 06:45Z są starą
+regułą. Czytany z zegara ściennego (jak `MODEL_FIXES_FROM_UTC` - odtworzenia
+refitu z `SOFA_NOW` mają liczyć regułą dnia na żywo); SHEET i
+SPORT_CONFIDENCE podają datę budowanego dnia, więc przebudowa dnia sprzed
+10-07 zostaje przy starej regule.
+
+Wiersze `05_sheet.json` zbudowane nową regułą niosą `link_rule:
+"shared_league"`; `rebuild_plan` puszcza SHEET, gdy reguła budowy jest nowa,
+a arkusza stara (wcześniej przebudowa zostawiłaby stary rating piłkarski).
 
 Pliki: `src/bet/sofa/football_rating.py` (`_linked`, `replay`),
 `src/bet/sofa/epochs.py`, `src/bet/sofa/score_model.py` (`build_model`),
@@ -98,3 +106,26 @@ grupami regionalnymi należą do **różnych** rozgrywek (np. 16990894: −17185
 - Koszykówki i siatkówki nie mierzono osobno (koszykówka `NOT_CALIBRATED`).
 - `test_chaos_stages.py::test_offer_refused_from_the_first_request_fails_and_keeps_the_file`
   pada też na czystym HEAD 7ee820f8 - niezwiązane z tą zmianą.
+
+## Przebudowa 10-07 na nowej regule (decyzja operatora)
+
+Operator: „nic nie postawiłem, przebuduj dzisiejszy kupon prawidłowo".
+Przełącznik przesunięty na 06:45Z (commit b3c7bdd8), `rebuild_day.py`
+06:57Z: SHEET przebudowany przez nowy krok planu (24 426 wierszy,
+`link_rule=shared_league`), kupon 07:03Z. Odczyty: analityk hokeja (C3
+Tappara – Storhamar P1 o0.5 KEEP; Havířov +1.5 WATCH), weryfikator (bez
+defektu; WATCH Pavlodar TT o1.5, Boro/Vetlanda TT o2.5). Końcowa przebudowa
+07:33Z: 777 nóg, 17 builderów, 19 zdjętych odczytami, 0 odmów zablokowanych
+nóg, `audit_variants` 0 znalezisk.
+
+Zostają NO_BET-y z rana na 4 nogach, które w nowej regule przechodzą (Leksand
+TT T2 o0.5 0.89, Leksand H −2.5 0.70, Visby H −2.5 0.70, Havířov TT T2 o1.5
+0.74) - ich powód (stara reguła) już nie zachodzi; KEEP nie zdejmuje NO_BET,
+więc o ich wycofaniu decyduje operator.
+
+**Podejrzenie (niezmierzone, analityk hokeja):** w `RatingBook.update` mecze
+beniaminka w nowej lidze uczą siły jego starej ligi, więc siła przekracza
+`MIN_STRENGTH_LINKS` dzięki tej samej drużynie, którą potem przenosi (2. Liga:
+n 6 → 16, z czego 10 to mecze Havířova; zmierzona siła stawia 3. ligę
+nieco wyżej od Maxa ligi). Do pomiaru przed refitem: `MIN_STRENGTH_LINKS`
+liczone bez meczów drużyny z ocenianej pary.

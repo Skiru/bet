@@ -464,7 +464,9 @@ dostało atak 2,54 i obronę 0,35 i w Europa Cup kobiet zostało wycenione
 - **połączenie** — drużyny są `LINKED`, gdy obie zagrały ≥3 mecze
   (`LINK_MIN_MATCHES`) w rozgrywkach, które są ligą (najczęstszymi
   rozgrywkami) **obu** z nich. Wspólny puchar, który właśnie grają,
-  nie wystarcza. Od 2026-10-08 00:00Z (`epochs.LINK_SHARED_LEAGUE_FROM_UTC`;
+  nie wystarcza. Od 2026-10-07 06:45Z (`epochs.LINK_SHARED_LEAGUE_FROM_UTC`,
+  decyzja operatora - z 10-07 nic nie postawiono; wiersze arkusza niosą
+  `link_rule`, a przebudowa puszcza SHEET na arkuszu ze starą regułą;
   wcześniej wystarczała liga jednej z nich): beniaminek / spadkowicz ma ligą
   swoją starą ligę, dopóki w nowej nie zagra więcej, i po trzech meczach był
   `LINKED` z nowymi rywalami, a jego stosunki ze starej ligi szły 1:1 bez siły

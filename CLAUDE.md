@@ -62,9 +62,11 @@ for the bet.**
   - `CROSS_LEAGUE_UNLINKED`: football ratings compare leagues only through a
     measured league strength; a pair is LINKED only when both sides' leagues
     (domains) are the competition they share - a promoted side is
-    cross-league until its new league is its modal one (from 2026-10-08
-    00:00Z, `epochs.LINK_SHARED_LEAGUE_FROM_UTC`; the hockey / basketball /
-    volleyball score model reads the same book);
+    cross-league until its new league is its modal one (from 2026-10-07
+    06:45Z, `epochs.LINK_SHARED_LEAGUE_FROM_UTC`, operator: nothing of 10-07
+    staked; the hockey / basketball / volleyball score model reads the same
+    book; sheet rows carry `link_rule` and a rebuild re-runs SHEET on an
+    old-rule sheet);
   - women's football, women's tennis and tennis team cups read only their
     class's curves (`NO_CLASS_CURVE`);
   - `NOT_SETTLEABLE`: (competition, family) cells in `config/sofa_settleability.json`;
