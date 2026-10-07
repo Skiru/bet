@@ -396,6 +396,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/probe_lineup_availability.py --da
   its legs (measured markup 8.8–19.6%).
 - **No stake sizing, no automated placement.** The stake is the operator's.
 - **Never read, echo or log `.env` values.**
+- **Curves are fitted on the history of events and statistics** (operator,
+  2026-10-07: "nasze źródło to historia statystyk"), replayed as of each match
+  with the estimator the sheet uses today (rating included). Our own settled
+  days are an audit of a curve, never its source; line evidence (offsets, price
+  bands) is a guard that only lowers, and any number it holds is reported as
+  measured on N days.
 - **Never re-fit constants or calibrations mid-day.**
 - **A pooled number must say what it pooled across.** Friendlies are out of
   samples and ratings (`bet.sofa.comparability` is the one "does this past
