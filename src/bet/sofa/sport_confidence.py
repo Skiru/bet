@@ -139,7 +139,12 @@ EXTENDED_MARKETS: dict[str, dict[int, str]] = {
         772: "quarter_dnb", 779: "quarter_1x2", 775: "odd_even",
         230634: "team_odd_even", 230640: "team_odd_even",
     },
-    "volleyball": {},
+    # Volleyball (operator, 2026-10-07, same rule): the exact set score (785)
+    # and the match's points parity (200896) are scored from the history;
+    # a set's points parity (781) and "set on extra points" (100077) only
+    # from settled Superbet lines, as the other set markets (plan F4).
+    "volleyball": {785: "exact_sets", 200896: "points_odd_even",
+                   781: "set_points_odd_even", 100077: "set_extra_points"},
 }
 OT_RULE_UNKNOWN = "OT_RULE_UNKNOWN"
 # Player lines (shadow.PLAYER_MARKETS, hockey and basketball) under the same
@@ -168,6 +173,16 @@ def ot_rule_unknown(sport: str, family: str, period: int) -> bool:
 # maps_* (no number - the engine refuses them), team_kills, player_*.
 CS2_FAMILIES: frozenset[str] = frozenset(
     {"map_winner", "match_winner", "map_team_rounds"})
+# From epochs.LINE_EVIDENCE_FROM_UTC (operator, 2026-10-07): every other
+# family the engine prices (cs2_engine.MODELLED) - a map's round handicap and
+# total (the latter the history's base rate), a team's kills, a player's
+# kills / deaths / assists / headshots. CS2_SETTLE attaches the engine's
+# pre-match p to each graded side (settle_cs2.attach_model): their evidence.
+# The series families (maps_*, team_maps, exact_maps, rounds_*) stay out:
+# the engine prices none of them (it lost to a constant, cs2_engine).
+CS2_EXTENDED_FAMILIES: frozenset[str] = frozenset(
+    {"map_rounds_handicap", "map_rounds_total", "team_kills", "player_kills",
+     "player_deaths", "player_assists", "player_headshots"})
 
 # The families the results history fits, with the market id a synthetic line
 # is built on. A team total is built twice (team1's id and team2's).
@@ -181,17 +196,16 @@ HISTORY_MARKETS: dict[str, tuple[int, ...]] = {
     "hockey": (630, 623, 658, 652, 604, 640, 649, 674, 638, 678, 660, 662),
     "basketball": (759, 753, 768, 758, 776, 777, 748, 773, 200804, 200797, 763,
                    *EXTENDED_MARKETS["basketball"]),
-    "volleyball": (745, 230058, 100082, 230060, 1069),
+    "volleyball": (745, 230058, 100082, 230060, 1069, 785, 200896),
 }
 PERIODS: dict[str, tuple[int, ...]] = {"hockey": (1, 2, 3), "basketball": (1, 2, 3, 4)}
 # The rest (volleyball's set markets): only from settled Superbet lines (plan F4).
 SETTLED_ONLY_FAMILIES: dict[str, frozenset[str]] = {
     sport: frozenset(
-        fam for mid, fam in markets.items()
+        fam for mid, fam in allowed_markets(sport, extended=True).items()
         if mid not in HISTORY_MARKETS[sport])
-    for sport, markets in ALLOWED_MARKETS.items()
+    for sport in ALLOWED_MARKETS
 }
-# (EXTENDED_MARKETS are all scored from the history.)
 
 # Where a synthetic line sits: the game's own simulated distribution at these
 # quantiles (the model's, never a price's), half a point off an integer.
@@ -267,9 +281,11 @@ def wilson_lo(k: int, n: int, z: float = 1.959964) -> float:
 
 
 def side_class(side: str) -> str:
-    """OVER / UNDER / DRAW / ODD / EVEN keep their own curve; a team side is
-    TEAM."""
-    return side if side in ("OVER", "UNDER", "DRAW", "ODD", "EVEN") else "TEAM"
+    """OVER / UNDER / DRAW / ODD / EVEN / YES / NO and an exact score ("3:1")
+    keep their own curve; a team side is TEAM."""
+    if side in ("OVER", "UNDER", "DRAW", "ODD", "EVEN", "YES", "NO") or ":" in side:
+        return side
+    return "TEAM"
 
 
 def curve_key(family: str, side: str) -> str:
@@ -280,7 +296,8 @@ def family_of(sport: str, market_id: int | None, family: str,
               extended: bool = False) -> str | None:
     """The allowed family of a line, or None when it may not be a leg."""
     if sport == "cs2":
-        return family if family in CS2_FAMILIES else None
+        allowed = CS2_FAMILIES | (CS2_EXTENDED_FAMILIES if extended else frozenset())
+        return family if family in allowed else None
     if market_id is None:
         return None
     if extended and int(market_id) in PLAYER_MARKETS.get(sport, {}):  # type: ignore[call-overload]
@@ -561,6 +578,13 @@ def market_periods(sport: ShadowSport, market_id: int) -> tuple[int, ...]:
     return PERIODS.get(sport.key, ())
 
 
+def _pair_sets(g: GameResult) -> tuple[int, int] | None:
+    """(sets won by team1, by team2) of a volleyball game."""
+    s1 = sum(1 for a, b in zip(g.t1_periods, g.t2_periods, strict=True) if a > b)
+    s2 = len(g.t1_periods) - s1
+    return (s1, s2) if s1 or s2 else None
+
+
 def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResult],
                     period: int = 0) -> list[ShadowLine]:
     """Both (all) sides of the lines a game is scored on for one market.
@@ -577,6 +601,14 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     if spec.kind == "odd_even":
         return [ShadowLine("", market_id, spec.family, period, subject, None, s, 1.0)
                 for s in ("ODD", "EVEN")]
+    if spec.kind == "yes_no":
+        return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
+                for s in ("YES", "NO")]
+    if spec.kind == "exact":
+        # every set score the game's own simulation reaches
+        scores = sorted({sc for g in sims if (sc := _pair_sets(g)) is not None})
+        return [ShadowLine("", market_id, spec.family, period, "", None,
+                           f"{a}:{b}", 1.0) for a, b in scores]
     if spec.kind == "three_way":
         return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
                 for s in ("T1", "DRAW", "T2")]
@@ -924,7 +956,8 @@ def cs2_settled_rows(runs_dir: str, dates: Sequence[str]) -> list[Row]:
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue
-                if g.get("family") not in CS2_FAMILIES or g.get("model_p") is None:
+                if g.get("family") not in CS2_FAMILIES | CS2_EXTENDED_FAMILIES \
+                        or g.get("model_p") is None:
                     continue
                 rows.append({
                     "sport": "cs2", "family": g["family"], "market_id": None,

@@ -83,7 +83,7 @@ import json
 import math
 import sqlite3
 import statistics
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -1015,8 +1015,14 @@ def forecast_records(
     done: set[ForecastKey],
     now_ts: int,
     last: dict[LineIdentity, Any] | None = None,
+    pinned: Mapping[str, tuple[int, int]] | None = None,
 ) -> list[dict[str, Any]]:
     """The pre-game rows for one sport's new snapshot records.
+
+    `pinned` (Superbet event id -> Sofascore ids of team1 and team2, from
+    SPORT_IDENTITY's sport_fixtures.json, IDENTIFIED only) is read before the
+    names: on 2026-10-07 768 of basketball's 1,152 TEAM_UNRESOLVED rows were
+    games SPORT_IDENTITY had pinned. A row says which (`teams_source`).
 
     Per record: both teams tied to Sofascore ids offline (resolve_team), the
     history cut before Superbet's kickoff (history_cutoff), each player side
@@ -1052,7 +1058,11 @@ def forecast_records(
         kickoff = datetime.fromisoformat(str(rec["kickoff_utc"]).replace("Z", "+00:00"))
         before = history_cutoff(int(kickoff.timestamp()), None)
         teams: list[int] = []
-        for name in (rec.get("team1"), rec.get("team2")):
+        pin = (pinned or {}).get(str(rec["superbet_event_id"]))
+        teams_source = "pinned" if pin is not None else "name"
+        if pin is not None:
+            teams = [int(pin[0]), int(pin[1])]
+        for name in () if pin is not None else (rec.get("team1"), rec.get("team2")):
             if not isinstance(name, str):
                 continue
             tid = resolve_team(conn, slug, name, {})
@@ -1107,6 +1117,7 @@ def forecast_records(
                 **base,
                 "fair_p": None if fair is None else fair.get(str(ln["side"])),
                 "teams_resolved": len(teams),
+                "teams_source": teams_source,
                 **model_fields(mp),
                 "unfitted_constants": list(UNFITTED) + list(UNFITTED_PREGAME),
                 "computed_at_utc": computed_at,

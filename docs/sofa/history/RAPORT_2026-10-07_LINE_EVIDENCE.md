@@ -106,3 +106,46 @@ Operator: „TAK” — modele dla brakujących rynków.
   - niemodelowane rodziny siatkówki i CS2 (`MARKET_NOT_ALLOWED` 176 / 1682);
   - zawodnicy bez przedmeczowego `p`: koszykówka `TEAM_UNRESOLVED` 1152
     wierszy 10-07, `THIN_SAMPLE` 362, `NOT_IN_HISTORY` 152.
+
+## Dopisek 2: siatkówka, CS2, drużyny zawodników + testy e2e (2026-10-07, wieczór)
+
+- **Siatkówka** (`EXTENDED_MARKETS`): dokładny wynik w setach i parzyste /
+  nieparzyste punktów meczu (oba oceniane na historii), parzyste /
+  nieparzyste punktów seta i „set na przewagi” (tylko z rozliczonych linii).
+- **CS2** (`CS2_EXTENDED_FAMILIES`): każda rodzina, którą wycenia silnik —
+  handicap i suma rund mapy, zabójstwa drużyny, zabójstwa / śmierci / asysty /
+  headshoty zawodnika. Nogi oparte na statystykach meczu biorą wynik
+  rozliczonej linii CS2_SETTLE. Rynki serii (`maps_*`, `team_maps`,
+  `exact_maps`, `rounds_*`, parzystość rund) zostają bez modelu: silnik ich
+  nie wycenia.
+- **Model zawodników w SHADOW** czyta najpierw drużyny przypięte przez
+  SPORT_IDENTITY, a dopiero potem nazwy (`teams_source`). Na migawkach
+  koszykówki z 10-07: linie z `p` 544 → 944; tam, gdzie zadziałały obie
+  metody, przypięte identyfikatory zgadzały się z nazwami w 20 na 20 meczów.
+
+### Testy end-to-end (prawdziwe dane, katalog roboczy, SOFA_NOW)
+
+- **Pełny łańcuch 10-07** (CONFIDENCE → SPORT_CONFIDENCE → COUPON_ASSEMBLY →
+  PDF → audit_coupon → audit_variants) pod nową epoką: każdy etap kod 0, poza
+  `audit_variants` z kodem 1 od 29 uwag C3 (nowe nogi w top 30 bez odczytu
+  analityka — oczekiwane w powtórce). U3 przelicza każdą nogę sportową
+  ponownie i nie dał żadnej uwagi. Prawdziwy `11_coupon.json` nietknięty
+  (md5 bez zmian).
+- **Błąd znaleziony przez e2e:** `run_sport_confidence._allowed` gubił flagę
+  epoki dla CS2, przez co 1682 linie zostały `MARKET_NOT_ALLOWED`. Poprawione,
+  dodany test.
+- **Rozliczenie:** każda rozliczona linia rodzin rozszerzonych, rozliczona jak
+  noga kuponu (`sport_day.grade_legs`), porównana z wynikiem SHADOW / CS2:
+  - koszykówka i hokej: 7785 / 7785 zgodnych;
+  - zawodnicy 10-06: 3570 / 3570;
+  - CS2: 12 424 / 12 424;
+  - siatkówka: 2222 / 2222.
+
+  Nogi sportowe powtórki 10-06: 112, wszystkie WIN / LOSS, bez
+  UNGRADEABLE i MISMATCH.
+- **Wybór plików:** 10-07 czyta stare krzywe, 10-08 plik `.next.json`;
+  epoka włącza się 10-08 00:00Z, a przebudowa 10-07 po północy zostaje przy
+  starej regule.
+- **Nie przetestowane na żywo:** przypięte drużyny w samej pętli SHADOW
+  (`forecast_players`). Sprawdzone tylko na zapisanych migawkach; pierwszy
+  prawdziwy przebieg to pętla 10-08.

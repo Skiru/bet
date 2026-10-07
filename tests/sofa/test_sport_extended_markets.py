@@ -105,3 +105,97 @@ def test_a_q4_or_second_half_leg_says_overtime_is_unknown() -> None:
                                90, 88, "T1", True)
     assert shadow.actual_value(line, result, BASKETBALL) is None
     assert scf.ot_rule_unknown("basketball", "h2_total", 0)
+
+
+VOLLEYBALL = shadow.SPORTS["volleyball"]
+
+
+def _vb(*sets: tuple[int, int]) -> shadow.GameResult:
+    t1 = tuple(a for a, _ in sets)
+    t2 = tuple(b for _, b in sets)
+    s1 = sum(1 for a, b in sets if a > b)
+    return shadow.GameResult(t1, t2, sum(t1), sum(t2),
+                             "T1" if s1 > len(sets) - s1 else "T2", False)
+
+
+def test_volleyball_exact_score_and_extra_points_lines() -> None:
+    sims = [_vb((25, 20), (25, 22), (25, 18)),            # 3:0
+            _vb((25, 20), (23, 25), (25, 18), (26, 24)),  # 3:1, set 4 on extra points
+            _vb((20, 25), (25, 22), (18, 25), (22, 25))]  # 1:3
+    exact = scf.synthetic_lines(VOLLEYBALL, 785, sims)
+    assert sorted(ln.side for ln in exact) == ["1:3", "3:0", "3:1"]
+    p30 = line_probability(next(ln for ln in exact if ln.side == "3:0"), sims,
+                           VOLLEYBALL)
+    assert p30 is not None and abs(p30 - 1 / 3) < 1e-9
+    extra = scf.synthetic_lines(VOLLEYBALL, 100077, sims, period=4)
+    assert [ln.side for ln in extra] == ["YES", "NO"]
+    # set 4 played in two of three games, on extra points in one
+    assert line_probability(extra[0], sims, VOLLEYBALL) == 0.5
+    assert scf.curve_key("exact_sets", "3:1") == "exact_sets|3:1"
+    assert scf.curve_key("set_extra_points", "YES") == "set_extra_points|YES"
+    assert {"set_points_odd_even", "set_extra_points"} <= \
+        scf.SETTLED_ONLY_FAMILIES["volleyball"]
+    assert "exact_sets" not in scf.SETTLED_ONLY_FAMILIES["volleyball"]
+
+
+def test_shadow_reads_the_pinned_teams_of_identified_games(tmp_path: Path) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "run_shadow", REPO / "scripts/sofa/run_shadow.py")
+    assert spec and spec.loader
+    rs = importlib.util.module_from_spec(spec)
+    sys.modules["run_shadow"] = rs
+    spec.loader.exec_module(rs)
+    day = tmp_path / "2026-10-08"
+    day.mkdir()
+    (day / "sport_fixtures.json").write_text(json.dumps({"fixtures": [
+        {"sport": "basketball", "superbet_event_id": "7", "status": "IDENTIFIED",
+         "home_id": 11, "away_id": 22, "home_is_team1": False},
+        {"sport": "basketball", "superbet_event_id": "8", "status": "NOT_IDENTIFIED"},
+        {"sport": "hockey", "superbet_event_id": "9", "status": "IDENTIFIED",
+         "home_id": 1, "away_id": 2, "home_is_team1": True}]}))
+    # the snapshot day 10-07 reads its neighbour 10-08 (a loop pins D and D+1)
+    assert rs.pinned_teams(str(tmp_path), "basketball", "2026-10-07") == {
+        "7": (22, 11)}
+    assert rs.pinned_teams(str(tmp_path), "hockey", "2026-10-08") == {"9": (1, 2)}
+
+
+def test_a_pinned_game_is_priced_without_resolving_names() -> None:
+    from bet.sofa import player_model as pm
+
+    class NoDb:
+        def execute(self, *a: Any, **k: Any) -> Any:
+            raise AssertionError("names must not be resolved for a pinned game")
+
+    calls: list[Any] = []
+    orig = pm.load_appearances
+    pm.load_appearances = lambda conn, sport, teams, before, ex: (  # type: ignore[assignment]
+        calls.append(teams) or [])
+    try:
+        rec = {"superbet_event_id": "7", "kickoff_utc": "2026-10-08T18:00:00Z",
+               "fetched_at_utc": "2026-10-08T10:00:00Z", "team1": "A", "team2": "B",
+               "lines": [{"market_id": 233565, "family": "player_points",
+                          "subject": "Doe, J", "line": 10.5, "side": "OVER",
+                          "odds": 1.9},
+                         {"market_id": 233565, "family": "player_points",
+                          "subject": "Doe, J", "line": 10.5, "side": "UNDER",
+                          "odds": 1.9}]}
+        rows = pm.forecast_records(NoDb(), "basketball", "basketball", [rec],  # type: ignore[arg-type]
+                                   "x", set(), 0, None, {"7": (22, 11)})
+    finally:
+        pm.load_appearances = orig  # type: ignore[assignment]
+    assert calls == [[22, 11]]
+    assert {r["teams_source"] for r in rows} == {"pinned"}
+    assert {r["teams_resolved"] for r in rows} == {2}
+
+
+def test_the_stage_reads_the_extended_cs2_families_under_the_evidence() -> None:
+    # e2e 2026-10-07 found _allowed dropping `extended` for CS2: 1,682 lines
+    # stayed MARKET_NOT_ALLOWED although family_of allowed them.
+    from bet.sofa.cs2 import Cs2Line
+
+    rsc = _rsc()
+    ln = Cs2Line("e", "map_rounds_total", 1, "", 21.5, "OVER", 1.8)
+    assert rsc._allowed("cs2", ln) is None
+    assert rsc._allowed("cs2", ln, True) == "map_rounds_total"
+    series = Cs2Line("e", "maps_total", 0, "", 2.5, "OVER", 1.8)
+    assert rsc._allowed("cs2", series, True) is None

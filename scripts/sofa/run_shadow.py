@@ -237,6 +237,26 @@ def snapshot(
     return result
 
 
+def pinned_teams(runs_dir: str, sport: str, day: str) -> dict[str, tuple[int, int]]:
+    """Superbet event id -> (team1, team2) Sofascore ids of every game
+    SPORT_IDENTITY IDENTIFIED in runs/sofa/<d>/sport_fixtures.json, d = the
+    snapshot's day and its neighbours (a loop pins D and D+1)."""
+
+    from bet.sofa import sport_identity as si
+
+    base = datetime.strptime(day, "%Y-%m-%d")
+    out: dict[str, tuple[int, int]] = {}
+    for delta in (-1, 0, 1):
+        d = (base + timedelta(days=delta)).strftime("%Y-%m-%d")
+        doc = si.load_fixtures(Path(runs_dir) / d / si.FIXTURES_FILE)
+        for (sp, sb_id), fx in si.fixtures_by_event(doc).items():
+            if sp != sport or fx.get("status") != si.IDENTIFIED:
+                continue
+            home, away = int(fx["home_id"]), int(fx["away_id"])
+            out[str(sb_id)] = (home, away) if fx.get("home_is_team1") else (away, home)
+    return out
+
+
 def forecast_players(
     records: dict[tuple[SportKey, str], list[dict[str, Any]]],
     runs_dir: str,
@@ -276,6 +296,7 @@ def forecast_players(
                     done,
                     int(at.timestamp()),
                     last,
+                    pinned_teams(runs_dir, key, day),
                 )
             finally:
                 conn.close()

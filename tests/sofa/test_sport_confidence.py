@@ -364,7 +364,14 @@ def test_cs2_settled_rows_take_model_p_and_allowed_families_only(tmp_path):
     (day / "settled.json").write_text(json.dumps(
         {"events": {"77": {"state": "SETTLED", "graded": graded}}}))
     rows = scf.cs2_settled_rows(str(tmp_path), ["2026-10-01", "2026-10-02"])
-    assert [(r["family"], r["p"], r["y"]) for r in rows] == [("map_winner", 0.66, 1)]
+    # map_rounds_total: CS2_EXTENDED_FAMILIES (2026-10-07) - evidence for the
+    # line-evidence epoch; outside it the family is still MARKET_NOT_ALLOWED
+    assert [(r["family"], r["p"], r["y"]) for r in rows] == [
+        ("map_winner", 0.66, 1), ("map_rounds_total", 0.5, 0)]
+    assert scf.family_of("cs2", None, "map_rounds_total") is None
+    assert scf.family_of("cs2", None, "map_rounds_total", extended=True) \
+        == "map_rounds_total"
+    assert scf.family_of("cs2", None, "maps_total", extended=True) is None
     assert "fair_p" not in rows[0] and "odds" not in rows[0]
 
 

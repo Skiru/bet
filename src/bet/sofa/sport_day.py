@@ -196,8 +196,33 @@ def _stored_winner(ev: dict[str, Any]) -> Literal["T1", "T2"] | None:
     return None if a == b else ("T1" if a > b else "T2")
 
 
+# The CS2 families a coupon leg (epochs.line_evidence) takes from
+# CS2_SETTLE's graded side: their quantity is in the box score, which the
+# leg grader's map score (MapResult without stats) does not hold.
+CS2_BOX_FAMILIES: frozenset[str] = frozenset(
+    {"team_kills", "player_kills", "player_deaths", "player_assists",
+     "player_headshots"})
+
+
+def _graded_side(leg: dict[str, Any], ev: dict[str, Any], period_key: str) -> str:
+    """The measurement's own outcome of the leg's side (a player line, a CS2
+    team's kills: graded from the box score at settle), else UNGRADEABLE."""
+    for g in ev.get("graded") or []:
+        if (str(g.get("family")) == str(leg.get("family"))
+                and int(g.get("market_id") or 0) == int(leg.get("market_id") or 0)
+                and int(g.get(period_key) or 0) == int(leg.get(period_key) or 0)
+                and str(g.get("subject") or "") == str(leg.get("subject") or "")
+                and g.get("line") == leg.get("line")
+                and str(g.get("side")) == str(leg["side"])
+                and g.get("outcome") in ("WIN", "LOSS", "VOID")):
+            return str(g["outcome"])
+    return "UNGRADEABLE"
+
+
 def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
     """One leg against a SETTLED event's stored result."""
+    if sport == "cs2" and str(leg.get("family")) in CS2_BOX_FAMILIES:
+        return _graded_side(leg, ev, "map_nr")
     if sport == "cs2":
         maps = [cs2.MapResult(int(a), int(b), {}) for a, b in ev.get("maps") or []]
         if not maps:
@@ -230,14 +255,7 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         # side from the box score (shadow.settle_event, the player matched in
         # the game's own lineups); the leg takes that outcome, at its own
         # printed price. A side SHADOW_SETTLE did not grade is UNGRADEABLE.
-        for g in ev.get("graded") or []:
-            if (int(g.get("market_id") or 0) == int(leg["market_id"])
-                    and str(g.get("subject") or "") == str(leg.get("subject") or "")
-                    and g.get("line") == leg.get("line")
-                    and str(g.get("side")) == str(leg["side"])
-                    and g.get("outcome") in ("WIN", "LOSS", "VOID")):
-                return str(g["outcome"])
-        return "UNGRADEABLE"
+        return _graded_side(leg, ev, "period")
     spec = shadow.MARKETS[sport].get(int(leg.get("market_id") or 0))
     if spec is None:
         return "UNGRADEABLE"

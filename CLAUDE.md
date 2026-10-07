@@ -125,8 +125,14 @@ in every sport alike, and nothing that could win is cut by name.
   UNGRADEABLE. The 2026-10-07 refit of the sport curves is staged in
   `config/sofa_sport_confidence_calibration.next.json` (`effective_from`
   2026-10-08, `sport_confidence.calibration_path_for`); the line evidence is
-  fitted against it. Still outside: volleyball's and CS2's unmodelled
-  families (`MARKET_NOT_ALLOWED`). SHADOW / CS2
+  fitted against it. Volleyball adds its exact set score, points parity, set
+  parity and "set on extra points"; CS2 adds every family the engine prices
+  (`CS2_EXTENDED_FAMILIES`: map round handicap / total, team kills, player
+  kills / deaths / assists / headshots; box-score families graded from
+  CS2_SETTLE's own row). Still outside: CS2's series families (maps_*,
+  team_maps, exact_maps, rounds_*, round parity) - the engine prices none.
+  SHADOW's pre-game player model reads SPORT_IDENTITY's pinned teams before
+  the names (`teams_source`; 10-07 basketball: 544 -> 944 lines with a p). SHADOW / CS2
   themselves stay a measurement of Superbet's price and feed nothing else.
 - **Assembly** (`build_coupon.py`): order by confidence, then earlier start,
   one match's legs together; legs locked from an earlier print come first,

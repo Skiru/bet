@@ -244,7 +244,7 @@ def _shape(sport: str, line: Any) -> str:
 def _allowed(sport: str, line: Any, extended: bool = False) -> str | None:
     """`extended` (epochs.line_evidence): EXTENDED_MARKETS too."""
     if sport == "cs2":
-        return scf.family_of("cs2", None, line.family)
+        return scf.family_of("cs2", None, line.family, extended)
     return scf.family_of(sport, line.market_id, line.family, extended)
 
 
