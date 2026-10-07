@@ -289,6 +289,11 @@ class SheetRow(BaseModel):
     # confidence, never a gate. Stats-only rows only.
     forecast_p: float | None = None
     forecast_source: str | None = None
+    # bet.sofa.epochs.LINK_SHARED_LEAGUE: the rating linked pairs only through
+    # a league both sides call home (epochs.link_shared_league); absent on a
+    # sheet built under the old link rule. rebuild_plan re-runs SHEET when a
+    # build's rule and the sheet's differ.
+    link_rule: str | None = None
 
 
 ContextSignal = Literal[

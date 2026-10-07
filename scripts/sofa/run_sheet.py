@@ -822,6 +822,9 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     if out.get("epoch") is None:
         for key in STATS_ONLY_ROW_FIELDS:
             out.pop(key, None)
+    # absent under the old link rule: an older sheet stays byte-for-byte
+    if out.get("link_rule") is None:
+        out.pop("link_rule", None)
     return out
 
 
@@ -1646,6 +1649,8 @@ def main() -> int:
         else None
     )
     rated_fixtures = 0
+    # the link rule of the day being built (epochs.link_shared_league)
+    link_shared = epochs.link_shared_league(args.date)
     football_book: RatingBook | None = None
     if os.environ.get("SOFA_FOOTBALL_RATING", "1") != "0" and any(
         f.sport == "football" for f in fixtures
@@ -1655,8 +1660,7 @@ def main() -> int:
             load_football_history(config.db_path,
                                   Path(config.db_path).parent / "cache"),
             int(cut.timestamp()),
-            # the link rule of the day being built (epochs.link_shared_league)
-            shared_league_link=epochs.link_shared_league(args.date),
+            shared_league_link=link_shared,
         )
 
     all_rows = []
@@ -1711,6 +1715,9 @@ def main() -> int:
                 skip_reasons[reason.value] = skip_reasons.get(reason.value, 0) + 1
 
         sheet_path = runs_dir / "05_sheet.json"
+        if link_shared:
+            all_rows = [r.model_copy(update={"link_rule": epochs.LINK_SHARED_LEAGUE})
+                        for r in all_rows]
 
         write_atomic(
             sheet_path,
@@ -1736,6 +1743,7 @@ def main() -> int:
         "metrics": {
             "rows_generated": len(all_rows),
             "epoch": STATS_ONLY if stats_only else "old",
+            "link_rule": epochs.LINK_SHARED_LEAGUE if link_shared else "old",
             "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).

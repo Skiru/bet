@@ -96,6 +96,8 @@ class DayState:
     has_sheet: bool = True
     has_offer: bool = True
     sheet_epoch: str | None = epochs.STATS_ONLY
+    # every 05_sheet.json row rated under the shared-league link rule
+    sheet_link_shared: bool = True
     offer_fixtures: int = 0  # fixtures on 04_offer.json with a rung
     open_fixtures: int = 0  # ... a refresh would re-price and CONFIDENCE gate
     oldest_open_rung: datetime | None = None
@@ -243,9 +245,11 @@ def observe(runs_dir: str, date: str, now: datetime,
     fixtures = _load_json(fixtures_path) if fixtures_path.exists() else []
     offers = _load_json(offer_path) if offer_path.exists() else []
     sheet_ep: str | None = None
+    sheet_link_shared = True
     if sheet_path.exists():
         sheet = _load_json(sheet_path)
         sheet_ep = epochs.sheet_epoch(sheet) if sheet else epochs.STATS_ONLY
+        sheet_link_shared = epochs.sheet_link_shared(sheet or [])
     priced, open_n, oldest, newest = observe_offer(
         fixtures, offers, fs.load(run), now)
     sports = ({s: observe_sport(runs_dir, s, date, now) for s in SPORTS}
@@ -259,6 +263,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         date=date, now=now, price_max_age=price_max_age,
         has_fixtures=fixtures_path.exists(), has_sheet=sheet_path.exists(),
         has_offer=offer_path.exists(), sheet_epoch=sheet_ep,
+        sheet_link_shared=sheet_link_shared,
         offer_fixtures=priced, open_fixtures=open_n,
         oldest_open_rung=oldest, newest_rung=newest, sports=sports,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
@@ -391,13 +396,22 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                 "a fresh sport snapshot: pin the new events' Sofascore ids"
                 if refreshed else "sport_fixtures.json missing", soft=True))
 
-    # 2. SHEET only when CONFIDENCE would refuse it
-    sheet_rebuilt = stats_only and state.sheet_epoch != epochs.STATS_ONLY
-    if sheet_rebuilt:
+    # 2. SHEET only when CONFIDENCE would refuse it, or when the rating's
+    # link rule of this build is not the one the sheet was rated under
+    epoch_stale = stats_only and state.sheet_epoch != epochs.STATS_ONLY
+    link_stale = (epochs.link_shared_league(d, now)
+                  and not state.sheet_link_shared)
+    sheet_rebuilt = epoch_stale or link_stale
+    if epoch_stale:
         plan.steps.append(Step(
             "SHEET", _pipeline(d, "SHEET", run_id),
             f"05_sheet.json epoch {state.sheet_epoch!r} is not {epochs.STATS_ONLY!r}:"
             " CONFIDENCE refuses it on a stats-only build"))
+    elif link_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json rated under the old link rule: the football rating "
+            "links only through a shared league (epochs.link_shared_league)"))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
     if not skip_audits and (sheet_rebuilt or state.coupon06_stale):

@@ -10,7 +10,7 @@ strength; 10 hockey legs of the day were removed by NO_BET reads.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -172,15 +172,18 @@ def test_the_book_follows_the_epoch_by_default(monkeypatch):
     assert not replay([], 0).shared_league_link
 
 
-def test_the_switch_acts_from_the_next_days_midnight_never_mid_day(monkeypatch):
-    assert epochs.LINK_SHARED_LEAGUE_FROM_UTC == datetime(2026, 10, 8, tzinfo=UTC)
-    assert epochs.LINK_SHARED_LEAGUE_DATE == "2026-10-08"
-    before = datetime(2026, 10, 7, 23, 59, tzinfo=UTC)
-    after = datetime(2026, 10, 8, 0, 0, tzinfo=UTC)
-    assert not epochs.link_shared_league("2026-10-08", before)
+def test_the_switch_acts_from_the_operators_moment_on_10_07(monkeypatch):
+    # the operator moved it onto 10-07 (nothing staked), after the day's
+    # last build at 05:05Z
+    before = datetime(2026, 10, 7, 5, 5, tzinfo=UTC)
+    after = datetime(2026, 10, 7, 6, 45, tzinfo=UTC)
+    assert epochs.LINK_SHARED_LEAGUE_FROM_UTC == after
+    assert epochs.LINK_SHARED_LEAGUE_DATE == "2026-10-07"
+    assert not epochs.link_shared_league("2026-10-07", before)
+    assert epochs.link_shared_league("2026-10-07", after)
     assert epochs.link_shared_league("2026-10-08", after)
     # a rebuild of a day printed under the old rule keeps it
-    assert not epochs.link_shared_league("2026-10-07", after)
+    assert not epochs.link_shared_league("2026-10-06", after)
     # no day (a refit's as-of replay): the wall clock, never SOFA_NOW
     monkeypatch.setenv("SOFA_NOW", "2026-09-20T10:00:00Z")
     assert epochs.link_shared_league(None, after)
@@ -210,7 +213,7 @@ def test_sport_confidence_rates_with_the_rule_of_the_day_it_builds(monkeypatch):
     at = datetime(2026, 10, 8, 6, 0, tzinfo=UTC)
     monkeypatch.setattr(epochs, "datetime", SimpleNamespace(now=lambda tz: at))
     rsc.DbForecaster("unused.db", at, "2026-10-08")._shadow_model("hockey")
-    rsc.DbForecaster("unused.db", at, "2026-10-07")._shadow_model("hockey")
+    rsc.DbForecaster("unused.db", at, "2026-10-06")._shadow_model("hockey")
     assert seen == [True, False]
 
 
@@ -231,3 +234,46 @@ def test_the_measurement_scores_both_rules_on_the_matches_they_link_apart():
     assert summary["changed"]["n"] == len(changed)
     point, lo, hi = mlr.bootstrap_diff(rows, "old", "new")
     assert lo <= point <= hi
+
+
+def test_a_sheet_rated_under_the_old_rule_is_re_rated_by_the_rebuild():
+    from bet.sofa import rebuild_plan as rp
+
+    at = datetime(2026, 10, 7, 7, 0, tzinfo=UTC)
+    limit = timedelta(minutes=45)
+    stale = rp.build_plan(rp.DayState("2026-10-07", at, limit,
+                                      sheet_link_shared=False))
+    sheet = next(s for s in stale.steps if s.name == "SHEET")
+    assert "link rule" in sheet.reason
+    assert stale.names().index("SHEET") < stale.names().index("CONFIDENCE")
+    fresh = rp.build_plan(rp.DayState("2026-10-07", at, limit,
+                                      sheet_link_shared=True))
+    assert "SHEET" not in fresh.names()
+    # a day before the switch keeps its old-rule sheet
+    old_day = rp.build_plan(rp.DayState("2026-10-06", at, limit,
+                                        sheet_link_shared=False))
+    assert "SHEET" not in old_day.names()
+
+
+def test_the_sheet_rows_say_which_link_rule_rated_them():
+    from scripts.sofa.run_sheet import sheet_row_json
+
+    assert epochs.sheet_link_shared([{"link_rule": epochs.LINK_SHARED_LEAGUE}])
+    assert not epochs.sheet_link_shared([{"link_rule": epochs.LINK_SHARED_LEAGUE}, {}])
+    assert epochs.sheet_link_shared([])
+    row = _sheet_row()
+    assert "link_rule" not in sheet_row_json(row)
+    stamped = row.model_copy(update={"link_rule": epochs.LINK_SHARED_LEAGUE})
+    assert sheet_row_json(stamped)["link_rule"] == epochs.LINK_SHARED_LEAGUE
+
+
+def _sheet_row() -> Any:
+    from bet.sofa.contracts import SheetRow
+
+    return SheetRow(
+        sofascore_event_id=1, sport="football", market="goals_total", subject="",
+        line=2.5, direction="OVER", sample_size=10, sample_mean=2.8,
+        sample_sd=1.2, centre=2.7, p_central=0.6, market_p=0.55,
+        ladder_centre=None, ladder_sigma=None, p_bar=0.55, bar_reason=None,
+        required_odds=1.8, offered_odds=1.9, edge=0.05, surplus=0.05,
+        verdict="LEAN", notes=[])

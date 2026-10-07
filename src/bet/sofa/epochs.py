@@ -273,8 +273,17 @@ def national_sample_by_count(date: str, build_at: datetime | None = None) -> boo
 # replays (SOFA_NOW in the past) must rate with the rule the live day uses.
 # A caller that knows the day it builds passes it, so a rebuild of a day
 # before LINK_SHARED_LEAGUE_DATE keeps the rule it printed under.
-LINK_SHARED_LEAGUE_DATE = "2026-10-08"
-LINK_SHARED_LEAGUE_FROM_UTC: datetime | None = datetime(2026, 10, 8, tzinfo=UTC)
+#
+# Moved to 2026-10-07 06:45Z by the operator ("nic nie postawiłem" - nothing
+# of 10-07 was staked): after the day's last build (11_coupon.json 05:05Z),
+# before the rebuild that re-rated it. 10-07 is one build under the new rule;
+# the morning prints before 06:45Z were the old rule.
+LINK_SHARED_LEAGUE_DATE = "2026-10-07"
+LINK_SHARED_LEAGUE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 7, 6, 45, tzinfo=UTC)
+
+
+LINK_SHARED_LEAGUE = "shared_league"
 
 
 def link_shared_league(date: str | None = None, at: datetime | None = None) -> bool:
@@ -285,3 +294,9 @@ def link_shared_league(date: str | None = None, at: datetime | None = None) -> b
     if date is not None and date < LINK_SHARED_LEAGUE_DATE:
         return False
     return (at if at is not None else datetime.now(UTC)) >= LINK_SHARED_LEAGUE_FROM_UTC
+
+
+def sheet_link_shared(rows: list[Mapping[str, Any]]) -> bool:
+    """Was every row of a 05_sheet.json rated under the shared-league link
+    rule? An empty sheet has nothing to re-rate."""
+    return all(r.get("link_rule") == LINK_SHARED_LEAGUE for r in rows)
