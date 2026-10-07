@@ -43,22 +43,41 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 
 ## How the coupon is built
 
-**Confidence comes from the statistics alone; the price is only the condition
-for the bet.**
+**Confidence comes from the statistics; the price is the condition for the
+bet and, from 2026-10-08, may only lower a confidence.** The yardstick
+(operator, 2026-10-07): the statistics must tell a good 1.20 from a bad 1.20,
+in every sport alike, and nothing that could win is cut by name.
 
 - SHEET keeps the price out of `p_central`. The rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
   statistics to a calibrated confidence through the curves in
   `config/sofa_confidence_calibration.json`.
+- **Line evidence** (`bet.sofa.line_evidence`, `epochs.LINE_EVIDENCE_FROM_UTC`
+  = 2026-10-08 00:00Z; `config/sofa_superbet_line_evidence.json` from
+  `fit_line_evidence.py`, between days): every key - football, tennis and the
+  four measured sports - is read through its own settled Superbet lines. The
+  confidence is the lowest of the history curve (lowered by the key's
+  measured offset where its printable lines overstate significantly), and the
+  price-band cap: what lines of the key at this `p` realised in this band of
+  Superbet's price (1.30 / 1.60 / 2.20), applied only where measured below
+  the confidence (operator's choice 10-07, "krzywa per pasmo kursu"; a p-only
+  curve overstated long prices - basketball handicap p 0.70-0.80 realised
+  0.81 below 1.30, 0.62 at 1.60-2.20). A key without a curve reads the Wilson
+  bound of its own lines, else `NO_LINE_EVIDENCE`. Legs carry `line_offset` /
+  `price_band_cap` when they were lowered. Evidence:
+  `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
 - **A leg prints** when confidence >= 0.70, confidence x odds >= 0.90, ladder
   (group) margin <= 15%, not ODDS_TOO_LOW, not started, fresh price
   (STALE_PRICE otherwise; a moved price re-prices the leg). Every passing
   single prints - no page limit.
 - **Refusals worth knowing** (each named on the row):
-  - operator keys in `config/sofa_confidence_calibration.json`, carried over
-    by every refit: `refused_markets` (shots/fouls UNDER families,
-    `goals_1h_total|UNDER`) and `admitted_player_markets` (seven football
-    player props - admitted against the recommendation, one-sided prices);
+  - before 2026-10-08 only, by name: operator keys in
+    `config/sofa_confidence_calibration.json`, carried over by every refit -
+    `refused_markets` (shots/fouls UNDER families, `goals_1h_total|UNDER`),
+    `admitted_player_markets`, `admitted_tennis_set_markets` - and
+    `DERIVED_NOT_CALIBRATABLE`; from the line-evidence epoch these markets go
+    through their own Superbet lines like any other (`NO_LINE_EVIDENCE` while
+    a derived joint has none);
   - `CROSS_LEAGUE_UNLINKED`: football ratings compare leagues only through a
     measured league strength; a pair is LINKED only when both sides' leagues
     (domains) are the competition they share - a promoted side is
@@ -90,11 +109,14 @@ for the bet.**
 - **Measured sports:** SHADOW / CS2 snapshot Superbet → SPORT_IDENTITY pins the
   Sofascore id before the start → SPORT_CONFIDENCE reads
   `config/sofa_sport_confidence_calibration.json` (fitted without prices).
-  Calibrated: hockey (with `period_total|OVER`, `period_team_total|OVER`) and
-  volleyball (needs a tournament with a settled event in the last 14 days).
-  Basketball (every full-game key overstates) and CS2 (the engine loses to the
-  price) are `NOT_CALIBRATED`: exit 1, the rest of the coupon still builds.
-  Hockey / basketball player props are not on the coupon. SHADOW / CS2
+  Before 2026-10-08 only the `admitted` keys print: hockey (with
+  `period_total|OVER`, `period_team_total|OVER`) and volleyball; basketball
+  and CS2 `NOT_CALIBRATED` (exit 1, the rest still builds). From the
+  line-evidence epoch every fitted key of all four is read, corrected by its
+  Superbet lines; volleyball still needs a tournament with a settled event in
+  the last 14 days. Families outside `sport_confidence.ALLOWED_MARKETS`
+  (quarters, second half, odd/even, dnb, player props) have no model yet -
+  `MARKET_NOT_ALLOWED`, the next piece of work. SHADOW / CS2
   themselves stay a measurement of Superbet's price and feed nothing else.
 - **Assembly** (`build_coupon.py`): order by confidence, then earlier start,
   one match's legs together; legs locked from an earlier print come first,
@@ -165,7 +187,9 @@ Current backups: `config/backup_2026-10-05`,
 - trimming national-team samples to 180 days (worse log-loss);
 - blending the price into confidence or gating on disagreement with it
   (disagreement is an anti-signal; every weight moved to the price only
-  copies the price);
+  copies the price) - the price-band cap of line evidence is not a blend: it
+  only lowers, and only where a band's settled lines measured below the
+  curve (operator, 2026-10-07);
 - league selection / gate tuning (anti-selects out of sample).
 
 ## Entry points
@@ -248,6 +272,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date <d> {back
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only   # only the by_class curves
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py --before <d> --sport-rows-dir <dir> [--dry-run]   # after every curve refit; without the dir: no price-band cap for the sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_calibration.py --from <d> --to <d> [--epoch stats_only] [--write-config --before <d>]   # PASS n>=300 and |gap|<=2 pp
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_women_competitions.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_friendly_competitions.py --out docs/sofa/evidence/friendly_candidates_<d>.json   # candidates; a person decides

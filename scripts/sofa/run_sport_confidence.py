@@ -24,9 +24,12 @@ tournament with a SETTLED event in the last 14 days, an allowed market
 (sport_confidence.ALLOWED_MARKETS / CS2_FAMILIES), a whole outcome group.
 The model's probability (score_model / cs2_engine, no price) is read
 through the admitted curve: confidence = the bucket's Wilson lower bound
-(else NOT_CALIBRATED). Then the coupon's price filters (D1): confidence >=
-the official floor, odds >= 1/0.9202, margin <= 15%, confidence x odds >=
-0.90.
+(else NOT_CALIBRATED). From epochs.LINE_EVIDENCE_FROM_UTC every fitted key's
+curve is read, lowered by the offset its settled Superbet lines measured, and
+a p no curve covers reads the key's own settled lines (bet.sofa.line_evidence;
+else NO_LINE_EVIDENCE) - no key is refused for being outside `admitted`.
+Then the coupon's price filters (D1): confidence >= the official floor,
+odds >= 1/0.9202, margin <= 15%, confidence x odds >= 0.90.
 
 Exit: 0 OK; 1 PARTIAL - a sport NOT_CALIBRATED (no calibration file, no
 section, nothing admitted) or NOT_IDENTIFIED (no sport_fixtures.json), the
@@ -65,6 +68,7 @@ from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import COUPON_PROFILE, MIN_ODDS_FOR_CEILING  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
+from bet.sofa.line_evidence import NO_LINE_EVIDENCE, LineEvidence  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 ARTIFACT = "08_confidence_sports.json"
@@ -196,14 +200,21 @@ def _allowed(sport: str, line: Any) -> str | None:
 
 
 def sport_status(sport: str, fixtures_doc: Mapping[str, Any] | None,
-                 calibration: scf.SportCalibration | None) -> str:
+                 calibration: scf.SportCalibration | None,
+                 evidence: LineEvidence | None = None) -> str:
+    """`evidence` (epochs.line_evidence): a sport with any fitted curve is
+    read - its keys are corrected by their settled Superbet lines, none is
+    refused for being outside `admitted`."""
     if fixtures_doc is None:
         return NOT_IDENTIFIED
     run = fixtures_doc.get("sports_run")
     if run is not None and sport not in run:
         return NOT_IDENTIFIED
-    if calibration is None or not calibration.has_sport(sport) \
-            or not calibration.admitted(sport):
+    if calibration is None or not calibration.has_sport(sport):
+        return NOT_CALIBRATED
+    if evidence is not None:
+        return OK if calibration.has_curves(sport) else NOT_CALIBRATED
+    if not calibration.admitted(sport):
         return NOT_CALIBRATED
     return OK
 
@@ -213,14 +224,17 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 calibration: scf.SportCalibration | None,
                 forecaster: Forecaster, at: datetime,
                 fixture_status: Mapping[int, Mapping[str, Any]] | None = None,
+                evidence: LineEvidence | None = None,
                 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """`fixture_status` (fixture_status.json by Sofascore id, FIXTURE_CHECK):
     a pinned game postponed / cancelled / interrupted ... is refused
     FIXTURE_NOT_AS_SCHEDULED (K14, as CONFIDENCE refuses a football / tennis
     match; a locked leg is COUPON_ASSEMBLY's and stays), and a fresh
     Sofascore start replaces SPORT_IDENTITY's pinned one in the kickoff gate
-    (K12). None / no entry: exactly as before (UNVERIFIED refuses nothing)."""
-    status = sport_status(sport, fixtures_doc, calibration)
+    (K12). None / no entry: exactly as before (UNVERIFIED refuses nothing).
+    `evidence` (epochs.line_evidence; None = the admission rule as before):
+    every fitted key's curve, read through bet.sofa.line_evidence."""
+    status = sport_status(sport, fixtures_doc, calibration, evidence)
     fixture_status = fixture_status or {}
     not_scheduled: list[dict[str, Any]] = []
     fixtures = si.fixtures_by_event(fixtures_doc)
@@ -307,7 +321,22 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if not scf.line_in_fit(sport, family, ln.line):
                 _bump(refused, scf.LINE_OUTSIDE_FIT)
                 continue
-            conf = calibration.lookup(sport, family, ln.side, p)
+            conf = calibration.lookup(sport, family, ln.side, p,
+                                      require_admitted=evidence is None)
+            offset = 0.0
+            band_cap: float | None = None
+            if evidence is not None:
+                read = evidence.read(
+                    sport, scf.curve_key(family, ln.side), p,
+                    None if conf is None
+                    else (conf.value, conf.calibrated_on, conf.n), ln.odds)
+                if read is None:
+                    _bump(refused, NO_LINE_EVIDENCE if conf is None
+                          else NOT_CALIBRATED)
+                    continue
+                conf = scf.Confidence(read.value, read.n, read.source)
+                offset = read.offset
+                band_cap = read.band_cap
             if conf is None:
                 _bump(refused, NOT_CALIBRATED)
                 continue
@@ -322,6 +351,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
             k, n = forecaster.sample(sport, fixture, ev, ln)
             legs.append(leg_dict(sport, ev, fixture, ln, family, conf, p, k, n,
                                  margin, kickoff, newest))
+            if offset:
+                legs[-1]["line_offset"] = offset
+            if band_cap is not None:
+                legs[-1]["price_band_cap"] = band_cap
     entry_out: dict[str, Any] = {"status": status,
                                  "refused": dict(sorted(refused.items())),
                                  "legs": len(legs)}
@@ -383,10 +416,15 @@ def leg_dict(sport: str, ev: Any, fixture: Mapping[str, Any], ln: Any,
 
 
 def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecaster,
-          at: datetime, sports: tuple[str, ...] = scf.SPORT_KEYS
+          at: datetime, sports: tuple[str, ...] = scf.SPORT_KEYS,
+          evidence_path: Path | None = None,
           ) -> tuple[dict[str, Any], int]:
+    """`evidence_path`: the line-evidence file read from
+    epochs.LINE_EVIDENCE_FROM_UTC (default: the installed one)."""
     fixtures_doc = si.load_fixtures(Path(runs_dir) / date / si.FIXTURES_FILE)
     calibration = scf.SportCalibration.load(calibration_path)
+    evidence = (LineEvidence.load(evidence_path) if evidence_path is not None
+                else LineEvidence.load()) if epochs.line_evidence(date, at) else None
     fixture_status = fs.load(Path(runs_dir) / date)
     doc: dict[str, Any] = {
         "created_at_utc": si.iso(at),
@@ -403,9 +441,11 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
         "sports": {},
         "legs": [],
     }
+    if evidence is not None:
+        doc["line_evidence_fitted_from"] = evidence.doc.get("fitted_from")
     for sport in sports:
         entry, legs = build_sport(sport, date, runs_dir, fixtures_doc, calibration,
-                                  forecaster, at, fixture_status)
+                                  forecaster, at, fixture_status, evidence)
         doc["sports"][sport] = entry
         doc["legs"] += legs
     doc["legs"].sort(key=lambda g: (-g["confidence"], g["kickoff_utc"],

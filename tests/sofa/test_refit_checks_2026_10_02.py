@@ -229,7 +229,7 @@ def test_run_confidence_refuses_an_unadmitted_set_market() -> None:
     i = source.index('cal.tennis_set_market_not_admitted(row["market"])')
     assert 'refused["TENNIS_SET_MARKET_NOT_ADMITTED"]' in source[i:i + 200]
     # Before the curve lookup, like the player-prop admission.
-    assert i < source.index("hit = cal.realised(")
+    assert i < source.index("else cal.realised(")
 
 
 def test_the_admission_list_survives_a_refit() -> None:

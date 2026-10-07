@@ -56,6 +56,7 @@ from bet.sofa.confidence import (  # noqa: E402
     combined_probability,
     coupon_artifact,
     coupon_sort_key,
+    direction_key,
     disagrees_with_price,
     empirical_joint,
     fair_odds,
@@ -82,12 +83,18 @@ from bet.sofa.engine import (  # noqa: E402
 )
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
+    line_evidence,
     national_sample_by_count,
     pool_neighbour_cap,
     settleability_gate,
     sheet_epoch,
 )
 from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
+from bet.sofa.line_evidence import (  # noqa: E402
+    NO_LINE_EVIDENCE,
+    LineEvidence,
+    evidence_key,
+)
 from bet.sofa.locked_print import (  # noqa: E402
     PRINTED_MANIFEST,
     carry_over,
@@ -354,6 +361,17 @@ def main() -> int:
     # failing (config/sofa_curve_status.json). Lists nothing until the
     # operator sets epochs.CURVE_STATUS_FROM_UTC, between days.
     failed_curves = curve_status.for_build(args.date, now)
+    # epochs.LINE_EVIDENCE_FROM_UTC (operator, 2026-10-07): nothing refused by
+    # name - every market read through its own settled Superbet lines
+    # (bet.sofa.line_evidence). None: the by-name gates as before.
+    evidence = LineEvidence.load() if line_evidence(args.date, now) else None
+    if evidence is not None and not evidence.fitted:
+        print(
+            "LINE_EVIDENCE_NOT_FITTED: config/sofa_superbet_line_evidence.json is "
+            "absent; no curve is corrected and a market without one is "
+            "NO_LINE_EVIDENCE (fit_line_evidence.py --before <d>)",
+            file=sys.stderr,
+        )
     national_by_count = national_sample_by_count(args.date, now)
     # F0.6 (from epochs.SETTLEABILITY_FROM_UTC): the fitted (competition,
     # family) cells whose printed legs went ungraded at D+3 for want of the
@@ -616,20 +634,25 @@ def main() -> int:
         # See DERIVED_PREFIXES. A joint of two sides is not a count of one
         # thing, has 2-252 settled rows of its own, and no sample in the
         # artifacts can check it.
-        if is_derived(row["market"]):
+        # Under line evidence none of the four by-name gates below refuses:
+        # the market's settled Superbet lines correct or stand in for its
+        # curve (bet.sofa.line_evidence) - a derived joint reads ONLY them.
+        if evidence is None and is_derived(row["market"]):
             refused["DERIVED_NOT_CALIBRATABLE"] += 1
             continue
 
         # See Calibration.admitted_player_markets: a curve is not an admission.
-        if cal.player_prop_not_admitted(row["market"]):
+        if evidence is None and cal.player_prop_not_admitted(row["market"]):
             refused["PLAYER_PROP_NOT_ADMITTED"] += 1
             continue
         # See Calibration.admitted_tennis_set_markets (TENNIS_SET_GAMES).
-        if cal.tennis_set_market_not_admitted(row["market"]):
+        if evidence is None and cal.tennis_set_market_not_admitted(row["market"]):
             refused["TENNIS_SET_MARKET_NOT_ADMITTED"] += 1
             continue
         # See Calibration.refused_markets: the operator's own refusals.
-        if cal.refused_by_operator(row["market"], row.get("direction")):
+        if evidence is None and cal.refused_by_operator(
+            row["market"], row.get("direction")
+        ):
             refused["OPERATOR_REFUSED"] += 1
             continue
         # A leg nobody can grade is a tip nobody can check (F0.6).
@@ -649,10 +672,25 @@ def main() -> int:
             sides,
             fx.get("competition_id"),
         )
-        hit = cal.realised(
-            row["market"], row["p_central"], row.get("sport"), row["direction"],
-            klass,
-        )
+        hit = None if evidence is not None and is_derived(row["market"]) \
+            else cal.realised(
+                row["market"], row["p_central"], row.get("sport"),
+                row["direction"], klass,
+            )
+        line_offset = 0.0
+        band_cap: float | None = None
+        if evidence is not None:
+            read = evidence.read(
+                str(row.get("sport")),
+                evidence_key(direction_key(row["market"], row["direction"]), klass),
+                float(row["p_central"]), hit, float(odds),
+            )
+            if read is None:
+                refused[NO_LINE_EVIDENCE] += 1
+                continue
+            hit = (read.value, read.source, read.n)
+            line_offset = read.offset
+            band_cap = read.band_cap
         if hit is None and klass is not None and cal.realised(
             row["market"], row["p_central"], row.get("sport"), row["direction"]
         ) is not None:
@@ -796,6 +834,10 @@ def main() -> int:
                 **({"confidence_curve": curve_lo} if cal.gap_shrink_k > 0 else {}),
                 "calibrated_on": source,
                 "calibration_n": n_cal,
+                # bet.sofa.line_evidence: how far the market's settled
+                # Superbet lines lowered its curve - written only when they did.
+                **({"line_offset": line_offset} if line_offset else {}),
+                **({"price_band_cap": band_cap} if band_cap is not None else {}),
                 "sample_size": row["sample_size"],
                 "sample_observations": len(values),
                 "sample_oldest_days": oldest_days,

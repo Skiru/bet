@@ -277,13 +277,20 @@ class SportCalibration:
         return list(((self.doc.get("sports") or {}).get(sport) or {}).get(
             "admitted") or [])
 
-    def lookup(self, sport: str, family: str, side: str, p: float
-               ) -> Confidence | None:
+    def has_curves(self, sport: str) -> bool:
+        return bool(((self.doc.get("sports") or {}).get(sport) or {})
+                     .get("curves"))
+
+    def lookup(self, sport: str, family: str, side: str, p: float,
+               require_admitted: bool = True) -> Confidence | None:
         """The confidence of a model probability, or None (NOT_CALIBRATED):
-        a key that is not admitted, or a p outside every bucket it has."""
+        a key that is not admitted, or a p outside every bucket it has.
+        `require_admitted=False` (epochs.line_evidence): the curve of any
+        fitted key - its settled Superbet lines correct it (bet.sofa.
+        line_evidence) instead of the admission refusing it."""
         entry = (self.doc.get("sports") or {}).get(sport) or {}
         key = curve_key(family, side)
-        if key not in (entry.get("admitted") or []):
+        if require_admitted and key not in (entry.get("admitted") or []):
             return None
         bucket = _find((entry.get("curves") or {}).get(key) or {}, p)
         if bucket is None or int(bucket["n"]) < int(

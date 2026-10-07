@@ -347,7 +347,7 @@ def test_confidence_refuses_after_the_operator_and_before_the_curve() -> None:
               / "scripts/sofa/run_confidence.py").read_text()
     i = source.index("refused[NOT_SETTLEABLE] += 1")
     assert source.index('refused["OPERATOR_REFUSED"]') < i
-    assert i < source.index("hit = cal.realised(")
+    assert i < source.index("else cal.realised(")
 
 
 # --- the sweep --------------------------------------------------------------

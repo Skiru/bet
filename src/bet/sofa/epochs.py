@@ -300,3 +300,34 @@ def sheet_link_shared(rows: list[Mapping[str, Any]]) -> bool:
     """Was every row of a 05_sheet.json rated under the shared-league link
     rule? An empty sheet has nothing to re-rate."""
     return all(r.get("link_rule") == LINK_SHARED_LEAGUE for r in rows)
+
+
+# Operator, 2026-10-07: sofa's job is to tell a good 1.20 from a bad 1.20 by
+# the statistics, for every sport alike, and nothing that could win is cut by
+# name. Measured that day (docs/sofa/evidence/discrimination_within_price_
+# 2026-10-07.md): inside one price band, the top third of the stats-only p
+# realised more than the bottom third - football +14.4 pp [+8.2, +19.6]
+# (10-05..06), basketball +9.1 pp [+1.0, +15.4] (handicap +20.7) on
+# 09-20..10-06 Superbet lines - while basketball sat NOT_CALIBRATED. From the
+# moment below (bet.sofa.line_evidence): no market is refused by name
+# (refused_markets, admitted_* lists, DERIVED_NOT_CALIBRATABLE, a sport key
+# outside `admitted`); every key is read through its own settled Superbet
+# lines instead - a curve they show overstating is lowered by the measured
+# offset (never raised), and a key without a history curve reads the Wilson
+# lower bound of its own settled lines (NO_LINE_EVIDENCE until it has them).
+# A p-only curve overstated the long prices (basketball handicap p 0.70-0.80
+# realised 0.79 at 1.30-1.60 and 0.62 at 1.60-2.20); the operator chose
+# "krzywa per pasmo kursu" the same day: the price band may lower a confidence
+# where its settled lines measured below it, never raise one. It changes what
+# prints, so from the next day's 00:00Z, never mid-day.
+LINE_EVIDENCE_DATE = "2026-10-08"
+LINE_EVIDENCE_FROM_UTC: datetime | None = datetime(2026, 10, 8, tzinfo=UTC)
+
+
+def line_evidence(date: str, build_at: datetime | None = None) -> bool:
+    """Is a key read through its settled Superbet lines rather than refused
+    by name (LINE_EVIDENCE_FROM_UTC)?"""
+    if LINE_EVIDENCE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= LINE_EVIDENCE_DATE and at >= LINE_EVIDENCE_FROM_UTC

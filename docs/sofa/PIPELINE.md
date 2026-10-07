@@ -887,7 +887,8 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `STALE_PRICE` | cena starsza niż 45 min |
 | `NOT_IN_CALIBRATION_FIT` | metryka nie należy do rodziny, na której fitowano krzywą |
 | `CROSS_LEAGUE_UNLINKED` | mecz piłkarski drużyn bez wspólnej ligi i bez zmierzonej siły ich lig (§7.1a) — decyzję oddajemy cenie |
-| `DERIVED_NOT_CALIBRATABLE` | rynek pochodny (`both_over_`, `handicap_`, `most_`) — ma 2–252 rozliczonych wierszy i żadna próbka z artefaktów go nie sprawdzi |
+| `DERIVED_NOT_CALIBRATABLE` | rynek pochodny (`both_over_`, `handicap_`, `most_`) — ma 2–252 rozliczonych wierszy i żadna próbka z artefaktów go nie sprawdzi — **do 2026-10-07**; od `epochs.LINE_EVIDENCE_FROM_UTC` (2026-10-08) rynek pochodny czyta wyłącznie własne rozliczone linie Superbetu (`NO_LINE_EVIDENCE`, dopóki ich nie ma) |
+| `NO_LINE_EVIDENCE` | od 2026-10-08: rynek bez krzywej przy tym `p` i bez >= 50 własnych rozliczonych linii Superbetu w kubełku (`bet.sofa.line_evidence`) — niezmierzony, nie zgadywany. To samo w SPORT_CONFIDENCE |
 | `NO_CLASS_CURVE` | noga klasy (`women`, `tennis_women`, `tennis_team_cup`), którą krzywe bez klasy by obsłużyły, ale klasa nie ma własnego kubełka |
 | `NOT_CALIBRATED` | dla tego kubełka **nie ma pomiaru**; własna liczba modelu nie jest jego substytutem. Od 2026-09-30 także noga **klasy**, której nie obsłużyłaby żadna krzywa (inaczej `NO_CLASS_CURVE`): piłka kobiet (`women`, rozpoznawana po „(K)" Superbetu albo nazwie rozgrywek), tenis kobiet (`tennis_women`), Davis Cup / BJK Cup / pokazówki (`tennis_team_cup`). Noga klasy czyta wyłącznie krzywe swojej klasy (`by_class` w `config/sofa_confidence_calibration.json`, `fit_confidence.py --classes-only`) — nigdy puli, od której klasa się różni (piłka kobiet przy p 0,80–0,85: 0,792 wobec 0,806 mężczyzn; rożne przy 0,90: 0,874 wobec 0,903) |
 | `BELOW_CONFIDENCE_FLOOR` | `realised_lo < --floor` |
@@ -994,7 +995,11 @@ starsza niż `sport_day.MAX_PRICE_AGE` = 3 h), `MARKET_NOT_ALLOWED` (lista
 `BELOW_FLOOR` (0,70), `BELOW_MIN_X` (x < 0,90), `ODDS_TOO_LOW` (kurs <
 1/0,9202), `MARGIN_TOO_HIGH` (marża grupy > 15%), `INCOMPLETE_GROUP`,
 `NO_MODEL_P`, `TOURNAMENT_NEVER_SETTLED` (siatkówka: turniej bez meczu SETTLED
-w ostatnich 14 dniach). Kod 1,
+w ostatnich 14 dniach), `NO_LINE_EVIDENCE`. Od `epochs.LINE_EVIDENCE_FROM_UTC`
+(2026-10-08) czytany jest każdy dopasowany klucz, nie tylko `admitted`:
+pewność = krzywa, obniżona o istotne zawyżenie na rozliczonych liniach
+Superbetu klucza i o limit pasma kursu (`bet.sofa.line_evidence`); noga
+niesie wtedy `line_offset` / `price_band_cap`. Kod 1,
 gdy sport jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` — artefakt i
 tak powstaje, kupon piłki i tenisa buduje się dalej.
 

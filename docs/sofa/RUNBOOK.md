@@ -417,6 +417,8 @@ ponownie `audit_variants`.
 | zmienił się kod po zbudowaniu arkusza | `/sofa-rebuild` — przebudowa z artefaktów, bez SAMPLES (most tylko dla FIXTURE_CHECK). Napisz, **co** się zmieniło: przeliczony arkusz nie jest porównywalny z poprzednim. |
 | kupon jest, brakuje odczytu analityków albo operator chce więcej | `/sofa-analyze` (także „dodatkowo: <pozycje>” → `read_requests.json`) — analitycy, scalenie wet i odczytów, przebudowa. |
 | sport `NOT_CALIBRATED` / `NOT_IDENTIFIED` | Nogi tego sportu się nie drukują; kupon reszty jest ważny. Kalibrację fituje się tylko między dniami (`fit_sport_confidence.py --before <d>`); brak tożsamości — SPORT_IDENTITY jeszcze raz, gdy most żyje. |
+| po refitcie krzywych (piłka, tenis albo sporty) | Między dniami: `fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json` (ok. 15 min na sport, nic nie instaluje), potem `fit_line_evidence.py --before <d> --sport-rows-dir <dir>` — korekta liczona jest względem krzywych zainstalowanych **teraz**, więc stara korekta nie pasuje do nowych krzywych. |
+| dużo `NO_LINE_EVIDENCE` | Rynek bez krzywej czeka na >= 50 własnych rozliczonych linii w kubełku `p`; przybywa ich z każdym rozliczonym dniem (`fit_line_evidence.py` między dniami). To nie cięcie z nazwy, tylko brak pomiaru. |
 | stała albo baza wygląda źle | Zgłoś. Fitowanie to osobna, świadoma decyzja `sofa-settler` i **nigdy nie dzieje się w środku dnia**. |
 | most padł w połowie SAMPLES | Uruchom `ensure_bridge.py` (kod 2 = zamknij Chrome całkowicie i powtórz), potem `--from-stage SAMPLES --run-id <ten sam id>`. Artefakty z dysku zostają. |
 | brakuje `05_sheet.json` | Nie ma czego przebudowywać — dzień potrzebuje `/sofa-day`. |
