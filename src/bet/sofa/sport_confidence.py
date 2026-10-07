@@ -178,11 +178,23 @@ CS2_FAMILIES: frozenset[str] = frozenset(
 # total (the latter the history's base rate), a team's kills, a player's
 # kills / deaths / assists / headshots. CS2_SETTLE attaches the engine's
 # pre-match p to each graded side (settle_cs2.attach_model): their evidence.
-# The series families (maps_*, team_maps, exact_maps, rounds_*) stay out:
-# the engine prices none of them (it lost to a constant, cs2_engine).
+# The series families (maps_total, maps_handicap, team_maps, exact_maps) from
+# cs2_engine's series-level term (SERIES_KAPPA, 2026-10-07), scored from the
+# history like the winners. Still out: the series rounds (rounds_*,
+# team_rounds) and a map's round parity - the engine prices none of them.
 CS2_EXTENDED_FAMILIES: frozenset[str] = frozenset(
     {"map_rounds_handicap", "map_rounds_total", "team_kills", "player_kills",
-     "player_deaths", "player_assists", "player_headshots"})
+     "player_deaths", "player_assists", "player_headshots",
+     *cs2_engine.SERIES_FAMILIES})
+# The lines a historical series is scored on per format (Superbet's usual
+# ones): maps total, team1's maps handicap, a team's maps.
+CS2_SERIES_LINES: dict[int, dict[str, tuple[float, ...]]] = {
+    3: {"maps_total": (2.5,), "maps_handicap": (-1.5, 1.5),
+        "team_maps": (0.5, 1.5)},
+    5: {"maps_total": (3.5, 4.5), "maps_handicap": (-2.5, -1.5, 1.5, 2.5),
+        "team_maps": (1.5, 2.5)},
+    2: {"maps_handicap": (-0.5, 0.5), "team_maps": (0.5, 1.5)},
+}
 
 # The families the results history fits, with the market id a synthetic line
 # is built on. A team total is built twice (team1's id and team2's).
@@ -861,6 +873,53 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
     return rows
 
 
+def _cs2_series_family_rows(eid: int, ts: int, srow: SeriesRow, p_map: float,
+                            source: str) -> list[Row]:
+    """The series families of one finished series, priced exactly as
+    cs2_engine.model_probability prices them live (series_distribution_mixed,
+    series_side_p) on CS2_SERIES_LINES, graded on the series' final maps."""
+    assert srow.best_of and srow.home_maps is not None and srow.away_maps is not None
+    try:
+        dist = cs2_engine.series_distribution_mixed(cs2_engine.clamp(p_map),
+                                                    srow.best_of)
+    except ValueError:
+        return []
+    final = (srow.home_maps, srow.away_maps)
+    rows: list[Row] = []
+
+    def add(family: str, line: float | None, side: str, subject: str,
+            idx: int | None, y: bool | None) -> None:
+        p = cs2_engine.series_side_p(dist, family, line, side, idx)
+        if p is None or y is None:
+            return
+        rows.append({"sport": "cs2", "family": family, "market_id": None,
+                     "period": 0, "subject": subject, "line": line, "side": side,
+                     "key": curve_key(family, side),
+                     "p": round(cs2_engine.clamp(p), 4), "y": 1 if y else 0,
+                     "game": f"h:{eid}", "ts": ts, "source": source})
+
+    lines = CS2_SERIES_LINES.get(int(srow.best_of), {})
+    for ln in lines.get("maps_total", ()):
+        total = final[0] + final[1]
+        if total != ln:
+            add("maps_total", ln, "OVER", "", None, total > ln)
+            add("maps_total", ln, "UNDER", "", None, total < ln)
+    for ln in lines.get("maps_handicap", ()):
+        margin = final[0] - final[1] + ln
+        if margin != 0:
+            add("maps_handicap", ln, "T1", "", None, margin > 0)
+            add("maps_handicap", ln, "T2", "", None, margin < 0)
+    for ln in lines.get("team_maps", ()):
+        for idx, subject in ((0, "T1"), (1, "T2")):
+            own = final[idx]
+            if own != ln:
+                add("team_maps", ln, "OVER", subject, idx, own > ln)
+                add("team_maps", ln, "UNDER", subject, idx, own < ln)
+    for score in dist:
+        add("exact_maps", None, f"{score[0]}:{score[1]}", "", None, score == final)
+    return rows
+
+
 def counted_base_rate(values: Counter[int], line: float) -> float | None:
     """cs2_engine.base_rate over a value -> count table (the walk-forward
     keeps every earlier map's rounds as counts, not a list it re-reads)."""
@@ -925,6 +984,8 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
                     add("match_winner", 0, "", None, "T1", cs2_engine.clamp(s1), won)
                     add("match_winner", 0, "", None, "T2", cs2_engine.clamp(s2),
                         not won)
+            rows += _cs2_series_family_rows(eid, smaps[0].start_ts, srow, p_map,
+                                            source)
     for m in smaps:
         if m.home_rounds is None or m.away_rounds is None:
             continue

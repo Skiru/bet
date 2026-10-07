@@ -52,7 +52,7 @@ from functools import cache
 from typing import Any
 
 from bet.sofa.comparability import is_non_competitive_name
-from bet.sofa.cs2 import Cs2Line, esports_name
+from bet.sofa.cs2 import Cs2Line, esports_name, exact_score
 from bet.sofa.engine import (
     P_CEILING,
     P_FLOOR,
@@ -90,6 +90,18 @@ UNFITTED = (
 # not a model, so those families get no number until a series-level term
 # earns one (review 2026-09-28, round 2).
 ELO_FAMILIES = {"map_winner", "match_winner"}
+# The series families come back with a series-level term (operator,
+# 2026-10-07): the maps of one series are correlated (the day's form), so the
+# series' own p is drawn from Beta(p * K, (1 - p) * K) around the map p and
+# the maps are independent given it (series_distribution_mixed). Walk-forward
+# on the stored history (60 days' warm-up, 8,065 best-of-threes, the last 40%
+# held out, 3,226 series): Brier of "three maps" 0.2427 against the constant
+# 0.2436 (-0.0009 [-0.0020, +0.0001]) and the independent maps 0.2453
+# (-0.0026 [-0.0048, -0.0002]); the exact-score log loss 1.3154 against
+# 1.3220. K fitted on the first 60% (grid 1..1e4, best 6). They print only
+# through their curves and settled lines (bet.sofa.line_evidence).
+SERIES_FAMILIES = {"maps_total", "maps_handicap", "team_maps", "exact_maps"}
+SERIES_KAPPA = 6.0
 COUNT_FAMILIES = {
     "player_kills",
     "player_deaths",
@@ -98,7 +110,7 @@ COUNT_FAMILIES = {
     "team_kills",
 }
 ROUND_FAMILIES = {"map_rounds_total", "map_team_rounds", "map_rounds_handicap"}
-MODELLED = ELO_FAMILIES | COUNT_FAMILIES | ROUND_FAMILIES
+MODELLED = ELO_FAMILIES | COUNT_FAMILIES | ROUND_FAMILIES | SERIES_FAMILIES
 
 
 def clamp(p: float) -> float:
@@ -137,6 +149,62 @@ def series_distribution(p_map: float, best_of: int) -> dict[tuple[int, int], flo
         out[(need, losses)] = orders * p_map**need * q**losses
         out[(losses, need)] = orders * q**need * p_map**losses
     return out
+
+
+def _beta_moment(alpha: float, beta: float, a: int, b: int) -> float:
+    """E[q^a (1-q)^b] for q ~ Beta(alpha, beta)."""
+    return math.exp(math.lgamma(alpha + a) + math.lgamma(beta + b)
+                    - math.lgamma(alpha + beta + a + b) + math.lgamma(alpha + beta)
+                    - math.lgamma(alpha) - math.lgamma(beta))
+
+
+def series_distribution_mixed(p_map: float, best_of: int,
+                              kappa: float = SERIES_KAPPA
+                              ) -> dict[tuple[int, int], float]:
+    """series_distribution with the series' own p ~ Beta(p K, (1 - p) K): the
+    same keys, each probability the Beta mixture of the constant-p one."""
+    if not 0.0 < p_map < 1.0:
+        raise ValueError(f"p_map {p_map} outside (0, 1)")
+    alpha, beta = p_map * kappa, (1.0 - p_map) * kappa
+    if best_of == 2:
+        return {(2, 0): _beta_moment(alpha, beta, 2, 0),
+                (1, 1): 2 * _beta_moment(alpha, beta, 1, 1),
+                (0, 2): _beta_moment(alpha, beta, 0, 2)}
+    if best_of < 1 or best_of % 2 == 0:
+        raise ValueError(f"best_of {best_of} is not 1, 2, 3 or 5")
+    need = best_of // 2 + 1
+    out: dict[tuple[int, int], float] = {}
+    for losses in range(need):
+        orders = math.comb(need - 1 + losses, losses)
+        out[(need, losses)] = orders * _beta_moment(alpha, beta, need, losses)
+        out[(losses, need)] = orders * _beta_moment(alpha, beta, losses, need)
+    return out
+
+
+def series_side_p(dist: dict[tuple[int, int], float], family: str,
+                  line: float | None, side: str, team_idx: int | None
+                  ) -> float | None:
+    """One side of a series family from a final-score distribution (team1
+    first), given that it does not push; None when it cannot be told."""
+    if family == "exact_maps":
+        score = exact_score(side)
+        return None if score is None else dist.get(score, 0.0)
+    if family == "maps_handicap":
+        hcp = line or 0.0
+        p_t1 = sum(q for (a, b), q in dist.items() if a - b + hcp > 0)
+        p_t2 = sum(q for (a, b), q in dist.items() if a - b + hcp < 0)
+        return side_given_no_push(p_t1, p_t2, side == "T1")
+    if line is None or side not in ("OVER", "UNDER"):
+        return None
+    if family == "maps_total":
+        count = {sc: sc[0] + sc[1] for sc in dist}
+    elif family == "team_maps" and team_idx in (0, 1):
+        count = {sc: sc[team_idx] for sc in dist}
+    else:
+        return None
+    p_over = sum(q for sc, q in dist.items() if count[sc] > line)
+    p_under = sum(q for sc, q in dist.items() if count[sc] < line)
+    return side_given_no_push(p_over, p_under, side == "OVER")
 
 
 # --- ratings ----------------------------------------------------------------------
@@ -691,6 +759,19 @@ def model_probability(
         return None
     subject = line.subject.strip()
     side_team = team1_id if subject == team1 else team2_id if subject == team2 else None
+
+    if fam in SERIES_FAMILIES:
+        p = ratings.p_map(team1_id, team2_id, team1_is_home)
+        if p is None:
+            return None
+        n = min(ratings.book.played[team1_id], ratings.book.played[team2_id])
+        try:
+            dist = series_distribution_mixed(clamp(p), best_of)
+        except ValueError:
+            return None
+        idx = None if side_team is None else (0 if side_team == team1_id else 1)
+        side = series_side_p(dist, fam, line.line, line.side, idx)
+        return None if side is None else ModelP(clamp(side), n, "elo_series_mixed")
 
     if fam in ELO_FAMILIES:
         p = ratings.p_map(team1_id, team2_id, team1_is_home)

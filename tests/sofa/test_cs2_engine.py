@@ -311,11 +311,20 @@ def test_model_probability_per_family(conn: sqlite3.Connection) -> None:
     assert win is not None and win.p == pytest.approx(eng.clamp(d[(2, 0)] + d[(2, 1)]))
     lose_map = mp("map_winner", "T2", map_nr=1)
     assert lose_map is not None and lose_map.p == pytest.approx(eng.clamp(1 - p_map))
-    # Round 2: the constant-p series overpredicted three-map series; these
-    # families get no number rather than a known-biased one.
-    assert mp("maps_total", "OVER", 2.5) is None
-    assert mp("maps_handicap", "T1", -1.5) is None
-    assert mp("team_maps", "OVER", 0.5, subject="TeamB") is None
+    # Round 2 found the constant-p series overpredicting three-map series;
+    # since 2026-10-07 these families read the series-level (Beta-mixed)
+    # distribution, never the constant-p one.
+    mixed = eng.series_distribution_mixed(eng.clamp(p_map), 3)
+    over = mp("maps_total", "OVER", 2.5)
+    assert over is not None and over.model == "elo_series_mixed"
+    assert over.p == pytest.approx(eng.clamp(mixed[(2, 1)] + mixed[(1, 2)]))
+    assert over.p < eng.clamp(d[(2, 1)] + d[(1, 2)])  # fewer deciders
+    hcp = mp("maps_handicap", "T1", -1.5)
+    assert hcp is not None and hcp.p == pytest.approx(eng.clamp(mixed[(2, 0)]))
+    tm = mp("team_maps", "OVER", 0.5, subject="TeamB")
+    assert tm is not None and tm.p == pytest.approx(eng.clamp(1 - mixed[(2, 0)]))
+    exact = mp("exact_maps", "2:1")
+    assert exact is not None and exact.p == pytest.approx(eng.clamp(mixed[(2, 1)]))
     assert mp("rounds_handicap", "T1", 4.5) is None  # never modelled
     # Rounds: 12 maps, fewer than MIN_FIT for a base rate - no number.
     assert mp("map_rounds_total", "OVER", 20.5, map_nr=1) is None

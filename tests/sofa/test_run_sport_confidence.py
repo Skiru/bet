@@ -21,7 +21,7 @@ LEG_FIELDS = {
     "family", "period", "subject", "line", "side", "confidence", "calibrated_on",
     "calibration_n", "sample_hit_rate", "sample_k", "sample_n", "forecast_p",
     "forecast_source", "odds", "x", "overround", "kickoff_utc", "source_date",
-    "price_fetched_at_utc", "match", "competition",
+    "price_fetched_at_utc", "match", "competition", "unfitted_constants",
 }
 
 

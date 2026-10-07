@@ -198,4 +198,47 @@ def test_the_stage_reads_the_extended_cs2_families_under_the_evidence() -> None:
     assert rsc._allowed("cs2", ln) is None
     assert rsc._allowed("cs2", ln, True) == "map_rounds_total"
     series = Cs2Line("e", "maps_total", 0, "", 2.5, "OVER", 1.8)
-    assert rsc._allowed("cs2", series, True) is None
+    assert rsc._allowed("cs2", series, True) == "maps_total"
+    rounds = Cs2Line("e", "rounds_total", 0, "", 44.5, "OVER", 1.8)
+    assert rsc._allowed("cs2", rounds, True) is None
+
+
+
+def test_basketball_aliases_checked_against_the_listing_2026_10_07() -> None:
+    # each pair checked by hand against Sofascore's listing of 10-07
+    from bet.sofa.names import normalize_name as n
+
+    assert n("iLab") == n("Sigortam.net Itu BB")
+    assert n("ToPo (K)") == "torpan pojat (w)"
+    assert n("Marko Topo") == "marko topo"  # the tennis player keeps his name
+    assert n("U BT Cluj").startswith("u banca transilvania cluj")
+    assert n("TTU Korvpalliklubi") == "taltech"
+
+
+def test_the_series_mixture_is_a_distribution_and_tends_to_independent_maps() -> None:
+    from bet.sofa import cs2_engine as eng
+
+    for bo in (2, 3, 5):
+        mixed = eng.series_distribution_mixed(0.62, bo)
+        assert abs(sum(mixed.values()) - 1.0) < 1e-9
+        indep = eng.series_distribution(0.62, bo)
+        far = eng.series_distribution_mixed(0.62, bo, kappa=1e7)
+        assert all(abs(far[k] - indep[k]) < 1e-5 for k in indep)
+    # correlated maps: fewer deciders than independent ones
+    assert (eng.series_distribution_mixed(0.5, 3)[(2, 1)]
+            < eng.series_distribution(0.5, 3)[(2, 1)])
+
+
+def test_historical_series_rows_price_as_the_live_engine() -> None:
+    from bet.sofa import cs2_engine as eng
+
+    srow = scf.SeriesRow(1, 0, 10, 20, 2, 1, 3)
+    rows = scf._cs2_series_family_rows(1, 0, srow, 0.6, "history_fit")
+    by = {(r["family"], r["line"], r["side"], r["subject"]): r for r in rows}
+    mixed = eng.series_distribution_mixed(0.6, 3)
+    over = by[("maps_total", 2.5, "OVER", "")]
+    assert over["y"] == 1 and over["p"] == round(mixed[(2, 1)] + mixed[(1, 2)], 4)
+    assert by[("exact_maps", None, "2:1", "")]["y"] == 1
+    assert by[("exact_maps", None, "2:0", "")]["y"] == 0
+    assert by[("maps_handicap", -1.5, "T1", "")]["y"] == 0   # 2-1 does not cover -1.5
+    assert by[("team_maps", 0.5, "OVER", "T2")]["y"] == 1    # team2 took a map

@@ -14,9 +14,15 @@ leg's confidence is the LOWEST of:
 
 * the key's history curve at p (none for a derived joint, a hole, a market
   never fitted) - lowered by the key's OFFSET: realised minus confidence over
-  its printable settled lines (confidence >= PRINTABLE_FROM), applied when
-  they are MIN_OFFSET_ROWS lines of MIN_OFFSET_GAMES games and the 95%
-  bootstrap over games is below zero;
+  its printable settled lines (confidence >= PRINTABLE_FROM), once they are
+  MIN_OFFSET_ROWS lines of MIN_OFFSET_GAMES games; a key with fewer reads its
+  SPORT's offset (every key's printable lines pooled, same minimum). Never
+  above zero. (Until 2026-10-07 13:00Z an offset also needed its bootstrap
+  below zero: out of sample - evidence fitted on the earlier days, legs
+  printed on the later - that let tennis print 0.778 against 0.698 realised
+  and basketball 0.748 against 0.647; the point offset with the sport
+  fallback printed football 0.815 / 0.810, hockey 0.788 / 0.779, basketball
+  0.755 / 0.694, tennis 0.738 / 0.661.)
 * with no curve at p, the Wilson lower bound of the key's own settled lines
   in p's bucket (MIN_EVIDENCE_BUCKET lines) - else NO_LINE_EVIDENCE, never
   guessed;
@@ -26,7 +32,12 @@ leg's confidence is the LOWEST of:
   below the confidence (the cell's Wilson UPPER bound under it), and then to
   the cell's realised rate. The cell is (key, p bucket, band); thin, the
   key's lines in the band from p's bucket up; thin, the sport's in the band
-  (same two steps); none with MIN_CAP_CELL lines - no cap. The price
+  (same two steps); thin too, the key's lines over EVERY band from p's
+  bucket up, widened bucket by bucket downward (not below PRINTABLE_FROM)
+  until MIN_CAP_CELL lines - no key may print above what its own Superbet
+  lines showed at or under its p (verifier, 2026-10-07: hockey handicap
+  printed 0.9448 at p 0.951 where no band had a cell; the key's lines at
+  p >= 0.85 realised 35/51); none - no cap. The price
   only chooses the band and only ever lowers a confidence; inside a band the
   statistics still rank the legs. (A Wilson LOWER bound as the cap, tried
   first on 10-07, cut legs whose band realised above their curve - 63 lines
@@ -74,13 +85,17 @@ MIN_CAP_CELL = 20
 # Below these the curve stands as fitted.
 MIN_OFFSET_ROWS = 50
 MIN_OFFSET_GAMES = 30
+# The sport's pooled offset pools every key, so it is steadier at fewer games;
+# CS2's 61 printable lines of 27 series read -0.204 [-0.323, -0.067] on
+# 2026-10-07 and would have printed at the curve under the key minimum.
+MIN_SPORT_OFFSET_GAMES = 20
 # The rows the coupon could print (confidence.COUPON_PROFILE.floor).
 PRINTABLE_FROM = 0.70
 BOOTSTRAP = 2000
 NO_LINE_EVIDENCE = "NO_LINE_EVIDENCE"
 SPORT_SCOPE = "*"  # the sport's lines of every key, in the `bands` section
 UNFITTED_CONSTANTS = ("MIN_EVIDENCE_BUCKET", "MIN_CAP_CELL", "MIN_OFFSET_ROWS",
-                      "MIN_OFFSET_GAMES", "PRICE_BANDS")
+                      "MIN_OFFSET_GAMES", "MIN_SPORT_OFFSET_GAMES", "PRICE_BANDS")
 
 
 def bucket_of(p: float) -> int:
@@ -157,19 +172,27 @@ class LineEvidence:
     def _entry(self, sport: str, key: str) -> Mapping[str, Any]:
         return ((self.doc.get("keys") or {}).get(sport) or {}).get(key) or {}
 
-    def offset(self, sport: str, key: str) -> float:
-        """<= 0: the measured overstatement of the key's printable rows, where
-        they are MIN_OFFSET_ROWS lines of MIN_OFFSET_GAMES games and the
-        bootstrap's upper bound is below zero; else 0."""
-        pr = self._entry(sport, key).get("printable") or {}
+    def _measured(self, pr: Mapping[str, Any], min_games: int | None = None
+                  ) -> float | None:
         gap = pr.get("realised_minus_confidence")
+        least = min_games if min_games is not None else int(
+            self.doc.get("min_offset_games", MIN_OFFSET_GAMES))
         if not gap or int(pr.get("n") or 0) < int(
                 self.doc.get("min_offset_rows", MIN_OFFSET_ROWS)) or int(
-                pr.get("games") or 0) < int(
-                self.doc.get("min_offset_games", MIN_OFFSET_GAMES)):
-            return 0.0
-        point, _, hi = (float(x) for x in gap)
-        return round(point, 4) if hi < 0.0 and point < 0.0 else 0.0
+                pr.get("games") or 0) < least:
+            return None
+        return round(min(float(gap[0]), 0.0), 4)
+
+    def offset(self, sport: str, key: str) -> float:
+        """<= 0: the key's measured overstatement on its printable settled
+        lines, else the sport's (all its keys pooled), else 0."""
+        own = self._measured(self._entry(sport, key).get("printable") or {})
+        if own is not None:
+            return own
+        pooled = self._measured(
+            ((self.doc.get("sport_printable") or {}).get(sport)) or {},
+            int(self.doc.get("min_sport_offset_games", MIN_SPORT_OFFSET_GAMES)))
+        return pooled if pooled is not None else 0.0
 
     def bucket(self, sport: str, key: str, p: float) -> tuple[int, int] | None:
         b = (self._entry(sport, key).get("buckets") or {}).get(
@@ -202,6 +225,16 @@ class LineEvidence:
                     k += int(cell["k"])
             if n >= least:
                 return n, k, f"{scope}@{band}:>={EDGES[b]:.3f}"
+        own = self._entry(sport, key).get("buckets") or {}
+        floor_b = bucket_of(PRINTABLE_FROM)
+        for lower in range(b, floor_b - 1, -1):
+            n = k = 0
+            for label, cell in own.items():
+                if float(label.split("-")[0]) >= EDGES[lower]:
+                    n += int(cell["n"])
+                    k += int(cell["k"])
+            if n >= least:
+                return n, k, f"{key}@all:>={EDGES[lower]:.3f}"
         return None
 
     def band_cap(self, sport: str, key: str, p: float, odds: float | None,
@@ -308,4 +341,13 @@ def fit(rows: Iterable[Row], seed: int = 7) -> dict[str, Any]:
     bands = {sport: {scope: {band: _cells(rs) for band, rs in sorted(by_band.items())}
                      for scope, by_band in sorted(scopes.items())}
              for sport, scopes in sorted(banded.items())}
-    return {"keys": dict(keys), "bands": bands}
+    pooled: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    for (sport, _), rs in by_key.items():
+        pooled[sport] += [(str(r["game"]), int(r["y"]) - float(r["base"]))
+                          for r in rs if r.get("base") is not None
+                          and float(r["base"]) >= PRINTABLE_FROM]
+    sport_printable = {
+        sport: {"n": len(items), "games": len({g for g, _ in items}),
+                "realised_minus_confidence": _bootstrap_gap(items, rng)}
+        for sport, items in sorted(pooled.items()) if items}
+    return {"keys": dict(keys), "bands": bands, "sport_printable": sport_printable}

@@ -95,6 +95,7 @@ from bet.sofa.line_evidence import (  # noqa: E402
     LineEvidence,
     evidence_key,
 )
+from bet.sofa.line_evidence import UNFITTED_CONSTANTS as LE_UNFITTED  # noqa: E402
 from bet.sofa.locked_print import (  # noqa: E402
     PRINTED_MANIFEST,
     carry_over,
@@ -881,7 +882,9 @@ def main() -> int:
                 # sheet stamps it in `notes`, which a leg does not carry, so
                 # until 2026-09-25 both confidence artifacts and their .md
                 # said it zero times - only the PDF banner re-read the sheet.
-                "unfitted_constants": unfitted_from_notes(row.get("notes")),
+                "unfitted_constants": sorted(
+                    set(unfitted_from_notes(row.get("notes")))
+                    | (set(LE_UNFITTED) if evidence is not None else set())),
                 # The reads that cover the leg (reads.json), written only when
                 # there is one; an artifact without reads is byte-for-byte what
                 # it was before 2026-10-04.

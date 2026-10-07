@@ -391,6 +391,12 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 legs[-1]["line_offset"] = offset
             if band_cap is not None:
                 legs[-1]["price_band_cap"] = band_cap
+            # CLAUDE.md: never strip UNFITTED_CONSTANTS - a sport leg stands on
+            # the curve fit's, the rating's (score model) or the engine's
+            # (CS2), and on the line evidence's (verifier, 2026-10-07: all 221
+            # sport legs carried an empty list).
+            legs[-1]["unfitted_constants"] = sport_unfitted(
+                sport, evidence is not None)
             if scf.ot_rule_unknown(sport, family, int(legs[-1]["period"])):
                 legs[-1]["context_flags"] = [scf.OT_RULE_UNKNOWN]
     entry_out: dict[str, Any] = {"status": status,
@@ -419,6 +425,18 @@ def read_confidence(calibration: scf.SportCalibration,
         return None, 0.0, None, NO_LINE_EVIDENCE if conf is None else NOT_CALIBRATED
     return (scf.Confidence(read.value, read.n, read.source), read.offset,
             read.band_cap, None)
+
+
+def sport_unfitted(sport: str, with_evidence: bool) -> list[str]:
+    """The chosen-not-fitted constants a sport leg's number stands on."""
+    from bet.sofa import line_evidence
+    from bet.sofa.football_rating import RATING_UNFITTED
+
+    out = set(scf.UNFITTED_CONSTANTS)
+    out |= set(cs2_engine.UNFITTED) if sport == "cs2" else set(RATING_UNFITTED)
+    if with_evidence:
+        out |= set(line_evidence.UNFITTED_CONSTANTS)
+    return sorted(out)
 
 
 def price_filter(confidence: float, odds: float, margin: float) -> str | None:

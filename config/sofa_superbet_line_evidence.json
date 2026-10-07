@@ -1,12 +1,12 @@
 {
  "fitted_from": {
-  "fitted_at_utc": "2026-10-07T10:44:56+00:00",
+  "fitted_at_utc": "2026-10-07T11:35:26+00:00",
   "before": "2026-10-07",
   "sheet_days": [
    "2026-10-05",
    "2026-10-06"
   ],
-  "sport_source": "rows:/private/tmp/claude-501/-Users-mkoziol-projects-bet/6780d4e0-c2fb-4d8b-bfe1-17160619f0dd/scratchpad/fit2",
+  "sport_source": "rows:data/line_evidence/rows_before_2026-10-07",
   "sport_calibration_fitted_from": {
    "before": "2026-10-07",
    "fitted_at_utc": "2026-10-07T10:19:15+00:00",
@@ -19,19 +19,21 @@
    ],
    "never_mid_day": true,
    "max_history_date": "2026-10-06",
-   "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS"
+   "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS; cs2 refitted 13:35Z with the series families (cs2_engine.SERIES_KAPPA); rows kept in data/line_evidence/rows_before_2026-10-07"
   }
  },
  "min_bucket": 50,
  "min_cap_cell": 20,
  "min_offset_rows": 50,
  "min_offset_games": 30,
+ "min_sport_offset_games": 20,
  "printable_from": 0.7,
  "unfitted_constants": [
   "MIN_EVIDENCE_BUCKET",
   "MIN_CAP_CELL",
   "MIN_OFFSET_ROWS",
   "MIN_OFFSET_GAMES",
+  "MIN_SPORT_OFFSET_GAMES",
   "PRICE_BANDS"
  ],
  "price_bands": [
@@ -30361,6 +30363,62 @@
      }
     }
    }
+  }
+ },
+ "sport_printable": {
+  "football": {
+   "n": 1931,
+   "games": 206,
+   "realised_minus_confidence": [
+    0.0014,
+    -0.0223,
+    0.0238
+   ]
+  },
+  "tennis": {
+   "n": 1560,
+   "games": 207,
+   "realised_minus_confidence": [
+    -0.0566,
+    -0.0818,
+    -0.0295
+   ]
+  },
+  "basketball": {
+   "n": 2205,
+   "games": 319,
+   "realised_minus_confidence": [
+    -0.1176,
+    -0.1663,
+    -0.0653
+   ]
+  },
+  "cs2": {
+   "n": 61,
+   "games": 27,
+   "realised_minus_confidence": [
+    -0.204,
+    -0.3225,
+    -0.0673
+   ]
+  },
+  "hockey": {
+   "n": 3158,
+   "games": 448,
+   "realised_minus_confidence": [
+    -0.0206,
+    -0.0405,
+    -0.0013
+   ]
+  },
+  "volleyball": {
+   "n": 300,
+   "games": 149,
+   "realised_minus_confidence": [
+    -0.1169,
+    -0.1992,
+    -0.0371
+   ]
   }
  }
 }

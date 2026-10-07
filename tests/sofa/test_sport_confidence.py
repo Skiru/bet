@@ -371,7 +371,8 @@ def test_cs2_settled_rows_take_model_p_and_allowed_families_only(tmp_path):
     assert scf.family_of("cs2", None, "map_rounds_total") is None
     assert scf.family_of("cs2", None, "map_rounds_total", extended=True) \
         == "map_rounds_total"
-    assert scf.family_of("cs2", None, "maps_total", extended=True) is None
+    assert scf.family_of("cs2", None, "maps_total", extended=True) == "maps_total"
+    assert scf.family_of("cs2", None, "rounds_total", extended=True) is None
     assert "fair_p" not in rows[0] and "odds" not in rows[0]
 
 

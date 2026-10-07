@@ -36,14 +36,37 @@ def test_a_significant_overstatement_lowers_the_curve() -> None:
     assert read.source.endswith("sb")
 
 
-def test_an_offset_never_raises_and_noise_leaves_the_curve() -> None:
+def test_an_offset_never_raises_and_a_measured_point_lowers() -> None:
     up = _ev({"n": 300, "games": 90,
               "realised_minus_confidence": [0.07, 0.01, 0.13]})
     assert up.offset("tennis", "games_won_for|OVER") == 0.0
+    # 2026-10-07 13:00Z: the point offset, significant or not (out of sample
+    # the significance test let tennis print 0.778 against 0.698 realised)
     noise = _ev({"n": 570, "games": 169,
                  "realised_minus_confidence": [-0.04, -0.12, 0.03]})
-    read = noise.read("tennis", "games_won_for|OVER", 0.8, (0.80, "market:x", 900))
-    assert read is not None and read.value == 0.80 and read.offset == 0.0
+    read = noise.read("tennis", "games_won_for|OVER", 0.8,
+                      (0.80, "market:x", 900))
+    assert read is not None and read.value == 0.76 and read.offset == -0.04
+
+
+def test_a_thin_key_reads_its_sports_pooled_offset() -> None:
+    doc = {"keys": {"tennis": {"games_won_for|OVER": {
+        "printable": {"n": 20, "games": 9,
+                      "realised_minus_confidence": [-0.3, -0.5, -0.1]}}}},
+        "sport_printable": {"tennis": {
+            "n": 400, "games": 120,
+            "realised_minus_confidence": [-0.058, -0.1, -0.02]}}}
+    ev = le.LineEvidence(doc)
+    assert ev.offset("tennis", "games_won_for|OVER") == -0.058
+    assert ev.offset("tennis", "unknown|OVER") == -0.058
+    assert ev.offset("hockey", "total|OVER") == 0.0
+    thin_sport = le.LineEvidence({"sport_printable": {"cs2": {
+        "n": 40, "games": 12, "realised_minus_confidence": [-0.2, -0.4, 0.0]}}})
+    assert thin_sport.offset("cs2", "map_winner|TEAM") == 0.0
+    # a sport pools every key: 20 games suffice (CS2, 10-07: 61 lines, 27 series)
+    cs2 = le.LineEvidence({"sport_printable": {"cs2": {
+        "n": 61, "games": 27, "realised_minus_confidence": [-0.204, -0.32, -0.07]}}})
+    assert cs2.offset("cs2", "map_team_rounds|OVER") == -0.204
 
 
 def test_a_handful_of_lines_is_not_an_offset() -> None:
@@ -200,6 +223,7 @@ def test_fit_writes_the_bands_of_priced_rows() -> None:
              "game": "g", "base": 0.8, "odds": None}]
     out = le.fit(rows)
     assert out["keys"]["hockey"]["total|OVER"]["n"] == 2
+    assert out["sport_printable"]["hockey"]["n"] == 2
     assert out["bands"]["hockey"]["total|OVER"] == {
         "1.30-1.60": {"0.800-0.825": {"n": 1, "k": 1}}}
     assert out["bands"]["hockey"][le.SPORT_SCOPE] == {
@@ -249,5 +273,24 @@ def test_the_operator_moved_the_epoch_into_2026_10_07() -> None:
     # "dzisiejszy kupon przebudowany z nowymi zasadami" - 10-07 10:55Z
     at = datetime(2026, 10, 7, 10, 55, tzinfo=UTC)
     assert epochs.line_evidence("2026-10-07", at)
-    assert not epochs.line_evidence("2026-10-07", datetime(2026, 10, 7, 7, 31, tzinfo=UTC))
+    early = datetime(2026, 10, 7, 7, 31, tzinfo=UTC)
+    assert not epochs.line_evidence("2026-10-07", early)
     assert not epochs.line_evidence("2026-10-06", at)
+
+
+def test_without_a_band_cell_the_keys_own_lines_bound_it() -> None:
+    # verifier 2026-10-07: Mannheim - Tychy handicap -4.5 T2 printed 0.9448
+    # at p 0.951 - no band cell; the key's lines at p >= 0.85 won 35/51
+    ev = le.LineEvidence({"keys": {"hockey": {"handicap|TEAM": {"buckets": {
+        "0.850-0.875": {"n": 25, "k": 17}, "0.875-0.900": {"n": 16, "k": 13},
+        "0.900-0.925": {"n": 8, "k": 5}, "0.925-0.950": {"n": 2, "k": 0}}}}},
+        "bands": {"hockey": {}}})
+    cell = ev.band_cell("hockey", "handicap|TEAM", 0.951, 1.38)
+    # widened down from 0.95 until 20 lines: p >= 0.875 holds 26 (18 won)
+    assert cell == (26, 18, "handicap|TEAM@all:>=0.875")
+    read = ev.read("hockey", "handicap|TEAM", 0.951, (0.9448, "c", 1), 1.38)
+    assert read is not None and read.value == round(18 / 26, 4)
+    # never widened below the printable floor
+    low = le.LineEvidence({"keys": {"hockey": {"x|OVER": {"buckets": {
+        "0.600-0.700": {"n": 500, "k": 300}}}}}, "bands": {}})
+    assert low.band_cell("hockey", "x|OVER", 0.95, 1.38) is None

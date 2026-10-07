@@ -5528,8 +5528,8 @@
      "2026-10-06"
     ],
     "rows": {
-     "history_fit": 369500,
-     "history_holdout": 46704,
+     "history_fit": 527928,
+     "history_holdout": 65822,
      "superbet_settled": 15002
     },
     "games": {
@@ -5542,6 +5542,53 @@
     "forecast_source": "cs2_engine"
    },
    "curves": {
+    "exact_maps|0:1": {
+     "0.000-0.600": {
+      "n": 1290,
+      "realised": 0.438,
+      "realised_lo95": 0.4111
+     }
+    },
+    "exact_maps|0:2": {
+     "0.000-0.600": {
+      "n": 8504,
+      "realised": 0.2491,
+      "realised_lo95": 0.24
+     }
+    },
+    "exact_maps|1:0": {
+     "0.000-0.600": {
+      "n": 983,
+      "realised": 0.4852,
+      "realised_lo95": 0.4541
+     },
+     "0.600-0.700": {
+      "n": 294,
+      "realised": 0.6667,
+      "realised_lo95": 0.6109
+     }
+    },
+    "exact_maps|1:2": {
+     "0.000-0.600": {
+      "n": 8526,
+      "realised": 0.1981,
+      "realised_lo95": 0.1898
+     }
+    },
+    "exact_maps|2:0": {
+     "0.000-0.600": {
+      "n": 8366,
+      "realised": 0.3303,
+      "realised_lo95": 0.3203
+     }
+    },
+    "exact_maps|2:1": {
+     "0.000-0.600": {
+      "n": 8526,
+      "realised": 0.2146,
+      "realised_lo95": 0.2061
+     }
+    },
     "map_team_rounds|OVER": {
      "0.000-0.600": {
       "n": 65859,
@@ -5603,6 +5650,72 @@
       "realised_lo95": 0.7021
      }
     },
+    "maps_handicap|TEAM": {
+     "0.000-0.600": {
+      "n": 20339,
+      "realised": 0.3235,
+      "realised_lo95": 0.3171
+     },
+     "0.600-0.700": {
+      "n": 4823,
+      "realised": 0.6589,
+      "realised_lo95": 0.6454
+     },
+     "0.700-0.750": {
+      "n": 3125,
+      "realised": 0.7318,
+      "realised_lo95": 0.716
+     },
+     "0.750-0.800": {
+      "n": 2775,
+      "realised": 0.7715,
+      "realised_lo95": 0.7555
+     },
+     "0.800-0.825": {
+      "n": 1227,
+      "realised": 0.8174,
+      "realised_lo95": 0.7948
+     },
+     "0.825-0.850": {
+      "n": 953,
+      "realised": 0.8646,
+      "realised_lo95": 0.8414
+     },
+     "0.850-0.875": {
+      "n": 715,
+      "realised": 0.8755,
+      "realised_lo95": 0.8493
+     },
+     "0.875-0.900": {
+      "n": 459,
+      "realised": 0.9107,
+      "realised_lo95": 0.8811
+     },
+     "0.900-0.925": {
+      "n": 236,
+      "realised": 0.9237,
+      "realised_lo95": 0.8827
+     }
+    },
+    "maps_total|OVER": {
+     "0.000-0.600": {
+      "n": 8629,
+      "realised": 0.4119,
+      "realised_lo95": 0.4015
+     }
+    },
+    "maps_total|UNDER": {
+     "0.000-0.600": {
+      "n": 6390,
+      "realised": 0.5689,
+      "realised_lo95": 0.5567
+     },
+     "0.600-0.700": {
+      "n": 2102,
+      "realised": 0.6223,
+      "realised_lo95": 0.6013
+     }
+    },
     "match_winner|TEAM": {
      "0.000-0.600": {
       "n": 14712,
@@ -5629,22 +5742,119 @@
       "realised": 0.7476,
       "realised_lo95": 0.6848
      }
+    },
+    "team_maps|OVER": {
+     "0.000-0.600": {
+      "n": 15997,
+      "realised": 0.4511,
+      "realised_lo95": 0.4434
+     },
+     "0.600-0.700": {
+      "n": 7482,
+      "realised": 0.6549,
+      "realised_lo95": 0.6441
+     },
+     "0.700-0.750": {
+      "n": 3873,
+      "realised": 0.7322,
+      "realised_lo95": 0.7181
+     },
+     "0.750-0.800": {
+      "n": 3198,
+      "realised": 0.7705,
+      "realised_lo95": 0.7556
+     },
+     "0.800-0.825": {
+      "n": 1330,
+      "realised": 0.815,
+      "realised_lo95": 0.7933
+     },
+     "0.825-0.850": {
+      "n": 1009,
+      "realised": 0.8603,
+      "realised_lo95": 0.8375
+     },
+     "0.850-0.875": {
+      "n": 744,
+      "realised": 0.8737,
+      "realised_lo95": 0.8478
+     },
+     "0.875-0.900": {
+      "n": 468,
+      "realised": 0.9038,
+      "realised_lo95": 0.8738
+     },
+     "0.900-0.925": {
+      "n": 226,
+      "realised": 0.9204,
+      "realised_lo95": 0.8776
+     }
+    },
+    "team_maps|UNDER": {
+     "0.000-0.600": {
+      "n": 29886,
+      "realised": 0.3534,
+      "realised_lo95": 0.348
+     },
+     "0.600-0.700": {
+      "n": 3011,
+      "realised": 0.6466,
+      "realised_lo95": 0.6294
+     },
+     "0.700-0.750": {
+      "n": 807,
+      "realised": 0.7323,
+      "realised_lo95": 0.7007
+     },
+     "0.750-0.800": {
+      "n": 459,
+      "realised": 0.7821,
+      "realised_lo95": 0.7421
+     }
     }
    },
    "curve_source": {
+    "exact_maps|0:1": "history",
+    "exact_maps|0:2": "history",
+    "exact_maps|1:0": "history",
+    "exact_maps|1:2": "history",
+    "exact_maps|2:0": "history",
+    "exact_maps|2:1": "history",
     "map_team_rounds|OVER": "history",
     "map_team_rounds|UNDER": "history",
     "map_winner|TEAM": "history",
-    "match_winner|TEAM": "history"
+    "maps_handicap|TEAM": "history",
+    "maps_total|OVER": "history",
+    "maps_total|UNDER": "history",
+    "match_winner|TEAM": "history",
+    "team_maps|OVER": "history",
+    "team_maps|UNDER": "history"
    },
-   "admitted": [],
+   "admitted": [
+    "team_maps|OVER"
+   ],
    "not_calibrated": {
+    "exact_maps|0:1": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "exact_maps|0:2": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "exact_maps|0:3": "NO_FIT_BUCKET_WITH_N>=200",
+    "exact_maps|1:0": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "exact_maps|1:2": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "exact_maps|1:3": "NO_FIT_BUCKET_WITH_N>=200",
+    "exact_maps|2:0": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "exact_maps|2:1": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "exact_maps|2:3": "NO_FIT_BUCKET_WITH_N>=200",
+    "exact_maps|3:0": "NO_FIT_BUCKET_WITH_N>=200",
+    "exact_maps|3:1": "NO_FIT_BUCKET_WITH_N>=200",
+    "exact_maps|3:2": "NO_FIT_BUCKET_WITH_N>=200",
     "map_rounds_handicap|TEAM": "NO_FIT_BUCKET_WITH_N>=200",
     "map_rounds_total|OVER": "NO_FIT_BUCKET_WITH_N>=200",
     "map_rounds_total|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
     "map_team_rounds|OVER": "OVERSTATES: superbet_settled bucket 0.600-0.700 confidence above realised by 0.0766",
     "map_team_rounds|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
     "map_winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "maps_handicap|TEAM": "OVERSTATES: history_holdout bucket 0.600-0.700 confidence above realised by 0.0547",
+    "maps_total|OVER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
+    "maps_total|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
     "match_winner|TEAM": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)",
     "player_assists|OVER": "NO_FIT_BUCKET_WITH_N>=200",
     "player_assists|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
@@ -5655,10 +5865,179 @@
     "player_kills|OVER": "NO_FIT_BUCKET_WITH_N>=200",
     "player_kills|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
     "team_kills|OVER": "NO_FIT_BUCKET_WITH_N>=200",
-    "team_kills|UNDER": "NO_FIT_BUCKET_WITH_N>=200"
+    "team_kills|UNDER": "NO_FIT_BUCKET_WITH_N>=200",
+    "team_maps|UNDER": "NO_OOS_PRINTABLE_BUCKET_WITH_N>=200 (confidence >= 0.7)"
    },
    "oos": {
     "history_holdout": {
+     "exact_maps|0:1": {
+      "n": 129,
+      "uncovered": 19,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 129,
+        "confidence": 0.4111,
+        "realised": 0.3643,
+        "gap": 0.0468
+       }
+      },
+      "games": 129,
+      "logloss_confidence": 0.66045,
+      "logloss_model": 0.61815,
+      "realised": 0.3643,
+      "confidence": 0.4111,
+      "realised_minus_confidence": [
+       -0.0468,
+       -0.1243,
+       0.0385
+      ]
+     },
+     "exact_maps|0:2": {
+      "n": 1021,
+      "uncovered": 3,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1021,
+        "confidence": 0.24,
+        "realised": 0.2654,
+        "gap": -0.0254
+       }
+      },
+      "games": 1021,
+      "logloss_confidence": 0.58039,
+      "logloss_model": 0.53393,
+      "realised": 0.2654,
+      "confidence": 0.24,
+      "realised_minus_confidence": [
+       0.0254,
+       -0.003,
+       0.0548
+      ]
+     },
+     "exact_maps|0:3": {
+      "n": 0,
+      "uncovered": 15,
+      "buckets": {}
+     },
+     "exact_maps|1:0": {
+      "n": 127,
+      "uncovered": 21,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 86,
+        "confidence": 0.4541,
+        "realised": 0.4884,
+        "gap": -0.0343
+       },
+       "0.600-0.700": {
+        "n": 41,
+        "confidence": 0.6109,
+        "realised": 0.7317,
+        "gap": -0.1208
+       }
+      },
+      "games": 127,
+      "logloss_confidence": 0.66896,
+      "logloss_model": 0.64445,
+      "realised": 0.5669,
+      "confidence": 0.5047,
+      "realised_minus_confidence": [
+       0.0622,
+       -0.0261,
+       0.1496
+      ]
+     },
+     "exact_maps|1:2": {
+      "n": 1024,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1024,
+        "confidence": 0.1898,
+        "realised": 0.1895,
+        "gap": 0.0003
+       }
+      },
+      "games": 1024,
+      "logloss_confidence": 0.48543,
+      "logloss_model": 0.48687,
+      "realised": 0.1895,
+      "confidence": 0.1898,
+      "realised_minus_confidence": [
+       -0.0003,
+       -0.0238,
+       0.025
+      ]
+     },
+     "exact_maps|1:3": {
+      "n": 0,
+      "uncovered": 15,
+      "buckets": {}
+     },
+     "exact_maps|2:0": {
+      "n": 1001,
+      "uncovered": 23,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1001,
+        "confidence": 0.3203,
+        "realised": 0.3227,
+        "gap": -0.0024
+       }
+      },
+      "games": 1001,
+      "logloss_confidence": 0.62888,
+      "logloss_model": 0.59729,
+      "realised": 0.3227,
+      "confidence": 0.3203,
+      "realised_minus_confidence": [
+       0.0024,
+       -0.0256,
+       0.0313
+      ]
+     },
+     "exact_maps|2:1": {
+      "n": 1024,
+      "uncovered": 0,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1024,
+        "confidence": 0.2061,
+        "realised": 0.2178,
+        "gap": -0.0117
+       }
+      },
+      "games": 1024,
+      "logloss_confidence": 0.52449,
+      "logloss_model": 0.52013,
+      "realised": 0.2178,
+      "confidence": 0.2061,
+      "realised_minus_confidence": [
+       0.0117,
+       -0.0127,
+       0.0361
+      ]
+     },
+     "exact_maps|2:3": {
+      "n": 0,
+      "uncovered": 15,
+      "buckets": {}
+     },
+     "exact_maps|3:0": {
+      "n": 0,
+      "uncovered": 15,
+      "buckets": {}
+     },
+     "exact_maps|3:1": {
+      "n": 0,
+      "uncovered": 15,
+      "buckets": {}
+     },
+     "exact_maps|3:2": {
+      "n": 0,
+      "uncovered": 15,
+      "buckets": {}
+     },
      "map_team_rounds|OVER": {
       "n": 19459,
       "uncovered": 37,
@@ -5701,8 +6080,8 @@
       "confidence": 0.6053,
       "realised_minus_confidence": [
        0.0083,
-       0.0009,
-       0.0163
+       0.001,
+       0.0153
       ],
       "printable": {
        "n": 678,
@@ -5711,8 +6090,8 @@
        "realised": 0.7109,
        "realised_minus_confidence": [
         -0.0109,
-        -0.0478,
-        0.0229
+        -0.0456,
+        0.0246
        ]
       }
      },
@@ -5740,8 +6119,8 @@
       "confidence": 0.3855,
       "realised_minus_confidence": [
        0.0003,
-       -0.0072,
-       0.0077
+       -0.0071,
+       0.0073
       ]
      },
      "map_winner|TEAM": {
@@ -5780,8 +6159,8 @@
       "confidence": 0.4952,
       "realised_minus_confidence": [
        0.0026,
-       -0.0004,
-       0.0055
+       -0.0005,
+       0.0057
       ],
       "printable": {
        "n": 48,
@@ -5790,10 +6169,141 @@
        "realised": 0.6042,
        "realised_minus_confidence": [
         -0.0979,
-        -0.234,
-        0.0479
+        -0.2327,
+        0.0535
        ]
       }
+     },
+     "maps_handicap|TEAM": {
+      "n": 4194,
+      "uncovered": 22,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 2496,
+        "confidence": 0.3171,
+        "realised": 0.3333,
+        "gap": -0.0162
+       },
+       "0.600-0.700": {
+        "n": 562,
+        "confidence": 0.6454,
+        "realised": 0.5907,
+        "gap": 0.0547
+       },
+       "0.700-0.750": {
+        "n": 342,
+        "confidence": 0.716,
+        "realised": 0.7602,
+        "gap": -0.0442
+       },
+       "0.750-0.800": {
+        "n": 329,
+        "confidence": 0.7555,
+        "realised": 0.7872,
+        "gap": -0.0317
+       },
+       "0.800-0.825": {
+        "n": 160,
+        "confidence": 0.7948,
+        "realised": 0.8063,
+        "gap": -0.0115
+       },
+       "0.825-0.850": {
+        "n": 125,
+        "confidence": 0.8414,
+        "realised": 0.904,
+        "gap": -0.0626
+       },
+       "0.850-0.875": {
+        "n": 90,
+        "confidence": 0.8493,
+        "realised": 0.8889,
+        "gap": -0.0396
+       },
+       "0.875-0.900": {
+        "n": 60,
+        "confidence": 0.8811,
+        "realised": 0.9,
+        "gap": -0.0189
+       },
+       "0.900-0.925": {
+        "n": 30,
+        "confidence": 0.8827,
+        "realised": 0.9333,
+        "gap": -0.0506
+       }
+      },
+      "games": 1039,
+      "logloss_confidence": 0.59969,
+      "logloss_model": 0.56886,
+      "realised": 0.4976,
+      "confidence": 0.4854,
+      "realised_minus_confidence": [
+       0.0122,
+       0.0104,
+       0.0143
+      ],
+      "printable": {
+       "n": 1136,
+       "games": 1026,
+       "confidence": 0.776,
+       "realised": 0.8125,
+       "realised_minus_confidence": [
+        0.0365,
+        0.0148,
+        0.0594
+       ]
+      }
+     },
+     "maps_total|OVER": {
+      "n": 1044,
+      "uncovered": 10,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1044,
+        "confidence": 0.4015,
+        "realised": 0.4061,
+        "gap": -0.0046
+       }
+      },
+      "games": 1039,
+      "logloss_confidence": 0.67546,
+      "logloss_model": 0.67631,
+      "realised": 0.4061,
+      "confidence": 0.4015,
+      "realised_minus_confidence": [
+       0.0046,
+       -0.025,
+       0.0342
+      ]
+     },
+     "maps_total|UNDER": {
+      "n": 1020,
+      "uncovered": 34,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 748,
+        "confidence": 0.5567,
+        "realised": 0.5909,
+        "gap": -0.0342
+       },
+       "0.600-0.700": {
+        "n": 272,
+        "confidence": 0.6013,
+        "realised": 0.5846,
+        "gap": 0.0167
+       }
+      },
+      "games": 1020,
+      "logloss_confidence": 0.67903,
+      "logloss_model": 0.67614,
+      "realised": 0.5892,
+      "confidence": 0.5686,
+      "realised_minus_confidence": [
+       0.0206,
+       -0.0093,
+       0.0509
+      ]
      },
      "match_winner|TEAM": {
       "n": 2323,
@@ -5837,8 +6347,8 @@
       "confidence": 0.4883,
       "realised_minus_confidence": [
        0.0055,
-       0.001,
-       0.0101
+       0.0013,
+       0.0096
       ],
       "printable": {
        "n": 86,
@@ -5849,6 +6359,138 @@
         -0.0098,
         -0.1028,
         0.0833
+       ]
+      }
+     },
+     "team_maps|OVER": {
+      "n": 4137,
+      "uncovered": 19,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 1933,
+        "confidence": 0.4434,
+        "realised": 0.4532,
+        "gap": -0.0098
+       },
+       "0.600-0.700": {
+        "n": 892,
+        "confidence": 0.6441,
+        "realised": 0.6177,
+        "gap": 0.0264
+       },
+       "0.700-0.750": {
+        "n": 442,
+        "confidence": 0.7181,
+        "realised": 0.7511,
+        "gap": -0.033
+       },
+       "0.750-0.800": {
+        "n": 378,
+        "confidence": 0.7556,
+        "realised": 0.7884,
+        "gap": -0.0328
+       },
+       "0.800-0.825": {
+        "n": 177,
+        "confidence": 0.7933,
+        "realised": 0.8079,
+        "gap": -0.0146
+       },
+       "0.825-0.850": {
+        "n": 127,
+        "confidence": 0.8375,
+        "realised": 0.8819,
+        "gap": -0.0444
+       },
+       "0.850-0.875": {
+        "n": 93,
+        "confidence": 0.8478,
+        "realised": 0.8925,
+        "gap": -0.0447
+       },
+       "0.875-0.900": {
+        "n": 65,
+        "confidence": 0.8738,
+        "realised": 0.8923,
+        "gap": -0.0185
+       },
+       "0.900-0.925": {
+        "n": 30,
+        "confidence": 0.8776,
+        "realised": 0.9333,
+        "gap": -0.0557
+       }
+      },
+      "games": 1039,
+      "logloss_confidence": 0.62084,
+      "logloss_model": 0.60775,
+      "realised": 0.5997,
+      "confidence": 0.5906,
+      "realised_minus_confidence": [
+       0.0091,
+       0.0016,
+       0.0169
+      ],
+      "printable": {
+       "n": 1312,
+       "games": 1033,
+       "confidence": 0.7712,
+       "realised": 0.8034,
+       "realised_minus_confidence": [
+        0.0322,
+        0.0097,
+        0.0544
+       ]
+      }
+     },
+     "team_maps|UNDER": {
+      "n": 4114,
+      "uncovered": 42,
+      "buckets": {
+       "0.000-0.600": {
+        "n": 3568,
+        "confidence": 0.348,
+        "realised": 0.3526,
+        "gap": -0.0046
+       },
+       "0.600-0.700": {
+        "n": 378,
+        "confidence": 0.6294,
+        "realised": 0.6376,
+        "gap": -0.0082
+       },
+       "0.700-0.750": {
+        "n": 110,
+        "confidence": 0.7007,
+        "realised": 0.7091,
+        "gap": -0.0084
+       },
+       "0.750-0.800": {
+        "n": 58,
+        "confidence": 0.7421,
+        "realised": 0.8276,
+        "gap": -0.0855
+       }
+      },
+      "games": 1039,
+      "logloss_confidence": 0.64601,
+      "logloss_model": 0.60635,
+      "realised": 0.395,
+      "confidence": 0.3888,
+      "realised_minus_confidence": [
+       0.0062,
+       -0.0018,
+       0.0147
+      ],
+      "printable": {
+       "n": 168,
+       "games": 168,
+       "confidence": 0.715,
+       "realised": 0.75,
+       "realised_minus_confidence": [
+        0.035,
+        -0.0295,
+        0.1
        ]
       }
      }
@@ -10686,7 +11328,7 @@
   ],
   "never_mid_day": true,
   "max_history_date": "2026-10-06",
-  "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS"
+  "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS; cs2 refitted 13:35Z with the series families (cs2_engine.SERIES_KAPPA); rows kept in data/line_evidence/rows_before_2026-10-07"
  },
  "effective_from": "2026-10-07"
 }

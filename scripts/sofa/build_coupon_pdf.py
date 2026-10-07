@@ -467,7 +467,9 @@ def main() -> int:
         for item in [*picks, *singles]
         for leg in (item.get("legs") or [item])
     }
-    unfitted = unfitted_constants(sheet_rows, printed)
+    unfitted = sorted(set(unfitted_constants(sheet_rows, printed)) | {
+        c for item in [*picks, *singles] for leg in (item.get("legs") or [item])
+        for c in (leg.get("unfitted_constants") or [])})
     if unfitted:
         story.append(Paragraph(
             "<font color='#b25b00'><b>UNFITTED_CONSTANTS: "
