@@ -54,7 +54,12 @@ from bet.sofa.engine import (
     uses_empirical_frequency,
     winning_boundary,
 )
-from bet.sofa.epochs import STATS_ONLY
+from bet.sofa.epochs import (
+    DERIVED_MARGINAL_CENTRES_METRICS,
+    STATS_ONLY,
+    derived_marginal_centres_enabled,
+    tennis_rating_prices,
+)
 from bet.sofa.epochs import stats_only as stats_only_epoch
 from bet.sofa.football_rating import (
     CROSS_LEAGUE_UNLINKED_NOTE,
@@ -74,6 +79,8 @@ from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 from bet.sofa.stage import set_stage
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
+    RATING_PRICED_MARKETS,
+    W_GAMES_TOTAL_RATING,
     W_TENNIS_RATING,
     MatchForecast,
     TennisRatingModel,
@@ -770,6 +777,19 @@ def load_tennis_rating(
     )
 
 
+def _stats_only_rating_p(
+    rating: MatchForecast,
+) -> Callable[[str, str | None, float, str], float | None]:
+    # The derived rows the neighbours price alone (never the draw of most_games).
+    def read(
+        market: str, side: str | None, line: float, direction: str
+    ) -> float | None:
+        if market not in RATING_PRICED_MARKETS or side not in ("side_a", "side_b"):
+            return None
+        return rating.read(market, side, line, direction)
+    return read
+
+
 def tennis_forecast(
     model: TennisRatingModel | None, fixture: Fixture
 ) -> MatchForecast | None:
@@ -843,6 +863,8 @@ def process_fixture(
     football: FootballForecast | None = None,
     tennis_tiers: dict[str, Any] | None = None,
     stats_only: bool = False,
+    rating_prices: bool = False,
+    marginal_centres_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1185,6 +1207,7 @@ def process_fixture(
             # blended with the price. Written only in the stats-only epoch.
             forecast_p: float | None = None
             forecast_source: str | None = None
+            p_rating_gt: float | None = None  # games_total: mixed into the NB below
             if stats_only:
                 if p_rating is not None:
                     forecast_p, forecast_source = p_rating, "tennis_rating"
@@ -1196,16 +1219,28 @@ def process_fixture(
                     forecast_source = (
                         "football_rating" if forecast_p is not None else None)
                 # The rating no longer prices the row (K1): its estimator is
-                # the sample's, as in the cache replay.
-                p_rating = None
+                # the sample's, as in the cache replay - except, from
+                # epochs.tennis_rating_prices, the families measured out of
+                # sample to be better read off the neighbours.
+                if rating_prices and fixture.sport == "tennis" and p_rating is not None:
+                    if rung.market == "games_total":
+                        p_rating_gt, p_rating = p_rating, None
+                    elif not (
+                        rung.market in RATING_PRICED_MARKETS
+                        and rating_side in ("side_a", "side_b")
+                    ):
+                        p_rating = None
+                else:
+                    p_rating = None
             # A tennis p already pulled onto Superbet's price (the rating blend
             # with a price, the empirical shrink to the rung's price) is not
             # the estimator the reliability curve was fitted on. See
             # price_anchored below.
             price_anchored = False
             if p_rating is not None:
-                anchor_price = market_ps.get(
-                    (rung.market, rung.subject, rung.line, direction)
+                anchor_price = (
+                    None if stats_only else market_ps.get(
+                        (rung.market, rung.subject, rung.line, direction))
                 )
                 p_raw = blend_with_price(p_rating, anchor_price)
                 price_anchored = fixture.sport == "tennis" and anchor_price is not None
@@ -1243,6 +1278,12 @@ def process_fixture(
                 # support-floored normal; the cache replay calls the same.
                 p_raw = sheet_count_p_raw(
                     rung.market, centre, pred_sd, boundary, direction
+                )
+
+            if p_rating_gt is not None:
+                p_raw = (
+                    W_GAMES_TOTAL_RATING * p_rating_gt
+                    + (1.0 - W_GAMES_TOTAL_RATING) * p_raw
                 )
 
             # F35: a rung whose estimate falls outside the clamp band is not a
@@ -1546,6 +1587,15 @@ def process_fixture(
             )
             rows.append(row)
 
+    marginal_centres: dict[tuple[str, str], float] | None = None
+    if fixture.sport == "football" and marginal_centres_on:
+        marginal_centres = {}
+        for marginal in rows:
+            if (marginal.market in DERIVED_MARGINAL_CENTRES_METRICS
+                    and marginal.subject and marginal.centre is not None):
+                msd = determine_side(marginal.subject, fixture)
+                if msd in ("side_a", "side_b"):
+                    marginal_centres.setdefault((marginal.market, msd), marginal.centre)
     derived_rows, derived_skipped = price_derived_rungs(
         fixture=fixture,
         samples=samples,
@@ -1563,13 +1613,16 @@ def process_fixture(
             ),
         ),
         rating_p=(
-            rating.probability if rating is not None and not stats_only else None
+            rating.probability if rating is not None and not stats_only
+            else _stats_only_rating_p(rating)
+            if rating is not None and rating_prices else None
         ),
         rating_note=(
             partial(rating_note, rating)
             if rating is not None and not stats_only else None
         ),
         stats_only=stats_only,
+        marginal_centres=marginal_centres,
     )
     if stats_only:
         derived_rows = [
@@ -1668,6 +1721,8 @@ def main() -> int:
     # See bet.sofa.epochs: from the 10-05 stats-only rebuild on, the price
     # no longer enters p_central.
     stats_only = stats_only_epoch(args.date)
+    rating_prices = stats_only and tennis_rating_prices(args.date)
+    marginal_centres_on = stats_only and derived_marginal_centres_enabled(args.date)
 
     try:
         for offer in offers:
@@ -1709,6 +1764,8 @@ def main() -> int:
                 ),
                 tennis_tiers,
                 stats_only=stats_only,
+                rating_prices=rating_prices,
+                marginal_centres_on=marginal_centres_on,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

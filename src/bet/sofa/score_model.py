@@ -60,6 +60,9 @@ from bet.sofa.shadow import (
 N_SIMS = 4000
 # The replayed window whose residuals set basketball's per-quarter spread.
 SPREAD_WINDOW_S = 90 * 86400
+# basketball: how many games each side played in this window sets the noise
+# class of a game (SimParams.bb_fresh_mult)
+FRESH_WINDOW_S = 120 * 86400
 # A volleyball set: target points, and the deciding set's.
 SET_TARGET = 25
 DECIDER_TARGET = 15
@@ -254,6 +257,16 @@ class SimParams:
     # windows 2025-10..2026-01, 2026-01..04-15, 2026-09: 0.18491 / 0.18506
     # vs 0.18474, 0.17825 / 0.17857 vs 0.17844, 0.19029 / 0.19009 vs 0.19012.
     bb_sd_level_power: float = 0.0
+    # basketball: every noise sd times this when the side with fewer games in
+    # the last FRESH_WINDOW_S played <= 2 / 3..9 of them (>= 10: 1.0). Rating
+    # carried over a season break is stale. Measured 2026-10-07, walk-forward
+    # (fitted before 2025-09-01, scored after; 35,534 games from 2024-09, a
+    # margin / total ladder, p in 0.70..0.95, bootstrap by game): gap
+    # realised - p  <=2 games -0.019 [-0.027,-0.011] -> -0.004 [-0.012,+0.004],
+    # Brier 0.1666 -> 0.1589; 3..9 -0.001 -> +0.004; >=10 unchanged +0.012.
+    # Hockey has no such gradient (-0.032 / -0.033 / -0.030). Applied only from
+    # epochs.BB_FRESHNESS_FROM_UTC.
+    bb_fresh_mult: tuple[float, float] = (1.085, 1.026)
     # volleyball: the rating's point share moved away from 0.5 by this factor
     # before a set is played (1 = the share as rated). Points per set mixes
     # won and lost sets, so the share it gives is not the rally share.
@@ -297,6 +310,22 @@ class ScoreModel:
     # basketball: mean regulation total (both sides) in the spread window;
     # the reference level of SimParams.bb_sd_level_power
     ref_total: float = 0.0
+    # basketball: team -> start timestamps of its games in the last
+    # FRESH_WINDOW_S before the cut (SimParams.bb_fresh_mult)
+    recent: dict[int, list[int]] | None = None
+
+    def noise_mult(self, home: int, away: int, at_ts: int | None) -> float:
+        """The noise factor of a game by the games its thinner side played in
+        the last FRESH_WINDOW_S; 1.0 outside basketball or without a start
+        time. Pure: the caller asks epochs.bb_freshness_enabled(date) and
+        passes the result to `simulate`."""
+        if self.sport.key != "basketball" or self.recent is None or at_ts is None:
+            return 1.0
+        lo = at_ts - FRESH_WINDOW_S
+        n = min(sum(1 for t in self.recent.get(team, ()) if lo <= t < at_ts)
+                for team in (home, away))
+        le2, le9 = self.params.bb_fresh_mult
+        return le2 if n <= 2 else (le9 if n <= 9 else 1.0)
 
     def expected(
         self, competition: int, home: int, away: int, at_ts: int | None = None,
@@ -333,7 +362,7 @@ class ScoreModel:
 
     def simulate(
         self, mu1: Sequence[float], mu2: Sequence[float], seed: int = 0,
-        n: int = N_SIMS,
+        n: int = N_SIMS, noise_mult: float = 1.0,
     ) -> list[GameResult]:
         """Games in team1 / team2 orientation (mu1 is team1's)."""
         rng = random.Random(seed)
@@ -341,7 +370,12 @@ class ScoreModel:
         if self.sport.key == "hockey":
             return [_hockey(rng, mu1, mu2, prm) for _ in range(n)]
         if self.sport.key == "basketball":
-            sd = self.period_sd
+            sd = self.period_sd * noise_mult
+            if noise_mult != 1.0 and prm.bb_game_sd is not None:
+                prm = dataclasses.replace(
+                    prm, bb_game_sd=prm.bb_game_sd * noise_mult,
+                    bb_team_sd=prm.bb_team_sd * noise_mult,
+                    bb_quarter_sd=prm.bb_quarter_sd * noise_mult)
             level = sum(mu1) + sum(mu2)
             if prm.bb_sd_level_power and self.ref_total > 0 and level > 0:
                 f = (level / self.ref_total) ** prm.bb_sd_level_power
@@ -563,11 +597,16 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
         th, ta = sum(tot_h) or 1.0, sum(tot_a) or 1.0
         shares = (tuple(x / th for x in tot_h), tuple(x / ta for x in tot_a))
     last: dict[int, int] = {}
+    recent: dict[int, list[int]] = {}
     for r in before:
         last[r.home_id] = r.ts
         last[r.away_id] = r.ts
+        if sport.key == "basketball" and r.ts >= cut_ts - FRESH_WINDOW_S:
+            recent.setdefault(r.home_id, []).append(r.ts)
+            recent.setdefault(r.away_id, []).append(r.ts)
     model = ScoreModel(sport, book, 6.0, shares,
-                       params if params is not None else SimParams(), last)
+                       params if params is not None else SimParams(), last,
+                       recent=recent or None)
     if window:
         regs = [sum(r.values[REG_METRIC[sport.key]]) for r in window
                 if REG_METRIC[sport.key] in r.values]

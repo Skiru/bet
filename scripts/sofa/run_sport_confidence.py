@@ -179,16 +179,25 @@ class DbForecaster:
         if key not in self._sims:
             model, _ = self._shadow_model(sport)
             comp = fixture.get("competition_id")
+            kick_ts = int(_utc(ev.kickoff_utc).timestamp())
             exp = None if comp is None else model.expected(
                 int(comp), int(fixture["home_id"]), int(fixture["away_id"]),
-                int(_utc(ev.kickoff_utc).timestamp()))
+                kick_ts)
             if exp is None:
                 self._sims[key] = None
             else:
                 mh, ma = exp
                 mu1, mu2 = (mh, ma) if fixture["home_is_team1"] else (ma, mh)
+                # Basketball noise by the games each side played in the last
+                # 120 days (epochs.BB_FRESHNESS_FROM_UTC); 1.0 elsewhere. The
+                # history replays (sport_confidence) never pass it: their
+                # `recent` book is cut at the day being built.
+                fresh = epochs.bb_freshness_enabled(str(self.date), self.at)
                 self._sims[key] = model.simulate(
-                    mu1, mu2, seed=int(fixture["sofascore_event_id"]))
+                    mu1, mu2, seed=int(fixture["sofascore_event_id"]),
+                    noise_mult=model.noise_mult(
+                        int(fixture["home_id"]), int(fixture["away_id"]), kick_ts)
+                    if fresh else 1.0)
         games = self._sims[key]
         return None if games is None else line_probability(line, games, sp)
 

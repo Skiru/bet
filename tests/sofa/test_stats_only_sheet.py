@@ -34,12 +34,13 @@ def _tennis_offer(over: float, under: float) -> FixtureOffer:
                         unmapped_markets=[], rungs=rungs)
 
 
-def _tennis(over: float, under: float, stats_only: bool, rated: bool = True):
+def _tennis(over: float, under: float, stats_only: bool, rated: bool = True,
+            rating_prices: bool = False):
     rows, _ = process_fixture(
         dataclasses_replace_tennis(), tennis_samples(), _tennis_offer(over, under),
         baselines={}, reliability={}, engine_constants={}, vetoes=[],
         config=SofaConfig(), rating=_forecast(_POOL) if rated else None,
-        stats_only=stats_only,
+        stats_only=stats_only, rating_prices=rating_prices,
     )
     return {(r.market, r.direction): r for r in rows}
 

@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import math
 import statistics
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -57,6 +57,7 @@ from bet.sofa.engine import (
     get_required_odds,
     ladder_centre,
     outside_model_resolution,
+    sheet_predictive_sd,
 )
 from bet.sofa.joint import (
     JointCounts,
@@ -228,6 +229,24 @@ class SideStats:
     mean: float
     variance: float
     sd: float
+
+
+def marginal_centred_stats(
+    stats: SideStats, metric: str, centre: float
+) -> SideStats:
+    """The side as its own marginal row prices it (football goals joints).
+
+    `centre` is SHEET's centre for the (metric, side) row: the K_CENTRE shrink
+    toward the league baseline, then the rating blend. The variance is the one
+    the marginal path uses - the sample's dispersion scaled with the centre and
+    inflated by (1 + 1/n) (engine.sheet_predictive_sd). The raw sample mean
+    and variance, which the joint used before DERIVED_MARGINAL_CENTRES_FROM_UTC,
+    are neither: BTTS Brier was +0.0172 worse than the competition's base rate
+    (2025-08..2026-09, 375,714 matches) against +0.0051 with these centres.
+    """
+    sd = sheet_predictive_sd(
+        metric, "football", stats.mean, stats.variance, stats.n, centre)
+    return SideStats(n=stats.n, mean=max(1e-6, centre), variance=sd * sd, sd=sd)
 
 
 def _side_stats(observations: list[Observation]) -> SideStats | None:
@@ -420,9 +439,15 @@ def price_derived_rungs(
     rating_p: Callable[[str, str | None, float, str], float | None] | None = None,
     rating_note: Callable[[str | None, float, float | None], str] | None = None,
     stats_only: bool = False,
+    marginal_centres: Mapping[tuple[str, str], float] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs): the handicap centre is not pulled onto
-    the ladder (K_DERIVED_CENTRE), so p_central does not read the price."""
+    the ladder (K_DERIVED_CENTRE), so p_central does not read the price.
+
+    `marginal_centres` ((side metric, "side_a" | "side_b") -> centre) is given
+    by SHEET for football from epochs.DERIVED_MARGINAL_CENTRES_FROM_UTC; both
+    sides of a metric present = the joint is built from the marginal rows'
+    centres (marginal_centred_stats), else from the raw sample as before."""
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
 
@@ -469,13 +494,19 @@ def price_derived_rungs(
             continue
 
         rho = correlations.get(base)
+        centred_a, centred_b = stats_a, stats_b
+        mc_a = (marginal_centres or {}).get((side_metric, "side_a"))
+        mc_b = (marginal_centres or {}).get((side_metric, "side_b"))
+        if mc_a is not None and mc_b is not None:
+            centred_a = marginal_centred_stats(stats_a, side_metric, mc_a)
+            centred_b = marginal_centred_stats(stats_b, side_metric, mc_b)
         if base not in joint_cache:
             joint_cache[base] = (
                 build_joint(
-                    stats_a.mean,
-                    stats_a.variance,
-                    stats_b.mean,
-                    stats_b.variance,
+                    centred_a.mean,
+                    centred_a.variance,
+                    centred_b.mean,
+                    centred_b.variance,
                     rho if rho is not None else 0.0,
                 ),
                 stats_a,
@@ -612,9 +643,9 @@ def price_derived_rungs(
                     else None
                 )
                 p_raw = (
-                    blend_with_price(
+                    (p_rated if stats_only else blend_with_price(
                         p_rated, market_ps.get((rung.subject, rung.line, direction))
-                    )
+                    ))
                     if p_rated is not None
                     else probability(joint, market, rung.line, direction, side)
                 )

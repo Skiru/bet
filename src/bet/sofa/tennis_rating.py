@@ -111,6 +111,12 @@ _READABLE_MARKETS = RATED_MARKETS | {
     "games_won_set2_for",
     "most_games",
 }
+# Priced by the neighbours alone (no price) once epochs.tennis_rating_prices;
+# draw of most_games was not measured and stays on the sample.
+RATING_PRICED_MARKETS = frozenset({"games_won_for", "handicap_games", "most_games"})
+# games_total: the rating alone ties the NB (dLL -0.0002 [-0.0019, +0.0017]),
+# the 50/50 mix beats it (-0.0087 [-0.0099, -0.0075], both windows).
+W_GAMES_TOTAL_RATING = 0.5
 # A per-subject market: the probability is read from the subject's side.
 _SUBJECT_MARKETS = frozenset(
     {"games_won_for", "games_won_set1_for", "games_won_set2_for",

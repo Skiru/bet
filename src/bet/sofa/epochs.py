@@ -178,6 +178,75 @@ def model_fixes_enabled(at: datetime | None = None) -> bool:
     return (at if at is not None else datetime.now(UTC)) >= MODEL_FIXES_FROM_UTC
 
 
+# Tennis games families priced by the rating's neighbours (measured out of
+# sample 2026-10-07, docs/sofa/evidence/tennis_rating_prices_2026-10-07.md):
+# games_won_for / handicap_games / most_games from MatchForecast.read, and
+# games_total as W_GAMES_TOTAL_RATING x rating + the rest x the NB. Changes
+# p_central, so it goes live TOGETHER with the refit of the tennis curves
+# (calibrate_from_cache replaying the rating) - never mid-day.
+TENNIS_RATING_PRICES_DATE = "2026-10-07"
+TENNIS_RATING_PRICES_FROM_UTC: datetime | None = datetime(
+    2026, 10, 7, 14, 5, tzinfo=UTC)  # operator, 2026-10-07: now, curves refit later
+
+
+def tennis_rating_prices(date: str, build_at: datetime | None = None) -> bool:
+    if TENNIS_RATING_PRICES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= TENNIS_RATING_PRICES_DATE and at >= TENNIS_RATING_PRICES_FROM_UTC
+
+
+# Football derived goals joints (both_over / most / handicap) built from the
+# marginal rows' centres (K_CENTRE shrink + rating, variance scaled and
+# inflated by 1 + 1/n) instead of the raw sample mean and variance. Measured
+# walk-forward 2025-08..2026-09 (375,714 matches, bootstrap by match): BTTS
+# Brier vs the competition base rate +0.0172 -> +0.0051, most / handicap
+# -0.006..-0.009 better than now. It moves every derived football p, so never
+# mid-day and the derived keys' line evidence restarts (fit_line_evidence).
+# Read on the wall clock, like MODEL_FIXES_FROM_UTC.
+DERIVED_MARGINAL_CENTRES_FROM_UTC: datetime | None = datetime(
+    2026, 10, 7, 14, 5, tzinfo=UTC)
+
+
+DERIVED_MARGINAL_CENTRES_DATE = "2026-10-07"
+# Measured (walk-forward, 2025-08..2026-09): the goals, corners, shots on
+# target and cards joints. Fouls / shots / offsides were not measured and keep
+# the raw sample.
+DERIVED_MARGINAL_CENTRES_METRICS = frozenset(
+    {"goals_for", "corners_for", "shots_on_target_for", "cards_points_for"})
+
+
+def derived_marginal_centres_enabled(
+    date: str, build_at: datetime | None = None
+) -> bool:
+    """The day being built and the build's clock, as every other switch (a
+    rebuild of an earlier day keeps the rule it printed under)."""
+    if DERIVED_MARGINAL_CENTRES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= DERIVED_MARGINAL_CENTRES_DATE
+            and at >= DERIVED_MARGINAL_CENTRES_FROM_UTC)
+
+
+# Basketball noise by freshness: games of a side with <= 2 / 3..9 games in the
+# last 120 days simulate with every sd times SimParams.bb_fresh_mult (see
+# there for the measurement). It moves basketball p, so never mid-day, and the
+# basketball curves / line evidence are refitted on it.
+BB_FRESHNESS_FROM_UTC: datetime | None = datetime(2026, 10, 7, 14, 5, tzinfo=UTC)
+
+
+BB_FRESHNESS_DATE = "2026-10-07"
+
+
+def bb_freshness_enabled(date: str, build_at: datetime | None = None) -> bool:
+    """The day being built and the build's clock (the caller of the live
+    forecaster asks; ScoreModel.noise_mult itself is pure)."""
+    if BB_FRESHNESS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= BB_FRESHNESS_DATE and at >= BB_FRESHNESS_FROM_UTC
+
+
 # Plan 2026-10-05_PRODUCTION_GRADE, F1.1 follow-up: a club whose name carries
 # "&" (Dagenham & Redbridge, Havant & Waterlooville, H&W Welders) is a subject
 # of its own per-team markets when the subject equals one of the listing's own

@@ -69,3 +69,23 @@ Offsety sportów poza próbką, CLV, wpływ reguły line evidence na dzisiejsze 
 - Offset CS2: reszta puli (14 linii / 11 gier) jest poniżej progu 20 gier,
   więc inne klucze CS2 czytają offset 0, nie -0.204 (decyzja operatora; to
   jedyna zmiana v2, która może podnieść pewność).
+
+## Trzy paczki modeli wdrożone 2026-10-07 14:05Z (operator: "leć wszystkie 3 teraz")
+
+Pomiary na historii (walk-forward, bootstrap po meczach): tenis 243,025 meczów
+(rating zamiast próbki: -0.072 log-loss [-0.074, -0.070], w każdym tierze;
+`games_total` tylko jako mieszanka 50/50 z NB: -0.0088); piłka 375,714 meczów
+(joint z centrów brzegowych: BTTS Brier +0.0172 -> +0.0051 względem stopy
+bazowej, DC tau i FGM bez zysku); koszykówka 35,534 gier (mnożnik szumu 1.085 /
+1.026 za świeżość: luka -0.019 -> -0.004). Efekt świeżości jest ok. 5 razy
+mniejszy niż w oknie 8 dni (-0.03, nie -0.14), więc offset koszykówki -0.118
+był w dużej mierze efektem początku sezonu.
+
+**Nie zrobiono refitu krzywych ani line evidence na nowym p** (to krok między
+dniami; `calibrate_from_cache.py` nie odtwarza ratingu tenisa). Kierunek błędu:
+tenis - krzywe z p próbki (przeszacowanego) czytane na lepiej skalibrowanym p
+ratingu dają pewność nie wyższą niż należna; koszykówka - p bliżej 0.5 czyta
+niższy kubełek; klucze derived piłki - dowód z linii pochodzi ze starego p
+(zawyżonego), więc czyta nisko. Kolejka: replay ratingu w `calibrate_from_cache`,
+`prepare_refit`, `fit_sport_confidence --sport basketball` (z mnożnikiem w
+replayu), `fit_line_evidence`; potem pomiar `measure_calibration`.

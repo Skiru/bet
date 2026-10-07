@@ -89,6 +89,26 @@ in every sport alike, and nothing that could win is cut by name.
   live data. Legs carry `line_offset` /
   `price_band_cap` when they were lowered. Evidence:
   `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
+- **Model packages from 2026-10-07 14:05Z** (operator: recalculate today; each a
+  switch in `bet.sofa.epochs`, measured out of sample on the history,
+  `docs/sofa/history/AUDYT_MODELI_2026-10-07.md`): *tennis*
+  (`TENNIS_RATING_PRICES_FROM_UTC`) `games_won_for`, `handicap_games`,
+  `most_games` (not its draw) are priced by the rating's neighbours alone, no
+  price, and `games_total` is the 50/50 mix of the NB and the rating
+  (log-loss -0.072 [-0.074, -0.070] on 243,025 matches); *football*
+  (`DERIVED_MARGINAL_CENTRES_FROM_UTC`) the goals joints (both_over / most /
+  handicap) are built from the marginal rows' centres and variance, not the
+  raw sample (BTTS Brier vs base rate +0.0172 -> +0.0051; BTTS still loses to
+  the base rate, so it stays behind its Superbet lines); *basketball*
+  (`BB_FRESHNESS_FROM_UTC`) the simulation noise x1.085 when the thinner side
+  has <= 2 games in the last 120 days, x1.026 for 3..9 - the live
+  forecaster only, never the history replays. **The history curves and the line
+  evidence were NOT refit on these p** (the refit is a between-days step): the
+  curves read the old estimator, which for tennis overstated (so they read
+  low on the better-calibrated rating p - conservative) and for derived football
+  keys have only old lines. Refit queue: `calibrate_from_cache.py` replaying
+  `MatchForecast.read`, then `prepare_refit.py`, `fit_line_evidence.py`; the
+  basketball curves with the multiplier in the replay.
 - **A leg prints** when confidence >= 0.70, confidence x odds >= 0.90, ladder
   (group) margin <= 15%, not ODDS_TOO_LOW, not started, fresh price
   (STALE_PRICE otherwise; a moved price re-prices the leg). Every passing
