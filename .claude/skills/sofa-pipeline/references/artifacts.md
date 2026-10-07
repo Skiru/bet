@@ -1,5 +1,7 @@
 # The artifacts — every file, every field
 
+> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+
 All under `runs/sofa/<date>/`. Types come from `src/bet/sofa/contracts.py`,
 which is `strict=True, extra="forbid"` throughout — a field not listed here
 does not exist, and a typo is a validation error rather than a silent `None`.
@@ -151,9 +153,9 @@ Read it before concluding a row was never generated. Reason vocabulary in
 Graded rows, also written to `data/sofa.db` (`sofa_settled_row`). The skips
 file says which rows could not be graded and why — a blind row counted as a
 loss understates the model exactly as much as counting it a win overstates it.
-Two skip reasons are a **refund** (0 u.), never a loss and never a settled
+Three skip reasons are a **refund** (0 u.), never a loss and never a settled
 row (`settle.REFUND_REASONS`): `MOVED_BEYOND_VOID` (Sofascore's start moved
-more than 48 h from the earliest clock held) and `AWARDED`. A player prop
+more than 48 h from the earliest clock held) `AWARDED` and `RETIRED` (a retirement, status code 92). A player prop
 whose name is not unambiguous in his own squad is `PLAYER_AMBIGUOUS`.
 
 `07_settled_printed.json` (`settle.PRINTED_SETTLED_FILE`): the grades of

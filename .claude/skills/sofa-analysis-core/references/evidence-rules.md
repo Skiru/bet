@@ -1,5 +1,7 @@
 # Evidence rules — what the artifacts can and cannot tell you
 
+> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+
 ## The sample is in `03_samples.json`, not in the sheet
 
 The sheet carries `sample_size`, `sample_mean`, `sample_sd`. That is a summary,

@@ -237,7 +237,22 @@ a page shows the product of leg prices, that is a defect.
 
 ## Step 3 - anti-selection, the most important test
 
-First, the guard checks. Each of these on the coupon is a defect:
+First, the guard checks. From `epochs.LINE_EVIDENCE_FROM_UTC` (2026-10-07 10:55Z) see `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes". Four by-name guards are OFF in a build under
+line evidence (`epochs.line_evidence(date, built_at)`): `refused_markets`,
+`admitted_player_markets`, `admitted_tennis_set_markets`, `DERIVED_NOT_CALIBRATABLE`
+and a sport key outside `admitted`. A leg of such a market is **not a defect**
+there; the defect is a printed leg whose `calibrated_on` is not a curve or
+`sb:<sport>:<key>` (its own settled Superbet lines), or one that ignores its
+`line_offset` / `price_band_cap` (re-derive from
+`config/sofa_superbet_line_evidence.json`: confidence = the lowest of curve +
+offset and the band cap, never above the curve). Builds before 10:55Z on
+2026-10-07 keep the old guards. From 2026-10-07 13:42Z (`line_evidence_v2`; 10-07 is a mixed day - a leg built
+before it fails U3 against the replaced evidence file, a note, gone after a rebuild) a
+no-curve leg also needs `games` >= 15 in its bucket, a CS2 leg exists only with a
+known `best_of`, and a CS2 key without its own offset reads the pool without the
+dominant key (`sport_printable.cs2.without`) - re-derive with `LineEvidence(doc, v2=True)`. Each of these on the coupon is a defect
+(the first, the player-prop and the `refused_markets` items **only in a build
+before the epoch**):
 
 - a tennis per-set serve leg (`{aces,double_faults,serve_points}_set{1,2}_*`,
   `confidence.TENNIS_PER_SET_SERVE`), a full-match serve-points leg
@@ -252,8 +267,11 @@ First, the guard checks. Each of these on the coupon is a defect:
   match-tiebreak decider;
 - a market in `refused_markets` (`config/sofa_confidence_calibration.json`);
 - a sport leg whose market is outside the allow-list
-  (`sport_confidence.ALLOWED_MARKETS` / `CS2_FAMILIES`), or a volleyball leg
-  whose tournament has no SETTLED event in the last 14 days.
+  (`sport_confidence.allowed_markets(sport, extended)` - `extended` under line
+  evidence adds `EXTENDED_MARKETS`; `CS2_FAMILIES` / `CS2_EXTENDED_FAMILIES`),
+  or a volleyball leg whose tournament has no SETTLED event in the last 14 days;
+- a basketball second-half / Q4 leg graded off anything but the regulation
+  periods (overtime does not count - operator, 2026-10-07).
 
 And check that `runs/sofa/<d>/capture_closing.log` exists and the loop is
 running - if not, name "CLV not captured" in the report.

@@ -181,7 +181,8 @@ passed one. Narrate it: post the step lines as they come.
   `STALE_CONFIDENCE` and `STALE_COUPON` (11 older than `08_confidence.json`,
   `08_confidence_sports.json` or `read_requests.json`). After any change to
   vetoes, reads or requests, validate (step 2) and re-run `rebuild_day.py`.
-- `SPORT_CONFIDENCE` exits 1 when a sport is `NOT_CALIBRATED` or
+- `SPORT_CONFIDENCE` exits 1 when a sport is `NOT_CALIBRATED` (from 2026-10-07
+  10:55Z basketball and CS2 are read, so it is rarer) or
   `sport_fixtures.json` is missing; the artifact is still written and the
   football / tennis coupon is still built - name the sport that is absent.
 - `run_pipeline.py --only COUPON` writes `06_coupon.json`, the priced VALUE

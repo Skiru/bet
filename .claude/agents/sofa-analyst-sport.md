@@ -30,8 +30,12 @@ output and stop; never repair code.
 - Three numbers stand on a leg, and only one of them is the confidence:
   - **pewność** (`confidence`) - the Wilson lower bound of the calibrated
     bucket the model probability falls in
-    (`config/sofa_sport_confidence_calibration.json`, `calibrated_on`,
-    `calibration_n`), fitted on results history without prices;
+    (`config/sofa_sport_confidence_calibration.json`, or the staged `.next.json`
+    from 2026-10-07; `calibrated_on`, `calibration_n`), fitted on results
+    history without prices. From 2026-10-07 10:55Z it is then lowered by the
+    key's measured Superbet-line offset (`line_offset`) and the price-band cap
+    (`price_band_cap`); a key with no curve (hockey / basketball player lines)
+    reads its own settled lines (`sb:<sport>:<key>`);
   - **próbka** (`sample_k` / `sample_n`, `sample_hit_rate`) - how often the
     line came in over the sides' recent league matches; shown, never a gate;
   - **model** (`forecast_p`, `forecast_source` `score_model` / `cs2_engine`)

@@ -66,7 +66,9 @@ concession.
 - **Overconfident at the top:** a claimed 0.95 realises **0.728** over 9,286
   settled rows, and the market has no measured calibration bucket above 0.825.
   That region is refused - `ABOVE_MEASURED_CEILING` in `06_coupon.json` (the
-  old VALUE selector), `NOT_CALIBRATED` on the coupon's legs. A
+  old VALUE selector), `NOT_CALIBRATED` on the coupon's legs before
+  2026-10-07 10:55Z (from then the curve is read through the key's own Superbet
+  lines: `line_offset`, `price_band_cap`, `NO_LINE_EVIDENCE`). A
   `games_won_for` leg that survives is one the market's own history can
   describe; one you find missing was not dropped by accident.
 

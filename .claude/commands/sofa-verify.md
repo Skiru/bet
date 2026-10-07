@@ -60,7 +60,9 @@ silence**), its arithmetic from each row's own fields
   re-derived from the raw Superbet snapshot as it stood when
   `08_confidence_sports.json` was built: odds, price time and age, group
   margin <= 15%, x >= 0.90, confidence = the calibration bucket of its model
-  probability.
+  probability (from 2026-10-07 10:55Z lowered by `line_offset` and
+  `price_band_cap`, or read from the key's own Superbet lines -
+  `bet.sofa.line_evidence`).
 
 A finding is a defect. "nothing to check" is not a pass - say what existed.
 Lines under `notes (not defects):` are not findings and not a pass - list

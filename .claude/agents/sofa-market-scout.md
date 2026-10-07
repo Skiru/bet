@@ -191,8 +191,9 @@ about them instead is what they carry:
 - no per-side sample reaches them, so every one also carries `ONE_SIDED_LADDER`
   and `NO_MARKET_MARGINAL`;
 - 2–252 settled rows each, so no market curve can be fitted, and CONFIDENCE
-  refuses them outright (`DERIVED_NOT_CALIBRATABLE`) — they can never be a
-  builder leg;
+  refused them outright (`DERIVED_NOT_CALIBRATABLE`) before 2026-10-07 10:55Z;
+  from then they are read through their own settled Superbet lines and are
+  `NO_LINE_EVIDENCE` until 50 settled lines fill a `p` bucket;
 - the measured correlation between the two teams' corners is **r = −0.279**,
   which is the opposite sign from what "both over" intuition assumes.
 

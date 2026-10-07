@@ -185,8 +185,12 @@ refusing to name a value is information.
 - `config/sofa_confidence_calibration.json` - check each market's measured
   ceiling. A market with its own curve may **not** borrow the pooled one above
   the top of its own measured range.
-- `config/sofa_sport_confidence_calibration.json` - a sport absent from it is
+- `config/sofa_sport_confidence_calibration.json` (a day >= the `.next.json`'s
+  `effective_from`, 2026-10-07, reads the staged file) - a sport absent from it is
   `NOT_CALIBRATED` and prints no legs; say which sports are on the coupon.
+- `config/sofa_superbet_line_evidence.json` - `fitted_from.before` must reach the
+  day about to be built; the morning's `refresh_line_evidence.py --before <D>`
+  (after this settle and the ledger) is what advances it. It is not a refit.
 
 ## Report back
 

@@ -34,7 +34,7 @@ The order of a run:
 | step | what | stage / script |
 |---|---|---|
 | 0 | the bridge | `ensure_bridge.py` |
-| 1 | settle D-1, identity audit, ledger | SETTLE, CS2_SETTLE, SHADOW_SETTLE, `audit_settlement.py`, `audit_settle_identity.py`, `record_results.py` |
+| 1 | settle D-1, identity audit, ledger, then `refresh_line_evidence.py --before <D>` (step 1a) | SETTLE, CS2_SETTLE, SHADOW_SETTLE, `audit_settlement.py`, `audit_settle_identity.py`, `record_results.py` |
 | 2 | today | BOARD, RESOLVE, OFFER, SAMPLES, OFFER, SHEET, COUPON (`DEFAULT_SEQUENCE`) |
 | 3 | football / tennis confidence (provisional) | `run_confidence.py` (CONFIDENCE) |
 | 4 | measured sports and the one coupon (provisional) | SHADOW, CS2, SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY |
@@ -178,6 +178,26 @@ Re-run `record_results.py --from <D-8> --to <D-1>` after a late settle or a
 `regrade_settled.py`. A result is a fact about the day, never a reason for
 today's choice.
 
+## Step 1a — refresh the line evidence (every morning, once D-1 is settled and recorded)
+
+Every leg's confidence is read through the settled Superbet lines
+(`config/sofa_superbet_line_evidence.json`, `bet.sofa.line_evidence`). Without
+this step today reads yesterday's evidence: no line of D-1 counts. After the
+whole of step 1 (SETTLE, SHADOW_SETTLE, CS2_SETTLE, `record_results.py`) and
+before any build of today; ~15 min, no bridge, runs the four sport fits in
+parallel:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>
+```
+
+Exit 0 written; **1** = one sport's rows fit failed and that sport reuses the
+day before's rows (name it in the report); **2** = a crash (the evidence file is
+unchanged - today builds on the previous one, say so). `fitted_from.before` of
+the file must read `<D>`. It never touches a curve; a curve refit stays a
+separate, deliberate, between-days step. Skipping it is a named skip, not a
+failure of the day.
+
 ## Step 1b — start today's measurement loops
 
 The loops snapshot the measured sports' prices all day (the coupon's
@@ -287,7 +307,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --o
 - SPORT_CONFIDENCE writes `runs/sofa/<date>/08_confidence_sports.json`
   (no bridge): confidence = the calibrated bucket of the score model / CS2
   engine probability (`config/sofa_sport_confidence_calibration.json`,
-  fitted without prices, between days only), then the coupon's price
+  fitted without prices, between days only; the staged `.next.json` from
+  2026-10-07; every fitted key of all four sports from 10:55Z that day, corrected
+  by its Superbet lines), then the coupon's price
   filters. Exit 1 when a sport is `NOT_CALIBRATED` or `sport_fixtures.json`
   is missing - the artifact is still written and the football / tennis
   coupon still builds. `11_coupon.json` carries the per-sport `sports`

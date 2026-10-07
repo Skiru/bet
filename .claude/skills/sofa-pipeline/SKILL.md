@@ -140,6 +140,66 @@ every day; on SPORT_CONFIDENCE / COUPON_ASSEMBLY it can mean a sport is
 `NOT_CALIBRATED` or unidentified (football / tennis still built). Only
 `FAILED` stops you. Exit codes: `0 = OK`, `1 = PARTIAL`, `2 = FAILED`.
 
+## Line evidence and the 2026-10-07 changes (read this before any older statement)
+
+From `epochs.LINE_EVIDENCE_FROM_UTC` = **2026-10-07 10:55Z** (operator; 10-07 is
+a mixed day - prints before 10:55Z are the old rule) the statements in this
+skill's references about refusals BY NAME describe the old epoch only.
+
+- **Operator's rule:** the statistics must tell a good 1.20 from a bad 1.20,
+  every sport alike; nothing that could win is cut by name; a market that
+  does not discriminate today stays and is measured. Honest confidence is
+  still required - a curve that overstates is corrected, not removed.
+- **No by-name refusal:** `refused_markets`, `admitted_player_markets`,
+  `admitted_tennis_set_markets`, `DERIVED_NOT_CALIBRATABLE`,
+  `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED` and the sport
+  calibration's `admitted` list refuse nothing. `goals_1h_total|UNDER`,
+  tennis per-set games markets, basketball and CS2 print again. A printed leg
+  of a formerly refused market is **not** a defect.
+- **Confidence** (`bet.sofa.line_evidence`, `config/sofa_superbet_line_evidence.json`)
+  = the lowest of: the history curve lowered by an offset (the key's measured
+  realised-minus-confidence on its printable settled Superbet lines, >= 50
+  lines / 30 games, else its sport's pooled one, >= 20 games; never > 0) and
+  the price-band cap (bands 1.30 / 1.60 / 2.20: what lines of the key at this
+  p realised in this band, applied when the cell's Wilson upper bound is
+  under the confidence; with no band cell, the key's own lines over every
+  band from p down to 0.70). A key with no curve reads the Wilson lower bound
+  of its own lines (>= 50 a bucket), else **`NO_LINE_EVIDENCE`** (not measured
+  yet - not a defect). Legs carry `line_offset` / `price_band_cap` when
+  lowered, and `unfitted_constants` (line-evidence constants included).
+- **Sport curves** are read from the staged
+  `config/sofa_sport_confidence_calibration.next.json` (`effective_from`
+  2026-10-07; `sport_confidence.calibration_path_for`), not from the main file.
+- **New families** (same epoch): basketball quarters / 2nd half / dnb /
+  odd-even, hockey period dnb, volleyball exact sets / parity / extra points
+  (`sport_confidence.EXTENDED_MARKETS`); CS2 round handicap / total, team and
+  player box stats, series maps_total / maps_handicap / team_maps / exact_maps
+  (`CS2_EXTENDED_FAMILIES`, `cs2_engine.SERIES_KAPPA`); hockey / basketball
+  player lines (p = SHADOW's pre-game `player_model.jsonl`; `NO_LINE_EVIDENCE`
+  until evidence exists). Player legs and CS2 box legs are graded from the
+  measurement's own graded row (`sport_day._graded_side`).
+- **Basketball 2nd half / Q4:** overtime does not count (operator, 2026-10-07);
+  graded on the regulation periods (`shadow._pair`), overtime games included.
+  A retirement (`RETIRED`) is a refund like `AWARDED`.
+- **Between days, after D-1 is settled and recorded, before D's build:**
+  `PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>`
+  (~15 min; sport rows in `data/line_evidence/rows_before_<D>`, never
+  touches the curves). Exit 1 = one sport's rows reused from the day before.
+- **Second rules from 2026-10-07 13:42Z, a mixed day** (`epochs.line_evidence_v2`,
+  `LineEvidence.v2`): band cells widen downward inside their band; a key with no
+  curve needs 15 games in the bucket and reads the Wilson bound over lines
+  divided by the sport's `design_effect`; a sport's pooled offset leaves out a
+  key holding > 50% of its printable lines (`sport_printable.<s>.without`; that
+  key keeps the full pool - CS2's other keys then read offset 0, so one can print
+  higher than on 10-07); a CS2 fixture with no `best_of` gives no model p.
+  A leg of a family the evidence file has no `games` for reads `NO_LINE_EVIDENCE`
+  until the morning refresh. Audit: `docs/sofa/history/AUDYT_MODELI_2026-10-07.md`.
+- **Open operator questions** (do not decide them): band-cap strictness;
+  Superbet's game count of a match tiebreak (tennis).
+- **Not modelled yet:** football / tennis outcome markets (1X2, double
+  chance, BTTS, match / set winner ... - OFFER's `unmapped_markets`), CS2
+  series rounds and round parity.
+
 ## The arithmetic — the chain every row must be able to reproduce
 
 ```

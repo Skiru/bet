@@ -68,7 +68,21 @@ in every sport alike, and nothing that could win is cut by name.
   basketball handicap p 0.70-0.80 realised 0.81 below 1.30, 0.62 at
   1.60-2.20); with no band cell, the key's own lines over every band from
   its `p` down (to 0.70) bound it. A key without a curve reads the Wilson
-  bound of its own lines, else `NO_LINE_EVIDENCE`. Out of sample (evidence
+  bound of its own lines, else `NO_LINE_EVIDENCE`. **Second rules, from
+  2026-10-07 13:42Z - a mixed day** (`epochs.LINE_EVIDENCE_V2_FROM_UTC`, operator
+  2026-10-07 after the model audit; `LineEvidence.v2`): a price-band cell
+  widens downward inside its band before another cell stands in; a key
+  without a curve needs `MIN_EVIDENCE_GAMES` (15) games in the bucket and
+  reads the Wilson bound over lines divided by the sport's measured design
+  effect (`design_effect` in the evidence file); a sport's pooled offset is
+  measured without a key holding > `CONCENTRATION_MAX` (50%) of its printable
+  lines (`sport_printable.<sport>.without`; the key keeps the full pool - on
+  the 10-07 fit CS2's other keys then have 14 lines / 11 games, too few, so
+  offset 0 and only their price-band cap lowers them: **this one can raise a
+  CS2 confidence**, the operator's choice); a CS2 fixture with no `best_of`
+  is not guessed as best-of-3. The evidence file must be fitted by the
+  morning `refresh_line_evidence.py` for v2 to read `games` (an older file
+  reads nothing without a curve). Out of sample (evidence
   fitted on earlier days, legs printed on later ones) the printed confidence
   sat within its interval of the realised rate for football, hockey,
   basketball, tennis and volleyball; CS2's offset was measured only on the
@@ -129,9 +143,9 @@ in every sport alike, and nothing that could win is cut by name.
   lines (p = player_model's pre-game number in SHADOW's `player_model.jsonl`;
   no history curve, so `NO_LINE_EVIDENCE` until a family's p bucket holds 50
   settled pre-game lines; graded from SHADOW_SETTLE's own player row).
-  Basketball second half / Q4 carry `OT_RULE_UNKNOWN`: Superbet's rules do
-  not say whether overtime counts, a game with overtime grades them
-  UNGRADEABLE. The 2026-10-07 refit of the sport curves is staged in
+  Basketball second half / Q4: overtime does NOT count (operator,
+  2026-10-07) - they grade on the regulation periods, an overtime game
+  included. The 2026-10-07 refit of the sport curves is staged in
   `config/sofa_sport_confidence_calibration.next.json` (`effective_from`
   2026-10-07, `sport_confidence.calibration_path_for`); the line evidence is
   fitted against it. Volleyball adds its exact set score, points parity, set
@@ -163,7 +177,8 @@ in every sport alike, and nothing that could win is cut by name.
 
 ## Settlement and the ledger
 
-- **SETTLE:** a match moved > 48 h or awarded is a refund (0 u.), never a loss;
+- **SETTLE:** a match moved > 48 h, awarded or retired (`RETIRED`, operator
+  2026-10-07: Superbet's rule) is a refund (0 u.), never a loss;
   player props grade only from the player's own squad (PLAYER_AMBIGUOUS); a
   printed leg without a sheet row goes to `07_settled_printed.json`. Sport legs
   grade at the printed price against the pinned id (`NOT_GRADED:ID_CHANGED`
@@ -310,6 +325,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>   # EVERY morning after D-1 is settled and recorded, before D's build: the four sport row fits (--dry-run, no curve touched, ~15 min) + fit_line_evidence; exit 1 = a sport reused the day before's rows
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py --before <d> --sport-rows-dir <dir> [--dry-run]   # after every curve refit; without the dir: no price-band cap for the sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_calibration.py --from <d> --to <d> [--epoch stats_only] [--write-config --before <d>]   # PASS n>=300 and |gap|<=2 pp
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_women_competitions.py

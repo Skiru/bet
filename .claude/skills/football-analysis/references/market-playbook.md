@@ -1,5 +1,7 @@
 # Football market playbook — drivers, base rates, kill cases
 
+> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+
 For each market: what `sofa` measures, what moves it, the base rate, the kill
 cases, and what a good read says. Base rates are in-repo measurements unless
 stated; they were measured on a different pipeline's sample and are **orders of
