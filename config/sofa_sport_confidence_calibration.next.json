@@ -10688,5 +10688,5 @@
   "max_history_date": "2026-10-06",
   "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS"
  },
- "effective_from": "2026-10-08"
+ "effective_from": "2026-10-07"
 }

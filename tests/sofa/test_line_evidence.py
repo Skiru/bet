@@ -97,6 +97,7 @@ def test_fit_buckets_and_the_printable_gap() -> None:
 def test_the_epoch_starts_at_a_day(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(epochs, "LINE_EVIDENCE_FROM_UTC", None)
     assert not epochs.line_evidence("2026-10-09", datetime(2026, 10, 9, tzinfo=UTC))
+    monkeypatch.setattr(epochs, "LINE_EVIDENCE_DATE", "2026-10-08")
     monkeypatch.setattr(epochs, "LINE_EVIDENCE_FROM_UTC",
                         datetime(2026, 10, 8, tzinfo=UTC))
     on = datetime(2026, 10, 8, 0, 0, tzinfo=UTC)
@@ -242,3 +243,11 @@ def test_stage_and_audit_read_one_confidence() -> None:
     source = (REPO / "scripts/sofa/audit_variants.py").read_text()
     assert "rsc.read_confidence(" in source
     assert "scf.calibration_path_for(date)" in source
+
+
+def test_the_operator_moved_the_epoch_into_2026_10_07() -> None:
+    # "dzisiejszy kupon przebudowany z nowymi zasadami" - 10-07 10:55Z
+    at = datetime(2026, 10, 7, 10, 55, tzinfo=UTC)
+    assert epochs.line_evidence("2026-10-07", at)
+    assert not epochs.line_evidence("2026-10-07", datetime(2026, 10, 7, 7, 31, tzinfo=UTC))
+    assert not epochs.line_evidence("2026-10-06", at)

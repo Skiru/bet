@@ -318,10 +318,13 @@ def sheet_link_shared(rows: list[Mapping[str, Any]]) -> bool:
 # A p-only curve overstated the long prices (basketball handicap p 0.70-0.80
 # realised 0.79 at 1.30-1.60 and 0.62 at 1.60-2.20); the operator chose
 # "krzywa per pasmo kursu" the same day: the price band may lower a confidence
-# where its settled lines measured below it, never raise one. It changes what
-# prints, so from the next day's 00:00Z, never mid-day.
-LINE_EVIDENCE_DATE = "2026-10-08"
-LINE_EVIDENCE_FROM_UTC: datetime | None = datetime(2026, 10, 8, tzinfo=UTC)
+# where its settled lines measured below it, never raise one. Planned for the
+# next day's 00:00Z; moved by the operator to 2026-10-07 10:55Z ("dzisiejszy
+# kupon przebudowany z nowymi zasadami"), as LINK_SHARED_LEAGUE was that
+# morning: 10-07 is a mixed day - its prints before 10:55Z are the old rule,
+# the rebuild after it the new one; legs locked before stay as printed.
+LINE_EVIDENCE_DATE = "2026-10-07"
+LINE_EVIDENCE_FROM_UTC: datetime | None = datetime(2026, 10, 7, 10, 55, tzinfo=UTC)
 
 
 def line_evidence(date: str, build_at: datetime | None = None) -> bool:

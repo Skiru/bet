@@ -149,3 +149,30 @@ Operator: „TAK” — modele dla brakujących rynków.
 - **Nie przetestowane na żywo:** przypięte drużyny w samej pętli SHADOW
   (`forecast_players`). Sprawdzone tylko na zapisanych migawkach; pierwszy
   prawdziwy przebieg to pętla 10-08.
+
+## Dopisek 3: epoka przesunięta na 2026-10-07 10:55Z (decyzja operatora)
+
+Operator: „chciałbym, aby dzisiejszy kupon był przebudowany z nowymi
+zasadami”.
+
+- `epochs.LINE_EVIDENCE_FROM_UTC` ustawione na 2026-10-07 10:55Z, a
+  `effective_from` krzywych sportów `.next.json` na 2026-10-07. Tak samo
+  rano przesunięto `LINK_SHARED_LEAGUE`.
+- 10-07 jest dniem mieszanym: wydruki sprzed 10:55Z są po starej regule,
+  przebudowa po tej godzinie po nowej. 380 nóg zablokowanych wcześniej
+  zostaje bez zmian.
+- Przebudowa (`rebuild_day.py`, 10:54Z, run `rebuild-4ec438fa`): wszystkie
+  etapy z kodem 0 lub PARTIAL. 851 pozycji, w tym 471 świeżych:
+
+  | sport | świeże nogi |
+  |---|---|
+  | piłka | 197 |
+  | hokej | 168 |
+  | tenis | 56 |
+  | koszykówka | 47 |
+  | CS2 | 2 |
+  | siatkówka | 1 |
+
+  Audit: tylko 29 uwag C3 (top 30 bez odczytu analityka).
+- Model zawodników w pętli SHADOW na żywo: 474 linie z `p` po przypiętych
+  drużynach, `TEAM_UNRESOLVED` 20.

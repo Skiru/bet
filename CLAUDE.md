@@ -44,7 +44,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 ## How the coupon is built
 
 **Confidence comes from the statistics; the price is the condition for the
-bet and, from 2026-10-08, may only lower a confidence.** The yardstick
+bet and, from 2026-10-07 10:55Z, may only lower a confidence.** The yardstick
 (operator, 2026-10-07): the statistics must tell a good 1.20 from a bad 1.20,
 in every sport alike, and nothing that could win is cut by name.
 
@@ -53,7 +53,8 @@ in every sport alike, and nothing that could win is cut by name.
   statistics to a calibrated confidence through the curves in
   `config/sofa_confidence_calibration.json`.
 - **Line evidence** (`bet.sofa.line_evidence`, `epochs.LINE_EVIDENCE_FROM_UTC`
-  = 2026-10-08 00:00Z; `config/sofa_superbet_line_evidence.json` from
+  = 2026-10-07 10:55Z, moved there by the operator - 10-07 is a mixed day;
+  `config/sofa_superbet_line_evidence.json` from
   `fit_line_evidence.py`, between days): every key - football, tennis and the
   four measured sports - is read through its own settled Superbet lines. The
   confidence is the lowest of the history curve (lowered by the key's
@@ -71,7 +72,7 @@ in every sport alike, and nothing that could win is cut by name.
   (STALE_PRICE otherwise; a moved price re-prices the leg). Every passing
   single prints - no page limit.
 - **Refusals worth knowing** (each named on the row):
-  - before 2026-10-08 only, by name: operator keys in
+  - before the line-evidence epoch only, by name: operator keys in
     `config/sofa_confidence_calibration.json`, carried over by every refit -
     `refused_markets` (shots/fouls UNDER families, `goals_1h_total|UNDER`),
     `admitted_player_markets`, `admitted_tennis_set_markets` - and
@@ -109,7 +110,7 @@ in every sport alike, and nothing that could win is cut by name.
 - **Measured sports:** SHADOW / CS2 snapshot Superbet → SPORT_IDENTITY pins the
   Sofascore id before the start → SPORT_CONFIDENCE reads
   `config/sofa_sport_confidence_calibration.json` (fitted without prices).
-  Before 2026-10-08 only the `admitted` keys print: hockey (with
+  Before the line-evidence epoch only the `admitted` keys print: hockey (with
   `period_total|OVER`, `period_team_total|OVER`) and volleyball; basketball
   and CS2 `NOT_CALIBRATED` (exit 1, the rest still builds). From the
   line-evidence epoch every fitted key of all four is read, corrected by its
@@ -124,7 +125,7 @@ in every sport alike, and nothing that could win is cut by name.
   not say whether overtime counts, a game with overtime grades them
   UNGRADEABLE. The 2026-10-07 refit of the sport curves is staged in
   `config/sofa_sport_confidence_calibration.next.json` (`effective_from`
-  2026-10-08, `sport_confidence.calibration_path_for`); the line evidence is
+  2026-10-07, `sport_confidence.calibration_path_for`); the line evidence is
   fitted against it. Volleyball adds its exact set score, points parity, set
   parity and "set on extra points"; CS2 adds every family the engine prices
   (`CS2_EXTENDED_FAMILIES`: map round handicap / total, team kills, player
