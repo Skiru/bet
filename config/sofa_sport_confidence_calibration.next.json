@@ -11328,7 +11328,7 @@
   ],
   "never_mid_day": true,
   "max_history_date": "2026-10-06",
-  "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS; cs2 refitted 13:35Z with the series families (cs2_engine.SERIES_KAPPA); rows kept in data/line_evidence/rows_before_2026-10-07"
+  "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS; cs2 refitted ~11:35Z with the series families (cs2_engine.SERIES_KAPPA); rows kept in data/line_evidence/rows_before_2026-10-07"
  },
  "effective_from": "2026-10-07"
 }

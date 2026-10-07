@@ -176,3 +176,49 @@ zasadami”.
   Audit: tylko 29 uwag C3 (top 30 bez odczytu analityka).
 - Model zawodników w pętli SHADOW na żywo: 474 linie z `p` po przypiętych
   drużynach, `TEAM_UNRESOLVED` 20.
+
+## Dopisek 4: kalibracja poza próbą, poprawki po weryfikacji, CS2 serie (ok. 11:00–11:55Z)
+
+- **Test poza próbą.** Dowód z linii dopasowany na wcześniejszych dniach,
+  nogi drukowane na późniejszych, przedział z bootstrapu po meczach.
+  - Pierwsza wersja (korekta tylko przy istotnym zawyżeniu) przy małej
+    próbie przepuszczała prawdziwe zawyżenia:
+    - tenis: pewność 0,778 wobec trafień 0,698;
+    - koszykówka: 0,748 wobec 0,647.
+  - Teraz korekta to zmierzony punkt klucza (≥ 50 linii, 30 meczów), a gdy
+    klucz ma za mało danych, korekta całego sportu (≥ 20 meczów).
+  - Wynik poza próbą (pewność / trafienia):
+
+    | sport | pewność | trafienia | przedział obejmuje 0 |
+    |---|---|---|---|
+    | piłka | 0,815 | 0,810 | tak |
+    | hokej | 0,787 | 0,780 | tak |
+    | koszykówka | 0,755 | 0,690 | tak |
+    | tenis | 0,738 | 0,658 | tak |
+    | siatkówka | 0,760 | 0,684 | tak |
+
+  - CS2 zawyżał o −25 pp (39 linii, 15 serii). Korekta sportu −0,204 jest
+    zmierzona tylko na danych na żywo.
+- **Weryfikator, runda 1.**
+  - Pozycja 1 (Mannheim −4.5, 0,9448) nie miała żadnej linii Superbetu przy
+    swoim `p`. Teraz bez komórki pasma limit daje własne linie klucza ze
+    wszystkich pasm, od `p` w dół do 0,70.
+  - Nogi sportowe miały puste `unfitted_constants`. Poprawione na nogach i w
+    nagłówku PDF.
+  - 4 odczyty WATCH: Mannheim −4.5 i −3.5, Köln 1. tercja U1.5, Paris –
+    ASVEL handicap 2. połowy (`OT_RULE_UNKNOWN`).
+- **CS2 serie:** liczba map, handicap map, mapy drużyny i dokładny wynik.
+  Rozkład wyniku serii z korelacją map, κ = 6.
+- **Rozpoznawanie meczów koszykówki.** Reguła „jeden mecz drużyny w oknie”
+  łamała złoty test wabika oraz ochronę przed drużyną rezerw (Kataja
+  Talents), więc ją wycofałem. Zamiast niej 4 ręcznie zweryfikowane aliasy.
+  Koszykówka ma 97 rozpoznanych meczów zamiast 93.
+- **Wiersze dowodu** leżą w `data/line_evidence/rows_before_2026-10-07`
+  (wcześniej w katalogu tymczasowym).
+- **Godziny:** dwie wcześniejsze notki miały czas lokalny zamiast UTC
+  („13:00Z” i „13:35Z” to ok. 11:35Z). Poprawione.
+- **Nie modelowane** (lista w CLAUDE.md):
+  - rynki wynikowe piłki i tenisa (OFFER `unmapped_markets`, ok. 27 800
+    linii 10-07);
+  - rundy serii CS2;
+  - rynki pochodne i setowe kobiet ponad zmierzony zakres.

@@ -57,14 +57,22 @@ in every sport alike, and nothing that could win is cut by name.
   `config/sofa_superbet_line_evidence.json` from
   `fit_line_evidence.py`, between days): every key - football, tennis and the
   four measured sports - is read through its own settled Superbet lines. The
-  confidence is the lowest of the history curve (lowered by the key's
-  measured offset where its printable lines overstate significantly), and the
-  price-band cap: what lines of the key at this `p` realised in this band of
-  Superbet's price (1.30 / 1.60 / 2.20), applied only where measured below
-  the confidence (operator's choice 10-07, "krzywa per pasmo kursu"; a p-only
-  curve overstated long prices - basketball handicap p 0.70-0.80 realised
-  0.81 below 1.30, 0.62 at 1.60-2.20). A key without a curve reads the Wilson
-  bound of its own lines, else `NO_LINE_EVIDENCE`. Legs carry `line_offset` /
+  confidence is the lowest of the history curve lowered by an offset (the
+  key's measured realised-minus-confidence on its printable lines, >= 50
+  lines / 30 games; else its sport's pooled one, >= 20 games; never above 0
+  - 10-07: tennis -0.057, basketball -0.118, volleyball -0.117, hockey
+  -0.021, CS2 -0.204, football 0) and the price-band cap: what lines of the
+  key at this `p` realised in this band of Superbet's price (1.30 / 1.60 /
+  2.20), applied only where measured below the confidence (operator's choice
+  10-07, "krzywa per pasmo kursu"; a p-only curve overstated long prices -
+  basketball handicap p 0.70-0.80 realised 0.81 below 1.30, 0.62 at
+  1.60-2.20); with no band cell, the key's own lines over every band from
+  its `p` down (to 0.70) bound it. A key without a curve reads the Wilson
+  bound of its own lines, else `NO_LINE_EVIDENCE`. Out of sample (evidence
+  fitted on earlier days, legs printed on later ones) the printed confidence
+  sat within its interval of the realised rate for football, hockey,
+  basketball, tennis and volleyball; CS2's offset was measured only on the
+  live data. Legs carry `line_offset` /
   `price_band_cap` when they were lowered. Evidence:
   `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
 - **A leg prints** when confidence >= 0.70, confidence x odds >= 0.90, ladder
@@ -130,8 +138,10 @@ in every sport alike, and nothing that could win is cut by name.
   parity and "set on extra points"; CS2 adds every family the engine prices
   (`CS2_EXTENDED_FAMILIES`: map round handicap / total, team kills, player
   kills / deaths / assists / headshots; box-score families graded from
-  CS2_SETTLE's own row). Still outside: CS2's series families (maps_*,
-  team_maps, exact_maps, rounds_*, round parity) - the engine prices none.
+  CS2_SETTLE's own row) and the series families (maps_total,
+  maps_handicap, team_maps, exact_maps) from a Beta-mixed series distribution
+  (`cs2_engine.SERIES_KAPPA`, maps of one series correlated). Still outside:
+  CS2 series rounds (rounds_*, team_rounds) and round parity - unpriced.
   SHADOW's pre-game player model reads SPORT_IDENTITY's pinned teams before
   the names (`teams_source`; 10-07 basketball: 544 -> 944 lines with a p). SHADOW / CS2
   themselves stay a measurement of Superbet's price and feed nothing else.
@@ -195,6 +205,16 @@ failing `measure_calibration.py` stops printing), `MODEL_FIXES_FROM_UTC`
 measure the tennis games population of replay matches without `/statistics`.
 Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `data/backup_2026-10-05/sofa.db`.
+
+**Not modelled yet** (operator 10-07: every market that could win; the next
+work, each through a curve and its own Superbet lines): football / tennis
+outcome markets - 1X2, double chance, draw-no-bet, both teams to score, goals
+parity, half-time/full-time, exact score; tennis match / set winner, set
+score, games parity (OFFER's `unmapped_markets`, ~27,800 lines on 10-07,
+part of them Superbet's own combinations); CS2 series rounds and round
+parity; derived football / tennis joints and women's tennis per-set markets
+above their measured range wait for 50 settled lines a bucket
+(`NO_LINE_EVIDENCE`).
 
 **Measured and declined - do not re-propose without new evidence:**
 - a second coupon or a variant (operator: one coupon, many sports);

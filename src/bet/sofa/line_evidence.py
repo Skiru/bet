@@ -17,7 +17,7 @@ leg's confidence is the LOWEST of:
   its printable settled lines (confidence >= PRINTABLE_FROM), once they are
   MIN_OFFSET_ROWS lines of MIN_OFFSET_GAMES games; a key with fewer reads its
   SPORT's offset (every key's printable lines pooled, same minimum). Never
-  above zero. (Until 2026-10-07 13:00Z an offset also needed its bootstrap
+  above zero. (Until 2026-10-07 ~11:35Z an offset also needed its bootstrap
   below zero: out of sample - evidence fitted on the earlier days, legs
   printed on the later - that let tennis print 0.778 against 0.698 realised
   and basketball 0.748 against 0.647; the point offset with the sport
