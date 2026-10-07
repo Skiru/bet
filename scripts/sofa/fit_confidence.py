@@ -152,6 +152,8 @@ def main() -> int:
     # exactly as before and classes nothing.
     columns = {r[1] for r in con.execute("PRAGMA table_info(sofa_settled_row)")}
     event_col = "sofascore_event_id" if "sofascore_event_id" in columns else "NULL"
+    outcome_col = "outcome" if "outcome" in columns else "NULL"
+    run_col = "run_date" if "run_date" in columns else "NULL"
     # Friendlies are out of SAMPLES and the rating, so they are out of the
     # curves too (2026-10-02). A table without competition_id cannot say.
     friendly_term = (
@@ -160,7 +162,8 @@ def main() -> int:
     stamp = fit_stamp(con)
     rows = con.execute(
         f"""select market, line, direction, sample_size, sample_mean, sample_sd,
-                  actual_value, p_central, sport, {event_col}
+                  actual_value, p_central, sport, {event_col}, {outcome_col},
+                  {run_col}
            from sofa_settled_row
            where sample_mean is not null and sample_sd is not null
              and sample_size > 0 and actual_value is not null
@@ -198,7 +201,23 @@ def main() -> int:
         lambda: defaultdict(lambda: defaultdict(list)))
     scored = 0
     for (market, line, direction, n, mean, sd, actual, stored_p, sport,
-         event_id) in rows:
+         event_id, outcome, run_date) in rows:
+        if is_derived(market) and run_date == "cache-calibration":
+            # A replayed joint (calibrate_from_cache: the tennis rating's
+            # handicap_games / most_games, `--derived` football joints). Its
+            # stored outcome is the grade - the actual is a margin or a min,
+            # and "actual > line" is not it - so it is scored by the
+            # outcome, into its own market's curves only: no pool, no class
+            # (the reasons of the live rows below). Inert until something
+            # reads a derived key's curve (a later epoch, after its measurement).
+            if (outcome in ("WIN", "LOSS") and stored_p is not None
+                    and not args.classes_only):
+                hit = 1 if outcome == "WIN" else 0
+                b = bucket_of(min(max(float(stored_p), 0.0), 1.0))
+                per_market[market][b].append(hit)
+                per_market_direction[direction_key(market, direction)][b].append(hit)
+                scored += 1
+            continue
         if is_derived(market):
             # A joint / comparative market (both_over_, handicap_, most_) is
             # not a count against its line: its actual_value is a margin or

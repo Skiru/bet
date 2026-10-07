@@ -262,8 +262,20 @@ z ostatniego fitu, a poniższe zmieni dopiero kolejny, świadomy fit.
   próbki. **Kolejność refitu: najpierw `rebuild-cache-rows`, potem `fit`.**
   Fit nowym kodem na starych wierszach replayu (normalny zamiast NB) pogarsza
   `goals_total` i `cards_points_total` (zapisane `p` replayu i SHEET-u to
-  wtedy dwa różne estymatory). Nie odtwarzane w replayu: ratingi (piłka,
-  tenis) i priory tenisowe (tier / drabinka).
+  wtedy dwa różne estymatory). **Od 2026-10-07 replay odtwarza rating tenisa
+  w chwili meczu** (`tennis_rating.AsOfRating`, `--tennis-rating
+  include|skip`, domyślnie `include`; wymaga `config/tennis_rating.json` i
+  `load_history`, ok. 30 s i 250 MB): `games_won_for`, `handicap_games`,
+  `most_games` z sąsiadów ratingu, `games_total` jako 0,5 x rating + 0,5 x NB,
+  mecze bo5 pominięte (`infer_best_of`). Opcjonalnie `--derived goals,...`
+  odtwarza jointy piłki z centrów rynków brzegowych (wyłączone: replay nie ma
+  jeszcze ratingu piłki w centrum, więc to inny estymator niż SHEET;
+  remisów `most_` nie odtwarza). Koszykówka: `fit_sport_confidence
+  --bb-freshness auto|on|off` (replay z mnożnikiem szumu za świeżość; `auto`
+  = od `--before` >= 2026-10-08). Nie odtwarzane: rating piłki w centrum
+  i priory tenisowe (tier / drabinka). Współczynniki
+  `tennis_rating.json` są dopasowane z cięciem 2026-10-01, więc mecze sprzed
+  tej daty są dla nich w próbce, a po niej poza nią.
 - **Tenisowe rynki gemów w secie wymagają dopuszczenia z nazwy**
   (`games_set1_total`, `games_set2_total`, `games_won_set1_for`,
   `games_won_set2_for`): CONFIDENCE odmawia ich jako

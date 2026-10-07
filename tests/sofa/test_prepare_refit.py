@@ -116,6 +116,8 @@ def _config_set(root: Path, *, new: bool) -> Path:
 
 
 def _paths(tmp: Path) -> pr.Paths:
+    (tmp / "config").mkdir(parents=True, exist_ok=True)
+    (tmp / "config" / "tennis_rating.json").write_text("{}")  # the pre-flight
     return pr.Paths(
         config_dir=tmp / "config",
         db_path=tmp / "sofa.db",
@@ -731,6 +733,31 @@ def test_rebuild_hands_the_real_runs_dir_to_the_player_replay(tmp_path: Path) ->
     assert cmd[cmd.index("--runs-dir") + 1] == str(paths.runs_dir)
 
 
+def test_rebuild_passes_the_derived_and_tennis_rating_choices_on(
+        tmp_path: Path) -> None:
+    """The replay prices the tennis rating by default and the football joints
+    only when asked (calibrate_from_cache --derived / --tennis-rating)."""
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+    seen: list[list[str]] = []
+    inner = _fake_calibrate(paths.db_path)
+
+    def runner(cmd: Sequence[str], env: dict[str, str], log: Path | None
+               ) -> tuple[int, list[str]]:
+        seen.append(list(cmd))
+        return inner(cmd, env, log)
+
+    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
+                          require_db_backup=False)
+    assert "--derived" not in seen[0] and "--tennis-rating" not in seen[0]
+    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
+                          require_db_backup=False, derived="goals",
+                          tennis_rating=False)
+    cmd = seen[1]
+    assert cmd[cmd.index("--derived") + 1] == "goals"
+    assert cmd[cmd.index("--tennis-rating") + 1] == "skip"
+
+
 def test_rebuild_stops_when_the_player_replay_produced_nothing(tmp_path: Path) -> None:
     paths = _paths(tmp_path)
     _db(paths.db_path)
@@ -799,3 +826,23 @@ def test_a_db_path_from_the_environment_must_be_the_real_one(
     monkeypatch.setenv("SOFA_DB_PATH", str(tmp_path / "other.db"))
     rc = pr.main(["--date", "2026-10-03", "rebuild-cache-rows", "--dry-run"])
     assert rc == 2 and "SOFA_DB_PATH" in capsys.readouterr().err
+
+
+def test_rebuild_checks_its_inputs_before_it_deletes_anything(tmp_path: Path) -> None:
+    """Review 2026-10-07: the child exits on a missing tennis_rating.json or an
+    unknown --derived base AFTER the ~59M-row delete; both are refused first."""
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+    before = sqlite3.connect(paths.db_path).execute(
+        "SELECT COUNT(*) FROM sofa_settled_row").fetchone()[0]
+    (paths.config_dir / "tennis_rating.json").unlink()
+    with pytest.raises(pr.RefitError, match="tennis_rating.json"):
+        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True,
+                              require_db_backup=False)
+    (paths.config_dir / "tennis_rating.json").write_text("{}")
+    with pytest.raises(pr.RefitError, match="--derived"):
+        pr.rebuild_cache_rows(paths, dry_run=False, confirm=True,
+                              require_db_backup=False, derived="goal")
+    after = sqlite3.connect(paths.db_path).execute(
+        "SELECT COUNT(*) FROM sofa_settled_row").fetchone()[0]
+    assert after == before  # nothing was deleted

@@ -1302,6 +1302,11 @@ class Calibration:
             if self.cap_market_by_thin:
                 return self._cap_by_thin(market, direction, p, hit)
             return hit
+        # A joint / comparative market is read from its own curve or not at
+        # all: the pools hold count markets only (fit_confidence keeps derived
+        # rows out of them). Review 2026-10-07.
+        if is_derived(market):
+            return None
         # See AWAITING_OWN_CURVE: no pool may stand in for a market that has
         # no measured curve of its own yet.
         if not own and market in AWAITING_OWN_CURVE:

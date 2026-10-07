@@ -423,6 +423,20 @@ def backup(paths: Paths, db_target: Path | None) -> dict[str, Any]:
 # --------------------------------------------------------------------------
 
 
+def _joint_bases() -> frozenset[str]:
+    """The football joint bases calibrate_from_cache can replay (read from it,
+    so the two cannot drift)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "calibrate_from_cache", _REPO / "scripts" / "sofa" / "calibrate_from_cache.py")
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("calibrate_from_cache", mod)
+    spec.loader.exec_module(mod)
+    return frozenset(mod.JOINT_BASES)
+
+
 def ro_connect(db_path: Path) -> sqlite3.Connection:
     return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=30.0)
 
@@ -519,9 +533,21 @@ def rebuild_cache_rows(
     require_db_backup: bool = True,
     allow_other_holders: bool = False,
     halves: bool = False,
+    derived: str = "",
+    tennis_rating: bool = True,
 ) -> dict[str, Any]:
     if not paths.db_path.exists():
         raise RefitError(f"DB {paths.db_path} does not exist")
+    # Pre-flight, BEFORE anything is deleted (review 2026-10-07): the child
+    # would exit on these after the 59M-row delete.
+    if tennis_rating and not (paths.config_dir / "tennis_rating.json").exists():
+        raise RefitError(
+            f"{paths.config_dir / 'tennis_rating.json'} is absent: the tennis "
+            "rating cannot be replayed (--no-tennis-rating to skip it)")
+    bad = sorted(set(filter(None, (b.strip() for b in derived.split(",")))) -
+                 set(_joint_bases()))
+    if bad:
+        raise RefitError(f"--derived: {bad} not in {sorted(_joint_bases())}")
     reliability = (paths.config_dir / "sofa_market_reliability.json").resolve()
     if calibrate_out is not None and (
         calibrate_out.resolve() == reliability
@@ -622,6 +648,15 @@ def rebuild_cache_rows(
         # opt-in, see its help for what they change at the fit.
         cmd += ["--halves", "include"]
     report["halves"] = halves
+    if derived:
+        # Football joints (calibrate_from_cache --derived goals,corners,...):
+        # opt-in, ~120 rows a match and base.
+        cmd += ["--derived", derived]
+    if not tennis_rating:
+        # The replay as it was before the rating prices (2026-10-07).
+        cmd += ["--tennis-rating", "skip"]
+    report["derived"] = derived
+    report["tennis_rating"] = tennis_rating
     t1 = time.monotonic()
     # The replay prices with the constants and baselines it is about to be
     # fitted against: the live ones.
@@ -1867,6 +1902,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="replay the football per-half markets too (calibrate_from_cache "
         "--halves include; an operator decision - see its help)",
     )
+    r.add_argument(
+        "--derived", default="",
+        help="football bases whose both_over_ / most_ / handicap_ joints are "
+        "replayed (calibrate_from_cache --derived, e.g. goals,corners)",
+    )
+    r.add_argument(
+        "--no-tennis-rating", action="store_true",
+        help="replay the tennis games rows with the sample estimator, as "
+        "before 2026-10-07 (calibrate_from_cache --tennis-rating skip)",
+    )
 
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
@@ -1965,6 +2010,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     require_db_backup=not args.without_db_backup,
                     allow_other_holders=args.allow_other_holders,
                     halves=args.with_halves,
+                    derived=args.derived,
+                    tennis_rating=not args.no_tennis_rating,
                 )["exit"]
             )
         if args.command == "fit":

@@ -425,6 +425,26 @@ def line_evidence_v2(date: str, build_at: datetime | None = None) -> bool:
     return date >= LINE_EVIDENCE_V2_DATE and at >= LINE_EVIDENCE_V2_FROM_UTC
 
 
+# A derived joint (handicap_ / most_ / both_over_) reads its HISTORY curve -
+# replayed by calibrate_from_cache (the tennis rating's handicap_games /
+# most_games; football `--derived`) and fitted by fit_confidence - and its
+# settled Superbet lines only LOWER it, as for every other key. Until then a
+# derived joint has no curve and line evidence is its only source (a stand-in,
+# NO_LINE_EVIDENCE below 50 lines a bucket). Off: it needs the refit that
+# carries the replayed joints, measured first (out of sample, against the
+# stand-in), and the operator's day. fit_line_evidence --derived-curves fits
+# the offsets against the same curve.
+DERIVED_CURVES_DATE = "2026-10-09"
+DERIVED_CURVES_FROM_UTC: datetime | None = None
+
+
+def derived_curves(date: str, build_at: datetime | None = None) -> bool:
+    if DERIVED_CURVES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= DERIVED_CURVES_DATE and at >= DERIVED_CURVES_FROM_UTC
+
+
 def line_evidence(date: str, build_at: datetime | None = None) -> bool:
     """Is a key read through its settled Superbet lines rather than refused
     by name (LINE_EVIDENCE_FROM_UTC)?"""

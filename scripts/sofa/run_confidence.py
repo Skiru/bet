@@ -83,6 +83,7 @@ from bet.sofa.engine import (  # noqa: E402
 )
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
+    derived_curves,
     line_evidence,
     line_evidence_v2,
     national_sample_by_count,
@@ -675,7 +676,8 @@ def main() -> int:
             sides,
             fx.get("competition_id"),
         )
-        hit = None if evidence is not None and is_derived(row["market"]) \
+        hit = None if (evidence is not None and is_derived(row["market"])
+                       and not derived_curves(args.date, now)) \
             else cal.realised(
                 row["market"], row["p_central"], row.get("sport"),
                 row["direction"], klass,

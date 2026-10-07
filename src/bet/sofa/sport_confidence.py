@@ -635,15 +635,20 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
 
 
 def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
-               n_sims: int, source: str) -> list[Row]:
-    """The rows of one historical game, from the model as it stands."""
+               n_sims: int, source: str, freshness: bool = False) -> list[Row]:
+    """The rows of one historical game, from the model as it stands.
+    `freshness`: the basketball noise by games played in the last 120 days
+    (epochs.BB_FRESHNESS_FROM_UTC), as the live forecaster simulates."""
     if game.result is None:
         return []
     r = game.rating
     exp = model.expected(r.competition_id, r.home_id, r.away_id, r.ts)
     if exp is None:
         return []
-    sims = model.simulate(exp[0], exp[1], seed=r.event_id, n=n_sims)
+    sims = model.simulate(
+        exp[0], exp[1], seed=r.event_id, n=n_sims,
+        noise_mult=(model.noise_mult(r.home_id, r.away_id, r.ts)
+                    if freshness else 1.0))
     rows: list[Row] = []
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
     lines = [ln for mid in HISTORY_MARKETS[sport.key]
@@ -673,7 +678,8 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
 
 def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       start_ts: int, end_ts: int, n_sims: int,
-                      max_games: int | None, source: str) -> list[Row]:
+                      max_games: int | None, source: str,
+                      freshness: bool = False) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it.
 
@@ -681,6 +687,12 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     every REBUILD_DAYS; in between the rating book is updated game by game,
     and games that share a start time are all forecast before any of them is
     learnt - no game ever sees its own score or a later one.
+
+    `freshness` (basketball only; ScoreModel.noise_mult is 1.0 elsewhere): each
+    game simulates with the noise of the games its thinner side played in the
+    last FRESH_WINDOW_S, and the model's `recent` book grows with the replay -
+    a model rebuilt every REBUILD_DAYS would otherwise count only the games
+    before its rebuild and call a side thinner than the live day does.
     """
     ratings = [g.rating for g in history]
     window = [g for g in history if start_ts <= g.rating.ts < end_ts]
@@ -699,14 +711,19 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
         if model is None or ts >= next_rebuild:
             model = build_model(ratings, sport, ts)
             next_rebuild = ts + REBUILD_DAYS * 86400
+            if freshness and model.recent is None:
+                model.recent = {}  # build_model leaves an empty book None
         for g in batch:
             if id(g) in scored:
-                rows += score_game(sport, model, g, n_sims, source)
+                rows += score_game(sport, model, g, n_sims, source, freshness)
         for g in batch:
             model.book.update(_rated_values(g.rating, sport))
             if model.last_played is not None:
                 model.last_played[g.rating.home_id] = g.rating.ts
                 model.last_played[g.rating.away_id] = g.rating.ts
+            if freshness and model.recent is not None:
+                model.recent.setdefault(g.rating.home_id, []).append(g.rating.ts)
+                model.recent.setdefault(g.rating.away_id, []).append(g.rating.ts)
         i = j
     return rows
 
@@ -717,7 +734,8 @@ def day_ts(day: str) -> int:
 
 def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                         events: Mapping[int, dict[str, Any]],
-                        history: Sequence[HistoryGame], n_sims: int) -> list[Row]:
+                        history: Sequence[HistoryGame], n_sims: int,
+                        freshness: bool = False) -> list[Row]:
     """Superbet's settled lines of `dates` (runs/sofa/shadow/<sport>/<d>/
     settled.json), each with the model's probability from a model built
     strictly before the day - measure_score_model.py's reading. Only allowed
@@ -747,8 +765,11 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                 continue
             mh, ma = exp
             mu1, mu2 = (mh, ma) if entry.get("home_is_team1") else (ma, mh)
-            games = model.simulate(mu1, mu2, seed=int(entry["sofascore_event_id"]),
-                                   n=n_sims)
+            games = model.simulate(
+                mu1, mu2, seed=int(entry["sofascore_event_id"]), n=n_sims,
+                noise_mult=(model.noise_mult(
+                    int(event["homeTeam"]["id"]), int(event["awayTeam"]["id"]),
+                    int(event["startTimestamp"])) if freshness else 1.0))
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue

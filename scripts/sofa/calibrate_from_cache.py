@@ -40,6 +40,15 @@ ships:
 cannot support K_PRICE or MAX_LADDER_SIGMA, which need a live ladder. Those
 stay NOT_FITTED, and `fit_constants.py` already says so.
 
+Since the stats-only rating prices (epochs.TENNIS_RATING_PRICES_FROM_UTC,
+2026-10-07) the tennis games rows are priced as SHEET prices them: the
+rating's neighbours as of the match's UTC day (tennis_rating.AsOfRating, the
+book and neighbour table grown from tennis_rating.load_history, never a later
+match) for games_won_for, handicap_games and most_games, and a 50/50 mix with
+the NB for games_total (`--tennis-rating`). The football joints (both_over_ /
+most_ / handicap_) of the bases in epochs.DERIVED_MARGINAL_CENTRES_METRICS are
+replayed from the marginal rows' centres on request (`--derived`).
+
 Football player markets (F54, since 2026-10-03) are replayed beside the team
 markets, from the cached `/lineups` - see `build_player_rows`. Their rows
 carry the same marking (run_date 'cache-calibration', p_bar = p_central,
@@ -55,7 +64,7 @@ import json
 import math
 import sqlite3
 import statistics
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -70,6 +79,12 @@ from bet.sofa.comparability import (
 )
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import GapReason
+from bet.sofa.derived import (
+    SideStats,
+    load_side_correlations,
+    marginal_centred_stats,
+)
+from bet.sofa.derived import probability as derived_probability
 from bet.sofa.engine import (
     outside_model_resolution,
     p_empirical_centred_raw,
@@ -78,6 +93,8 @@ from bet.sofa.engine import (
     uses_empirical_frequency,
     winning_boundary,
 )
+from bet.sofa.epochs import DERIVED_MARGINAL_CENTRES_METRICS
+from bet.sofa.joint import build_joint
 from bet.sofa.listing_index import entity_indexed_events, listed_events_by_id
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
@@ -85,6 +102,7 @@ from bet.sofa.metrics import (
     extract_flat_statistics,
     extract_metric,
     goal_score_inconsistent,
+    infer_best_of,
     regulation_score,
     stat_is_untracked,
     zero_pair_not_recorded,
@@ -105,6 +123,14 @@ from bet.sofa.samples import (
     one_listing_per_match,
 )
 from bet.sofa.settle import is_completed_event, settle
+from bet.sofa.tennis_rating import (
+    RATING_PRICED_MARKETS,
+    W_GAMES_TOTAL_RATING,
+    AsOfRating,
+    MatchForecast,
+    load_coefficients,
+    load_history,
+)
 
 # Metric base -> Sofascore statistics key. Goals are not here: they come off
 # the listing, which covers twenty times more matches than /statistics does.
@@ -241,6 +267,19 @@ class Played:
     # the side's REGULAR matches of the fixture's competition when it has
     # enough of them (comparability.SAME_COMPETITION_METRICS, 2026-10-04).
     kind: str = MatchKind.REGULAR
+    # tennis only: what tennis_rating.TennisRatingModel.forecast is asked
+    tennis: TennisContext | None = None
+
+
+@dataclass(frozen=True)
+class TennisContext:
+    """The fixture facts the sheet hands the rating (run_sheet.tennis_forecast):
+    the category's name (tier), the ground type (surface), and best of five,
+    which the rating does not model."""
+
+    category_name: str
+    ground_type: str | None
+    best_of_five: bool
 
 
 def match_values(
@@ -452,6 +491,18 @@ def load_cache(
                     competition_id=int(unique) if unique else None,
                     values=values,
                     kind=match_kind(event, sport),
+                    tennis=(
+                        TennisContext(
+                            category_name=str(
+                                ((event.get("tournament") or {}).get("category")
+                                 or {}).get("name") or ""),
+                            ground_type=event.get("groundType"),
+                            # defaultPeriodCount is not on a listing; a completed
+                            # best-of-five has a winner with 3 sets.
+                            best_of_five=infer_best_of(event) == 5,
+                        )
+                        if sport == "tennis" else None
+                    ),
                 )
             )
 
@@ -590,17 +641,221 @@ def pooled_total_sample(
     return values
 
 
-def build(played: list[Played], baselines: dict[str, Any]) -> list[SettledRow]:
-    return list(iter_rows(played, baselines))
+# market, line, direction -> the rating's P(selection wins), or None
+RatingP = Callable[[str, float, str], float | None]
+
+# The handicap_games ladder the rating prices (Superbet posts about +-1.5..+-9.5
+# on a best-of-three); every half-line, a row each side. most_games has no line.
+HANDICAP_LINES: tuple[float, ...] = tuple(x + 0.5 for x in range(-10, 10))
+
+
+class RatingReplay:
+    """The tennis rating SHEET prices with, for a replayed match: the book and
+    the neighbour table as of the match's UTC day start (run_sheet builds one
+    model per day, ``cut`` = the day), not a match later. ``history`` is
+    tennis_rating.load_history - the sheet's own population, which is wider
+    than the matches this replay can grade (a match without /statistics is a
+    rating match and no row)."""
+
+    def __init__(
+        self,
+        history: list[Any],
+        coefficients: dict[str, list[float]],
+        names: tuple[str, ...],
+    ) -> None:
+        self._rating = AsOfRating(history, coefficients, names)
+        self.forecasts = 0
+        self.unrated = 0
+
+    @classmethod
+    def from_db(cls, db_path: Path) -> RatingReplay | None:
+        loaded = load_coefficients()
+        if loaded is None:
+            return None
+        coefficients, meta = loaded
+        return cls(load_history(db_path), coefficients, tuple(meta["features"]))
+
+    def forecast(self, match: Played) -> MatchForecast | None:
+        ctx = match.tennis
+        if ctx is None or ctx.best_of_five:
+            return None  # best of five is not modelled (run_sheet.tennis_forecast)
+        day = match.timestamp - match.timestamp % 86400
+        found = self._rating.model_at(day).forecast(
+            match.home_id, match.away_id, ctx.category_name, ctx.ground_type,
+            datetime.fromtimestamp(match.timestamp, UTC),
+        )
+        if found is None:
+            self.unrated += 1
+        else:
+            self.forecasts += 1
+        return found
+
+
+def rating_reader(forecast: MatchForecast, side: str) -> RatingP:
+    """run_sheet's p_rating for one side's games_won_for row and, with side
+    None, the match's games_total row; nothing for any other market."""
+
+    def read(market: str, line: float, direction: str) -> float | None:
+        if market == "games_won_for":
+            return forecast.read(market, side, line, direction)
+        if market == "games_total":
+            return forecast.read(market, None, line, direction)
+        return None
+
+    return read
+
+
+def rating_derived_rows(
+    match: Played,
+    forecast: MatchForecast,
+    home_sample: list[float],
+    away_sample: list[float],
+) -> Iterator[SettledRow]:
+    """handicap_games and most_games, priced by the neighbours alone as run_sheet
+    does (derived.price_derived_rungs with _stats_only_rating_p), settled the way
+    run_settle._settle_derived does: actual = the side's margin, a handicap
+    wins when margin > -line, `most` when the margin is positive. The draw of
+    most_games is not rating-priced and not replayed."""
+    home_games, away_games = match.values["games"]
+    for team, side, margin, sample in (
+        (match.home_id, "side_a", home_games - away_games, home_sample),
+        (match.away_id, "side_b", away_games - home_games, away_sample),
+    ):
+        mean = statistics.mean(sample)
+        sd = statistics.stdev(sample)
+        for market, lines in (("handicap_games", HANDICAP_LINES),
+                              ("most_games", (0.0,))):
+            for line in lines:
+                p = forecast.read(market, side, line, "OVER")
+                if p is None or outside_model_resolution(p):
+                    continue
+                won = margin > -line if market == "handicap_games" else margin > 0
+                yield SettledRow(
+                    event_id=match.event_id,
+                    sport=match.sport,
+                    competition_id=match.competition_id,
+                    market=market,
+                    subject=str(team),
+                    line=line,
+                    direction="OVER",
+                    sample_size=len(sample),
+                    sample_mean=round(mean, 4),
+                    sample_sd=round(sd, 4),
+                    p_central=round(p, 6),
+                    actual=margin,
+                    outcome="WIN" if won else "LOSS",
+                )
+
+
+# Football joints (both_over_ / most_ / handicap_) of the bases measured out of
+# sample for the marginal centres, replayed from the SAME centres SHEET gives
+# derived.price_derived_rungs (epochs.DERIVED_MARGINAL_CENTRES_FROM_UTC): both
+# sides' K_CENTRE-shrunk centres, variance scaled and inflated by
+# marginal_centred_stats, the measured side correlation. Not replayed: the
+# football rating blended into the centre (W_FOOTBALL_RATING), as for every
+# football marginal row.
+JOINT_BASES: frozenset[str] = frozenset(
+    m[: -len("_for")] for m in DERIVED_MARGINAL_CENTRES_METRICS)
+# half-lines either side of the centre a joint grid reaches
+JOINT_REACH = 3
+
+
+def football_joint_rows(
+    match: Played,
+    base: str,
+    home_sample: list[float],
+    away_sample: list[float],
+    centres: tuple[float | None, float | None],
+    rho: float,
+) -> Iterator[SettledRow]:
+    """both_over_<base> (OVER and UNDER), handicap_<base> (each side, OVER) and
+    most_<base> (each side and the draw, OVER) for one match, graded the way
+    run_settle._settle_derived grades them: both_over by min(home, away) >=
+    floor(line) + 1 (actual = the min), a handicap by the side's own margin >
+    -line (actual = the margin), `most` by the margin's sign (actual = home -
+    away). A whole-number handicap landing on its line is a push and no row."""
+    side_metric = f"{base}_for"
+    raw = []
+    for sample in (home_sample, away_sample):
+        n = len(sample)
+        var = statistics.variance(sample) if n > 1 else 0.0
+        raw.append(SideStats(n=n, mean=statistics.mean(sample), variance=var,
+                             sd=math.sqrt(var)))
+    c_home, c_away = centres
+    stats = (
+        [marginal_centred_stats(raw[0], side_metric, c_home),
+         marginal_centred_stats(raw[1], side_metric, c_away)]
+        if c_home is not None and c_away is not None else raw
+    )
+    joint = build_joint(stats[0].mean, stats[0].variance, stats[1].mean,
+                        stats[1].variance, rho)
+    home, away = match.values[base]
+    n = min(len(home_sample), len(away_sample))
+    mean = round(statistics.mean([*home_sample, *away_sample]), 4)
+    sd = round(statistics.stdev([*home_sample, *away_sample]), 4)
+
+    def row(market: str, subject: str, line: float, direction: str, p: float | None,
+            actual: float, won: bool) -> Iterator[SettledRow]:
+        if p is None or outside_model_resolution(p):
+            return
+        yield SettledRow(
+            event_id=match.event_id, sport=match.sport,
+            competition_id=match.competition_id, market=market, subject=subject,
+            line=line, direction=direction, sample_size=n, sample_mean=mean,
+            sample_sd=sd, p_central=round(p, 6), actual=actual,
+            outcome="WIN" if won else "LOSS")
+
+    both = min(home, away)
+    low = max(0, math.floor(min(stats[0].mean, stats[1].mean)) - JOINT_REACH)
+    for line in (low + 0.5 + k for k in range(2 * JOINT_REACH + 1)):
+        for direction in ("OVER", "UNDER"):
+            hit = both >= math.floor(line) + 1
+            yield from row(
+                f"both_over_{base}", "", line, direction,
+                derived_probability(joint, f"both_over_{base}", line,
+                                    direction, None),
+                both, hit if direction == "OVER" else not hit)
+    for side, team, margin in (("side_a", match.home_id, home - away),
+                               ("side_b", match.away_id, away - home)):
+        ahead = stats[0].mean - stats[1].mean
+        centre_margin = ahead if side == "side_a" else -ahead
+        first = math.floor(-centre_margin) - JOINT_REACH
+        for line in (first + 0.5 + k for k in range(2 * JOINT_REACH + 1)):
+            if margin == -line:
+                continue
+            yield from row(
+                f"handicap_{base}", str(team), line, "OVER",
+                derived_probability(joint, f"handicap_{base}", line, "OVER",
+                                    side),
+                margin, margin > -line)
+        yield from row(
+            f"most_{base}", str(team), 0.0, "OVER",
+            derived_probability(joint, f"most_{base}", 0.0, "OVER", side),
+            home - away, margin > 0)
+    # The draw of most_<base> is a different event from a side's win and would
+    # share one curve with it (fit_confidence keys by market and direction):
+    # it is not replayed - line evidence reads it (review 2026-10-07).
+
+
+def build(
+    played: list[Played],
+    baselines: dict[str, Any],
+    rating: RatingReplay | None = None,
+) -> list[SettledRow]:
+    return list(iter_rows(played, baselines, rating))
 
 
 def iter_rows(
-    played: list[Played], baselines: dict[str, Any]
+    played: list[Played],
+    baselines: dict[str, Any],
+    rating: RatingReplay | None = None,
+    joint_bases: frozenset[str] = frozenset(),
 ) -> Iterator[SettledRow]:
     """build() one row at a time, for a measurement that aggregates the
     replay without holding tens of millions of rows."""
     # Read once: the constant is per sport and must be the one that ships.
     engine_constants = _load_engine_constants()
+    correlations = load_side_correlations()
     # (team, base) -> chronological list of earlier matches
     history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
 
@@ -615,6 +870,11 @@ def iter_rows(
         sample_competition = (
             match.competition_id if match.kind == MatchKind.REGULAR else None
         )
+        forecast = (
+            rating.forecast(match)
+            if rating is not None and match.sport == "tennis"
+            and "games" in match.values else None
+        )
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
             for_market = market_name(base, "for")
@@ -627,9 +887,9 @@ def iter_rows(
 
             # `*_for`: each side from its own history only, as SHEET does
             # (determine_side; h2h never reaches a per-side market).
-            for team, own, recent in (
-                (match.home_id, home_value, home_recent),
-                (match.away_id, away_value, away_recent),
+            for team, own, recent, side in (
+                (match.home_id, home_value, home_recent, "side_a"),
+                (match.away_id, away_value, away_recent, "side_b"),
             ):
                 if len(recent) >= MIN_SAMPLE:
                     yield from (
@@ -641,6 +901,8 @@ def iter_rows(
                             [p.own for p in recent],
                             baselines,
                             engine_constants,
+                            rating_reader(forecast, side)
+                            if forecast is not None and base == "games" else None,
                         )
                     )
 
@@ -673,8 +935,40 @@ def iter_rows(
                         pooled_total_sample(home_total, away_total),
                         baselines,
                         engine_constants,
+                        rating_reader(forecast, "side_a")
+                        if forecast is not None and base == "games" else None,
                     )
                 )
+                # SHEET prices a derived row of a fixture whose two sides both
+                # have a sample (derived.price_derived_rungs: n >= min_sample).
+                if forecast is not None and base == "games":
+                    yield from rating_derived_rows(
+                        match, forecast,
+                        [p.own for p in home_recent],
+                        [p.own for p in away_recent],
+                    )
+            # SHEET prices a joint of a fixture whose two sides both have a
+            # sample (derived.price_derived_rungs: n >= min_sample), neither
+            # all zero together.
+            if (
+                base in joint_bases
+                and match.sport == "football"
+                and len(home_recent) >= MIN_SAMPLE
+                and len(away_recent) >= MIN_SAMPLE
+                and any(p.own for p in (*home_recent, *away_recent))
+            ):
+                # a side whose own marginal row is refused (all zero) has no
+                # centre: the joint then reads both raw samples, as in SHEET
+                joint_centres: list[float | None] = [
+                    None if not any(p.own for p in rec) else shrunk_centre(
+                        match, for_market, [p.own for p in rec], baselines,
+                        engine_constants)
+                    for rec in (home_recent, away_recent)]
+                yield from football_joint_rows(
+                    match, base, [p.own for p in home_recent],
+                    [p.own for p in away_recent],
+                    (joint_centres[0], joint_centres[1]),
+                    correlations.get(base) or 0.0)
 
         # Only after settling: a match may never contribute to its own sample.
         # A friendly is settled like any match (the fit drops friendly rows,
@@ -694,6 +988,24 @@ def iter_rows(
             )
 
 
+def shrunk_centre(
+    match: Played,
+    market: str,
+    sample: list[float],
+    baselines: dict[str, Any],
+    engine_constants: dict[str, Any],
+) -> float:
+    """SHEET's centre of a marginal row: the sample mean shrunk toward the
+    league baseline with K_CENTRE (no football rating - see _settle_sample)."""
+    n = len(sample)
+    mean = statistics.mean(sample)
+    prior = prior_for(baselines, market, match.competition_id)
+    if prior is None:
+        return mean
+    weight = n / (n + k_centre_for(match.sport, engine_constants))
+    return weight * mean + (1.0 - weight) * prior
+
+
 def _settle_sample(
     match: Played,
     market: str,
@@ -702,6 +1014,7 @@ def _settle_sample(
     sample: list[float],
     baselines: dict[str, Any],
     engine_constants: dict[str, Any],
+    rating_p: RatingP | None = None,
 ) -> list[SettledRow]:
     out: list[SettledRow] = []
     n = len(sample)
@@ -710,34 +1023,36 @@ def _settle_sample(
     mean = statistics.mean(sample)
     variance = statistics.variance(sample) if n > 1 else 0.0
     sample_sd = statistics.stdev(sample) if n > 1 else 0.0
-
-    prior = prior_for(baselines, market, match.competition_id)
-    if prior is not None:
-        k_centre = k_centre_for(match.sport, engine_constants)
-        weight = n / (n + k_centre)
-        centre = weight * mean + (1.0 - weight) * prior
-    else:
-        centre = mean
+    centre = shrunk_centre(match, market, sample, baselines, engine_constants)
 
     # SHEET's spread and SHEET's estimator, from the functions SHEET calls
     # (see the module docstring). What is NOT replayed, and so still differs
-    # from a live row: the football rating's centre (W_FOOTBALL_RATING), the
-    # tennis rating and the tennis tier / ladder priors - the replay's centre
-    # is the league-baseline shrink alone.
+    # from a live row: the football rating's centre (W_FOOTBALL_RATING) and
+    # the tennis tier / ladder priors - the replay's centre is the
+    # league-baseline shrink alone. The tennis rating IS replayed since the
+    # stats-only rating prices (epochs.TENNIS_RATING_PRICES_FROM_UTC): a
+    # rating_p callable, given by iter_rows, replaces p for games_won_for and
+    # mixes into games_total exactly as run_sheet does.
     spread = sheet_predictive_sd(market, match.sport, mean, variance, n, centre)
     empirical = uses_empirical_frequency(market)
 
     for line in lines_for(centre):
         for direction in ("OVER", "UNDER"):
             boundary = winning_boundary(line, direction)
+            # The tennis rating's own p (run_sheet: MatchForecast.probability
+            # for a rated fixture, from epochs.tennis_rating_prices on).
+            p_rating = (
+                rating_p(market, line, direction) if rating_p is not None else None
+            )
             if empirical:
                 # run_sheet refuses an empirical rung whose raw frequency is
-                # outside resolution before it looks at the shrunk one.
+                # outside resolution before it looks at the shrunk one - not a
+                # rung the rating prices (`p_rating is None and ...`).
                 hits = sum(
                     1 for v in sample
                     if (v > boundary if direction == "OVER" else v < boundary)
                 )
-                if outside_model_resolution(hits / n):
+                if p_rating is None and outside_model_resolution(hits / n):
                     continue
                 p_raw = p_empirical_centred_raw(
                     sample, boundary, direction, centre - mean
@@ -745,6 +1060,15 @@ def _settle_sample(
             else:
                 p_raw = sheet_count_p_raw(
                     market, centre, spread, boundary, direction
+                )
+            if p_rating is not None:
+                # run_sheet: the neighbours alone for the RATING_PRICED
+                # families, a W_GAMES_TOTAL_RATING mix with the NB for
+                # games_total.
+                p_raw = (
+                    p_rating if market in RATING_PRICED_MARKETS
+                    else W_GAMES_TOTAL_RATING * p_rating
+                    + (1.0 - W_GAMES_TOTAL_RATING) * p_raw
                 )
             if outside_model_resolution(p_raw):
                 continue
@@ -1445,10 +1769,43 @@ def main() -> int:
         "not at all, or alone (the team rows are then neither rebuilt nor "
         "touched)",
     )
+    parser.add_argument(
+        "--derived",
+        default="",
+        help="comma list of football bases whose both_over_ / most_ / handicap_ "
+        f"joints are replayed beside the marginals ({', '.join(sorted(JOINT_BASES))};"
+        " default none). ~5 ms (goals) to ~15 ms (corners) a match for the "
+        "joint and ~120 rows a match and base - an opt-in, an operator decision "
+        "at a refit; fit_confidence reads them into their own curves only",
+    )
+    parser.add_argument(
+        "--tennis-rating",
+        choices=("include", "skip"),
+        default="include",
+        help="price the tennis games rows the way SHEET does since "
+        "epochs.TENNIS_RATING_PRICES_FROM_UTC (2026-10-07): games_won_for, "
+        "handicap_games, most_games from the rating's neighbours as of the "
+        "match's day, games_total mixed with the NB (default). `skip` is the "
+        "replay as it was: the sample estimator alone, no derived rows. "
+        "Needs config/tennis_rating.json (SOFA_CONFIG_DIR) and the cached "
+        "player listings (tennis_rating.load_history, ~30 s, ~250 MB)",
+    )
     args = parser.parse_args()
 
     config = SofaConfig.from_env()
     db_path = Path(args.db_path or config.db_path)
+    joint_bases = frozenset(b for b in args.derived.split(",") if b)
+    if joint_bases - JOINT_BASES:
+        raise SystemExit(f"--derived: {sorted(joint_bases - JOINT_BASES)} "
+                         f"not in {sorted(JOINT_BASES)}")
+    rating: RatingReplay | None = None
+    if args.tennis_rating == "include" and args.players != "only":
+        rating = RatingReplay.from_db(db_path)
+        if rating is None:
+            # A replay that silently reverts to the sample estimator would
+            # fit a curve for a model that no longer ships.
+            raise SystemExit("config/tennis_rating.json absent: "
+                             "--tennis-rating skip, or fit it first")
 
     dropped: set[int] = set()
     played: list[Played] = []
@@ -1475,7 +1832,7 @@ def main() -> int:
     team_count = [0]
 
     def measured() -> Iterator[SettledRow]:
-        team = iter_rows(played, baselines) if played else iter(())
+        team = iter_rows(played, baselines, rating, joint_bases) if played else iter(())
         for row in team:
             team_count[0] += 1
             acc.add(row)
@@ -1535,6 +1892,9 @@ def main() -> int:
                 if "_1h_" in market or "_2h_" in market
             },
             "duplicate_listing_ids_dropped": len(dropped),
+            "tennis_rating": args.tennis_rating,
+            "tennis_rating_forecasts": rating.forecasts if rating else None,
+            "tennis_rating_unrated": rating.unrated if rating else None,
             "next_step": "python -m scripts.sofa.fit_constants",
         },
         "output_path": args.out,

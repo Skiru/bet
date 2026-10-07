@@ -88,8 +88,8 @@ def _board_sides(run_dir: Path) -> dict[str, tuple[str, str]]:
             for e in entries if isinstance(e, dict) and e.get("superbet_event_id")}
 
 
-def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration
-               ) -> Iterator[le.Row]:
+def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
+               derived_curves: bool = False) -> Iterator[le.Row]:
     for day in days:
         run_dir = runs_dir / day
         fixtures = {int(f["sofascore_event_id"]): f for f in json.loads(
@@ -109,7 +109,8 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration
                 sport, fx.get("category_name") if sport == "tennis"
                 else fx.get("competition_name"), board, fx.get("competition_id"))
             p = float(r["p_central"])
-            hit = None if is_derived(r["market"]) else cal.realised(
+            hit = None if is_derived(r["market"]) and not derived_curves \
+                else cal.realised(
                 r["market"], p, sport, r["direction"], klass)
             yield {"sport": sport,
                    "key": le.evidence_key(direction_key(r["market"], r["direction"]),
@@ -219,6 +220,9 @@ def main() -> int:
     ap.add_argument("--sport-rows-dir", default=None)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default=str(le.DEFAULT_EVIDENCE))
+    ap.add_argument("--derived-curves", action="store_true",
+                    help="offsets of a derived joint against its history curve "
+                    "(epochs.DERIVED_CURVES_FROM_UTC), not against none")
     ap.add_argument("--sport-calibration", default=None,
                     help="the sport curves the offsets are read against "
                     "(default: the ones the --before day reads, "
@@ -230,7 +234,7 @@ def main() -> int:
     cal = dataclasses.replace(Calibration.load(), gap_shrink_k=0.0,
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
     days = stats_only_days(runs_dir, args.before)
-    fitted = le.fit(sheet_rows(runs_dir, days, cal))
+    fitted = le.fit(sheet_rows(runs_dir, days, cal, args.derived_curves))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
     design_effect = dict(fitted["design_effect"])

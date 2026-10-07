@@ -573,6 +573,18 @@ class TennisRatingModel:
     def table_size(self) -> int:
         return len(self._table)
 
+    def insert(self, o: Outcome) -> None:
+        """One more row of the neighbour table, where ``sorted`` would put it
+        (after its equals), so a table grown one match at a time is the table
+        ``build_model`` builds in one go (AsOfRating)."""
+        i = bisect.bisect_right(self._keys, o.p)
+        self._keys.insert(i, o.p)
+        self._table.insert(i, o)
+        if not o.match_tiebreak:
+            j = bisect.bisect_right(self._full_keys, o.p)
+            self._full_keys.insert(j, o.p)
+            self._full_third.insert(j, o)
+
     def _neighbours(
         self, p: float, full_third_set: bool = False
     ) -> tuple[Outcome, ...]:
@@ -708,3 +720,55 @@ def build_model(
             continue
         table.extend(_outcomes(r, calibrated_p(c, feats, names)))
     return TennisRatingModel(book, coefficients, table, names)
+
+
+class AsOfRating:
+    """``build_model(history, coefficients, cut_ts)`` for every cut of a
+    replay, one match at a time: the book and the neighbour table grow as the
+    cut advances and a model at a cut sees only matches that started before it
+    - the same ratings, the same table, the same neighbours as the sheet
+    builds on the day (pinned by tests/sofa/test_replay_tennis_rating.py).
+
+    ``history`` is ``load_history``'s list (time order); the cuts asked for
+    must not decrease. The coefficients are the live config's: fitted on a
+    history that includes the replayed matches (8 parameters a tier), the one
+    look-ahead this replay keeps - see calibrate_from_cache.
+    """
+
+    def __init__(
+        self,
+        history: Sequence[TennisResult],
+        coefficients: Mapping[str, Sequence[float]],
+        names: Sequence[str] = FEATURES,
+    ) -> None:
+        self._history = history
+        self._next = 0
+        self._cut = 0
+        self._coefficients = coefficients
+        self._names = tuple(names)
+        self.book = RatingBook()
+        self.model = TennisRatingModel(self.book, coefficients, [], names)
+
+    def model_at(self, cut_ts: int) -> TennisRatingModel:
+        if cut_ts < self._cut:
+            raise ValueError(f"cut {cut_ts} is before the last cut {self._cut}")
+        self._cut = cut_ts
+        history = self._history
+        while self._next < len(history) and history[self._next].ts < cut_ts:
+            self._add(history[self._next])
+            self._next += 1
+        return self.model
+
+    def _add(self, r: TennisResult) -> None:
+        book = self.book
+        if (
+            r.completed
+            and book.rated(r.home_id) >= MIN_RATED
+            and book.rated(r.away_id) >= MIN_RATED
+        ):
+            c = self._coefficients.get(r.tier)
+            if c is not None:
+                feats = book.features(r.home_id, r.away_id, r.surface, r.ts)
+                for o in _outcomes(r, calibrated_p(c, feats, self._names)):
+                    self.model.insert(o)
+        book.update(r)

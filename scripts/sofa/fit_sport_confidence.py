@@ -49,6 +49,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import epochs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
@@ -85,10 +86,22 @@ def _events(db_path: str, sport: str, cache_dir: str | None) -> dict[int, Any]:
     return load_events(db_path, SPORTS[sport])  # type: ignore[index]
 
 
+def bb_freshness_on(before: str, mode: str) -> bool:
+    """Basketball's noise by freshness in the replay: `auto` = the live rule on
+    the first build of the day the fit is for (epochs.bb_freshness_enabled at
+    `before` 00:00Z), so a fit for 2026-10-08 on replays what 10-08 simulates
+    and one for 2026-10-07 what 10-07's morning did."""
+    if mode != "auto":
+        return mode == "on"
+    return epochs.bb_freshness_enabled(
+        before, datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC))
+
+
 def fit_sport(sport: str, before: str, args: argparse.Namespace,
               db_path: str, runs_dir: str) -> tuple[dict[str, Any],
                                                      dict[str, list[scf.Row]]]:
     before_ts = scf.day_ts(before)
+    fresh = sport == "basketball" and bb_freshness_on(before, args.bb_freshness)
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
@@ -111,12 +124,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         history_n = len(history)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit")
+            "history_fit", fresh)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
-            args.max_holdout_games, "history_holdout")
+            args.max_holdout_games, "history_holdout", fresh)
         settled = scf.settled_shadow_rows(runs_dir, shadow_sport, dates, events,
-                                          history, args.sims)
+                                          history, args.sims, fresh)
         only = scf.SETTLED_ONLY_FAMILIES[sport]
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
@@ -152,6 +165,7 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "sims": None if sport == "cs2" else args.sims,
             "max_games": None if sport == "cs2" else args.max_games,
             "forecast_source": "cs2_engine" if sport == "cs2" else "score_model",
+            "bb_freshness": fresh,
         },
         "curves": curves,
         "curve_source": source,
@@ -248,6 +262,11 @@ def main() -> int:
                     help="default: config/" + scf.CALIBRATION_FILE)
     ap.add_argument("--rows-out", default=None,
                     help="directory for every row (JSONL) and the summary")
+    ap.add_argument("--bb-freshness", choices=("auto", "on", "off"),
+                    default="auto",
+                    help="basketball: replay the noise by games played in the "
+                    "last 120 days (epochs.BB_FRESHNESS_FROM_UTC); auto = as "
+                    "live on --before's first build")
     ap.add_argument("--events-cache", default=None,
                     help="directory of <sport>.pkl score_model.load_events dumps")
     args = ap.parse_args()

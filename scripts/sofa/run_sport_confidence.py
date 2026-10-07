@@ -190,8 +190,8 @@ class DbForecaster:
                 mu1, mu2 = (mh, ma) if fixture["home_is_team1"] else (ma, mh)
                 # Basketball noise by the games each side played in the last
                 # 120 days (epochs.BB_FRESHNESS_FROM_UTC); 1.0 elsewhere. The
-                # history replays (sport_confidence) never pass it: their
-                # `recent` book is cut at the day being built.
+                # history replays (sport_confidence, freshness=...) pass it
+                # with a `recent` book that grows as the replay advances.
                 fresh = epochs.bb_freshness_enabled(str(self.date), self.at)
                 self._sims[key] = model.simulate(
                     mu1, mu2, seed=int(fixture["sofascore_event_id"]),
