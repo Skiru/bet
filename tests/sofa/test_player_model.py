@@ -611,18 +611,25 @@ def test_a_failing_model_never_alters_the_snapshot(
     ).exists()
 
 
-def test_the_coupons_sport_legs_never_read_the_player_model() -> None:
-    """Player props of the measured sports stay off the coupon (operator,
-    2026-10-05): the sport-leg path never names the model. (SPORT_IDENTITY
-    imports its team resolver, which forecasts nothing.)"""
-    for rel in (
-        "src/bet/sofa/sport_day.py",
-        "src/bet/sofa/coupon_sports.py",
-        "src/bet/sofa/sport_confidence.py",
-        "scripts/sofa/run_sport_confidence.py",
-    ):
+def test_the_coupons_sport_legs_read_the_player_model_only_under_the_evidence() -> None:
+    """Player props of the measured sports were off the coupon (operator,
+    2026-10-05) and come on with the line-evidence epoch (operator,
+    2026-10-07): a player line is an allowed family only when `extended`
+    (epochs.line_evidence), its p is the pre-game player_model number SHADOW
+    wrote, and the grader and the coupon never import the model itself."""
+    from bet.sofa import sport_confidence as scf
+
+    assert scf.family_of("basketball", 233565, "player_points") is None
+    assert scf.family_of("hockey", 236265, "player_points") is None
+    assert scf.family_of("hockey", 236265, "player_points", extended=True) \
+        == "player_points"
+    for rel in ("src/bet/sofa/sport_day.py", "src/bet/sofa/coupon_sports.py"):
         text = (REPO / rel).read_text(encoding="utf-8")
         assert "player_model" not in text, rel
+    rsc = (REPO / "scripts/sofa/run_sport_confidence.py").read_text(encoding="utf-8")
+    assert "from bet.sofa.player_model import PLAYER_MODEL_FILE" in rsc
+    assert "line_probability" not in rsc.split("def pregame_player_p")[1].split(
+        "def _bump")[0]
 
 
 # --- the measurement -----

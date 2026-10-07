@@ -999,7 +999,14 @@ w ostatnich 14 dniach), `NO_LINE_EVIDENCE`. Od `epochs.LINE_EVIDENCE_FROM_UTC`
 (2026-10-08) czytany jest każdy dopasowany klucz, nie tylko `admitted`:
 pewność = krzywa, obniżona o istotne zawyżenie na rozliczonych liniach
 Superbetu klucza i o limit pasma kursu (`bet.sofa.line_evidence`); noga
-niesie wtedy `line_offset` / `price_band_cap`. Kod 1,
+niesie wtedy `line_offset` / `price_band_cap`. W tej samej epoce lista rynków
+rozszerza się o `sport_confidence.EXTENDED_MARKETS`: koszykówka — kwarty,
+2. połowa, dnb, parzyste/nieparzyste; hokej — dnb tercji. Do tego dochodzą
+linie zawodników hokeja i koszykówki: `p` to przedmeczowa liczba
+`player_model` z `player_model.jsonl` SHADOW, bez krzywej z historii, więc
+czytają tylko własne rozliczone linie. 2. połowa i 4. kwarta koszykówki mają
+flagę `OT_RULE_UNKNOWN`: regulamin Superbetu nie mówi, czy liczą dogrywkę,
+więc mecz z dogrywką rozlicza je jako UNGRADEABLE. Kod 1,
 gdy sport jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` — artefakt i
 tak powstaje, kupon piłki i tenisa buduje się dalej.
 

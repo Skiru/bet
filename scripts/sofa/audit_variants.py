@@ -406,7 +406,6 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
     from bet.sofa import sport_confidence as scf
     from bet.sofa import sport_day as spc
     from bet.sofa import sport_identity as si
-    from bet.sofa.config import config_path
     from scripts.sofa import run_sport_confidence as rsc
 
     legs = [s for s in printed_singles(doc)
@@ -417,7 +416,11 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
     if not built:
         return [f"U3 {tag}: sport legs printed without 08_confidence_sports.json"]
     at = _utc(str(built))
-    cal = scf.SportCalibration.load(config_path(scf.CALIBRATION_FILE))
+    from bet.sofa import epochs
+    from bet.sofa.line_evidence import LineEvidence
+
+    cal = scf.SportCalibration.load(scf.calibration_path_for(date))
+    evidence = LineEvidence.load() if epochs.line_evidence(date, at) else None
     out: list[str] = []
     events: dict[str, dict[str, Any]] = {}
     for leg in legs:
@@ -436,7 +439,7 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             and str(ln.subject or "") == str(leg.get("subject") or "")
             and int(ln.map_nr if sport == "cs2" else ln.period) == int(
                 leg.get("period") or 0)
-            and rsc._allowed(sport, ln) == leg["family"]
+            and rsc._allowed(sport, ln, evidence is not None) == leg["family"]
         ]
         if not match:
             out.append(f"U3 {label}: the line is not in the snapshot")
@@ -463,8 +466,9 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             out.append(f"U3 {label}: x below 0.90")
         if not scf.line_in_fit(sport, str(leg["family"]), leg.get("line")):
             out.append(f"U3 {label}: line {leg.get('line')} outside the curve's fit")
-        conf = cal.lookup(sport, str(leg["family"]), str(leg["side"]),
-                          float(leg["forecast_p"])) if cal else None
+        conf = rsc.read_confidence(
+            cal, evidence, sport, str(leg["family"]), str(leg["side"]),
+            float(leg["forecast_p"]), float(leg["odds"]))[0] if cal else None
         if conf is None or abs(conf.value - float(leg["confidence"])) > 1e-4:
             out.append(f"U3 {label}: confidence {leg['confidence']} is not the "
                        f"calibration's {None if conf is None else conf.value}")

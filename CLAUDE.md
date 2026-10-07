@@ -114,9 +114,19 @@ in every sport alike, and nothing that could win is cut by name.
   and CS2 `NOT_CALIBRATED` (exit 1, the rest still builds). From the
   line-evidence epoch every fitted key of all four is read, corrected by its
   Superbet lines; volleyball still needs a tournament with a settled event in
-  the last 14 days. Families outside `sport_confidence.ALLOWED_MARKETS`
-  (quarters, second half, odd/even, dnb, player props) have no model yet -
-  `MARKET_NOT_ALLOWED`, the next piece of work. SHADOW / CS2
+  the last 14 days. The same epoch adds `sport_confidence.EXTENDED_MARKETS`
+  (basketball quarters, second half, dnb, odd/even; hockey period dnb - scored
+  by the score model from the history) and the hockey / basketball player
+  lines (p = player_model's pre-game number in SHADOW's `player_model.jsonl`;
+  no history curve, so `NO_LINE_EVIDENCE` until a family's p bucket holds 50
+  settled pre-game lines; graded from SHADOW_SETTLE's own player row).
+  Basketball second half / Q4 carry `OT_RULE_UNKNOWN`: Superbet's rules do
+  not say whether overtime counts, a game with overtime grades them
+  UNGRADEABLE. The 2026-10-07 refit of the sport curves is staged in
+  `config/sofa_sport_confidence_calibration.next.json` (`effective_from`
+  2026-10-08, `sport_confidence.calibration_path_for`); the line evidence is
+  fitted against it. Still outside: volleyball's and CS2's unmodelled
+  families (`MARKET_NOT_ALLOWED`). SHADOW / CS2
   themselves stay a measurement of Superbet's price and feed nothing else.
 - **Assembly** (`build_coupon.py`): order by confidence, then earlier start,
   one match's legs together; legs locked from an earlier print come first,

@@ -67,3 +67,42 @@
   0,957, bo ani klucz, ani sport nie mają tam 20 linii w paśmie.
 - Test `test_chaos_stages::test_offer_refused_from_the_first_request_fails_and_keeps_the_file`
   pada też na czystym HEAD; nie badany.
+
+## Dopisek: rynki koszykówki i hokeja bez modelu (2026-10-07, popołudnie)
+
+Operator: „TAK” — modele dla brakujących rynków.
+
+- **Rodziny drużynowe** (`sport_confidence.EXTENDED_MARKETS`, od 2026-10-08):
+  - koszykówka: kwarty (total, handicap, team total, dnb, 1X2), 2. połowa
+    (te same), dnb 1. połowy, parzyste/nieparzyste (mecz i drużyna);
+  - hokej: dnb tercji.
+
+  Model wyników już symulował każdą kwartę, więc nic nowego nie modelowano.
+  Rodziny są oceniane na historii (`HISTORY_MARKETS`, kwarty 1–4) i
+  sprawdzane na liniach Superbetu jak każdy klucz.
+- **2. połowa i 4. kwarta koszykówki — `OT_RULE_UNKNOWN`.** Superbet nazywa je
+  bez „(z dogrywką)”, a jego regulamin (support.superbet.pl, czytany
+  2026-10-07) nie mówi, czy dogrywka się liczy. Mecz z dogrywką rozlicza takie
+  nogi jako UNGRADEABLE. Operator może to rozstrzygnąć z własnego rozliczonego
+  zakładu.
+- **Linie zawodników hokeja i koszykówki.** `p` to przedmeczowa liczba
+  `player_model` (`player_model.jsonl` SHADOW). Rozliczenie bierze wynik
+  SHADOW_SETTLE z protokołu meczu. Krzywej z historii nie ma, więc dziś
+  wszystkie mają `NO_LINE_EVIDENCE`: przedmeczowych rozliczonych linii jest
+  tylko z ok. 22 meczów koszykówki i 30 hokeja (od 10-02), a żaden kubełek
+  nie ma 50 linii. Wiersze `model_source = settle` (model sprzed meczu, ale
+  zawodnik dopasowany po protokole) to inne źródło i nie są łączone.
+- **Refit krzywych sportów** (`--before 2026-10-07`, nowe rodziny) jest w
+  `config/sofa_sport_confidence_calibration.next.json`
+  (`effective_from` 2026-10-08). Dzień 10-07 czyta stare krzywe. Dowód z
+  linii jest policzony względem nowych.
+- **Powtórka sportów 10-07** (nowe krzywe, dowód z linii):
+  - hokej 166 nóg, w tym 2 dnb tercji;
+  - koszykówka 42, w tym 1 handicap 2. połowy z `OT_RULE_UNKNOWN`;
+  - CS2 3;
+  - siatkówka 0;
+  - `MARKET_NOT_ALLOWED` dla hokeja i koszykówki: 0.
+- **Nie zrobione:**
+  - niemodelowane rodziny siatkówki i CS2 (`MARKET_NOT_ALLOWED` 176 / 1682);
+  - zawodnicy bez przedmeczowego `p`: koszykówka `TEAM_UNRESOLVED` 1152
+    wierszy 10-07, `THIN_SAMPLE` 362, `NOT_IN_HISTORY` 152.

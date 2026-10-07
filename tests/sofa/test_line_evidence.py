@@ -203,3 +203,42 @@ def test_fit_writes_the_bands_of_priced_rows() -> None:
         "1.30-1.60": {"0.800-0.825": {"n": 1, "k": 1}}}
     assert out["bands"]["hockey"][le.SPORT_SCOPE] == {
         "1.30-1.60": {"0.800-0.825": {"n": 1, "k": 1}}}
+
+
+def test_a_staged_sport_calibration_is_read_from_its_day(tmp_path: Path) -> None:
+    import json
+
+    main = tmp_path / sport_confidence.CALIBRATION_FILE
+    nxt = tmp_path / sport_confidence.NEXT_CALIBRATION_FILE
+    main.write_text("{}")
+    assert sport_confidence.calibration_path_for("2026-10-08", tmp_path) == main
+    nxt.write_text(json.dumps({"effective_from": "2026-10-08"}))
+    assert sport_confidence.calibration_path_for("2026-10-07", tmp_path) == main
+    assert sport_confidence.calibration_path_for("2026-10-08", tmp_path) == nxt
+    assert sport_confidence.calibration_path_for("2026-10-09", tmp_path) == nxt
+
+
+def test_stage_and_audit_read_one_confidence() -> None:
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location(
+        "run_sport_confidence", REPO / "scripts/sofa/run_sport_confidence.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["run_sport_confidence"] = mod
+    spec.loader.exec_module(mod)
+    cal = sport_confidence.SportCalibration({"sports": {"basketball": {
+        "admitted": [], "curves": {"quarter_total|OVER": {
+            "0.800-0.825": {"n": 300, "realised": 0.82, "realised_lo95": 0.80}}}}}})
+    assert mod.read_confidence(cal, None, "basketball", "quarter_total", "OVER",
+                               0.81, 1.5)[3] == mod.NOT_CALIBRATED
+    ev = le.LineEvidence({"keys": {}, "bands": {"basketball": {
+        "quarter_total|OVER": {"1.30-1.60": {"0.800-0.825": {"n": 60, "k": 36}}}}}})
+    conf, offset, cap, why = mod.read_confidence(
+        cal, ev, "basketball", "quarter_total", "OVER", 0.81, 1.5)
+    assert why is None and offset == 0.0
+    assert conf is not None and conf.value == cap == 0.6
+    source = (REPO / "scripts/sofa/audit_variants.py").read_text()
+    assert "rsc.read_confidence(" in source
+    assert "scf.calibration_path_for(date)" in source

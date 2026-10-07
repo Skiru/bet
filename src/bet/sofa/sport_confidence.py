@@ -50,6 +50,7 @@ from bet.sofa.score_model import (
 from bet.sofa.shadow import (
     MARKETS,
     ORIENTATION_FREE,
+    PLAYER_MARKETS,
     GameResult,
     ShadowLine,
     ShadowSport,
@@ -63,6 +64,26 @@ SPORT_KEYS: tuple[SportKey, ...] = ("hockey", "basketball", "volleyball", "cs2")
 SHADOW_SPORT_KEYS: tuple[SportKey, ...] = ("hockey", "basketball", "volleyball")
 
 CALIBRATION_FILE = "sofa_sport_confidence_calibration.json"
+# A refit staged for a later day (never mid-day): the same document with
+# `effective_from` (YYYY-MM-DD); a day at or after it reads this file instead
+# of CALIBRATION_FILE. The refit procedure later moves it over CALIBRATION_FILE.
+NEXT_CALIBRATION_FILE = "sofa_sport_confidence_calibration.next.json"
+
+
+def calibration_path_for(date: str, config_dir: Path | None = None) -> Path:
+    """The sport calibration a day reads: the staged one from its
+    `effective_from`, else the installed one."""
+    from bet.sofa.config import config_path
+
+    main = (config_dir / CALIBRATION_FILE) if config_dir else config_path(
+        CALIBRATION_FILE)
+    nxt = (config_dir / NEXT_CALIBRATION_FILE) if config_dir else config_path(
+        NEXT_CALIBRATION_FILE)
+    if nxt.exists():
+        eff = json.loads(nxt.read_text(encoding="utf-8")).get("effective_from")
+        if isinstance(eff, str) and date >= eff:
+            return nxt
+    return main
 
 # --- F2: the allow-list ---------------------------------------------------------
 #
@@ -95,6 +116,53 @@ ALLOWED_MARKETS: dict[str, dict[int, str]] = {
         744: "set_winner", 782: "set_points_total",
     },
 }
+# Operator, 2026-10-07 ("nie ucinać nic, co może wygrywać"): from
+# epochs.LINE_EVIDENCE_FROM_UTC the families the score model can grade but the
+# first allow-list left out go on too, each read through its own curve and its
+# settled Superbet lines (bet.sofa.line_evidence) like every other key. The
+# model already simulates every quarter, so nothing new is modelled: hockey's
+# period draw-no-bet (662); basketball's first-half dnb (765), second half
+# (233404 total, 233405 handicap, 233806 / 233807 team totals, 233499 dnb,
+# 233400 1X2), quarters (788 total, 774 handicap, 200802 / 200795 team
+# totals, 772 dnb, 779 1X2) and odd/even (775, team 230634 / 230640).
+# Basketball's second half and Q4: Superbet names them without "(z
+# dogrywką)" and its rules (support.superbet.pl, read 2026-10-07) do not say
+# whether overtime is appended - a game that went to overtime grades them
+# NOT_GRADED here (shadow._pair), the leg carries OT_RULE_UNKNOWN.
+EXTENDED_MARKETS: dict[str, dict[int, str]] = {
+    "hockey": {662: "period_dnb"},
+    "basketball": {
+        765: "h1_dnb", 233404: "h2_total", 233405: "h2_handicap",
+        233806: "h2_team_total", 233807: "h2_team_total", 233499: "h2_dnb",
+        233400: "h2_1x2", 788: "quarter_total", 774: "quarter_handicap",
+        200802: "quarter_team_total", 200795: "quarter_team_total",
+        772: "quarter_dnb", 779: "quarter_1x2", 775: "odd_even",
+        230634: "team_odd_even", 230640: "team_odd_even",
+    },
+    "volleyball": {},
+}
+OT_RULE_UNKNOWN = "OT_RULE_UNKNOWN"
+# Player lines (shadow.PLAYER_MARKETS, hockey and basketball) under the same
+# epoch: their p is player_model's pre-game number SHADOW writes beside every
+# snapshot (player_model.jsonl, model `player_rate_v3`, no price); no history
+# curve exists, so a leg reads its family's own settled Superbet lines
+# (bet.sofa.line_evidence) or is NO_LINE_EVIDENCE.
+
+
+def allowed_markets(sport: str, extended: bool = False) -> dict[int, str]:
+    """The allow-list; `extended` (epochs.line_evidence) adds EXTENDED_MARKETS."""
+    out = dict(ALLOWED_MARKETS.get(sport, {}))
+    if extended:
+        out.update(EXTENDED_MARKETS.get(sport, {}))
+    return out
+
+
+def ot_rule_unknown(sport: str, family: str, period: int) -> bool:
+    """A basketball second-half or Q4 leg: overtime's reading is not known."""
+    return sport == "basketball" and (
+        family.startswith("h2_") or (family.startswith("quarter_") and period == 4))
+
+
 # CS2: series and map winner (the engine's calibrated map Elo) and a team's
 # rounds on one map. Out: map_rounds_total (the engine's constant base rate),
 # maps_* (no number - the engine refuses them), team_kills, player_*.
@@ -110,11 +178,12 @@ CS2_FAMILIES: frozenset[str] = frozenset(
 # printable bucket of 200 rows - 339 hockey period legs NOT_CALIBRATED on
 # 10-05. A period market is scored on each of its sport's PERIODS.
 HISTORY_MARKETS: dict[str, tuple[int, ...]] = {
-    "hockey": (630, 623, 658, 652, 604, 640, 649, 674, 638, 678, 660),
-    "basketball": (759, 753, 768, 758, 776, 777, 748, 773, 200804, 200797, 763),
+    "hockey": (630, 623, 658, 652, 604, 640, 649, 674, 638, 678, 660, 662),
+    "basketball": (759, 753, 768, 758, 776, 777, 748, 773, 200804, 200797, 763,
+                   *EXTENDED_MARKETS["basketball"]),
     "volleyball": (745, 230058, 100082, 230060, 1069),
 }
-PERIODS: dict[str, tuple[int, ...]] = {"hockey": (1, 2, 3)}
+PERIODS: dict[str, tuple[int, ...]] = {"hockey": (1, 2, 3), "basketball": (1, 2, 3, 4)}
 # The rest (volleyball's set markets): only from settled Superbet lines (plan F4).
 SETTLED_ONLY_FAMILIES: dict[str, frozenset[str]] = {
     sport: frozenset(
@@ -122,6 +191,7 @@ SETTLED_ONLY_FAMILIES: dict[str, frozenset[str]] = {
         if mid not in HISTORY_MARKETS[sport])
     for sport, markets in ALLOWED_MARKETS.items()
 }
+# (EXTENDED_MARKETS are all scored from the history.)
 
 # Where a synthetic line sits: the game's own simulated distribution at these
 # quantiles (the model's, never a price's), half a point off an integer.
@@ -197,21 +267,25 @@ def wilson_lo(k: int, n: int, z: float = 1.959964) -> float:
 
 
 def side_class(side: str) -> str:
-    """OVER / UNDER / DRAW keep their own curve; a team side is TEAM."""
-    return side if side in ("OVER", "UNDER", "DRAW") else "TEAM"
+    """OVER / UNDER / DRAW / ODD / EVEN keep their own curve; a team side is
+    TEAM."""
+    return side if side in ("OVER", "UNDER", "DRAW", "ODD", "EVEN") else "TEAM"
 
 
 def curve_key(family: str, side: str) -> str:
     return f"{family}|{side_class(side)}"
 
 
-def family_of(sport: str, market_id: int | None, family: str) -> str | None:
+def family_of(sport: str, market_id: int | None, family: str,
+              extended: bool = False) -> str | None:
     """The allowed family of a line, or None when it may not be a leg."""
     if sport == "cs2":
         return family if family in CS2_FAMILIES else None
     if market_id is None:
         return None
-    return ALLOWED_MARKETS.get(sport, {}).get(int(market_id))
+    if extended and int(market_id) in PLAYER_MARKETS.get(sport, {}):  # type: ignore[call-overload]
+        return str(PLAYER_MARKETS[sport][int(market_id)].family)  # type: ignore[index]
+    return allowed_markets(sport, extended).get(int(market_id))
 
 
 Row = dict[str, Any]
@@ -497,9 +571,12 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     """
     spec = MARKETS[sport.key][market_id]
     subject = spec.team or ""
-    if spec.kind == "winner":
+    if spec.kind in ("winner", "dnb"):
         return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
                 for s in ("T1", "T2")]
+    if spec.kind == "odd_even":
+        return [ShadowLine("", market_id, spec.family, period, subject, None, s, 1.0)
+                for s in ("ODD", "EVEN")]
     if spec.kind == "three_way":
         return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
                 for s in ("T1", "DRAW", "T2")]
@@ -611,7 +688,7 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
     markets; the price on the row is never read."""
     ratings = [g.rating for g in history]
     rows: list[Row] = []
-    allowed = ALLOWED_MARKETS[sport.key]
+    allowed = allowed_markets(sport.key, extended=True)
     for date in dates:
         path = Path(runs_dir) / "shadow" / sport.key / date / "settled.json"
         if not path.exists():

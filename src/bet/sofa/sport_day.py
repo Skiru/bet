@@ -225,6 +225,19 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         actual = cs2.actual_value(line, maps, leg["team1"], leg["team2"])
         return "UNGRADEABLE" if actual is None else cs2.grade(line, actual)
     spec_sport = shadow.SPORTS[sport]
+    if shadow.is_player_line(sport, int(leg.get("market_id") or 0)):
+        # A player leg (epochs.line_evidence): SHADOW_SETTLE graded the same
+        # side from the box score (shadow.settle_event, the player matched in
+        # the game's own lineups); the leg takes that outcome, at its own
+        # printed price. A side SHADOW_SETTLE did not grade is UNGRADEABLE.
+        for g in ev.get("graded") or []:
+            if (int(g.get("market_id") or 0) == int(leg["market_id"])
+                    and str(g.get("subject") or "") == str(leg.get("subject") or "")
+                    and g.get("line") == leg.get("line")
+                    and str(g.get("side")) == str(leg["side"])
+                    and g.get("outcome") in ("WIN", "LOSS", "VOID")):
+                return str(g["outcome"])
+        return "UNGRADEABLE"
     spec = shadow.MARKETS[sport].get(int(leg.get("market_id") or 0))
     if spec is None:
         return "UNGRADEABLE"

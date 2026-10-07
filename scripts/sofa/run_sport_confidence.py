@@ -67,7 +67,7 @@ from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import COUPON_PROFILE, MIN_ODDS_FOR_CEILING  # noqa: E402
-from bet.sofa.config import SofaConfig, config_path  # noqa: E402
+from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.line_evidence import NO_LINE_EVIDENCE, LineEvidence  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
@@ -103,6 +103,10 @@ class DbForecaster:
     # the day being built: the rating's link rule is that day's
     # (epochs.link_shared_league); None = the rule on the wall clock
     date: str | None = None
+    # where SHADOW wrote player_model.jsonl (a player line's pre-game p)
+    runs_dir: str | None = None
+    _pregame: dict[tuple[str, str], dict[tuple[Any, ...], float]] = field(
+        default_factory=dict)
     _shadow: dict[str, tuple[Any, scf.TeamGames]] = field(default_factory=dict)
     _sims: dict[tuple[str, str], list[shadow.GameResult] | None] = field(
         default_factory=dict)
@@ -137,8 +141,23 @@ class DbForecaster:
         home, away = int(fixture["home_id"]), int(fixture["away_id"])
         return (home, away) if fixture["home_is_team1"] else (away, home)
 
+    def _player_p(self, sport: str, ev: Any, line: Any) -> float | None:
+        """The newest pre-game player_model p SHADOW wrote for this side at or
+        before `at` (player_model.jsonl of the snapshot's day)."""
+        if self.runs_dir is None:
+            return None
+        day = str(getattr(ev, "source_date", None) or self.date)
+        if (sport, day) not in self._pregame:
+            self._pregame[(sport, day)] = pregame_player_p(
+                self.runs_dir, sport, day, self.at)
+        return self._pregame[(sport, day)].get(
+            (str(ev.superbet_event_id), int(line.market_id), str(line.subject),
+             line.line, str(line.side)))
+
     def probability(self, sport: str, fixture: Mapping[str, Any], ev: Any,
                     line: Any) -> float | None:
+        if sport != "cs2" and shadow.is_player_line(sport, int(line.market_id)):  # type: ignore[arg-type]
+            return self._player_p(sport, ev, line)
         if sport == "cs2":
             maps, _, ratings = self._cs2_model()
             t1, t2 = self._teams(fixture)
@@ -168,6 +187,8 @@ class DbForecaster:
 
     def sample(self, sport: str, fixture: Mapping[str, Any], ev: Any,
                line: Any) -> tuple[int, int]:
+        if sport != "cs2" and shadow.is_player_line(sport, int(line.market_id)):  # type: ignore[arg-type]
+            return 0, 0  # the player model's own sample is not a k of n
         t1, t2 = self._teams(fixture)
         if sport == "cs2":
             maps, series, _ = self._cs2_model()
@@ -177,6 +198,33 @@ class DbForecaster:
         _, games = self._shadow_model(sport)
         return scf.sample_hit_rate(line, shadow.SPORTS[sport], t1, t2,  # type: ignore[index]
                                    games, int(_utc(ev.kickoff_utc).timestamp()))
+
+
+def pregame_player_p(runs_dir: str, sport: str, day: str, at: datetime
+                     ) -> dict[tuple[Any, ...], float]:
+    """(superbet event, market id, subject, line, side) -> the newest
+    model_p written at or before `at`, from runs/sofa/shadow/<sport>/<day>/
+    player_model.jsonl (bet.sofa.player_model.PLAYER_MODEL_FILE)."""
+    from bet.sofa.player_model import PLAYER_MODEL_FILE
+
+    path = shadow.shadow_day_dir(runs_dir, sport, day) / PLAYER_MODEL_FILE  # type: ignore[arg-type]
+    out: dict[tuple[Any, ...], tuple[str, float]] = {}
+    if not path.exists():
+        return {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        try:
+            r = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        p = r.get("model_p")
+        stamp = str(r.get("fetched_at_utc") or "")
+        if p is None or not stamp or _utc(stamp) > at:
+            continue
+        key = (str(r["superbet_event_id"]), int(r["market_id"]),
+               str(r.get("subject") or ""), r.get("line"), str(r["side"]))
+        if key not in out or stamp >= out[key][0]:
+            out[key] = (stamp, float(p))
+    return {k: v[1] for k, v in out.items()}
 
 
 def _bump(counts: dict[str, int], key: str, n: int = 1) -> None:
@@ -193,10 +241,11 @@ def _shape(sport: str, line: Any) -> str:
     return shadow.group_shape(sport, line.market_id)  # type: ignore[arg-type]
 
 
-def _allowed(sport: str, line: Any) -> str | None:
+def _allowed(sport: str, line: Any, extended: bool = False) -> str | None:
+    """`extended` (epochs.line_evidence): EXTENDED_MARKETS too."""
     if sport == "cs2":
         return scf.family_of("cs2", None, line.family)
-    return scf.family_of(sport, line.market_id, line.family)
+    return scf.family_of(sport, line.market_id, line.family, extended)
 
 
 def sport_status(sport: str, fixtures_doc: Mapping[str, Any] | None,
@@ -255,7 +304,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
             continue
         newest = max(ev.fetched_at.values(), key=_utc)
         current = {k: ln for k, ln in ev.sides.items() if ev.fetched_at[k] == newest}
-        allowed = {k: ln for k, ln in current.items() if _allowed(sport, ln)}
+        allowed = {k: ln for k, ln in current.items()
+                   if _allowed(sport, ln, evidence is not None)}
         _bump(refused, "MARKET_NOT_ALLOWED", len(current) - len(allowed))
         if not allowed:
             continue
@@ -312,7 +362,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if cs2.group_fair(group_odds, _shape(sport, ln)) is None:  # type: ignore[arg-type]
                 _bump(refused, "INCOMPLETE_GROUP")
                 continue
-            family = _allowed(sport, ln)
+            family = _allowed(sport, ln, evidence is not None)
             assert family is not None
             p = forecaster.probability(sport, fixture, ev, ln)
             if p is None:
@@ -321,24 +371,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if not scf.line_in_fit(sport, family, ln.line):
                 _bump(refused, scf.LINE_OUTSIDE_FIT)
                 continue
-            conf = calibration.lookup(sport, family, ln.side, p,
-                                      require_admitted=evidence is None)
-            offset = 0.0
-            band_cap: float | None = None
-            if evidence is not None:
-                read = evidence.read(
-                    sport, scf.curve_key(family, ln.side), p,
-                    None if conf is None
-                    else (conf.value, conf.calibrated_on, conf.n), ln.odds)
-                if read is None:
-                    _bump(refused, NO_LINE_EVIDENCE if conf is None
-                          else NOT_CALIBRATED)
-                    continue
-                conf = scf.Confidence(read.value, read.n, read.source)
-                offset = read.offset
-                band_cap = read.band_cap
+            conf, offset, band_cap, why_not = read_confidence(
+                calibration, evidence, sport, family, ln.side, p, ln.odds)
             if conf is None:
-                _bump(refused, NOT_CALIBRATED)
+                _bump(refused, why_not or NOT_CALIBRATED)
                 continue
             if failed_curves.refuses(conf.calibrated_on, date):
                 _bump(refused, curve_status.CURVE_FAILED_CALIBRATION)
@@ -355,12 +391,34 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 legs[-1]["line_offset"] = offset
             if band_cap is not None:
                 legs[-1]["price_band_cap"] = band_cap
+            if scf.ot_rule_unknown(sport, family, int(legs[-1]["period"])):
+                legs[-1]["context_flags"] = [scf.OT_RULE_UNKNOWN]
     entry_out: dict[str, Any] = {"status": status,
                                  "refused": dict(sorted(refused.items())),
                                  "legs": len(legs)}
     if not_scheduled:
         entry_out["fixtures_not_as_scheduled"] = not_scheduled
     return entry_out, legs
+
+
+def read_confidence(calibration: scf.SportCalibration,
+                    evidence: LineEvidence | None, sport: str, family: str,
+                    side: str, p: float, odds: float | None
+                    ) -> tuple[scf.Confidence | None, float, float | None, str | None]:
+    """(confidence, line offset, price-band cap, refusal) of one side - the
+    one reading SPORT_CONFIDENCE prints and audit_variants U3 re-derives.
+    `evidence` None: the admitted curve alone (before epochs.line_evidence)."""
+    conf = calibration.lookup(sport, family, side, p,
+                              require_admitted=evidence is None)
+    if evidence is None:
+        return conf, 0.0, None, None if conf is not None else NOT_CALIBRATED
+    read = evidence.read(
+        sport, scf.curve_key(family, side), p,
+        None if conf is None else (conf.value, conf.calibrated_on, conf.n), odds)
+    if read is None:
+        return None, 0.0, None, NO_LINE_EVIDENCE if conf is None else NOT_CALIBRATED
+    return (scf.Confidence(read.value, read.n, read.source), read.offset,
+            read.band_cap, None)
 
 
 def price_filter(confidence: float, odds: float, margin: float) -> str | None:
@@ -443,6 +501,8 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     }
     if evidence is not None:
         doc["line_evidence_fitted_from"] = evidence.doc.get("fitted_from")
+    if calibration_path.name == scf.NEXT_CALIBRATION_FILE:
+        doc["calibration_file"] = calibration_path.name  # a staged refit
     for sport in sports:
         entry, legs = build_sport(sport, date, runs_dir, fixtures_doc, calibration,
                                   forecaster, at, fixture_status, evidence)
@@ -469,9 +529,9 @@ def main() -> int:
     at = now()
     # read-only from the first byte: a probe that the file opens mode=ro
     sqlite3.connect(f"file:{config.db_path}?mode=ro", uri=True).close()
-    forecaster = DbForecaster(config.db_path, at, args.date)
+    forecaster = DbForecaster(config.db_path, at, args.date, config.runs_dir)
     doc, code = build(args.date, config.runs_dir,
-                      config_path(scf.CALIBRATION_FILE), forecaster, at)
+                      scf.calibration_path_for(args.date), forecaster, at)
     print("SOFA_SUMMARY: " + json.dumps({
         "stage": "SPORT_CONFIDENCE", "verdict": "OK" if code == 0 else "PARTIAL",
         "sports": doc["sports"], "legs": len(doc["legs"]),

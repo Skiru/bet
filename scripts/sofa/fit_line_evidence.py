@@ -22,6 +22,11 @@ statement about that curve, so a refit of the curves re-runs this):
   the installed calibration's own out-of-sample section (oos.superbet_settled)
   - an offset and the bucket, but NO price-band cap (it carries no price).
 
+* hockey / basketball player lines - every graded player side in the
+  shadow settled.json of a day before --before whose model_p is the pre-game
+  one (`model_source` pregame: player_model's number SHADOW wrote before the
+  start, no price); no history curve, so these are their only evidence.
+
 Every row carries Superbet's price for line_evidence's price-band cap.
 
 Usage:
@@ -55,7 +60,7 @@ from bet.sofa.confidence import (  # noqa: E402
     is_derived,
     match_class,
 )
-from bet.sofa.config import SofaConfig, config_path  # noqa: E402
+from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import cs2_day_dir  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
 from bet.sofa.shadow import SETTLED_FILE, shadow_day_dir  # noqa: E402
@@ -159,6 +164,34 @@ def sport_rows(rows_dir: Path, calibration: scf.SportCalibration,
                    "base": None if conf is None else conf.value, "odds": odds}
 
 
+def player_rows(runs_dir: str, before: str) -> Iterator[le.Row]:
+    for sport in ("hockey", "basketball"):
+        root = Path(runs_dir) / "shadow" / sport
+        if not root.exists():
+            continue
+        for day_dir in sorted(root.iterdir()):
+            day = day_dir.name
+            if not (len(day) == 10 and day < before):
+                continue
+            path = shadow_day_dir(runs_dir, sport, day) / SETTLED_FILE
+            if not path.exists():
+                continue
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            for eid, ev in (doc.get("events") or {}).items():
+                for g in ev.get("graded") or []:
+                    if not str(g.get("family", "")).startswith("player_") \
+                            or g.get("model_source") != "pregame" \
+                            or g.get("model_p") is None \
+                            or g.get("outcome") not in ("WIN", "LOSS"):
+                        continue
+                    yield {"sport": sport,
+                           "key": scf.curve_key(str(g["family"]), str(g["side"])),
+                           "p": float(g["model_p"]),
+                           "y": 1 if g["outcome"] == "WIN" else 0,
+                           "game": f"s:{day}:{eid}", "base": None,
+                           "odds": float(g["odds"]) if g.get("odds") else None}
+
+
 def sport_section(calibration: scf.SportCalibration) -> dict[str, dict[str, Any]]:
     """The installed calibration's own oos.superbet_settled, as evidence."""
     out: dict[str, dict[str, Any]] = {}
@@ -186,6 +219,10 @@ def main() -> int:
     ap.add_argument("--sport-rows-dir", default=None)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default=str(le.DEFAULT_EVIDENCE))
+    ap.add_argument("--sport-calibration", default=None,
+                    help="the sport curves the offsets are read against "
+                    "(default: the ones the --before day reads, "
+                    "sport_confidence.calibration_path_for)")
     args = ap.parse_args()
     config = SofaConfig.from_env()
     runs_dir = Path(config.runs_dir)
@@ -195,12 +232,15 @@ def main() -> int:
     days = stats_only_days(runs_dir, args.before)
     fitted = le.fit(sheet_rows(runs_dir, days, cal))
     keys, bands = fitted["keys"], fitted["bands"]
-    sport_cal = scf.SportCalibration.load(config_path(scf.CALIBRATION_FILE))
+    sport_cal = scf.SportCalibration.load(
+        Path(args.sport_calibration) if args.sport_calibration
+        else scf.calibration_path_for(args.before))
     sport_source = "none"
     if sport_cal is not None:
         if args.sport_rows_dir:
-            sport_fit = le.fit(sport_rows(Path(args.sport_rows_dir), sport_cal,
-                                          config.runs_dir))
+            sport_fit = le.fit([*sport_rows(Path(args.sport_rows_dir), sport_cal,
+                                            config.runs_dir),
+                                *player_rows(config.runs_dir, args.before)])
             keys.update(sport_fit["keys"])
             bands.update(sport_fit["bands"])
             sport_source = f"rows:{args.sport_rows_dir}"

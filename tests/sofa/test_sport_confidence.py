@@ -83,10 +83,25 @@ def test_the_excluded_markets_stay_out():
 
 
 def test_history_and_settled_families_partition_the_allow_list():
-    for sport, markets in scf.ALLOWED_MARKETS.items():
+    for sport in scf.ALLOWED_MARKETS:
+        markets = scf.allowed_markets(sport, extended=True)
         history = {markets[m] for m in scf.HISTORY_MARKETS[sport]}
         assert history.isdisjoint(scf.SETTLED_ONLY_FAMILIES[sport])
         assert history | scf.SETTLED_ONLY_FAMILIES[sport] == set(markets.values())
+
+
+def test_the_extended_markets_are_shadow_markets_read_only_under_the_evidence():
+    for sport, markets in scf.EXTENDED_MARKETS.items():
+        for mid, family in markets.items():
+            assert MARKETS[sport][mid].family == family, (sport, mid)  # type: ignore[index]
+            assert mid not in scf.ALLOWED_MARKETS[sport]
+            assert scf.family_of(sport, mid, family) is None
+            assert scf.family_of(sport, mid, family, extended=True) == family
+    assert scf.ot_rule_unknown("basketball", "h2_total", 0)
+    assert scf.ot_rule_unknown("basketball", "quarter_total", 4)
+    assert not scf.ot_rule_unknown("basketball", "quarter_total", 3)
+    assert not scf.ot_rule_unknown("hockey", "period_dnb", 3)
+    assert scf.side_class("ODD") == "ODD" and scf.side_class("T1") == "TEAM"
 
 
 # --- the curve --------------------------------------------------------------------
@@ -404,7 +419,8 @@ def test_hockey_period_markets_are_scored_from_the_history_on_each_period():
     period_rows = [r for r in rows if r["family"].startswith("period_")]
     assert {r["period"] for r in period_rows} == {1, 2, 3}
     assert {r["family"] for r in period_rows} == {
-        "period_total", "period_team_total", "period_handicap", "period_1x2"}
+        "period_total", "period_team_total", "period_handicap", "period_1x2",
+        "period_dnb"}  # dnb: EXTENDED_MARKETS, 2026-10-07
     assert all(r["period"] == 0 for r in rows if not r["family"].startswith("period_"))
     assert scf.SETTLED_ONLY_FAMILIES["hockey"] == frozenset()
     assert scf.market_periods(HOCKEY, 623) == (0,)
