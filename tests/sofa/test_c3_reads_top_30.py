@@ -84,3 +84,21 @@ def test_every_builder_leg_still_needs_a_read(tmp_path: Path) -> None:
     (tmp_path / "reads.json").write_text(json.dumps([read(0)]))
     found = av.audit_reads(tmp_path, d, "official")
     assert len(found) == 1 and "H7 - A7" in found[0]
+
+
+def test_u3_reads_a_bucket_edge_p_both_ways() -> None:
+    """2026-10-07: Galorys - Gremio printed 0.8375 off p = 0.8499.. and its
+    forecast_p was printed 0.85, which reads the bucket above (0.8478): the
+    audit called its own rounding a defect."""
+    from types import SimpleNamespace
+
+    from scripts.sofa.audit_variants import confidence_reading
+
+    def read(p: float):  # type: ignore[no-untyped-def]
+        return SimpleNamespace(value=0.8478 if p >= 0.85 else 0.8375)
+
+    assert confidence_reading(read, 0.85, 0.8375).value == 0.8375
+    assert confidence_reading(read, 0.85, 0.8478).value == 0.8478
+    # a p well inside a bucket is not excused by the rounding window
+    assert confidence_reading(read, 0.80, 0.8478).value == 0.8375
+    assert confidence_reading(lambda p: None, 0.85, 0.8375) is None

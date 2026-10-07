@@ -102,13 +102,20 @@ in every sport alike, and nothing that could win is cut by name.
   the base rate, so it stays behind its Superbet lines); *basketball*
   (`BB_FRESHNESS_FROM_UTC`) the simulation noise x1.085 when the thinner side
   has <= 2 games in the last 120 days, x1.026 for 3..9 - the live
-  forecaster only, never the history replays. **The history curves and the line
-  evidence were NOT refit on these p** (the refit is a between-days step): the
-  curves read the old estimator, which for tennis overstated (so they read
-  low on the better-calibrated rating p - conservative) and for derived football
-  keys have only old lines. Refit queue: `calibrate_from_cache.py` replaying
-  `MatchForecast.read`, then `prepare_refit.py`, `fit_line_evidence.py`; the
-  basketball curves with the multiplier in the replay.
+  forecaster only (the history replay passes it too, `--bb-freshness`).
+  **Refit installed 2026-10-07 ~18:05Z (operator allowed it at once; a new
+  comparability epoch)**: the cache replay now prices the same estimator as
+  SHEET (`tennis_rating.AsOfRating`: rating as of each match, best-of-five
+  skipped; football goals joints not replayed - no football rating in the
+  replayed centre), `fit_constants` + `fit_confidence` ran on a `VACUUM INTO`
+  copy of the database (`data/refit_2026-10-08/`, 59.5M replay rows, live rows
+  unchanged), basketball curves in the staged `.next.json` were refitted with
+  the freshness noise, and the line evidence was refreshed on top. The
+  tennis `games_won_for` curve at p 0.875-0.90 moved from lo95 0.799 to
+  0.857 (n=48,004): the sample p it was fitted on overstated, the rating p
+  does not. Hockey / volleyball / CS2 keep this morning's curves (their
+  estimators did not change); CS2 `map_team_rounds` from the round race and
+  the football joints with the football rating in their centre are queued.
 - **A leg prints** when confidence >= 0.70, confidence x odds >= 0.90, ladder
   (group) margin <= 15%, not ODDS_TOO_LOW, not started, fresh price
   (STALE_PRICE otherwise; a moved price re-prices the leg). Every passing

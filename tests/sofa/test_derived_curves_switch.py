@@ -36,5 +36,9 @@ def test_a_derived_market_without_its_own_curve_reads_no_pool() -> None:
     from bet.sofa.confidence import Calibration
 
     cal = Calibration.load()
-    assert cal.realised("both_over_shots", 0.80, "football", "OVER", None) is None
-    assert cal.realised("handicap_games", 0.80, "tennis", "OVER", None) is None
+    # markets no config ever carries a curve for: the answer cannot depend on
+    # which refit is installed (a replayed derived key may get its own curve)
+    for market, sport in (("both_over_unmeasured", "football"),
+                          ("handicap_unmeasured", "tennis"),
+                          ("most_unmeasured", "football")):
+        assert cal.realised(market, 0.80, sport, "OVER", None) is None

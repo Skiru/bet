@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -467,9 +468,10 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             out.append(f"U3 {label}: x below 0.90")
         if not scf.line_in_fit(sport, str(leg["family"]), leg.get("line")):
             out.append(f"U3 {label}: line {leg.get('line')} outside the curve's fit")
-        conf = rsc.read_confidence(
+        conf = confidence_reading(lambda p_: rsc.read_confidence(
             cal, evidence, sport, str(leg["family"]), str(leg["side"]),
-            float(leg["forecast_p"]), float(leg["odds"]))[0] if cal else None
+            p_, float(leg["odds"]))[0], float(leg["forecast_p"]),
+            float(leg["confidence"])) if cal else None
         if conf is None or abs(conf.value - float(leg["confidence"])) > 1e-4:
             out.append(f"U3 {label}: confidence {leg['confidence']} is not the "
                        f"calibration's {None if conf is None else conf.value}")
@@ -477,6 +479,23 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
 
 
 MAX_SPORT_OVERROUND = 0.15
+P_ROUNDING = 5e-5  # half of the 4 dp a printed forecast_p is rounded to
+
+
+def confidence_reading(read: Callable[[float], Any], p: float, printed: float) -> Any:
+    """The confidence a leg's printed `forecast_p` reads to. `forecast_p` is
+    printed to 4 dp, so a p on a bucket edge reads one bucket up or down after
+    the rounding (Galorys - Gremio on 2026-10-07: 0.8499.. printed 0.85); any
+    p the rounding allows that reproduces the printed confidence is a match.
+    Returns the matching reading, else the reading at `p` itself."""
+    first = read(p)
+    for shift in (-P_ROUNDING, P_ROUNDING):
+        if first is not None and abs(first.value - printed) <= 1e-4:
+            break
+        other = read(p + shift)
+        if other is not None and abs(other.value - printed) <= 1e-4:
+            return other
+    return first
 
 
 def main() -> int:
