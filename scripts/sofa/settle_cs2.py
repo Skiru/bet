@@ -36,7 +36,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from bet.sofa import coupon_sports, settle_identity  # noqa: E402
+from bet.sofa import coupon_sports, epochs, settle_identity  # noqa: E402
 from bet.sofa import shadow as _shadow  # noqa: E402
 from bet.sofa.client import SofascoreClient  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
@@ -526,8 +526,15 @@ def attach_model(
     home_id = int((event.get("homeTeam") or {}).get("id") or 0)
     away_id = int((event.get("awayTeam") or {}).get("id") or 0)
     t1_id, t2_id = (home_id, away_id) if home_is_t1 else (away_id, home_id)
-    best_of = int(detail.get("bestOf") or event.get("bestOf") or 3)
+    best_of_raw = detail.get("bestOf") or event.get("bestOf")
+    unknown_format = not best_of_raw and epochs.line_evidence_v2(
+        kickoff.strftime("%Y-%m-%d"))  # v2: no best-of-3 guess
+    best_of = int(best_of_raw or 3)
     for row in graded:
+        if unknown_format:
+            row["model_p"] = row["model_n"] = row["model"] = None
+            row["unfitted_constants"] = list(UNFITTED)
+            continue
         line = Cs2Line(**{k: row[k] for k in Cs2Line.__dataclass_fields__})
         mp = model_probability(
             line,

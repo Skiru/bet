@@ -540,8 +540,16 @@ def _offer_day(env_: Path, n: int) -> Path:
 
 def _offer(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
            session: SuperbetChaos, *flags: str) -> tuple[int, dict[str, Any]]:
+    from datetime import UTC, datetime
+
+    from bet.sofa import timeutil
     from scripts.sofa import run_offer
 
+    # The board's kickoffs are fixed (S_KICK, 2026-10-06T18:00Z): the clock of
+    # the run is too, or `--min-minutes-to-kickoff` filters every fixture out
+    # once the real day has passed (red on 2026-10-07).
+    monkeypatch.setattr(timeutil, "now",
+                        lambda: datetime(2026, 10, 6, 8, 0, tzinfo=UTC))
     _use_superbet(monkeypatch, session)
     code = _main(monkeypatch, run_offer, ["--date", "2026-10-06", *flags])
     return code, _summary(capsys)

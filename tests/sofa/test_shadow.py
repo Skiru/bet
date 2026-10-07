@@ -378,14 +378,14 @@ def test_real_overtime_payloads() -> None:
     wnba = build_result(WNBA_AET, BASKETBALL, True)
     assert wnba is not None and wnba.overtime and wnba.winner == "T1"
     assert (wnba.t1_full, wnba.t2_full) == (90, 82)
-    # The full-game total counts overtime; Q4 does not grade after it.
+    # The full-game total counts overtime; Q4 grades on regulation (19 + 16).
     assert actual_value(line(753, "total", "OVER", 160.5), wnba, BASKETBALL) == 172.0
     assert actual_value(line(748, "h1_total", "OVER", 70.5), wnba, BASKETBALL) == 77.0
     assert (
         actual_value(
             line(788, "quarter_total", "OVER", 30.5, period=4), wnba, BASKETBALL
         )
-        is None
+        == 35.0
     )
 
 
@@ -466,11 +466,12 @@ def test_basketball_q4_and_second_half_are_ungradeable_after_overtime() -> None:
     assert r is not None and r.overtime
     assert actual_value(line(753, "total", "OVER", 180.5), r, BASKETBALL) == 199.0
     assert actual_value(line(748, "h1_total", "OVER", 80.5), r, BASKETBALL) == 80.0
-    assert actual_value(line(233404, "h2_total", "OVER", 100.5), r, BASKETBALL) is None
-    assert (
-        actual_value(line(788, "quarter_total", "OVER", 40.5, period=4), r, BASKETBALL)
-        is None
-    )
+    # Overtime does not count in the second half / Q4 (operator, 2026-10-07):
+    # the regulation periods grade whatever followed.
+    h2 = actual_value(line(233404, "h2_total", "OVER", 100.5), r, BASKETBALL)
+    q4 = actual_value(line(788, "quarter_total", "OVER", 40.5, period=4), r, BASKETBALL)
+    assert h2 == float(sum(r.t1_periods[2:4]) + sum(r.t2_periods[2:4]))
+    assert q4 == float(r.t1_periods[3] + r.t2_periods[3])
     assert (
         actual_value(line(788, "quarter_total", "OVER", 40.5, period=3), r, BASKETBALL)
         == 50.0

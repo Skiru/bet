@@ -97,10 +97,7 @@ def test_the_extended_markets_are_shadow_markets_read_only_under_the_evidence():
             assert mid not in scf.ALLOWED_MARKETS[sport]
             assert scf.family_of(sport, mid, family) is None
             assert scf.family_of(sport, mid, family, extended=True) == family
-    assert scf.ot_rule_unknown("basketball", "h2_total", 0)
-    assert scf.ot_rule_unknown("basketball", "quarter_total", 4)
-    assert not scf.ot_rule_unknown("basketball", "quarter_total", 3)
-    assert not scf.ot_rule_unknown("hockey", "period_dnb", 3)
+    assert not hasattr(scf, "ot_rule_unknown")  # the rule is known (2026-10-07)
     assert scf.side_class("ODD") == "ODD" and scf.side_class("T1") == "TEAM"
 
 

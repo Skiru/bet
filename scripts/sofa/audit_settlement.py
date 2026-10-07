@@ -812,7 +812,8 @@ def main() -> int:
         emit("")
         emit("Słownik: `NOT_FINISHED` — mecz jeszcze się nie skończył (w toku, "
              "przerwany, nierozpoczęty; ponowny SETTLE może go rozliczyć); "
-             "`FINISHED_ABNORMALLY` — krecz, walkower, wynik przyznany; "
+             "`FINISHED_ABNORMALLY` — walkower, wynik przyznany; "
+             "`RETIRED` — krecz (zwrot); "
              "`CANCELED` / `ABANDONED` / `POSTPONED` — odwołany, przerwany na "
              "stałe, przełożony; `NO_EVENT` — Sofascore nie "
              "zna tego zdarzenia; `<rynek>:<GAP>` — mecz się odbył, ale dostawca "

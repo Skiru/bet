@@ -300,3 +300,17 @@ def test_a_malformed_screen_price_file_refuses_the_assembly(
     assert doc["builder_screen_prices"]["required"] is False
     assert doc["coupon_form"]["active"] is True and not doc["coupon_form"]["applied"]
     assert {"relations", "ladders", "exposure"} <= set(doc)
+
+
+def test_a_locked_leg_whose_ladder_is_gone_prints_as_a_single() -> None:
+    """2026-10-07 (line evidence v2 rebuild): a leg locked from an earlier
+    print kept ladder_no 180 after its other rungs were refused; the PDF died
+    with KeyError: 180."""
+    from scripts.sofa.coupon_structure_pdf import ladders_of
+
+    kept = {"ladder_no": 7, "market": "goals_total"}
+    orphan = {"ladder_no": 180, "market": "goals_total", "locked": True}
+    plain = {"market": "corners_total"}
+    doc = {"ladders": [{"ladder_no": 7, "n_rungs": 2, "rungs": []}]}
+    of, docs = ladders_of(doc, [kept, orphan, plain])
+    assert of == {id(kept): 7} and set(docs) == {7}

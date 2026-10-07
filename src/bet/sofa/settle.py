@@ -62,7 +62,11 @@ VOID_AFTER = timedelta(hours=48)
 # played contest).
 MOVED_BEYOND_VOID = "MOVED_BEYOND_VOID"
 AWARDED = "AWARDED"
-REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED})
+# A retirement (Sofascore status "Retired"): the stake comes back (operator,
+# 2026-10-07: Superbet's rule). Before this a retired match was
+# FINISHED_ABNORMALLY - not graded, not refunded.
+RETIRED = "RETIRED"
+REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED, RETIRED})
 
 # A4 (2026-10-05): the grades of printed legs the final SHEET had no row for,
 # beside 07_settled.json and never in sofa_settled_row (no forecast columns).

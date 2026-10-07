@@ -327,6 +327,35 @@ LINE_EVIDENCE_DATE = "2026-10-07"
 LINE_EVIDENCE_FROM_UTC: datetime | None = datetime(2026, 10, 7, 10, 55, tzinfo=UTC)
 
 
+# Line evidence, second rules (operator, 2026-10-07, after the audit of the
+# 10-07 evening: docs/sofa/history/AUDYT_MODELI_2026-10-07.md). Planned for the
+# next day's 00:00Z; moved by the operator to the moment below ("przelicz
+# dzisiejszy kupon") - 10-07 is a mixed day again. From then each of them
+# only ever LOWERS a confidence or refuses a leg that guessed (except the CS2
+# pooled offset, which the operator chose to fit without the one key that
+# dominates it - that one can raise the other CS2 keys):
+#   * a price-band cell widens downward INSIDE its band before the sport's or
+#     the all-band cell stands in (a 12-line cell at p >= 0.80 and 2.20+ must
+#     not fall back to the cheap band's lines);
+#   * a key with no curve needs MIN_EVIDENCE_GAMES games in the bucket and
+#     reads the Wilson bound of its lines divided by the sport's measured
+#     design effect (lines of one game are not independent);
+#   * the sport's pooled offset is measured without a key that holds more
+#     than CONCENTRATION_MAX of its printable lines (that key keeps the full
+#     pool);
+#   * a CS2 fixture with no best_of is not guessed as best-of-3.
+LINE_EVIDENCE_V2_DATE = "2026-10-07"
+LINE_EVIDENCE_V2_FROM_UTC: datetime | None = datetime(2026, 10, 7, 13, 42, tzinfo=UTC)
+
+
+def line_evidence_v2(date: str, build_at: datetime | None = None) -> bool:
+    """Do the second line-evidence rules apply (LINE_EVIDENCE_V2_FROM_UTC)?"""
+    if LINE_EVIDENCE_V2_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= LINE_EVIDENCE_V2_DATE and at >= LINE_EVIDENCE_V2_FROM_UTC
+
+
 def line_evidence(date: str, build_at: datetime | None = None) -> bool:
     """Is a key read through its settled Superbet lines rather than refused
     by name (LINE_EVIDENCE_FROM_UTC)?"""

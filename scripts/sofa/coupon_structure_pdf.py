@@ -46,8 +46,12 @@ def ladders_of(
     else computed (an 11 assembled before F4)."""
     if doc.get("ladders") is not None:
         docs = {int(x["ladder_no"]): dict(x) for x in doc["ladders"]}
+        # A leg locked from an earlier print keeps the ladder_no it was
+        # printed under; when its other rungs were refused since (2026-10-07,
+        # line evidence v2 rebuild: Z180 had one rung left) the ladder is not
+        # in `ladders` any more - the leg prints as a plain single.
         of = {id(s): int(s["ladder_no"]) for s in singles
-              if s.get("ladder_no") is not None}
+              if s.get("ladder_no") is not None and int(s["ladder_no"]) in docs}
         return of, docs
     index = lr.ladder_index(singles)
     computed = lr.ladders(singles)

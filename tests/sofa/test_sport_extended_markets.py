@@ -99,12 +99,14 @@ def test_a_player_leg_takes_the_settled_player_line() -> None:
     assert g["outcome"] == "UNGRADEABLE"
 
 
-def test_a_q4_or_second_half_leg_says_overtime_is_unknown() -> None:
+def test_a_q4_or_second_half_leg_grades_on_regulation_in_overtime() -> None:
     line = ShadowLine("7", 233404, "h2_total", 0, "", 80.5, "OVER", 1.9)
     result = shadow.GameResult((20, 20, 20, 20, 10), (20, 20, 20, 20, 8),
                                90, 88, "T1", True)
-    assert shadow.actual_value(line, result, BASKETBALL) is None
-    assert scf.ot_rule_unknown("basketball", "h2_total", 0)
+    # overtime does not count (operator, 2026-10-07): periods 3 + 4 only
+    assert shadow.actual_value(line, result, BASKETBALL) == 80.0 + 0.0 + 40.0 - 40.0
+    q4 = ShadowLine("7", 788, "quarter_total", 4, "", 30.5, "OVER", 1.9)
+    assert shadow.actual_value(q4, result, BASKETBALL) == 40.0
 
 
 VOLLEYBALL = shadow.SPORTS["volleyball"]

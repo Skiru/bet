@@ -84,6 +84,7 @@ from bet.sofa.engine import (  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
     line_evidence,
+    line_evidence_v2,
     national_sample_by_count,
     pool_neighbour_cap,
     settleability_gate,
@@ -365,7 +366,8 @@ def main() -> int:
     # epochs.LINE_EVIDENCE_FROM_UTC (operator, 2026-10-07): nothing refused by
     # name - every market read through its own settled Superbet lines
     # (bet.sofa.line_evidence). None: the by-name gates as before.
-    evidence = LineEvidence.load() if line_evidence(args.date, now) else None
+    evidence = (LineEvidence.load(v2=line_evidence_v2(args.date, now))
+                if line_evidence(args.date, now) else None)
     if evidence is not None and not evidence.fitted:
         print(
             "LINE_EVIDENCE_NOT_FITTED: config/sofa_superbet_line_evidence.json is "

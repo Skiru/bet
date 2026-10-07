@@ -233,6 +233,7 @@ def main() -> int:
     fitted = le.fit(sheet_rows(runs_dir, days, cal))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
+    design_effect = dict(fitted["design_effect"])
     sport_cal = scf.SportCalibration.load(
         Path(args.sport_calibration) if args.sport_calibration
         else scf.calibration_path_for(args.before))
@@ -245,6 +246,7 @@ def main() -> int:
             keys.update(sport_fit["keys"])
             bands.update(sport_fit["bands"])
             sport_printable.update(sport_fit["sport_printable"])
+            design_effect.update(sport_fit["design_effect"])
             sport_source = f"rows:{args.sport_rows_dir}"
         else:
             keys.update(sport_section(sport_cal))
@@ -263,12 +265,15 @@ def main() -> int:
         "min_offset_rows": le.MIN_OFFSET_ROWS,
         "min_offset_games": le.MIN_OFFSET_GAMES,
         "min_sport_offset_games": le.MIN_SPORT_OFFSET_GAMES,
+        "min_evidence_games": le.MIN_EVIDENCE_GAMES,
+        "concentration_max": le.CONCENTRATION_MAX,
         "printable_from": le.PRINTABLE_FROM,
         "unfitted_constants": list(le.UNFITTED_CONSTANTS),
         "price_bands": [list(b) for b in le.PRICE_BANDS],
         "keys": keys,
         "bands": bands,
         "sport_printable": sport_printable,
+        "design_effect": design_effect,
     }
     summary = {
         sport: {

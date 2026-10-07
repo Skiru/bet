@@ -312,6 +312,9 @@ def test_the_exonyms_2026_09_24_left_unsettled_have_an_alias(subject, name):
         ({"type": "interrupted", "code": 80}, "NOT_FINISHED"),
         ({"type": "notstarted", "code": 0}, "NOT_FINISHED"),
         ({"type": "inprogress", "code": 7}, "NOT_FINISHED"),
+        ({"type": "finished", "code": 92, "description": "Retired"}, "RETIRED"),
+        ({"type": "finished", "code": 91, "description": "Walkover"},
+         "FINISHED_ABNORMALLY"),
         ({"type": "canceled", "code": 70}, "CANCELED"),
         ({"type": "abandoned", "code": 90}, "ABANDONED"),
         ({"type": "postponed", "code": 60}, "POSTPONED"),
@@ -321,3 +324,11 @@ def test_an_unsettleable_event_says_which_kind_it_is(status, reason):
     from scripts.sofa.run_settle import unfinished_reason
 
     assert unfinished_reason({"status": status}) == reason
+
+
+def test_a_retirement_is_a_refund_never_a_loss():
+    from bet.sofa.settle import REFUND_REASONS, RETIRED, refund_event_ids
+
+    assert RETIRED in REFUND_REASONS
+    doc = {"skipped_events": [{"sofascore_event_id": 9, "skipped": {RETIRED: 2}}]}
+    assert refund_event_ids(doc) == {9: RETIRED}

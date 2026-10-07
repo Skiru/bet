@@ -68,7 +68,11 @@ from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import COUPON_PROFILE, MIN_ODDS_FOR_CEILING  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.line_evidence import NO_LINE_EVIDENCE, LineEvidence  # noqa: E402
+from bet.sofa.line_evidence import (  # noqa: E402
+    DEFAULT_EVIDENCE,
+    NO_LINE_EVIDENCE,
+    LineEvidence,
+)
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 ARTIFACT = "08_confidence_sports.json"
@@ -161,8 +165,11 @@ class DbForecaster:
         if sport == "cs2":
             maps, _, ratings = self._cs2_model()
             t1, t2 = self._teams(fixture)
+            best_of = fixture.get("best_of")
+            if not best_of and epochs.line_evidence_v2(str(self.date), self.at):
+                return None  # v2: a format nobody told us is not guessed as bo3
             mp = cs2_engine.model_probability(
-                line, t1, t2, ev.team1, ev.team2, int(fixture.get("best_of") or 3),
+                line, t1, t2, ev.team1, ev.team2, int(best_of or 3),
                 maps, ratings, bool(fixture["home_is_team1"]))
             return None if mp is None else mp.p
         from bet.sofa.score_model import line_probability
@@ -397,8 +404,6 @@ def build_sport(sport: str, date: str, runs_dir: str,
             # sport legs carried an empty list).
             legs[-1]["unfitted_constants"] = sport_unfitted(
                 sport, evidence is not None)
-            if scf.ot_rule_unknown(sport, family, int(legs[-1]["period"])):
-                legs[-1]["context_flags"] = [scf.OT_RULE_UNKNOWN]
     entry_out: dict[str, Any] = {"status": status,
                                  "refused": dict(sorted(refused.items())),
                                  "legs": len(legs)}
@@ -499,8 +504,10 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     epochs.LINE_EVIDENCE_FROM_UTC (default: the installed one)."""
     fixtures_doc = si.load_fixtures(Path(runs_dir) / date / si.FIXTURES_FILE)
     calibration = scf.SportCalibration.load(calibration_path)
-    evidence = (LineEvidence.load(evidence_path) if evidence_path is not None
-                else LineEvidence.load()) if epochs.line_evidence(date, at) else None
+    v2 = epochs.line_evidence_v2(date, at)
+    path = evidence_path if evidence_path is not None else DEFAULT_EVIDENCE
+    evidence = (LineEvidence.load(path, v2=v2)
+                if epochs.line_evidence(date, at) else None)
     fixture_status = fs.load(Path(runs_dir) / date)
     doc: dict[str, Any] = {
         "created_at_utc": si.iso(at),

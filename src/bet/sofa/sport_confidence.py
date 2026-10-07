@@ -126,9 +126,8 @@ ALLOWED_MARKETS: dict[str, dict[int, str]] = {
 # 233400 1X2), quarters (788 total, 774 handicap, 200802 / 200795 team
 # totals, 772 dnb, 779 1X2) and odd/even (775, team 230634 / 230640).
 # Basketball's second half and Q4: Superbet names them without "(z
-# dogrywką)" and its rules (support.superbet.pl, read 2026-10-07) do not say
-# whether overtime is appended - a game that went to overtime grades them
-# NOT_GRADED here (shadow._pair), the leg carries OT_RULE_UNKNOWN.
+# dogrywką)"; overtime does NOT count (operator, 2026-10-07) - they grade on
+# the regulation periods, an overtime game included (shadow._pair).
 EXTENDED_MARKETS: dict[str, dict[int, str]] = {
     "hockey": {662: "period_dnb"},
     "basketball": {
@@ -146,7 +145,6 @@ EXTENDED_MARKETS: dict[str, dict[int, str]] = {
     "volleyball": {785: "exact_sets", 200896: "points_odd_even",
                    781: "set_points_odd_even", 100077: "set_extra_points"},
 }
-OT_RULE_UNKNOWN = "OT_RULE_UNKNOWN"
 # Player lines (shadow.PLAYER_MARKETS, hockey and basketball) under the same
 # epoch: their p is player_model's pre-game number SHADOW writes beside every
 # snapshot (player_model.jsonl, model `player_rate_v3`, no price); no history
@@ -160,12 +158,6 @@ def allowed_markets(sport: str, extended: bool = False) -> dict[int, str]:
     if extended:
         out.update(EXTENDED_MARKETS.get(sport, {}))
     return out
-
-
-def ot_rule_unknown(sport: str, family: str, period: int) -> bool:
-    """A basketball second-half or Q4 leg: overtime's reading is not known."""
-    return sport == "basketball" and (
-        family.startswith("h2_") or (family.startswith("quarter_") and period == 4))
 
 
 # CS2: series and map winner (the engine's calibrated map Elo) and a team's

@@ -96,9 +96,11 @@ class ShadowSport:
     # "finished" - a walkover, an awarded match, a retirement - is UNUSUAL and
     # never graded.
     finished_descriptions: frozenset[str]
-    # Basketball's Q4 and second half carry no "(z dogrywką)" and it is not
-    # said whether overtime is appended to them; hockey's overtime is its own
-    # period and never part of the third.
+    # Basketball's Q4 and second half carry no "(z dogrywką)": the operator
+    # (2026-10-07) read Superbet's rule - overtime does NOT count, they are
+    # graded on the regulation periods whatever followed (so False for every
+    # sport today; hockey's overtime is its own period). A sport whose last
+    # period absorbed overtime would set this True.
     last_period_ambiguous_with_ot: bool = False
 
 
@@ -107,7 +109,7 @@ SPORTS: dict[SportKey, ShadowSport] = {
         "hockey", 3, "ice-hockey", 3, frozenset({"Ended", "AET", "AP"})
     ),
     "basketball": ShadowSport(
-        "basketball", 4, "basketball", 4, frozenset({"Ended", "AET"}), True
+        "basketball", 4, "basketball", 4, frozenset({"Ended", "AET"})
     ),
     "volleyball": ShadowSport(
         "volleyball", 1, "volleyball", None, frozenset({"Ended"})

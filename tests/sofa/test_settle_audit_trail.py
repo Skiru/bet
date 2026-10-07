@@ -59,7 +59,7 @@ def test_a_finished_match_keeps_its_final_score(cache):
 def test_a_retirement_is_kept_with_the_status_that_explains_the_skip(cache):
     status = {"type": "finished", "code": 92, "description": "Retired"}
     client = _Client(status)
-    assert _event_payload(client, cache, EVENT_ID) == "FINISHED_ABNORMALLY"  # type: ignore[arg-type]
+    assert _event_payload(client, cache, EVENT_ID) == "RETIRED"  # type: ignore[arg-type]
     kept = cache.get_event_detail(EVENT_ID)
     assert kept is not None
     assert kept["event"]["status"]["description"] == "Retired"

@@ -110,8 +110,8 @@ def test_fit_buckets_and_the_printable_gap() -> None:
               "game": "g0", "base": None}]
     out = le.fit(rows)["keys"]
     entry = out["hockey"]["total|OVER"]
-    assert entry["buckets"]["0.800-0.825"] == {"n": 60, "k": 30}
-    assert entry["buckets"]["0.000-0.600"] == {"n": 1, "k": 1}
+    assert entry["buckets"]["0.800-0.825"] == {"n": 60, "k": 30, "games": 60}
+    assert entry["buckets"]["0.000-0.600"] == {"n": 1, "k": 1, "games": 1}
     assert entry["printable"]["n"] == 60 and entry["printable"]["games"] == 60
     point, lo, hi = entry["printable"]["realised_minus_confidence"]
     assert point == -0.3 and lo <= point <= hi < 0
