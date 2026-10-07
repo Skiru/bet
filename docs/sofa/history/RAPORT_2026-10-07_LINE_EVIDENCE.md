@@ -222,3 +222,29 @@ zasadami”.
     linii 10-07);
   - rundy serii CS2;
   - rynki pochodne i setowe kobiet ponad zmierzony zakres.
+
+## Dopisek 5: kupon 10-07 końcowy (12:41Z)
+
+- **Odczyty.** Weryfikator w drugiej rundzie dał 17 WATCH:
+  - 12 nóg hokeja, których komórka linii Superbetu przy danym `p` i paśmie
+    kursu daje x poniżej 0,90 po zrealizowanej stopie;
+  - Mannheim P1 U2.5;
+  - Poruba (błąd siły ligi);
+  - Slavia – Alba ×3 (rating sprzed fuzji klubu).
+
+  Analityk dodał WATCH na obronach bramkarza Remo O1.5 i KEEP na golach Remo
+  – Grêmio w 2. połowie O0.5. `reads.json` ma 138 wpisów (KEEP 94, WATCH
+  34, NO_BET 10).
+- **Kupon:** `audit_variants` 0 uwag, `audit_coupon` kod 0.
+- **Pytanie do operatora (od weryfikatora).** Ograniczenie per pasmo kursu
+  obniża pewność dopiero wtedy, gdy górna granica Wilsona komórki jest pod
+  pewnością. Efekt: 154 nogi drukują się powyżej zrealizowanej stopy swojej
+  komórki, 27 nie przeszłoby x ≥ 0,90 przy tej stopie. Poza próbą obecna
+  reguła daje pewność w przedziale trafień, ale wariant „do zrealizowanej
+  stopy, gdy jest niższa” jest ostrzejszy. To decyzja operatora: ostrzej
+  (mniej nóg) czy jak dziś (szum nie tnie).
+- **Drobne usterki z weryfikacji, jeszcze niezrobione:**
+  - nagłówek PDF liczy „w grze” z builderami;
+  - zablokowane nogi odwołanego meczu (Radenkovic – Obradovic) stoją bez
+    oznaczenia;
+  - `CS2_TEAM_ROUND_LINES` w stałych hokeja i koszykówki to szum.
