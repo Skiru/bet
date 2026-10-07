@@ -432,7 +432,7 @@ ponownie `audit_variants`.
 ```bash
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
-.venv/bin/python -m mypy --strict src/bet/sofa scripts/sofa
+.venv/bin/python -m mypy --strict --no-incremental src/bet/sofa scripts/sofa
 ```
 
 `ruff` i `mypy` mają **zastaną bazę błędów** (odpowiednio ~100 i ~129 w 10

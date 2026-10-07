@@ -38,39 +38,91 @@ concession.
    before" and Sofascore appears to publish the tournament's local time as UTC.
    Gaps reach **11 h** and the error runs the wrong way: *a finished match
    looks upcoming*. Take the **earlier** clock, always, and report the gap.
-3. **The scope can silently not run.** `samples.py` keeps a past match only if
-   `event.groundType == fixture.ground_type` and
-   `infer_best_of(event) == fixture.default_period_count`. At Challenger and
-   ITF level those fields are the thinnest part of the data, and a **null**
-   means the comparison cannot match and the sample was never scoped. **Check
-   both fields on every fixture** and say "surface/format unknown" when absent.
+3. **The scope is only as good as two fields.** `samples.py` keeps a past
+   match only if `surfaces_comparable(event.groundType, fixture.ground_type)`
+   (equal, or a generic "Hard" / "Clay" label against any member of its
+   family, in both directions) and
+   `infer_best_of(event) == fixture.default_period_count`. The two nulls fail
+   differently: a **null `ground_type`** on the fixture empties the sample
+   (gap `SURFACE_UNKNOWN`, which can surface as a thin sample), and a **null
+   `default_period_count`** skips the format scope without a word - and the
+   rating then reads the match as best-of-three (`run_sheet.tennis_forecast`).
+   `infer_best_of` is `None` for a retired match, so a retirement never enters
+   a format-scoped sample. **Check both fields on every fixture** and say
+   "surface/format unknown" when absent.
 4. **`K_CENTRE` is 5 for tennis** (`config/sofa_engine_constants.json`,
-   `by_sport`, since the 2026-10-03 refit). At n=10 the sample owns two thirds
-   of the centre. There is little prior holding a tennis row up — a clean
-   sample is respected and a bad one is not corrected.
+   `by_sport`). At n=10 the sample owns two thirds of the centre of every
+   row the sample prices (aces, double faults, per-set markets, `sets_total`,
+   `tiebreaks_total`, and any `games_*` row of a fixture the rating does not
+   read - see below). A clean sample is respected and a bad one is not
+   corrected.
 
-## The market you must treat with most suspicion
+## What prices a tennis row now (from 2026-10-07 14:05Z)
 
-`games_won_for` — 1,084 of 3,026 tennis rows on a Monday board.
+`epochs.tennis_rating_prices` (`TENNIS_RATING_PRICES_FROM_UTC`, judged on the
+day and the build clock) changed which number is `p_central` on a rated
+fixture. The rating (`tennis_rating.py`) gives a match-win probability from a
+surface-blended Elo plus a per-tier calibration layer, then reads the **600
+historical best-of-three matches with the nearest probability**
+(`NEIGHBOURS`) and counts how often the line held in them.
 
-- Bimodal: a straight-sets winner has ≥12 games, so the distribution is a loser
-  mode over 0–11 and a wall at 12 (one day: 10:17, 11:10, **12:159**, 13:84).
-- **Superbet's line is 11.5, in the trough.**
-- `p_central` is NOT the raw hit rate. On a stats-only day (`epoch:
-  "stats_only"`, builds from 2026-10-05 07:15Z) it is the sample's estimator
-  alone - the frequency around the shrunk centre, no price in it - and the
-  rating is published beside it as `forecast_p` (`forecast_source`
-  `tennis_rating`). On an older day the rated markets blended the rating
-  with `market_p` and the empirical rows were shrunk to the rung's price -
-  that confidence carried the price.
-- **Overconfident at the top:** a claimed 0.95 realises **0.728** over 9,286
-  settled rows, and the market has no measured calibration bucket above 0.825.
-  That region is refused - `ABOVE_MEASURED_CEILING` in `06_coupon.json` (the
-  old VALUE selector), `NOT_CALIBRATED` on the coupon's legs before
-  2026-10-07 10:55Z (from then the curve is read through the key's own Superbet
-  lines: `line_offset`, `price_band_cap`, `NO_LINE_EVIDENCE`). A
-  `games_won_for` leg that survives is one the market's own history can
-  describe; one you find missing was not dropped by accident.
+| family | `p_central` | `forecast_p` |
+|---|---|---|
+| `games_won_for`, `handicap_games`, `most_games` (not the draw) | the neighbours alone - no price, no sample (`RATING_PRICED_MARKETS`) | equal to `p_central` on `games_won_for`; **null on `handicap_games` / `most_games`** (derived rows carry none) |
+| `games_total` | 0.5 x rating + 0.5 x the NB count model (`W_GAMES_TOTAL_RATING`) | the rating alone |
+| `sets_total` | the sample's own frequency, no price | the rating |
+| everything else (per-set games, `tiebreaks_total`, aces, double faults, serve points) | the sample's estimator, no price | null |
+
+Checked on `runs/sofa/2026-10-07/05_sheet.json`: `p_central == forecast_p` on
+all 2,960 `games_won_for` rows that carry a `forecast_p`; only
+`games_won_for`, `games_total` and `sets_total` carry one. A fixture the
+rating does not read - a best-of-five, or a player with fewer than
+`MIN_RATED = 10` rated matches (no `forecast_p`) - stays on the sample's
+estimator.
+
+Consequences for a read:
+
+- **`model` is no longer an independent second opinion on `games_won_for`
+  and `games_total`.** The old advice "compare `p_central` (the sample) with
+  `forecast_p` (the rating)" is dead for them: they agree by construction
+  (`games_total` by half). The independent evidence on the leg is **próbka
+  k/n** - the player's own scoped history, which no longer enters the price.
+  A próbka far from `p_central` is the rating and the player's own record
+  disagreeing; say which scorelines each leans on. On `sets_total` the two
+  numbers are still separate estimators.
+- The neighbours know the match-win probability and the tier - not the
+  surface (scoping the neighbours by surface or tier was measured not to
+  help), not this player's serve, not the sample's opposition. Your
+  decomposition (surface, hold, opponent class) is what the number lacks.
+- **Match tiebreaks (open operator question).** Sofascore puts a 10-point
+  match tiebreak in a `periodN` as points (ITF, UTR, team cups). The
+  pipeline counts it as **one game** to its winner everywhere
+  (`tennis_score.set_games`); Sofascore's own `gamesWon` counts none.
+  **Superbet's rule for the games markets is not verified**, so on an ITF /
+  UTR fixture a leg that a match tiebreak decides (6-4 3-6 10-7: 20 games
+  or 19) may grade differently from the code. Tour and Challenger neighbours
+  exclude match-tiebreak matches, ITF ones include them. Name it on any leg
+  at such an event; do not decide it.
+- `games_won_for` stays **bimodal**: a straight-sets winner has at least 12
+  games, a loser is spread over 0-11 (one September day's 570 observations:
+  10:17, 11:10, 12:159, 13:84 - a dated measurement). **Superbet's line is
+  usually 11.5, in the trough** - say where 11.5 sits against the wall. The
+  neighbours carry that shape in the data.
+- **How far to trust the confidence.** It is the curve (fitted on the
+  history of statistics replayed with this rating, the 2026-10-07 refit;
+  `calibrated_on`, `calibration_n` - replayed rows, not independent matches)
+  then lowered by line evidence (`line_offset`, `price_band_cap`). The
+  Superbet lines settled so far were priced by the older sample estimator:
+  on the 2026-10-05/06 lines the printable `games_won_for` legs realised well
+  below their confidence (OVER -0.17, UNDER -0.12;
+  `config/sofa_superbet_line_evidence.json`, `keys.tennis`, a dated
+  measurement). No settled line yet belongs to the rating-priced estimator -
+  a high confidence on `games_won_for` is not proven.
+
+A SHEET built before 14:05Z on 2026-10-07, or for an earlier day, priced
+these families the old way (`p_central` from the sample; before 2026-10-05
+the rating blended with the price) - read `p_central` against `forecast_p`
+to see which rule a row is under.
 
 Say all of that on any confident `games_won_for` leg you grade.
 
@@ -106,6 +158,7 @@ for x in legs:
     print(x.get("position"), x.get("locked", False), x.get("match"), x["market"],
           x.get("subject") or "", x["line"], x["direction"],
           "pewnosc", x["confidence"], "proba", f"{k}/{n}",
+          "model_p", x.get("model_p"),
           "model", x.get("forecast_p"), x.get("forecast_source"),
           "kurs", x.get("offered_odds") or x.get("odds"), x["sofascore_event_id"])
 EOF
@@ -123,12 +176,15 @@ row was never generated.
 Three numbers stand on a leg, and only one of them is the confidence:
 
 - **pewność** (`confidence`) - the calibrated curve (`calibrated_on`,
-  `calibration_n`) applied to the sample's probability; on a stats-only day
-  it holds no price;
+  `calibration_n`) applied to `p_central` (`model_p` on the leg), then
+  lowered by line evidence where measured (`line_offset`, `price_band_cap`);
+  on a stats-only day it holds no price;
 - **próbka** k/n (`sample_hit_rate` x `sample_size`) - how often the line
-  came in over the leg's own sample;
+  came in over the leg's own sample; on the rating-priced families it is no
+  longer an input of `model_p`, so it is the independent check;
 - **model** (`forecast_p`, `forecast_source` `tennis_rating`) - the rating,
-  uncalibrated, printed beside, never a gate and never the sort order.
+  uncalibrated, printed beside, never a gate and never the sort order. Equal
+  to `model_p` on `games_won_for`; absent on `handicap_games` / `most_games`.
 
 The price (`offered_odds`; `market_p` is its devig) is only the betting
 condition: x = confidence x odds >= 0.90, ladder margin <= 15%, not started,
@@ -138,7 +194,8 @@ leg as value or edge.
 Legs also carry `context_flags` (`LONG_LAYOFF`, `CONGESTED` from the
 fixture's `schedule` block in `03_samples.json`). The code's
 `MODEL_ABOVE_OWN_SAMPLE` removal is football-only, so for tennis the
-comparison of `model_p` with `sample_hit_rate` is still yours.
+comparison of `model_p` with `sample_hit_rate` is still yours - on the
+rating-priced families it is the rating against the player's own record.
 
 What your verdict does: `WATCH` (a judgement) and `NO_BET` (a defect or a
 two-source fact) both remove the leg from the coupon into `removed_by_reads`
@@ -227,7 +284,8 @@ Polish markdown per `sofa-analysis-core`, then two fenced ```json arrays:
 the vetoes (`[]` is normal), then the reads - one `LegRead` with
 `author: "analyst"` per leg of your read set, validated with the snippet in
 `veto-contract.md`. Count what each WATCH / NO_BET will hit, as for a veto.
-Per match always state: format from `default_period_count`, surface from
+Per match always state: format from `default_period_count` (the rating does
+not read a best-of-five), surface from
 `ground_type` **or explicitly unknown**, both clocks and the gap, each side's
 scoped `n` and the class of its opposition, and the concrete scorelines that
 settle each rung.
@@ -239,9 +297,16 @@ settle each rung.
 - Never present a `FUZZY` tennis identity as confirmed — names collide.
 - A two-UNDER tennis builder is **one bet with two prices**: sets, games, aces,
   double faults and serve points all resolve through match length.
-- Tennis length markets were measured overconfident by ~25 pp on 2026-09-06 and
-  **deliberately left uncorrected**. Carry it into every read.
+- Tennis length markets were measured overconfident by ~25 pp on 2026-09-06
+  under the old estimator; the curves were refitted on 2026-10-07 and line
+  evidence lowers the rest, but the lines settled so far still realised below
+  confidence (above). Carry that into every read.
+- A retirement (Sofascore status "Retired") and a walkover are **refunds**
+  (0 u., `settle.RETIRED` / `settle.WALKOVER`; operator, 2026-10-07), never a
+  loss: for a single leg it is a void risk, not a loss risk. How a refunded
+  leg inside a builder grades is not verified here - do not assert it.
 - Never quote the model (`forecast_p`) or the price as a reason to keep or
-  remove a leg.
+  remove a leg. `forecast_p` agreeing with `p_central` on `games_won_for` /
+  `games_total` is not corroboration - it is the same number.
 - Never print a combined price of your own. No stake, no placement.
 - Never read, echo or log `.env`.

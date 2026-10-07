@@ -53,6 +53,18 @@ such a day always builds under that rule; an older day rebuilds under its
 own. State which epoch the rebuild is in. The coupon before and after the
 cutover is not one experiment.
 
+Later switches in `bet.sofa.epochs` are read on the day being built AND the
+build's clock: line evidence (`LINE_EVIDENCE_FROM_UTC`, 2026-10-07 10:55Z; its
+second rules 13:42Z), the model packages (`TENNIS_RATING_PRICES`,
+`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS`, 14:05Z), the shared-league link
+rule (06:45Z). A rebuild made now of a day >= 2026-10-07 therefore prints
+under all of them - a mixed day (10-07) rebuilt this evening is one rule set
+for the unlocked legs, while legs locked from an earlier print keep what they
+were printed under. A day before 2026-10-07 keeps the refusals by name of its
+own time. A rebuild also reads `config/` as it is now: after a refit install
+or the morning's `refresh_line_evidence.py` the same day rebuilds with the new
+curves / evidence - say so in `ZMIANA`.
+
 State the resolved date, what is present, and the age of each file. A sheet
 built this morning against an offer refreshed at noon is a different object
 from one where both are old.
@@ -85,11 +97,18 @@ and prints every step with its reason and command:
   **SPORT_IDENTITY** after a fresh snapshot (or when `sport_fixtures.json`
   is missing).
 - **SHEET** (`--only SHEET`) only when CONFIDENCE would refuse the sheet (a
-  stats-only build of a sheet not built under that rule, `epochs.sheet_epoch`).
-  A SHEET forced by a code change to SHEET or a config it reads is NOT
-  detected - run `run_pipeline.py --only SHEET` first yourself and say which
-  change forced it (a rebuilt sheet is not comparable with the one before).
-  ~30 s on a rebuild, up to ~10 min when the listings changed.
+  stats-only build of a sheet not built under that rule, `epochs.sheet_epoch`)
+  or the sheet was rated under the old link rule (`link_shared_league`).
+  **The rebuild does NOT re-run SHEET for anything else.** `p_central` lives
+  in `05_sheet.json`, so after a change of the SHEET estimator - the tennis
+  rating prices, the derived marginal centres, the basketball freshness noise
+  (all 2026-10-07 14:05Z), a model fix, a config SHEET reads (`K_CENTRE`,
+  baselines, `tennis_rating.json`) - run it yourself FIRST, then the rebuild:
+  `PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHEET --run-id <id>`
+  and say which change forced it (a rebuilt sheet is not comparable with the
+  one before; a rebuild on the old sheet prices the old estimator under the new
+  curves). ~30 s on a rebuild, up to ~10 min when the listings changed - do not
+  kill a quiet SHEET.
 - **COUPON** (`--only COUPON`, `06_coupon.json` - the priced selector
   `audit_coupon` checks, not the coupon) only when it is older than the
   sheet / vetoes / reads.
@@ -189,7 +208,8 @@ passed one. Narrate it: post the step lines as they come.
   selector that `audit_coupon.py` audits. It is not the coupon; the rebuild
   re-runs it only to keep that audit in step with the vetoes and reads.
 
-Never re-run `fit_constants.py` or any `fit_*` as part of a rebuild.
+Never re-run `fit_constants.py` or any `fit_*` as part of a rebuild (nor
+`refresh_line_evidence.py`, nor a `prepare_refit.py` step).
 
 ## Step 4 - verify
 

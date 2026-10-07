@@ -1,6 +1,6 @@
 ---
 name: bet-slip-audit
-description: Price a Superbet leg, Bet Builder or SUPERBETS slip before recommending it, and refuse the ones that cannot be worth their price - using sofa's own p_bar and confidence curve where the row exists, and the ~88-book bzzoiro consensus as an independent second opinion where it does not. Use when reviewing a slip the operator screenshotted, a boosted SUPERBETS price, a Bet Builder draft, or any single where a price is known - especially "drużyna - liczba goli powyżej 0.5", "gole 1-3 w każdej połowie", per-team corners/fouls/shots lines, and player props. Built from the 2026-08-30/31 ledger, where nine of twenty placed bets lost and only two of the thirteen priceable ones were ever worth taking.
+description: Price a Superbet leg, Bet Builder or SUPERBETS slip before recommending it, and refuse the ones that cannot be worth their price - using sofa's own confidence (11_coupon.json) where the leg is a row of the day, and an outside price only when the operator types it in, never fetched from a provider (bzzoiro is not a sofa data source). Use when reviewing a slip the operator screenshotted, a boosted SUPERBETS price, a Bet Builder draft, or any single where a price is known - especially "drużyna - liczba goli powyżej 0.5", "gole 1-3 w każdej połowie", per-team corners/fouls/shots lines, and player props. Built from the 2026-08-30/31 ledger (archived pipeline), where nine of twenty placed bets lost and only two of the thirteen priceable ones were ever worth taking.
 ---
 
 # Audit the price before you audit the fixture
@@ -15,38 +15,56 @@ description: Price a Superbet leg, Bet Builder or SUPERBETS slip before recommen
 ## Where this sits relative to `sofa`
 
 This skill is about a price on a screen, and it applies whether or not the
-pipeline generated a row for it.
+pipeline generated a row for it. It is **outside the pipeline**: no stage calls
+it, it reads no sofa artifact, and it must say so in its answer.
 
-- **The row exists in `05_sheet.json`.** Then `sofa` has already answered the
-  worth-the-price question: `required_odds = 1.10 / p_bar`, and `surplus` is the
-  gap. Use that first. What this skill adds is the second opinion the pipeline
-  does not have — Superbet's price devigged against ~88 other books rather than
-  against its own other side — and the structural refusals below, which need no
-  fixture at all.
-- **The row does not exist.** `unmapped_markets` ran to 21,290 on one day; we
-  classify roughly a tenth of Superbet's screen. Then this skill is the only
-  arithmetic available, and it must label itself as outside the pipeline.
-- **It is a Bet Builder.** `sofa`'s own answer is in `08_confidence.json`:
-  `combined_probability`, `odds_after_haircut` and `ev_after_haircut`, where the
-  haircut is the **measured** 8.8–19.6% correlation markup Superbet takes on a
-  slip. **If the operator has the screen price, it wins outright over that
-  estimate** — a measurement beats an estimate — and the whole question becomes
-  `combined_probability × screen_odds − 1`.
-- **`scripts/sofa/audit_slip.py`** (moved from the retired `simple` tree on
-  2026-10-05, with `bet.sofa.slip_audit`) is the consensus-fitting tool
-  below. No sofa stage calls it, and it reads no sofa artifact.
+**Data rule (CLAUDE.md, "Hard rules"): Sofascore and Superbet only.** bzzoiro -
+its MCP tools, its API, its "~88-book consensus" - is NOT a source here and is
+never called by this skill or its agents. The `audit_slip.py` tool does no
+network at all: every outside number (a consensus 1X2, a totals line) is a
+number the OPERATOR types on its command line, and the answer says "operator-
+supplied". Without such numbers the honest answer is "no evidence" (below), or
+`--market sample` on a Sofascore sample from the day's `03_samples.json`.
+
+- **The leg is a row of the day** (a leg of `runs/sofa/<d>/11_coupon.json`, or a
+  rung of `05_sheet.json`). Then `sofa` has already answered *how often does
+  this happen*: read the leg's `confidence` (the lower bound of the measured
+  rate, lowered by line evidence), `x = confidence × odds` (>= 0.90 prints),
+  `forecast_p` ("model", uncalibrated) and the sample k/n - at the price the
+  operator really sees. **`p_bar`, `required_odds`, `surplus` and VALUE are the
+  old priced selector's numbers (`06_coupon.json`), anti-selective by
+  construction (a surplus above +0.40 is suspect), and are not the verdict.**
+  What this skill adds is the structural refusals below, which need no fixture
+  at all, and - if the operator types one - an outside price to compare with.
+- **The row does not exist.** `unmapped_markets` ran to ~28,000 lines on
+  2026-10-07; sofa classifies a fraction of Superbet's screen (1X2, double
+  chance, BTTS, match winner ... are not modelled yet). Then this skill is the
+  only arithmetic available, and it must label itself as outside the pipeline.
+- **It is a Bet Builder.** sofa prints no builder price: the PDF shows the legs,
+  the `combined_probability` (the lower of the product and the empirical
+  joint) and "kurs buildera: sprawdź na ekranie Superbetu". The haircut price
+  in `odds_after_haircut` / `ev_after_haircut` is internal (the stakeable test,
+  measured markup 8.8–19.6%) and is never quoted back as a price. **If the
+  operator gives the screen price, it wins outright** (`confidence.builder_odds`:
+  a measurement beats an estimate) and the question becomes
+  `combined_probability × screen_odds − 1`, shown as his note, not ours.
+- **`scripts/sofa/audit_slip.py`** (`bet.sofa.slip_audit`, moved from the
+  retired `simple` tree on 2026-10-05) is the arithmetic below; run it as
+  `.venv/bin/python scripts/sofa/audit_slip.py ...` (it adds `src` to the path
+  itself). Tests: `tests/sofa/test_slip_audit.py`.
 
 ## What this is for
 
-`sofa`'s SHEET answers *is this worth its price, against Superbet's own other
-side*. CONFIDENCE answers *how often does this actually happen*. Neither answers
-the question that decided the 2026-08-30/31 results, because neither has a
-second book to compare against: **is the number on the Superbet screen bigger
-than the number this bet is worth, measured somewhere other than at Superbet?**
+`sofa`'s CONFIDENCE answers *how often does this actually happen* (and the price
+is only the betting condition x >= 0.90). It has no second book to compare
+against, and the question that decided the 2026-08-30/31 results was exactly
+that: **is the number on the Superbet screen bigger than the number this bet is
+worth, measured somewhere other than at Superbet?**
 
 Twenty bets were placed across those two days. Nine lost. Thirteen are football
-fixtures bzzoiro prices, and reconstructing all thirteen against its consensus
-gave a result the win/loss column completely hides:
+fixtures the archived pipeline could price against an ~88-bookmaker consensus
+(bzzoiro, then; not a sofa source), and reconstructing all thirteen gave a
+result the win/loss column completely hides:
 
 | | count | settled |
 |---|---|---|
@@ -70,31 +88,36 @@ losing bet had a plausible team story behind it, and the story was true — KuPS
 had scored in five straight, Brommapojkarna in twelve straight — and it did not
 matter, because the price was already at or under fair.
 
-1. **Get the consensus.** `mcp__bzzoiro__get_match_detail`, or
-   `/events/{id}/odds/`, gives 1X2 plus over/under 1.5/2.5/3.5 plus BTTS.
+1. **Get the number to compare against.** A leg of the day: its `confidence` and
+   x in `11_coupon.json`. Otherwise an outside consensus (1X2, over/under
+   2.5, ideally BTTS) **that the operator types in** - never fetched by this
+   skill. None: stop at "no evidence" or use `--market sample`.
 2. **Fit and compare.** Run the tool below. It devigs, fits the match rate, and
-   reports the edge.
+   reports the edge. (It fits the market; it does not disagree with it.)
 3. **Only then** read form, lineups, referee, absences. Those change a *fair*
    bet into a good one or a bad one. They cannot rescue a price below fair.
 
 ```bash
-# team to score, from the consensus block
-python3 scripts/sofa/audit_slip.py --price 1.48 \
+# team to score, from a consensus the operator supplied (typed, not fetched)
+.venv/bin/python scripts/sofa/audit_slip.py --price 1.48 \
     --market team_to_score --side away \
     --home-win 1.50 --draw 4.43 --away-win 5.45 --over-25 1.52 --under-25 2.41
 
 # a range builder
-python3 scripts/sofa/audit_slip.py --price 2.05 \
+.venv/bin/python scripts/sofa/audit_slip.py --price 2.05 \
     --market 1h_over_0_5_under_2_5_and_2h_over_0_5 \
     --home-win 7.47 --draw 4.23 --away-win 1.45 --over-25 2.01 --under-25 1.81
 
-# a market the odds feed has no line for: Wilson bound off a real sample
-python3 scripts/sofa/audit_slip.py --price 1.42 --market sample --hits 5 --sample-size 6
+# a market with no outside line: Wilson bound off a real sample
+.venv/bin/python scripts/sofa/audit_slip.py --price 1.42 --market sample --hits 5 --sample-size 6
+
+# also report a slip's hard price floor: repeat --leg-probability once per leg
 ```
 
-`--market sample` is the weaker answer and labels itself as such. Use it for
-corners, fouls, shots and player props, and never dress it up as the market's
-opinion.
+The three examples were run on 2026-10-07 and answer REJECT (edge -2.9%, -5.3%,
+-26.8%). `--market sample` is the weaker answer and labels itself as such. Use
+it for corners, fouls, shots and player props (the k/n from `03_samples.json`),
+and never dress it up as the market's opinion.
 
 ## Refusals you can make before reading the fixture
 
@@ -137,8 +160,8 @@ Five of the thirteen were `drużyna – liczba goli powyżej 0.5` at 1.40–1.60
 Against the consensus: **−2.9%, −5.6%, −0.1%, −2.0%, −3.4%**. Not one had an
 edge. Three lost, two won, and the two that won were no better as bets.
 
-This is a house market. Superbet's price for a side to score sits at or under
-the ~88-bookmaker consensus, consistently. Treat any such leg as REJECT until a
+This is a house market. Superbet's price for a side to score sat at or under
+the ~88-bookmaker consensus of the time, consistently. Treat any such leg as REJECT until a
 devigged number says otherwise — and expect it not to.
 
 The trap that made them look good: the historic scoring rate. Brommapojkarna had
@@ -198,9 +221,9 @@ actually move together.
 
 ### 4. Where the edge is not, and the one place it is
 
-Thirty of the run's own captured Superbet prices for `goals_total` (over/under
-1.5, 2.5 and 3.5) were priced against the bzzoiro consensus for the same
-fixture. Result: **0 TAKE, 1 MARGINAL, 29 REJECT**, with edges spread between
+Thirty of the archived run's own captured Superbet prices for `goals_total`
+(over/under 1.5, 2.5 and 3.5) were priced against the consensus of the day for
+the same fixture. Result: **0 TAKE, 1 MARGINAL, 29 REJECT**, with edges spread between
 +0.3% and −8.7% and clustered near −3%.
 
 That is not the audit being harsh. It is Superbet's margin on a mainline market,
@@ -222,7 +245,9 @@ worth naming as the only places to look:
 So price the slip **at its un-boosted price first**. A boost of ~12% rescues a
 slip sitting within roughly 11% of fair and does nothing at all for one sitting
 30% below it. Napoli–Como is the whole pattern: −5.5% un-boosted, +6.1% boosted.
-Monaco's identical-looking ⚡ moved a −43% bet to a −36% bet.
+Monaco's identical-looking ⚡ moved a −43% bet to a −36% bet. The current
+evidence on boosts is sofa's own: `run_boosts.py` snapshots them (`10_boosts.json`),
+`audit_boosts.py --from --to` grades them.
 
 **Markets the consensus does not carry** — per-team corners, fouls, shots,
 player props — are the other place, because there is no consensus to be shaded
@@ -241,22 +266,23 @@ Lassana Coulibaly to commit a foul lost. It was not a bad read: 20 of his last
 event — Lecce committed 9 fouls all match, spread over 16 players. A prop needs
 minutes *and* team volume; `lineup_status` only covers the first.
 
-### 6. Three of the losses were on fixtures this project cannot see
+### 6. Three of the losses were on fixtures the evidence could not see
 
-bzzoiro covers **83 leagues**. Croatian HNL, the Azerbaijani top flight,
-Guatemala and Honduras are not among them. Four of the twenty bets were in those
-leagues and a fifth (Real Madrid–Malaga) is not in the feed at all. Three of
-those five lost.
+On 2026-08-30/31 the then-source (bzzoiro, 83 leagues) did not cover Croatian
+HNL, the Azerbaijani top flight, Guatemala or Honduras; four of the twenty bets
+were in those leagues and a fifth (Real Madrid–Malaga) was not in the feed at
+all. Three of those five lost. Coverage was also per-fixture: Inter Turku–KuPS
+sat in a covered league and returned no statistics at all. The sofa
+equivalents are the same shape: a fixture RESOLVE could not attach to a
+Sofascore event (`NO_MATCHING_EVENT`), a sample with a gap, a key with no curve
+and no measured lines (`NO_LINE_EVIDENCE`), a match `UNVERIFIED` by
+FIXTURE_CHECK. There is no tennis odds source at all - sofa reads Sofascore and
+Superbet only - so a tennis leg is priceable only against sofa's own
+confidence and Superbet's offer.
 
-Coverage is also per-fixture, not just per-league: Inter Turku–KuPS is in a
-covered league and returned **no `/stats/` at all** — no shots, no corners, no
-possession. There is no tennis odds source at all -- bzzoiro's tennis product
-answered `addon_required` and was removed on 2026-09-02 -- so tennis legs are
-priceable only against the Superbet offer.
-
-When there is no consensus and no stats, say **"no evidence"** and stop. Do not
-substitute a league-wide constant and present it as a read. See
-[`reference/coverage.md`](reference/coverage.md).
+When there is no number to compare against and no sample, say **"no evidence"**
+and stop. Do not substitute a league-wide constant and present it as a read.
+See [`reference/coverage.md`](reference/coverage.md) (historical).
 
 ## What not to conclude from this
 
@@ -274,8 +300,9 @@ it. Specifically:
 - Nothing here overrides the hard rules in `sofa-analysis-core`: no combined
   price of your own, no stake sizing, no automated placement.
 - The r-table and the base rates were measured on the archived pipeline's
-  sample. They are orders of magnitude, **not priors you may substitute for a
-  `sofa` row's `centre`**.
+  sample (bzzoiro data, 2026-01..08). They are orders of magnitude, **not
+  priors you may substitute for a `sofa` row's `centre`** or for its
+  confidence.
 
 ## Reference
 
@@ -283,11 +310,15 @@ it. Specifically:
   every one of the twenty bets, with its price, its fair price, and why.
 - [`reference/base-rates.md`](reference/base-rates.md) — the measured tables:
   7,516 matches for goals and halves, 700 for corners, shots and fouls.
-- [`reference/coverage.md`](reference/coverage.md) — what bzzoiro can and cannot
-  price, and how to say so.
+- [`reference/coverage.md`](reference/coverage.md) — historical: what the
+  archived source could and could not price in 2026-08, and how to say "no
+  evidence". Nothing there may be fetched today.
 - `src/bet/sofa/slip_audit.py` — the arithmetic, with tests in
-  `tests/sofa/test_slip_audit.py` that carry the ledger as a
-  regression. Archived pipeline, still runnable, reads no `sofa` artifact.
+  `tests/sofa/test_slip_audit.py` that carry the ledger as a regression.
+  Offline, reads no `sofa` artifact. (Its docstring still names bzzoiro as the
+  consensus source; the operator-typed rule above governs.)
 - `src/bet/sofa/confidence.py` — `sofa`'s own answer for a Bet Builder:
   `BUILDER_CORRELATION_HAIRCUT`, `QUANTITY_FAMILIES`, `builder_odds` (where a
   known screen price beats the estimate), and `is_stakeable`.
+- `.claude/skills/sofa-pipeline/SKILL.md` — the rules in force (confidence,
+  line evidence, the price only lowering it).

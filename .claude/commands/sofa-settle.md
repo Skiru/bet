@@ -1,5 +1,5 @@
 ---
-description: Settle a finished sofa day (every sport on the coupon), read what it actually did (section 7c is the coupon's real result, 7i the legs a read removed, refunds apart), audit the settle identities, record the ledger per epoch, and decide whether to re-fit the constants - which is a deliberate step and never happens mid-day.
+description: Settle a finished sofa day (every sport on the coupon), read what it actually did (section 7c is the coupon's real result, 7i the legs a read removed, refunds apart), audit the settle identities, record the ledger per epoch, and decide whether to re-fit the constants - which is a deliberate step and never happens from a day's run.
 argument-hint: wczoraj | YYYY-MM-DD
 ---
 
@@ -27,8 +27,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <
 # Statistic gaps close days later (F0.6): re-settle every day <date-13>..<date-1> (D-14..D-2 when <date>
 # is D-1) that still holds a printed leg SETTLE could grade, and <date-4> (D-5) always, with
 # --refetch-stat-gaps; then regrade_settled.py --apply once for rows graded off an early snapshot.
-# Bridge required (exit 1 NO_BRIDGE = nothing re-settled). Writes sofa_settled_row, which
-# record_results.py reads - so before 1b:
+# Bridge required (exit 1 NO_BRIDGE = nothing re-settled; --dry-run prints the plan). Writes
+# sofa_settled_row, which record_results.py reads - so before 1b:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <date-13> --to <date-1> --include-day <date-4>
 ```
 
@@ -38,9 +38,17 @@ the model exactly as much as counting it as a win overstates it.
 
 What SETTLE does since 2026-10-05:
 
-- **Refunds:** a match moved by more than 48 h (`MOVED_BEYOND_VOID`) or
-  awarded (`AWARDED`) is a refund - 0 u., never a loss, never a
-  `sofa_settled_row` (it is in `07_settle_skips.json`).
+- **Refunds:** `settle.REFUND_REASONS` = `MOVED_BEYOND_VOID` (moved > 48 h),
+  `AWARDED`, `RETIRED` and `WALKOVER` (operator 2026-10-07) - 0 u., never a
+  loss, never a `sofa_settled_row` (they are in `07_settle_skips.json`).
+  Another odd finish stays `FINISHED_ABNORMALLY` (not graded, not refunded).
+  A day settled before the rule keeps `FINISHED_ABNORMALLY` for its
+  retirements until re-settled: the sweep takes a day only for a leg that is
+  `resettle_worthy` (not `FINISHED_ABNORMALLY`), so add `--include-day <d>` for
+  such a day, then re-run `record_results.py` from it (check
+  `07_settle_skips.json` afterwards).
+- **Basketball** second half / Q4 grade on the regulation periods, overtime
+  does not count (operator 2026-10-07); full-game markets include overtime.
 - **Player props** are graded only from the player's own squad; a name found
   in both or neither is `PLAYER_AMBIGUOUS`, never a guess.
 - **A printed leg without a sheet row** is graded into
@@ -92,7 +100,10 @@ retired variants of days up to 2026-10-05; read, never pooled.
 
 `audit_ledger.py` splits every variant by epoch group (`do 10-04` /
 `10-05 rano` / `stats_only`) and never sums the groups: the coupon before
-and after 2026-10-05 07:15Z is not one experiment.
+and after 2026-10-05 07:15Z is not one experiment. It knows no later cutover:
+10-06 (coupon structure, settleability), 10-07 (a mixed day: line evidence
+10:55Z, its second rules 13:42Z, model packages 14:05Z) and the refit epoch of
+2026-10-08 all sit inside `stats_only` - compare by date and name the rules.
 
 Exit 0 = graded as far as the settles allow (pending legs are shown in the
 table, never an exit code); 1 = a `MISMATCH` (two graders disagree on a leg -
@@ -115,8 +126,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <date>
 **Section 7c of `audit_settlement` is the coupon's real result.** On a
 stats-only day it is one table per sport x epoch plus the measured sports'
 table (graded at the printed price against the pinned id), closed by
-**"Suma kuponu"**. Refunds (`MOVED_BEYOND_VOID`, `AWARDED`) are counted
-apart at 0 u. Sections 7 and 7b are input material - legs and candidates -
+**"Suma kuponu"**. Refunds (`REFUND_REASONS`) are counted apart at 0 u. on
+the "zwrot (przesunięty > 48 h / przyznany / krecz / walkower), 0 j." row,
+present only on a day that has one. Sections 7 and 7b are input material - legs and candidates -
 **not bets**. Reporting 7 or 7b as the day's result is the same error as
 calling `06_coupon.json` the coupon, and it has inverted a day before.
 
@@ -160,11 +172,16 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_constants.py --db-path data/s
 `fit_constants.py` is **outside `DEFAULT_SEQUENCE` on purpose.** Re-fitting
 mid-day breaks comparability with yesterday's run. Re-fit when the settled
 table has grown materially, a coherence check is failing, or a baseline is
-demonstrably wrong. **Not because a day went badly.** A full refit goes
-through `prepare_refit.py`, between days, one step at a time. The same holds
-for `fit_sport_confidence.py --before <d>`
-(`config/sofa_sport_confidence_calibration.json`, the measured sports'
-confidence curves): between days only, never mid-day.
+demonstrably wrong. **Not because a day went badly** - since 2026-10-07 the
+curves are fitted on the replayed history of statistics, our settled days are
+only an audit. A full refit goes through `prepare_refit.py`, between days, one
+step at a time, **on a copy of the DB while the daily loops stay alive**
+(`--db-path <copy>`; `sofa-settler` has the procedure), and `install --confirm`
+only after the operator's go (it runs `tests/sofa` and restores on failure).
+The same holds for `fit_sport_confidence.py --before <d>` (the measured
+sports' curves, staged in `.next.json`): on a copy of the DB, installed only with the operator's go, never from a day's run.
+`refresh_line_evidence.py --before <D>` (every morning, after this settle and
+the ledger) is **not** a refit.
 
 After a fit, always report: `fitted_from` and how much it moved,
 `half_match_coherence`, and every constant's `status`. **A `null` with
@@ -182,26 +199,30 @@ refusing to name a value is information.
   `half_match_coherence`. Corners half-match priors were **24-32% too high** for
   two days; fixing them took a day's VALUE from 142 to 99, and the rows that
   vanished were exactly the ones external verification had already rejected.
-- `config/sofa_confidence_calibration.json` - check each market's measured
-  ceiling. A market with its own curve may **not** borrow the pooled one above
+- `config/sofa_confidence_calibration.json` - written by `fit_confidence.py`;
+  check each market's measured ceiling. A market with its own curve may **not** borrow the pooled one above
   the top of its own measured range.
-- `config/sofa_sport_confidence_calibration.json` (a day >= the `.next.json`'s
-  `effective_from`, 2026-10-07, reads the staged file) - a sport absent from it is
-  `NOT_CALIBRATED` and prints no legs; say which sports are on the coupon.
-- `config/sofa_superbet_line_evidence.json` - `fitted_from.before` must reach the
-  day about to be built; the morning's `refresh_line_evidence.py --before <D>`
-  (after this settle and the ledger) is what advances it. It is not a refit.
+- `config/sofa_sport_confidence_calibration.json` - written by
+  `fit_sport_confidence.py`; a day >= the staged `.next.json`'s `effective_from`
+  (2026-10-07) reads that file instead, so check its `fitted_from`. A sport
+  absent from the file in force is `NOT_CALIBRATED` and prints no legs; say
+  which sports are on the coupon.
+- `config/sofa_superbet_line_evidence.json` - `fitted_from.before` and
+  `sheet_days` must reach the day about to be built; the morning's
+  `refresh_line_evidence.py --before <D>` (after this settle and the ledger)
+  advances it. It never touches a curve; after a curve install it is re-fitted
+  against the new curves.
 
 ## Report back
 
 ```
-SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n>)
+SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n> / RETIRED <n> / WALKOVER <n>) · FINISHED_ABNORMALLY <n>
 KUPON:    sekcja 7c · <sport> [<epoka>]: <w>/<n> · ROI <…> · … · Suma kuponu <u> j.
-SPORTY:   hokej / kosz / siatka / CS2 na kuponie: <w>/<n> · <u> j. · pending <n>
+SPORTY:   hokej / kosz / siatka / CS2 na kuponie: <w>/<n> · <u> j. · pending <n> · NOT_GRADED:ID_CHANGED <n>
 ZDJĘTE:   sekcja 7i · <w>/<n> · <u> j. (osobno, nie kupon)
 TOŻSAMOŚĆ: audit_settle_identity <n> znalezisk (<check>: <n>) · PLAYER_AMBIGUOUS <n>
 POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
-LEDGER:   <n> wierszy zapisanych dla <date> · per epoka (do 10-04 / 10-05 rano / stats_only), nigdy sumowane
+LEDGER:   <n> wierszy zapisanych dla <date> · per epoka (do 10-04 / 10-05 rano / stats_only; późniejsze zmiany reguł nazwane po dacie), nigdy sumowane
 CLV:      <variant>: <x%> [lo; hi], n nóg
 RYNKI:    <families that lost, systematic vs dispersion>
 BRAMKI:   <per gate: caught / cost / missed>

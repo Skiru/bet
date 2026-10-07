@@ -104,6 +104,19 @@ rest of the coupon prints unread (the operator's order of 2026-10-05). A
 `locked` leg (printed by an earlier build, its match started) stays as
 printed whatever a read says.
 
+At the start of **every** analyst pass (the first, and each C3 re-read in
+Step 3) clear the hand-off files of the pass before. Name them, never glob
+them: under zsh a pattern that matches nothing aborts the whole command with
+`no matches found` and removes nothing (`rm -f /tmp/*_reads.json
+/tmp/*_vetoes.json` fails whenever one of the two has no file).
+
+```bash
+for s in football tennis hockey basketball volleyball cs2; do
+  rm -f "/tmp/${s}_reads.json" "/tmp/${s}_vetoes.json"
+done
+find /tmp -maxdepth 1 \( -name '*_reads.json' -o -name '*_vetoes.json' \)   # what is left (find has no nomatch)
+```
+
 ## Step 1 - launch the analysts, concurrently
 
 One analyst per sport that has legs in the set, all in **one** message so
@@ -125,7 +138,8 @@ analysts return the vetoes (`[]` is the normal, healthy answer) and then the
 reads; `sofa-analyst-sport` returns reads only (a veto's direction is only
 `OVER` / `UNDER` and has no period, so it cannot name a sport side). Write
 them to `/tmp/<sport>_vetoes.json` and `/tmp/<sport>_reads.json` with a
-quoted heredoc. An analyst that returned no reads block has not followed its
+quoted heredoc (`<sport>` is `football`, `tennis`, `hockey`, `basketball`,
+`volleyball` or `cs2`; a sport analyst writes no vetoes file). An analyst that returned no reads block has not followed its
 contract - say so, never invent its reads.
 
 ## Step 2 - validate, then merge
@@ -175,8 +189,10 @@ Three things to check before you accept a veto list:
 2. **Width.** There is no player field. A veto with `subject: null` covers
    every subject on that fixture - count what it hits before writing it.
 3. **Duplication of a code gate.** `STALE_PRICE`, `STALE_SAMPLE`,
-   `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
-   `THIN_SAMPLE_FOR_BUILDER` and (football) `MODEL_ABOVE_OWN_SAMPLE` are
+   `ODDS_TOO_LOW`, `KICKED_OFF`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
+   `THIN_SAMPLE_FOR_BUILDER`, `SAMPLE_CROSSES_SEASON`,
+   `CROSS_LEAGUE_UNLINKED`, `NO_CLASS_CURVE`, `NO_LINE_EVIDENCE`,
+   `FIXTURE_NOT_AS_SCHEDULED` and (football) `MODEL_ABOVE_OWN_SAMPLE` are
    already enforced. A veto for one of those adds nothing and buries the
    real reasons in noise.
 
@@ -187,14 +203,18 @@ conservative.
 
 ```bash
 .venv/bin/python - <<'PY'
-import glob, json, os, sys
+import json, os, sys
 sys.path.insert(0, "src")
 from pydantic import RootModel
 from bet.sofa.contracts import LegRead
 
 date = "<date>"
-fresh = [r for f in sorted(glob.glob("/tmp/*_reads.json"))
-         for r in json.loads(open(f).read())]
+# the analysts of THIS pass, by name (never a glob: a stale or foreign
+# /tmp/*_reads.json would be merged in); the verifier's reads are appended by
+# whoever ran it, not here
+fresh = [r for s in ("football", "tennis", "hockey", "basketball", "volleyball", "cs2")
+         if os.path.exists(f"/tmp/{s}_reads.json")
+         for r in json.loads(open(f"/tmp/{s}_reads.json").read())]
 path = f"runs/sofa/{date}/reads.json"
 earlier = json.loads(open(path).read()) if os.path.exists(path) else []
 key = lambda r: json.dumps(r, sort_keys=True)
@@ -209,9 +229,6 @@ print(f"{len(fresh)} fresh reads, {len(merged)} in reads.json:",
 PY
 PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; print(len(load_reads('runs/sofa/<date>/reads.json')))"
 ```
-
-Clear `/tmp/*_reads.json` and `/tmp/*_vetoes.json` from an earlier day
-before Step 1, or the glob merges them in.
 
 What a read does: `WATCH` and `NO_BET` both remove the leg from the coupon;
 a leg that passed every gate and a read (or the automatic football
@@ -240,8 +257,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 `build_coupon_pdf.py` refuses `STALE_CONFIDENCE` (08 older than
 `05_sheet.json` / `vetoes.json` / `reads.json` / the calibration) and
 `STALE_COUPON` (11 older than `08_confidence.json` /
-`08_confidence_sports.json` / `read_requests.json`); the rebuild runs them
-in the only order that renders. Read each summary's `refused` counts (`WATCHED`,
+`08_confidence_sports.json` / `read_requests.json` / `09_screen_prices.json` /
+the coupon form); the rebuild runs them in the only order that renders.
+It re-runs SHEET only for an old epoch or link rule, **not** after a change
+of the SHEET estimator (from 2026-10-07 14:05Z: tennis rating prices,
+football marginal centres, basketball freshness): a `05_sheet.json` older
+than the switch must be re-run first, `run_pipeline.py --date <date> --only
+SHEET --run-id <id>` (`/sofa-rebuild`) - say so rather than reading stale
+`p_central`s. Read each summary's `refused` counts (`WATCHED`,
 `READ_NO_BET`, `MODEL_ABOVE_OWN_SAMPLE`). `run_confidence.py` sees only
 football and tennis rows: it prints a sport read as `UNMATCHED_READ` on
 stderr, which is expected - sport reads take effect in COUPON_ASSEMBLY, so

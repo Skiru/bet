@@ -1,6 +1,6 @@
 # Tennis methodology — the models behind each claim, and how they map to our data
 
-> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "The 2026-10-07 rules".
 
 **Mapped to `sofa`.** Where an older version of this file pointed at
 `config/tennis_surface_map.json`, `config/tennis_match_format.json`,
@@ -46,9 +46,11 @@ where your contribution is.
   `sofa` scopes on the fixture's own `ground_type`
   (`event.groundType == fixture.ground_type` in `samples.py`), which is a real
   improvement on a competition-name pin. **The failure mode is a null:** at
-  Challenger and ITF level `ground_type` is often absent, the comparison
-  cannot match, and the scope silently does nothing. Check the field and say
-  "surface unknown" when it is. Grass medians of 9.0/11.0 aces against hard
+  Challenger and ITF level `ground_type` is often absent: a fixture with
+  none gets an empty sample (`SURFACE_UNKNOWN`), a past event with none is
+  dropped, and a generic "Hard" / "Clay" label matches any member of its
+  family (`settle.surfaces_comparable`). Check the field and say "surface
+  unknown" when it is. Grass medians of 9.0/11.0 aces against hard
   6.0/5.0 is what an unscoped sample costs. The analyst's order remains:
   current surface → current tournament → recent form → opponent quality →
   season → H2H → ranking.
@@ -62,8 +64,12 @@ where your contribution is.
   2.40 for the same words.
 - *Implication:* `sofa` scopes on `default_period_count`, which for tennis is
   Sofascore's real best-of, taken from the fixture rather than inferred from a
-  competition name. A **null** there means the format scope did not run, and
-  men's slam rows then reach the top of the sheet as tautologies worth nothing.
+  competition name (past matches: `infer_best_of`, from the winner's sets).
+  A **null** there means the format scope did not run, and men's slam rows
+  then reach the top of the sheet as tautologies worth nothing. The rating
+  (`tennis_rating.py`) is built from best-of-three matches only: a best-of-five
+  fixture gets no rating forecast (no `forecast_p`, the sample prices the
+  row), and a null format is read as best-of-three.
   **Slam qualifying is best-of-three** even though it carries the slam's name —
   confirm the round on the web, because `round_name` is frequently null for
   tennis.
@@ -77,8 +83,17 @@ where your contribution is.
   surface-specific Elo improves men's forecasts; standard Elo is enough for
   women. Sackmann publishes surface Elo on tennisabstract.com.
 - *Implication:* sofa holds one rating (`src/bet/sofa/tennis_rating.py`): a
-  row priced through it carries a `TENNIS_RATING` note with "<side> wins the
-  match p" - the model's opinion, not the book's. sofa does **not** map
+  surface-blended Elo, calibrated per tier (ITF / CH / TOUR), whose
+  match-win probability picks the 600 nearest historical best-of-three
+  matches; games, sets and tiebreaks are read off them. A row priced through
+  it carries a `TENNIS_RATING` note with "<side> wins the match p" - the
+  model's opinion, not the book's. Since 2026-10-07 14:05Z it **is** the
+  price of `games_won_for`, `handicap_games` and `most_games` (not the draw)
+  and half of `games_total`'s (the other half the NB count model); on those
+  `p_central` and `forecast_p` are the same number, and the player's own
+  sample enters only as próbka k/n. The neighbours are not scoped by surface
+  or tier (measured: no help), so the surface and the opposition remain the
+  analyst's. sofa does **not** map
   Superbet's match-winner market (`Zwycięzca` sits in `unmapped_markets` in
   `04_offer.json`), so the book's favourite-strength input is the fixture's
   `handicap_games` ladder in `04_offer.json` (and `most_games`, where
@@ -111,9 +126,12 @@ Sets and games played, minutes on court, hours of rest, back-to-back days,
 travel, qualifiers' extra matches — all web-sourced here. Do not assume "three
 sets yesterday = bad": a three-set win over a strong opponent can be better
 evidence of level than two easy wins. A recent retirement or medical time-out
-is a **void risk** for length markets (Superbet's rules on retirement differ by
-market — say the risk, do not price it), and a fitness asymmetry is a
-kill-case for any OVER built on competitiveness.
+is a **void risk** for length markets: since 2026-10-07 a retirement (Sofascore
+status "Retired") and a walkover are refunds (0 u., `settle.RETIRED` /
+`settle.WALKOVER`; operator's rule) - say the risk, do not price it - and a
+fitness asymmetry is a kill-case for any OVER built on competitiveness. A
+retired match does not enter a sample, and the rating counts it as time on
+court only.
 
 ## 7. Tie-breaks and breaks are not aces (method §85–§86)
 
@@ -142,7 +160,8 @@ neighbouring rungs means the sample has no observation between them — the mode
 separates the prices, not the evidence.
 
 `K_CENTRE = 5` for tennis, so shrinkage helps little: at n=10 the sample owns
-67% of the centre against football's 40%. A clean sample is respected and a bad
+67% of the centre against football's 40% (of every sample-priced row; the
+rating-priced families do not read it - see §4). A clean sample is respected and a bad
 one is not corrected.
 
 A wrong human is worse than a small sample. `identity: FUZZY` on a tennis name
@@ -150,35 +169,43 @@ is a real risk — names collide — and it must never be reported as confirmed.
 
 ## 10. Price, with no consensus to lean on (method §26, §89–§90, §104)
 
-There is no odds feed, no model and no MCP for tennis here. The only reference
-price is Superbet's own other side, power-devigged into `market_p`, and when
-the rung is one-sided there is none at all (`NO_MARKET_MARGINAL`, `p_bar = p`).
+There is no odds feed, no consensus and no MCP for tennis here. The only
+reference price is Superbet's own other side, power-devigged into `market_p`,
+and when the rung is one-sided there is none (`market_p` null).
 Decide the rung blind. On the coupon the price is only the betting condition
 (x = confidence x odds >= 0.90, ladder margin <= 15%) - never evidence.
 
-Tennis **is** settled and calibrated now: 56,581 settled rows, its own pooled
-curve (`pooled:tennis`), and per-market curves where the row count allows. Two
-measured facts must travel with every confident tennis row:
+Tennis is calibrated from the history, not from our settled days: the
+2026-10-07 refit (installed that evening) fits `config/sofa_confidence_calibration.json`
+on the history of Sofascore events replayed as of each match with the
+estimator SHEET prices with (the rating as of that day, best-of-five skipped
+via `infer_best_of`). It has a tennis pool (`pooled_by_sport.tennis`),
+per-market curves, and class curves (`tennis_women`, `tennis_team_cup`);
+`calibration_n` counts replayed rows, not independent matches. Line evidence
+(from 2026-10-07 10:55Z) then lowers the confidence by what the key's
+Superbet lines realised below it (`line_offset`, `price_band_cap`). Facts that
+must travel with every confident tennis row (all dated):
 
-- `games_won_for`'s empirical frequency is **overconfident at the top** — a
-  claimed 0.95 realises 0.728 over 9,286 rows, and the market has no measured
-  bucket above 0.825. `Calibration.realised` refuses to let it borrow the
-  pooled curve above its own measured ceiling, which is why silence there is
-  evidence rather than a gap.
-- tennis length markets were measured overconfident by ~25 pp on 2026-09-06 and
-  **deliberately left uncorrected**, because the fix risked overfitting.
-- per-set **serve** markets (`{aces,double_faults,serve_points}_set{1,2}_*`,
-  `confidence.TENNIS_PER_SET_SERVE`) have no curve of their own and, since
-  2026-09-30, are refused by CONFIDENCE (`NOT_CALIBRATED`) instead of reading
-  the games-only tennis pool: at p_central >= 0.70 they realised 149/253 =
-  0.589 against 0.777 claimed. Their absence from the builder is that guard,
-  not a gap in your read. Per-set GAMES markets have their own curves.
-- full-match **serve points** (`serve_points_for`, `serve_points_total`,
-  `confidence.TENNIS_SERVE_POINTS`) are refused the same way since
-  2026-09-30: 15/31 = 0.484 realised against 0.782 claimed. Full-match aces
-  and double faults have their own curves and stay.
+- the **old** `games_won_for` frequency was overconfident at the top - a
+  claimed 0.95 realised 0.728 over 9,286 rows (2026-09-21). The new curve
+  reaches its `0.950-1.010` bucket (replayed realised 0.942), but the
+  2026-10-05/06 Superbet lines (older estimator) realised -0.17 (OVER) /
+  -0.12 (UNDER) below confidence on printable legs
+  (`config/sofa_superbet_line_evidence.json`); no settled line yet belongs to
+  the rating-priced estimator.
+- tennis length markets were measured overconfident by ~25 pp on 2026-09-06
+  under the old estimator.
+- per-set **serve** markets and full-match **serve points** had no curve of
+  their own in September and were refused instead of reading the games pool
+  (149/253 = 0.589 realised against 0.777 claimed; `serve_points_for` 15/31).
+  The guard (`confidence.TENNIS_PER_SET_SERVE`, `TENNIS_SERVE_POINTS`) still
+  stops them borrowing a pool; a market with an own curve in the current file
+  is read from it, and every key goes through line evidence (or is
+  `NO_LINE_EVIDENCE`). Per-set GAMES markets have their own curves.
+- **Match tiebreaks:** the pipeline counts a 10-point match tiebreak as one
+  game; Superbet's rule is unverified (open operator question).
 
-Superbet is a soft book and its tennis ladders are wide (12.5–36.5), so the
+Superbet's tennis ladders are wide, so the
 rung the sheet ranked is one of many — read the whole ladder and say why that
 rung.
 
@@ -193,4 +220,4 @@ rung.
 - Sackmann, J. Tennis Abstract — surface Elo, tie-break frequency (ATP ~1/5 sets, WTA ~1/8). http://www.tennisabstract.com/blog/category/tiebreaks/
 - Smarkets. French Open tennis trading strategy (returner break chance by surface). https://help.smarkets.com/hc/en-gb/articles/115003425649
 - Tennisbettingforum. Tennis surface betting strategy (games per BO3 by surface). https://tennisbettingforum.com/tennis-surface-betting-strategy/
-- In-repo: `src/bet/sofa/engine.py` (`EMPIRICAL_FREQUENCY_METRICS`, and the measured bimodality of `games_won_for`); `src/bet/sofa/confidence.py` (`Calibration.realised`, the measured-ceiling rule, the sport pool); `src/bet/sofa/samples.py` (the surface and format scope); `docs/sofa/RUNBOOK.md`.
+- In-repo: `src/bet/sofa/tennis_rating.py` (the rating, `RATING_PRICED_MARKETS`, `W_GAMES_TOTAL_RATING`), `src/bet/sofa/epochs.py` (`tennis_rating_prices`), `src/bet/sofa/tennis_score.py` (the match tiebreak), `src/bet/sofa/engine.py` (`EMPIRICAL_FREQUENCY_METRICS`, and the measured bimodality of `games_won_for`); `src/bet/sofa/confidence.py` (`Calibration.realised`, the measured-ceiling rule, the sport pool); `src/bet/sofa/samples.py` (the surface and format scope); `docs/sofa/RUNBOOK.md`.

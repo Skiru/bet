@@ -588,7 +588,8 @@ def main() -> int:
         #
         # They used to be banned here, and the ban was the wrong fix for a
         # real problem. The raw frequency is overconfident at the top — on
-        # 9,286 settled `games_won_for` rows a claimed 0.95 realises 0.728 —
+        # the 2026-10-02 replay's `games_won_for` rows (0.95 claimed, 0.728
+        # realised, old sample estimator) —
         # which is exactly what produced the 0.811-against-20.00 leg the ban
         # was written for. A curve solves that by capping the top bucket; the
         # ban solved it by deleting tennis. `games_won_for` alone was 1084 of

@@ -1,7 +1,8 @@
 # Traps that have actually cost something
 
 Every entry here is a measured incident, not a worry. They are ordered by how
-often they recur.
+often they recur. The rules in force after 2026-10-07 are in `SKILL.md`,
+"The 2026-10-07 rules"; an entry that names an older rule says so.
 
 ## Vocabulary
 
@@ -127,34 +128,21 @@ it passed the test.
 on 2026-09-21. A market we generate no row for is not a market we judged badly;
 it is one we never looked at.
 
-**The confidence curve is fitted on a probability that does not ship.**
-Open, measured 2026-09-21, **not fixed**. `run_sheet.py` shrinks the sample
-mean toward the league baseline (`centre = w_c·mean + (1−w_c)·prior`,
-then `K_CENTRE = 25` for football) and prices `p_central` from that centre.
-`fit_confidence.py` recomputes its own `p` from the **raw** `sample_mean` and
-skips the shrinkage entirely. So every curve the count metrics are served from
-is keyed on a model that never ships.
-
-Replayed over a real sheet (3,398 non-derived count rows, derived markets
-excluded because `derived.py` prices those and the recomputation says nothing
-about them):
-
-| | divergence `|p_fit − p_central|` |
-|---|---|
-| median | **0.0291** |
-| p90 | 0.1322 |
-| share above 0.025, one calibration bucket wide | **52.4%** |
-| worst: `goals_for` | median 0.083, p90 0.212 |
-| `games_total` (tennis, `K_CENTRE = 2`) | **0.0052** |
-
-That last row is the proof rather than an aside: tennis barely shrinks, so
-tennis barely diverges. The gap *is* the shrinkage.
-
-Everything gated on `realised_lo95` inherits it — the confidence floor, the
-x >= 0.90 price condition, and the `ABOVE_MEASURED_CEILING`
-drop on the singles. `fit_constants.py` was corrected for exactly this;
-`fit_confidence.py` was not. **Treat a football market's measured ceiling as
-approximate until it is.**
+**The confidence curve must be fitted on the probability that ships.**
+Measured 2026-09-21 and **fixed 2026-10-02** (`fit_confidence.py` keys every
+row on its STORED `p_central`; the cache replay calls SHEET's own estimator;
+8cfdd50e): `fit_confidence.py` had recomputed `p` from the RAW `sample_mean`
+with no shrinkage, so a curve was keyed on a model that never shipped (median
+divergence from SHEET's `p_central` 0.0291, 52.4% of rows above one bucket
+width, football `goals_for` worst; tennis `games_total` 0.0052 because tennis
+barely shrinks - the gap *is* the shrinkage). The durable lesson: whenever
+SHEET's estimator changes (tennis rating prices, football joints from marginal
+centres, basketball freshness - 2026-10-07 14:05Z) the replay that fits the
+curves must price the same estimator, or the curve describes another number.
+The 2026-10-07 refit did that for tennis and basketball; football goals joints
+were NOT replayed (`--derived` off), so derived joints have no curve and read
+their Superbet lines only. A p from an estimator no curve was fitted on is the
+first suspect when a bucket's realised rate sits far from its confidence.
 
 **`UNFITTED_CONSTANTS` is the row telling the truth.** `K_PRICE` and
 `MAX_LADDER_SIGMA` are not fitted. Never remove the note to make a report read
@@ -195,13 +183,74 @@ throttled (one opened without `launch_bridge_browser.py`'s flags) takes ~40 s
 to claim a job and answers the same routes in ~2,000 ms instead of ~175 ms.
 `check_bridge.py` warns above 600 ms.
 
-**Never re-fit constants mid-day.** `fit_constants.py` is outside
-`DEFAULT_SEQUENCE` on purpose; re-fitting breaks comparability with yesterday.
+**Never re-fit or install constants from a day's run.** `fit_constants.py` is
+outside `DEFAULT_SEQUENCE` on purpose; re-fitting breaks comparability with
+yesterday, so it runs on a copy of the DB and installs only on the operator's go.
 
 **Two writers on one config file.** `calibrate_from_cache.py --out` does not
 own `sofa_market_reliability.json`; `fit_constants.py` does, and applies a
 confidence-interval gate the other does not. When both wrote it, an empty file
 overwrote a measured one and reported success.
+
+## Process (each one cost a rebuild or a misread, 2026-10-05..07)
+
+**A rebuild does not re-run SHEET.** `rebuild_day.py` runs SHEET only when
+`05_sheet.json`'s `epoch` is not `stats_only` or its `link_rule` is not
+`shared_league` (`rebuild_plan`). A change of the estimator - tennis rating
+prices, football joints from marginal centres, basketball freshness, a refit -
+leaves the old `p_central` in the sheet and the new curves read it: the
+mismatch is silent. After such a change run `run_pipeline.py --date <d> --only
+SHEET --run-id <id>` (minutes to ~10 min), then the rebuild.
+
+**A glob that matches nothing aborts a zsh command line.** In zsh
+`rm -f /tmp/*_reads.json /tmp/*_vetoes.json` stops with `no matches found`
+before `rm` runs, so nothing is removed and everything after it in the line is
+skipped; the same for an unquoted `--include=*.py`. Quote the pattern, name the
+files, or use `find` (no nomatch). Clearing hand-off files is done by name.
+
+**A glob merges what it should not.** Merging `/tmp/*_reads.json` into
+`reads.json` took in a stale or foreign file (old sport reads, an earlier
+pass's tmp files) and its verdicts applied to today's legs. Merge only the
+files of THIS pass, by name (`/sofa-analyze` Step 2-3), and read the merged
+file back.
+
+**A stale mypy cache gives false errors.** After files change under a running
+tree `mypy --strict` can report errors that are not there (or hide ones that
+are). Gate with `mypy --strict --no-incremental` (and `--cache-dir=/dev/null`
+to leave nothing behind); a green run is then 172 files, 0 issues (2026-10-07).
+
+**A locked leg keeps the `ladder_no` it was printed with.** `build_coupon.
+coupon_structure` sets `ladder_no` on a leg that stands on a ladder of two or
+more rungs and never clears it; a leg locked from an earlier print arrives
+with its old field, so after the other rungs left (removed before their start)
+it can carry a `ladder_no` whose ladder is not in `ladders[]`. Read the
+ladders from `ladders[]` and the PDF's `ta sama drabina: N` (counted per
+`confidence.ladder_key` on the legs of the render), not from a locked leg's
+carried number.
+
+**A mixed day has two rules.** 2026-10-07 had four switches inside it
+(06:45Z, 10:55Z, 13:42Z, 14:05Z): a leg printed at 09:00Z and locked is the
+old rule and is never a defect under the new one; judge a build by the epoch
+of its own clock. Compare days only inside one epoch; a refit install (config
+content, 2026-10-07 17:51Z) is an epoch too although no `epochs` constant
+names it.
+
+**Yesterday's evidence is what a skipped refresh reads.** Without the morning
+`refresh_line_evidence.py --before <D>` no settled line of D-1 counts, and an
+evidence file written before the `games` field (or by an earlier day's rows
+after a failed sport fit - exit 1) makes a key with no curve `NO_LINE_EVIDENCE`
+under the v2 rules. Check `fitted_from.before` of the file against the day.
+
+**A refit never runs on the live database.** `prepare_refit.py
+rebuild-cache-rows` deletes the cache-replay rows (tens of millions, in chunks)
+and replays them for tens of minutes (~27 min measured 2026-10-02, peak RSS
+~25 GB); on `data/sofa.db` the daily loops' writers wait between chunks, the
+delete is not undoable without a full DB copy, and without
+`--allow-other-holders` the script refuses while another process holds the DB.
+The rule (CLAUDE.md, "Changing the pipeline" 4): take a `VACUUM INTO` copy and
+point `--db-path` at it with `--without-db-backup` (SKILL.md, "Between days").
+`install` is the only step that touches `config/`, behind `--confirm`, and
+only on the operator's go.
 
 ## Research hygiene
 

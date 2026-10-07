@@ -1,8 +1,13 @@
 # Measured base rates
 
-Two samples, both from bzzoiro, both reproducible. Use them as the prior when
-the odds feed carries no line for a market — never as a substitute for the
-consensus when it does.
+> **Historical (the archived pipeline, 2026-08).** Tables measured on the
+> provider that `sofa` no longer uses; see `../SKILL.md`.
+
+Two samples from the archived pipeline's provider (bzzoiro; no longer a data
+source - CLAUDE.md: Sofascore and Superbet only), measured 2026-05..08. Orders
+of magnitude for a slip audit when the operator has no outside line for a
+market - never a substitute for a typed consensus when there is one, and never a
+prior for a `sofa` row's `centre` or `confidence`.
 
 ## Goals and halves — 7,516 matches
 
@@ -100,8 +105,9 @@ Consequences:
 - **Do not multiply shots-and-goals legs.** The Napoli–Como three-leg slip lands
   46.1% of the time against a 41.1% product: +5pp of correlation lift the
   product throws away.
-- **Do multiply corners legs.** Monaco's corners-plus-BTTS structure lands 20.7%
-  against a 21.1% product — independent within noise.
+- Corners legs showed no lift: Monaco's corners-plus-BTTS structure lands 20.7%
+  against a 21.1% product — independent within noise, so the product is not
+  biased there. It is still never a Superbet price (measured markup 8.8–19.6%).
 - Fouls run mildly *against* goals. A slip pairing "lots of fouls" with "lots of
   goals" is not a coherent story about a chaotic match; it is two legs pulling in
   opposite directions.
@@ -120,9 +126,10 @@ outright. See `src/bet/sofa/confidence.py`.
 
 ## Reproducing all of this
 
-The sampling scripts are not committed — they are three short loops over
-`/events/`, `/events/{id}/stats/` and `/teams/{id}/fixtures/` using the client
-in `src/bet/api_clients/bzzoiro.py`. Pagination is `limit`/`offset`, **not**
-`page`: a `page` parameter is silently ignored and you will get one page back
-with a `count` that says otherwise, which is how a 153-match day first read as
-100 matches.
+Not reproducible from this repository: the sampling scripts were never
+committed and the client they used (`src/bet/api_clients/bzzoiro.py`) is gone
+with the `simple` pipeline. A fresh measurement would come from Sofascore
+statistics (`data/sofa.db`, the history replay) - and would then be a sofa
+measurement with its own bootstrap, not an edit of these tables. (One lesson of
+the old pulls: the provider's pagination was `limit`/`offset`, and a `page`
+parameter was silently ignored, which is how a 153-match day first read as 100.)

@@ -1,6 +1,6 @@
 ---
 name: sofa-market-scout
-description: Joins sofa's generated rows to what Superbet is actually offering, on two axes that must never be merged - CAN it be bet (fixture on the board, market on that fixture, direction posted, both sides quoted so a devig is even possible) and is it WORTH the price (required_odds, surplus - the priced quantities of the old VALUE selector in 06_coupon.json, never the coupon's confidence - and the structural discounts a surplus does not show). Also reads the blind spot no other artifact records - unmapped_markets ran to 21,290 on one day, so we classify roughly a tenth of Superbet's screen - and says which of those a sample we already hold could reach and which it could not. Re-asks Superbet for a live price through the same OfferFetcher the pipeline used. Never computes p_central, never sizes a stake, never prices a parlay, never places anything.
+description: Joins sofa's generated rows to what Superbet is actually offering, on two axes that must never be merged - CAN it be bet (fixture on the board, market on that fixture, direction posted, both sides quoted so a devig is even possible) and is it WORTH the price (required_odds, surplus - the priced quantities of the old VALUE selector in 06_coupon.json, never the coupon's confidence - and the structural discounts a surplus does not show). Also reads the blind spot no other artifact records - unmapped_markets ran to 21,290 on one day (about 28,000 on 2026-10-07), so we classify roughly a tenth of Superbet's screen - and says which of those a sample we already hold could reach and which it could not. Re-asks Superbet for a live price through the same OfferFetcher the pipeline used. Never computes p_central, never sizes a stake, never prices a parlay, never places anything.
 tools: Read, Glob, Grep, Bash, WebFetch
 skills:
   - sofa-pipeline
@@ -59,7 +59,8 @@ the bar is unanchored, and the sheet says `NO_MARKET_MARGINAL` /
 two-sided price, and nothing in `surplus` shows it.
 
 **The price has an age.** Each rung carries its own `fetched_at_utc`, and both
-COUPON and CONFIDENCE refuse anything older than 45 minutes. A row that
+COUPON and CONFIDENCE refuse anything older than 45 minutes
+(`SOFA_PRICE_MAX_AGE_MIN`; CONFIDENCE names it STALE_PRICE). A row that
 "disappeared" is often a row whose price went stale.
 
 ### Re-asking for a live price
@@ -74,6 +75,7 @@ sys.path.insert(0, "src")
 from pydantic import RootModel
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
+from bet.sofa.epochs import ampersand_subjects
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.stage import set_stage
@@ -88,7 +90,7 @@ target = [f for f in fixtures if f.sofascore_event_id == <event_id>]
 client = SuperbetClient(
     base_url="https://production-superbet-offer-pl.freetls.fastly.net"
 )
-fetcher = OfferFetcher(client)
+fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects("<date>"))
 offers = fetcher.fetch_offers(target)
 print("listings asked:", [f.superbet_event_ids for f in target])
 print("fetcher.errors:", fetcher.errors)   # [(superbet_event_id, "ExcType: message"), ...]
@@ -158,8 +160,12 @@ wins outright over the estimate.
 
 ## Axis 3 — the blind spot
 
-`unmapped_markets` was **21,290** on 2026-09-21. We classify roughly a tenth of
-Superbet's screen, and that is a known state rather than a fault.
+`unmapped_markets` was **21,290** on 2026-09-21 and ~28,000 occurrences on
+2026-10-07 (`04_offer.json`, counted as below). We classify roughly a tenth of
+Superbet's screen, and that is a known state rather than a fault. Since
+2026-10-07 nothing is refused by name and the operator wants every market that
+could win modelled in time: an unmapped market is a market not yet modelled,
+never a refused or a bad one.
 
 ```bash
 .venv/bin/python -c "
@@ -177,8 +183,21 @@ Then, per candidate family, answer **one** question: is there a sample in
 
 - **Yes** → say so, name the metric, and say what it would take to map it
   (`classify_market` in `src/bet/sofa/market_mapper.py` is where a name becomes
-  a `(market, subject)` pair). You may give an indication of the size, clearly
-  labelled as outside the pipeline's arithmetic and not calibrated.
+  a `(market, subject)` pair) and to print it: a curve for the key and its own
+  settled Superbet lines (`bet.sofa.line_evidence`; `NO_LINE_EVIDENCE` until a
+  `p` bucket holds 50 settled lines). You may give an indication of the size,
+  clearly labelled as outside the pipeline's arithmetic and not calibrated.
+- The families CLAUDE.md lists as "not modelled yet" are known work: football /
+  tennis outcome markets (1X2, double chance, draw-no-bet, both teams to
+  score, goals parity, half-time/full-time, exact score; tennis match / set
+  winner, set score, games parity) and CS2 series rounds / round parity. Name
+  them as such. Some of the biggest names on a day's list ("Dokładny wynik",
+  "multiwynik", "Mecz & liczba gemów") are Superbet's own combinations, which
+  no sample prices. `04_offer.json` is the football / tennis offer; the
+  measured sports' screen is SHADOW's / CS2's own snapshot, read through
+  `sport_confidence` (its `EXTENDED_MARKETS` and `CS2_EXTENDED_FAMILIES` grew
+  on 2026-10-07), so do not call a measured-sport market unmapped from
+  `04_offer.json` alone.
 - **No** → say so and stop. Do not estimate from a related metric.
 
 **What you must NOT do here:** the comparative markets — who takes more
@@ -190,10 +209,14 @@ about them instead is what they carry:
 
 - no per-side sample reaches them, so every one also carries `ONE_SIDED_LADDER`
   and `NO_MARKET_MARGINAL`;
-- 2–252 settled rows each, so no market curve can be fitted, and CONFIDENCE
-  refused them outright (`DERIVED_NOT_CALIBRATABLE`) before 2026-10-07 10:55Z;
-  from then they are read through their own settled Superbet lines and are
-  `NO_LINE_EVIDENCE` until 50 settled lines fill a `p` bucket;
+- 2–252 settled rows each, so no market curve can be fitted
+  (`DERIVED_CURVES_FROM_UTC` is off); CONFIDENCE refused them outright
+  (`DERIVED_NOT_CALIBRATABLE`) before 2026-10-07 10:55Z - that refusal no
+  longer exists; since then they are read through their own settled Superbet
+  lines and are `NO_LINE_EVIDENCE` until 50 settled lines fill a `p` bucket.
+  Football goals / corners / shots-on-target / cards joints are priced from
+  the marginal rows' centres from 2026-10-07 14:05Z
+  (`DERIVED_MARGINAL_CENTRES`), which restarts their line evidence;
 - the measured correlation between the two teams' corners is **r = −0.279**,
   which is the opposite sign from what "both over" intuition assumes.
 

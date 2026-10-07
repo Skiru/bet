@@ -3,14 +3,19 @@
 > **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
 
 For each market: what `sofa` measures, what moves it, the base rate, the kill
-cases, and what a good read says. Base rates are in-repo measurements unless
-stated; they were measured on a different pipeline's sample and are **orders of
-magnitude, not priors you may substitute for `centre`**.
+cases, and what a good read says. Base rates are the global means of `config/sofa_league_baselines.json`
+(Sofascore settled rows, fit 2026-10-07 17:13Z, 7,255 competitions): **orders
+of magnitude, not priors you may substitute for `centre`** - a competition's
+own baseline is what the sheet shrinks toward, and leagues differ more than
+most teams do. A base rate that only an earlier provider's sample gave is
+dropped rather than quoted.
 
-Which markets `sofa` actually prices is decided by Superbet's screen. On a
-Monday board (5,674 rows, 2026-09-21) football produced 37 distinct markets;
-`goals_total` (534 rows), `goals_for` (362), `corners_total` (210) and the
-goals halves dominate, and `fouls_total` produced **4**.
+Which markets `sofa` actually prices is decided by Superbet's screen. On
+2026-10-07 (`05_sheet.json`, football rows: 7,184, 56 distinct markets)
+`goals_total` (946 rows), `goals_for` (606), the player props (1,516 between
+them), `corners_total` (390), the goals halves and `corners_for` (278) dominate,
+and `fouls_total` produced 30, `shots_total` 90. Saves, throw-ins, goal kicks
+and tackles are priced as well (`saves_total` is on the coupon).
 
 ---
 
@@ -22,17 +27,20 @@ goals halves dominate, and `fouls_total` produced **4**.
   are corners; game state (a trailing side wins corners without winning);
   wind argues down. **Goals ↔ corners ≈ 0**: a goal-heavy match is not a
   corner-heavy one.
-- **Base:** 9.5 per match; over 8.5 in 61%, over 9.5 in 49%. Per team 4.77,
-  over 4.5 in 48%.
+- **Base:** 9.48 per match (n = 62,476), per team 4.76. Not rated:
+  `corners_total` and every corners half row take the sample's centre alone
+  (`football_rating.UNRATED_MARKETS`); `corners_for` is rated and priced by a
+  negative binomial, `corners_total` by a normal CDF.
 - **Kill cases:** a team-corner OVER stacked with a total-corner UNDER without
   a tail test (Porto–Arouca 12–2 — one side can destroy the total alone); a
   sample mean far from the book's ladder centre (2.80 against 5.76 means the
   sample described a different team-state — look for `LADDER_DISAGREES`); one
   side's ten matches in a different competition class; a 1.40 price on a
   per-team 4.5, which asks 70% of a coin-flip market.
-- **Half-match warning.** `corners_2h_*` has **62 matches** in the entire
-  settled history, and its league baselines were 24–32% too high for two days.
-  At n=8 the row is 65% league prior. Compute `n/(n+15)` and say it.
+- **Half-match warning.** The `corners_2h_total` global baseline rests on
+  **102** observations (`corners_1h_total`: 721), and a stale baselines file once
+  gave corners priors 24–32% too high for two days (September 2026). At n=8 the
+  row is 65% league prior (before any rating). Compute `n/(n+15)` and say it.
 
 ## Cards — `cards_points_total`, `cards_points_for`
 
@@ -45,8 +53,12 @@ goals halves dominate, and `fouls_total` produced **4**.
   fouls volume, stakes (derby, knockout, relegation), game state (0-0 late in
   a knockout), each side's discipline profile, and red-card propensity, which
   adds 2–3 points at once.
-- **Base:** booking points ~4.38 per match; yellow-only 3.72 over 1,326
-  observations. Per team yellow 1.86 (home 1.60 / away 2.11).
+- **Base:** booking points 4.50 per match (n = 52,247), per team 2.25
+  (global baselines, 2026-10-07). Staff cards (a card shown to the bench or the
+  coaching staff, `manager` with no `player` in the incident) are not counted,
+  as Superbet's rules say; a card to an unused substitute is.
+  `cards_points_for` is unrated: the centre is the sample's alone, so the
+  sample's own `venue` field is all there is for home / away.
 - **`sofa` does not blend the referee into the centre.** The old pipeline did;
   this one does not, and the referee is present on ~9% of fixtures. So the
   referee is entirely your contribution here — and its absence is the normal
@@ -59,14 +71,15 @@ goals halves dominate, and `fouls_total` produced **4**.
 ## Fouls — `fouls_total`, `fouls_for`, `fouls_1h_*`
 
 - **Measures:** fouls committed, from `/statistics`.
-- **Rarely priced.** Four `fouls_total` rows on a 102-fixture board. Check the
-  offer before spending analysis on it.
-- **Drivers:** the referee's foul tolerance, the league (Süper Lig 27.9 against
-  Bundesliga 20.7 — a league difference larger than most team differences),
-  pressing and duel intensity, derby or knockout, and game state: a side
-  protecting a lead fouls to stop transitions. Fouls run **against** goals
-  (r ≈ −0.13).
-- **Base:** 24.3 per match, over 20.5 in 75%. Per team 12.17, over 12.5 in 45%.
+- **Rarely priced.** 30 `fouls_total` rows (60 `fouls_for`) among 7,184
+  football rows on 2026-10-07. Check the offer before spending analysis on it.
+  The fouls rows are priced by a normal CDF, not a negative binomial.
+- **Drivers:** the referee's foul tolerance, the league (the per-competition
+  means in `config/sofa_league_baselines.json` differ by more than most teams
+  do), pressing and duel intensity, derby or knockout, and game state: a side
+  protecting a lead fouls to stop transitions. Fouls run mildly **against**
+  goals (an earlier sample: r ≈ −0.13).
+- **Base:** 24.67 per match (n = 54,208), per team 12.37 (global baselines).
 - **Estimand check:** `fouls_for(A) + fouls_for(B) ≈ fouls_total` mean. A large
   gap means the pooled and per-team samples describe different match sets.
 - **Kill case:** the misses are the h2h — a pairing running 43/39/33 against a
@@ -76,14 +89,16 @@ goals halves dominate, and `fouls_total` produced **4**.
 
 - **Measures:** from `/statistics`. The raw field `totalShotsOnGoal` is **all
   shots** despite its name.
-- **Superbet's ladders start high** (SOT from ~7.5, shots from ~24.5), so many
-  of our rungs simply have no price.
+- **Many of our rungs have no price**: on 2026-10-07 `shots_total` had 90 and
+  `shots_on_target_total` 118 rows among 7,184 football rows. Both are priced by
+  a normal CDF; the rating centres them (shots and shots on target are rated).
 - **Drivers:** attacking volume, opponent block, game state (a trailing side
-  shoots more and worse), finishing regression, tempo. **SOT ↔ goals +0.55** —
-  a SOT OVER and a goals OVER are one thesis, not two, and `confidence.py`
+  shoots more and worse), finishing regression, tempo. **SOT ↔ goals strongly positive** (an earlier
+  sample: +0.55) — a SOT OVER and a goals OVER are one thesis, not two, and `confidence.py`
   enforces that by putting `shots` and `goals` in different quantity families
   but refusing builders whose legs disagree about tempo.
-- **Base:** SOT 8.7 per match (over 6.5 in 73%); per team 4.35 (over 2.5 in 77%).
+- **Base:** SOT 8.64 per match, per team 4.35; shots 24.72 per match, per team
+  12.39 (global baselines, 2026-10-07).
 - **Kill cases:** a mean pulled by outliers against weak opposition (41–50 shots
   four times — the median still describes the fixture, so this is a caveat, not
   automatically a veto); a favourite that scores early and manages, which kills
@@ -94,15 +109,21 @@ goals halves dominate, and `fouls_total` produced **4**.
 - **Measures:** off the score, so `n` runs ahead of every other market — every
   finished match has a score, far fewer have full statistics. Halves from the
   half-time score.
-- **Extra time.** `EXTRA_TIME_STATUS_CODES = {110, 120}`. Superbet's
-  "(z dogrywką)" markets and its 90-minute markets are different questions;
-  check which one the rung is.
-- **Halves:** first halves carry ~45% of goals, not 50%. `sofa`'s own
-  half-versus-full coherence check reports goals halves inconsistent by −13%
-  and −17%, because the half-match baselines are measured on a smaller
-  population. Say so on any `goals_1h_*` / `goals_2h_*` row.
+- **Extra time.** `EXTRA_TIME_STATUS_CODES = {110, 120}`: a goal count of such
+  a match is read at 90 minutes (`normaltime`), every other counting metric
+  of it is refused (`EVENT_NOT_FINISHED`). Superbet's "(z dogrywką)" markets
+  and its 90-minute markets are different questions; check which one the
+  rung is.
+- **Halves:** first halves carry ~45% of goals, not 50%. The half-match
+  baselines are measured on a smaller population (2,448 against 598,987
+  observations for goals, fit 2026-10-07; `half_match_coherence` `OK`, it had
+  reported −13% / −17% for the goals halves earlier). Say so on any
+  `goals_1h_*` / `goals_2h_*` row.
+- **Sample:** for a league fixture `goals_total` / `goals_for` / the halves'
+  `_for` read the side's last ten REGULAR matches of the same competition
+  (five or more), a knockout fixture the usual newest ten.
 - **Kill cases:** a 0.5 OVER or 5.5 UNDER at 1.01–1.05 topping a sheet by hit
-  rate — certainty for free is not a bet, and CONFIDENCE refuses anything under
+  rate — certainty for free is not a bet, and CONFIDENCE refuses any price under
   1.0867 for exactly that reason; a second leg whose aggregate changes who must
   score; a past-frequency streak read as an edge (the pewność is the claim,
   not the streak).
@@ -110,8 +131,20 @@ goals halves dominate, and `fouls_total` produced **4**.
 ## Offsides — `offsides_total`, `offsides_for`
 
 Driven by the high line of *one* side and the runners of the other. Thin
-samples, high variance, and Superbet's ladder starts at 2.5. Four rows on the
-Monday board. WATCH unless the matchup argument is specific.
+samples, high variance, and Superbet's ladder starts at 2.5. 30 `offsides_total`
+and 60 `offsides_for` rows on 2026-10-07 (full-match offsides use a negative
+binomial; `offsides_total` is unrated). WATCH unless the matchup argument is
+specific.
+
+## Saves, throw-ins, goal kicks, tackles — `saves_*`, `throw_ins_*`, `goal_kicks_*`, `tackles_*`
+
+Collected and priced, unrated (no rating centre), normal CDF; they sit in the
+shots family for the builder (saves, goal kicks) or their own. Their zeros are
+often the provider not counting (see the data inventory): look at the sample
+for a gap before trusting a low mean. Goalkeeper saves follow the opponent's
+shots on target and the keeper in goal tonight, which nothing in the artifacts
+names (a changed keeper is a `CONTEXT` veto). `saves_total` and `saves_for` legs
+were on the 2026-10-07 coupon.
 
 ## xG — `xg_total`, `xg_for`
 
@@ -121,16 +154,26 @@ read an absent xG as zero.
 
 ## Derived markets — `both_over_*`, `most_*`, `handicap_*`
 
-- **Not sampled.** They are functions of two sides, computed from
-  `config/sofa_side_correlations.json`. Every such row carries
-  `ONE_SIDED_LADDER` and `NO_MARKET_MARGINAL`.
-- **Not calibratable.** 2–252 settled rows each; CONFIDENCE refuses them
-  (`DERIVED_NOT_CALIBRATABLE`) so they can never be a builder leg.
-- The measured correlation between the two teams' corners is **r = −0.279**.
-  "Both over" intuition assumes the opposite sign.
-- On the Monday board these were 1,024 of 5,674 rows (`DERIVED` note) —
-  a fifth of the sheet, none of it stakeable as a leg. Report the two `*_for`
-  rows and refuse the multiplication.
+- **Not sampled.** They are functions of two sides, priced from the two sides'
+  marginals and `config/sofa_side_correlations.json`; since 2026-10-07 14:05Z
+  the goals, corners, shots-on-target and cards joints use the marginal rows'
+  centres (K_CENTRE shrink + rating, variance scaled with the centre), the
+  fouls, shots and offsides joints the raw sample mean and variance. Notes
+  that say how far the market checked the row: `NO_MARKET_MARGINAL`,
+  `ONE_SIDED_LADDER`, `MARGINAL_DISAGREEMENT`, `NO_LADDER_CHECK` (these also
+  decide the old VALUE selector's verdict, not the coupon's confidence).
+- **No history curve** (`epochs.DERIVED_CURVES_FROM_UTC` is off).
+  `DERIVED_NOT_CALIBRATABLE` is gone; a derived row's confidence is the Wilson
+  bound of its own settled Superbet lines, else `NO_LINE_EVIDENCE`. As coded,
+  such a row has no observations for the sample gates, and neither the
+  2026-10-06 nor the 2026-10-07 coupon holds a football derived leg, single or
+  builder.
+- The residual correlation between the two teams' corners is **r = −0.145**
+  (raw −0.198), goals −0.012 (config, `_min_pairs` 200). "Both over"
+  intuition assumes a positive sign for corners.
+- On 2026-10-07 these were 702 of 7,184 football sheet rows (`DERIVED` note).
+  If one is in your read set, report the two `*_for` rows and refuse the
+  multiplication.
 
 ## Per-team markets in general — `*_for`
 
@@ -138,8 +181,9 @@ read an absent xG as zero.
   home fixture is a thinner sample than `n=8` looks.
 - **`h2h` never reaches a `*_for` row** — by design. A head-to-head is a fact
   about a pairing; `*_for` is a claim about one side.
-- **No `*_against` metric exists.** Use the opponent's `*_for` and label it a
-  proxy.
+- **No `*_against` observation exists.** Use the opponent's `*_for` and label
+  it a proxy; the rating's defence ratio (`FOOTBALL_RATING` note, rated markets
+  only) is the one built-in opponent adjustment.
 
 ## Player props — `player_shots_for`, `player_shots_on_target_for`, `player_assists_for`, and since 2026-09-29 `player_fouls_for`, `player_tackles_for`, `player_interceptions_for`, `player_offsides_for`
 
@@ -156,19 +200,25 @@ New 2026-09-22 (F54). Three metrics, read per player out of
 stays in `unmapped_markets`, because Sofascore reports none of those splits
 and a yes/no proposition is not a rung on a ladder. Do not grade one of those.
 
-**A player prop cannot reach the coupon, and you should not argue for one.**
-Superbet quotes these on ONE side only — 437 "powyżej" and 0 "poniżej" on the
-whole 2026-09-22 board — so `market_p` is `None`, `NO_PRICE_ANCHOR` fires and
-the row stops at `LEAN`. That is the row being selected by our model with no
-price checking it, which is the population the settled record calls the worst
+**Do not argue for a player prop.** Superbet quotes these on ONE side only —
+437 "powyżej" and 0 "poniżej" on the whole 2026-09-22 board (dated) — so
+`market_p` is `None`, `NO_PRICE_ANCHOR` fires and the old VALUE selector stops
+at `LEAN`. On the coupon the same missing under-price leaves the rung with no
+ladder margin, and a single prints only with a margin <= 15%: a one-sided prop
+cannot be a single. It could in principle be a builder leg if it clears a curve
+and its own Superbet lines (`player_*|OVER` keys exist in the line evidence;
+`admitted_player_markets` no longer gates); no player leg is on the
+2026-10-06 or 2026-10-07 coupon. That is the row being selected by our model
+with no price checking it, the population the settled record called the worst
 one on the sheet. Read these as forecasts.
 
 Since 2026-10-01 shots, shots on target and assists are priced with a
 negative binomial (`engine.NEGATIVE_BINOMIAL_METRICS`), not the normal: on
 the settled player rows of 09-24..30 the normal put a median +8 pp on every
-OVER (assists 0.5 OVER claimed 0.243, realised 0.081, n=495). A sheet built
-before that change carries the inflated OVER; do not compare a pre- and
-post-change `p_central` as if the player moved.
+OVER (assists 0.5 OVER claimed 0.243, realised 0.081, n=495, dated). A sheet
+built before that change carries the inflated OVER; do not compare a pre- and
+post-change `p_central` as if the player moved. Fouls, tackles, interceptions
+and offsides props still use the normal.
 
 What to check when one is on the sheet:
 
@@ -186,12 +236,14 @@ What to check when one is on the sheet:
   transferred in during the window has a short sample with no note saying
   why; compare `sample_size` against `squad_matches`.
 - **Do not pair one with his team's line.** A player's shots and the team's
-  shots are one quantity counted twice; `confidence.py` enforces this
-  (`quantity_family`) but say so if you see it proposed.
+  shots are one quantity counted twice, and an assist belongs to the goals
+  family; `confidence.py` enforces this (`quantity_family`) but say so if you
+  see it proposed.
 
 ## Bet Builders
 
-`confidence.py` builds them and you do not. What you contribute per candidate
+`scripts/sofa/run_confidence.py` builds them (one per fixture, the best
+`combined_probability`, at most one leg per quantity family) and you do not. What you contribute per candidate
 slip:
 
 - a concrete scoreline or stat line that satisfies **every** leg at once, and

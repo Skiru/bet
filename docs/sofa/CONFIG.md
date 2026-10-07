@@ -342,9 +342,26 @@ zgadywać. Do `config/` piszą tylko `install` i `restore`, oba za `--confirm`.
 Wszystko inne ląduje w katalogu roboczym `data/refit_<data>/` — nigdy pod
 `runs/` ani `config/` (skrypt odmawia takiej ścieżki).
 
-**Kiedy:** rano, **po** rozliczeniu D-1 (`run_settle.py`, `record_results.py`)
-i **przed** startem dnia. Nigdy w trakcie dnia (sekcja 5, punkt 3). Nowe pliki
-otwierają nową epokę porównywalności — commit mówi to wprost.
+**Kiedy i na czym:** poza przebiegiem dnia i **na kopii bazy**, nie na żywej
+(pętle `shadow_daily` / `cs2_daily` / `capture_closing` zapisują do niej co
+kilka minut; replay kasuje kilkadziesiąt milionów wierszy). Zainstalować można
+dopiero po przejściu `tests/sofa` i **za zgodą operatora** (instalator cofa
+konfigurację, gdy testy padną). Nowe pliki otwierają nową epokę porównywalności
+— commit mówi to wprost.
+
+Procedura na kopii (2026-10-07):
+1. `VACUUM INTO` — spójny snapshot żywej bazy w trybie WAL (czytelnik nie
+   blokuje pisarzy): `sqlite3.connect("file:data/sofa.db?mode=ro", uri=True)`
+   i `VACUUM INTO 'data/refit_<d>/sofa_replay.db'` (~7 min, ~43 GB).
+2. `prepare_refit.py --date <d> --db-path data/refit_<d>/sofa_replay.db backup`,
+   potem `rebuild-cache-rows --confirm --without-db-backup` (oryginał jest
+   kopią zapasową; dochodzą `--derived goals,...` i `--no-tennis-rating`;
+   replay odtwarza rating tenisa w chwili meczu, mecze bo5 pomija),
+   `fit`, `compare`, `install --confirm`.
+3. Koszykówka: `fit_sport_confidence.py --sport basketball --before <d+1>
+   --bb-freshness on --dry-run --rows-out <dir>`, sekcja z `<dir>/basketball_
+   section.json` do `config/sofa_sport_confidence_calibration.next.json`.
+4. `refresh_line_evidence.py --before <d+1>` (to **nie** jest refit).
 
 **Jak replay widzi inne pliki:** `SOFA_CONFIG_DIR` (`bet.sofa.config.config_dir`)
 przestawia każdy czytnik konfiguracji — `run_sheet.py` (bazy, wiarygodność,

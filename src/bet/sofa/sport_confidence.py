@@ -11,8 +11,10 @@ What this module holds:
 
 * ALLOWED_MARKETS / CS2_FAMILIES (F2): the only markets a sport leg may come
   from. Each Superbet market id was checked against shadow.MARKETS; dnb,
-  odd/even, yes/no, the exact score, basketball's second half and Q4 (whose
-  overtime reading is ambiguous) and every player line are out.
+  odd/even, yes/no, the exact score, basketball's second half and Q4 and
+  every player line are outside THIS list - from the line-evidence epoch
+  EXTENDED_MARKETS adds them (basketball's second half and Q4 grade on the
+  regulation periods, overtime does not count).
 * The walk-forward rows the calibration is fitted on (F4): each historical
   game forecast from a model built strictly before it, on synthetic lines
   placed at the quantiles of the game's own simulated distribution (no

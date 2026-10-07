@@ -17,16 +17,16 @@ in football. Order the queue by what is staked and its position, never by price.
 
 | # | Step | Where the answer is | What you write |
 |---|---|---|---|
-| T1 | Format and surface | `default_period_count` (**the real best-of**), `ground_type` | "BO3, mączka" — or **"format/nawierzchnia nieznana, zakres próbki nie zadziałał"**. Null here means the scope silently did nothing. |
+| T1 | Format and surface | `default_period_count` (**the real best-of**), `ground_type` | "BO3, mączka" — or **"format/nawierzchnia nieznana"**. A null surface empties the sample (`SURFACE_UNKNOWN`), a null format skips the format scope and the rating then reads the match as BO3; a BO5 is not read by the rating. |
 | T2 | Both clocks | `kickoff_utc`, `superbet_kickoff_utc`, `kickoff_disagreement_h` | both times and the gap. On ITF a gap of hours is normal and `CONFIRMED`; take the **earlier**. |
 | T3 | Order of play | web, two domains | round, court, and whether the match has started `[WEB: domain, fetched …]`. One domain alone is "unconfirmed". Qualifying is BO3 even at a slam. |
 | T4 | Sample, per side | `03_samples.json` → `side_a` / `side_b` / `h2h` | scoped n per side, date range, opponents. **A side at 0–3 is not a sample. A total with one side at zero is one player's history wearing a match's name.** |
-| T5 | Shrinkage share | `n/(n+5)` | at n=10 the sample owns 67% of the centre |
+| T5 | Shrinkage share, and what prices the row | `n/(n+5)`; `model_p` vs `forecast_p` | at n=10 the sample owns 67% of the centre **of a sample-priced row**. `games_won_for` / `handicap_games` / `most_games` and half of `games_total` are priced by the rating (from 2026-10-07 14:05Z): `model_p == forecast_p` on `games_won_for`, none on `handicap_games` / `most_games`; the sample's k/n is then the independent check |
 | T6 | Opponent class | the `opponent` names, looked up | the class of the sample's opposition against tonight's opponent |
 | T7 | Serve / return | `aces_for`, `double_faults_for`, `serve_points_for` + web hold% | high-hold competitive OVER, breaks-and-three-sets OVER, or one-sided UNDER. Aces ≠ tie-breaks. |
 | T8 | Distribution | the observations | min, max, median, **mode**; for `games_won_for` say explicitly where the 12-wall sits relative to the line |
-| T9 | Scoreline arithmetic | by hand | the concrete scorelines that settle each rung: `6-3 6-4` = 19; `7-6 6-7 7-6` = 39; a player's games in `6-2 6-3` = 5. **Which rung does the modal scoreline land on?** |
-| T10 | Schedule and fatigue | web | previous match score, date, duration; back-to-back days; a qualifier's extra matches; a recent retirement |
+| T9 | Scoreline arithmetic | by hand | the concrete scorelines that settle each rung: `6-3 6-4` = 19; `7-6 6-7 7-6` = 39; a player's games in `6-2 6-3` = 5; a 10-point match tiebreak counts one game in the code (`6-4 3-6 10-7` = 20; Superbet's count unverified - name it at ITF / UTR / team-cup events). **Which rung does the modal scoreline land on?** |
+| T10 | Schedule and fatigue | web; `schedule` block in `03_samples.json` | previous match score, date, duration; back-to-back days; a qualifier's extra matches; a recent retirement (a retirement or walkover refunds a single leg: void risk) |
 | T11 | Scenario matrix | | favourite pulls away / underdog holds / both first serves work / tie-break or deciding set. Which is modal, which kills the market. **No match-odds price exists in the artifacts.** |
 | T12 | Ladder and tail | `04_offer.json` + the sheet + the coupon legs | every rung with `p_central`, pewność, próbka k/n, model (`forecast_p`) and `offered`. A third set adds 12–15 games — the tail is huge and one-sided. |
 | T13 | Price, only the filter | `offered_odds`, x = confidence x odds, `fetched_at_utc` | a condition the code applied, never a reason; a one-sided rung has `market_p` null - say so. |
@@ -68,7 +68,9 @@ Modalny wynik <…> ląduje na szczeblu <…>.
   run. That is a fact about the sample, and it is the single most common way a
   tennis row is quietly wrong.
 - On any `games_won_for` row, say where 11.5 sits relative to the wall at 12.
-- On any confident `games_won_for` row, say that the market has no measured
-  calibration bucket above 0.825.
+- On any confident `games_won_for` row, say that the leg is priced by the
+  rating alone (when `model_p == forecast_p`), that no settled Superbet line
+  yet belongs to that estimator, and that the older-estimator lines realised
+  below confidence (`config/sofa_superbet_line_evidence.json`).
 - A two-UNDER tennis builder is one bet with two prices. Say so.
 - What you could not verify goes in **NIE PODANO**, never silently omitted.

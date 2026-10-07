@@ -203,7 +203,7 @@ def tennis_rating_prices(date: str, build_at: datetime | None = None) -> bool:
 # Brier vs the competition base rate +0.0172 -> +0.0051, most / handicap
 # -0.006..-0.009 better than now. It moves every derived football p, so never
 # mid-day and the derived keys' line evidence restarts (fit_line_evidence).
-# Read on the wall clock, like MODEL_FIXES_FROM_UTC.
+# Read on the day being built and the build clock, like the other switches.
 DERIVED_MARGINAL_CENTRES_FROM_UTC: datetime | None = datetime(
     2026, 10, 7, 14, 5, tzinfo=UTC)
 

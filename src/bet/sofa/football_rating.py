@@ -151,7 +151,7 @@ _RATIO_BOUNDS = (0.2, 5.0)
 #
 # Two teams are LINKED when, inside LINK_WINDOW_S, both played at least
 # LINK_MIN_MATCHES in one competition and that competition is the league of
-# both (epochs.link_shared_league; before 2026-10-08 the league of either -
+# both (epochs.link_shared_league; before 2026-10-07 the league of either -
 # which linked a promoted side three games into its new league, and read its
 # old league's ratios 1:1): their ratios share a denominator. Any
 # other pairing (a European cup, a cup against a lower division, a friendly

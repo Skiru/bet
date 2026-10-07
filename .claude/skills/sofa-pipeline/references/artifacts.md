@@ -1,6 +1,6 @@
 # The artifacts — every file, every field
 
-> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+> The rules after 2026-10-07 (line evidence, no refusal by name, the model packages, refunds, the refit) are stated once, in `.claude/skills/sofa-pipeline/SKILL.md`, section "The 2026-10-07 rules". Where an artifact below names an old behaviour it is marked *(old epoch)* and that section wins.
 
 All under `runs/sofa/<date>/`. Types come from `src/bet/sofa/contracts.py`,
 which is `strict=True, extra="forbid"` throughout — a field not listed here
@@ -27,7 +27,7 @@ The day is **UTC**. Datetimes in these files are UTC ISO with `Z`.
 | `sofascore_event_id` | int | the key everything downstream joins on |
 | `superbet_event_ids` | str[] | plural: duplicate listings are merged here |
 | `kickoff_utc` | datetime | **Sofascore's** clock |
-| `superbet_kickoff_utc` | datetime \| null | **Superbet's** clock. A match listed twice keeps the first listing's clock, unless it is exactly 00:00:00Z and the other is a real time (`resolve.merged_superbet_kickoff`, since 2026-10-01: three ITF matches held a midnight placeholder beside 11:08Z and lost all 168 priced rungs as "started") |
+| `superbet_kickoff_utc` | datetime \| null | **Superbet's** clock. A match listed twice keeps the first listing's clock, unless it is exactly 00:00:00Z and the other is a real time (`run_resolve.merged_superbet_kickoff`, since 2026-10-01: three ITF matches held a midnight placeholder beside 11:08Z and lost all 168 priced rungs as "started") |
 | `kickoff_disagreement_h` | float \| null | up to 11 h on ITF. COUPON takes the **earlier** of the two. |
 | `home_name` / `away_name`, `home_entity_id` / `away_entity_id` | | the side a `subject` must resolve to |
 | `competition_name`, `competition_id`, `season_id`, `category_name` | | first place a competition is named at all |
@@ -35,7 +35,10 @@ The day is **UTC**. Datetimes in these files are UTC ISO with `Z`.
 | `round_number`, `round_name`, `cup_round_type`, `previous_leg_event_id` | | cup context; `previous_leg_event_id` is how a second leg is visible |
 | `venue_name`, `referee` | `RefereeRecord \| null` | referee is filled for ~9% of fixtures — announced late |
 | `ground_type` | str \| null | tennis surface |
-| `default_period_count` | int \| null | tennis: the real best-of (3 or 5). Football: the number of halves, which is why it is not called `best_of`. |
+| `default_period_count` | int \| null | tennis: the real best-of (3 or 5; a best-of-five is not rating-priced). Football: the number of halves, which is why it is not called `best_of`. |
+| `sport` | `"football" \| "tennis"` | |
+| `sofascore_status` | str \| null | Sofascore's `status.type` when RESOLVE read `/event/{id}` (K14); `postponed` / `canceled` refuses it in CONFIDENCE. Absent before 10-05. |
+| `national_teams` | bool \| null | both sides national teams (RESOLVE from 2026-10-06; null = not said); such a sample is judged by count, not age |
 
 `RefereeRecord`: `name`, `games`, `yellow_cards`, `red_cards`,
 `yellow_red_cards`.
@@ -45,7 +48,8 @@ The day is **UTC**. Datetimes in these files are UTC ISO with `Z`.
 ```
 sofascore_event_id, readiness: READY|PARTIAL|BLOCKED,
 metrics: { "<metric>": MetricSample }, gaps: GapEntry[],
-players: { "<metric>|<player>": PlayerSample }
+players: { "<metric>|<player>": PlayerSample },
+schedule: FixtureSchedule | null     (make-up fixture, rest, congestion; absent before 2026-10-04)
 ```
 
 `MetricSample`: `metric`, `side_a[]`, `side_b[]`, `h2h[]` — each an
@@ -98,7 +102,8 @@ the match (2026-10-01: 118 gaps over 59 events were all NULL).
 
 ```
 sofascore_event_id, status: PRICED|NO_PRICE|null,
-rungs: PricedRung[], unmapped_markets: str[], price_collisions: str[]
+rungs: PricedRung[], unmapped_markets: str[], price_collisions: str[],
+superbet_started_utc, superbet_kickoff_seen_utc          (two more start signals: the start clock is the earliest of all)
 ```
 
 `PricedRung`: `market`, `subject`, `line`, `over_odds`, `under_odds`,
@@ -123,6 +128,8 @@ so a filtered refresh's merge keeps the prices the previous file holds.
 | `p_central` | the model's probability. Stats-only epoch: no price in it (K1) |
 | `epoch` | `stats_only` on a stats-only build; absent = the old rule. CONFIDENCE refuses a sheet without it on a stats-only day |
 | `forecast_p`, `forecast_source` | the rating's own number ("model", uncalibrated; `football_rating` / `tennis_rating` / null) - printed, never a gate |
+| `link_rule` | `shared_league` on a row rated under the 2026-10-07 06:45Z link rule; absent = the old rule (a rebuild re-runs SHEET on such a sheet) |
+| `sample_frequency` | hits/n at the rung, empirical-frequency metrics only (the old disagreement gates read it) |
 | `calibration_correction` | subtracted from `p_central` before the price blend. On the row since 2026-09-21 — without it `p_bar` cannot be re-derived from the row's own fields. |
 | `market_p` | Superbet's price, power-devigged. `null` when one-sided. |
 | `ladder_centre`, `ladder_sigma` | describe **the bookmaker's ladder**, not our distribution |
@@ -153,9 +160,10 @@ Read it before concluding a row was never generated. Reason vocabulary in
 Graded rows, also written to `data/sofa.db` (`sofa_settled_row`). The skips
 file says which rows could not be graded and why — a blind row counted as a
 loss understates the model exactly as much as counting it a win overstates it.
-Three skip reasons are a **refund** (0 u.), never a loss and never a settled
+Four skip reasons are a **refund** (0 u.), never a loss and never a settled
 row (`settle.REFUND_REASONS`): `MOVED_BEYOND_VOID` (Sofascore's start moved
-more than 48 h from the earliest clock held) `AWARDED` and `RETIRED` (a retirement, status code 92). A player prop
+more than 48 h from the earliest clock held), `AWARDED`, `RETIRED` (a
+retirement, status code 92) and `WALKOVER` (operator, 2026-10-07). A player prop
 whose name is not unambiguous in his own squad is `PLAYER_AMBIGUOUS`.
 
 `07_settled_printed.json` (`settle.PRINTED_SETTLED_FILE`): the grades of
@@ -186,8 +194,14 @@ bound — this is the number), `calibrated_on` (`market:<name>`,
 `sample_oldest_days`, `sample_newest_days`, `sample_min`/`sample_max`,
 `offered_odds`, `implied_p`, `shading` (`confidence − 1/odds`), `leg_ev`
 (`confidence·odds − 1`), `market_p`, `overround`, `unfitted_constants`,
-`context_flags`, `reads`; stats-only also `epoch`, `forecast_p`,
-`forecast_source`.
+`context_flags`, `reads`, `sheet_odds` (the sheet's price when it moved);
+stats-only also `epoch`, `forecast_p`, `forecast_source`; when line evidence
+lowered it `line_offset` (the key's measured offset, <= 0) and / or
+`price_band_cap` (the band cell's realised rate), and `calibrated_on` then
+reads `<curve><offset>sb`, `...|cap:<cell>` or, for a key with no curve,
+`sb:<sport>:<key>`; a leg of a day under the line-evidence epoch also lists
+the line-evidence constants in `unfitted_constants`. The artifact also carries
+`pool_neighbour_cap` (K13b on / off for the build).
 
 A **builder**: `legs[]`, `n_legs`, `combined_probability` (the **lower** of
 the product and the empirical joint), `product_probability`,
@@ -264,16 +278,21 @@ the id SETTLE grades the sport leg by.
 ## `08_confidence_sports.json` (SPORT_CONFIDENCE)
 
 `created_at_utc`, `date`, `rule` (`floor` 0.7, `min_x` 0.9, `max_overround`
-0.15, `min_odds` 1.0867, `kickoff_margin_min`, `max_price_age_min`,
-`day_window_utc`), `calibration_fitted_from`, `sports` (per sport `status`
-`OK` / `NOT_CALIBRATED`, `refused` counts, `legs`) and `legs[]`: `sport`,
+0.15, `min_odds` 1.0867, `kickoff_margin_min` 15, `max_price_age_min` 180,
+`day_window_utc`), `calibration_file` (the main or the staged `.next.json`),
+`calibration_fitted_from`, `line_evidence_fitted_from`, `sports` (per sport
+`status` `OK` / `NOT_CALIBRATED`, `refused` counts - vocabulary in
+`stages.md` § SPORT_CONFIDENCE, `legs`, `fixtures_not_as_scheduled`) and
+`legs[]`: `sport`,
 `group_key` (`sofa:<id>`), `sofascore_event_id`, `superbet_event_id`,
 `market_id`, `family`, `period`, `subject`, `line`, `side`, `confidence`
 (the `realised_lo95` of the calibrated bucket of the model p),
 `calibrated_on`, `calibration_n`, `sample_hit_rate`, `sample_k`, `sample_n`
 (shown, never a gate), `forecast_p` (`score_model` / `cs2_engine`),
 `forecast_source`, `odds`, `x`, `overround`, `kickoff_utc`, `source_date`,
-`price_fetched_at_utc`, `match`, `competition`.
+`price_fetched_at_utc`, `match`, `competition`, `unfitted_constants`;
+`line_offset` / `price_band_cap` when the line evidence lowered it; CS2 map
+legs `team1`, `team2`, `map_nr`.
 
 ## `11_coupon.json` / `11_coupon.md` (COUPON_ASSEMBLY) — **the coupon artifact**
 
@@ -295,6 +314,14 @@ or rebuilt:
 - `positions` (N), `locked_singles` (count), `blocks[]` (`block`,
   `group_key`, `match`, `sport`, `kickoff_utc`, `positions`, `builders`);
 - `builders[]`, a printed (stakeable) one numbered `builder_no` `B1..`;
+- the structure annotations (`coupon_structure`, annotation only): `ladders[]`
+  (one variable with two or more rungs, each `ladder_no`; a single on it carries
+  `ladder_no`), `relations[]` (pairs of one match's legs), `exposure`
+  (positions per match, `top_positions`), `coupon_form` (`ladder_form`,
+  `max_positions_per_match`, `source`, `active`, `applied` - OFF unless
+  `config/sofa_coupon_form.json` sets it), `removed_by_coupon_form`,
+  `builder_screen_prices` (recorded `09_screen_prices.json` prices),
+  `builders_refused`, `pool_neighbour_cap`;
 - `legs[]` (all candidates, both sources), `removed_by_reads` (both sources),
   `read_requests` (each request with the positions it `covers`),
   `outside_day_window` (fresh legs dropped for starting outside
@@ -344,8 +371,10 @@ fixture, market, subject), with a line above the list counting such ladders
 one match); `start przed renderem
 PDF` on a leg already inside CONFIDENCE's kickoff margin when the PDF is
 rendered (kept - the JSON is what is graded - and a `WARNING` on stderr). A
-builder line prints only `kurs po narzucie` (`odds_after_haircut`), never the
-product of the legs' prices. The PDF is rendered to a temporary sibling and
+stats-only builder prints its legs, the combined p and "kurs buildera:
+sprawdź na ekranie Superbetu" - never a price of ours, never the product of
+the legs' prices (`kurs po narzucie` belongs to the older renderer of
+pre-epoch days). The PDF is rendered to a temporary sibling and
 moved into place, so a crash never leaves a truncated `KUPON_*.pdf`.
 
 Every stage artifact, PDF and `config/` fit is written atomically since
@@ -434,8 +463,9 @@ writes `runs/sofa/cs2/backfill_cooldown.json` (12 h; `--force`).
 `audit_cs2.py --from --to` reports coverage and price-against-outcome per
 family - a measurement of Superbet's price. CS2 never reaches the sheet or
 CONFIDENCE; a CS2 leg reaches the coupon only through SPORT_CONFIDENCE, read
-through `config/sofa_sport_confidence_calibration.json` (`NOT_CALIBRATED`
-where it has no admitted curve).
+through the day's sport calibration (`sport_confidence.calibration_path_for`)
+and the line evidence (`NOT_CALIBRATED` where there is no curve and
+`NO_LINE_EVIDENCE` where no measurement stands in for it).
 
 ## `runs/sofa/shadow/<sport>/<date>/` — hockey / basketball / volleyball shadow — **not the coupon**
 
@@ -473,6 +503,10 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
   A game whose orientation cannot be told is SETTLED with
   `orientation_unclear: true` and only its totals graded. Every graded row
   carries `minutes_before_kickoff` (audit section 5 splits on it).
+- SHADOW also writes `player_model.jsonl` beside the snapshots: the pre-game p
+  of every hockey / basketball player line (`player_model.py`, no price), the p
+  SPORT_CONFIDENCE reads for those lines (SPORT_IDENTITY's pinned teams before
+  names, `teams_source`).
 - SHADOW also records the next day's games that start within its horizon,
   into that day's file, so late North American games are priced.
 - Player lines (since 2026-09-29, hockey + basketball, two-sided only):

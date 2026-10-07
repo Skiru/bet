@@ -60,7 +60,7 @@ is there a fact that makes the leg wrong to take as printed.
 |---|---|---|
 | CS2 roster, stand-ins, best-of, postponement | HLTV, Liquipedia | two domains; a stand-in matters for winner / handicap / map lines |
 | hockey / basketball / volleyball schedule, postponement, format | the league's or federation's own site, then a second domain | a friendly with a fixed number of periods or sets is a format the line may not assume |
-| overtime / shoot-out scope | Superbet's market rules, not a preview | `SCHEDULE` is not the tag for it; leave `context` out |
+| overtime / shoot-out scope | Superbet's market text on the leg and its rules, not a preview; the code already grades the scopes in `shadow.MARKETS` (basketball second half / Q4 on regulation, overtime not counted) | `SCHEDULE` is not the tag for it; leave `context` out |
 
 ## Tipsters
 

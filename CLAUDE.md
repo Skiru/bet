@@ -43,106 +43,96 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 
 ## How the coupon is built
 
-**Confidence comes from the statistics; the price is the condition for the
-bet and, from 2026-10-07 10:55Z, may only lower a confidence.** The yardstick
-(operator, 2026-10-07): the statistics must tell a good 1.20 from a bad 1.20,
-in every sport alike, and nothing that could win is cut by name.
+**Confidence comes from the statistics; the price is only the condition for
+the bet and may only lower a confidence** (from 2026-10-07 10:55Z). The
+yardstick (operator): the statistics must tell a good 1.20 from a bad 1.20, in
+every sport alike, and nothing that could win is cut by name.
 
+### Confidence
+
+- **Curves are fitted on the history** of events and statistics, replayed as of
+  each match with the estimator SHEET prices with today (operator, 2026-10-07).
+  Our own settled days are an audit of a curve, never its source.
+  `config/sofa_confidence_calibration.json` (football / tennis) and
+  `config/sofa_sport_confidence_calibration.json` (the four measured sports;
+  a staged `.next.json` is read from its `effective_from`,
+  `sport_confidence.calibration_path_for`) are the curves.
 - SHEET keeps the price out of `p_central`. The rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
-  statistics to a calibrated confidence through the curves in
-  `config/sofa_confidence_calibration.json`.
-- **Line evidence** (`bet.sofa.line_evidence`, `epochs.LINE_EVIDENCE_FROM_UTC`
-  = 2026-10-07 10:55Z, moved there by the operator - 10-07 is a mixed day;
-  `config/sofa_superbet_line_evidence.json` from
-  `fit_line_evidence.py`, between days): every key - football, tennis and the
-  four measured sports - is read through its own settled Superbet lines. The
-  confidence is the lowest of the history curve lowered by an offset (the
-  key's measured realised-minus-confidence on its printable lines, >= 50
-  lines / 30 games; else its sport's pooled one, >= 20 games; never above 0
-  - 10-07: tennis -0.057, basketball -0.118, volleyball -0.117, hockey
-  -0.021, CS2 -0.204, football 0) and the price-band cap: what lines of the
-  key at this `p` realised in this band of Superbet's price (1.30 / 1.60 /
-  2.20), applied only where measured below the confidence (operator's choice
-  10-07, "krzywa per pasmo kursu"; a p-only curve overstated long prices -
-  basketball handicap p 0.70-0.80 realised 0.81 below 1.30, 0.62 at
-  1.60-2.20); with no band cell, the key's own lines over every band from
-  its `p` down (to 0.70) bound it. A key without a curve reads the Wilson
-  bound of its own lines, else `NO_LINE_EVIDENCE`. **Second rules, from
-  2026-10-07 13:42Z - a mixed day** (`epochs.LINE_EVIDENCE_V2_FROM_UTC`, operator
-  2026-10-07 after the model audit; `LineEvidence.v2`): a price-band cell
-  widens downward inside its band before another cell stands in; a key
-  without a curve needs `MIN_EVIDENCE_GAMES` (15) games in the bucket and
-  reads the Wilson bound over lines divided by the sport's measured design
-  effect (`design_effect` in the evidence file); a sport's pooled offset is
-  measured without a key holding > `CONCENTRATION_MAX` (50%) of its printable
-  lines (`sport_printable.<sport>.without`; the key keeps the full pool - on
-  the 10-07 fit CS2's other keys then have 14 lines / 11 games, too few, so
-  offset 0 and only their price-band cap lowers them: **this one can raise a
-  CS2 confidence**, the operator's choice); a CS2 fixture with no `best_of`
-  is not guessed as best-of-3. The evidence file must be fitted by the
-  morning `refresh_line_evidence.py` for v2 to read `games` (an older file
-  reads nothing without a curve). Out of sample (evidence
-  fitted on earlier days, legs printed on later ones) the printed confidence
-  sat within its interval of the realised rate for football, hockey,
-  basketball, tennis and volleyball; CS2's offset was measured only on the
-  live data. Legs carry `line_offset` /
-  `price_band_cap` when they were lowered. Evidence:
-  `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
-- **Model packages from 2026-10-07 14:05Z** (operator: recalculate today; each a
-  switch in `bet.sofa.epochs`, measured out of sample on the history,
-  `docs/sofa/history/AUDYT_MODELI_2026-10-07.md`): *tennis*
-  (`TENNIS_RATING_PRICES_FROM_UTC`) `games_won_for`, `handicap_games`,
-  `most_games` (not its draw) are priced by the rating's neighbours alone, no
-  price, and `games_total` is the 50/50 mix of the NB and the rating
-  (log-loss -0.072 [-0.074, -0.070] on 243,025 matches); *football*
-  (`DERIVED_MARGINAL_CENTRES_FROM_UTC`) the goals joints (both_over / most /
-  handicap) are built from the marginal rows' centres and variance, not the
-  raw sample (BTTS Brier vs base rate +0.0172 -> +0.0051; BTTS still loses to
-  the base rate, so it stays behind its Superbet lines); *basketball*
-  (`BB_FRESHNESS_FROM_UTC`) the simulation noise x1.085 when the thinner side
-  has <= 2 games in the last 120 days, x1.026 for 3..9 - the live
-  forecaster only (the history replay passes it too, `--bb-freshness`).
-  **Refit installed 2026-10-07 ~18:05Z (operator allowed it at once; a new
-  comparability epoch)**: the cache replay now prices the same estimator as
-  SHEET (`tennis_rating.AsOfRating`: rating as of each match, best-of-five
-  skipped; football goals joints not replayed - no football rating in the
-  replayed centre), `fit_constants` + `fit_confidence` ran on a `VACUUM INTO`
-  copy of the database (`data/refit_2026-10-08/`, 59.5M replay rows, live rows
-  unchanged), basketball curves in the staged `.next.json` were refitted with
-  the freshness noise, and the line evidence was refreshed on top. The
-  tennis `games_won_for` curve at p 0.875-0.90 moved from lo95 0.799 to
-  0.857 (n=48,004): the sample p it was fitted on overstated, the rating p
-  does not. Hockey / volleyball / CS2 keep this morning's curves (their
-  estimators did not change); CS2 `map_team_rounds` from the round race and
-  the football joints with the football rating in their centre are queued.
+  statistics to a calibrated confidence through the curves.
+- **Line evidence** (`bet.sofa.line_evidence`,
+  `config/sofa_superbet_line_evidence.json`; from `LINE_EVIDENCE_FROM_UTC`
+  2026-10-07 10:55Z): every key - football, tennis and the four measured
+  sports - is also read through its own settled Superbet lines. The confidence
+  is the lowest of
+  - the history curve lowered by the key's **offset** (its measured
+    realised-minus-confidence on printable lines; needs `MIN_OFFSET_ROWS` 50
+    lines and `MIN_OFFSET_GAMES` 30 games, else the sport's pooled offset with
+    `MIN_SPORT_OFFSET_GAMES` 20; never above 0), and
+  - the **price-band cap**: what lines of the key at this `p` realised in this
+    band of Superbet's price (`PRICE_BANDS`: 1.30 / 1.60 / 2.20; cell of
+    `MIN_CAP_CELL` 20), applied only where measured below the confidence
+    (operator, "krzywa per pasmo kursu"). A band cell without enough lines
+    widens downward inside its band; with none, the key's own lines over every
+    band from its `p` down (to 0.70) bound it.
+
+  A key without a curve reads the Wilson bound of its own lines divided by the
+  sport's measured design effect (`design_effect` in the evidence file; lines
+  of one game are not independent), needs `MIN_EVIDENCE_BUCKET` 50 settled
+  lines and `MIN_EVIDENCE_GAMES` 15 games in the bucket, else
+  `NO_LINE_EVIDENCE`. The sport's pooled offset is measured without a key
+  holding more than `CONCENTRATION_MAX` (50%) of its printable lines; this can
+  **raise** another CS2 key's confidence (operator's choice). A CS2 fixture
+  with no `best_of` is not guessed as best-of-3. Rules after
+  `LINE_EVIDENCE_V2_FROM_UTC` (2026-10-07 13:42Z) are `LineEvidence.v2`.
+  Legs carry `line_offset` / `price_band_cap` when lowered. The evidence is
+  refitted every morning by `refresh_line_evidence.py` (it never touches a
+  curve); the v2 rules need its `games` field - an older file reads nothing for a key without a curve.
+  Evidence: `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
+- **Model packages** (switches in `bet.sofa.epochs`, all from 2026-10-07
+  14:05Z, measured out of sample on the history,
+  `docs/sofa/history/AUDYT_MODELI_2026-10-07.md`):
+  `TENNIS_RATING_PRICES_FROM_UTC` (`games_won_for`, `handicap_games`,
+  `most_games` - not its draw - priced by the rating alone, no price;
+  `games_total` is the 50/50 mix of the NB and the rating);
+  `DERIVED_MARGINAL_CENTRES_FROM_UTC` (football goals / corners /
+  shots-on-target / cards joints built from the marginal rows' centres);
+  `BB_FRESHNESS_FROM_UTC` (basketball simulation noise x1.085 when the thinner
+  side has <= 2 games in 120 days, x1.026 for 3..9 - live forecaster and
+  history replay alike). The history replay (`calibrate_from_cache.py`) prices
+  the same estimator as SHEET (`tennis_rating.AsOfRating`; best-of-five
+  skipped); football goals joints are **not** replayed (no football rating in
+  the replayed centre) and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
+  that way were installed 2026-10-07 17:51Z: a new comparability epoch.
+  Hockey / volleyball / CS2 curves are the staged `.next.json`'s.
+- **Wait for a measurement, not a name:** a market with no curve and no
+  evidence is `NO_LINE_EVIDENCE`. Before `LINE_EVIDENCE_FROM_UTC` (rebuilds of
+  older days only) the by-name refusals still apply: `refused_markets`,
+  `admitted_player_markets`, `admitted_tennis_set_markets` in the football /
+  tennis calibration (carried over by every refit),
+  `DERIVED_NOT_CALIBRATABLE`, and the sports' `admitted` keys.
+
+### What prints
+
 - **A leg prints** when confidence >= 0.70, confidence x odds >= 0.90, ladder
-  (group) margin <= 15%, not ODDS_TOO_LOW, not started, fresh price
-  (STALE_PRICE otherwise; a moved price re-prices the leg). Every passing
-  single prints - no page limit.
+  (group) margin <= 15% (`COUPON_PROFILE`), not ODDS_TOO_LOW, not started,
+  fresh price (STALE_PRICE otherwise; a moved price re-prices the leg). Every
+  passing single prints - no page limit.
 - **Refusals worth knowing** (each named on the row):
-  - before the line-evidence epoch only, by name: operator keys in
-    `config/sofa_confidence_calibration.json`, carried over by every refit -
-    `refused_markets` (shots/fouls UNDER families, `goals_1h_total|UNDER`),
-    `admitted_player_markets`, `admitted_tennis_set_markets` - and
-    `DERIVED_NOT_CALIBRATABLE`; from the line-evidence epoch these markets go
-    through their own Superbet lines like any other (`NO_LINE_EVIDENCE` while
-    a derived joint has none);
   - `CROSS_LEAGUE_UNLINKED`: football ratings compare leagues only through a
     measured league strength; a pair is LINKED only when both sides' leagues
-    (domains) are the competition they share - a promoted side is
-    cross-league until its new league is its modal one (from 2026-10-07
-    06:45Z, `epochs.LINK_SHARED_LEAGUE_FROM_UTC`, operator: nothing of 10-07
-    staked; the hockey / basketball / volleyball score model reads the same
-    book; sheet rows carry `link_rule` and a rebuild re-runs SHEET on an
-    old-rule sheet);
+    are the competition they share (`LINK_SHARED_LEAGUE_FROM_UTC`, 2026-10-07
+    06:45Z; the hockey / basketball / volleyball score model reads the same
+    book; sheet rows carry `link_rule`, a rebuild re-runs SHEET on an
+    old-rule sheet). A promoted side is cross-league until its new league is
+    its modal one;
   - women's football, women's tennis and tennis team cups read only their
     class's curves (`NO_CLASS_CURVE`);
   - `NOT_SETTLEABLE`: (competition, family) cells in `config/sofa_settleability.json`;
   - K13 / K13b: a thin direction bucket caps the curve; a pooled read is capped
     by the market's nearest own bucket below;
-  - `SAMPLE_CROSSES_SEASON` (180 days) - except national-team fixtures, judged
-    by count (`NATIONAL_SAMPLE_AGE`);
+  - `SAMPLE_CROSSES_SEASON` (180 days; `MAX_BUILDER_SAMPLE_AGE_DAYS`) - except
+    national-team fixtures, judged by count (`NATIONAL_SAMPLE_AGE`);
   - CS2 team-rounds line outside 9.5-12.5: `LINE_OUTSIDE_FIT`.
 - **Start clock** = the earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds are
@@ -156,97 +146,116 @@ in every sport alike, and nothing that could win is cut by name.
   prices, the combined p and "kurs buildera: sprawdź na ekranie Superbetu". A
   screen price the operator records in `09_screen_prices.json` is shown back
   as his note.
-- **Measured sports:** SHADOW / CS2 snapshot Superbet → SPORT_IDENTITY pins the
-  Sofascore id before the start → SPORT_CONFIDENCE reads
-  `config/sofa_sport_confidence_calibration.json` (fitted without prices).
-  Before the line-evidence epoch only the `admitted` keys print: hockey (with
-  `period_total|OVER`, `period_team_total|OVER`) and volleyball; basketball
-  and CS2 `NOT_CALIBRATED` (exit 1, the rest still builds). From the
-  line-evidence epoch every fitted key of all four is read, corrected by its
-  Superbet lines; volleyball still needs a tournament with a settled event in
-  the last 14 days. The same epoch adds `sport_confidence.EXTENDED_MARKETS`
-  (basketball quarters, second half, dnb, odd/even; hockey period dnb - scored
-  by the score model from the history) and the hockey / basketball player
-  lines (p = player_model's pre-game number in SHADOW's `player_model.jsonl`;
-  no history curve, so `NO_LINE_EVIDENCE` until a family's p bucket holds 50
-  settled pre-game lines; graded from SHADOW_SETTLE's own player row).
-  Basketball second half / Q4: overtime does NOT count (operator,
-  2026-10-07) - they grade on the regulation periods, an overtime game
-  included. The 2026-10-07 refit of the sport curves is staged in
-  `config/sofa_sport_confidence_calibration.next.json` (`effective_from`
-  2026-10-07, `sport_confidence.calibration_path_for`); the line evidence is
-  fitted against it. Volleyball adds its exact set score, points parity, set
-  parity and "set on extra points"; CS2 adds every family the engine prices
-  (`CS2_EXTENDED_FAMILIES`: map round handicap / total, team kills, player
-  kills / deaths / assists / headshots; box-score families graded from
-  CS2_SETTLE's own row) and the series families (maps_total,
-  maps_handicap, team_maps, exact_maps) from a Beta-mixed series distribution
-  (`cs2_engine.SERIES_KAPPA`, maps of one series correlated). Still outside:
-  CS2 series rounds (rounds_*, team_rounds) and round parity - unpriced.
-  SHADOW's pre-game player model reads SPORT_IDENTITY's pinned teams before
-  the names (`teams_source`; 10-07 basketball: 544 -> 944 lines with a p). SHADOW / CS2
-  themselves stay a measurement of Superbet's price and feed nothing else.
 - **Assembly** (`build_coupon.py`): order by confidence, then earlier start,
   one match's legs together; legs locked from an earlier print come first,
   unnumbered; builders B1.. on their own pages; ladders under "ta sama
   zmienna"; an exposure-per-match section. A leg printed before its start
   stays (locked); a leg removed before its start stays removed.
-  `ladder_form` / `max_positions_per_match` exist, OFF unless
+  `ladder_form` / `max_positions_per_match` are OFF unless
   `config/sofa_coupon_form.json` sets them (operator's call).
-- **Reads:** analysts read the first 30 positions, every printed builder leg
-  and whatever is in `read_requests.json` (`confidence.legs_requiring_read`;
-  audit C3 checks it); the rest prints unread. WATCH or NO_BET in
-  `reads.json` - or the automatic football `MODEL_ABOVE_OWN_SAMPLE` (model -
-  own sample hit rate > 0.15, props excluded) - moves a leg to
+- **Reads:** analysts read the first 30 unlocked positions, every printed
+  builder leg and whatever is in `read_requests.json`
+  (`confidence.legs_requiring_read`, `READ_REQUIRED_SINGLES`; audit C3 checks
+  it; a rebuild moves positions, so re-read until C3 is clean); the rest
+  prints unread. WATCH or NO_BET in `reads.json` - or the automatic football
+  `MODEL_ABOVE_OWN_SAMPLE` (model - own sample hit rate >
+  `MAX_OWN_SAMPLE_GAP` 0.15, props excluded) - moves a leg to
   `removed_by_reads`, graded on its own, never in the coupon's result.
   `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`) are shown,
   never gated.
 
+### Measured sports (hockey, basketball, volleyball, CS2)
+
+SHADOW / CS2 snapshot Superbet -> SPORT_IDENTITY pins the Sofascore id before
+the start -> SPORT_CONFIDENCE reads the sport calibration (fitted without
+prices) and corrects it with line evidence. SHADOW / CS2 themselves stay a
+measurement of Superbet's price and feed nothing else.
+
+- Every fitted key of all four prints on the same rules as football and
+  tennis. Volleyball still needs a tournament with a settled event in the
+  last 14 days. A sport without a usable calibration is `NOT_CALIBRATED`
+  (exit 1, the rest still builds).
+- `sport_confidence.EXTENDED_MARKETS`: basketball quarters, second half, dnb,
+  odd/even; hockey period dnb (score model, from the history). Volleyball adds
+  exact set score, points / set parity, "set on extra points". CS2 adds
+  `CS2_EXTENDED_FAMILIES` (map round handicap / total, team kills, player
+  kills / deaths / assists / headshots; box-score families graded from
+  CS2_SETTLE's own row) and the series families (maps_total, maps_handicap,
+  team_maps, exact_maps) from a Beta-mixed series distribution
+  (`cs2_engine.SERIES_KAPPA`). Still unpriced: CS2 series rounds (rounds_*,
+  team_rounds) and round parity.
+- Hockey / basketball player lines: p = player_model's pre-game number in
+  SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
+  names, `teams_source`); no history curve, so `NO_LINE_EVIDENCE` until a
+  family's p bucket holds 50 settled pre-game lines; graded from
+  SHADOW_SETTLE's own player row.
+- Basketball second half / Q4 grade on the regulation periods - overtime does
+  not count (operator, 2026-10-07); full-game basketball markets include it.
+
 ## Settlement and the ledger
 
-- **SETTLE:** a match moved > 48 h, awarded or retired (`RETIRED`, operator
-  2026-10-07: Superbet's rule) is a refund (0 u.), never a loss;
-  player props grade only from the player's own squad (PLAYER_AMBIGUOUS); a
-  printed leg without a sheet row goes to `07_settled_printed.json`. Sport legs
-  grade at the printed price against the pinned id (`NOT_GRADED:ID_CHANGED`
-  otherwise), in their own 7c table, never in `sofa_settled_row` or
-  `fit_confidence`. Statistic gaps close days later: `resettle_sweep.py`
-  every morning.
-- **Ledger** (`record_results.py` → `runs/sofa/ledger/results.jsonl`, read
+- **SETTLE:** a refund (0 u.), never a loss, when the match moved > 48 h
+  (`VOID_AFTER`), was awarded, retired (Sofascore code 92, `RETIRED`) or a
+  walkover (`WALKOVER`) - `settle.REFUND_REASONS` (operator, 2026-10-07:
+  Superbet's rules). Player props grade only from the player's own squad
+  (PLAYER_AMBIGUOUS); a printed leg without a sheet row goes to
+  `07_settled_printed.json`. Sport legs grade at the printed price against the
+  pinned id (`NOT_GRADED:ID_CHANGED` otherwise), in their own 7c table, never
+  in `sofa_settled_row` or `fit_confidence`. Statistic gaps close days later:
+  `resettle_sweep.py` every morning.
+- **Ledger** (`record_results.py` -> `runs/sofa/ledger/results.jsonl`, read
   with `audit_ledger.py`): the coupon's result, the legs removed by reads and
   each sport kept side by side, never pooled. It reads `sofa_settled_row`, so
   re-run it after any `regrade_settled.py`. Exit 0 with legs pending, 1 on a
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
-- **Comparability:** the current rules apply from 2026-10-06; earlier days ran
-  under other rules and are other experiments - the ledger keeps them in
-  their own groups and they are never summed with the current ones. Days up
-  to the morning of 2026-10-05 also hold rows of variants whose code is gone
-  (`wariant`, `multi`, `sport:<sport>`, `rule:<sport>`): kept as recorded,
-  never rebuilt.
+- **Comparability:** the current rules apply from 2026-10-06; a refit install
+  or an epoch switch starts a new epoch. Earlier days ran under other rules
+  and are other experiments - the ledger keeps them in their own groups and
+  they are never summed with the current ones. Days up to the morning of
+  2026-10-05 also hold rows of variants whose code is gone (`wariant`,
+  `multi`, `sport:<sport>`, `rule:<sport>`): kept as recorded, never rebuilt.
 
 ## Changing the pipeline
 
 The shape above stays; it is improved, not rebuilt.
 
-1. **Measure first.** A change comes with a measurement on settled rows (match
-   bootstrap, out of sample) or it is a suspicion. `measure_*.py` scripts are
-   read-only evidence.
+1. **Measure first.** A change comes with a measurement on settled rows or
+   history (match bootstrap, out of sample) or it is a suspicion. `measure_*.py`
+   scripts are read-only evidence.
 2. **Correctness fixes** (a misgrade, a wrong mapping, a crash) go live at once,
    with a test.
-3. **Anything that changes what prints** gets a switch in `bet.sofa.epochs`
-   effective from the next day's 00:00Z, never mid-day. Refits and
-   calibration fits run between days only (`prepare_refit.py`, `fit_*`).
-4. **Every fix ships a test** in `tests/sofa/` (offline, fast); run the gates.
-5. **Update this file's section** and the Polish doc in `docs/sofa/`; a run or
+3. **Anything that changes what prints** gets a switch in `bet.sofa.epochs`,
+   by default effective from the next day's 00:00Z. Only the operator moves it
+   earlier, to an exact time (the day is then mixed and says so); never on
+   your own mid-day.
+4. **Refits and calibration fits** (`prepare_refit.py`, `fit_*`) run on a
+   **copy** of the database (SQLite `VACUUM INTO`, then `--db-path <copy>`
+   with `--without-db-backup`; scratch in `data/refit_<date>/`), never
+   against live rows, so the daily loops stay up. `install` runs
+   `tests/sofa` and restores on failure. Installing changes what prints, so
+   it needs the operator's go - and no refit without it, mid-day included.
+5. **Every fix ships a test** in `tests/sofa/` (offline, fast); run the gates.
+6. **Update this file's section** and the Polish doc in `docs/sofa/`; a run or
    a night gets a report in `docs/sofa/history/`.
 
-**Waiting for the operator** (switches off): `CURVE_STATUS_FROM_UTC` (a curve
-failing `measure_calibration.py` stops printing), `MODEL_FIXES_FROM_UTC`
-(tennis NB dispersion; with the next refit), the coupon form dials.
+Daily loops spawn each step through `run_pipeline.py` (fresh code per step);
+only the loop's own orchestration is old code until it ends.
+
+**Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
+`CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
+printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
+`BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
+builders), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
+needs a refit carrying the replayed joints), the coupon form dials. Open
+questions: Superbet's game count of a tennis match tiebreak; how strict the
+price-band cap is.
 **Before the next refit:** measure the admitted football props separately;
-measure the tennis games population of replay matches without `/statistics`.
+measure the tennis games population of replay matches without `/statistics`;
+queued: CS2 `map_team_rounds` from the round race, football joints with the
+football rating in their centre.
 Current backups: `config/backup_2026-10-05`,
-`config/backup_2026-10-06_sport_calibration/`, `data/backup_2026-10-05/sofa.db`.
+`config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
+`data/backup_2026-10-05/sofa.db`.
 
 **Not modelled yet** (operator 10-07: every market that could win; the next
 work, each through a curve and its own Superbet lines): football / tennis
@@ -266,9 +275,9 @@ above their measured range wait for 50 settled lines a bucket
 - trimming national-team samples to 180 days (worse log-loss);
 - blending the price into confidence or gating on disagreement with it
   (disagreement is an anti-signal; every weight moved to the price only
-  copies the price) - the price-band cap of line evidence is not a blend: it
-  only lowers, and only where a band's settled lines measured below the
-  curve (operator, 2026-10-07);
+  copies the price) - the price-band cap is not a blend: it only lowers, and
+  only where a band's settled lines measured below the curve (operator,
+  2026-10-07);
 - league selection / gate tuning (anti-selects out of sample).
 
 ## Entry points
@@ -302,6 +311,7 @@ SAMPLES is the normal shape of a healthy run.
 .venv/bin/python scripts/sofa/check_bridge.py                                    # the grade alone
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHEET --run-id <id>   # after a change of the SHEET estimator: a rebuild re-runs SHEET only on an old-rule sheet (p_central lives in 05_sheet.json)
 # SHEET parses the whole football history: ~10 min when the day's listings changed, ~30 s on a rebuild (pickle in data/cache/). A SHEET quiet for 10 min is parsing - do not kill it.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]   # THE rebuild, never the stage scripts by hand: stale prices first (OFFER near 45 min, SHADOW / CS2 near 3 h), SPORT_IDENTITY, SHEET only if refused, FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, audits; a finished day refreshes nothing
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>        # one status report: snapshot ages, loops alive, ledger MISMATCH, CLV coverage, UNVERIFIED; no network; exit 0 / 1 WARN / 2 broken
@@ -332,6 +342,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> [--dry-run] [--skip-sport-rows]   # EVERY morning after D-1 is settled and recorded, before D's build: four sport row fits (--dry-run inside, no curve touched, ~15-20 min) + fit_line_evidence; rows in data/line_evidence/rows_before_<D>; exit 1 = a sport's row fit failed, its earlier rows reused
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning; bridge (none: exit 1, nothing done)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # after D-1's settle; exit 1 on a finding
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>
@@ -345,19 +356,17 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from <d> --to <
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/purge_entity_alias.py --dry-run   # a wrongly verified team alias; --list-suspects
 ```
 
-**Refit - between days only** (`docs/sofa/CONFIG.md` section 7)
+**Refit - on a copy of the DB, installed only with the operator's go** ("Changing the pipeline" 4; `docs/sofa/CONFIG.md` section 7)
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date <d> {backup [--db <path>]|rebuild-cache-rows [--dry-run|--confirm]|fit|compare [--days <d> <d2>] [--with-sheet]|install --confirm|restore --confirm --backup <dir>}
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date <d> [--db-path <copy>] {backup [--db <path>]|rebuild-cache-rows [--dry-run|--confirm] [--without-db-backup] [--derived ...] [--no-tennis-rating]|fit|compare [--days <d> <d2>] [--with-sheet]|install --confirm|restore --confirm --backup <dir>}
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only   # only the by_class curves
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>   # EVERY morning after D-1 is settled and recorded, before D's build: the four sport row fits (--dry-run, no curve touched, ~15 min) + fit_line_evidence; exit 1 = a sport reused the day before's rows
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py --before <d> --sport-rows-dir <dir> [--dry-run]   # after every curve refit; without the dir: no price-band cap for the sports
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py --before <d> --sport-rows-dir <dir> [--dry-run]   # after every curve refit (refresh_line_evidence.py does it daily); without the dir: no price-band cap for the sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_calibration.py --from <d> --to <d> [--epoch stats_only] [--write-config --before <d>]   # PASS n>=300 and |gap|<=2 pp
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_women_competitions.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_friendly_competitions.py --out docs/sofa/evidence/friendly_candidates_<d>.json   # candidates; a person decides
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
 ```
 
 **History backfill** (bridge; short chunks, resumable)
@@ -390,7 +399,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/probe_lineup_availability.py --da
 ```bash
 .venv/bin/python -m pytest tests/sofa -q
 .venv/bin/python -m ruff check src/bet/sofa scripts/sofa
-.venv/bin/python -m mypy --strict src/bet/sofa scripts/sofa
+.venv/bin/python -m mypy --strict --no-incremental src/bet/sofa scripts/sofa   # a stale mypy cache gives false errors
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
 ```
 
 ## Hard rules
@@ -409,7 +419,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/probe_lineup_availability.py --da
   days are an audit of a curve, never its source; line evidence (offsets, price
   bands) is a guard that only lowers, and any number it holds is reported as
   measured on N days.
-- **Never re-fit constants or calibrations mid-day.**
+- **Never re-fit or install constants or calibrations without the operator's
+  go**, and never into a day already built: a refit runs on a copy of the DB,
+  installs only after `tests/sofa` pass.
 - **A pooled number must say what it pooled across.** Friendlies are out of
   samples and ratings (`bet.sofa.comparability` is the one "does this past
   match count" rule). "History is thin" is not an argument before

@@ -1,6 +1,6 @@
 # The arithmetic — and what can and cannot be re-derived
 
-> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+> The rules after 2026-10-07 (line evidence - offset, price-band cap, the stand-in for a key without a curve - no refusal by name, the model packages that change `p_central`, the refit) are stated once, in `.claude/skills/sofa-pipeline/SKILL.md`, section "The 2026-10-07 rules", with the arithmetic chain beside it. Where this file names an old behaviour it is marked *(old epoch)* and that section wins.
 
 Two separate chains produce two separate numbers, and conflating them is the
 commonest analytical error in this pipeline.
@@ -30,7 +30,12 @@ condition   : ladder margin <= 15%, odds >= 1/0.9202, not started, fresh price
 order       = confidence ↓, kickoff ↑, match, market, line (confidence.coupon_order) - no price, no EV
 ```
 
-The price enters only as the betting condition. `MAX_DISAGREEMENT` and
+From 2026-10-07 10:55Z `confidence` is the lowest of the curve + the key's
+offset and the price-band cap (a key with no curve: the Wilson bound of its
+own settled Superbet lines, else `NO_LINE_EVIDENCE`); the key is
+`market|DIRECTION`, `<class>:` prefixed for a women's / team-cup class, and
+the price band only ever lowers. The price enters only as the betting
+condition (and the band cap). `MAX_DISAGREEMENT` and
 `UNREACHABLE_BAR` are off; a price that moved since SHEET is re-judged at the
 fresh odds (nothing upstream read it). Floor 0.70.
 
@@ -40,13 +45,15 @@ fresh odds (nothing upstream read it). Floor 0.70.
 
 ```
 prior   = league baseline, else global baseline      config/sofa_league_baselines.json
-w_c     = n / (n + K_CENTRE)                         football 15.0, tennis 5.0  (FITTED, refit 2026-10-03)
+w_c     = n / (n + K_CENTRE)                         football 15.0, tennis 5.0  (FITTED 2026-10-03; unchanged at the 2026-10-07 refit)
 centre  = w_c·sample_mean + (1 − w_c)·prior          (= sample_mean when no baseline exists)
 
 p_central:
     tennis rated markets -> 0.25·rating + 0.75·market_p       (note TENNIS_RATING; old epoch only)
     tennis empirical, priced -> w·hits/n + (1−w)·market_p, w = n/(n+30)   (old epoch only)
-    stats-only epoch: tennis from the sample's own estimator, no market_p
+    stats-only epoch: tennis from the sample's own estimator, no market_p;
+                      from 2026-10-07 14:05Z games_won_for / handicap_games / most_games
+                      from the rating's neighbours alone, games_total = 0.5·rating + 0.5·NB
     other empirical    -> frequency around the shifted centre
     football counts    -> negative binomial around `centre`
     everything else    -> normal, support floored at −0.5
@@ -119,7 +126,8 @@ favourites by ~7 pp. `market_p` is the power devig.
 ## Chain 2 — confidence (`src/bet/sofa/confidence.py`)
 
 ```
-confidence = Calibration.realised(market, p_central, sport, direction, klass) -> realised_lo95
+curve      = Calibration.realised(market, p_central, sport, direction, klass) -> realised_lo95
+             (history curves, refitted 2026-10-07 on the replayed history; line evidence then lowers it - above)
 K13 (stats-only, cap_market_by_thin): where thin_by_market_direction has a bucket for (market, direction, p),
     confidence = min(lo95 of the curve chosen, lo95 of the thin direction bucket)   - for by_market and the pools
 ```
@@ -140,7 +148,10 @@ number — falling back to `p` is exactly the untested claim this module exists
 to stop making.
 
 **A market in `confidence.AWAITING_OWN_CURVE` never reaches a pool:** with no
-curve of its own it is refused (`NOT_CALIBRATED`). That set holds the football
+curve of its own it is refused (`NOT_CALIBRATED`) - from 2026-10-07 10:55Z it
+instead reads the Wilson bound of its own settled Superbet lines, else
+`NO_LINE_EVIDENCE` (a derived joint likewise: `DERIVED_CURVES` is off, so it
+has no curve at all). That set holds the football
 player props (claimed 0.776, realised 0.624 on the pooled curve), the new
 per-half / saves / throw-in / goal-kick / tackle markets, and since 2026-09-30
 the tennis per-set serve markets `{aces,double_faults,serve_points}_set{1,2}_{for,total}`
@@ -199,6 +210,10 @@ shaded price being offered to us, it is our own error being offered to us.
 
 ### Builder arithmetic
 
+(`odds_product`, `odds_after_haircut` and `ev_after_haircut` are internal: the
+stakeable test only. sofa prints no builder price - the PDF says "sprawdź na
+ekranie Superbetu".)
+
 ```
 product_p   = Π confidence_i                       independence ACROSS quantities (lambda 0.95–1.02)
 combined_p  = min(product_p, empirical_joint)      the joint may demote, never promote
@@ -252,25 +267,33 @@ number in the pipeline.
 
 ```
 p_model    = score_model.line_probability (hockey, basketball, volleyball) / cs2_engine (CS2) - no price
-confidence = realised_lo95 (Wilson) of p_model's bucket in config/sofa_sport_confidence_calibration.json,
-             for an admitted key (family|side); a bucket with n < 200 (MIN_BUCKET) is unused;
-             a key whose out-of-sample confidence overstates realised by > 0.03 (MAX_OVERSTATEMENT) is not admitted
+curve      = realised_lo95 (Wilson) of p_model's bucket in the day's sport calibration
+             (sport_confidence.calibration_path_for: main file or staged .next.json); a bucket with n < 200 (MIN_BUCKET) is unused;
+             old epoch: only an admitted key (family|side) prints, and a key whose out-of-sample confidence
+             overstates realised by > 0.03 (MAX_OVERSTATEMENT) is not admitted
+confidence = (from 2026-10-07 10:55Z) min(curve + offset, price-band cap) as for football / tennis; no curve at p -> the key's own
+             settled lines (Wilson / design effect, >= 50 lines and 15 games) else NO_LINE_EVIDENCE
 forecast_p = p_model ; sample_hit_rate = sample_k / sample_n (shown, never a gate)
 print when confidence >= 0.70, odds >= 1.0867, group margin <= 15%, x = confidence × odds >= 0.90
 ```
 
-No curve for the sport or key → `NOT_CALIBRATED`. The file is fitted by
-`fit_sport_confidence.py --before <d>`, between days only.
+No curve and no line evidence → `NOT_CALIBRATED` / `NO_LINE_EVIDENCE`. The
+calibration is fitted by `fit_sport_confidence.py --before <d>`, between days
+only; the evidence by `fit_line_evidence.py` (`refresh_line_evidence.py`
+every morning).
 
 ---
 
 ## The one loop where a day affects the next
 
 ```
-05_sheet + results ──► 07_settled.json ──► data/sofa.db ──► fit_constants.py ──► config/*.json ──► 05_sheet
+history of events / statistics ──► calibrate_from_cache.py (replay) ──► data/sofa.db ──► fit_constants.py / fit_confidence.py ──► config/*.json ──► 05_sheet
+05_sheet + results ──► 07_settled.json ──► data/sofa.db ──► (audit of a curve; the line evidence's settled Superbet lines)
 ```
 
-Nothing else carries state between days. That is why a stale config file is
+Nothing else carries state between days (since 2026-10-07 the curves are
+fitted on the replayed HISTORY, never on our own settled days; the settled
+Superbet lines feed only the line evidence). That is why a stale config file is
 both silent and expensive: `sofa_league_baselines.json` shipped corners priors
 24–32% too high for two days, and at the then `K_CENTRE = 25` those priors
 owned 76% of the centre on half-match rows. Check `fitted_from` and `half_match_coherence`

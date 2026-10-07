@@ -1,6 +1,6 @@
 # Evidence rules — what the artifacts can and cannot tell you
 
-> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** no market is refused by name (`refused_markets`, `admitted_player_markets`, `admitted_tennis_set_markets`, `DERIVED_NOT_CALIBRATABLE`, a sport key outside `admitted` describe the old epoch only): every key is read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
 
 ## The sample is in `03_samples.json`, not in the sheet
 
@@ -57,8 +57,11 @@ On a stats-only row (`epoch: "stats_only"`, builds from 2026-10-05 07:15Z)
 `p_central` holds **no price**: no ladder centre, no rating blended with the
 price, no empirical shrink to the rung's price (`scripts/sofa/run_sheet.py`,
 `process_fixture`, `stats_only`). A rated tennis row is priced by the
-sample's estimator, and the rating (football and tennis) is published beside
-it as `forecast_p` - the **model**, uncalibrated, never a gate. On an older
+sample's estimator (from 2026-10-07 14:05Z `epochs.TENNIS_RATING_PRICES`:
+`games_won_for` / `handicap_games` / `most_games` by the rating alone,
+`games_total` 0.5·rating + 0.5·NB), and the rating (football and tennis) is
+published beside it as `forecast_p` - the **model**, uncalibrated, never a
+gate. On an older
 row a priced tennis rung was pulled onto the price: `TENNIS_RATING`
 `0.25·rating p + 0.75·market_p` (`blend_with_price`), `P_SHRUNK_TO_PRICE`
 `w·hits/n + (1−w)·market_p`, `w = n/(n+30)` - there a `p_central` near
@@ -116,7 +119,8 @@ artifacts:
 - announced absences, suspensions, a rested XI in a cup tie
 - a manager change inside the sample window
 - weather, a waterlogged pitch, altitude
-- a tennis player's retirement mid-event, a walkover, a late withdrawal
+- a tennis player's late withdrawal or a walkover announced before the start
+  (a retirement or walkover that happens is a refund, 0 u., not a loss)
 - whether a derby is a derby
 
 ## What the pipeline knows better than you
@@ -130,18 +134,22 @@ Do not re-derive these, and do not veto for them — the gate already fired:
 | printed match postponed / cancelled / abandoned (FIXTURE_CHECK) | CONFIDENCE `FIXTURE_NOT_AS_SCHEDULED` |
 | newest observation older than 60 days | COUPON and CONFIDENCE `STALE_SAMPLE` |
 | kickoff less than 15 min out, on the earlier clock | COUPON `KICKOFF_TOO_SOON` |
-| odds below 1.25 (old singles) / 1.0867 (coupon legs) | `ODDS_TOO_LOW` |
-| x = confidence x odds below 0.90 | CONFIDENCE `NEGATIVE_LEG_EV` |
+| odds below 1.25 (old singles) / 1.0867 = 1/0.9202 (coupon legs) | `ODDS_TOO_LOW` |
+| x = confidence x odds below 0.90 | CONFIDENCE `NEGATIVE_LEG_EV` (sport legs `BELOW_MIN_X`) |
 | confidence below the 0.70 floor | CONFIDENCE `BELOW_CONFIDENCE_FLOOR` |
 | line outside everything the sample has seen | CONFIDENCE `LINE_BEYOND_SAMPLE` |
 | `p_central` at or above this market's own measured calibration ceiling | COUPON `ABOVE_MEASURED_CEILING`, CONFIDENCE `NOT_CALIBRATED` |
 | a second row of the same mechanism family on one fixture | COUPON `FAMILY_SLOT_TAKEN` |
 | modal outcome loses | CONFIDENCE `MODE_LOSES` |
 | football model more than 0.15 above its own sample's hit rate | CONFIDENCE `MODEL_ABOVE_OWN_SAMPLE` (automatic WATCH, into `removed_by_reads`) |
-| fewer than 10 observations for a builder leg | `THIN_SAMPLE_FOR_BUILDER` |
-| oldest observation past 180 days for a builder leg | `SAMPLE_CROSSES_SEASON` |
+| fewer than 10 observations | `THIN_SAMPLE_FOR_BUILDER` |
+| oldest observation past 180 days (national-team fixtures judged by count, `NATIONAL_SAMPLE_AGE`) | `SAMPLE_CROSSES_SEASON` |
 | model more than 0.10 above the devigged price | `DISAGREES_WITH_PRICE` - old-epoch builds only; off on a stats-only day, as `UNREACHABLE_BAR` |
-| a joint/comparative market has no calibration | `DERIVED_NOT_CALIBRATABLE` |
+| no curve at p and no settled Superbet lines of the key (a derived joint, a player line, a thin bucket) | `NO_LINE_EVIDENCE` (football / tennis CONFIDENCE and SPORT_CONFIDENCE; `DERIVED_NOT_CALIBRATABLE` only before 2026-10-07 10:55Z) |
+| football ratings of two leagues with no shared competition | `CROSS_LEAGUE_UNLINKED` |
+| class markets (women's, team cups) without their class curve | `NO_CLASS_CURVE` |
+| a (competition, family) cell that does not settle | `NOT_SETTLEABLE` |
+| sport leg: unpinned identity, started, price over 3 h old, CS2 team-rounds line outside 9.5-12.5 | `NOT_IDENTIFIED` / `DUPLICATE_*`, `KICKED_OFF`, `STALE_PRICE`, `LINE_OUTSIDE_FIT` |
 | a builder mixing `goals UNDER` with `corners OVER` | `BUILDER_LEGS_INCOHERENT` |
 
 Your value is in what these cannot see.

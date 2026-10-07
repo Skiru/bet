@@ -33,7 +33,9 @@ COUPON**. Read by:
   reason `VETOED`
 - `scripts/sofa/build_coupon.py` (COUPON_ASSEMBLY) → applies the vetoes to
   the measured-sport legs of `08_confidence_sports.json` as it assembles
-  `11_coupon.json`, and therefore the PDF
+  `11_coupon.json`, and therefore the PDF (`coupon_sports.apply_reads`: a
+  veto matches a sport leg on `family` as `market`, `side` as `direction`,
+  and on every period - it has no period field)
 
 The first two print `UNMATCHED_VETO: {...}` to stderr for an entry that
 matched no sheet row, and count `vetoes_applied` / `vetoes_unmatched` in
@@ -187,8 +189,8 @@ by the runner from your second JSON block and from the verifier's.
 |---|---|---|
 | `sofascore_event_id` | int | the fixture |
 | `market` | str \| null | as in `Veto`; for a measured-sport leg the leg's `family` (`total`, `team_total`, `handicap`, `winner`, ...) |
-| `subject` / `line` | as in `Veto`, nullable | `null` covers every value - the veto's matching rule, and its widening trap |
-| `direction` | str \| null | `OVER` / `UNDER`, or a measured sport's side: `T1` / `T2` / `DRAW` / `ODD` / `EVEN` / `YES` / `NO` / an exact score `"3:1"` (`contracts.READ_SIDES`; anything else fails validation) |
+| `subject` / `line` | as in `Veto`, nullable | `null` covers every value - the veto's matching rule, and its widening trap. On a sport leg `subject` is `""` (match level), `T1` / `T2`, a CS2 team name or a player's name, and `line` is the leg's stored one (a handicap's is team 1's); `""` does not cover `T1` |
+| `direction` | str \| null | `OVER` / `UNDER`, or a measured sport's side: `T1` / `T2` / `DRAW` / `ODD` / `EVEN` / `YES` / `NO` / an exact score `"3:1"` (`contracts.READ_SIDES` plus the score pattern `^\d+[:-]\d+$`; anything else fails validation) |
 | `period` | int \| null, optional | a measured sport's period - hockey period, basketball quarter, volleyball set, CS2 map; `0` the whole match; `null` (the default) covers every period |
 | `verdict` | `"KEEP" \| "WATCH" \| "NO_BET"` | your verdict on the leg |
 | `author` | `"analyst" \| "verifier"` | you are always `"analyst"` |
@@ -241,7 +243,7 @@ price: audit_settlement 7i ("Nogi zdjęte przez odczyt"), ledger variant
   unmatched; it takes effect in COUPON_ASSEMBLY - confirm it in
   `11_coupon.json` (`removed_by_reads`, or the leg's `reads`).
 
-A measured-sport read:
+A measured-sport read (`subject`, `line`, `period` as on the leg; a leg with `period` 0 is read with `0` or with the field left out):
 
 ```json
 [{"sofascore_event_id": 16310568, "market": "total", "subject": null,

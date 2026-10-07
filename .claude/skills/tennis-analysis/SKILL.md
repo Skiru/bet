@@ -19,9 +19,12 @@ from football in four ways that change everything below.
 3. **Every market is a function of match length.** A short match settles every
    UNDER at once, so a two-leg tennis slip is usually one bet with two prices.
 4. **`K_CENTRE` for tennis is 5**, against football's 15
-   (`config/sofa_engine_constants.json`, `by_sport`). A tennis row is mostly
-   its own sample — at n=10 the sample owns **67%** of the centre. There is
-   far less prior propping it up, in both directions.
+   (`config/sofa_engine_constants.json`, `by_sport`). A row the sample prices
+   is mostly its own sample — at n=10 the sample owns **67%** of the centre.
+   There is far less prior propping it up, in both directions. (Since
+   2026-10-07 14:05Z `games_won_for` / `handicap_games` / `most_games` and
+   half of `games_total` are not such rows: the rating's neighbours price
+   them - see below.)
 
 Tennis is usually about two thirds of the board.
 
@@ -39,32 +42,82 @@ claims about *code* did not. Cite sections, take no behaviour from it.
 ## What the code already does
 
 `samples.py` scopes each side's observations to tonight's **surface**
-(`event.groundType == fixture.ground_type`) and **format**
+(`surfaces_comparable(event.groundType, fixture.ground_type)`: equal, or a
+generic "Hard" / "Clay" against any member of its family) and **format**
 (`infer_best_of(event) == fixture.default_period_count`). Both come off the
-fixture, so both are real rather than inferred from a competition-name pin —
-which is a genuine improvement over the retired pipeline, where surface never
-reached the scoping at all.
+fixture, so both are real rather than inferred from a competition-name pin.
+A fixture with a null `ground_type` gets an empty sample (gap
+`SURFACE_UNKNOWN`); a null `default_period_count` skips the format scope.
+`infer_best_of` reads the format of a past match from the winner's sets (3
+sets won = best-of-five, 2 = best-of-three, anything else - a retirement -
+`None`).
 
-`sets_total` and `games_won_for` are priced by the **sample's own frequency**,
-not by a bell curve. `sets_total` is bounded (2 or 3 on a best-of-three) and
-`games_won_for` is violently bimodal — a straight-sets winner has at least
-twelve games, so the distribution has a loser mode spread over 0–11 and a
-winner mode stacked on 12+. Across 570 observations in one day: 10:17, 11:10,
-**12:159**, 13:84. Superbet's line sits at **11.5, in the trough.** A normal
-CDF puts smooth density exactly where the real distribution has almost none.
-On a stats-only row (`epoch: "stats_only"`, builds from 2026-10-05 07:15Z)
-that frequency is taken around the shrunk centre with **no price in it**, and
-the rating is published beside it as the **model** (`forecast_p`,
-`tennis_rating`, uncalibrated, never a gate). On an older row it was pulled
-onto the price (`P_SHRUNK_TO_PRICE`, `TENNIS_RATING`) - see
-`references/data-inventory.md`. Neither equals the raw hit rate, by design.
-On a leg, three numbers stand side by side: **pewność** (`confidence`, the
-calibrated curve), **próbka** k/n (`sample_hit_rate` x `sample_size`) and
-**model**; the price is only the betting condition (x = confidence x odds
->= 0.90, ladder margin <= 15%).
+**What prices a row (stats-only epoch, builds from 2026-10-05 07:15Z; no
+price in any `p_central`).** Two estimators exist side by side:
 
-For every other tennis metric `p_central` comes from a count model, so it will
-**not** equal the sample hit rate.
+- **The rating** (`src/bet/sofa/tennis_rating.py`): a surface-blended Elo,
+  calibrated per tier (ITF / CH / TOUR; `config/tennis_rating.json`, fitted
+  2026-09-30 on 239,315 history matches, cut 2026-10-01), gives the match-win
+  probability; the 600 historical **best-of-three** matches with the nearest
+  probability (`NEIGHBOURS`) are the score distribution, read empirically -
+  so games, sets, set games and tiebreaks of one match cannot contradict each
+  other. **Best-of-five is not modelled** (no neighbour is a five-setter), and
+  a player with fewer than `MIN_RATED = 10` rated matches gets no forecast.
+  A null `default_period_count` is read as best-of-three.
+- **The sample's estimator**: the player's own scoped last ten, around the
+  shrunk centre (`K_CENTRE = 5`); the empirical frequency for the bounded /
+  bimodal `sets_total` and `games_won_for`, a count model otherwise.
+
+Since **2026-10-07 14:05Z** (`epochs.tennis_rating_prices`, judged on the day
+and the build clock; operator's decision, curves refit the same evening):
+
+| family | `p_central` |
+|---|---|
+| `games_won_for`, `handicap_games`, `most_games` (not the draw) | the neighbours alone (`RATING_PRICED_MARKETS`) - no price, no sample |
+| `games_total` | 0.5 x rating + 0.5 x the NB count model (`W_GAMES_TOTAL_RATING`) |
+| `sets_total`, per-set games, `tiebreaks_total`, aces, double faults, serve points | the sample's estimator |
+
+`forecast_p` (`forecast_source` `tennis_rating`, uncalibrated, never a gate)
+is written on `games_won_for`, `games_total` and `sets_total` only - **not**
+on `handicap_games` / `most_games` (checked on the 2026-10-07 sheet). On a
+rated `games_won_for` row `forecast_p == p_central`; for `games_total` the
+rating is half of `p_central`. **So the old reading "`p_central` is the sample, `forecast_p` is
+the rating, compare them" no longer holds for those families: the rating is
+both numbers, and the independent evidence on the leg is the sample's k/n.**
+`sets_total` still has two separate estimators. The `K_CENTRE` shrinkage
+still decides every sample-priced row, and any rated family on a fixture the
+rating does not read.
+
+A SHEET built before that moment priced these families the old way (the
+sample; before 2026-10-05 the rating blended with the price,
+`TENNIS_RATING`, or the empirical frequency pulled onto the price,
+`P_SHRUNK_TO_PRICE` - see `references/data-inventory.md`).
+
+`games_won_for` is **violently bimodal** — a straight-sets winner has at
+least twelve games, so the distribution has a loser mode spread over 0–11
+and a winner mode stacked on 12+ (one day's 570 observations: 10:17, 11:10,
+**12:159**, 13:84 - a dated measurement). Superbet's line sits at **11.5, in
+the trough.** The sample's empirical frequency (the old estimator) and the
+rating's neighbours both carry that shape; a normal CDF does not. On a leg,
+three numbers stand side by side: **pewność** (`confidence`, the calibrated
+curve lowered by line evidence), **próbka** k/n (`sample_hit_rate` x
+`sample_size`) and **model**; the price is only the betting condition
+(x = confidence x odds >= 0.90, ladder margin <= 15%).
+
+**Match tiebreaks (open operator question).** A 10-point match tiebreak
+(ITF, UTR, team cups) sits in Sofascore's `periodN` as points. The pipeline
+counts it as **one game** to its winner in every sample, neighbour and
+settlement (`tennis_score.set_games`); Sofascore's `gamesWon` counts none;
+bet365 counts one. **Superbet's rule for games markets is unverified** (its
+regulamin does not say) - a leg a match tiebreak decides may grade
+differently from the code. Name it, do not decide it. Tour and Challenger
+neighbours exclude match-tiebreak matches, ITF ones include them.
+
+**Retirement and walkover are refunds** (`settle.RETIRED`,
+`settle.WALKOVER`, in `settle.REFUND_REASONS`; operator, 2026-10-07): 0 u.,
+never a loss. Retired and walkover matches stay out of samples
+(`is_completed_event`); the rating counts a retirement as time on court but
+not as a result.
 
 ## What the code cannot see
 
@@ -73,7 +126,8 @@ For every other tennis metric `p_central` comes from a count model, so it will
   `opponent` field is a name and nothing more
 - the previous match: its length, its date, hours of rest, a three-match
   qualifying route
-- retirement risk, a walkover, a late withdrawal
+- retirement risk, a walkover, a late withdrawal (a retirement or walkover
+  refunds a single leg - it is a void risk, not a loss risk)
 - indoor versus outdoor, altitude, ball type, wind
 - whether the competition's surface pin is right at Challenger/ITF level, where
   coverage is thinnest
@@ -146,25 +200,48 @@ of `11_coupon.json`, every printed builder leg, `read_requests.json` - see
 - **A sample from the wrong surface.** Aces 5.5 OVER built on grass
   observations for a hard-court match; the hard-court medians were 6.0/5.0
   against grass 9.0/11.0. `sofa` scopes on `ground_type` — but at Challenger
-  and ITF level that field is the thinnest part of the data. When it is
-  missing, the scope silently does nothing. **Check it.**
+  and ITF level that field is the thinnest part of the data. A fixture with
+  no surface gets an empty sample (`SURFACE_UNKNOWN`); a past event with none
+  is dropped; generic "Hard" / "Clay" labels match any member of their
+  family, so an indoor fixture can sample outdoor-unknown matches. **Check
+  it.**
 - **Opponent class not conditioned.** A `games_won_for` 9.5 OVER with a mode of
-  12 against much weaker fields, against a far stronger opponent tonight.
+  12 against much weaker fields, against a far stronger opponent tonight. The
+  rating's neighbours condition on the match-win probability but not on
+  surface, serve or the sample's fields - a rating-priced row still needs your
+  opposition check.
+- **A format the rating does not read.** A best-of-five is not modelled - no
+  `forecast_p`, the sample prices the row. A null `default_period_count` is
+  read as best-of-three by the rating and skips the format scope of the
+  sample: on a men's slam a null is the failure to look for.
 - **Best-of-three tautologies priced as best-of-five.** `sets_total UNDER 3.5`
   at 15/15 from a BO3 sample on a BO5 event. `default_period_count` is the
   guard; if it is null, the scope did not run.
 - **The line in the trough.** `games_won_for` 11.5 sits between the loser mode
-  and the wall at twelve. The empirical estimator handles it; a normal one did
-  not, and it ran predicted 0.404 against realised 0.320 on 862 settled rows.
-- **Identical `p_central` across three rungs.** No observation falls between
-  them, so the model and not the sample separates the prices.
+  and the wall at twelve. The empirical frequency (the old estimator) and the
+  neighbours handle it; a normal CDF did not, and it ran predicted 0.404
+  against realised 0.320 on 862 settled rows (a September measurement).
+- **Identical `p_central` across rungs.** On a sample-priced row no
+  observation falls between them, so the model and not the sample separates
+  the prices. On a rating-priced row (`games_won_for`) `p_central` moves in
+  steps of 1/600 and the neighbours, not the player's record, set the steps:
+  check the próbka k/n against it.
+- **A match tiebreak decides the leg.** ITF / UTR / team-cup matches that
+  reach a 10-point deciding tiebreak: the code counts one game; Superbet's
+  count is unverified (open operator question).
 - **Certainty for free.** A `sets_total UNDER 3.5` on a best-of-three is a
   tautology. CONFIDENCE refuses anything under 1.0867 and `outside_model_resolution`
   refuses a `p_raw` outside [0.05, 0.95] — but check the rung yourself.
-- **The empirical frequency is overconfident at the top.** On 9,286 settled
-  `games_won_for` rows a claimed 0.95 realises **0.728**, and that market has
-  no measured bucket above 0.825. A high `p_central` on this market is the one
-  number you should trust least.
+- **A high `p_central` on `games_won_for` is the number to trust least.** The
+  old sample-frequency estimator was measured overconfident at the top (on
+  9,286 settled rows a claimed 0.95 realised 0.728, no bucket above 0.825 -
+  a September measurement, since superseded). The curve fitted on the history
+  replay of the rating now has buckets to 0.95+ (`config/sofa_confidence_calibration.json`,
+  `by_market.games_won_for`; replayed rows, not independent matches), and the
+  2026-10-05/06 Superbet lines still realised below confidence for printable
+  `games_won_for` legs (`config/sofa_superbet_line_evidence.json`,
+  `keys.tennis`: OVER -0.17, UNDER -0.12, dated, measured under the older
+  estimator). There are no settled lines of the rating-priced estimator yet.
 - **A short match settles every UNDER at once.** Sets, games, aces and double
   faults are one mechanism. A tennis Bet Builder of two UNDERs is one bet
   charged twice — and `confidence.py`'s quantity families put `games_*`,
@@ -172,17 +249,25 @@ of `11_coupon.json`, every printed builder leg, `read_requests.json` - see
 
 - **Tier gap: refit done, the veto rule is retired.** `config/tennis_rating.json`
   was refit with `dhigh`/`dtour` on 2026-09-30 (cut 2026-10-01, 239,315
-  matches; held out 09-17..30 Brier 0.1948 -> 0.1884, TOUR 0.2055 -> 0.1855).
-  Do not veto on a tier-share gap any more. Tour and Challenger forecasts read
-  no neighbour decided by a match tiebreak (`Outcome.match_tiebreak`).
-  Davis/BJK Cup and exhibitions (`tennis_team_cup`) and women's events
-  (`tennis_women`) read only their own calibration curves; such a leg missing
-  from `08_confidence` was refused (`NO_CLASS_CURVE` / `NOT_CALIBRATED`), not
+  history matches). Do not veto on a tier-share gap any more. Tour and
+  Challenger forecasts read no neighbour decided by a match tiebreak
+  (`Outcome.match_tiebreak`). Davis/BJK Cup and exhibitions
+  (`tennis_team_cup`) and women's events (`tennis_women`) read only their own
+  class curves and class line evidence; such a leg missing from
+  `08_confidence` was refused (`NO_CLASS_CURVE` / `NO_LINE_EVIDENCE`), not
   lost.
+- **What the curves are fitted on.** Since the 2026-10-07 refit (installed
+  that evening, a new comparability epoch) the curves are fitted on the
+  history of Sofascore events replayed as of each match with the estimator
+  SHEET prices with - the tennis rating as of that day
+  (`calibrate_from_cache`, `tennis_rating.AsOfRating`), best-of-five matches
+  skipped (`infer_best_of`) - not on our own settled days, which are an
+  audit. Superbet's settled lines correct the curve (`bet.sofa.line_evidence`).
 
 ## Tennis-specific output requirements
 
-Per match, always state: tour and format from `default_period_count`; surface
+Per match, always state: tour and format from `default_period_count` (a
+best-of-five is outside the rating); surface
 from `ground_type`, **or explicitly that it is unknown**; round and start time
 as verified, on both clocks, with the disagreement in hours; each side's
 scoped `n` and the class of the opposition behind it; the previous match where

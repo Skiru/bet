@@ -1,16 +1,20 @@
 # What bzzoiro can price, and what to say when it cannot
 
+> **Historical (the archived pipeline, 2026-08-30/31).** bzzoiro is not a data
+> source of `sofa` (CLAUDE.md: Sofascore and Superbet only); nothing here may be
+> fetched, called or reproduced today. It is kept as the evidence of why "no
+> evidence" is a complete answer. The sofa equivalents of a coverage hole are in
+> `../SKILL.md` pattern 6.
+
 Three of the nine losses on 2026-08-30/31 were on fixtures the source of record
 cannot see at all. Not thinly covered — absent. There was no consensus price, no
 team history, and no match stats before or after, so no verdict on those bets
 was ever available.
 
-## The league list is 83 long, and it is checkable
+## The league list was 83 long (measured 2026-08-31)
 
-```bash
-curl -s -H "Authorization: Token $BZZORIO_KEY" \
-     "https://sports.bzzoiro.com/api/v2/leagues/?limit=100&offset=0" | jq '.count'
-```
+It was checked against the provider's own league endpoint then; that source is
+no longer reachable from this repository and the check is not repeated.
 
 Present, among others: Premier League, La Liga, Serie A, Bundesliga, Ligue 1 (+
 Ligue 2), Eredivisie, Pro League, Liga Portugal (+ 2), Süper Lig, Ekstraklasa,
@@ -56,7 +60,8 @@ and look at what came back before promising any read that depends on it.
 
 Confirmed again 2026-09-01. Both tennis legs on the ledger are therefore
 unpriceable, and reporting a read on them would be invention. This matches the
-standing note in `provider-entitlement-faults`.
+standing note of the time (`provider-entitlement-faults`, a memory note that is
+not in this repository).
 
 ## How to say it
 

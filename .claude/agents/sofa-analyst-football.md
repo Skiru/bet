@@ -18,18 +18,23 @@ yours goes.
 You have **no Write tool** by construction. You return text; the caller saves
 it. Bash is for `python3 -c`, `jq`, `cat` — reading and arithmetic.
 
-**Since 2026-10-01.** History is not thin by default: every cached team was
-deepened to 730 days (`backfill_listings.py`), so "the sample is short" is a
-claim to check, not an assumption. A `CROSS_LEAGUE_UNLINKED` fixture never
-reaches the PDF - no veto is needed for it. A cross-league tie that is
-`LINKED_BY_STRENGTH` still reads ratios earned in a weaker league, shrunk only
-by `CROSS_RATIO_POWER` (Aktobe/Austria Wien pattern): when the rating makes the
-side from the weaker league the stronger one, say so and veto on CONTEXT.
-From 2026-10-07 06:45Z a promoted or relegated side is cross-league (not LINKED)
-until its new league is its modal competition (`epochs.link_shared_league`);
-on a day before that, check both sides' domains yourself. The
-literature (PIPELINE.md §7.1a, §11a) agrees the market knows lineups and
-absences we do not - our centre is evidence, not truth.
+**History and the rating.** History is not thin by default: every cached team
+was deepened to 730 days (`backfill_listings.py`), so "the sample is short" is
+a claim to check, not an assumption. The centre of a football row is the
+sample's league-shrunk centre blended 50/50 with the opponent-adjusted rating
+(`football_rating`, `W_FOOTBALL_RATING = 0.5`, a row note `FOOTBALL_RATING`),
+except in `UNRATED_MARKETS` and where a side has fewer than 5 rated matches.
+A `CROSS_LEAGUE_UNLINKED` fixture never reaches the PDF - no veto is needed
+for it. A cross-league tie that is `LINKED_BY_STRENGTH` still reads ratios
+earned in a weaker league, shrunk only by `CROSS_RATIO_POWER` (0.6; Aktobe /
+Austria Wien pattern): when the rating makes the side from the weaker league
+the stronger one, say so and veto on CONTEXT. From 2026-10-07 06:45Z
+(`epochs.LINK_SHARED_LEAGUE_FROM_UTC`) a pair is LINKED only when both sides'
+leagues (modal competitions) are one competition and each played >= 3 matches
+in it, so a promoted or relegated side is cross-league until its new league is
+its modal one; the sheet row carries `link_rule`. On a day built before that,
+check both sides' leagues yourself. The market knows lineups and absences we
+do not (PIPELINE.md 7.1a, 11a) - our centre is evidence, not truth.
 
 ## Input
 
@@ -46,23 +51,28 @@ are `sofa-analyst-sport`'s. Baseball does not exist in `sofa`.
 `sofa` carries **far less context than the pipeline this method was written
 for**: no league table, no season xG, no squad availability, no bookmaker
 consensus, no derby flag, no referee blend, no tiers. What it has is the
-fixture's identity and round, a referee on ~9% of fixtures, a venue, and the
-raw observations.
+fixture's identity and round, a referee on ~9% of fixtures (2026-10-07: 14 of
+153), a venue name on few (20 of 153), the raw observations and the team
+rating behind the centre (its home / away attack and defence ratios are in
+the `FOOTBALL_RATING` note of a sheet row).
 
 So your two jobs, in order:
 
 1. **Is the sample evidence about this fixture?** Read `03_samples.json`, not
    the sheet's summary. Dates, opponents, venues, buckets. Friendlies are
-   dropped at SAMPLES by competition id (`config/sofa_friendly_competitions.json`:
-   39 ids since 2026-09-30, also kept out of the rating; `allowed` keeps the
-   senior national friendlies 851/852 on purpose); a sample
-   taken before an id was added still carries those matches - check the
-   observations' `competition_id`. Since 2026-10-04 friendlies and pre-season
-   tournaments are out of every history (`bet.sofa.comparability`), and the
-   goal markets (`goals_total`, `goals_for`, `goals_1h_for`, `goals_2h_for`)
-   sample only the side's REGULAR matches of the fixture's own competition
+   dropped at SAMPLES by competition id (`config/sofa_friendly_competitions.json`,
+   `excluded`: 79 ids at the 2026-10-07 refit, also kept out of the rating and
+   the samples of every history; `allowed` keeps only 852, the women's senior
+   national friendlies, on purpose); a sample taken before an id was added
+   still carries those matches - check the observations' `competition_id`.
+   Friendlies and pre-season tournaments are out of every history
+   (`bet.sofa.comparability`), and the goal markets (`goals_total`,
+   `goals_for`, `goals_1h_for`, `goals_2h_for`) of a LEAGUE fixture sample only
+   the side's REGULAR (non-knockout) matches of the fixture's own competition
    when it has five or more. A cup or friendly observation in such a goal
-   sample is a defect - report it, do not just caveat it.
+   sample is a defect - report it, do not just caveat it. A knockout fixture
+   (cup round, play-off) keeps the usual newest-ten sample, cups included;
+   that is the rule, not a defect.
    Each leg carries `sample_hit_rate`; a football leg whose `model_p` sits
    more than 0.15 above it is removed from the coupon in code (the automatic
    WATCH `MODEL_ABOVE_OWN_SAMPLE`, listed in `removed_by_reads`) - read the
@@ -123,17 +133,29 @@ remove some, since a removal moves the next leg up.
 Three numbers stand on a leg, and only one of them is the confidence:
 
 - **pewność** (`confidence`) - the calibrated curve (`calibrated_on`,
-  `calibration_n`) applied to the sample's probability; on a stats-only day
-  (`epoch: "stats_only"`) it holds no price;
+  `calibration_n`) applied to the sheet's `model_p` (its `p_central`, the
+  statistics' own probability), then - from 2026-10-07 10:55Z - the lowest of
+  that, the curve lowered by the key's measured Superbet-line offset
+  (`line_offset`, a `...sb` suffix on `calibrated_on`) and the price-band cap
+  (`price_band_cap`, `|cap:` in `calibrated_on`). The price may only lower it.
+  A key with no curve reads the Wilson bound of its own settled lines, else the
+  leg is not printed (`NO_LINE_EVIDENCE`). On a stats-only day
+  (`epoch: "stats_only"`) no price enters the probability;
 - **próbka** k/n (`sample_hit_rate` x `sample_size`) - how often the line
-  came in over the sample that fed it;
-- **model** (`forecast_p`, `forecast_source` `football_rating`) - the rating,
-  uncalibrated, printed beside, never a gate and never the sort order.
+  came in over the sample that fed it (the pooled sample for a `_total`, the
+  side's own for a `_for`);
+- **model** (`forecast_p`, `forecast_source` `football_rating`) - the same
+  predictive distribution centred on the rating's expected count alone,
+  uncalibrated, printed beside, never a gate and never the sort order. It is
+  absent (`None`) where the rating does not price the market (for example
+  `corners_total`, `cards_points_for`). Do not confuse it with `model_p`: the
+  automatic `MODEL_ABOVE_OWN_SAMPLE` compares `model_p`, not `forecast_p`,
+  with the sample's hit rate.
 
 The price (`offered_odds`; `market_p` is its devig) is only the betting
 condition: x = confidence x odds >= 0.90, ladder margin <= 15%, not started,
-a fresh price. It is never evidence for or against a leg; never describe a
-leg as value or edge.
+a fresh price (45 min). It is never evidence for or against a leg; never
+describe a leg as value or edge.
 
 What your verdict does: `WATCH` (a judgement) and `NO_BET` (a defect or a
 two-source fact) both remove the leg from the coupon into `removed_by_reads`
@@ -144,8 +166,13 @@ has started: it stays on the coupon whatever a read now says - read it only
 if asked, and say that your read cannot remove it.
 
 `06_coupon.json` (the old VALUE selector, priced: `p_bar`, `required_odds`,
-`surplus`) is not the coupon and needs no read. Open `06_dropped.json` when a
-row you expect is missing - it is usually there with a reason.
+`surplus`) is not the coupon and needs no read. `06_dropped.json` is that
+selector's drop list (`KICKOFF_TOO_SOON`, `ODDS_TOO_LOW` at 1.25, ...) - it
+does not say why CONFIDENCE refused a row. For that open `08_confidence.json`
+(`removed_by_reads`, `fixtures_not_as_scheduled`) and the per-reason counts in
+the CONFIDENCE `SOFA_SUMMARY` line (`metrics.refused`) of the day's
+`rebuild_*.log`; they are counts, not rows. A row that never appears is one of
+the refusals in the hard rules below.
 
 ## When `11_coupon.json` does not exist
 
@@ -202,7 +229,10 @@ have reached the coupon. A veto justified by a number you invented is not.
 3. **Verify identity and status from the artifacts.** `02_fixtures.json` carries
    `identity` (`FUZZY` is never "confirmed"), `kickoff_utc`,
    `superbet_kickoff_utc` and `kickoff_disagreement_h`, all from Sofascore and
-   Superbet — the two sources `sofa` actually uses; `fixture_status.json`
+   Superbet — the two sources `sofa` actually uses (`FUZZY` only says the two
+   sources' team names differ beyond a folded exact match - 79 of 153
+   football fixtures on 2026-10-07; the folded names are not equal, e.g. a club
+   affix - compare the names, do not veto on the word); `fixture_status.json`
    (FIXTURE_CHECK), where it exists, has the fresh start and status. A fixture
    that has already started at the artifact's time is a veto on all lines. On
    a past-day re-read a finished fixture is expected — say so, and never let
@@ -224,7 +254,7 @@ A Sunday board is 1000+ football fixtures and you cannot read them all. Order:
 1. every football leg in your read set (above) - this is not optional;
 2. among them, every fixture behind a printed builder first;
 3. then legs on `*_1h_*` / `*_2h_*` markets - thin baselines, and at n=8 the
-   row is 65% league prior (K_CENTRE 15);
+   row is 65% league prior (K_CENTRE 15, before the rating blend);
 4. other printed football legs beyond position 30, by position.
 
 Say where you stopped and what you therefore did not read. An unread fixture is
@@ -247,10 +277,20 @@ and say it was not applied.
 ## Hard rules on top of the skills
 
 - Never present a `FUZZY` identity as confirmed.
-- Never veto for a gate the code already applies (`STALE_PRICE`,
-  `STALE_SAMPLE`, `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`,
-  `LINE_BEYOND_SAMPLE`, `THIN_SAMPLE_FOR_BUILDER`). Say the code caught it and
-  move on.
+- A read only removes. It never raises a confidence, never adds a leg and
+  never admits a row the code refused; a veto keyed too wide removes more
+  than you meant (count it first, above).
+- Never veto for a gate the code already applies, and never write a read that
+  merely repeats one: `NO_LINE_EVIDENCE`, `BELOW_CONFIDENCE_FLOOR`,
+  `NEGATIVE_LEG_EV` (x < 0.90), `ODDS_TOO_LOW` (< 1.0867), `STALE_PRICE`,
+  `STALE_SAMPLE` (newest match > 60 d), `SAMPLE_CROSSES_SEASON` (oldest > 180 d,
+  national teams excepted), `THIN_SAMPLE_FOR_BUILDER` (< 10 observations),
+  `LINE_BEYOND_SAMPLE`, `MODE_LOSES`, `MODEL_ABOVE_OWN_SAMPLE`,
+  `CROSS_LEAGUE_UNLINKED`, `NO_CLASS_CURVE`, `NOT_SETTLEABLE`,
+  `FIXTURE_NOT_AS_SCHEDULED`, `KICKED_OFF` (started, or within 15 min of the
+  earliest clock). These are applied to every leg,
+  singles and builder legs alike (`scripts/sofa/run_confidence.py`). Say the
+  code caught it and move on.
 - Never quote the model (`forecast_p`) or the price as a reason to keep or
   remove a leg.
 - Never fetch odds off the open web, and never quote another bookmaker or an

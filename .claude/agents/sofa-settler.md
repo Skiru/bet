@@ -32,7 +32,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <
 # ungraded for good (F0.6) - so every morning the sweep re-settles each day D-14..D-2 that still holds a
 # printed leg SETTLE could grade, plus D-5 always (its unpriced rows feed the fits), with
 # --refetch-stat-gaps, then regrade_settled.py --apply once. Bridge required: exit 1 with NO_BRIDGE =
-# nothing re-settled. It writes sofa_settled_row, which record_results.py reads - so BEFORE Step 1b:
+# nothing re-settled (--dry-run prints the plan, no bridge). It writes sofa_settled_row, which
+# record_results.py reads, and it can turn an earlier retirement into a refund - so BEFORE Step 1b:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>
 ```
 
@@ -47,9 +48,24 @@ counting it as a win overstates it.
 
 What SETTLE does since 2026-10-05:
 
-- **Refunds.** A match moved by more than 48 h (`MOVED_BEYOND_VOID`) or
-  awarded (`AWARDED`) is a refund: 0 u., never a loss, never a
-  `sofa_settled_row` (it is listed in `07_settle_skips.json`).
+- **Refunds.** `settle.REFUND_REASONS` = `MOVED_BEYOND_VOID` (start moved
+  more than 48 h), `AWARDED`, `RETIRED` (Sofascore status description
+  "Retired", operator 2026-10-07) and `WALKOVER`: 0 u., never a loss, never a
+  `sofa_settled_row` (listed in `07_settle_skips.json` under that reason;
+  `run_settle.unfinished_reason` assigns RETIRED / WALKOVER, any other odd
+  finish stays `FINISHED_ABNORMALLY` - not graded, not refunded, a count to
+  name). A day settled before the rule keeps `FINISHED_ABNORMALLY` for its
+  retirements until it is re-settled; the sweep re-settles a day only when
+  one of its printed legs is `resettle_worthy` (`NOT_FINISHED`, a data gap,
+  ...; `FINISHED_ABNORMALLY` is not on that list), otherwise name the day
+  with `--include-day <d>`. When a re-settle turns a retirement into a
+  refund the ledger is stale: re-run `record_results.py` from that day.
+  Whether a re-settle rewrites an old skip reason in place is not verified
+  here - check `07_settle_skips.json` after it.
+- **Basketball** second half / Q4 grade on the REGULATION periods, overtime
+  does not count (operator 2026-10-07; `OT_RULE_UNKNOWN` no longer exists);
+  the full-game basketball markets include overtime. A leg graded before the
+  rule is a regrade candidate, not a settle defect.
 - **Player props** are graded only from the player's own squad; a name that
   cannot be placed is `PLAYER_AMBIGUOUS`, never a guess.
 - **A printed leg without a sheet row** is graded into
@@ -122,6 +138,14 @@ VOID, PENDING:*, UNGRADEABLE, IN_PLAY_PRICE, NOT_GRADED:*, MISMATCH). A
 --from <d> --to <d> [--variant official]` splits every variant into the
 epoch groups `do 10-04` / `10-05 rano` / `stats_only` and never sums them:
 the official coupon before and after 2026-10-05 07:15Z is not one
+experiment. **It knows no later cutover** (`epoch_group`): the rule changes
+of 2026-10-06 (`COUPON_STRUCTURE_FROM_UTC`, settleability), 2026-10-07 (line
+evidence 10:55Z, its second rules 13:42Z, the model packages 14:05Z -
+tennis rating prices, derived marginal centres, basketball freshness) and the
+refit installed that evening (the curves of 2026-10-08) all sit inside the
+`stats_only` group. 10-07 is a mixed day (three rule sets by build clock;
+locked legs keep `printed_under`). Cut any comparison by date, say which
+rules each side ran under, and never sum across those days as one
 experiment.
 
 The official rows read `sofa_settled_row` in `data/sofa.db`, exactly as 7c
@@ -148,7 +172,9 @@ change on a date older than D-8, re-run
 stats-only day it is one table per sport x epoch, plus the measured sports'
 table (graded at the printed price against the pinned id), closed by
 **"Suma kuponu"** - the coupon's singles across every sport. Refunds
-(`MOVED_BEYOND_VOID`, `AWARDED`) are counted apart at 0 u. Sections 7 and
+(`REFUND_REASONS`) are counted apart at 0 u., on the row "zwrot (przesunięty
+> 48 h / przyznany / krecz / walkower), 0 j." that appears only on a day that
+has one. Sections 7 and
 7b are input material - legs and candidate rows - **not bets**. Reporting
 7 or 7b as "the day's result" is the same error as calling `06_coupon.json`
 the coupon, and it has inverted a day before.
@@ -218,14 +244,35 @@ from a market change. A full refit goes through `prepare_refit.py --date <d>`
 (backup, rebuild-cache-rows, fit, compare, install), between days, one step
 at a time, with one DB backup per refit epoch. The measured sports'
 confidence curves (`fit_sport_confidence.py --before <d>`) follow the same
-rule: between days only.
+rule: on a copy of the DB, outside a day's own run, installed only with the operator's go.
 
-Re-fit when: the settled table has grown materially, a coherence check is
-failing, or a baseline is demonstrably wrong. **Do not** re-fit because a day
+Since 2026-10-07 the curves are fitted on the **history of statistics replayed
+as of each match with the estimator SHEET prices with** (operator), not on our
+settled days; those are an audit (`compare` marks them in-sample), never the
+source. A bad day is therefore never a refit reason - a refit follows a
+change of the estimator or a materially grown history. The procedure runs
+**on a copy of the DB while the daily loops stay alive** (the 2026-10-08
+refit: a `VACUUM INTO` copy in `data/refit_2026-10-08/`), with the global
+`--db-path <copy>` of `prepare_refit.py`: `rebuild-cache-rows
+--without-db-backup` (replays the tennis rating unless `--no-tennis-rating`;
+football goals joints only with `--derived`, which that refit left off), `fit`,
+`compare`; a sport's curve section comes from `fit_sport_confidence.py`
+(basketball with `--bb-freshness on`) into the staged `.next.json`. Read
+`prepare_refit.py --help` before composing a command. `install --confirm` runs
+`tests/sofa` and restores the backup on failure, and happens only **after the
+operator's go** and a read `compare_report.md` - never on your own. Every
+install opens a new comparability epoch (the 2026-10-08 curves: that day on is
+not comparable with the day before); then the line evidence is re-fitted
+against the new curves.
+
+Re-fit when: the estimator SHEET prices with changed, the history has grown
+materially, a coherence check is failing, or a baseline is demonstrably wrong. **Do not** re-fit because a day
 went badly. Before the next refit, measure the admitted football props
 separately (CLAUDE.md). The line evidence is refreshed every morning
-after D-1 is settled and recorded - `refresh_line_evidence.py --before <D>` -
-and that is **not** a refit: it never touches a curve.
+after D-1 is settled and recorded - `refresh_line_evidence.py --before <D>`
+(~15-20 min: four sport row fits with `--dry-run`, then `fit_line_evidence.py`;
+rows in `data/line_evidence/rows_before_<D>`; exit 1 = a sport kept earlier
+rows) - and that is **not** a refit: it never touches a curve.
 
 After a fit, report - every time:
 
@@ -262,13 +309,14 @@ Check before anyone trusts a sheet built on these:
 
 | file | what to check |
 |---|---|
-| `config/sofa_engine_constants.json` | `fitted_from`, each constant's `status`, `K_CENTRE.by_sport` (football 15, tennis 5 since the 2026-10-03 refit) |
+| `config/sofa_engine_constants.json` | `fitted_from`, each constant's `status`, `K_CENTRE.by_sport` (currently football 15, tennis 5), written by `fit_constants.py` inside a refit; its `fitted_from.db_path` is the refit's DB copy since 2026-10-08 |
 | `config/sofa_league_baselines.json` | `fitted_from`, `half_match_coherence`, whether the competition on tonight's board has an entry at all |
 | `config/sofa_market_reliability.json` | **owned by `fit_constants.py` only.** `calibrate_from_cache.py --out` writes an *ungated* curve for inspection and must never be pointed at this path - when two writers shared it, an empty file overwrote a measured one and reported success. |
-| `config/sofa_confidence_calibration.json` | written by `fit_confidence.py`; the pooled, per-sport and per-market curves, each market's measured ceiling, the `by_class` section (`by_class_fitted_from`; `fit_confidence.py --classes-only` refits only it), and the operator's keys (`refused_markets`, `admitted_player_markets`, `admitted_tennis_set_markets`), which every refit carries over |
-| `config/sofa_sport_confidence_calibration.json` | written by `fit_sport_confidence.py --before <d>`; `fitted_from`; a sport absent is `NOT_CALIBRATED` and prints no legs - say which sports are on the coupon. A day >= the staged `config/sofa_sport_confidence_calibration.next.json`'s `effective_from` (2026-10-07) reads that file instead (`sport_confidence.calibration_path_for`) |
-| `config/sofa_superbet_line_evidence.json` | written by `fit_line_evidence.py` / `refresh_line_evidence.py --before <d>`; `fitted_from.before` and `sheet_days` must reach D-1 for the day about to be built; absent = `LINE_EVIDENCE_NOT_FITTED` |
-| `config/tennis_rating.json` | `fitted_from.cut_utc` (before the day it prices) and `features` listing `dhigh`/`dtour`; written by `fit_tennis_rating.py --cut <d>` between days |
+| `config/sofa_confidence_calibration.json` | written by `fit_confidence.py` (a refit's `fit`, installed by `install`); the pooled, per-sport and per-market curves, each market's measured ceiling, `fitted_from` (its `db_path` is the refit's DB copy since 2026-10-08; `max_settled_run_date`), the `by_class` section (`by_class_fitted_from`; `fit_confidence.py --classes-only` refits only it), and the operator's keys (`fit_meta.OPERATOR_KEYS`: `refused_markets`, `admitted_player_markets`, `admitted_tennis_set_markets`, `gap_shrink_k`) which every refit carries over. From 2026-10-07 10:55Z the three name lists no longer decide anything on a coupon build - a market goes through its own Superbet lines |
+| `config/sofa_sport_confidence_calibration.json` | written by `fit_sport_confidence.py --before <d>` (no `--dry-run`); `fitted_from`; a sport absent is `NOT_CALIBRATED` and prints no legs - say which sports are on the coupon. The staged `config/sofa_sport_confidence_calibration.next.json` (`effective_from` 2026-10-07; basketball section refitted with `--bb-freshness`, the other sports from the morning of 10-07) is what any day >= `effective_from` reads (`sport_confidence.calibration_path_for`) - the installed file is then not the one in force; check `.next.json`'s `fitted_from` |
+| `config/sofa_superbet_line_evidence.json` | written by `fit_line_evidence.py` / `refresh_line_evidence.py --before <d>` (not by any curve fit); `fitted_from.before` and `sheet_days` must reach D-1 for the day about to be built (`before` = the day it is fitted for: `2026-10-08` means settled lines through 10-07); `fitted_from.sport_source` names the rows directory; absent = `LINE_EVIDENCE_NOT_FITTED`; it is fitted against the curves of the day it serves, so refit it after every curve install |
+| `config/tennis_rating.json` | `fitted_from.cut_utc` (before the day it prices) and `features` listing `dhigh`/`dtour`; written by `fit_tennis_rating.py --cut <d>` between days; since 2026-10-07 14:05Z SHEET prices tennis games families from it (`TENNIS_RATING_PRICES`) and a refit's cache replay reads it as of each match |
+| `config/sofa_settleability.json` | written by `fit_settleability.py --before <d>`; the (competition, family) `NOT_SETTLEABLE` cells (in force from 2026-10-06); between days only |
 | `config/sofa_women_competitions.json` | regenerated by `find_women_competitions.py`; read by SHEET for `PRIOR_GLOBAL_WOMEN` |
 
 `fit_confidence.py` keys every row on its **stored** `p_central` - the
@@ -285,32 +333,32 @@ settled rows and not one bucket above 0.825; falling through to a pooled
 0.905 produced twelve tennis legs at a claimed rate that market has never
 been observed to deliver.
 
-**Before 2026-10-07 10:55Z** (`epochs.LINE_EVIDENCE_FROM_UTC`; from then no
-market is refused by name - see the pipeline skill) a market in
-`confidence.AWAITING_OWN_CURVE` (football player props, the new
-per-half / saves / throw-in / goal-kick / tackle markets, and since 2026-09-30
-the tennis per-set serve markets `TENNIS_PER_SET_SERVE`, which realised
-149/253 = 0.589 against 0.777 claimed) is refused until it has a curve of its
-own. The guard lapses by itself: installing a confidence curve that covers one
-of them silently re-admits it to the coupon - report it when that happens.
-Football player props also need their name in `admitted_player_markets`, and
-they read only their own direction's curve (`player_x|OVER`), never the
-combined or a pooled one. Tennis per-set games markets need
-`admitted_tennis_set_markets`. `refused_markets` ("market" or
-"market|DIRECTION") keeps a market off the coupon whatever its curve says;
-all three keys survive a refit.
+**Before 2026-10-07 10:55Z** (`epochs.LINE_EVIDENCE_FROM_UTC`) a market in
+`confidence.AWAITING_OWN_CURVE` (football player props, per-half / saves /
+throw-in / goal-kick / tackle markets, the tennis per-set serve markets
+`TENNIS_PER_SET_SERVE`: 149/253 = 0.589 realised against 0.777 claimed) was
+refused until it had a curve, player props and tennis per-set games markets
+also needed `admitted_player_markets` / `admitted_tennis_set_markets`, and
+`refused_markets` kept a market off whatever its curve said. **From that
+moment no market is refused by name**: those lists, `DERIVED_NOT_CALIBRATABLE`
+and the sport `admitted` keys are not read by a build of such a day, and a
+market with no measurement is `NO_LINE_EVIDENCE`, never silently admitted by
+a new curve. A day before the epoch (a rebuild of 10-06 or earlier) still
+runs under the old guards. Installing a curve that covers an
+`AWAITING_OWN_CURVE` market therefore matters only for such rebuilds; do not
+report it as a re-admission on a current day.
 
 ## What you report
 
 ```
-SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n>)
+SETTLE:   <date> · <n> wierszy · <verdict> · <n> nierozliczonych (powody) · zwroty <n> (MOVED_BEYOND_VOID <n> / AWARDED <n> / RETIRED <n> / WALKOVER <n>) · FINISHED_ABNORMALLY <n>
 KUPON:    sekcja 7c · <sport> [<epoka>]: <w>/<n> · ROI <…> · … · Suma kuponu <u> j.
 SPORTY:   hokej / kosz / siatka / CS2 na kuponie: <w>/<n> · <u> j. · pending <n> · NOT_GRADED:ID_CHANGED <n>
 ZDJĘTE:   sekcja 7i · <w>/<n> · <u> j. (osobno, nie kupon)
 SINGLE:   <n> wierszy VALUE (06_coupon.json, nie kupon) · wynik <…>
 TOŻSAMOŚĆ: audit_settle_identity <n> znalezisk (<check>: <n>) · PLAYER_AMBIGUOUS <n>
 POMIAR:   <sport>: fair p <p> vs trafione <h> (<gap> pp, n=<sides>) per sport
-LEDGER:   <n> wierszy zapisanych dla <D-1> · ROI per variant i epokę (do 10-04 / 10-05 rano / stats_only) z przedziałem 95% po meczach („-” poniżej 20 meczów), nigdy sumowane
+LEDGER:   <n> wierszy zapisanych dla <D-1> · ROI per variant i epokę (do 10-04 / 10-05 rano / stats_only; późniejsze zmiany reguł - 10-06, 10-07 (mieszany dzień), epoka refitu 10-08 - nazwane po dacie) z przedziałem 95% po meczach („-” poniżej 20 meczów), nigdy sumowane
 CLV:      <variant>: <x%> [lo; hi], n nóg (audit_clv.py) - czytać pierwsze; zamknięcie Superbeta, linia bez ruchu = nietestowane
 RYNKI:    <the families that lost, and whether systematically or by dispersion>
 BRAMKI:   <per gate: caught / cost / missed>
@@ -327,5 +375,5 @@ UWAGA:    <the one thing that would change tomorrow's run>
 - Never pool a graded loss with an ungraded row, or a refund with a loss.
 - Never pool epochs, or the coupon with 7i.
 - Never hand-edit a constant. Re-fit, or report.
-- Never re-fit mid-day.
+- Never re-fit or install without the operator's go, and never from a day's run.
 - No stake recommendation. Never read, echo or log `.env` values.
