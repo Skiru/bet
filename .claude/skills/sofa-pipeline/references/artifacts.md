@@ -520,7 +520,7 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
   sides), so a player grade can be audited against its box; an empty answer
   is not saved.
 - A `NOT_ON_SOFASCORE` game carries `miss` (`team1` / `team2`): the first gate
-  that emptied each side's lookup (`shadow.miss_reason`: `CACHED_MISS`,
+  that emptied each side's lookup (`settle_shadow.miss_reason`: `CACHED_MISS`,
   `NO_SEARCH_RESULT`, `NO_CANDIDATE` with `search_teams`, `NO_LISTING`,
   `NO_GAME_IN_WINDOW` with `nearest_gap_h`, `GENDER_REFUSED` /
   `OPPONENT_REFUSED` with `in_window`, `UNEXPLAINED`), read from the search

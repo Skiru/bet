@@ -57,7 +57,7 @@ On a stats-only row (`epoch: "stats_only"`, builds from 2026-10-05 07:15Z)
 `p_central` holds **no price**: no ladder centre, no rating blended with the
 price, no empirical shrink to the rung's price (`scripts/sofa/run_sheet.py`,
 `process_fixture`, `stats_only`). A rated tennis row is priced by the
-sample's estimator (from 2026-10-07 14:05Z `epochs.TENNIS_RATING_PRICES`:
+sample's estimator (from 2026-10-07 14:05Z `epochs.tennis_rating_prices`:
 `games_won_for` / `handicap_games` / `most_games` by the rating alone,
 `games_total` 0.5·rating + 0.5·NB), and the rating (football and tennis) is
 published beside it as `forecast_p` - the **model**, uncalibrated, never a

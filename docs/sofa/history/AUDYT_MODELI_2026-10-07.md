@@ -89,3 +89,17 @@ niższy kubełek; klucze derived piłki - dowód z linii pochodzi ze starego p
 (zawyżonego), więc czyta nisko. Kolejka: replay ratingu w `calibrate_from_cache`,
 `prepare_refit`, `fit_sport_confidence --sport basketball` (z mnożnikiem w
 replayu), `fit_line_evidence`; potem pomiar `measure_calibration`.
+
+## Refit zainstalowany 2026-10-07 17:51Z (nowa epoka porównywalności)
+
+Krzywe piłki i tenisa dopasowane na replayu historii z estymatorem, którym SHEET
+wycenia (rating tenisa w chwili meczu; bo5 pominięte), na **kopii** bazy
+(`VACUUM INTO`, `data/refit_2026-10-08/`, 59,5 mln wierszy replay'a, żywe wiersze
+bez zmian). `fit_constants` + `fit_confidence` zainstalowane po `tests/sofa`
+(pierwsza próba cofnęła się sama: test zależał od zainstalowanego configu),
+sekcja koszykówki w `.next.json` z szumem za świeżość, dowód z linii odświeżony
+(offset koszykówki −0,118 → −0,098; współczynnik design effect liczony ze
+wszystkich linii o p >= 0,70: CS2 1,0 → 3,2). Hokej, siatkówka, CS2 zostają przy
+porannych krzywych (estymator bez zmian). Nie odtworzone w replayu: rating piłki
+w centrum jointów (`--derived` wyłączone), `map_team_rounds` CS2 z wyścigu rund.
+Walkower dostał status zwrotu (`WALKOVER`) po końcowym review.

@@ -169,12 +169,12 @@ with 7c.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_constants.py --db-path data/sofa.db --config-dir config
 ```
 
-`fit_constants.py` is **outside `DEFAULT_SEQUENCE` on purpose.** Re-fitting
-mid-day breaks comparability with yesterday's run. Re-fit when the settled
+`fit_constants.py` is **outside `DEFAULT_SEQUENCE` on purpose.** An installed refit
+changes what prints (a new epoch) and is not comparable with yesterday's run. Re-fit when the settled
 table has grown materially, a coherence check is failing, or a baseline is
 demonstrably wrong. **Not because a day went badly** - since 2026-10-07 the
 curves are fitted on the replayed history of statistics, our settled days are
-only an audit. A full refit goes through `prepare_refit.py`, between days, one
+only an audit. A full refit goes through `prepare_refit.py`, one
 step at a time, **on a copy of the DB while the daily loops stay alive**
 (`--db-path <copy>`; `sofa-settler` has the procedure), and `install --confirm`
 only after the operator's go (it runs `tests/sofa` and restores on failure).

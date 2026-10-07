@@ -278,8 +278,8 @@ print when confidence >= 0.70, odds >= 1.0867, group margin <= 15%, x = confiden
 ```
 
 No curve and no line evidence → `NOT_CALIBRATED` / `NO_LINE_EVIDENCE`. The
-calibration is fitted by `fit_sport_confidence.py --before <d>`, between days
-only; the evidence by `fit_line_evidence.py` (`refresh_line_evidence.py`
+calibration is fitted by `fit_sport_confidence.py --before <d>` (on a copy of
+the DB, installed on the operator's go); the evidence by `fit_line_evidence.py` (`refresh_line_evidence.py`
 every morning).
 
 ---

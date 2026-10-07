@@ -647,10 +647,10 @@ its rows-not-to-stake as a fenced JSON array of `LegRead` (`author:
   inverted an argument. Check any claim you can check locally.
 - **Constants are fitted deliberately, not daily.** `fit_constants.py` (E11),
   `fit_confidence.py` and `fit_sport_confidence.py` are not in
-  `DEFAULT_SEQUENCE`. Re-fitting mid-day breaks comparability with yesterday.
+  `DEFAULT_SEQUENCE`. An installed refit changes what prints (a new epoch) and is not comparable with yesterday.
   The one daily exception is the line evidence (step 1a): it never touches a
   curve. A curve refit (`prepare_refit.py`, `docs/sofa/CONFIG.md` section 7) is
-  the operator's, between days, and runs on a copy of the database
+  the operator's (installed only on his go), and runs on a copy of the database
   (`--db-path <copy>`, `--without-db-backup`) while the daily loops stay alive;
   never start one from a day run.
   But **do** check `config/sofa_league_baselines.json`'s `fitted_from` and

@@ -237,11 +237,11 @@ Report its verdict and nothing more than it says:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_constants.py --db-path data/sofa.db --config-dir config
 ```
 
-**`fit_constants.py` is outside `DEFAULT_SEQUENCE` on purpose.** Re-fitting
-mid-day breaks comparability with yesterday's run: the same sheet, rebuilt on
+**`fit_constants.py` is outside `DEFAULT_SEQUENCE` on purpose.** An installed refit
+changes what prints (a new epoch) and is not comparable with yesterday's run: the same sheet, rebuilt on
 new constants, is a different sheet, and nobody can then tell a modelling change
 from a market change. A full refit goes through `prepare_refit.py --date <d>`
-(backup, rebuild-cache-rows, fit, compare, install), between days, one step
+(backup, rebuild-cache-rows, fit, compare, install), one step
 at a time, with one DB backup per refit epoch. The measured sports'
 confidence curves (`fit_sport_confidence.py --before <d>`) follow the same
 rule: on a copy of the DB, outside a day's own run, installed only with the operator's go.

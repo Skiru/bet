@@ -171,8 +171,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <tod
   po przypiętym id; inne id = `NOT_GRADED:ID_CHANGED`) i „Suma kuponu”.
   Sekcje 7 i 7b to materiał wejściowy (legi i kandydaci), **nie zakłady**.
 - **Zwroty liczone osobno** (REFUND, 0 j.): `MOVED_BEYOND_VOID` (mecz
-  przesunięty o > 48 h) i `AWARDED` (walkower) — nigdy przegrana, nigdy
-  `sofa_settled_row` (`07_settle_skips.json`).
+  przesunięty o > 48 h), `AWARDED` (przyznany), `RETIRED` (krecz) i
+  `WALKOVER` (walkower) — nigdy przegrana, nigdy `sofa_settled_row`
+  (`07_settle_skips.json`).
 - **7i „Nogi zdjęte przez odczyt”** — `removed_by_reads` z `11_coupon.json`,
   rozliczone osobno, nigdy w wyniku kuponu (dziennik `removed:reads`).
 - Noga wydrukowana bez wiersza arkusza rozlicza się do
@@ -184,6 +185,18 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <tod
 Głębiej i z decyzją o fitowaniu: `/sofa-settle` albo agent `sofa-settler`.
 
 ---
+
+### 1a. Odśwież dowód z linii (co rano, po kroku 1)
+
+Po rozliczeniu i zapisaniu D-1, **przed** pierwszym buildem dnia:
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>`
+(~15-20 min, bez mostu; cztery fity wierszy sportowych z `--dry-run` i
+`fit_line_evidence.py`; nie dotyka krzywych). Exit 0 zapisano; **1** — fit
+jednego sportu nie wyszedł i został jego poprzedni zestaw wierszy (dowód i tak
+zapisany); **2** — crash `fit_line_evidence.py` (plik bez zmian, dzień czyta
+wczorajszy dowód — powiedz to w raporcie). `fitted_from.before` pliku
+`config/sofa_superbet_line_evidence.json` musi być równe `<D>`. To **nie** jest
+refit krzywych.
 
 ## 2. Dzisiaj
 
@@ -418,7 +431,7 @@ ponownie `audit_variants`.
 | kupon jest, brakuje odczytu analityków albo operator chce więcej | `/sofa-analyze` (także „dodatkowo: <pozycje>” → `read_requests.json`) — analitycy, scalenie wet i odczytów, przebudowa. |
 | sport `NOT_CALIBRATED` / `NOT_IDENTIFIED` | Nogi tego sportu się nie drukują; kupon reszty jest ważny. Kalibrację fituje się tylko między dniami (`fit_sport_confidence.py --before <d>`); brak tożsamości — SPORT_IDENTITY jeszcze raz, gdy most żyje. |
 | po refitcie krzywych (piłka, tenis albo sporty) | Między dniami: `fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json` (ok. 15 min na sport, nic nie instaluje), potem `fit_line_evidence.py --before <d> --sport-rows-dir <dir>` — korekta liczona jest względem krzywych zainstalowanych **teraz**, więc stara korekta nie pasuje do nowych krzywych. |
-| dużo `NO_LINE_EVIDENCE` | Rynek bez krzywej czeka na >= 50 własnych rozliczonych linii w kubełku `p`; przybywa ich z każdym rozliczonym dniem (`fit_line_evidence.py` między dniami). To nie cięcie z nazwy, tylko brak pomiaru. |
+| dużo `NO_LINE_EVIDENCE` | Rynek bez krzywej czeka na >= 50 własnych rozliczonych linii w kubełku `p`; przybywa ich z każdym rozliczonym dniem (`refresh_line_evidence.py` co rano, krok 1a). To nie cięcie z nazwy, tylko brak pomiaru. |
 | refit krzywych sportów w ciągu dnia | Nie instaluj nad `config/sofa_sport_confidence_calibration.json` w trakcie dnia. Złóż dopasowanie w `config/sofa_sport_confidence_calibration.next.json` z `"effective_from": "<D+1>"`: SPORT_CONFIDENCE i audyt U3 dnia ≥ D+1 czytają ten plik (`sport_confidence.calibration_path_for`). Dowód z linii licz względem niego: `fit_line_evidence.py --sport-calibration config/sofa_sport_confidence_calibration.next.json`. Po tym dniu przenieś `.next.json` nad główny plik. |
 | stała albo baza wygląda źle | Zgłoś. Fitowanie to osobna, świadoma decyzja `sofa-settler` i **nigdy nie dzieje się w środku dnia**. |
 | most padł w połowie SAMPLES | Uruchom `ensure_bridge.py` (kod 2 = zamknij Chrome całkowicie i powtórz), potem `--from-stage SAMPLES --run-id <ten sam id>`. Artefakty z dysku zostają. |

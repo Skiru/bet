@@ -606,8 +606,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_settle.py --date <D-1> --incl
 
 ## FIT (E11) — `scripts/sofa/fit_constants.py`
 
-**Not in `DEFAULT_SEQUENCE`.** A deliberate, separate step. Re-fitting mid-day
-breaks comparability with yesterday's run.
+**Not in `DEFAULT_SEQUENCE`.** A deliberate, separate step. An installed refit
+changes what prints (a new epoch) and is not comparable with yesterday's run.
 
 ```
 --db-path data/sofa.db  --config-dir config

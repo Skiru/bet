@@ -978,7 +978,7 @@ odmowa mostu) / 2 (brak migawki żadnego sportu).
 **SPORT_CONFIDENCE** — `scripts/sofa/run_sport_confidence.py --date <d>`,
 bez mostu. Czyta `sport_fixtures.json`, migawki SHADOW / CS2,
 `config/sofa_sport_confidence_calibration.json` (`fit_sport_confidence.py`,
-tylko między dniami) i bazę (tylko odczyt); pisze
+na kopii bazy, instalacja za zgodą operatora) i bazę (tylko odczyt); pisze
 **`runs/sofa/<d>/08_confidence_sports.json`**. Dla każdej strony meczu ze
 startem w [D 00:00Z, D+1 00:00Z): pewność = dolna granica Wilsona kubełka
 kalibracji, w który wpada prawdopodobieństwo modelu wyników (`score_model`)
@@ -1200,9 +1200,11 @@ bo konkuruje z nim o most.
   są prawdziwymi prognozami i tylko one mówią, co zrobiła **cała** tablica.
 - SETTLE to **jedyny pisarz, który stawia cenę Superbetu obok wyniku**, więc
   jedyne źródło dla `fit_k_price` i `MAX_LADDER_SIGMA`.
-- **Zwroty** (od 2026-10-05): mecz przesunięty o > 48 h (`MOVED_BEYOND_VOID`)
-  albo przyznany walkowerem (`AWARDED`) to zwrot (0 j.), nigdy przegrana i
-  nigdy `sofa_settled_row` (trafia do `07_settle_skips.json`).
+- **Zwroty** (od 2026-10-05; krecz i walkower od 2026-10-07): mecz przesunięty
+  o > 48 h (`MOVED_BEYOND_VOID`), przyznany (`AWARDED`), krecz (`RETIRED`,
+  status Sofascore „Retired", kod 92) albo walkower (`WALKOVER`) to zwrot
+  (0 j.), nigdy przegrana i nigdy `sofa_settled_row` (trafia do
+  `07_settle_skips.json`; `settle.REFUND_REASONS`).
 - Propsy zawodników tylko ze składu samego zawodnika (inaczej
   `PLAYER_AMBIGUOUS`).
 - Noga wydrukowana bez wiersza arkusza rozlicza się do
@@ -1417,8 +1419,8 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   dogrywki jest w `current`, a w żadnym okresie. Rynek bez „(z dogrywką)”
   liczy czas regulaminowy (rodziny hokejowe z dogrywką 613 / 617 / 621 / 653
   nie są mapowane, a NHL jest wystawiana **tylko** z nimi, więc żadna suma NHL
-  nie jest mierzona — przegląd 2026-10-01); kwarta 4. i 2. połowa w koszykówce po dogrywce są
-  nieoceniane (nazwa nie mówi, czy dogrywka się wlicza). Gdy nie da się
+  nie jest mierzona — przegląd 2026-10-01); kwarta 4. i 2. połowa w koszykówce liczą się z okresów
+  regulaminowych, także w meczu z dogrywką (operator, 2026-10-07). Gdy nie da się
   pewnie powiedzieć, która strona Sofascore to drużyna 1 Superbeta, oceniane
   są tylko sumy (`orientation_unclear: true`). Listing odwrócony (gospodarz
   Sofascore = drużyna 2 Superbeta) jest oceniany ze strony drużyny 1 —
