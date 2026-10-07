@@ -42,6 +42,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from bet.sofa import epochs
 from bet.sofa.atomic import write_bytes_atomic
 from bet.sofa.contracts import GapReason
 from bet.sofa.listing_index import index_fingerprint, iter_indexed_events
@@ -149,7 +150,10 @@ _RATIO_BOUNDS = (0.2, 5.0)
 # to outscore Ajax 2.59 - 1.45 a week after losing to them 0-8.
 #
 # Two teams are LINKED when, inside LINK_WINDOW_S, both played at least
-# LINK_MIN_MATCHES in one competition: their ratios share a denominator. Any
+# LINK_MIN_MATCHES in one competition and that competition is the league of
+# both (epochs.link_shared_league; before 2026-10-08 the league of either -
+# which linked a promoted side three games into its new league, and read its
+# old league's ratios 1:1): their ratios share a denominator. Any
 # other pairing (a European cup, a cup against a lower division, a friendly
 # between leagues, a promoted side) is priced with a per-(domain, metric)
 # strength sigma - log scale, 0 for the pool - learnt only from unlinked
@@ -673,6 +677,8 @@ class RatingBook:
     women_competitions: set[int] = field(default_factory=set)
     # regional-group unit -> its competition (only split units are listed)
     unit_comp: dict[int, int] = field(default_factory=dict)
+    # link only through a league both domains share (epochs.link_shared_league)
+    shared_league_link: bool = field(default_factory=epochs.link_shared_league)
 
     @staticmethod
     def _global_key(metric: str, women: bool) -> str:
@@ -696,7 +702,14 @@ class RatingBook:
 
     def linked(self, home: int, away: int) -> bool:
         """Both sides played LINK_MIN_MATCHES in a competition that is the
-        league (domain) of at least one of them.
+        league (domain) of both of them (of at least one of them while
+        shared_league_link is off).
+
+        A promoted side's domain is its old league until it has played more
+        in the new one: Visby/Roma (Ettan -> HockeyAllsvenskan) was LINKED
+        with its new opponents after three games and priced on Ettan ratios
+        1:1 (hockey analyst and sofa-verifier, 2026-10-07). It is a cross-
+        league pairing, priced through the league strength.
 
         Sharing only the cup being played does not count: Forest U21 and
         Sporting B U21 met in competition 20048 after 3 + 3 matches in it
@@ -716,6 +729,12 @@ class RatingBook:
         # competition of either side's domain. An unsplit competition is its
         # own unit, so this is the rule as it was.
         leagues = {self.unit_competition(d) for d in (dh, da) if d is not None}
+        # Both domains in one competition: a side whose league is elsewhere
+        # (promoted, relegated, a cup visitor) is a cross-league pairing.
+        if self.shared_league_link and (
+            dh is None or da is None or len(leagues) != 1
+        ):
+            return False
         return any(
             self.unit_competition(c) in leagues and n >= LINK_MIN_MATCHES
             and ca.get(c, 0) >= LINK_MIN_MATCHES
@@ -871,8 +890,12 @@ class RatingBook:
         self.team_comps[r.away_id].append((r.ts, _unit(r, False)))
 
 
-def replay(history: Iterable[FootballResult], cut_ts: int) -> RatingBook:
-    book = RatingBook()
+def replay(
+    history: Iterable[FootballResult], cut_ts: int,
+    shared_league_link: bool | None = None,
+) -> RatingBook:
+    book = (RatingBook() if shared_league_link is None
+            else RatingBook(shared_league_link=shared_league_link))
     for r in history:
         if r.ts >= cut_ts:
             break

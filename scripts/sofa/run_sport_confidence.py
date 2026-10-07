@@ -51,7 +51,14 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import cs2, cs2_engine, curve_status, shadow, sport_day  # noqa: E402
+from bet.sofa import (  # noqa: E402
+    cs2,
+    cs2_engine,
+    curve_status,
+    epochs,
+    shadow,
+    sport_day,
+)
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
@@ -89,6 +96,9 @@ class DbForecaster:
 
     db_path: str
     at: datetime
+    # the day being built: the rating's link rule is that day's
+    # (epochs.link_shared_league); None = the rule on the wall clock
+    date: str | None = None
     _shadow: dict[str, tuple[Any, scf.TeamGames]] = field(default_factory=dict)
     _sims: dict[tuple[str, str], list[shadow.GameResult] | None] = field(
         default_factory=dict)
@@ -105,7 +115,9 @@ class DbForecaster:
                       if isinstance(e.get("startTimestamp"), int)
                       and e["startTimestamp"] < cut}
             history = scf.parse_history(events, sp)
-            model = build_model([g.rating for g in history], sp, cut)
+            model = build_model(
+                [g.rating for g in history], sp, cut,
+                shared_league_link=epochs.link_shared_league(self.date))
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]
 
@@ -417,7 +429,7 @@ def main() -> int:
     at = now()
     # read-only from the first byte: a probe that the file opens mode=ro
     sqlite3.connect(f"file:{config.db_path}?mode=ro", uri=True).close()
-    forecaster = DbForecaster(config.db_path, at)
+    forecaster = DbForecaster(config.db_path, at, args.date)
     doc, code = build(args.date, config.runs_dir,
                       config_path(scf.CALIBRATION_FILE), forecaster, at)
     print("SOFA_SUMMARY: " + json.dumps({

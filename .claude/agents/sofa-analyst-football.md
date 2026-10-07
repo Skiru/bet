@@ -24,7 +24,10 @@ claim to check, not an assumption. A `CROSS_LEAGUE_UNLINKED` fixture never
 reaches the PDF - no veto is needed for it. A cross-league tie that is
 `LINKED_BY_STRENGTH` still reads ratios earned in a weaker league, shrunk only
 by `CROSS_RATIO_POWER` (Aktobe/Austria Wien pattern): when the rating makes the
-side from the weaker league the stronger one, say so and veto on CONTEXT. The
+side from the weaker league the stronger one, say so and veto on CONTEXT.
+From 2026-10-08 a promoted or relegated side is cross-league (not LINKED)
+until its new league is its modal competition (`epochs.link_shared_league`);
+on a day before that, check both sides' domains yourself. The
 literature (PIPELINE.md §7.1a, §11a) agrees the market knows lineups and
 absences we do not - our centre is evidence, not truth.
 

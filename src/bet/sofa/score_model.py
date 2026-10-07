@@ -534,11 +534,14 @@ def line_probability(
 
 
 def build_model(history: Sequence[FootballResult], sport: ShadowSport,
-                cut_ts: int, params: SimParams | None = None) -> ScoreModel:
+                cut_ts: int, params: SimParams | None = None,
+                shared_league_link: bool | None = None) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
-    the last SPREAD_WINDOW_S before it."""
-    book = RatingBook()
+    the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
+    epoch's rule on the wall clock (epochs.link_shared_league)."""
+    book = (RatingBook() if shared_league_link is None
+            else RatingBook(shared_league_link=shared_league_link))
     k = sport.regulation_periods or 0
     tot_h = [0.0] * k
     tot_a = [0.0] * k

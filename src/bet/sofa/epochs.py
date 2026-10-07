@@ -253,3 +253,35 @@ def national_sample_by_count(date: str, build_at: datetime | None = None) -> boo
         return False
     at = build_at if build_at is not None else timeutil.now()
     return date >= NATIONAL_SAMPLE_AGE_DATE and at >= NATIONAL_SAMPLE_AGE_FROM_UTC
+
+
+# 2026-10-07 (hockey analyst, confirmed by the verifier from data/sofa.db):
+# football_rating linked a pair when both sides had LINK_MIN_MATCHES in a
+# competition that was the league (domain) of EITHER side. A promoted or
+# relegated side keeps its old league as its domain for months, so three
+# games into the new league it was LINKED with its new opponents and its
+# old-league ratios were read 1:1, with no league strength - Visby/Roma
+# (Ettan -> HockeyAllsvenskan), Leksand (SHL -> HockeyAllsvenskan), AZ
+# Havirov (2. Liga -> Maxa Liga); 10 hockey legs of 10-07 removed by NO_BET
+# reads. From this moment a pair is LINKED only when both domains belong to
+# one competition and both sides played LINK_MIN_MATCHES in it; anything
+# else is LINKED_BY_STRENGTH or UNLINKED (football_rating.RatingBook._linked).
+# It moves every rating built on the history (SHEET's football rating, the
+# measured sports' score model), so never mid-day.
+#
+# Read on the wall clock, like MODEL_FIXES_FROM_UTC: the refit's as-of
+# replays (SOFA_NOW in the past) must rate with the rule the live day uses.
+# A caller that knows the day it builds passes it, so a rebuild of a day
+# before LINK_SHARED_LEAGUE_DATE keeps the rule it printed under.
+LINK_SHARED_LEAGUE_DATE = "2026-10-08"
+LINK_SHARED_LEAGUE_FROM_UTC: datetime | None = datetime(2026, 10, 8, tzinfo=UTC)
+
+
+def link_shared_league(date: str | None = None, at: datetime | None = None) -> bool:
+    """Does the rating link a pair only through a league both domains share
+    (LINK_SHARED_LEAGUE_FROM_UTC)? `date` - the day being built, when known."""
+    if LINK_SHARED_LEAGUE_FROM_UTC is None:
+        return False
+    if date is not None and date < LINK_SHARED_LEAGUE_DATE:
+        return False
+    return (at if at is not None else datetime.now(UTC)) >= LINK_SHARED_LEAGUE_FROM_UTC

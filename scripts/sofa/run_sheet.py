@@ -16,6 +16,7 @@ from typing import Any, Literal, cast
 from pydantic import RootModel
 from rapidfuzz import fuzz
 
+from bet.sofa import epochs
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
@@ -1654,6 +1655,8 @@ def main() -> int:
             load_football_history(config.db_path,
                                   Path(config.db_path).parent / "cache"),
             int(cut.timestamp()),
+            # the link rule of the day being built (epochs.link_shared_league)
+            shared_league_link=epochs.link_shared_league(args.date),
         )
 
     all_rows = []

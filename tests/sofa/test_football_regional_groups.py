@@ -10,6 +10,8 @@ every round-robin component of a (competition, season) its own league unit.
 
 from dataclasses import replace
 
+import pytest
+
 from bet.sofa.football_rating import (
     LINKED,
     LINKED_BY_STRENGTH,
@@ -163,11 +165,14 @@ def test_the_event_payload_gives_season_and_stage():
     assert r.home_unit is None and r.away_unit is None
 
 
-def test_sides_of_one_group_link_when_neither_calls_it_home():
+@pytest.mark.parametrize("shared", [False, True])
+def test_sides_of_one_group_link_when_neither_calls_it_home(shared):
     """Units are minted per season, so a side's modal unit can be last
     season's league. Two sides meeting in this season's group are LINKED
-    by it whenever it belongs to either side's domain competition (replayed
-    2026-10-01: Nueva Santa Rosa - Mictlan, one Guatemalan group)."""
+    by it when it belongs to their domain competition (replayed 2026-10-01:
+    Nueva Santa Rosa - Mictlan, one Guatemalan group). Before 2026-10-08
+    (shared=False) either side's domain was enough, which also linked a side
+    that arrived from another league (epochs.link_shared_league)."""
     old_season, eid, ts = _round_robin(GROUP_A + GROUP_B, 600, 0, 0,
                                        season=1)  # one league last season
     newcomer = 50
@@ -177,10 +182,14 @@ def test_sides_of_one_group_link_when_neither_calls_it_home():
     a, eid, ts2 = _round_robin(group_a, 501, eid, ts)
     b, eid, ts3 = _round_robin(GROUP_B, 502, eid, ts)
     history = _sorted(old_season + other + a + b)
-    book = replay(assign_league_units(history), cut_ts=max(ts2, ts3) + DAY)
+    book = replay(assign_league_units(history), cut_ts=max(ts2, ts3) + DAY,
+                  shared_league_link=shared)
     assert book.domain(GROUP_A[0]) == COMP  # 22 matches last season
     assert book.domain(newcomer) == 99      # 14 matches in its old league
-    assert book.link(GROUP_A[0], newcomer, "goals_for") == (LINKED, 0.0)
+    # the newcomer's ratios were earned in competition 99: cross-league now
+    assert (book.link(GROUP_A[0], newcomer, "goals_for") == (LINKED, 0.0)) is not shared
+    # two of last season's sides, this season in one group: still LINKED
+    assert book.link(GROUP_A[0], GROUP_A[1], "goals_for") == (LINKED, 0.0)
     # The groups still do not link through this season ...
     assert book.link(newcomer, GROUP_B[0], "goals_for")[0] != LINKED
     # ... and last season's shared league still links its two members.

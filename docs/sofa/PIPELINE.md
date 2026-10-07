@@ -463,8 +463,17 @@ dostało atak 2,54 i obronę 0,35 i w Europa Cup kobiet zostało wycenione
 
 - **połączenie** — drużyny są `LINKED`, gdy obie zagrały ≥3 mecze
   (`LINK_MIN_MATCHES`) w rozgrywkach, które są ligą (najczęstszymi
-  rozgrywkami) co najmniej jednej z nich. Wspólny puchar, który właśnie grają,
-  nie wystarcza;
+  rozgrywkami) **obu** z nich. Wspólny puchar, który właśnie grają,
+  nie wystarcza. Od 2026-10-08 00:00Z (`epochs.LINK_SHARED_LEAGUE_FROM_UTC`;
+  wcześniej wystarczała liga jednej z nich): beniaminek / spadkowicz ma ligą
+  swoją starą ligę, dopóki w nowej nie zagra więcej, i po trzech meczach był
+  `LINKED` z nowymi rywalami, a jego stosunki ze starej ligi szły 1:1 bez siły
+  ligi (Visby/Roma z HockeyEttan, Leksand z SHL, AZ Havirov z 2. ligi; 10 nóg
+  hokejowych 10-07 zdjętych NO_BET). Teraz taka para idzie przez siłę ligi
+  (`LINKED_BY_STRENGTH`) albo jest `UNLINKED`. Pomiar:
+  `scripts/sofa/measure_link_rule.py`, raport
+  `docs/sofa/history/RAPORT_LINKED_2026-10-07.md`. Dotyczy też modelu wyniku
+  sportów mierzonych (`score_model` używa tej samej książki ratingów);
 - **siła ligi** — dla par niepołączonych osobny współczynnik na (ligę, metrykę)
   w skali logarytmicznej, uczony tylko z meczów między ligami
   (`ALPHA_STRENGTH = 0.02`); gdy któraś liga ma <10 takich meczów
