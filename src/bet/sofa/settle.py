@@ -66,7 +66,10 @@ AWARDED = "AWARDED"
 # 2026-10-07: Superbet's rule). Before this a retired match was
 # FINISHED_ABNORMALLY - not graded, not refunded.
 RETIRED = "RETIRED"
-REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED, RETIRED})
+# A walkover: the match was not played (Regulamin 5.D.3.b, as the measured
+# sports have it in shadow.is_no_result) - the stake comes back.
+WALKOVER = "WALKOVER"
+REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED, RETIRED, WALKOVER})
 
 # A4 (2026-10-05): the grades of printed legs the final SHEET had no row for,
 # beside 07_settled.json and never in sofa_settled_row (no forecast columns).

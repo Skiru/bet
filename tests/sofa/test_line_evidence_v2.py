@@ -174,3 +174,17 @@ def test_settle_cs2_attaches_no_model_to_an_unknown_format(monkeypatch) -> None:
     assert new["model_p"] is None and calls == [3]
     known = run(datetime(2026, 10, 8, 18, tzinfo=UTC), {"bestOf": 1})
     assert known["model_p"] == 0.6 and calls == [3, 1]
+
+
+def test_the_design_effect_counts_the_lines_of_keys_without_a_curve() -> None:
+    """2026-10-07 audit: CS2's design effect was 1.0 from its 61 rows with a
+    curve; the stand-in keys (no curve) that read it measure 2.5-3.2."""
+    rows = []
+    for i in range(60):  # a key with a curve: independent lines, one a game
+        rows.append({"sport": "cs2", "key": "a|OVER", "p": 0.75, "y": i % 2,
+                     "game": f"a{i}", "base": 0.75, "odds": 1.4})
+    for g in range(10):  # a key with no curve: 12 lines a game, all won or lost
+        for _ in range(12):
+            rows.append({"sport": "cs2", "key": "b|OVER", "p": 0.75, "y": g % 2,
+                         "game": f"b{g}", "base": None, "odds": 1.4})
+    assert le.fit(rows)["design_effect"]["cs2"] > 2.5

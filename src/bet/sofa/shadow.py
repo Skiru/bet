@@ -37,9 +37,9 @@ What each source was checked against (live, 2026-09-29):
   full-game basketball market does; hockey's winner says "z dogrywką i
   rzutami karnymi"). A market without it counts regulation time. That is
   unambiguous for a full game and for hockey's periods (overtime is a period
-  of its own). For basketball's Q4 and second half the name alone does not
-  say whether overtime is appended, so a line there is ungradeable when the
-  game went to overtime and graded otherwise.
+  of its own). For basketball's Q4 and second half the operator read
+  Superbet's rule (2026-10-07): overtime does NOT count - they grade on the
+  regulation periods, an overtime game included.
 
 Read: two-way lines (winner incl. overtime, totals, team totals, handicaps,
 draw-no-bet, odd/even, volleyball's "set on extra points"), and since

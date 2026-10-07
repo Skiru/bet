@@ -431,7 +431,12 @@ def fit(rows: Iterable[Row], seed: int = 7) -> dict[str, Any]:
                   and float(r["base"]) >= PRINTABLE_FROM]
             if pr:
                 per_key[key] = [(g, y - b) for g, y, b in pr]
-                clustered += [(g, y) for g, y, _ in pr]
+            # The design effect is read by the keys that have NO curve, whose
+            # lines are never in `pr` (CS2 2026-10-07: 1.0 from 61 curve rows,
+            # 2.5-3.2 from the stand-in keys' own lines): every line whose p
+            # could print counts.
+            clustered += [(str(r["game"]), int(r["y"])) for r in rs
+                          if float(r["p"]) >= PRINTABLE_FROM]
         deff[sport] = design_effect(clustered)
         total = sum(len(v) for v in per_key.values())
         top = max(per_key, key=lambda k: len(per_key[k]), default=None)

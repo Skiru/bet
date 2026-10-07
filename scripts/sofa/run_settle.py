@@ -69,6 +69,7 @@ from bet.sofa.settle import (
     MOVED_BEYOND_VOID,
     PRINTED_SETTLED_FILE,
     RETIRED,
+    WALKOVER,
     SettledRow,
     insert_settled_rows,
     is_completed_event,
@@ -189,8 +190,11 @@ def unfinished_reason(event: dict[str, Any]) -> str:
     if kind == "finished":
         # A retirement is a refund (RETIRED); a walkover / awarded is over but
         # not a comparable result.
-        if "retired" in str(status.get("description") or "").casefold():
+        description = str(status.get("description") or "").casefold()
+        if "retired" in description:
             return RETIRED
+        if "walkover" in description:
+            return WALKOVER
         return "FINISHED_ABNORMALLY"
     if kind in ("canceled", "abandoned", "postponed"):
         return kind.upper()
@@ -1283,7 +1287,8 @@ def main() -> int:
     refunded = {
         event_id
         for event_id, reasons in skips.by_event.items()
-        if MOVED_BEYOND_VOID in reasons or AWARDED in reasons or RETIRED in reasons
+        if MOVED_BEYOND_VOID in reasons or AWARDED in reasons
+        or RETIRED in reasons or WALKOVER in reasons
     }
     previous_rows = [
         r for r in previous_rows if int(r["sofascore_event_id"]) not in refunded

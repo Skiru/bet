@@ -57,9 +57,12 @@ from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 # A settled row's natural key, as the UNIQUE constraint defines it.
 Key = tuple[int, str, str, float, str]
 
-# A printed leg on an event SETTLE skipped MOVED_BEYOND_VOID / AWARDED: the
+# A printed leg on an event SETTLE skipped MOVED_BEYOND_VOID / AWARDED / RETIRED /
+# WALKOVER: the
 # stake comes back (0 units). Its own count, never a loss, never "unsettled".
 REFUND = "REFUND"
+# The row of the singles table that counts refunded legs.
+REFUND_LABEL = "zwrot (przesunięty > 48 h / przyznany / krecz / walkower), 0 j."
 
 
 def _key(row: dict[str, Any]) -> Key:
@@ -362,7 +365,7 @@ def singles_summary_rows(printed: int, res: dict[str, Any]) -> list[list[Any]]:
     """The singles table of the coupon (7c)."""
     # A refund row only on a day that has one: every earlier report reads
     # exactly as it did.
-    refund = ([["zwrot (mecz przesunięty > 48 h / przyznany), 0 j.",
+    refund = ([[REFUND_LABEL,
                 res["refunded"]]] if res.get("refunded") else [])
     return [
         ["pojedynczych na kuponie", printed],
@@ -577,7 +580,8 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
                  ["rozliczonych", sn],
                  ["WESZŁO (cały slip)", sw],
                  ["NIE WESZŁO", sl],
-                 *([["ZWROT (mecz przesunięty > 48 h / przyznany), 0 j.", sz]]
+                 *([["ZWROT (przesunięty > 48 h / przyznany / krecz / walkower), "
+                     "0 j.", sz]]
                    if sz else []),
                  ["nierozliczonych", su],
                  ["% slipów trafionych", _pct(sw, sn)],
@@ -617,7 +621,7 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
                   else ("brak rozliczenia: " + ", ".join(missing) if missing
                         else "wszystkie nogi weszły"))
         if status == "ZWROT":
-            reason = "zwrot: mecz przesunięty o > 48 h albo przyznany"
+            reason = "zwrot: mecz przesunięty o > 48 h, przyznany, krecz albo walkower"
         odds, measured = slip_odds(b)
         rows.append([b["match"], b["n_legs"], f"{b['odds_if_product']:.2f}",
                      f"{odds:.2f}" + ("" if measured else " (szac.)"),
@@ -812,7 +816,8 @@ def main() -> int:
         emit("")
         emit("Słownik: `NOT_FINISHED` — mecz jeszcze się nie skończył (w toku, "
              "przerwany, nierozpoczęty; ponowny SETTLE może go rozliczyć); "
-             "`FINISHED_ABNORMALLY` — walkower, wynik przyznany; "
+             "`FINISHED_ABNORMALLY` — inny nietypowy koniec; "
+             "`WALKOVER` — walkower (zwrot); "
              "`RETIRED` — krecz (zwrot); "
              "`CANCELED` / `ABANDONED` / `POSTPONED` — odwołany, przerwany na "
              "stałe, przełożony; `NO_EVENT` — Sofascore nie "

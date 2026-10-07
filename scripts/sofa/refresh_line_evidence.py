@@ -51,6 +51,29 @@ def previous_rows(before: str) -> Path | None:
     return older[-1] if older else None
 
 
+def stash_rows(out: Path, sports: tuple[str, ...] = SPORTS) -> dict[str, Path]:
+    """Move this directory's rows of an earlier run aside (`.prev`), so a fit
+    that fails can put them back instead of falling to an older day's."""
+    kept: dict[str, Path] = {}
+    for sport in sports:
+        rows = out / f"{sport}_superbet_settled.jsonl"
+        if rows.exists():
+            kept[sport] = rows.with_suffix(".jsonl.prev")
+            rows.replace(kept[sport])
+    return kept
+
+
+def restore_rows(
+    out: Path, kept: dict[str, Path], only: tuple[str, ...] | None = None
+) -> None:
+    for sport, prev in kept.items():
+        if only is not None and sport not in only:
+            continue
+        rows = out / f"{sport}_superbet_settled.jsonl"
+        rows.unlink(missing_ok=True)
+        prev.replace(rows)
+
+
 def fit_commands(before: str, out: Path) -> list[list[str]]:
     return [[sys.executable, "scripts/sofa/fit_sport_confidence.py", "--sport", s,
              "--before", before, "--dry-run", "--rows-out", str(out),
@@ -70,8 +93,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     failed: list[str] = []
     if not args.skip_sport_rows:
-        for sport in SPORTS:  # a file of an earlier run today is not this run's
-            (out / f"{sport}_superbet_settled.jsonl").unlink(missing_ok=True)
+        kept = stash_rows(out)  # a file of an earlier run today is not this run's
         logs = {s: (out / f"log_{s}.txt").open("w") for s in SPORTS}
         try:
             procs = [(cmd[3], subprocess.Popen(
@@ -88,6 +110,10 @@ def main() -> int:
             if code != 0 or not rows.exists():
                 failed.append(sport)
                 rows.unlink(missing_ok=True)  # never a partial file
+                if sport in kept:  # this run's earlier rows first
+                    restore_rows(out, kept, (sport,))
+                    print(f"  {sport}: kept this directory's earlier rows", flush=True)
+                    continue
                 prev = previous_rows(args.before)
                 if prev is not None and (prev / rows.name).exists():
                     shutil.copy(prev / rows.name, rows)

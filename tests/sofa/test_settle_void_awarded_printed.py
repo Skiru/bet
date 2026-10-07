@@ -370,7 +370,7 @@ def test_a_moved_leg_is_a_refund_in_7c_and_the_ledger_never_a_loss(
     assert (res["won"], res["lost"], res["refunded"], res["unsettled"]) == (1, 0, 2, 0)
     assert res["units"] == pytest.approx(1.0)
     table = dict((str(a), b) for a, b in audit_settlement.singles_summary_rows(3, res))
-    assert table["zwrot (mecz przesunięty > 48 h / przyznany), 0 j."] == 2
+    assert table[audit_settlement.REFUND_LABEL] == 2
 
     led = _ledger(runs, db)
     assert led["refunded"] == 2

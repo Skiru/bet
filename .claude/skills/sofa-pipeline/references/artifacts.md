@@ -504,8 +504,8 @@ CS2's design for three team sports (`src/bet/sofa/shadow.py`), sport one of
   overtime goal in `current` and in no period. Hockey's overtime-inclusive
   families (613 / 617 / 621 / 653) are not mapped, and the NHL is posted ONLY
   with them, so no NHL total is measured at all (review 2026-10-01). Basketball Q4 and second-half
-  lines are ungradeable after overtime (the name does not say whether it is
-  appended).
+  lines grade on the regulation periods, overtime included (operator,
+  2026-10-07).
 - `audit_shadow.py` (and `audit_cs2.py` section 2) keep ONE side per line
   (`cs2.one_side_per_line`): pooled, the sides of a line read mean fair p =
   hit rate by construction (0.500 for a two-way line). Section 2 is the

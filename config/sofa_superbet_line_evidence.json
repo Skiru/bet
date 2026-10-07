@@ -1,6 +1,6 @@
 {
  "fitted_from": {
-  "fitted_at_utc": "2026-10-07T18:17:41+00:00",
+  "fitted_at_utc": "2026-10-07T19:11:33+00:00",
   "before": "2026-10-08",
   "sheet_days": [
    "2026-10-05",
@@ -32139,11 +32139,11 @@
   }
  },
  "design_effect": {
-  "football": 1.796,
-  "tennis": 1.404,
-  "basketball": 5.894,
-  "cs2": 1.0,
-  "hockey": 1.803,
-  "volleyball": 2.305
+  "football": 2.589,
+  "tennis": 2.6,
+  "basketball": 6.428,
+  "cs2": 3.203,
+  "hockey": 1.833,
+  "volleyball": 2.728
  }
 }

@@ -37,3 +37,19 @@ def test_a_failed_sport_keeps_the_newest_earlier_rows(  # type: ignore[no-untype
         (tmp_path / f"rows_before_{d}").mkdir()
     assert mod.previous_rows("2026-10-08").name == "rows_before_2026-10-07"
     assert mod.previous_rows("2026-10-06") is None
+
+
+def test_a_failed_sport_keeps_this_runs_earlier_rows_not_only_the_day_before(
+        tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Review 2026-10-07: the morning refresh unlinked today's rows first, so a
+    failing sport fell back to the day before's (older estimator) rows."""
+    mod = _mod()
+    monkeypatch.setattr(mod, "ROWS_ROOT", tmp_path)
+    today = tmp_path / "rows_before_2026-10-08"
+    today.mkdir()
+    (today / "cs2_superbet_settled.jsonl").write_text("today\n")
+    kept = mod.stash_rows(today, ("cs2",))
+    assert not (today / "cs2_superbet_settled.jsonl").exists()
+    (today / "cs2_superbet_settled.jsonl").write_text("partial\n")  # a failed fit
+    mod.restore_rows(today, kept)
+    assert (today / "cs2_superbet_settled.jsonl").read_text() == "today\n"
