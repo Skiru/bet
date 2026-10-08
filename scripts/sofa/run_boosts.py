@@ -41,6 +41,7 @@ from bet.sofa.boosts import (  # noqa: E402
 )
 from bet.sofa.confidence import coupon_artifact, leg_is_ev_positive  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.settle import line_value  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.superbet import SuperbetClient  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
@@ -66,7 +67,7 @@ def superbet_to_sofascore(fixtures: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def _key(eid: int, row: dict[str, Any]) -> RowKey:
-    return (eid, row["market"], row.get("subject") or "", float(row["line"]),
+    return (eid, row["market"], row.get("subject") or "", line_value(row),
             row["direction"])
 
 

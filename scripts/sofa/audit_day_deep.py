@@ -54,6 +54,7 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.db import get_connection  # noqa: E402
+from bet.sofa.settle import line_value  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
 
@@ -62,7 +63,7 @@ def key(row: dict[str, Any]) -> tuple[Any, ...]:
         int(row["sofascore_event_id"]),
         row["market"],
         row.get("subject") or "",
-        float(row["line"]),
+        line_value(row),
         row["direction"],
     )
 

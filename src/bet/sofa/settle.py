@@ -122,6 +122,17 @@ def refund_event_ids(skips_doc: Mapping[str, Any] | None) -> dict[int, str]:
     return out
 
 
+def line_value(row: Mapping[str, Any]) -> float:
+    """The line of a leg as a key component; a market without a line
+    (winner, moneyline) has `line` None and keys as 0.0.
+
+    Measured-sport legs are graded from their own tables, so such a key never
+    meets a `sofa_settled_row`; it only has to exist for the joins to run.
+    """
+    line = row.get("line")
+    return 0.0 if line is None else float(line)
+
+
 def settle(actual: float, line: float, direction: Direction) -> Outcome:
     """Settle one rung against the realised value.
 

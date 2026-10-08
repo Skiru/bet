@@ -30,6 +30,7 @@ from typing import Any
 sys.path.insert(0, "src")
 
 from bet.sofa.boosts import Boost, grade_boost  # noqa: E402
+from bet.sofa.settle import line_value  # noqa: E402
 from scripts.sofa.run_boosts import (  # noqa: E402
     BOOSTS_JSON,
     load_boosts,
@@ -71,7 +72,7 @@ def settled_index(
 ) -> dict[SettledKey, Mapping[str, Any]]:
     return {
         (int(r["sofascore_event_id"]), r["market"], r.get("subject") or "",
-         float(r["line"]), r["direction"]): r
+         line_value(r), r["direction"]): r
         for r in rows
     }
 

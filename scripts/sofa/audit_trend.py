@@ -39,6 +39,7 @@ from bet.sofa.confidence import (
     coupon_artifact,
     printed_singles,
 )
+from bet.sofa.settle import line_value
 
 # The band edges: the coupon's limit until 10-04 and its limit since 10-05.
 COUPON_MAX_OVERROUND = COUPON_PROFILE.max_overround
@@ -60,7 +61,7 @@ Key = tuple[int, str, str, float, str]
 
 def leg_key(leg: dict[str, Any]) -> Key:
     return (int(leg["sofascore_event_id"]), leg["market"], leg.get("subject") or "",
-            float(leg["line"]), leg["direction"])
+            line_value(leg), leg["direction"])
 
 
 @dataclass

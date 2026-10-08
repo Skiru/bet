@@ -44,7 +44,11 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import printed_leg_keys  # noqa: E402
-from bet.sofa.settle import PRINTED_SETTLED_FILE, refund_event_ids  # noqa: E402
+from bet.sofa.settle import (  # noqa: E402
+    PRINTED_SETTLED_FILE,
+    line_value,  # noqa: E402
+    refund_event_ids,
+)
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
 from scripts.sofa.audit_niches import latest_artifact as latest_niches  # noqa: E402
@@ -70,7 +74,7 @@ def _key(row: dict[str, Any]) -> Key:
         int(row["sofascore_event_id"]),
         row["market"],
         row.get("subject") or "",
-        float(row["line"]),
+        line_value(row),
         row["direction"],
     )
 
@@ -252,7 +256,7 @@ def settle_singles(
         # A measured sport's leg arrives graded (coupon_sports.grade).
         g = {"outcome": sgl["_outcome"]} if "_outcome" in sgl else by_key.get(
             (sgl["sofascore_event_id"], sgl["market"], sgl["subject"] or "",
-             float(sgl["line"]), sgl["direction"]))
+             line_value(sgl), sgl["direction"]))
         if g is not None and str(g["outcome"]) not in ("WIN", "LOSS", "PUSH", REFUND):
             g = None  # pending / not graded
         if g is not None and g["outcome"] == REFUND:
@@ -550,7 +554,7 @@ def render_builders(picks: list[dict[str, Any]], by_key: dict[Any, Any],
         outs = []
         for leg in b["legs"]:
             g = by_key.get((b["sofascore_event_id"], leg["market"],
-                            leg["subject"] or "", float(leg["line"]),
+                            leg["subject"] or "", line_value(leg),
                             leg["direction"]))
             outs.append((leg, g))
             if g is not None and g["outcome"] == REFUND:
