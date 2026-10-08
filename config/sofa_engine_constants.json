@@ -2,9 +2,9 @@
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
     "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-08/sofa_replay.db",
-    "settled_rows": 58555971,
+    "settled_rows": 58799230,
     "distinct_competitions": 7255,
-    "fitted_at_utc": "2026-10-07T17:13:28+00:00",
+    "fitted_at_utc": "2026-10-08T16:19:17+00:00",
     "max_settled_run_date": "2026-10-06",
     "friendly_competitions_excluded": 79
   },
@@ -14,6 +14,18 @@
       "football": 15.0,
       "tennis": 5.0
     },
+    "curve": {
+      "0.0": 0.181851,
+      "2.0": 0.179614,
+      "5.0": 0.178466,
+      "8.0": 0.1783,
+      "10.0": 0.178403,
+      "15.0": 0.178911,
+      "25.0": 0.180029,
+      "1000.0": 0.185484
+    },
+    "status": "FITTED",
+    "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid",
     "by_market": {
       "_doc": "INERT while epochs.PER_MARKET_K_FROM_UTC is None (nothing reads it). K per football market, chosen on the train rows' log-loss and validated on their last third, under the fitted count dispersion (scripts/sofa/measure_k_under_dispersion.py, docs/sofa/evidence/k_under_dispersion_2026-10-08.md; test 2026-06-09..2026-10-07). A market not listed reads the sport's K (by_sport.football). goals_* stays at the sport's K on purpose.",
       "football": {
@@ -22,19 +34,7 @@
         "shots_for": 8.0,
         "shots_total": 5.0
       }
-    },
-    "curve": {
-      "0.0": 0.179196,
-      "2.0": 0.176987,
-      "5.0": 0.17585,
-      "8.0": 0.175682,
-      "10.0": 0.175781,
-      "15.0": 0.17628,
-      "25.0": 0.177382,
-      "1000.0": 0.182776
-    },
-    "status": "FITTED",
-    "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid"
+    }
   },
   "K_PRICE": {
     "value": null,
