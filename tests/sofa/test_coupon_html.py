@@ -369,3 +369,15 @@ def test_random_filter_sets_and_every_sort_match_an_independent_predicate(
     result = browser_sweep(_synthetic(), "2026-10-08", tmp_path, n=120)
     assert result["checked"] == 120
     assert not result["failures"], result["failures"][:5]
+
+
+def test_the_peer_note_is_the_pdfs_own_sentence() -> None:
+    from bet.sofa.peer_choice import label
+
+    doc = _doc()
+    doc["singles"][1]["peer"] = {
+        "preferred": True, "peers": 1, "band": [1.04, 1.16]}
+    rows = ch.build_view(doc, "2026-10-08", None)["rows"]
+    assert rows[1]["starred"] and rows[1]["peer"] == label(doc["singles"][1])
+    assert "najpewniejsza z 2 nóg tego meczu w pasie kursu 1.04" in rows[1]["peer"]
+    assert rows[2]["peer"] == "" and not rows[2]["starred"]

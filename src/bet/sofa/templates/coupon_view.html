@@ -83,7 +83,7 @@ function cmp(a,b){let x=sv(a,sortKey),y=sv(b,sortKey);
   return (typeof x==="number"?x-y:String(x).localeCompare(String(y)))*sortDir}
 const f3=v=>v==null?"—":v.toFixed(3),f2=v=>v==null?"—":v.toFixed(2);
 function tags(r){let t="";
-  if(r.starred)t+=' <span class="tag acc">★ pewniejsza z pary</span>';
+  if(r.peer)t+=' <span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
   if(r.locked)t+=' <span class="tag">zablokowana</span>';
   if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+=' <span class="tag bad">'+r.verdict+'</span>';
   return t}
