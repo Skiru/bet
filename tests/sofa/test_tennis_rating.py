@@ -23,7 +23,7 @@ from bet.sofa.contracts import (
     PricedRung,
 )
 from bet.sofa.tennis_rating import (
-    FEATURES,
+    ALL_FEATURES,
     MIN_RATED,
     RATED_MARKETS,
     W_TENNIS_RATING,
@@ -189,7 +189,7 @@ def test_the_checked_in_config_names_features_the_book_computes():
     assert loaded is not None, "config/tennis_rating.json must be checked in"
     coefficients, meta = loaded
     assert set(coefficients) == {"ITF", "CH", "TOUR"}
-    assert set(meta["features"]) <= set(FEATURES)
+    assert set(meta["features"]) <= set(ALL_FEATURES)
     assert all(len(c) == len(meta["features"]) + 1 for c in coefficients.values())
     # Refit 2026-09-30 on the backfilled history (239k matches), cut before
     # the first day it prices. dhigh / dtour carry the tier gap one Elo pool
