@@ -57,6 +57,17 @@ concession.
    read - see below). A clean sample is respected and a bad one is not
    corrected.
 
+## Staged tennis package (OFF until the operator moves it)
+
+`epochs.TENNIS_SCOPED_TABLE_FROM_UTC` is `None`. Once on for the day built, the
+rating's 600 neighbours come from the tier x gender table (tier, then the pooled
+table, when a cell holds < 1200 outcomes) and the rating starts from a tier
+value; the sheet row carries `tennis_table_rule`. Measured out of sample
+(`docs/sofa/evidence/tennis_calibration_2026-10-08.md`): the pooled table was
+ITF-dominated, so a `games_total` ladder ran +5.6 pp high for ITF and -7.9 pp
+low for Tour. Until then, treat an ITF `games_total` / `games_won_for` rung as
+biased toward the ITF and read the tier of the match, not just the surface.
+
 ## What prices a tennis row now (from 2026-10-07 14:05Z)
 
 `epochs.tennis_rating_prices` (`TENNIS_RATING_PRICES_FROM_UTC`, judged on the
@@ -91,8 +102,9 @@ Consequences for a read:
   disagreeing; say which scorelines each leans on. On `sets_total` the two
   numbers are still separate estimators.
 - The neighbours know the match-win probability and the tier - not the
-  surface (scoping the neighbours by surface or tier was measured not to
-  help), not this player's serve, not the sample's opposition. Your
+  surface (scoping by surface was measured not to help; scoping by tier x
+  gender is a staged package, `TENNIS_SCOPED_TABLE`, OFF until the operator
+  moves it - see above), not this player's serve, not the sample's opposition. Your
   decomposition (surface, hold, opponent class) is what the number lacks.
 - **Match tiebreaks (open operator question).** Sofascore puts a 10-point
   match tiebreak in a `periodN` as points (ITF, UTR, team cups). The

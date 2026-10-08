@@ -747,6 +747,16 @@ def fit_k_centre(
     return _pick_plateau_k(curve, BRIER_PLATEAU_TOLERANCE), curve
 
 
+def carried_by_market(path: Path) -> dict[str, Any] | None:
+    """K_CENTRE.by_market of an existing constants file (None = none)."""
+    try:
+        old = json.loads(path.read_text(encoding="utf-8"))
+        table = old["K_CENTRE"]["by_market"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return table if isinstance(table, dict) else None
+
+
 def fit_k_centre_by_sport(
     conn: sqlite3.Connection,
     baselines: dict[str, Any],
@@ -1029,6 +1039,12 @@ def main() -> int:
         },
         "MAX_LADDER_SIGMA": {"value": max_sigma, **sigma_report},
     }
+    # K_CENTRE.by_market (bet.sofa.per_market_k, epochs.PER_MARKET_K) is chosen
+    # by scripts/sofa/measure_k_under_dispersion.py, not by this fit: a refit
+    # carries the file's table over instead of dropping it
+    carried = carried_by_market(config_dir / "sofa_engine_constants.json")
+    if carried is not None:
+        constants["K_CENTRE"]["by_market"] = carried
     write_atomic(
         config_dir / "sofa_engine_constants.json",
         json.dumps(constants, indent=2, ensure_ascii=False),

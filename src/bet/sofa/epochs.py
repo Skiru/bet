@@ -15,7 +15,7 @@ older day (prepare_refit) stays under the old rule.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -226,6 +226,135 @@ def derived_marginal_centres_enabled(
     at = build_at if build_at is not None else timeutil.now()
     return (date >= DERIVED_MARGINAL_CENTRES_DATE
             and at >= DERIVED_MARGINAL_CENTRES_FROM_UTC)
+
+
+# The dispersion of football counts fitted on the history instead of the
+# sample variance of 8-10 matches (bet.sofa.count_dispersion; track A2,
+# docs/sofa/evidence/count_families_2026-10-08.md): variance = mu + alpha mu^2,
+# alpha per (market, competition) from config/sofa_count_dispersion.json, the
+# negative binomial for every fitted market but shots_total (the normal with
+# that variance). Better log-loss out of sample on 52 of 52 football markets.
+# It moves p_central, so it goes live only TOGETHER with a refit of the
+# football curves replayed with it (calibrate_from_cache --count-dispersion),
+# a new comparability epoch - never mid-day, and the operator moves it.
+# None = waiting for the operator: the sample variance, byte for byte.
+# Read on the day being built and the build clock, like the neighbours; rows
+# priced this way carry `dispersion_rule` (COUNT_DISPERSION), so a rebuild
+# re-runs SHEET on a sheet of the other rule (rebuild_plan).
+COUNT_DISPERSION_DATE = "2026-10-09"
+COUNT_DISPERSION_FROM_UTC: datetime | None = None
+COUNT_DISPERSION = "count_dispersion"
+
+
+def count_dispersion_enabled(date: str, at: datetime | None = None) -> bool:
+    if COUNT_DISPERSION_FROM_UTC is None:
+        return False
+    at = at if at is not None else timeutil.now()
+    return date >= COUNT_DISPERSION_DATE and at >= COUNT_DISPERSION_FROM_UTC
+
+
+def sheet_count_dispersion(rows: Sequence[Mapping[str, Any]]) -> bool:
+    """Was every row of a 05_sheet.json priced under COUNT_DISPERSION? An empty
+    sheet has nothing to re-price."""
+    return all(r.get("dispersion_rule") == COUNT_DISPERSION for r in rows)
+
+
+# The tennis neighbour table cut by tier x gender (tier, then the pooled table,
+# when a cell is thin) and the tier-initialised rating start (V5, feature
+# lp_t, config "tier_start"); track A4, docs/sofa/evidence/
+# tennis_calibration_2026-10-08.md: games_total -81e-4 [-90, -74] log-loss,
+# games_won_for -37e-4, handicap -16e-4, sets -23e-4 against the pooled table
+# on 48.6k matches, both test halves agreeing; V5 -10e-4 [-12.6, -8.3] on the
+# win probability. It moves p_central, so it goes live only TOGETHER with
+# config/tennis_rating.json refitted with V5 and the tennis curves replayed
+# with it (calibrate_from_cache --tennis-scoped-table) - a new comparability
+# epoch, never mid-day, and the operator moves it. None = waiting for the
+# operator: the pooled table, byte for byte. Read on the day being built and
+# the build clock; tennis rows priced this way carry `tennis_table_rule`
+# (TENNIS_SCOPED_TABLE), so a rebuild re-runs SHEET on a sheet of the other rule.
+TENNIS_SCOPED_TABLE_DATE = "2026-10-09"
+TENNIS_SCOPED_TABLE_FROM_UTC: datetime | None = None
+TENNIS_SCOPED_TABLE = "scoped_table"
+
+
+def tennis_scoped_table_enabled(date: str, at: datetime | None = None) -> bool:
+    if TENNIS_SCOPED_TABLE_FROM_UTC is None:
+        return False
+    at = at if at is not None else timeutil.now()
+    return date >= TENNIS_SCOPED_TABLE_DATE and at >= TENNIS_SCOPED_TABLE_FROM_UTC
+
+
+def sheet_tennis_scoped_table(rows: Sequence[Mapping[str, Any]]) -> bool:
+    """Was every tennis row of a 05_sheet.json priced under
+    TENNIS_SCOPED_TABLE? A sheet without tennis has nothing to re-price."""
+    return all(r.get("tennis_table_rule") == TENNIS_SCOPED_TABLE
+               for r in rows if r.get("sport") == "tennis")
+
+
+# The two sides of a football CARDS joint (both_over_ / most_ / handicap_
+# cards_points) were priced as independent: config/sofa_side_correlations.json
+# holds null for cards_points (99 residual pairs when it was measured). The
+# residual correlation measured on 34,027 train matches is +0.126, and pricing
+# the joints with it gains log-loss out of sample (test 2026-06-01..10-07):
+# +0.0016 [0.0009, 0.0022] both_over, +0.0028 [0.0024, 0.0031] handicap,
+# +0.0011 [0.0007, 0.0015] most (docs/sofa/evidence/dependence_goals_
+# 2026-10-08.md). It moves p_central of cards joints, so the number lives HERE,
+# behind the switch (the config file is not touched: its null is what prints
+# today). Goals / corners / shots-on-target correlations are not touched (that
+# measurement was inconclusive for them). None = waiting for the operator:
+# independent sides, byte for byte. Rows priced this way carry `cards_rule`
+# (CARDS_CORRELATION), so a rebuild re-runs SHEET on a sheet of the other rule;
+# the staged refit replays it (calibrate_from_cache --cards-correlation).
+CARDS_CORRELATION_DATE = "2026-10-09"
+CARDS_CORRELATION_FROM_UTC: datetime | None = None
+CARDS_CORRELATION = "cards_correlation"
+CARDS_CORRELATION_RHO = 0.126
+CARDS_CORRELATION_BASE = "cards_points"
+
+
+def cards_correlation_enabled(date: str, at: datetime | None = None) -> bool:
+    if CARDS_CORRELATION_FROM_UTC is None:
+        return False
+    at = at if at is not None else timeutil.now()
+    return date >= CARDS_CORRELATION_DATE and at >= CARDS_CORRELATION_FROM_UTC
+
+
+def sheet_cards_correlation(rows: Sequence[Mapping[str, Any]]) -> bool:
+    """Was every row of a 05_sheet.json priced under CARDS_CORRELATION? An empty
+    sheet has nothing to re-price."""
+    return all(r.get("cards_rule") == CARDS_CORRELATION for r in rows)
+
+
+# K_CENTRE per football market (bet.sofa.per_market_k): the sample's mean is
+# shrunk toward the league prior with K from
+# `K_CENTRE.by_market.football[<market>]` in config/sofa_engine_constants.json
+# instead of the sport's 15, for the markets listed there (shots and fouls want
+# 2-8; docs/sofa/evidence/k_under_dispersion_2026-10-08.md). It moves p_central
+# of those markets, so it goes live only TOGETHER with a refit of the football
+# curves replayed with it (calibrate_from_cache --per-market-k), a new
+# comparability epoch - never mid-day, and the operator moves it. The measured
+# gain was taken UNDER the fitted dispersion, so it belongs with
+# COUNT_DISPERSION_FROM_UTC (without it the K would be tuned to the wrong
+# spread: the operator sets the two together). None = waiting for the
+# operator: the sport's K, byte for byte; the file's `by_market` is inert.
+# Rows priced this way carry `k_rule` (PER_MARKET_K), so a rebuild re-runs
+# SHEET on a sheet of the other rule.
+PER_MARKET_K_DATE = "2026-10-09"
+PER_MARKET_K_FROM_UTC: datetime | None = None
+PER_MARKET_K = "per_market_k"
+
+
+def per_market_k_enabled(date: str, at: datetime | None = None) -> bool:
+    if PER_MARKET_K_FROM_UTC is None:
+        return False
+    at = at if at is not None else timeutil.now()
+    return date >= PER_MARKET_K_DATE and at >= PER_MARKET_K_FROM_UTC
+
+
+def sheet_per_market_k(rows: Sequence[Mapping[str, Any]]) -> bool:
+    """Was every row of a 05_sheet.json priced under PER_MARKET_K? An empty
+    sheet has nothing to re-price."""
+    return all(r.get("k_rule") == PER_MARKET_K for r in rows)
 
 
 # Basketball noise by freshness: games of a side with <= 2 / 3..9 games in the
@@ -494,3 +623,20 @@ def read_by_event(date: str, build_at: datetime | None = None) -> bool:
         return False
     at = build_at if build_at is not None else timeutil.now()
     return date >= READ_EVENTS_DATE and at >= READ_EVENTS_FROM_UTC
+
+
+def require_k_with_dispersion(date: str, at: datetime | None = None) -> None:
+    """PER_MARKET_K and COUNT_DISPERSION were fitted jointly (the K gain was
+    measured under the fitted dispersion, which itself was fitted around K=15
+    centres): exactly one of them on for a day would price a model nobody
+    measured. SHEET calls this before it prices; it raises (rc 2) rather than
+    mix them."""
+    at = at if at is not None else timeutil.now()
+    dispersion = count_dispersion_enabled(date, at)
+    k = per_market_k_enabled(date, at)
+    if dispersion != k:
+        raise ValueError(
+            f"{'COUNT_DISPERSION' if dispersion else 'PER_MARKET_K'} is on for "
+            f"{date} but {'PER_MARKET_K' if dispersion else 'COUNT_DISPERSION'} "
+            "is not: the two were fitted jointly and go live together "
+            "(epochs.COUNT_DISPERSION_FROM_UTC / PER_MARKET_K_FROM_UTC)")

@@ -46,9 +46,19 @@ What it is, in order:
      calibrated probability was closest. Games, sets, per-set games and
      tiebreaks all come off the same neighbours, so the markets of one match
      can never contradict each other, and the straight-sets / three-sets
-     bimodality is in the data rather than assumed away. Scoping the
-     neighbours by tier or by surface was measured and did not help
-     (Brier 0.2372 all / 0.2377 tier / 0.2378 tier + surface), so it is global.
+     bimodality is in the data rather than assumed away. The table is
+     global (one pool of every tier) by default. A first measurement (five
+     days, 251 matches: Brier 0.2372 all / 0.2377 tier / 0.2378 tier +
+     surface) saw no gain, but it was too small to see one: on 48.6k matches
+     over six months (docs/sofa/evidence/tennis_calibration_2026-10-08.md) a
+     table cut by tier x gender beats the pooled one on log-loss - games_total
+     -81e-4 [-90, -74], games_won_for -37e-4, handicap -16e-4, sets -23e-4;
+     the pooled table is ITF-dominated and biases the games_total ladder
+     +5.6 pp for ITF, -7.9 pp for TOUR. That variant lives behind
+     ``scoped=True`` (epochs.TENNIS_SCOPED_TABLE_FROM_UTC, off): a (tier,
+     gender) cell of at least ``SCOPED_MIN_TABLE`` outcomes, else the tier's
+     cell, else the pooled table. The tier-initialised rating start (V5,
+     feature ``lp_t``, ``tier_start``) is the same package.
 
 Best-of-five is not modelled - no neighbour is a five-setter - and a player
 with fewer than ``MIN_RATED`` rated matches gets no forecast at all.
@@ -83,6 +93,20 @@ NEIGHBOURS = 600
 FEATURES: tuple[str, ...] = (
     "lp", "lps", "dmin78", "drest", "dn7", "dform", "dhigh", "dtour",
 )
+# V5 (epochs.TENNIS_SCOPED_TABLE_FROM_UTC): a second overall Elo whose newcomers
+# start at 1500 + the offset of the tier they first appear in (``tier_start``,
+# fitted by ``fit_tier_start``), read as ``lp_t`` (the logit gap, unclamped),
+# in place of ``lp``. Not in FEATURES: a fit that lists FEATURES stays the
+# production one; only a config that names it (and ships ``tier_start``) uses it.
+TIER_START_FEATURE = "lp_t"
+ALL_FEATURES: tuple[str, ...] = (*FEATURES, TIER_START_FEATURE)
+V5_FEATURES: tuple[str, ...] = (TIER_START_FEATURE, *FEATURES[1:])
+TIERS: tuple[str, ...] = ("ITF", "CH", "TOUR")
+_LN10_400 = math.log(10.0) / 400.0
+# A scoped cell (tier x gender, then tier) is read only with at least this
+# many outcomes (two a match) - the measurement's own floor, 2 x NEIGHBOURS;
+# a thinner cell falls to the next wider one, the pooled table last.
+SCOPED_MIN_TABLE = 2 * NEIGHBOURS
 REST_DAYS = 21.0
 
 # The rating's weight against the devigged price, the same weight the sample
@@ -168,6 +192,10 @@ class TennisResult:
     # Retired matches count as time on court but neither update the rating
     # nor enter the score distribution: their score is not a match score.
     completed: bool
+    # The home player's gender in Sofascore's listing ("F"); the scoped
+    # neighbour table is cut by it. Default False: a women's match is read
+    # as one only from a listing that says so.
+    female: bool = False
 
 
 def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
@@ -221,6 +249,7 @@ def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
         sets=tuple(sets),
         minutes=minutes,
         completed=description == "Ended" and len(sets) >= 2,
+        female=home.get("gender") == "F",
     )
 
 
@@ -284,7 +313,11 @@ class _PlayerLog:
 class RatingBook:
     """Sequential Elo plus the per-player log the context terms are read from."""
 
-    def __init__(self) -> None:
+    def __init__(self, tier_start: Mapping[str, float] | None = None) -> None:
+        # V5: None = the production book, byte for byte.
+        self.tier_start = dict(tier_start) if tier_start is not None else None
+        self.overall_t: dict[int, float] = {}
+        self.female: dict[int, bool] = {}
         self.overall: dict[int, float] = defaultdict(lambda: 1500.0)
         self.by_surface: dict[tuple[int, str], float] = defaultdict(lambda: 1500.0)
         self.n: dict[int, int] = defaultdict(int)
@@ -337,7 +370,13 @@ class RatingBook:
         ma, ra, na, fa = self._context(away, ts)
         hh, th = self._shares(home)
         ha, ta = self._shares(away)
+        extra: dict[str, float] = {}
+        if self.tier_start is not None:
+            extra[TIER_START_FEATURE] = (
+                self.overall_t.get(home, 1500.0) - self.overall_t.get(away, 1500.0)
+            ) * _LN10_400
         return {
+            **extra,
             "lp": _logit(p_overall),
             "lps": _logit(p_blend),
             "dmin78": (mh - ma) / 60.0,
@@ -354,12 +393,20 @@ class RatingBook:
             self.played[player] += 1
             self.played_high[player] += r.tier != "ITF"
             self.played_tour[player] += r.tier == "TOUR"
+            self.female[player] = r.female
+            if self.tier_start is not None and player not in self.overall_t:
+                self.overall_t[player] = 1500.0 + self.tier_start.get(r.tier, 0.0)
         if not r.completed:
             return
         y = 1.0 if r.home_won else 0.0
         h, a, s = r.home_id, r.away_id, r.surface
         p = 1.0 / (1.0 + 10 ** ((self.overall[a] - self.overall[h]) / 400.0))
         kh, ka = _k(self.n[h]), _k(self.n[a])
+        if self.tier_start is not None:
+            ot = self.overall_t
+            p_t = 1.0 / (1.0 + 10 ** ((ot[a] - ot[h]) / 400.0))
+            ot[h] += kh * (y - p_t)
+            ot[a] -= ka * (y - p_t)
         self.overall[h] += kh * (y - p)
         self.overall[a] -= ka * (y - p)
         gap = self.by_surface[(a, s)] - self.by_surface[(h, s)]
@@ -443,6 +490,10 @@ class Outcome:
     # 600 neighbours, and two of the day's nine singles owed their place to
     # them).
     match_tiebreak: bool = False
+    # The match's tier group and the home player's gender: the keys of the
+    # scoped neighbour table (not read when the table is pooled).
+    tier: str = ""
+    female: bool = False
 
 
 def _outcomes(r: TennisResult, p_home: float) -> list[Outcome]:
@@ -456,9 +507,9 @@ def _outcomes(r: TennisResult, p_home: float) -> list[Outcome]:
     s1, s2 = r.sets[0], r.sets[1]
     mtb = len(r.sets) == 3 and sorted(r.sets[2]) == [0, 1]
     return [
-        Outcome(p_home, gh, ga, len(r.sets), tb, s1, s2, mtb),
+        Outcome(p_home, gh, ga, len(r.sets), tb, s1, s2, mtb, r.tier, r.female),
         Outcome(1.0 - p_home, ga, gh, len(r.sets), tb, (s1[1], s1[0]),
-                (s2[1], s2[0]), mtb),
+                (s2[1], s2[0]), mtb, r.tier, r.female),
     ]
 
 
@@ -471,6 +522,9 @@ class MatchForecast:
     neighbours_away: tuple[Outcome, ...]
     rated_home: int
     rated_away: int
+    # Which neighbour table the two pools were cut from: "pooled" (the one
+    # global table), "tier" or "tier_gender" (epochs.TENNIS_SCOPED_TABLE).
+    table_scope: str = "pooled"
 
     def p_side_wins(self, side: str) -> float:
         return self.p_home if side == "side_a" else 1.0 - self.p_home
@@ -549,8 +603,46 @@ def won_a_set(o: Outcome) -> bool:
     return o.sets == 3 or o.set1[0] > o.set1[1] or o.set2[0] > o.set2[1]
 
 
+class _Cell:
+    """One scoped neighbour table: outcomes sorted by p, with their keys."""
+
+    __slots__ = ("keys", "rows")
+
+    def __init__(self) -> None:
+        self.rows: list[Outcome] = []
+        self.keys: list[float] = []
+
+    def insert(self, o: Outcome) -> None:
+        i = bisect.bisect_right(self.keys, o.p)
+        self.keys.insert(i, o.p)
+        self.rows.insert(i, o)
+
+
+def _window(
+    table: Sequence[Outcome], keys: Sequence[float], p: float
+) -> tuple[Outcome, ...]:
+    """The NEIGHBOURS entries of a sorted table nearest to ``p``."""
+    if len(table) < NEIGHBOURS:
+        return ()
+    i = bisect.bisect_left(keys, p)
+    lo, hi = i, i
+    while hi - lo < NEIGHBOURS:
+        left = p - keys[lo - 1] if lo > 0 else math.inf
+        right = keys[hi] - p if hi < len(keys) else math.inf
+        if left <= right:
+            lo -= 1
+        else:
+            hi += 1
+    return tuple(table[lo:hi])
+
+
 class TennisRatingModel:
-    """Ratings and the neighbour table, built from history before a cut."""
+    """Ratings and the neighbour table, built from history before a cut.
+
+    ``scoped`` (epochs.TENNIS_SCOPED_TABLE_FROM_UTC, off): the neighbours are
+    read from the match's (tier, gender) cell, else its tier's, else the
+    pooled table - whichever is the first to hold ``SCOPED_MIN_TABLE``
+    outcomes. Off, the model is the pooled one, byte for byte."""
 
     def __init__(
         self,
@@ -558,8 +650,11 @@ class TennisRatingModel:
         coefficients: Mapping[str, Sequence[float]],
         table: list[Outcome],
         names: Sequence[str] = FEATURES,
+        scoped: bool = False,
     ) -> None:
         self.book = book
+        self.scoped = scoped
+        self._cells: dict[tuple[str, bool | None], _Cell] = {}
         self.coefficients = coefficients
         self.names = tuple(names)
         self._table = sorted(table, key=lambda o: o.p)
@@ -568,6 +663,9 @@ class TennisRatingModel:
         # never play one (see Outcome.match_tiebreak).
         self._full_third = [o for o in self._table if not o.match_tiebreak]
         self._full_keys = [o.p for o in self._full_third]
+        if scoped:
+            for o in self._table:  # sorted by p: the cells come out sorted
+                self._cell_add(o)
 
     @property
     def table_size(self) -> int:
@@ -584,6 +682,28 @@ class TennisRatingModel:
             j = bisect.bisect_right(self._full_keys, o.p)
             self._full_keys.insert(j, o.p)
             self._full_third.insert(j, o)
+        if self.scoped:
+            self._cell_add(o, in_order=False)
+
+    def _cell_add(self, o: Outcome, in_order: bool = True) -> None:
+        """File an outcome under its tier and its (tier, gender). The tiers
+        that never play a match tiebreak never hold one (as _full_third)."""
+        if o.match_tiebreak and o.tier != "ITF":
+            return
+        for key in ((o.tier, o.female), (o.tier, None)):
+            cell = self._cells.setdefault(key, _Cell())
+            if in_order:
+                cell.rows.append(o)
+                cell.keys.append(o.p)
+            else:
+                cell.insert(o)
+
+    def _scoped_cell(self, tier: str, female: bool) -> tuple[str, _Cell] | None:
+        for scope, key in (("tier_gender", (tier, female)), ("tier", (tier, None))):
+            cell = self._cells.get(key)
+            if cell is not None and len(cell.rows) >= SCOPED_MIN_TABLE:
+                return scope, cell
+        return None
 
     def _neighbours(
         self, p: float, full_third_set: bool = False
@@ -591,18 +711,7 @@ class TennisRatingModel:
         table, keys = (
             (self._full_third, self._full_keys) if full_third_set
             else (self._table, self._keys))
-        if len(table) < NEIGHBOURS:
-            return ()
-        i = bisect.bisect_left(keys, p)
-        lo, hi = i, i
-        while hi - lo < NEIGHBOURS:
-            left = p - keys[lo - 1] if lo > 0 else math.inf
-            right = keys[hi] - p if hi < len(keys) else math.inf
-            if left <= right:
-                lo -= 1
-            else:
-                hi += 1
-        return tuple(table[lo:hi])
+        return _window(table, keys, p)
 
     def forecast(
         self,
@@ -624,6 +733,18 @@ class TennisRatingModel:
             home_id, away_id, surface_family(ground_type), int(kickoff.timestamp())
         )
         p_home = calibrated_p(coefficients, feats, self.names)
+        if self.scoped:
+            found = self._scoped_cell(tier, self.book.female.get(home_id, False))
+            if found is not None:
+                scope, cell = found
+                return MatchForecast(
+                    p_home=p_home,
+                    neighbours_home=_window(cell.rows, cell.keys, p_home),
+                    neighbours_away=_window(cell.rows, cell.keys, 1.0 - p_home),
+                    rated_home=rh,
+                    rated_away=ra,
+                    table_scope=scope,
+                )
         return MatchForecast(
             p_home=p_home,
             neighbours_home=self._neighbours(p_home, full_third),
@@ -634,11 +755,13 @@ class TennisRatingModel:
 
 
 def replay(
-    history: Iterable[TennisResult], cut_ts: int
+    history: Iterable[TennisResult],
+    cut_ts: int,
+    tier_start: Mapping[str, float] | None = None,
 ) -> tuple[RatingBook, list[tuple[TennisResult, dict[str, float]]]]:
     """Run the ratings over every match before ``cut_ts``; return the book and
     each rated match with the features it had BEFORE it was played."""
-    book = RatingBook()
+    book = RatingBook(tier_start)
     rated: list[tuple[TennisResult, dict[str, float]]] = []
     for r in history:
         if r.ts >= cut_ts:
@@ -651,6 +774,31 @@ def replay(
             rated.append((r, book.features(r.home_id, r.away_id, r.surface, r.ts)))
         book.update(r)
     return book, rated
+
+
+def fit_tier_start(history: Iterable[TennisResult], cut_ts: int) -> dict[str, float]:
+    """The V5 start offsets: the mean production Elo (once a player has >= 30
+    completed matches) of the players who first appear in each tier, minus the
+    mean over every such player - from matches before ``cut_ts`` only
+    (scripts/sofa/measure_tennis_calibration.tier_init_offsets). A tier with
+    no such player starts at 0."""
+    book = RatingBook()
+    first: dict[int, str] = {}
+    for r in history:
+        if r.ts >= cut_ts:
+            break
+        first.setdefault(r.home_id, r.tier)
+        first.setdefault(r.away_id, r.tier)
+        book.update(r)
+    by: dict[str, list[float]] = {t: [] for t in TIERS}
+    for pid, tier in first.items():
+        if book.n[pid] >= 30:
+            by[tier].append(book.overall[pid])
+    every = [x for v in by.values() for x in v]
+    if not every:
+        return {t: 0.0 for t in TIERS}
+    mean_all = sum(every) / len(every)
+    return {t: (sum(v) / len(v) - mean_all) if v else 0.0 for t, v in by.items()}
 
 
 def fit_coefficients(
@@ -688,9 +836,10 @@ def load_coefficients(
         not isinstance(names, list)
         or not names
         or len(set(names)) != len(names)
-        or any(name not in FEATURES for name in names)
+        or any(name not in ALL_FEATURES for name in names)
     ):
-        raise ValueError(f"{path}: features {names} not a subset of {list(FEATURES)}")
+        raise ValueError(
+            f"{path}: features {names} not a subset of {list(ALL_FEATURES)}")
     coefficients = {
         tier: [float(c) for c in entry["coefficients"]]
         for tier, entry in data["tiers"].items()
@@ -704,22 +853,49 @@ def load_coefficients(
     return coefficients, {k: v for k, v in data.items() if k != "tiers"}
 
 
+def check_start(names: Sequence[str], tier_start: Mapping[str, float] | None) -> None:
+    """A config that names ``lp_t`` cannot be priced without ``tier_start``."""
+    if TIER_START_FEATURE in names and tier_start is None:
+        raise ValueError(
+            f"features name {TIER_START_FEATURE} but no tier_start was given "
+            "(the V5 config goes live with epochs.TENNIS_SCOPED_TABLE_FROM_UTC)")
+
+
+def start_for_rule(
+    names: Sequence[str], tier_start: Mapping[str, float] | None, scoped: bool
+) -> Mapping[str, float] | None:
+    """The ``tier_start`` a rule passes to the book. Scoped: the config's, as
+    it is. Pooled (old rule): none, unless the features name ``lp_t`` - a V5
+    config staged while the switch is off still loads and prices the pooled
+    table with the coefficients it was fitted with (they read ``lp_t``); a
+    config without ``lp_t`` never sees its ``tier_start`` (output unchanged).
+    ``lp_t`` without ``tier_start`` still raises in ``check_start``."""
+    if scoped or TIER_START_FEATURE in names:
+        return tier_start
+    return None
+
+
 def build_model(
     history: Sequence[TennisResult],
     coefficients: Mapping[str, Sequence[float]],
     cut_ts: int,
     names: Sequence[str] = FEATURES,
+    scoped: bool = False,
+    tier_start: Mapping[str, float] | None = None,
 ) -> TennisRatingModel:
     """Ratings before the cut and the neighbour table from rated matches.
-    ``names`` is the feature list the coefficients were fitted on."""
-    book, rated = replay(history, cut_ts)
+    ``names`` is the feature list the coefficients were fitted on; ``scoped``
+    and ``tier_start`` are epochs.TENNIS_SCOPED_TABLE (off: both None / False
+    and the model is the pooled one, as before)."""
+    check_start(names, tier_start)
+    book, rated = replay(history, cut_ts, tier_start)
     table: list[Outcome] = []
     for r, feats in rated:
         c = coefficients.get(r.tier)
         if c is None:
             continue
         table.extend(_outcomes(r, calibrated_p(c, feats, names)))
-    return TennisRatingModel(book, coefficients, table, names)
+    return TennisRatingModel(book, coefficients, table, names, scoped)
 
 
 class AsOfRating:
@@ -740,14 +916,17 @@ class AsOfRating:
         history: Sequence[TennisResult],
         coefficients: Mapping[str, Sequence[float]],
         names: Sequence[str] = FEATURES,
+        scoped: bool = False,
+        tier_start: Mapping[str, float] | None = None,
     ) -> None:
+        check_start(names, tier_start)
         self._history = history
         self._next = 0
         self._cut = 0
         self._coefficients = coefficients
         self._names = tuple(names)
-        self.book = RatingBook()
-        self.model = TennisRatingModel(self.book, coefficients, [], names)
+        self.book = RatingBook(tier_start)
+        self.model = TennisRatingModel(self.book, coefficients, [], names, scoped)
 
     def model_at(self, cut_ts: int) -> TennisRatingModel:
         if cut_ts < self._cut:

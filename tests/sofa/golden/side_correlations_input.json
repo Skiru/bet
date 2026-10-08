@@ -1,0 +1,5 @@
+{"_doc": "input of the load_side_correlations golden",
+ "goals": {"correlation": -0.05, "n": 100},
+ "corners": {"correlation": -0.2},
+ "cards_points": {"correlation": null},
+ "shots_on_target": {"correlation": 0.03}}

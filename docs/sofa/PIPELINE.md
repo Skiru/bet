@@ -423,7 +423,7 @@ prior   = w tej kolejności (piłka):
           4. mecz kobiet: pula lig kobiecych (config/sofa_women_competitions.json,
              ≥300 meczów)                          notka PRIOR_GLOBAL_WOMEN
           5. globalna
-w_c     = n / (n + K_CENTRE)                           (piłka 25, tenis 2)
+w_c     = n / (n + K_CENTRE)                           (piłka 15, tenis 5; osobne K na rynek: `PER_MARKET_K`, wyłączone)
 centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gdy brak bazy)
 
 p_central:
@@ -448,7 +448,7 @@ verdict = VALUE, gdy offered_odds > required_odds
 ```
 
 Skąd która stała: `K_CENTRE` z `config/sofa_engine_constants.json` (FITTED:
-globalnie 15, piłka 25, tenis 2); `K_PRICE` z tego samego pliku, gdzie ma
+globalnie 10, piłka 15, tenis 5); `K_PRICE` z tego samego pliku, gdzie ma
 wartość `null` i status `NOT_FITTED` — wtedy silnik używa udokumentowanego
 startu `K_PRICE = 10.0` z `engine.py`, a **każdy wiersz niesie o tym notkę
 `UNFITTED_CONSTANTS`** (2026-09-21: 5782 z 5782).
@@ -571,6 +571,32 @@ Refit 2026-09-30 po backfillu (cut 2026-10-01, 239 315 meczów): poza próbą
 `p_central = 0,25·rating + 0,75·market_p` (notka `TENNIS_RATING`). Dla TOUR i
 CH tabela podobnych meczów pomija mecze rozstrzygnięte super-tie-breakiem
 (liczonym jako 1 gem trzeciego seta; 5,1% meczów, prawie wyłącznie ITF).
+
+### 7.1c Pakiety modelowe w kolejce (od 2026-10-08, wszystkie WYŁĄCZONE)
+
+Cztery pakiety zmierzone poza próbą na historii (raporty w
+`docs/sofa/evidence/`) są wpięte w kod za przełącznikami w `bet.sofa.epochs`,
+**wszystkie `None`** - dopóki operator nie powie "go", drukuje się dokładnie to,
+co wczoraj (testy "wyłączony = bajt w bajt tak samo"). Każdy zmienia
+odtwarzane `p`, więc włącza się go **razem z refitem krzywych** odtworzonym z
+jego flagą (nowa epoka porównywalności), a po włączeniu przebudowa
+(`rebuild_plan.py`) sama puszcza SHEET na arkuszu bez znacznika reguły.
+
+| pakiet | przełącznik | co zmienia | znacznik wiersza | replay |
+|---|---|---|---|---|
+| dyspersja liczników | `COUNT_DISPERSION_FROM_UTC` | rozrzut piłkarskich liczników z alfy dopasowanej na historii (NB na rozgrywki, `config/sofa_count_dispersion.json`; `shots_total`: normalny z wariancją łączoną) zamiast wariancji z 8-10 meczów; log-loss lepszy na 52/52 rynków (−3,8 gole, −4,1 rożne, −5,7 strzały celne, ×1e-3) | `dispersion_rule` | `--count-dispersion` |
+| tabela tenisowa | `TENNIS_SCOPED_TABLE_FROM_UTC` | sąsiedzi ratingu z komórki tier × płeć (tier, potem tabela wspólna, gdy komórka ma < 1200 wyników) i start ratingu `lp_t`; `games_total` −81e-4 [−90; −74] | `tennis_table_rule` | `--tennis-scoped-table`, `fit_tennis_rating.py --tier-start` |
+| korelacja kartek | `CARDS_CORRELATION_FROM_UTC` | jointy kartek z korelacją stron +0,126 (dziś: niezależne); `both_over` +0,0016, `handicap` +0,0028, `most` +0,0011 | `cards_rule` | `--cards-correlation` |
+| K na rynek | `PER_MARKET_K_FROM_UTC` | `K_CENTRE.by_market.football` (kartki drużyny 25, faule suma 2, strzały drużyny 8, strzały suma 5; gole zostają 15); sumy meczu −6,4e-4 | `k_rule` | `--per-market-k` |
+
+Odrzucone w tym samym przeglądzie (zob. "Zmierzone i odrzucone" w
+`CLAUDE.md`): hierarchiczny Empirical Bayes, kopuła t, Dixon-Coles i
+bivariate Poisson, ZINB / rodziny empiryczne, kalibracja beta / izotoniczna,
+dolny przedział na `p`, hierarchia nawierzchni i model serve/return w tenisie.
+Otwarte: korelacja strzałów celnych (pomiar −0,107 vs config −0,003) i rożnych
+(docstring −0,279 vs reszta około −0,23); sędzia dla kartek (dane o sędzi są w
+856 z 460 tys. meczów - za mało). Przegląd literatury:
+`docs/sofa/evidence/LITERATURA_2026-10-08.md`.
 
 ### 7.2 Trzy rzeczy, które wyglądają na usterkę i nią nie są
 

@@ -99,7 +99,7 @@ widoczną i maszynę obudzoną.
 
 | stała | wartość | status | znaczenie |
 |---|---|---|---|
-| `K_CENTRE` | 15.0 globalnie, **piłka 25.0, tenis 2.0** | `FITTED` | ile próbka waży wobec bazy ligowej: `w_c = n/(n+K)` |
+| `K_CENTRE` | 10.0 globalnie, **piłka 15.0, tenis 5.0** (plik: `value` 10, `by_sport`; `by_market` bezczynne do `PER_MARKET_K`) | `FITTED` | ile próbka waży wobec bazy ligowej: `w_c = n/(n+K)` |
 | `K_PRICE` | `null` → silnik używa `10.0` z `engine.py` | **`NOT_FITTED`** | ile nasze `p` waży wobec ceny rynku |
 | `MAX_LADDER_SIGMA` | `null` → `1.25` z `engine.py` | **`NO_DIVERGENCE`** | próg rozjazdu z drabiną |
 
@@ -492,3 +492,25 @@ wypisuje starszych kopii; wypisywanie i klon APFS są zaplanowane (plan
 człowiek, na decyzję operatora (tak było 2026-10-05: usunięte
 `data/backup_2026-10-02/` i `data/backup_2026-10-03/`, została
 `data/backup_2026-10-05/sofa.db`).
+
+### 7.6 Pliki i flagi pakietów w kolejce (od 2026-10-08)
+
+| plik / flaga | kto pisze | status |
+|---|---|---|
+| `config/sofa_count_dispersion.json` | `fit_count_dispersion.py --before <d> --cases <dir> [--write]` (bez `--write` tylko próba, nic nie zapisuje; alfa na (rynek, rozgrywki), `n`, metoda, ścieżka raportu dowodowego) | **bezczynny**, dopóki `COUNT_DISPERSION_FROM_UTC` jest `None`; alfy dopasowane na historii, nigdy na naszych rozliczonych dniach; rynek bez wpisu zostaje przy dzisiejszym estymatorze, rozgrywki bez dość przypadków czytają alfę rynku |
+| `config/sofa_engine_constants.json` `K_CENTRE.by_market` | `fit_constants.py` (przenosi klucz bez zmiany pozostałych) | bezczynny do `PER_MARKET_K_FROM_UTC` |
+| `epochs.CARDS_CORRELATION_RHO` (+0,126) | stała w kodzie za przełącznikiem; `null` w `sofa_side_correlations.json` zostaje | bezczynna do `CARDS_CORRELATION_FROM_UTC` |
+| `config/tennis_rating.json` `tier_start` | `fit_tennis_rating.py --tier-start` (w refitcie na kopii, do katalogu stagingowego) | cecha `lp_t` nie wchodzi do domyślnego refitu |
+| `calibrate_from_cache.py` / `prepare_refit.py rebuild-cache-rows` | flagi `--count-dispersion`, `--tennis-scoped-table`, `--cards-correlation`, `--per-market-k` | tylko replay na **kopii** bazy; zainstalowanie to osobna decyzja operatora |
+
+`COUNT_DISPERSION` i `PER_MARKET_K` włącza się **razem** (alfy dopasowano przy
+K=15, K przy tych alfach); przy włączonym tylko jednym SHEET odmawia (kod 2,
+`epochs.require_k_with_dispersion`). Konfig V5 tenisa (`lp_t` + `tier_start`)
+zmienia `p` tenisa także przy wyłączonym przełączniku, więc instaluje się go
+razem z przełącznikiem; jego `tier_start` patrzy w przód w replayu (Elo na
+cięciu), jak współczynniki.
+
+Reguła: każdy z czterech pakietów włącza się wyłącznie parą (przełącznik +
+refit krzywych odtworzony z jego flagą) i zawsze od następnego dnia 00:00Z,
+chyba że operator poda dokładną godzinę. Raport ze staged refitu:
+`docs/sofa/history/RAPORT_STAGED_REFIT_2026-10-08.md`.

@@ -294,6 +294,25 @@ class SheetRow(BaseModel):
     # sheet built under the old link rule. rebuild_plan re-runs SHEET when a
     # build's rule and the sheet's differ.
     link_rule: str | None = None
+    # bet.sofa.epochs.COUNT_DISPERSION: football counts priced with the
+    # dispersion fitted on the history (bet.sofa.count_dispersion); absent on a
+    # sheet built under the sample variance. rebuild_plan re-runs SHEET when a
+    # build's rule and the sheet's differ.
+    dispersion_rule: str | None = None
+    # bet.sofa.epochs.TENNIS_SCOPED_TABLE: a tennis row priced from the
+    # neighbour table cut by tier x gender (and the V5 rating start); absent
+    # on a sheet built from the pooled table. rebuild_plan re-runs SHEET when
+    # a build's rule and the sheet's differ.
+    tennis_table_rule: str | None = None
+    # bet.sofa.epochs.CARDS_CORRELATION: the cards joints' sides correlated at
+    # the measured residual instead of independent; absent on a sheet built
+    # without it. rebuild_plan re-runs SHEET when a build's rule and the
+    # sheet's differ.
+    cards_rule: str | None = None
+    # bet.sofa.epochs.PER_MARKET_K: the football centres shrunk with the K of
+    # their own market (bet.sofa.per_market_k); absent on a sheet built with
+    # the sport's K. rebuild_plan re-runs SHEET when the rules differ.
+    k_rule: str | None = None
 
 
 ContextSignal = Literal[

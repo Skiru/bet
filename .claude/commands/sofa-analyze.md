@@ -259,7 +259,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 `STALE_COUPON` (11 older than `08_confidence.json` /
 `08_confidence_sports.json` / `read_requests.json` / `09_screen_prices.json` /
 the coupon form); the rebuild runs them in the only order that renders.
-It re-runs SHEET only for an old epoch or link rule, **not** after a change
+It re-runs SHEET only for an old epoch or link rule and for the staged
+packages once on (`COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`,
+`CARDS_CORRELATION`, `PER_MARKET_K`, all OFF today), **not** after a change
 of the SHEET estimator (from 2026-10-07 14:05Z: tennis rating prices,
 football marginal centres, basketball freshness): a `05_sheet.json` older
 than the switch must be re-run first, `run_pipeline.py --date <date> --only

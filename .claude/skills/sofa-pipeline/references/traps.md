@@ -196,7 +196,9 @@ overwrote a measured one and reported success.
 
 **A rebuild does not re-run SHEET.** `rebuild_day.py` runs SHEET only when
 `05_sheet.json`'s `epoch` is not `stats_only` or its `link_rule` is not
-`shared_league` (`rebuild_plan`). A change of the estimator - tennis rating
+`shared_league` (`rebuild_plan`) - and, once a staged package is on
+(`COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`, `PER_MARKET_K`;
+all OFF today), when the sheet lacks its row marker. A change of the estimator - tennis rating
 prices, football joints from marginal centres, basketball freshness, a refit -
 leaves the old `p_central` in the sheet and the new curves read it: the
 mismatch is silent. After such a change run `run_pipeline.py --date <d> --only

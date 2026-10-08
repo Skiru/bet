@@ -31,6 +31,8 @@ from bet.sofa.contracts import (
     SheetRow,
     Veto,
 )
+from bet.sofa.count_dispersion import Dispersion, DispersionTable
+from bet.sofa.count_dispersion import load_table as load_dispersion_table
 from bet.sofa.coupon import effective_kickoff
 from bet.sofa.derived import load_side_correlations, price_derived_rungs
 from bet.sofa.engine import (
@@ -73,6 +75,7 @@ from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.football_rating import replay as replay_football
 from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
+from bet.sofa.per_market_k import k_for_market
 from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.sample_age import stalest_side_newest_days
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
@@ -88,6 +91,7 @@ from bet.sofa.tennis_rating import (
     build_model,
     load_coefficients,
     load_history,
+    start_for_rule,
 )
 from bet.sofa.timeutil import frozen_clock_refusal, now
 
@@ -759,7 +763,8 @@ def rating_note(
 
 
 def load_tennis_rating(
-    config: SofaConfig, fixtures: list[Fixture], run_date: str
+    config: SofaConfig, fixtures: list[Fixture], run_date: str,
+    scoped: bool = False,
 ) -> TennisRatingModel | None:
     """The rating model for this day, or None when there is no tennis or no
     fitted calibration. Ratings run over history strictly before the day."""
@@ -772,8 +777,17 @@ def load_tennis_rating(
     coefficients, meta = loaded
     cut = datetime.strptime(run_date, "%Y-%m-%d").replace(tzinfo=UTC)
     history = load_history(config.db_path)
+    if not scoped:
+        return build_model(
+            history, coefficients, int(cut.timestamp()), names=meta["features"],
+            tier_start=start_for_rule(
+                meta["features"], meta.get("tier_start"), False),
+        )
+    # epochs.TENNIS_SCOPED_TABLE: the table cut by tier x gender and, when the
+    # config was fitted with it, the tier-initialised start (V5)
     return build_model(
-        history, coefficients, int(cut.timestamp()), names=meta["features"]
+        history, coefficients, int(cut.timestamp()), names=meta["features"],
+        scoped=True, tier_start=meta.get("tier_start"),
     )
 
 
@@ -816,6 +830,7 @@ def football_forecast_p(
     rated_centre: float,
     boundary: float,
     direction: Literal["OVER", "UNDER"],
+    dispersion: Dispersion | None = None,
 ) -> float | None:
     """The football rating's own P(selection wins) - K11's "model" number.
 
@@ -827,8 +842,10 @@ def football_forecast_p(
     if uses_empirical_frequency(market):
         p = p_empirical_centred_raw(values, boundary, direction, rated_centre - mean)
     else:
-        sd = sheet_predictive_sd(market, sport, mean, variance, n, rated_centre)
-        p = sheet_count_p_raw(market, rated_centre, sd, boundary, direction)
+        sd = sheet_predictive_sd(
+            market, sport, mean, variance, n, rated_centre, dispersion)
+        p = sheet_count_p_raw(
+            market, rated_centre, sd, boundary, direction, dispersion)
     return None if outside_model_resolution(p) else p
 
 
@@ -845,6 +862,18 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     # absent under the old link rule: an older sheet stays byte-for-byte
     if out.get("link_rule") is None:
         out.pop("link_rule", None)
+    # likewise absent under the sample variance (epochs.COUNT_DISPERSION)
+    if out.get("dispersion_rule") is None:
+        out.pop("dispersion_rule", None)
+    # and from the pooled tennis neighbour table (epochs.TENNIS_SCOPED_TABLE)
+    if out.get("tennis_table_rule") is None:
+        out.pop("tennis_table_rule", None)
+    # and under the sport's K (epochs.PER_MARKET_K)
+    if out.get("k_rule") is None:
+        out.pop("k_rule", None)
+    # and without the cards correlation (epochs.CARDS_CORRELATION)
+    if out.get("cards_rule") is None:
+        out.pop("cards_rule", None)
     return out
 
 
@@ -865,6 +894,8 @@ def process_fixture(
     stats_only: bool = False,
     rating_prices: bool = False,
     marginal_centres_on: bool = False,
+    dispersion_table: DispersionTable | None = None,
+    per_market_k_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1138,7 +1169,14 @@ def process_fixture(
             if prior_note and prior_note.startswith("PRIOR_GLOBAL_WOMEN"):
                 row_unfitted.append("MIN_WOMEN_POOL_N")
             if prior is not None:
-                w_c = n / (n + k_centre)  # K_CENTRE
+                # epochs.PER_MARKET_K: the football market's own K, else the
+                # sport's (off: k_centre, byte for byte)
+                k_row = (
+                    k_for_market(
+                        engine_constants, fixture.sport, rung.market, k_centre)
+                    if per_market_k_on else k_centre
+                )
+                w_c = n / (n + k_row)  # K_CENTRE
                 centre = w_c * mean + (1 - w_c) * prior
             else:
                 centre = mean
@@ -1167,8 +1205,16 @@ def process_fixture(
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
+        # epochs.COUNT_DISPERSION: the history's alpha for (market,
+        # competition) instead of the sample's variance (None = off, or a
+        # market / sport the table does not cover).
+        dispersion = (
+            dispersion_table.read(
+                fixture.sport, rung.market, fixture.competition_id)
+            if dispersion_table is not None else None
+        )
         pred_sd = sheet_predictive_sd(
-            rung.market, fixture.sport, mean, variance, n, centre
+            rung.market, fixture.sport, mean, variance, n, centre, dispersion
         )
 
         # The rating forecast replaces the sample's estimate wherever it has
@@ -1214,7 +1260,7 @@ def process_fixture(
                 elif rated is not None:
                     forecast_p = football_forecast_p(
                         rung.market, fixture.sport, values, mean, variance, n,
-                        rated[0], boundary, direction,
+                        rated[0], boundary, direction, dispersion,
                     )
                     forecast_source = (
                         "football_rating" if forecast_p is not None else None)
@@ -1277,7 +1323,8 @@ def process_fixture(
                 # 88.8% OVER. engine.sheet_count_p_raw picks the NB or the
                 # support-floored normal; the cache replay calls the same.
                 p_raw = sheet_count_p_raw(
-                    rung.market, centre, pred_sd, boundary, direction
+                    rung.market, centre, pred_sd, boundary, direction,
+                    dispersion,
                 )
 
             if p_rating_gt is not None:
@@ -1623,6 +1670,7 @@ def process_fixture(
         ),
         stats_only=stats_only,
         marginal_centres=marginal_centres,
+        dispersion_table=dispersion_table,
     )
     if stats_only:
         derived_rows = [
@@ -1646,6 +1694,18 @@ def process_fixture(
 
 
 def main() -> int:
+    """A configuration error (a rule marker the config cannot honour: the K /
+    dispersion pair, a malformed dispersion file, a V5 rating config without
+    its tier_start) is FAILED (rc 2), never PARTIAL: run_pipeline and
+    rebuild_day continue on 1 and CONFIDENCE would read the old sheet."""
+    try:
+        return _main()
+    except (ValueError, OSError) as exc:
+        print(f"SHEET: configuration error: {exc}", file=sys.stderr)
+        return 2
+
+
+def _main() -> int:
     # Every request underneath this call is this stage's cost (F22).
     set_stage("SHEET")
     parser = argparse.ArgumentParser()
@@ -1690,14 +1750,22 @@ def main() -> int:
         if vetoes_data:
             vetoes = RootModel[list[Veto]].model_validate_json(vetoes_data).root
 
-    side_correlations = load_side_correlations()
+    # epochs.CARDS_CORRELATION: the cards joints' sides at the measured
+    # residual (the number lives behind the switch, not in the config file)
+    cards_correlation_on = (
+        stats_only_epoch(args.date) and epochs.cards_correlation_enabled(args.date))
+    side_correlations = load_side_correlations(
+        cards_correlation=cards_correlation_on)
     baselines = load_baselines(config)
     tennis_tiers = load_tennis_tier_baselines(config)
     day_obs = day_league_observations(fixtures, samples)
     reliability = load_reliability(config)
     engine_constants = load_engine_constants(config)
+    # epochs.TENNIS_SCOPED_TABLE: the day being built and the build clock
+    tennis_scoped = (stats_only_epoch(args.date)
+                     and epochs.tennis_scoped_table_enabled(args.date))
     tennis_model = (
-        load_tennis_rating(config, fixtures, args.date)
+        load_tennis_rating(config, fixtures, args.date, scoped=tennis_scoped)
         if os.environ.get("SOFA_TENNIS_RATING", "1") != "0"
         else None
     )
@@ -1723,6 +1791,13 @@ def main() -> int:
     stats_only = stats_only_epoch(args.date)
     rating_prices = stats_only and tennis_rating_prices(args.date)
     marginal_centres_on = stats_only and derived_marginal_centres_enabled(args.date)
+    # epochs.COUNT_DISPERSION: a missing / malformed config raises here (rc 2),
+    # never a sheet that claims a rule it did not use
+    epochs.require_k_with_dispersion(args.date)
+    count_dispersion_on = stats_only and epochs.count_dispersion_enabled(args.date)
+    # epochs.PER_MARKET_K: K_CENTRE.by_market of the engine constants
+    per_market_k_on = stats_only and epochs.per_market_k_enabled(args.date)
+    dispersion_table = load_dispersion_table() if count_dispersion_on else None
 
     try:
         for offer in offers:
@@ -1766,6 +1841,8 @@ def main() -> int:
                 stats_only=stats_only,
                 rating_prices=rating_prices,
                 marginal_centres_on=marginal_centres_on,
+                dispersion_table=dispersion_table,
+                per_market_k_on=per_market_k_on,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
@@ -1775,6 +1852,31 @@ def main() -> int:
         if link_shared:
             all_rows = [r.model_copy(update={"link_rule": epochs.LINK_SHARED_LEAGUE})
                         for r in all_rows]
+
+        if cards_correlation_on:
+            all_rows = [
+                r.model_copy(update={"cards_rule": epochs.CARDS_CORRELATION})
+                for r in all_rows
+            ]
+
+        if tennis_scoped:
+            all_rows = [
+                r.model_copy(update={"tennis_table_rule": epochs.TENNIS_SCOPED_TABLE})
+                if r.sport == "tennis" else r
+                for r in all_rows
+            ]
+
+        if per_market_k_on:
+            all_rows = [
+                r.model_copy(update={"k_rule": epochs.PER_MARKET_K})
+                for r in all_rows
+            ]
+
+        if count_dispersion_on:
+            all_rows = [
+                r.model_copy(update={"dispersion_rule": epochs.COUNT_DISPERSION})
+                for r in all_rows
+            ]
 
         write_atomic(
             sheet_path,
@@ -1801,6 +1903,14 @@ def main() -> int:
             "rows_generated": len(all_rows),
             "epoch": STATS_ONLY if stats_only else "old",
             "link_rule": epochs.LINK_SHARED_LEAGUE if link_shared else "old",
+            "dispersion_rule": (
+                epochs.COUNT_DISPERSION if count_dispersion_on else "old"),
+            "k_rule": (
+                epochs.PER_MARKET_K if per_market_k_on else "old"),
+            "cards_rule": (
+                epochs.CARDS_CORRELATION if cards_correlation_on else "old"),
+            "tennis_table_rule": (
+                epochs.TENNIS_SCOPED_TABLE if tennis_scoped else "old"),
             "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).

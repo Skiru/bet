@@ -14,6 +14,15 @@
       "football": 15.0,
       "tennis": 5.0
     },
+    "by_market": {
+      "_doc": "INERT while epochs.PER_MARKET_K_FROM_UTC is None (nothing reads it). K per football market, chosen on the train rows' log-loss and validated on their last third, under the fitted count dispersion (scripts/sofa/measure_k_under_dispersion.py, docs/sofa/evidence/k_under_dispersion_2026-10-08.md; test 2026-06-09..2026-10-07). A market not listed reads the sport's K (by_sport.football). goals_* stays at the sport's K on purpose.",
+      "football": {
+        "cards_points_for": 25.0,
+        "fouls_total": 2.0,
+        "shots_for": 8.0,
+        "shots_total": 5.0
+      }
+    },
     "curve": {
       "0.0": 0.179196,
       "2.0": 0.176987,

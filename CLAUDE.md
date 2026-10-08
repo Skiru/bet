@@ -106,6 +106,36 @@ every sport alike, and nothing that could win is cut by name.
   the replayed centre) and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
   that way were installed 2026-10-07 17:51Z: a new comparability epoch.
   Hockey / volleyball / CS2 curves are the staged `.next.json`'s.
+- **Staged model packages (2026-10-08, all switches `None`, waiting for the
+  operator - each changes the replayed p, so each goes live only with a curve
+  refit replayed with its flag; a row priced under one carries its marker
+  and a rebuild re-runs SHEET on a sheet of the other rule,
+  `rebuild_plan.py`):** `COUNT_DISPERSION_FROM_UTC` (football count spread
+  from an alpha fitted on the history, NB per competition,
+  `config/sofa_count_dispersion.json`, `fit_count_dispersion.py`; the normal
+  with the pooled variance for `shots_total`; log-loss better on 52/52 markets
+  out of sample; `dispersion_rule`; replay `--count-dispersion`);
+  `TENNIS_SCOPED_TABLE_FROM_UTC` (rating neighbours from the tier x gender
+  cell, tier, then pooled when a cell holds < 1200 outcomes, plus the tier
+  start `lp_t`; games_total -81e-4 log-loss; `tennis_table_rule`; replay
+  `--tennis-scoped-table`, fit `fit_tennis_rating.py --tier-start`);
+  `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126, held
+  in `epochs`, not in the config's `null`; `cards_rule`; `--cards-correlation`);
+  `PER_MARKET_K_FROM_UTC` (`K_CENTRE.by_market.football` in
+  `sofa_engine_constants.json`; `k_rule`; `--per-market-k`; goals stay at 15).
+  Evidence: `docs/sofa/evidence/{count_families,tennis_calibration,
+  dependence_goals,pooling,k_under_dispersion}_2026-10-08.md`; the staged
+  refit report is `docs/sofa/history/RAPORT_STAGED_REFIT_2026-10-08.md`.
+  `COUNT_DISPERSION` and `PER_MARKET_K` go live together (the alphas were fitted
+  under K=15 centres, the K under the alphas): with only one on for the day,
+  SHEET refuses (`epochs.require_k_with_dispersion`, exit 2). A V5
+  `tennis_rating.json` (features naming `lp_t`, with `tier_start`) changes
+  tennis p even with its switch off, so it is installed with the switch, not
+  before; its `tier_start` offsets look ahead inside the replay (Elo at the
+  cut), like the coefficients. A staged refit is
+  `prepare_refit.py rebuild-cache-rows --confirm --without-db-backup
+  --count-dispersion --per-market-k --cards-correlation --tennis-scoped-table`
+  on the copy, with `fit_tennis_rating.py --tier-start` into the staged config.
 - **Wait for a measurement, not a name:** a market with no curve and no
   evidence is `NO_LINE_EVIDENCE`. Before `LINE_EVIDENCE_FROM_UTC` (rebuilds of
   older days only) the by-name refusals still apply: `refused_markets`,
@@ -267,7 +297,9 @@ only the loop's own orchestration is old code until it ends.
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 `BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
+builders), `COUNT_DISPERSION_FROM_UTC`, `TENNIS_SCOPED_TABLE_FROM_UTC`,
+`CARDS_CORRELATION_FROM_UTC`, `PER_MARKET_K_FROM_UTC` (the staged packages
+above; install = refit with their flags + the operator's go), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
 needs a refit carrying the replayed joints), the coupon form dials. Open
 questions: Superbet's game count of a tennis match tiebreak; how strict the
 price-band cap is.
@@ -301,6 +333,15 @@ above their measured range wait for 50 settled lines a bucket
   only where a band's settled lines measured below the curve (operator,
   2026-10-07);
 - league selection / gate tuning (anti-selects out of sample);
+- (2026-10-08, out of sample on the history, `docs/sofa/evidence/`):
+  hierarchical / empirical-Bayes pooling of team and league effects (worse
+  than the fixed K for own counts, +3.1e-4 log-loss); a t copula or a
+  per-league-class correlation for joints; Dixon-Coles and bivariate Poisson
+  for goals (rho -0.013, kappa ~ 0); zero-inflated NB, empirical and mixture
+  families and per-team dispersion for counts; beta / isotonic / spline
+  calibration instead of the buckets (-7e-4, ECE no better); a lower
+  credible bound on p; a surface-hierarchy or serve/return tennis model;
+  exponential-decay memory (half-life 180 d);
 - re-ranking peer legs by own-sample size, hit rate, near misses, venue or
   recent form, or by tournament popularity / reserve / women / cup flags
   (2026-10-08: no out-of-sample gain on 62k legs; the pipeline's confidence
@@ -405,6 +446,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180
 
 **Measurement** (read-only evidence for a decision, never a gate)
 ```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_count_families.py [flags: see the evidence doc]  # distribution family per count market (2026-10-08)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_pooling.py [flags: see the evidence doc]  # pooling / per-market K / league effect
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_k_under_dispersion.py   # per-market K under the fitted dispersion; flags: see the evidence doc
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_dependence_goals.py [flags: see the evidence doc]  # copulas, side correlations, goals model
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_calibration.py [flags: see the evidence doc]  # tennis rating scopes, calibration method, intervals
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_count_dispersion.py --before <d> --cases <dir> [--write]   # without --write a dry run; --write writes config/sofa_count_dispersion.json atomically (inert while the switch is None)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settleability.py --from <d> --to <d> [--with-fit] [--json-out f] [--md-out f]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_blocked_families.py [--from <d>] [--to <d>]

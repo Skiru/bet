@@ -347,7 +347,10 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   (`--only CS2`) na tej samej regule wieku; po świeżej migawce
   `ensure_bridge.py` + **SPORT_IDENTITY** (most).
 - **SHEET** (`--only SHEET`) tylko, gdy CONFIDENCE by go odrzucił (arkusz
-  nie zbudowany pod regułą stats-only, `epochs.sheet_epoch`). Zmiany kodu
+  nie zbudowany pod regułą stats-only, `epochs.sheet_epoch`; od włączenia pakietu w
+  kolejce - `COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`,
+  `PER_MARKET_K`, dziś wszystkie wyłączone - także arkusz bez jego znacznika
+  `dispersion_rule` / `tennis_table_rule` / `cards_rule` / `k_rule`). Zmiany kodu
   SHEET albo jego konfiguracji polecenie nie wykrywa — wtedy najpierw
   `run_pipeline.py --only SHEET` ręcznie i napisz, co go wymusiło.
 - **COUPON** (`--only COUPON`, `06_coupon.json` — wejście `audit_coupon`, nie

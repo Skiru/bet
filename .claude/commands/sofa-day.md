@@ -502,7 +502,8 @@ SHADOW (`run_shadow.py --horizon-h` to the farthest open start) / CS2 when a
 sport price nears its 3 h limit or SHADOW skipped an event beyond its
 horizon, then `ensure_bridge.py` + SPORT_IDENTITY; SHEET only when
 CONFIDENCE would refuse the sheet's epoch or the sheet was rated under the
-old league-link rule (`link_rule`); COUPON (06, audit_coupon's input)
+old league-link rule (`link_rule`) or lacks the row marker of a staged package that is on
+(`dispersion_rule` / `tennis_table_rule` / `cards_rule` / `k_rule`); COUPON (06, audit_coupon's input)
 when older than its inputs; then FIXTURE_CHECK (bridge; no bridge =
 UNVERIFIED, nothing refused), CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY,
 PDF (`11_coupon.json` -> `KUPON_<date>.pdf` + `12_printed.json`),
@@ -514,7 +515,10 @@ except the bridge steps, the sport snapshots and COUPON (PARTIAL). A SHEET
 forced by anything else is NOT detected - `p_central` lives in `05_sheet.json`
 and a rebuild reads it as it is: after a change of the SHEET estimator (code in
 the SHEET path, or a model switch in `bet.sofa.epochs` - `TENNIS_RATING_PRICES`,
-`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS` - that the sheet predates) run
+`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS` - that the sheet predates; the four
+staged packages `COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`,
+`PER_MARKET_K` are the exception: once on, `rebuild_day.py` re-runs SHEET itself
+on a sheet without their row markers) run
 `run_pipeline.py --date <date> --only SHEET --run-id <id>` first (~30 s on a
 cached history, ~10 min when the day's listings changed; do not kill a quiet
 SHEET) and say why. A day already printed locks its started legs from the first

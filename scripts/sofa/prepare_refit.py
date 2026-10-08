@@ -77,6 +77,15 @@ FIT_OUTPUTS: tuple[str, ...] = (
     "sofa_confidence_calibration.json",
 )
 CONFIDENCE_FILE = "sofa_confidence_calibration.json"
+# Written by the staged fits of the 2026-10-08 packages, not by `fit`: `install`
+# carries each only when its flag is given (and then refuses when it is
+# missing or unreadable in the staged dir - never a silent drop).
+# `per_market_k` has no file of its own: K_CENTRE.by_market lives in
+# sofa_engine_constants.json (FIT_OUTPUTS), and the flag checks it is staged.
+EXTRA_OUTPUTS: dict[str, str] = {
+    "count_dispersion": "sofa_count_dispersion.json",
+    "tennis_rating": "tennis_rating.json",
+}
 
 # Gitignored secrets: never copied into a backup or a scratch dir, where a
 # `git add config/` would then pick them up.
@@ -535,7 +544,17 @@ def rebuild_cache_rows(
     halves: bool = False,
     derived: str = "",
     tennis_rating: bool = True,
+    count_dispersion: bool = False,
+    cards_correlation: bool = False,
+    per_market_k: bool = False,
+    tennis_scoped_table: bool = False,
 ) -> dict[str, Any]:
+    if count_dispersion != per_market_k:
+        # fitted jointly (epochs.require_k_with_dispersion): one without the
+        # other would replay a model nobody measured
+        raise RefitError(
+            "--count-dispersion and --per-market-k go together (they were "
+            "fitted jointly); give both or neither")
     if not paths.db_path.exists():
         raise RefitError(f"DB {paths.db_path} does not exist")
     # Pre-flight, BEFORE anything is deleted (review 2026-10-07): the child
@@ -655,8 +674,28 @@ def rebuild_cache_rows(
     if not tennis_rating:
         # The replay as it was before the rating prices (2026-10-07).
         cmd += ["--tennis-rating", "skip"]
+    if count_dispersion:
+        # The football counts priced with the history's dispersion
+        # (epochs.COUNT_DISPERSION; config/sofa_count_dispersion.json of the
+        # refit's config dir - the replay reads it through SOFA_CONFIG_DIR).
+        cmd += ["--count-dispersion"]
+    if cards_correlation:
+        # epochs.CARDS_CORRELATION: the cards joints' sides correlated
+        cmd += ["--cards-correlation"]
+    if per_market_k:
+        # epochs.PER_MARKET_K: football centres with K_CENTRE.by_market of the
+        # refit's engine constants (read through SOFA_CONFIG_DIR)
+        cmd += ["--per-market-k"]
+    if tennis_scoped_table:
+        # epochs.TENNIS_SCOPED_TABLE: the table cut by tier x gender and the
+        # V5 start of the refit's config dir tennis_rating.json
+        cmd += ["--tennis-scoped-table"]
+    report["tennis_scoped_table"] = tennis_scoped_table
     report["derived"] = derived
     report["tennis_rating"] = tennis_rating
+    report["count_dispersion"] = count_dispersion
+    report["cards_correlation"] = cards_correlation
+    report["per_market_k"] = per_market_k
     t1 = time.monotonic()
     # The replay prices with the constants and baselines it is about to be
     # fitted against: the live ones.
@@ -1702,16 +1741,54 @@ def _serialise_like(name: str, doc: dict[str, Any]) -> str:
     return json.dumps(doc, indent=2, ensure_ascii=False)
 
 
+def _check_staged_extra(src: Path, name: str) -> None:
+    """A flagged extra must be staged and readable by the code that will read it."""
+    if not src.exists():
+        raise RefitError(f"{src} missing: its flag was given, nothing to install")
+    try:
+        if name == EXTRA_OUTPUTS["count_dispersion"]:
+            from bet.sofa.count_dispersion import parse_table
+
+            table = parse_table(json.loads(src.read_text()), str(src))
+            if not table.markets:
+                raise ValueError("no markets")
+        else:
+            from bet.sofa.tennis_rating import load_coefficients
+
+            if load_coefficients(src) is None:
+                raise ValueError("no coefficients")
+    except (ValueError, KeyError, TypeError) as exc:
+        raise RefitError(f"{src} is not installable: {exc}") from exc
+
+
+def _check_staged_by_market(src: Path) -> None:
+    doc = load_json(src)
+    by_market = ((doc.get("K_CENTRE") or {}).get("by_market") or {}).get("football")
+    if not by_market:
+        raise RefitError(
+            f"{src}: K_CENTRE.by_market.football missing - --per-market-k was "
+            "given, nothing to install")
+
+
 def install(
     paths: Paths,
     *,
     confirm: bool,
     backup_dir: Path | None = None,
     tests: Callable[[], int] = run_tests,
+    count_dispersion: bool = False,
+    tennis_rating: bool = False,
+    per_market_k: bool = False,
 ) -> dict[str, Any]:
     if not confirm:
         raise RefitError("install writes config/ - pass --confirm")
     check_scratch(paths)
+    wanted = {"count_dispersion": count_dispersion, "tennis_rating": tennis_rating}
+    extras = [EXTRA_OUTPUTS[k] for k, on in wanted.items() if on]
+    for name in extras:
+        _check_staged_extra(paths.scratch_config / name, name)
+    if per_market_k:
+        _check_staged_by_market(paths.scratch_config / "sofa_engine_constants.json")
     manifest = load_json(paths.scratch / FIT_MANIFEST)
     if not manifest.get("complete"):
         raise RefitError(
@@ -1728,7 +1805,7 @@ def install(
     bman = load_json(bdir / MANIFEST)
     if not bman:
         raise RefitError(f"no backup manifest in {bdir} - run `backup` first")
-    for name in FIT_OUTPUTS:
+    for name in (*FIT_OUTPUTS, *extras):
         live = paths.config_dir / name
         recorded = (bman.get("files") or {}).get(name, {}).get("sha256")
         if live.exists() and recorded != sha256_of(live):
@@ -1761,10 +1838,21 @@ def install(
         written[name] = sha256_of(live)
         say(f"installed {name}" + (" (operator keys carried)" if changed else ""))
 
+    created: list[Path] = []
+    for name in extras:
+        live = paths.config_dir / name
+        if not live.exists():
+            created.append(live)  # not in the backup: a failed install removes it
+        write_bytes_atomic(live, (paths.scratch_config / name).read_bytes())
+        written[name] = sha256_of(live)
+        say(f"installed {name}")
+
     rc = tests()
     if rc != 0:
         say(f"tests/sofa FAILED (exit {rc}) - restoring {bdir}")
-        restore(paths, confirm=True, backup_dir=bdir, only=FIT_OUTPUTS)
+        restore(paths, confirm=True, backup_dir=bdir, only=(*FIT_OUTPUTS, *extras))
+        for gone in created:
+            gone.unlink(missing_ok=True)
         raise RefitError(f"tests failed after install; config restored from {bdir}")
     record = {
         "installed_at_utc": utc_stamp(),
@@ -1775,7 +1863,7 @@ def install(
     write_atomic(
         paths.scratch / "install_manifest.json", json.dumps(record, indent=1) + "\n"
     )
-    files = " ".join(f"config/{n}" for n in FIT_OUTPUTS)
+    files = " ".join(f"config/{n}" for n in (*FIT_OUTPUTS, *extras))
     say("tests/sofa passed. Commit it as one epoch:")
     message = f"refit {paths.date}: new comparability epoch"
     say(f'  git add {files} && git commit -m "{message}"')
@@ -1908,6 +1996,36 @@ def build_parser() -> argparse.ArgumentParser:
         "replayed (calibrate_from_cache --derived, e.g. goals,corners)",
     )
     r.add_argument(
+        "--count-dispersion", action="store_true",
+        help="replay the football counts with the dispersion fitted on the "
+        "history (calibrate_from_cache --count-dispersion; "
+        "epochs.COUNT_DISPERSION_FROM_UTC - needs config/"
+        "sofa_count_dispersion.json from fit_count_dispersion.py)",
+    )
+    r.add_argument(
+        "--cards-correlation", action="store_true",
+        help="replay the football cards joints with the sides correlated "
+        "(calibrate_from_cache --cards-correlation; epochs."
+        "CARDS_CORRELATION_FROM_UTC; needs --derived with cards_points)",
+    )
+    r.add_argument(
+        "--tennis-scoped-table", action="store_true",
+        help="replay the tennis rating with the neighbour table cut by tier x "
+        "gender and the V5 start (calibrate_from_cache --tennis-scoped-table; "
+        "epochs.TENNIS_SCOPED_TABLE_FROM_UTC - needs the V5 "
+        "tennis_rating.json from fit_tennis_rating.py --tier-start in the "
+        "refit's config dir; limitation: the tier_start offsets are fitted "
+        "from the players' Elo at the cut and applied to every replayed "
+        "earlier match - an in-sample look-ahead like the coefficients)",
+    )
+    r.add_argument(
+        "--per-market-k", action="store_true",
+        help="replay the football centres with the K of their own market "
+        "(calibrate_from_cache --per-market-k; epochs.PER_MARKET_K_FROM_UTC; "
+        "needs K_CENTRE.by_market in the config dir's "
+        "sofa_engine_constants.json)",
+    )
+    r.add_argument(
         "--no-tennis-rating", action="store_true",
         help="replay the tennis games rows with the sample estimator, as "
         "before 2026-10-07 (calibrate_from_cache --tennis-rating skip)",
@@ -1924,6 +2042,15 @@ def build_parser() -> argparse.ArgumentParser:
     i = sub.add_parser("install", help="scratch config -> config/, then tests/sofa")
     i.add_argument("--confirm", action="store_true")
     i.add_argument("--backup", default=None)
+    i.add_argument("--count-dispersion", action="store_true",
+                   help="also install the staged sofa_count_dispersion.json "
+                   "(refused if absent)")
+    i.add_argument("--tennis-rating", action="store_true",
+                   help="also install the staged tennis_rating.json "
+                   "(refused if absent)")
+    i.add_argument("--per-market-k", action="store_true",
+                   help="require K_CENTRE.by_market.football in the staged "
+                   "engine constants (installed with them)")
 
     s = sub.add_parser("restore", help="config/ back from a backup dir")
     s.add_argument("--confirm", action="store_true")
@@ -2012,6 +2139,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     halves=args.with_halves,
                     derived=args.derived,
                     tennis_rating=not args.no_tennis_rating,
+                    count_dispersion=args.count_dispersion,
+                    cards_correlation=args.cards_correlation,
+                    per_market_k=args.per_market_k,
+                    tennis_scoped_table=args.tennis_scoped_table,
                 )["exit"]
             )
         if args.command == "fit":
@@ -2031,6 +2162,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     paths,
                     confirm=args.confirm,
                     backup_dir=Path(args.backup) if args.backup else None,
+                    count_dispersion=args.count_dispersion,
+                    tennis_rating=args.tennis_rating,
+                    per_market_k=args.per_market_k,
                 )["exit"]
             )
         if args.command == "restore":

@@ -129,6 +129,7 @@ so a filtered refresh's merge keeps the prices the previous file holds.
 | `epoch` | `stats_only` on a stats-only build; absent = the old rule. CONFIDENCE refuses a sheet without it on a stats-only day |
 | `forecast_p`, `forecast_source` | the rating's own number ("model", uncalibrated; `football_rating` / `tennis_rating` / null) - printed, never a gate |
 | `link_rule` | `shared_league` on a row rated under the 2026-10-07 06:45Z link rule; absent = the old rule (a rebuild re-runs SHEET on such a sheet) |
+| `dispersion_rule`, `tennis_table_rule`, `cards_rule`, `k_rule` | markers of the staged model packages (`dispersion_rule` / `cards_rule` / `k_rule` on every row, `tennis_table_rule` on tennis rows only) (`COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`, `PER_MARKET_K`; all switches `None` until the operator moves them): absent = the old estimator. Once a switch is on for the day built, a rebuild re-runs SHEET on a sheet without the marker (`rebuild_plan`) - unlike `TENNIS_RATING_PRICES` / `DERIVED_MARGINAL_CENTRES` / `BB_FRESHNESS` |
 | `sample_frequency` | hits/n at the rung, empirical-frequency metrics only (the old disagreement gates read it) |
 | `calibration_correction` | subtracted from `p_central` before the price blend. On the row since 2026-09-21 — without it `p_bar` cannot be re-derived from the row's own fields. |
 | `market_p` | Superbet's price, power-devigged. `null` when one-sided. |

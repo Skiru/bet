@@ -92,7 +92,9 @@ where your contribution is.
   and half of `games_total`'s (the other half the NB count model); on those
   `p_central` and `forecast_p` are the same number, and the player's own
   sample enters only as próbka k/n. The neighbours are not scoped by surface
-  or tier (measured: no help), so the surface and the opposition remain the
+  (measured: no help) nor, today, by tier (a tier x gender table is the staged
+  package `TENNIS_SCOPED_TABLE`, OFF until the operator moves it; measured
+  2026-10-08: games_total -81e-4 log-loss), so the surface and the opposition remain the
   analyst's. sofa does **not** map
   Superbet's match-winner market (`Zwycięzca` sits in `unmapped_markets` in
   `04_offer.json`), so the book's favourite-strength input is the fixture's

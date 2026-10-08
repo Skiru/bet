@@ -98,6 +98,14 @@ class DayState:
     sheet_epoch: str | None = epochs.STATS_ONLY
     # every 05_sheet.json row rated under the shared-league link rule
     sheet_link_shared: bool = True
+    # every 05_sheet.json row priced under epochs.COUNT_DISPERSION
+    sheet_dispersion: bool = True
+    # every 05_sheet.json row priced under epochs.CARDS_CORRELATION
+    sheet_cards: bool = True
+    # every 05_sheet.json row priced under epochs.PER_MARKET_K
+    sheet_k: bool = True
+    # every tennis 05_sheet.json row priced under epochs.TENNIS_SCOPED_TABLE
+    sheet_tennis_table: bool = True
     offer_fixtures: int = 0  # fixtures on 04_offer.json with a rung
     open_fixtures: int = 0  # ... a refresh would re-price and CONFIDENCE gate
     oldest_open_rung: datetime | None = None
@@ -246,10 +254,18 @@ def observe(runs_dir: str, date: str, now: datetime,
     offers = _load_json(offer_path) if offer_path.exists() else []
     sheet_ep: str | None = None
     sheet_link_shared = True
+    sheet_dispersion = True
+    sheet_cards = True
+    sheet_k = True
+    sheet_tennis_table = True
     if sheet_path.exists():
         sheet = _load_json(sheet_path)
         sheet_ep = epochs.sheet_epoch(sheet) if sheet else epochs.STATS_ONLY
         sheet_link_shared = epochs.sheet_link_shared(sheet or [])
+        sheet_dispersion = epochs.sheet_count_dispersion(sheet or [])
+        sheet_cards = epochs.sheet_cards_correlation(sheet or [])
+        sheet_k = epochs.sheet_per_market_k(sheet or [])
+        sheet_tennis_table = epochs.sheet_tennis_scoped_table(sheet or [])
     priced, open_n, oldest, newest = observe_offer(
         fixtures, offers, fs.load(run), now)
     sports = ({s: observe_sport(runs_dir, s, date, now) for s in SPORTS}
@@ -264,6 +280,10 @@ def observe(runs_dir: str, date: str, now: datetime,
         has_fixtures=fixtures_path.exists(), has_sheet=sheet_path.exists(),
         has_offer=offer_path.exists(), sheet_epoch=sheet_ep,
         sheet_link_shared=sheet_link_shared,
+        sheet_dispersion=sheet_dispersion,
+        sheet_cards=sheet_cards,
+        sheet_k=sheet_k,
+        sheet_tennis_table=sheet_tennis_table,
         offer_fixtures=priced, open_fixtures=open_n,
         oldest_open_rung=oldest, newest_rung=newest, sports=sports,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
@@ -401,7 +421,16 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     epoch_stale = stats_only and state.sheet_epoch != epochs.STATS_ONLY
     link_stale = (epochs.link_shared_league(d, now)
                   and not state.sheet_link_shared)
-    sheet_rebuilt = epoch_stale or link_stale
+    dispersion_stale = (epochs.count_dispersion_enabled(d, now)
+                        and not state.sheet_dispersion)
+    cards_stale = (epochs.cards_correlation_enabled(d, now)
+                   and not state.sheet_cards)
+    tennis_table_stale = (epochs.tennis_scoped_table_enabled(d, now)
+                          and not state.sheet_tennis_table)
+    k_stale = (epochs.per_market_k_enabled(d, now) and not state.sheet_k)
+    sheet_rebuilt = (epoch_stale or link_stale or dispersion_stale or cards_stale
+                     or k_stale
+                     or tennis_table_stale)
     if epoch_stale:
         plan.steps.append(Step(
             "SHEET", _pipeline(d, "SHEET", run_id),
@@ -412,6 +441,30 @@ def build_plan(state: DayState, run_id: str = "rebuild",
             "SHEET", _pipeline(d, "SHEET", run_id),
             "05_sheet.json rated under the old link rule: the football rating "
             "links only through a shared league (epochs.link_shared_league)"))
+    elif dispersion_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json priced from the sample variance: football counts "
+            "read the dispersion fitted on the history "
+            "(epochs.count_dispersion_enabled)"))
+    elif cards_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json priced with independent cards sides: the cards "
+            "joints read the measured residual correlation "
+            "(epochs.cards_correlation_enabled)"))
+    elif k_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json priced with the sport's K_CENTRE: football "
+            "centres read the K of their own market "
+            "(epochs.per_market_k_enabled)"))
+    elif tennis_table_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json priced from the pooled tennis neighbour table: "
+            "tennis reads the table cut by tier x gender "
+            "(epochs.tennis_scoped_table_enabled)"))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
     if not skip_audits and (sheet_rebuilt or state.coupon06_stale):

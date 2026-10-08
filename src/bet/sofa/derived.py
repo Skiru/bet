@@ -38,6 +38,7 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
+from bet.sofa import epochs
 from bet.sofa.config import config_path
 from bet.sofa.contracts import (
     Direction,
@@ -50,6 +51,7 @@ from bet.sofa.contracts import (
     SheetRow,
     Veto,
 )
+from bet.sofa.count_dispersion import Dispersion, DispersionTable
 from bet.sofa.engine import (
     bar_probability,
     devig,
@@ -171,6 +173,7 @@ def _shrink_sides_to_diff(
 
 def load_side_correlations(
     path: Path = CORRELATIONS_PATH,
+    cards_correlation: bool = False,
 ) -> dict[str, float | None]:
     """Measured per-metric correlation between the two sides of a match.
 
@@ -179,7 +182,19 @@ def load_side_correlations(
     corners are negatively correlated — but it is the *documented* wrong
     answer, and it is what the marginal path already implies today. Inventing
     a number here would be worse.
+
+    `cards_correlation` (epochs.CARDS_CORRELATION, the day being built): the
+    cards joints' sides read epochs.CARDS_CORRELATION_RHO. The number lives
+    behind the switch, not in the file, so the file's null keeps pricing
+    independent sides while the switch is off.
     """
+    out = _file_side_correlations(path)
+    if cards_correlation:
+        out[epochs.CARDS_CORRELATION_BASE] = epochs.CARDS_CORRELATION_RHO
+    return out
+
+
+def _file_side_correlations(path: Path) -> dict[str, float | None]:
     if not path.exists():
         return {}
     try:
@@ -232,7 +247,8 @@ class SideStats:
 
 
 def marginal_centred_stats(
-    stats: SideStats, metric: str, centre: float
+    stats: SideStats, metric: str, centre: float,
+    dispersion: Dispersion | None = None,
 ) -> SideStats:
     """The side as its own marginal row prices it (football goals joints).
 
@@ -245,7 +261,8 @@ def marginal_centred_stats(
     (2025-08..2026-09, 375,714 matches) against +0.0051 with these centres.
     """
     sd = sheet_predictive_sd(
-        metric, "football", stats.mean, stats.variance, stats.n, centre)
+        metric, "football", stats.mean, stats.variance, stats.n, centre,
+        dispersion)
     return SideStats(n=stats.n, mean=max(1e-6, centre), variance=sd * sd, sd=sd)
 
 
@@ -440,6 +457,7 @@ def price_derived_rungs(
     rating_note: Callable[[str | None, float, float | None], str] | None = None,
     stats_only: bool = False,
     marginal_centres: Mapping[tuple[str, str], float] | None = None,
+    dispersion_table: DispersionTable | None = None,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs): the handicap centre is not pulled onto
     the ladder (K_DERIVED_CENTRE), so p_central does not read the price.
@@ -447,7 +465,10 @@ def price_derived_rungs(
     `marginal_centres` ((side metric, "side_a" | "side_b") -> centre) is given
     by SHEET for football from epochs.DERIVED_MARGINAL_CENTRES_FROM_UTC; both
     sides of a metric present = the joint is built from the marginal rows'
-    centres (marginal_centred_stats), else from the raw sample as before."""
+    centres (marginal_centred_stats), else from the raw sample as before.
+    `dispersion_table` (epochs.COUNT_DISPERSION) gives those marginal spreads
+    the fitted alpha, as the marginal rows carry it; the JOINT built from them
+    was not measured under it (A2 measured marginals only)."""
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
 
@@ -498,8 +519,13 @@ def price_derived_rungs(
         mc_a = (marginal_centres or {}).get((side_metric, "side_a"))
         mc_b = (marginal_centres or {}).get((side_metric, "side_b"))
         if mc_a is not None and mc_b is not None:
-            centred_a = marginal_centred_stats(stats_a, side_metric, mc_a)
-            centred_b = marginal_centred_stats(stats_b, side_metric, mc_b)
+            disp = (
+                dispersion_table.read(
+                    fixture.sport, side_metric, fixture.competition_id)
+                if dispersion_table is not None else None
+            )
+            centred_a = marginal_centred_stats(stats_a, side_metric, mc_a, disp)
+            centred_b = marginal_centred_stats(stats_b, side_metric, mc_b, disp)
         if base not in joint_cache:
             joint_cache[base] = (
                 build_joint(

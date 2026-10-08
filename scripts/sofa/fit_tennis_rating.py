@@ -22,7 +22,9 @@ from bet.sofa.tennis_rating import (
     FEATURES,
     MIN_RATED,
     NEIGHBOURS,
+    V5_FEATURES,
     fit_coefficients,
+    fit_tier_start,
     load_history,
     replay,
 )
@@ -32,13 +34,28 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cut", required=True, help="YYYY-MM-DD, exclusive")
     parser.add_argument("--out", default=str(DEFAULT_CONFIG))
+    parser.add_argument(
+        "--tier-start",
+        action="store_true",
+        help="V5 (epochs.TENNIS_SCOPED_TABLE): newcomers start at the mean "
+        "Elo of the players who entered at their tier, the Elo gap enters as "
+        "lp_t in place of lp, and config 'tier_start' holds the offsets. "
+        "Limitation: the offsets are fitted from the players' Elo at the cut and "
+        "applied to every replayed earlier match (an in-sample look-ahead of "
+        "the same kind as the coefficients'). "
+        "Stage it with --out <dir>/tennis_rating.json and SOFA_CONFIG_DIR; "
+        "never over the live config without the operator's go",
+    )
     args = parser.parse_args()
 
     cut = datetime.strptime(args.cut, "%Y-%m-%d").replace(tzinfo=UTC)
     config = SofaConfig.from_env()
     history = load_history(config.db_path)
-    _, rated = replay(history, int(cut.timestamp()))
-    tiers = fit_coefficients(rated)
+    tier_start = (
+        fit_tier_start(history, int(cut.timestamp())) if args.tier_start else None)
+    names = V5_FEATURES if args.tier_start else FEATURES
+    _, rated = replay(history, int(cut.timestamp()), tier_start)
+    tiers = fit_coefficients(rated, names)
     out = {
         "fitted_from": {
             "source": "sofa_entity_events (kind=last), completed singles",
@@ -47,11 +64,13 @@ def main() -> int:
             "rated_matches": len(rated),
             "fitted_at_utc": datetime.now(UTC).isoformat(),
         },
-        "features": list(FEATURES),
+        "features": list(names),
         "min_rated": MIN_RATED,
         "neighbours": NEIGHBOURS,
         "tiers": tiers,
     }
+    if tier_start is not None:
+        out["tier_start"] = tier_start
     write_atomic(Path(args.out), json.dumps(out, indent=2) + "\n")
     for tier, entry in tiers.items():
         coefficients = ", ".join(f"{c:+.3f}" for c in entry["coefficients"])

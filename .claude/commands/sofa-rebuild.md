@@ -56,7 +56,9 @@ cutover is not one experiment.
 Later switches in `bet.sofa.epochs` are read on the day being built AND the
 build's clock: line evidence (`LINE_EVIDENCE_FROM_UTC`, 2026-10-07 10:55Z; its
 second rules 13:42Z), the model packages (`TENNIS_RATING_PRICES`,
-`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS`, 14:05Z), the shared-league link
+`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS`, 14:05Z; the staged `COUNT_DISPERSION`,
+`TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`, `PER_MARKET_K` stay `None` until the
+operator moves them, and then a rebuild re-runs SHEET on an old-rule sheet), the shared-league link
 rule (06:45Z). A rebuild made now of a day >= 2026-10-07 therefore prints
 under all of them - a mixed day (10-07) rebuilt this evening is one rule set
 for the unlocked legs, while legs locked from an earlier print keep what they
@@ -98,7 +100,9 @@ and prints every step with its reason and command:
   is missing).
 - **SHEET** (`--only SHEET`) only when CONFIDENCE would refuse the sheet (a
   stats-only build of a sheet not built under that rule, `epochs.sheet_epoch`)
-  or the sheet was rated under the old link rule (`link_shared_league`).
+  or the sheet was rated under the old link rule (`link_shared_league`), or lacks
+  the row marker of a staged package that is on (`COUNT_DISPERSION`,
+  `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`, `PER_MARKET_K`; all OFF today).
   **The rebuild does NOT re-run SHEET for anything else.** `p_central` lives
   in `05_sheet.json`, so after a change of the SHEET estimator - the tennis
   rating prices, the derived marginal centres, the basketball freshness noise

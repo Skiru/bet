@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 from bet.sofa.contracts import Direction
+from bet.sofa.count_dispersion import FAMILY_NB, Dispersion
 from bet.sofa.epochs import model_fixes_enabled
 
 MAX_LADDER_SIGMA = 1.25
@@ -286,7 +287,7 @@ def uses_poisson_floor(market: str) -> bool:
 
 def sheet_predictive_sd(
     market: str, sport: str | None, mean: float, variance: float, n: int,
-    centre: float,
+    centre: float, dispersion: Dispersion | None = None,
 ) -> float:
     """SHEET's predictive sd for a modelled rung, given the shrunk centre.
 
@@ -303,7 +304,15 @@ def sheet_predictive_sd(
     One function for run_sheet and the cache replay (calibrate_from_cache):
     the replay's stored p_central is what fit_confidence keys a curve on, and
     a curve keyed on a p the sheet does not compute describes another model.
+
+    `dispersion` (bet.sofa.count_dispersion, only from
+    epochs.COUNT_DISPERSION_FROM_UTC): the fitted alpha replaces the sample's
+    variance - sd^2 = centre + alpha centre^2, no (1 + 1/n). None (the switch
+    off, a market or a sport the file does not cover) is the code below,
+    unchanged.
     """
+    if dispersion is not None:
+        return math.sqrt(dispersion.variance(centre))
     floor = uses_poisson_floor(market)
     scaled_sport = sport == "football" or (
         sport == "tennis"
@@ -344,7 +353,7 @@ TENNIS_DISPERSION_SCALED_METRICS = frozenset(
 
 def sheet_count_p_raw(
     market: str, centre: float, pred_sd: float, boundary: float,
-    direction: Direction,
+    direction: Direction, dispersion: Dispersion | None = None,
 ) -> float:
     """SHEET's unclamped p for a modelled (non-empirical, non-rating) rung.
 
@@ -352,7 +361,16 @@ def sheet_count_p_raw(
     the distribution is discrete on 0,1,2,...), else the normal CDF with the
     market's support floor. Shared with the cache replay for the reason given
     in sheet_predictive_sd.
+
+    `dispersion` carries the family fitted for the market (NB, or the floored
+    normal for shots_total) in place of the NEGATIVE_BINOMIAL_METRICS list.
     """
+    if dispersion is not None:
+        if dispersion.family == FAMILY_NB:
+            return calc_p_central_nb_raw(centre, pred_sd, boundary, direction)
+        return calc_p_central_raw(
+            centre, pred_sd, boundary, direction, support_floor_for(market)
+        )
     if uses_negative_binomial(market):
         return calc_p_central_nb_raw(centre, pred_sd, boundary, direction)
     return calc_p_central_raw(

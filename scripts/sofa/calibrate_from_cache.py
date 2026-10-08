@@ -64,7 +64,7 @@ import json
 import math
 import sqlite3
 import statistics
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -79,6 +79,8 @@ from bet.sofa.comparability import (
 )
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import GapReason
+from bet.sofa.count_dispersion import DispersionTable
+from bet.sofa.count_dispersion import load_table as load_dispersion_table
 from bet.sofa.derived import (
     SideStats,
     load_side_correlations,
@@ -107,6 +109,7 @@ from bet.sofa.metrics import (
     stat_is_untracked,
     zero_pair_not_recorded,
 )
+from bet.sofa.per_market_k import k_for_market
 from bet.sofa.players import (
     PLAYER_METRICS,
     extract_player_metric,
@@ -130,6 +133,7 @@ from bet.sofa.tennis_rating import (
     MatchForecast,
     load_coefficients,
     load_history,
+    start_for_rule,
 )
 
 # Metric base -> Sofascore statistics key. Goals are not here: they come off
@@ -662,18 +666,26 @@ class RatingReplay:
         history: list[Any],
         coefficients: dict[str, list[float]],
         names: tuple[str, ...],
+        scoped: bool = False,
+        tier_start: Mapping[str, float] | None = None,
     ) -> None:
-        self._rating = AsOfRating(history, coefficients, names)
+        # scoped / tier_start: epochs.TENNIS_SCOPED_TABLE (default off). The
+        # rating is built in memory from the history on every run, never
+        # cached on disk, so the two rules cannot collide in a cache.
+        self._rating = AsOfRating(history, coefficients, names, scoped, tier_start)
         self.forecasts = 0
         self.unrated = 0
 
     @classmethod
-    def from_db(cls, db_path: Path) -> RatingReplay | None:
+    def from_db(cls, db_path: Path, scoped: bool = False) -> RatingReplay | None:
         loaded = load_coefficients()
         if loaded is None:
             return None
         coefficients, meta = loaded
-        return cls(load_history(db_path), coefficients, tuple(meta["features"]))
+        return cls(
+            load_history(db_path), coefficients, tuple(meta["features"]),
+            scoped, start_for_rule(
+                meta["features"], meta.get("tier_start"), scoped))
 
     def forecast(self, match: Played) -> MatchForecast | None:
         ctx = match.tennis
@@ -782,9 +794,15 @@ def football_joint_rows(
         raw.append(SideStats(n=n, mean=statistics.mean(sample), variance=var,
                              sd=math.sqrt(var)))
     c_home, c_away = centres
+    # epochs.COUNT_DISPERSION: the marginal spreads carry the fitted alpha, as
+    # derived.price_derived_rungs gives them in SHEET (replay == SHEET)
+    disp = (
+        COUNT_DISPERSION.read(match.sport, side_metric, match.competition_id)
+        if COUNT_DISPERSION is not None else None
+    )
     stats = (
-        [marginal_centred_stats(raw[0], side_metric, c_home),
-         marginal_centred_stats(raw[1], side_metric, c_away)]
+        [marginal_centred_stats(raw[0], side_metric, c_home, disp),
+         marginal_centred_stats(raw[1], side_metric, c_away, disp)]
         if c_home is not None and c_away is not None else raw
     )
     joint = build_joint(stats[0].mean, stats[0].variance, stats[1].mean,
@@ -855,7 +873,7 @@ def iter_rows(
     replay without holding tens of millions of rows."""
     # Read once: the constant is per sport and must be the one that ships.
     engine_constants = _load_engine_constants()
-    correlations = load_side_correlations()
+    correlations = load_side_correlations(cards_correlation=CARDS_CORRELATION)
     # (team, base) -> chronological list of earlier matches
     history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
 
@@ -1002,8 +1020,25 @@ def shrunk_centre(
     prior = prior_for(baselines, market, match.competition_id)
     if prior is None:
         return mean
-    weight = n / (n + k_centre_for(match.sport, engine_constants))
+    k = k_centre_for(match.sport, engine_constants)
+    if PER_MARKET_K:
+        k = k_for_market(engine_constants, match.sport, market, k)
+    weight = n / (n + k)
     return weight * mean + (1.0 - weight) * prior
+
+
+# The fitted football count dispersion (bet.sofa.count_dispersion), set by
+# main() from --count-dispersion; None = the replay as it was (the sample's
+# variance). Module state like the measurements' monkey-patch of _settle_sample.
+COUNT_DISPERSION: DispersionTable | None = None
+
+# epochs.CARDS_CORRELATION in the replay (--cards-correlation): the cards
+# joints' sides at epochs.CARDS_CORRELATION_RHO instead of independent.
+CARDS_CORRELATION = False
+
+# epochs.PER_MARKET_K in the replay (--per-market-k): football centres shrunk
+# with K_CENTRE.by_market of the engine constants (bet.sofa.per_market_k).
+PER_MARKET_K = False
 
 
 def _settle_sample(
@@ -1033,7 +1068,14 @@ def _settle_sample(
     # stats-only rating prices (epochs.TENNIS_RATING_PRICES_FROM_UTC): a
     # rating_p callable, given by iter_rows, replaces p for games_won_for and
     # mixes into games_total exactly as run_sheet does.
-    spread = sheet_predictive_sd(market, match.sport, mean, variance, n, centre)
+    # epochs.COUNT_DISPERSION: the same fitted alpha SHEET reads, only with
+    # --count-dispersion (COUNT_DISPERSION is None otherwise: the sample variance)
+    dispersion = (
+        COUNT_DISPERSION.read(match.sport, market, match.competition_id)
+        if COUNT_DISPERSION is not None else None
+    )
+    spread = sheet_predictive_sd(
+        market, match.sport, mean, variance, n, centre, dispersion)
     empirical = uses_empirical_frequency(market)
 
     for line in lines_for(centre):
@@ -1059,7 +1101,7 @@ def _settle_sample(
                 )
             else:
                 p_raw = sheet_count_p_raw(
-                    market, centre, spread, boundary, direction
+                    market, centre, spread, boundary, direction, dispersion
                 )
             if p_rating is not None:
                 # run_sheet: the neighbours alone for the RATING_PRICED
@@ -1790,7 +1832,64 @@ def main() -> int:
         "Needs config/tennis_rating.json (SOFA_CONFIG_DIR) and the cached "
         "player listings (tennis_rating.load_history, ~30 s, ~250 MB)",
     )
+    parser.add_argument(
+        "--tennis-scoped-table",
+        action="store_true",
+        help="replay the tennis rating as SHEET prices it under "
+        "epochs.TENNIS_SCOPED_TABLE_FROM_UTC: the neighbour table cut by tier "
+        "x gender (tier, then pooled, when a cell is thin) and the tier "
+        "start of config/tennis_rating.json when it names lp_t. Default off: "
+        "the pooled table. Needs the V5 config staged in SOFA_CONFIG_DIR "
+        "(fit_tennis_rating.py --tier-start --out ...); the curves fitted "
+        "from such a replay describe that rule and no other. A refit that "
+        "replays it must not be installed without the switch. Limitation: "
+        "the tier_start offsets are fitted from the players' Elo at the cut "
+        "(fit_tennis_rating --tier-start) and applied to every replayed "
+        "earlier match - an in-sample look-ahead of the same kind as the "
+        "coefficients'",
+    )
+    parser.add_argument(
+        "--count-dispersion",
+        nargs="?", const="", default=None, metavar="CONFIG",
+        help="price the football counts with the dispersion fitted on the "
+        "history, as SHEET does under epochs.COUNT_DISPERSION_FROM_UTC "
+        "(bet.sofa.count_dispersion; CONFIG defaults to config/"
+        "sofa_count_dispersion.json, SOFA_CONFIG_DIR). Default off: the sample "
+        "variance. A staged refit that replays it describes the rule that "
+        "ships with the switch; the alphas were fitted on the same history, "
+        "so the replay is in-sample for them (a few parameters per market)",
+    )
+    parser.add_argument(
+        "--cards-correlation", action="store_true",
+        help="price the football cards joints (both_over_ / most_ / handicap_ "
+        "cards_points) with the sides correlated at epochs."
+        "CARDS_CORRELATION_RHO, as SHEET does under epochs."
+        "CARDS_CORRELATION_FROM_UTC. Default off: independent sides. Needs "
+        "--derived with a cards joint; the number was measured on the same "
+        "history (in-sample for one parameter)",
+    )
+    parser.add_argument(
+        "--per-market-k", action="store_true",
+        help="shrink the football centres with the K of their own market "
+        "(config/sofa_engine_constants.json K_CENTRE.by_market.football; "
+        "bet.sofa.per_market_k), as SHEET does under epochs."
+        "PER_MARKET_K_FROM_UTC. Default off: the sport's K. The K were chosen "
+        "on the same history (docs/sofa/evidence/k_under_dispersion_"
+        "2026-10-08.md), so the replay is in-sample for them",
+    )
     args = parser.parse_args()
+    if (args.count_dispersion is not None) != bool(args.per_market_k):
+        # fitted jointly: SHEET refuses one without the other
+        # (epochs.require_k_with_dispersion), so the replay must too
+        parser.error("--count-dispersion and --per-market-k go together "
+                     "(they were fitted jointly); give both or neither")
+
+    global COUNT_DISPERSION, CARDS_CORRELATION, PER_MARKET_K
+    CARDS_CORRELATION = bool(args.cards_correlation)
+    PER_MARKET_K = bool(args.per_market_k)
+    if args.count_dispersion is not None:
+        COUNT_DISPERSION = load_dispersion_table(
+            Path(args.count_dispersion) if args.count_dispersion else None)
 
     config = SofaConfig.from_env()
     db_path = Path(args.db_path or config.db_path)
@@ -1800,7 +1899,7 @@ def main() -> int:
                          f"not in {sorted(JOINT_BASES)}")
     rating: RatingReplay | None = None
     if args.tennis_rating == "include" and args.players != "only":
-        rating = RatingReplay.from_db(db_path)
+        rating = RatingReplay.from_db(db_path, args.tennis_scoped_table)
         if rating is None:
             # A replay that silently reverts to the sample estimator would
             # fit a curve for a model that no longer ships.
@@ -1893,6 +1992,7 @@ def main() -> int:
             },
             "duplicate_listing_ids_dropped": len(dropped),
             "tennis_rating": args.tennis_rating,
+            "tennis_scoped_table": args.tennis_scoped_table,
             "tennis_rating_forecasts": rating.forecasts if rating else None,
             "tennis_rating_unrated": rating.unrated if rating else None,
             "next_step": "python -m scripts.sofa.fit_constants",
