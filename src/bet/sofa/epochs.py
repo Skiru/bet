@@ -452,3 +452,45 @@ def line_evidence(date: str, build_at: datetime | None = None) -> bool:
         return False
     at = build_at if build_at is not None else timeutil.now()
     return date >= LINE_EVIDENCE_DATE and at >= LINE_EVIDENCE_FROM_UTC
+
+
+# Peer choice and stakes (operator, 2026-10-08, after the 10-07 slip lost on
+# Corinthians cards under 4.5 while the total cards over 3.5 stood beside it at
+# a near price: "jak masz dwie nogi po 1.2 to musisz mi zaproponować tę która
+# ma większą pewność wejścia"). Planned for the next day's 00:00Z; moved by
+# the operator to the moment below ("przebudowa dzisiejszego kuponu z nowymi
+# zasadami") - 10-08 is a mixed day: a coupon built before it carries no
+# `peer`, one built after it does. Annotation only (bet.sofa.peer_choice,
+# bet.sofa.stakes): no leg is added, removed or re-ranked and no confidence
+# moves, so what prints is the same either way.
+PEER_CHOICE_DATE = "2026-10-08"
+PEER_CHOICE_FROM_UTC: datetime | None = datetime(2026, 10, 8, 8, 10, tzinfo=UTC)
+
+
+def peer_choice(date: str, build_at: datetime | None = None) -> bool:
+    """Does the coupon say which of two near-priced legs of a match is the
+    surer one, and which fixtures are played for something (PEER_CHOICE_FROM_UTC)?"""
+    if PEER_CHOICE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= PEER_CHOICE_DATE and at >= PEER_CHOICE_FROM_UTC
+
+
+# The analysts' read set counts EVENTS, not positions (operator, 2026-10-08:
+# "30 analizowanych wydarzeń a nie 30 rynków - 30 wydarzeń może mieć 150
+# rynków"): from the build below, `confidence.legs_requiring_read` takes every
+# unlocked leg of the first READ_REQUIRED_EVENTS matches of the coupon (its own
+# order: the match of the best leg first), not the first 30 positions. Every leg
+# still prints. Default next day 00:00Z (changes which legs C3 asks a read on,
+# and so which a read may remove); the build records its rule in the artifact
+# (`read_unit`), so a rebuild and the audits read one rule.
+READ_EVENTS_DATE = "2026-10-09"
+READ_EVENTS_FROM_UTC: datetime | None = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
+
+
+def read_by_event(date: str, build_at: datetime | None = None) -> bool:
+    """Does the read set count events rather than positions (READ_EVENTS_FROM_UTC)?"""
+    if READ_EVENTS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= READ_EVENTS_DATE and at >= READ_EVENTS_FROM_UTC

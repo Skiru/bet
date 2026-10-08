@@ -48,6 +48,8 @@ from bet.sofa import coupon_form as cf  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
+from bet.sofa import peer_choice as pc  # noqa: E402
+from bet.sofa import stakes as stakes_mod  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -59,11 +61,14 @@ from bet.sofa.confidence import (  # noqa: E402
     load_read_requests,
     request_covers,
 )
+from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
     artifact_epoch,
     builder_screen_price_required,
     coupon_form_active,
+    peer_choice,
+    read_by_event,
 )
 from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
@@ -98,6 +103,9 @@ def assemble(
     form_active: bool = False,
     screen_prices: dict[str, bs.ScreenPrice] | None = None,
     screen_required: bool = False,
+    peer_active: bool = False,
+    read_events: bool = False,
+    stakes_by_event: dict[int, list[str]] | None = None,
 ) -> dict[str, Any]:
     """11_coupon.json from its sources. Pure, so a test can pin it.
 
@@ -109,7 +117,11 @@ def assemble(
     F4.2 / F4.3), acting only from epochs.COUPON_STRUCTURE_FROM_UTC.
     `screen_prices` / `screen_required`: the builders' screen prices
     (bet.sofa.builder_screen, F4.4); required from
-    epochs.BUILDER_SCREEN_PRICE_FROM_UTC."""
+    epochs.BUILDER_SCREEN_PRICE_FROM_UTC.
+    `peer_active` / `stakes_by_event`: which of two near-priced legs of a match
+    is the surer one (bet.sofa.peer_choice) and which fixtures are played for
+    something (bet.sofa.stakes), from epochs.PEER_CHOICE_FROM_UTC - annotation
+    only, nothing is added, removed or re-ranked."""
     form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
@@ -174,6 +186,19 @@ def assemble(
     locked_out = [{**s, "group_key": group_key(s)} for s in locked]
 
     out_singles = [*locked_out, *ordered]
+    peers_marked = 0
+    if peer_active:
+        for leg in out_singles:
+            leg.pop("stakes", None)
+            flags = (stakes_by_event or {}).get(int(leg["sofascore_event_id"]))
+            if flags:
+                leg["stakes"] = {
+                    "flags": flags,
+                    "effect": stakes_mod.effect_note(
+                        flags, str(leg.get("market") or ""),
+                        str(leg.get("direction") or "")),
+                }
+        peers_marked = pc.annotate(out_singles)
     structure = coupon_structure(out_singles, builders, form, form_active,
                                  removed_by_form)
     asked = [
@@ -216,6 +241,17 @@ def assemble(
         **({"printed_after_start": late_all} if late_all else {}),
         **({"sports": sports.get("sports")} if sports else {}),
         **structure,
+        # the unit of the analysts' read set (epochs.READ_EVENTS_FROM_UTC)
+        "read_unit": "event" if read_events else "position",
+        "peer_choice": {
+            "active": peer_active,
+            "active_from_utc": "2026-10-08T08:10:00Z",
+            "band": pc.PEER_BAND,
+            "legs_with_peers": peers_marked,
+            "preferred": sum(1 for s in out_singles
+                             if (s.get("peer") or {}).get("preferred")),
+            "stakes_fixtures": len(stakes_by_event or {}),
+        },
         "builders_refused": bs.refused_builders(builders),
         "builder_screen_prices": {
             "file": bs.SCREEN_PRICES_FILE,
@@ -317,6 +353,16 @@ def prepare_sports(
                 {"key": list(cs.sport_key(x)), "refusal": x["refusal"]} for x in late]}
 
 
+def _note(leg: dict[str, Any]) -> str:
+    """The peer proposal and the stakes of a leg, as plain text."""
+    parts = [pc.label(leg)]
+    st = leg.get("stakes")
+    if st:
+        parts.append(", ".join(st["flags"])
+                     + (f" ({st['effect']} tej nogi)" if st.get("effect") else ""))
+    return "; ".join(p for p in parts if p).replace("|", "/")
+
+
 def render_md(doc: dict[str, Any], date: str) -> str:
     lines = [
         f"# Kupon {date} - 11_coupon.json",
@@ -326,8 +372,8 @@ def render_md(doc: dict[str, Any], date: str) -> str:
         f"{sum(1 for b in doc['builders'] if b.get('builder_no'))} Bet Builderów, "
         f"{len(doc['removed_by_reads'])} zdjętych przez odczyt.",
         "",
-        "| # | mecz | rynek | linia | pewność | model | kurs | x | start |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| # | mecz | rynek | linia | pewność | model | kurs | x | start | uwagi |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for s in doc["singles"]:
         pos = s.get("position") or "w grze"
@@ -339,7 +385,7 @@ def render_md(doc: dict[str, Any], date: str) -> str:
             f"| {pos} | {s.get('match', '')} | {s.get('market')}{subj} | "
             f"{s.get('line')} {s.get('direction')} | {s['confidence']:.3f} | "
             f"{'—' if model is None else f'{model:.3f}'} | {odds} | {x} | "
-            f"{str(s.get('kickoff_utc') or '')[11:16]}Z |")
+            f"{str(s.get('kickoff_utc') or '')[11:16]}Z | {_note(s)} |")
     return "\n".join(lines) + "\n"
 
 
@@ -404,10 +450,25 @@ def main() -> int:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     now = at.isoformat().replace("+00:00", "Z")
+    peer_on = peer_choice(args.date, at)
+    stakes_by_event: dict[int, list[str]] = {}
+    if peer_on:
+        # The football history SHEET parsed (bet.sofa.stakes.load_tables); a
+        # day without it prints without the flags, never refused for want of it.
+        cache = Path(SofaConfig.from_env().db_path).parent / "cache"
+        tables = stakes_mod.load_tables(cache / "football_history.pkl")
+        fixtures_path = run / "02_fixtures.json"
+        if tables is not None and fixtures_path.exists():
+            stakes_by_event = stakes_mod.for_day(_load(fixtures_path), tables)
+        elif tables is None:
+            print("STAKES_NOT_SHOWN: football_history.pkl is absent or unreadable",
+                  file=sys.stderr)
     doc = assemble(conf, sports, requests, samples, now, args.date,
                    form=form, form_active=coupon_form_active(args.date, at),
                    screen_prices=screen,
-                   screen_required=builder_screen_price_required(args.date, at))
+                   screen_required=builder_screen_price_required(args.date, at),
+                   peer_active=peer_on, read_events=read_by_event(args.date, at),
+                   stakes_by_event=stakes_by_event)
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
     write_atomic(run / COUPON_ARTIFACT.replace(".json", ".md"),
@@ -432,6 +493,8 @@ def main() -> int:
             "top_positions_matches": doc["exposure"]["top_positions_matches"],
             "removed_by_coupon_form": len(doc["removed_by_coupon_form"]),
             "builders_refused": len(doc["builders_refused"]),
+            "legs_with_peers": doc["peer_choice"]["legs_with_peers"],
+            "stakes_fixtures": doc["peer_choice"]["stakes_fixtures"],
         },
         "output_path": str(run / COUPON_ARTIFACT),
     }))

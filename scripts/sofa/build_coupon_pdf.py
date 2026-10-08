@@ -63,6 +63,7 @@ from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
+from bet.sofa.peer_choice import label as peer_choice_label  # noqa: E402
 from scripts.sofa.coupon_structure_pdf import (  # noqa: E402
     builder_screen_note,
     exposure_flowables,
@@ -176,6 +177,41 @@ def context_label(leg: dict[str, Any]) -> str:
         return ""
     return (f"<br/><font size=6.5 color='#b25b00'>"
             f"{escape(', '.join(str(f) for f in flags))}</font>")
+
+
+PEER_MARK = "▲"
+STAKES_NAMES = {
+    "STAKES_SIX_POINTER": "mecz o utrzymanie (oba kluby przy linii spadkowej)",
+    "STAKES_TOP4": "mecz o czołówkę (oba kluby przy linii 4./5. miejsca)",
+}
+
+
+def peer_label(leg: dict[str, Any]) -> str:
+    """bet.sofa.peer_choice on a printed leg: the surest of the near-priced
+    legs of its match gets a star, a weaker one names the surer."""
+    # Arial (the page's font) has no U+2605: the page's mark is a triangle.
+    text = peer_choice_label(leg).replace("★", PEER_MARK)
+    if not text:
+        return ""
+    colour = "#1f7a3a" if (leg.get("peer") or {}).get("preferred") else "#6b6b6b"
+    return f"<br/><font size=6.5 color='{colour}'>{escape(text)}</font>"
+
+
+def stakes_label(leg: dict[str, Any]) -> str:
+    """bet.sofa.stakes: what the match is played for, and which way that
+    measured effect pushes this leg. Shown, never a gate."""
+    st = leg.get("stakes")
+    if not st:
+        return ""
+    names = "; ".join(
+        STAKES_NAMES.get(str(f).split("(", 1)[0], str(f)) + " "
+        + (str(f).split("(", 1)[1].rstrip(")") if "(" in str(f) else "")
+        for f in st["flags"])
+    effect = {"za": " - efekt stawki idzie za tą nogą",
+              "przeciw": " - efekt stawki idzie przeciw tej nodze"}.get(
+                  str(st.get("effect") or ""), "")
+    return (f"<br/><font size=6.5 color='#b25b00'>{escape(names)}"
+            f"{escape(effect)}</font>")
 
 
 # A leg the previous build printed and whose match started before this
@@ -877,8 +913,24 @@ def render_stats_only(
         "było widać, gdzie rating i próbka się rozchodzą. "
         "„—” = brak ratingu.",
         body))
+    if (doc.get("peer_choice") or {}).get("active"):
+        story.append(Paragraph(
+            f"<b>{PEER_MARK}</b> oznacza najpewniejszą nogę meczu spośród nóg "
+            f"o kursie w pasie ±{doc['peer_choice']['band']:.2f} - to samo "
+            "<b>pewność</b>, nic więcej: na 57,8 tys. rozstrzygniętych par "
+            "(piłka i tenis, 20 dni) pewniejsza noga wygrała 53,4% "
+            "[52,2; 54,7], a żadna statystyka próbki ani metadana turnieju "
+            "nie poprawiła tego poza próbą; w hokeju, koszykówce i siatkówce "
+            "różnicy nie zmierzono. Jest to wskazanie słabe, nie pewniak. "
+            "<b>Mecz o utrzymanie / czołówkę</b> to kontekst z tabeli (mierzony: "
+            "średnio +0,2 kartki, +0,9 faulu, -0,15 gola na mecz), pokazany "
+            "obok nogi i nigdy jej nie bramkujący.", small))
+    unit = (
+        "<b>wszystkie nogi 30 pierwszych meczów</b> kuponu (mecz najlepszej "
+        "nogi pierwszy; 30 wydarzeń, nie 30 rynków)"
+        if doc.get("read_unit") == "event" else "<b>30 pierwszych pozycji</b>")
     story.append(Paragraph(
-        "Analitycy czytają <b>30 pierwszych pozycji</b> i każdą nogę "
+        f"Analitycy czytają {unit} i każdą nogę "
         "drukowanego buildera; pozostałe drukują się bez odczytu (dodatkowe "
         "na życzenie operatora). Noga zdjęta przez odczyt (WATCH / NO_BET) "
         "nie jest na kuponie i rozlicza się osobno.", small))
@@ -974,7 +1026,8 @@ def render_stats_only(
             if started_at_render(leg, now):
                 match_cell += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                                "renderem PDF</b></font>")
-            match_cell += watch_label(leg) + context_label(leg)
+            match_cell += (watch_label(leg) + context_label(leg)
+                           + stakes_label(leg) + peer_label(leg))
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             lno = ladder_of.get(id(leg))
             if lno is not None and lno not in pos_headed:

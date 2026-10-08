@@ -1034,7 +1034,7 @@ niego 08).
   (`analyst` / `verifier` / `auto`). Dla nóg sportów weta i odczyty stosuje tu
   `coupon_sports.apply_reads` (z `period`).
 - Kopia `read_requests` i zbiór do przeczytania
-  (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30
+  (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30 (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `READ_REQUIRED_EVENTS`, `read_unit: "event"` w artefakcie)
   pozycji niezablokowanych, każda noga wydrukowanego buildera, prośby z
   `read_requests.json`). Prośba, która nic nie objęła, drukuje
   `UNMATCHED_READ_REQUEST`.
@@ -1057,6 +1057,36 @@ niego 08).
     buildery, `worst_case_lost` (ile pozycji zabiera mecz, gdy wszystko na nim
     przegra); `top_positions_matches` — na ilu meczach stoją pozycje 1-30
     (10-05: 4).
+  - `peer` na nodze i `peer_choice` w dokumencie (od
+    `epochs.PEER_CHOICE_FROM_UTC` = 2026-10-08 08:10Z, decyzja operatora: „jak
+    masz dwie nogi po 1.2 to zaproponuj tę z większą pewnością"; 10-08 to dzień
+    mieszany) — **która z nóg jednego meczu o kursie w pasie ±`PEER_BAND` 0,06
+    (różne zmienne; ta sama zmienna na dwóch szczeblach to drabina) jest
+    pewniejsza** (`bet.sofa.peer_choice`). Pole `peer`: `preferred`, `peers`,
+    `best` (najpewniejsza z sąsiadów albo ona sama), `d_confidence`,
+    `band`. Na PDF ★ przy najpewniejszej, a słabsza nazywa pewniejszą i różnicę.
+    **Adnotacja: żadna noga nie jest dodana, zdjęta ani przestawiona, żadna
+    pewność się nie rusza.** Miara to sama pewność, bo żadna inna nie wygrała
+    pomiaru (`docs/sofa/evidence/peer_choice_2026-10-08.md`): na 57 791
+    rozstrzygniętych parach piłka / tenis (20 dni) pewniejsza noga wygrywa
+    53,4% [52,2; 54,7]; rozmiar próbki, własny odsetek trafień, bliskie
+    pudła, margines w sd, trafienia u siebie / na wyjeździe, ostatnie 5 meczów,
+    popularność turnieju (Sofascore `userCount`) i flagi rezerwy / kobiet /
+    pucharu / reprezentacji nie poprawiają jej poza próbą (leave-one-day-out);
+    w hokeju, koszykówce i siatkówce różnicy nie da się zmierzyć (2 894 pary,
+    49,7% [45,9; 53,6]). Pre-rejestrowany test na nowych danych:
+    `T-PEER-CHOICE-edge`.
+  - `stakes` na nodze piłkarskiej (`bet.sofa.stakes`, ta sama epoka): mecz
+    o utrzymanie (`STAKES_SIX_POINTER`, oba kluby w odległości ≤ 3 pkt od
+    linii spadkowej) albo o czołówkę (`STAKES_TOP4`, od linii 4./5. miejsca),
+    po ≥ 55% sezonu w lidze ≥ 12 klubów; tabela z `data/cache/football_history.pkl`
+    (to, co SHEET sparsował) na chwilę meczu. `effect` = `za` / `przeciw` nodze
+    wg zmierzonego kierunku: mecz o utrzymanie ma średnio +0,20 kartki, +0,86
+    faulu, -0,15 gola, -0,96 strzału (0,08-0,16 sd; rożne -0,17 [-0,36; +0,04]
+    - nie do odróżnienia od zera), mecz o czołówkę +0,22 kartki i -0,19 gola. **Kontekst,
+    nie korekta i nie bramka** (jak `MAKEUP_FIXTURE`); nie skorygowane o to, że
+    kluby strefy spadkowej są słabe. Brak pliku historii = kupon bez flag,
+    nigdy odmowa.
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają

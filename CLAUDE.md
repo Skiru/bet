@@ -140,6 +140,27 @@ every sport alike, and nothing that could win is cut by name.
   postponed / cancelled printed match is FIXTURE_NOT_AS_SCHEDULED; no bridge =
   UNVERIFIED, nothing refused. Blind spot: a suspended pre-match offer with no
   metadata says nothing; only the clocks see it.
+- **Peer choice and stakes** (from `PEER_CHOICE_FROM_UTC` 2026-10-08
+  08:10Z, operator: "jak masz dwie nogi po 1.2 to zaproponuj tę z większą
+  pewnością"; 10-08 is a mixed day; **annotation only** - no leg is added,
+  removed or re-ranked, no confidence moves): two legs of one match on
+  different variables priced within `PEER_BAND` 0.06 are peers
+  (`bet.sofa.peer_choice`); the surer by confidence is starred (★ on the PDF,
+  `peer.preferred`), a weaker one names it. The edge is measured and small:
+  of 57,791 decided pairs (football / tennis, 20 days) the more confident leg
+  won 53.4% [52.2, 54.7]; **no** sample statistic (hit rate, size, near
+  misses, margin, venue, last 5), tournament metadata (popularity, reserve /
+  women / cup / national) or its combination improved the confidence out of
+  sample; hockey / basketball / volleyball show no measurable edge. Tournament
+  rank and sample depth therefore do not re-rank peers. Match **stakes**
+  (`bet.sofa.stakes`: `STAKES_SIX_POINTER`, `STAKES_TOP4`, from the football
+  history's league table as of the kickoff) are a context flag on the leg with
+  the direction of the measured effect (six-pointer: +0.2 cards, +0.9 fouls,
+  -0.15 goals, -1.0 shots per match, 0.08-0.16 sd; top-4: +0.2 cards, -0.2 goals; not corrected
+  for the weakness of relegation-zone clubs): shown, never gated, never a
+  correction. Evidence: `docs/sofa/evidence/peer_choice_2026-10-08.md`
+  (`scripts/sofa/measure_peer_choice.py`); pre-registered check on new data:
+  `T-PEER-CHOICE-edge`.
 - **Bet Builders:** one per fixture, by best `combined_probability`; an
   internal haircut x >= 0.90 decides stakeable and is never printed. **sofa
   does not price a builder**: the PDF shows its legs with Superbet's single
@@ -153,7 +174,7 @@ every sport alike, and nothing that could win is cut by name.
   stays (locked); a leg removed before its start stays removed.
   `ladder_form` / `max_positions_per_match` are OFF unless
   `config/sofa_coupon_form.json` sets them (operator's call).
-- **Reads:** analysts read the first 30 unlocked positions, every printed
+- **Reads:** analysts read the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"), every printed
   builder leg and whatever is in `read_requests.json`
   (`confidence.legs_requiring_read`, `READ_REQUIRED_SINGLES`; audit C3 checks
   it; a rebuild moves positions, so re-read until C3 is clean); the rest
@@ -278,7 +299,11 @@ above their measured range wait for 50 settled lines a bucket
   copies the price) - the price-band cap is not a blend: it only lowers, and
   only where a band's settled lines measured below the curve (operator,
   2026-10-07);
-- league selection / gate tuning (anti-selects out of sample).
+- league selection / gate tuning (anti-selects out of sample);
+- re-ranking peer legs by own-sample size, hit rate, near misses, venue or
+  recent form, or by tournament popularity / reserve / women / cup flags
+  (2026-10-08: no out-of-sample gain on 62k legs; the pipeline's confidence
+  is already the best-measured order).
 
 ## Entry points
 

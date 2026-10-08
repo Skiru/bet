@@ -124,6 +124,22 @@ positions of `11_coupon.json`, every printed builder leg, `read_requests.json`
    Farense - Chaves (UNDER 3.5 lost 4-0) was a round-5 make-up after a viral
    outbreak and nobody asked. Congestion is an availability and rotation
    argument (methodology.md section 5), not a fatigue one.
+   **Table stakes are, since 2026-10-08 08:10Z:** a leg of a fixture whose two
+   clubs both stand within 3 points of the relegation line (or of the line
+   between 4th and 5th) after 55% of the season carries `stakes`
+   (`flags` = `STAKES_SIX_POINTER(..)` / `STAKES_TOP4(..)`, `effect` = `za` /
+   `przeciw` the leg). Measured (docs/sofa/evidence/peer_choice_2026-10-08.md):
+   a six-pointer runs +0.2 cards, +0.9 fouls, -0.15 goals and -1.0 shots
+   against its league's other matches (0.08-0.16 sd; top-4: +0.2 cards, -0.2 goals) - small, and not
+   corrected for how weak the clubs of a relegation zone are. It moves no
+   confidence and gates nothing; a leg with effect `przeciw` (cards / fouls
+   UNDER, goals / shots OVER) must be read against it, not past it:
+   write what the sample says about this club in such a match, or WATCH. The
+   2026-10-07 Internacional - Corinthians six-pointer carried "relegation
+   stakes not in artifacts (caveat)" on Corinthians cards UNDER 4.5 - and KEEP.
+   **`peer`** on a leg (`preferred`, `best`) says which of the match's legs at
+   a price within 0.06 is the surest by confidence; when you read the weaker
+   one, say why you keep it beside the surer one.
 3. **Sample integrity.** Open `03_samples.json` for this fixture and metric.
    Count `side_a` / `side_b` / `h2h` separately. Read every observation's
    `match_date_utc`, `opponent`, `venue`, `competition_id`. Then ask:

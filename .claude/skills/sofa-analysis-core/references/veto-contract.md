@@ -214,7 +214,7 @@ price: audit_settlement 7i ("Nogi zdjęte przez odczyt"), ledger variant
 
 - **Who reads what.** One read per leg of your read set:
   `confidence.legs_requiring_read(doc, load_read_requests(run /
-  "read_requests.json"))` - the first 30 unlocked positions of
+  "read_requests.json"))` - the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków") of
   `11_coupon.json`, every printed builder leg, and every entry of
   `read_requests.json` (`{"position": n}` or `{"group_key": "sofa:<id>",
   "market"?, "line"?, "direction"?}`, each with `requested_by` and

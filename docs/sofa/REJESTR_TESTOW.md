@@ -28,6 +28,7 @@ exit 1, gdy okno danych testu zaczyna się w dniu rejestracji albo przed nim).
 | T-F51-03-boosts-separate-pool | pojedyncze boosty Superbetu mają dodatnie EV przy zdewigowanym rynku sprzed podbicia | `10_boosts.json`, `combo` false, `fair_p` ustawione; osobna pula, nigdy na kuponie | 2026-10-06..2027-01-05 | >= 300 boostów, >= 100 meczów | ROI: dolna granica 95% > 0; górna < 0 = FAILED | PROPOSED |
 | T-F53-coupon-edge | oficjalny kupon stats-only bije cenę | `official`, epoka stats_only, od 2026-10-06 | 2026-10-06.. | CLV >= 300 nóg / >= 100 meczów **albo** ROI ~4 400 pozycji | przewaga: CLV dolna 95% > 0 **albo** ROI dolna 95% > 0 | PROPOSED |
 | T-F54-coupon-failure | kryterium porażki, zapisane przed wynikami | jak T-F53 | 2026-10-06.. | >= 300 nóg / >= 100 meczów | po F2: CLV < 0 z całym przedziałem poniżej 0 = „brak przewagi”, kupon zostaje narzędziem informacyjnym | PROPOSED |
+| T-PEER-CHOICE-edge | z dwóch nóg jednego meczu o kursie w pasie 0,06 pewniejsza (★ z `bet.sofa.peer_choice`) wygrywa częściej, gdy dokładnie jedna wygrała | nogi `official` na 11_coupon.json, różne zmienne, od 2026-10-09 | 2026-10-09..2027-01-08 | >= 3 000 rozstrzygniętych par w >= 300 meczach | POTWIERDZONY: dolna granica 95% > 50% (piłka + tenis); OBALONY: górna < 52% | PROPOSED |
 
 Pełne reguły (dokładne formuły, źródła cen, sposób rozliczenia) są w
 `config/sofa_test_registry.json`, pole `rule`.

@@ -83,6 +83,21 @@
       "evidence": [
         {"source": "docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md", "line": 106, "quote": "jeśli po F2 i F5.3 CLV zostaje < 0 z przedziałem: wniosek „brak przewagi”, kupon pozostaje narzędziem informacyjnym, nie zakładem"}
       ]
+    },
+    {
+      "id": "T-PEER-CHOICE-edge",
+      "registered_on": "2026-10-08",
+      "status": "PROPOSED",
+      "hypothesis": "Of two legs of one match on different variables priced within 0.06 of each other, the leg with the higher printed confidence wins more often than the other, when exactly one of them wins (bet.sofa.peer_choice's star).",
+      "rule": "Over the legs printed on the coupon (11_coupon.json singles; football / tennis pooled and each measured sport apart), form every pair of legs of one match that are different variables (leg_relations.quantity_key), |offered_odds a - offered_odds b| <= 0.06, exactly one of the two WON (graded as the ledger grades). The rule prefers the leg with the higher confidence; ties are not scored. Accuracy = share of scored pairs in which the preferred leg won.",
+      "population": "Legs of the official coupon (variant official, epoch stats_only) of days from 2026-10-09; pairs among locked legs included, a leg removed by a read excluded.",
+      "data_window": {"from": "2026-10-09", "to": "2027-01-08"},
+      "required_n": {"pairs": 3000, "matches_min": 300, "basis": "The history measurement (docs/sofa/evidence/peer_choice_2026-10-08.md) gives 53.4% on 57,791 football / tennis pairs; a 95% half-width of 1.5 pp needs about 3,000 decided pairs in distinct matches. The measured sports have 2.9 thousand pairs in the history and no measurable edge: reported, not decided, until the same count."},
+      "evaluation": "Accuracy with a 95% interval from resampling matches (scripts/sofa/measure_peer_choice.py rule_accuracy on the coupon's legs).",
+      "stop_criterion": "CONFIRMED when the lower 95% bound is above 50% on football / tennis pooled at the required n; FAILED when the upper bound is below 52% at the required n (the star then says nothing the order of the page does not).",
+      "evidence": [
+        {"source": "docs/sofa/evidence/peer_choice_2026-10-08.md", "line": 1, "quote": "pewniejsza noga wygrywa 53,4% [52,2; 54,7] z 57 791 rozstrzygniętych par piłka / tenis"}
+      ]
     }
   ]
 }

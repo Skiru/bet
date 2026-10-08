@@ -39,7 +39,7 @@ has audited the wrong file:
 
 **Who reads what.** The set `audit_variants` C3 requires an analyst read on
 is `confidence.legs_requiring_read(doc, load_read_requests(run /
-"read_requests.json"))`: the first 30 unlocked positions, every leg of a
+"read_requests.json"))`: the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"), every leg of a
 printed builder, and every entry of `runs/sofa/<date>/read_requests.json` -
 the operator's extra positions (`/sofa-analyze` "dodatkowo: ..."), keyed by
 `position` or, better, by `group_key` (`"sofa:<id>"`, optionally `market`,
@@ -174,6 +174,8 @@ was never generated, look for it there.
 | `family`, `side`, `period`, `subject` (sport leg) | what a read keys on: `market` = `family`, `direction` = `side`, `period` (0 = whole match / half markets), `subject` = `""`, `T1` / `T2`, a CS2 team name or a player | the PDF's label (a handicap's `line` is team 1's; the page prints it signed for the side) |
 | `leg_ev`, `shading` | `confidence·odds − 1`, `confidence − 1/odds` | Superbet's builder price, or an edge |
 | `context_flags` | `MAKEUP_FIXTURE` / `LONG_LAYOFF` / `CONGESTED` from the schedule | a gate - shown, never enforced; a question you answer |
+| `stakes` (football, from 2026-10-08 08:10Z) | `flags` `STAKES_SIX_POINTER` / `STAKES_TOP4` from the league table as of the kickoff, `effect` `za` / `przeciw` the leg | a correction or a gate - measured small (0.08-0.16 sd), shown, never enforced; `przeciw` is a question you answer |
+| `peer` (from 2026-10-08 08:10Z) | `preferred` / `best` / `d_confidence`: the surest leg of the match within 0.06 of this leg's price, by confidence | a probability - the edge measured is 53.4% [52.2, 54.7] of decided pairs (football / tennis), none measurable in hockey / basketball / volleyball |
 | `reads` | the reads covering the leg | your read, unless you wrote it |
 | `removed_by_reads` (11) | legs that passed every gate and a read (or `MODEL_ABOVE_OWN_SAMPLE`) removed, with `refusal` and `reason` (who) | the coupon - graded apart in audit_settlement 7i, ledger `removed:reads` |
 

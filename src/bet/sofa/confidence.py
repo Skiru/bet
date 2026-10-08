@@ -722,6 +722,9 @@ def printed_builders(artifact: dict[str, Any]) -> list[dict[str, Any]]:
 # official page limit was lifted and the list grew from 30 to ~300 singles:
 # "analysts read at most the 30 best". The rest prints unread.
 READ_REQUIRED_SINGLES = 30
+# From epochs.READ_EVENTS_FROM_UTC the unit is the match (operator, 2026-10-08):
+# every unlocked leg of the first READ_REQUIRED_EVENTS matches of the coupon.
+READ_REQUIRED_EVENTS = 30
 
 
 def legs_requiring_read(
@@ -744,10 +747,22 @@ def legs_requiring_read(
         )
         singles = printed_singles(artifact)
         fresh = [s for s in singles if not s.get("locked")]
-        chosen = [
-            s for s in fresh
-            if int(s.get("position") or 0) <= READ_REQUIRED_SINGLES
-        ]
+        if artifact.get("read_unit") == "event":
+            # the matches in the coupon's own order (a block per match, the
+            # match of the best leg first); all their unlocked legs
+            ordered = sorted(fresh, key=lambda s: int(s.get("position") or 0))
+            events: list[str] = []
+            for s in ordered:
+                g = group_key(s)
+                if g not in events:
+                    events.append(g)
+            top = set(events[:READ_REQUIRED_EVENTS])
+            chosen = [s for s in fresh if group_key(s) in top]
+        else:
+            chosen = [
+                s for s in fresh
+                if int(s.get("position") or 0) <= READ_REQUIRED_SINGLES
+            ]
         picked = {id(s) for s in chosen}
         for s in singles:
             if id(s) not in picked and any(request_covers(r, s) for r in asked):

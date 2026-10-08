@@ -282,7 +282,7 @@ starszy niż arkusz, weta, odczyty lub kalibracja.
 ## 3. Analitycy, weta i odczyty
 
 Analitycy biegną **po COUPON_ASSEMBLY**, na `11_coupon.json`. Czytają zbiór
-`confidence.legs_requiring_read`: pierwsze 30 pozycji niezablokowanych,
+`confidence.legs_requiring_read`: pierwsze 30 pozycji niezablokowanych (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `read_unit: "event"` w artefakcie),
 każdą nogę wydrukowanego buildera i to, o co operator poprosił w
 `runs/sofa/<data>/read_requests.json`.
 

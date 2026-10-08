@@ -241,7 +241,7 @@ Z tego wynikają rzeczy, które trzeba robić dokładnie tak:
 
 1. **Analitycy biegną po COUPON_ASSEMBLY**, na `11_coupon.json`. Zbiór do
    przeczytania to `confidence.legs_requiring_read` (`READ_REQUIRED_SINGLES`
-   = 30): pierwsze 30 pozycji niezablokowanych, każda noga wydrukowanego
+   = 30): pierwsze 30 pozycji niezablokowanych (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `read_unit: "event"` w artefakcie), każda noga wydrukowanego
    buildera i to, o co prosi `read_requests.json`. `audit_variants` C3
    sprawdza ten sam zbiór: każda taka noga ma odczyt `author: "analyst"`
    (także noga zostawiona w spokoju dostaje `KEEP`), a żadna wydrukowana nie

@@ -25,7 +25,7 @@ builders B1... `06_coupon.json` is the old priced VALUE selector (`p_bar`,
 the confidence; label which is which in every table.
 
 The set you verify by hand is the one the analysts read
-(`confidence.legs_requiring_read`): the first 30 unlocked positions, every
+(`confidence.legs_requiring_read`): the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"), every
 printed builder leg, and every `read_requests.json` entry. Say how many
 printed positions lay beyond it, unverified.
 

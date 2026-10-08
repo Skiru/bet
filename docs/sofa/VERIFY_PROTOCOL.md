@@ -23,7 +23,7 @@ Kończy się werdyktem i **żadną rekomendacją stawki**.
 **Kuponem jest PDF**, a od 2026-10-05 jego jedynym artefaktem jest
 `runs/sofa/<data>/11_coupon.json` (COUPON_ASSEMBLY: piłka i tenis z
 `08_confidence.json`, hokej / koszykówka / siatkówka / CS2 z
-`08_confidence_sports.json`). Weryfikujesz: **top 30** (pierwsze 30 pozycji
+`08_confidence_sports.json`). Weryfikujesz: **top 30** (pierwsze 30 pozycji (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `read_unit: "event"` w artefakcie)
 niezablokowanych), **każdą nogę wydrukowanego buildera**, pozycje z
 `read_requests.json` i **nogi sportów mierzonych** (z surowej migawki).
 Nogi zablokowane (mecz się zaczął, noga była w poprzednim wydruku,

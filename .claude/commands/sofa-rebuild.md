@@ -39,7 +39,7 @@ Two inputs are not optional:
 **`[]` is the healthy default**. `reads.json` (per-leg KEEP / WATCH / NO_BET
 from the analysts and the verifier) and `read_requests.json` (the operator's
 extra legs to read) are optional to the code, but `audit_variants` C3 fails
-any leg of `confidence.legs_requiring_read` - the first 30 unlocked positions
+any leg of `confidence.legs_requiring_read` - the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków")
 of `11_coupon.json`, every printed builder leg, every `read_requests.json`
 entry - without an analyst's read. A rebuild that moves an unread leg into
 that set needs that sport's analyst on exactly those legs (`/sofa-analyze`).

@@ -1,0 +1,830 @@
+wariant,sport,mecz,rozgrywki,start_utc,rynek,podmiot,linia,strona,pewnosc,kurs,wynik,wartosc_faktyczna,wydrukowano_utc,zablokowana
+official,football,Inter Toronto - FC Supra Du Quebec,Canadian Premier League,2026-10-07T15:00:00Z,goals_total,,1.5,OVER,0.9,1.12,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,football,Inter Toronto - FC Supra Du Quebec,Canadian Premier League,2026-10-07T15:00:00Z,corners_total,,11.5,UNDER,0.8197,1.42,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,football,Inter Toronto - FC Supra Du Quebec,Canadian Premier League,2026-10-07T15:00:00Z,goals_2h_for,fc supra du quebec,1.5,UNDER,0.74,1.31,WIN,0.0,2026-10-07T13:52:28.029058Z,True
+official,football,Sejong Sportstoto WFC - Incheon Hyundai Steel Red Angels,WK League,2026-10-07T10:00:00Z,goals_total,,3.5,UNDER,0.8992,1.19,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,Sejong Sportstoto WFC - Incheon Hyundai Steel Red Angels,WK League,2026-10-07T10:00:00Z,goals_total,,2.5,UNDER,0.7277,1.6,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,IF Gnistan - Inter Turku,"Veikkausliiga, Championship Round",2026-10-07T16:00:00Z,goals_total,,4.5,UNDER,0.8973,1.14,WIN,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,IF Gnistan - Inter Turku,"Veikkausliiga, Championship Round",2026-10-07T16:00:00Z,corners_total,,6.5,OVER,0.8215,1.16,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,football,IF Gnistan - Inter Turku,"Veikkausliiga, Championship Round",2026-10-07T16:00:00Z,goals_total,,3.5,UNDER,0.7814,1.49,WIN,0.0,2026-10-07T13:52:28.029058Z,True
+official,football,IF Gnistan - Inter Turku,"Veikkausliiga, Championship Round",2026-10-07T16:00:00Z,corners_total,,12.5,UNDER,0.7415,1.24,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,football,Urawa Red Diamonds - RB Omiya Ardija,Emperor Cup,2026-10-07T09:00:00Z,goals_total,,1.5,OVER,0.876,1.2,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,football,Urawa Red Diamonds - RB Omiya Ardija,Emperor Cup,2026-10-07T09:00:00Z,corners_total,,11.5,UNDER,0.7897,1.47,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,football,Gainare Tottori - Tokyo Verdy,Emperor Cup,2026-10-07T10:00:00Z,goals_for,tokyo verdy,2.5,UNDER,0.8744,1.42,WIN,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Gainare Tottori - Tokyo Verdy,Emperor Cup,2026-10-07T10:00:00Z,goals_total,,4.5,UNDER,0.8496,1.12,WIN,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Gainare Tottori - Tokyo Verdy,Emperor Cup,2026-10-07T10:00:00Z,goals_for,gainare tottori,0.5,OVER,0.7938,1.66,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Gainare Tottori - Tokyo Verdy,Emperor Cup,2026-10-07T10:00:00Z,goals_2h_total,,0.5,OVER,0.7876,1.16,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Gainare Tottori - Tokyo Verdy,Emperor Cup,2026-10-07T10:00:00Z,goals_for,tokyo verdy,1.5,UNDER,0.7233,2.32,WIN,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Coatepeque FC - FC Santa Lucía Cotzumalguapa,"Primera División de Ascenso, Apertura, Group A",2026-10-07T19:00:00Z,goals_2h_total,,0.5,OVER,0.7918,1.24,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Coatepeque FC - FC Santa Lucía Cotzumalguapa,"Primera División de Ascenso, Apertura, Group A",2026-10-07T19:00:00Z,goals_total,,3.5,UNDER,0.7814,1.21,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Fagiano Okayama - JEF United Chiba,Emperor Cup,2026-10-07T10:00:00Z,goals_for,fagiano okayama,0.5,OVER,0.8559,1.13,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Fagiano Okayama - JEF United Chiba,Emperor Cup,2026-10-07T10:00:00Z,goals_total,,1.5,OVER,0.8527,1.26,LOSS,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Fagiano Okayama - JEF United Chiba,Emperor Cup,2026-10-07T10:00:00Z,goals_2h_total,,0.5,OVER,0.7876,1.21,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Flaminia Civita Castellana - ACR Siena 1904,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,1.5,OVER,0.8527,1.22,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maja Radenkovic - Andrea Obradovic,"UTR PTT Belgrade Women 05, Group A",2026-10-07T08:10:00Z,games_won_for,andrea obradovic,13.5,UNDER,0.851,1.21,UNSETTLED,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maja Radenkovic - Andrea Obradovic,"UTR PTT Belgrade Women 05, Group A",2026-10-07T08:10:00Z,games_won_for,andrea obradovic,12.5,UNDER,0.8117,1.52,UNSETTLED,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maja Radenkovic - Andrea Obradovic,"UTR PTT Belgrade Women 05, Group A",2026-10-07T08:10:00Z,games_won_for,maja radenkovic,6.5,OVER,0.7406,1.67,UNSETTLED,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maja Radenkovic - Andrea Obradovic,"UTR PTT Belgrade Women 05, Group A",2026-10-07T08:10:00Z,games_won_for,maja radenkovic,7.5,OVER,0.7406,1.92,UNSETTLED,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alisa Oktiabreva - Anastasija Cvetković,ITF W50 Heraklion 2 Women,2026-10-07T11:30:00Z,games_won_for,alisa oktiabreva,13.5,UNDER,0.851,1.16,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alisa Oktiabreva - Anastasija Cvetković,ITF W50 Heraklion 2 Women,2026-10-07T11:30:00Z,games_won_for,alisa oktiabreva,12.5,UNDER,0.768,1.43,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,football,Shenzhen Juniors FC - Guangdong GZ-Power,Chinese League 1,2026-10-07T11:00:00Z,goals_total,,4.5,UNDER,0.8496,1.13,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,football,Shenzhen Juniors FC - Guangdong GZ-Power,Chinese League 1,2026-10-07T11:00:00Z,goals_total,,3.5,UNDER,0.7291,1.41,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,football,Kataka - SC Villa,Premier League,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.8496,1.15,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,Maroons - Lugazi FC,Premier League,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.8496,1.15,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,football,Kitara FC - Kigezi Homeboyz FC,Premier League,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.8496,1.14,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Seoul City WFC - Mungyeong Sangmu,WK League,2026-10-07T10:00:00Z,goals_total,,3.5,UNDER,0.8494,1.32,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Shooting Stars - Kano Pillars,Premier League,2026-10-07T15:00:00Z,goals_for,shooting stars,2.5,UNDER,0.8464,1.24,WIN,0.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Xirui Han - James van Herzeele,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,james van herzeele,13.5,UNDER,0.8407,1.29,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Melios Efstathiou - Finn Murgett,ITF M15 Heraklion 7 Men,2026-10-07T07:00:00Z,games_won_for,menelaos efstathiou,13.5,UNDER,0.8407,1.28,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Melios Efstathiou - Finn Murgett,ITF M15 Heraklion 7 Men,2026-10-07T07:00:00Z,games_won_for,finn murgett,12.5,UNDER,0.7845,1.49,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Melios Efstathiou - Finn Murgett,ITF M15 Heraklion 7 Men,2026-10-07T07:00:00Z,games_won_for,finn murgett,10.5,OVER,0.7444,1.51,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Melios Efstathiou - Finn Murgett,ITF M15 Heraklion 7 Men,2026-10-07T07:00:00Z,games_won_for,finn murgett,11.5,OVER,0.7444,1.59,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Melios Efstathiou - Finn Murgett,ITF M15 Heraklion 7 Men,2026-10-07T07:00:00Z,games_won_for,menelaos efstathiou,11.5,OVER,0.7444,1.36,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Daniel Michalski - Lorenzo Bocchi,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,daniel michalski,13.5,UNDER,0.8407,1.19,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Daniel Michalski - Lorenzo Bocchi,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,lorenzo bocchi,6.5,OVER,0.7685,1.8,LOSS,1.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Daniel Michalski - Lorenzo Bocchi,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,lorenzo bocchi,7.5,OVER,0.7685,2.1,LOSS,1.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jadon Price - Dimitar Kisimov,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,dimitar kisimov,13.5,UNDER,0.8407,1.14,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jadon Price - Dimitar Kisimov,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,dimitar kisimov,12.5,UNDER,0.7378,1.39,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Stefan Seifert - Xavi Palomar,ITF M15 Pontevedra Men,2026-10-07T08:30:00Z,games_won_for,stefan seifert,13.5,UNDER,0.8407,1.26,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Stefan Seifert - Xavi Palomar,ITF M15 Pontevedra Men,2026-10-07T08:30:00Z,games_won_for,stefan seifert,12.5,UNDER,0.7845,1.62,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lucca Liu - Tuncay Duran,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,tuncay duran,12.5,UNDER,0.8407,1.65,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lucca Liu - Tuncay Duran,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,lucca liu,8.5,OVER,0.7635,1.68,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lucca Liu - Tuncay Duran,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,lucca liu,9.5,OVER,0.7635,1.83,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lucca Liu - Tuncay Duran,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,lucca liu,10.5,OVER,0.7635,2.0,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Makoto Ochi - Hayden Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,hayden jones,13.5,UNDER,0.8407,1.28,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Makoto Ochi - Hayden Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,makoto ochi,8.5,OVER,0.7928,1.74,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Makoto Ochi - Hayden Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,hayden jones,12.5,UNDER,0.7378,1.66,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Thiago Seyboth Wild - Murkel Dellien,"Antofagasta, Chile",2026-10-07T14:00:00Z,games_won_for,thiago seyboth wild,13.5,UNDER,0.8407,1.27,WIN,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,coco gauff,13.5,UNDER,0.8365,1.29,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_total,,17.5,OVER,0.7805,1.38,WIN,18.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,elise mertens,6.5,OVER,0.7635,1.49,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,elise mertens,7.5,OVER,0.7635,1.71,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,elise mertens,8.5,OVER,0.7635,1.88,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,elise mertens,9.5,OVER,0.7635,2.05,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,elise mertens,10.5,OVER,0.7635,2.27,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_won_for,coco gauff,12.5,UNDER,0.7383,1.66,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Coco Gauff - Elise Mertens,"Beijing, China",2026-10-07T06:15:00Z,games_total,,18.5,OVER,0.7347,1.54,LOSS,18.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ariana Geerlings Martinez - Aurora Zantedeschi,ITF W35 Seville Women,2026-10-07T08:30:00Z,games_won_for,ariana geerlings martinez,13.5,UNDER,0.8365,1.28,WIN,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ariana Geerlings Martinez - Aurora Zantedeschi,ITF W35 Seville Women,2026-10-07T08:30:00Z,games_won_for,ariana geerlings martinez,11.5,OVER,0.7406,1.28,LOSS,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nina Radovanović - Angelica Raggi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,nina radovanovic,13.5,UNDER,0.8365,1.26,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nina Radovanović - Angelica Raggi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,angelica raggi,10.5,OVER,0.7513,1.83,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nina Radovanović - Angelica Raggi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,angelica raggi,11.5,OVER,0.7513,1.95,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nina Radovanović - Angelica Raggi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,nina radovanovic,12.5,UNDER,0.7383,1.59,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yasmine Kabbaj - Daria Yesypchuk,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,yasmine kabbaj,13.5,UNDER,0.8365,1.26,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yasmine Kabbaj - Daria Yesypchuk,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,daria yesypchuk,9.5,OVER,0.7513,1.73,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yasmine Kabbaj - Daria Yesypchuk,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,daria yesypchuk,10.5,OVER,0.7513,1.85,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yasmine Kabbaj - Daria Yesypchuk,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,daria yesypchuk,11.5,OVER,0.7513,1.97,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yasmine Kabbaj - Daria Yesypchuk,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,yasmine kabbaj,11.5,OVER,0.7406,1.22,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Enola Chiesa - Caijsa Wilda Hennemann,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,caijsa wilda hennemann,13.5,UNDER,0.8365,1.19,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Enola Chiesa - Caijsa Wilda Hennemann,ITF W35 Seville Women,2026-10-07T09:00:00Z,games_won_for,caijsa wilda hennemann,12.5,UNDER,0.7875,1.47,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Britt Du Pree - Kennedy Gibbs,ITF W35 Lagos Women,2026-10-07T09:30:00Z,games_won_for,britt du pree,12.5,UNDER,0.8365,1.13,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Dunja Marić - Vittoria Paganetti,ITF W50 Heraklion 2 Women,2026-10-07T10:00:00Z,games_won_for,vittoria paganetti,13.5,UNDER,0.8365,1.25,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Dunja Marić - Vittoria Paganetti,ITF W50 Heraklion 2 Women,2026-10-07T10:00:00Z,games_won_for,vittoria paganetti,11.5,OVER,0.7406,1.38,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alja Senica - Luca Kalman,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,alja senica,13.5,UNDER,0.8365,1.14,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Isis Louise van Den Broek - Kristina Novak,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,isis louise van den broek,13.5,UNDER,0.8365,1.24,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Isis Louise van Den Broek - Kristina Novak,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,kristina novak,7.5,OVER,0.7513,1.7,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Isis Louise van Den Broek - Kristina Novak,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,kristina novak,8.5,OVER,0.7513,1.9,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Isis Louise van Den Broek - Kristina Novak,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,kristina novak,9.5,OVER,0.7513,2.07,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Anna Petković - Marta Lombardini,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T11:30:00Z,games_won_for,marta lombardini,13.5,UNDER,0.8365,1.25,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,football,Virtus Francavilla - FBC Gravina,Coppa Italia Serie D,2026-10-07T18:30:00Z,goals_total,,1.5,OVER,0.8272,1.34,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giovanni Oradini - Marco Furlanetto,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,marco furlanetto,5.5,OVER,0.824,1.47,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giovanni Oradini - Marco Furlanetto,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,marco furlanetto,6.5,OVER,0.824,1.71,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giovanni Oradini - Marco Furlanetto,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,giovanni oradini,13.5,UNDER,0.8072,1.2,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giovanni Oradini - Marco Furlanetto,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,marco furlanetto,7.5,OVER,0.7685,2.0,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giovanni Oradini - Marco Furlanetto,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,giovanni oradini,12.5,UNDER,0.7378,1.52,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lawrence Bataljin - Benjamin Lock,ITF M25 Kigali 2 Men,2026-10-07T08:00:00Z,games_won_for,lawrence bataljin,3.5,OVER,0.824,1.48,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lawrence Bataljin - Benjamin Lock,ITF M25 Kigali 2 Men,2026-10-07T08:00:00Z,games_won_for,lawrence bataljin,4.5,OVER,0.824,1.82,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lawrence Bataljin - Benjamin Lock,ITF M25 Kigali 2 Men,2026-10-07T08:00:00Z,games_won_for,lawrence bataljin,5.5,OVER,0.7747,2.42,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,football,FC Tokyo - Shonan Bellmare,Emperor Cup,2026-10-07T10:00:00Z,goals_total,,1.5,OVER,0.7919,1.21,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,football,FC Tokyo - Shonan Bellmare,Emperor Cup,2026-10-07T10:00:00Z,goals_2h_total,,0.5,OVER,0.7918,1.18,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,FC Tokyo - Shonan Bellmare,Emperor Cup,2026-10-07T10:00:00Z,goals_2h_total,,2.5,UNDER,0.7778,1.16,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,Terranuova Traiana - AC Prato,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.8232,1.2,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,football,Ancona - Fossombrone,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.8232,1.31,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,Deportivo Gomerano - Quiché FC,"Primera División de Ascenso, Apertura, Group A",2026-10-07T18:00:00Z,goals_total,,3.5,UNDER,0.8232,1.25,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jack Bruce-Smith - Casey Hoole,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,jack bruce-smith,6.5,OVER,0.8148,1.5,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jack Bruce-Smith - Casey Hoole,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,jack bruce-smith,7.5,OVER,0.7635,1.8,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jack Bruce-Smith - Casey Hoole,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,jack bruce-smith,8.5,OVER,0.7635,2.15,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jack Bruce-Smith - Casey Hoole,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,casey hoole,13.5,UNDER,0.7378,1.24,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maxim Shin - Petr Bar Biryukov,ITF M25 Luan Men,2026-10-07T06:00:00Z,games_won_for,maxim shin,6.5,OVER,0.8148,1.54,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maxim Shin - Petr Bar Biryukov,ITF M25 Luan Men,2026-10-07T06:00:00Z,games_won_for,maxim shin,7.5,OVER,0.7635,1.83,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maxim Shin - Petr Bar Biryukov,ITF M25 Luan Men,2026-10-07T06:00:00Z,games_won_for,maxim shin,8.5,OVER,0.7635,2.17,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maxim Shin - Petr Bar Biryukov,ITF M25 Luan Men,2026-10-07T06:00:00Z,games_won_for,petr bar biryukov,13.5,UNDER,0.7378,1.23,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,John Sperle - Matthias Ujvary,ITF M15 Burgas Men,2026-10-07T08:00:00Z,games_won_for,matthias ujvary,6.5,OVER,0.8148,1.57,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,John Sperle - Matthias Ujvary,ITF M15 Burgas Men,2026-10-07T08:00:00Z,games_won_for,matthias ujvary,7.5,OVER,0.7635,1.82,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,John Sperle - Matthias Ujvary,ITF M15 Burgas Men,2026-10-07T08:00:00Z,games_won_for,john sperle,13.5,UNDER,0.7378,1.23,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,John Sperle - Matthias Ujvary,ITF M15 Burgas Men,2026-10-07T08:00:00Z,games_won_for,matthias ujvary,8.5,OVER,0.7117,2.05,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Max Houkes - Rodrigo Alujas,ITF M25 Kigali 2 Men,2026-10-07T09:00:00Z,games_won_for,rodrigo alujas,3.5,OVER,0.8148,1.36,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Max Houkes - Rodrigo Alujas,ITF M25 Kigali 2 Men,2026-10-07T09:00:00Z,games_won_for,rodrigo alujas,4.5,OVER,0.8148,1.67,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Max Houkes - Rodrigo Alujas,ITF M25 Kigali 2 Men,2026-10-07T09:00:00Z,games_won_for,max houkes,12.5,UNDER,0.7378,1.28,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Max Houkes - Rodrigo Alujas,ITF M25 Kigali 2 Men,2026-10-07T09:00:00Z,games_won_for,rodrigo alujas,5.5,OVER,0.7117,2.1,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Oscar Weightman - Diogo Marques,ITF M15 Pontevedra Men,2026-10-07T11:00:00Z,games_won_for,diogo marques,8.5,OVER,0.8148,1.72,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Oscar Weightman - Diogo Marques,ITF M15 Pontevedra Men,2026-10-07T11:00:00Z,games_won_for,diogo marques,9.5,OVER,0.7117,1.92,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Oscar Weightman - Diogo Marques,ITF M15 Pontevedra Men,2026-10-07T11:00:00Z,games_won_for,diogo marques,10.5,OVER,0.7117,2.07,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Viktoria Hrunčakova - Himeno Sakatsume,"Samsun, Turkiye",2026-10-07T13:30:00Z,games_won_for,himeno sakatsume,13.5,UNDER,0.8117,1.29,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Eva Marie Voracek - Cristiana Nicoleta Todoni,ITF W50 Heraklion 2 Women,2026-10-07T07:00:00Z,games_won_for,cristiana nicoleta todoni,12.5,UNDER,0.8082,1.43,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Eva Marie Voracek - Cristiana Nicoleta Todoni,ITF W50 Heraklion 2 Women,2026-10-07T07:00:00Z,games_won_for,eva marie vorace,11.5,OVER,0.7406,1.32,LOSS,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Eva Marie Voracek - Cristiana Nicoleta Todoni,ITF W50 Heraklion 2 Women,2026-10-07T07:00:00Z,games_total,,21.5,UNDER,0.7295,1.68,LOSS,24.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Eva Marie Voracek - Cristiana Nicoleta Todoni,ITF W50 Heraklion 2 Women,2026-10-07T07:00:00Z,games_won_for,cristiana nicoleta todoni,10.5,OVER,0.7107,1.61,WIN,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Eva Marie Voracek - Cristiana Nicoleta Todoni,ITF W50 Heraklion 2 Women,2026-10-07T07:00:00Z,games_won_for,cristiana nicoleta todoni,11.5,OVER,0.7107,1.7,WIN,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Zanolini - Giorgia Pedone,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T07:00:00Z,games_won_for,georgia pedone,13.5,UNDER,0.8082,1.23,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Zanolini - Giorgia Pedone,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T07:00:00Z,games_won_for,georgia pedone,12.5,UNDER,0.768,1.54,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Zanolini - Giorgia Pedone,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T07:00:00Z,games_won_for,camilla zanolini,6.5,OVER,0.7107,1.6,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Zanolini - Giorgia Pedone,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T07:00:00Z,games_won_for,camilla zanolini,7.5,OVER,0.7107,1.82,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Zanolini - Giorgia Pedone,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T07:00:00Z,games_won_for,camilla zanolini,8.5,OVER,0.7107,2.05,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cristina Diaz Adrover - Maria Garcia Cid,ITF W35 Seville Women,2026-10-07T07:30:00Z,games_won_for,maria garcia cid,13.5,UNDER,0.8082,1.23,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cristina Diaz Adrover - Maria Garcia Cid,ITF W35 Seville Women,2026-10-07T07:30:00Z,games_won_for,maria garcia cid,12.5,UNDER,0.768,1.54,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sonia Erika Butuc Cerchez - Alina Nesmianovych,ITF W15 Chisinau Women,2026-10-07T08:00:00Z,games_won_for,alina nesmianovych,12.5,UNDER,0.8082,1.54,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sonia Erika Butuc Cerchez - Alina Nesmianovych,ITF W15 Chisinau Women,2026-10-07T08:00:00Z,games_won_for,alina nesmianovych,13.5,UNDER,0.8082,1.22,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sonia Erika Butuc Cerchez - Alina Nesmianovych,ITF W15 Chisinau Women,2026-10-07T08:00:00Z,games_total,,20.5,UNDER,0.7115,1.55,LOSS,29.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sonia Erika Butuc Cerchez - Alina Nesmianovych,ITF W15 Chisinau Women,2026-10-07T08:00:00Z,games_won_for,sonia erika butuc cerchez,6.5,OVER,0.7107,1.63,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sonia Erika Butuc Cerchez - Alina Nesmianovych,ITF W15 Chisinau Women,2026-10-07T08:00:00Z,games_won_for,sonia erika butuc cerchez,7.5,OVER,0.7107,1.87,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sonia Erika Butuc Cerchez - Alina Nesmianovych,ITF W15 Chisinau Women,2026-10-07T08:00:00Z,games_won_for,sonia erika butuc cerchez,8.5,OVER,0.7107,2.1,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Patricia Georgiana Goina - Chiara Fornasieri,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,chiara fornasieri,13.5,UNDER,0.8082,1.26,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Patricia Georgiana Goina - Chiara Fornasieri,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,chiara fornasieri,12.5,UNDER,0.768,1.56,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Patricia Georgiana Goina - Chiara Fornasieri,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_total,,21.5,UNDER,0.7115,1.67,WIN,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Greta Fenyves - Aleksandra Janiszewska,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,aleksandra janiszewsk,12.5,UNDER,0.8082,1.39,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Greta Fenyves - Aleksandra Janiszewska,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,greta fenyves,13.5,UNDER,0.8082,1.26,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Victoria Pohle - Alexandra Biot,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,victoria pohle,13.5,UNDER,0.8082,1.22,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Victoria Pohle - Alexandra Biot,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,alexandra biot,6.5,OVER,0.7952,1.64,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Victoria Pohle - Alexandra Biot,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,alexandra biot,7.5,OVER,0.7952,1.88,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Victoria Pohle - Alexandra Biot,ITF W15 Székesfehérvár Women,2026-10-07T08:00:00Z,games_won_for,alexandra biot,8.5,OVER,0.7952,2.12,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Agnese Gentili - Carla Giambelli,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,agnese gentili,12.5,UNDER,0.8082,1.49,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Agnese Gentili - Carla Giambelli,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,carla giambelli,12.5,UNDER,0.8082,1.51,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Agnese Gentili - Carla Giambelli,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,agnese gentili,10.5,OVER,0.7513,1.44,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Agnese Gentili - Carla Giambelli,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,agnese gentili,11.5,OVER,0.7513,1.51,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Agnese Gentili - Carla Giambelli,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_total,,21.5,UNDER,0.7295,1.69,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Agnese Gentili - Carla Giambelli,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_total,,20.5,UNDER,0.7115,1.85,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_total,,19.5,OVER,0.8082,1.51,LOSS,19.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_total,,20.5,OVER,0.7447,1.68,LOSS,19.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_won_for,olle wallin,9.5,OVER,0.7444,1.65,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_won_for,olle wallin,10.5,OVER,0.7444,1.78,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_won_for,olle wallin,11.5,OVER,0.7444,1.9,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_won_for,marco cecchinato,13.5,UNDER,0.7378,1.36,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Cecchinato - Olle Wallin,"Braga, Portugal",2026-10-07T09:00:00Z,games_won_for,marco cecchinato,14.5,UNDER,0.7378,1.25,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Gennaro - Eleonora Alvisi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,camilla gennaro,12.5,UNDER,0.8082,1.58,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Gennaro - Eleonora Alvisi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,camilla gennaro,13.5,UNDER,0.8082,1.26,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Gennaro - Eleonora Alvisi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,eleonora alvisi,9.5,OVER,0.7513,1.72,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Gennaro - Eleonora Alvisi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,eleonora alvisi,10.5,OVER,0.7107,1.85,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Camilla Gennaro - Eleonora Alvisi,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,eleonora alvisi,11.5,OVER,0.7107,1.97,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Justina Mikulskyte - Maaya Rajeshwaran Revathi,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,justina mikulskyte,13.5,UNDER,0.8082,1.27,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Justina Mikulskyte - Maaya Rajeshwaran Revathi,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,maaya rajeshwaran revathi,8.5,OVER,0.7784,1.64,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Justina Mikulskyte - Maaya Rajeshwaran Revathi,ITF W35 Lagos Women,2026-10-07T10:30:00Z,games_won_for,maaya rajeshwaran revathi,9.5,OVER,0.7784,1.77,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gala Ivanović - Maja Pawelska,ITF W15 Székesfehérvár Women,2026-10-07T12:00:00Z,games_won_for,gala ivanovic,13.5,UNDER,0.8082,1.25,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Adrian Mannarino - Nikoloz Basilashvili,"Shanghai, China",2026-10-07T05:10:00Z,games_won_for,nikoloz basilashvili,13.5,UNDER,0.8072,1.43,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Adrian Mannarino - Nikoloz Basilashvili,"Shanghai, China",2026-10-07T05:10:00Z,games_won_for,nikoloz basilashvili,14.5,UNDER,0.8072,1.3,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Adrian Mannarino - Nikoloz Basilashvili,"Shanghai, China",2026-10-07T05:10:00Z,games_won_for,nikoloz basilashvili,10.5,OVER,0.7444,1.35,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Adrian Mannarino - Nikoloz Basilashvili,"Shanghai, China",2026-10-07T05:10:00Z,games_won_for,nikoloz basilashvili,11.5,OVER,0.7444,1.4,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Martin Van der Meerschen - Gabriele Crivellaro,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,martin van der meerschen,13.5,UNDER,0.8072,1.28,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Martin Van der Meerschen - Gabriele Crivellaro,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,martin van der meerschen,12.5,UNDER,0.7378,1.63,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Wihan van der Merwe - Adrian Arcon,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,wihan van der merwe,12.5,UNDER,0.8001,1.68,LOSS,17.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zaharije-Zak Talic - Jesse Delaney,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,jesse delaney,13.5,UNDER,0.8001,1.27,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zaharije-Zak Talic - Jesse Delaney,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,jesse delaney,12.5,UNDER,0.7586,1.65,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zaharije-Zak Talic - Jesse Delaney,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,zaharije-zak talic,7.5,OVER,0.7444,1.56,WIN,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Herman Hoeyeraal - Chen Dong,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,chen dong,12.5,UNDER,0.8001,1.57,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cezar Stefan Bentzel - Nicolas Garcia Longo,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_won_for,cezar stefan bentzel,12.5,UNDER,0.8001,1.58,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cezar Stefan Bentzel - Nicolas Garcia Longo,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_total,,21.5,UNDER,0.7385,1.71,LOSS,29.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cezar Stefan Bentzel - Nicolas Garcia Longo,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_total,,20.5,UNDER,0.7296,1.85,LOSS,29.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cezar Stefan Bentzel - Nicolas Garcia Longo,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_total,,19.5,UNDER,0.7087,2.17,LOSS,29.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alexander Weis - Fausto Tabacco,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,alexander weis,12.5,UNDER,0.8001,1.56,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alexander Weis - Fausto Tabacco,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,alexander weis,13.5,UNDER,0.8001,1.27,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alexander Weis - Fausto Tabacco,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T07:00:00Z,games_won_for,alexander weis,11.5,OVER,0.7117,1.4,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Federico Iannaccone - Lorenzo Carboni,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T08:30:00Z,games_won_for,federico iannaccone,12.5,UNDER,0.8001,1.58,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Federico Iannaccone - Lorenzo Carboni,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T08:30:00Z,games_won_for,federico iannaccone,13.5,UNDER,0.8001,1.27,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Federico Iannaccone - Lorenzo Carboni,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T08:30:00Z,games_won_for,lorenzo carboni,12.5,UNDER,0.7586,1.49,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Federico Iannaccone - Lorenzo Carboni,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T08:30:00Z,games_won_for,federico iannaccone,11.5,OVER,0.7117,1.38,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Mohamed Nazim Makhlouf - Alexander Watanabe Eriksson,ITF M15 Monastir 33 Men,2026-10-07T08:30:00Z,games_won_for,mohamed nazim makhlouf,13.5,UNDER,0.8001,1.28,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yassine Smiej - Leandro Zgraggen,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,yassine smiej,13.5,UNDER,0.8001,1.27,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Michiel De Krom - Andrey Chepelev,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,andrey chepelev,13.5,UNDER,0.7586,1.28,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Leonardo Primucci - Alessandro Bellifemine,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,alessandro bellifemine,12.5,UNDER,0.8001,1.55,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Leonardo Primucci - Alessandro Bellifemine,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,alessandro bellifemine,13.5,UNDER,0.8001,1.26,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Leonardo Primucci - Alessandro Bellifemine,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,leonardo primucci,13.5,UNDER,0.7845,1.27,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Leonardo Primucci - Alessandro Bellifemine,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,leonardo primucci,12.5,UNDER,0.7378,1.55,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giulio Perego - Tyler Stice,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,giulio perego,13.5,UNDER,0.8001,1.28,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giulio Perego - Tyler Stice,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,tyler stice,12.5,UNDER,0.7845,1.51,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giulio Perego - Tyler Stice,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,giulio perego,12.5,UNDER,0.7586,1.58,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giulio Perego - Tyler Stice,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,tyler stice,10.5,OVER,0.7444,1.48,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giulio Perego - Tyler Stice,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,tyler stice,11.5,OVER,0.7444,1.55,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giulio Perego - Tyler Stice,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_total,,22.5,UNDER,0.7087,1.58,WIN,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jose Dominguez Alonso - Jip van Assendelft,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,jose dominguez alonso,12.5,UNDER,0.8001,1.5,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jose Dominguez Alonso - Jip van Assendelft,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,jose dominguez alonso,10.5,OVER,0.7635,1.49,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jose Dominguez Alonso - Jip van Assendelft,ITF M15 Heraklion 7 Men,2026-10-07T10:30:00Z,games_won_for,jose dominguez alonso,11.5,OVER,0.7635,1.56,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Bercel Sandor Takacs - Isaac Nortey,ITF M15 Monastir 33 Men,2026-10-07T10:30:00Z,games_won_for,isaac nortey,12.5,UNDER,0.8001,1.53,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Vito Dell'Elba - Viktor Frydrych,ITF M15 Monastir 33 Men,2026-10-07T10:30:00Z,games_won_for,viktor frydrych,13.5,UNDER,0.7845,1.28,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Vito Dell'Elba - Viktor Frydrych,ITF M15 Monastir 33 Men,2026-10-07T10:30:00Z,games_won_for,viktor frydrych,12.5,UNDER,0.7378,1.62,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Denise Hrdinkova - Kristina Kovgan,"UTR PTT Belgrade Women 05, Group C",2026-10-07T10:00:00Z,games_won_for,kristina kovgan,4.5,OVER,0.7999,1.83,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Denise Hrdinkova - Kristina Kovgan,"UTR PTT Belgrade Women 05, Group C",2026-10-07T10:00:00Z,games_won_for,kristina kovgan,5.5,OVER,0.7635,2.37,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Suzuna Oigawa - Jeong Moon,ITF W15 Islamabad Women,2026-10-07T05:00:00Z,games_won_for,jeong moon,12.5,UNDER,0.7959,1.6,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maria Mikhailova - Melissa Boyden,ITF W15 Chisinau Women,2026-10-07T07:00:00Z,games_won_for,melissa boyden,12.5,UNDER,0.7959,1.53,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maria Mikhailova - Melissa Boyden,ITF W15 Chisinau Women,2026-10-07T07:00:00Z,games_won_for,melissa boyden,13.5,UNDER,0.7959,1.25,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maria Mikhailova - Melissa Boyden,ITF W15 Chisinau Women,2026-10-07T07:00:00Z,games_won_for,melissa boyden,11.5,UNDER,0.7383,2.6,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Romina Hincu - Sophia Ksandinov,ITF W15 Chisinau Women,2026-10-07T07:00:00Z,games_won_for,sophia ksandinov,13.5,UNDER,0.7959,1.16,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ruth Roura Llaverias - Carlota Martinez Cirez,ITF W35 Seville Women,2026-10-07T08:30:00Z,games_won_for,carlota martinez cirez,12.5,UNDER,0.7959,1.5,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ruth Roura Llaverias - Carlota Martinez Cirez,ITF W35 Seville Women,2026-10-07T08:30:00Z,games_won_for,carlota martinez cirez,13.5,UNDER,0.7959,1.24,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Josy Daems - Miriam Bulgaru,ITF W50 Heraklion 2 Women,2026-10-07T11:30:00Z,games_won_for,miriam bianca bulgaru,13.5,UNDER,0.7959,1.27,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Josy Daems - Miriam Bulgaru,ITF W50 Heraklion 2 Women,2026-10-07T11:30:00Z,games_won_for,miriam bianca bulgaru,12.5,UNDER,0.7383,1.59,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Laia Petretic - Maria Martinez Vaquero,ITF W35 Lagos Women,2026-10-07T11:30:00Z,games_won_for,maria martinez vaquero,12.5,UNDER,0.7959,1.58,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Noemi La Cagnina - Nuria Brancaccio,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_won_for,noemi la cagnina,2.5,OVER,0.7952,1.62,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Noemi La Cagnina - Nuria Brancaccio,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_total,,15.5,OVER,0.7944,2.27,WIN,19.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Noemi La Cagnina - Nuria Brancaccio,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_won_for,noemi la cagnina,3.5,OVER,0.7635,2.27,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lan Mi - Valentina Losciale,ITF W35 Monastir 6 Women,2026-10-07T08:30:00Z,games_won_for,valentina losciale,5.5,OVER,0.7952,1.52,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lan Mi - Valentina Losciale,ITF W35 Monastir 6 Women,2026-10-07T08:30:00Z,games_won_for,valentina losciale,6.5,OVER,0.7635,1.78,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lan Mi - Valentina Losciale,ITF W35 Monastir 6 Women,2026-10-07T08:30:00Z,games_won_for,lan mi,12.5,UNDER,0.7383,1.49,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joelle Lilly Sophie Steur - Nellie Taraba Wallberg,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,nellie taraba wallberg,6.5,OVER,0.7952,1.58,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joelle Lilly Sophie Steur - Nellie Taraba Wallberg,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,nellie taraba wallberg,7.5,OVER,0.7952,1.78,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joelle Lilly Sophie Steur - Nellie Taraba Wallberg,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,nellie taraba wallberg,8.5,OVER,0.7513,2.02,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joelle Lilly Sophie Steur - Nellie Taraba Wallberg,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T08:30:00Z,games_won_for,joelle steur,13.5,UNDER,0.7383,1.23,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ane Mintegi Del Olmo - Bianca Elena Barbulescu,ITF W50 Burgas Women,2026-10-07T10:00:00Z,games_won_for,bianca elena barbulescu,5.5,OVER,0.7952,2.37,LOSS,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ane Mintegi Del Olmo - Bianca Elena Barbulescu,ITF W50 Burgas Women,2026-10-07T10:00:00Z,games_total,,16.5,OVER,0.7805,1.85,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ane Mintegi Del Olmo - Bianca Elena Barbulescu,ITF W50 Burgas Women,2026-10-07T10:00:00Z,games_total,,17.5,OVER,0.7347,2.37,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Tsung-Hao Huang - Ko Suzuki,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,ko suzuki,8.5,OVER,0.7928,1.74,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Tsung-Hao Huang - Ko Suzuki,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,ko suzuki,9.5,OVER,0.7928,1.9,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Tsung-Hao Huang - Ko Suzuki,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,ko suzuki,10.5,OVER,0.7444,2.07,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Tsung-Hao Huang - Ko Suzuki,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,tsung-hao huang,13.5,UNDER,0.7378,1.27,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lachlan Vickery - Colin Sinclair,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,lachlan vickery,7.5,OVER,0.7928,1.54,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lachlan Vickery - Colin Sinclair,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,lachlan vickery,8.5,OVER,0.7928,1.77,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lachlan Vickery - Colin Sinclair,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,lachlan vickery,9.5,OVER,0.7444,2.0,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,football,Avispa Fukuoka - Yokohama FC,Emperor Cup,2026-10-07T09:30:00Z,goals_total,,1.5,OVER,0.7919,1.44,LOSS,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Avispa Fukuoka - Yokohama FC,Emperor Cup,2026-10-07T09:30:00Z,goals_2h_total,,0.5,OVER,0.7876,1.32,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Avispa Fukuoka - Yokohama FC,Emperor Cup,2026-10-07T09:30:00Z,goals_for,yokohama fc,0.5,OVER,0.7296,1.48,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Olimpik Mobiuz - Fardu Ferghana,Pro Liga,2026-10-07T11:00:00Z,goals_total,,1.5,OVER,0.7919,1.17,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,football,Nanjing City - Shaanxi Union FC,Chinese League 1,2026-10-07T11:30:00Z,goals_total,,1.5,OVER,0.7919,1.26,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,football,Nanjing City - Shaanxi Union FC,Chinese League 1,2026-10-07T11:30:00Z,goals_2h_total,,0.5,OVER,0.7918,1.21,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,football,Nanjing City - Shaanxi Union FC,Chinese League 1,2026-10-07T11:30:00Z,corners_total,,7.5,OVER,0.7211,1.48,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,football,Ratchaburi - Công An Hồ Chí Minh City,"ASEAN Club Championship, Group A",2026-10-07T12:00:00Z,goals_total,,1.5,OVER,0.7919,1.19,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,FC Luzern U19 - FC Basel U19,Switzerland U19 Elite League,2026-10-07T13:00:00Z,goals_total,,2.5,OVER,0.7919,1.28,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,football,Lentigione Calcio - Piacenza Calcio 1919,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,1.5,OVER,0.7919,1.29,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,football,Criciúma U20 - Barra FC U20,U20 Copa do Brasil,2026-10-07T18:00:00Z,goals_total,,1.5,OVER,0.7919,1.21,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,football,Cerezo Osaka - Kagoshima United,Emperor Cup,2026-10-07T09:30:00Z,goals_2h_total,,0.5,OVER,0.7918,1.17,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Cerezo Osaka - Kagoshima United,Emperor Cup,2026-10-07T09:30:00Z,goals_for,kagoshima united,0.5,OVER,0.7296,1.6,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Cerezo Osaka - Kagoshima United,Emperor Cup,2026-10-07T09:30:00Z,goals_for,cerezo osaka,2.5,UNDER,0.7233,1.34,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,Real Madrid C - Guadalajara,"Segunda Federacion, Group V",2026-10-07T10:00:00Z,goals_2h_total,,0.5,OVER,0.7918,1.25,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Foshan Nanshi - Guangxi Hengchen FC,Chinese League 1,2026-10-07T11:30:00Z,goals_2h_total,,2.5,UNDER,0.7778,1.21,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Foshan Nanshi - Guangxi Hengchen FC,Chinese League 1,2026-10-07T11:30:00Z,goals_for,guangxi hengchen,2.5,UNDER,0.7233,1.4,WIN,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Foshan Nanshi - Guangxi Hengchen FC,Chinese League 1,2026-10-07T11:30:00Z,corners_1h_total,,3.5,OVER,0.7118,1.45,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,football,Deportivo Miranda - Atletico Avila FC,"Copa Venezuela, Group A",2026-10-07T19:00:00Z,goals_2h_total,,0.5,OVER,0.7918,1.23,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Hynek Barton - Toby Samuel,"Villena, Spain",2026-10-07T09:00:00Z,games_won_for,toby samuel,13.5,UNDER,0.7902,1.29,WIN,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Hynek Barton - Toby Samuel,"Villena, Spain",2026-10-07T09:00:00Z,games_won_for,toby samuel,14.5,UNDER,0.7902,1.21,WIN,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,martin krumich,12.5,UNDER,0.7902,1.71,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,martin krumich,13.5,UNDER,0.7902,1.35,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,martin krumich,14.5,UNDER,0.7902,1.24,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,jonas forejtek,14.5,UNDER,0.7586,1.25,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,jonas forejtek,10.5,OVER,0.7117,1.35,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,jonas forejtek,11.5,OVER,0.7117,1.41,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jonas Forejtek - Martin Krumich,"Palermo, Italy",2026-10-07T10:00:00Z,games_won_for,jonas forejtek,12.5,OVER,0.7117,2.0,LOSS,12.0,2026-10-07T04:34:37.818543Z,True
+official,football,Shimizu S-Pulse - V-Varen Nagasaki,Emperor Cup,2026-10-07T10:00:00Z,goals_2h_total,,0.5,OVER,0.7876,1.23,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,football,Shimizu S-Pulse - V-Varen Nagasaki,Emperor Cup,2026-10-07T10:00:00Z,goals_total,,3.5,UNDER,0.7814,1.23,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gabriela Cé - Katerina Tsygourova,ITF W35 Seville Women,2026-10-07T07:30:00Z,games_won_for,gabriela ce,13.5,UNDER,0.7875,1.26,WIN,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gabriela Cé - Katerina Tsygourova,ITF W35 Seville Women,2026-10-07T07:30:00Z,games_won_for,katerina tsygourova,12.5,UNDER,0.768,1.43,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gabriela Cé - Katerina Tsygourova,ITF W35 Seville Women,2026-10-07T07:30:00Z,games_won_for,katerina tsygourova,10.5,OVER,0.7107,1.6,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gabriela Cé - Katerina Tsygourova,ITF W35 Seville Women,2026-10-07T07:30:00Z,games_won_for,katerina tsygourova,11.5,OVER,0.7107,1.69,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Georgina Hays - Berta Bonardi,ITF W35 Lagos Women,2026-10-07T09:30:00Z,games_won_for,berta bonardi,12.5,UNDER,0.7875,1.54,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Georgina Hays - Berta Bonardi,ITF W35 Lagos Women,2026-10-07T09:30:00Z,games_won_for,berta bonardi,13.5,UNDER,0.7875,1.25,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Anna Mihalka - Amy Sucha,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,amy sucha,13.5,UNDER,0.7875,1.26,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Katarina Kužmová - Marta Soriano Santiago,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,katarina kuzmova,13.5,UNDER,0.7875,1.23,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Katarina Kužmová - Marta Soriano Santiago,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,marta soriano santiago,6.5,OVER,0.7784,1.6,LOSS,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Katarina Kužmová - Marta Soriano Santiago,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,marta soriano santiago,7.5,OVER,0.7784,1.82,LOSS,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Katarina Kužmová - Marta Soriano Santiago,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,marta soriano santiago,8.5,OVER,0.7784,2.05,LOSS,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Katarina Kužmová - Marta Soriano Santiago,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,katarina kuzmova,12.5,UNDER,0.7383,1.54,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Maria Andrienko - Nicole Andrea Molaro,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T11:30:00Z,games_won_for,maria andrienko,13.5,UNDER,0.7875,1.18,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joshua Charlton - Arjun Mehrotra,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,joshua charlton,13.5,UNDER,0.7845,1.29,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joshua Charlton - Arjun Mehrotra,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,arjun mehrotra,8.5,OVER,0.7444,1.7,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joshua Charlton - Arjun Mehrotra,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,arjun mehrotra,9.5,OVER,0.7444,1.85,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joshua Charlton - Arjun Mehrotra,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,arjun mehrotra,10.5,OVER,0.7444,2.02,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Joshua Charlton - Arjun Mehrotra,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,joshua charlton,12.5,UNDER,0.7378,1.69,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Rinky Hijikata - Roman Safiullin,"Shanghai, China",2026-10-07T07:10:00Z,games_won_for,roman safiullin,12.5,UNDER,0.7845,2.0,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Rinky Hijikata - Roman Safiullin,"Shanghai, China",2026-10-07T07:10:00Z,games_won_for,roman safiullin,13.5,UNDER,0.7845,1.43,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Rinky Hijikata - Roman Safiullin,"Shanghai, China",2026-10-07T07:10:00Z,games_won_for,roman safiullin,14.5,UNDER,0.7845,1.31,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Rinky Hijikata - Roman Safiullin,"Shanghai, China",2026-10-07T07:10:00Z,games_won_for,rinky hijikata,13.5,UNDER,0.7586,1.28,WIN,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Rinky Hijikata - Roman Safiullin,"Shanghai, China",2026-10-07T07:10:00Z,games_total,,25.5,UNDER,0.7087,1.46,WIN,21.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Luca Connaughton - Sam Ryan Ziegann,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,sam ryan ziegann,13.5,UNDER,0.7845,1.17,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Luca Connaughton - Sam Ryan Ziegann,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,luca connaughton,5.5,OVER,0.7747,1.64,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Hugo Car - Adrien Burdet,ITF M15 Pontevedra Men,2026-10-07T08:30:00Z,games_won_for,hugo car,13.5,UNDER,0.7845,1.2,WIN,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Hugo Car - Adrien Burdet,ITF M15 Pontevedra Men,2026-10-07T08:30:00Z,games_won_for,adrien burdet,6.5,OVER,0.7685,1.7,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Hugo Car - Adrien Burdet,ITF M15 Pontevedra Men,2026-10-07T08:30:00Z,games_total,,17.5,OVER,0.7447,1.47,WIN,27.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Hugo Car - Adrien Burdet,ITF M15 Pontevedra Men,2026-10-07T08:30:00Z,games_won_for,adrien burdet,7.5,OVER,0.7117,1.97,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Michel Hopp - Francesco Ferrari,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,michel hopp,13.5,UNDER,0.7845,1.28,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Michel Hopp - Francesco Ferrari,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,francesco ferrari,12.5,UNDER,0.7586,1.46,WIN,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Michel Hopp - Francesco Ferrari,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,michel hopp,12.5,UNDER,0.7378,1.61,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Derek Pham - Scott Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,derek pham,13.5,UNDER,0.7845,1.28,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Derek Pham - Scott Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,scott jones,10.5,OVER,0.7685,1.54,LOSS,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Derek Pham - Scott Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,scott jones,11.5,OVER,0.7685,1.62,LOSS,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Derek Pham - Scott Jones,ITF M25 Darwin 2 Men,2026-10-07T10:00:00Z,games_won_for,derek pham,11.5,OVER,0.7444,1.35,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,football,SS Sasso Marconi Zola - A.S.D. Cittadella Vis Modena,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.7814,1.19,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,football,Valenzana - Saluzzo,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,1.5,OVER,0.7433,1.31,WIN,5.0,2026-10-07T04:34:37.818543Z,True
+official,football,FC Kosova Zürich - FC Dietikon,"Erste Liga Classic, Group 3",2026-10-07T18:00:00Z,goals_total,,4.5,UNDER,0.7814,1.19,WIN,1.0,2026-10-07T12:26:03.425962Z,True
+official,football,Bom Jesus EC - Morrinhos,"Goiano, Divisão de Acesso",2026-10-07T18:30:00Z,goals_total,,3.5,UNDER,0.7814,1.18,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Mahin Qureshi - Wozuko Mdlulwa,ITF W15 Islamabad Women,2026-10-07T05:00:00Z,games_won_for,mahin qureshi,4.5,OVER,0.7784,1.71,WIN,17.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Mahin Qureshi - Wozuko Mdlulwa,ITF W15 Islamabad Women,2026-10-07T05:00:00Z,games_won_for,mahin qureshi,5.5,OVER,0.7784,2.15,WIN,17.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Mahin Qureshi - Wozuko Mdlulwa,ITF W15 Islamabad Women,2026-10-07T05:00:00Z,games_total,,15.5,OVER,0.7347,1.39,WIN,35.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Despina Papamichail - Simona Ogescu,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_won_for,simona ogescu,5.5,OVER,0.7784,1.59,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Despina Papamichail - Simona Ogescu,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_won_for,simona ogescu,6.5,OVER,0.7784,1.87,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Despina Papamichail - Simona Ogescu,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_won_for,simona ogescu,7.5,OVER,0.7784,2.17,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Despina Papamichail - Simona Ogescu,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_total,,17.5,OVER,0.7347,1.62,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nikolas Baker - Stefan Vujić,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,nikolas baker,8.5,OVER,0.7747,1.61,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nikolas Baker - Stefan Vujić,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,nikolas baker,9.5,OVER,0.7444,1.77,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Nikolas Baker - Stefan Vujić,ITF M25 Darwin 2 Men,2026-10-07T06:30:00Z,games_won_for,nikolas baker,10.5,OVER,0.7444,1.95,LOSS,8.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Quentin Halys - Coleman Wong,"Shanghai, China",2026-10-07T07:30:00Z,games_won_for,chak lam coleman wong,10.5,OVER,0.7747,1.35,LOSS,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Quentin Halys - Coleman Wong,"Shanghai, China",2026-10-07T07:30:00Z,games_won_for,chak lam coleman wong,11.5,OVER,0.7747,1.41,LOSS,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Quentin Halys - Coleman Wong,"Shanghai, China",2026-10-07T07:30:00Z,games_won_for,chak lam coleman wong,14.5,UNDER,0.7378,1.37,WIN,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Mihai Alexandru Coman - Aleksandar Tolev,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,mihai alexandru coman,11.5,OVER,0.7747,1.18,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Mihai Alexandru Coman - Aleksandar Tolev,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,mihai alexandru coman,13.5,UNDER,0.7586,1.27,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Moerani Bouzige - Stefan Storch,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,stefan storch,6.5,OVER,0.7685,1.64,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Aziz Ouakaa - Liam Branger,ITF M15 Monastir 33 Men,2026-10-07T08:30:00Z,games_won_for,liam branger,10.5,OVER,0.7685,1.54,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Aziz Ouakaa - Liam Branger,ITF M15 Monastir 33 Men,2026-10-07T08:30:00Z,games_won_for,liam branger,11.5,OVER,0.7685,1.62,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Elizara Yaneva - Giulia Safina Popa,ITF W50 Burgas Women,2026-10-07T08:00:00Z,games_won_for,elizara yaneva,13.5,UNDER,0.768,1.22,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Charlotte Pikkaart - Alice Rame,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_won_for,alice rame,12.5,UNDER,0.768,1.24,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Charlotte Pikkaart - Alice Rame,ITF W50 Heraklion 2 Women,2026-10-07T08:30:00Z,games_total,,15.5,OVER,0.7347,1.49,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Ella Haavisto - Coco Bosman,ITF W35 Monastir 6 Women,2026-10-07T08:30:00Z,games_won_for,coco bosman,12.5,UNDER,0.768,1.55,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lucrezia Stefanini - Noma Noha Akugue,"Samsun, Turkiye",2026-10-07T09:10:00Z,games_won_for,lucrezia stefanini,13.5,UNDER,0.768,1.3,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lucrezia Stefanini - Noma Noha Akugue,"Samsun, Turkiye",2026-10-07T09:10:00Z,games_won_for,lucrezia stefanini,14.5,UNDER,0.768,1.2,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Fiona Crawley - Oksana Selekhmeteva,"Samsun, Turkiye",2026-10-07T09:10:00Z,games_won_for,fiona crawley,14.5,UNDER,0.768,1.18,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Fiona Crawley - Oksana Selekhmeteva,"Samsun, Turkiye",2026-10-07T09:10:00Z,games_won_for,fiona crawley,10.5,OVER,0.7513,1.41,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Fiona Crawley - Oksana Selekhmeteva,"Samsun, Turkiye",2026-10-07T09:10:00Z,games_won_for,fiona crawley,11.5,OVER,0.7513,1.47,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Fiona Crawley - Oksana Selekhmeteva,"Samsun, Turkiye",2026-10-07T09:10:00Z,games_won_for,fiona crawley,13.5,UNDER,0.7383,1.28,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Tiphanie Lemaitre - Polina Berezina,ITF W35 Monastir 6 Women,2026-10-07T09:30:00Z,games_won_for,tiphanie lemaitre,12.5,UNDER,0.768,1.58,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jessica Pieri - Tena Lukas,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,tena lukas,12.5,UNDER,0.768,1.5,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jessica Pieri - Tena Lukas,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,tena lukas,13.5,UNDER,0.768,1.24,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Kitti Molnar - Anika Jaskova,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,kitti molnar,12.5,UNDER,0.768,1.41,LOSS,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Kitti Molnar - Anika Jaskova,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,anika jaskova,12.5,UNDER,0.7383,1.56,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Kitti Molnar - Anika Jaskova,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,anika jaskova,13.5,UNDER,0.7383,1.26,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Kitti Molnar - Anika Jaskova,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,kitti molnar,10.5,OVER,0.7107,1.63,WIN,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Kitti Molnar - Anika Jaskova,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,kitti molnar,11.5,OVER,0.7107,1.72,WIN,14.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zuzanna Pawlikowska - Oriana Gniewkowska,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,zuzanna pawlikowska,12.5,UNDER,0.768,1.4,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Francesca Gandolfi - Matilde Paoletti,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,francesca gandolfi,6.5,OVER,0.7662,1.59,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Francesca Gandolfi - Matilde Paoletti,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,francesca gandolfi,7.5,OVER,0.7662,1.8,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Francesca Gandolfi - Matilde Paoletti,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,francesca gandolfi,8.5,OVER,0.7662,2.02,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Laura Mair - Jazmin Ortenzi,ITF W50 Burgas Women,2026-10-07T07:00:00Z,games_won_for,laura mair,7.5,OVER,0.7635,1.7,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Laura Mair - Jazmin Ortenzi,ITF W50 Burgas Women,2026-10-07T07:00:00Z,games_won_for,laura mair,8.5,OVER,0.7107,1.9,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Laura Mair - Jazmin Ortenzi,ITF W50 Burgas Women,2026-10-07T07:00:00Z,games_won_for,laura mair,9.5,OVER,0.7107,2.07,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Annika Kannan - Diana Marcinkevica,"UTR PTT Le Cap d Agde Women 01, Group D",2026-10-07T07:40:00Z,games_won_for,annika kannan,5.5,OVER,0.7635,1.63,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Annika Kannan - Diana Marcinkevica,"UTR PTT Le Cap d Agde Women 01, Group D",2026-10-07T07:40:00Z,games_won_for,annika kannan,6.5,OVER,0.7635,1.92,LOSS,0.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Benjamin Pietri - Barney Fitzpatrick,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,barney fitzpatrick,4.5,OVER,0.7635,1.6,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Benjamin Pietri - Barney Fitzpatrick,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,barney fitzpatrick,5.5,OVER,0.7635,2.07,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Benjamin Pietri - Barney Fitzpatrick,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,barney fitzpatrick,6.5,OVER,0.7635,2.45,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gina Feistel - Rositsa Dencheva,ITF W50 Burgas Women,2026-10-07T10:00:00Z,games_won_for,rositsa dencheva,11.5,OVER,0.7635,1.22,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cian Maguire - Aleksa Ciric,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,cian maguire,5.5,OVER,0.7635,1.57,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cian Maguire - Aleksa Ciric,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,cian maguire,6.5,OVER,0.7635,1.88,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Cian Maguire - Aleksa Ciric,ITF M15 Burgas Men,2026-10-07T10:00:00Z,games_won_for,cian maguire,7.5,OVER,0.7635,2.22,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Deborah Chiesa - Luisa Meyer Auf Der Heide,ITF W35 Santa Margherita di Pula 9 Women,2026-10-07T10:00:00Z,games_won_for,luisa meyer auf der heide,8.5,OVER,0.7635,2.2,LOSS,3.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gabriele Pennaforti - Ruben Hartig,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,ruben hartig,8.5,OVER,0.7635,1.77,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Gabriele Pennaforti - Ruben Hartig,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,ruben hartig,9.5,OVER,0.7117,1.95,LOSS,5.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alina Charaeva - Qinwen Zheng,"Beijing, China",2026-10-07T11:00:00Z,games_won_for,alina charaeva,8.5,OVER,0.7635,1.8,WIN,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alina Charaeva - Qinwen Zheng,"Beijing, China",2026-10-07T11:00:00Z,games_won_for,alina charaeva,9.5,OVER,0.7107,1.97,WIN,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alina Charaeva - Qinwen Zheng,"Beijing, China",2026-10-07T11:00:00Z,games_won_for,alina charaeva,10.5,OVER,0.7107,2.15,WIN,11.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jake Delaney - Harrison Satara,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,jake delaney,13.5,UNDER,0.7586,1.24,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jake Delaney - Harrison Satara,ITF M25 Darwin 2 Men,2026-10-07T05:30:00Z,games_won_for,harrison satara,8.5,OVER,0.7444,2.05,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alex Molčan - Federico Cinà,"Shanghai, China",2026-10-07T06:00:00Z,games_won_for,federico cina,14.5,UNDER,0.7586,1.24,WIN,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Alex Molčan - Federico Cinà,"Shanghai, China",2026-10-07T06:00:00Z,games_won_for,federico cina,10.5,OVER,0.7117,1.49,LOSS,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jan Kupcic - Noah Lopez,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_won_for,noah lopez,12.5,UNDER,0.7586,1.5,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jan Kupcic - Noah Lopez,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_won_for,noah lopez,10.5,OVER,0.7117,1.48,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jan Kupcic - Noah Lopez,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_won_for,noah lopez,11.5,OVER,0.7117,1.55,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jan Kupcic - Noah Lopez,ITF M15 Burgas Men,2026-10-07T07:00:00Z,games_total,,22.5,UNDER,0.7087,1.57,WIN,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Giammarco Gandolfi - Gabriele Maria Noce,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T08:30:00Z,games_won_for,gabriele maria noce,13.5,UNDER,0.7586,1.28,LOSS,18.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Abdullah Shelbayh - David Jorda Sanchis,"Villena, Spain",2026-10-07T09:00:00Z,games_won_for,david jorda sanchis,13.5,UNDER,0.7586,1.35,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Abdullah Shelbayh - David Jorda Sanchis,"Villena, Spain",2026-10-07T09:00:00Z,games_won_for,david jorda sanchis,14.5,UNDER,0.7586,1.24,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jordan Hasson - Benjamin Gusic Wan,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,jordan hasson,12.5,UNDER,0.7586,1.63,LOSS,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Jordan Hasson - Benjamin Gusic Wan,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,jordan hasson,13.5,UNDER,0.7586,1.29,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Anas Mazdrashki - Remy Dugardin,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,remy dugardin,12.5,UNDER,0.7586,1.44,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Anas Mazdrashki - Remy Dugardin,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,remy dugardin,10.5,OVER,0.7117,1.65,WIN,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Anas Mazdrashki - Remy Dugardin,ITF M15 Monastir 33 Men,2026-10-07T09:30:00Z,games_won_for,remy dugardin,11.5,OVER,0.7117,1.74,WIN,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yibing Wu - Michael Zheng,"Shanghai, China",2026-10-07T10:00:00Z,games_won_for,michael zheng,13.5,UNDER,0.7586,1.36,WIN,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yibing Wu - Michael Zheng,"Shanghai, China",2026-10-07T10:00:00Z,games_won_for,michael zheng,14.5,UNDER,0.7586,1.25,WIN,9.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Yibing Wu - Michael Zheng,"Shanghai, China",2026-10-07T10:00:00Z,double_faults_for,michael zheng,1.5,OVER,0.7264,1.67,LOSS,1.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Rares Teodor Pieleanu - Alexander Chang,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:30:00Z,games_won_for,rares teodor pieleanu,13.5,UNDER,0.7586,1.26,LOSS,17.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Adan Freire Da Silva - Kris van Wyk,ITF M15 Monastir 33 Men,2026-10-07T10:30:00Z,games_won_for,kris van wyk,13.5,UNDER,0.7586,1.27,WIN,12.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Andrea Bacaloni - Javier Munoz Fuster,ITF M15 Pontevedra Men,2026-10-07T11:00:00Z,games_won_for,andrea bacaloni,12.5,UNDER,0.7586,1.29,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lingxi Zhao - Anton Shepp,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,lingxi zhao,9.5,OVER,0.7444,1.72,WIN,10.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lingxi Zhao - Anton Shepp,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,anton shepp,12.5,UNDER,0.7378,1.69,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lingxi Zhao - Anton Shepp,ITF M25 Luan Men,2026-10-07T05:00:00Z,games_won_for,anton shepp,13.5,UNDER,0.7378,1.3,LOSS,15.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sebastian Gima - Timo Rosenkranz Koenig,ITF M15 Burgas Men,2026-10-07T08:00:00Z,games_won_for,timo rosenkranz koenig,5.5,OVER,0.7444,1.64,WIN,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Sebastian Gima - Timo Rosenkranz Koenig,ITF M15 Burgas Men,2026-10-07T08:00:00Z,games_won_for,timo rosenkranz koenig,6.5,OVER,0.7117,1.95,LOSS,6.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Pavlos Tsitsipas - N. Campbell,ITF M15 Heraklion 7 Men,2026-10-07T08:00:00Z,games_won_for,pavlos tsitsipas,11.5,OVER,0.7444,1.31,WIN,19.0,2026-10-07T04:34:37.818543Z,True
+official,football,FK Železiarne Podbrezová U19 - MFk Skalica U19,U19 1. Liga,2026-10-07T13:00:00Z,goals_total,,2.5,OVER,0.7433,1.36,WIN,4.0,2026-10-07T04:34:37.818543Z,True
+official,football,Brusaporto - Chievo Verona,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,1.5,OVER,0.7433,1.29,WIN,3.0,2026-10-07T04:34:37.818543Z,True
+official,football,Sestri Levante - Pistoiese,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.7291,1.32,WIN,1.0,2026-10-07T07:33:31.977568Z,True
+official,football,Vigor Lamezia - Gelbison,Coppa Italia Serie D,2026-10-07T17:00:00Z,goals_total,,1.5,OVER,0.7433,1.27,WIN,4.0,2026-10-07T11:41:12.956993Z,True
+official,football,Villa Valle - Tritium Calcio 1908,Coppa Italia Serie D,2026-10-07T18:30:00Z,goals_total,,1.5,OVER,0.7433,1.22,WIN,2.0,2026-10-07T12:26:03.425962Z,True
+official,football,Villa Valle - Tritium Calcio 1908,Coppa Italia Serie D,2026-10-07T18:30:00Z,goals_total,,3.5,UNDER,0.7291,1.31,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,football,FC Cartagena - Real Murcia,"Primera Federacion, Group 2",2026-10-07T18:30:00Z,goals_2h_total,,1.5,UNDER,0.7312,1.48,WIN,1.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Leolia Jeanjean - Mariam Bolkvadze,"Samsun, Turkiye",2026-10-07T08:00:00Z,games_won_for,leolia jeanjean,12.5,OVER,0.7406,2.07,LOSS,4.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Leolia Jeanjean - Mariam Bolkvadze,"Samsun, Turkiye",2026-10-07T08:00:00Z,games_total,,19.5,OVER,0.7347,1.65,LOSS,16.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Chenting Zhu - Ekaterina Tupitsyna,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,ekaterina tupitsyna,11.5,OVER,0.7406,1.34,WIN,18.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Chenting Zhu - Ekaterina Tupitsyna,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,ekaterina tupitsyna,13.5,UNDER,0.7383,1.26,LOSS,18.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Chenting Zhu - Ekaterina Tupitsyna,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,chenting zhu,10.5,OVER,0.7107,1.58,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Chenting Zhu - Ekaterina Tupitsyna,ITF W35 Monastir 6 Women,2026-10-07T10:30:00Z,games_won_for,chenting zhu,11.5,OVER,0.7107,1.66,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Polina Iatcenko - Dalma Galfi,"Samsun, Turkiye",2026-10-07T10:55:00Z,games_won_for,polina iatcenko,9.5,OVER,0.7406,1.42,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Polina Iatcenko - Dalma Galfi,"Samsun, Turkiye",2026-10-07T10:55:00Z,games_won_for,polina iatcenko,13.5,UNDER,0.7383,1.27,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Marco Trungelliti - Rei Sakamoto,"Shanghai, China",2026-10-07T06:20:00Z,games_won_for,rei sakamoto,14.5,UNDER,0.7378,1.35,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,football,Paganese - Real Aversa,Coppa Italia Serie D,2026-10-07T18:00:00Z,goals_total,,3.5,UNDER,0.7291,1.25,WIN,2.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zane Stevens - Shintaro Imai,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,zane stevens,8.5,OVER,0.7117,1.71,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zane Stevens - Shintaro Imai,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,zane stevens,9.5,OVER,0.7117,1.87,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Zane Stevens - Shintaro Imai,ITF M25 Darwin 2 Men,2026-10-07T08:30:00Z,games_won_for,zane stevens,10.5,OVER,0.7117,2.05,WIN,13.0,2026-10-07T04:34:37.818543Z,True
+official,tennis,Evangelos Kypriotis - Leyton Rivera,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,evangelos kypriotis,10.5,OVER,0.7117,1.64,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Evangelos Kypriotis - Leyton Rivera,ITF M15 Heraklion 7 Men,2026-10-07T09:30:00Z,games_won_for,evangelos kypriotis,11.5,OVER,0.7117,1.73,REFUND,,2026-10-07T04:34:37.818543Z,True
+official,tennis,Lisa Claeys - Lea Belanska,ITF W15 Székesfehérvár Women,2026-10-07T10:00:00Z,games_won_for,lea belanska,6.5,OVER,0.7107,1.55,WIN,7.0,2026-10-07T04:34:37.818543Z,True
+official,football,Real Madrid C - Guadalajara,"Segunda Federacion, Group V",2026-10-07T10:00:00Z,goals_2h_total,,2.5,UNDER,0.7778,1.16,WIN,1.0,2026-10-07T04:39:49.180056Z,True
+official,football,Foshan Nanshi - Guangxi Hengchen FC,Chinese League 1,2026-10-07T11:30:00Z,goals_total,,4.5,UNDER,0.7814,1.17,WIN,1.0,2026-10-07T04:39:49.180056Z,True
+official,football,Foshan Nanshi - Guangxi Hengchen FC,Chinese League 1,2026-10-07T11:30:00Z,goals_for,guangxi hengchen,3.5,UNDER,0.8744,1.14,WIN,0.0,2026-10-07T10:59:32.394124Z,True
+official,football,Bukhoro Davlat Universiteti - Lochin,Pro Liga,2026-10-07T11:00:00Z,goals_total,,4.5,UNDER,0.8496,1.27,LOSS,8.0,2026-10-07T07:03:37.753258Z,True
+official,football,Ferro Carril Oeste Reserve - CA Independiente Reserve,"Primera LPF, Reserves, Clausura, Group B",2026-10-07T18:00:00Z,goals_total,,4.5,UNDER,0.8232,1.19,WIN,0.0,2026-10-07T07:03:37.753258Z,True
+official,tennis,Mohamed Nazim Makhlouf - Alexander Watanabe Eriksson,ITF M15 Monastir 33 Men,2026-10-07T08:30:00Z,games_won_for,alexander watanabe eriksson,12.5,UNDER,0.8001,1.4,WIN,8.0,2026-10-07T07:03:37.753258Z,True
+official,football,Deportivo Miranda - Atletico Avila FC,"Copa Venezuela, Group A",2026-10-07T19:00:00Z,goals_2h_total,,2.5,UNDER,0.7778,1.17,WIN,0.0,2026-10-07T07:03:37.753258Z,True
+official,tennis,Gabriele Pennaforti - Ruben Hartig,ITF M25 Santa Margherita di Pula 9 Men,2026-10-07T10:00:00Z,games_won_for,ruben hartig,10.5,OVER,0.7117,2.02,LOSS,5.0,2026-10-07T07:03:37.753258Z,True
+official,football,Mladá Boleslav B - FK Varnsdorf,"CFL, Group B",2026-10-07T09:00:00Z,goals_total,,4.5,UNDER,0.7291,1.24,WIN,2.0,2026-10-07T07:03:37.753258Z,True
+official,tennis,Felix Roussel - Samuel de Felipe Garcia,ITF M15 Monastir 33 Men,2026-10-07T08:30:00Z,games_won_for,samuel de felipe garcia,10.5,OVER,0.7117,1.57,LOSS,7.0,2026-10-07T07:03:37.753258Z,True
+official,football,IF Gnistan - Inter Turku,"Veikkausliiga, Championship Round",2026-10-07T16:00:00Z,goals_1h_total,,2.5,UNDER,0.857,1.12,WIN,0.0,2026-10-07T10:59:32.394124Z,True
+official,football,Foshan Nanshi - Guangxi Hengchen FC,Chinese League 1,2026-10-07T11:30:00Z,goals_1h_total,,2.5,UNDER,0.8549,1.12,WIN,0.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Edas Butvilas - Max Hans Rehberg,"Villena, Spain",2026-10-07T12:30:00Z,games_won_set2_for,edas butvilas,6.5,UNDER,0.8658,1.12,WIN,4.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Andrej Martin - Alejandro Moro Canas,"Palermo, Italy",2026-10-07T12:40:00Z,games_won_set2_for,alejandro moro canas,6.5,UNDER,0.8658,1.11,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Andrej Martin - Alejandro Moro Canas,"Palermo, Italy",2026-10-07T12:40:00Z,games_won_set1_for,andrej martin,1.5,OVER,0.8632,1.1,LOSS,0.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Andrej Martin - Alejandro Moro Canas,"Palermo, Italy",2026-10-07T12:40:00Z,games_won_set2_for,andrej martin,2.5,OVER,0.7546,1.29,WIN,3.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Andrej Martin - Alejandro Moro Canas,"Palermo, Italy",2026-10-07T12:40:00Z,games_set2_total,,8.5,OVER,0.7066,1.39,WIN,9.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Thiago Seyboth Wild - Murkel Dellien,"Antofagasta, Chile",2026-10-07T14:00:00Z,games_won_set2_for,thiago seyboth wild,6.5,UNDER,0.8658,1.11,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Thiago Seyboth Wild - Murkel Dellien,"Antofagasta, Chile",2026-10-07T14:00:00Z,games_won_set1_for,thiago seyboth wild,6.5,UNDER,0.8482,1.1,WIN,5.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Thiago Seyboth Wild - Murkel Dellien,"Antofagasta, Chile",2026-10-07T14:00:00Z,games_won_set2_for,murkel dellien,1.5,OVER,0.8412,1.11,WIN,2.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Joao Lucas Reis da Silva - Guido Ivan Justo,"Antofagasta, Chile",2026-10-07T18:00:00Z,games_won_set2_for,guido ivan justo,6.5,UNDER,0.8658,1.09,REFUND,,2026-10-07T10:59:32.394124Z,True
+official,tennis,Joao Lucas Reis da Silva - Guido Ivan Justo,"Antofagasta, Chile",2026-10-07T18:00:00Z,games_won_set2_for,joao lucas reis silva,6.5,UNDER,0.8658,1.09,REFUND,,2026-10-07T10:59:32.394124Z,True
+official,tennis,Joao Lucas Reis da Silva - Guido Ivan Justo,"Antofagasta, Chile",2026-10-07T18:00:00Z,games_won_set1_for,guido ivan justo,6.5,UNDER,0.8613,1.09,REFUND,,2026-10-07T10:59:32.394124Z,True
+official,tennis,Joao Lucas Reis da Silva - Guido Ivan Justo,"Antofagasta, Chile",2026-10-07T18:00:00Z,games_won_set1_for,joao lucas reis silva,6.5,UNDER,0.8613,1.09,REFUND,,2026-10-07T10:59:32.394124Z,True
+official,tennis,Joao Lucas Reis da Silva - Guido Ivan Justo,"Antofagasta, Chile",2026-10-07T18:00:00Z,games_won_set1_for,guido ivan justo,3.5,OVER,0.8179,1.29,REFUND,,2026-10-07T10:59:32.394124Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_won_set2_for,felipe meligeni alves,6.5,UNDER,0.8658,1.1,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_won_set1_for,felipe meligeni alves,6.5,UNDER,0.8613,1.1,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_won_set2_for,felipe meligeni alves,3.5,OVER,0.7983,1.14,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_won_set1_for,nick hardt,2.5,OVER,0.7859,1.22,WIN,3.0,2026-10-07T10:59:32.394124Z,True
+official,football,Shooting Stars - Kano Pillars,Premier League,2026-10-07T15:00:00Z,goals_1h_total,,1.5,UNDER,0.7489,1.21,WIN,0.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Gianluca Cadenasso - Massimo Giunta,"Palermo, Italy",2026-10-07T18:00:00Z,games_won_set2_for,gianluca cadenasso,3.5,OVER,0.8181,1.16,WIN,5.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Gianluca Cadenasso - Massimo Giunta,"Palermo, Italy",2026-10-07T18:00:00Z,games_won_set1_for,massimo giunta,3.5,OVER,0.7447,1.35,WIN,7.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Zdenek Kolar - Michele Ribecai,"Palermo, Italy",2026-10-07T11:30:00Z,games_won_set1_for,michele ribecai,2.5,OVER,0.8179,1.15,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Zdenek Kolar - Michele Ribecai,"Palermo, Italy",2026-10-07T11:30:00Z,games_won_set1_for,michele ribecai,3.5,OVER,0.8179,1.31,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Zdenek Kolar - Michele Ribecai,"Palermo, Italy",2026-10-07T11:30:00Z,games_set1_total,,10.5,UNDER,0.7525,1.24,WIN,7.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Marvin Möller - Tiago Torres,"Braga, Portugal",2026-10-07T13:10:00Z,games_won_set1_for,marvin moeller,3.5,OVER,0.8179,1.18,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Marvin Möller - Tiago Torres,"Braga, Portugal",2026-10-07T13:10:00Z,games_won_set2_for,marvin moeller,3.5,OVER,0.7983,1.18,WIN,6.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Matheus Pucinelli de Almeida - Genaro Alberto Olivieri,"Antofagasta, Chile",2026-10-07T15:10:00Z,games_won_set2_for,genaro alberto olivieri,2.5,OVER,0.7546,1.24,WIN,3.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Matheus Pucinelli de Almeida - Genaro Alberto Olivieri,"Antofagasta, Chile",2026-10-07T15:10:00Z,games_won_set1_for,genaro alberto olivieri,2.5,OVER,0.7447,1.24,WIN,3.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Matheus Pucinelli de Almeida - Genaro Alberto Olivieri,"Antofagasta, Chile",2026-10-07T15:10:00Z,games_won_set1_for,genaro alberto olivieri,3.5,OVER,0.7447,1.57,LOSS,3.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Matheus Pucinelli de Almeida - Genaro Alberto Olivieri,"Antofagasta, Chile",2026-10-07T15:10:00Z,games_set2_total,,8.5,OVER,0.7144,1.37,WIN,9.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Valentino Grippo - Daniel Salazar Martinez,ITF M15 Quito 3 Men,2026-10-07T15:30:00Z,games_won_set2_for,valentino grippo,2.5,OVER,0.7546,1.4,WIN,3.0,2026-10-07T10:59:32.394124Z,True
+official,football,Brusaporto - Chievo Verona,Coppa Italia Serie D,2026-10-07T13:00:00Z,goals_total,,3.5,UNDER,0.7291,1.3,WIN,3.0,2026-10-07T10:59:32.394124Z,True
+official,tennis,Lucas Andrade Da Silva - Alberto Alvarado Berrospi,ITF M15 Quito 3 Men,2026-10-07T17:30:00Z,games_set2_total,,7.5,OVER,0.7066,1.45,WIN,8.0,2026-10-07T10:59:32.394124Z,True
+official,football,Vigor Lamezia - Gelbison,Coppa Italia Serie D,2026-10-07T17:00:00Z,goals_total,,3.5,UNDER,0.7291,1.25,LOSS,4.0,2026-10-07T11:41:12.956993Z,True
+official,tennis,Valentino Grippo - Daniel Salazar Martinez,ITF M15 Quito 3 Men,2026-10-07T15:30:00Z,games_set1_total,,9.5,UNDER,0.7525,1.53,WIN,9.0,2026-10-07T13:52:28.029058Z,True
+official,football,FC Freienbach - USV Eschen-Mauren,"Erste Liga Classic, Group 3",2026-10-07T17:45:00Z,goals_total,,1.5,OVER,0.8272,1.13,LOSS,0.0,2026-10-07T14:14:28.647562Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_set2_total,,12.5,UNDER,0.8516,1.09,WIN,9.0,2026-10-07T18:21:10.722368Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_set1_total,,8.5,OVER,0.7643,1.38,WIN,9.0,2026-10-07T18:21:10.722368Z,True
+official,tennis,Nick Hardt - Felipe Meligeni Alves,"Antofagasta, Chile",2026-10-07T19:10:00Z,games_won_set2_for,nick hardt,2.5,OVER,0.735,1.23,WIN,3.0,2026-10-07T18:21:10.722368Z,True
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_total,,0.5,OVER,0.9201,1.11,WIN,3.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_on_target_total,,4.5,OVER,0.8448,1.12,WIN,14.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_on_target_for,corinthians,1.5,OVER,0.8176,1.12,WIN,7.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_total,,3.5,OVER,0.8119,1.16,WIN,9.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_for,internacional rs,1.5,OVER,0.807,1.28,WIN,4.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,saves_for,corinthians,1.5,OVER,0.7941,1.26,WIN,5.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,13.5,UNDER,0.7934,1.15,LOSS,15.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_total,,7.5,UNDER,0.7825,1.21,LOSS,9.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,offsides_for,corinthians,2.5,UNDER,0.7785,1.24,LOSS,3.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,saves_total,,3.5,OVER,0.7641,1.22,WIN,11.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_for,corinthians,6.5,UNDER,0.7493,1.22,LOSS,12.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,12.5,UNDER,0.7437,1.24,LOSS,15.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_for,corinthians,3.5,UNDER,0.7335,1.5,LOSS,5.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,offsides_total,,4.5,UNDER,0.7189,1.44,LOSS,6.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_on_target_total,,5.5,OVER,0.7176,1.3,WIN,14.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_on_target_for,corinthians,4.5,UNDER,0.701,1.3,LOSS,7.0,,
+official,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_for,corinthians,5.5,UNDER,0.7001,1.42,LOSS,12.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_total,,4.5,UNDER,0.8974,1.16,WIN,2.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_on_target_total,,6.5,OVER,0.8732,1.17,WIN,11.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,15.5,UNDER,0.8628,1.09,WIN,14.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_1h_total,,2.5,UNDER,0.8524,1.13,WIN,0.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,6.5,OVER,0.8433,1.1,WIN,14.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,14.5,UNDER,0.8229,1.15,WIN,14.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,saves_total,,4.5,OVER,0.8094,1.21,WIN,9.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,offsides_total,,1.5,OVER,0.7897,1.16,WIN,5.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_2h_total,,2.5,UNDER,0.7832,1.24,WIN,2.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_total,,25.5,OVER,0.7515,1.26,WIN,41.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,13.5,UNDER,0.7437,1.24,LOSS,14.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_1h_total,,3.5,OVER,0.7301,1.32,WIN,5.0,,
+official,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_total,,3.5,UNDER,0.7287,1.43,WIN,2.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,6.5,OVER,0.895,1.1,WIN,14.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,15.5,UNDER,0.8946,1.09,WIN,14.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,14.5,UNDER,0.8751,1.15,WIN,14.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_total,,4.5,UNDER,0.8745,1.1,WIN,2.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_1h_total,,2.5,UNDER,0.8524,1.09,WIN,1.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,offsides_for,remo,2.5,UNDER,0.8445,1.17,WIN,0.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,13.5,UNDER,0.8229,1.24,LOSS,14.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_total,,7.5,UNDER,0.8216,1.19,WIN,7.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,offsides_total,,4.5,UNDER,0.82,1.3,WIN,1.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,7.5,OVER,0.8185,1.2,WIN,14.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_for,gremio rs,7.5,OVER,0.8108,1.18,WIN,17.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_2h_total,,0.5,OVER,0.7936,1.22,WIN,1.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_for,gremio rs,6.5,UNDER,0.7903,1.28,WIN,4.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_for,remo,8.5,UNDER,0.7903,1.15,LOSS,10.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_2h_total,,2.5,UNDER,0.7794,1.18,WIN,1.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_total,,3.5,OVER,0.7752,1.18,WIN,7.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_on_target_for,remo,6.5,UNDER,0.7653,1.24,LOSS,9.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_for,gremio rs,8.5,OVER,0.7638,1.36,WIN,17.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,12.5,UNDER,0.7437,1.37,LOSS,14.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_total,,1.5,OVER,0.7432,1.25,WIN,2.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,cards_points_total,,6.5,UNDER,0.7304,1.39,LOSS,7.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,goals_total,,3.5,UNDER,0.7287,1.33,WIN,2.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_total,,23.5,OVER,0.7203,1.34,WIN,40.0,,
+official,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_total,,8.5,OVER,0.7177,1.34,WIN,14.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_total,,14.5,UNDER,0.8751,1.12,WIN,9.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,shots_on_target_total,,6.5,OVER,0.8732,1.19,WIN,12.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_total,,6.5,OVER,0.8704,1.12,WIN,9.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_for,chapecoense,1.5,OVER,0.861,1.12,WIN,6.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,shots_on_target_for,chapecoense,1.5,OVER,0.8535,1.14,WIN,4.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,goals_1h_total,,2.5,UNDER,0.8524,1.1,WIN,1.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,goals_total,,4.5,UNDER,0.8489,1.12,WIN,4.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_total,,13.5,UNDER,0.8372,1.2,WIN,9.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_for,chapecoense,6.5,UNDER,0.819,1.1,WIN,6.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,goals_2h_total,,0.5,OVER,0.7936,1.21,WIN,3.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,goals_total,,1.5,OVER,0.7924,1.23,WIN,4.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,offsides_total,,1.5,OVER,0.7897,1.24,LOSS,0.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,goals_2h_total,,2.5,UNDER,0.7832,1.19,LOSS,3.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_total,,7.5,OVER,0.7743,1.24,WIN,9.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,saves_total,,4.5,OVER,0.7641,1.21,WIN,8.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,shots_total,,24.5,OVER,0.7603,1.25,WIN,31.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,offsides_for,vitoria ba,0.5,OVER,0.7486,1.23,LOSS,0.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_total,,12.5,UNDER,0.7437,1.31,WIN,9.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,cards_points_total,,6.5,UNDER,0.7304,1.26,WIN,5.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_1h_total,,3.5,OVER,0.7301,1.36,WIN,5.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,shots_total,,26.5,OVER,0.7242,1.49,WIN,31.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,offsides_for,chapecoense,1.5,UNDER,0.719,1.46,WIN,0.0,,
+official,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_for,vitoria ba,7.5,UNDER,0.7001,1.44,WIN,3.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,corners_total,,14.5,UNDER,0.8751,1.15,LOSS,21.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,goals_1h_total,,2.5,UNDER,0.8524,1.13,WIN,1.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,cards_points_total,,7.5,UNDER,0.8496,1.26,WIN,1.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,goals_total,,4.5,UNDER,0.8489,1.18,WIN,3.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,shots_on_target_total,,7.5,OVER,0.8448,1.18,WIN,10.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,corners_total,,6.5,OVER,0.8433,1.1,WIN,21.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,corners_for,vasco da gama,8.5,UNDER,0.8371,1.12,LOSS,14.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,shots_on_target_for,vasco da gama,7.5,UNDER,0.833,1.14,LOSS,8.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,corners_for,vasco da gama,7.5,UNDER,0.7903,1.22,LOSS,14.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,goals_2h_total,,2.5,UNDER,0.7794,1.25,WIN,2.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,goals_for,vasco da gama,2.5,UNDER,0.7782,1.23,WIN,2.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,saves_for,vasco da gama,4.5,UNDER,0.7757,1.24,WIN,1.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,corners_total,,7.5,OVER,0.7743,1.2,WIN,21.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,saves_total,,8.5,UNDER,0.7505,1.28,WIN,6.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,offsides_for,vasco da gama,0.5,OVER,0.7486,1.24,WIN,2.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,goals_total,,3.5,UNDER,0.7287,1.48,WIN,3.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,shots_total,,33.5,UNDER,0.7273,1.34,WIN,28.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,shots_on_target_total,,8.5,OVER,0.7176,1.39,WIN,10.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,saves_total,,5.5,OVER,0.7098,1.29,WIN,6.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,shots_on_target_for,vasco da gama,6.5,UNDER,0.701,1.32,LOSS,8.0,,
+official,football,Botafogo - Vasco da Gama,Campeonato Brasileiro Série A,2026-10-07T23:30:00Z,corners_for,vasco da gama,6.5,UNDER,0.7001,1.4,LOSS,14.0,,
+official,football,Club Deportes Antofagasta - Universidad de Chile,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_total,,4.5,UNDER,0.8745,1.15,WIN,2.0,,
+official,football,Club Deportes Antofagasta - Universidad de Chile,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_2h_total,,0.5,OVER,0.7936,1.14,WIN,2.0,,
+official,football,Club Deportes Antofagasta - Universidad de Chile,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_2h_total,,2.5,UNDER,0.7794,1.22,WIN,2.0,,
+official,football,Club Deportes Antofagasta - Universidad de Chile,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_total,,3.5,UNDER,0.7287,1.46,WIN,2.0,,
+official,football,Forge FC - Pacific FC,Canadian Premier League,2026-10-07T23:00:00Z,corners_total,,12.5,UNDER,0.8628,1.18,LOSS,14.0,,
+official,football,Forge FC - Pacific FC,Canadian Premier League,2026-10-07T23:00:00Z,goals_total,,5.5,UNDER,0.8489,1.09,WIN,3.0,,
+official,football,Forge FC - Pacific FC,Canadian Premier League,2026-10-07T23:00:00Z,corners_total,,6.5,OVER,0.8185,1.22,WIN,14.0,,
+official,football,Forge FC - Pacific FC,Canadian Premier League,2026-10-07T23:00:00Z,goals_1h_total,,2.5,UNDER,0.816,1.18,WIN,1.0,,
+official,football,Forge FC - Pacific FC,Canadian Premier League,2026-10-07T23:00:00Z,corners_total,,11.5,UNDER,0.7934,1.3,LOSS,14.0,,
+official,football,Forge FC - Pacific FC,Canadian Premier League,2026-10-07T23:00:00Z,goals_total,,4.5,UNDER,0.7287,1.25,WIN,3.0,,
+official,football,CRB - Atlético Goianiense,Brasileirão Série B,2026-10-07T23:30:00Z,goals_1h_total,,2.5,UNDER,0.8524,1.11,WIN,0.0,,
+official,football,CRB - Atlético Goianiense,Brasileirão Série B,2026-10-07T23:30:00Z,goals_total,,3.5,UNDER,0.7811,1.41,LOSS,4.0,,
+official,football,CRB - Atlético Goianiense,Brasileirão Série B,2026-10-07T23:30:00Z,corners_total,,8.5,OVER,0.7177,1.41,WIN,17.0,,
+official,football,CRB - Atlético Goianiense,Brasileirão Série B,2026-10-07T23:30:00Z,shots_on_target_total,,8.5,OVER,0.7176,1.45,WIN,11.0,,
+official,football,CD Iztapa - CSD Amatitlán,"Primera División de Ascenso, Apertura, Group A",2026-10-07T21:00:00Z,goals_total,,4.5,UNDER,0.8489,1.17,LOSS,6.0,,
+official,football,CD Iztapa - CSD Amatitlán,"Primera División de Ascenso, Apertura, Group A",2026-10-07T21:00:00Z,goals_2h_total,,2.5,UNDER,0.7832,1.24,LOSS,3.0,,
+official,football,Coquimbo Unido - CD Cobreloa,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_total,,4.5,UNDER,0.8489,1.17,WIN,3.0,,
+official,football,Coquimbo Unido - CD Cobreloa,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_total,,3.5,UNDER,0.7287,1.5,WIN,3.0,,
+official,football,Coquimbo Unido - CD Cobreloa,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_2h_total,,2.5,UNDER,0.7265,1.24,WIN,2.0,,
+official,football,Coquimbo Unido - CD Cobreloa,"Copa Chile, Knockout stage",2026-10-07T22:00:00Z,goals_1h_total,,1.5,UNDER,0.709,1.58,WIN,1.0,,
+official,football,One Knoxville SC - Chattanooga Red Wolves SC,"USL, League One",2026-10-07T23:00:00Z,goals_total,,4.5,UNDER,0.8489,1.11,WIN,3.0,,
+official,football,One Knoxville SC - Chattanooga Red Wolves SC,"USL, League One",2026-10-07T23:00:00Z,goals_for,one knoxville,2.5,UNDER,0.7782,1.21,LOSS,3.0,,
+official,football,One Knoxville SC - Chattanooga Red Wolves SC,"USL, League One",2026-10-07T23:00:00Z,goals_2h_total,,2.5,UNDER,0.7754,1.18,WIN,1.0,,
+official,football,One Knoxville SC - Chattanooga Red Wolves SC,"USL, League One",2026-10-07T23:00:00Z,goals_total,,3.5,UNDER,0.7287,1.37,WIN,3.0,,
+official,football,FC Naples - Richmond Kickers,"USL, League One",2026-10-07T23:00:00Z,goals_total,,4.5,UNDER,0.8489,1.21,WIN,2.0,,
+official,football,FC Naples - Richmond Kickers,"USL, League One",2026-10-07T23:00:00Z,goals_2h_total,,2.5,UNDER,0.7754,1.28,WIN,1.0,,
+official,football,FC Naples - Richmond Kickers,"USL, League One",2026-10-07T23:00:00Z,corners_total,,8.5,OVER,0.7743,1.46,LOSS,5.0,,
+official,football,América Mineiro - Fortaleza,Brasileirão Série B,2026-10-07T23:30:00Z,goals_total,,3.5,UNDER,0.8489,1.26,WIN,1.0,,
+official,football,América Mineiro - Fortaleza,Brasileirão Série B,2026-10-07T23:30:00Z,goals_for,america mg,1.5,UNDER,0.7382,1.28,WIN,0.0,,
+official,football,América Mineiro - Fortaleza,Brasileirão Série B,2026-10-07T23:30:00Z,corners_total,,8.5,OVER,0.7177,1.41,LOSS,8.0,,
+official,football,Boca Juniors de Cali - Unión Magdalena,"Torneo DIMAYOR, Clausura",2026-10-07T22:00:00Z,goals_for,union magdalena,2.5,UNDER,0.8326,1.12,WIN,1.0,,
+official,football,Vinotinto FC - CD Cuenca Juniors,"Serie B, Promotion Round",2026-10-07T20:30:00Z,goals_total,,3.5,UNDER,0.8222,1.25,WIN,2.0,,
+official,football,Vinotinto FC - CD Cuenca Juniors,"Serie B, Promotion Round",2026-10-07T20:30:00Z,corners_total,,9.5,UNDER,0.7437,1.54,UNSETTLED,,,
+official,football,Vinotinto FC - CD Cuenca Juniors,"Serie B, Promotion Round",2026-10-07T20:30:00Z,goals_2h_total,,1.5,UNDER,0.7265,1.58,WIN,1.0,,
+official,football,Vinotinto FC - CD Cuenca Juniors,"Serie B, Promotion Round",2026-10-07T20:30:00Z,goals_1h_total,,1.5,UNDER,0.709,1.32,WIN,1.0,,
+official,football,Grêmio Anápolis - Goiânia,"Goiano, Divisão de Acesso",2026-10-07T22:00:00Z,goals_total,,3.5,UNDER,0.8222,1.19,LOSS,4.0,,
+official,football,Vila Nova FC - Cuiabá,Brasileirão Série B,2026-10-07T23:30:00Z,goals_total,,3.5,UNDER,0.8222,1.16,WIN,0.0,,
+official,football,Vila Nova FC - Cuiabá,Brasileirão Série B,2026-10-07T23:30:00Z,corners_total,,7.5,OVER,0.8185,1.3,WIN,12.0,,
+official,football,Vila Nova FC - Cuiabá,Brasileirão Série B,2026-10-07T23:30:00Z,corners_for,cuiaba,3.5,OVER,0.7339,1.56,WIN,4.0,,
+official,football,Vila Nova FC - Cuiabá,Brasileirão Série B,2026-10-07T23:30:00Z,corners_total,,8.5,OVER,0.7177,1.5,WIN,12.0,,
+official,football,Caracas F.C. - Yaracuyanos FC,"Copa Venezuela, Group C",2026-10-07T22:00:00Z,goals_1h_total,,2.5,UNDER,0.816,1.12,WIN,1.0,,
+official,football,Caracas F.C. - Yaracuyanos FC,"Copa Venezuela, Group C",2026-10-07T22:00:00Z,goals_2h_total,,2.5,UNDER,0.7794,1.25,WIN,0.0,,
+official,football,Dynamo Puerto FC - Bolívar SC,"Copa Venezuela, Group E",2026-10-07T22:00:00Z,goals_2h_total,,0.5,OVER,0.7936,1.24,WIN,1.0,,
+official,football,Operário-PR - Botafogo-SP,Brasileirão Série B,2026-10-07T22:30:00Z,goals_2h_total,,0.5,OVER,0.7936,1.28,WIN,1.0,,
+official,football,Operário-PR - Botafogo-SP,Brasileirão Série B,2026-10-07T22:30:00Z,goals_for,botafogo sp,1.5,UNDER,0.7382,1.27,LOSS,2.0,,
+official,football,Operário-PR - Botafogo-SP,Brasileirão Série B,2026-10-07T22:30:00Z,corners_for,botafogo sp,3.5,OVER,0.7339,1.44,WIN,4.0,,
+official,football,Avaí - Londrina,Brasileirão Série B,2026-10-07T22:30:00Z,corners_total,,12.5,UNDER,0.7934,1.31,LOSS,13.0,,
+official,football,Avaí - Londrina,Brasileirão Série B,2026-10-07T22:30:00Z,goals_total,,3.5,UNDER,0.7811,1.19,WIN,3.0,,
+official,football,Avaí - Londrina,Brasileirão Série B,2026-10-07T22:30:00Z,goals_for,londrina,1.5,UNDER,0.7382,1.29,WIN,1.0,,
+official,football,AFF Guatemala - Nueva Santa Rosa CDF,"Primera División de Ascenso, Apertura, Group B",2026-10-07T21:00:00Z,goals_total,,3.5,UNDER,0.7811,1.24,WIN,2.0,,
+official,football,AFF Guatemala - Nueva Santa Rosa CDF,"Primera División de Ascenso, Apertura, Group B",2026-10-07T21:00:00Z,goals_for,aff guatemala,1.5,UNDER,0.7382,1.52,WIN,0.0,,
+official,football,Leones FC - Barranquilla FC,"Torneo DIMAYOR, Clausura",2026-10-07T21:00:00Z,goals_total,,3.5,UNDER,0.7811,1.32,WIN,2.0,,
+official,football,Leones FC - Barranquilla FC,"Torneo DIMAYOR, Clausura",2026-10-07T21:00:00Z,goals_2h_total,,0.5,OVER,0.7454,1.23,WIN,1.0,,
+official,football,Ureña SC - Trujillanos FC,"Copa Venezuela, Group D",2026-10-07T20:00:00Z,goals_2h_total,,2.5,UNDER,0.7794,1.22,WIN,0.0,,
+official,hockey,Mannheim - GKS Tychy,Liga Mistrzów,2026-10-07T17:30:00Z,team_total,T2,0.5,OVER,0.8595,1.17,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Tappara Tampere - Storhamar,Liga Mistrzów,2026-10-07T15:30:00Z,team_total,T2,0.5,OVER,0.8946,1.1,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Kolner Haie - Herning Blue Fox,Liga Mistrzów,2026-10-07T17:30:00Z,team_total,T2,0.5,OVER,0.8946,1.13,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Kolner Haie - Herning Blue Fox,Liga Mistrzów,2026-10-07T17:30:00Z,period_total,,0.5,OVER,0.8161,1.13,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,team_total,T2,1.5,OVER,0.8012,1.17,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Dynamo Pardubice B - Stadion Litomerice,Czechy - Maxa liga,2026-10-07T15:30:00Z,period_total,,0.5,OVER,0.8547,1.17,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Dynamo Pardubice B - Stadion Litomerice,Czechy - Maxa liga,2026-10-07T15:30:00Z,total,,4.5,OVER,0.7733,1.4,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Oskarshamn - AIK Stockholm,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8547,1.18,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Oskarshamn - AIK Stockholm,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,team_total,T1,1.5,OVER,0.7688,1.38,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Oskarshamn - AIK Stockholm,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,total,,4.5,OVER,0.7544,1.43,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Lausanne - Lugano,Szwajcaria - NLA,2026-10-07T17:45:00Z,total,,3.5,OVER,0.8479,1.15,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Lausanne - Lugano,Szwajcaria - NLA,2026-10-07T17:45:00Z,period_total,,0.5,OVER,0.8161,1.18,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Lausanne - Lugano,Szwajcaria - NLA,2026-10-07T17:45:00Z,team_total,T1,1.5,OVER,0.7688,1.19,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Lausanne - Lugano,Szwajcaria - NLA,2026-10-07T17:45:00Z,team_total,T2,1.5,OVER,0.7436,1.27,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Pyry - Iisalmen Peli-Karhut,Finlandia - Mestis,2026-10-07T15:30:00Z,period_total,,0.5,OVER,0.8346,1.12,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Pyry - Iisalmen Peli-Karhut,Finlandia - Mestis,2026-10-07T15:30:00Z,team_total,T1,1.5,OVER,0.7688,1.37,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Slavia Praga - Banik Sokolov,Czechy - Maxa liga,2026-10-07T16:00:00Z,period_total,,0.5,OVER,0.8346,1.17,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Almtuna - Visby-Roma,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8346,1.17,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vimmerby - Kalmar,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8346,1.17,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vimmerby - Kalmar,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,handicap,,-0.5,T2,0.8113,1.24,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vimmerby - Kalmar,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,team_total,T2,2.5,OVER,0.7436,1.46,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,period_total,,0.5,OVER,0.8161,1.19,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Leksands - Nybro,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8161,1.17,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Modo - Sodertalje,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8161,1.19,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Modo - Sodertalje,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,team_total,T2,1.5,OVER,0.7688,1.35,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vasteras - Ostersunds,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8161,1.19,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vasteras - Ostersunds,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,team_total,T1,1.5,OVER,0.7688,1.2,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Vasteras - Ostersunds,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,team_total,T2,1.5,OVER,0.7436,1.32,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Jukurit Mikkeli - Assat Pori,Finlandia - Liiga,2026-10-07T09:00:00Z,handicap,,2.5,T1,0.8113,1.11,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Jukurit Mikkeli - Assat Pori,Finlandia - Liiga,2026-10-07T09:00:00Z,handicap,,-1.5,T2,0.7578,1.23,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Horacka Slavia Trebic - Heimstaden Havirov,Czechy - Maxa liga,2026-10-07T15:30:00Z,period_total,,0.5,OVER,0.7753,1.2,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Karlskoga - Mora,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.7753,1.2,WIN,,2026-10-07T04:34:37.818543Z,True
+official,hockey,Dalen - Morrum Gois,Szwecja - Ettan Sodra,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8547,1.14,WIN,,2026-10-07T05:05:32.757365Z,True
+official,hockey,Dalen - Morrum Gois,Szwecja - Ettan Sodra,2026-10-07T17:00:00Z,total,,4.5,OVER,0.7733,1.31,LOSS,,2026-10-07T05:05:32.757365Z,True
+official,hockey,Vasterviks - Troja-Ljungby,Szwecja - Ettan Sodra,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8547,1.14,WIN,,2026-10-07T05:05:32.757365Z,True
+official,hockey,Vasterviks - Troja-Ljungby,Szwecja - Ettan Sodra,2026-10-07T17:00:00Z,total,,4.5,OVER,0.7733,1.31,WIN,,2026-10-07T05:05:32.757365Z,True
+official,hockey,Boro/Vetlanda HC - Nykopings,Szwecja - Ettan Sodra,2026-10-07T17:00:00Z,period_total,,0.5,OVER,0.8346,1.14,WIN,,2026-10-07T05:05:32.757365Z,True
+official,hockey,Tappara Tampere - Storhamar,Liga Mistrzów,2026-10-07T15:30:00Z,period_total,,0.5,OVER,0.8161,1.16,LOSS,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Skalica - Povazska Bystrica,Słowacja - 1. Liga,2026-10-07T15:30:00Z,period_total,,0.5,OVER,0.8751,1.1,LOSS,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Skalica - Povazska Bystrica,Słowacja - 1. Liga,2026-10-07T15:30:00Z,total,,5.5,OVER,0.7544,1.32,LOSS,,2026-10-07T07:03:37.753258Z,True
+official,hockey,HK Levice - Detva,Słowacja - 1. Liga,2026-10-07T16:00:00Z,period_total,,0.5,OVER,0.8751,1.11,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,HK Levice - Detva,Słowacja - 1. Liga,2026-10-07T16:00:00Z,total,,5.5,OVER,0.7544,1.42,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Nove Zamky - HC 19 Humenne,Słowacja - 1. Liga,2026-10-07T16:00:00Z,period_total,,0.5,OVER,0.8751,1.12,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Dynamo Pardubice B - Stadion Litomerice,Czechy - Maxa liga,2026-10-07T15:30:00Z,team_total,T1,1.5,OVER,0.8387,1.19,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Dynamo Pardubice B - Stadion Litomerice,Czechy - Maxa liga,2026-10-07T15:30:00Z,team_total,T2,1.5,OVER,0.7688,1.26,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Gladiators Trnava - Spartak Dubnica,Słowacja - 1. Liga,2026-10-07T15:30:00Z,period_total,,0.5,OVER,0.8547,1.13,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,HC Bratislava - Martin,Słowacja - 1. Liga,2026-10-07T16:30:00Z,period_total,,0.5,OVER,0.8547,1.13,LOSS,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,team_total,T1,1.5,OVER,0.8387,1.16,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,handicap,,0.5,T1,0.7832,1.28,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Boro/Vetlanda HC - Nykopings,Szwecja - Ettan Sodra,2026-10-07T17:00:00Z,total,,4.5,OVER,0.7544,1.31,WIN,,2026-10-07T07:03:37.753258Z,True
+official,hockey,Mannheim - GKS Tychy,Liga Mistrzów,2026-10-07T17:30:00Z,period_team_total,T1,2.5,UNDER,0.8739,1.14,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Mannheim - GKS Tychy,Liga Mistrzów,2026-10-07T17:30:00Z,total,,7.5,UNDER,0.8294,1.41,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,period_team_total,T1,1.5,UNDER,0.9101,1.1,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,total,,7.5,UNDER,0.8834,1.13,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,team_total,T1,3.5,UNDER,0.8433,1.16,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,period_handicap,,-0.5,T2,0.8055,1.27,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,total,,6.5,UNDER,0.7697,1.28,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,period_team_total,T2,1.5,UNDER,0.7661,1.22,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,team_total,T1,2.5,UNDER,0.7166,1.5,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Kolner Haie - Herning Blue Fox,Liga Mistrzów,2026-10-07T17:30:00Z,period_team_total,T1,2.5,UNDER,0.9101,1.11,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Kolner Haie - Herning Blue Fox,Liga Mistrzów,2026-10-07T17:30:00Z,team_total,T1,5.5,UNDER,0.7279,1.35,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Kolner Haie - Herning Blue Fox,Liga Mistrzów,2026-10-07T17:30:00Z,total,,7.5,UNDER,0.7232,1.35,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Boxers de Bordeaux - Dynamo Pardubice,Liga Mistrzów,2026-10-07T18:15:00Z,period_team_total,T2,2.5,UNDER,0.9101,1.11,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Boxers de Bordeaux - Dynamo Pardubice,Liga Mistrzów,2026-10-07T18:15:00Z,period_team_total,T2,1.5,UNDER,0.7278,1.52,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Boxers de Bordeaux - Dynamo Pardubice,Liga Mistrzów,2026-10-07T18:15:00Z,total,,7.5,UNDER,0.7232,1.42,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,period_team_total,T2,1.5,UNDER,0.8796,1.12,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,period_total,,2.5,UNDER,0.8191,1.19,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,team_total,T2,3.5,UNDER,0.8062,1.18,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Frydek Mistek - Zubr Prerov,Czechy - Maxa liga,2026-10-07T15:00:00Z,total,,6.5,UNDER,0.7232,1.32,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Vimmerby - Kalmar,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_team_total,T1,1.5,UNDER,0.8796,1.12,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Tappara Tampere - Storhamar,Liga Mistrzów,2026-10-07T15:30:00Z,period_team_total,T1,1.5,UNDER,0.7661,1.34,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Karpat Oulu - Kiekko-Espoo,Finlandia - Liiga,2026-10-07T15:30:00Z,period_team_total,T1,1.5,UNDER,0.8616,1.16,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Karpat Oulu - Kiekko-Espoo,Finlandia - Liiga,2026-10-07T15:30:00Z,team_total,T1,4.5,UNDER,0.8433,1.09,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Karpat Oulu - Kiekko-Espoo,Finlandia - Liiga,2026-10-07T15:30:00Z,period_team_total,T2,1.5,UNDER,0.8229,1.13,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Karpat Oulu - Kiekko-Espoo,Finlandia - Liiga,2026-10-07T15:30:00Z,total,,6.5,UNDER,0.7697,1.25,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Berani Zlin - Kolin,Czechy - Maxa liga,2026-10-07T15:30:00Z,period_team_total,T2,1.5,UNDER,0.8616,1.14,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Berani Zlin - Kolin,Czechy - Maxa liga,2026-10-07T15:30:00Z,period_team_total,T1,1.5,UNDER,0.8229,1.15,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Berani Zlin - Kolin,Czechy - Maxa liga,2026-10-07T15:30:00Z,team_total,T1,3.5,UNDER,0.7166,1.28,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Horacka Slavia Trebic - Heimstaden Havirov,Czechy - Maxa liga,2026-10-07T15:30:00Z,period_team_total,T1,1.5,UNDER,0.8616,1.24,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Horacka Slavia Trebic - Heimstaden Havirov,Czechy - Maxa liga,2026-10-07T15:30:00Z,total,,6.5,UNDER,0.7697,1.29,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Horacka Slavia Trebic - Heimstaden Havirov,Czechy - Maxa liga,2026-10-07T15:30:00Z,team_total,T1,3.5,UNDER,0.7166,1.54,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Slavia Praga - Banik Sokolov,Czechy - Maxa liga,2026-10-07T16:00:00Z,period_team_total,T2,1.5,UNDER,0.8616,1.11,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Karlskoga - Mora,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_team_total,T2,1.5,UNDER,0.8616,1.09,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Karlskoga - Mora,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_team_total,T1,1.5,UNDER,0.7661,1.25,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Pyry - Iisalmen Peli-Karhut,Finlandia - Mestis,2026-10-07T15:30:00Z,period_team_total,T2,1.5,UNDER,0.7661,1.4,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Pyry - Iisalmen Peli-Karhut,Finlandia - Mestis,2026-10-07T15:30:00Z,team_total,T2,4.5,UNDER,0.7166,1.51,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Lausanne - Lugano,Szwajcaria - NLA,2026-10-07T17:45:00Z,period_team_total,T2,1.5,UNDER,0.8037,1.16,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Lausanne - Lugano,Szwajcaria - NLA,2026-10-07T17:45:00Z,period_team_total,T1,1.5,UNDER,0.7661,1.22,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Comet Halden - Gruner,Norwegia - 1st Division,2026-10-07T17:00:00Z,total,,8.5,UNDER,0.7697,1.33,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Draci Sumperk - HC Bobri Valasske Mezirici,Czechy - 2.liga,2026-10-07T16:00:00Z,total,,8.5,UNDER,0.8294,1.34,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,HC Spartak Uhersky Brod - Orli Znojmo,Czechy - 2.liga,2026-10-07T16:00:00Z,total,,7.5,UNDER,0.7232,1.59,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Modo - Sodertalje,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_team_total,T1,1.5,UNDER,0.8229,1.21,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,RB Salzburg - Eisbaren Berlin,Liga Mistrzów,2026-10-07T18:20:00Z,period_team_total,T1,1.5,UNDER,0.8229,1.19,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,RB Salzburg - Eisbaren Berlin,Liga Mistrzów,2026-10-07T18:20:00Z,period_total,,2.5,UNDER,0.7795,1.28,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,RB Salzburg - Eisbaren Berlin,Liga Mistrzów,2026-10-07T18:20:00Z,period_team_total,T2,1.5,UNDER,0.7661,1.26,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,RB Salzburg - Eisbaren Berlin,Liga Mistrzów,2026-10-07T18:20:00Z,total,,6.5,UNDER,0.7232,1.56,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Leksands - Nybro,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_total,,2.5,UNDER,0.7795,1.25,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Leksands - Nybro,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,period_team_total,T1,1.5,UNDER,0.7278,1.39,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Torax Poruba - Novy Jicin,Czechy - 2.liga,2026-10-07T16:00:00Z,total,,8.5,UNDER,0.7232,1.36,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Benatky Nad Jizerou - Mostecti LVI,Czechy - 2.liga - zach.,2026-10-07T16:00:00Z,total,,8.5,UNDER,0.7697,1.36,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Zdar Nad Sazav. - Pisek,Czechy - 2.liga - zach.,2026-10-07T16:00:00Z,total,,8.5,UNDER,0.7697,1.33,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,HC Koprivnice - VSK Technika Brno,Czechy - 2.liga,2026-10-07T16:00:00Z,total,,8.5,UNDER,0.7697,1.44,PENDING:DATA_MISMATCH,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Fife Flyers - Coventry Blaze,Anglia - Elite League,2026-10-07T18:30:00Z,total,,7.5,UNDER,0.7697,1.31,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Pawłodar - HC Aktobe,Kazachstan - Vysshaya League,2026-10-07T14:00:00Z,total,,8.5,UNDER,0.7232,1.35,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,TPS U20 - Tappara Tampere U20,Finlandia - SM-Liiga U20,2026-10-07T15:30:00Z,total,,6.5,UNDER,0.7232,1.38,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,HC Milevsko 2010 - Usti Nad Labem,Czechy - 2.liga - zach.,2026-10-07T16:30:00Z,total,,8.5,UNDER,0.7232,1.38,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Dundee Stars - Manchester Storm,Anglia - Elite League,2026-10-07T18:30:00Z,total,,6.5,UNDER,0.7232,1.51,WIN,,2026-10-07T10:59:32.394124Z,True
+official,hockey,Academy Plzen - UK Hockey Prague,Czechy - University League,2026-10-07T17:00:00Z,total,,7.5,UNDER,0.7232,1.35,WIN,,2026-10-07T11:09:40.933170Z,True
+official,hockey,Draci Sumperk - HC Bobri Valasske Mezirici,Czechy - 2.liga,2026-10-07T16:00:00Z,total,,7.5,UNDER,0.7232,1.56,LOSS,,2026-10-07T12:26:03.425962Z,True
+official,hockey,Vut Brno - United Hradec Kralove,Czechy - University League,2026-10-07T17:45:00Z,total,,7.5,UNDER,0.7697,1.46,WIN,,2026-10-07T12:26:03.425962Z,True
+official,hockey,Mannheim - GKS Tychy,Liga Mistrzów,2026-10-07T17:30:00Z,period_team_total,T1,1.5,UNDER,0.7402,1.59,LOSS,,2026-10-07T13:52:28.029058Z,True
+official,hockey,Mannheim - GKS Tychy,Liga Mistrzów,2026-10-07T17:30:00Z,team_total,T1,4.5,UNDER,0.7166,2.0,WIN,,2026-10-07T13:52:28.029058Z,True
+official,hockey,Vaasan Sport - Ilves Tampere,Finlandia - Liiga,2026-10-07T15:30:00Z,winner,,,T2,0.7665,1.43,LOSS,,2026-10-07T13:52:28.029058Z,True
+official,hockey,Vimmerby - Kalmar,Szwecja - Allsvenskan,2026-10-07T17:00:00Z,winner,,,T2,0.7665,1.38,WIN,,2026-10-07T13:52:28.029058Z,True
+official,hockey,Lorenskog - Gjovik,Norwegia - 1st Division,2026-10-07T17:00:00Z,total,,8.5,UNDER,0.8289,1.33,WIN,,2026-10-07T13:52:28.029058Z,True
+official,hockey,RB Salzburg - Eisbaren Berlin,Liga Mistrzów,2026-10-07T18:20:00Z,team_total,T2,4.5,UNDER,0.7279,1.24,WIN,,2026-10-07T13:52:28.029058Z,True
+official,hockey,Torax Poruba - Novy Jicin,Czechy - 2.liga,2026-10-07T16:00:00Z,team_total,T1,5.5,UNDER,0.7166,2.15,LOSS,,2026-10-07T13:52:28.029058Z,True
+official,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_total,,0.5,OVER,0.8685,1.09,WIN,,,
+official,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_total,,0.5,OVER,0.8446,1.14,WIN,,,
+official,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T1,2.5,UNDER,0.8357,1.11,WIN,,,
+official,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_handicap,,-1.5,T2,0.7986,1.15,WIN,,,
+official,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_handicap,,-1.5,T2,0.7986,1.19,WIN,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_total,,0.5,OVER,0.8433,1.1,WIN,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T2,2.5,UNDER,0.8357,1.11,WIN,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_handicap,,1.5,T1,0.7986,1.13,WIN,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T1,1.5,UNDER,0.797,1.18,WIN,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_total,,0.5,OVER,0.7969,1.14,LOSS,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_handicap,,1.5,T1,0.7773,1.17,WIN,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T1,1.5,UNDER,0.7402,1.23,LOSS,,,
+official,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T1,1.5,UNDER,0.7402,1.28,WIN,,,
+official,basketball,Aris Saloniki - San Pablo Burgos,EuroCup - gr.A,2026-10-07T17:00:00Z,handicap,,-13.5,T2,0.8598,1.39,WIN,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Aris Saloniki - San Pablo Burgos,EuroCup - gr.A,2026-10-07T17:00:00Z,handicap,,-12.5,T2,0.8427,1.45,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Aris Saloniki - San Pablo Burgos,EuroCup - gr.A,2026-10-07T17:00:00Z,handicap,,-11.5,T2,0.8142,1.52,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,KB Trepca - Promitheas Patras,Europe Cup - gr.A,2026-10-07T16:30:00Z,handicap,,12.5,T1,0.8427,1.58,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,KB Trepca - Promitheas Patras,Europe Cup - gr.A,2026-10-07T16:30:00Z,handicap,,11.5,T1,0.7018,1.67,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,handicap,,5.5,T1,0.8427,1.19,WIN,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,handicap,,6.5,T1,0.8427,1.15,WIN,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,handicap,,4.5,T1,0.8142,1.21,WIN,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,handicap,,2.5,T1,0.7832,1.29,WIN,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,handicap,,3.5,T1,0.7832,1.25,WIN,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,team_total,T2,88.5,UNDER,0.7132,1.48,LOSS,,2026-10-07T18:21:10.722368Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,winner,,,T1,0.7045,1.42,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Trier - Batumi,Europe Cup - gr.A,2026-10-07T18:00:00Z,handicap,,-26.5,T2,0.7018,1.65,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,CSM Oradea - Fribourg Olympic,Europe Cup - gr.H,2026-10-07T16:00:00Z,handicap,,-13.5,T2,0.75,1.65,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,CSM Oradea - Fribourg Olympic,Europe Cup - gr.H,2026-10-07T16:00:00Z,handicap,,-12.5,T2,0.7018,1.75,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Contimax Mosir Bochnia (K) - Jelenia Góra (K),Polska - OBLK (K),2026-10-07T17:00:00Z,handicap,,-32.5,T2,0.75,1.8,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,Basket Ostrava (K) - Zabiny Brno (K),Czechy - ZBL (K),2026-10-07T15:00:00Z,handicap,,39.5,T1,0.7018,1.77,LOSS,,2026-10-07T10:59:32.394124Z,True
+official,basketball,CSM Oradea - Fribourg Olympic,Europe Cup - gr.H,2026-10-07T16:00:00Z,handicap,,-11.5,T2,0.7598,1.85,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,CSM Oradea - Fribourg Olympic,Europe Cup - gr.H,2026-10-07T16:00:00Z,team_total,T1,89.5,UNDER,0.7447,1.74,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Aris Saloniki - San Pablo Burgos,EuroCup - gr.A,2026-10-07T17:00:00Z,handicap,,-10.5,T2,0.7598,1.61,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Aris Saloniki - San Pablo Burgos,EuroCup - gr.A,2026-10-07T17:00:00Z,handicap,,-9.5,T2,0.7288,1.74,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Aris Saloniki - San Pablo Burgos,EuroCup - gr.A,2026-10-07T17:00:00Z,handicap,,-8.5,T2,0.7288,1.83,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,KB Trepca - Promitheas Patras,Europe Cup - gr.A,2026-10-07T16:30:00Z,handicap,,10.5,T1,0.7598,1.78,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,KB Trepca - Promitheas Patras,Europe Cup - gr.A,2026-10-07T16:30:00Z,handicap,,8.5,T1,0.7288,2.07,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,KB Trepca - Promitheas Patras,Europe Cup - gr.A,2026-10-07T16:30:00Z,handicap,,9.5,T1,0.7288,1.9,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Trier - Batumi,Europe Cup - gr.A,2026-10-07T18:00:00Z,handicap,,-25.5,T2,0.7598,1.74,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Trier - Batumi,Europe Cup - gr.A,2026-10-07T18:00:00Z,handicap,,-24.5,T2,0.7288,1.83,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Trier - Batumi,Europe Cup - gr.A,2026-10-07T18:00:00Z,handicap,,-23.5,T2,0.7288,1.95,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Tapiolan Honka (K) - Kouvottaret (K),Finlandia - Korisliiga (K),2026-10-07T15:30:00Z,handicap,,5.5,T1,0.7288,1.8,PENDING:DATA_MISMATCH,,2026-10-07T11:41:12.956993Z,True
+official,basketball,U BT Cluj - Venezia,EuroCup - gr.B,2026-10-07T16:00:00Z,handicap,,7.5,T1,0.7288,1.39,WIN,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Kalev/Cramo - Korfez Basket,Europe Cup - gr.F,2026-10-07T16:30:00Z,handicap,,14.5,T1,0.7288,1.76,WIN,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Kalev/Cramo - Korfez Basket,Europe Cup - gr.F,2026-10-07T16:30:00Z,handicap,,15.5,T1,0.7288,1.67,WIN,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Bakken Bears - Benfica,Europe Cup - gr.G,2026-10-07T16:30:00Z,handicap,,2.5,T1,0.7288,1.62,LOSS,,2026-10-07T11:41:12.956993Z,True
+official,basketball,Buyukcekmece - iLab,Turcja - TBL,2026-10-07T13:00:00Z,winner,,,T1,0.7045,1.53,WIN,,2026-10-07T11:41:12.956993Z,True
+official,basketball,CSM Oradea - Fribourg Olympic,Europe Cup - gr.H,2026-10-07T16:00:00Z,handicap,,-15.5,T2,0.8417,1.61,LOSS,,2026-10-07T12:26:03.425962Z,True
+official,basketball,CSM Oradea - Fribourg Olympic,Europe Cup - gr.H,2026-10-07T16:00:00Z,handicap,,-14.5,T2,0.8054,1.7,LOSS,,2026-10-07T12:26:03.425962Z,True
+official,basketball,ToPo (K) - Vimpeli Veto (K),Finlandia - Korisliiga (K),2026-10-07T15:30:00Z,handicap,,-14.5,T2,0.7883,1.8,PENDING:DATA_MISMATCH,,2026-10-07T12:26:03.425962Z,True
+official,basketball,SK Slavia Prague ERA NBK - Alba Berlin,Liga Mistrzów - gr.G,2026-10-07T16:00:00Z,handicap,,-3.5,T2,0.7598,1.36,WIN,,2026-10-07T12:26:03.425962Z,True
+official,basketball,Widzew Łódź (K) - MKS Pruszków (K),Polska - OBLK (K),2026-10-07T18:00:00Z,handicap,,-15.5,T2,0.7883,1.85,LOSS,,2026-10-07T13:52:28.029058Z,True
+official,basketball,Hradec Kralove (K) - SBS Ostrava (K),Czechy - ZBL (K),2026-10-07T16:30:00Z,handicap,,4.5,T1,0.7598,1.77,WIN,,2026-10-07T13:52:28.029058Z,True
+official,basketball,KB Bashkimi - Valmiera Glass Via,Europe Cup - gr.F,2026-10-07T17:00:00Z,handicap,,-8.5,T2,0.7288,1.59,WIN,,2026-10-07T13:52:28.029058Z,True
+official,basketball,Vasas (K) - Nke Csata (K),Węgry - NB I (K),2026-10-07T17:30:00Z,handicap,,18.5,T1,0.7288,1.8,LOSS,,2026-10-07T13:52:28.029058Z,True
+official,basketball,Bc Nokia (K) - Peli-Karhut (K),Finlandia - Korisliiga (K),2026-10-07T15:30:00Z,handicap,,-7.5,T2,0.7288,1.78,PENDING:DATA_MISMATCH,,2026-10-07T14:10:31.725011Z,True
+official,basketball,Paris - ASVEL,Euroliga,2026-10-07T18:45:00Z,handicap,,7.5,T1,0.8007,1.16,WIN,,2026-10-07T18:21:10.722368Z,True
+official,basketball,Fjolnir Reykjavik (K) - UMF Tindastoll (K),Islandia - Urvalsdeild (K),2026-10-07T19:15:00Z,handicap,,23.5,T1,0.7388,1.8,LOSS,,2026-10-07T18:21:10.722368Z,True
+official,basketball,Atlanta Dream (K) - New York Liberty (K),USA - WNBA (K) - playoff,2026-10-07T23:30:00Z,handicap,,6.5,T1,0.8007,1.29,WIN,,,
+official,basketball,Atlanta Dream (K) - New York Liberty (K),USA - WNBA (K) - playoff,2026-10-07T23:30:00Z,handicap,,7.5,T1,0.8007,1.23,WIN,,,
+official,basketball,Atlanta Dream (K) - New York Liberty (K),USA - WNBA (K) - playoff,2026-10-07T23:30:00Z,handicap,,5.5,T1,0.7717,1.35,WIN,,,
+official,basketball,Atlanta Dream (K) - New York Liberty (K),USA - WNBA (K) - playoff,2026-10-07T23:30:00Z,handicap,,3.5,T1,0.7388,1.47,WIN,,,
+official,basketball,Atlanta Dream (K) - New York Liberty (K),USA - WNBA (K) - playoff,2026-10-07T23:30:00Z,handicap,,4.5,T1,0.7388,1.41,WIN,,,
+official,volleyball,Kangasala (K) - Vampula (K),Finlandia - Mestaruusliiga (K),2026-10-07T15:30:00Z,sets_total,,4.5,UNDER,0.8436,1.31,LOSS,,2026-10-07T04:34:37.818543Z,True
+official,cs2,Spirit - M80,ESL Pro League,2026-10-07T17:00:00Z,map_rounds_total,,17.5,OVER,0.7776,1.19,WIN,,2026-10-07T10:59:32.394124Z,True
+official,cs2,Spirit - M80,ESL Pro League,2026-10-07T17:00:00Z,map_rounds_total,,17.5,OVER,0.7776,1.17,VOID,,2026-10-07T10:59:32.394124Z,True
+official,cs2,Spirit - M80,ESL Pro League,2026-10-07T17:00:00Z,map_rounds_total,,17.5,OVER,0.7776,1.16,WIN,,2026-10-07T12:26:03.425962Z,True
+official,cs2,Phantom - fnatic,Private Club,2026-10-07T15:00:00Z,maps_handicap,,-1.5,T2,0.8493,1.16,WIN,,2026-10-07T13:52:28.029058Z,True
+official,cs2,Phantom - fnatic,Private Club,2026-10-07T15:00:00Z,team_maps,fnatic,0.5,OVER,0.8478,1.15,WIN,,2026-10-07T13:52:28.029058Z,True
+official,cs2,Phantom - fnatic,Private Club,2026-10-07T15:00:00Z,team_maps,Phantom,1.5,UNDER,0.7007,1.43,WIN,,2026-10-07T13:52:28.029058Z,True
+official,cs2,Parivision - Natus Vincere,ESL Pro League,2026-10-07T14:30:00Z,map_rounds_total,,24.5,UNDER,0.8393,1.09,WIN,,2026-10-07T13:52:28.029058Z,True
+official,cs2,K27 - Metizport,Private Club,2026-10-07T18:00:00Z,maps_handicap,,1.5,T1,0.7948,1.16,WIN,,2026-10-07T13:52:28.029058Z,True
+official,cs2,K27 - Metizport,Private Club,2026-10-07T18:00:00Z,team_maps,K27,0.5,OVER,0.7933,1.15,WIN,,2026-10-07T13:52:28.029058Z,True
+official,cs2,Galorys - Gremio,ESL Challenger League - SA,2026-10-07T21:00:00Z,team_maps,Galorys,1.5,OVER,0.8375,1.09,LOSS,,,
+removed:reads,football,Red Bull Bragantino - Mirassol,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_total,,26.5,OVER,0.7242,1.41,WIN,41.0,,
+removed:reads,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_total,,20.5,OVER,0.7515,1.28,WIN,39.0,,
+removed:reads,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,shots_total,,21.5,OVER,0.7242,1.38,WIN,39.0,,
+removed:reads,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,fouls_for,internacional rs,14.5,OVER,0.7259,1.49,WIN,20.0,,
+removed:reads,football,Internacional - Corinthians,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,saves_for,internacional rs,1.5,OVER,0.7244,1.35,WIN,6.0,,
+removed:reads,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,corners_for,remo,3.5,OVER,0.8081,1.22,WIN,10.0,,
+removed:reads,football,Remo - Grêmio,Campeonato Brasileiro Série A,2026-10-07T22:30:00Z,saves_for,remo,1.5,OVER,0.7941,1.24,WIN,3.0,,
+removed:reads,football,Vitória - Chapecoense,Campeonato Brasileiro Série A,2026-10-07T23:00:00Z,corners_for,chapecoense,5.5,UNDER,0.7493,1.22,LOSS,6.0,,
+removed:reads,football,América Mineiro - Fortaleza,Brasileirão Série B,2026-10-07T23:30:00Z,cards_points_total,,5.5,UNDER,0.7304,1.44,WIN,5.0,,
+removed:reads,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_handicap,,-1.5,T2,0.8153,1.13,WIN,,,
+removed:reads,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_total,,3.5,UNDER,0.786,1.19,WIN,,,
+removed:reads,hockey,Washington - Pittsburgh Penguins,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T1,1.5,UNDER,0.7019,1.31,LOSS,,,
+removed:reads,hockey,Winnipeg Jets - Colorado Avalanche,USA - NHL,2026-10-07T23:30:00Z,period_team_total,T2,1.5,UNDER,0.7019,1.3,WIN,,,
