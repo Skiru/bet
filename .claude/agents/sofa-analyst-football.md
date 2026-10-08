@@ -36,21 +36,24 @@ its modal one; the sheet row carries `link_rule`. On a day built before that,
 check both sides' leagues yourself. The market knows lineups and absences we
 do not (PIPELINE.md 7.1a, 11a) - our centre is evidence, not truth.
 
-## Staged football packages (OFF until the operator moves them)
+## Installed football packages (ON from 2026-10-09 00:00Z)
 
-`epochs.COUNT_DISPERSION_FROM_UTC`, `CARDS_CORRELATION_FROM_UTC` and
-`PER_MARKET_K_FROM_UTC` are `None`. While off, the sample's own variance sets the
-spread of every count row and the sample's own K=15 shrinks it; both are known
-weaknesses (measured 2026-10-08, `docs/sofa/evidence/count_families_2026-10-08.md`):
+`epochs.COUNT_DISPERSION_FROM_UTC` and `PER_MARKET_K_FROM_UTC` are ON from
+2026-10-09 00:00Z (a day < 10-09 is the old estimator); `CARDS_CORRELATION_FROM_UTC`
+stays `None` (cards joints still treat the sides as independent). The spread of
+a count row now comes from the fitted alpha, no longer from the sample's own
+variance, and K is per market. The old estimator's weaknesses (kept for a day
+< 10-09) (measured 2026-10-08, `docs/sofa/evidence/count_families_2026-10-08.md`):
 the sample variance from 8-10 matches is overconfident in the upper tail (goals
 claimed 0.960 realised 0.911 at p_over >= 0.90; offsides 0.914 vs 0.873), the
 per-half corner / offside / shot rows priced with the plain normal are the
 worst, and cards joints treat the two sides as independent although their
 residual correlation is +0.126. So a high-p `over` rung of a count with a thin
 sample deserves a harder look than its confidence suggests - say so in the read;
-do not move the number yourself. Once a switch is on, the row carries
-`dispersion_rule` / `cards_rule` / `k_rule` and the spread comes from
-`config/sofa_count_dispersion.json`, not from `sample_sd`.
+do not move the number yourself. A day >= 10-09 row carries
+`dispersion_rule` / `k_rule` (`cards_rule` stays absent) and the spread comes from
+`config/sofa_count_dispersion.json`, not from `sample_sd`: `sample_sd` is no
+longer what the p was built from, so read the spread from the alpha.
 
 ## Input
 

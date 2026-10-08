@@ -44,7 +44,7 @@ hold is named too, because that is where your contribution is.
   rather than in a floor on the sample SD; `corners_total`, `corners_2h_*`,
   shots, shots on target, fouls and saves keep a normal CDF with a support floor
   (`engine.NEGATIVE_BINOMIAL_METRICS`: the NB was measured worse on the
-  high-mean shot and foul families). The spread is the sample's dispersion index
+  high-mean shot and foul families). (Rows of a day >= 2026-10-09 take the spread from the fitted alpha, `COUNT_DISPERSION`.) The spread is the sample's dispersion index
   carried to the new centre and inflated by `1 + 1/n`. Treat a small
   `sample_sd` as under-measured, never as precision — six corner observations of
   {6,6,6,6,7,7} preceded a 16.

@@ -162,22 +162,21 @@ estimator - a note, not a defect):
   games in 120 days, x1.026 for 3..9; the curves and line evidence were
   refitted on it.
 
-- Staged packages (all `None` = OFF until the operator moves a switch;
-  `epochs.COUNT_DISPERSION_FROM_UTC`, `TENNIS_SCOPED_TABLE_FROM_UTC`,
-  `CARDS_CORRELATION_FROM_UTC`, `PER_MARKET_K_FROM_UTC`): while off, a row
-  carrying `dispersion_rule` / `tennis_table_rule` / `cards_rule` / `k_rule` is a
-  defect (nothing may price under them); once on for the day, a SHEET row
-  without the marker is a defect (`tennis_table_rule` only on tennis rows; the
-  other three on every row) - and unlike the three packages above,
+- Installed packages (`epochs.COUNT_DISPERSION_FROM_UTC`,
+  `TENNIS_SCOPED_TABLE_FROM_UTC`, `PER_MARKET_K_FROM_UTC` ON from 2026-10-09
+  00:00Z; `CARDS_CORRELATION_FROM_UTC` still `None`): a SHEET row of a day >= 10-09
+  WITHOUT `dispersion_rule` / `k_rule` (and, on tennis rows, `tennis_table_rule`)
+  is a defect; one of a day < 10-09 WITH them is a defect; `cards_rule` on any
+  row is a defect while CARDS_CORRELATION is `None` - and unlike the three packages above,
   `rebuild_day.py` re-runs SHEET for them (`rebuild_plan`). Football count rows
-  then have their spread from `config/sofa_count_dispersion.json`, so
+  have their spread from `config/sofa_count_dispersion.json`, so
   `sample_sd` is no longer what the p was built from: check the alpha, not the
-  sample's variance; the cards joints use rho +0.126; tennis neighbours come
+  sample's variance; tennis neighbours come
   from the tier x gender table; `K_CENTRE.by_market` replaces K=15 for four
   markets.
 
 `rebuild_day.py` re-runs SHEET only for an old epoch or link rule (and the
-staged packages above, once on), **not** for the three 2026-10-07 14:05Z
+packages above, for a day >= 10-09), **not** for the three 2026-10-07 14:05Z
 switches: a `05_sheet.json` older than 14:05Z on 10-07 prices
 football / tennis under the old estimator against the refitted curves. Say
 so (file mtime) as a suspicion; the fix is the caller's

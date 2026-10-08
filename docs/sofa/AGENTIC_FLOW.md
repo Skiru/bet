@@ -134,7 +134,7 @@ operator: /sofa-day 2026-10-06
    │
    ├─ 7. przebudowa      rebuild_day.py --date <d> (jedno polecenie, F0.2): [OFFER, gdy cena
    │                     blisko 45 min] → [SHADOW z horyzontem do najdalszego startu / CS2,
-   │                     gdy ceny sportów blisko 3 h] → [SPORT_IDENTITY] → [SHEET, gdy epoka]
+   │                     gdy ceny sportów blisko 3 h] → [SPORT_IDENTITY] → [SHEET, gdy epoka lub brak znaczników pakietów, dzień >= 10-09]
    │                     → FIXTURE_CHECK (most) → run_confidence.py → SPORT_CONFIDENCE
    │                     → build_coupon.py → build_coupon_pdf.py (KUPON_<d>.pdf + 12_printed.json)
    │                     → audit_variants.py + audit_coupon.py

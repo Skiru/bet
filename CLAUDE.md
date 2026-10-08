@@ -106,36 +106,42 @@ every sport alike, and nothing that could win is cut by name.
   the replayed centre) and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
   that way were installed 2026-10-07 17:51Z: a new comparability epoch.
   Hockey / volleyball / CS2 curves are the staged `.next.json`'s.
-- **Staged model packages (2026-10-08, all switches `None`, waiting for the
-  operator - each changes the replayed p, so each goes live only with a curve
-  refit replayed with its flag; a row priced under one carries its marker
-  and a rebuild re-runs SHEET on a sheet of the other rule,
-  `rebuild_plan.py`):** `COUNT_DISPERSION_FROM_UTC` (football count spread
-  from an alpha fitted on the history, NB per competition,
+- **Installed model packages (refit installed 2026-10-08 23:42Z, commits
+  5330f357 / fdbe0aae; switches ON from 2026-10-09 00:00Z, judged on the day
+  built AND the build clock - a day < 10-09 is the old estimator and is never
+  rebuilt under the new one):** `COUNT_DISPERSION_FROM_UTC` (football count
+  spread from an alpha fitted on the history, NB per competition,
   `config/sofa_count_dispersion.json`, `fit_count_dispersion.py`; the normal
   with the pooled variance for `shots_total`; log-loss better on 52/52 markets
-  out of sample; `dispersion_rule`; replay `--count-dispersion`);
+  out of sample; rows carry `dispersion_rule`; replay `--count-dispersion`);
   `TENNIS_SCOPED_TABLE_FROM_UTC` (rating neighbours from the tier x gender
   cell, tier, then pooled when a cell holds < 1200 outcomes, plus the tier
   start `lp_t`; games_total -81e-4 log-loss; `tennis_table_rule`; replay
   `--tennis-scoped-table`, fit `fit_tennis_rating.py --tier-start`);
-  `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126, held
-  in `epochs`, not in the config's `null`; `cards_rule`; `--cards-correlation`);
   `PER_MARKET_K_FROM_UTC` (`K_CENTRE.by_market.football` in
-  `sofa_engine_constants.json`; `k_rule`; `--per-market-k`; goals stay at 15).
+  `sofa_engine_constants.json`: cards_points_for 25, fouls_total 2,
+  shots_for 8, shots_total 5; goals stay at 15; `k_rule`; `--per-market-k`).
+  `CARDS_CORRELATION_FROM_UTC` stays `None` (cards joints with side
+  correlation +0.126, held in `epochs`; no `cards_rule`; the cards joints'
+  curves are not read while `DERIVED_CURVES_FROM_UTC` is `None`): waiting for
+  the operator. `COUNT_DISPERSION` and `PER_MARKET_K` are a pair (SHEET refuses,
+  `epochs.require_k_with_dispersion`, exit 2, with only one on). A rebuild of
+  a day >= 10-09 re-runs SHEET itself on a sheet without the markers
+  (`rebuild_plan.py`). Measured preview on 2026-10-07 data: printing legs
+  572 -> 634 (football 251 -> 269, tennis 321 -> 365; 47 of the 113 new legs
+  tennis `games_won_for` UNDER), builders 11 -> 8. The line evidence was
+  fitted on the OLD curves and is applied against the new ones until
+  `refresh_line_evidence.py` refits it: the first mornings' offsets are noisy
+  for the repriced families (`games_won_for` UNDER likely over-lowered;
+  `goals_total` / `corners_total` possibly double-counted, conservative).
   Evidence: `docs/sofa/evidence/{count_families,tennis_calibration,
-  dependence_goals,pooling,k_under_dispersion}_2026-10-08.md`; the staged
-  refit report is `docs/sofa/history/RAPORT_STAGED_REFIT_2026-10-08.md`.
-  `COUNT_DISPERSION` and `PER_MARKET_K` go live together (the alphas were fitted
-  under K=15 centres, the K under the alphas): with only one on for the day,
-  SHEET refuses (`epochs.require_k_with_dispersion`, exit 2). A V5
-  `tennis_rating.json` (features naming `lp_t`, with `tier_start`) changes
-  tennis p even with its switch off, so it is installed with the switch, not
-  before; its `tier_start` offsets look ahead inside the replay (Elo at the
-  cut), like the coefficients. A staged refit is
-  `prepare_refit.py rebuild-cache-rows --confirm --without-db-backup
+  dependence_goals,pooling,k_under_dispersion}_2026-10-08.md`; reports
+  `docs/sofa/history/RAPORT_STAGED_REFIT_2026-10-08.md` and
+  `RUNBOOK_INSTALL_2026-10-08.md`. The tennis `tier_start` offsets look ahead
+  inside the replay (Elo at the cut), like the coefficients. A refit carrying
+  these is `prepare_refit.py rebuild-cache-rows --confirm --without-db-backup
   --count-dispersion --per-market-k --cards-correlation --tennis-scoped-table`
-  on the copy, with `fit_tennis_rating.py --tier-start` into the staged config.
+  on the copy, with `fit_tennis_rating.py --tier-start`.
 - **Wait for a measurement, not a name:** a market with no curve and no
   evidence is `NO_LINE_EVIDENCE`. Before `LINE_EVIDENCE_FROM_UTC` (rebuilds of
   older days only) the by-name refusals still apply: `refused_markets`,
@@ -261,7 +267,10 @@ measurement of Superbet's price and feed nothing else.
   re-run it after any `regrade_settled.py`. Exit 0 with legs pending, 1 on a
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
 - **Comparability:** the current rules apply from 2026-10-06; a refit install
-  or an epoch switch starts a new epoch. Earlier days ran under other rules
+  or an epoch switch starts a new epoch (the latest: the refit installed
+  2026-10-08 23:42Z, effective 2026-10-09; days from 10-09 are not summed with
+  earlier ones; 10-08 was built under the old rules and is never rebuilt,
+  re-PDF'd or re-read after the install). Earlier days ran under other rules
   and are other experiments - the ledger keeps them in their own groups and
   they are never summed with the current ones. Days up to the morning of
   2026-10-05 also hold rows of variants whose code is gone (`wariant`,
@@ -297,18 +306,19 @@ only the loop's own orchestration is old code until it ends.
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 `BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), `COUNT_DISPERSION_FROM_UTC`, `TENNIS_SCOPED_TABLE_FROM_UTC`,
-`CARDS_CORRELATION_FROM_UTC`, `PER_MARKET_K_FROM_UTC` (the staged packages
-above; install = refit with their flags + the operator's go), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
+builders), `CARDS_CORRELATION_FROM_UTC` (the one staged package left; needs
+`DERIVED_CURVES_FROM_UTC` to be read at all), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
 needs a refit carrying the replayed joints), the coupon form dials. Open
 questions: Superbet's game count of a tennis match tiebreak; how strict the
-price-band cap is.
+price-band cap is; how noisy the line-evidence offsets are for the repriced
+families in the first mornings after the 2026-10-09 install.
 **Before the next refit:** measure the admitted football props separately;
 measure the tennis games population of replay matches without `/statistics`;
 queued: CS2 `map_team_rounds` from the round race, football joints with the
 football rating in their centre.
 Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
+`config/backup_2026-10-09`,
 `data/backup_2026-10-05/sofa.db`.
 
 **Not modelled yet** (operator 10-07: every market that could win; the next
@@ -451,7 +461,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_pooling.py [flags: see th
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_k_under_dispersion.py   # per-market K under the fitted dispersion; flags: see the evidence doc
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_dependence_goals.py [flags: see the evidence doc]  # copulas, side correlations, goals model
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_calibration.py [flags: see the evidence doc]  # tennis rating scopes, calibration method, intervals
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_count_dispersion.py --before <d> --cases <dir> [--write]   # without --write a dry run; --write writes config/sofa_count_dispersion.json atomically (inert while the switch is None)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_count_dispersion.py --before <d> --cases <dir> [--write]   # without --write a dry run; --write writes config/sofa_count_dispersion.json atomically (a dry run reads nothing; the installed file is read from 2026-10-09 00:00Z)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settleability.py --from <d> --to <d> [--with-fit] [--json-out f] [--md-out f]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_blocked_families.py [--from <d>] [--to <d>]

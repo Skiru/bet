@@ -61,7 +61,7 @@ price in any `p_central`).** Two estimators exist side by side:
   probability; the 600 historical **best-of-three** matches with the nearest
   probability (`NEIGHBOURS`) are the score distribution, read empirically -
   so games, sets, set games and tiebreaks of one match cannot contradict each
-  other. **Best-of-five is not modelled** (no neighbour is a five-setter), and
+  other. From 2026-10-09 00:00Z the neighbours come from the tier x gender cell (`TENNIS_SCOPED_TABLE`; the ITF `games_total` bias is reduced - the surface and the opposition stay yours; row marker `tennis_table_rule`). **Best-of-five is not modelled** (no neighbour is a five-setter), and
   a player with fewer than `MIN_RATED = 10` rated matches gets no forecast.
   A null `default_period_count` is read as best-of-three.
 - **The sample's estimator**: the player's own scoped last ten, around the

@@ -423,7 +423,7 @@ prior   = w tej kolejności (piłka):
           4. mecz kobiet: pula lig kobiecych (config/sofa_women_competitions.json,
              ≥300 meczów)                          notka PRIOR_GLOBAL_WOMEN
           5. globalna
-w_c     = n / (n + K_CENTRE)                           (piłka 15, tenis 5; osobne K na rynek: `PER_MARKET_K`, wyłączone)
+w_c     = n / (n + K_CENTRE)                           (piłka 15, tenis 5; osobne K na rynek: `PER_MARKET_K`, od 2026-10-09)
 centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gdy brak bazy)
 
 p_central:
@@ -572,22 +572,33 @@ Refit 2026-09-30 po backfillu (cut 2026-10-01, 239 315 meczów): poza próbą
 CH tabela podobnych meczów pomija mecze rozstrzygnięte super-tie-breakiem
 (liczonym jako 1 gem trzeciego seta; 5,1% meczów, prawie wyłącznie ITF).
 
-### 7.1c Pakiety modelowe w kolejce (od 2026-10-08, wszystkie WYŁĄCZONE)
+### 7.1c Pakiety modelowe (zainstalowane 2026-10-08 23:42Z, WŁĄCZONE od 2026-10-09 00:00Z; poza `CARDS_CORRELATION`)
 
 Cztery pakiety zmierzone poza próbą na historii (raporty w
-`docs/sofa/evidence/`) są wpięte w kod za przełącznikami w `bet.sofa.epochs`,
-**wszystkie `None`** - dopóki operator nie powie "go", drukuje się dokładnie to,
-co wczoraj (testy "wyłączony = bajt w bajt tak samo"). Każdy zmienia
-odtwarzane `p`, więc włącza się go **razem z refitem krzywych** odtworzonym z
-jego flagą (nowa epoka porównywalności), a po włączeniu przebudowa
+`docs/sofa/evidence/`) są wpięte w kod za przełącznikami w `bet.sofa.epochs`.
+Refit z ich flagami zainstalowano 2026-10-08 23:42Z (commity 5330f357 i
+fdbe0aae - nowa epoka porównywalności); `COUNT_DISPERSION`, `PER_MARKET_K` i
+`TENNIS_SCOPED_TABLE` są **WŁĄCZONE od 2026-10-09 00:00Z** (liczy się dzień
+budowany ORAZ zegar budowy; dzień < 10-09 to stary estymator i nie
+przebudowuje się go). `CARDS_CORRELATION_FROM_UTC` zostaje `None` (krzywe
+jointów kartek nie są czytane, dopóki `DERIVED_CURVES_FROM_UTC` jest `None`) -
+czeka na operatora; wiersz nie ma wtedy `cards_rule`. Przebudowa dnia >= 10-09
 (`rebuild_plan.py`) sama puszcza SHEET na arkuszu bez znacznika reguły.
+Podgląd na danych z 2026-10-07: drukowane nogi 572 -> 634 (piłka 251 -> 269,
+tenis 321 -> 365; 47 z 113 nowych to `games_won_for` UNDER), buildery 11 -> 8.
+Dowody wyceny (offsety i limity pasm kursu w
+`config/sofa_superbet_line_evidence.json`) dopasowano do STARYCH krzywych;
+stosuje się je do nowych, dopóki `refresh_line_evidence.py` ich nie przefituje -
+pierwsze poranki bywają zaszumione dla przeszacowanych rodzin (`games_won_for`
+UNDER prawdopodobnie zaniżone, `goals_total` / `corners_total` możliwe
+podwójne liczenie, ostrożnie).
 
 | pakiet | przełącznik | co zmienia | znacznik wiersza | replay |
 |---|---|---|---|---|
-| dyspersja liczników | `COUNT_DISPERSION_FROM_UTC` | rozrzut piłkarskich liczników z alfy dopasowanej na historii (NB na rozgrywki, `config/sofa_count_dispersion.json`; `shots_total`: normalny z wariancją łączoną) zamiast wariancji z 8-10 meczów; log-loss lepszy na 52/52 rynków (−3,8 gole, −4,1 rożne, −5,7 strzały celne, ×1e-3) | `dispersion_rule` | `--count-dispersion` |
-| tabela tenisowa | `TENNIS_SCOPED_TABLE_FROM_UTC` | sąsiedzi ratingu z komórki tier × płeć (tier, potem tabela wspólna, gdy komórka ma < 1200 wyników) i start ratingu `lp_t`; `games_total` −81e-4 [−90; −74] | `tennis_table_rule` | `--tennis-scoped-table`, `fit_tennis_rating.py --tier-start` |
-| korelacja kartek | `CARDS_CORRELATION_FROM_UTC` | jointy kartek z korelacją stron +0,126 (dziś: niezależne); `both_over` +0,0016, `handicap` +0,0028, `most` +0,0011 | `cards_rule` | `--cards-correlation` |
-| K na rynek | `PER_MARKET_K_FROM_UTC` | `K_CENTRE.by_market.football` (kartki drużyny 25, faule suma 2, strzały drużyny 8, strzały suma 5; gole zostają 15); sumy meczu −6,4e-4 | `k_rule` | `--per-market-k` |
+| dyspersja liczników (ON od 2026-10-09 00:00Z) | `COUNT_DISPERSION_FROM_UTC` | rozrzut piłkarskich liczników z alfy dopasowanej na historii (NB na rozgrywki, `config/sofa_count_dispersion.json`; `shots_total`: normalny z wariancją łączoną) zamiast wariancji z 8-10 meczów; log-loss lepszy na 52/52 rynków (−3,8 gole, −4,1 rożne, −5,7 strzały celne, ×1e-3) | `dispersion_rule` | `--count-dispersion` |
+| tabela tenisowa (ON od 2026-10-09 00:00Z) | `TENNIS_SCOPED_TABLE_FROM_UTC` | sąsiedzi ratingu z komórki tier × płeć (tier, potem tabela wspólna, gdy komórka ma < 1200 wyników) i start ratingu `lp_t`; `games_total` −81e-4 [−90; −74] | `tennis_table_rule` | `--tennis-scoped-table`, `fit_tennis_rating.py --tier-start` |
+| korelacja kartek (**`None`, czeka na operatora**) | `CARDS_CORRELATION_FROM_UTC` | jointy kartek z korelacją stron +0,126 (dziś: niezależne); `both_over` +0,0016, `handicap` +0,0028, `most` +0,0011 | `cards_rule` | `--cards-correlation` |
+| K na rynek (ON od 2026-10-09 00:00Z) | `PER_MARKET_K_FROM_UTC` | `K_CENTRE.by_market.football` (kartki drużyny 25, faule suma 2, strzały drużyny 8, strzały suma 5; gole zostają 15); sumy meczu −6,4e-4 | `k_rule` | `--per-market-k` |
 
 Odrzucone w tym samym przeglądzie (zob. "Zmierzone i odrzucone" w
 `CLAUDE.md`): hierarchiczny Empirical Bayes, kopuła t, Dixon-Coles i

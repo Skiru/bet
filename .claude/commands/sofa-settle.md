@@ -211,7 +211,8 @@ refusing to name a value is information.
   `sheet_days` must reach the day about to be built; the morning's
   `refresh_line_evidence.py --before <D>` (after this settle and the ledger)
   advances it. It never touches a curve; after a curve install it is re-fitted
-  against the new curves.
+  against the new curves (the 2026-10-08 23:42Z install: the first mornings' offsets are
+  noisy for the repriced families; new epoch from 2026-10-09, `config/backup_2026-10-09`).
 
 ## Report back
 

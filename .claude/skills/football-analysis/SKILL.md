@@ -59,7 +59,7 @@ Two consequences, both load-bearing:
   goals, corners, cards points, fouls, offsides, shots, shots on target, with
   their halves). The rating needs >= 5 matches of the metric for both sides and a
   league (or global) rate of >= 30 matches.
-- **Distribution.** The spread is the sample's dispersion, scaled with the
+- **Distribution.** From 2026-10-09 00:00Z (`COUNT_DISPERSION`) the count spread of a football row is the fitted alpha (`config/sofa_count_dispersion.json`), not the sample's: `sample_sd` is no longer what the p was built from. Before that day: the spread is the sample's dispersion, scaled with the
   centre and inflated by `1 + 1/n` (`sheet_predictive_sd`). Goals (all periods),
   `corners_for`, `corners_1h_*`, full-match `offsides_*`, `cards_points_*` and the player
   shots / shots on target / assists are priced through a negative binomial;

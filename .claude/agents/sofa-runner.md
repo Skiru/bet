@@ -525,8 +525,8 @@ SHADOW (`run_shadow.py --horizon-h` to the farthest open start) / CS2 when a
 sport price nears its 3 h limit or SHADOW skipped an event beyond its
 horizon, then `ensure_bridge.py` + SPORT_IDENTITY; SHEET only when
 CONFIDENCE would refuse the sheet's epoch or the sheet was rated under the
-old league-link rule (`link_rule`) or lacks the row marker of a staged package that is on
-(`dispersion_rule` / `tennis_table_rule` / `cards_rule` / `k_rule`); COUPON (06, audit_coupon's input)
+old league-link rule (`link_rule`) or lacks the row marker of a package that is on
+(`dispersion_rule` / `k_rule` / `tennis_table_rule`, day >= 2026-10-09; `cards_rule` stays absent); COUPON (06, audit_coupon's input)
 when older than its inputs; then FIXTURE_CHECK (bridge; no bridge =
 UNVERIFIED, nothing refused), CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY,
 PDF (`11_coupon.json` -> `KUPON_<date>.pdf` + `12_printed.json`),
@@ -538,10 +538,14 @@ except the bridge steps, the sport snapshots and COUPON (PARTIAL). A SHEET
 forced by anything else is NOT detected - `p_central` lives in `05_sheet.json`
 and a rebuild reads it as it is: after a change of the SHEET estimator (code in
 the SHEET path, or a model switch in `bet.sofa.epochs` - `TENNIS_RATING_PRICES`,
-`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS` - that the sheet predates; the four
-staged packages `COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`,
-`PER_MARKET_K` are the exception: once on, `rebuild_day.py` re-runs SHEET itself
-on a sheet without their row markers) run
+`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS` - that the sheet predates; the packages
+`COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `PER_MARKET_K` (ON from 2026-10-09
+00:00Z) are the exception: `rebuild_day.py` re-runs SHEET itself on a sheet of a
+day >= 10-09 without their row markers; **never rebuild, re-PDF or re-read
+2026-10-08** - it was built under the old rules and
+`build_coupon_pdf` refuses `STALE_CONFIDENCE`; morning order: settle + record D-1,
+`refresh_line_evidence.py --before <D>` (the first mornings after the install are
+noisy, the evidence was fitted on the old curves), then the first build) run
 `run_pipeline.py --date <date> --only SHEET --run-id <id>` first (~30 s on a
 cached history, ~10 min when the day's listings changed; do not kill a quiet
 SHEET) and say why. A day already printed locks its started legs from the first

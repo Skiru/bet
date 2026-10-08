@@ -207,3 +207,29 @@ i gorsza o > 0,3 pp od starej); to są progi ustawione przeze mnie, nie z repozy
 Kolejność zmian dla operatora, jeśli da "go": jeden nowy epok (tennis V5 + dyspersja + K razem), `install`
 z odpowiednimi flagami (`install --help`), potem `refresh_line_evidence.py`, potem przełączniki epok w
 `bet.sofa.epochs` z datą następnego dnia 00:00Z, najpierw SHEET na rozliczonym dniu (`--with-sheet`).
+
+## Wdrożenie (2026-10-08 23:42Z)
+
+Refit zatwierdzony przez operatora zainstalowano 2026-10-08 23:42Z (commit
+5330f357: nowe krzywe piłki i tenisa, `config/sofa_count_dispersion.json`,
+`tennis_rating.json` V5 z `tier_start`, `K_CENTRE.by_market`, bazy ligowe,
+wiarygodność rynków - **nowa epoka porównywalności**). Commit fdbe0aae ustawił
+`COUNT_DISPERSION_FROM_UTC`, `PER_MARKET_K_FROM_UTC` i
+`TENNIS_SCOPED_TABLE_FROM_UTC` na 2026-10-09 00:00Z (liczy się dzień budowany
+ORAZ zegar budowy). `CARDS_CORRELATION_FROM_UTC` zostaje `None`. Kopia sprzed
+instalacji: `config/backup_2026-10-09`. Dzień 2026-10-08 zbudowano pod starymi
+regułami i po instalacji nie jest przebudowywany, renderowany ani czytany od nowa.
+
+Kontrole po instalacji - sha256 sześciu zainstalowanych plików (początek):
+
+| plik | sha256 |
+|---|---|
+| `sofa_confidence_calibration.json` | `6cf282d9...` |
+| `sofa_engine_constants.json` | `e2df9be7...` |
+| `sofa_league_baselines.json` | `2622135a...` |
+| `sofa_market_reliability.json` | `edf897a4...` |
+| `tennis_rating.json` | `b064166f...` |
+| `sofa_count_dispersion.json` | `5df196d5...` |
+
+Szczegóły kroków: `RUNBOOK_INSTALL_2026-10-08.md`. Dowód z linii był dopasowany do
+starych krzywych - pierwsze poranki (`refresh_line_evidence.py`) bywają zaszumione.

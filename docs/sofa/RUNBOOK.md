@@ -198,6 +198,18 @@ wczorajszy dowód — powiedz to w raporcie). `fitted_from.before` pliku
 `config/sofa_superbet_line_evidence.json` musi być równe `<D>`. To **nie** jest
 refit krzywych.
 
+**Rano 2026-10-09 (pierwsze po instalacji refitu z 2026-10-08 23:42Z):** kolejność
+to rozlicz i zapisz D-1 (10-08), `refresh_line_evidence.py --before 2026-10-09`,
+dopiero potem pierwszy build. Dowód z linii dopasowano do STARYCH krzywych i
+stosuje się go do nowych, dopóki się nie przefituje - pierwsze poranki bywają
+zaszumione dla przeszacowanych rodzin (`games_won_for` UNDER prawdopodobnie
+zaniżone, `goals_total` / `corners_total` możliwe podwójne liczenie). **Dnia
+2026-10-08 nie przebudowuje się, nie renderuje PDF ponownie ani nie czyta
+od nowa** (zbudowany pod starymi regułami; `build_coupon_pdf` odmawia
+`STALE_CONFIDENCE`, a ponowny CONFIDENCE zmieszałby stary estymator z nowymi
+krzywymi). Dni od 10-09 to nowa epoka porównywalności - nie sumuje się ich z
+wcześniejszymi w dzienniku.
+
 ## 2. Dzisiaj
 
 BOARD dotyka tylko Superbetu, więc może iść, gdy SETTLE trzyma jeszcze most.
@@ -348,8 +360,9 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   `ensure_bridge.py` + **SPORT_IDENTITY** (most).
 - **SHEET** (`--only SHEET`) tylko, gdy CONFIDENCE by go odrzucił (arkusz
   nie zbudowany pod regułą stats-only, `epochs.sheet_epoch`; od włączenia pakietu w
-  kolejce - `COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `CARDS_CORRELATION`,
-  `PER_MARKET_K`, dziś wszystkie wyłączone - także arkusz bez jego znacznika
+  kolejce - `COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `PER_MARKET_K` włączone
+  od 2026-10-09 00:00Z (`CARDS_CORRELATION` nadal `None`) - także arkusz dnia
+  >= 10-09 bez jego znacznika
   `dispersion_rule` / `tennis_table_rule` / `cards_rule` / `k_rule`). Zmiany kodu
   SHEET albo jego konfiguracji polecenie nie wykrywa — wtedy najpierw
   `run_pipeline.py --only SHEET` ręcznie i napisz, co go wymusiło.

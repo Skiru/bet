@@ -92,11 +92,10 @@ sample passes the audit. So, for every leg of the read set:
    half NB. Football goals / corners / shots-on-target / cards joints are
    built from the marginal rows' centres from the same moment
    (`DERIVED_MARGINAL_CENTRES`), basketball noise by freshness
-   (`BB_FRESHNESS`). The staged packages (`COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`,
-   `CARDS_CORRELATION`, `PER_MARKET_K`) are OFF until the operator moves a switch;
-   when on, rows carry `dispersion_rule` / `tennis_table_rule` / `cards_rule` /
-   `k_rule` and a row without its marker on such a day is a defect (`tennis_table_rule`
-   only on tennis rows) (the rebuild
+   (`BB_FRESHNESS`). The packages `COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `PER_MARKET_K` are ON
+   from 2026-10-09 00:00Z (`CARDS_CORRELATION` stays OFF); a SHEET row of a day
+   >= 10-09 without `dispersion_rule` / `k_rule` (tennis rows: `tennis_table_rule`)
+   is a defect, and one of a day < 10-09 with them is a defect (the rebuild
    re-runs SHEET for these). A `05_sheet.json` older than that moment prices the old
    estimator against the refitted curves - name it (the rebuild does not
    re-run SHEET for these switches). Detail: `.claude/agents/sofa-verifier.md`.

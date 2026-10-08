@@ -45,7 +45,7 @@ fresh odds (nothing upstream read it). Floor 0.70.
 
 ```
 prior   = league baseline, else global baseline      config/sofa_league_baselines.json
-w_c     = n / (n + K_CENTRE)                         football 15.0, tennis 5.0  (FITTED 2026-10-03; unchanged at the 2026-10-07 refit)
+w_c     = n / (n + K_CENTRE)                         football 15.0, tennis 5.0  (FITTED 2026-10-03; unchanged at the 2026-10-07 refit); from 2026-10-09 00:00Z by_market football: cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5 (PER_MARKET_K)
 centre  = w_c·sample_mean + (1 − w_c)·prior          (= sample_mean when no baseline exists)
 
 p_central:

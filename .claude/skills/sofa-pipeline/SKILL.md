@@ -185,10 +185,10 @@ the wall clock: `link_shared_league` (when the caller gives no clock) and
 | `TENNIS_RATING_PRICES` | 2026-10-07 14:05 | tennis `games_won_for` / `handicap_games` / `most_games` (not its draw) priced by the rating's neighbours alone; `games_total` = 0.5 x rating + 0.5 x NB (`tennis_rating.W_GAMES_TOTAL_RATING`); best-of-five not rated (`run_sheet.tennis_forecast`) |
 | `DERIVED_MARGINAL_CENTRES` | 2026-10-07 14:05 | football goals / corners / shots-on-target / cards joints (`both_over_`, `most_`, `handicap_`) built from the marginal rows' centres (`DERIVED_MARGINAL_CENTRES_METRICS`) |
 | `BB_FRESHNESS` | 2026-10-07 14:05 | basketball simulation noise x1.085 when the thinner side has <= 2 games in the last 120 days, x1.026 for 3..9 (`SimParams.bb_fresh_mult`) - live forecaster and history replay |
-| `COUNT_DISPERSION` | OFF (`None`, staged 2026-10-08) | football count spread from an alpha fitted on the history (NB per competition, `config/sofa_count_dispersion.json`; the normal with the pooled variance for `shots_total`) instead of the 8-10 match sample variance; rows carry `dispersion_rule`; replay `--count-dispersion` |
-| `TENNIS_SCOPED_TABLE` | OFF (`None`, staged) | tennis rating neighbours from the tier x gender cell (tier, then pooled, when a cell holds < 1200 outcomes) and the tier start `lp_t`; rows carry `tennis_table_rule`; replay `--tennis-scoped-table` |
-| `CARDS_CORRELATION` | OFF (`None`, staged) | cards joints priced with side correlation +0.126 (`epochs.CARDS_CORRELATION_RHO`), not independent; rows carry `cards_rule`; replay `--cards-correlation` |
-| `PER_MARKET_K` | OFF (`None`, staged) | `K_CENTRE.by_market.football` (cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5; goals stay 15); rows carry `k_rule`; replay `--per-market-k` |
+| `COUNT_DISPERSION` | 2026-10-09 00:00 | football count spread from an alpha fitted on the history (NB per competition, `config/sofa_count_dispersion.json`; the normal with the pooled variance for `shots_total`) instead of the 8-10 match sample variance; rows carry `dispersion_rule`; replay `--count-dispersion` |
+| `TENNIS_SCOPED_TABLE` | 2026-10-09 00:00 | tennis rating neighbours from the tier x gender cell (tier, then pooled, when a cell holds < 1200 outcomes) and the tier start `lp_t`; rows carry `tennis_table_rule`; replay `--tennis-scoped-table` |
+| `CARDS_CORRELATION` | OFF (`None`, waiting for the operator; its joints' curves are not read while `DERIVED_CURVES` is `None`) | cards joints priced with side correlation +0.126 (`epochs.CARDS_CORRELATION_RHO`), not independent; rows carry `cards_rule`; replay `--cards-correlation` |
+| `PER_MARKET_K` | 2026-10-09 00:00 | `K_CENTRE.by_market.football` (cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5; goals stay 15); rows carry `k_rule`; replay `--per-market-k` |
 | OFF (`None`) | - | `CURVE_STATUS` (a failing curve stops printing), `MODEL_FIXES` (tennis NB dispersion), `BUILDER_SCREEN_PRICE` (switched off 2026-10-05: sofa never prices a builder), `DERIVED_CURVES` (derived joints read a history curve; date 2026-10-09) |
 
 A refit install is also a comparability epoch but NOT an `epochs` switch: it is
@@ -338,7 +338,7 @@ their measured range wait for 50 settled lines a bucket.
 
 ```
 prior   = league baseline, else global baseline          (config/sofa_league_baselines.json)
-w_c     = n / (n + K_CENTRE)                             football 15, tennis 5 (fitted 2026-10-03; unchanged by the 2026-10-07 refit)
+w_c     = n / (n + K_CENTRE)                             football 15, tennis 5 (fitted 2026-10-03; unchanged by the 2026-10-07 refit); from 2026-10-09 00:00Z `K_CENTRE.by_market.football` overrides cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5 (`PER_MARKET_K`)
 centre  = w_c·sample_mean + (1 − w_c)·prior              (or sample_mean when no baseline)
 centre  = 0.5·rating + 0.5·centre                        football rows with a FOOTBALL_RATING note (W_FOOTBALL_RATING, not the price)
 
@@ -477,7 +477,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only BOARD --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --from-stage RESOLVE --run-id <id>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d> [--max-candidates N]   # in a rebuild, after OFFER, before CONFIDENCE (bridge)
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]   # THE rebuild: stale OFFER / SHADOW (horizon) / CS2 first, SHEET only if its epoch, link rule or (once on) a staged package's row marker is stale (NOT after the 2026-10-07 model packages or a refit - trap), then FIXTURE_CHECK .. PDF + audits; never the stages by hand
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]   # THE rebuild: stale OFFER / SHADOW (horizon) / CS2 first, SHEET only if its epoch, link rule or (day >= 2026-10-09) the row marker of COUNT_DISPERSION / TENNIS_SCOPED_TABLE / PER_MARKET_K is stale (NOT after the 2026-10-07 model packages or a refit - trap), then FIXTURE_CHECK .. PDF + audits; never the stages by hand
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>             # no --floor: the official floor is COUPON_PROFILE's 0.70; --calibration <path> reads a scratch file
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2
