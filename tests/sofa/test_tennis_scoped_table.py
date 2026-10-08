@@ -143,11 +143,13 @@ def test_off_is_the_pooled_model_byte_for_byte() -> None:
     assert "lp_t" not in model.book.features(1, 2, "hard", cut)
 
 
-def test_off_by_default_in_the_epochs() -> None:
-    assert epochs.TENNIS_SCOPED_TABLE_FROM_UTC is None
-    assert not epochs.tennis_scoped_table_enabled("2026-10-09")
+def test_the_switch_starts_with_the_2026_10_09_epoch() -> None:
+    start = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
+    assert epochs.TENNIS_SCOPED_TABLE_FROM_UTC == start
+    assert not epochs.tennis_scoped_table_enabled("2026-10-08", start)
     assert not epochs.tennis_scoped_table_enabled(
-        "2026-10-30", datetime(2026, 10, 30, tzinfo=UTC))
+        "2026-10-09", start - timedelta(minutes=1))
+    assert epochs.tennis_scoped_table_enabled("2026-10-09", start)
 
 
 def test_the_pooled_forecast_names_its_scope() -> None:
@@ -491,6 +493,7 @@ def test_a_sheet_of_the_other_table_rule_is_re_priced_by_the_rebuild(
     assert epochs.sheet_tennis_scoped_table([])
     at = datetime(2026, 10, 9, 7, 0, tzinfo=UTC)
     limit = timedelta(minutes=45)
+    monkeypatch.setattr(epochs, "TENNIS_SCOPED_TABLE_FROM_UTC", None)
     off = rp.build_plan(rp.DayState("2026-10-09", at, limit, sheet_tennis_table=False))
     assert "SHEET" not in off.names()  # switch off: nothing changes today
     monkeypatch.setattr(epochs, "TENNIS_SCOPED_TABLE_FROM_UTC",

@@ -29,11 +29,13 @@ WITH_TOTAL = {"K_CENTRE": {**BASE["K_CENTRE"],
                            "by_market": {"football": {"shots_total": 5.0}}}}
 
 
-def test_the_switch_is_off() -> None:
-    assert epochs.PER_MARKET_K_FROM_UTC is None
-    assert not epochs.per_market_k_enabled("2026-10-09")
+def test_the_switch_starts_with_the_2026_10_09_epoch() -> None:
+    start = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
+    assert epochs.PER_MARKET_K_FROM_UTC == start
+    assert not epochs.per_market_k_enabled("2026-10-08", start)
     assert not epochs.per_market_k_enabled(
-        "2030-01-01", datetime(2030, 1, 1, tzinfo=UTC))
+        "2026-10-09", start - timedelta(minutes=1))
+    assert epochs.per_market_k_enabled("2026-10-09", start)
 
 
 def test_the_shipped_file_keeps_its_old_keys() -> None:
@@ -41,8 +43,7 @@ def test_the_shipped_file_keeps_its_old_keys() -> None:
     assert k["by_sport"]["football"] == 15.0
     assert k["value"] == 10.0
     assert "curve" in k and k["status"] == "FITTED"
-    # a staged by_market table is inert while the switch is None
-    assert epochs.PER_MARKET_K_FROM_UTC is None
+    assert k["by_market"]["football"]["shots_for"] == 8.0  # live from the switch
 
 
 def test_k_for_market_reads_only_football_and_only_listed_markets() -> None:
@@ -93,6 +94,7 @@ def test_rebuild_reruns_sheet_on_a_sheet_of_the_other_rule(
     assert epochs.sheet_per_market_k([{"k_rule": epochs.PER_MARKET_K}])
     assert not epochs.sheet_per_market_k([{"k_rule": epochs.PER_MARKET_K}, {}])
     assert epochs.sheet_per_market_k([])
+    monkeypatch.setattr(epochs, "PER_MARKET_K_FROM_UTC", None)
     assert "SHEET" not in rp.build_plan(
         rp.DayState("2026-10-09", at, limit, sheet_k=False)).names()
     monkeypatch.setattr(epochs, "PER_MARKET_K_FROM_UTC",

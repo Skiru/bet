@@ -242,7 +242,7 @@ def derived_marginal_centres_enabled(
 # priced this way carry `dispersion_rule` (COUNT_DISPERSION), so a rebuild
 # re-runs SHEET on a sheet of the other rule (rebuild_plan).
 COUNT_DISPERSION_DATE = "2026-10-09"
-COUNT_DISPERSION_FROM_UTC: datetime | None = None
+COUNT_DISPERSION_FROM_UTC: datetime | None = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
 COUNT_DISPERSION = "count_dispersion"
 
 
@@ -273,7 +273,7 @@ def sheet_count_dispersion(rows: Sequence[Mapping[str, Any]]) -> bool:
 # the build clock; tennis rows priced this way carry `tennis_table_rule`
 # (TENNIS_SCOPED_TABLE), so a rebuild re-runs SHEET on a sheet of the other rule.
 TENNIS_SCOPED_TABLE_DATE = "2026-10-09"
-TENNIS_SCOPED_TABLE_FROM_UTC: datetime | None = None
+TENNIS_SCOPED_TABLE_FROM_UTC: datetime | None = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
 TENNIS_SCOPED_TABLE = "scoped_table"
 
 
@@ -340,7 +340,7 @@ def sheet_cards_correlation(rows: Sequence[Mapping[str, Any]]) -> bool:
 # Rows priced this way carry `k_rule` (PER_MARKET_K), so a rebuild re-runs
 # SHEET on a sheet of the other rule.
 PER_MARKET_K_DATE = "2026-10-09"
-PER_MARKET_K_FROM_UTC: datetime | None = None
+PER_MARKET_K_FROM_UTC: datetime | None = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
 PER_MARKET_K = "per_market_k"
 
 

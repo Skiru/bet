@@ -68,11 +68,13 @@ def test_off_matches_the_golden_values_from_before_the_change() -> None:
         ]
 
 
-def test_the_switch_is_off_until_the_operator_sets_it() -> None:
-    assert epochs.COUNT_DISPERSION_FROM_UTC is None
-    assert not epochs.count_dispersion_enabled("2026-10-09")
+def test_the_switch_starts_with_the_2026_10_09_epoch() -> None:
+    start = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
+    assert epochs.COUNT_DISPERSION_FROM_UTC == start
+    assert not epochs.count_dispersion_enabled("2026-10-08", start)
     assert not epochs.count_dispersion_enabled(
-        "2030-01-01", datetime(2030, 1, 1, tzinfo=UTC))
+        "2026-10-09", start - timedelta(minutes=1))
+    assert epochs.count_dispersion_enabled("2026-10-09", start)
 
 
 def test_the_switch_reads_the_day_and_the_build_clock(
@@ -156,7 +158,6 @@ def test_the_shipped_config_is_inert_and_parses() -> None:
     assert t.read("football", "shots_total", None) is not None
     assert t.read("football", "shots_total", None).family == "normal"  # type: ignore[union-attr]
     assert t.read("football", "goals_for", None).family == "nb"  # type: ignore[union-attr]
-    assert epochs.COUNT_DISPERSION_FROM_UTC is None  # nothing reads it yet
 
 
 def test_pooled_alpha_is_the_market_alpha_with_no_cases_and_the_leagues_with_many() -> None:
@@ -182,7 +183,7 @@ def test_the_off_path_reads_no_config_and_opens_no_file(
         return real_read_text(self, *a, **k)
 
     monkeypatch.setattr(Path, "read_text", spy)
-    assert epochs.COUNT_DISPERSION_FROM_UTC is None
+    monkeypatch.setattr(epochs, "COUNT_DISPERSION_FROM_UTC", None)
     assert not epochs.count_dispersion_enabled("2026-10-09")
     monkeypatch.setattr(cc, "COUNT_DISPERSION", None)
     for _ in range(50):
@@ -254,6 +255,7 @@ def test_a_sheet_of_the_other_rule_is_re_priced_by_the_rebuild(
         [{"dispersion_rule": epochs.COUNT_DISPERSION}, {}])
     assert epochs.sheet_count_dispersion([])
     # off: a sheet without the rule is kept (nothing changes today)
+    monkeypatch.setattr(epochs, "COUNT_DISPERSION_FROM_UTC", None)
     off = rp.build_plan(rp.DayState("2026-10-09", at, limit, sheet_dispersion=False))
     assert "SHEET" not in off.names()
     monkeypatch.setattr(epochs, "COUNT_DISPERSION_FROM_UTC",
@@ -440,6 +442,8 @@ def test_the_two_football_switches_cannot_be_on_independently(
 ) -> None:
     at = datetime(2026, 10, 9, 7, 0, tzinfo=UTC)
     day = "2026-10-09"
+    monkeypatch.setattr(epochs, "COUNT_DISPERSION_FROM_UTC", None)
+    monkeypatch.setattr(epochs, "PER_MARKET_K_FROM_UTC", None)
     epochs.require_k_with_dispersion(day, at)  # both off: fine
     monkeypatch.setattr(epochs, "COUNT_DISPERSION_FROM_UTC",
                         datetime(2026, 10, 9, tzinfo=UTC))
