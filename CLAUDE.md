@@ -37,6 +37,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `08_confidence_sports.json` | hockey / basketball / volleyball / CS2 legs (SPORT_CONFIDENCE) |
 | `11_coupon.json` | **the coupon**; read it through `confidence.coupon_artifact()` |
 | `KUPON_<d>.pdf`, `printed/<ts>.json`, `12_printed.json` | the product and its append-only print record (a rebuild locks from the first print) |
+| `KUPON_<d>.html` | the same legs as a filterable page (time window in Europe/Warsaw, confidence, sport, competition, market, odds, sortable; a start the FIXTURE_CHECK read differently is flagged). A **view**, not a coupon - `bet.sofa.coupon_html`, written by `build_coupon_pdf.py` after every PDF render, so a rebuilt PDF always brings its HTML (HTML failure: PDF kept, exit 1); alone: `build_coupon_html.py --date <d>` |
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts, vetoes, the operator's extra positions |
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; the pinned Sofascore ids of sport games |
 | `06_coupon.json` | the priced VALUE selector - **not the coupon** (2026-09-20: -20.4% vs the PDF's +8.2%) |

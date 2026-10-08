@@ -109,6 +109,7 @@ CONFIDENCE`.
                                           │    PDF     │
                                           └─────┬──────┘
                                                 │ KUPON_<data>.pdf  ★ produkt, 12_printed.json
+                                                │ KUPON_<data>.html   widok z filtrami (nie kupon)
 
    Sporty mierzone (od 2026-10-05 08:30Z):
      SHADOW / CS2 snapshots.jsonl ──► SPORT_IDENTITY (most) ──► sport_fixtures.json
@@ -1722,3 +1723,22 @@ Budżet czasu pełnego dnia: **2,5–3 h**, z czego większość to SAMPLES.
 - Nigdy nie usuwaj notki `UNFITTED_CONSTANTS`, żeby raport lepiej się czytał.
 - Rozliczony wynik jest faktem o dniu, **nie o decyzji, która go wywołała**.
   „Wygrało" nie wchodzi do uzasadnienia następnej decyzji.
+
+## KUPON_<data>.html — widok z filtrami (od 2026-10-08)
+
+Te same nogi z `11_coupon.json` co w PDF (`confidence.printed_singles` i
+builderów), w jednym pliku bez serwera (`bet.sofa.coupon_html`, szablon
+`src/bet/sofa/templates/coupon_view.html`). **Nie jest kuponem** - kuponem
+jest PDF; HTML nie dodaje żadnej liczby, nie wycenia buildera i nie liczy
+stawki. Filtry: okno godzin (Europe/Warsaw, minuty od lokalnej północy dnia),
+minimalna pewność, kurs od-do, sport, turniej, rynek, kierunek, tekst,
+„ukryj zablokowane", „tylko czytane przez analityków"; kolumny sortowalne;
+grupowanie po meczu. Mecz, którego start z `fixture_status.json` różni się od
+zegara nogi, ma znacznik ⚠ z godziną FIXTURE_CHECK i godziną jego
+sprawdzenia (10-08: start z rana nie nadążał za przesunięciem meczu).
+
+`build_coupon_pdf.py` zapisuje HTML po każdym renderze PDF (także w
+`rebuild_day.py`), więc przebudowany kupon zawsze ma świeży HTML; błąd HTML
+zostawia PDF i kończy PARTIAL (exit 1). Sam HTML: `build_coupon_html.py
+--date <d>`. Test: `tests/sofa/test_coupon_html.py` (liczba nóg = artefakt,
+filtry w prawdziwej przeglądarce, jeśli jest Chrome).

@@ -354,7 +354,7 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   kupon) tylko, gdy jest starszy niż arkusz / weta / odczyty.
 - potem `ensure_bridge.py`, **FIXTURE_CHECK**, **CONFIDENCE**,
   **SPORT_CONFIDENCE**, **COUPON_ASSEMBLY** (`build_coupon.py`), **PDF**
-  (`build_coupon_pdf.py` → `KUPON_<data>.pdf` + `12_printed.json`),
+  (`build_coupon_pdf.py` → `KUPON_<data>.pdf` + `KUPON_<data>.html` + `12_printed.json`),
   `audit_variants.py`, `audit_coupon.py`.
 
 Dzień zakończony (żaden mecz nie da się już zagrać): ceny nie są

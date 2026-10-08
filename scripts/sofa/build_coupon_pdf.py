@@ -61,6 +61,7 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
+from bet.sofa.coupon_html import write_html  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
 from bet.sofa.peer_choice import label as peer_choice_label  # noqa: E402
@@ -529,14 +530,29 @@ def main() -> int:
             record_print(run, {**doc_json, "pdf": out_path.name,
                                "pdf_rendered_at_utc": now.isoformat().replace(
                                    "+00:00", "Z")})
+        # The same legs as a filterable page (bet.sofa.coupon_html), beside the
+        # PDF and rendered with it: a rebuilt PDF always brings its HTML.
+        # Skipped for a --out render elsewhere. A failure leaves the PDF as it
+        # is and ends PARTIAL (exit 1).
+        html_path: Path | None = None
+        html_error = ""
+        if args.out is None:
+            try:
+                html_path = write_html(run, doc_json, args.date)
+            except Exception as exc:  # noqa: BLE001 - the PDF is already written
+                html_error = f"{type(exc).__name__}: {exc}"
+                print(f"KUPON_{args.date}.html NOT written: {html_error}",
+                      file=sys.stderr)
         print(json.dumps({
-            "stage": "COUPON_PDF", "verdict": "OK", "epoch": STATS_ONLY,
+            "stage": "COUPON_PDF", "verdict": "PARTIAL" if html_error else "OK",
+            "epoch": STATS_ONLY,
             "metrics": {"picks": len(picks), "singles": len(singles),
                         "positions": doc_json.get("positions"),
                         "locked": n_locked},
             "output_path": str(out_path),
+            "html_path": str(html_path) if html_path else None,
         }))
-        return 0
+        return 1 if html_error else 0
 
     story.append(Paragraph("Jak czytać ten kupon", h2))
     story.append(Paragraph(
@@ -1054,7 +1070,7 @@ def render_stats_only(
                 Paragraph(single_sample(leg), small),
             ])
         story.append(table_with_headers(_table(rows, [
-            8*mm, 42*mm, 30*mm, 17*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm, 14*mm]),
+            10*mm, 40*mm, 30*mm, 17*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm, 14*mm]),
                 pos_headers))
     # F4.3: how much of the coupon stands on one match.
     story.extend(exposure_flowables(doc, body, small, h2))

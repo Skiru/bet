@@ -447,7 +447,7 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                           "FIXTURE_CHECK / COUPON_ASSEMBLY")
     plan.steps.append(Step(
         "PDF", (PY, "scripts/sofa/build_coupon_pdf.py", "--date", d),
-        "KUPON_<d>.pdf + 12_printed.json"))
+        "KUPON_<d>.pdf + KUPON_<d>.html + 12_printed.json"))
     if skip_audits:
         plan.notes.append("AUDITS SKIPPED (--skip-audits): audit_variants and "
                           "audit_coupon were not run")

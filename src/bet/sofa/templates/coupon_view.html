@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kupon __DATE__ - widok z filtrami</title>
+<style>
+:root{--ink:#1d2330;--mut:#667085;--line:#e4e7ec;--bg:#f7f8fa;--acc:#1f5fa8;--warn:#b25b00;--bad:#b23b3b}
+*{box-sizing:border-box}body{margin:0;font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+header{padding:12px 16px;background:#fff;border-bottom:1px solid var(--line)}
+h1{font-size:17px;margin:0 0 3px}.note{color:var(--mut);font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.bar label{display:flex;flex-direction:column;font-size:11px;color:var(--mut);gap:2px}
+.bar input,.bar select{font:inherit;padding:3px 5px;border:1px solid #cfd4dc;border-radius:4px;background:#fff;color:var(--ink)}
+.bar input[type=number]{width:70px}.bar input[type=time]{width:92px}.chk{flex-direction:row!important;align-items:center;gap:4px!important;color:var(--ink)!important;font-size:12px!important}
+button{font:inherit;padding:4px 10px;border:1px solid #cfd4dc;border-radius:4px;background:#fff;cursor:pointer}
+#count{padding:8px 16px;color:var(--mut)}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{position:sticky;top:var(--bh,0px);background:#f1f3f6;cursor:pointer;user-select:none;font-size:11px;color:var(--mut);white-space:nowrap}
+td.n,th.n{text-align:right}tr.m td{background:#eef3fa;font-weight:600}
+tr.lk td{color:var(--mut)}.tag{font-size:10.5px;padding:1px 5px;border-radius:3px;border:1px solid var(--line);margin-left:4px;white-space:nowrap}
+.warn{color:var(--warn);border-color:var(--warn)}.bad{color:var(--bad);border-color:var(--bad)}.acc{color:var(--acc);border-color:var(--acc)}
+h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:5px}
+.bl ul{margin:4px 0 0 16px;padding:0}
+</style></head><body>
+<header><h1>Kupon __DATE__ - widok z filtrami</h1>
+<div class="note">To jest widok nóg kuponu z <code>11_coupon.json</code>, nie osobny kupon: kuponem jest <b>KUPON___DATE__.pdf</b>.
+Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (builder: kursy nóg z Superbetu, kurs buildera sprawdź na ekranie).</div>
+<div class="note" id="meta"></div></header>
+<div class="bar" id="bar">
+<label>od godziny<input type="time" id="t0"></label>
+<label>do godziny<input type="time" id="t1"></label>
+<label>min. pewność<input type="number" id="cmin" step="0.01" min="0" max="1" placeholder="0.70"></label>
+<label>kurs od<input type="number" id="o0" step="0.01" min="1"></label>
+<label>kurs do<input type="number" id="o1" step="0.01" min="1"></label>
+<label>sport<select id="sport"><option value="">wszystkie</option></select></label>
+<label>turniej<select id="comp"><option value="">wszystkie</option></select></label>
+<label>rynek<select id="fam"><option value="">wszystkie</option></select></label>
+<label>kierunek<select id="dir"><option value="">oba</option><option>OVER</option><option>UNDER</option></select></label>
+<label>szukaj<input type="search" id="q" placeholder="mecz, zawodnik, rynek"></label>
+<label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
+<label class="chk"><input type="checkbox" id="readonly">tylko czytane przez analityków</label>
+<label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
+<button id="reset">wyczyść filtry</button>
+</div>
+<div id="count"></div>
+<table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
+<h2 id="bh">Bet Buildery</h2><div id="builders"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+"use strict";
+const V=JSON.parse(document.getElementById("data").textContent),R=V.rows,B=V.builders;
+const $=id=>document.getElementById(id);
+const COLS=[["ko_local","godzina"],["match","mecz"],["market","rynek"],["line","linia"],["direction","kier."],
+ ["confidence","pewność","n"],["odds","kurs","n"],["x","x","n"],["margin","marża","n"],["sample","próbka"],["position","#","n"]];
+let sortKey="confidence",sortDir=-1;
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const uniq=k=>[...new Set(R.map(r=>r[k]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+function fill(id,vals){const s=$(id);vals.forEach(v=>{const o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)})}
+fill("sport",uniq("sport"));fill("comp",uniq("competition"));fill("fam",uniq("family"));
+$("meta").textContent="Zbudowany "+V.meta.built_local+" • godziny startu sprawdzone przez FIXTURE_CHECK o "+(V.meta.fixture_check_local||"—")+
+ " • "+R.length+" nóg, "+B.length+" builderów. Start z rana mógł się przesunąć: oznaczone przy meczu. Kliknij nagłówek kolumny, by sortować (np. godzina rosnąco, pewność malejąco).";
+const hm=v=>{if(!v)return null;const[a,b]=v.split(":");return +a*60+ +b};
+function pass(r){
+  const t0=hm($("t0").value),t1=hm($("t1").value);
+  if(t0!=null&&r.ko_min<t0)return false;
+  if(t1!=null&&r.ko_min>t1)return false;
+  const c=parseFloat($("cmin").value);if(!isNaN(c)&&r.confidence<c)return false;
+  const o0=parseFloat($("o0").value),o1=parseFloat($("o1").value);
+  if(!isNaN(o0)&&(r.odds==null||r.odds<o0))return false;
+  if(!isNaN(o1)&&(r.odds==null||r.odds>o1))return false;
+  if($("sport").value&&r.sport!==$("sport").value)return false;
+  if($("comp").value&&r.competition!==$("comp").value)return false;
+  if($("fam").value&&r.family!==$("fam").value)return false;
+  if($("dir").value&&r.direction!==$("dir").value)return false;
+  if($("nolock").checked&&r.locked)return false;
+  if($("readonly").checked&&!r.read)return false;
+  const q=$("q").value.trim().toLowerCase();
+  if(q&&!(r.match+" "+r.competition+" "+r.market+" "+r.family).toLowerCase().includes(q))return false;
+  return true}
+const sv=(r,k)=>k==="line"?r.line_num:k==="sample"?r.sample_rate:r[k];
+function cmp(a,b){let x=sv(a,sortKey),y=sv(b,sortKey);
+  if(x==null)return 1;if(y==null)return -1;
+  return (typeof x==="number"?x-y:String(x).localeCompare(String(y)))*sortDir}
+const f3=v=>v==null?"—":v.toFixed(3),f2=v=>v==null?"—":v.toFixed(2);
+function tags(r){let t="";
+  if(r.starred)t+=' <span class="tag acc">★ pewniejsza z pary</span>';
+  if(r.locked)t+=' <span class="tag">zablokowana</span>';
+  if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+=' <span class="tag bad">'+r.verdict+'</span>';
+  return t}
+function matchHead(g){const r=g[0];let n="";
+  if(r.clock_note)n=' <span class="tag warn">⚠ '+esc(r.clock_note)+' (sprawdzone '+esc(r.clock_checked)+') - sprawdź godzinę</span>';
+  return '<tr class="m"><td>'+esc(r.ko_local.slice(11))+(r.ko_local.slice(0,10)!=="__DATE__"?" ("+esc(r.ko_local.slice(5,10))+")":"")+
+   '</td><td colspan="10">'+esc(r.match)+' <span class="tag">'+esc(r.sport)+'</span> <span class="tag">'+esc(r.competition)+'</span>'+n+
+   ' <span class="tag">'+g.length+' nóg, śr. pewność '+f3(g.reduce((s,x)=>s+x.confidence,0)/g.length)+'</span></td></tr>'}
+function line(r){return '<tr data-id="'+r.id+'"'+(r.locked?' class="lk"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+
+ '</td><td>'+esc(r.line)+'</td><td>'+esc(r.direction)+'</td><td class="n"><b>'+r.confidence_txt+'</b></td><td class="n">'+r.odds_txt+
+ '</td><td class="n">'+r.x_txt+'</td><td class="n">'+r.margin_txt+'</td><td>'+esc(r.sample)+'</td><td class="n">'+(r.position==null?"—":r.position)+'</td></tr>'}
+function render(){
+  const rows=R.filter(pass),g=$("group").checked;let h="";
+  if(g){
+    const m=new Map();rows.forEach(r=>{if(!m.has(r.event))m.set(r.event,[]);m.get(r.event).push(r)});
+    const groups=[...m.values()];
+    const key=g=>{const o=sortKey;return o==="confidence"?Math.max(...g.map(r=>r.confidence)):sv(g[0],o)};
+    groups.sort((a,b)=>{const x=key(a),y=key(b);return x==null?1:y==null?-1:(typeof x==="number"?x-y:String(x).localeCompare(String(y)))*sortDir});
+    groups.forEach(gr=>{gr.sort((a,b)=>b.confidence-a.confidence);h+=matchHead(gr);gr.forEach(r=>h+=line(r))});
+    $("count").textContent=rows.length+" z "+R.length+" nóg, "+groups.length+" meczów (kolejność meczów: wg "+sortLabel()+")";
+  }else{rows.sort(cmp);rows.forEach(r=>h+=line(r));
+    $("count").textContent=rows.length+" z "+R.length+" nóg, "+new Set(rows.map(r=>r.event)).size+" meczów";}
+  $("body").innerHTML=h||'<tr><td colspan="11">Nic nie spełnia filtrów.</td></tr>';
+  const bs=B.filter(b=>{const t0=hm($("t0").value),t1=hm($("t1").value);
+    if(t0!=null&&b.ko_min<t0)return false;if(t1!=null&&b.ko_min>t1)return false;
+    if($("nolock").checked&&b.locked)return false;
+    const q=$("q").value.trim().toLowerCase();return !q||(b.match+" "+b.competition).toLowerCase().includes(q)});
+  $("bh").style.display=B.length?"":"none";
+  $("builders").innerHTML=bs.map(b=>'<div class="bl"><b>'+esc(b.no)+' '+esc(b.match)+'</b> <span class="tag">'+esc(b.ko_local.slice(11))+'</span> '+(b.locked?'<span class="tag">zablokowany</span>':'')+
+   '<span class="note"> '+esc(b.competition)+' • p łączne '+b.combined_txt+' • kurs buildera: sprawdź na ekranie Superbetu</span><ul>'+
+   b.legs.map(l=>'<li>'+esc(l.market)+' '+esc(l.line)+' '+esc(l.direction)+' - pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
+const sortLabel=()=>(COLS.find(c=>c[0]===sortKey)||[0,sortKey])[1]+(sortDir<0?" malejąco":" rosnąco");
+$("head").innerHTML=COLS.map(c=>'<th class="'+(c[2]||"")+'" data-k="'+c[0]+'">'+c[1]+'</th>').join("");
+$("head").onclick=e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
+  if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=(k==="confidence"||k==="x"||k==="odds")?-1:1}render()};
+document.querySelectorAll("#bar input,#bar select").forEach(el=>el.addEventListener("input",render));
+$("reset").onclick=()=>{document.querySelectorAll("#bar input[type=time],#bar input[type=number],#bar input[type=search]").forEach(e=>e.value="");
+  document.querySelectorAll("#bar select").forEach(e=>e.value="");$("nolock").checked=false;$("readonly").checked=false;$("group").checked=true;
+  sortKey="confidence";sortDir=-1;render()};
+const setBar=()=>document.documentElement.style.setProperty("--bh",$("bar").offsetHeight+"px");
+window.addEventListener("resize",setBar);setBar();render();
+</script></body></html>
