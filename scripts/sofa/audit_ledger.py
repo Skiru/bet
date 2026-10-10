@@ -131,13 +131,18 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 
 # The comparability groups a variant's days fall in (plan 2026-10-05, K7):
 # the rules changed on the morning of 10-05 (official dials) and again at the
-# stats-only cutover (bet.sofa.epochs). One table row per (variant, group),
-# never summed across groups.
-EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only")
+# stats-only cutover (bet.sofa.epochs), and again with the refit installed
+# 2026-10-08 23:42Z, effective 2026-10-09 00:00Z (COUNT_DISPERSION /
+# PER_MARKET_K / TENNIS_SCOPED_TABLE): days from 10-09 are never summed with
+# earlier ones. One table row per (variant, group), never summed across groups.
+EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09")
+REFIT_EPOCH_FROM_DATE = "2026-10-09"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= REFIT_EPOCH_FROM_DATE:
+            return "od 10-09"
         return "stats_only"
     if str(row.get("date", "")) < "2026-10-05":
         return "do 10-04"
@@ -174,8 +179,8 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
             f"{interval_text(grouped[v])} |"
         )
     out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
-            "stats_only): the coupon before and after each cutover is not one "
-            "experiment, so the groups are never added."]
+            "stats_only / od 10-09): the coupon before and after each cutover "
+            "is not one experiment, so the groups are never added."]
     out += ["", f"A 3% edge needs ~{BETS_FOR_3PCT} settled positions to show at "
             "2 sigma; a ROI over a few dozen is noise until its interval says "
             "otherwise. CLV (audit_clv.py) answers sooner. An estimated builder "

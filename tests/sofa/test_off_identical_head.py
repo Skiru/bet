@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
+import pytest
+
 from bet.sofa import epochs
 from tests.sofa.off_scenarios import GOLDEN_DIR, all_scenarios
 
@@ -26,7 +28,13 @@ def test_the_switches_are_where_the_install_put_them() -> None:
     assert epochs.CARDS_CORRELATION_FROM_UTC is None
 
 
-def test_off_is_identical_to_the_commit_the_change_set_started_from() -> None:
+def test_off_is_identical_to_the_commit_the_change_set_started_from(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # "Off" is the clock before the switches: the scenarios read
+    # timeutil.now(), and from 2026-10-09 00:00Z the switches are on, so a
+    # live clock made this test fail from that day on (2026-10-10).
+    monkeypatch.setenv("SOFA_NOW", "2026-10-08T12:00:00Z")
     golden = json.loads(GOLDEN.read_text())
     got = all_scenarios()
     assert got.keys() == golden.keys()

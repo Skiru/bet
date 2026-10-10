@@ -34,6 +34,19 @@ def test_the_three_epochs_are_never_added():
     assert audit_ledger.epoch_group({"date": "2026-10-05"}) == "10-05 rano"
 
 
+def test_the_refit_epoch_from_10_09_is_never_added_to_earlier_days():
+    rows = [
+        _row("2026-10-08", "official", -1.0, "stats_only"),
+        _row("2026-10-09", "official", 0.5, "stats_only"),
+        _row("2026-10-10", "official", 0.25, "stats_only"),
+    ]
+    text = "\n".join(audit_ledger.render(rows, None))
+    assert "| official [stats_only] | 1 | 1 | 1 | 0 | 1 | -1.00 |" in text
+    assert "| official [od 10-09] | 2 | 2 | 2 | 2 | 0 | +0.75 |" in text
+    assert audit_ledger.epoch_group(
+        {"date": "2026-10-09", "epoch": "stats_only"}) == "od 10-09"
+
+
 def test_a_locked_leg_keeps_the_epoch_of_the_build_that_printed_it():
     assert record_results.position_epoch({"locked": True}, "stats_only") == "old"
     assert record_results.position_epoch(
