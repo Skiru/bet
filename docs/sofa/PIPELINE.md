@@ -731,8 +731,10 @@ singla — bez nazwanego powodu; 10-09..10-10 odpadło tak 5 nóg, które
 przeszły wszystkie bramki pewności. Noga ma `one_sided_market: true`. Reguła
 dopuszczająca (`confidence.one_sided_single`: krzywa `market:` z ≥ 300
 wierszami, x ≥ 0,90 i reszta bramek bez zmian; PDF / HTML pokazują
-„1-str.” / „jednostr.” zamiast marży, `audit_variants` C2 sprawdza regułę) czeka na
-operatora za `epochs.ONE_SIDED_SINGLES_FROM_UTC` (`None`).
+„1-str.” / „jednostr.” zamiast marży, `audit_variants` C2 sprawdza regułę) stoi
+za `epochs.ONE_SIDED_SINGLES_FROM_UTC` — włączone przez operatora od
+2026-10-12 00:00Z (pomiar przed: 49 nóg 10-05..10-10, ROI −10,3% [−27; +4]
+wobec −3,0% nóg drużynowych — do sprawdzenia na nowych dniach).
 
 **Nazwiska (od 2026-10-12 00:00Z, `epochs.PLAYER_NAME_TOKENS_FROM_UTC`).**
 Superbet pisze wielu zawodników pełnym nazwiskiem rejestrowym („Andrade,

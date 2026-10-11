@@ -88,6 +88,12 @@ kuponu (pewność ≥ 0,70, x ≥ 0,90, krzywa `market:` n ≥ 300):
 - 49 nóg w 6 dni to mała próba; przedział ROI zawiera wynik nóg drużynowych.
   Zysku nie wykazano; gorszego wyniku też nie (statystycznie).
 
+## Decyzja
+
+Operator (2026-10-11, po tym pomiarze): `ONE_SIDED_SINGLES_FROM_UTC` =
+2026-10-12 00:00Z. Wynik −10,3% [−27; +4] na 49 nogach to otwarte pytanie na
+nowych danych, nie wykazana przewaga.
+
 ## E2E (10-09, 10-10, scratch)
 
 Konfiguracja w scratchu (`SOFA_CONFIG_DIR`: przygotowane krzywe jako

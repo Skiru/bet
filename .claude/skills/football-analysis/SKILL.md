@@ -256,8 +256,8 @@ odbiorów / asyst / spalonych", subject = the player as Superbet writes him.
   not contain, or an identity you cannot confirm is WATCH. A doubtful start
   alone is NOT a reason (it voids). The price is the filter, as everywhere:
   "props never pay" is not a read.
-- **On the coupon** a player leg prints as a single only under
-  `ONE_SIDED_SINGLES_FROM_UTC` (the ladder has no UNDER, so no margin; the
+- **On the coupon** a player leg prints as a single from
+  `ONE_SIDED_SINGLES_FROM_UTC` (2026-10-12 00:00Z; the ladder has no UNDER, so no margin; the
   leg carries `one_sided_market`, the PDF shows "1-str." in the margin
   column); its confidence is the market's own history curve (n >= 300).
 

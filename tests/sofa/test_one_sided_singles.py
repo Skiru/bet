@@ -1,5 +1,5 @@
 """A one-sided market's leg may print as a single (epochs.ONE_SIDED_SINGLES_FROM_UTC,
-waiting for the operator).
+from 2026-10-12 00:00Z, operator).
 
 Superbet quotes a footballer's props on the OVER side only, so the ladder has
 no overround and `single_is_fairly_priced` (overround <= MAX_OVERROUND)
@@ -7,7 +7,7 @@ refused every football player leg as a single, with no reason on the row:
 the five player legs of 2026-10-09..10-10 that passed every confidence gate
 never printed. "No margin can be measured" is not "the margin is dear"; the
 switch admits such a leg when its confidence is its own market's history
-curve with >= ONE_SIDED_MIN_CURVE_N rows. Off, nothing changes.
+curve with >= ONE_SIDED_MIN_CURVE_N rows. Before the switch, nothing changes.
 """
 
 from __future__ import annotations
@@ -67,9 +67,13 @@ def test_everything_else_is_refused(change: dict[str, Any]) -> None:
     assert not one_sided_single({**ADMITTED, **change})
 
 
-def test_the_switch_waits_for_the_operator() -> None:
-    assert epochs.ONE_SIDED_SINGLES_FROM_UTC is None
-    assert not epochs.one_sided_singles("2099-01-01", datetime(2099, 1, 1, tzinfo=UTC))
+def test_the_switch_starts_the_next_day_and_never_mid_day() -> None:
+    start = datetime(2026, 10, 12, 0, 0, tzinfo=UTC)
+    assert epochs.ONE_SIDED_SINGLES_FROM_UTC == start
+    assert epochs.one_sided_singles("2026-10-12", start)
+    assert not epochs.one_sided_singles("2026-10-11", start)
+    assert not epochs.one_sided_singles(
+        "2026-10-12", datetime(2026, 10, 11, 23, 59, tzinfo=UTC))
     assert epochs.ONE_SIDED_MIN_CURVE_N == 300
 
 

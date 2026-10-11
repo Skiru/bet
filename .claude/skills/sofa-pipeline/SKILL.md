@@ -264,7 +264,7 @@ tournament with a settled event in the last 14 days) / `NO_MODEL_P` /
 `INCOMPLETE_GROUP`. `CURVE_FAILED_CALIBRATION` is wired but off.
 
 **Football player props** (`player_*_for`): Superbet quotes them OVER only
-(no overround: a single only under `ONE_SIDED_SINGLES_FROM_UTC`, leg flag
+(no overround: a single from `ONE_SIDED_SINGLES_FROM_UTC` 2026-10-12 00:00Z, leg flag
 `one_sided_market`, `confidence.one_sided_single`: `market:` curve n >= 300)
 and **voids them unless the player starts** (operator, 2026-10-11): SETTLE
 says `PLAYER_NOT_STARTED`, the sample is his starts from

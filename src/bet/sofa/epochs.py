@@ -680,8 +680,11 @@ def player_starts_only(date: str, build_at: datetime | None = None) -> bool:
 # one-sided prints when its confidence comes from a history curve with at
 # least ONE_SIDED_MIN_CURVE_N rows (measure_calibration's PASS size); the
 # confidence x odds and every other gate still apply, and the leg is marked
-# ONE_SIDED_MARKET. Waiting for the operator (2026-10-11).
-ONE_SIDED_SINGLES_FROM_UTC: datetime | None = None
+# one_sided_market. Switched on by the operator (2026-10-11) from the next
+# day, after the re-measurement (docs/sofa/evidence/player_starts_2026-10-11.md:
+# 49 would-print legs of 10-05..10-10, confidence 0.794, realised 0.755, ROI
+# -10.3% [-27, +4] against -3.0% for the team legs at the same gates).
+ONE_SIDED_SINGLES_FROM_UTC: datetime | None = datetime(2026, 10, 12, 0, 0, tzinfo=UTC)
 ONE_SIDED_MIN_CURVE_N = 300
 
 
