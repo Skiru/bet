@@ -625,6 +625,51 @@ def read_by_event(date: str, build_at: datetime | None = None) -> bool:
     return date >= READ_EVENTS_DATE and at >= READ_EVENTS_FROM_UTC
 
 
+# A footballer Superbet writes under his full registered name ("Andrade,
+# Matheus Araujo") and Sofascore under the name he plays by ("Matheus
+# Araujo") scored under match_player's 85 and had no sample: 346 of the 680
+# NO_ENTITY_FOUND players of 2026-10-08..10-10 were such near names, 263 of
+# them priced at <= 1.60. From this moment SAMPLES falls back to
+# players.match_player_by_tokens for a player match_player found in no squad
+# (evidence and the identity check: docs/sofa/evidence/
+# player_name_tokens_2026-10-11.md). It ADDS player samples, so rows and legs:
+# never mid-day - a SAMPLES of a day >= PLAYER_NAME_TOKENS_DATE built at or
+# after the moment. SETTLE grades the sample's own matched name whenever the
+# sample says "tokens", whatever the day.
+PLAYER_NAME_TOKENS_DATE = "2026-10-12"
+PLAYER_NAME_TOKENS_FROM_UTC: datetime | None = datetime(2026, 10, 12, 0, 0, tzinfo=UTC)
+
+
+def player_name_tokens(date: str, build_at: datetime | None = None) -> bool:
+    """Does SAMPLES fall back to the token name match (PLAYER_NAME_TOKENS_FROM_UTC)?"""
+    if PLAYER_NAME_TOKENS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= PLAYER_NAME_TOKENS_DATE and at >= PLAYER_NAME_TOKENS_FROM_UTC
+
+
+# Superbet quotes a footballer's props on the OVER side only, so the ladder
+# has no overround and confidence.single_is_fairly_priced (overround <=
+# MAX_OVERROUND) refused every football player leg as a single, unnamed: the 5
+# player legs of 2026-10-09..10-10 that passed every confidence gate never
+# printed. With this switch a single with no overround because its market is
+# one-sided prints when its confidence comes from a history curve with at
+# least ONE_SIDED_MIN_CURVE_N rows (measure_calibration's PASS size); the
+# confidence x odds and every other gate still apply, and the leg is marked
+# ONE_SIDED_MARKET. Waiting for the operator (2026-10-11).
+ONE_SIDED_SINGLES_FROM_UTC: datetime | None = None
+ONE_SIDED_MIN_CURVE_N = 300
+
+
+def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
+    """May a one-sided market's leg print as a single (ONE_SIDED_SINGLES_FROM_UTC)?"""
+    if ONE_SIDED_SINGLES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= ONE_SIDED_SINGLES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= ONE_SIDED_SINGLES_FROM_UTC)
+
+
 def require_k_with_dispersion(date: str, at: datetime | None = None) -> None:
     """PER_MARKET_K and COUNT_DISPERSION were fitted jointly (the K gain was
     measured under the fitted dispersion, which itself was fitted around K=15

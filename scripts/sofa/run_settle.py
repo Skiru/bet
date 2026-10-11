@@ -59,6 +59,7 @@ from bet.sofa.players import (
     extract_player_metric,
     is_player_metric,
     match_player,
+    match_player_by_tokens,
     player_sample_key,
     squad_statistics,
 )
@@ -398,6 +399,7 @@ def _settle_player(
     row: dict[str, Any],
     squads: dict[bool, dict[str, Any] | None] | None,
     own_home: bool | None = None,
+    token_name: str | None = None,
 ) -> tuple[float, str] | str:
     """Grade one player row against the fixture's own squad lists (F54).
 
@@ -414,6 +416,11 @@ def _settle_player(
     OTHER squad within the matcher's margin of the one found is
     PLAYER_AMBIGUOUS, never a guess. Without a side (no sample record) both
     squads are searched, and a hit in both is PLAYER_AMBIGUOUS too.
+
+    `token_name` is the squad name SAMPLES found him under when it matched
+    him by tokens (03_samples.json `match_rule` "tokens", `matched_name`):
+    where `match_player` finds nobody in his own squad that exact name is
+    graded, provided the other squad holds no candidate of either matcher.
 
     A player who did not take the pitch is PLAYER_DID_NOT_PLAY, not a zero:
     Superbet voids that bet, so settling it as a loss would invent a result
@@ -434,19 +441,34 @@ def _settle_player(
         matched = match_player(subject, squad)
         if matched is not None:
             found.append((home, matched))
-    if not found:
-        return "PLAYER_NOT_MATCHED"
-    if len(found) > 1:
-        return "PLAYER_AMBIGUOUS"
-    home, matched = found[0]
-    squad = squads.get(home) or {}
-    own_score = best_player_score(subject, {matched: squad[matched]})
-    other_score = best_player_score(subject, squads.get(not home))
     if (
-        other_score >= PLAYER_MATCH_THRESHOLD
-        and other_score > own_score - PLAYER_MATCH_MARGIN
+        not found
+        and token_name is not None
+        and own_home is not None
+        and token_name in (squads.get(own_home) or {})
     ):
-        return "PLAYER_AMBIGUOUS"
+        other = squads.get(not own_home)
+        if (
+            match_player_by_tokens(subject, other) is not None
+            or best_player_score(subject, other) >= PLAYER_MATCH_THRESHOLD
+        ):
+            return "PLAYER_AMBIGUOUS"
+        home, matched = own_home, token_name
+    else:
+        if not found:
+            return "PLAYER_NOT_MATCHED"
+        if len(found) > 1:
+            return "PLAYER_AMBIGUOUS"
+        home, matched = found[0]
+        own_score = best_player_score(
+            subject, {matched: (squads.get(home) or {})[matched]})
+        other_score = best_player_score(subject, squads.get(not home))
+        if (
+            other_score >= PLAYER_MATCH_THRESHOLD
+            and other_score > own_score - PLAYER_MATCH_MARGIN
+        ):
+            return "PLAYER_AMBIGUOUS"
+    squad = squads.get(home) or {}
     value = extract_player_metric(row["market"], squad[matched])
     if value is GapReason.EVENT_NOT_FINISHED:
         return "PLAYER_DID_NOT_PLAY"
@@ -492,15 +514,40 @@ def player_own_home(
     return None
 
 
-def load_player_sides(run_dir: Path) -> dict[tuple[int, str], str]:
+def player_token_names(samples: list[Any]) -> dict[tuple[int, str], str]:
+    """{(event id, "<market>|<subject>"): matched_name} of the players SAMPLES
+    matched by tokens (`match_rule` "tokens") - the name SETTLE grades."""
+    out: dict[tuple[int, str], str] = {}
+    for fixture in samples:
+        if not isinstance(fixture, dict):
+            continue
+        eid = fixture.get("sofascore_event_id")
+        for key, sample in (fixture.get("players") or {}).items():
+            if not isinstance(sample, dict) or sample.get("match_rule") != "tokens":
+                continue
+            name = sample.get("matched_name")
+            if isinstance(eid, int) and isinstance(name, str) and name:
+                out[(eid, str(key))] = name
+    return out
+
+
+def _samples_doc(run_dir: Path) -> list[Any]:
     path = run_dir / "03_samples.json"
     if not path.exists():
-        return {}
+        return []
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except ValueError:
-        return {}
-    return player_sides(doc if isinstance(doc, list) else [])
+        return []
+    return doc if isinstance(doc, list) else []
+
+
+def load_player_sides(run_dir: Path) -> dict[tuple[int, str], str]:
+    return player_sides(_samples_doc(run_dir))
+
+
+def load_player_token_names(run_dir: Path) -> dict[tuple[int, str], str]:
+    return player_token_names(_samples_doc(run_dir))
 
 
 def _handicap_side(
@@ -1015,6 +1062,7 @@ def main() -> int:
     # them is void at Superbet - MOVED_BEYOND_VOID, a refund, no row.
     seen = seen_kickoffs(run_dir)
     sides = load_player_sides(run_dir)
+    token_names = load_player_token_names(run_dir)
 
     settled_at = datetime.now(UTC).isoformat()
     rows: list[SettledRow] = []
@@ -1157,7 +1205,8 @@ def main() -> int:
                     sample_key = player_sample_key(row["market"], row["subject"] or "")
                     side = sides.get((event_id, sample_key))
                     graded = _settle_player(
-                        row, squads, player_own_home(side, fixture, event)
+                        row, squads, player_own_home(side, fixture, event),
+                        token_names.get((event_id, sample_key)),
                     )
                     if isinstance(graded, str):
                         skips.add(event_id, graded)

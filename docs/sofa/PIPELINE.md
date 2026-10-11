@@ -723,6 +723,30 @@ zawodniczy w piłce nie może dziś trafić do kuponu**. To jest zamierzone:
 ukotwionych — to nie przewaga, to brak kontroli. Rodzina jedzie jako prognoza,
 dopóki nie zmierzymy marży tych rynków na rozliczonych dniach.
 
+**W epoce `stats_only` (od 2026-10-05) blokadą jest marża, nie kotwica.**
+Noga zawodnika przechodzi CONFIDENCE (krzywa własnego rynku z historii,
+line evidence), ale jej drabina nie ma strony „poniżej”, więc `overround`
+jest `None`, a `single_is_fairly_priced` (marża ≤ 15%) odrzuca ją jako
+singla — bez nazwanego powodu; 10-09..10-10 odpadło tak 5 nóg, które
+przeszły wszystkie bramki pewności. Noga ma `one_sided_market: true`. Reguła
+dopuszczająca (`confidence.one_sided_single`: krzywa `market:` z ≥ 300
+wierszami, x ≥ 0,90 i reszta bramek bez zmian; PDF / HTML pokazują
+„1-str.” / „jednostr.” zamiast marży, `audit_variants` C2 sprawdza regułę) czeka na
+operatora za `epochs.ONE_SIDED_SINGLES_FROM_UTC` (`None`).
+
+**Nazwiska (od 2026-10-12 00:00Z, `epochs.PLAYER_NAME_TOKENS_FROM_UTC`).**
+Superbet pisze wielu zawodników pełnym nazwiskiem rejestrowym („Andrade,
+Matheus Araujo”), Sofascore boiskowym („Matheus Araujo”); `token_sort_ratio`
+daje 60–84, poniżej progu 85 `match_player`, i zawodnik nie miał próbki
+(346 z 680 `NO_ENTITY_FOUND` 10-08..10-10). Zawodnik, którego `match_player`
+nie znalazł w **żadnym** składzie, jest szukany po całych tokenach
+(`players.match_player_by_tokens`: ≥ 2 wspólne tokeny, jeden kandydat w
+składzie, wszystkie składy wskazują tę samą osobę po tej samej stronie).
+Próbka ma `match_rule: "tokens"`, wiersz arkusza notkę `PLAYER_NAME_TOKENS`,
+a SETTLE ocenia dokładnie `matched_name` próbki we własnym składzie. Zawodnik
+z ławki, który nigdy nie wszedł, ma lukę „named in N squads, never came on”.
+Dowody: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`.
+
 Wiersz zawodniczy niesie notkę `PLAYER_MINUTES` (mediana minut, ile występów
 60'+, ile z ilu meczów próbki) — bo próbka złożona z wejść na 12 minut i
 próbka złożona ze startów to nie jest ta sama wielkość, a nic innego w wierszu
@@ -1274,7 +1298,8 @@ bo konkuruje z nim o most.
   (0 j.), nigdy przegrana i nigdy `sofa_settled_row` (trafia do
   `07_settle_skips.json`; `settle.REFUND_REASONS`).
 - Propsy zawodników tylko ze składu samego zawodnika (inaczej
-  `PLAYER_AMBIGUOUS`).
+  `PLAYER_AMBIGUOUS`); próbka dopasowana po tokenach rozlicza się po swoim
+  `matched_name` (kandydat w drugim składzie — `PLAYER_AMBIGUOUS`).
 - Noga wydrukowana bez wiersza arkusza rozlicza się do
   **`07_settled_printed.json`**, nigdy do `sofa_settled_row`.
 - Nogi sportów mierzonych nigdy nie trafiają do `sofa_settled_row` ani do

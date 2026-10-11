@@ -37,6 +37,7 @@ from typing import Any
 
 from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
+from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N
 from bet.sofa.players import is_player_metric
 
 # Resolved against the repo, not the working directory: run from anywhere
@@ -380,6 +381,27 @@ def overround(over_odds: float | None, under_odds: float | None) -> float | None
 def single_is_fairly_priced(leg_overround: float | None) -> bool:
     """Is this leg's ladder cheap enough to be worth showing on its own?"""
     return leg_overround is not None and leg_overround <= MAX_OVERROUND
+
+
+def one_sided_single(leg: Mapping[str, Any]) -> bool:
+    """May a leg with no overround print as a single because its market is
+    one-sided (epochs.one_sided_singles decides whether the rule is on)?
+
+    Only a leg CONFIDENCE marked `one_sided_market` (Superbet quotes no UNDER
+    on its ladder), whose confidence is read off its own market's history
+    curve ("market:", not a thin bucket, a pool or a line-evidence bound)
+    with at least epochs.ONE_SIDED_MIN_CURVE_N rows. Every other gate -
+    confidence, confidence x odds, freshness, the start - has already passed
+    for the leg to be in `legs` at all.
+    """
+    n = leg.get("calibration_n")
+    return (
+        leg.get("one_sided_market") is True
+        and leg.get("overround") is None
+        and str(leg.get("calibrated_on") or "").startswith("market:")
+        and isinstance(n, int)
+        and n >= ONE_SIDED_MIN_CURVE_N
+    )
 
 
 def has_unreachable_bar_note(notes: object) -> bool:

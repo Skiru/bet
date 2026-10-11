@@ -70,6 +70,7 @@ from bet.sofa.confidence import (  # noqa: E402
     match_class,
     mode_loses,
     model_above_own_sample,
+    one_sided_single,
     overround,
     own_hit_rate,
     reads_catch_all_bucket,
@@ -87,6 +88,7 @@ from bet.sofa.epochs import (  # noqa: E402
     line_evidence,
     line_evidence_v2,
     national_sample_by_count,
+    one_sided_singles,
     pool_neighbour_cap,
     settleability_gate,
     sheet_epoch,
@@ -323,6 +325,9 @@ def main() -> int:
     # The ladder's own margin, per rung. It is a property of the two-sided
     # price, so it is the same for OVER and UNDER of one rung.
     margins: dict[tuple[int, str, str, float, str], float | None] = {}
+    # OVER rungs Superbet quotes with no UNDER at all (football player props):
+    # no overround can exist there, which is not the same as a dear one.
+    one_sided: set[tuple[int, str, str, float, str]] = set()
     # Fixtures a fetch found Superbet reporting under way (coupon.
     # superbet_started): refused whatever the two clocks say, since both can
     # be late and a started match takes no pre-match bet.
@@ -349,6 +354,16 @@ def main() -> int:
                 fetched[key] = r.get("fetched_at_utc")
                 fresh_odds[key] = side_odds
                 margins[key] = rung_margin
+                if d == "OVER" and r.get("under_odds") is None:
+                    one_sided.add(key)
+
+    one_sided_ok = one_sided_singles(args.date, now)
+
+    def prints_as_single(leg: dict[str, Any]) -> bool:
+        """A fairly priced ladder, or (epochs.ONE_SIDED_SINGLES) an admitted
+        one-sided one - the one rule for the singles and removed_by_reads."""
+        return profile.single_is_fairly_priced(leg.get("overround")) or (
+            one_sided_ok and one_sided_single(leg))
 
     cal = Calibration.load(args.calibration) if args.calibration else Calibration.load()
     if so:
@@ -883,6 +898,9 @@ def main() -> int:
                 "overround": (
                     round(rung_overround, 4) if rung_overround is not None else None
                 ),
+                # Written only when true: the ladder has no UNDER side, so
+                # `overround` is None by construction (epochs.ONE_SIDED_SINGLES).
+                **({"one_sided_market": True} if key in one_sided else {}),
                 # CLAUDE.md: never strip UNFITTED_CONSTANTS from a row. The
                 # sheet stamps it in `notes`, which a leg does not carry, so
                 # until 2026-09-25 both confidence artifacts and their .md
@@ -925,7 +943,7 @@ def main() -> int:
             refused[removal[0]] += 1
             # Only a leg the page would have printed as a single is "removed
             # from the coupon"; the rest was never on it.
-            if profile.single_is_fairly_priced(leg.get("overround")):
+            if prints_as_single(leg):
                 removed_by_reads.append({
                     **{k: v for k, v in leg.items() if not k.startswith("_")},
                     "refusal": removal[0],
@@ -1035,8 +1053,7 @@ def main() -> int:
     # and is the ladder cheap. Ties break on the shorter price, because within
     # a calibration bucket the shorter price is measured to hit more often.
     singles = sorted(
-        (leg for leg in legs
-         if profile.single_is_fairly_priced(leg.get("overround"))),
+        (leg for leg in legs if prints_as_single(leg)),
         key=(
             coupon_sort_key if so
             else lambda r: (-r["confidence"], r["offered_odds"])
@@ -1369,7 +1386,8 @@ def main() -> int:
         lines.append(
             f"| {leg['confidence']:.3f} | {leg['offered_odds']} | "
             f"{leg['leg_ev'] + 1.0:.2f} | "
-            f"{leg['overround']:.1%} | {leg['sample_size']} | "
+            f"{'—' if leg['overround'] is None else format(leg['overround'], '.1%')}"
+            f" | {leg['sample_size']} | "
             f"{leg['market']}{subj} | {leg['line']} {leg['direction']} | "
             f"{leg['match']}{same} | {leg['kickoff_utc'][11:16]}Z |"
         )

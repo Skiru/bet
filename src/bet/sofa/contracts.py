@@ -180,6 +180,11 @@ class PlayerSample(BaseModel):
     side: Literal["side_a", "side_b"]
     squad_matches: int
     observations: list[Observation]
+    # How `player` was found in the squads: "fuzzy" is players.match_player,
+    # "tokens" its fallback players.match_player_by_tokens
+    # (epochs.PLAYER_NAME_TOKENS_FROM_UTC). SETTLE grades a "tokens" sample
+    # by `matched_name`, so it grades the person SAMPLES sampled.
+    match_rule: Literal["fuzzy", "tokens"] = "fuzzy"
 
 
 class GapEntry(BaseModel):

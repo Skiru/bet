@@ -79,6 +79,7 @@ from scripts.sofa.run_settle import (
     _settle_player,
     _subject_is_home,
     load_player_sides,
+    load_player_token_names,
     player_own_home,
     printed_keys,
     seen_kickoffs,
@@ -383,6 +384,7 @@ def regrade_players(
     listings = listing_events(conn, missing) if missing else {}
     fixtures: dict[str, dict[int, dict[str, Any]]] = {}
     sides: dict[str, dict[tuple[int, str], str]] = {}
+    token_names: dict[str, dict[tuple[int, str], str]] = {}
     changes: list[dict[str, Any]] = []
     left: list[dict[str, Any]] = []
     tally: Counter[str] = Counter()
@@ -392,6 +394,7 @@ def regrade_players(
         if day not in fixtures:
             fixtures[day] = _fixtures(runs_dir, day)
             sides[day] = load_player_sides(runs_dir / day)
+            token_names[day] = load_player_token_names(runs_dir / day)
         event = details.get(eid) or listings.get(eid)
         sj, lj = cached.get(eid, (None, None))
         lineups = json.loads(lj) if lj else None
@@ -404,11 +407,11 @@ def regrade_players(
             True: squad_statistics(lineups, is_home=True, statistics=statistics),
             False: squad_statistics(lineups, is_home=False, statistics=statistics),
         }
-        side = sides[day].get(
-            (eid, player_sample_key(row["market"], row["subject"] or ""))
-        )
+        sample_key = player_sample_key(row["market"], row["subject"] or "")
+        side = sides[day].get((eid, sample_key))
         own = player_own_home(side, fixtures[day].get(eid), event)
-        graded = _settle_player(row, squads, own)
+        graded = _settle_player(
+            row, squads, own, token_names[day].get((eid, sample_key)))
         if isinstance(graded, str):
             reason = graded.split(":")[-1]
             tally[f"left:{reason}"] += 1

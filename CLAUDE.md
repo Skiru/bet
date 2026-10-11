@@ -170,7 +170,20 @@ every sport alike, and nothing that could win is cut by name.
     by the market's nearest own bucket below;
   - `SAMPLE_CROSSES_SEASON` (180 days; `MAX_BUILDER_SAMPLE_AGE_DAYS`) - except
     national-team fixtures, judged by count (`NATIONAL_SAMPLE_AGE`);
-  - CS2 team-rounds line outside 9.5-12.5: `LINE_OUTSIDE_FIT`.
+  - CS2 team-rounds line outside 9.5-12.5: `LINE_OUTSIDE_FIT`;
+  - a football player leg never prints as a single: Superbet quotes player
+    props on the OVER side only, so the ladder has no overround and the 15%
+    margin rule refuses it (5 legs that passed every confidence gate on
+    10-09..10-10). The leg carries `one_sided_market`; the admitting rule
+    (`confidence.one_sided_single`: its own market's curve, n >= 300) waits
+    behind `ONE_SIDED_SINGLES_FROM_UTC`.
+- **Player names** (`PLAYER_NAME_TOKENS_FROM_UTC`, 2026-10-12 00:00Z): a
+  footballer `players.match_player` finds in no squad is looked for by whole
+  name tokens (`match_player_by_tokens`: >= 2 shared, one candidate, one
+  side) - Superbet writes full registered names ("Andrade, Matheus Araujo"
+  vs "Matheus Araujo"; 346 of 680 `NO_ENTITY_FOUND` players of 10-08..10-10).
+  The sample says `match_rule: "tokens"`, the sheet row `PLAYER_NAME_TOKENS`.
+  Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`.
 - **Start clock** = the earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds are
   dropped for every reader) and FIXTURE_CHECK's fresh `/event` start. A
@@ -256,7 +269,8 @@ measurement of Superbet's price and feed nothing else.
   (`VOID_AFTER`), was awarded, retired (Sofascore code 92, `RETIRED`) or a
   walkover (`WALKOVER`) - `settle.REFUND_REASONS` (operator, 2026-10-07:
   Superbet's rules). Player props grade only from the player's own squad
-  (PLAYER_AMBIGUOUS); a printed leg without a sheet row goes to
+  (PLAYER_AMBIGUOUS); a sample matched by tokens grades its own
+  `matched_name` there (a candidate in the other squad is PLAYER_AMBIGUOUS); a printed leg without a sheet row goes to
   `07_settled_printed.json`. Sport legs grade at the printed price against the
   pinned id (`NOT_GRADED:ID_CHANGED` otherwise), in their own 7c table, never
   in `sofa_settled_row` or `fit_confidence`. Statistic gaps close days later:
@@ -306,7 +320,8 @@ only the loop's own orchestration is old code until it ends.
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 `BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), `CARDS_CORRELATION_FROM_UTC` (the one staged package left; needs
+builders), `ONE_SIDED_SINGLES_FROM_UTC` (a one-sided ladder's leg - football
+player props - may print as a single; 2026-10-11), `CARDS_CORRELATION_FROM_UTC` (the one staged package left; needs
 `DERIVED_CURVES_FROM_UTC` to be read at all), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
 needs a refit carrying the replayed joints), the coupon form dials. Open
 questions: Superbet's game count of a tennis match tiebreak; how strict the

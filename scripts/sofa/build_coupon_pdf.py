@@ -700,7 +700,8 @@ def main() -> int:
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", small),
                 Paragraph(f"<b>{leg['offered_odds']}</b>", small),
                 Paragraph(f"<b>{leg['leg_ev'] + 1.0:.2f}</b>", small),
-                Paragraph(f"{leg['overround']:.1%}", small),
+                Paragraph("—" if leg.get("overround") is None
+                          else f"{leg['overround']:.1%}", small),
                 Paragraph(f"n={leg['sample_size']}", small),
             ])
         st_ = Table(srows, colWidths=[
@@ -1066,7 +1067,8 @@ def render_stats_only(
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"<b>{leg.get('offered_odds')}</b>", small),
                 Paragraph(f"{leg_x(leg):.2f}", small),
-                Paragraph("—" if margin is None else f"{float(margin):.1%}", small),
+                Paragraph(("1-str." if leg.get("one_sided_market") else "—")
+                          if margin is None else f"{float(margin):.1%}", small),
                 Paragraph(single_sample(leg), small),
             ])
         story.append(table_with_headers(_table(rows, [

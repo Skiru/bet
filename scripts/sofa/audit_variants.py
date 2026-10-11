@@ -59,11 +59,12 @@ from bet.sofa.confidence import (  # noqa: E402
     coupon_artifact,
     coupon_order,
     legs_requiring_read,
+    one_sided_single,
     printed_builders,
     printed_singles,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.epochs import STATS_ONLY  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY, one_sided_singles  # noqa: E402
 from bet.sofa.locked_print import (  # noqa: E402
     PRINTED_HISTORY_DIR,
     PRINTED_MANIFEST,
@@ -176,7 +177,12 @@ def audit_confidence(runs_dir: str, date: str) -> list[str]:
         elif round(conf * odds, 9) < float(min_ev):
             out.append(f"C2 {label}: confidence x odds {conf * odds:.4f} < {min_ev}")
         ov = single.get("overround")
-        if ov is None or float(ov) > max_ov + TOL:
+        if ov is None and built is not None and one_sided_singles(date, built):
+            # A one-sided ladder has no margin to measure; the rule that
+            # admits it (confidence.one_sided_single) is checked instead.
+            if not one_sided_single(single):
+                out.append(f"C2 {label}: no margin and not an admitted one-sided leg")
+        elif ov is None or float(ov) > max_ov + TOL:
             out.append(f"C2 {label}: margin {ov} above {max_ov}")
         if built is not None and (
             started_by(int(single["sofascore_event_id"]),

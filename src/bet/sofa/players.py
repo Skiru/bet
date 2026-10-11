@@ -336,6 +336,52 @@ def match_player(
     return best_name
 
 
+# The fewest name tokens a token match must share. Measured 2026-10-11 on
+# 10-08..10-10 (docs/sofa/evidence/player_name_tokens_2026-10-11.md): against
+# the squad members `match_player` already finds, the token rule picked the
+# same person in 20,033 of 20,033 squad-matches; on the players it newly finds
+# with >= 2 shared tokens, Superbet's own shots-0.5 price ranks their sample hit
+# rate like it ranks the fuzzy matches' (Spearman 0.513, n=108, vs 0.506,
+# n=1,471; a random team-mate 0.039). With ONE shared token it was 0.292
+# (n=23) - not shown to be the same person, so a lone token never matches.
+PLAYER_TOKEN_MIN_SHARED = 2
+
+
+def _name_tokens(name: str) -> frozenset[str]:
+    return frozenset(
+        t for t in normalize_name(name.replace(",", " ")).split() if len(t) >= 2
+    )
+
+
+def match_player_by_tokens(
+    superbet_name: str, candidates: dict[str, dict[str, Any]] | None
+) -> str | None:
+    """The one squad member whose name is a token subset (or superset) of the
+    Superbet name, sharing at least PLAYER_TOKEN_MIN_SHARED tokens; else None.
+
+    Superbet writes many players under their full registered name, Sofascore
+    under the name they play by: "Andrade, Matheus Araujo" / "Matheus Araujo",
+    "Santos Batista, Joao Gabriel" / "Joao Gabriel". `token_sort_ratio` scores
+    those 61-78, under the 85 `match_player` needs, and the player had no
+    sample at all. Containment of whole tokens is a different question from
+    similarity, so it is asked separately and only where `match_player` found
+    nobody (`build_player_samples`). Two contained names - even a one-token
+    "carlos" beside "joao carlos" - are no answer.
+    """
+    target = _name_tokens(superbet_name)
+    if len(target) < PLAYER_TOKEN_MIN_SHARED or not candidates:
+        return None
+    contained = [
+        (name, tokens)
+        for name in candidates
+        if (tokens := _name_tokens(name)) and (tokens <= target or target <= tokens)
+    ]
+    if len(contained) != 1:
+        return None
+    name, tokens = contained[0]
+    return name if len(tokens & target) >= PLAYER_TOKEN_MIN_SHARED else None
+
+
 def best_player_score(
     superbet_name: str, candidates: dict[str, dict[str, Any]] | None
 ) -> float:

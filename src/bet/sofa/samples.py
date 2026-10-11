@@ -7,7 +7,7 @@ market nobody quotes is a call we paid for and cannot bet.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -52,6 +52,7 @@ from bet.sofa.players import (
     extract_player_metric,
     is_player_metric,
     match_player,
+    match_player_by_tokens,
     player_sample_key,
     squad_statistics,
 )
@@ -1069,6 +1070,8 @@ def build_player_samples(
     wanted: dict[str, set[str]],
     side_results: dict[str, list[dict[str, Any]]],
     gaps: list[GapEntry],
+    *,
+    token_fallback: bool = False,
 ) -> dict[str, PlayerSample]:
     """One sample per (player metric, player Superbet quoted) — F54.
 
@@ -1085,54 +1088,42 @@ def build_player_samples(
     a tie is refused rather than broken: a name that matches in both squads is
     two different people or one we cannot place, and pricing a shots line
     against the wrong squad is the F31 defect with a smaller subject.
+
+    `token_fallback` (epochs.player_name_tokens): a player `match_player`
+    found in NO squad of either side is looked for again with
+    `match_player_by_tokens`, and taken only when every squad that answers
+    names the same person on the same side - a fallback that may not guess.
     """
     samples: dict[str, PlayerSample] = {}
     for metric, players in sorted(wanted.items()):
         for player in sorted(players):
-            per_side: dict[str, list[Observation]] = {"side_a": [], "side_b": []}
-            per_side_matched: dict[str, str] = {}
-            squad_matches = 0
-
-            for side, results in side_results.items():
-                for res in results:
-                    squad = res.get("squad")
-                    if not squad:
-                        continue
-                    if side == "side_a":
-                        squad_matches += 1
-                    matched = match_player(player, squad)
-                    if matched is None:
-                        continue
-                    per_side_matched.setdefault(side, matched)
-                    value = extract_player_metric(metric, squad[matched])
-                    if isinstance(value, GapReason):
-                        # EVENT_NOT_FINISHED here means "named in the squad,
-                        # never came on" — the normal case, and not worth a
-                        # gap entry per player per match. Everything else is.
-                        if value is not GapReason.EVENT_NOT_FINISHED:
-                            gaps.append(
-                                GapEntry(
-                                    reason=value,
-                                    metric=metric,
-                                    detail=(
-                                        f"player {player!r} event "
-                                        f"{res['event_id']} gap"
-                                    ),
-                                )
-                            )
-                        continue
-                    per_side[side].append(
-                        Observation(
-                            sofascore_event_id=res["event_id"],
-                            match_date_utc=res["match_date_utc"],
-                            opponent=res["opponent"],
-                            value=value,
-                            minutes=squad[matched].get("minutesPlayed"),
-                            competition_id=res["competition_id"],
-                            season_id=res["season_id"],
-                            venue=res["venue"],
+            per_side, per_side_names, named = _player_observations(
+                metric, player, side_results, gaps, match_player
+            )
+            match_rule = "fuzzy"
+            if token_fallback and not named:
+                t_gaps: list[GapEntry] = []
+                t_side, t_names, t_named = _player_observations(
+                    metric, player, side_results, t_gaps, match_player_by_tokens
+                )
+                answered = [s for s in ("side_a", "side_b") if t_names[s]]
+                if len(answered) == 1 and len(t_names[answered[0]]) == 1:
+                    per_side, per_side_names, named = t_side, t_names, t_named
+                    gaps.extend(t_gaps)
+                    match_rule = "tokens"
+                elif answered:
+                    gaps.append(
+                        GapEntry(
+                            reason=GapReason.AMBIGUOUS_ENTITY,
+                            metric=metric,
+                            detail=(
+                                f"player {player!r} token-matched "
+                                f"{sorted(n for s in answered for n in t_names[s])} "
+                                f"on {answered}; refusing to guess"
+                            ),
                         )
                     )
+                    continue
 
             n_a, n_b = len(per_side["side_a"]), len(per_side["side_b"])
             if n_a == 0 and n_b == 0:
@@ -1140,7 +1131,12 @@ def build_player_samples(
                     GapEntry(
                         reason=GapReason.NO_ENTITY_FOUND,
                         metric=metric,
-                        detail=f"player {player!r} matched no squad member",
+                        detail=(
+                            f"player {player!r} named in {named} squads, "
+                            "never came on"
+                            if named
+                            else f"player {player!r} matched no squad member"
+                        ),
                     )
                 )
                 continue
@@ -1163,14 +1159,69 @@ def build_player_samples(
             samples[player_sample_key(metric, player)] = PlayerSample(
                 metric=metric,
                 player=player,
-                matched_name=per_side_matched[side],
+                matched_name=per_side_names[side][0],
                 side=side,  # type: ignore[arg-type]
-                squad_matches=squad_matches
-                if side == "side_a"
-                else sum(1 for r in side_results["side_b"] if r.get("squad")),
+                squad_matches=sum(1 for r in side_results[side] if r.get("squad")),
                 observations=observations,
+                match_rule=match_rule,  # type: ignore[arg-type]
             )
     return samples
+
+
+def _player_observations(
+    metric: str,
+    player: str,
+    side_results: dict[str, list[dict[str, Any]]],
+    gaps: list[GapEntry],
+    matcher: Callable[[str, dict[str, dict[str, Any]]], str | None],
+) -> tuple[dict[str, list[Observation]], dict[str, list[str]], int]:
+    """One player's appearances per side under one name matcher.
+
+    Returns the observations per side, the distinct squad names the matcher
+    picked per side (first-found first), and in how many squads it named
+    anyone - an appearance or not.
+    """
+    per_side: dict[str, list[Observation]] = {"side_a": [], "side_b": []}
+    names: dict[str, list[str]] = {"side_a": [], "side_b": []}
+    named = 0
+    for side, results in side_results.items():
+        for res in results:
+            squad = res.get("squad")
+            if not squad:
+                continue
+            matched = matcher(player, squad)
+            if matched is None:
+                continue
+            named += 1
+            if matched not in names[side]:
+                names[side].append(matched)
+            value = extract_player_metric(metric, squad[matched])
+            if isinstance(value, GapReason):
+                # EVENT_NOT_FINISHED here means "named in the squad, never
+                # came on" — the normal case, and not worth a gap entry per
+                # player per match. Everything else is.
+                if value is not GapReason.EVENT_NOT_FINISHED:
+                    gaps.append(
+                        GapEntry(
+                            reason=value,
+                            metric=metric,
+                            detail=f"player {player!r} event {res['event_id']} gap",
+                        )
+                    )
+                continue
+            per_side[side].append(
+                Observation(
+                    sofascore_event_id=res["event_id"],
+                    match_date_utc=res["match_date_utc"],
+                    opponent=res["opponent"],
+                    value=value,
+                    minutes=squad[matched].get("minutesPlayed"),
+                    competition_id=res["competition_id"],
+                    season_id=res["season_id"],
+                    venue=res["venue"],
+                )
+            )
+    return per_side, names, named
 
 
 def compute_readiness(
@@ -1209,6 +1260,8 @@ def process_fixture_samples(
     superbet_client: SuperbetClient,
     config: SofaConfig,
     offer: FixtureOffer | None = None,
+    *,
+    token_fallback: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1219,7 +1272,8 @@ def process_fixture_samples(
     """
     try:
         return _process_fixture_samples(
-            fixture, client, cache, superbet_client, config, offer
+            fixture, client, cache, superbet_client, config, offer,
+            token_fallback=token_fallback,
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1243,6 +1297,8 @@ def _process_fixture_samples(
     superbet_client: SuperbetClient,
     config: SofaConfig,
     offer: FixtureOffer | None = None,
+    *,
+    token_fallback: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1419,6 +1475,7 @@ def _process_fixture_samples(
             wanted_players,
             {"side_a": side_a_results, "side_b": side_b_results},
             gaps,
+            token_fallback=token_fallback,
         )
         for key, sample in sorted(player_samples.items()):
             if len(sample.observations) < config.min_sample:

@@ -158,7 +158,8 @@ def build_view(
             "confidence_txt": f"{conf:.3f}",
             "odds_txt": "—" if odds is None else str(odds),
             "x_txt": "—" if x is None else f"{x:.2f}",
-            "margin_txt": "—" if margin is None else f"{float(margin):.1%}",
+            "margin_txt": (("jednostr." if leg.get("one_sided_market") else "—")
+                           if margin is None else f"{float(margin):.1%}"),
             "sample": _sample(leg),
             "position": leg.get("position"),
             "locked": bool(leg.get("locked")),

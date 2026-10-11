@@ -1016,6 +1016,12 @@ def process_fixture(
                     f"played {len(obs)} of {player_sample.squad_matches} "
                     f"sampled matches"
                 )
+            if player_sample.match_rule == "tokens":
+                extra_notes.append(
+                    f"PLAYER_NAME_TOKENS: Superbet {rung.subject!r} read as "
+                    f"Sofascore {player_sample.matched_name!r} by whole name "
+                    "tokens (players.match_player_by_tokens)"
+                )
         # Check if metric exists in samples
         elif rung.market not in samples.metrics:
             continue
