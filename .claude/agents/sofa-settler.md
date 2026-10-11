@@ -67,7 +67,15 @@ What SETTLE does since 2026-10-05:
   the full-game basketball markets include overtime. A leg graded before the
   rule is a regrade candidate, not a settle defect.
 - **Player props** are graded only from the player's own squad; a name that
-  cannot be placed is `PLAYER_AMBIGUOUS`, never a guess.
+  cannot be placed is `PLAYER_AMBIGUOUS`, never a guess. Superbet voids a
+  player market unless the player **starts**: a bench appearance is
+  `PLAYER_NOT_STARTED` (no row, a refund like `PLAYER_DID_NOT_PLAY`; operator,
+  2026-10-11), and one missing from his matchday squad `PLAYER_NOT_IN_SQUAD`;
+  all three are listed per leg in `07_settle_skips.json` `void_legs`, and a
+  printed such leg is a refund in 7c and the ledger. A sample matched by tokens (`match_rule: "tokens"`) grades its
+  own `matched_name`. Rows graded before the rule:
+  `regrade_settled.py --player-not-started` (applied 2026-10-11: 5,215 rows of
+  09-24..10-10 deleted, none printed; undo copy in `runs/sofa/regrade_*.json`).
 - **A printed leg without a sheet row** is graded into
   `runs/sofa/<D-1>/07_settled_printed.json`, never into `sofa_settled_row`
   (so it never reaches a fit).

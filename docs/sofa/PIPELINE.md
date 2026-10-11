@@ -747,6 +747,18 @@ a SETTLE ocenia dokładnie `matched_name` próbki we własnym składzie. Zawodni
 z ławki, który nigdy nie wszedł, ma lukę „named in N squads, never came on”.
 Dowody: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`.
 
+**Start w składzie (operator, 2026-10-11).** Superbet zwraca zakład na
+zawodnika, który nie wyszedł w podstawowym składzie (Walemark 10-10: z ławki
+na 30', 2 celne, „Zwrot”). SETTLE: `PLAYER_NOT_STARTED` (bez wiersza);
+nogi `PLAYER_DID_NOT_PLAY` / `PLAYER_NOT_STARTED` są listowane per noga w
+`07_settle_skips.json` `void_legs`, a wydrukowana taka noga to w 7c i w
+ledgerze zwrot (0 j.). Od 2026-10-12 00:00Z (`PLAYER_STARTS_ONLY_FROM_UTC`)
+próbka to jego starty (`appearances: "starts"`, notka `PLAYER_STARTS_ONLY`),
+a krzywe zawodników z replayu ze startami są w
+`config/sofa_confidence_calibration.next.json` (od tego samego momentu;
+`confidence.calibration_path_for`). Dowody:
+`docs/sofa/evidence/player_starts_2026-10-11.md`.
+
 Wiersz zawodniczy niesie notkę `PLAYER_MINUTES` (mediana minut, ile występów
 60'+, ile z ilu meczów próbki) — bo próbka złożona z wejść na 12 minut i
 próbka złożona ze startów to nie jest ta sama wielkość, a nic innego w wierszu
@@ -1299,7 +1311,8 @@ bo konkuruje z nim o most.
   `07_settle_skips.json`; `settle.REFUND_REASONS`).
 - Propsy zawodników tylko ze składu samego zawodnika (inaczej
   `PLAYER_AMBIGUOUS`); próbka dopasowana po tokenach rozlicza się po swoim
-  `matched_name` (kandydat w drugim składzie — `PLAYER_AMBIGUOUS`).
+  `matched_name` (kandydat w drugim składzie — `PLAYER_AMBIGUOUS`); wejście z
+  ławki to `PLAYER_NOT_STARTED` — zwrot, nie wynik (`void_legs`).
 - Noga wydrukowana bez wiersza arkusza rozlicza się do
   **`07_settled_printed.json`**, nigdy do `sofa_settled_row`.
 - Nogi sportów mierzonych nigdy nie trafiają do `sofa_settled_row` ani do

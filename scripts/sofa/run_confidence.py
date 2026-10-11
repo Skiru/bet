@@ -53,6 +53,7 @@ from bet.sofa.confidence import (  # noqa: E402
     best_leg_per_quantity,
     builder_legs_are_coherent,
     builder_odds,
+    calibration_path_for,
     combined_probability,
     coupon_artifact,
     coupon_sort_key,
@@ -365,7 +366,7 @@ def main() -> int:
         return profile.single_is_fairly_priced(leg.get("overround")) or (
             one_sided_ok and one_sided_single(leg))
 
-    cal = Calibration.load(args.calibration) if args.calibration else Calibration.load()
+    cal = Calibration.load(args.calibration or calibration_path_for(args.date, now))
     if so:
         # K2: no anti-selection shrink toward the price; K13: a thin
         # direction bucket caps the market curve as it caps a pool.

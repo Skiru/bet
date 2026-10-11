@@ -219,6 +219,48 @@ positions of `11_coupon.json`, every printed builder leg, `read_requests.json`
     `removed_by_reads`, graded apart in audit_settlement 7i) — and the veto
     entry if any.
 
+## Player props (`player_*_for`) — the bet, and how to read one
+
+"Zawodnik - liczba strzałów / celnych strzałów / popełnionych fauli /
+odbiorów / asyst / spalonych", subject = the player as Superbet writes him.
+
+- **The bet is conditional on the start.** Superbet quotes these OVER only,
+  identifies the player by a Sportradar id we cannot map, and **voids the bet
+  unless he starts** (operator, 2026-10-11: Walemark came on for 30', 2 shots
+  on target, "Zwrot"). A non-start is a refund, never a loss, so "will he
+  start?" is not the risk. **The risk is what happens once he starts**: an
+  early substitution (a return from injury on a minutes limit, a booked
+  defender taken off at half-time, a planned 60' change in a congested week),
+  a changed role or position, a red card.
+- **The sample** is his own appearances for his current side from
+  `/lineups` (`03_samples.json` `players["<market>|<subject>"]`: `matched_name`,
+  `side`, `observations` with `minutes`, `appearances`). From
+  `PLAYER_STARTS_ONLY_FROM_UTC` it is his **starts** only (`appearances:
+  "starts"`, sheet note `PLAYER_STARTS_ONLY`). Read the minutes: a sample of
+  90' starts and a sample of 60' starts are different quantities
+  (`PLAYER_MINUTES` note: median minutes, starts of 60'+).
+- **Identity** is a name match. `PLAYER_NAME_TOKENS` on the row means
+  Superbet's full registered name was matched by whole tokens to Sofascore's
+  playing name ("Andrade, Matheus Araujo" -> "matheus araujo"): check that
+  `matched_name` is the same person (club, position) and say how you know.
+  Sofascore spells names with their own letters ("Wålemark", "Khlan" for
+  Chłań) - search both spellings before calling a player absent.
+- **What to check, per leg:** expected lineup (club / league page within ~1 h
+  of kickoff, else two domains, tagged); role and position against the
+  sample (a winger moved to wing-back shoots less, a holding midfielder
+  moved up fouls less); penalties and set pieces for shots / shots on target;
+  the opponent's style (a possession side concedes few tackles to its
+  opponent's midfield; a low block concedes shots); referee for fouls;
+  manager change inside the sample; minutes limits after injury.
+- **Verdicts.** An expected early substitution, a role change the sample does
+  not contain, or an identity you cannot confirm is WATCH. A doubtful start
+  alone is NOT a reason (it voids). The price is the filter, as everywhere:
+  "props never pay" is not a read.
+- **On the coupon** a player leg prints as a single only under
+  `ONE_SIDED_SINGLES_FROM_UTC` (the ladder has no UNDER, so no margin; the
+  leg carries `one_sided_market`, the PDF shows "1-str." in the margin
+  column); its confidence is the market's own history curve (n >= 300).
+
 ## Kill cases this repo has already paid for
 
 Check every read against these.

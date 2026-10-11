@@ -71,6 +71,34 @@ RETIRED = "RETIRED"
 WALKOVER = "WALKOVER"
 REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED, RETIRED, WALKOVER})
 
+# A player market Superbet voids although the match was played: the player
+# did not take the pitch, did not start (operator, 2026-10-11), or was not in
+# the matchday squad at all. Per LEG,
+# not per event - SETTLE lists them in 07_settle_skips.json `void_legs`, and
+# a printed leg among them is a refund (0 units) like an event refund.
+PLAYER_VOID_REASONS = frozenset(
+    {"PLAYER_DID_NOT_PLAY", "PLAYER_NOT_STARTED", "PLAYER_NOT_IN_SQUAD"})
+VOID_LEGS_KEY = "void_legs"
+
+
+def void_leg_keys(
+    skips_doc: Mapping[str, Any] | None,
+) -> dict[tuple[int, str, str, float, str], str]:
+    """{(event, market, subject, line, direction): reason} from a day's
+    07_settle_skips.json `void_legs` (a day settled before 2026-10-11: {})."""
+    out: dict[tuple[int, str, str, float, str], str] = {}
+    for entry in (skips_doc or {}).get(VOID_LEGS_KEY) or []:
+        if not isinstance(entry, Mapping):
+            continue
+        try:
+            key = (int(entry["sofascore_event_id"]), str(entry["market"]),
+                   str(entry.get("subject") or ""), float(entry["line"]),
+                   str(entry["direction"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        out[key] = str(entry.get("reason") or "")
+    return out
+
 # A4 (2026-10-05): the grades of printed legs the final SHEET had no row for,
 # beside 07_settled.json and never in sofa_settled_row (no forecast columns).
 PRINTED_SETTLED_FILE = "07_settled_printed.json"

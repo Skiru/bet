@@ -106,6 +106,8 @@ IDENTITY_REASONS = frozenset(
         "DERIVED_SUBJECT",
         "PLAYER_NOT_MATCHED",
         "PLAYER_DID_NOT_PLAY",
+        "PLAYER_NOT_STARTED",
+        "PLAYER_NOT_IN_SQUAD",
         "PLAYER_AMBIGUOUS",
         "NO_LINEUPS",
     }

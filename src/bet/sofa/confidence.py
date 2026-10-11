@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from bet.sofa import timeutil
 from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
 from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N
@@ -44,6 +45,32 @@ from bet.sofa.players import is_player_metric
 # else a relative path failed (or read another checkout's curves).
 # SOFA_CONFIG_DIR (bet.sofa.config.config_dir) moves it for a scratch replay.
 DEFAULT_CALIBRATION = config_path("sofa_confidence_calibration.json")
+# A refitted calibration staged for a later start (its `effective_from`, an
+# ISO UTC time): a day built from that moment reads it, a day already built
+# keeps the installed one (CLAUDE.md: never install into a day already
+# built). Promoted over the installed file once no earlier day is rebuilt.
+NEXT_CALIBRATION_NAME = "sofa_confidence_calibration.next.json"
+
+
+def calibration_path_for(
+    date: str, build_at: datetime | None = None, main: Path | None = None
+) -> Path:
+    """The football / tennis calibration a day reads: the staged one when the
+    day and the build clock are both at or after its `effective_from`, else
+    the installed one (sport_confidence.calibration_path_for, with a time).
+    `main` defaults to the installed file of the config dir at call time
+    (SOFA_CONFIG_DIR may point a process elsewhere)."""
+    if main is None:
+        main = config_path("sofa_confidence_calibration.json")
+    nxt = main.with_name(NEXT_CALIBRATION_NAME)
+    if not nxt.exists():
+        return main
+    eff = json.loads(nxt.read_text(encoding="utf-8")).get("effective_from")
+    if not isinstance(eff, str):
+        return main
+    start = datetime.fromisoformat(eff.replace("Z", "+00:00"))
+    at = build_at if build_at is not None else timeutil.now()
+    return nxt if date >= start.strftime("%Y-%m-%d") and at >= start else main
 
 # The ceiling for an empirical / non-count market with no curve of its own
 # when no empirical market has a curve either. Below the pool's 0.80-0.825

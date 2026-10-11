@@ -123,6 +123,19 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
 # Sofascore keys whose absence this team-game proves to be zero.
 ZERO_PROVEN_KEY = "_zero_proven_by_team_sum"
 
+# Written by `squad_statistics` into each entry that has statistics: did he
+# start (the payload's `substitute` false)? Superbet voids a player market on
+# a footballer who did not START: Patrik Walemark (Lech, 2026-10-10) came on
+# for 30 minutes with 2 shots on target and his "celne strzały powyżej 0.5"
+# came back as "Zwrot" on the operator's slip (operator, 2026-10-11: the rule).
+STARTED_KEY = "_started"
+
+
+def started(stats: dict[str, Any] | None) -> bool | None:
+    """Did this squad entry start the match? None when the payload says not."""
+    value = (stats or {}).get(STARTED_KEY)
+    return value if isinstance(value, bool) else None
+
 
 def is_player_metric(metric: str) -> bool:
     return metric in PLAYER_METRICS
@@ -267,13 +280,17 @@ def squad_statistics(
             continue
         stats = entry.get("statistics")
         key = normalize_name(name)
+        record = dict(stats) if isinstance(stats, dict) else {}
+        substitute = entry.get("substitute")
+        if record and isinstance(substitute, bool):
+            record[STARTED_KEY] = not substitute
         if key in out:
             # Two squad members with one name (24 of 1,806 cached football
             # squad-sides, 2026-09-29: "ederson", "marcos paulo"): which one
             # Superbet means cannot be told, and the later one used to
             # overwrite the earlier. Neither is a candidate.
             homonyms.add(key)
-        out[key] = dict(stats) if isinstance(stats, dict) else {}
+        out[key] = record
     for key in homonyms:
         del out[key]
     if statistics is not None:

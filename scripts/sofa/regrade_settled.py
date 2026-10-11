@@ -54,6 +54,7 @@ import json
 import sqlite3
 import sys
 from collections import Counter
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -78,6 +79,7 @@ from scripts.sofa.run_settle import (
     _settle_derived,
     _settle_player,
     _subject_is_home,
+    load_player_sample_names,
     load_player_sides,
     load_player_token_names,
     player_own_home,
@@ -364,11 +366,12 @@ def player_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [dict(r) for r in rows if is_player_metric(r["market"])]
 
 
-def regrade_players(
-    conn: sqlite3.Connection, runs_dir: Path
-) -> tuple[list[dict[str, Any]], Counter[str], list[dict[str, Any]]]:
-    """(changes, tally, rows left) for --players: every live player row graded
-    again from the cached /lineups with SETTLE's squad rule (A2)."""
+def _player_grades(
+    conn: sqlite3.Connection, runs_dir: Path, tally: Counter[str]
+) -> Iterator[tuple[dict[str, Any], str | None, tuple[float, str] | str]]:
+    """(row, sample side, SETTLE's grade or skip reason) for every live player
+    row the cache can grade again (SETTLE's squad rule, A2); a row without its
+    event or squads is counted in `tally` and not yielded."""
     rows = player_candidates(conn)
     events = {r["sofascore_event_id"] for r in rows}
     cached = {
@@ -385,9 +388,7 @@ def regrade_players(
     fixtures: dict[str, dict[int, dict[str, Any]]] = {}
     sides: dict[str, dict[tuple[int, str], str]] = {}
     token_names: dict[str, dict[tuple[int, str], str]] = {}
-    changes: list[dict[str, Any]] = []
-    left: list[dict[str, Any]] = []
-    tally: Counter[str] = Counter()
+    sample_names: dict[str, dict[tuple[int, str], str]] = {}
     for row in rows:
         eid = row["sofascore_event_id"]
         day = row["run_date"]
@@ -395,6 +396,7 @@ def regrade_players(
             fixtures[day] = _fixtures(runs_dir, day)
             sides[day] = load_player_sides(runs_dir / day)
             token_names[day] = load_player_token_names(runs_dir / day)
+            sample_names[day] = load_player_sample_names(runs_dir / day)
         event = details.get(eid) or listings.get(eid)
         sj, lj = cached.get(eid, (None, None))
         lineups = json.loads(lj) if lj else None
@@ -410,8 +412,20 @@ def regrade_players(
         sample_key = player_sample_key(row["market"], row["subject"] or "")
         side = sides[day].get((eid, sample_key))
         own = player_own_home(side, fixtures[day].get(eid), event)
-        graded = _settle_player(
-            row, squads, own, token_names[day].get((eid, sample_key)))
+        yield row, side, _settle_player(
+            row, squads, own, token_names[day].get((eid, sample_key)),
+            sample_names[day].get((eid, sample_key)))
+
+
+def regrade_players(
+    conn: sqlite3.Connection, runs_dir: Path
+) -> tuple[list[dict[str, Any]], Counter[str], list[dict[str, Any]]]:
+    """(changes, tally, rows left) for --players: every live player row graded
+    again from the cached /lineups with SETTLE's squad rule (A2)."""
+    changes: list[dict[str, Any]] = []
+    left: list[dict[str, Any]] = []
+    tally: Counter[str] = Counter()
+    for row, side, graded in _player_grades(conn, runs_dir, tally):
         if isinstance(graded, str):
             reason = graded.split(":")[-1]
             tally[f"left:{reason}"] += 1
@@ -429,6 +443,64 @@ def regrade_players(
         tally[kind] += 1
         changes.append(_change(row, actual, outcome))
     return changes, tally, left
+
+
+def not_started_plan(
+    conn: sqlite3.Connection, runs_dir: Path
+) -> tuple[list[dict[str, Any]], Counter[str]]:
+    """(actions, tally) for --player-not-started: a `delete` per live player
+    row whose player came off the bench (SETTLE now says PLAYER_NOT_STARTED -
+    Superbet voids such a bet, so it is no WIN or LOSS of the forecast). Each
+    action carries the full row (the undo copy) and whether a PDF printed it."""
+    actions: list[dict[str, Any]] = []
+    tally: Counter[str] = Counter()
+    printed: dict[str, set[tuple[int, str, str, float, str]]] = {}
+    for row, _side, graded in _player_grades(conn, runs_dir, tally):
+        if graded != "PLAYER_NOT_STARTED":
+            tally["kept"] += 1
+            continue
+        day = str(row["run_date"])
+        if day not in printed:
+            printed[day] = (
+                printed_keys(runs_dir / day) if (runs_dir / day).exists() else set()
+            )
+        tally["delete"] += 1
+        actions.append({
+            "action": "delete",
+            "id": row["id"],
+            "run_date": day,
+            "to_run_date": None,
+            "event_id": row["sofascore_event_id"],
+            "market": row["market"],
+            "subject": row["subject"],
+            "line": row["line"],
+            "direction": row["direction"],
+            "outcome": row["outcome"],
+            "printed": _key(row) in printed[day],
+            "printed_on_target": False,
+            "row": row,
+        })
+    return actions, tally
+
+
+def _apply_deletes(
+    conn: sqlite3.Connection,
+    runs_dir: Path,
+    actions: list[dict[str, Any]],
+    at: datetime,
+    mode: str,
+) -> dict[str, Any]:
+    """Write the undo copy first, then delete the rows."""
+    log = runs_dir / f"regrade_{at:%Y%m%dT%H%M%SZ}.json"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(json.dumps({"mode": mode, "actions": actions}, indent=1,
+                              ensure_ascii=False, default=str) + "\n")
+    with conn:
+        conn.executemany(
+            "DELETE FROM sofa_settled_row WHERE id = ?",
+            [(a["id"],) for a in actions if a["action"] == "delete"],
+        )
+    return {"log": str(log)}
 
 
 def _change(row: dict[str, Any], actual: float, outcome: str) -> dict[str, Any]:
@@ -758,6 +830,12 @@ def main() -> int:
         "else delete; mark MOVED_BEYOND_VOID in the original day's skips "
         "(2026-10-05)",
     )
+    kind.add_argument(
+        "--player-not-started",
+        action="store_true",
+        help="delete live player-prop rows of a footballer who came off the "
+        "bench: Superbet voids those bets (PLAYER_NOT_STARTED, 2026-10-11)",
+    )
     args = parser.parse_args()
     config = SofaConfig.from_env()
     runs_dir = Path(config.runs_dir)
@@ -772,6 +850,8 @@ def main() -> int:
         )
         if args.moved_void:
             actions, tally = moved_void_plan(conn, runs_dir)
+        elif args.player_not_started:
+            actions, tally = not_started_plan(conn, runs_dir)
         elif args.players:
             changes, tally, left_rows = regrade_players(conn, runs_dir)
         else:
@@ -786,7 +866,17 @@ def main() -> int:
         return 2
 
     metrics: dict[str, Any] = {"applied": args.apply, "tally": dict(tally)}
-    if args.moved_void:
+    if args.player_not_started:
+        by = Counter((a["run_date"], a["market"]) for a in actions)
+        metrics["by_day"] = {f"{d}:{m}": n for (d, m), n in sorted(by.items())}
+        printed = printed_lines(actions)
+        metrics["printed_changed"] = len(printed)
+        for line in printed:
+            print(line)
+        if args.apply and actions:
+            metrics.update(_apply_deletes(conn, runs_dir, actions, at,
+                                          "player-not-started"))
+    elif args.moved_void:
         moves = Counter((a["run_date"], a["action"]) for a in actions)
         metrics["by_day"] = {f"{d}:{k}": n for (d, k), n in sorted(moves.items())}
         printed = printed_lines(actions)

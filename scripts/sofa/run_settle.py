@@ -62,14 +62,17 @@ from bet.sofa.players import (
     match_player_by_tokens,
     player_sample_key,
     squad_statistics,
+    started,
 )
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD, name_score
 from bet.sofa.samples import fetch_lineups
 from bet.sofa.settle import (
     AWARDED,
     MOVED_BEYOND_VOID,
+    PLAYER_VOID_REASONS,
     PRINTED_SETTLED_FILE,
     RETIRED,
+    VOID_LEGS_KEY,
     WALKOVER,
     SettledRow,
     insert_settled_rows,
@@ -400,6 +403,7 @@ def _settle_player(
     squads: dict[bool, dict[str, Any] | None] | None,
     own_home: bool | None = None,
     token_name: str | None = None,
+    sample_name: str | None = None,
 ) -> tuple[float, str] | str:
     """Grade one player row against the fixture's own squad lists (F54).
 
@@ -422,9 +426,15 @@ def _settle_player(
     where `match_player` finds nobody in his own squad that exact name is
     graded, provided the other squad holds no candidate of either matcher.
 
+    `sample_name` is the squad name SAMPLES sampled him under (any rule).
+    When his own match squad lists neither it nor anyone either matcher
+    finds, he was not in the matchday squad: PLAYER_NOT_IN_SQUAD, a void
+    like PLAYER_DID_NOT_PLAY (Evander, Cincinnati 2026-10-10).
+
     A player who did not take the pitch is PLAYER_DID_NOT_PLAY, not a zero:
     Superbet voids that bet, so settling it as a loss would invent a result
-    the operator never had.
+    the operator never had. One who came off the bench is PLAYER_NOT_STARTED
+    for the same reason: Superbet voids a player market unless he started.
     """
     if not squads:
         return "PLAYER_NO_LINEUPS"
@@ -456,6 +466,14 @@ def _settle_player(
         home, matched = own_home, token_name
     else:
         if not found:
+            own_squad = squads.get(own_home) if own_home is not None else None
+            if (
+                own_squad
+                and sample_name
+                and sample_name not in own_squad
+                and match_player_by_tokens(subject, own_squad) is None
+            ):
+                return "PLAYER_NOT_IN_SQUAD"
             return "PLAYER_NOT_MATCHED"
         if len(found) > 1:
             return "PLAYER_AMBIGUOUS"
@@ -472,6 +490,10 @@ def _settle_player(
     value = extract_player_metric(row["market"], squad[matched])
     if value is GapReason.EVENT_NOT_FINISHED:
         return "PLAYER_DID_NOT_PLAY"
+    if started(squad[matched]) is False:
+        # Superbet voids a player market on a footballer who did not start
+        # (Walemark, 2026-10-10: on for 30', 2 shots on target, "Zwrot").
+        return "PLAYER_NOT_STARTED"
     if isinstance(value, GapReason):
         return f"{row['market']}:{value.value}"
     return float(value), settle_value(float(value), row["line"], row["direction"])
@@ -514,6 +536,21 @@ def player_own_home(
     return None
 
 
+def player_sample_names(samples: list[Any]) -> dict[tuple[int, str], str]:
+    """{(event id, "<market>|<subject>"): matched_name} of every sampled
+    player - the squad name SETTLE looks for in his own match squad."""
+    out: dict[tuple[int, str], str] = {}
+    for fixture in samples:
+        if not isinstance(fixture, dict):
+            continue
+        eid = fixture.get("sofascore_event_id")
+        for key, sample in (fixture.get("players") or {}).items():
+            name = sample.get("matched_name") if isinstance(sample, dict) else None
+            if isinstance(eid, int) and isinstance(name, str) and name:
+                out[(eid, str(key))] = name
+    return out
+
+
 def player_token_names(samples: list[Any]) -> dict[tuple[int, str], str]:
     """{(event id, "<market>|<subject>"): matched_name} of the players SAMPLES
     matched by tokens (`match_rule` "tokens") - the name SETTLE grades."""
@@ -548,6 +585,10 @@ def load_player_sides(run_dir: Path) -> dict[tuple[int, str], str]:
 
 def load_player_token_names(run_dir: Path) -> dict[tuple[int, str], str]:
     return player_token_names(_samples_doc(run_dir))
+
+
+def load_player_sample_names(run_dir: Path) -> dict[tuple[int, str], str]:
+    return player_sample_names(_samples_doc(run_dir))
 
 
 def _handicap_side(
@@ -699,6 +740,17 @@ class SkipLedger:
     def __init__(self) -> None:
         self.counts: Counter[str] = Counter()
         self.by_event: dict[int, Counter[str]] = {}
+        # Legs Superbet voids though the match was played (settle.
+        # PLAYER_VOID_REASONS): keyed, so a printed one reads as a refund.
+        self.void_legs: list[dict[str, Any]] = []
+
+    def void(self, row: dict[str, Any], reason: str) -> None:
+        self.void_legs.append({
+            "sofascore_event_id": int(row["sofascore_event_id"]),
+            "market": row["market"], "subject": row.get("subject") or "",
+            "line": float(row["line"]), "direction": row["direction"],
+            "reason": reason,
+        })
 
     def add(self, event_id: int, reason: str, n: int = 1) -> None:
         if n <= 0:
@@ -1063,6 +1115,7 @@ def main() -> int:
     seen = seen_kickoffs(run_dir)
     sides = load_player_sides(run_dir)
     token_names = load_player_token_names(run_dir)
+    sample_names = load_player_sample_names(run_dir)
 
     settled_at = datetime.now(UTC).isoformat()
     rows: list[SettledRow] = []
@@ -1207,9 +1260,12 @@ def main() -> int:
                     graded = _settle_player(
                         row, squads, player_own_home(side, fixture, event),
                         token_names.get((event_id, sample_key)),
+                        sample_names.get((event_id, sample_key)),
                     )
                     if isinstance(graded, str):
                         skips.add(event_id, graded)
+                        if graded in PLAYER_VOID_REASONS:
+                            skips.void(row, graded)
                         continue
                     value, outcome = graded
                     if outcome == "PUSH":
@@ -1383,6 +1439,13 @@ def main() -> int:
         or int(e["sofascore_event_id"]) not in previous_ids
     ]
     merged_events = merge_skipped_events(previous_events, current_events, processed)
+    # The void legs of events this run did not reach stay; the rest are this
+    # run's (same rule as merge_skipped_events).
+    merged_void = [
+        v for v in previous_skips.get(VOID_LEGS_KEY) or []
+        if isinstance(v, dict)
+        and int(v.get("sofascore_event_id") or 0) not in processed
+    ] + skips.void_legs
     write_atomic(
         skips_path,
         json.dumps(
@@ -1398,6 +1461,10 @@ def main() -> int:
                 "breaker_open": breaker_open,
                 "skipped": skip_totals(merged_events),
                 "skipped_events": merged_events,
+                VOID_LEGS_KEY: sorted(
+                    merged_void,
+                    key=lambda v: (v["sofascore_event_id"], v["market"],
+                                   v["subject"], v["line"], v["direction"])),
             },
             indent=2,
         ),

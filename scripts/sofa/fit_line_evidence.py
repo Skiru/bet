@@ -56,6 +56,7 @@ from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     Calibration,
+    calibration_path_for,
     direction_key,
     is_derived,
     match_class,
@@ -231,7 +232,9 @@ def main() -> int:
     config = SofaConfig.from_env()
     runs_dir = Path(config.runs_dir)
 
-    cal = dataclasses.replace(Calibration.load(), gap_shrink_k=0.0,
+    # The curves the --before day reads (a staged refit from its start).
+    cal = dataclasses.replace(Calibration.load(calibration_path_for(args.before)),
+                              gap_shrink_k=0.0,
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
     days = stats_only_days(runs_dir, args.before)
     fitted = le.fit(sheet_rows(runs_dir, days, cal, args.derived_curves))

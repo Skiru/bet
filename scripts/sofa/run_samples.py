@@ -28,7 +28,7 @@ from bet.sofa.contracts import (
     GapReason,
 )
 from bet.sofa.coverage import check_coverage_floor
-from bet.sofa.epochs import player_name_tokens
+from bet.sofa.epochs import player_name_tokens, player_starts_only
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
     compute_readiness,
@@ -145,6 +145,7 @@ def sample_fixtures_concurrently(
     offers_by_id: dict[int, FixtureOffer],
     *,
     token_fallback: bool = False,
+    starts_only: bool = False,
 ) -> list[FixtureSamples]:
     """One FixtureSamples per fixture, in the input's order.
 
@@ -177,6 +178,7 @@ def sample_fixtures_concurrently(
                 config,
                 offer=offers_by_id.get(fixture.sofascore_event_id),
                 token_fallback=token_fallback,
+                starts_only=starts_only,
             )
             for fixture in fixtures
         ]
@@ -197,6 +199,7 @@ def sample_fixtures_concurrently(
             config,
             offer=offers_by_id.get(fixture.sofascore_event_id),
             token_fallback=token_fallback,
+            starts_only=starts_only,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -299,6 +302,7 @@ def main() -> int:
     sampled = sample_fixtures_concurrently(
         fixtures, client, cache, config, offers_by_id,
         token_fallback=player_name_tokens(args.date),
+        starts_only=player_starts_only(args.date),
     )
 
     for fixture, samples in zip(fixtures, sampled, strict=True):

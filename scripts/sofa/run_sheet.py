@@ -1016,6 +1016,11 @@ def process_fixture(
                     f"played {len(obs)} of {player_sample.squad_matches} "
                     f"sampled matches"
                 )
+            if player_sample.appearances == "starts":
+                extra_notes.append(
+                    "PLAYER_STARTS_ONLY: the sample is his starts - Superbet "
+                    "voids a player market unless he starts"
+                )
             if player_sample.match_rule == "tokens":
                 extra_notes.append(
                     f"PLAYER_NAME_TOKENS: Superbet {rung.subject!r} read as "

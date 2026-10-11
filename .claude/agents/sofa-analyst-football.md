@@ -105,6 +105,14 @@ So your two jobs, in order:
    days). For a make-up fixture find out **why** it was postponed - illness
    in a squad, weather, a pitch - before you grade a goal line on it.
 
+**Player props** (`player_*_for`, subject = the player): read them with the
+skill's "Player props" section. The bet voids unless he starts (a doubtful
+start is no reason to WATCH); what you weigh is what happens once he starts -
+early substitution, role / position change, identity (`PLAYER_NAME_TOKENS`),
+set pieces, opponent style, referee for fouls. A read on a player leg keys
+`subject` to the player exactly as the leg writes him, never `null` (a null
+subject would also remove the team legs of that fixture).
+
 ## Which legs you read
 
 The coupon is `runs/sofa/<date>/KUPON_<date>.pdf`, rendered from

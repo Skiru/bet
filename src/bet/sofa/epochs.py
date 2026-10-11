@@ -648,6 +648,30 @@ def player_name_tokens(date: str, build_at: datetime | None = None) -> bool:
     return date >= PLAYER_NAME_TOKENS_DATE and at >= PLAYER_NAME_TOKENS_FROM_UTC
 
 
+# Superbet voids a footballer's player market unless he STARTS (operator,
+# 2026-10-11; Walemark 2026-10-10: on for 30', 2 shots on target, "Zwrot").
+# The bet is "given that he starts", so from this moment a player sample holds
+# his starts only (samples.build_player_samples `starts_only`); SETTLE voids a
+# bench appearance (PLAYER_NOT_STARTED) whatever the day - a correctness fix.
+# Changes the forecasts of player rows: never mid-day. Measured before it was
+# set (docs/sofa/evidence/player_starts_2026-10-11.md, history replay, 492,384
+# starters' OVER rows of 4,114 matches): bucket-calibrated out of sample the
+# starts sample beats the all-appearances one, log-loss -0.0027 [-0.0030,
+# -0.0024], on 5 of 6 markets (assists level). The curves a day >= the moment
+# reads are refitted on the same replay (config/
+# sofa_confidence_calibration.next.json, effective_from the same moment).
+PLAYER_STARTS_ONLY_FROM_UTC: datetime | None = datetime(2026, 10, 12, 0, 0, tzinfo=UTC)
+
+
+def player_starts_only(date: str, build_at: datetime | None = None) -> bool:
+    """Is a player sample his starts only (PLAYER_STARTS_ONLY_FROM_UTC)?"""
+    if PLAYER_STARTS_ONLY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= PLAYER_STARTS_ONLY_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= PLAYER_STARTS_ONLY_FROM_UTC)
+
+
 # Superbet quotes a footballer's props on the OVER side only, so the ladder
 # has no overround and confidence.single_is_fairly_priced (overround <=
 # MAX_OVERROUND) refused every football player leg as a single, unnamed: the 5

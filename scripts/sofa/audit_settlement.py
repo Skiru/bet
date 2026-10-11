@@ -48,6 +48,7 @@ from bet.sofa.settle import (  # noqa: E402
     PRINTED_SETTLED_FILE,
     line_value,  # noqa: E402
     refund_event_ids,
+    void_leg_keys,
 )
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
@@ -66,7 +67,8 @@ Key = tuple[int, str, str, float, str]
 # stake comes back (0 units). Its own count, never a loss, never "unsettled".
 REFUND = "REFUND"
 # The row of the singles table that counts refunded legs.
-REFUND_LABEL = "zwrot (przesunięty > 48 h / przyznany / krecz / walkower), 0 j."
+REFUND_LABEL = ("zwrot (przesunięty > 48 h / przyznany / krecz / walkower / "
+                "zawodnik nie zagrał lub nie wyszedł w składzie), 0 j.")
 
 
 def _key(row: dict[str, Any]) -> Key:
@@ -189,6 +191,16 @@ def refund_events(run_dir: Path) -> dict[int, str]:
     return refund_event_ids(doc if isinstance(doc, dict) else None)
 
 
+def void_legs_of(run_dir: Path) -> dict[Key, str]:
+    """{leg key: PLAYER_DID_NOT_PLAY | PLAYER_NOT_STARTED} from the day's
+    07_settle_skips.json `void_legs`: each such printed leg is a refund."""
+    path = run_dir / "07_settle_skips.json"
+    if not path.exists():
+        return {}
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    return void_leg_keys(doc if isinstance(doc, dict) else None)
+
+
 def coupon_settled_by_key(
     db_path: str, run_dir: Path, run_date: str, keys: set[Key]
 ) -> dict[Key, dict[str, Any]]:
@@ -207,7 +219,21 @@ def coupon_settled_by_key(
     for row in load_printed_settled(run_dir):
         by_key.setdefault(_key(row), row)
     refunds = refund_events(run_dir)
+    void_legs = void_legs_of(run_dir)
     for key in keys:
+        if key in void_legs and key[0] not in refunds:
+            # A player market Superbet voided (did not play / did not start).
+            by_key[key] = {
+                "run_date": run_date,
+                "sofascore_event_id": key[0],
+                "market": key[1],
+                "subject": key[2],
+                "line": key[3],
+                "direction": key[4],
+                "actual_value": None,
+                "outcome": REFUND,
+                "reason": void_legs[key],
+            }
         if key[0] in refunds:
             by_key[key] = {
                 "run_date": run_date,

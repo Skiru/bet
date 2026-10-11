@@ -184,6 +184,16 @@ every sport alike, and nothing that could win is cut by name.
   vs "Matheus Araujo"; 346 of 680 `NO_ENTITY_FOUND` players of 10-08..10-10).
   The sample says `match_rule: "tokens"`, the sheet row `PLAYER_NAME_TOKENS`.
   Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`.
+- **Player starts** (operator, 2026-10-11): Superbet voids a footballer's
+  market unless he STARTS. SETTLE says `PLAYER_NOT_STARTED`; from
+  `PLAYER_STARTS_ONLY_FROM_UTC` (2026-10-12 00:00Z) the sample is his starts
+  (`appearances: "starts"`, note `PLAYER_STARTS_ONLY`; bucket-calibrated out
+  of sample -0.0027 log-loss [-0.0030, -0.0024] against all appearances) and
+  the player curves are refitted on starters' outcomes from their starts,
+  staged in `config/sofa_confidence_calibration.next.json` (`effective_from`
+  2026-10-12 00:00Z, `confidence.calibration_path_for`; every non-player
+  curve identical). Promote it over the installed file once no day <= 10-11
+  is rebuilt. Evidence: `docs/sofa/evidence/player_starts_2026-10-11.md`.
 - **Start clock** = the earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds are
   dropped for every reader) and FIXTURE_CHECK's fresh `/event` start. A
@@ -270,7 +280,12 @@ measurement of Superbet's price and feed nothing else.
   walkover (`WALKOVER`) - `settle.REFUND_REASONS` (operator, 2026-10-07:
   Superbet's rules). Player props grade only from the player's own squad
   (PLAYER_AMBIGUOUS); a sample matched by tokens grades its own
-  `matched_name` there (a candidate in the other squad is PLAYER_AMBIGUOUS); a printed leg without a sheet row goes to
+  `matched_name` there (a candidate in the other squad is PLAYER_AMBIGUOUS).
+  A player who did not play, did not start or was not in the matchday squad
+  (`PLAYER_DID_NOT_PLAY`, `PLAYER_NOT_STARTED`, `PLAYER_NOT_IN_SQUAD`) is listed per leg in `07_settle_skips.json`
+  `void_legs`, and a printed such leg is a refund in 7c and the ledger
+  (`regrade_settled.py --player-not-started` deleted 5,215 bench rows of
+  09-24..10-10 on 2026-10-11, none printed); a printed leg without a sheet row goes to
   `07_settled_printed.json`. Sport legs grade at the printed price against the
   pinned id (`NOT_GRADED:ID_CHANGED` otherwise), in their own 7c table, never
   in `sofa_settled_row` or `fit_confidence`. Statistic gaps close days later:

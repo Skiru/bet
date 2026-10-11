@@ -116,6 +116,7 @@ from bet.sofa.players import (
     is_player_metric,
     match_player,
     squad_statistics,
+    started,
 )
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
@@ -1273,12 +1274,19 @@ def player_rows_for_event(
     ladder: dict[str, list[float]],
     min_sample: int,
     counts: collections.Counter[str] | None = None,
+    *,
+    starters_only: bool = False,
+    starts_only: bool = False,
 ) -> list[SettledRow]:
     """Every settled player rung of one finished match.
 
     `target[is_home]` is that side's squad in this match (squad_statistics,
     with this match's /statistics); `history[is_home]` the side's historical
     squads, newest first - one per sampled match that has a squad.
+
+    `starters_only`: only a player who started this match is an outcome
+    (Superbet voids the market of one who did not). `starts_only`: his
+    sample is his starts (samples.build_player_samples `starts_only`).
     """
     tally: collections.Counter[str] = (
         counts if counts is not None else collections.Counter()
@@ -1297,6 +1305,9 @@ def player_rows_for_event(
         for name, stats in sorted(squad.items()):
             if stats.get("minutesPlayed") is None:
                 continue  # did not appear: Superbet voids the market
+            if starters_only and started(stats) is False:
+                tally["not_started_void"] += 1
+                continue  # off the bench: Superbet voids the market too
             tally["appearances"] += 1
             if name in both:
                 tally["name_in_both_squads"] += 1
@@ -1318,6 +1329,8 @@ def player_rows_for_event(
                     values: list[float] = []
                     for past, key in pairs:
                         if key is None:
+                            continue
+                        if starts_only and started(past[key]) is False:
                             continue
                         value = extract_player_metric(metric, past[key])
                         if not isinstance(value, GapReason):
@@ -1476,8 +1489,11 @@ def build_player_rows(
     *,
     sample_n: int,
     min_sample: int,
+    starts_only: bool = False,
 ) -> tuple[list[SettledRow], collections.Counter[str]]:
-    """The player rows of every finished football match with a squad list."""
+    """The player rows of every finished football match with a squad list
+    (`starts_only`: starters' outcomes from their starts - the bet Superbet
+    settles)."""
     counts: collections.Counter[str] = collections.Counter()
     if not any(ladder.values()):
         counts["no_printed_player_ladder"] += 1
@@ -1540,7 +1556,7 @@ def build_player_rows(
                 history[is_home] = side_squads
             produced = player_rows_for_event(
                 event, squads_of(int(event["id"])), history, ladder, min_sample,
-                counts,
+                counts, starters_only=starts_only, starts_only=starts_only,
             )
             counts["targets"] += 1
             if produced:
@@ -1746,6 +1762,7 @@ def replay_players(
     baselines: dict[str, Any],
     config: SofaConfig,
     rows: list[SettledRow],
+    starts_only: bool = False,
 ) -> dict[str, Any]:
     """Append the player rows to `rows`; the summary's player metrics."""
     carried = sorted(k for k in baselines if is_player_metric(k))
@@ -1757,12 +1774,14 @@ def replay_players(
     started = datetime.now(UTC)
     ladder = printed_player_ladder(runs_dir)
     produced, counts = build_player_rows(
-        db_path, ladder, sample_n=config.sample_n, min_sample=config.min_sample
+        db_path, ladder, sample_n=config.sample_n, min_sample=config.min_sample,
+        starts_only=starts_only,
     )
     rows.extend(produced)
     by_market = collections.Counter(r.market for r in produced)
     return {
         "player_replay": "OK" if produced else "NO_ROWS",
+        "player_starts_only": starts_only,
         "player_rows": len(produced),
         "player_rows_by_market": dict(sorted(by_market.items())),
         "player_ladder": ladder,
@@ -1810,6 +1829,14 @@ def main() -> int:
         help="football player markets beside the team markets (default), "
         "not at all, or alone (the team rows are then neither rebuilt nor "
         "touched)",
+    )
+    parser.add_argument(
+        "--player-starts-only",
+        action="store_true",
+        help="football player rows as Superbet settles them: only a starter is "
+        "an outcome, and his sample is his starts (epochs."
+        "PLAYER_STARTS_ONLY_FROM_UTC; 2026-10-11). Default off: every "
+        "appearance",
     )
     parser.add_argument(
         "--derived",
@@ -1923,6 +1950,7 @@ def main() -> int:
             baselines,
             config,
             player_rows,
+            starts_only=args.player_starts_only,
         )
 
     # The team rows are streamed into the DB, never held: 56M rows on the

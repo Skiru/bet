@@ -55,6 +55,7 @@ from bet.sofa.players import (
     match_player_by_tokens,
     player_sample_key,
     squad_statistics,
+    started,
 )
 from bet.sofa.reserve_squads import (
     RESERVE_COMPETITIONS,
@@ -1072,6 +1073,7 @@ def build_player_samples(
     gaps: list[GapEntry],
     *,
     token_fallback: bool = False,
+    starts_only: bool = False,
 ) -> dict[str, PlayerSample]:
     """One sample per (player metric, player Superbet quoted) — F54.
 
@@ -1093,18 +1095,23 @@ def build_player_samples(
     found in NO squad of either side is looked for again with
     `match_player_by_tokens`, and taken only when every squad that answers
     names the same person on the same side - a fallback that may not guess.
+
+    `starts_only` (epochs.player_starts_only): an appearance off the bench is
+    not an observation. Superbet voids a player market unless the player
+    starts, so the bet is "given that he starts" and the sample is his starts.
     """
     samples: dict[str, PlayerSample] = {}
     for metric, players in sorted(wanted.items()):
         for player in sorted(players):
             per_side, per_side_names, named = _player_observations(
-                metric, player, side_results, gaps, match_player
+                metric, player, side_results, gaps, match_player, starts_only
             )
             match_rule = "fuzzy"
             if token_fallback and not named:
                 t_gaps: list[GapEntry] = []
                 t_side, t_names, t_named = _player_observations(
-                    metric, player, side_results, t_gaps, match_player_by_tokens
+                    metric, player, side_results, t_gaps, match_player_by_tokens,
+                    starts_only,
                 )
                 answered = [s for s in ("side_a", "side_b") if t_names[s]]
                 if len(answered) == 1 and len(t_names[answered[0]]) == 1:
@@ -1133,7 +1140,7 @@ def build_player_samples(
                         metric=metric,
                         detail=(
                             f"player {player!r} named in {named} squads, "
-                            "never came on"
+                            + ("never started" if starts_only else "never came on")
                             if named
                             else f"player {player!r} matched no squad member"
                         ),
@@ -1164,6 +1171,7 @@ def build_player_samples(
                 squad_matches=sum(1 for r in side_results[side] if r.get("squad")),
                 observations=observations,
                 match_rule=match_rule,  # type: ignore[arg-type]
+                appearances="starts" if starts_only else "all",
             )
     return samples
 
@@ -1174,8 +1182,10 @@ def _player_observations(
     side_results: dict[str, list[dict[str, Any]]],
     gaps: list[GapEntry],
     matcher: Callable[[str, dict[str, dict[str, Any]]], str | None],
+    starts_only: bool = False,
 ) -> tuple[dict[str, list[Observation]], dict[str, list[str]], int]:
-    """One player's appearances per side under one name matcher.
+    """One player's appearances per side under one name matcher (his starts
+    only, when `starts_only`).
 
     Returns the observations per side, the distinct squad names the matcher
     picked per side (first-found first), and in how many squads it named
@@ -1208,6 +1218,8 @@ def _player_observations(
                             detail=f"player {player!r} event {res['event_id']} gap",
                         )
                     )
+                continue
+            if starts_only and started(squad[matched]) is False:
                 continue
             per_side[side].append(
                 Observation(
@@ -1262,6 +1274,7 @@ def process_fixture_samples(
     offer: FixtureOffer | None = None,
     *,
     token_fallback: bool = False,
+    starts_only: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1273,7 +1286,7 @@ def process_fixture_samples(
     try:
         return _process_fixture_samples(
             fixture, client, cache, superbet_client, config, offer,
-            token_fallback=token_fallback,
+            token_fallback=token_fallback, starts_only=starts_only,
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1299,6 +1312,7 @@ def _process_fixture_samples(
     offer: FixtureOffer | None = None,
     *,
     token_fallback: bool = False,
+    starts_only: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1476,6 +1490,7 @@ def _process_fixture_samples(
             {"side_a": side_a_results, "side_b": side_b_results},
             gaps,
             token_fallback=token_fallback,
+            starts_only=starts_only,
         )
         for key, sample in sorted(player_samples.items()):
             if len(sample.observations) < config.min_sample:

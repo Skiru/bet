@@ -50,6 +50,7 @@ from bet.sofa.confidence import (  # noqa: E402
     COUPON_PROFILE,
     MAX_OVERROUND,
     MIN_MINUTES_TO_KICKOFF,
+    calibration_path_for,
     coupon_artifact,
     displayed_ev,
     fixture_leg_counts,
@@ -272,7 +273,7 @@ def confidence_older_than_sheet(run: Path, artifact: str) -> str | None:
     # The operator's refused_markets / admitted_player_markets live in the
     # calibration file (review 2026-10-04): a PDF-only re-render after an
     # entry was added would print the newly refused market.
-    calibration = config_path("sofa_confidence_calibration.json")
+    calibration = calibration_path_for(run.name)
     if calibration.exists() and conf.stat().st_mtime < calibration.stat().st_mtime:
         return (
             f"STALE_CONFIDENCE: {artifact} is older than {calibration.name} "

@@ -219,6 +219,20 @@ matches Superbet's T1 (a T1 / T2 leg on a flipped match is the other side's
 bet), and that the start agrees within the hour. A wrong identity is a
 NO_BET defect.
 
+For a **football player leg** (`player_*_for`) the join is the person: open
+`03_samples.json` `players["<market>|<subject>"]` and check `matched_name`
+is the player Superbet names (club = the `side` it claims; a
+`match_rule: "tokens"` sample - sheet note `PLAYER_NAME_TOKENS` - matched a
+registered name to a playing name by whole tokens: confirm it is one person),
+that `appearances` is `"starts"` on a day >= `PLAYER_STARTS_ONLY_FROM_UTC`
+(Superbet voids the bet unless he starts, so the sample is his starts), and
+rebuild the leg's mean from its `observations`. Sofascore's spelling can
+differ from Superbet's ("Wålemark", "Khlan" for Chłań). A player leg printed
+as a single has no overround by construction (`one_sided_market`): that is
+not a C2 defect from `ONE_SIDED_SINGLES_FROM_UTC` on, provided its
+`calibrated_on` is `market:` with `calibration_n` >= 300
+(`confidence.one_sided_single`). A wrong person is a NO_BET defect.
+
 ### 2c. Re-ask Superbet for every leg's live price
 
 Through `OfferFetcher` - the same code OFFER used - **and** by reading the odds

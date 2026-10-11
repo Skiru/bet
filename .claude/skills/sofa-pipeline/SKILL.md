@@ -263,6 +263,18 @@ sport's own `NOT_IDENTIFIED` / `TOURNAMENT_NEVER_SETTLED` (volleyball needs a
 tournament with a settled event in the last 14 days) / `NO_MODEL_P` /
 `INCOMPLETE_GROUP`. `CURVE_FAILED_CALIBRATION` is wired but off.
 
+**Football player props** (`player_*_for`): Superbet quotes them OVER only
+(no overround: a single only under `ONE_SIDED_SINGLES_FROM_UTC`, leg flag
+`one_sided_market`, `confidence.one_sided_single`: `market:` curve n >= 300)
+and **voids them unless the player starts** (operator, 2026-10-11): SETTLE
+says `PLAYER_NOT_STARTED`, the sample is his starts from
+`PLAYER_STARTS_ONLY_FROM_UTC` (`appearances: "starts"`, note
+`PLAYER_STARTS_ONLY`), the history replay `--player-starts-only`. A name
+`match_player` cannot place is matched by whole tokens from
+`PLAYER_NAME_TOKENS_FROM_UTC` (2026-10-12; `match_rule: "tokens"`, note
+`PLAYER_NAME_TOKENS`). Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`,
+`docs/sofa/evidence/player_starts_2026-10-11.md`.
+
 ### Measured sports
 
 Every fitted key of the four is read, corrected by its Superbet lines;
