@@ -557,6 +557,21 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
   `odds_if_product` as one - Superbet does not price a slip as the product of
   its legs (measured markup 8.8–19.6%).
 - **No stake sizing, no automated placement.** The stake is the operator's.
+- **A slip assembled in chat is not a coupon and has no gates - so say no
+  first.** When the operator asks for N slips, a target price or disjoint
+  slips and the day only supports fewer, say so plainly in the first line
+  ("dzień cienki - masz jeden kupon" / "dziś żadnego") instead of filling
+  the request with weaker legs. "Supports" is measured, not felt: first scan
+  the whole window for legs of the market families whose printed legs
+  realised at or above their price on the latest settled days (name the
+  days and N; match bootstrap; one family in twenty clearing zero is what
+  chance gives - say so), and inside a match prefer such a leg. Every table
+  the operator may stake from carries that measured chance (a `price_gap`
+  leg at its price, never its confidence) and says "na minusie" when it is
+  below the price - in **every** re-summary, not only an earlier message.
+  The product of confidences is never the headline. (2026-10-12: three
+  slips, two of them -EV by our own numbers, the caveat dropped from the
+  table the operator staked from.)
 - **Never read, echo or log `.env` values.**
 - **Curves are fitted on the history of events and statistics** (operator,
   2026-10-07: "nasze źródło to historia statystyk"), replayed as of each match
