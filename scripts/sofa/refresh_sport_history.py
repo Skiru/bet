@@ -13,7 +13,7 @@ sport fits read them from then on. Every morning before `refresh_line_evidence`
 
 Same client, token bucket, breaker and bridge as the pipeline; a refusal stops
 the run (resumable: a game stored as finished is never asked again).
-Exit: 0 OK, 1 PARTIAL (deadline, unanswered games, or the bridge refused),
+Exit: 0 OK, 1 PARTIAL (deadline or the bridge refused; a 404 is an answer),
 2 FAILED (nothing could be asked).
 """
 
@@ -85,7 +85,9 @@ def main() -> int:
                             lambda: time.monotonic() > stop_at)
     finally:
         conn.close()
-    partial = bool(result.stopped) or result.missing > 0
+    # A 404 is an answer (a game Sofascore deleted, often from a stale `next`
+    # page); only a stop - deadline, breaker, bridge - leaves work undone.
+    partial = bool(result.stopped)
     verdict = "FAILED" if (result.asked == 0 and ids) else (
         "PARTIAL" if partial else "OK")
     summary.update({"verdict": verdict, "asked": result.asked,

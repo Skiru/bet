@@ -27,6 +27,7 @@ import json
 import sqlite3
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -61,40 +62,51 @@ class Candidates:
 
 
 def candidates(conn: sqlite3.Connection, slugs: Iterable[str], lo_ts: int,
-               hi_ts: int, pinned: Mapping[str, Iterable[int]] | None = None
+               hi_ts: int, pinned: Mapping[str, Mapping[int, int]] | None = None
                ) -> Candidates:
     """Games of `slugs` started in [lo_ts, hi_ts] that the index does not hold
     as finished: from the cached team listings (`next` and `last`), the index
-    and `pinned` (slug -> Sofascore ids SPORT_IDENTITY pinned)."""
+    and `pinned` (slug -> {Sofascore id: Superbet start ts} SPORT_IDENTITY
+    pinned; only those started inside the window)."""
     wanted = set(slugs)
     finished: dict[str, set[int]] = {s: set() for s in wanted}
     seen: dict[str, set[int]] = {s: set() for s in wanted}
-    for event_id, sport, event_json in conn.execute(
-            f"SELECT event_id, sport, event_json FROM {LISTED_EVENT} "
-            "WHERE start_ts BETWEEN ? AND ?", (lo_ts, hi_ts)):
-        if sport not in wanted:
-            continue
+    # Finished anywhere in the index (not only inside the window): a pinned
+    # game whose stored start drifted out of the window is not re-asked.
+    marks = ",".join("?" * len(wanted))
+    for event_id, sport, start_ts, event_json in conn.execute(
+            f"SELECT event_id, sport, start_ts, event_json FROM {LISTED_EVENT} "
+            f"WHERE sport IN ({marks})", sorted(wanted)):
         try:
             event = json.loads(event_json)
         except (TypeError, ValueError):
             continue
-        (finished if _finished(event) else seen)[sport].add(int(event_id))
-    for (events_json,) in conn.execute(
-            "SELECT events_json FROM sofa_entity_events "
-            "WHERE kind IN ('next', 'last')"):
-        try:
-            payload = json.loads(events_json)
-        except (TypeError, ValueError):
-            continue
-        for event in _events_of(payload):
-            sport = event_sport(event)
-            start = event.get("startTimestamp")
-            if sport in wanted and isinstance(start, int) \
-                    and lo_ts <= start <= hi_ts:
-                seen[sport].add(int(event["id"]))
-    for sport, ids in (pinned or {}).items():
+        if _finished(event):
+            finished[sport].add(int(event_id))
+        elif isinstance(start_ts, int) and lo_ts <= start_ts <= hi_ts:
+            seen[sport].add(int(event_id))
+    for sport in sorted(wanted):
+        # The slug prefilter keeps the scan off football / tennis pages
+        # (score_model.load_events does the same).
+        for (events_json,) in conn.execute(
+                "SELECT events_json FROM sofa_entity_events "
+                "WHERE kind IN ('next', 'last') AND events_json LIKE ?",
+                (f'%"slug": "{sport}"%',)):
+            try:
+                payload = json.loads(events_json)
+            except (TypeError, ValueError):
+                continue
+            for event in _events_of(payload):
+                start = event.get("startTimestamp")
+                if event_sport(event) == sport and isinstance(start, int) \
+                        and lo_ts <= start <= hi_ts:
+                    seen[sport].add(int(event["id"]))
+    for sport, pins in (pinned or {}).items():
         if sport in wanted:
-            seen[sport].update(int(i) for i in ids)
+            # Only a pinned game that should have ended: today's games are
+            # asked once they are over, never before (bridge budget).
+            seen[sport].update(int(i) for i, start in pins.items()
+                               if lo_ts <= start <= hi_ts)
     out = Candidates()
     for sport in sorted(wanted):
         out.ids[sport] = seen[sport] - finished[sport]
@@ -103,10 +115,11 @@ def candidates(conn: sqlite3.Connection, slugs: Iterable[str], lo_ts: int,
 
 
 def pinned_ids(runs_dir: str | Path, sport_key: str, dates: Iterable[str]
-               ) -> set[int]:
-    """Sofascore ids SPORT_IDENTITY pinned for the sport on `dates`
-    (runs/sofa/<d>/sport_fixtures.json)."""
-    out: set[int] = set()
+               ) -> dict[int, int]:
+    """{Sofascore id: start ts} SPORT_IDENTITY pinned for the sport on
+    `dates` (runs/sofa/<d>/sport_fixtures.json); the start is the record's
+    kickoff_utc, or 0 when it has none (never asked then)."""
+    out: dict[int, int] = {}
     for day in dates:
         path = Path(runs_dir) / day / "sport_fixtures.json"
         if not path.exists():
@@ -118,8 +131,17 @@ def pinned_ids(runs_dir: str | Path, sport_key: str, dates: Iterable[str]
         for row in _fixture_rows(doc):
             if row.get("sport") == sport_key and isinstance(
                     row.get("sofascore_event_id"), int):
-                out.add(int(row["sofascore_event_id"]))
+                out[int(row["sofascore_event_id"])] = _ts(row.get("kickoff_utc"))
     return out
+
+
+def _ts(raw: Any) -> int:
+    if not isinstance(raw, str) or not raw:
+        return 0
+    try:
+        return int(datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp())
+    except ValueError:
+        return 0
 
 
 def _fixture_rows(doc: Any) -> list[dict[str, Any]]:
@@ -156,7 +178,7 @@ class Result:
     asked: int = 0
     finished: int = 0
     not_finished: int = 0
-    missing: int = 0  # Sofascore answered nothing (404 / error)
+    missing: int = 0  # Sofascore answered nothing (404: a deleted game)
     stopped: str | None = None
 
 

@@ -414,7 +414,7 @@ def history_check(runs: Path, date: str, db_path: str | None) -> Check:
     prev = (datetime.fromisoformat(date) - timedelta(days=1)).strftime("%Y-%m-%d")
     ids: set[int] = set()
     for sport in sh.SLUGS:
-        ids |= sh.pinned_ids(runs, sport, [prev])
+        ids |= set(sh.pinned_ids(runs, sport, [prev]))
     if not ids:
         return Check("sport_history", NOT_CHECKED, f"{prev}: no pinned sport game")
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)

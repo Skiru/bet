@@ -10,6 +10,7 @@ leg's confidence is read through (bet.sofa.line_evidence). Three steps:
    indexed, so the score model the rows are priced with knows D-1's results
    (2026-10-12: the history had stopped on 10-04 - bet.sofa.sport_history).
    No bridge or a refusal: the fits run on what is cached, exit 1.
+   --dry-run skips it (no bridge, no database write).
 1. fit_sport_confidence.py --sport <s> --before <d> --dry-run --rows-out <dir>
    for hockey, basketball, volleyball and CS2, in parallel (~15 min a sport):
    only for its `<sport>_superbet_settled.jsonl` rows (the model's p on every
@@ -104,7 +105,7 @@ def main() -> int:
     out = rows_dir(args.before)
     out.mkdir(parents=True, exist_ok=True)
     failed: list[str] = []
-    if not args.skip_sport_rows and not args.skip_history:
+    if not args.skip_sport_rows and not args.skip_history and not args.dry_run:
         hist = subprocess.run(history_command(), cwd=_REPO)
         print(f"sport history: exit {hist.returncode}", flush=True)
         if hist.returncode != 0:

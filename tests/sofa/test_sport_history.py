@@ -102,7 +102,8 @@ def test_a_pinned_id_absent_from_every_listing_is_asked(tmp_path: Path) -> None:
     db = _db(tmp_path)
     con = sqlite3.connect(db)
     found = sh.candidates(con, ["basketball"], T0 - 86400, T0 + 86400,
-                          {"basketball": [42]})
+                          {"basketball": {42: T0, 43: T0 + 5 * 86400, 44: 0}})
+    # 43 has not been played yet and 44 has no start: neither is asked
     assert found.ids == {"basketball": {42}}
 
 
@@ -110,11 +111,13 @@ def test_pinned_ids_read_sport_fixtures(tmp_path: Path) -> None:
     day = tmp_path / "2026-10-10"
     day.mkdir()
     (day / "sport_fixtures.json").write_text(json.dumps({"fixtures": [
-        {"sport": "basketball", "sofascore_event_id": 7, "status": "IDENTIFIED"},
+        {"sport": "basketball", "sofascore_event_id": 7, "status": "IDENTIFIED",
+         "kickoff_utc": "2026-10-10T18:00:00Z"},
         {"sport": "hockey", "sofascore_event_id": 8},
         {"sport": "basketball", "sofascore_event_id": None},
     ]}), encoding="utf-8")
-    assert sh.pinned_ids(tmp_path, "basketball", ["2026-10-10", "2026-10-09"]) == {7}
+    assert sh.pinned_ids(tmp_path, "basketball", ["2026-10-10", "2026-10-09"]) == {
+        7: 1791655200}
 
 
 def test_a_game_not_finished_is_stored_but_stays_out_of_the_history(
@@ -198,3 +201,46 @@ def test_the_morning_evidence_refresh_brings_the_history_up_first() -> None:
     cmd = mod.history_command()
     assert cmd[1] == "scripts/sofa/refresh_sport_history.py"
     assert "--dry-run" not in cmd
+
+
+def test_a_game_finished_before_the_window_is_not_asked_again(tmp_path: Path) -> None:
+    db = _db(tmp_path)
+    con = sqlite3.connect(db)
+    sh.refresh(con, [9], lambda eid: {"event": _game(eid, T0 - 3 * 86400)}, lambda: "x")
+    # its pinned record says the game was in the window (a moved start)
+    found = sh.candidates(con, ["basketball"], T0 - 86400, T0 + 86400,
+                          {"basketball": {9: T0}})
+    assert found.ids == {"basketball": set()}
+
+
+def test_the_evidence_dry_run_does_not_touch_the_bridge(  # type: ignore[no-untyped-def]
+        tmp_path: Path, monkeypatch) -> None:
+    import importlib.util
+    import subprocess
+    import sys
+
+    path = Path(__file__).resolve().parents[2] / "scripts/sofa/refresh_line_evidence.py"
+    spec = importlib.util.spec_from_file_location("rle_dry", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["rle_dry"] = mod
+    spec.loader.exec_module(mod)
+    monkeypatch.setattr(mod, "_REPO", tmp_path)
+    monkeypatch.setattr(mod, "ROWS_ROOT", tmp_path / "data")
+    ran: list[list[str]] = []
+
+    class Done:
+        returncode = 0
+
+    def fake_run(cmd: list[str], **_: object) -> Done:
+        ran.append(cmd)
+        return Done()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "argv", ["x", "--before", "2026-10-13", "--dry-run",
+                                      "--skip-sport-rows"])
+    assert mod.main() == 0
+    monkeypatch.setattr(sys, "argv", ["x", "--before", "2026-10-13", "--dry-run"])
+    monkeypatch.setattr(mod, "fit_commands", lambda before, out: [])
+    mod.main()
+    assert not any("refresh_sport_history.py" in " ".join(c) for c in ran)
