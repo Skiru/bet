@@ -98,6 +98,21 @@
       "evidence": [
         {"source": "docs/sofa/evidence/peer_choice_2026-10-08.md", "line": 1, "quote": "pewniejsza noga wygrywa 53,4% [52,2; 54,7] z 57 791 rozstrzygniętych par piłka / tenis"}
       ]
+    },
+    {
+      "id": "T-PRICE-GAP-flag",
+      "registered_on": "2026-10-12",
+      "status": "REGISTERED",
+      "hypothesis": "A printed football / tennis leg whose confidence exceeds 1/offered_odds by more than 0.03 (bet.sofa.price_gap's CONFIDENCE_ABOVE_PRICE flag) realises below its printed confidence; the other printed legs do not.",
+      "rule": "Over the coupon's football / tennis singles (11_coupon.json legs) graded WIN / LOSS in 07_settled.json, split by confidence - 1/offered_odds > 0.03 (the flag). Report realised minus mean confidence in each group, per sport.",
+      "population": "Legs of the official coupon (epoch stats_only) of days from 2026-10-13, locked legs included, a leg removed by a read excluded; each sport apart.",
+      "data_window": {"from": "2026-10-13", "to": "2027-01-12"},
+      "required_n": {"legs": 500, "matches_min": 300, "basis": "10-09..10-11 measured -6.8 pp [-12.0, -2.1] on 458 football legs in 269 matches; a 95% half-width of about 4.5 pp needs about 500 flagged legs in 300 matches. Tennis is reported, not decided, until the same count."},
+      "evaluation": "Realised minus confidence with a 95% interval from resampling matches (scripts/sofa/measure_price_gap.py section 1, --from 2026-10-13).",
+      "stop_criterion": "CONFIRMED (PASSED) when the flagged football group's upper 95% bound is below 0 at the required n; FAILED when its lower bound is above -2 pp at the required n (the flag then over-warns and is withdrawn by the operator).",
+      "evidence": [
+        {"source": "docs/sofa/evidence/price_gap_2026-10-12.md", "line": 1, "quote": "piłka 458 nóg / 269 meczów, -6,8 pp [-12,0; -2,1]"}
+      ]
     }
   ]
 }

@@ -42,7 +42,7 @@ from reportlab.platypus import (  # noqa: E402
 )
 
 from bet.sofa import coupon_sports as cs  # noqa: E402
-from bet.sofa import timeutil  # noqa: E402
+from bet.sofa import price_gap, timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -214,6 +214,15 @@ def stakes_label(leg: dict[str, Any]) -> str:
                   str(st.get("effect") or ""), "")
     return (f"<br/><font size=6.5 color='#b25b00'>{escape(names)}"
             f"{escape(effect)}</font>")
+
+
+def price_gap_label(leg: dict[str, Any]) -> str:
+    """bet.sofa.price_gap: a confidence above the price, and what such legs
+    realised. Shown, never a gate."""
+    text = price_gap.label(leg)
+    if not text:
+        return ""
+    return f"<br/><font size=6.5 color='#b25b00'>{escape(text)}</font>"
 
 
 # A leg the previous build printed and whose match started before this
@@ -691,7 +700,7 @@ def main() -> int:
             elif started_at_render(leg, now):
                 same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                          "renderem PDF</b></font>")
-            same += watch_label(leg) + context_label(leg)
+            same += watch_label(leg) + context_label(leg) + price_gap_label(leg)
             srows.append([
                 Paragraph(str(i), small),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
@@ -1045,7 +1054,8 @@ def render_stats_only(
                 match_cell += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                                "renderem PDF</b></font>")
             match_cell += (watch_label(leg) + context_label(leg)
-                           + stakes_label(leg) + peer_label(leg))
+                           + stakes_label(leg) + price_gap_label(leg)
+                           + peer_label(leg))
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             lno = ladder_of.get(id(leg))
             if lno is not None and lno not in pos_headed:

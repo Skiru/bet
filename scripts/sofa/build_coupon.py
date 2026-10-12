@@ -49,6 +49,7 @@ from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
 from bet.sofa import peer_choice as pc  # noqa: E402
+from bet.sofa import price_gap as pg  # noqa: E402
 from bet.sofa import stakes as stakes_mod  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -68,6 +69,7 @@ from bet.sofa.epochs import (  # noqa: E402
     builder_screen_price_required,
     coupon_form_active,
     peer_choice,
+    price_gap_flag,
     read_by_event,
 )
 from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
@@ -106,6 +108,7 @@ def assemble(
     peer_active: bool = False,
     read_events: bool = False,
     stakes_by_event: dict[int, list[str]] | None = None,
+    price_gap_active: bool = False,
 ) -> dict[str, Any]:
     """11_coupon.json from its sources. Pure, so a test can pin it.
 
@@ -121,7 +124,10 @@ def assemble(
     `peer_active` / `stakes_by_event`: which of two near-priced legs of a match
     is the surer one (bet.sofa.peer_choice) and which fixtures are played for
     something (bet.sofa.stakes), from epochs.PEER_CHOICE_FROM_UTC - annotation
-    only, nothing is added, removed or re-ranked."""
+    only, nothing is added, removed or re-ranked.
+    `price_gap_active`: a football / tennis leg whose confidence sits above
+    its price says what such legs realised (bet.sofa.price_gap,
+    epochs.PRICE_GAP_FLAG_FROM_UTC) - annotation only as well."""
     form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
@@ -199,6 +205,10 @@ def assemble(
                         str(leg.get("direction") or "")),
                 }
         peers_marked = pc.annotate(out_singles)
+    for leg in out_singles:
+        leg.pop("price_gap", None)
+        if price_gap_active and (gap := pg.annotate(leg)) is not None:
+            leg["price_gap"] = gap
     structure = coupon_structure(out_singles, builders, form, form_active,
                                  removed_by_form)
     asked = [
@@ -251,6 +261,12 @@ def assemble(
             "preferred": sum(1 for s in out_singles
                              if (s.get("peer") or {}).get("preferred")),
             "stakes_fixtures": len(stakes_by_event or {}),
+        },
+        "price_gap": {
+            "active": price_gap_active,
+            "active_from_utc": "2026-10-12T11:51:00Z",
+            "gap": pg.GAP,
+            "legs": sum(1 for s in out_singles if s.get("price_gap")),
         },
         "builders_refused": bs.refused_builders(builders),
         "builder_screen_prices": {
@@ -354,8 +370,8 @@ def prepare_sports(
 
 
 def _note(leg: dict[str, Any]) -> str:
-    """The peer proposal and the stakes of a leg, as plain text."""
-    parts = [pc.label(leg)]
+    """The peer proposal, the stakes and the price gap of a leg, as plain text."""
+    parts = [pc.label(leg), pg.label(leg)]
     st = leg.get("stakes")
     if st:
         parts.append(", ".join(st["flags"])
@@ -468,7 +484,8 @@ def main() -> int:
                    screen_prices=screen,
                    screen_required=builder_screen_price_required(args.date, at),
                    peer_active=peer_on, read_events=read_by_event(args.date, at),
-                   stakes_by_event=stakes_by_event)
+                   stakes_by_event=stakes_by_event,
+                   price_gap_active=price_gap_flag(args.date, at))
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
     write_atomic(run / COUPON_ARTIFACT.replace(".json", ".md"),
@@ -495,6 +512,7 @@ def main() -> int:
             "builders_refused": len(doc["builders_refused"]),
             "legs_with_peers": doc["peer_choice"]["legs_with_peers"],
             "stakes_fixtures": doc["peer_choice"]["stakes_fixtures"],
+            "price_gap_legs": doc["price_gap"]["legs"],
         },
         "output_path": str(run / COUPON_ARTIFACT),
     }))

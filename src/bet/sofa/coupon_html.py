@@ -25,6 +25,7 @@ from bet.sofa import confidence as cf
 from bet.sofa import coupon_sports as cs
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
+from bet.sofa.price_gap import label as price_gap_label
 
 LOCAL_TZ = ZoneInfo("Europe/Warsaw")
 # A fixture-check start that differs from the leg's clock by at least this is
@@ -167,6 +168,8 @@ def build_view(
             # the PDF's own sentence (peer_choice.label): the star is per leg,
             # "the surest of the near-priced legs on other variables"
             "peer": peer_label(leg),
+            # bet.sofa.price_gap: confidence above the price, the PDF's sentence
+            "price_gap": price_gap_label(leg),
             "verdict": _verdict(leg),
             "read": id(leg) in read_ids,
             "clock_note": clock["note"],

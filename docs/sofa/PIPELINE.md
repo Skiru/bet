@@ -1167,6 +1167,25 @@ niego 08).
     nie korekta i nie bramka** (jak `MAKEUP_FIXTURE`); nie skorygowane o to, że
     kluby strefy spadkowej są słabe. Brak pliku historii = kupon bez flag,
     nigdy odmowa.
+  - `price_gap` na nodze piłkarskiej i tenisowej oraz `price_gap` w dokumencie
+    (od `epochs.PRICE_GAP_FLAG_FROM_UTC` = 2026-10-12 11:51Z, decyzja
+    operatora 2026-10-12 po kuponach z 10-11, przesunięta przez niego na
+    przebudowę kuponu 10-12 - dzień mieszany; `bet.sofa.price_gap`): noga,
+    której pewność przewyższa 1/kurs o więcej niż `GAP` 0,03, dostaje flagę
+    `CONFIDENCE_ABOVE_PRICE` z `over_price` i zmierzonym zawyżeniem tej grupy.
+    Na PDF, HTML i w `.md`: „pewność +0,05 ponad cenę - takie nogi trafiały
+    ~7 pp poniżej pewności, około ceny (piłka, 458 nóg 10-09..10-11)". Pomiar
+    (`docs/sofa/evidence/price_gap_2026-10-12.md`,
+    `scripts/sofa/measure_price_gap.py`): wydrukowane nogi 10-09..10-11 z
+    pewnością > 1/kurs + 0,03 trafiały poniżej pewności - piłka 458 nóg /
+    269 meczów, -6,8 pp [-12,0; -2,1], tenis 52 / 35, -18,6 pp [-31,0; -5,9] -
+    a reszta była skalibrowana (piłka +0,3 pp); ten sam znak każdego dnia
+    10-07..10-11. ROI tych nóg nie był mierzalnie gorszy (piłka -1,1% wobec
+    -3,8%), więc przekłamuje drukowana liczba, nie pieniądze singli - ważne
+    przy mnożeniu pewności w kuponie. **Adnotacja: żadna noga nie jest dodana,
+    zdjęta ani przestawiona, żadna pewność się nie rusza.** Hokej, koszykówka,
+    siatkówka i CS2 nie są zmierzone i nie dostają flagi. Pre-rejestrowany
+    test na nowych danych: `T-PRICE-GAP-flag`.
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają

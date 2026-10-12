@@ -224,6 +224,20 @@ every sport alike, and nothing that could win is cut by name.
   correction. Evidence: `docs/sofa/evidence/peer_choice_2026-10-08.md`
   (`scripts/sofa/measure_peer_choice.py`); pre-registered check on new data:
   `T-PEER-CHOICE-edge`.
+- **Confidence above the price** (`PRICE_GAP_FLAG_FROM_UTC` 2026-10-12
+  11:51Z, moved by the operator to the day's rebuild - 10-12 is a mixed day;
+  **annotation only**): a football / tennis leg
+  whose confidence exceeds 1/odds by more than `GAP` 0.03 carries `price_gap`
+  (`CONFIDENCE_ABOVE_PRICE`, `bet.sofa.price_gap`) and a sentence on the PDF /
+  HTML / md. Measured on the printed legs of 10-09..10-11: such legs realised
+  below their confidence, about at their price - football 458 legs / 269
+  matches -6.8 pp [-12.0, -2.1], tennis 52 / 35 -18.6 pp [-31.0, -5.9]; the
+  rest calibrated (+0.3 pp); same sign every day 10-07..10-11. Their ROI was
+  not measurably worse, so it is the printed number that over-promises (what
+  a slip of several legs multiplies), not the singles' money. The measured
+  sports carry no flag (not measured). Evidence:
+  `docs/sofa/evidence/price_gap_2026-10-12.md`
+  (`scripts/sofa/measure_price_gap.py`); check on new data: `T-PRICE-GAP-flag`.
 - **Bet Builders:** one per fixture, by best `combined_probability`; an
   internal haircut x >= 0.90 decides stakeable and is never printed. **sofa
   does not price a builder**: the PDF shows its legs with Superbet's single
@@ -351,8 +365,7 @@ printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 builders), `CARDS_CORRELATION_FROM_UTC` (the one staged package left; needs
 `DERIVED_CURVES_FROM_UTC` to be read at all), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
 needs a refit carrying the replayed joints), the coupon form dials. Open
-questions: Superbet's game count of a tennis match tiebreak; how strict the
-price-band cap is; how noisy the line-evidence offsets are for the repriced
+questions: Superbet's game count of a tennis match tiebreak; how noisy the line-evidence offsets are for the repriced
 families in the first mornings after the 2026-10-09 install.
 **Before the next refit:** measure the admitted football props separately;
 measure the tennis games population of replay matches without `/statistics`;
@@ -398,6 +411,13 @@ above their measured range wait for 50 settled lines a bucket
   recent form, or by tournament popularity / reserve / women / cup flags
   (2026-10-08: no out-of-sample gain on 62k legs; the pipeline's confidence
   is already the best-measured order).
+- (2026-10-12, walk-forward on the printed legs of 10-09..10-11, evidence
+  fitted on the days before each) a stricter price-band cap (to the cell's
+  realised rate whenever lower): dropped 15% of the legs, which had not done
+  worse (ROI -0.6% vs -4.4% kept), and barely moved the over-price gap; an
+  offset per confidence-minus-price bin: half the correction, and dropped legs
+  that had not done worse either. The over-price gap is flagged instead
+  (`price_gap`).
 
 ## Entry points
 

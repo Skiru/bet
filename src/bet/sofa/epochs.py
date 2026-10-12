@@ -605,6 +605,27 @@ def peer_choice(date: str, build_at: datetime | None = None) -> bool:
     return date >= PEER_CHOICE_DATE and at >= PEER_CHOICE_FROM_UTC
 
 
+# A leg whose confidence sits more than price_gap.GAP above 1/odds carries a
+# flag saying that such legs realised below their confidence, about at their
+# price (operator, 2026-10-12, after the 10-11 slips; bet.sofa.price_gap).
+# Annotation only: no leg is added, removed or re-ranked and no confidence
+# moves. Moved by the operator to the moment below ("przebudowanie
+# dzisiejszego kuponu z tymi flagami") - 10-12 is a mixed day: a coupon built
+# before it carries no `price_gap`, one built after it does; what prints is
+# the same either way.
+PRICE_GAP_FLAG_DATE = "2026-10-12"
+PRICE_GAP_FLAG_FROM_UTC: datetime | None = datetime(2026, 10, 12, 11, 51, tzinfo=UTC)
+
+
+def price_gap_flag(date: str, build_at: datetime | None = None) -> bool:
+    """Does the coupon flag the legs whose confidence is above their price
+    (PRICE_GAP_FLAG_FROM_UTC)?"""
+    if PRICE_GAP_FLAG_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= PRICE_GAP_FLAG_DATE and at >= PRICE_GAP_FLAG_FROM_UTC
+
+
 # The analysts' read set counts EVENTS, not positions (operator, 2026-10-08:
 # "30 analizowanych wydarzeń a nie 30 rynków - 30 wydarzeń może mieć 150
 # rynków"): from the build below, `confidence.legs_requiring_read` takes every
