@@ -235,7 +235,10 @@ every sport alike, and nothing that could win is cut by name.
   rest calibrated (+0.3 pp); same sign every day 10-07..10-11. Their ROI was
   not measurably worse, so it is the printed number that over-promises (what
   a slip of several legs multiplies), not the singles' money. The measured
-  sports carry no flag (not measured). Evidence:
+  sports carry no flag (measured the same way: hockey's 32 over-price legs
+  -1.2 pp [-15.1, +11.9], i.e. none; basketball overstated on both sides of
+  the price alike, -15 / -18 pp on 52 / 50 legs - a curve question, not a
+  price one; volleyball / CS2 too few). Evidence:
   `docs/sofa/evidence/price_gap_2026-10-12.md`
   (`scripts/sofa/measure_price_gap.py`); check on new data: `T-PRICE-GAP-flag`.
 - **Bet Builders:** one per fixture, by best `combined_probability`; an

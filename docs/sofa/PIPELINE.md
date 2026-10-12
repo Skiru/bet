@@ -1184,7 +1184,9 @@ niego 08).
     -3,8%), więc przekłamuje drukowana liczba, nie pieniądze singli - ważne
     przy mnożeniu pewności w kuponie. **Adnotacja: żadna noga nie jest dodana,
     zdjęta ani przestawiona, żadna pewność się nie rusza.** Hokej, koszykówka,
-    siatkówka i CS2 nie są zmierzone i nie dostają flagi. Pre-rejestrowany
+    siatkówka i CS2 flagi nie dostają: hokej zmierzony tak samo nie ma
+    zawyżenia (32 nogi, -1,2 pp [-15,1; +11,9]), koszykówka jest zawyżona po
+    obu stronach ceny (-15 / -18 pp), siatkówka i CS2 mają za mało nóg. Pre-rejestrowany
     test na nowych danych: `T-PRICE-GAP-flag`.
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie

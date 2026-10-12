@@ -26,8 +26,12 @@ and dropped 178 legs that had not done worse either (+2.2% against -4.0%).
 So the leg says it, and nothing moves: no leg is added, removed or re-ranked
 and no confidence changes (epochs.PRICE_GAP_FLAG_FROM_UTC).
 
-Hockey / basketball / volleyball / CS2 legs are not measured here and carry no
-flag.
+Hockey / basketball / volleyball / CS2 legs carry no flag: measured the same
+way on their printed legs of 10-09..10-11 (graded by coupon_sports), hockey's
+over-price legs realised at their confidence (32 legs, -1.2 pp [-15.1, +11.9];
+the other 813 +0.0 pp), and basketball overstated on both sides of the price
+alike (-14.9 pp on 52, -18.2 pp on 50 legs) - the flag would point at half a
+problem that is not about the price; volleyball (6) and CS2 (0) too few.
 """
 
 from __future__ import annotations
