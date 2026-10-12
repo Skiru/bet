@@ -415,6 +415,15 @@ Current backups: `config/backup_2026-10-05`,
 `data/backup_2026-10-05/sofa.db`; `data/refit_2026-10-08/sofa_replay.db` is
 the DB the installed curves were fitted from (`fitted_from.db_path`) - keep it.
 
+**Measured for the next refit (2026-10-12 night, out of sample on the history,
+`docs/sofa/history/RAPORT_NOC_2026-10-12.md`):** tennis match winner from the
+as-of rating -0.1232 log-loss vs base, calibrated +-1.3 pp, 45.7% of matches
+>= 0.70 (`measure_tennis_outcome_model.py`; then set-1 winner, set score);
+football DNB / double chance / 1X2 from the pure rating centre with NB r ~7
+(skill 11.7 / 6.2 / 6.4%; a history curve over-states the season start by
+2.4-4 pp - it needs a season-phase term; UNLINKED stays refused); football
+BTTS has no skill vs the league base rate, parity and exact score never reach
+0.70 (`measure_football_result_model.py`).
 **Not modelled yet** (operator 10-07: every market that could win; the next
 work, each through a curve and its own Superbet lines): football / tennis
 outcome markets - 1X2, double chance, draw-no-bet, both teams to score, goals
