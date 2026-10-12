@@ -246,6 +246,33 @@ def cs2_core_index(index: Mapping[str, set[int]]) -> dict[str, set[int]]:
     return dict(out)
 
 
+# Words that say what a Brazilian / Portuguese volleyball club is, not which
+# one: Superbet prints "Capixaba Volei (K)", "Azul Mania EC RR (K)", Sofascore
+# "Instituto Capixaba Voleibol Clube", "Azul Mania Vôlei" (10-12, Superliga C
+# women: 72.7 / 76.9 against the 82 threshold, TEAM_UNRESOLVED). Volleyball
+# only; a name made of nothing else keeps its words.
+VOLLEYBALL_CLUB_AFFIXES = frozenset(
+    {"volei", "voleibol", "clube", "instituto", "ec", "esporte"})
+
+
+def volleyball_core(norm: str) -> str:
+    """A normalised volleyball name without VOLLEYBALL_CLUB_AFFIXES."""
+    words = norm.split()
+    kept = [w for w in words if w not in VOLLEYBALL_CLUB_AFFIXES]
+    if not [w for w in kept if w != "(w)"]:
+        return norm
+    return " ".join(kept)
+
+
+def side_score(sport: str, a: str, b: str) -> float:
+    """part_score of two normalised names; for volleyball also of their
+    affix-free cores (volleyball_core), the larger."""
+    score = part_score(a, b)
+    if sport == "volleyball":
+        score = max(score, part_score(volleyball_core(a), volleyball_core(b)))
+    return score
+
+
 @dataclass
 class TeamResolver:
     """Superbet team name -> Sofascore team id, offline, never fuzzy."""
@@ -297,7 +324,7 @@ class TeamResolver:
         for key, key_ids in index.items():
             if key.endswith("(w)") != women or not same_squad(norm, key):
                 continue
-            if part_score(norm, key) > NAME_MATCH_THRESHOLD:
+            if side_score(sport, norm, key) > NAME_MATCH_THRESHOLD:
                 ids |= key_ids
                 if len(ids) > 1:
                     return None
@@ -361,7 +388,7 @@ def same_squad(a: str, b: str) -> bool:
 
 
 def _side_ok(board_name: str, board_id: int | None, ev_id: int | None,
-             ev_name: str) -> tuple[bool, float]:
+             ev_name: str, sport: str = "") -> tuple[bool, float]:
     """This side names this team: its Sofascore id is the one resolved for
     it (a different resolved id refuses it, whatever the name scores), or -
     with no id to compare - its marker-free name scores above the threshold
@@ -369,7 +396,7 @@ def _side_ok(board_name: str, board_id: int | None, ev_id: int | None,
     the gender gate and levels_compatible, not by the score: "Helios VS (K)"
     scored 81.8 against "Helios VS Basket" on the marker alone."""
     a, b = normalize_name(board_name), normalize_name(ev_name)
-    score = part_score(a, b)
+    score = side_score(sport, a, b)
     if board_id is not None and ev_id is not None:
         return ev_id == board_id, round(score, 1)
     return score > NAME_MATCH_THRESHOLD and same_squad(a, b), round(score, 1)
@@ -418,10 +445,10 @@ def match_shadow(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
             continue
         gap_s = abs((start - ev.kickoff).total_seconds())
         (hid, hname), (aid, aname) = _side(e, "homeTeam"), _side(e, "awayTeam")
-        s_h1, sc_h1 = _side_ok(ev.team1, t1_id, hid, hname)
-        s_a2, sc_a2 = _side_ok(ev.team2, t2_id, aid, aname)
-        c_a1, sc_a1 = _side_ok(ev.team1, t1_id, aid, aname)
-        c_h2, sc_h2 = _side_ok(ev.team2, t2_id, hid, hname)
+        s_h1, sc_h1 = _side_ok(ev.team1, t1_id, hid, hname, ev.sport)
+        s_a2, sc_a2 = _side_ok(ev.team2, t2_id, aid, aname, ev.sport)
+        c_a1, sc_a1 = _side_ok(ev.team1, t1_id, aid, aname, ev.sport)
+        c_h2, sc_h2 = _side_ok(ev.team2, t2_id, hid, hname, ev.sport)
         straight, crossed = s_h1 and s_a2, c_a1 and c_h2
         method: str | None = None
         if not (straight or crossed):

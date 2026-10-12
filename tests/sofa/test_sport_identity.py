@@ -644,6 +644,63 @@ def test_query_id_is_the_one_fuzzy_team_of_the_same_squad():
     assert resolver.query_id("cs2", "Anything") is None
 
 
+def _women_vb(eid: int, home: tuple[int, str], away: tuple[int, str],
+              start: datetime = KICK) -> dict[str, Any]:
+    e = _listed(eid, home, away, start, slug="volleyball")
+    e["homeTeam"]["gender"] = e["awayTeam"]["gender"] = "F"
+    return e
+
+
+def test_volleyball_club_affixes_are_not_the_name():
+    assert si.volleyball_core("instituto capixaba voleibol clube (w)") == \
+        "capixaba (w)"
+    assert si.volleyball_core("azul mania ec rr (w)") == "azul mania rr (w)"
+    assert si.volleyball_core("volei clube (w)") == "volei clube (w)"  # nothing else
+    # volleyball only: hockey's "ec" (EC Red Bull Salzburg) is not touched
+    assert si.side_score("hockey", "capixaba volei", "instituto capixaba voleibol "
+                         "clube") < si.side_score("volleyball", "capixaba volei",
+                                                  "instituto capixaba voleibol clube")
+
+
+def test_volleyball_query_id_reads_the_affix_free_core_and_keeps_ambiguity():
+    # 10-12 Superliga C women: "Capixaba Volei (K)" vs "Instituto Capixaba
+    # Voleibol Clube" 72.7, "Azul Mania EC RR (K)" vs "Azul Mania Vôlei"
+    # 76.9 - TEAM_UNRESOLVED; "Londrina (K)" names two clubs.
+    ts = int(AT.timestamp()) - 86400
+    rows = [("volleyball", ts, _women_vb(
+                1, (1256045, "Instituto Capixaba Voleibol Clube"),
+                (1256345, "Azul Mania Vôlei"))),
+            ("volleyball", ts, _women_vb(2, (939281, "Londrina Vôlei"),
+                                         (390651, "Sancor Seguros Vôlei Londrina")))]
+    resolver = si.TeamResolver(_resolver_db(rows), int(AT.timestamp()))
+    assert resolver.query_id("volleyball", "Capixaba Volei (K)") == 1256045
+    assert resolver.query_id("volleyball", "Azul Mania EC RR (K)") == 1256345
+    assert resolver.query_id("volleyball", "Londrina (K)") is None  # two clubs
+    assert resolver.query_id("volleyball", "Capixaba Volei") is None  # men's
+
+
+def test_volleyball_both_sides_by_their_affix_free_names():
+    ev = si.BoardEvent("volleyball", "1", "Capixaba Volei (K)·Azul Mania EC RR (K)",
+                       "Capixaba Volei (K)", "Azul Mania EC RR (K)",
+                       KICK.isoformat().replace("+00:00", "Z"),
+                       "Brazylia - Superliga C (K)", "2026-10-06")
+    query = {"Capixaba Volei (K)": 1256045}
+    listing = [_women_vb(17226791, (1256045, "Instituto Capixaba Voleibol Clube"),
+                         (1256345, "Azul Mania Vôlei"))]
+    (r,), _ = si.identify([ev], FakeClient({1256045: listing}), None,
+                          lambda s, n: None, AT, "2026-10-06",
+                          query_teams=lambda s, n: query.get(n))
+    assert r["status"] == si.IDENTIFIED and r["sofascore_event_id"] == 17226791
+    assert r["home_is_team1"] is True and r["query_only"] is True
+    # the asked club's game against another opponent is not this game
+    other = [_women_vb(5, (1256045, "Instituto Capixaba Voleibol Clube"),
+                       (7, "Vila Nova Vôlei"))]
+    (r2,), _ = si.identify([ev], FakeClient({1256045: other}), None,
+                           lambda s, n: None, AT, "2026-10-06",
+                           query_teams=lambda s, n: query.get(n))
+    assert r2["status"] == si.NOT_IDENTIFIED
+
+
 def test_cs2_ids_fall_back_to_the_name_without_esports_affixes():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE cs2_series (home_id INT, home_name TEXT, "

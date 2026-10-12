@@ -1088,7 +1088,14 @@ druga strona po własnym id albo regułą przeciwnika z rozliczenia
 kobiety). Zmierzone na 10-06..10-12 (replay z cache): +6 serii (Overtake =
 Overtake Sector ×3, Apogee = Betclic Apogee, TheONE 1337 = 1337, LL Honved =
 Honvéd), każda sprawdzona ręcznie; 0 błędnych id (09-28..10-12, złoty zbiór
-CS2 i `tests/sofa/golden/cs2_identity_anchored_2026-10-12.json`). Rekord `IDENTIFIED` jest przypięty i nigdy nie pytany
+CS2 i `tests/sofa/golden/cs2_identity_anchored_2026-10-12.json`). Siatkówka
+(od 2026-10-12 wieczorem): drużyna do zapytania (`query_id`) i strona meczu
+bez id porównywane także bez słów klubowych (`VOLLEYBALL_CLUB_AFFIXES`: volei,
+voleibol, clube, instituto, ec, esporte) — „Capixaba Volei (K)” =
+„Instituto Capixaba Voleibol Clube”; nazwa pasująca do dwóch drużyn nadal
+odmawia („Londrina (K)”). Replay 10-06..10-12: +5 meczów Superliga C kobiet,
+4 z id równym rozliczeniu, 1 sprawdzony ręcznie; 0 błędnych id
+(09-28..10-12, złoty zbiór siatkówki). Rekord `IDENTIFIED` jest przypięty i nigdy nie pytany
 ponownie; po tym id rozlicza SETTLE. Mecz nierozpoznany, którego start
 Superbetu już minął, zachowuje swój ostatni rekord (sprzed startu,
 `frozen_at_start: true`) i nie jest pytany ponownie: `events/next` nie
