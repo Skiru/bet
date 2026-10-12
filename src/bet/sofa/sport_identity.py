@@ -43,8 +43,14 @@ Per Superbet event of the day:
    at a compatible squad level; or one side by its id and the other, with no
    id of its own, confirmed by resolve.shadow_opponent_agrees - the settle's
    own opponent rule (LISTING_ID_AND_OPPONENT). CS2 through cs2.pick_event
-   (both names above the threshold with cs2.esports_score) and the same start
-   rule. Two fitting events, or one that reads both ways round, is AMBIGUOUS.
+   (both names above the threshold with cs2.esports_score; a side's resolved
+   id that differs refuses it, RESOLVED_ID_DISAGREES) and the same start
+   rule; with no series on both names, match_cs2_anchored - one side by its
+   resolved id, the anchored team's ONLY series within MAX_START_GAP, the
+   other side by its own id or by the settle's opponent rule with the same
+   women's / roster markers (CS2_LISTING_ID_AND_OPPONENT; 10-12 "Overtake" -
+   "Overtake Sector"). Two fitting events, or one that reads both ways
+   round, is AMBIGUOUS.
 5. Unique in the day: two Superbet events found as one Sofascore id are both
    DUPLICATE_SOFASCORE_ID.
 
@@ -454,14 +460,100 @@ def match_shadow(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
     return {"status": IDENTIFIED, **fits[0]}
 
 
-def match_cs2(ev: BoardEvent, candidates: list[dict[str, Any]]) -> dict[str, Any]:
-    """cs2.pick_event over the team's upcoming series, then the start rule."""
+def _cs2_same_roster(a: str, b: str) -> bool:
+    """Two folded CS2 names could be one roster: the same women's marker and
+    the same roster markers (academy, ex-, junior ...) - esports_score's own
+    gates, without its name score."""
+    (a_core, a_women), (b_core, b_women) = cs2._women_split(a), cs2._women_split(b)
+    return a_women == b_women and cs2._roster(a_core) == cs2._roster(b_core)
+
+
+def match_cs2_anchored(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
+                       t1_id: int | None, t2_id: int | None) -> dict[str, Any]:
+    """CS2's LISTING_ID_AND_OPPONENT, for a series cs2.pick_event did not
+    find on both names (10-12: Superbet "Overtake" - "regain", Sofascore
+    "Overtake Sector - regain" 17304875; "overtake" scores 69.6 against
+    "overtake sector"). One side by its resolved Sofascore id (an exact name
+    in cs2_series), and:
+
+    - the anchored team has exactly ONE Counter Strike series within
+      MAX_START_GAP of Superbet's kickoff (not postponed / cancelled) - two
+      is AMBIGUOUS, never a pick;
+    - the other side is its own resolved id when it has one (a different
+      id refuses), else - with no id to compare - its folded name agrees by
+      the settle's opponent rule (resolve.shadow_opponent_agrees: the full
+      marker-free score, or one shared distinctive word not of the anchored
+      team when the two clocks agree within 15 minutes), with the same
+      women's and roster markers (an academy, an ex- roster is another team);
+    - the anchored side reads one way round only."""
+    t1, t2 = cs2.esports_name(ev.team1), cs2.esports_name(ev.team2)
+    near: list[tuple[dict[str, Any], datetime]] = []
+    for e in candidates:
+        category = ((e.get("tournament") or {}).get("category") or {}).get("name")
+        if category != cs2.SOFASCORE_CS_CATEGORY:
+            continue
+        if str((e.get("status") or {}).get("type") or "") in NOT_AS_SCHEDULED:
+            continue
+        start = _start(e)
+        if start is None or abs(start - ev.kickoff) > MAX_START_GAP:
+            continue
+        (hid, _), (aid, _) = _side(e, "homeTeam"), _side(e, "awayTeam")
+        if {t1_id, t2_id} & {hid, aid} - {None}:
+            near.append((e, start))
+    if not near:
+        return {"status": NOT_IDENTIFIED, "reason": "NO_MATCH_IN_LISTING"}
+    if len(near) > 1:
+        return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS"}
+    e, start = near[0]
+    gap_s = abs((start - ev.kickoff).total_seconds())
+    (hid, hname), (aid, aname) = _side(e, "homeTeam"), _side(e, "awayTeam")
+    home, away = cs2.esports_name(hname), cs2.esports_name(aname)
+
+    def confirmed(anchor_id: int | None, anchor_ev_id: int | None, anchor: str,
+                  anchor_ev: str, other: str, other_id: int | None,
+                  other_ev_id: int | None, other_ev: str) -> bool:
+        if anchor_id is None or anchor_ev_id != anchor_id:
+            return False
+        if other_id is not None:
+            return other_ev_id == other_id
+        return _cs2_same_roster(other, other_ev) and shadow_opponent_agrees(
+            other, other_ev, gap_s, searched=anchor, searched_side=anchor_ev)
+
+    straight = (confirmed(t1_id, hid, t1, home, t2, t2_id, aid, away)
+                or confirmed(t2_id, aid, t2, away, t1, t1_id, hid, home))
+    crossed = (confirmed(t1_id, aid, t1, away, t2, t2_id, hid, home)
+               or confirmed(t2_id, hid, t2, home, t1, t1_id, aid, away))
+    if straight and crossed:
+        return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS_ORIENTATION"}
+    if not (straight or crossed):
+        return {"status": NOT_IDENTIFIED, "reason": "NO_MATCH_IN_LISTING"}
+    a, b = (home, away) if straight else (away, home)
+    scores = {"team1": cs2.esports_score(t1, a), "team2": cs2.esports_score(t2, b)}
+    return {"status": IDENTIFIED, "event": e, "home_is_team1": straight,
+            "name_scores": {k: round(v, 1) for k, v in scores.items()},
+            "match_method": "CS2_LISTING_ID_AND_OPPONENT"}
+
+
+def match_cs2(ev: BoardEvent, candidates: list[dict[str, Any]],
+              t1_id: int | None = None, t2_id: int | None = None
+              ) -> dict[str, Any]:
+    """cs2.pick_event over the team's upcoming series, then the start rule;
+    with no series on both names, match_cs2_anchored (a resolved side id)."""
     found = cs2.pick_event(candidates, ev.team1, ev.team2, ev.kickoff)
     if found == "AMBIGUOUS":
         return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS"}
     if found is None:
-        return {"status": NOT_IDENTIFIED, "reason": "NO_MATCH_IN_LISTING"}
+        return match_cs2_anchored(ev, candidates, t1_id, t2_id)
     event, home_is_t1 = found
+    (hid, _), (aid, _) = _side(event, "homeTeam"), _side(event, "awayTeam")
+    t1_ev, t2_ev = (hid, aid) if home_is_t1 else (aid, hid)
+    if (t1_id is not None and t1_ev != t1_id) or (t2_id is not None
+                                                  and t2_ev != t2_id):
+        # A side's resolved id that differs refuses it whatever the names
+        # score, as in match_shadow (on 09-28..10-12 no pick contradicted
+        # one: a guard, not a measured loss).
+        return {"status": NOT_IDENTIFIED, "reason": "RESOLVED_ID_DISAGREES",
+                "candidate_event_id": event.get("id")}
     start = _start(event)
     if start is None or abs(start - ev.kickoff) > MAX_START_GAP:
         return {"status": NOT_IDENTIFIED, "reason": "START_GAP_OVER_1H",
@@ -507,7 +599,7 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
     if query is None:
         return _record(ev, at, status=NOT_IDENTIFIED, reason="TEAM_UNRESOLVED")
     listing, cached = next_listing(client, cache, query)
-    found = (match_cs2(ev, listing) if ev.sport == "cs2"
+    found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
              else match_shadow(ev, listing, t1_id, t2_id))
     extra = {"queried_team_id": query, "listing_from_cache": cached,
              "team1_id": t1_id, "team2_id": t2_id}

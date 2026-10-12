@@ -1078,7 +1078,17 @@ migawki D i D+1. Pisze **`runs/sofa/<d>/sport_fixtures.json`**:
 `superbet_event_id`, `sport`, `sofascore_event_id`, `home_id`, `away_id`,
 `home_is_team1`, `competition_id`, `match_method`, `name_scores`,
 `start_gap_h`, `matched_at_utc`, `status` (`IDENTIFIED` / `NOT_IDENTIFIED` /
-`DUPLICATE_*` …). Rekord `IDENTIFIED` jest przypięty i nigdy nie pytany
+`DUPLICATE_*` …). CS2: `cs2.pick_event` (obie nazwy powyżej progu;
+rozpoznane id strony, które się nie zgadza, odmawia — `RESOLVED_ID_DISAGREES`),
+a gdy nie znajdzie serii — reguła zakotwiczona
+`CS2_LISTING_ID_AND_OPPONENT` (od 2026-10-12 wieczorem): jedna strona po
+swoim rozpoznanym id, to jedyna seria tej drużyny w ±1 h od startu Superbetu,
+druga strona po własnym id albo regułą przeciwnika z rozliczenia
+(`shadow_opponent_agrees`) przy tych samych znacznikach składu (academy, ex-,
+kobiety). Zmierzone na 10-06..10-12 (replay z cache): +6 serii (Overtake =
+Overtake Sector ×3, Apogee = Betclic Apogee, TheONE 1337 = 1337, LL Honved =
+Honvéd), każda sprawdzona ręcznie; 0 błędnych id (09-28..10-12, złoty zbiór
+CS2 i `tests/sofa/golden/cs2_identity_anchored_2026-10-12.json`). Rekord `IDENTIFIED` jest przypięty i nigdy nie pytany
 ponownie; po tym id rozlicza SETTLE. Mecz nierozpoznany, którego start
 Superbetu już minął, zachowuje swój ostatni rekord (sprzed startu,
 `frozen_at_start: true`) i nie jest pytany ponownie: `events/next` nie

@@ -418,7 +418,8 @@ def pick_cases(cases: list[dict[str, Any]], n: int) -> list[dict[str, Any]]:
     def hard(c: dict[str, Any]) -> bool:
         return (c["verified_by"] != "INDEPENDENT_NAMES"
                 or c["replay_status"] != si.IDENTIFIED
-                or c["replay_method"] == "LISTING_ID_AND_OPPONENT"
+                or c["replay_method"] in ("LISTING_ID_AND_OPPONENT",
+                                          "CS2_LISTING_ID_AND_OPPONENT")
                 or set(c["team_ids"].values()) == {None})
     first = [c for c in cases if hard(c)]
     rest = [c for c in cases if not hard(c)]

@@ -315,6 +315,89 @@ def test_cs2_goes_through_pick_event():
     assert r2["reason"] == "START_GAP_OVER_1H"
 
 
+def _series(eid: int, home: tuple[int, str], away: tuple[int, str],
+            start: datetime = KICK, status: str = "notstarted") -> dict[str, Any]:
+    e = _listed(eid, home, away, start, slug="esports", category="Counter Strike")
+    e["status"] = {"type": status}
+    return e
+
+
+def _cs2(t1: str, t2: str, ids: dict[str, int], listing: list[dict[str, Any]],
+         query: int) -> dict[str, Any]:
+    (r,), _ = si.identify([_ev("9", t1, t2, sport="cs2")],
+                          FakeClient({query: listing}), None,
+                          lambda s, n: ids.get(n), AT, "2026-10-06")
+    return r
+
+
+def test_cs2_one_side_by_id_and_the_opponent_by_the_settles_rule():
+    # 10-12: Superbet "Overtake" - "regain"; Sofascore "Overtake Sector -
+    # regain" (17304875); "overtake" scores 69.6 on esports_score, so
+    # pick_event found nothing although regain's id 501319 was resolved.
+    listing = [_series(17304875, (1221658, "Overtake Sector"), (501319, "regain"))]
+    r = _cs2("Overtake", "regain", {"regain": 501319}, listing, 501319)
+    assert r["status"] == si.IDENTIFIED
+    assert r["match_method"] == "CS2_LISTING_ID_AND_OPPONENT"
+    assert r["sofascore_event_id"] == 17304875 and r["home_is_team1"] is True
+
+
+def test_cs2_anchored_another_opponent_is_not_this_series():
+    # 10-06: BAKS - Clutchain on Superbet, BakS eSports - OldBoys on Sofascore
+    # at the same time: the anchored team's game, but not against Clutchain.
+    listing = [_series(17269864, (413708, "BakS eSports"), (1133468, "OldBoys"),
+                       KICK + timedelta(minutes=15))]
+    r = _cs2("BAKS", "Clutchain", {"BAKS": 413708}, listing, 413708)
+    assert r["status"] == si.NOT_IDENTIFIED
+    # ...and a resolved opponent id that differs refuses whatever the name
+    listing = [_series(1, (413708, "BakS"), (77, "Clutchain"))]
+    r = _cs2("BAKS", "Clutchain", {"BAKS": 413708, "Clutchain": 78}, listing,
+             413708)
+    assert r["status"] == si.NOT_IDENTIFIED
+    assert r["reason"] == "RESOLVED_ID_DISAGREES"  # pick_event read both names
+
+
+def test_cs2_anchored_an_ex_or_academy_roster_is_another_team():
+    for board, listed in (("Ex-Reign Above", "Reign Above"),
+                          ("Passion", "Passion Academy"),
+                          ("MIBR (K)", "MIBR")):
+        listing = [_series(5, (386694, "Villainous"), (9, listed))]
+        r = _cs2("Team Villainous", board, {"Team Villainous": 386694}, listing,
+                 386694)
+        assert r["status"] == si.NOT_IDENTIFIED, board
+
+
+def test_cs2_anchored_two_series_within_the_hour_is_ambiguous():
+    listing = [_series(1, (1221658, "Overtake Sector"), (501319, "regain")),
+               _series(2, (501319, "regain"), (3, "Other Five"),
+                       KICK + timedelta(minutes=40))]
+    r = _cs2("Overtake", "regain", {"regain": 501319}, listing, 501319)
+    assert r["status"] == si.NOT_IDENTIFIED and r["reason"] == "AMBIGUOUS"
+
+
+def test_cs2_anchored_needs_the_start_within_the_hour_and_a_scheduled_game():
+    late = [_series(1, (1221658, "Overtake Sector"), (501319, "regain"),
+                    KICK + timedelta(minutes=75))]
+    assert _cs2("Overtake", "regain", {"regain": 501319}, late,
+                501319)["status"] == si.NOT_IDENTIFIED
+    off = [_series(1, (1221658, "Overtake Sector"), (501319, "regain"),
+                   status="postponed")]
+    assert _cs2("Overtake", "regain", {"regain": 501319}, off,
+                501319)["status"] == si.NOT_IDENTIFIED
+
+
+def test_cs2_anchored_the_shared_word_needs_the_clocks_within_15_minutes():
+    # "Apogee" / "Betclic Apogee Esports" agrees on the full (subset) score,
+    # a lone shared word ("wolves") only with the clocks together.
+    near = [_series(1, (1, "Copenhagen Wolves"), (2, "Bread Eaters"))]
+    ids = {"Bread Eaters": 2}
+    assert _cs2("North Wolves", "Bread Eaters", ids, near,
+                2)["status"] == si.IDENTIFIED
+    far = [_series(1, (1, "Copenhagen Wolves"), (2, "Bread Eaters"),
+                   KICK + timedelta(minutes=30))]
+    assert _cs2("North Wolves", "Bread Eaters", ids, far,
+                2)["status"] == si.NOT_IDENTIFIED
+
+
 def test_cs2_team_ids_come_from_the_series_store_by_exact_name():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE cs2_series (home_id INT, home_name TEXT, "

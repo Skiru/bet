@@ -89,3 +89,71 @@ def test_a_game_that_does_not_exist_is_never_identified(sport: str) -> None:
                 and rec["sofascore_event_id"] == case["expected_sofascore_event_id"]):
             pinned.append((case["match_name"], other["team2"]))
     assert pinned == []
+
+
+# --- CS2's anchored rule on hand-reviewed cases (10-06..10-12) ---------------------
+
+ANCHORED = (Path(__file__).resolve().parent / "golden"
+            / "cs2_identity_anchored_2026-10-12.json")
+
+
+def _anchored_cases() -> list[dict[str, Any]]:
+    doc: dict[str, Any] = json.loads(ANCHORED.read_text(encoding="utf-8"))
+    cases: list[dict[str, Any]] = doc["cases"]
+    return cases
+
+
+def _run_anchored(case: dict[str, Any], team1: str | None = None,
+                  team2: str | None = None) -> dict[str, Any]:
+    t1 = team1 if team1 is not None else case["team1"]
+    t2 = team2 if team2 is not None else case["team2"]
+    ev = si.BoardEvent("cs2", case["superbet_event_id"], f"{t1}·{t2}", t1, t2,
+                       case["kickoff_utc"], case["tournament"], case["date"])
+    ids = {}
+    if team1 is None:
+        ids[t1] = case["team_ids"]["team1"]
+    if team2 is None:
+        ids[t2] = case["team_ids"]["team2"]
+    listing = Listings({str(case["queried_team_id"]): case["listing"]})
+    return si.identify_event(ev, listing, None, lambda s, n: ids.get(n), AT)
+
+
+def test_cs2_anchored_cases_identify_the_reviewed_series_and_refuse_the_rest() -> None:
+    # Each case read by hand (review_note); expected id null = a refusal that
+    # must stay one (the anchored team's game against another opponent).
+    cases = _anchored_cases()
+    assert len(cases) >= 15
+    got = []
+    for case in cases:
+        rec = _run_anchored(case)
+        found = ((rec["sofascore_event_id"], rec["home_is_team1"])
+                 if rec["status"] == si.IDENTIFIED else (None, None))
+        got.append((case["superbet_event_id"], found))
+    want = [(c["superbet_event_id"], (c["expected_sofascore_event_id"],
+                                      c["expected_home_is_team1"]))
+            for c in cases]
+    assert got == want
+
+
+def test_cs2_anchored_cases_never_pin_a_decoy_opponent() -> None:
+    # The side with no resolved id swapped for every other case's team name:
+    # a series that does not exist must never be read as the listed one.
+    every = _anchored_cases()
+    names = {n for c in every for n in (c["team1"], c["team2"])}
+    pinned, tried = [], 0
+    for case in every:
+        if not case["expected_sofascore_event_id"]:
+            continue
+        loose = "team1" if case["team_ids"]["team1"] is None else "team2"
+        if case["team_ids"][loose] is not None:
+            continue
+        own = {si.fold_team("cs2", case["team1"]), si.fold_team("cs2", case["team2"])}
+        for name in sorted(names):
+            if si.fold_team("cs2", name) in own:
+                continue  # the same team again is not a decoy
+            tried += 1
+            rec = (_run_anchored(case, team1=name) if loose == "team1"
+                   else _run_anchored(case, team2=name))
+            if rec["status"] == si.IDENTIFIED:
+                pinned.append((case["superbet_event_id"], name))
+    assert tried > 50 and pinned == []

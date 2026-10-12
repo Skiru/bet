@@ -1,0 +1,852 @@
+{
+ "built_at_utc": "2026-10-12T21:05:21.126042Z",
+ "what": "CS2 SPORT_IDENTITY cases of 2026-10-06..10-12 around the anchored rule (CS2_LISTING_ID_AND_OPPONENT), each read by hand against Sofascore's names, start and tournament in the cache (sofa_listed_event); expected id null = must not be identified. The settle found none of them, so they are not in sport_identity_golden_cs2.json.",
+ "cases": [
+  {
+   "date": "2026-10-08",
+   "superbet_event_id": "15235765",
+   "team1": "Apogee",
+   "team2": "Private",
+   "kickoff_utc": "2026-10-08T15:00:00Z",
+   "tournament": "Private Club",
+   "team_ids": {
+    "team1": null,
+    "team2": 1288440
+   },
+   "queried_team_id": 1288440,
+   "expected_sofascore_event_id": 17221746,
+   "expected_home_is_team1": true,
+   "review_note": "Apogee = Betclic Apogee Esports (sponsor name); PRIVATE anchored; same minute",
+   "listing": [
+    {
+     "id": 17221746,
+     "startTimestamp": 1791471600,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 198751,
+      "name": "1win Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 37550,
+       "name": "1win"
+      }
+     },
+     "homeTeam": {
+      "id": 825643,
+      "name": "Betclic Apogee Esports"
+     },
+     "awayTeam": {
+      "id": 1288440,
+      "name": "PRIVATE"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 2
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "superbet_event_id": "15353935",
+   "team1": "FarmVille",
+   "team2": "Overtake",
+   "kickoff_utc": "2026-10-09T01:00:00Z",
+   "tournament": "ESL Challenger League - NA",
+   "team_ids": {
+    "team1": 1169868,
+    "team2": null
+   },
+   "queried_team_id": 1169868,
+   "expected_sofascore_event_id": 17282686,
+   "expected_home_is_team1": true,
+   "review_note": "Overtake = Overtake Sector (ESL Challenger League NA); FarmVille anchored; same minute",
+   "listing": [
+    {
+     "id": 17282686,
+     "startTimestamp": 1791507600,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 1169868,
+      "name": "FarmVille"
+     },
+     "awayTeam": {
+      "id": 1221658,
+      "name": "Overtake Sector"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "superbet_event_id": "15358494",
+   "team1": "Chinggis Warriors",
+   "team2": "TheONE 1337",
+   "kickoff_utc": "2026-10-09T07:00:00Z",
+   "tournament": "MESA Pro Series",
+   "team_ids": {
+    "team1": 503909,
+    "team2": null
+   },
+   "queried_team_id": 503909,
+   "expected_sofascore_event_id": 17283790,
+   "expected_home_is_team1": true,
+   "review_note": "TheONE 1337 = 1337 (MESA Pro Series both); Chinggis Warriors anchored; same minute",
+   "listing": [
+    {
+     "id": 17287210,
+     "startTimestamp": 1791551400,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 503909,
+      "name": "Chinggis Warriors"
+     },
+     "awayTeam": {
+      "id": 525749,
+      "name": "Boring Players"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 3
+    },
+    {
+     "id": 17283790,
+     "startTimestamp": 1791529200,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 94383,
+      "name": "MESA Pro Series Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 17108,
+       "name": "MESA Pro Series"
+      }
+     },
+     "homeTeam": {
+      "id": 503909,
+      "name": "Chinggis Warriors"
+     },
+     "awayTeam": {
+      "id": 1294506,
+      "name": "1337"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "superbet_event_id": "15332316",
+   "team1": "LL Honved",
+   "team2": "6666",
+   "kickoff_utc": "2026-10-09T11:00:00Z",
+   "tournament": "CCT - EU",
+   "team_ids": {
+    "team1": null,
+    "team2": 1237487
+   },
+   "queried_team_id": 1237487,
+   "expected_sofascore_event_id": 17270569,
+   "expected_home_is_team1": true,
+   "review_note": "LL Honved = Honvéd (CCT Europe both); 6666 anchored; +15 min",
+   "listing": [
+    {
+     "id": 17270569,
+     "startTimestamp": 1791544500,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 128941,
+      "name": "CCT Europe Group C",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 22286,
+       "name": "CCT Europe"
+      }
+     },
+     "homeTeam": {
+      "id": 380545,
+      "name": "Honvéd",
+      "gender": "M"
+     },
+     "awayTeam": {
+      "id": 1237487,
+      "name": "6666"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 2
+     },
+     "bestOf": 3
+    },
+    {
+     "id": 17287161,
+     "startTimestamp": 1791555000,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 169188,
+      "name": "NODWIN Clutch Series Play-In Group D",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 29756,
+       "name": "NODWIN Clutch Series"
+      }
+     },
+     "homeTeam": {
+      "id": 1237487,
+      "name": "6666"
+     },
+     "awayTeam": {
+      "id": 1101549,
+      "name": "Misa Esports"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 1
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "superbet_event_id": "15370676",
+   "team1": "Chicken Coop",
+   "team2": "Overtake",
+   "kickoff_utc": "2026-10-11T01:00:00Z",
+   "tournament": "ESL Challenger League - NA",
+   "team_ids": {
+    "team1": 1044440,
+    "team2": null
+   },
+   "queried_team_id": 1044440,
+   "expected_sofascore_event_id": 17290152,
+   "expected_home_is_team1": true,
+   "review_note": "Overtake = Overtake Sector (ESL Challenger League NA); Chicken Coop anchored; same minute",
+   "listing": [
+    {
+     "id": 17290152,
+     "startTimestamp": 1791680400,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 1044440,
+      "name": "Chicken Coop Esports"
+     },
+     "awayTeam": {
+      "id": 1221658,
+      "name": "Overtake Sector"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-12",
+   "superbet_event_id": "15404108",
+   "team1": "Overtake",
+   "team2": "regain",
+   "kickoff_utc": "2026-10-12T01:00:00Z",
+   "tournament": "ESL Challenger League - NA",
+   "team_ids": {
+    "team1": null,
+    "team2": 501319
+   },
+   "queried_team_id": 501319,
+   "expected_sofascore_event_id": 17304875,
+   "expected_home_is_team1": true,
+   "review_note": "Overtake = Overtake Sector (ESL Challenger League NA); regain anchored; same minute",
+   "listing": [
+    {
+     "id": 17304875,
+     "startTimestamp": 1791766800,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 1221658,
+      "name": "Overtake Sector"
+     },
+     "awayTeam": {
+      "id": 501319,
+      "name": "regain"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 1
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "superbet_event_id": "15322847",
+   "team1": "BAKS",
+   "team2": "Clutchain",
+   "kickoff_utc": "2026-10-06T18:30:00Z",
+   "tournament": "ESEA Advanced - EU",
+   "team_ids": {
+    "team1": 413708,
+    "team2": 1214239
+   },
+   "queried_team_id": 413708,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "BAKS - Clutchain: BakS eSports played OldBoys",
+   "listing": [
+    {
+     "id": 17269864,
+     "startTimestamp": 1791312300,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 91074,
+      "name": "ESEA Regular season",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 16151,
+       "name": "ESEA"
+      }
+     },
+     "homeTeam": {
+      "id": 413708,
+      "name": "BakS eSports"
+     },
+     "awayTeam": {
+      "id": 1133468,
+      "name": "OldBoys"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 1
+    }
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "superbet_event_id": "15283292",
+   "team1": "ENCE Prospects",
+   "team2": "Passion Academy",
+   "kickoff_utc": "2026-10-07T08:00:00Z",
+   "tournament": "European Pro League",
+   "team_ids": {
+    "team1": 521694,
+    "team2": 1178951
+   },
+   "queried_team_id": 521694,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "ENCE Prospects - Passion Academy: Passion Academy played XI Esport",
+   "listing": []
+  },
+  {
+   "date": "2026-10-07",
+   "superbet_event_id": "15283294",
+   "team1": "Copenhagen Wolves",
+   "team2": "Ex - Eternal Fire Academy",
+   "kickoff_utc": "2026-10-07T10:30:00Z",
+   "tournament": "European Pro League",
+   "team_ids": {
+    "team1": 503897,
+    "team2": null
+   },
+   "queried_team_id": 503897,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "Copenhagen Wolves - Ex-Eternal Fire Academy: Wolves played Bread Eaters",
+   "listing": [
+    {
+     "id": 17252946,
+     "startTimestamp": 1791369600,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 105383,
+      "name": "European Pro League Group A",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 19104,
+       "name": "European Pro League"
+      }
+     },
+     "homeTeam": {
+      "id": 503897,
+      "name": "Copenhagen Wolves"
+     },
+     "awayTeam": {
+      "id": 1291400,
+      "name": "Bread Eaters Esports"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 1
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "superbet_event_id": "15318542",
+   "team1": "Metanoia Wolves",
+   "team2": "LP team",
+   "kickoff_utc": "2026-10-07T21:00:00Z",
+   "tournament": "ESL Challenger League - SA",
+   "team_ids": {
+    "team1": 1171703,
+    "team2": null
+   },
+   "queried_team_id": 1171703,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "Metanoia Wolves - LP team: largadosypelados (not provable by name)",
+   "listing": [
+    {
+     "id": 17263983,
+     "startTimestamp": 1791406800,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 1171703,
+      "name": "METANOIA WOLVES"
+     },
+     "awayTeam": {
+      "id": 451417,
+      "name": "largadosypelados"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-08",
+   "superbet_event_id": "15352230",
+   "team1": "LP team",
+   "team2": "Turma do Pagode",
+   "kickoff_utc": "2026-10-08T21:00:00Z",
+   "tournament": "ESL Challenger League - SA",
+   "team_ids": {
+    "team1": null,
+    "team2": 1218393
+   },
+   "queried_team_id": 1218393,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "LP team - Turma do Pagode: largadosypelados (not provable by name)",
+   "listing": [
+    {
+     "id": 17281885,
+     "startTimestamp": 1791494100,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 1218393,
+      "name": "Turma do Pagode"
+     },
+     "awayTeam": {
+      "id": 451417,
+      "name": "largadosypelados"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 2
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "superbet_event_id": "15368092",
+   "team1": "Bounty Hunters",
+   "team2": "LP team",
+   "kickoff_utc": "2026-10-10T21:00:00Z",
+   "tournament": "ESL Challenger League - SA",
+   "team_ids": {
+    "team1": 479715,
+    "team2": null
+   },
+   "queried_team_id": 479715,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "Bounty Hunters - LP team: largadosypelados (not provable by name)",
+   "listing": [
+    {
+     "id": 17289201,
+     "startTimestamp": 1791667800,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 479715,
+      "name": "Bounty Hunters Esports"
+     },
+     "awayTeam": {
+      "id": 451417,
+      "name": "largadosypelados"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 2
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "superbet_event_id": "15353941",
+   "team1": "Team Villainous",
+   "team2": "Ex-Reign Above",
+   "kickoff_utc": "2026-10-09T01:00:00Z",
+   "tournament": "ESL Challenger League - NA",
+   "team_ids": {
+    "team1": 386694,
+    "team2": null
+   },
+   "queried_team_id": 386694,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "Team Villainous - Ex-Reign Above: an ex- roster vs Reign Above",
+   "listing": [
+    {
+     "id": 17282685,
+     "startTimestamp": 1791508500,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 98162,
+      "name": "ESL Challenger League Playoffs",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 18501,
+       "name": "ESL Challenger League"
+      }
+     },
+     "homeTeam": {
+      "id": 386694,
+      "name": "Villainous"
+     },
+     "awayTeam": {
+      "id": 1125046,
+      "name": "Reign Above"
+     },
+     "homeScore": {
+      "current": 2
+     },
+     "awayScore": {
+      "current": 1
+     },
+     "bestOf": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "superbet_event_id": "15368523",
+   "team1": "Team Spirit Academy Green",
+   "team2": "Matrix",
+   "kickoff_utc": "2026-10-09T16:00:00Z",
+   "tournament": "ESEA Advanced - EU",
+   "team_ids": {
+    "team1": 1130824,
+    "team2": 1290931
+   },
+   "queried_team_id": 1130824,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "Spirit Academy Green - Matrix: Matrix resolved to another id than MTX",
+   "listing": [
+    {
+     "id": 17290076,
+     "startTimestamp": 1791562200,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 91074,
+      "name": "ESEA Regular season",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 16151,
+       "name": "ESEA"
+      }
+     },
+     "homeTeam": {
+      "id": 1130824,
+      "name": "Spirit Academy Green"
+     },
+     "awayTeam": {
+      "id": 1251294,
+      "name": "MTX"
+     },
+     "homeScore": {
+      "current": 1
+     },
+     "awayScore": {
+      "current": 0
+     },
+     "bestOf": 1
+    }
+   ]
+  },
+  {
+   "date": "2026-10-06",
+   "superbet_event_id": "15322844",
+   "team1": "Inner Circle Prospects",
+   "team2": "Young Tigeres",
+   "kickoff_utc": "2026-10-06T18:30:00Z",
+   "tournament": "ESEA Advanced - EU",
+   "team_ids": {
+    "team1": null,
+    "team2": 1149536
+   },
+   "queried_team_id": 1149536,
+   "expected_sofascore_event_id": null,
+   "expected_home_is_team1": null,
+   "review_note": "Inner Circle Prospects - Young Tigeres: prospects roster marker on one side",
+   "listing": [
+    {
+     "id": 17269856,
+     "startTimestamp": 1791312300,
+     "status": {
+      "type": "finished"
+     },
+     "tournament": {
+      "id": 91074,
+      "name": "ESEA Regular season",
+      "category": {
+       "name": "Counter Strike",
+       "sport": {
+        "slug": "esports"
+       }
+      },
+      "uniqueTournament": {
+       "id": 16151,
+       "name": "ESEA"
+      }
+     },
+     "homeTeam": {
+      "id": 1216782,
+      "name": "Inner Circle Prospect"
+     },
+     "awayTeam": {
+      "id": 1149536,
+      "name": "Young TigeRES"
+     },
+     "homeScore": {
+      "current": 0
+     },
+     "awayScore": {
+      "current": 1
+     },
+     "bestOf": 1
+    }
+   ]
+  }
+ ]
+}
