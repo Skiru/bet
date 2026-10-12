@@ -357,6 +357,7 @@ def test_fixture_check_marks_the_rest_unverified_after_a_refusal(
     from scripts.sofa import run_fixture_check
 
     monkeypatch.setattr(run_fixture_check, "frozen_clock_refusal", lambda d: None)
+    monkeypatch.setattr(run_fixture_check, "RETRY_BACKOFF_S", 0.0)
     run = _fixture_day(env, [11, 12, 13, 14])
     transport = ChaosTransport(_event_router, ok_calls=1, then=then)
     _use(monkeypatch, transport)
@@ -365,8 +366,15 @@ def test_fixture_check_marks_the_rest_unverified_after_a_refusal(
     events = json.loads((run / fs.FIXTURE_STATUS_FILE).read_text())["events"]
     assert events["11"]["status"] == "notstarted"
     assert {events[k]["status"] for k in ("12", "13", "14")} == {fs.UNVERIFIED}
-    # one refused request (a transport failure: plus its one retry), then none
-    assert transport.calls == ["event/11"] + ["event/12"] * (1 + (then == "gone"))
+    if then == "403":
+        # a refusal: one request, no retry, then none
+        assert transport.calls == ["event/11", "event/12"]
+        return
+    # the bridge gone: event/12 is a transient failure (the client's own
+    # retry, then FIXTURE_CHECK's one retry), event/13 fails too and trips
+    # the client's breaker (3 failures) - the check stops, 14 NOT_ASKED
+    assert transport.calls == ["event/11"] + ["event/12"] * 4 + ["event/13"] * 2
+    assert events["14"]["reason"] == fs.NOT_ASKED
 
 
 # --- RESOLVE ----------------------------------------------------------------------

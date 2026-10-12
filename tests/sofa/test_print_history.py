@@ -489,13 +489,19 @@ def test_a_failure_names_its_reason_and_the_rest_is_not_asked(exc, reason):
             return None  # 404
         raise exc
 
-    out, stopped = check({1: "printed", 2: "printed", 3: "candidate"}, fetch,
-                         lambda e: None, lambda *a: None)
+    out, stopped = check({1: "printed", 2: "printed", 3: "candidate", 4: "printed"},
+                         fetch, lambda e: None, lambda *a: None, sleep=lambda s: None)
     assert stopped
-    assert [out[e]["reason"] for e in (1, 2, 3)] == [fs.NOT_FOUND, reason, fs.NOT_ASKED]
+    # A transient failure (5xx, the bridge) is retried and the check goes on;
+    # the second fixture in a row given up on stops it. A refusal stops at once.
+    third = reason if reason in (fs.PROVIDER_ERROR, fs.NO_BRIDGE) else fs.NOT_ASKED
+    assert [out[e]["reason"] for e in (1, 2, 3, 4)] == [
+        fs.NOT_FOUND, reason, third, fs.NOT_ASKED]
     assert {e["status"] for e in out.values()} == {fs.UNVERIFIED}
-    assert fs.unverified_reasons(out.values()) == dict(sorted(
-        {fs.NOT_FOUND: 1, reason: 1, fs.NOT_ASKED: 1}.items()))
+    want: dict[str, int] = {}
+    for r in (fs.NOT_FOUND, reason, third, fs.NOT_ASKED):
+        want[r] = want.get(r, 0) + 1
+    assert fs.unverified_reasons(out.values()) == dict(sorted(want.items()))
 
 
 def test_the_confidence_artifact_and_the_pdf_say_why(two_legs, monkeypatch):

@@ -226,7 +226,7 @@ def check(
     *,
     tripped: Callable[[], bool] = lambda: False,
     sleep: Callable[[float], None] = time.sleep,
-    backoff_s: float = RETRY_BACKOFF_S,
+    backoff_s: float | None = None,
     max_transient_streak: int = MAX_TRANSIENT_STREAK,
 ) -> tuple[dict[int, dict[str, Any]], bool]:
     """{event id: entry}, and whether the requests stopped early.
@@ -236,6 +236,8 @@ def check(
     dated by when its payload was read - or None. `tripped()` says whether
     the client's breaker opened on its last requests (the failure that opens
     it is a ProviderError, not a CircuitOpenError)."""
+    if backoff_s is None:
+        backoff_s = RETRY_BACKOFF_S
     out: dict[int, dict[str, Any]] = {}
     stopped = False
     streak = 0
