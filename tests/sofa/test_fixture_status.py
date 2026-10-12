@@ -71,7 +71,9 @@ def test_only_printed_matches_and_moved_clocks_are_asked():
     assert got == {7: "clock_gap", 9: "printed"}
 
 
-def test_no_bridge_leaves_every_event_unverified_and_stops_at_the_first_refusal():
+def test_no_bridge_leaves_every_event_unverified_and_stops_after_two_fixtures():
+    # A bridge that is down, not one that hiccuped: one retry per fixture,
+    # two fixtures in a row given up on stop the check; the rest NOT_ASKED.
     from bet.sofa.errors import TransportError
 
     calls = []
@@ -80,10 +82,124 @@ def test_no_bridge_leaves_every_event_unverified_and_stops_at_the_first_refusal(
         calls.append(eid)
         raise TransportError("bridge down")
 
-    out, refused = check({1: "printed", 2: "printed"}, fetch, lambda e: None,
-                         lambda *a: None)
-    assert refused and calls == [1]
+    out, refused = check({1: "printed", 2: "printed", 3: "printed"}, fetch,
+                         lambda e: None, lambda *a: None, sleep=lambda s: None)
+    assert refused and calls == [1, 1, 2, 2]
     assert {e["status"] for e in out.values()} == {fs.UNVERIFIED}
+    assert out[3]["reason"] == fs.NOT_ASKED
+
+
+_PAYLOAD = {"event": {"status": {"type": "notstarted", "code": 0},
+                      "startTimestamp": 1759670400}}
+
+
+def test_a_504_on_one_fixture_is_retried_then_left_unverified_and_the_rest_checked():
+    # 2026-10-12 11:53Z..12:44Z: one "bridge HTTP 504" aborted the whole check
+    # four times and the PDFs printed with 279-282 fixtures NOT_ASKED.
+    from bet.sofa.errors import ProviderError
+
+    calls: list[int] = []
+    sleeps: list[float] = []
+
+    def fetch(eid: int):
+        calls.append(eid)
+        if eid == 2:
+            raise ProviderError("Network error after retry: bridge HTTP 504: "
+                                "bridge timeout")
+        return _PAYLOAD
+
+    out, stopped = check({1: "printed", 2: "printed", 3: "candidate", 4: "printed"},
+                         fetch, lambda e: None, lambda *a: None,
+                         sleep=sleeps.append)
+    assert not stopped
+    assert calls == [1, 2, 2, 3, 4] and len(sleeps) == 1
+    assert out[2]["status"] == fs.UNVERIFIED
+    assert out[2]["reason"] == fs.NO_BRIDGE
+    assert all(out[e]["status"] == "notstarted" for e in (1, 3, 4))
+
+
+def test_two_separate_504s_do_not_stop_the_check():
+    # The streak counts fixtures given up on IN A ROW; a success resets it.
+    from bet.sofa.errors import ProviderError
+
+    def fetch(eid: int):
+        if eid in (1, 3):
+            raise ProviderError("HTTP 504")
+        return _PAYLOAD
+
+    out, stopped = check({1: "printed", 2: "printed", 3: "printed", 4: "printed"},
+                         fetch, lambda e: None, lambda *a: None,
+                         sleep=lambda s: None)
+    assert not stopped
+    assert out[1]["reason"] == out[3]["reason"] == fs.PROVIDER_ERROR
+    assert out[2]["status"] == out[4]["status"] == "notstarted"
+
+
+def test_a_504_answered_on_the_retry_verifies_the_fixture():
+    from bet.sofa.errors import ProviderError
+
+    seen: list[int] = []
+
+    def fetch(eid: int):
+        seen.append(eid)
+        if eid == 1 and seen.count(1) == 1:
+            raise ProviderError("HTTP 504")
+        return _PAYLOAD
+
+    out, stopped = check({1: "printed", 2: "printed"}, fetch, lambda e: None,
+                         lambda *a: None, sleep=lambda s: None)
+    assert not stopped and seen == [1, 1, 2]
+    assert out[1]["status"] == out[2]["status"] == "notstarted"
+
+
+def test_a_refusal_stops_at_once_without_a_retry():
+    from bet.sofa.errors import ProviderError
+
+    calls = []
+
+    def fetch(eid: int):
+        calls.append(eid)
+        raise ProviderError("HTTP 403")
+
+    out, stopped = check({1: "printed", 2: "printed"}, fetch, lambda e: None,
+                         lambda *a: None, sleep=lambda s: None)
+    assert stopped and calls == [1]
+    assert out[1]["reason"] == fs.PROVIDER_REFUSED
+    assert out[2]["reason"] == fs.NOT_ASKED
+
+
+def test_an_open_breaker_stops_at_once():
+    from bet.sofa.errors import CircuitOpenError
+
+    calls = []
+
+    def fetch(eid: int):
+        calls.append(eid)
+        raise CircuitOpenError("Circuit breaker is open")
+
+    out, stopped = check({1: "printed", 2: "printed"}, fetch, lambda e: None,
+                         lambda *a: None, sleep=lambda s: None)
+    assert stopped and calls == [1]
+    assert out[1]["reason"] == fs.CIRCUIT_OPEN
+    assert out[2]["reason"] == fs.NOT_ASKED
+
+
+def test_a_tripped_breaker_is_not_retried_and_stops():
+    # The failure that opens the breaker is a ProviderError, not a
+    # CircuitOpenError: the client's breaker state decides.
+    from bet.sofa.errors import ProviderError
+
+    calls = []
+
+    def fetch(eid: int):
+        calls.append(eid)
+        raise ProviderError("Network error after retry: bridge HTTP 504")
+
+    out, stopped = check({1: "printed", 2: "printed"}, fetch, lambda e: None,
+                         lambda *a: None, sleep=lambda s: None,
+                         tripped=lambda: True)
+    assert stopped and calls == [1]
+    assert out[2]["reason"] == fs.NOT_ASKED
 
 
 def test_an_event_payload_gives_status_and_start():

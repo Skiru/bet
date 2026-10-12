@@ -1243,7 +1243,13 @@ FIXTURE_CHECK`), **most**, w przebudowie po OFFER, przed CONFIDENCE.
 **`runs/sofa/<d>/fixture_status.json`**. postponed / canceled / abandoned →
 `FIXTURE_NOT_AS_SCHEDULED` (odmowa w CONFIDENCE). Świeży start zastępuje
 zamrożony zegar RESOLVE dla bramki, blokady i `capture_closing` (K12). Bez
-mostu: `UNVERIFIED` (pokazane, bez odmowy), kod 1. 403 przerywa od razu.
+mostu: `UNVERIFIED` (pokazane, bez odmowy), kod 1. Odmowa (403 / 429, HTML
+zamiast JSON, bezpiecznik otwarty albo wyzwolony) przerywa od razu, reszta
+`NOT_ASKED`. Błąd przejściowy na jednym meczu (timeout mostu / 504, 5xx) —
+jedna ponowna próba po 5 s, potem ten jeden mecz `UNVERIFIED` z powodem
+(`NO_BRIDGE` / `PROVIDER_ERROR`) i sprawdzanie idzie dalej; dwa mecze z rzędu
+porzucone tak = most leży, przerwa (2026-10-12 11:53–12:44Z jeden 504 czterokrotnie
+zostawił 279–282 mecze `NOT_ASKED` na drukowanym PDF).
 
 ---
 

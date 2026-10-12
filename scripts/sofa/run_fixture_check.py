@@ -19,8 +19,11 @@ Run in a rebuild after OFFER and before CONFIDENCE:
 
 Without an answer an event is UNVERIFIED (shown, never a refusal) with the
 reason - 404, refused, no bridge, not asked (F0.5) - and the stage exits 1
-(PARTIAL); a failed request stops the requests at once (no retry), the rest
-is NOT_ASKED.
+(PARTIAL). A transient failure on one fixture (bridge timeout / 504, a 5xx)
+is retried once after a pause, then that fixture is UNVERIFIED and the check
+goes on; a refusal (403 / 429, HTML for JSON, the breaker open or tripped) or
+MAX_TRANSIENT_STREAK fixtures in a row given up on stops the requests at
+once, the rest is NOT_ASKED.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
@@ -193,17 +197,48 @@ def failure_reason(exc: BaseException) -> str:
 
 Cached = Callable[[int], Any]
 
+# A transient failure (the bridge timed out - "bridge HTTP 504" - or Sofascore
+# answered 5xx) on one fixture is retried once after this pause; if the retry
+# fails too, that fixture alone is UNVERIFIED with its reason and the check
+# goes on (2026-10-12 11:53-12:44Z: one 504 each time aborted the check and
+# four PDFs printed with 279-282 fixtures NOT_ASKED). A refusal - 403 / 429,
+# HTML for JSON, the breaker open or tripped - still stops at once (CLAUDE.md:
+# a refusal means slow down), and so do MAX_TRANSIENT_STREAK fixtures in a row
+# given up on (a bridge that is down, not one that hiccuped).
+TRANSIENT_REASONS = frozenset({fs.NO_BRIDGE, fs.PROVIDER_ERROR})
+RETRY_BACKOFF_S = 5.0
+MAX_TRANSIENT_STREAK = 2
+
+
+def is_transient(exc: BaseException) -> bool:
+    """A failure worth one more try on the same fixture: the request did not
+    complete or the provider erred - never a refusal or an open breaker."""
+    if isinstance(exc, CircuitOpenError):
+        return False
+    return failure_reason(exc) in TRANSIENT_REASONS
+
 
 def check(
-    targets: dict[int, str], fetch: Any, cached: Cached, save: Any
+    targets: dict[int, str],
+    fetch: Any,
+    cached: Cached,
+    save: Any,
+    *,
+    tripped: Callable[[], bool] = lambda: False,
+    sleep: Callable[[float], None] = time.sleep,
+    backoff_s: float = RETRY_BACKOFF_S,
+    max_transient_streak: int = MAX_TRANSIENT_STREAK,
 ) -> tuple[dict[int, dict[str, Any]], bool]:
-    """{event id: entry}, and whether a request failed (stop at once).
+    """{event id: entry}, and whether the requests stopped early.
 
     Targets are asked in their order (printed and moved clocks first).
     `cached(eid)` is a payload, or (payload, fetched_at) - the entry is
-    dated by when its payload was read - or None."""
+    dated by when its payload was read - or None. `tripped()` says whether
+    the client's breaker opened on its last requests (the failure that opens
+    it is a ProviderError, not a CircuitOpenError)."""
     out: dict[int, dict[str, Any]] = {}
     stopped = False
+    streak = 0
     for eid, why in targets.items():
         at = now()
         hit = cached(eid)
@@ -214,18 +249,35 @@ def check(
             reason = fs.NOT_ASKED
         elif payload is None:
             at = now()
-            try:
-                payload = fetch(eid)
-                if payload is None:
-                    reason = fs.NOT_FOUND
-            except SofaError as exc:
-                # A refusal is a signal to slow down (CLAUDE.md): no retry,
-                # the rest stays UNVERIFIED (NOT_ASKED).
-                stopped = True
-                reason = failure_reason(exc)
-                print(f"FIXTURE_CHECK: {type(exc).__name__} ({exc}) on {eid} - "
-                      "the rest is UNVERIFIED", file=sys.stderr)
-                payload = None
+            for attempt in (1, 2):
+                try:
+                    payload = fetch(eid)
+                    reason = fs.NOT_FOUND if payload is None else None
+                    streak = 0
+                    break
+                except SofaError as exc:
+                    payload = None
+                    reason = failure_reason(exc)
+                    retry = attempt == 1 and is_transient(exc) and not tripped()
+                    print(f"FIXTURE_CHECK: {type(exc).__name__} ({exc}) on {eid}"
+                          + (f" - one retry in {backoff_s:g} s" if retry else ""),
+                          file=sys.stderr)
+                    if retry:
+                        sleep(backoff_s)
+                        at = now()
+                        continue
+                    if is_transient(exc) and not tripped():
+                        streak += 1
+                        if streak < max_transient_streak:
+                            print(f"FIXTURE_CHECK: {eid} UNVERIFIED ({reason}), "
+                                  "the check goes on", file=sys.stderr)
+                            break
+                    # A refusal, an open / tripped breaker, or a bridge that
+                    # keeps failing: slow down - the rest is NOT_ASKED.
+                    stopped = True
+                    print("FIXTURE_CHECK: stopping - the rest is UNVERIFIED",
+                          file=sys.stderr)
+                    break
             if payload:
                 status = ((payload.get("event") or {}).get("status") or {}).get("type")
                 save(eid, payload, status)
@@ -297,8 +349,11 @@ def main() -> int:
 
     cache = SofaCache(config)
     client = SofascoreClient(config)
+    from bet.sofa.client import breaker_tripped
+
     events, stopped = check(
-        targets, client.event, cache.get_event_detail_dated, cache.save_event_detail
+        targets, client.event, cache.get_event_detail_dated, cache.save_event_detail,
+        tripped=lambda: breaker_tripped(client),
     )
     for eid in over_cap:
         events[eid] = fs.entry_from_payload(None, "candidate", now(), fs.OVER_CAP)

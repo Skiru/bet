@@ -201,7 +201,10 @@ every sport alike, and nothing that could win is cut by name.
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds are
   dropped for every reader) and FIXTURE_CHECK's fresh `/event` start. A
   postponed / cancelled printed match is FIXTURE_NOT_AS_SCHEDULED; no bridge =
-  UNVERIFIED, nothing refused. Blind spot: a suspended pre-match offer with no
+  UNVERIFIED, nothing refused. A transient error on one fixture (bridge
+  504 / timeout, 5xx) is retried once, then that fixture alone is
+  UNVERIFIED and the check goes on; a refusal (403 / 429, breaker open or
+  tripped) or two fixtures in a row given up on stops it. Blind spot: a suspended pre-match offer with no
   metadata says nothing; only the clocks see it.
 - **Peer choice and stakes** (from `PEER_CHOICE_FROM_UTC` 2026-10-08
   08:10Z, operator: "jak masz dwie nogi po 1.2 to zaproponuj tę z większą
