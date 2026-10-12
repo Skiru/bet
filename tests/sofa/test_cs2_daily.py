@@ -223,3 +223,110 @@ def test_watchdog_relaunch_keeps_the_chain(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(cs2_watchdog, "log", lambda msg: None)
     cs2_watchdog.act("RELAUNCH", "2026-10-01")
     assert seen == [["scripts/sofa/cs2_daily.py", "--date", "2026-10-01", "--chain"]]
+
+
+def _sleeper(tmp_path: Path, seconds: float, grandchild: bool = False) -> Path:
+    """A tiny step script: optionally starts a grandchild that writes its pid,
+    then sleeps."""
+    script = tmp_path / "slow_step.py"
+    pidfile = tmp_path / "grandchild.pid"
+    body = ["import subprocess, sys, time"]
+    if grandchild:
+        body += [
+            "p = subprocess.Popen("
+            "[sys.executable, '-c', 'import time; time.sleep(60)'])",
+            f"open({str(pidfile)!r}, 'w').write(str(p.pid))",
+        ]
+    body += [f"time.sleep({seconds})"]
+    script.write_text("\n".join(body) + "\n", encoding="utf-8")
+    return script
+
+
+def _alive(pid: int) -> bool:
+    import os
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    # a zombie is dead for our purpose
+    import subprocess
+
+    stat = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)],
+                          capture_output=True, text=True).stdout.strip()
+    return bool(stat) and not stat.startswith("Z")
+
+
+def test_a_hung_step_is_killed_with_its_group_and_failed_as_timeout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import sys
+    import time
+
+    script = _sleeper(tmp_path, 60, grandchild=True)
+    t0 = time.monotonic()
+    code = cs2_daily.step([str(script)], timeout_s=1.0, kill_grace_s=0.5,
+                          python=sys.executable)
+    assert code == 2
+    assert time.monotonic() - t0 < 10
+    assert "STEP_FAILED TIMEOUT" in capsys.readouterr().out
+    gpid = int((tmp_path / "grandchild.pid").read_text())
+    deadline = time.monotonic() + 5
+    while _alive(gpid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert not _alive(gpid), "the step's whole process group is killed"
+
+
+def test_a_step_that_ignores_sigterm_is_killed(tmp_path: Path) -> None:
+    import sys
+    import time
+
+    script = tmp_path / "stubborn.py"
+    script.write_text(
+        "import signal, time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "time.sleep(60)\n", encoding="utf-8")
+    t0 = time.monotonic()
+    assert cs2_daily.step([str(script)], timeout_s=1.0, kill_grace_s=0.5,
+                          python=sys.executable) == 2
+    assert time.monotonic() - t0 < 10
+
+
+def test_a_step_within_its_limit_keeps_its_own_exit(tmp_path: Path) -> None:
+    import sys
+
+    script = tmp_path / "quick.py"
+    script.write_text("import sys, time\ntime.sleep(0.2)\nsys.exit(1)\n",
+                      encoding="utf-8")
+    assert cs2_daily.step([str(script)], timeout_s=5.0, python=sys.executable) == 1
+
+
+def test_a_timed_out_snapshot_does_not_stop_the_loop(tmp_path: Path) -> None:
+    """The loop treats a TIMEOUT as any FAILED step: the next steps run."""
+    import sys
+
+    slow = _sleeper(tmp_path, 60)
+    quick = tmp_path / "ok.py"
+    quick.write_text("pass\n", encoding="utf-8")
+    start = datetime(2026, 10, 1, 23, 0, tzinfo=UTC)
+    clock = Clock(start)
+    ran: list[str] = []
+
+    def runner(cmd: list[str]) -> int:
+        ran.append(cmd[0])
+        return cs2_daily.step(cmd, timeout_s=0.5, kill_grace_s=0.2,
+                              python=sys.executable)
+
+    code = cs2_daily.loop(
+        [str(slow)], [[str(quick)]], [str(quick)], 30,
+        start + timedelta(minutes=45), start + timedelta(hours=6),
+        clock=clock.now, sleep=clock.sleep, runner=runner,
+        each_snapshot=[[str(quick)]],
+    )
+    assert ran.count(str(slow)) == 2, "the next iteration still snapshots"
+    assert ran[-2:] == [str(quick), str(quick)], "morning and audit still run"
+    assert code == 2
+
+
+def test_the_step_limit_is_three_times_the_longest_measured_step() -> None:
+    # 119.7 min: the longest step in every shadow / cs2 loop log 09-28..10-12
+    assert cs2_daily.STEP_TIMEOUT_S >= 3 * 119.7 * 60

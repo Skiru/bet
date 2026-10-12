@@ -24,8 +24,11 @@ audit the next morning.
    (run_morning); a backfill is never repeated.
 4. audit_cs2.py for the day, into the log.
 
-Every step is a separate process, so one crashing never takes the rest down,
-and each step's own SOFA_SUMMARY line lands in the log. Nothing here feeds
+Every step is a separate process (its own process group), so one crashing
+never takes the rest down, and each step's own SOFA_SUMMARY line lands in the
+log. A step still running after STEP_TIMEOUT_S (6 h, 3x the longest step any
+loop log holds) is killed with its group and FAILED (STEP_FAILED TIMEOUT); the
+loop goes on as after any failed step. Nothing here feeds
 the coupon. Exit: the worst step's code (0 OK, 1 PARTIAL, 2 FAILED).
 """
 
@@ -69,20 +72,78 @@ def _at(date: str, hhmm: str, day_offset: int = 0) -> datetime:
     return base + timedelta(days=day_offset, hours=hh, minutes=mm)
 
 
-def step(args: list[str]) -> int:
-    """Run one step in its own process; its output goes straight to our log."""
+# One limit for every loop step (A4, 2026-10-12). Measured on every
+# shadow / cs2 daily log 09-28..10-12 (start line to the next step's start,
+# the 30-min interval sleep taken off): the longest step ever was a CS2
+# SPORT_IDENTITY at 119.7 min (10-09 14:18Z, an outage evening); next a
+# SHADOW_SETTLE at 68 min, a SHADOW snapshot at 49 min, an identity at 48 min.
+# Every p99 is <= 68 min. 6 h is 3x the longest, so no settle, sweep, backfill
+# or identity that ever finished is killed; a hung step (no limit before)
+# stalled its loop forever. The wait is monotonic (subprocess), which on
+# macOS does not advance while the Mac sleeps - a sleep never trips it.
+STEP_TIMEOUT_S = 6 * 3600.0
+# After SIGTERM to the step's process group, this long before SIGKILL.
+KILL_GRACE_S = 30.0
+
+
+def step(
+    args: list[str],
+    timeout_s: float | None = None,
+    kill_grace_s: float = KILL_GRACE_S,
+    python: str | None = None,
+) -> int:
+    """Run one step in its own process; its output goes straight to our log.
+
+    The step gets its own process group; past `timeout_s` (default
+    STEP_TIMEOUT_S) the whole group is terminated, then killed, and the
+    step is FAILED (2) with reason TIMEOUT - the loop goes on exactly as
+    after any failed step."""
+    import os
+    import signal
+
+    limit = STEP_TIMEOUT_S if timeout_s is None else timeout_s
     print(
         f"[{datetime.now(UTC).isoformat(timespec='seconds')}] $ {' '.join(args)}",
         flush=True,
     )
-    env_cmd = [PYTHON, *args]
+    env_cmd = [python or PYTHON, *args]
     try:
-        code = subprocess.call(env_cmd, cwd=REPO)
-    except (OSError, subprocess.SubprocessError) as exc:
+        proc = subprocess.Popen(env_cmd, cwd=REPO, process_group=0)
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
         # The step never started (fork / exec failed): FAILED, and the loop
         # goes on - it used to raise out of the loop and end the day.
         print(f"STEP_NOT_STARTED {' '.join(args)}: {exc}", flush=True)
         return 2
+    try:
+        code = proc.wait(timeout=limit)
+    except subprocess.TimeoutExpired:
+        for sig, grace in ((signal.SIGTERM, kill_grace_s), (signal.SIGKILL, None)):
+            try:
+                os.killpg(proc.pid, sig)
+            except (ProcessLookupError, PermissionError):
+                pass
+            try:
+                proc.wait(timeout=grace)
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        # the group too: a grandchild that ignored SIGTERM
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        print(
+            f"STEP_FAILED TIMEOUT after {limit:.0f} s: {' '.join(args)}",
+            flush=True,
+        )
+        return 2
+    except BaseException:
+        # the loop itself is being stopped (Ctrl-C): never leave the step
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+        raise
     return exit_code(code, args)
 
 

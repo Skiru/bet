@@ -799,9 +799,18 @@ def test_daily_step_that_cannot_start_is_failed(monkeypatch: pytest.MonkeyPatch,
     def no_fork(*a: Any, **kw: Any) -> int:
         raise OSError(35, "Resource temporarily unavailable")
 
-    monkeypatch.setattr(subprocess, "call", no_fork)
+    class Killed:
+        pid = 0
+
+        def __init__(self, *a: Any, **kw: Any) -> None:
+            pass
+
+        def wait(self, timeout: float | None = None) -> int:
+            return -9
+
+    monkeypatch.setattr(subprocess, "Popen", no_fork)
     assert cs2_daily.step(["scripts/sofa/run_pipeline.py"]) == 2
-    monkeypatch.setattr(subprocess, "call", lambda *a, **kw: -9)
+    monkeypatch.setattr(subprocess, "Popen", Killed)
     assert cs2_daily.step(["scripts/sofa/run_pipeline.py"]) == 2
     out = capsys.readouterr().out
     assert "STEP_NOT_STARTED" in out and "STEP_KILLED" in out
