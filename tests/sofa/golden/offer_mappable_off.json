@@ -1,0 +1,2993 @@
+[
+  {
+    "sofascore_event_id": 14738966,
+    "status": "PRICED",
+    "rungs": [
+      {
+        "market": "both_over_goals",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.53,
+        "under_odds": 2.47,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.03,
+        "under_odds": 14.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.18,
+        "under_odds": 4.8,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.6,
+        "under_odds": 2.32,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.17,
+        "under_odds": 4.7,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.83,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 3.6,
+        "under_odds": 1.26,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.26,
+        "under_odds": 3.6,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 2.25,
+        "under_odds": 1.59,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 5.0,
+        "under_odds": 1.15,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_on_target_for",
+        "subject": "Santi Comesana",
+        "line": 0.5,
+        "over_odds": 2.05,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_on_target_for",
+        "subject": "Santi Comesana",
+        "line": 1.5,
+        "over_odds": 5.9,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_on_target_for",
+        "subject": "Santi Comesana",
+        "line": 2.5,
+        "over_odds": 18.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_on_target_for",
+        "subject": "David Neres",
+        "line": 0.5,
+        "over_odds": 1.64,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_on_target_for",
+        "subject": "David Neres",
+        "line": 1.5,
+        "over_odds": 3.9,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_on_target_for",
+        "subject": "David Neres",
+        "line": 2.5,
+        "over_odds": 10.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_assists_for",
+        "subject": "Santi Comesana",
+        "line": 0.5,
+        "over_odds": 6.1,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_assists_for",
+        "subject": "Santi Comesana",
+        "line": 1.5,
+        "over_odds": 24.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_assists_for",
+        "subject": "David Neres",
+        "line": 0.5,
+        "over_odds": 3.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_assists_for",
+        "subject": "David Neres",
+        "line": 1.5,
+        "over_odds": 14.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_assists_for",
+        "subject": "David Neres",
+        "line": 2.5,
+        "over_odds": 27.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_assists_for",
+        "subject": "Noa Lang",
+        "line": 0.5,
+        "over_odds": 5.45,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_for",
+        "subject": "Santi Comesana",
+        "line": 0.5,
+        "over_odds": 1.17,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_for",
+        "subject": "Santi Comesana",
+        "line": 1.5,
+        "over_odds": 1.87,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_for",
+        "subject": "Santi Comesana",
+        "line": 2.5,
+        "over_odds": 3.5,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_for",
+        "subject": "Santi Comesana",
+        "line": 3.5,
+        "over_odds": 6.7,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_for",
+        "subject": "Santi Comesana",
+        "line": 4.5,
+        "over_odds": 14.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_shots_for",
+        "subject": "Santi Comesana",
+        "line": 5.5,
+        "over_odds": 32.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_fouls_for",
+        "subject": "Santi Comesana",
+        "line": 0.5,
+        "over_odds": 1.13,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_fouls_for",
+        "subject": "Santi Comesana",
+        "line": 1.5,
+        "over_odds": 1.73,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_fouls_for",
+        "subject": "Santi Comesana",
+        "line": 2.5,
+        "over_odds": 3.15,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_fouls_for",
+        "subject": "Santi Comesana",
+        "line": 3.5,
+        "over_odds": 5.85,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_fouls_for",
+        "subject": "Santi Comesana",
+        "line": 4.5,
+        "over_odds": 12.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_fouls_for",
+        "subject": "David Neres",
+        "line": 0.5,
+        "over_odds": 1.1,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_tackles_for",
+        "subject": "Santi Comesana",
+        "line": 0.5,
+        "over_odds": 1.009,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_tackles_for",
+        "subject": "Santi Comesana",
+        "line": 1.5,
+        "over_odds": 1.33,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_tackles_for",
+        "subject": "Santi Comesana",
+        "line": 2.5,
+        "over_odds": 2.02,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_tackles_for",
+        "subject": "Santi Comesana",
+        "line": 3.5,
+        "over_odds": 3.35,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_tackles_for",
+        "subject": "Santi Comesana",
+        "line": 4.5,
+        "over_odds": 5.35,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_tackles_for",
+        "subject": "David Neres",
+        "line": 0.5,
+        "over_odds": 1.1,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_offsides_for",
+        "subject": "David Neres",
+        "line": 0.5,
+        "over_odds": 2.47,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_offsides_for",
+        "subject": "David Neres",
+        "line": 1.5,
+        "over_odds": 8.2,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_offsides_for",
+        "subject": "David Neres",
+        "line": 2.5,
+        "over_odds": 20.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_offsides_for",
+        "subject": "Noa Lang",
+        "line": 0.5,
+        "over_odds": 2.45,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_offsides_for",
+        "subject": "Noa Lang",
+        "line": 1.5,
+        "over_odds": 8.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "player_offsides_for",
+        "subject": "Noa Lang",
+        "line": 2.5,
+        "over_odds": 20.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_goals",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 3.9,
+        "under_odds": 1.21,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.29,
+        "under_odds": 3.45,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 2.3,
+        "under_odds": 1.58,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 5.15,
+        "under_odds": 1.15,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.73,
+        "under_odds": 1.97,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 4.55,
+        "under_odds": 1.16,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 13.0,
+        "under_odds": 1.01,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 2.0,
+        "under_odds": 1.71,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 5.9,
+        "under_odds": 1.09,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_1h_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 19.0,
+        "under_odds": 1.003,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.17,
+        "under_odds": 4.75,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.82,
+        "under_odds": 1.95,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 3.5,
+        "under_odds": 1.28,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.52,
+        "under_odds": 2.32,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 3.45,
+        "under_odds": 1.25,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 8.9,
+        "under_odds": 1.03,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.7,
+        "under_odds": 2.02,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 4.35,
+        "under_odds": 1.17,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goals_2h_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 13.0,
+        "under_odds": 1.01,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.001,
+        "under_odds": 39.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_total",
+        "subject": "",
+        "line": 3.5,
+        "over_odds": 1.007,
+        "under_odds": 19.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_total",
+        "subject": "",
+        "line": 4.5,
+        "over_odds": 1.03,
+        "under_odds": 10.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.002,
+        "under_odds": 31.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.03,
+        "under_odds": 10.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 1.14,
+        "under_odds": 5.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.005,
+        "under_odds": 21.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.06,
+        "under_odds": 7.4,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 1.22,
+        "under_odds": 3.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners",
+        "subject": "villarreal",
+        "line": 0.0,
+        "over_odds": 1.8,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 6.6,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners",
+        "subject": "napoli",
+        "line": 0.0,
+        "over_odds": 2.37,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_corners",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.009,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_corners",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.12,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_corners",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.43,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_corners",
+        "subject": "",
+        "line": 3.5,
+        "over_odds": 2.05,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_corners",
+        "subject": "",
+        "line": 4.5,
+        "over_odds": 3.3,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_corners",
+        "subject": "",
+        "line": 5.5,
+        "over_odds": 5.6,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_corners",
+        "subject": "villarreal",
+        "line": -1.5,
+        "over_odds": 2.22,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_corners",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.57,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_corners",
+        "subject": "villarreal",
+        "line": -0.5,
+        "over_odds": 1.8,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_corners",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.88,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_corners",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.5,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_corners",
+        "subject": "napoli",
+        "line": -0.5,
+        "over_odds": 2.37,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.003,
+        "under_odds": 26.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.05,
+        "under_odds": 8.6,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.19,
+        "under_odds": 4.3,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.08,
+        "under_odds": 6.5,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.42,
+        "under_odds": 2.7,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 2.12,
+        "under_odds": 1.66,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.13,
+        "under_odds": 5.3,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.56,
+        "under_odds": 2.3,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_1h_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 2.5,
+        "under_odds": 1.48,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners_1h",
+        "subject": "1",
+        "line": 0.0,
+        "over_odds": 1.97,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners_1h",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 4.3,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners_1h",
+        "subject": "2",
+        "line": 0.0,
+        "over_odds": 2.42,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.002,
+        "under_odds": 30.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.02,
+        "under_odds": 12.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.12,
+        "under_odds": 5.5,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.06,
+        "under_odds": 7.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.32,
+        "under_odds": 3.15,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 1.87,
+        "under_odds": 1.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.09,
+        "under_odds": 6.3,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.44,
+        "under_odds": 2.62,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "corners_2h_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 2.17,
+        "under_odds": 1.62,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners_2h",
+        "subject": "1",
+        "line": 0.0,
+        "over_odds": 1.95,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners_2h",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 4.5,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_corners_2h",
+        "subject": "2",
+        "line": 0.0,
+        "over_odds": 2.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": null,
+        "under_odds": 18.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.02,
+        "under_odds": 7.8,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.17,
+        "under_odds": 4.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.07,
+        "under_odds": 5.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.49,
+        "under_odds": 2.4,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 2.47,
+        "under_odds": 1.46,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.36,
+        "under_odds": 2.75,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 2.15,
+        "under_odds": 1.61,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "cards_points_for",
+        "subject": "napoli",
+        "line": 3.5,
+        "over_odds": 3.7,
+        "under_odds": 1.2,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_cards_points",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.16,
+        "under_odds": 4.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_cards_points",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 2.02,
+        "under_odds": 1.71,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_cards_points",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 4.3,
+        "under_odds": 1.14,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_cards_points",
+        "subject": "1",
+        "line": 0.0,
+        "over_odds": 2.55,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_cards_points",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 3.75,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_cards_points",
+        "subject": "2",
+        "line": 0.0,
+        "over_odds": 2.07,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_cards_points",
+        "subject": "villarreal",
+        "line": -0.5,
+        "over_odds": 2.55,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_cards_points",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.43,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_cards_points",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.66,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_cards_points",
+        "subject": "napoli",
+        "line": -0.5,
+        "over_odds": 2.07,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_cards_points",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.24,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_cards_points",
+        "subject": "napoli",
+        "line": -1.5,
+        "over_odds": 3.35,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_total",
+        "subject": "",
+        "line": 8.5,
+        "over_odds": 1.56,
+        "under_odds": 2.27,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_total",
+        "subject": "",
+        "line": 9.5,
+        "over_odds": 1.95,
+        "under_odds": 1.75,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_total",
+        "subject": "",
+        "line": 10.5,
+        "over_odds": 2.55,
+        "under_odds": 1.45,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_for",
+        "subject": "villarreal",
+        "line": 4.5,
+        "over_odds": 1.69,
+        "under_odds": 2.05,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_for",
+        "subject": "napoli",
+        "line": 4.5,
+        "over_odds": 2.02,
+        "under_odds": 1.68,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots_on_target",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.09,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots_on_target",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.39,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots_on_target",
+        "subject": "",
+        "line": 3.5,
+        "over_odds": 2.07,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots_on_target",
+        "subject": "",
+        "line": 4.5,
+        "over_odds": 3.65,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_on_target",
+        "subject": "villarreal",
+        "line": 0.0,
+        "over_odds": 1.82,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_on_target",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 6.6,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_on_target",
+        "subject": "napoli",
+        "line": 0.0,
+        "over_odds": 2.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_shots_on_target",
+        "subject": "villarreal",
+        "line": -0.5,
+        "over_odds": 1.82,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_shots_on_target",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.88,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_1h_total",
+        "subject": "",
+        "line": 4.5,
+        "over_odds": 2.1,
+        "under_odds": 1.62,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_1h_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 2.25,
+        "under_odds": 1.54,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_1h_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.6,
+        "under_odds": 2.12,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_2h_total",
+        "subject": "",
+        "line": 4.5,
+        "over_odds": 1.59,
+        "under_odds": 2.15,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_2h_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 1.83,
+        "under_odds": 1.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_on_target_2h_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 2.1,
+        "under_odds": 1.62,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_total",
+        "subject": "",
+        "line": 27.5,
+        "over_odds": 1.7,
+        "under_odds": 2.05,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_total",
+        "subject": "",
+        "line": 28.5,
+        "over_odds": 1.92,
+        "under_odds": 1.77,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_total",
+        "subject": "",
+        "line": 29.5,
+        "over_odds": 2.2,
+        "under_odds": 1.56,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_for",
+        "subject": "villarreal",
+        "line": 14.5,
+        "over_odds": 1.76,
+        "under_odds": 1.95,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_for",
+        "subject": "napoli",
+        "line": 12.5,
+        "over_odds": 1.73,
+        "under_odds": 2.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots",
+        "subject": "",
+        "line": 8.5,
+        "over_odds": 1.2,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots",
+        "subject": "",
+        "line": 9.5,
+        "over_odds": 1.37,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots",
+        "subject": "",
+        "line": 10.5,
+        "over_odds": 1.63,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_shots",
+        "subject": "",
+        "line": 11.5,
+        "over_odds": 2.02,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots",
+        "subject": "villarreal",
+        "line": 0.0,
+        "over_odds": 1.64,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 13.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots",
+        "subject": "napoli",
+        "line": 0.0,
+        "over_odds": 2.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_1h",
+        "subject": "1",
+        "line": 0.0,
+        "over_odds": 1.73,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_1h",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 7.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_1h",
+        "subject": "2",
+        "line": 0.0,
+        "over_odds": 2.3,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_1h_total",
+        "subject": "",
+        "line": 12.5,
+        "over_odds": 1.74,
+        "under_odds": 1.95,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_1h_for",
+        "subject": "villarreal",
+        "line": 6.5,
+        "over_odds": 1.78,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_1h_for",
+        "subject": "napoli",
+        "line": 5.5,
+        "over_odds": 1.75,
+        "under_odds": 1.92,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_total",
+        "subject": "",
+        "line": 23.5,
+        "over_odds": 1.8,
+        "under_odds": 1.92,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_for",
+        "subject": "villarreal",
+        "line": 11.5,
+        "over_odds": 2.05,
+        "under_odds": 1.69,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_for",
+        "subject": "napoli",
+        "line": 12.5,
+        "over_odds": 1.8,
+        "under_odds": 1.8,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_2h_total",
+        "subject": "",
+        "line": 15.5,
+        "over_odds": 1.97,
+        "under_odds": 1.72,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_2h_for",
+        "subject": "villarreal",
+        "line": 7.5,
+        "over_odds": 1.72,
+        "under_odds": 1.97,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "shots_2h_for",
+        "subject": "napoli",
+        "line": 6.5,
+        "over_odds": 1.69,
+        "under_odds": 2.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_2h",
+        "subject": "1",
+        "line": 0.0,
+        "over_odds": 1.74,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_2h",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 7.8,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_shots_2h",
+        "subject": "2",
+        "line": 0.0,
+        "over_odds": 2.25,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_fouls",
+        "subject": "",
+        "line": 9.5,
+        "over_odds": 1.67,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_1h_total",
+        "subject": "",
+        "line": 11.5,
+        "over_odds": 1.92,
+        "under_odds": 1.69,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_1h_for",
+        "subject": "villarreal",
+        "line": 5.5,
+        "over_odds": 2.02,
+        "under_odds": 1.61,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_1h_for",
+        "subject": "napoli",
+        "line": 5.5,
+        "over_odds": 1.65,
+        "under_odds": 1.97,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "tackles_total",
+        "subject": "",
+        "line": 32.5,
+        "over_odds": 1.72,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_2h_total",
+        "subject": "",
+        "line": 12.5,
+        "over_odds": 1.87,
+        "under_odds": 1.74,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_2h_for",
+        "subject": "villarreal",
+        "line": 5.5,
+        "over_odds": 1.73,
+        "under_odds": 1.87,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "fouls_2h_for",
+        "subject": "napoli",
+        "line": 6.5,
+        "over_odds": 1.85,
+        "under_odds": 1.76,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "tackles_for",
+        "subject": "villarreal",
+        "line": 16.5,
+        "over_odds": 1.72,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "tackles_for",
+        "subject": "napoli",
+        "line": 15.5,
+        "over_odds": 1.72,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_total",
+        "subject": "",
+        "line": 4.5,
+        "over_odds": 1.2,
+        "under_odds": 3.2,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_total",
+        "subject": "",
+        "line": 5.5,
+        "over_odds": 1.49,
+        "under_odds": 2.22,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_total",
+        "subject": "",
+        "line": 6.5,
+        "over_odds": 1.97,
+        "under_odds": 1.65,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": null,
+        "under_odds": 7.6,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.17,
+        "under_odds": 3.45,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_for",
+        "subject": "villarreal",
+        "line": 2.5,
+        "over_odds": 1.6,
+        "under_odds": 2.05,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.11,
+        "under_odds": 4.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_for",
+        "subject": "napoli",
+        "line": 2.5,
+        "over_odds": 1.44,
+        "under_odds": 2.32,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_for",
+        "subject": "napoli",
+        "line": 3.5,
+        "over_odds": 2.07,
+        "under_odds": 1.58,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_1h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.16,
+        "under_odds": 3.5,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_1h_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 1.63,
+        "under_odds": 2.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_1h_total",
+        "subject": "",
+        "line": 3.5,
+        "over_odds": 2.5,
+        "under_odds": 1.37,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_1h_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 2.2,
+        "under_odds": 1.5,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "saves_1h_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 2.0,
+        "under_odds": 1.63,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_total",
+        "subject": "",
+        "line": 3.5,
+        "over_odds": 1.72,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_for",
+        "subject": "villarreal",
+        "line": 1.5,
+        "over_odds": 1.83,
+        "under_odds": 1.78,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_for",
+        "subject": "napoli",
+        "line": 1.5,
+        "over_odds": 1.44,
+        "under_odds": 2.32,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "both_over_offsides",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 2.75,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_1h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.6,
+        "under_odds": 2.05,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_1h_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.61,
+        "under_odds": 2.02,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_1h_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.38,
+        "under_odds": 2.45,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_2h_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.6,
+        "under_odds": 2.05,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_2h_for",
+        "subject": "villarreal",
+        "line": 0.5,
+        "over_odds": 1.62,
+        "under_odds": 2.02,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "offsides_2h_for",
+        "subject": "napoli",
+        "line": 0.5,
+        "over_odds": 1.38,
+        "under_odds": 2.47,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_total",
+        "subject": "",
+        "line": 32.5,
+        "over_odds": 1.78,
+        "under_odds": 1.92,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_for",
+        "subject": "villarreal",
+        "line": 16.5,
+        "over_odds": 1.8,
+        "under_odds": 1.82,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_for",
+        "subject": "napoli",
+        "line": 16.5,
+        "over_odds": 1.92,
+        "under_odds": 1.69,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_1h_total",
+        "subject": "",
+        "line": 16.5,
+        "over_odds": 1.85,
+        "under_odds": 1.77,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_1h_for",
+        "subject": "villarreal",
+        "line": 8.5,
+        "over_odds": 1.92,
+        "under_odds": 1.69,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_1h_for",
+        "subject": "napoli",
+        "line": 7.5,
+        "over_odds": 1.59,
+        "under_odds": 2.05,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_2h_total",
+        "subject": "",
+        "line": 16.5,
+        "over_odds": 1.9,
+        "under_odds": 1.73,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_2h_for",
+        "subject": "villarreal",
+        "line": 8.5,
+        "over_odds": 2.0,
+        "under_odds": 1.64,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "throw_ins_2h_for",
+        "subject": "napoli",
+        "line": 7.5,
+        "over_odds": 1.61,
+        "under_odds": 2.02,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goal_kicks_total",
+        "subject": "",
+        "line": 14.5,
+        "over_odds": 1.83,
+        "under_odds": 1.87,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goal_kicks_for",
+        "subject": "villarreal",
+        "line": 7.5,
+        "over_odds": 2.05,
+        "under_odds": 1.59,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "goal_kicks_for",
+        "subject": "napoli",
+        "line": 7.5,
+        "over_odds": 1.92,
+        "under_odds": 1.78,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      }
+    ],
+    "unmapped_markets": [
+      "1. celny strza\u0142",
+      "1. faul",
+      "1. gol",
+      "1. gol & mecz",
+      "1. gol (przedzia\u0142y 10-minutowe)",
+      "1. gol (przedzia\u0142y 15-minutowe)",
+      "1. gol od 0:00 do 4:59 minuty",
+      "1. gol od 0:00 do 9:59 minuty",
+      "1. gol od 10:00 do 19:59 minuty",
+      "1. gol od 5:00 do 9:59 minuty",
+      "1. kartka",
+      "1. odbi\u00f3r",
+      "1. po\u0142owa - 1. gol",
+      "1. po\u0142owa - Napoli liczba kartek",
+      "1. po\u0142owa - Villarreal liczba kartek",
+      "1. po\u0142owa - ka\u017cda z dru\u017cyn powy\u017cej X obronionych strza\u0142\u00f3w przez bramkarza",
+      "1. po\u0142owa - liczba kartek",
+      "1. po\u0142owa - liczba kartek - handicap",
+      "1. po\u0142owa - liczba strza\u0142\u00f3w - handicap",
+      "1. po\u0142owa - najwi\u0119cej kartek",
+      "1. po\u0142owa - przedzia\u0142 goli",
+      "1. po\u0142owa - rzuty ro\u017cne - handicap",
+      "1. po\u0142owa lub mecz",
+      "1. po\u0142owa/mecz",
+      "1. po\u0142owa/mecz & liczba goli (1.5)",
+      "1. po\u0142owa/mecz & liczba goli (2.5)",
+      "1. po\u0142owa/mecz & liczba goli (3.5)",
+      "1. po\u0142owa/mecz & liczba goli (4.5)",
+      "1. po\u0142owa/mecz & liczba goli (5.5)",
+      "1. po\u0142owa/mecz - dok\u0142adny wynik",
+      "1. po\u0142owa/mecz - podw\u00f3jna szansa",
+      "1. spalony",
+      "1. strza\u0142",
+      "1. wybicie od bramki",
+      "1.Po\u0142owa - liczba goli & liczba goli w meczu",
+      "1.po\u0142owa - 1X2",
+      "1.po\u0142owa - Napoli - dok\u0142adna liczba goli",
+      "1.po\u0142owa - Napoli - liczba przyznanych rzut\u00f3w karnych",
+      "1.po\u0142owa - Napoli przedzia\u0142 goli",
+      "1.po\u0142owa - Napoli strzeli gola",
+      "1.po\u0142owa - Villarreal - dok\u0142adna liczba goli",
+      "1.po\u0142owa - Villarreal - liczba przyznanych rzut\u00f3w karnych",
+      "1.po\u0142owa - Villarreal przedzia\u0142 goli",
+      "1.po\u0142owa - Villarreal strzeli gola",
+      "1.po\u0142owa - dok\u0142adna liczba goli",
+      "1.po\u0142owa - dok\u0142adna liczba kartek",
+      "1.po\u0142owa - dok\u0142adny wynik",
+      "1.po\u0142owa - handicap",
+      "1.po\u0142owa - handicap 1x2",
+      "1.po\u0142owa - kto pierwszy wykona 3 rzuty ro\u017cne",
+      "1.po\u0142owa - kto pierwszy wykona 4 rzuty ro\u017cne",
+      "1.po\u0142owa - kto pierwszy wykona 5 rzuty ro\u017cne",
+      "1.po\u0142owa - liczba czerwonych kartek",
+      "1.po\u0142owa - liczba czerwonych kartek Napoli",
+      "1.po\u0142owa - liczba czerwonych kartek Villarreal",
+      "1.po\u0142owa - liczba goli nieparzysta/parzysta",
+      "1.po\u0142owa - liczba przyznanych rzut\u00f3w karnych",
+      "1.po\u0142owa - nieparzysta/parzysta liczba rzut\u00f3w ro\u017cnych",
+      "1.po\u0142owa - obie dru\u017cyny strzel\u0105",
+      "1.po\u0142owa - podw\u00f3jna szansa",
+      "1.po\u0142owa - przedzia\u0142 rzut\u00f3w ro\u017cnych",
+      "1.po\u0142owa - wykona 1. rzut ro\u017cny",
+      "1.po\u0142owa - zak\u0142ad bez remisu",
+      "1.po\u0142owa liczba goli & 2.po\u0142owa liczba goli",
+      "1.po\u0142owa liczba goli lub 2.po\u0142owa liczba goli",
+      "2. po\u0142owa - Napoli liczba kartek",
+      "2. po\u0142owa - Villarreal liczba kartek",
+      "2. po\u0142owa - dok\u0142adny wynik",
+      "2. po\u0142owa - liczba kartek",
+      "2. po\u0142owa - liczba kartek - handicap",
+      "2. po\u0142owa - liczba strza\u0142\u00f3w - handicap",
+      "2. po\u0142owa - najwi\u0119cej kartek",
+      "2. po\u0142owa - rzuty ro\u017cne - handicap",
+      "2.Po\u0142owa - przedzia\u0142 goli",
+      "2.po\u0142owa - 1X2",
+      "2.po\u0142owa - Napoli przedzia\u0142 goli",
+      "2.po\u0142owa - Napoli strzeli gola",
+      "2.po\u0142owa - Villarreal przedzia\u0142 goli",
+      "2.po\u0142owa - Villarreal strzeli gola",
+      "2.po\u0142owa - handicap",
+      "2.po\u0142owa - handicap 1X2",
+      "2.po\u0142owa - obie dru\u017cyny strzel\u0105",
+      "2.po\u0142owa - podw\u00f3jna szansa",
+      "2.po\u0142owa - zak\u0142ad bez remisu",
+      "3+ celnych strza\u0142\u00f3w spoza pola karnego",
+      "Alberto Moleiro & Kevin De Bruyne oddadz\u0105 \u0142\u0105cznie 2+ celnych strza\u0142\u00f3w",
+      "Alberto Moleiro & Rasmus Hojlund oddadz\u0105 \u0142\u0105cznie 3+ celnych strza\u0142\u00f3w",
+      "Alberto Moleiro & Rasmus Hojlund sfauluj\u0105 si\u0119 nawzajem",
+      "Alberto Moleiro odda strza\u0142 w obramowanie bramki",
+      "Ayoze Perez & Alberto Moleiro ka\u017cdy odda 1+ celnych strza\u0142\u00f3w i ka\u017cdy zostanie sfaulowany",
+      "Ayoze Perez & Kevin De Bruyne ka\u017cdy odda 1+ celnych strza\u0142\u00f3w i ka\u017cdy zostanie sfaulowany",
+      "Ayoze Perez & Kevin De Bruyne oddadz\u0105 \u0142\u0105cznie 3+ celnych strza\u0142\u00f3w",
+      "Ayoze Perez & Kevin De Bruyne sfauluj\u0105 si\u0119 nawzajem",
+      "Ayoze Perez & Marin, Rafa pope\u0142ni\u0105 \u0142\u0105cznie 4+ fauli",
+      "Ayoze Perez & Noa Lang sfauluj\u0105 si\u0119 nawzajem",
+      "Ayoze Perez & Politano, Matteo oddadz\u0105 \u0142\u0105cznie 3+ celnych strza\u0142\u00f3w",
+      "Ayoze Perez odda strza\u0142 w obramowanie bramki",
+      "Cardona, Sergi & Kevin De Bruyne pope\u0142ni\u0105 \u0142\u0105cznie 4+ fauli",
+      "Czerwona kartka lub gol w doliczonym czasie 2. po\u0142owy",
+      "Dok\u0142adna liczba goli",
+      "Dok\u0142adna liczba kartek",
+      "Dok\u0142adny wynik",
+      "Dok\u0142adny wynik w dowolnym momencie",
+      "Faul od 0:00 do 0:59 minuty",
+      "Faul od 1:00 do 1:59 minuty",
+      "Gol od 0:00 do 0:59 minuty",
+      "Gol od 1:00 do 1:59 minuty",
+      "Gol w obu po\u0142owach",
+      "Gole od 0:00 do 4:59 minuty",
+      "Gole od 5:00 do 9:59 minuty",
+      "Handicap",
+      "Handicap 1X2",
+      "Inigo Perez & Massimiliano Allegri ka\u017cdy otrzyma kartk\u0119",
+      "Inigo Perez otrzyma kartk\u0119",
+      "Kartka od 0:00 do 0:59 minuty",
+      "Kartka od 1:00 do 1:59 minuty",
+      "Kartki od 0:00 do 9:59 minuty",
+      "Kartki od 10:00 do 19:59 minuty",
+      "Ka\u017cda dru\u017cyna powy\u017cej X rzut\u00f3w z autu",
+      "Ka\u017cda dru\u017cyna powy\u017cej X wybi\u0107 od bramki",
+      "Ka\u017cda dru\u017cyna wykona rzut ro\u017cny z ka\u017cdego naro\u017cnika boiska",
+      "Ka\u017cda z dru\u017cyn powy\u017cej X obronionych strza\u0142\u00f3w przez bramkarza",
+      "Ka\u017cda z dru\u017cyn powy\u017cej X odbior\u00f3w",
+      "Ka\u017cdy bramkarz obroni strza\u0142 w ka\u017cdej po\u0142owie",
+      "Ka\u017cdy bramkarz zostanie sfaulowany",
+      "Kevin De Bruyne & Rasmus Hojlund ka\u017cdy odda 1+ celnych strza\u0142\u00f3w i ka\u017cdy zostanie sfaulowany",
+      "Kevin De Bruyne odda strza\u0142 w obramowanie bramki",
+      "Kto pierwszy wykona X rzut\u00f3w r\u00f3\u017cnych",
+      "Kto wykona 1. rzut ro\u017cny",
+      "Kt\u00f3rykolwiek bramkarz zaliczy asyst\u0119",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w odda powy\u017cej X celnych strza\u0142\u00f3w",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w odda powy\u017cej X strza\u0142\u00f3w",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w pope\u0142ni powy\u017cej X fauli",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w powy\u017cej X odbior\u00f3w",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w powy\u017cej X spalonych",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w strzeli gola",
+      "Kt\u00f3rykolwiek z zawodnik\u00f3w strzeli powy\u017cej X goli",
+      "Kt\u00f3rykolwiek zawodnik otrzyma kartk\u0119 w doliczonym czasie 2. po\u0142owy",
+      "Liczba celnych strza\u0142\u00f3w od 0:00 do 9:59 minuty",
+      "Liczba celnych strza\u0142\u00f3w od 10:00 do 19:59 minuty",
+      "Liczba czerwonych kartek",
+      "Liczba czerwonych kartek Napoli",
+      "Liczba czerwonych kartek Villarreal",
+      "Liczba fauli od 0:00 do 9:59 minuty",
+      "Liczba fauli od 10:00 do 19:59 minuty",
+      "Liczba goli & obie dru\u017cyny strzel\u0105",
+      "Liczba goli - do X minuty",
+      "Liczba goli od 0:00 do 4:59 minuty",
+      "Liczba goli od 0:00 do 9:59 minuty",
+      "Liczba goli od 10:00 do 19:59 minuty",
+      "Liczba goli od 5:00 do 9:59 minuty",
+      "Liczba goli samob\u00f3jczych",
+      "Liczba kartek od 0:00 do 9:59 minuty",
+      "Liczba kartek od 10:00 do 19:59 minuty",
+      "Liczba przyznanych rzut\u00f3w karnych",
+      "Liczba rzut\u00f3w ro\u017cnych - przedzia\u0142y",
+      "Liczba rzut\u00f3w ro\u017cnych od 0:00 do 9:59 minuty",
+      "Liczba rzut\u00f3w ro\u017cnych od 10:00 do 19:59 minuty",
+      "Liczba rzut\u00f3w z autu od 0:00 do 9:59 minuty",
+      "Liczba rzut\u00f3w z autu od 10:00 do 19:59 minuty",
+      "Liczba strza\u0142\u00f3w w obramowanie bramki",
+      "Liczba wybi\u0107 od bramki od 0:00 do 9:59 minuty",
+      "Liczba wybi\u0107 od bramki od 10:00 do 19:59 minuty",
+      "Lobotka, Stanislav odda strza\u0142 w obramowanie bramki",
+      "Massimiliano Allegri otrzyma kartk\u0119",
+      "Mecz",
+      "Mecz & Napoli liczba goli (0.5)",
+      "Mecz & Napoli liczba goli (1.5)",
+      "Mecz & Napoli liczba goli (2.5)",
+      "Mecz & Napoli liczba goli (3.5)",
+      "Mecz & Napoli liczba goli (4.5)",
+      "Mecz & Villarreal liczba goli (0.5)",
+      "Mecz & Villarreal liczba goli (1.5)",
+      "Mecz & Villarreal liczba goli (2.5)",
+      "Mecz & Villarreal liczba goli (3.5)",
+      "Mecz & Villarreal liczba goli (4.5)",
+      "Mecz & gol w ka\u017cdej po\u0142owie",
+      "Mecz & liczba goli (0.5)",
+      "Mecz & liczba goli (1.5)",
+      "Mecz & liczba goli (2.5)",
+      "Mecz & liczba goli (3.5)",
+      "Mecz & liczba goli (4.5)",
+      "Mecz & obie dru\u017cyny strzel\u0105",
+      "Mecz & przedzia\u0142 goli",
+      "Mecz - do X minuty",
+      "Mecz lub 1.po\u0142owa liczba goli (0.5)",
+      "Mecz lub 1.po\u0142owa liczba goli (1.5)",
+      "Mecz lub 1.po\u0142owa liczba goli (2.5)",
+      "Mecz lub 1.po\u0142owa liczba goli (3.5)",
+      "Mecz lub 1.po\u0142owa liczba goli (4.5)",
+      "Mecz lub liczba goli (0.5)",
+      "Mecz lub liczba goli (1.5)",
+      "Mecz lub liczba goli (2.5)",
+      "Mecz lub liczba goli (3.5)",
+      "Mecz lub liczba goli (4.5)",
+      "Mecz od 0:00 do 9:59 minuty",
+      "Mecz od 10:00 do 19:59 minuty",
+      "Multiwynik",
+      "Najwi\u0119cej celnych strza\u0142\u00f3w od 0:00 do 9:59 minuty",
+      "Najwi\u0119cej celnych strza\u0142\u00f3w od 10:00 do 19:59 minuty",
+      "Najwi\u0119cej fauli od 0:00 do 9:59 minuty",
+      "Najwi\u0119cej fauli od 10:00 do 19:59 minuty",
+      "Najwi\u0119cej rzut\u00f3w z autu od 0:00 do 9:59 minuty",
+      "Najwi\u0119cej rzut\u00f3w z autu od 10:00 do 19:59 minuty",
+      "Najwi\u0119cej wybi\u0107 od bramki od 0:00 do 9:59 minuty",
+      "Najwi\u0119cej wybi\u0107 od bramki od 10:00 do 19:59 minuty",
+      "Napoli - 1.po\u0142owa liczba goli & 2.po\u0142owa liczba goli",
+      "Napoli - 1.po\u0142owa liczba goli & liczba goli w meczu",
+      "Napoli - Liczba strza\u0142\u00f3w w obramowanie bramki",
+      "Napoli - dok\u0142adna liczba goli",
+      "Napoli - liczba goli nieparzysta/parzysta",
+      "Napoli - liczba przyznanych rzut\u00f3w karnych",
+      "Napoli - przedzia\u0142 goli",
+      "Napoli - przedzia\u0142 goli w ka\u017cdej po\u0142owie",
+      "Napoli - przedzia\u0142 rzut\u00f3w ro\u017cnych",
+      "Napoli b\u0119dzie prowadzi\u0107 w dowolnym momencie",
+      "Napoli strzeli co najmniej 2 gole z rz\u0119du",
+      "Napoli strzeli gola",
+      "Napoli wygra lub kt\u00f3rakolwiek dru\u017cyna zachowa czyste konto",
+      "Napoli wygra lub obie dru\u017cyny strzel\u0105 gola",
+      "Napoli wygra lub poni\u017cej X goli w meczu",
+      "Napoli wygra lub powy\u017cej X goli w meczu",
+      "Napoli wygra obie po\u0142owy",
+      "Napoli wygra przynajmniej jedn\u0105 po\u0142ow\u0119",
+      "Napoli wygra wcze\u015bniej przegrywaj\u0105c",
+      "Napoli zdob\u0119dzie gola w obu po\u0142owach",
+      "Nieparzysta/parzysta liczba goli",
+      "Nieparzysta/parzysta liczba rzut\u00f3w ro\u017cnych",
+      "Obaj zawodnicy strzel\u0105 gola",
+      "Obie dru\u017cyny otrzymaj\u0105 czerwon\u0105 kartk\u0119",
+      "Obie dru\u017cyny strzel\u0105 gola & powy\u017cej 2.5 gola",
+      "Obie dru\u017cyny strzel\u0105 gola & powy\u017cej 3.5 gola",
+      "Obie dru\u017cyny strzel\u0105 gola - 1.po\u0142owa/2.po\u0142owa",
+      "Obie dru\u017cyny strzel\u0105 gola lub powy\u017cej 2.5 gola",
+      "Obie dru\u017cyny strzel\u0105 gola lub powy\u017cej 3.5 gola",
+      "Obie dru\u017cyny strzel\u0105 w przynajmniej jednej po\u0142owie meczu",
+      "Oluwaseyi, Tani & Politano, Matteo ka\u017cdy odda 1+ celnych strza\u0142\u00f3w i ka\u017cdy zostanie sfaulowany",
+      "Oluwaseyi, Tani & Politano, Matteo sfauluj\u0105 si\u0119 nawzajem",
+      "Oluwaseyi, Tani & Rasmus Hojlund oddadz\u0105 \u0142\u0105cznie 3+ celnych strza\u0142\u00f3w",
+      "Oluwaseyi, Tani odda strza\u0142 w obramowanie bramki",
+      "Ostatni gol",
+      "Ostatni rzut ro\u017cny",
+      "Podw\u00f3jna szansa",
+      "Podw\u00f3jna szansa & gol w ka\u017cdej po\u0142owie",
+      "Podw\u00f3jna szansa & liczba goli (2.5)",
+      "Podw\u00f3jna szansa & liczba goli (3.5)",
+      "Podw\u00f3jna szansa & liczba goli (4.5)",
+      "Podw\u00f3jna szansa & liczba goli (5.5)",
+      "Podw\u00f3jna szansa & obie dru\u017cyny strzel\u0105",
+      "Podw\u00f3jna szansa & przedzia\u0142 goli",
+      "Politano, Matteo odda strza\u0142 w obramowanie bramki",
+      "Po\u0142owa z najwi\u0119ksz\u0105 liczb\u0105 goli Napoli",
+      "Po\u0142owa z najwi\u0119ksz\u0105 liczb\u0105 goli Villarreal",
+      "Po\u0142owa z wi\u0119ksz\u0105 liczb\u0105 goli",
+      "Przedzia\u0142 goli",
+      "Przedzia\u0142 goli w ka\u017cdej po\u0142owie",
+      "Przyznany rzut karny, czerwona kartka & gol samob\u00f3jczy",
+      "Rasmus Hojlund odda strza\u0142 w obramowanie bramki",
+      "Remis lub kt\u00f3rakolwiek dru\u017cyna zachowa czyste konto",
+      "Remis lub obie dru\u017cyny strzel\u0105 gola",
+      "Remis lub poni\u017cej X goli w meczu",
+      "Remis lub powy\u017cej X goli w meczu",
+      "Remis w obu po\u0142owach",
+      "Rzut ro\u017cny od 0:00 do 0:59 minuty",
+      "Rzut ro\u017cny od 1:00 do 1:59 minuty",
+      "Rzuty ro\u017cne od 0:00 do 9:59 minuty",
+      "Rzuty ro\u017cne od 10:00 do 19:59 minuty",
+      "Saliba, Nathan & Di Lorenzo, Giovanni pope\u0142ni\u0105 \u0142\u0105cznie 4+ fauli",
+      "Saliba, Nathan & Kevin De Bruyne pope\u0142ni\u0105 \u0142\u0105cznie 4+ fauli",
+      "Spalony od 0:00 do 0:59 minuty",
+      "Spalony od 1:00 do 1:59 minuty",
+      "Spos\u00f3b zdobycia 1. gola",
+      "Strza\u0142y - Handicap",
+      "Strzelec zdejmie koszulk\u0119 podczas celebrowania gola",
+      "S\u0119dzia podejdzie do monitora VAR co najmniej dwa razy",
+      "S\u0119dzia podejdzie do monitora VAR co najmniej raz",
+      "S\u0119dzia podejdzie do monitora VAR i nie zmieni pierwotnej decyzji",
+      "S\u0119dzia podejdzie do monitora VAR i po weryfikacji podyktuje rzut karny",
+      "Villarreal - 1.po\u0142owa liczba goli & 2.po\u0142owa liczba goli",
+      "Villarreal - 1.po\u0142owa liczba goli & liczba goli w meczu",
+      "Villarreal - Liczba strza\u0142\u00f3w w obramowanie bramki",
+      "Villarreal - dok\u0142adna liczba goli",
+      "Villarreal - liczba goli nieparzysta/parzysta",
+      "Villarreal - liczba przyznanych rzut\u00f3w karnych",
+      "Villarreal - przedzia\u0142 goli",
+      "Villarreal - przedzia\u0142 goli w ka\u017cdej po\u0142owie",
+      "Villarreal - przedzia\u0142 rzut\u00f3w ro\u017cnych",
+      "Villarreal b\u0119dzie prowadzi\u0107 w dowolnym momencie",
+      "Villarreal strzeli co najmniej 2 gole z rz\u0119du",
+      "Villarreal strzeli gola",
+      "Villarreal wygra lub kt\u00f3rakolwiek dru\u017cyna zachowa czyste konto",
+      "Villarreal wygra lub obie dru\u017cyny strzel\u0105 gola",
+      "Villarreal wygra lub poni\u017cej X goli w meczu",
+      "Villarreal wygra lub powy\u017cej X goli w meczu",
+      "Villarreal wygra obie po\u0142owy",
+      "Villarreal wygra przynajmniej jedn\u0105 po\u0142ow\u0119",
+      "Villarreal wygra wcze\u015bniej przegrywaj\u0105c",
+      "Villarreal zdob\u0119dzie gola w obu po\u0142owach",
+      "Wybicie od bramki od 0:00 do 0:59 minuty",
+      "Wybicie od bramki od 1:00 do 1:59 minuty",
+      "Wynik dowolnej po\u0142owy meczu",
+      "Zak\u0142ad bez remisu",
+      "Zawodnik - liczba celnych strza\u0142\u00f3w g\u0142ow\u0105",
+      "Zawodnik - liczba celnych strza\u0142\u00f3w lew\u0105 nog\u0105",
+      "Zawodnik - liczba celnych strza\u0142\u00f3w praw\u0105 nog\u0105",
+      "Zawodnik - liczba celnych strza\u0142\u00f3w spoza pola karnego",
+      "Zawodnik - liczba fauli na zawodniku",
+      "Zawodnik - liczba odbior\u00f3w na zawodniku",
+      "Zawodnik - liczba strza\u0142\u00f3w g\u0142ow\u0105",
+      "Zawodnik - liczba strza\u0142\u00f3w lew\u0105 nog\u0105",
+      "Zawodnik - liczba strza\u0142\u00f3w praw\u0105 nog\u0105",
+      "Zawodnik - liczba strza\u0142\u00f3w spoza pola karnego",
+      "Zawodnik - otrzyma 1. kartk\u0119",
+      "Zawodnik - otrzyma czerwon\u0105 kartk\u0119",
+      "Zawodnik - otrzyma kartk\u0119",
+      "Zawodnik - strzeli 1. gola",
+      "Zawodnik - strzeli 1. gola dla Napoli",
+      "Zawodnik - strzeli 1. gola dla Villarreal",
+      "Zawodnik - strzeli 2+ gole",
+      "Zawodnik - strzeli 3+ gole",
+      "Zawodnik - strzeli gola",
+      "Zawodnik - strzeli gola & zaliczy asyst\u0119",
+      "Zawodnik - strzeli gola bezpo\u015brednio z rzutu wolnego",
+      "Zawodnik - strzeli gola g\u0142ow\u0105",
+      "Zawodnik - strzeli gola lew\u0105 nog\u0105",
+      "Zawodnik - strzeli gola lub zaliczy asyst\u0119",
+      "Zawodnik - strzeli gola praw\u0105 nog\u0105",
+      "Zawodnik - strzeli gola spoza pola karnego",
+      "Zawodnik - strzeli gola w 1. po\u0142owie",
+      "Zawodnik - strzeli gola w 2. po\u0142owie",
+      "Zawodnik - strzeli gola w obu po\u0142owach",
+      "Zawodnik - strzeli gola z przewrotki",
+      "Zawodnik - strzeli gola z rzutu karnego",
+      "Zawodnik rezerwowy strzeli gola"
+    ],
+    "price_collisions": [],
+    "superbet_started_utc": null,
+    "superbet_kickoff_seen_utc": "2026-10-13T19:00:00Z"
+  },
+  {
+    "sofascore_event_id": 15410344,
+    "status": "PRICED",
+    "rungs": [
+      {
+        "market": "games_total",
+        "subject": "",
+        "line": 20.5,
+        "over_odds": 1.24,
+        "under_odds": 3.55,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_total",
+        "subject": "",
+        "line": 21.5,
+        "over_odds": 1.31,
+        "under_odds": 3.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_total",
+        "subject": "",
+        "line": 22.5,
+        "over_odds": 1.56,
+        "under_odds": 2.25,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "sets_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 2.4,
+        "under_odds": 1.49,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_for",
+        "subject": "alexander zverev",
+        "line": 11.5,
+        "over_odds": 1.1,
+        "under_odds": 5.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_for",
+        "subject": "alexander zverev",
+        "line": 12.5,
+        "over_odds": 1.43,
+        "under_odds": 2.67,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_for",
+        "subject": "alexander zverev",
+        "line": 13.5,
+        "over_odds": 2.12,
+        "under_odds": 1.65,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_for",
+        "subject": "alexander bublik",
+        "line": 10.5,
+        "over_odds": 1.56,
+        "under_odds": 2.3,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_for",
+        "subject": "alexander bublik",
+        "line": 11.5,
+        "over_odds": 1.63,
+        "under_odds": 2.15,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_for",
+        "subject": "alexander bublik",
+        "line": 12.5,
+        "over_odds": 1.97,
+        "under_odds": 1.75,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_games",
+        "subject": "alexander zverev",
+        "line": -5.5,
+        "over_odds": 6.7,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_games",
+        "subject": "alexander bublik",
+        "line": 5.5,
+        "over_odds": 1.07,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_games",
+        "subject": "alexander zverev",
+        "line": -4.5,
+        "over_odds": 4.35,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_games",
+        "subject": "alexander bublik",
+        "line": 4.5,
+        "over_odds": 1.17,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_games",
+        "subject": "alexander zverev",
+        "line": -3.5,
+        "over_odds": 2.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_games",
+        "subject": "alexander bublik",
+        "line": 3.5,
+        "over_odds": 1.5,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_set1_total",
+        "subject": "",
+        "line": 6.5,
+        "over_odds": null,
+        "under_odds": 100.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_set1_total",
+        "subject": "",
+        "line": 7.5,
+        "over_odds": 1.003,
+        "under_odds": 27.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_set1_total",
+        "subject": "",
+        "line": 8.5,
+        "over_odds": 1.05,
+        "under_odds": 8.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_set2_total",
+        "subject": "",
+        "line": 6.5,
+        "over_odds": null,
+        "under_odds": 100.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_set2_total",
+        "subject": "",
+        "line": 7.5,
+        "over_odds": 1.005,
+        "under_odds": 23.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_set2_total",
+        "subject": "",
+        "line": 8.5,
+        "over_odds": 1.06,
+        "under_odds": 7.4,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set1_for",
+        "subject": "alexander zverev",
+        "line": 2.5,
+        "over_odds": 1.002,
+        "under_odds": 40.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set1_for",
+        "subject": "alexander zverev",
+        "line": 3.5,
+        "over_odds": 1.07,
+        "under_odds": 7.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set1_for",
+        "subject": "alexander zverev",
+        "line": 4.5,
+        "over_odds": 1.14,
+        "under_odds": 5.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set2_for",
+        "subject": "alexander zverev",
+        "line": 2.5,
+        "over_odds": 1.003,
+        "under_odds": 36.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set2_for",
+        "subject": "alexander zverev",
+        "line": 3.5,
+        "over_odds": 1.04,
+        "under_odds": 9.0,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set2_for",
+        "subject": "alexander zverev",
+        "line": 4.5,
+        "over_odds": 1.15,
+        "under_odds": 4.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set1_for",
+        "subject": "alexander bublik",
+        "line": 2.5,
+        "over_odds": 1.04,
+        "under_odds": 9.8,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set1_for",
+        "subject": "alexander bublik",
+        "line": 3.5,
+        "over_odds": 1.14,
+        "under_odds": 5.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set1_for",
+        "subject": "alexander bublik",
+        "line": 4.5,
+        "over_odds": 1.49,
+        "under_odds": 2.45,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set2_for",
+        "subject": "alexander bublik",
+        "line": 2.5,
+        "over_odds": 1.04,
+        "under_odds": 9.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set2_for",
+        "subject": "alexander bublik",
+        "line": 3.5,
+        "over_odds": 1.22,
+        "under_odds": 3.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "games_won_set2_for",
+        "subject": "alexander bublik",
+        "line": 4.5,
+        "over_odds": 1.53,
+        "under_odds": 2.37,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_total",
+        "subject": "",
+        "line": 22.5,
+        "over_odds": 1.85,
+        "under_odds": 1.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_for",
+        "subject": "alexander zverev",
+        "line": 10.5,
+        "over_odds": 1.8,
+        "under_odds": 1.88,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_for",
+        "subject": "alexander bublik",
+        "line": 11.5,
+        "over_odds": 1.77,
+        "under_odds": 1.92,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_aces",
+        "subject": "alexander zverev",
+        "line": 1.5,
+        "over_odds": 1.76,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "handicap_aces",
+        "subject": "alexander bublik",
+        "line": -1.5,
+        "over_odds": 1.95,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_set1_total",
+        "subject": "",
+        "line": 9.5,
+        "over_odds": 1.8,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_set2_total",
+        "subject": "",
+        "line": 9.5,
+        "over_odds": 1.83,
+        "under_odds": 1.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_set1_for",
+        "subject": "alexander zverev",
+        "line": 4.5,
+        "over_odds": 1.85,
+        "under_odds": 1.83,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_set2_for",
+        "subject": "alexander zverev",
+        "line": 4.5,
+        "over_odds": 1.85,
+        "under_odds": 1.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_set1_for",
+        "subject": "alexander bublik",
+        "line": 5.5,
+        "over_odds": 2.1,
+        "under_odds": 1.64,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "aces_set2_for",
+        "subject": "alexander bublik",
+        "line": 4.5,
+        "over_odds": 1.64,
+        "under_odds": 2.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 2.37,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 8.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 1.69,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces_set1",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 2.42,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces_set1",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 5.9,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces_set1",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 1.83,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces_set2",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 2.35,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces_set2",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 5.85,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_aces_set2",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 1.88,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_total",
+        "subject": "",
+        "line": 3.5,
+        "over_odds": 1.64,
+        "under_odds": 2.1,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_for",
+        "subject": "alexander zverev",
+        "line": 1.5,
+        "over_odds": 2.05,
+        "under_odds": 1.67,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_for",
+        "subject": "alexander bublik",
+        "line": 2.5,
+        "over_odds": 1.95,
+        "under_odds": 1.74,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_set1_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.78,
+        "under_odds": 1.9,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_set2_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 1.8,
+        "under_odds": 1.88,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_set1_for",
+        "subject": "alexander zverev",
+        "line": 0.5,
+        "over_odds": 1.95,
+        "under_odds": 1.74,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_set2_for",
+        "subject": "alexander zverev",
+        "line": 0.5,
+        "over_odds": 1.95,
+        "under_odds": 1.74,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_set1_for",
+        "subject": "alexander bublik",
+        "line": 0.5,
+        "over_odds": 1.43,
+        "under_odds": 2.6,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "double_faults_set2_for",
+        "subject": "alexander bublik",
+        "line": 0.5,
+        "over_odds": 1.45,
+        "under_odds": 2.52,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_double_faults_set1",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 3.8,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_double_faults_set1",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 2.77,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_double_faults_set1",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 2.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_double_faults_set2",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 3.7,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_double_faults_set2",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 2.75,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_double_faults_set2",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 2.02,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_total",
+        "subject": "",
+        "line": 26.5,
+        "over_odds": 1.83,
+        "under_odds": 1.85,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_for",
+        "subject": "alexander zverev",
+        "line": 12.5,
+        "over_odds": 1.95,
+        "under_odds": 1.75,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_for",
+        "subject": "alexander bublik",
+        "line": 14.5,
+        "over_odds": 1.88,
+        "under_odds": 1.8,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_set1_total",
+        "subject": "",
+        "line": 11.5,
+        "over_odds": 1.87,
+        "under_odds": 1.82,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_set2_total",
+        "subject": "",
+        "line": 11.5,
+        "over_odds": 1.92,
+        "under_odds": 1.78,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_set1_for",
+        "subject": "alexander zverev",
+        "line": 5.5,
+        "over_odds": 2.05,
+        "under_odds": 1.67,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_set2_for",
+        "subject": "alexander zverev",
+        "line": 5.5,
+        "over_odds": 2.05,
+        "under_odds": 1.67,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_set1_for",
+        "subject": "alexander bublik",
+        "line": 6.5,
+        "over_odds": 2.02,
+        "under_odds": 1.69,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "serve_points_set2_for",
+        "subject": "alexander bublik",
+        "line": 6.5,
+        "over_odds": 2.1,
+        "under_odds": 1.65,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 2.77,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 9.2,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 1.5,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points_set1",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 2.67,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points_set1",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 6.5,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points_set1",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 1.66,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points_set2",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 2.57,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points_set2",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 6.4,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_serve_points_set2",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 1.71,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_games",
+        "subject": "alexander zverev",
+        "line": 0.0,
+        "over_odds": 1.39,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_games",
+        "subject": "__draw__",
+        "line": 0.0,
+        "over_odds": 15.0,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "most_games",
+        "subject": "alexander bublik",
+        "line": 0.0,
+        "over_odds": 3.1,
+        "under_odds": null,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "tiebreaks_total",
+        "subject": "",
+        "line": 0.5,
+        "over_odds": 1.44,
+        "under_odds": 2.55,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "tiebreaks_total",
+        "subject": "",
+        "line": 1.5,
+        "over_odds": 3.7,
+        "under_odds": 1.23,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      },
+      {
+        "market": "tiebreaks_total",
+        "subject": "",
+        "line": 2.5,
+        "over_odds": 20.0,
+        "under_odds": 1.007,
+        "fetched_at_utc": "2026-10-12T21:00:00Z"
+      }
+    ],
+    "unmapped_markets": [
+      "1. set -  Double Faults Handicap",
+      "1. set - Alexander Bublik liczba punkt\u00f3w",
+      "1. set - Alexander Zverev liczba punkt\u00f3w",
+      "1. set - b\u0119dzie prowadzi\u0107 po 2 gemach",
+      "1. set - b\u0119dzie prowadzi\u0107 po 4 gemach",
+      "1. set - b\u0119dzie prowadzi\u0107 po 6 gemach",
+      "1. set - dok\u0142adny wynik",
+      "1. set - dok\u0142adny wynik po 4 gemach",
+      "1. set - dok\u0142adny wynik po 6 gemach",
+      "1. set - handicap as\u00f3w",
+      "1. set - handicap gemy",
+      "1. set - liczba gem\u00f3w nieparzysta/parzysta",
+      "1. set - multiwynik",
+      "1. set - zwyci\u0119zca & liczba gem\u00f3w",
+      "1. set/mecz",
+      "2. set -  Double Faults Handicap",
+      "2. set - Alexander Bublik liczba punkt\u00f3w",
+      "2. set - Alexander Zverev liczba punkt\u00f3w",
+      "2. set - b\u0119dzie prowadzi\u0107 po 2 gemach",
+      "2. set - b\u0119dzie prowadzi\u0107 po 4 gemach",
+      "2. set - b\u0119dzie prowadzi\u0107 po 6 gemach",
+      "2. set - dok\u0142adny wynik",
+      "2. set - dok\u0142adny wynik po 4 gemach",
+      "2. set - dok\u0142adny wynik po 6 gemach",
+      "2. set - handicap as\u00f3w",
+      "2. set - handicap gemy",
+      "2. set - liczba gem\u00f3w nieparzysta/parzysta",
+      "2. set - multiwynik",
+      "2. set - zwyci\u0119zca & liczba gem\u00f3w",
+      "Alexander Bublik 1. gem serwisowy - dok\u0142adny wynik",
+      "Alexander Bublik 1. gem serwisowy - wynik po 2 punktach",
+      "Alexander Bublik 1. gem serwisowy - zwyci\u0119zca",
+      "Alexander Bublik liczba serwis\u00f3w",
+      "Alexander Bublik liczba set\u00f3w",
+      "Alexander Bublik liczba wygranych punkt\u00f3w",
+      "Alexander Bublik wygra bez straty seta",
+      "Alexander Bublik wygra dok\u0142adnie 1 set",
+      "Alexander Bublik wygra dok\u0142adnie 2 sety",
+      "Alexander Bublik wygra seta",
+      "Alexander Bublik wygra wcze\u015bniej przegrywaj\u0105c w setach",
+      "Alexander Zverev 1. gem serwisowy - dok\u0142adny wynik",
+      "Alexander Zverev 1. gem serwisowy - wynik po 2 punktach",
+      "Alexander Zverev 1. gem serwisowy - zwyci\u0119zca",
+      "Alexander Zverev liczba serwis\u00f3w",
+      "Alexander Zverev liczba set\u00f3w",
+      "Alexander Zverev liczba wygranych punkt\u00f3w",
+      "Alexander Zverev wygra bez straty seta",
+      "Alexander Zverev wygra dok\u0142adnie 1 set",
+      "Alexander Zverev wygra dok\u0142adnie 2 sety",
+      "Alexander Zverev wygra seta",
+      "Alexander Zverev wygra wcze\u015bniej przegrywaj\u0105c w setach",
+      "Dok\u0142adna liczba set\u00f3w",
+      "Dok\u0142adny wynik",
+      "Dok\u0142adny wynik - wynik po 3 punktach w 1. gemie serwisowym Alexander Bublik",
+      "Dok\u0142adny wynik - wynik po 3 punktach w 1. gemie serwisowym Alexander Zverev",
+      "Dok\u0142adny wynik - wynik po 4 punktach w 1. gemie serwisowym Alexander Bublik",
+      "Dok\u0142adny wynik - wynik po 4 punktach w 1. gemie serwisowym Alexander Zverev",
+      "Handicap setowy",
+      "Ka\u017cdy z zawodnik\u00f3w wygra przynajmniej jednego seta",
+      "Kt\u00f3rykolwiek set zako\u0144czy si\u0119 do zera",
+      "Liczba serwis\u00f3w",
+      "Liczba wygranych set\u00f3w do 0",
+      "Mecz & liczba gem\u00f3w",
+      "Nieparzysta/parzysta liczba gem\u00f3w",
+      "Podw\u00f3jne b\u0142\u0119dy",
+      "Podw\u00f3jne b\u0142\u0119dy - handicap",
+      "R\u00f3\u017cnica zwyci\u0119stwa (gemy)",
+      "Set z najwi\u0119ksz\u0105 liczb\u0105 gem\u00f3w (2 sety)",
+      "Tiebreak lub Super Tiebreak w decyduj\u0105cym secie",
+      "Tiebreak w X. secie",
+      "X. set - zwyci\u0119zca",
+      "Zostanie rozegrany 3. set",
+      "Zwyci\u0119zca",
+      "Zwyci\u0119zca & ka\u017cdy z graczy wygra seta",
+      "Zwyci\u0119zcy set\u00f3w"
+    ],
+    "price_collisions": [],
+    "superbet_started_utc": null,
+    "superbet_kickoff_seen_utc": "2026-10-13T10:00:00Z"
+  }
+]
