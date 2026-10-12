@@ -3,8 +3,13 @@
 
 The morning after D-1 is settled (SETTLE, SHADOW_SETTLE, CS2_SETTLE), before
 D's first build: the settled Superbet lines of D-1 join the evidence every
-leg's confidence is read through (bet.sofa.line_evidence). Two steps:
+leg's confidence is read through (bet.sofa.line_evidence). Three steps:
 
+0. refresh_sport_history.py (bridge): the hockey / basketball / volleyball
+   games of the last 14 days that should have ended are asked once and
+   indexed, so the score model the rows are priced with knows D-1's results
+   (2026-10-12: the history had stopped on 10-04 - bet.sofa.sport_history).
+   No bridge or a refusal: the fits run on what is cached, exit 1.
 1. fit_sport_confidence.py --sport <s> --before <d> --dry-run --rows-out <dir>
    for hockey, basketball, volleyball and CS2, in parallel (~15 min a sport):
    only for its `<sport>_superbet_settled.jsonl` rows (the model's p on every
@@ -74,6 +79,11 @@ def restore_rows(
         prev.replace(rows)
 
 
+def history_command() -> list[str]:
+    return [sys.executable, "scripts/sofa/refresh_sport_history.py",
+            "--max-minutes", "12"]
+
+
 def fit_commands(before: str, out: Path) -> list[list[str]]:
     return [[sys.executable, "scripts/sofa/fit_sport_confidence.py", "--sport", s,
              "--before", before, "--dry-run", "--rows-out", str(out),
@@ -88,10 +98,17 @@ def main() -> int:
                     help="fit and print, write no evidence file")
     ap.add_argument("--skip-sport-rows", action="store_true",
                     help="reuse data/line_evidence/rows_before_<d> as it is")
+    ap.add_argument("--skip-history", action="store_true",
+                    help="do not refresh the sports' game history first")
     args = ap.parse_args()
     out = rows_dir(args.before)
     out.mkdir(parents=True, exist_ok=True)
     failed: list[str] = []
+    if not args.skip_sport_rows and not args.skip_history:
+        hist = subprocess.run(history_command(), cwd=_REPO)
+        print(f"sport history: exit {hist.returncode}", flush=True)
+        if hist.returncode != 0:
+            failed.append("history")
     if not args.skip_sport_rows:
         kept = stash_rows(out)  # a file of an earlier run today is not this run's
         logs = {s: (out / f"log_{s}.txt").open("w") for s in SPORTS}

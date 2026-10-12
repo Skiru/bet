@@ -338,8 +338,41 @@ def fixtures_check(run: Path) -> Check:
     return Check("fixtures", WARN if unverified else OK, detail)
 
 
+# Below this share of D-1's pinned hockey / basketball / volleyball games
+# finished in the history the score model has not seen yesterday
+# (2026-10-12: 0-30% for a week; refresh_sport_history.py).
+MIN_HISTORY_SHARE = 0.80
+
+
+def history_check(runs: Path, date: str, db_path: str | None) -> Check:
+    """D-1's pinned sport games present as finished in the sports' history."""
+    if not db_path or not Path(db_path).exists():
+        return Check("sport_history", NOT_CHECKED, "no database")
+    import sqlite3
+
+    from bet.sofa import sport_history as sh
+
+    prev = (datetime.fromisoformat(date) - timedelta(days=1)).strftime("%Y-%m-%d")
+    ids: set[int] = set()
+    for sport in sh.SLUGS:
+        ids |= sh.pinned_ids(runs, sport, [prev])
+    if not ids:
+        return Check("sport_history", NOT_CHECKED, f"{prev}: no pinned sport game")
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        done, asked = sh.coverage(con, ids)
+    finally:
+        con.close()
+    share = done / asked
+    detail = (f"{prev}: {done}/{asked} pinned games finished in the history "
+              f"({share:.0%}); below {MIN_HISTORY_SHARE:.0%} run "
+              "refresh_sport_history.py")
+    return Check("sport_history", OK if share >= MIN_HISTORY_SHARE else WARN, detail)
+
+
 def checks(runs: Path, date: str, now: datetime,
-           command_of: Callable[[int], str] = _command_of) -> list[Check]:
+           command_of: Callable[[int], str] = _command_of,
+           db_path: str | None = None) -> list[Check]:
     run = runs / date
     return [
         offer_check(run, now),
@@ -350,6 +383,7 @@ def checks(runs: Path, date: str, now: datetime,
         clv_check(runs, date, now),
         coupon_check(run, now),
         fixtures_check(run),
+        history_check(runs, date, db_path),
     ]
 
 
@@ -370,7 +404,8 @@ def main() -> int:
     runs = Path(args.runs_dir)
     now = _utc(args.now) if args.now else timeutil.now()
     print(f"# day status {args.date} at {_z(now)} (read-only, no network)")
-    found = checks(runs, args.date, now)
+    found = checks(runs, args.date, now,
+                   db_path=SofaConfig.from_env().db_path)
     for c in found:
         print(f"{c.status:<11} {c.name:<22} {c.detail}")
     if args.clv_from:
