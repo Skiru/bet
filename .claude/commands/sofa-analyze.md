@@ -268,10 +268,10 @@ than the switch must be re-run first, `run_pipeline.py --date <date> --only
 SHEET --run-id <id>` (`/sofa-rebuild`) - say so rather than reading stale
 `p_central`s. Read each summary's `refused` counts (`WATCHED`,
 `READ_NO_BET`, `MODEL_ABOVE_OWN_SAMPLE`). `run_confidence.py` sees only
-football and tennis rows: it prints a sport read as `UNMATCHED_READ` on
-stderr, which is expected - sport reads take effect in COUPON_ASSEMBLY, so
+football and tennis rows: it counts a sport read as `reads_sport` (never
+`UNMATCHED_READ`) - sport reads take effect in COUPON_ASSEMBLY, so
 confirm each in `11_coupon.json` (`removed_by_reads`, or the leg's `reads`).
-Any other `UNMATCHED_READ` is a read that did nothing - report it.
+Every `UNMATCHED_READ` is a read that did nothing - report it.
 
 `audit_variants` C3 fails a leg in the read set without an `author:
 "analyst"` read, or a printed leg carrying WATCH / NO_BET. A rebuild moves
@@ -287,7 +287,7 @@ Save each analyst's markdown as `runs/sofa/<date>/<date>_analiza_<sport>.md`.
 ```
 ANALIZA:  piłka <n> nóg przeczytanych · tenis <n> · hokej / kosz / siatka / CS2 <n> · dodatkowo (operator) <n> pozycji
 WETA:     <n> zastosowanych (<n> SAMPLE_UNINFORMATIVE / <n> CONTEXT / <n> PRICE / <n> OTHER), <n> bez dopasowania
-READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> (poza odczytami sportów) · C3 <n> (musi być 0)
+READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> · reads_sport <n> · C3 <n> (musi być 0)
 KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — pozycje <n> → <n>, buildery <n> → <n>, nogi w grze (zablokowane) <n>
 ZDJĘTE:   <removed_by_reads: each leg, the read and its author>
 POZA TOP 30: <n> pozycji drukowanych bez odczytu (zasada operatora)

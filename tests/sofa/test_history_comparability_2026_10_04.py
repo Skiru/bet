@@ -483,6 +483,30 @@ def test_a_read_that_covers_nothing_is_reported(conf_day: Path) -> None:
     assert doc["reads_unmatched"] == 1
 
 
+def test_a_read_on_a_measured_sport_game_is_not_unmatched(conf_day: Path) -> None:
+    # 2026-10-12: CONFIDENCE printed UNMATCHED_READ for every hockey /
+    # basketball read, which COUPON_ASSEMBLY applies (coupon_sports.apply_reads).
+    (conf_day / DAY / "08_confidence_sports.json").write_text(json.dumps(
+        {"legs": [{"sport": "hockey", "sofascore_event_id": 777}]}))
+    (conf_day / DAY / "sport_fixtures.json").write_text(json.dumps(
+        {"fixtures": [{"sport": "basketball", "sofascore_event_id": 778},
+                      {"sport": "basketball", "sofascore_event_id": None}]}))
+    (conf_day / DAY / "reads.json").write_text(json.dumps([
+        _read(sofascore_event_id=777, market="total").model_dump(),
+        _read(sofascore_event_id=778, market="total").model_dump(),
+        _read(sofascore_event_id=999).model_dump(),
+    ]))
+    summary = _confidence(conf_day)
+    assert summary["metrics"]["reads_unmatched"] == 1
+    assert summary["metrics"]["reads_sport"] == 2
+    doc = json.loads((conf_day / DAY / "08_confidence.json").read_text())
+    assert doc["reads_unmatched"] == 1
+    assert doc["reads_sport"] == 2
+    assert doc["reads_applied"] == 0
+    # The football leg is untouched by the sport reads.
+    assert set(_legs(conf_day, "08_confidence.json")) == {1}
+
+
 # --- review 2026-10-04 -----------------------------------------------------------
 
 

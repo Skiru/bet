@@ -80,6 +80,7 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.coupon import MAX_SAMPLE_AGE_DAYS  # noqa: E402
+from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
 from bet.sofa.engine import (  # noqa: E402
     has_calibratable_model,
 )
@@ -1212,10 +1213,16 @@ def main() -> int:
     for v in unmatched:
         print(f"UNMATCHED_VETO: {v.model_dump_json()}", file=sys.stderr)
     # The same for reads: a read that covers no row on the sheet did nothing.
+    # A read on a measured sport's game is not the sheet's: SPORT_CONFIDENCE /
+    # COUPON_ASSEMBLY apply it (coupon_sports.apply_reads), so it is counted
+    # apart and never reported unmatched here.
+    sport_ids = sport_event_ids(run_dir)
+    reads_sport = [r for r in reads if r.sofascore_event_id in sport_ids]
     reads_unmatched = [
         r
         for r in reads
-        if not any(
+        if r.sofascore_event_id not in sport_ids
+        and not any(
             veto_matches(
                 r,
                 sofascore_event_id=row["sofascore_event_id"],
@@ -1267,8 +1274,11 @@ def main() -> int:
         # byte-for-byte what it was before 2026-10-04.
         **(
             {
-                "reads_applied": len(reads) - len(reads_unmatched),
+                "reads_applied": len(reads) - len(reads_unmatched)
+                - len(reads_sport),
                 "reads_unmatched": len(reads_unmatched),
+                # Written only when there are any (byte-for-byte otherwise).
+                **({"reads_sport": len(reads_sport)} if reads_sport else {}),
             }
             if reads else {}
         ),
@@ -1450,8 +1460,9 @@ def main() -> int:
             "vetoes_applied": len(vetoes) - len(unmatched),
             "vetoes_unmatched": len(unmatched),
             "vetoed_rungs": len(vetoed_keys),
-            "reads_applied": len(reads) - len(reads_unmatched),
+            "reads_applied": len(reads) - len(reads_unmatched) - len(reads_sport),
             "reads_unmatched": len(reads_unmatched),
+            "reads_sport": len(reads_sport),
             "read_rungs": len(read_keys),
             "epoch": STATS_ONLY if so else "old",
             "removed_by_reads": len(removed_by_reads),

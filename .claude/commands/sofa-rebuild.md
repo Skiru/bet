@@ -166,8 +166,9 @@ PYTHONPATH=src:. .venv/bin/python -c "from pathlib import Path; from bet.sofa.co
 `WATCH` and `NO_BET` both remove the leg from the coupon into
 `removed_by_reads` (graded apart, audit_settlement 7i); `KEEP` removes
 nothing. CONFIDENCE prints `UNMATCHED_READ` on stderr for a read that matched
-no football / tennis row - a sport read always shows there and takes effect
-in COUPON_ASSEMBLY; any other one is a read that did nothing - report it.
+no football / tennis row; a read on a measured sport's game is counted as
+`reads_sport` instead and takes effect in COUPON_ASSEMBLY. Every
+`UNMATCHED_READ` is a read that did nothing - report it.
 
 ## Step 3 - rebuild: the one command
 
@@ -231,7 +232,7 @@ KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — <n> pozycji (było <n>) · build
 SPORTY:   hokej <n> · kosz <n> · siatka <n> · CS2 <n> nóg · <sport>: NOT_CALIBRATED / brak sport_fixtures.json
 START:    FIXTURE_CHECK <OK | UNVERIFIED (brak mostka)> · FIXTURE_NOT_AS_SCHEDULED <n>
 WETA:     <n> zastosowanych, <n> bez dopasowania
-READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · removed_by_reads <n> · UNMATCHED_READ <n> (poza sportami) · C3 <n>
+READS:    <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · removed_by_reads <n> · UNMATCHED_READ <n> · reads_sport <n> · C3 <n>
 CENA:     oferta z <ts>, wiek <n> min <"świeża" | "przeterminowana — to tłumaczy pustki">
 ZMIANA:   <what moved and why — code, vetoes, reads, or the price>
 ```

@@ -239,8 +239,8 @@ price: audit_settlement 7i ("Nogi zdjęte przez odczyt"), ledger variant
   is a WATCH.
 - A read that matches nothing prints `UNMATCHED_READ` and is counted as
   `reads_unmatched` in CONFIDENCE's summary. `run_confidence.py` sees only
-  football and tennis rows, so a measured-sport read always shows there as
-  unmatched; it takes effect in COUPON_ASSEMBLY - confirm it in
+  football and tennis rows; a measured-sport read is counted there as
+  `reads_sport`, never unmatched; it takes effect in COUPON_ASSEMBLY - confirm it in
   `11_coupon.json` (`removed_by_reads`, or the leg's `reads`).
 
 A measured-sport read (`subject`, `line`, `period` as on the leg; a leg with `period` 0 is read with `0` or with the field left out):

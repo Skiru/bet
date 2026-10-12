@@ -479,9 +479,11 @@ What a read does: `NO_BET` and `WATCH` both remove the leg from the coupon
 audit_settlement 7i and the ledger's `removed:reads`, never in the coupon's
 result; `KEEP` removes nothing and records that the leg was read. A
 measured-sport read (`market` = family, `direction` = side, `period`)
-matches no football / tennis sheet row, so `run_confidence.py` lists it as
-`UNMATCHED_READ` - expected; it takes effect in COUPON_ASSEMBLY (check
-`removed_by_reads` in `11_coupon.json`).
+matches no football / tennis sheet row; `run_confidence.py` counts it as
+`reads_sport` (its game is in `08_confidence_sports.json` /
+`sport_fixtures.json`), never `UNMATCHED_READ`; it takes effect in
+COUPON_ASSEMBLY (check `removed_by_reads` in `11_coupon.json`). An
+`UNMATCHED_READ` is now always a read that covers nothing.
 
 ## Step 7 — rebuild and the PDF
 
@@ -652,7 +654,7 @@ DOWODY LINII: refresh_line_evidence.py exit <0/1/2> · fitted_from.before <D> ·
 SHEET:    <n> wierszy (<n> piłka / <n> tenis), epoka stats_only
 RUN:      <run_id> · <verdict każdego etapu> · <n> na tablicy → <n> dopasowanych → <n> READY
 ODCZYTY:  przeczytane <n> z <n> wymaganych (top 30 + <n> nóg builderów + <n> dodatkowych) · poza top 30 drukowanych bez odczytu: <n>
-READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> (w tym sporty: <n>, oczekiwane)
+READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> · reads_sport <n>
 ZDJĘTE:   removed_by_reads <n> - <każda zdjęta noga: mecz, rynek, linia, kierunek, autor, powód>; MODEL_ABOVE_OWN_SAMPLE <n>; FIXTURE_NOT_AS_SCHEDULED <n>
 WETA:     <n> zastosowanych, <n> bez dopasowania
 ANALIZY:  runs/sofa/<date>/<date>_analiza_<sport>.md (każdy sport z nogami do odczytu)

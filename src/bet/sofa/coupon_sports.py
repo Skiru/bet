@@ -41,6 +41,31 @@ SPORT_FIXTURES_FILE = "sport_fixtures.json"
 SportKey = tuple[int, str, int, str, float | None, str]
 
 
+SPORT_CONFIDENCE_FILE = "08_confidence_sports.json"
+
+
+def sport_event_ids(run_dir: Path) -> set[int]:
+    """The Sofascore ids of the day's measured-sport games: every leg of
+    08_confidence_sports.json and every pinned fixture of sport_fixtures.json.
+
+    A read on one of them is SPORT_CONFIDENCE's / COUPON_ASSEMBLY's to apply
+    (apply_reads); CONFIDENCE, which matches reads against the football /
+    tennis sheet, must not call it unmatched (2026-10-12: every sport read
+    was printed UNMATCHED_READ though the coupon honoured it)."""
+    ids: set[int] = set()
+    sources = ((SPORT_CONFIDENCE_FILE, "legs"), (SPORT_FIXTURES_FILE, "fixtures"))
+    for name, key in sources:
+        try:
+            doc = json.loads((Path(run_dir) / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for row in (doc.get(key) or []) if isinstance(doc, dict) else []:
+            eid = row.get("sofascore_event_id") if isinstance(row, dict) else None
+            if isinstance(eid, int) and not isinstance(eid, bool):
+                ids.add(eid)
+    return ids
+
+
 def is_measured(leg: Mapping[str, Any]) -> bool:
     return str(leg.get("sport") or "football") not in SHEET_SPORTS
 
