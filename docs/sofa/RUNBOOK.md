@@ -191,8 +191,13 @@ Głębiej i z decyzją o fitowaniu: `/sofa-settle` albo agent `sofa-settler`.
 
 Po rozliczeniu i zapisaniu D-1, **przed** pierwszym buildem dnia:
 `PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>`
-(~15-20 min, bez mostu; cztery fity wierszy sportowych z `--dry-run` i
-`fit_line_evidence.py`; nie dotyka krzywych). Exit 0 zapisano; **1** — fit
+(~15-20 min; **najpierw `ensure_bridge.py`** - krok 0 to
+`refresh_sport_history.py`: mecze hokeja, koszykówki i siatkówki z ostatnich
+14 dni, które powinny się skończyć, trafiają do historii; do 2026-10-12 ich
+wyniki nie trafiały wcale, bo SPORT_IDENTITY pyta przed meczem. Potem cztery
+fity wierszy sportowych z `--dry-run` i `fit_line_evidence.py`; nie dotyka
+krzywych). `day_status.py` pokazuje `sport_history` - WARN poniżej 80%
+przypiętych meczów D-1 w historii: uruchom `refresh_sport_history.py` ręcznie. Exit 0 zapisano; **1** — fit
 jednego sportu nie wyszedł i został jego poprzedni zestaw wierszy (dowód i tak
 zapisany); **2** — crash `fit_line_evidence.py` (plik bez zmian, dzień czyta
 wczorajszy dowód — powiedz to w raporcie). `fitted_from.before` pliku

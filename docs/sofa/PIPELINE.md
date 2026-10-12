@@ -1065,6 +1065,21 @@ dlatego, że się różnią.
 
 ## 10a. Sporty mierzone na kuponie — SPORT_IDENTITY i SPORT_CONFIDENCE (od 2026-10-05 08:30Z)
 
+**Historia sportów (od 2026-10-12, `refresh_sport_history.py`, `bet.sofa.sport_history`).**
+Model wyniku SPORT_CONFIDENCE i fity sportów czytają historię z listingów
+drużyn i indeksu meczów (`score_model.load_events`). Piłka i tenis mają ją
+świeżą dzięki SAMPLES; sporty mierzone nie mają SAMPLES, a SPORT_IDENTITY
+pyta o listingi **przed** meczem - wynik meczu nie trafiał do historii (10-07..10-11:
+0-30% rozliczonych meczów; historia stanęła na 10-04). Skrypt (most) pyta
+`/event/{id}` raz o każdy mecz z ostatnich 14 dni, który powinien się już
+skończyć, a nie jest w historii jako zakończony (kandydaci: strony `next` /
+`last`, indeks, przypięte id z `sport_fixtures.json`), i zapisuje go w indeksie
+jako mecz obu drużyn. Uruchamia go `refresh_line_evidence.py` (krok 0) co rano;
+`day_status.py` - `sport_history` WARN poniżej 80% przypiętych meczów D-1.
+Pomiar 2026-10-12 (`measure_sport_history_ab.py`, linie 10-05..10-11): log-loss
+modelu bez mierzalnej zmiany (tydzień to ~500 meczów na tle 29-51 tys.);
+zysk to pokrycie dowodu z linii (siatkówka 5 318 -> 8 474 rozliczonych linii).
+
 Od `SPORTS_ON_COUPON_FROM_UTC` (2026-10-05 08:30Z, `bet.sofa.epochs`) nogi
 hokeja, koszykówki, siatkówki i CS2 drukują się na **jednym** kuponie. Pomiar
 SHADOW / CS2 zostaje; jego migawki są wejściem.

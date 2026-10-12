@@ -276,6 +276,18 @@ record, `frozen_at_start`, and is not asked again) -> SPORT_CONFIDENCE reads the
 prices) and corrects it with line evidence. SHADOW / CS2 themselves stay a
 measurement of Superbet's price and feed nothing else.
 
+- **History is kept current by `refresh_sport_history.py`** (bridge;
+  `bet.sofa.sport_history`, run first by `refresh_line_evidence.py` every
+  morning): SPORT_IDENTITY asks listings before the game, so until 2026-10-12
+  a game's result never entered the hockey / basketball / volleyball history
+  (10-07..10-11: 0-30% of the settled games; the live model and the line
+  evidence stopped on 10-04). It asks `/event/{id}` once for every game that
+  should have ended and indexes it. `day_status.py` `sport_history` WARNs
+  below 80% of D-1's pinned games. Measured 2026-10-12
+  (`measure_sport_history_ab.py`, lines of 10-05..10-11): a week's ~500 games
+  moved the model's log-loss by nothing measurable (hockey -0.45e-3
+  [-1.86, +0.98], basketball +1.11e-3 [-1.63, +3.83]); its gain is the
+  evidence's coverage (volleyball 5,318 -> 8,474 settled lines).
 - Every fitted key of all four prints on the same rules as football and
   tennis. Volleyball still needs a tournament with a settled event in the
   last 14 days. A sport without a usable calibration is `NOT_CALIBRATED`
@@ -386,8 +398,13 @@ sets_total N-0.5, half BTTS, both-over saves, half corner / set games
 handicaps - `market_mapper.classify_mappable_family`; a yes/no answer never
 adds a second rung where the ladder quotes one; off = OFFER byte-identical,
 `docs/sofa/PIPELINE.md` section 5), the coupon form dials. Open
-questions: Superbet's game count of a tennis match tiebreak; how noisy the line-evidence offsets are for the repriced
-families in the first mornings after the 2026-10-09 install.
+questions: Superbet's game count of a tennis match tiebreak. Measured
+2026-10-12 night: the line-evidence offsets of the repriced families moved
+<= 1.3 pp a day over 10-09..10-12 (stable, reproduced from the legs); the
+tennis `games_won_for` OVER offsets (-8.5 men, -12.1 women) were measured on
+old-estimator rows, while the new estimator's rows are calibrated there
+(-0.2 pp, n 117) - over-lowered, a candidate (evidence on rows >= 10-09 for
+the repriced families) once a walk-forward has the days.
 **Before the next refit:** measure the admitted football props separately;
 measure the tennis games population of replay matches without `/statistics`;
 queued: CS2 `map_team_rounds` from the round race, football joints with the
@@ -395,7 +412,8 @@ football rating in their centre.
 Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
 `config/backup_2026-10-09`,
-`data/backup_2026-10-05/sofa.db`.
+`data/backup_2026-10-05/sofa.db`; `data/refit_2026-10-08/sofa_replay.db` is
+the DB the installed curves were fitted from (`fitted_from.db_path`) - keep it.
 
 **Not modelled yet** (operator 10-07: every market that could win; the next
 work, each through a curve and its own Superbet lines): football / tennis
@@ -439,6 +457,14 @@ above their measured range wait for 50 settled lines a bucket
   offset per confidence-minus-price bin: half the correction, and dropped legs
   that had not done worse either. The over-price gap is flagged instead
   (`price_gap`).
+- (2026-10-12 night, `measure_sport_guard.py`, walk-forward on the measured
+  sports' settled Superbet lines of 10-07..10-11, evidence fitted on the days
+  before each; 1,885 would-print lines / 536 games) a per-key p-bucket cap
+  for hockey / basketball / volleyball / CS2: the point cap dropped 135 lines
+  that had not done worse (ROI -4.7% vs -5.4% kept); the Wilson cap dropped 8
+  that all won. The sports' overstatement is a curve question (basketball's
+  history curve reads 0.762 on Superbet lines that realised 0.615, -14.6 pp
+  [-19.6, -9.6] before the offset; hockey calibrated), for the next refit.
 
 ## Entry points
 
@@ -502,7 +528,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> [--dry-run] [--skip-sport-rows]   # EVERY morning after D-1 is settled and recorded, before D's build: four sport row fits (--dry-run inside, no curve touched, ~15-20 min) + fit_line_evidence; rows in data/line_evidence/rows_before_<D>; exit 1 = a sport's row fit failed, its earlier rows reused
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py [--days 14] [--dry-run]   # bridge; run first by refresh_line_evidence.py: the sports' games that should have ended enter the history
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> [--dry-run] [--skip-sport-rows] [--skip-history]   # EVERY morning (bridge up first: step 0 refreshes the sports' history) after D-1 is settled and recorded, before D's build: four sport row fits (--dry-run inside, no curve touched, ~15-20 min) + fit_line_evidence; rows in data/line_evidence/rows_before_<D>; exit 1 = a sport's row fit failed, its earlier rows reused
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning; bridge (none: exit 1, nothing done)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # after D-1's settle; exit 1 on a finding
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>
