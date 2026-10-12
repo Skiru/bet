@@ -6,8 +6,10 @@ from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
 from bet.sofa.errors import CircuitOpenError
 from bet.sofa.market_mapper import (
     classify_derived_market,
+    classify_mappable_family,
     classify_market,
     classify_player_market,
+    is_ladder_answer,
 )
 from bet.sofa.superbet import (
     event_started,
@@ -73,6 +75,8 @@ ClassifiedOdd = tuple[str, str, float, str]
 def classify_odd(
     item: Mapping[str, Any],
     sides: Sequence[str] = (),
+    mappable_families: bool = False,
+    listing_names: Sequence[str] = (),
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -89,6 +93,11 @@ def classify_odd(
     club whose name carries "&" be a subject (market_mapper.
     subject_is_combination); empty, the default, refuses every "&" as before
     2026-10-06.
+
+    `mappable_families` (epochs.mappable_families) tries
+    market_mapper.classify_mappable_family last, against `listing_names` -
+    the listing's own participant names whatever the "&" rule says. Off, the
+    default, is the rule before the switch exactly.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -131,6 +140,12 @@ def classify_odd(
     player = classify_player_market(market_name, selection_name, line_text)
     if player:
         return player, None
+    if mappable_families:
+        mapped = classify_mappable_family(
+            market_name, selection_name, line_text, listing_names
+        )
+        if mapped:
+            return mapped, None
     return None, str(market_name)
 
 
@@ -141,11 +156,19 @@ def listing_sides(payload: Mapping[str, Any] | None) -> tuple[str, ...]:
 
 
 class OfferFetcher:
-    def __init__(self, client: Any, ampersand_subjects: bool = False) -> None:
+    def __init__(
+        self,
+        client: Any,
+        ampersand_subjects: bool = False,
+        mappable_families: bool = False,
+    ) -> None:
         self.client = client
         # epochs.ampersand_subjects(date): read a club named with "&" as a
         # subject when it is the listing's own side. Off is the old rule.
         self.ampersand_subjects = ampersand_subjects
+        # epochs.mappable_families(date): read the MAPPABLE families
+        # (market_mapper.classify_mappable_family). Off is the old rule.
+        self.mappable_families = mappable_families
         # (superbet_event_id, error) per listing that failed. One Superbet
         # error used to raise out of fetch_offers and FAIL the whole OFFER -
         # and with it the chain - over a single listing (a removed event
@@ -173,6 +196,12 @@ class OfferFetcher:
                 )
                 break
             combined_odds: dict[tuple[str, str, float], dict[str, Any]] = {}
+            # MAPPABLE_FAMILIES: the yes/no answers to a ladder's rung
+            # ("<club> strzeli gola" = goals_for 0.5), kept apart and merged
+            # after every listing is read - only where no ladder quoted the
+            # rung, so one quantity is never two rungs and a ladder's two
+            # sides are never mixed with another market's.
+            answer_odds: dict[tuple[str, str, float], dict[str, Any]] = {}
             unmapped = set()
 
             failed = 0
@@ -205,10 +234,17 @@ class OfferFetcher:
                     seen_kickoff = seen
 
                 fetched_at = now()
-                sides = listing_sides(payload) if self.ampersand_subjects else ()
+                names = (
+                    listing_sides(payload)
+                    if self.ampersand_subjects or self.mappable_families
+                    else ()
+                )
+                sides = names if self.ampersand_subjects else ()
 
                 for item in items:
-                    classified_odd, unmapped_label = classify_odd(item, sides)
+                    classified_odd, unmapped_label = classify_odd(
+                        item, sides, self.mappable_families, names
+                    )
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)
                     if classified_odd is None:
@@ -226,8 +262,13 @@ class OfferFetcher:
                         continue
 
                     key = (market, subject, line)
-                    if key not in combined_odds:
-                        combined_odds[key] = {
+                    target = combined_odds
+                    if self.mappable_families and is_ladder_answer(
+                        item.get("marketName")
+                    ):
+                        target = answer_odds
+                    if key not in target:
+                        target[key] = {
                             "over_odds": None,
                             "under_odds": None,
                             "fetched_at_utc": fetched_at,
@@ -247,15 +288,19 @@ class OfferFetcher:
                     # side being priced — and record the disagreement.
                     field = "over_odds" if direction == "OVER" else "under_odds"
                     new_price = float(price)
-                    existing = combined_odds[key][field]
+                    existing = target[key][field]
                     if existing is not None and existing != new_price:
-                        combined_odds[key]["collisions"].append(
+                        target[key]["collisions"].append(
                             f"{direction} {market} {subject or '-'} @ {line}: "
                             f"{existing} vs {new_price}, taking "
                             f"{min(existing, new_price)}"
                         )
                         new_price = min(existing, new_price)
-                    combined_odds[key][field] = new_price
+                    target[key][field] = new_price
+
+            for key, entry in answer_odds.items():
+                if key not in combined_odds:
+                    combined_odds[key] = entry
 
             rungs = []
             price_collisions: list[str] = []

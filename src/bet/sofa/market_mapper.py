@@ -787,6 +787,160 @@ def classify_derived_market(
     return None
 
 
+# ---------------------------------------------------------------------------
+# MAPPABLE families - read only behind epochs.MAPPABLE_FAMILIES_FROM_UTC
+# ---------------------------------------------------------------------------
+#
+# Night plan 2026-10-12 C1. Each of these is a statistic sofa already samples
+# under a Superbet name nobody mapped (bet.sofa.market_coverage labels them
+# MAPPABLE). They are tried by offer.classify_odd only when the switch is on
+# and only after every classifier above has refused the odd, so with the
+# switch off nothing about any other market changes.
+#
+# Shapes, as Superbet sent them on 2026-10-12 (Villarreal - Napoli,
+# Zverev - Bublik; tests/sofa/golden/offer_mappable_items.json):
+#
+#   "Villarreal strzeli gola"             tak / nie            sbv None
+#   "1.połowa - Napoli strzeli gola"      tak / nie            sbv None
+#   "Zostanie rozegrany 3. set"           Tak / Nie            sbv "3"
+#   "1.połowa - obie drużyny strzelą"     tak / nie            sbv None
+#   "Każda z drużyn powyżej X obronionych strzałów przez bramkarza"
+#                                         "Powyżej 1.5 - tak"  sbv "1.5"
+#   "1. połowa - każda z drużyn powyżej X obronionych ..."    (the same)
+#   "1. połowa - rzuty rożne - handicap"  "Villarreal (-0.5)"  sbv "-0.5"
+#   "1. set - handicap gemy"              "Alexander Zverev (-1.5)"
+#                                                              sbv "-1.5-1"
+
+# "<club> strzeli gola" and its halves: the club's goals at 0.5. The subject
+# must be one of the listing's own sides - "Zawodnik rezerwowy strzeli gola"
+# and a player's "Georges Mikautadze strzeli gola" share the shape.
+_TEAM_SCORES = re.compile(
+    r"^(?:(?P<half>[12])\.\s?polowa - )?(?P<team>.+?) strzeli gola$"
+)
+# "Zostanie rozegrany N. set": the match lasts at least N sets, which is
+# sets_total over N - 0.5 whatever the best-of - no best_of is guessed.
+_SET_PLAYED = re.compile(r"^zostanie rozegrany (?P<n>[345])\. set$")
+# "1.połowa - obie drużyny strzelą": both_over_goals in a half.
+_BTTS_HALF = re.compile(r"^(?P<half>[12])\.\s?polowa - obie druzyny strzela$")
+# Both teams' goalkeepers over X saves, whole match or a half.
+_BOTH_OVER_SAVES = re.compile(
+    r"^(?:(?P<half>[12])\.\s?polowa - )?"
+    r"kazda z druzyn powyzej x obronionych strzalow przez bramkarza$"
+)
+# A handicap scoped to a half or a set (like _MOST_SCOPED for most_).
+_HANDICAP_SCOPED = re.compile(
+    r"^(?P<scope>[12])\.\s?(?:(?P<set>set) - handicap gemy"
+    r"|(?P<half>polowa) - rzuty rozne - handicap)$"
+)
+
+_HALF_GOALS = {None: "goals_for", "1": "goals_1h_for", "2": "goals_2h_for"}
+
+
+def _listing_side(subject: str, sides: Sequence[str]) -> bool:
+    return any(side and _same_name(subject, side) for side in sides)
+
+
+def is_ladder_answer(market_name: str | None) -> bool:
+    """Is this market a yes/no answer to a rung a ladder may already quote
+    ("<club> strzeli gola" = goals_for 0.5, "Zostanie rozegrany 3. set" =
+    sets_total 2.5)? OFFER keeps the ladder's own rung where both exist."""
+    folded = fold(market_name)
+    return bool(_TEAM_SCORES.match(folded) or _SET_PLAYED.match(folded))
+
+
+def classify_mappable_family(
+    market_name: str | None,
+    selection_name: str | None,
+    special_bet_value: str | None,
+    sides: Sequence[str],
+) -> tuple[str, str, float, str] | None:
+    """(market, subject, line, direction) for one odd of a MAPPABLE family,
+    or None. `sides` are the listing's own participant names (Superbet's
+    matchName); a club or player subject must be one of them."""
+    folded = fold(market_name)
+    selection = fold(selection_name)
+    if not folded or not selection or ";" in folded:
+        return None
+    sbv = (
+        str(special_bet_value).strip()
+        if special_bet_value not in (None, "")
+        else None
+    )
+
+    m = _TEAM_SCORES.match(folded)
+    if m:
+        team = m.group("team").strip()
+        if not _listing_side(team, sides) or _SUBJECT_IS_PARLAY.search(team):
+            return None
+        direction = _yes_no(selection)
+        if direction is None:
+            return None
+        return (_HALF_GOALS[m.group("half")], team, 0.5, direction)
+
+    m = _SET_PLAYED.match(folded)
+    if m:
+        n = int(m.group("n"))
+        # The specialBetValue repeats the set number; a disagreement is a
+        # different question, not this one.
+        if sbv is not None and sbv != str(n):
+            return None
+        direction = _yes_no(selection)
+        if direction is None:
+            return None
+        return ("sets_total", "", n - 0.5, direction)
+
+    m = _BTTS_HALF.match(folded)
+    if m:
+        direction = _yes_no(selection)
+        scoped = _scope_metric("goals_for", f"{m.group('half')}h")
+        if direction is None or scoped is None:
+            return None
+        return (f"both_over_{scoped}", "", 0.5, direction)
+
+    m = _BOTH_OVER_SAVES.match(folded)
+    if m:
+        direction = _yes_no(selection)
+        if direction is None or sbv is None:
+            return None
+        try:
+            line = float(sbv)
+        except ValueError:
+            return None
+        metric: str | None = "saves"
+        if m.group("half"):
+            metric = _scope_metric("saves_for", f"{m.group('half')}h")
+        if metric is None:
+            return None
+        return (f"both_over_{metric}", "", line, direction)
+
+    m = _HANDICAP_SCOPED.match(folded)
+    if m:
+        scope = m.group("scope")
+        if m.group("set"):
+            # "-1.5-1": the line, then the set. A set prefix that disagrees
+            # with the market name is a set-2 price on a set-1 ladder.
+            if sbv is not None and not sbv.endswith(f"-{scope}"):
+                return None
+            scoped = _scope_metric("games_won_for", f"set{scope}")
+        else:
+            scoped = _scope_metric("corners_for", f"{scope}h")
+        if scoped is None:
+            return None
+        sel = _HANDICAP_SELECTION.match(selection)
+        if not sel:
+            return None
+        team = sel.group("team").strip()
+        if not _listing_side(team, sides) or _SUBJECT_IS_PARLAY.search(team):
+            return None
+        try:
+            line = float(sel.group("line"))
+        except ValueError:
+            return None
+        return (f"handicap_{scoped}", team, line, "OVER")
+
+    return None
+
+
 # Bases whose per-side sample is NOT simply `<base>_for` — `games` is measured
 # as `games_won_for`. Everything else follows the regular rule, so read this
 # table through `derived_side_metric`, never with a bare `.get(base)`.

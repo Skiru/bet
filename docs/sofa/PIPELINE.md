@@ -302,6 +302,27 @@ do naszych metryk mapuje się około **jednej dziesiątej** ekranu Superbetu
 (`src/bet/sofa/market_mapper.py`). Wszystko, czego nie znamy, jest zapisane
 z nazwą — po to, żeby dało się zmierzyć, co tracimy.
 
+**Rodziny MAPPABLE za przełącznikiem `MAPPABLE_FAMILIES_FROM_UTC`**
+(`bet.sofa.epochs`, plan nocy 2026-10-12 C1; **`None` – wyłączony**, włącza
+operator). Włączony, OFFER czyta dodatkowo
+(`market_mapper.classify_mappable_family`, zawsze po wszystkich dotychczasowych
+klasyfikatorach): „<drużyna> strzeli gola” i połowy (`goals_for` /
+`goals_1h_for` / `goals_2h_for` 0,5; tak = OVER, nie = UNDER; podmiot musi być
+stroną listingu – zawodnik ma ten sam kształt nazwy), „Zostanie rozegrany N.
+set” (`sets_total` N − 0,5, bez zgadywania best-of), „N.połowa - obie drużyny
+strzelą” (`both_over_goals_1h` / `_2h`), „[N. połowa -] każda z drużyn powyżej
+X obronionych strzałów przez bramkarza” (`both_over_saves` / `_1h`), „N.
+połowa - rzuty rożne - handicap” (`handicap_corners_1h` / `_2h`), „N. set -
+handicap gemy” (`handicap_games_won_set1` / `_set2`). Odpowiedź tak/nie na
+szczebel, który drabina już kwotuje (`market_mapper.is_ladder_answer`), **nie
+dodaje drugiego szczebla**: zostaje szczebel drabiny, odpowiedź wypełnia tylko
+szczebel, którego drabina nie ma (2026-10-12: 19 z 546 piłkarskich i 1 z 48
+tenisowych), a strony dwóch rynków nigdy się nie mieszają. Przy `None` wyjście
+OFFER jest bajt w bajt jak przed zmianą (`tests/sofa/test_mappable_families.py`,
+golden `tests/sofa/golden/offer_mappable_off.json`). Nowe rynki pochodne nie
+mają krzywej – `NO_LINE_EVIDENCE` do 50 rozliczonych linii; szczeble
+`goals_*_for` 0,5 i `sets_total` czytają istniejące krzywe, więc mogą drukować.
+
 Flaga `--min-minutes-to-kickoff` ma znaczenie przy **późnym** odświeżeniu: bez
 niej etap wycenia całą tablicę razem z meczami już rozegranymi (2026-09-20:
 890 zakończonych meczów opłaconych, żeby dojść do 185 otwartych, ~90 minut).

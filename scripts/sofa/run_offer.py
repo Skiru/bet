@@ -13,7 +13,7 @@ from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
-from bet.sofa.epochs import ampersand_subjects
+from bet.sofa.epochs import ampersand_subjects, mappable_families
 from bet.sofa.locked_print import starts_after
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.stage import set_stage
@@ -113,7 +113,9 @@ def main() -> int:
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"
     )
     # From 2026-10-06 a club named with "&" is a subject (epochs).
-    fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects(args.date))
+    # MAPPABLE_FAMILIES: the families market_coverage labels MAPPABLE (epochs).
+    fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects(args.date),
+                           mappable_families=mappable_families(args.date))
 
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():

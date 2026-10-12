@@ -718,6 +718,33 @@ def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
             and at >= ONE_SIDED_SINGLES_FROM_UTC)
 
 
+# Night plan 2026-10-12 C1: OFFER reads the MAPPABLE Superbet families of
+# bet.sofa.market_coverage - a statistic sofa already samples, a name nobody
+# mapped (903 occurrences on 2026-10-12): "<club> strzeli gola" and its halves
+# (goals_for / goals_1h_for / goals_2h_for at 0.5, tak = OVER, nie = UNDER),
+# "Zostanie rozegrany N. set" (sets_total at N - 0.5), "<half> - obie
+# drużyny strzelą" (both_over_goals_1h / _2h), "[<half> -] każda z drużyn
+# powyżej X obronionych strzałów przez bramkarza" (both_over_saves / _1h),
+# "N. połowa - rzuty rożne - handicap" (handicap_corners_1h / _2h) and
+# "N. set - handicap gemy" (handicap_games_won_set1 / _set2)
+# (market_mapper.classify_mappable_family). A yes/no answer to a rung a ladder
+# already quotes never adds a second rung: the ladder's own rung is kept and
+# the answer only fills a rung the ladder does not quote (offer.OfferFetcher).
+# It ADDS rungs, and so rows and possibly legs (the goals_for / sets_total
+# ones read existing curves), so never mid-day; None until the operator sets
+# it. With None OFFER is byte-identical to before (test_mappable_families).
+MAPPABLE_FAMILIES_FROM_UTC: datetime | None = None
+
+
+def mappable_families(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read the MAPPABLE families (MAPPABLE_FAMILIES_FROM_UTC)?"""
+    if MAPPABLE_FAMILIES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= MAPPABLE_FAMILIES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= MAPPABLE_FAMILIES_FROM_UTC)
+
+
 def require_k_with_dispersion(date: str, at: datetime | None = None) -> None:
     """PER_MARKET_K and COUNT_DISPERSION were fitted jointly (the K gain was
     measured under the fitted dispersion, which itself was fitted around K=15

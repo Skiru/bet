@@ -375,7 +375,13 @@ printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 `BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
 builders), `CARDS_CORRELATION_FROM_UTC` (the one staged package left; needs
 `DERIVED_CURVES_FROM_UTC` to be read at all), `DERIVED_CURVES_FROM_UTC` (derived joints read a history curve;
-needs a refit carrying the replayed joints), the coupon form dials. Open
+needs a refit carrying the replayed joints), `MAPPABLE_FAMILIES_FROM_UTC`
+(OFFER reads the MAPPABLE families of `bet.sofa.market_coverage`: "<club>
+strzeli gola" and halves as goals_*_for 0.5, "Zostanie rozegrany N. set" as
+sets_total N-0.5, half BTTS, both-over saves, half corner / set games
+handicaps - `market_mapper.classify_mappable_family`; a yes/no answer never
+adds a second rung where the ladder quotes one; off = OFFER byte-identical,
+`docs/sofa/PIPELINE.md` section 5), the coupon form dials. Open
 questions: Superbet's game count of a tennis match tiebreak; how noisy the line-evidence offsets are for the repriced
 families in the first mornings after the 2026-10-09 install.
 **Before the next refit:** measure the admitted football props separately;
