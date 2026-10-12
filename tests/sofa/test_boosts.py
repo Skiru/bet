@@ -219,3 +219,44 @@ def test_a_non_exclusive_player_market_is_not_devigged() -> None:
              "utcDate": "2026-10-01T19:00:00Z", "odds": [*odds, boost]}
     [b] = extract_boosts(event, AT)
     assert b.fair_p is None and b.ev_at_fair is None  # sum 2.4: not one market
+
+
+class _FakeClient:
+    """event_odds by id: a dict payload, None, or an exception to raise."""
+
+    def __init__(self, answers: dict[int, object]) -> None:
+        self.answers = answers
+        self.asked: list[int] = []
+
+    def event_odds(self, event_id: int | str) -> dict[str, object] | None:
+        self.asked.append(int(event_id))
+        a = self.answers[int(event_id)]
+        if isinstance(a, BaseException):
+            raise a
+        return a  # type: ignore[return-value]
+
+
+def test_one_event_error_is_recorded_and_the_pass_goes_on() -> None:
+    from scripts.sofa.run_boosts import snapshot_events
+
+    client = _FakeClient({1: RuntimeError("HTTP 500"), 2: None, 3: {"odds": []}})
+    at = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+    snap = snapshot_events(client, [{"eventId": i} for i in (1, 2, 3)], at)
+    assert client.asked == [1, 2, 3], "the error did not end the pass"
+    assert [e for e, _ in snap.errors] == ["1", "2"]
+    assert "RuntimeError: HTTP 500" in snap.errors[0][1]
+    assert not snap.breaker_open
+    assert snap.tagged_without_odd == 1  # event 3: read, no boosted odd
+
+
+def test_an_open_breaker_stops_the_pass() -> None:
+    from bet.sofa.errors import CircuitOpenError
+    from scripts.sofa.run_boosts import snapshot_events
+
+    client = _FakeClient({1: {"odds": []}, 2: CircuitOpenError("open"),
+                          3: {"odds": []}})
+    at = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+    snap = snapshot_events(client, [{"eventId": i} for i in (1, 2, 3)], at)
+    assert client.asked == [1, 2], "nothing is asked past an open breaker"
+    assert snap.breaker_open and snap.not_asked == 2
+    assert snap.errors == []

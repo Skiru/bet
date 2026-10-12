@@ -24,9 +24,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 sys.path.insert(0, "src")
 
@@ -41,6 +42,7 @@ from bet.sofa.boosts import (  # noqa: E402
 )
 from bet.sofa.confidence import coupon_artifact, leg_is_ev_positive  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.settle import line_value  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.superbet import SuperbetClient  # noqa: E402
@@ -211,6 +213,51 @@ def render(boosts: list[Boost], run_dir: Path, at: datetime) -> list[str]:
     return out
 
 
+@dataclass
+class Snapshot:
+    fresh: list[Boost] = field(default_factory=list)
+    # (Superbet event id, what went wrong) - one per event that failed
+    errors: list[tuple[str, str]] = field(default_factory=list)
+    # On 2026-09-24's board 25 of 29 tagged events were tennis matches whose
+    # own payload held no boosted odd: the event tag runs ahead of (or wider
+    # than) the price. Counted, so "4 boosts" is never read as "4 tagged".
+    tagged_without_odd: int = 0
+    breaker_open: bool = False
+    not_asked: int = 0
+
+
+class _EventOdds(Protocol):
+    def event_odds(self, event_id: int | str) -> dict[str, Any] | None: ...
+
+
+def snapshot_events(
+    client: _EventOdds, boosted: list[dict[str, Any]], at: datetime
+) -> Snapshot:
+    """Each boosted event's payload read for its boosts. One event's error
+    (an HTTP failure, an empty or malformed payload) is recorded and skipped -
+    it used to end the whole pass with nothing written. An open Superbet
+    breaker stops the pass: the rest are not asked."""
+    snap = Snapshot()
+    for i, row in enumerate(boosted):
+        eid = str(row.get("eventId"))
+        try:
+            event = client.event_odds(row["eventId"])
+            if event is None:
+                snap.errors.append((eid, "no payload"))
+                continue
+            found = extract_boosts(event, at)
+        except CircuitOpenError:
+            snap.breaker_open = True
+            snap.not_asked = len(boosted) - i
+            break
+        except Exception as exc:  # noqa: BLE001 - one event, never the pass
+            snap.errors.append((eid, f"{type(exc).__name__}: {exc}"))
+            continue
+        snap.tagged_without_odd += not found
+        snap.fresh.extend(found)
+    return snap
+
+
 def main() -> int:
     set_stage("BOOSTS")
     parser = argparse.ArgumentParser()
@@ -227,24 +274,25 @@ def main() -> int:
     client = SuperbetClient()
 
     start = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
-    rows = client.events_by_date(
-        start, start + timedelta(days=1), offer_state="prematch")
+    try:
+        rows = client.events_by_date(
+            start, start + timedelta(days=1), offer_state="prematch")
+    except Exception as exc:  # noqa: BLE001 - no board: FAILED, said plainly
+        print(f"BOOSTS: FAILED - the day's board could not be read: "
+              f"{type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
     boosted = [r for r in rows if is_boosted_event(r)]
     at = now()
-    fresh: list[Boost] = []
-    failed = 0
-    # On 2026-09-24's board 25 of 29 tagged events were tennis matches whose
-    # own payload held no boosted odd: the event tag runs ahead of (or wider
-    # than) the price. Counted, so "4 boosts" is never read as "4 tagged".
-    tagged_without_odd = 0
-    for row in boosted:
-        event = client.event_odds(row["eventId"])
-        if event is None:
-            failed += 1
-            continue
-        found = extract_boosts(event, at)
-        tagged_without_odd += not found
-        fresh.extend(found)
+    snap = snapshot_events(client, boosted, at)
+    fresh = snap.fresh
+    failed = len(snap.errors)
+    tagged_without_odd = snap.tagged_without_odd
+    for eid, err in snap.errors:
+        print(f"EVENT_FAILED {eid}: {err}", file=sys.stderr)
+    if snap.breaker_open:
+        print(f"BREAKER_OPEN: Superbet's breaker opened; "
+              f"{snap.not_asked} boosted event(s) not asked this pass",
+              file=sys.stderr)
 
     path = run_dir / BOOSTS_JSON
     merged = merge_snapshots(load_boosts(path), fresh)
@@ -255,6 +303,8 @@ def main() -> int:
           f"{len(fresh)} boosts this snapshot, {len(merged)} on file, "
           f"{failed} event fetch(es) failed")
     print(f"WROTE {path} and {run_dir / BOOSTS_MD}")
+    if snap.breaker_open:
+        return 2
     return 1 if failed else 0
 
 
