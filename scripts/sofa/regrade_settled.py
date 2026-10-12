@@ -171,7 +171,8 @@ def grade_live(
     is_home = _subject_is_home(row["subject"] or "", fixture)
     if is_home is None:
         return "SUBJECT_NOT_MATCHED"
-    value = extract_metric(row["market"], row["sport"], flat, incidents, event, is_home)
+    value = extract_metric(
+        row["market"], row["sport"], flat, incidents, event, is_home, settling=True)
     if isinstance(value, GapReason):
         return f"{row['market']}:{value.value}"
     return float(value), settle(float(value), row["line"], row["direction"])

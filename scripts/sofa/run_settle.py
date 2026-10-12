@@ -68,9 +68,12 @@ from bet.sofa.resolve import NAME_MATCH_THRESHOLD, name_score
 from bet.sofa.samples import fetch_lineups
 from bet.sofa.settle import (
     AWARDED,
+    CANCELED,
     MOVED_BEYOND_VOID,
     PLAYER_VOID_REASONS,
+    POSTPONED_BEYOND_VOID,
     PRINTED_SETTLED_FILE,
+    REFUND_REASONS,
     RETIRED,
     VOID_LEGS_KEY,
     WALKOVER,
@@ -78,6 +81,7 @@ from bet.sofa.settle import (
     insert_settled_rows,
     is_completed_event,
     moved_beyond_void,
+    not_played_beyond_void,
     settle_completed,
 )
 from bet.sofa.settle import settle as settle_value
@@ -200,7 +204,9 @@ def unfinished_reason(event: dict[str, Any]) -> str:
         if "walkover" in description:
             return WALKOVER
         return "FINISHED_ABNORMALLY"
-    if kind in ("canceled", "abandoned", "postponed"):
+    if kind in ("canceled", "cancelled"):
+        return CANCELED  # a refund (settle.REFUND_REASONS)
+    if kind in ("abandoned", "postponed"):
         return kind.upper()
     return "NOT_FINISHED"
 
@@ -320,8 +326,10 @@ def _settle_derived(
         return "NOT_DERIVED"
     side_metric = DERIVED_BASE_TO_SIDE_METRIC.get(base, f"{base}_for")
 
-    home = extract_metric(side_metric, sport, flat, incidents, event, True)
-    away = extract_metric(side_metric, sport, flat, incidents, event, False)
+    home = extract_metric(
+        side_metric, sport, flat, incidents, event, True, settling=True)
+    away = extract_metric(
+        side_metric, sport, flat, incidents, event, False, settling=True)
     if isinstance(home, GapReason):
         return f"{side_metric}:{home.value}"
     if isinstance(away, GapReason):
@@ -1197,6 +1205,15 @@ def main() -> int:
                 # loss in 7c, and fit_confidence does not read `outcome`.
                 skips.add(event_id, MOVED_BEYOND_VOID, len(event_rows))
                 continue
+            if read_event is not None and not_played_beyond_void(
+                read_event, kickoff_clocks(fixture, seen.get(event_id)), now()
+            ):
+                # Still postponed / delayed 48 h after the start it was
+                # offered at: not played within VOID_AFTER, void at Superbet
+                # (2026-10-12: 21 printed legs of 10-08..10-11 sat POSTPONED,
+                # never refunded). Within the 48 h it stays POSTPONED.
+                skips.add(event_id, POSTPONED_BEYOND_VOID, len(event_rows))
+                continue
             if fetched.reason is not None:
                 if fetched.error:
                     print(
@@ -1297,7 +1314,8 @@ def main() -> int:
                     skips.add(event_id, reason)
                     continue
                 value = extract_metric(
-                    row["market"], row["sport"], flat, incidents, event, is_home
+                    row["market"], row["sport"], flat, incidents, event, is_home,
+                    settling=True,
                 )
                 if isinstance(value, GapReason):
                     skips.add(event_id, f"{row['market']}:{value.value}")
@@ -1392,8 +1410,7 @@ def main() -> int:
     refunded = {
         event_id
         for event_id, reasons in skips.by_event.items()
-        if MOVED_BEYOND_VOID in reasons or AWARDED in reasons
-        or RETIRED in reasons or WALKOVER in reasons
+        if REFUND_REASONS & set(reasons)
     }
     previous_rows = [
         r for r in previous_rows if int(r["sofascore_event_id"]) not in refunded

@@ -62,12 +62,14 @@ from scripts.sofa.audit_vetoes import render as render_vetoes  # noqa: E402
 # A settled row's natural key, as the UNIQUE constraint defines it.
 Key = tuple[int, str, str, float, str]
 
-# A printed leg on an event SETTLE skipped MOVED_BEYOND_VOID / AWARDED / RETIRED /
-# WALKOVER: the
+# A printed leg on an event SETTLE skipped with a settle.REFUND_REASONS reason
+# (MOVED_BEYOND_VOID / AWARDED / RETIRED / WALKOVER / CANCELED /
+# POSTPONED_BEYOND_VOID): the
 # stake comes back (0 units). Its own count, never a loss, never "unsettled".
 REFUND = "REFUND"
 # The row of the singles table that counts refunded legs.
-REFUND_LABEL = ("zwrot (przesunięty > 48 h / przyznany / krecz / walkower / "
+REFUND_LABEL = ("zwrot (przesunięty > 48 h / odwołany / przełożony > 48 h / "
+                "przyznany / krecz / walkower / "
                 "zawodnik nie zagrał lub nie wyszedł w składzie), 0 j.")
 
 
@@ -882,8 +884,11 @@ def main() -> int:
              "`FINISHED_ABNORMALLY` — inny nietypowy koniec; "
              "`WALKOVER` — walkower (zwrot); "
              "`RETIRED` — krecz (zwrot); "
-             "`CANCELED` / `ABANDONED` / `POSTPONED` — odwołany, przerwany na "
-             "stałe, przełożony; `NO_EVENT` — Sofascore nie "
+             "`CANCELED` — odwołany (zwrot); "
+             "`POSTPONED_BEYOND_VOID` — przełożony i nierozegrany 48 h od "
+             "terminu z oferty (zwrot); "
+             "`ABANDONED` / `POSTPONED` — przerwany na "
+             "stałe, przełożony (jeszcze w oknie 48 h); `NO_EVENT` — Sofascore nie "
              "zna tego zdarzenia; `<rynek>:<GAP>` — mecz się odbył, ale dostawca "
              "nie ma odczytu tej statystyki; `SUBJECT_NOT_MATCHED` — wiersz "
              "dotyczy drużyny/zawodnika, którego nie dało się jednoznacznie "

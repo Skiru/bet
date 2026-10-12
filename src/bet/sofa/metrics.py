@@ -24,6 +24,40 @@ def is_extra_time_event(event: dict[str, Any]) -> bool:
     return status.get("code") in EXTRA_TIME_STATUS_CODES
 
 
+# Score keys Sofascore writes for the 30 minutes of extra time.
+EXTRA_TIME_SCORE_KEYS = ("extra1", "extra2", "overtime")
+PENALTIES_STATUS_CODE = 120
+
+
+def played_extra_time(event: dict[str, Any]) -> bool:
+    """Did the match last 120 minutes (not only end in a shootout)?
+
+    Code 110 (AET) always. Code 120 (AP) only when the score carries an
+    extra-time key or does not add up to normaltime + penalties: a group game
+    of the EFL Trophy, MLS Next Pro, a friendly or a two-legged tie goes
+    straight from 90 minutes to penalties. Read off the cache 2026-10-12: of
+    84 football code-120 events, 26 carry no extra1 / extra2 / overtime key
+    and every one of them has current == normaltime + penalties on both sides.
+    """
+    if not is_extra_time_event(event):
+        return False
+    if (event.get("status") or {}).get("code") != PENALTIES_STATUS_CODE:
+        return True
+    for side in ("homeScore", "awayScore"):
+        score = event.get(side)
+        if not isinstance(score, dict):
+            return True
+        if any(k in score for k in EXTRA_TIME_SCORE_KEYS):
+            return True
+        cur, nt, pens = (score.get(k) for k in ("current", "normaltime", "penalties"))
+        if not all(isinstance(v, int) and not isinstance(v, bool)
+                   for v in (cur, nt, pens)):
+            return True
+        if cur != nt + pens:  # type: ignore[operator]
+            return True
+    return False
+
+
 def goal_score_inconsistent(event: dict[str, Any]) -> bool:
     """The listing's goal fields disagree with each other, on either side.
 
@@ -1014,7 +1048,18 @@ def extract_metric(
     incidents: dict[str, Any] | None,
     listing_event: dict[str, Any],
     is_home: bool,
+    *,
+    settling: bool = False,
 ) -> float | GapReason:
+    """One side's (or the total's) value of a metric off a finished event.
+
+    ``settling``: SETTLE grading a printed / sheet row. A match that went
+    from 90 minutes straight to penalties (played_extra_time False) is then
+    graded on its whole-match statistics - 90 minutes is all it played.
+    Samples, ratings and the replays keep the default and refuse every code
+    110 / 120 event's non-goal counts: admitting them there changes what
+    prints and needs a switch in bet.sofa.epochs.
+    """
     metrics_map = FOOTBALL_METRICS if sport == "football" else TENNIS_METRICS
     if metric_name not in metrics_map:
         return GapReason.STAT_KEY_ABSENT
@@ -1028,8 +1073,13 @@ def extract_metric(
     # join a 90-minute sample. Its *goals* are recoverable: Sofascore records
     # the 90-minute score in homeScore.normaltime, which is what Superbet's
     # goal markets settle on. Admitted in the sample, refused here.
-    if is_extra_time_event(listing_event) and not str(sofascore_key).startswith(
-        "goals"
+    # When settling, only a match that really played extra time is refused
+    # (2026-10-12: six printed EFL Trophy corner legs of 10-06 sat
+    # EVENT_NOT_FINISHED for good - a shootout after 90 minutes).
+    if (
+        is_extra_time_event(listing_event)
+        and not str(sofascore_key).startswith("goals")
+        and (not settling or played_extra_time(listing_event))
     ):
         return GapReason.EVENT_NOT_FINISHED
 

@@ -69,7 +69,23 @@ RETIRED = "RETIRED"
 # A walkover: the match was not played (Regulamin 5.D.3.b, as the measured
 # sports have it in shadow.is_no_result) - the stake comes back.
 WALKOVER = "WALKOVER"
-REFUND_REASONS = frozenset({MOVED_BEYOND_VOID, AWARDED, RETIRED, WALKOVER})
+# A cancelled match (Sofascore status type "canceled"): never played, so the
+# stake comes back (Regulamin 5.E.1.a; the measured sports void it in
+# shadow.event_state). Until 2026-10-12 it was a plain skip: 15 printed
+# football / tennis legs of 10-06..10-10 stayed ungraded for good (Copa
+# Chile Colo-Colo, UTR Belgrade, Samsun, Serie C Pineto).
+CANCELED = "CANCELED"
+# A match still postponed (or delayed) when VOID_AFTER has passed since the
+# start the leg was offered at: not played within 48 h, so void at Superbet.
+# Within the 48 h it stays POSTPONED, pending, and is re-settled.
+POSTPONED_BEYOND_VOID = "POSTPONED_BEYOND_VOID"
+REFUND_REASONS = frozenset(
+    {MOVED_BEYOND_VOID, AWARDED, RETIRED, WALKOVER, CANCELED, POSTPONED_BEYOND_VOID})
+# Sofascore status types of a match that has not been played (yet) and may
+# still be, which become POSTPONED_BEYOND_VOID once VOID_AFTER has passed.
+# "notstarted" is deliberately not one: a stale listing of a match that was in
+# fact played would turn a real grade into a refund (it stays NOT_FINISHED).
+NOT_PLAYED_STATUS_TYPES = frozenset({"postponed", "delayed"})
 
 # A player market Superbet voids although the match was played: the player
 # did not take the pitch, did not start (operator, 2026-10-11), or was not in
@@ -119,6 +135,28 @@ def moved_beyond_void(event: Mapping[str, Any], kickoffs: Sequence[datetime]) ->
         return False
     started = datetime.fromtimestamp(start, UTC)
     return abs(started - min(kickoffs)) > VOID_AFTER
+
+
+def not_played_beyond_void(
+    event: Mapping[str, Any], kickoffs: Sequence[datetime], at: datetime
+) -> bool:
+    """Is the match still postponed / delayed more than VOID_AFTER after the
+    start it was offered at? Then Superbet has voided it (not played within
+    48 h) and it is POSTPONED_BEYOND_VOID, a refund.
+
+    The start is the earliest clock the pipeline held (kickoff_clocks);
+    without one, Sofascore's own startTimestamp. No start says nothing."""
+    kind = str((event.get("status") or {}).get("type") or "").lower()
+    if kind not in NOT_PLAYED_STATUS_TYPES:
+        return False
+    if kickoffs:
+        offered = min(kickoffs)
+    else:
+        start = event.get("startTimestamp")
+        if not isinstance(start, (int, float)) or isinstance(start, bool) or start <= 0:
+            return False
+        offered = datetime.fromtimestamp(start, UTC)
+    return at - offered > VOID_AFTER
 
 
 def settle_completed(event: Mapping[str, Any]) -> bool:

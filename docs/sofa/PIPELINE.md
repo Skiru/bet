@@ -1333,9 +1333,19 @@ bo konkuruje z nim o most.
   jedyne źródło dla `fit_k_price` i `MAX_LADDER_SIGMA`.
 - **Zwroty** (od 2026-10-05; krecz i walkower od 2026-10-07): mecz przesunięty
   o > 48 h (`MOVED_BEYOND_VOID`), przyznany (`AWARDED`), krecz (`RETIRED`,
-  status Sofascore „Retired", kod 92) albo walkower (`WALKOVER`) to zwrot
+  status Sofascore „Retired", kod 92), walkower (`WALKOVER`), mecz odwołany
+  (`CANCELED`, od 2026-10-12) albo wciąż przełożony / opóźniony 48 h po
+  terminie z oferty (`POSTPONED_BEYOND_VOID`, od 2026-10-12; w oknie 48 h
+  zostaje `POSTPONED` i czeka na ponowny SETTLE) to zwrot
   (0 j.), nigdy przegrana i nigdy `sofa_settled_row` (trafia do
   `07_settle_skips.json`; `settle.REFUND_REASONS`).
+- Mecz piłkarski rozstrzygnięty karnymi (kod 120) bez dogrywki (brak
+  `extra1` / `extra2` / `overtime` w wyniku, `current` = `normaltime` +
+  `penalties`; np. faza grupowa EFL Trophy) SETTLE rozlicza ze statystyk
+  całego meczu - grał 90 minut (od 2026-10-12, `metrics.played_extra_time`).
+  Po dogrywce rożne / kartki / faule / strzały zostają `EVENT_NOT_FINISHED`;
+  gole zawsze z `normaltime`. Próbki i ratingi nadal pomijają oba rodzaje
+  meczów (zmiana tam zmieniłaby to, co się drukuje).
 - Propsy zawodników tylko ze składu samego zawodnika (inaczej
   `PLAYER_AMBIGUOUS`); próbka dopasowana po tokenach rozlicza się po swoim
   `matched_name` (kandydat w drugim składzie — `PLAYER_AMBIGUOUS`); wejście z

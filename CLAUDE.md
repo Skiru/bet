@@ -304,9 +304,17 @@ measurement of Superbet's price and feed nothing else.
 ## Settlement and the ledger
 
 - **SETTLE:** a refund (0 u.), never a loss, when the match moved > 48 h
-  (`VOID_AFTER`), was awarded, retired (Sofascore code 92, `RETIRED`) or a
-  walkover (`WALKOVER`) - `settle.REFUND_REASONS` (operator, 2026-10-07:
-  Superbet's rules). Player props grade only from the player's own squad
+  (`VOID_AFTER`), was awarded, retired (Sofascore code 92, `RETIRED`), a
+  walkover (`WALKOVER`), cancelled (`CANCELED`) or is still postponed /
+  delayed `VOID_AFTER` after the start it was offered at
+  (`POSTPONED_BEYOND_VOID`; inside the 48 h it stays `POSTPONED`, pending) -
+  `settle.REFUND_REASONS` (operator, 2026-10-07: Superbet's rules). A
+  football match decided on penalties (code 120) with no extra time (no
+  `extra1` / `extra2` / `overtime`, current = normaltime + penalties) is
+  graded on its whole-match statistics (`metrics.played_extra_time`,
+  `extract_metric(..., settling=True)`); after extra time the non-goal
+  counts stay `EVENT_NOT_FINISHED`; goals are always `normaltime`. Samples
+  and ratings still skip both (changing that changes what prints). Player props grade only from the player's own squad
   (PLAYER_AMBIGUOUS); a sample matched by tokens grades its own
   `matched_name` there (a candidate in the other squad is PLAYER_AMBIGUOUS).
   A player who did not play, did not start or was not in the matchday squad

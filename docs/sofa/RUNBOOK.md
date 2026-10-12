@@ -171,8 +171,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <tod
   po przypiętym id; inne id = `NOT_GRADED:ID_CHANGED`) i „Suma kuponu”.
   Sekcje 7 i 7b to materiał wejściowy (legi i kandydaci), **nie zakłady**.
 - **Zwroty liczone osobno** (REFUND, 0 j.): `MOVED_BEYOND_VOID` (mecz
-  przesunięty o > 48 h), `AWARDED` (przyznany), `RETIRED` (krecz) i
-  `WALKOVER` (walkower) — nigdy przegrana, nigdy `sofa_settled_row`
+  przesunięty o > 48 h), `AWARDED` (przyznany), `RETIRED` (krecz),
+  `WALKOVER` (walkower), `CANCELED` (odwołany) i `POSTPONED_BEYOND_VOID`
+  (przełożony i nierozegrany 48 h od terminu z oferty) — nigdy przegrana, nigdy `sofa_settled_row`
   (`07_settle_skips.json`).
 - **7i „Nogi zdjęte przez odczyt”** — `removed_by_reads` z `11_coupon.json`,
   rozliczone osobno, nigdy w wyniku kuponu (dziennik `removed:reads`).

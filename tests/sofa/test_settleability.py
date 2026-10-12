@@ -81,7 +81,7 @@ def test_classify_every_state() -> None:
         legs[2].key: st.Grade("LOSS", H + timedelta(days=3)),  # late, process
         legs[6].key: st.Grade("WIN", None),  # time unknown: by the horizon
     }
-    reasons = {4: {"corners_total:NO_STATISTICS": 1}, 5: {"CANCELED": 1},
+    reasons = {4: {"corners_total:NO_STATISTICS": 1}, 5: {"ABANDONED": 1},
                6: {"MOVED_BEYOND_VOID": 1}}
     fetched = {2: H + timedelta(days=3), 3: H - timedelta(days=2)}
     states = st.classify(legs, grades, reasons, H, fetched)
@@ -208,7 +208,7 @@ def test_fit_needs_enough_legs_and_a_lower_bound_above_the_threshold() -> None:
         + _states(2, 2, 6)  # 2/8: not
         + _states(3, 5, 1)  # 5/6: under MIN_LEGS
         + _states(4, 3, 5, "goals_total")  # its own family
-        + [st.LegState(_leg(9, cid=5), st.UNGRADED, "CANCELED", st.NOT_PLAYED, None)]
+        + [st.LegState(_leg(9, cid=5), st.UNGRADED, "ABANDONED", st.NOT_PLAYED, None)]
         * 20  # not played: never judged
     )
     refused = st.fit_refusals(states)
@@ -357,7 +357,7 @@ def test_days_needing_resettle() -> None:
     leg = _leg(1)
     states = {
         "2026-09-20": [st.LegState(leg, st.GRADED_BY_HORIZON, None, "", None)],
-        "2026-09-21": [st.LegState(leg, st.UNGRADED, "CANCELED", st.NOT_PLAYED, None),
+        "2026-09-21": [st.LegState(leg, st.UNGRADED, "ABANDONED", st.NOT_PLAYED, None),
                        st.LegState(leg, st.UNGRADED, "SUBJECT_NOT_MATCHED",
                                    st.IDENTITY, None),
                        st.LegState(leg, st.VOIDED, "MOVED_BEYOND_VOID", st.VOID, None)],
