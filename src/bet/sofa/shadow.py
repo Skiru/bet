@@ -676,6 +676,16 @@ class GameResult:
     t2_full: int
     winner: Literal["T1", "T2"] | None  # None: a regulation draw
     overtime: bool
+    # Only on a game Sofascore published without its periods (final_only):
+    # the regulation score (t1, t2) where it can be told, else None. With
+    # periods it is their sum and this stays None.
+    reg_score: tuple[int, int] | None = None
+
+    @property
+    def final_only(self) -> bool:
+        """Sofascore published the final score but no period: only the
+        full-game quantities (and regulation, where told) are known."""
+        return not self.t1_periods
 
 
 def _periods(score: dict[str, Any]) -> list[int | None]:
@@ -688,14 +698,84 @@ def _periods(score: dict[str, Any]) -> list[int | None]:
     return out
 
 
+def _final_only_result(
+    detail: dict[str, Any], home_is_t1: bool
+) -> GameResult | None:
+    """A hockey / basketball game Sofascore published with its final score
+    and no period (2026-10-12: 18 of 22 basketball DATA_MISMATCH of 10-11 -
+    Australian NBL, Bulgarian NBL, Serie B, Austrian and Greek women's
+    leagues - none of them ever graded). The full-game quantities need only
+    `current` and `winnerCode`, provided the two agree; the regulation score
+    is `normaltime` where printed, `current` where nothing says the game
+    went past regulation, else unknown (None)."""
+    home = detail.get("homeScore") or {}
+    away = detail.get("awayScore") or {}
+    h_cur, a_cur = home.get("current"), away.get("current")
+    if not isinstance(h_cur, int) or not isinstance(a_cur, int):
+        return None
+    code = detail.get("winnerCode")
+    if code not in (1, 2, 3):
+        return None
+    description = (detail.get("status") or {}).get("description")
+    shootout = description == "AP"
+    described_ot = description in ("AET", "AP")
+    h_nt, a_nt = home.get("normaltime"), away.get("normaltime")
+    if (h_nt is None) != (a_nt is None):
+        return None
+    if h_nt is not None and (not isinstance(h_nt, int) or not isinstance(a_nt, int)):
+        return None
+    if code == 3:
+        # A draw: level, and nothing played past regulation.
+        if h_cur != a_cur or described_ot:
+            return None
+        if h_nt is not None and (h_nt, a_nt) != (h_cur, a_cur):
+            return None
+        home_won: bool | None = None
+    else:
+        home_won = code == 1
+        if shootout:
+            # The shootout's deciding goal is not always in `current`.
+            if (a_cur > h_cur) if home_won else (h_cur > a_cur):
+                return None
+        elif h_cur == a_cur or (h_cur > a_cur) != home_won:
+            return None
+    overtime = described_ot or (
+        h_nt is not None and (h_nt, a_nt) != (h_cur, a_cur))
+    reg: tuple[int, int] | None
+    if h_nt is not None:
+        assert isinstance(h_nt, int) and isinstance(a_nt, int)
+        if h_nt > h_cur or a_nt > a_cur:
+            return None
+        if overtime and h_nt != a_nt:
+            # Overtime is only played from a level score.
+            return None
+        reg = (h_nt, a_nt)
+    else:
+        reg = None if overtime else (h_cur, a_cur)
+    if not home_is_t1 and reg is not None:
+        reg = (reg[1], reg[0])
+    t1f, t2f = (h_cur, a_cur) if home_is_t1 else (a_cur, h_cur)
+    winner: Literal["T1", "T2"] | None = (
+        None if home_won is None else ("T1" if home_won == home_is_t1 else "T2")
+    )
+    return GameResult((), (), t1f, t2f, winner, overtime, reg_score=reg)
+
+
 def build_result(
-    detail: dict[str, Any], sport: ShadowSport, home_is_t1: bool
+    detail: dict[str, Any], sport: ShadowSport, home_is_t1: bool,
+    allow_final_only: bool = False,
 ) -> GameResult | None:
     """The finished game's score, or None if it does not add up.
 
     Hockey / basketball: exactly the regulation periods, their sum equal to
     `normaltime` where printed, and `current` no lower than regulation.
     Volleyball: every set a clear win, and the sets won equal to `current`.
+
+    `allow_final_only` (SHADOW_SETTLE only): a hockey / basketball game with
+    no period at all is graded from its final score (_final_only_result) on
+    the full-game markets alone. The history readers (sport_confidence, the
+    score-model measurements) keep the default: a period-less game is not a
+    row of a fit.
     """
     if detail.get("isAwarded"):
         # An awarded game is not a result (2026-10-05): Sofascore prints it
@@ -704,6 +784,9 @@ def build_result(
     home = detail.get("homeScore") or {}
     away = detail.get("awayScore") or {}
     hp, ap = _periods(home), _periods(away)
+    if (allow_final_only and not hp and not ap
+            and sport.regulation_periods is not None):
+        return _final_only_result(detail, home_is_t1)
     if not hp or len(hp) != len(ap) or any(v is None for v in hp + ap):
         return None
     h_periods = [int(v) for v in hp if v is not None]
@@ -792,6 +875,13 @@ def _pair(
     game does not answer it (a set not played, an ambiguous last period)."""
     t1, t2 = result.t1_periods, result.t2_periods
     ambiguous = result.overtime and sport.last_period_ambiguous_with_ot
+    if result.final_only:
+        # No period published: the full game, and regulation where told.
+        if spec.scope == "full" and sport.regulation_periods is not None:
+            return result.t1_full, result.t2_full
+        if spec.scope == "reg":
+            return result.reg_score
+        return None
     if spec.scope == "full":
         if sport.regulation_periods is None:  # volleyball: points over all sets
             return sum(t1), sum(t2)

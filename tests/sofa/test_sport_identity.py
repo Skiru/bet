@@ -5,6 +5,7 @@ Offline: a fake listing client, never the bridge."""
 from __future__ import annotations
 
 import json
+import sys
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -291,6 +292,40 @@ def test_the_script_writes_sport_fixtures_into_the_runs_dir(tmp_path: Path,
     # no snapshot of any sport asked: FAILED
     _, code = rsi.run("2026-10-06", ["volleyball"], str(tmp_path), client, None, conn)
     assert code == 2
+    # ...and hockey's counts survive a run that did not ask hockey (2026-10-12)
+    out = json.loads((tmp_path / "2026-10-06" / si.FIXTURES_FILE).read_text())
+    assert out["sports"]["hockey"]["identified"] == 1
+    assert out["sports"]["volleyball"]["events"] == 0
+
+
+def test_if_snapshot_a_date_without_a_snapshot_is_nothing_to_do(tmp_path: Path,
+                                                                monkeypatch, capsys):
+    # 2026-10-12: the daily loops ask D+1 after every snapshot, before D+1 has
+    # one, and logged SPORT_IDENTITY FAILED every half hour. With
+    # --if-snapshot that is NOTHING_TO_DO, exit 0, and no file is written;
+    # without it a missing snapshot stays FAILED (exit 2).
+    from scripts.sofa import run_sport_identity as rsi
+
+    monkeypatch.setattr(rsi, "now", lambda: AT)
+    conn = sqlite3.connect(":memory:")
+    client = FakeClient({})
+    doc, code = rsi.run("2026-10-07", ["hockey"], str(tmp_path), client, None,
+                        conn, if_snapshot=True)
+    assert code == rsi.NOTHING_TO_DO and client.calls == []
+    assert not (tmp_path / "2026-10-07" / si.FIXTURES_FILE).exists()
+    _, code = rsi.run("2026-10-07", ["hockey"], str(tmp_path), client, None, conn)
+    assert code == 2
+
+    monkeypatch.setenv("SOFA_RUNS_DIR", str(tmp_path))
+    monkeypatch.setattr(sys, "argv", ["run_sport_identity.py", "--date", "2026-10-08",
+                                      "--sport", "hockey", "--if-snapshot"])
+    monkeypatch.setattr("bet.sofa.client.SofascoreClient", lambda config: client)
+    monkeypatch.setattr("bet.sofa.cache.SofaCache", lambda config: None)
+    real_connect = sqlite3.connect
+    monkeypatch.setattr(rsi.sqlite3, "connect", lambda *a, **k: real_connect(":memory:"))
+    assert rsi.main() == 0
+    out = capsys.readouterr().out
+    assert '"verdict": "NOTHING_TO_DO"' in out
 
 
 # --- F1.2 (production-grade plan 2026-10-05): recall without losing precision ---

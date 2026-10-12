@@ -275,6 +275,14 @@ measurement of Superbet's price and feed nothing else.
   SHADOW_SETTLE's own player row.
 - Basketball second half / Q4 grade on the regulation periods - overtime does
   not count (operator, 2026-10-07); full-game basketball markets include it.
+- A hockey / basketball game Sofascore publishes with no periods (only
+  `current` and `winnerCode`) is graded from its final score
+  (`shadow.build_result(..., allow_final_only=True)`, SHADOW_SETTLE only;
+  `score_source: "final_only"`): full-game markets, regulation where
+  `normaltime` (or no sign of overtime) tells it, never a period / half /
+  quarter. Until 2026-10-12 such a game stayed DATA_MISMATCH for good
+  (10-22 basketball games a day from 10-07). History readers keep the
+  default and never see it.
 
 ## Settlement and the ledger
 
@@ -440,7 +448,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d> [--sport hockey]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d> [--sport hockey] [--if-snapshot]   # --if-snapshot: no snapshot = NOTHING_TO_DO, exit 0 (the loops' D+1 run)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>        # exit 1 while 08_confidence_sports.json is absent
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>

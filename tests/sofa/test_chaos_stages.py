@@ -1024,13 +1024,17 @@ def test_daily_loop_runs_sport_identity_after_every_snapshot_and_ignores_its_exi
     from scripts.sofa import cs2_daily
 
     steps = cs2_daily.identity_steps("2026-09-29", ["hockey", "volleyball"])
+    flags = ["--sport", "hockey", "--sport", "volleyball"]
     assert steps == [
-        ["scripts/sofa/run_sport_identity.py", "--date", d, "--sport", "hockey",
-         "--sport", "volleyball"] for d in ("2026-09-29", "2026-09-30")]
+        ["scripts/sofa/run_sport_identity.py", "--date", "2026-09-29", *flags],
+        # D+1 has no snapshot most of the day: NOTHING_TO_DO, not FAILED.
+        ["scripts/sofa/run_sport_identity.py", "--date", "2026-09-30", *flags,
+         "--if-snapshot"]]
     calls: list[str] = []
 
     def runner(cmd: list[str]) -> int:
-        calls.append(cmd[-1] if cmd[0].endswith("identity.py") else cmd[0])
+        calls.append(cmd[cmd.index("--sport") + 3] if cmd[0].endswith("identity.py")
+                     else cmd[0])
         return 1 if cmd[0].endswith("identity.py") else 0
 
     clock = _Clock(datetime(2026, 9, 29, 22, 0, tzinfo=UTC))

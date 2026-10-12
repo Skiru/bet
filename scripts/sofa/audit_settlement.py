@@ -304,24 +304,49 @@ def settle_singles(
             "mean_confidence": conf_sum / settled if settled else 0.0}
 
 
+def _leg_epoch(s: dict[str, Any]) -> str:
+    return (
+        str((s.get("printed_under") or {}).get("epoch") or OLD)
+        if s.get("locked") else str(s.get("epoch") or OLD)
+    )
+
+
+def _settle_sport_graded(group: list[dict[str, Any]]) -> dict[str, Any]:
+    """settle_singles' shape for measured-sport legs coupon_sports graded."""
+    won = sum(1 for g in group if g["outcome"] == "WIN")
+    lost = sum(1 for g in group if g["outcome"] == "LOSS")
+    refunded = sum(1 for g in group if g["outcome"] == "VOID")
+    units = sum(float(g["odds"]) - 1.0 if g["outcome"] == "WIN" else -1.0
+                for g in group if g["outcome"] in ("WIN", "LOSS"))
+    return {"won": won, "lost": lost, "settled": won + lost,
+            "refunded": refunded, "units": units,
+            "unsettled": len(group) - won - lost - refunded}
+
+
 def render_stats_only_split(
-    singles: list[dict[str, Any]], by_key: dict[Any, Any]
+    singles: list[dict[str, Any]], by_key: dict[Any, Any],
+    sport_graded: list[dict[str, Any]] | None = None,
 ) -> list[str]:
     """7c on a stats-only coupon (plan K7): the printed singles per sport and
     per rule epoch - the legs locked from a pre-stats-only build (the
     morning of 10-05) are a different experiment and are shown apart. The
-    sections are not added to anything; the total above is the coupon's."""
+    sections are not added to anything; the total above is the coupon's.
+
+    `singles` are the football / tennis legs, graded from the sheet's rows;
+    `sport_graded` the measured sports' legs as coupon_sports graded them -
+    until 2026-10-12 those were looked up among the sheet's rows too, which
+    never hold them, and every measured sport read 0 settled."""
     out = ["#### Pojedyncze wg sportu i reguły (epoka)", ""]
     groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for s in singles:
-        epoch = (
-            str((s.get("printed_under") or {}).get("epoch") or OLD)
-            if s.get("locked") else str(s.get("epoch") or OLD)
-        )
-        groups[(str(s.get("sport") or "football"), epoch)].append(s)
+        groups[(str(s.get("sport") or "football"), _leg_epoch(s))].append(s)
+    sport_groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for g in sport_graded or []:
+        sport_groups[(str(g.get("sport")), _leg_epoch(g))].append(g)
     rows = []
-    for (sport, epoch), group in sorted(groups.items()):
-        res = settle_singles(group, by_key)
+    for (sport, epoch), group in sorted({**groups, **sport_groups}.items()):
+        res = (_settle_sport_graded(group) if (sport, epoch) in sport_groups
+               else settle_singles(group, by_key))
         rows.append([sport, epoch, len(group), res["settled"],
                      f"{res['won']} / {res['lost']}", res["refunded"],
                      f"{res['units']:+.2f} j.",
@@ -333,17 +358,25 @@ def render_stats_only_split(
     return out
 
 
-def render_sport_singles(
-    legs: list[dict[str, Any]], sheet_res: dict[str, Any], runs_dir: str,
-    date: str,
-) -> list[str]:
-    """7c, the measured sports' singles (F7): graded at the printed price by
-    coupon_sports against the pinned identity; then the coupon's sum of both
-    tables (units only - each table is its own population)."""
+def grade_sport_singles(
+    legs: list[dict[str, Any]], runs_dir: str, date: str
+) -> list[dict[str, Any]]:
+    """The measured sports' printed singles graded by coupon_sports (F7)."""
     from bet.sofa import coupon_sports
     from bet.sofa.timeutil import now as _now
 
-    graded = coupon_sports.grade(runs_dir, date, legs, _now())
+    return coupon_sports.grade(runs_dir, date, legs, _now())
+
+
+def render_sport_singles(
+    graded: list[dict[str, Any]], sheet_res: dict[str, Any],
+) -> list[str]:
+    """7c, the measured sports' singles (F7): graded at the printed price by
+    coupon_sports against the pinned identity (grade_sport_singles); then
+    the coupon's sum of both tables (units only - each table is its own
+    population)."""
+    from bet.sofa import coupon_sports
+
     out = ["", "#### Sporty mierzone na kuponie (hokej, koszykówka, siatkówka, "
            "CS2)", ""]
     rows = []
@@ -1079,9 +1112,11 @@ def main() -> int:
             res = settle_singles(sheet_singles, coupon_by_key)
             emit(_table(["", "liczba"],
                         singles_summary_rows(len(sheet_singles), res)))
+            sport_graded = (
+                grade_sport_singles(sport_singles, config.runs_dir, args.date)
+                if sport_singles else [])
             if sport_singles:
-                lines.extend(render_sport_singles(
-                    sport_singles, res, config.runs_dir, args.date))
+                lines.extend(render_sport_singles(sport_graded, res))
             emit("")
             emit("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
                  "nich operator wziął. Kurs to `offered_odds` z artefaktu.")
@@ -1091,7 +1126,8 @@ def main() -> int:
                      "rozliczone.")
             emit("")
             if artifact_epoch(conf) == STATS_ONLY:
-                lines.extend(render_stats_only_split(singles, coupon_by_key))
+                lines.extend(render_stats_only_split(
+                    sheet_singles, coupon_by_key, sport_graded))
 
         # ---- 7i. the legs a read removed (stats-only days, plan K6) -----
         all_removed = conf.get("removed_by_reads") or []

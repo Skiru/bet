@@ -189,7 +189,8 @@ def _stored_winner(ev: dict[str, Any]) -> Literal["T1", "T2"] | None:
         return ev["winner"]  # type: ignore[no-any-return]
     if ev.get("status") == "AP":
         return None
-    if ev.get("overtime"):
+    if ev.get("overtime") or not ev.get("t1_periods"):
+        # A final_only game has no periods: its full score (2026-10-12).
         a, b = ev["t1_full"], ev["t2_full"]
     else:
         a, b = sum(ev["t1_periods"]), sum(ev["t2_periods"])
@@ -270,6 +271,11 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         int(ev["t2_full"]),
         _stored_winner(ev),
         bool(ev.get("overtime")),
+        reg_score=(
+            (int(ev["t1_reg"]), int(ev["t2_reg"]))
+            if ev.get("t1_reg") is not None and ev.get("t2_reg") is not None
+            else None
+        ),
     )
     sline = shadow.ShadowLine(
         leg["superbet_event_id"],

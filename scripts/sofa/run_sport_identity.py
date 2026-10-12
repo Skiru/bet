@@ -14,7 +14,10 @@ yet identified - an IDENTIFIED record is pinned and never asked again.
 
 Writes runs/sofa/<date>/sport_fixtures.json; the team ids come from the
 database read-only. Exit: 0 OK, 1 PARTIAL (an event not identified, or the
-bridge refused), 2 FAILED (no snapshot of any sport).
+bridge refused), 2 FAILED (no snapshot of any sport). With --if-snapshot a
+date that has no snapshot yet is NOTHING_TO_DO, exit 0, and no file is
+written: the daily loops ask D+1 after every snapshot, long before D+1 has
+one, and logged that as FAILED every half hour (2026-10-12).
 """
 
 from __future__ import annotations
@@ -37,10 +40,12 @@ from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
+NOTHING_TO_DO = 3  # internal: --if-snapshot and no snapshot (exit 0)
+
 
 def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
-        cache: si.ListingCache | None, conn: sqlite3.Connection) -> tuple[
-            dict[str, Any], int]:
+        cache: si.ListingCache | None, conn: sqlite3.Connection,
+        if_snapshot: bool = False) -> tuple[dict[str, Any], int]:
     at = now()
     out = Path(runs_dir) / date / si.FIXTURES_FILE
     prior = si.load_fixtures(out)
@@ -50,6 +55,9 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
     events: list[si.BoardEvent] = []
     for sport in sports:
         events += si.board_events(runs_dir, sport, date, at)
+    if not events and if_snapshot:
+        return {"sports": (prior or {}).get("sports") or {},
+                "aborted": None}, NOTHING_TO_DO
     resolver = si.TeamResolver(conn, int(at.timestamp()))
     records, summary = si.identify(events, client, cache, resolver.team_id, at,
                                    date, pinned, resolver.query_id)
@@ -67,8 +75,12 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
         "sports_run": sorted(
             set(sports) | set((prior or {}).get("sports_run") or [])),
         **(
+            # Only the sports asked replace their counts: identify() counts
+            # every sport, and an unasked one read 0 events (the CS2 loop
+            # zeroed hockey's line every half hour; 2026-10-12).
             {"sports": {**((prior or {}).get("sports") or {}),
-                        **(summary.get("sports") or {})}}
+                        **{sp: c for sp, c in (summary.get("sports") or {}).items()
+                           if sp in sports}}}
             if isinstance(summary.get("sports"), dict) else {}
         ),
         "fixtures": kept + records,
@@ -86,6 +98,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--date", required=True)
     ap.add_argument("--sport", action="append", choices=list(si.SPORT_KEYS))
+    ap.add_argument(
+        "--if-snapshot", action="store_true",
+        help="no snapshot of the date yet: NOTHING_TO_DO, exit 0, nothing "
+        "written (the loops' D+1 run)")
     args = ap.parse_args()
     config = SofaConfig.from_env()
     frozen = frozen_clock_refusal(config.runs_dir)
@@ -100,16 +116,17 @@ def main() -> int:
     conn = sqlite3.connect(f"file:{config.db_path}?mode=ro", uri=True)
     try:
         doc, code = run(args.date, list(args.sport or si.SPORT_KEYS),
-                        config.runs_dir, client, cache, conn)
+                        config.runs_dir, client, cache, conn, args.if_snapshot)
     finally:
         conn.close()
     print("SOFA_SUMMARY: " + json.dumps({
         "stage": "SPORT_IDENTITY",
-        "verdict": {0: "OK", 1: "PARTIAL", 2: "FAILED"}[code],
+        "verdict": {0: "OK", 1: "PARTIAL", 2: "FAILED",
+                    NOTHING_TO_DO: "NOTHING_TO_DO"}[code],
         "sports": doc["sports"], "aborted": doc["aborted"],
         "output_path": str(Path(config.runs_dir) / args.date / si.FIXTURES_FILE),
     }), flush=True)
-    return code
+    return 0 if code == NOTHING_TO_DO else code
 
 
 if __name__ == "__main__":

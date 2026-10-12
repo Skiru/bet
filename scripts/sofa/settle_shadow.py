@@ -623,7 +623,7 @@ def settle_one(
         # A "finished" description the sport does not expect - a status
         # glitch ("Halftime" on hockey 15025409, 10-02) - is graded only when
         # the score adds up; otherwise it is asked again (B5).
-        if build_result(detail, sport, True) is None:
+        if build_result(detail, sport, True, allow_final_only=True) is None:
             return {**record, "state": "UNUSUAL", "status": status_text}
         record["status_unusual"] = status_text
         state = "FINISHED"
@@ -658,7 +658,8 @@ def settle_one(
             record["priced_sides"] = len(ev.sides)
             if not ev.sides:
                 return {**record, "state": "NO_PRE_START_PRICE"}
-    result = build_result(detail, sport, orientation is not False)
+    result = build_result(detail, sport, orientation is not False,
+                          allow_final_only=True)
     if result is None:
         return {
             **record,
@@ -718,6 +719,14 @@ def settle_one(
         "status": (detail.get("status") or {}).get("description"),
         "t1_periods": list(result.t1_periods),
         "t2_periods": list(result.t2_periods),
+        # No period published (shadow.build_result, allow_final_only): only
+        # the full game, and regulation where told, is graded (2026-10-12).
+        **(
+            {"score_source": "final_only",
+             "t1_reg": result.reg_score[0] if result.reg_score else None,
+             "t2_reg": result.reg_score[1] if result.reg_score else None}
+            if result.final_only else {}
+        ),
         "t1_full": result.t1_full,
         "t2_full": result.t2_full,
         "overtime": result.overtime,

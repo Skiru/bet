@@ -203,8 +203,10 @@ def identity_steps(date: str, sports: Sequence[str]) -> list[list[str]]:
     IDENTIFIED record is pinned and never asked again; bridge needed (none:
     the run fails, the loop goes on)."""
     flags = [x for sp in sports for x in ("--sport", sp)]
-    return [["scripts/sofa/run_sport_identity.py", "--date", d, *flags]
-            for d in (date, next_day(date))]
+    # D+1 usually has no snapshot yet: NOTHING_TO_DO, not FAILED (2026-10-12).
+    return [["scripts/sofa/run_sport_identity.py", "--date", date, *flags],
+            ["scripts/sofa/run_sport_identity.py", "--date", next_day(date),
+             *flags, "--if-snapshot"]]
 
 
 def run(

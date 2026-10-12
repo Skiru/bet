@@ -42,3 +42,23 @@ def test_7i_grades_the_removed_legs_by_who_removed_them():
     assert "## 7i." in text
     assert "| analyst | 1 | 0 / 1 | -1.00 j. |" in text
     assert "| auto | 1 | 1 / 0 | +0.50 j. |" in text
+
+
+def test_7c_split_grades_measured_sport_legs_from_their_own_grades():
+    # 2026-10-11's report read hockey / basketball / volleyball / CS2 as
+    # "0 settled" in this table: their legs were looked up among the sheet's
+    # rows, which never hold a measured sport. They take coupon_sports'
+    # grades now, as the sports' own table above it does.
+    sheet = [_leg(1, "football", 1.5, epoch="stats_only")]
+    by_key = {_key(sheet[0]): {"outcome": "WIN"}}
+    sport_graded = [
+        {"sport": "hockey", "epoch": "stats_only", "odds": 1.2, "outcome": "WIN"},
+        {"sport": "hockey", "epoch": "stats_only", "odds": 1.3, "outcome": "LOSS"},
+        {"sport": "hockey", "epoch": "stats_only", "odds": 1.3, "outcome": "VOID"},
+        {"sport": "basketball", "epoch": "stats_only", "odds": 1.5,
+         "outcome": "PENDING:DATA_MISMATCH"},
+    ]
+    text = "\n".join(render_stats_only_split(sheet, by_key, sport_graded))
+    assert "| football | stats_only | 1 | 1 | 1 / 0 | 0 | +0.50 j. |" in text
+    assert "| hockey | stats_only | 3 | 2 | 1 / 1 | 1 | -0.80 j. | -40.0% |" in text
+    assert "| basketball | stats_only | 1 | 0 | 0 / 0 | 0 | +0.00 j. | — |" in text

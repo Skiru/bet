@@ -2819,3 +2819,26 @@ def test_an_emptied_event_is_still_settled_and_recut_at_sofascores_start() -> No
     assert not latest_pre_kickoff(recs)["9"].sides
     start = datetime(2026, 10, 3, 12, 30, tzinfo=UTC)
     assert latest_pre_kickoff(recs, {"9": start})["9"].sides
+
+
+def test_a_game_published_without_periods_settles_from_its_final_score(
+    tmp_path: Path,
+) -> None:
+    # 2026-10-12: a game with `current` and `winnerCode` but no period1..3 was
+    # DATA_MISMATCH for good (22 basketball games a day since 10-07). It is
+    # SETTLED from the final score now and says so (score_source final_only).
+    write_snapshot(tmp_path)
+    final_only = {
+        "status": {"type": "finished", "description": "Ended"},
+        "winnerCode": 1,
+        "homeScore": {"current": 4, "display": 4},
+        "awayScore": {"current": 2, "display": 2},
+    }
+    run_settle(tmp_path, FakeResolver(sofa_event()),
+               FakeClient({**sofa_event(), **final_only}), 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "SETTLED" and rec["score_source"] == "final_only"
+    assert (rec["t1_periods"], rec["t1_reg"], rec["t2_reg"]) == ([], 4, 2)
+    outcomes = {(g["family"], g["side"]): g["outcome"] for g in rec["graded"]}
+    assert outcomes == {("total", "OVER"): "WIN", ("total", "UNDER"): "LOSS",
+                        ("winner", "T1"): "WIN", ("winner", "T2"): "LOSS"}

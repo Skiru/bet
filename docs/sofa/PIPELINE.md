@@ -1049,7 +1049,11 @@ migawki D i D+1. Pisze **`runs/sofa/<d>/sport_fixtures.json`**:
 `start_gap_h`, `matched_at_utc`, `status` (`IDENTIFIED` / `NOT_IDENTIFIED` /
 `DUPLICATE_*` …). Rekord `IDENTIFIED` jest przypięty i nigdy nie pytany
 ponownie; po tym id rozlicza SETTLE. Kod 0 / 1 (mecz nierozpoznany albo
-odmowa mostu) / 2 (brak migawki żadnego sportu).
+odmowa mostu) / 2 (brak migawki żadnego sportu). Z `--if-snapshot` brak
+migawki to `NOTHING_TO_DO`, kod 0, bez zapisu pliku — tak pętle
+`shadow_daily` / `cs2_daily` pytają o D+1 (od 2026-10-12; wcześniej co pół
+godziny logowały FAILED). Blok `sports` w pliku podmienia liczniki tylko
+sportów, o które pytano (wcześniej pętla CS2 zerowała hokej i odwrotnie).
 
 **SPORT_CONFIDENCE** — `scripts/sofa/run_sport_confidence.py --date <d>`,
 bez mostu. Czyta `sport_fixtures.json`, migawki SHADOW / CS2,
@@ -1524,7 +1528,16 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   (więc „Dynamo Moscow” nie potwierdzi sam siebie przez „moscow”).
   `/event/{id}` pyta świeżo i ocenia dopiero, gdy wynik się zgadza: suma
   okresów = `normaltime`, dogrywka tylko z remisu, sety = `current`. Gol z
-  dogrywki jest w `current`, a w żadnym okresie. Rynek bez „(z dogrywką)”
+  dogrywki jest w `current`, a w żadnym okresie. Mecz hokeja / koszykówki,
+  który Sofascore podaje **bez okresów** (sam `current` i `winnerCode`), od
+  2026-10-12 jest rozliczany z wyniku końcowego (`score_source: final_only`,
+  `t1_reg` / `t2_reg`): rynki całego meczu, a regulaminowe tylko gdy wynik
+  regulaminowy wiadomo (`normaltime`, albo `current` gdy nic nie mówi o
+  dogrywce); kwarty, połowy i tercje — nie. Kod zwycięzcy musi zgadzać się z
+  wynikiem. Wcześniej taki mecz był `DATA_MISMATCH` na zawsze (koszykówka:
+  10–22 mecze dziennie od 10-07, m.in. NBL, Serie B, ligi kobiet Austrii i
+  Grecji). Historia i dopasowania krzywych (`sport_confidence`) czytają takich
+  meczów nadal nie. Rynek bez „(z dogrywką)”
   liczy czas regulaminowy (rodziny hokejowe z dogrywką 613 / 617 / 621 / 653
   nie są mapowane, a NHL jest wystawiana **tylko** z nimi, więc żadna suma NHL
   nie jest mierzona — przegląd 2026-10-01); kwarta 4. i 2. połowa w koszykówce liczą się z okresów
