@@ -22,6 +22,9 @@ named, never shown as passed:
     coupon        11_coupon.json / 08_confidence.json against their sources
                   (build_coupon_pdf's own staleness rules)
     fixtures      UNVERIFIED events of fixture_status.json
+    identity      sport_fixtures.json: any BRIDGE_ABORTED refusal, or a
+                  sport's identified share under its measured floor
+                  (IDENTITY_MIN_SHARE, from IDENTITY_MIN_EVENTS events)
 
 Exit 0 all OK, 1 a WARN, 2 a BROKEN.
 """
@@ -338,6 +341,62 @@ def fixtures_check(run: Path) -> Check:
     return Check("fixtures", WARN if unverified else OK, detail)
 
 
+# SPORT_IDENTITY's identified share below which a day is a WARN (A6), once a
+# sport has IDENTITY_MIN_EVENTS countable events. Measured on the
+# sport_fixtures.json of 10-06..10-12: hockey 91-97%, basketball 81-96%,
+# CS2 52-90% (its DUPLICATE_SUPERBET_TEAM 1x1 refusals left out),
+# volleyball 29-58% - each limit sits under the lowest healthy day.
+IDENTITY_MIN_SHARE = {"hockey": 0.85, "basketball": 0.75, "cs2": 0.45,
+                      "volleyball": 0.25}
+IDENTITY_MIN_EVENTS = 10
+# sport_identity.py's names (not imported: the report stays light)
+_BRIDGE_ABORTED = "BRIDGE_ABORTED"
+_DUPLICATE_TEAM = "DUPLICATE_SUPERBET_TEAM"
+_IDENTIFIED = "IDENTIFIED"
+
+
+def identity_check(run: Path) -> Check:
+    """sport_fixtures.json: a bridge-aborted identity run, or a sport whose
+    identified share fell below its measured floor."""
+    path = run / "sport_fixtures.json"
+    if not path.exists():
+        return Check("identity", WARN,
+                     "no sport_fixtures.json (SPORT_IDENTITY not run)")
+    try:
+        records = _json(path).get("fixtures") or []
+    except (OSError, ValueError, AttributeError) as exc:
+        return Check("identity", WARN, f"sport_fixtures.json unreadable: {exc}")
+    aborted: dict[str, int] = {}
+    counted: dict[str, int] = {}
+    identified: dict[str, int] = {}
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        sport = str(r.get("sport") or "?")
+        if _BRIDGE_ABORTED in (r.get("reason"), r.get("status")):
+            aborted[sport] = aborted.get(sport, 0) + 1
+        if sport == "cs2" and r.get("status") == _DUPLICATE_TEAM:
+            continue  # the board's 1x1 loop: never identifiable, not a miss
+        counted[sport] = counted.get(sport, 0) + 1
+        if r.get("status") == _IDENTIFIED:
+            identified[sport] = identified.get(sport, 0) + 1
+    problems: list[str] = []
+    parts: list[str] = []
+    for sport in sorted(counted):
+        n, ok = counted[sport], identified.get(sport, 0)
+        floor = IDENTITY_MIN_SHARE.get(sport)
+        parts.append(f"{sport} {ok}/{n} ({ok / n:.0%})")
+        if floor is not None and n >= IDENTITY_MIN_EVENTS and ok / n < floor:
+            problems.append(f"{sport} below {floor:.0%}")
+    if aborted:
+        problems.append("BRIDGE_ABORTED " + ", ".join(
+            f"{sp} {k}" for sp, k in sorted(aborted.items())))
+    detail = "; ".join(parts) or "no sport events"
+    if problems:
+        detail += " - " + "; ".join(problems)
+    return Check("identity", WARN if problems else OK, detail)
+
+
 # Below this share of D-1's pinned hockey / basketball / volleyball games
 # finished in the history the score model has not seen yesterday
 # (2026-10-12: 0-30% for a week; refresh_sport_history.py).
@@ -383,6 +442,7 @@ def checks(runs: Path, date: str, now: datetime,
         clv_check(runs, date, now),
         coupon_check(run, now),
         fixtures_check(run),
+        identity_check(run),
         history_check(runs, date, db_path),
     ]
 

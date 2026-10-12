@@ -578,3 +578,64 @@ def test_sofa_day_runs_the_status_and_the_closing_loop() -> None:
     text = (REPO / ".claude/commands/sofa-day.md").read_text(encoding="utf-8")
     assert "scripts/sofa/day_status.py" in text
     assert "capture_closing.py --date <date> --loop" in text
+
+
+def _sport_fixtures(run: Path, counts: dict[tuple[str, str, str | None], int]) -> None:
+    recs = [
+        {"sport": sport, "status": status, "reason": reason,
+         "superbet_event_id": f"{sport}-{status}-{i}"}
+        for (sport, status, reason), n in counts.items()
+        for i in range(n)
+    ]
+    run.mkdir(parents=True, exist_ok=True)
+    (run / "sport_fixtures.json").write_text(json.dumps({"fixtures": recs}))
+
+
+def test_identity_check_ok_on_a_healthy_day(tmp_path: Path) -> None:
+    run = tmp_path / D
+    _sport_fixtures(run, {
+        ("hockey", "IDENTIFIED", None): 18,
+        ("hockey", "NOT_IDENTIFIED", "NO_GAME_WITHIN_1H"): 2,
+        ("basketball", "IDENTIFIED", None): 8,
+        ("basketball", "NOT_IDENTIFIED", "TEAM_UNRESOLVED"): 2,
+        ("volleyball", "IDENTIFIED", None): 3,
+        ("volleyball", "NOT_IDENTIFIED", "TEAM_UNRESOLVED"): 7,
+        # CS2: 5/10 countable; the 1x1 duplicates are left out of the share
+        ("cs2", "IDENTIFIED", None): 5,
+        ("cs2", "NOT_IDENTIFIED", "NO_MATCH_IN_LISTING"): 5,
+        ("cs2", "DUPLICATE_SUPERBET_TEAM", "team 'x' in another event"): 30,
+    })
+    got = day_status.identity_check(run)
+    assert got.status == day_status.OK, got.detail
+    assert "cs2 5/10 (50%)" in got.detail
+
+
+def test_identity_check_warns_on_a_low_share_and_on_a_bridge_abort(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / D
+    _sport_fixtures(run, {
+        ("hockey", "IDENTIFIED", None): 8,
+        ("hockey", "NOT_IDENTIFIED", "NO_GAME_WITHIN_1H"): 2,  # 80% < 85%
+        ("basketball", "IDENTIFIED", None): 5,
+        ("basketball", "NOT_IDENTIFIED", "NO_GAME_WITHIN_1H"): 4,  # 9 < 10
+    })
+    got = day_status.identity_check(run)
+    assert got.status == day_status.WARN
+    assert "hockey below 85%" in got.detail
+    assert "basketball below" not in got.detail, "too few events to judge"
+
+    _sport_fixtures(run, {("hockey", "IDENTIFIED", None): 30,
+                          ("cs2", "NOT_IDENTIFIED", "BRIDGE_ABORTED"): 1})
+    got = day_status.identity_check(run)
+    assert got.status == day_status.WARN
+    assert "BRIDGE_ABORTED cs2 1" in got.detail
+
+
+def test_identity_check_names_a_missing_file(tmp_path: Path) -> None:
+    got = day_status.identity_check(tmp_path / D)
+    assert got.status == day_status.WARN
+    assert "SPORT_IDENTITY not run" in got.detail
+    names = {c.name for c in day_status.checks(tmp_path, D, NOW,
+                                                command_of=lambda pid: "")}
+    assert "identity" in names
