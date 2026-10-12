@@ -446,6 +446,13 @@ ponownie `audit_variants`.
 
 ## 6. Co zrobić, gdy…
 
+(2026-10-12) Krok pętli dłuższy niż 6 h (`cs2_daily.STEP_TIMEOUT_S`) jest zabijany
+razem z grupą procesów i zapisany `STEP_FAILED TIMEOUT` - pętla idzie dalej jak po
+każdym błędzie. `day_status.py` ostrzega też o identyfikacji meczów sportów
+(`identity`: każde BRIDGE_ABORTED albo udział poniżej hokej 85% / koszykówka 75% /
+CS2 45% / siatkówka 25% przy >= 10 meczach; duplikaty 1x1 CS2 nie liczą się).
+
+
 | sytuacja | reakcja |
 |---|---|
 | kupon wyszedł pusty | **Nie przebudowuj w kółko.** Powiedz, **która bramka** go opróżniła. Sprawdź `06_dropped.json` — na 2026-09-21 wszystkie 118 wierszy VALUE padło na `DISAGREES_WITH_PRICE` (84) i `KICKOFF_TOO_SOON` (34). |

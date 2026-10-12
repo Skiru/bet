@@ -504,9 +504,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>        #
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> --chain >> runs/sofa/shadow/daily_<d>.log 2>&1 &   # hockey/basketball/volleyball day, unattended: snapshots + SPORT_IDENTITY for D and D+1, morning settles D, D-1, D-2
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> --chain >> runs/sofa/cs2/daily_<d>.log 2>&1 &         # the CS2 day, unattended; a second loop for the date refuses
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <d> --loop &   # closing price of every printed leg -> closing.jsonl; stops after 12 failed passes
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>        # Superbet boosts snapshot (not the coupon), several times a day
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>        # Superbet boosts snapshot (not the coupon), several times a day; one event's error is skipped (exit 1), an open breaker stops (exit 2)
 ```
-A daily loop reads its plan when it starts: one started before a code change
+A loop step that runs past `cs2_daily.STEP_TIMEOUT_S` (6 h, >= 3x the longest step measured 09-28..10-12) is killed with its process group and logged `STEP_FAILED TIMEOUT`, like any failed step. `day_status.py` also WARNs on sport identity (`identity`: any BRIDGE_ABORTED, or below hockey 85% / basketball 75% / CS2 45% / volleyball 25% with >= 10 events, CS2 1x1 duplicates excluded). A daily loop reads its plan when it starts: one started before a code change
 runs its old steps until it ends.
 
 **Single stages** (`rebuild_day.py` runs them in order; by hand only to debug)
