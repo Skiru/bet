@@ -15,6 +15,8 @@ Variants (each only lowers the current read):
                pooled downward until MIN_CAP_CELL lines, cap = their realised
                rate where the Wilson upper bound of that cell (lines divided by
                the sport's design effect) is below the confidence;
+  bucket_up_wilson the same cell, cap where its Wilson upper bound (lines
+               as they are, like the price-band cap) is below the confidence;
   bucket_up_pt the same cell, cap = its realised rate whenever lower (point).
 
 Per variant: legs, games, mean confidence, realised, gap (realised - confidence)
@@ -45,7 +47,7 @@ from scripts.sofa.fit_line_evidence import sport_rows
 
 FLOOR = 0.70
 MIN_X = 0.90
-VARIANTS = ("current", "bucket_up", "bucket_up_pt")
+VARIANTS = ("current", "bucket_up", "bucket_up_wilson", "bucket_up_pt")
 
 
 def bucket_up_cell(rows_by_key: dict[tuple[str, str], list[tuple[float, int]]],
@@ -84,6 +86,10 @@ def read_variant(variant: str, ev: le.LineEvidence,
     rate = k / n
     if variant == "bucket_up":
         if le.wilson_hi(round(k / deff), max(round(n / deff), 1)) < value:
+            return min(value, round(rate, 4))
+        return value
+    if variant == "bucket_up_wilson":
+        if le.wilson_hi(k, n) < value:
             return min(value, round(rate, 4))
         return value
     return min(value, round(rate, 4))  # bucket_up_pt
