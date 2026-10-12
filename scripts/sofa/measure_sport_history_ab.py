@@ -63,7 +63,7 @@ def _boot(by_game: dict[str, list[tuple[float, ...]]], fn: Any,
 
 def compare(sport: str, stale_db: str, db: str, runs_dir: str, dates: list[str],
             sims: int) -> dict[str, Any]:
-    sp = SPORTS[sport]
+    sp = SPORTS[sport]  # type: ignore[index]
     fresh_events = load_events(db, sp)
     stale_events = load_events(stale_db, sp)
     fresh_hist = scf.parse_history(fresh_events, sp)
