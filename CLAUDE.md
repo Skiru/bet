@@ -271,7 +271,8 @@ every sport alike, and nothing that could win is cut by name.
 ### Measured sports (hockey, basketball, volleyball, CS2)
 
 SHADOW / CS2 snapshot Superbet -> SPORT_IDENTITY pins the Sofascore id before
-the start -> SPORT_CONFIDENCE reads the sport calibration (fitted without
+the start (an event not identified by its start keeps its last pre-start
+record, `frozen_at_start`, and is not asked again) -> SPORT_CONFIDENCE reads the sport calibration (fitted without
 prices) and corrects it with line evidence. SHADOW / CS2 themselves stay a
 measurement of Superbet's price and feed nothing else.
 

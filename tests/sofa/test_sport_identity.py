@@ -223,6 +223,79 @@ def test_a_pinned_record_is_never_asked_again_and_the_cache_serves_a_listing():
     assert cached["listing_from_cache"] is True and client.calls == [10]
 
 
+def test_a_started_event_keeps_its_pre_start_refusal_and_is_not_asked_again():
+    # 2026-10-06..10-12: a re-run after the start asked events/next, which no
+    # longer lists a game under way, and overwrote the pre-start reason with
+    # NO_GAME_WITHIN_1H.
+    ev = _ev("1", "Sparta Praha", "Kometa Brno")
+    before = KICK - timedelta(hours=2)
+    (first,), _ = si.identify([ev], FakeClient({10: []}), None, _teams, before,
+                              "2026-10-06")
+    assert first["status"] == si.NOT_IDENTIFIED
+    assert first["reason"] == "NO_GAME_WITHIN_1H"
+    first = {**first, "reason": "AMBIGUOUS"}  # whatever the pre-start run said
+    after = KICK + timedelta(minutes=5)
+    client = FakeClient({10: [_listed(9001, (10, "Sparta Praha"),
+                                      (20, "Kometa Brno"))]})
+    (again,), summary = si.identify([ev], client, None, _teams, after,
+                                    "2026-10-06", pinned={"1": first})
+    assert client.calls == []
+    assert again["status"] == si.NOT_IDENTIFIED and again["reason"] == "AMBIGUOUS"
+    assert again["matched_at_utc"] == first["matched_at_utc"]
+    assert again["frozen_at_start"] is True
+    assert summary["sports"]["hockey"]["refused"] == {"AMBIGUOUS": 1}
+
+
+def test_before_kickoff_an_unidentified_event_is_asked_again():
+    ev = _ev("1", "Sparta Praha", "Kometa Brno")
+    prior = {"superbet_event_id": "1", "sport": "hockey",
+             "status": si.NOT_IDENTIFIED, "reason": "NO_GAME_WITHIN_1H"}
+    client = FakeClient({10: [_listed(9001, (10, "Sparta Praha"),
+                                      (20, "Kometa Brno"))]})
+    (r,), _ = si.identify([ev], client, None, _teams, KICK - timedelta(minutes=1),
+                          "2026-10-06", pinned={"1": prior})
+    assert client.calls == [10]
+    assert r["status"] == si.IDENTIFIED and r["sofascore_event_id"] == 9001
+    assert "frozen_at_start" not in r
+
+
+def test_a_pinned_record_stays_pinned_after_kickoff():
+    ev = _ev("1", "Sparta Praha", "Kometa Brno")
+    client = FakeClient({10: [_listed(9001, (10, "Sparta Praha"),
+                                      (20, "Kometa Brno"))]})
+    (first,), _ = si.identify([ev], client, None, _teams, AT, "2026-10-06")
+    (again,), _ = si.identify([ev], client, None, _teams,
+                              KICK + timedelta(hours=1), "2026-10-06",
+                              pinned={"1": first})
+    assert again["pinned"] is True and again["sofascore_event_id"] == 9001
+    assert "frozen_at_start" not in again and client.calls == [10]
+
+
+def test_the_script_keeps_a_started_events_refusal(tmp_path: Path, monkeypatch):
+    from scripts.sofa import run_sport_identity as rsi
+
+    day = tmp_path / "shadow" / "hockey" / "2026-10-06"
+    day.mkdir(parents=True)
+    (day / "snapshots.jsonl").write_text(json.dumps(
+        _snapshot("1", "Sparta Praha", "Kometa Brno", "2026-10-06T18:00:00Z")) + "\n")
+    conn = sqlite3.connect(":memory:")
+    monkeypatch.setattr(si.TeamResolver, "team_id",
+                        lambda self, sport, name: TEAMS.get(name))
+    monkeypatch.setattr(si.TeamResolver, "query_id",
+                        lambda self, sport, name: None)
+    monkeypatch.setattr(rsi, "now", lambda: AT)
+    client = FakeClient({10: []})
+    rsi.run("2026-10-06", ["hockey"], str(tmp_path), client, None, conn)
+    monkeypatch.setattr(rsi, "now", lambda: KICK + timedelta(minutes=30))
+    client.calls.clear()
+    rsi.run("2026-10-06", ["hockey"], str(tmp_path), client, None, conn)
+    out = json.loads((tmp_path / "2026-10-06" / si.FIXTURES_FILE).read_text())
+    (rec,) = out["fixtures"]
+    assert client.calls == []
+    assert rec["reason"] == "NO_GAME_WITHIN_1H"
+    assert rec["matched_at_utc"] == "2026-10-06T08:00:00Z"
+
+
 def test_cs2_goes_through_pick_event():
     series = _listed(7001, (501, "Natus Vincere Junior"), (502, "ENCE Prospects"),
                      slug="esports", category="Counter Strike")

@@ -1079,7 +1079,12 @@ migawki D i D+1. Pisze **`runs/sofa/<d>/sport_fixtures.json`**:
 `home_is_team1`, `competition_id`, `match_method`, `name_scores`,
 `start_gap_h`, `matched_at_utc`, `status` (`IDENTIFIED` / `NOT_IDENTIFIED` /
 `DUPLICATE_*` …). Rekord `IDENTIFIED` jest przypięty i nigdy nie pytany
-ponownie; po tym id rozlicza SETTLE. Kod 0 / 1 (mecz nierozpoznany albo
+ponownie; po tym id rozlicza SETTLE. Mecz nierozpoznany, którego start
+Superbetu już minął, zachowuje swój ostatni rekord (sprzed startu,
+`frozen_at_start: true`) i nie jest pytany ponownie: `events/next` nie
+pokazuje meczu w trakcie, a ponowne pytanie nadpisywało powód sprzed startu
+`NO_GAME_WITHIN_1H` (10-06..10-12: 3..56 takich rekordów dziennie; od
+2026-10-12 wieczorem). Kod 0 / 1 (mecz nierozpoznany albo
 odmowa mostu) / 2 (brak migawki żadnego sportu). Z `--if-snapshot` brak
 migawki to `NOTHING_TO_DO`, kod 0, bez zapisu pliku — tak pętle
 `shadow_daily` / `cs2_daily` pytają o D+1 (od 2026-10-12; wcześniej co pół

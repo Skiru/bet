@@ -547,9 +547,13 @@ def identify(events: list[BoardEvent], client: ListingClient,
              query_teams: Callable[[str, str], int | None] | None = None
              ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Every event of the day's window identified or refused, and the
-    per-sport counts. `pinned`: records of an earlier run that were
-    IDENTIFIED - kept as they are, never asked again. `query_teams`: see
-    identify_event."""
+    per-sport counts. `pinned`: the records of an earlier run - an
+    IDENTIFIED one is kept as it is and never asked again; any other is kept
+    as it is, never asked again, once the event's Superbet kickoff is at or
+    before `at` (FROZEN_AT_START): `team/<id>/events/next` no longer lists a
+    game under way, so a re-ask after the start only overwrote the pre-start
+    reason with NO_GAME_WITHIN_1H (2026-10-06..10-12: 3..56 such records a
+    day). `query_teams`: see identify_event."""
     start, end = day_window(date)
     in_day = [ev for ev in events if start <= ev.kickoff < end]
     dup = duplicate_team_events(events)
@@ -558,6 +562,8 @@ def identify(events: list[BoardEvent], client: ListingClient,
     aborted: str | None = None
     for ev in sorted(in_day, key=lambda e: (e.kickoff_utc, e.superbet_event_id)):
         prev = pinned.get(ev.superbet_event_id)
+        if prev is not None and str(prev.get("sport") or ev.sport) != ev.sport:
+            prev = None
         if ev.superbet_event_id in dup:
             records.append(_record(ev, at, status=DUPLICATE_SUPERBET_TEAM,
                                    reason=f"team '{dup[ev.superbet_event_id]}' "
@@ -565,6 +571,11 @@ def identify(events: list[BoardEvent], client: ListingClient,
             continue
         if prev is not None and prev.get("status") == IDENTIFIED:
             records.append({**prev, "pinned": True})
+            continue
+        if prev is not None and ev.kickoff <= at:
+            # Started: its last record stays (the pre-start refusal, or what
+            # an older run wrote), the listing is not asked again.
+            records.append({**prev, "frozen_at_start": True})
             continue
         if aborted is not None:
             records.append(_record(ev, at, status=NOT_IDENTIFIED,

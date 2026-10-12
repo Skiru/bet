@@ -10,7 +10,9 @@ volleyball and CS2 Superbet event of the day, before it starts (plan
 Needs the bridge: one `team/<id>/events/next/0` request per match (cached
 with the events TTL), once a day, after the day's SHADOW and CS2 snapshots.
 A refusal stops the run (no retry); a re-run asks only for the events not
-yet identified - an IDENTIFIED record is pinned and never asked again.
+yet identified - an IDENTIFIED record is pinned and never asked again, and
+an event that has started keeps its last (pre-start) record, unasked: the
+`events/next` listing no longer shows a game under way.
 
 Writes runs/sofa/<date>/sport_fixtures.json; the team ids come from the
 database read-only. Exit: 0 OK, 1 PARTIAL (an event not identified, or the
@@ -49,9 +51,10 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
     at = now()
     out = Path(runs_dir) / date / si.FIXTURES_FILE
     prior = si.load_fixtures(out)
+    # Every earlier record: an IDENTIFIED one is pinned, any other is kept
+    # once its event has started (identify, FROZEN_AT_START).
     pinned = {str(r["superbet_event_id"]): r
-              for r in (prior or {}).get("fixtures") or []
-              if r.get("status") == si.IDENTIFIED}
+              for r in (prior or {}).get("fixtures") or []}
     events: list[si.BoardEvent] = []
     for sport in sports:
         events += si.board_events(runs_dir, sport, date, at)
