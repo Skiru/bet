@@ -323,6 +323,16 @@ golden `tests/sofa/golden/offer_mappable_off.json`). Nowe rynki pochodne nie
 mają krzywej – `NO_LINE_EVIDENCE` do 50 rozliczonych linii; szczeble
 `goals_*_for` 0,5 i `sets_total` czytają istniejące krzywe, więc mogą drukować.
 
+**Sporty mierzone nie mają `unmapped_markets`.** SHADOW i CS2 zapisują w
+`snapshots.jsonl` tylko linie, które czytają. Inwentaryzacja ich nieczytanych
+nazw (`report_market_coverage.py --date <d> --sports-only`, plan nocy
+2026-10-12 C5) pyta więc ofertę Superbetu na żywo (bez mostka; tylko mecze
+przed startem – rozegrany mecz nie ma już oferty) albo czyta zapisane payloady
+(`--sports-raw-dir`), i daje każdej nazwie jedną etykietę MAPPABLE /
+COMPUTABLE / NOT_COMPUTABLE (`market_coverage.classify_sport_market_name`),
+obok podsumowania snapshotów dnia. Raport → `market_coverage_sports.json/.md`;
+nic, co czyta potok.
+
 Flaga `--min-minutes-to-kickoff` ma znaczenie przy **późnym** odświeżeniu: bez
 niej etap wycenia całą tablicę razem z meczami już rozegranymi (2026-09-20:
 890 zakończonych meczów opłaconych, żeby dojść do 185 otwartych, ~90 minut).

@@ -452,10 +452,98 @@ TENNIS_RULES: list[Rule] = [
     _n(r"[123x]\.?\s?set - kto pierwszy wygra x gemy", "tn.game_order", NC_GAME_ORDER),
 ]
 
+# ---------------------------------------------------------------------------
+# Measured sports (night plan 2026-10-12 C5). SHADOW (hockey, basketball,
+# volleyball) reads a market by its `marketId` (shadow.MARKETS /
+# PLAYER_MARKETS) and CS2 by its name (cs2.parse_line); neither records what
+# it skipped, so these rules label the names a probe of Superbet's offer
+# finds unread (`sport_payload_names`). Written against the 10-13 offer
+# (52 events fetched 2026-10-12) and shadow.py's own "Not read" list.
+# ---------------------------------------------------------------------------
+
+OT = r"(?: \(z dogrywka(?: i rzutami karnymi)?\))?"  # Superbet's overtime scope
+SRC_BOX = "box score zawodników (/event/{id}/lineups, który SHADOW_SETTLE już czyta) albo /statistics drużyny"
+NEED_SCORE_MODEL = "model wyniku (sport_confidence / score_model) - "
+NC_SCORE_ORDER = (
+    "kolejność zdobywania punktów/goli: SHADOW_SETTLE trzyma wynik per okres, "
+    "incydenty / play-by-play Sofascore nie są pobierane do cache"
+)
+
+HOCKEY_RULES: list[Rule] = [
+    _c(r"(?:[123]\. tercja - )?podwojna szansa" + OT, "hk.double_chance",
+       NEED_SCORE_MODEL + "suma wyników 1X2, które czytamy (wyniki nakładające się, nie partycja - shadow.py: nie czytane)"),
+    _n(r"(?:[123]\. tercja - )?1\. gol" + OT + r"|druzyna zdobedzie 1\.\s?gola w meczu" + OT
+       + r"|wyscig do x goli" + OT, "hk.goal_order", NC_SCORE_ORDER),
+    _c(r"(?:" + S + r" - )?liczba goli \(z dogrywka i rzutami karnymi\)"
+       + r"|handicap \(z dogrywka i rzutami karnymi\)", "hk.ot_so_scope",
+       "zakres z dogrywką i karnymi (NHL tylko tak): model wyniku liczy czas regulaminowy; "
+       "potrzebny rozkład dogrywki/karnych z historii (current vs normaltime)"),
+    _c(r"(?:[123]\. tercja - )?dokladny wynik" + OT + r"|(?:[123]\. tercja - )?nieparzysta/parzysta.*",
+       "hk.score_distribution", NEED_SCORE_MODEL + "rozkład wyniku (dokładny wynik, parzystość)"),
+]
+
+BASKETBALL_RULES: list[Rule] = [
+    _c(r"(?:[12]\. polowa - |[1-4]\. kwarta - )?podwojna szansa" + OT, "bb.double_chance",
+       NEED_SCORE_MODEL + "suma wyników 1X2, które czytamy (wyniki nakładające się, nie partycja - shadow.py: nie czytane)"),
+    _n(r"wyscig do x punktow" + OT + r"|(?:[1-4]\. kwarta - )?kto (?:pierwszy )?zdobedzie .*",
+       "bb.score_order", NC_SCORE_ORDER),
+    _m(r"(?:punkty|asysty|zbiorki|punkty \+ zbiorki \+ asysty|trafione rzuty za #pkt) zawodnika" + OT,
+       "bb.player_milestone",
+       "player_points / _assists / _rebounds / _pts_reb_ast / _threes OVER N-0,5 (próg 'N+'; "
+       "jednostronny - brak devigu, p z player_model)"),
+    _c(r"zawodnik - double double" + OT, "bb.double_double",
+       "pięć kluczy box score zawodnika naraz (shadow.py: nie sprawdzone wobec sum drużyny) - " + SRC_BOX),
+    _c(r"(?:" + S + r" - )?liczba (?:zbiorek|defensywnych zbiorek|ofensywnych zbiorek|asyst|trafionych rzutow za #pkt"
+       r"|trafionych rzutow wolnych|strat|przechwytow|blokow|fauli)" + OT
+       + r"|najwiecej (?:zbiorek|asyst|trafionych rzutow za #pkt|trafionych rzutow wolnych|strat|przechwytow|blokow)" + OT,
+       "bb.team_box", "statystyka drużyny bez metryki i historii - " + SRC_BOX),
+]
+
+VOLLEYBALL_RULES: list[Rule] = [
+    _m(r"dokladna liczba setow", "vb.sets_count",
+       "suma dokładnych wyników w setach (exact_sets 785 jest czytany)"),
+    _m(S + r" wygra seta|czy bedzie [45]\. set\?|" + S + r" wygra dokladnie # set[y]?",
+       "vb.exact_sets_derived", "funkcja dokładnego wyniku w setach (exact_sets 785 jest czytany)"),
+    _c(r"[1-5]\.\s?set/mecz", "vb.set_and_match",
+       NEED_SCORE_MODEL + "łączny rozkład zwycięzcy seta i meczu"),
+    _c(r"[1-5]\. set - handicap punkty", "vb.set_points_handicap",
+       NEED_SCORE_MODEL + "różnica punktów w secie (czytamy sumę punktów seta 782 i handicap punktów meczu 1069)"),
+]
+
+_CS2_PLAYER_STAT = r"(?:zabojstw|smierci|asyst|headshotow)"
+CS2_RULES: list[Rule] = [
+    # Parts of Superbet's combinations, worded as statements; each one a
+    # family CS2 already reads (cs2.parse_line).
+    _m(S + r" wygra [123x]\. mape", "cs2.map_winner", "map_winner (czytany)"),
+    _m(S + r" wygra mecz", "cs2.match_winner", "match_winner (czytany)"),
+    _m(P + r" " + OU + r" # " + _CS2_PLAYER_STAT + r" na [123x]\. mapie", "cs2.player_map",
+       "zabójstwa / śmierci / asysty / headshoty zawodnika na mapie (CS2_EXTENDED_FAMILIES, czytane)"),
+    _c(r"druzyna - najwiecej wygranych rund w meczu" + OT + r"|liczba rund" + OT
+       + r"|" + S + r" - liczba rund" + OT + r"|handicap rund" + OT, "cs2.series_rounds",
+       "rundy serii (rounds_* / team_rounds - wciąż bez wyceny; cs2_map trzyma wynik rund map)"),
+    _c(r"(?:[123x]\.\s?mapa - )?nieparzysta/parzysta liczba rund" + OT, "cs2.round_parity",
+       "parzystość rund (bez wyceny; cs2_map trzyma wynik rund map)"),
+    _c(r"liczba dogrywek", "cs2.overtimes",
+       "dogrywka mapy = wynik rund mapy ponad regulamin (cs2_map); brak rodziny"),
+    _c(r"[123x]\.\s?mapa - liczba zabojstw" + OT, "cs2.map_kills_total",
+       "suma zabójstw obu drużyn na mapie (cs2_player_map); brak rodziny"),
+    _c(r"[123x]\.\s?mapa - zwyciezca i liczba rund" + OT, "cs2.map_winner_rounds",
+       "łączny rozkład zwycięzcy mapy i liczby rund (wyścig rund)"),
+    _c(r"[123x]\.\s?mapa - dokladny wynik" + OT, "cs2.map_exact",
+       "rozkład wyniku rund mapy (wyścig rund, cs2_map)"),
+    _c(r"x\.\s?mapa - zwyciezca #-drogowo", "cs2.map_winner_3way",
+       "zwycięzca mapy z remisem (format bez dogrywki) - rozkład wyniku mapy"),
+]
+
 _RULES_BY_SPORT: dict[str, list[Rule]] = {
     "football": COMMON_RULES + FOOTBALL_RULES,
     "tennis": COMMON_RULES + TENNIS_RULES,
+    "hockey": COMMON_RULES + HOCKEY_RULES,
+    "basketball": COMMON_RULES + BASKETBALL_RULES,
+    "volleyball": COMMON_RULES + VOLLEYBALL_RULES,
+    "cs2": COMMON_RULES + CS2_RULES,
 }
+MEASURED_SPORTS: tuple[str, ...] = ("hockey", "basketball", "volleyball", "cs2")
 
 
 def classify_template(template: str, sport: str) -> Classification:
@@ -502,6 +590,11 @@ def classify_market_name(name: str, sport: str, sides: Sequence[str]) -> Classif
             f"{side_refused}: wzorzec pasuje, strażnik podmiotu odrzucił nazwę strony (np. '&' w nazwie drużyny)",
             template,
         )
+    return _template_or_combination(template, sport)
+
+
+def _template_or_combination(template: str, sport: str) -> Classification:
+    """A template's label; a Superbet combination (';') by its parts."""
     if ";" not in template:
         return classify_template(template, sport)
     parts = tuple(classify_template(p.strip(), sport) for p in template.split(";") if p.strip())
@@ -729,5 +822,241 @@ def render_markdown(report: Mapping[str, Any], *, top_families: int = 0) -> str:
     else:
         for u in report["unclassified"]:
             a(f"- {u['occurrences']} x `{u['template']}`")
+    a("")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Measured sports (night plan 2026-10-12 C5)
+# ---------------------------------------------------------------------------
+#
+# SHADOW and CS2 write only the lines they read into snapshots.jsonl - no
+# record of a market they skipped, unlike OFFER's unmapped_markets. The
+# inventory of the unread names therefore needs the raw Superbet payloads: a
+# probe of the offer (scripts/sofa/report_market_coverage.py --sports), which
+# sees a match only before it starts. What the snapshots do record - events
+# and lines per family - is reported beside it (`snapshot_inventory`).
+
+
+def classify_sport_market_name(name: str, sport: str, sides: Sequence[str]) -> Classification:
+    """One unread market name of a measured sport's event -> exactly one label."""
+    return _template_or_combination(template_of(name, sides), sport)
+
+
+def _reader_reads(items: Sequence[Mapping[str, Any]], sport: str, team1: str, team2: str) -> bool:
+    """Does SHADOW / CS2 read this market (any of its odds) at all?
+
+    SHADOW identifies a market by `marketId` (shadow.MARKETS / PLAYER_MARKETS);
+    CS2 by its name and selection (cs2.parse_line), asked here as if the odd
+    were active and unboosted, so a suspended market still counts as read.
+    """
+    from bet.sofa import cs2, shadow
+
+    if sport == "cs2":
+        return any(
+            cs2.parse_line(
+                {**it, "status": "active", "tags": "", "price": 2.0}, "", team1, team2
+            ) is not None
+            for it in items
+        )
+    if sport not in shadow.MARKETS:
+        return False
+    key: shadow.SportKey = sport
+    known = set(shadow.MARKETS[key]) | set(shadow.PLAYER_MARKETS[key])
+    for it in items:
+        try:
+            if int(it.get("marketId") or 0) in known:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def sport_payload_names(
+    payload: Mapping[str, Any], sport: str
+) -> tuple[tuple[str, str], list[str], list[str]]:
+    """((team1, team2), names read, names not read) of one raw event payload.
+
+    Pre-match odds only (`superbet.odds_items`), so a live market never counts.
+    """
+    from bet.sofa.superbet import odds_items, split_match_name
+
+    team1, team2 = split_match_name(str(payload.get("matchName") or ""))
+    by_name: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for item in odds_items(dict(payload)):
+        name = str(item.get("marketName") or "").strip()
+        if name:
+            by_name[name].append(item)
+    read: list[str] = []
+    unread: list[str] = []
+    for name, items in sorted(by_name.items()):
+        (read if _reader_reads(items, sport, team1, team2) else unread).append(name)
+    return (team1, team2), read, unread
+
+
+def snapshot_inventory(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """What one sport's snapshots.jsonl recorded: events, and the lines of each
+    event's LAST snapshot per family (a snapshot is re-taken several times a
+    day; the last one is what the day ended on)."""
+    last: dict[str, Mapping[str, Any]] = {}
+    for rec in records:
+        eid = str(rec.get("superbet_event_id") or "")
+        if not eid:
+            continue
+        prev = last.get(eid)
+        if prev is None or str(rec.get("fetched_at_utc") or "") >= str(prev.get("fetched_at_utc") or ""):
+            last[eid] = rec
+    by_family: Counter[str] = Counter()
+    for rec in last.values():
+        for line in rec.get("lines") or []:
+            by_family[str(line.get("family"))] += 1
+    return {
+        "events": len(last),
+        "lines": sum(by_family.values()),
+        "by_family": dict(by_family.most_common()),
+    }
+
+
+def build_sports_report(
+    events: Sequence[Mapping[str, Any]],
+    *,
+    date: str,
+    snapshots: Mapping[str, Mapping[str, Any]] | None = None,
+    source: str = "",
+    max_examples: int = 3,
+) -> dict[str, Any]:
+    """The measured sports' inventory. `events`: one entry per probed event,
+    {sport, superbet_event_id, team1, team2, read: [names], unread: [names]}."""
+    by_label: dict[str, Counter[str]] = {lab: Counter() for lab in LABELS}
+    by_sport_label: dict[str, Counter[str]] = defaultdict(Counter)
+    family_occ: Counter[tuple[str, str, str]] = Counter()
+    family_names: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    family_note: dict[tuple[str, str, str], str] = {}
+    family_examples: dict[tuple[str, str, str], list[str]] = defaultdict(list)
+    combo_parts: Counter[tuple[str, str, str]] = Counter()
+    unclassified: Counter[tuple[str, str]] = Counter()
+    probed: Counter[str] = Counter()
+    read_occ: Counter[str] = Counter()
+    unread_occ: Counter[str] = Counter()
+    names: list[dict[str, Any]] = []
+    seen_templates: set[tuple[str, str]] = set()
+
+    for ev in events:
+        sport = str(ev.get("sport"))
+        sides = [str(ev.get("team1") or ""), str(ev.get("team2") or "")]
+        probed[sport] += 1
+        read_occ[sport] += len(ev.get("read") or [])
+        for name in ev.get("unread") or []:
+            c = classify_sport_market_name(str(name), sport, sides)
+            unread_occ[sport] += 1
+            by_label[c.label][f"{sport}|{name}"] += 1
+            by_sport_label[sport][c.label] += 1
+            key = (sport, c.label, c.family)
+            family_occ[key] += 1
+            family_names[key].add(c.template)
+            family_note.setdefault(
+                key,
+                c.note if c.family != COMBO_FAMILY
+                else NEED_JOINT if c.label == "COMPUTABLE"
+                else "co najmniej jedna część bez etykiety" if c.label == "UNCLASSIFIED"
+                else "co najmniej jedna część NOT_COMPUTABLE",
+            )
+            if len(family_examples[key]) < max_examples and name not in family_examples[key]:
+                family_examples[key].append(str(name))
+            for p in c.parts:
+                combo_parts[(sport, p.label, p.family)] += 1
+            if c.label == "UNCLASSIFIED":
+                unclassified[(sport, c.template)] += 1
+            if (sport, c.template) not in seen_templates:
+                seen_templates.add((sport, c.template))
+                names.append({"sport": sport, "template": c.template, "label": c.label,
+                              "family": c.family, "example": str(name)})
+
+    return {
+        "date": date,
+        "stage": "MARKET_COVERAGE_SPORTS",
+        "source": source,
+        "probed_events": dict(probed),
+        "read_names": dict(read_occ),
+        "unread_names": dict(unread_occ),
+        "counting": "one occurrence = one (event, market name) the sport's reader does not read",
+        "snapshots": dict(snapshots or {}),
+        "by_label": {
+            lab: {"occurrences": sum(by_label[lab].values()), "distinct_names": len(by_label[lab])}
+            for lab in LABELS
+        },
+        "by_sport_label": {s: dict(c) for s, c in by_sport_label.items()},
+        "families": [
+            {
+                "sport": k[0], "label": k[1], "family": k[2], "note": family_note.get(k, ""),
+                "occurrences": n, "distinct_templates": len(family_names[k]),
+                "examples": family_examples[k],
+            }
+            for k, n in sorted(family_occ.items(), key=lambda kv: (kv[0][0], LABELS.index(kv[0][1]), -kv[1]))
+        ],
+        "combo_parts": [
+            {"sport": k[0], "label": k[1], "family": k[2], "parts": n}
+            for k, n in combo_parts.most_common()
+        ],
+        "templates": sorted(names, key=lambda r: (r["sport"], r["label"], r["template"])),
+        "unclassified": [
+            {"sport": s, "template": t, "occurrences": n} for (s, t), n in unclassified.most_common()
+        ],
+    }
+
+
+def render_sports_markdown(report: Mapping[str, Any]) -> str:
+    """The Polish report of the measured sports' unread markets."""
+    lines: list[str] = []
+    a = lines.append
+    a(f"# Pokrycie rynków Superbetu - sporty mierzone - {report['date']}")
+    a("")
+    a("Raport (nie wejście potoku). SHADOW (hokej, koszykówka, siatkówka) i CS2 zapisują w "
+      "`snapshots.jsonl` tylko linie, które czytają - nazw pominiętych rynków nie zapisuje nic. "
+      "Nazwy poniżej pochodzą z próby oferty Superbetu (surowe payloady meczów przed startem); "
+      "każda nieczytana nazwa ma jedną etykietę (`bet.sofa.market_coverage`): MAPPABLE = wielkość "
+      "już liczymy, brakuje odczytu; COMPUTABLE = da się policzyć, potrzeba nowej wielkości / "
+      "wyceny; NOT_COMPUTABLE = brak źródła; UNCLASSIFIED = brak reguły.")
+    a("")
+    a(f"- źródło: {report.get('source') or '-'}")
+    a(f"- liczenie: {report['counting']}")
+    a("")
+    a("| sport | mecze w próbie | nazwy czytane | nazwy nieczytane | " + " | ".join(LABELS) + " |")
+    a("|---|---|---|---|" + "---|" * len(LABELS))
+    for sport in MEASURED_SPORTS:
+        c = report["by_sport_label"].get(sport, {})
+        a(f"| {sport} | {report['probed_events'].get(sport, 0)} | {report['read_names'].get(sport, 0)} | "
+          f"{report['unread_names'].get(sport, 0)} | " + " | ".join(str(c.get(lab, 0)) for lab in LABELS) + " |")
+    a("")
+    snaps = report.get("snapshots") or {}
+    if snaps:
+        a("## Co zapisały snapshoty dnia (ostatni snapshot meczu)")
+        a("")
+        a("| sport | mecze | linie | rodziny (linie) |")
+        a("|---|---|---|---|")
+        for sport in MEASURED_SPORTS:
+            s = snaps.get(sport)
+            if not s:
+                a(f"| {sport} | brak pliku | - | - |")
+                continue
+            fams = ", ".join(f"{f} {n}" for f, n in list(s["by_family"].items())[:12])
+            a(f"| {sport} | {s['events']} | {s['lines']} | {fams} |")
+        a("")
+    a("## Rodziny nieczytanych nazw")
+    a("")
+    a("| sport | etykieta | rodzina | wystąpienia | szablony | propozycja / potrzeba / powód | przykład |")
+    a("|---|---|---|---|---|---|---|")
+    for f in report["families"]:
+        ex = (f["examples"] or [""])[0].replace("|", "/")
+        a(f"| {f['sport']} | {f['label']} | `{f['family']}` | {f['occurrences']} | "
+          f"{f['distinct_templates']} | {f['note']} | {ex[:90]} |")
+    a("")
+    a("## UNCLASSIFIED")
+    a("")
+    if not report["unclassified"]:
+        a("Brak - każda nieczytana nazwa próby ma etykietę.")
+    else:
+        for u in report["unclassified"]:
+            a(f"- {u['sport']}: {u['occurrences']} x `{u['template']}`")
     a("")
     return "\n".join(lines)
