@@ -106,7 +106,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "halves", "derived", "tennis_rating", "count_dispersion",
     "cards_correlation", "per_market_k", "tennis_scoped_table",
     "football_rating", "rated_scope", "venue_prior", "game_state",
-    "tennis_set_ratings",
+    "rating_weight", "season_phase", "tennis_set_ratings",
 )
 
 
@@ -561,11 +561,14 @@ def rebuild_cache_rows(
     rated_scope: bool = False,
     venue_prior: bool = False,
     game_state: bool = False,
+    rating_weight: bool = False,
+    season_phase: bool = False,
     tennis_set_ratings: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
-        ("--game-state", game_state)) if on]
+        ("--game-state", game_state), ("--rating-weight", rating_weight),
+        ("--season-phase", season_phase)) if on]
     if needs_rating and not football_rating:
         # SHEET applies them only through the football rating's forecast
         raise RefitError(f"{', '.join(needs_rating)} need --football-rating")
@@ -576,6 +579,14 @@ def rebuild_cache_rows(
         raise RefitError(
             f"{paths.config_dir / 'sofa_game_state.json'} is absent: "
             "--game-state cannot be replayed (fit_game_state.py first)")
+    for on, flag, name, by in (
+            (rating_weight, "--rating-weight", "sofa_rating_weight.json",
+             "fit_rating_weight.py"),
+            (season_phase, "--season-phase", "sofa_season_phase.json",
+             "fit_season_phase.py")):
+        if on and not (paths.config_dir / name).exists():
+            raise RefitError(f"{paths.config_dir / name} is absent: {flag} "
+                             f"cannot be replayed ({by} first)")
     if count_dispersion != per_market_k:
         # fitted jointly (epochs.require_k_with_dispersion): one without the
         # other would replay a model nobody measured
@@ -724,6 +735,8 @@ def rebuild_cache_rows(
         "rated_scope": rated_scope,
         "venue_prior": venue_prior,
         "game_state": game_state,
+        "rating_weight": rating_weight,
+        "season_phase": season_phase,
         "tennis_set_ratings": tennis_set_ratings,
     }
     for name, on in new_flags.items():
@@ -2149,6 +2162,18 @@ def build_parser() -> argparse.ArgumentParser:
         "refit's config dir)",
     )
     r.add_argument(
+        "--rating-weight", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_RATING_WEIGHT (audit "
+        "B14; calibrate_from_cache --rating-weight; needs sofa_rating_weight."
+        "json in the refit's config dir)",
+    )
+    r.add_argument(
+        "--season-phase", action="store_true",
+        help="with --football-rating: epochs.SEASON_PHASE (audit C1; "
+        "calibrate_from_cache --season-phase; needs sofa_season_phase.json in "
+        "the refit's config dir)",
+    )
+    r.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games and "
         "sets_total priced off the rating's neighbours (calibrate_from_cache "
@@ -2271,6 +2296,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     rated_scope=args.rated_scope,
                     venue_prior=args.venue_prior,
                     game_state=args.game_state,
+                    rating_weight=args.rating_weight,
+                    season_phase=args.season_phase,
                     tennis_set_ratings=args.tennis_set_ratings,
                 )["exit"]
             )

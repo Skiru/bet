@@ -138,6 +138,9 @@ from bet.sofa.players import (
     squad_statistics,
     started,
 )
+from bet.sofa.rating_weight import RatingWeightTable
+from bet.sofa.rating_weight import blend as rating_blend
+from bet.sofa.rating_weight import load_table as load_rating_weight_table
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
     INDEXED_HISTORY_LIMIT,
@@ -146,6 +149,9 @@ from bet.sofa.samples import (
     finish_history,
     one_listing_per_match,
 )
+from bet.sofa.season_phase import SeasonPhaseTable, phases_by_event
+from bet.sofa.season_phase import apply as apply_season_phase
+from bet.sofa.season_phase import load_table as load_season_phase_table
 from bet.sofa.settle import is_completed_event, settle
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
@@ -884,6 +890,10 @@ class CentreRules:
     rated_scope: bool = False
     venue_prior: bool = False
     game_state: GameStateTable | None = None
+    # audit 2026-10-13 B14 (epochs.FOOTBALL_RATING_WEIGHT): W per market
+    rating_weights: RatingWeightTable | None = None
+    # audit 2026-10-13 C1 (epochs.SEASON_PHASE): the goals centre x the phase
+    season_phase: SeasonPhaseTable | None = None
     shared_league_link: bool = True
     unit_strength_from_parent: bool = False
     strict_league_rate: bool = False
@@ -895,6 +905,10 @@ class CentreRules:
             "venue_prior": self.venue_prior,
             "game_state": (None if self.game_state is None
                            else self.game_state.path or "in-memory"),
+            "rating_weights": (None if self.rating_weights is None
+                               else self.rating_weights.path or "in-memory"),
+            "season_phase": (None if self.season_phase is None
+                             else self.season_phase.path or "in-memory"),
             "shared_league_link": self.shared_league_link,
             "unit_strength_from_parent": self.unit_strength_from_parent,
             "strict_league_rate": self.strict_league_rate,
@@ -936,6 +950,11 @@ class FootballRatingReplay:
         self.book = RatingBook(shared_league_link=rules.shared_league_link)
         self.book.unit_strength_from_parent = rules.unit_strength_from_parent
         self.forecasts = 0
+        # --season-phase: each event's phase as of its kickoff, asked before
+        # the event is added (season_phase.phases_by_event)
+        self.phases: dict[int, str | None] = (
+            phases_by_event(self._history) if rules.season_phase is not None
+            else {})
 
     @classmethod
     def from_db(cls, db_path: Path, rules: CentreRules) -> FootballRatingReplay:
@@ -981,6 +1000,7 @@ def live_centre(
     forecast: FootballForecast | None,
     venues: Sequence[str | None] = (),
     rules: CentreRules | None = None,
+    phase: str | None = None,
 ) -> float:
     """THE hook: the centre SHEET prices a football marginal row with, from
     the replay's shrunk sample centre - every live centre term is applied
@@ -990,7 +1010,12 @@ def live_centre(
          forecast) blended at W_FOOTBALL_RATING;
       2. --venue-prior: a sample-only side centre of VENUE_PRIOR_MARKETS x
          the league venue multiplier over ``venues`` (the sample's);
-      3. --game-state: x exp(beta x the side's expected goal difference).
+      3. --game-state: x exp(beta x the side's expected goal difference);
+      4. --season-phase: x exp(c[market][phase]), the phase as of the
+         match's kickoff (``phase``).
+
+    The blend's W is the market's fitted one under --rating-weight
+    (rating_weight.blend), else W_FOOTBALL_RATING.
 
     ``side`` is "side_a" (home) / "side_b" (away) / None for a total. No
     forecast (rating off, another sport, no competition) or a player market:
@@ -1002,7 +1027,9 @@ def live_centre(
     centre = sample_centre
     rated = forecast.centre(market, side)
     if rated is not None:
-        centre = W_FOOTBALL_RATING * rated[0] + (1 - W_FOOTBALL_RATING) * centre
+        centre = (rating_blend(rated[0], centre, market, rules.rating_weights)
+                  if rules.rating_weights is not None else
+                  W_FOOTBALL_RATING * rated[0] + (1 - W_FOOTBALL_RATING) * centre)
     if (rules.venue_prior and rated is None and side is not None
             and market in VENUE_PRIOR_MARKETS):
         v_mult = forecast.venue_multiplier(market, side, venues)
@@ -1013,6 +1040,8 @@ def live_centre(
         g_mult = rules.game_state.multiplier(market, sup)
         if g_mult is not None and sup is not None:
             centre *= g_mult
+    if rules.season_phase is not None:
+        centre, _ = apply_season_phase(centre, market, phase, rules.season_phase)
     return centre
 
 
@@ -1202,6 +1231,9 @@ def _match_rows(
         football.forecast(match)
         if football is not None and match.sport == "football" else None
     )
+    # --season-phase: the match's phase as of its kickoff
+    match_phase = (football.phases.get(match.event_id)
+                   if football_fc is not None and football is not None else None)
 
     def settle_rows(
         market: str, subject: str, actual: float, sample: list[float],
@@ -1216,7 +1248,8 @@ def _match_rows(
         return _settle_centred(
             match, market, subject, actual, sample, baselines,
             engine_constants, rating_p,
-            lambda c: live_centre(match, market, side, c, football_fc, venues))
+            lambda c: live_centre(match, market, side, c, football_fc, venues,
+                                  phase=match_phase))
 
     for base, (home_value, away_value) in match.values.items():
         total = home_value + away_value
@@ -1304,7 +1337,7 @@ def _match_rows(
                     match, for_market, side,
                     shrunk_centre(match, for_market, [p.own for p in rec],
                                   baselines, engine_constants),
-                    football_fc, tuple(p.venue for p in rec))
+                    football_fc, tuple(p.venue for p in rec), phase=match_phase)
                 for rec, side in ((home_recent, "side_a"),
                                   (away_recent, "side_b"))]
             yield from football_joint_rows(
@@ -2273,6 +2306,20 @@ def main() -> int:
         "were fitted on the same history: in-sample for them",
     )
     parser.add_argument(
+        "--rating-weight", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: the rating blended at the market's "
+        "fitted W (epochs.FOOTBALL_RATING_WEIGHT_FROM_UTC, audit B14; CONFIG "
+        "defaults to config/sofa_rating_weight.json). Fitted on the same "
+        "history: in-sample for it",
+    )
+    parser.add_argument(
+        "--season-phase", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: the goals centre x exp(c[market][phase]),"
+        " the phase as of the kickoff (epochs.SEASON_PHASE_FROM_UTC, audit C1;"
+        " CONFIG defaults to config/sofa_season_phase.json). Fitted on the "
+        "same history: in-sample for it",
+    )
+    parser.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games "
         "(games_set1/2_total, games_won_set1/2/3_for) and sets_total from "
@@ -2305,7 +2352,9 @@ def main() -> int:
     args = parser.parse_args()
     needs_rating = [name for name, on in (
         ("--rated-scope", args.rated_scope), ("--venue-prior", args.venue_prior),
-        ("--game-state", args.game_state is not None)) if on]
+        ("--game-state", args.game_state is not None),
+        ("--rating-weight", args.rating_weight is not None),
+        ("--season-phase", args.season_phase is not None)) if on]
     if needs_rating and not args.football_rating:
         # SHEET applies them only through its FootballForecast
         parser.error(f"{', '.join(needs_rating)} need --football-rating")
@@ -2336,6 +2385,14 @@ def main() -> int:
                 load_game_state_table(
                     Path(args.game_state) if args.game_state else None)
                 if args.game_state is not None else None),
+            rating_weights=(
+                load_rating_weight_table(
+                    Path(args.rating_weight) if args.rating_weight else None)
+                if args.rating_weight is not None else None),
+            season_phase=(
+                load_season_phase_table(
+                    Path(args.season_phase) if args.season_phase else None)
+                if args.season_phase is not None else None),
             # the book's rules SHEET would use for a day built now
             shared_league_link=epochs.link_shared_league(today),
             unit_strength_from_parent=epochs.unit_strength_from_parent(today),

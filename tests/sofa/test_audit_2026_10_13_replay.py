@@ -28,6 +28,8 @@ import pytest
 from bet.sofa import football_rating as fr
 from bet.sofa.engine import sheet_count_p_raw, sheet_predictive_sd, winning_boundary
 from bet.sofa.game_state import GameStateTable, clamp_supremacy
+from bet.sofa.rating_weight import RatingWeightTable
+from bet.sofa.season_phase import SeasonPhaseTable
 from bet.sofa.tennis_rating import FEATURES, TennisResult, build_model
 from scripts.sofa import calibrate_from_cache as cfc
 from scripts.sofa import prepare_refit as pr
@@ -241,6 +243,38 @@ def test_the_hook_applies_venue_and_game_state_in_sheets_order() -> None:
     assert live_centre(target, "player_shots_for", "side_a", 3.3, fc) == 3.3
 
 
+def test_the_hook_applies_the_markets_weight_and_the_season_phase() -> None:
+    """B14 / C1: the market's fitted W (rating_weight.blend) replaces
+    W_FOOTBALL_RATING, and the phase multiplier comes last, as in SHEET."""
+    history, played = _football()
+    target = played[-3]
+    weights = RatingWeightTable({"goals_for": 0.95})
+    phase = SeasonPhaseTable({"goals_for": {"late": 0.05}})
+    rules = CentreRules(football_rating=True, rating_weights=weights,
+                        season_phase=phase)
+    replay = FootballRatingReplay(history, rules)
+    fc = replay.forecast(target)
+    assert fc is not None
+    rated = fc.centre("goals_for", "side_a")
+    assert rated is not None
+    got = live_centre(target, "goals_for", "side_a", 1.2, fc, (), rules,
+                      phase="late")
+    assert got == pytest.approx((0.95 * rated[0] + 0.05 * 1.2) * math.exp(0.05))
+    # no phase, or a market without a coefficient: the blend alone
+    assert live_centre(target, "goals_for", "side_a", 1.2, fc, (), rules
+                       ) == pytest.approx(0.95 * rated[0] + 0.05 * 1.2)
+    # a market without a fitted W keeps W_FOOTBALL_RATING
+    rc = fc.centre("corners_for", "side_a")
+    assert rc is not None
+    assert live_centre(target, "corners_for", "side_a", 4.0, fc, (), rules,
+                       phase="late") == pytest.approx(
+        fr.W_FOOTBALL_RATING * rc[0] + (1 - fr.W_FOOTBALL_RATING) * 4.0)
+    # the phases are computed only when the term is on
+    assert FootballRatingReplay(history, CentreRules(football_rating=True)
+                                ).phases == {}
+    assert set(replay.phases) == {r.event_id for r in history}
+
+
 # --------------------------------------------------------------------------
 # B5: the tennis per-set markets off the neighbours
 # --------------------------------------------------------------------------
@@ -361,16 +395,25 @@ def test_rebuild_passes_the_new_flags_and_records_them(tmp_path: Path) -> None:
     pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
                           require_db_backup=False)
     for flag in ("--football-rating", "--rated-scope", "--venue-prior",
-                 "--game-state", "--tennis-set-ratings"):
+                 "--game-state", "--rating-weight", "--season-phase",
+                 "--tennis-set-ratings"):
         assert flag not in seen[0]
     (paths.config_dir / "sofa_game_state.json").write_text(
         json.dumps({"markets": {"corners_for": {"beta": 0.1}}}))
+    with pytest.raises(pr.RefitError, match="sofa_rating_weight.json is absent"):
+        pr.rebuild_cache_rows(
+            paths, dry_run=False, confirm=True, runner=runner,
+            require_db_backup=False, football_rating=True, rating_weight=True)
+    for name in ("sofa_rating_weight.json", "sofa_season_phase.json"):
+        (paths.config_dir / name).write_text("{}")
     report = pr.rebuild_cache_rows(
         paths, dry_run=False, confirm=True, runner=runner,
         require_db_backup=False, football_rating=True, rated_scope=True,
-        venue_prior=True, game_state=True, tennis_set_ratings=True)
+        venue_prior=True, game_state=True, rating_weight=True,
+        season_phase=True, tennis_set_ratings=True)
     for flag in ("--football-rating", "--rated-scope", "--venue-prior",
-                 "--game-state", "--tennis-set-ratings"):
+                 "--game-state", "--rating-weight", "--season-phase",
+                 "--tennis-set-ratings"):
         assert flag in seen[1]
     assert report["football_rating"] and report["tennis_set_ratings"]
     rules = pr.read_replay_rules(paths)
