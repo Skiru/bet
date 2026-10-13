@@ -71,17 +71,19 @@
     },
     {
       "id": "T-F54-coupon-failure",
-      "registered_on": "2026-10-05",
-      "status": "PROPOSED",
+      "registered_on": "2026-10-13",
+      "status": "REGISTERED",
       "hypothesis": "Failure criterion of the coupon, written before its results (plan F5.4).",
       "rule": "After F2 (calibration per curve, measure_calibration.py) and on the T-F53-coupon-edge population: if the official coupon's CLV stays < 0 with its whole 95% interval below 0 on >= 300 legs and >= 100 matches, the conclusion is 'no edge': the coupon remains an information tool, not a bet.",
       "population": "as T-F53-coupon-edge.",
-      "data_window": {"from": "2026-10-06", "to": null},
+      "data_window": {"from": "2026-10-14", "to": null},
       "required_n": {"clv_legs": 300, "clv_matches": 100, "basis": "plan F5.3 / F5.4"},
       "evaluation": "as T-F53-coupon-edge (audit_clv.py, variant official).",
       "stop_criterion": "FAILED (no edge) as soon as both counts are reached with the CLV upper 95% bound < 0 after F2 is complete; the operator approves this criterion now, before results (plan section 5, decision 5).",
       "evidence": [
-        {"source": "docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md", "line": 106, "quote": "jeśli po F2 i F5.3 CLV zostaje < 0 z przedziałem: wniosek „brak przewagi”, kupon pozostaje narzędziem informacyjnym, nie zakładem"}
+        {"source": "docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md", "line": 106, "quote": "jeśli po F2 i F5.3 CLV zostaje < 0 z przedziałem: wniosek „brak przewagi”, kupon pozostaje narzędziem informacyjnym, nie zakładem"},
+        {"source": "docs/sofa/history/RAPORT_NOC_2026-10-12.md", "line": 74, "quote": "10-06..08: −5,16% [−5,44; −4,89]; 10-09..11: −3,95% [−4,07; −3,83]"},
+        {"source": "operator, 2026-10-13", "line": 1, "quote": "1 tak - verdict 'no edge over the price' accepted on the 10-06..10-11 data (seen before approval, so not a test result); the criterion is registered on its approval day (registry rule 4) and judged again on data from 2026-10-14"}
       ]
     },
     {
