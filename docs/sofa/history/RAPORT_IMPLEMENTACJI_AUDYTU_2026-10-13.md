@@ -12,8 +12,8 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
 | etap | pozycje | stan |
 |---|---|---|
 | 1 | A2, C21 | zrobione (ten raport) |
-| 2 | A1, A4, B1, B2, B3, B5, B10; B6 jako zarejestrowany test | A1, A4, B10 zrobione; B1, B2, B3, B5, B6 - agenci |
-| 3 | B13, potem B15 (z A5) | B13 zrobione; B15 - agent |
+| 2 | A1, A4, B1, B2, B3, B5, B10; B6 jako zarejestrowany test | zrobione; włączone A4, B10; B1, B2, B3, B5 czekają na refit |
+| 3 | B13, potem B15 (z A5) | B13, B15 zrobione (B15 None do refitu) |
 | 4 | refit piłki i tenisa: A6 + B14 + C1 (+ wyniki 2-3), potem D1; D2 osobno | otwarte |
 | 5 | koszykówka: A3 + C8, pomiar A8, jeden refit | otwarte |
 | 6 | B7, A7, B9, C9/C10, B11-B12, B8, B4 | otwarte |
@@ -247,6 +247,98 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
   każdy przedział obejmuje zero (`docs/sofa/evidence/basketball_noise_2026-10-13.md`).
   **Zmierzone, nie wdrożone**; `SimParams.bb_resid_one_step` zostaje jako
   wyłączona opcja.
+
+### B3 - piłka: brzegi rynków łącznych formułą SHEET (agent, scalone)
+
+- Diagnoza: potwierdzona (`derived.price_derived_rungs`: przy brakującej
+  drabinie jednej strony obie strony z surowej próbki). Przykład 10-13
+  odtworzony: Kyoto `handicap_corners` -2,5 p 0,0598 wobec rynku 0,504.
+- Zrobione: `run_sheet.sample_centre` (jedna formuła dla wiersza brzegowego i
+  brzegu jointa: prior, K_CENTRE, rating x W), `sheet_derived_margins`,
+  `CROSS_LEAGUE_UNLINKED` także na wierszach pochodnych meczu UNLINKED;
+  przełącznik `DERIVED_SHEET_MARGINS_FROM_UTC` (działa tylko z
+  `DERIVED_MARGINAL_CENTRES`).
+- Pomiar (`docs/sofa/evidence/derived_margins_2026-10-13.md`), historia one
+  step ahead 2026-01..10, 60 000 meczów / 1 161 233 zdarzeń: log-loss
+  **-0,0254 [-0,0264; -0,0245]**, każda z 12 komórek < 0; region p >= 0,70:
+  stara -1,94 pp, nowa +1,46 pp. Próg spełniony.
+- **Odkrycie poza B3:** żaden wiersz pochodny piłki nie trafia dziś na
+  kupon - `THIN_SAMPLE_FOR_BUILDER` w CONFIDENCE (`run_confidence.py`, ok.
+  :809) odrzuca każdy, bo `03_samples.json` nie ma próbek pod kluczem
+  `both_over_*` / `most_*` / `handicap_*` (bramki kształtu dostają pustą
+  listę). To ogranicza też A4 dla kluczy pochodnych piłki. Poza zakresem
+  audytu - **do decyzji operatora**.
+- Przełącznik: **None** do refitu piłki (line evidence kluczy pochodnych
+  dopasowane na starym p; replay jointów).
+
+### B15 + A5 - próbka skorygowana o rywala i siłę ligi (agent, scalone)
+
+- Zrobione: `bet.sofa.opponent_correction` (x / def(rywala)^c x exp(g),
+  bez goli), `corrected_sample` na wierszu, bramki kształtu i
+  MODEL_ABOVE_OWN_SAMPLE czytają skorygowane wartości (`gate_values`,
+  `mode_values`), `rebuild_plan`; przełącznik
+  `SAMPLE_OPPONENT_CORRECTION_FROM_UTC`.
+- Pomiar (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`),
+  lc_all, cięcie 2026-06-09, 355 264 wierszy / 22 946 meczów: próg spełniony
+  na 12 z 18 rynków rożnych / strzałów / fauli (np. `shots_for` -1,96e-3
+  [-2,38; -1,56], `corners_for` -0,44e-3 [-0,58; -0,31]), żaden gorszy;
+  pary ponadligowe 3-4 razy więcej.
+- A5 (10-09..10-12): bramki usuwają 2 617 nóg (surowa) vs 2 665
+  (skorygowana); 290 nóg dziś usuwanych, a zachowanych przez skorygowane
+  bramki, realizowało -5,9 pp [-11,5; -0,5] - ostrzeżenie (4 dni).
+- Przełącznik: **None** do replayu i refitu piłki; próbki sprzed 10-13 nie
+  mają `opponent_id` (zostają surowe).
+
+## Etap 4 (część)
+
+### C1 - faza sezonu (agent, scalone)
+
+- Zrobione: `bet.sofa.season_phase` (faza as-of: runda drużyny w sezonie,
+  długość sezonu z poprzedniego), `config/sofa_season_phase.json`,
+  przełącznik `SEASON_PHASE_FROM_UTC`.
+- Pomiar wobec pełnego centrum (z ratingiem), walk-forward 2025-08..2026-10:
+  wszystkie 6 rynków goli lepsze, np. `goals_total` -0,00039 [-0,00047;
+  -0,00031] (379 899 meczów) - ~4x mniej niż stare -0,00173 (względem
+  surowej średniej). Faza „early” pogarsza połowy - do decyzji przy reficie.
+- Przełącznik: **None** do refitu piłki.
+
+### B14 - W ratingu per rynek (agent, scalone)
+
+- Zrobione: `bet.sofa.rating_weight`, `config/sofa_rating_weight.json`,
+  przełącznik `FOOTBALL_RATING_WEIGHT_FROM_UTC`; po scaleniu z B3 waga
+  działa w `sample_centre` (wiersz i brzeg jointa jedną formułą).
+- Pomiar: 13 z 21 rynków lepsze (np. `goals_for` W 0,95: -0,01054
+  [-0,01087; -0,01019]); sumy pełnego meczu zostają przy 0,5.
+- Zastrzeżenie: `goals_for` 0,95 przy `goals_total` 0,5 - centrum sumy
+  przestaje być sumą centrów stron. Beta C1 dopasowana przy W 0,5 -
+  przeliczyć, jeśli oba wchodzą.
+- Przełącznik: **None** do refitu piłki.
+
+### D1 - DNB / podwójna szansa (agent: pomiar i plan)
+
+- Faza sezonu poprawia minimalnie (DNB -0,000046, DC -0,000048 na mecz,
+  przedziały bez zera). Wobec bazy ligi: DNB -0,0830, DC -0,0394.
+- Kalibracja nóg >= 0,70 po krzywej: **DC spełnia** (-0,91 pp, n 121 589),
+  **DNB nie** (-2,89 pp). Zawyżenie początku sezonu pochodzi z krzywej, nie
+  z centrum.
+- Niezaimplementowane (OFFER / mapper / SHEET / krzywa z replayu / SETTLE):
+  plan 7 kroków w `docs/sofa/evidence/football_result_phase_2026-10-13.md`,
+  proponowany przełącznik `FOOTBALL_RESULT_MARKETS_FROM_UTC`. Niesprawdzone:
+  czy Superbet rozlicza DC w czasie regulaminowym.
+
+### D2 - zwycięzca meczu tenisa (agent, scalone)
+
+- Zrobione: mapowanie „Zwycięzca” jako `match_won_for` (OFFER), p z ratingu
+  (SHEET, bez próbki), krzywa `match_won_for`, rozliczenie z `winnerCode`
+  (krecz / walkower = zwrot), `rebuild_plan`; przełącznik
+  `TENNIS_MATCH_WINNER_FROM_UTC`. Krzywa zastagowana:
+  `data/refit_2026-10-13/d2/tennis_winner_curve.json`.
+- Pomiar (`docs/sofa/evidence/tennis_match_winner_2026-10-13.md`): log-loss
+  wobec bazy -0,1263 [-0,1303; -0,1228] (49 791 meczów) - spełnione;
+  kalibracja holdoutu >= 0,70: luka -2,6 pp [-3,5; -1,7] (|luka| > 2 pp),
+  4 z 9 kubełków - **próg niespełniony** (po stronie ostrożnej: krzywa
+  zaniża). **Zmierzone, nie włączone.** Następny krok: nowy zarejestrowany
+  test (krzywa punktowa zamiast dolnej granicy Wilsona albo świeższe okno).
 
 ### Ledger
 
