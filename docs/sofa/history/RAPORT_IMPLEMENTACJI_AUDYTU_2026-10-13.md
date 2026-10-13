@@ -117,6 +117,44 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
   ponadligowe -0,0003 [-0,0008; +0,0003]; wszystkie -0,00006 [-0,0002; +0,0001].
 - Przełącznik: `UNIT_STRENGTH_FROM_PARENT_FROM_UTC` = **None** (zmierzone, nie włączone).
 
+### B1 - rola faworyt / outsider (stan meczu)
+
+- Diagnoza: potwierdzona. `run_sheet.py` (blok `FOOTBALL_RATING`, ok.
+  :1197-1223) miesza rating Maher i próbkę bez terminu „różnica sił -> styl”;
+  `FootballForecast.centre` (`football_rating.py`) go nie ma.
+- Zrobione: `bet.sofa.game_state` (tabela beta, `fit_beta`),
+  `FootballForecast.supremacy`, `bet.sofa.centre_replay` (wspólna
+  rekonstrukcja centrum one step ahead), SHEET za przełącznikiem
+  (notatka `GAME_STATE`, `MAX_SUPREMACY` w `UNFITTED_CONSTANTS`),
+  `scripts/sofa/fit_game_state.py` -> `config/sofa_game_state.json`.
+- Pomiar (`docs/sofa/evidence/game_state_2026-10-13.md`,
+  `scripts/sofa/measure_game_state.py`, walk-forward miesięczny,
+  2025-08-01..2026-10-12): log-loss NB na stronę `corners_for` -0,01490
+  [-0,01600; -0,01383] (123 130 stron / 61 565 meczów), `shots_for` -0,01504
+  [-0,01638; -0,01374], `cards_points_for` -0,00425 [-0,00479; -0,00372],
+  `fouls_for` -0,00020 [-0,00037; -0,00003]. Próg spełniony dla czterech.
+- Przełącznik: `GAME_STATE_FROM_UTC` = **None** (sesja implementująca B1/B2
+  dostała polecenie nie włączać; decyzja O5 dla sesji nadrzędnej).
+
+### B2 - rynki `UNRATED_MARKETS`
+
+- Diagnoza: potwierdzona. `football_rating.UNRATED_MARKETS` (wybór z 5 dni
+  w próbie); `venue` nieczytane w SHEET.
+- Zrobione: `FootballForecast.rated_scope` + `RATED_SCOPE_MARKETS`,
+  `FootballForecast.venue_multiplier` + `VENUE_PRIOR_MARKETS`, SHEET za
+  dwoma przełącznikami.
+- Pomiar (`docs/sofa/evidence/unrated_markets_2026-10-13.md`,
+  `scripts/sofa/measure_unrated_markets.py`): rating lepszy dla
+  `cards_points_for` -0,00503 [-0,00547; -0,00459], `corners_1h_for`
+  -0,01632, `corners_2h_for` -0,01099, `offsides_total` -0,00503 (każdy
+  także w podoknach poza wyborem stałych); `corners_total` gorzej +0,00092
+  [+0,00034; +0,00153], połowy sum bez różnicy. Gospodarz lepszy dla
+  `corners_1h_for` -0,00639 [-0,00804; -0,00466] i `corners_2h_for` -0,00308
+  [-0,00463; -0,00157]; `cards_points_for` -0,00119, ale podokno post ma znak +.
+- Przełączniki: `FOOTBALL_RATED_SCOPE_FROM_UTC`, `FOOTBALL_VENUE_PRIOR_FROM_UTC`
+  = **None** (jak B1).
+- Testy B1/B2: `tests/sofa/test_audit_2026_10_13_b1b2.py`.
+
 ### Ledger
 
 Nowa grupa epoki „od 10-14” w `audit_ledger.EPOCH_GROUPS` (A2 + A4 zmieniają

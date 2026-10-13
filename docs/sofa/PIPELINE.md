@@ -602,6 +602,28 @@ z 404) nie jest pytane ponownie.
   -0,0010 [-0,0029; +0,0008] na mecz (7 724 mecze) - kierunek zgodny,
   przedział obejmuje zero. Zostaje `None`.
 
+**Zmierzone 2026-10-13 (audyt B1, B2), próg spełniony, przełącznik `None` do
+decyzji O5** (one step ahead na historii 2025-08-01..2026-10-12, log-loss NB
+centrum przy wyniku; to nie linie Superbetu - replay nie ma ratingu, A6):
+- `epochs.GAME_STATE_FROM_UTC` (B1): centrum strony `corners_for`,
+  `shots_for`, `cards_points_for`, `fouls_for` x exp(beta x oczekiwana różnica
+  goli strony z ratingu goli, `FootballForecast.supremacy`); beta w
+  `config/sofa_game_state.json` (`scripts/sofa/fit_game_state.py`, dry-run
+  domyślnie). Walk-forward: rożne -0,0149 [-0,0160; -0,0138], strzały
+  -0,0150 [-0,0164; -0,0137], kartki -0,0043 [-0,0048; -0,0037], faule
+  -0,0002 [-0,0004; -0,00003] na stronę; bias faworyta w rożnych -0,63 -> +0,14,
+  outsidera +0,57 -> +0,03 (`docs/sofa/evidence/game_state_2026-10-13.md`).
+- `epochs.FOOTBALL_RATED_SCOPE_FROM_UTC` (B2): rating (z siłą ligi) wchodzi w
+  centrum `football_rating.RATED_SCOPE_MARKETS` (`cards_points_for`,
+  `corners_1h_for`, `corners_2h_for`, `offsides_total`); sumy rożnych zostają
+  bez ratingu (`corners_total` gorzej: +0,0009 [+0,0003; +0,0015] na mecz).
+- `epochs.FOOTBALL_VENUE_PRIOR_FROM_UTC` (B2): centrum z samej próbki
+  `corners_1h_for` / `corners_2h_for` x stawka ligi dla dzisiejszego
+  gospodarza / średnia stawek miejsc próbki (`FootballForecast.venue_multiplier`;
+  próbka nie jest dzielona). `docs/sofa/evidence/unrated_markets_2026-10-13.md`.
+- Przy obu (B1 i B2) włączonych beta kartek trzeba dopasować ponownie (B1
+  dopasowano na centrum bez ratingu).
+
 ### 7.1b Rating tenisowy (od 2026-10-01)
 
 `config/tennis_rating.json` (`fit_tennis_rating.py --cut <d>`, między dniami):

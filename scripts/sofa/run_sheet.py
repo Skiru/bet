@@ -66,14 +66,18 @@ from bet.sofa.epochs import stats_only as stats_only_epoch
 from bet.sofa.football_rating import (
     CROSS_LEAGUE_UNLINKED_NOTE,
     MIN_LEAGUE_MATCHES,
+    RATED_SCOPE_MARKETS,
     RATING_UNFITTED,
     UNLINKED,
+    VENUE_PRIOR_MARKETS,
     W_FOOTBALL_RATING,
     FootballForecast,
     RatingBook,
 )
 from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.football_rating import replay as replay_football
+from bet.sofa.game_state import GAME_STATE_UNFITTED, GameStateTable
+from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.per_market_k import k_for_market
@@ -897,6 +901,8 @@ def process_fixture(
     marginal_centres_on: bool = False,
     dispersion_table: DispersionTable | None = None,
     per_market_k_on: bool = False,
+    game_state: GameStateTable | None = None,
+    venue_prior_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1220,6 +1226,36 @@ def process_fixture(
                     f"NO_LEAGUE_RATE: competition {fixture.competition_id} has "
                     f"fewer than {MIN_LEAGUE_MATCHES} rated matches; centre "
                     "from the sample alone (epochs.FOOTBALL_LEAGUE_RATE_RULE)")
+            side_key = determine_side(rung.subject, fixture) if rung.subject else None
+            # epochs.FOOTBALL_VENUE_PRIOR (audit 2026-10-13 B2): a sample-only
+            # side centre reads the league's home / away rate as a multiplier
+            # - the sample is never split by venue.
+            if (venue_prior_on and football is not None and rated is None
+                    and side_key is not None
+                    and rung.market in VENUE_PRIOR_MARKETS):
+                v_mult = football.venue_multiplier(
+                    rung.market, side_key, (o.venue for o in obs))
+                if v_mult is not None:
+                    v_before = centre
+                    centre *= v_mult
+                    extra_notes.append(
+                        f"VENUE_PRIOR: centre {centre:.2f} = {v_before:.2f} x "
+                        f"{v_mult:.3f} (league rate at today's venue over the "
+                        "sample's venues; epochs.FOOTBALL_VENUE_PRIOR)")
+            # epochs.GAME_STATE (audit 2026-10-13 B1): the favourite /
+            # outsider term, exp(beta x the side's expected goal difference).
+            if game_state is not None and football is not None and side_key:
+                g_sup = football.supremacy(side_key)
+                g_mult = game_state.multiplier(rung.market, g_sup)
+                if g_mult is not None and g_sup is not None:
+                    g_before = centre
+                    centre *= g_mult
+                    row_unfitted.extend(GAME_STATE_UNFITTED)
+                    extra_notes.append(
+                        f"GAME_STATE: centre {centre:.2f} = {g_before:.2f} x "
+                        f"{g_mult:.3f} (expected goal difference {g_sup:+.2f}, "
+                        f"beta {game_state.betas[rung.market]:+.4f}; "
+                        "epochs.GAME_STATE)")
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
@@ -1822,6 +1858,14 @@ def _main() -> int:
     # mean (measured worse, off - docs/sofa/evidence/league_rate_rule_2026-10-13.md)
     league_rate_on = stats_only and epochs.football_league_rate_rule(args.date)
     dispersion_table = load_dispersion_table() if count_dispersion_on else None
+    # Audit 2026-10-13 B1 / B2 (all None = the centre as it was, byte for
+    # byte): the game-state term (a missing / malformed config raises, rc 2),
+    # the rating on RATED_SCOPE_MARKETS, the league venue multiplier.
+    game_state_table = (
+        load_game_state_table()
+        if stats_only and epochs.game_state_enabled(args.date) else None)
+    rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
+    venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
 
     try:
         for offer in offers:
@@ -1858,6 +1902,8 @@ def _main() -> int:
                         fixture.home_entity_id,
                         fixture.away_entity_id,
                         strict_league_rate=league_rate_on,
+                        rated_scope=(RATED_SCOPE_MARKETS if rated_scope_on
+                                     else frozenset()),
                     )
                     if football_book is not None and fixture.sport == "football"
                     else None
@@ -1868,6 +1914,8 @@ def _main() -> int:
                 marginal_centres_on=marginal_centres_on,
                 dispersion_table=dispersion_table,
                 per_market_k_on=per_market_k_on,
+                game_state=game_state_table,
+                venue_prior_on=venue_prior_on,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

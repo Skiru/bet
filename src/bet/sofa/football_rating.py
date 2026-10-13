@@ -134,6 +134,20 @@ UNRATED_MARKETS = frozenset(
         "offsides_total",      # 0.2312 -> 0.2334, n = 188
     }
 )
+# Audit 2026-10-13 B2 (epochs.FOOTBALL_RATED_SCOPE_FROM_UTC, off while None):
+# the markets of UNRATED_MARKETS the rating prices anyway once the switch is
+# on, and (epochs.FOOTBALL_VENUE_PRIOR_FROM_UTC) the sample-only side markets
+# whose centre reads the league's home / away multiplier. Measured on the
+# full history one step ahead (2025-08-01..2026-10-12, NB log-loss of the
+# centre at the count, docs/sofa/evidence/unrated_markets_2026-10-13.md):
+# only the markets whose 95% interval excluded zero and whose point kept its
+# sign outside the window ALPHA_BY_METRIC was chosen on. The three corners
+# totals are NOT here: the rating was no better (corners_total worse,
+# +0.0009 [+0.0003, +0.0015] per match).
+RATED_SCOPE_MARKETS: frozenset[str] = frozenset(
+    {"cards_points_for", "corners_1h_for", "corners_2h_for", "offsides_total"})
+VENUE_PRIOR_MARKETS: frozenset[str] = frozenset(
+    {"corners_1h_for", "corners_2h_for"})
 # Smoothing of a league's own rate and home ratio.
 ALPHA_LEAGUE = 0.02
 # A league or a team with fewer matches than this is not rated from itself.
@@ -946,6 +960,10 @@ class FootballForecast:
     # competition below MIN_LEAGUE_MATCHES gives no centre (NO_LEAGUE_RATE)
     # and the row is priced from its sample.
     strict_league_rate: bool = False
+    # epochs.FOOTBALL_RATED_SCOPE_FROM_UTC (audit 2026-10-13 B2): markets of
+    # UNRATED_MARKETS the rating prices anyway (RATED_SCOPE_MARKETS when the
+    # switch is on; empty = the exclusions as they were).
+    rated_scope: frozenset[str] = frozenset()
 
     def no_league_rate(self, market: str) -> bool:
         """Is this market's centre withheld for want of a league rate?"""
@@ -975,7 +993,8 @@ class FootballForecast:
     def centre(self, market: str, side: str | None) -> tuple[float, str] | None:
         """(expected value for this market, note) or None if not rated."""
         metric = base_metric(market)
-        if metric is None or market in UNRATED_MARKETS:
+        if metric is None or (
+                market in UNRATED_MARKETS and market not in self.rated_scope):
             return None
         if self.competition_id in FRIENDLY_COMPETITION_IDS:
             return None
@@ -1023,4 +1042,39 @@ class FootballForecast:
             return exp[1], f"away {exp[1]:.2f}, {detail}"
         return None
 
+    def supremacy(self, side: str) -> float | None:
+        """The side's expected goal difference (its goals minus the
+        opponent's) from the rating's goals book - the game-state covariate of
+        audit 2026-10-13 B1 (bet.sofa.game_state). None when the goals rating
+        gives no centre (a thin team, a friendly, no league rate)."""
+        if side not in ("side_a", "side_b"):
+            return None
+        home = self.centre("goals_for", "side_a")
+        away = self.centre("goals_for", "side_b")
+        if home is None or away is None:
+            return None
+        diff = home[0] - away[0]
+        return diff if side == "side_a" else -diff
 
+    def venue_multiplier(
+        self, market: str, side: str, venues: Iterable[str | None],
+    ) -> float | None:
+        """Home / away as a league multiplier on a sample-only centre (audit
+        2026-10-13 B2, "venue is a prior, not a split"): the match
+        competition's per-side rate at today's venue over the mean rate at the
+        venues the sample was earned at. None for a total (home + away is the
+        same sum), an unknown venue mix or no league rate."""
+        metric = base_metric(market)
+        if metric is None or not market.endswith("_for") or side not in (
+                "side_a", "side_b"):
+            return None
+        rates = self.book.league_rates(
+            self.competition_id, metric, self.strict_league_rate)
+        if rates is None or rates[0] <= 0 or rates[1] <= 0:
+            return None
+        earned = [rates[0] if v == "home" else rates[1]
+                  for v in venues if v in ("home", "away")]
+        if not earned:
+            return None
+        today = rates[0] if side == "side_a" else rates[1]
+        return today / (sum(earned) / len(earned))
