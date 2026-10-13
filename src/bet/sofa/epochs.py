@@ -1077,6 +1077,55 @@ def bb_pace_level(date: str | None = None, build_at: datetime | None = None
     return at >= BB_PACE_LEVEL_FROM_UTC
 
 
+# Audit 2026-10-13 B8: hockey's regulation goals as shots on goal x conversion
+# (goals per shot: the side's finishing against 1 - the save% of the other
+# side's goaltending as it played so far - the team's goalie mix, no pre-game
+# starting goalie is known), each rated as-of in the goals' RatingBook from
+# the box scores (score_model.SHOT_METRICS); HK_SHOTS_MODE "replace" takes the
+# shots centre, "blend" its geometric mean with the goals centre. Falls back
+# to the goals centre per game (score_model.ScoreModel.shots_expected). Live,
+# in the line-evidence replay and in a fit's history replay
+# (fit_sport_confidence --hk-shots). Changes hockey's p, so it goes live only
+# with a hockey curve refitted on it.
+# Evidence: docs/sofa/evidence/hockey_goalie_empty_net_2026-10-13.md.
+HK_SHOTS_FROM_UTC: datetime | None = None
+HK_SHOTS_MODE = "blend"
+
+
+def hk_shots(date: str | None = None, build_at: datetime | None = None
+             ) -> str | None:
+    """HK_SHOTS_MODE when hockey's centre reads the shots (HK_SHOTS_FROM_UTC),
+    else None. `date` None: the wall clock alone."""
+    if HK_SHOTS_FROM_UTC is None:
+        return None
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < HK_SHOTS_FROM_UTC.strftime("%Y-%m-%d"):
+        return None
+    return HK_SHOTS_MODE if at >= HK_SHOTS_FROM_UTC else None
+
+
+# Audit 2026-10-13 B8: hockey's late-game empty-net / extra-attacker goals
+# by the lead (score_model.HK_EMPTY_NET, fitted on the history's final
+# regulation margins) instead of one hand-picked pair for leads of 1 and 2.
+# Live, in the line-evidence replay and in a fit's history replay
+# (fit_sport_confidence --hk-empty-net); goes live only with a hockey curve
+# refitted on it.
+# Evidence: docs/sofa/evidence/hockey_goalie_empty_net_2026-10-13.md.
+HK_EMPTY_NET_FROM_UTC: datetime | None = None
+
+
+def hk_empty_net(date: str | None = None, build_at: datetime | None = None
+                 ) -> bool:
+    """Does hockey simulate the fitted empty-net probabilities
+    (HK_EMPTY_NET_FROM_UTC)? `date` None: the wall clock alone."""
+    if HK_EMPTY_NET_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < HK_EMPTY_NET_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= HK_EMPTY_NET_FROM_UTC
+
+
 # Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
 # games_won_set1/2/3_for) and sets_total were priced from the players' own
 # samples shrunk to a global prior, with no opponent. From this moment they are

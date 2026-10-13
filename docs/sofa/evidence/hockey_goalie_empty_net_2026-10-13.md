@@ -130,4 +130,60 @@ bootstrap po meczach. Strzałów z października kopia nie ma (patrz Dane).
 
 ## Wynik
 
-(uzupełniane po pomiarze)
+Pomiar 2026-10-13, kopia `data/refit_2026-10-13/sofa_replay.db` (tylko odczyt,
+`mode=ro`), `scripts/sofa/measure_hockey_goalie_empty_net.py`, wyniki w
+formie punkt [dolna, gorna] granica przedzialu; roznica = wariant - dzis,
+ujemna = lepiej. Bootstrap po meczach.
+
+**Pokrycie strzalow (bez zmian wzgledem sekcji Dane):** 29 516 meczow historii,
+6 755 ze strzalami; 2026-10: 0 (dociaganie idzie do `data/sofa.db`, nie do
+kopii), 2026-09: 262 z 1 365. Test A: 5 965 meczow, w tym **1 485** na sciezce
+strzalow (25%); Test B: 42 954 linie, p zmienione w 4 794 (S) / 4 752 (SB) /
+20 282 (E) wierszach - bez pazdziernika, wiec Test B dla S / SB mierzy glownie
+wrzesien.
+
+**Strojenie (okno 2024-10-01..2025-06-01, 5 422 stron):** najlepsza siatka
+alfa strzalow 0,05 / skutecznosci 0,01 (MSE goli 2,8658 wobec 2,8783 samego
+centrum goli na tych samych stronach). Pusta bramka (moment): e1 0,2189,
+e2 0,2514, t 0,1429 (8 902 meczow; przed koncowka model daje P0 0,165 wobec
+F0 0,208 historii). Kontrola NHL `emptyNetGoals`: gol do pustej prowadzacego
+w 51,6% meczow przy roznicy 1 (473) i 67,1% przy 2 (289).
+
+**Test A (log-loss, wariant - dzis):**
+
+| wariant | total | handicap | winner | team_total |
+|---|---|---|---|---|
+| S (replace, 97,5%) | +0,00126 [+0,00010, +0,00241] | -0,00171 [-0,00286, -0,00058] | -0,00241 [-0,00395, -0,00083] | -0,00012 [-0,00095, +0,00069] |
+| SB (blend, 97,5%) | +0,00025 [-0,00033, +0,00084] | -0,00121 [-0,00184, -0,00058] | -0,00163 [-0,00253, -0,00077] | -0,00043 [-0,00088, +0,00002] |
+| E (95%) | +0,00111 [+0,00055, +0,00167] | -0,00037 [-0,00074, +0,000006] | -0,00012 [-0,00068, +0,00044] | +0,00075 [+0,00042, +0,00111] |
+
+Podzbior na sciezce strzalow, `total` log-loss: S +0,00507 [+0,00065, +0,00956],
+SB +0,00100 [-0,00135, +0,00334]; `handicap` S -0,00687, SB -0,00487
+(oba przedzialy ponizej zera), `winner` S -0,00968, SB -0,00657.
+
+**Test B (linie Superbetu 2026-09-29..2026-10-12, log-loss):** S `total`
++0,00285 [-0,00103, +0,00656], `winner` -0,00065 [-0,00406, +0,00257]; SB `total`
++0,00078 [-0,00114, +0,00265], `winner` -0,00054 [-0,00243, +0,00118]; E
+`handicap` -0,00006 [-0,00170, +0,00162], `winner` +0,00004 [-0,00128, +0,00139].
+Linie blisko 50/50 (kurs uczciwy 0,45-0,55): `total` S +0,00833
+[+0,00234, +0,01498], SB +0,00342 [+0,00062, +0,00653] - gorzej.
+
+## Werdykt wg progow z gory
+
+- **S: NIE.** Glowny prog (Test A `total`, gorna granica < 0) nie spelniony;
+  `total` jest GORSZY (dolna granica > 0). Poprawia `handicap` i `winner`,
+  ale to nie byl prog glowny.
+- **SB: NIE.** `total` gorna granica +0,00084 > 0 (nie lepiej niz dzis).
+- **E: NIE.** `handicap` gorna granica +0,000006 > 0 o wlos; ponadto straznik
+  `total` zepsuty (dolna granica +0,00055 > 0) i `team_total` gorszy.
+- Przelaczniki `HK_SHOTS_FROM_UTC` i `HK_EMPTY_NET_FROM_UTC` zostaja `None`;
+  refitu krzywej hokeja z flaga nie robiono (prog niespelniony). Model przy
+  wylaczonych przelacznikach jest bajt w bajt dzisiejszy (test).
+
+Zastrzezenia: strzaly dotycza 25% meczow Testu A (glownie NHL, Liiga, SHL,
+Extraliga); save% jest druzyny, nie bramkarza startowego (brak danych przed
+meczem); przewag nie modelowano; pusta bramka dopasowana z rozkladu koncowej
+roznicy bez czasow goli (e1/e2/t nieidentyfikowalne ponad momenty) - stad
+mozliwe przeciazenie `t`. Otwarte: powtorzyc S po dociagnieciu strzalow
+hokeja 2026-08..10 do historii (refit przy nastepnym replay).
+

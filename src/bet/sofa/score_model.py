@@ -119,6 +119,31 @@ PACE_ALPHA = {PACE_POSS: 0.10, PACE_PPP: 0.03}
 ALPHA_BY_METRIC.update(PACE_ALPHA)
 
 
+# Audit 2026-10-13 B8 (epochs.HK_SHOTS_FROM_UTC): hockey's regulation goals as
+# shots on goal x conversion, read off the box score (sofa_event_stats.
+# statistics_json "Shots") - shots per side (attack = own shots, defence =
+# shots allowed) and goals per shot (attack = finishing, defence = 1 - the
+# save% of the side's goaltending as it played so far: the TEAM's goalie mix,
+# since no pre-game starting goalie is known), each rated in the goals'
+# RatingBook. A game with no shots updates only the goals rating.
+# Evidence: docs/sofa/evidence/hockey_goalie_empty_net_2026-10-13.md.
+HK_SHOTS = "hk_shots"
+HK_CONV = "hk_conv"
+SHOT_METRICS = (HK_SHOTS, HK_CONV)
+# a side's shot ratings are read only when it played a game with shots in this
+# window before the forecast (chosen, not fitted - as PACE_FRESH_S)
+SHOTS_FRESH_S = 60 * 86400
+# shots on goal of a side outside this range: a box score that does not add up
+SHOTS_RANGE = (5.0, 80.0)
+# one five-minute overtime assumed when a game went past regulation
+HK_OT_MINUTES = 5.0
+# smoothing of the shot metrics, chosen on one-step squared error of a side's
+# regulation goals on the tune window 2024-10-01..2025-06-01 (grid shots
+# 0.02 / 0.05 / 0.10 x conv 0.01 / 0.02 / 0.05; evidence doc)
+SHOTS_ALPHA = {HK_SHOTS: 0.05, HK_CONV: 0.01}
+ALPHA_BY_METRIC.update(SHOTS_ALPHA)
+
+
 def _box_items(statistics: Any) -> dict[str, dict[str, Any]]:
     """The whole-game ("ALL") statistics items of a Sofascore box score by key."""
     if isinstance(statistics, str):
@@ -204,6 +229,40 @@ def attach_box(r: FootballResult, statistics: Any, home_full: float,
         return r
     vals = box_values(statistics, home_full, away_full, overtime,
                       quarter_minutes_for(r.competition_id))
+    if vals is None:
+        return r
+    return dataclasses.replace(r, values={**r.values, **vals})
+
+
+def hockey_shot_values(statistics: Any, home_reg: float, away_reg: float,
+                       overtime: bool) -> dict[str, tuple[float, float]] | None:
+    """(HK_SHOTS, HK_CONV) of one hockey game, or None (audit B8).
+
+    Shots = the whole-game "Shots" (shots on goal), scaled to regulation by
+    60 / (60 + HK_OT_MINUTES) after an overtime; conversion = regulation
+    goals over those shots. A side outside SHOTS_RANGE: None."""
+    it = _box_items(statistics).get("Shots")
+    if it is None:
+        return None
+    h, a = it.get("homeValue"), it.get("awayValue")
+    if (not isinstance(h, (int, float)) or not isinstance(a, (int, float))
+            or isinstance(h, bool) or isinstance(a, bool)):
+        return None
+    lo, hi = SHOTS_RANGE
+    if not (lo <= h <= hi and lo <= a <= hi):
+        return None
+    f = 60.0 / (60.0 + HK_OT_MINUTES) if overtime else 1.0
+    sh, sa = float(h) * f, float(a) * f
+    return {HK_SHOTS: (sh, sa), HK_CONV: (home_reg / sh, away_reg / sa)}
+
+
+def attach_hockey_shots(r: FootballResult, statistics: Any, overtime: bool
+                        ) -> FootballResult:
+    """`r` with the shot metrics of its box score (unchanged without one)."""
+    reg = r.values.get(REG_METRIC["hockey"])
+    if statistics is None or reg is None:
+        return r
+    vals = hockey_shot_values(statistics, reg[0], reg[1], overtime)
     if vals is None:
         return r
     return dataclasses.replace(r, values={**r.values, **vals})
@@ -316,6 +375,8 @@ def _rated_values(r: FootballResult, sport: ShadowSport) -> FootballResult:
     keep = set(_metrics(sport))
     if sport.key == "basketball":
         keep.update(PACE_METRICS)
+    elif sport.key == "hockey":
+        keep.update(SHOT_METRICS)
     return FootballResult(r.event_id, r.ts, r.competition_id, r.home_id, r.away_id,
                           {m: v for m, v in r.values.items() if m in keep}, r.women)
 
@@ -348,6 +409,11 @@ class SimParams:
     # empty-net signature a plain Poisson cannot make.
     hk_late_lead: float = 0.2
     hk_late_trail: float = 0.05
+    # hockey (audit 2026-10-13 B8, epochs.HK_EMPTY_NET_FROM_UTC): the same two
+    # probabilities when the lead is 2 goals; None = hk_late_lead /
+    # hk_late_trail at both leads (the model as first built)
+    hk_late_lead2: float | None = None
+    hk_late_trail2: float | None = None
     # hockey: overtime winner pulled toward a coin by this factor (1 = none);
     # 467 overtime games: 0.2500 at 1.0 and 0.0, 0.2485 at 0.5
     hk_ot_strength: float = 0.5
@@ -456,12 +522,50 @@ class ScoreModel:
     # epochs.BB_PACE_LEVEL_FROM_UTC (audit 2026-10-13 B7b): the box-score pace
     # scales the total only (level_factor), the margin kept
     pace_level: bool = False
+    # epochs.HK_SHOTS_FROM_UTC (audit 2026-10-13 B8): hockey's centre from
+    # shots x conversion where both sides' shot ratings are read; "replace"
+    # (the shots centre) or "blend" (the geometric mean with the goals
+    # centre); None = off
+    shots: str | None = None
 
     def note_game(self, r: FootballResult) -> None:
-        """Record a learnt game's box score for the pace freshness rule."""
-        if self.box_last is not None and PACE_POSS in r.values:
+        """Record a learnt game's box score for the pace / shots freshness rule."""
+        if self.box_last is not None and (PACE_POSS in r.values
+                                          or HK_SHOTS in r.values):
             self.box_last[r.home_id] = r.ts
             self.box_last[r.away_id] = r.ts
+
+    def shots_expected(
+        self, competition: int, home: int, away: int, at_ts: int | None = None,
+    ) -> tuple[float, float] | None:
+        """(home, away) regulation goals from shots x conversion (audit B8),
+        or None when the model keeps the goals centre: off, not hockey, a
+        side with < MIN_TEAM_MATCHES games with shots or none in the last
+        SHOTS_FRESH_S, an UNLINKED pair, or a competition with no shot rate
+        (never the all-league mean)."""
+        if self.shots is None or self.sport.key != "hockey":
+            return None
+        ref = at_ts if at_ts is not None else self.book.last_ts
+        last = self.box_last or {}
+        for team in (home, away):
+            if any(self.book.team_matches(team, m) < MIN_TEAM_MATCHES
+                   for m in SHOT_METRICS):
+                return None
+            t = last.get(team)
+            if t is None or ref - t > SHOTS_FRESH_S:
+                return None
+        exps: list[tuple[float, float]] = []
+        for metric in SHOT_METRICS:
+            status, lf = self.book.link(home, away, metric)
+            if status == UNLINKED:
+                return None
+            exp = self.book.expected(competition, home, away, metric, lf,
+                                     cross=status != LINKED, strict=True)
+            if exp is None:
+                return None
+            exps.append(exp)
+        (sh, sa), (ch, ca) = exps
+        return max(sh * ch, 0.0), max(sa * ca, 0.0)
 
     def pace_expected(
         self, competition: int, home: int, away: int, at_ts: int | None = None,
@@ -567,8 +671,14 @@ class ScoreModel:
         paced = self.pace_expected(competition, home, away, at_ts)
         if paced is not None:
             eh, ea = paced
+        shot = self.shots_expected(competition, home, away, at_ts)
+        if shot is not None:
+            if self.shots == "blend":
+                eh, ea = math.sqrt(eh * shot[0]), math.sqrt(ea * shot[1])
+            else:
+                eh, ea = shot
         k = self.params.sep_power
-        if k != 1.0 and status == LINKED and paced is None:
+        if k != 1.0 and status == LINKED and paced is None and shot is None:
             rates = self.book.league_rates(competition, metric)
             if rates is not None and rates[0] > 0 and rates[1] > 0:
                 eh = rates[0] * (eh / rates[0]) ** k
@@ -659,12 +769,18 @@ def _hockey(
         p1l.append(_poisson(rng, max(m1 - c, 0.0)) + shared)
         p2l.append(_poisson(rng, max(m2 - c, 0.0)) + shared)
     lead = sum(p1l) - sum(p2l)
-    if 1 <= abs(lead) <= 2 and (prm.hk_late_lead or prm.hk_late_trail):
+    e, t = prm.hk_late_lead, prm.hk_late_trail
+    if abs(lead) == 2:
+        if prm.hk_late_lead2 is not None:
+            e = prm.hk_late_lead2
+        if prm.hk_late_trail2 is not None:
+            t = prm.hk_late_trail2
+    if 1 <= abs(lead) <= 2 and (e or t):
         u = rng.random()
         leader_is_1 = lead > 0
-        if u < prm.hk_late_lead:
+        if u < e:
             (p1l if leader_is_1 else p2l)[-1] += 1
-        elif u < prm.hk_late_lead + prm.hk_late_trail:
+        elif u < e + t:
             (p2l if leader_is_1 else p1l)[-1] += 1
     p1, p2 = tuple(p1l), tuple(p2l)
     r1, r2 = sum(p1), sum(p2)
@@ -710,6 +826,27 @@ def overtime_params(params: SimParams | None, sport_key: str, on: bool
     if not on or sport_key != "basketball":
         return params
     return dataclasses.replace(params or SimParams(), bb_tie_pull=BB_TIE_PULL)
+
+
+# Audit 2026-10-13 B8 (epochs.HK_EMPTY_NET_FROM_UTC): hockey's late-game
+# probabilities by the lead - (leader's empty-net goal at a 1-goal lead, at a
+# 2-goal lead, trailer's goal at either) - fitted by moments on the history's
+# final regulation margins (no goal times in the cache) on the tune window
+# 2024-10-01..2025-06-01 (scripts/sofa/measure_hockey_goalie_empty_net.py
+# --mode fit-empty-net; evidence doc).
+HK_EMPTY_NET = (0.2189, 0.2514, 0.1429)
+
+
+def empty_net_params(params: SimParams | None, sport_key: str, on: bool
+                     ) -> SimParams | None:
+    """The hockey params under epochs.HK_EMPTY_NET (HK_EMPTY_NET); `params`
+    unchanged elsewhere or when off."""
+    if not on or sport_key != "hockey":
+        return params
+    e1, e2, t = HK_EMPTY_NET
+    return dataclasses.replace(params or SimParams(), hk_late_lead=e1,
+                               hk_late_lead2=e2, hk_late_trail=t,
+                               hk_late_trail2=t)
 
 
 def overtime_minutes(competition_id: int | None, sport_key: str, on: bool
@@ -855,7 +992,8 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 cut_ts: int, params: SimParams | None = None,
                 shared_league_link: bool | None = None,
                 strict_league_rate: bool = False,
-                pace: bool = False, pace_level: bool = False) -> ScoreModel:
+                pace: bool = False, pace_level: bool = False,
+                shots: str | None = None) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
@@ -864,7 +1002,10 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     where the history carries box scores (attach_box), the spread fitted
     around that centre. `pace_level` (epochs.BB_PACE_LEVEL_FROM_UTC,
     basketball): the box-score pace scales the total only, switched on after
-    the spread is fitted - the spread stays the points centre's."""
+    the spread is fitted - the spread stays the points centre's. `shots`
+    (epochs.HK_SHOTS_FROM_UTC, hockey, audit B8): "replace" / "blend" - the
+    centre from shots x conversion where the history carries shots
+    (attach_hockey_shots)."""
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     k = sport.regulation_periods or 0
@@ -906,7 +1047,7 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     for r in before:
         last[r.home_id] = r.ts
         last[r.away_id] = r.ts
-        if PACE_POSS in r.values:
+        if PACE_POSS in r.values or HK_SHOTS in r.values:
             box_last[r.home_id] = r.ts
             box_last[r.away_id] = r.ts
         if sport.key == "basketball" and r.ts >= cut_ts - FRESH_WINDOW_S:
@@ -918,6 +1059,11 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                        strict_league_rate=strict_league_rate)
     if pace and sport.key == "basketball":
         model.pace = True
+        model.box_last = box_last
+    if shots is not None and sport.key == "hockey":
+        if shots not in ("replace", "blend"):
+            raise ValueError(f"shots must be 'replace' or 'blend', not {shots!r}")
+        model.shots = shots
         model.box_last = box_last
     if window:
         regs = [sum(r.values[REG_METRIC[sport.key]]) for r in window

@@ -138,6 +138,7 @@ class DbForecaster:
         if sport not in self._shadow:
             from bet.sofa.score_model import (
                 build_model,
+                empty_net_params,
                 load_box_scores,
                 load_events,
                 overtime_params,
@@ -153,17 +154,24 @@ class DbForecaster:
             # audit B7b: the box-score pace scales the total only
             level = (sport == "basketball"
                      and epochs.bb_pace_level(self.date, self.at))
-            box = (load_box_scores(self.db_path, events) if pace or level
-                   else None)
+            # audit B8: hockey's centre from shots x conversion, the fitted
+            # empty net
+            hk_shots = (epochs.hk_shots(self.date, self.at)
+                        if sport == "hockey" else None)
+            hk_en = sport == "hockey" and epochs.hk_empty_net(self.date, self.at)
+            box = (load_box_scores(self.db_path, events)
+                   if pace or level or hk_shots else None)
             history = scf.parse_history(events, sp, box)
             model = build_model(
                 [g.rating for g in history], sp, cut,
-                overtime_params(None, sport, epochs.bb_overtime(self.date, self.at)),
+                empty_net_params(
+                    overtime_params(
+                        None, sport, epochs.bb_overtime(self.date, self.at)),
+                    sport, hk_en),
                 shared_league_link=epochs.link_shared_league(self.date),
                 strict_league_rate=epochs.league_rate_rule(self.date, self.at),
-                # off: the call as before the switch existed
-                **({"pace": True} if pace else {}),
-                **({"pace_level": True} if level else {}))
+                # off: each the build_model default (the model as before)
+                pace=pace, pace_level=level, shots=hk_shots)
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]
 
