@@ -2065,3 +2065,18 @@ sprawdzenia (10-08: start z rana nie nadążał za przesunięciem meczu).
 zostawia PDF i kończy PARTIAL (exit 1). Sam HTML: `build_coupon_html.py
 --date <d>`. Test: `tests/sofa/test_coupon_html.py` (liczba nóg = artefakt,
 filtry w prawdziwej przeglądarce, jeśli jest Chrome).
+
+## Pomiar: rozliczone linie wg rynku i kierunku (od 2026-10-13)
+
+`scripts/sofa/measure_settled_by_market.py --from <d> --to <d> [--p-min 0.70] [--min-n 20]`
+(`bet.sofa.settled_by_market`) - tylko do odczytu. Dla każdego sportu osobno
+(football i tennis z `sofa_settled_row`, hokej / koszykówka / siatkówka z wierszy
+line evidence z kursem z `shadow/<sport>/<d>/settled.json`, CS2 z
+`cs2/<d>/settled.json`; sporty nigdy nie są sumowane) podaje dla każdej pary
+(rynek, kierunek) i (rodzina ilości, kierunek): liczbę linii i meczów, trafność,
+średnie p modelu, średnie 1/kurs, ROI na jednostkę i 95% przedział bootstrapu po
+meczach (ziarno stałe). Mierzy SUROWE p modelu (nie skalibrowaną pewność),
+wszystkie szczeble, bez bramek kuponu; tabela niesie ostrzeżenie o wielokrotnych
+porównaniach (jeden wiersz na dwadzieścia przekracza zero z samego przypadku).
+Wynik jest tropem dla wcześniej zarejestrowanego testu, nigdy bramką.
+Przykład: `docs/sofa/evidence/settled_by_market_2026-10-09_12.md`.
