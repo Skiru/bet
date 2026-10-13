@@ -453,6 +453,9 @@ class ScoreModel:
     pace: bool = False
     # team -> start timestamp of its latest game with a box score
     box_last: dict[int, int] | None = None
+    # epochs.BB_PACE_LEVEL_FROM_UTC (audit 2026-10-13 B7b): the box-score pace
+    # scales the total only (level_factor), the margin kept
+    pace_level: bool = False
 
     def note_game(self, r: FootballResult) -> None:
         """Record a learnt game's box score for the pace freshness rule."""
@@ -492,6 +495,39 @@ class ScoreModel:
         (ph, pa), (eh, ea) = exps
         poss = (ph + pa) / 2
         return max(poss * eh, 0.0), max(poss * ea, 0.0)
+
+    def level_factor(
+        self, competition: int, home: int, away: int, at_ts: int | None = None,
+    ) -> float | None:
+        """epochs.BB_PACE_LEVEL_FROM_UTC (audit 2026-10-13 B7b): the game's
+        expected possessions (the mean of the two sides' PACE_POSS
+        expectations) over the competition's possession rate, or None (the
+        total as the points rating has it): off, not basketball, a side with
+        < MIN_TEAM_MATCHES box-score games or none in the last PACE_FRESH_S,
+        an UNLINKED pair, or no possession rate of the competition (never the
+        all-league mean)."""
+        if not self.pace_level or self.sport.key != "basketball":
+            return None
+        ref = at_ts if at_ts is not None else self.book.last_ts
+        last = self.box_last or {}
+        for team in (home, away):
+            if self.book.team_matches(team, PACE_POSS) < MIN_TEAM_MATCHES:
+                return None
+            t = last.get(team)
+            if t is None or ref - t > PACE_FRESH_S:
+                return None
+        status, lf = self.book.link(home, away, PACE_POSS)
+        if status == UNLINKED:
+            return None
+        exp = self.book.expected(competition, home, away, PACE_POSS, lf,
+                                 cross=status != LINKED, strict=True)
+        rates = self.book.league_rates(competition, PACE_POSS, strict=True)
+        if exp is None or rates is None:
+            return None
+        league = (rates[0] + rates[1]) / 2
+        if league <= 0:
+            return None
+        return ((exp[0] + exp[1]) / 2) / league
 
     def no_league_rate(self, competition: int) -> bool:
         """Is this competition's game left unpriced for want of a league rate?"""
@@ -545,6 +581,12 @@ class ScoreModel:
                         eh = max(eh + self.params.b2b_delta, 0.0)
                     else:
                         ea = max(ea + self.params.b2b_delta, 0.0)
+        f = (self.level_factor(competition, home, away, at_ts)
+             if paced is None else None)
+        if f is not None:
+            # the total scaled, the margin the points rating's (audit B7b)
+            total, margin = f * (eh + ea), eh - ea
+            eh, ea = max((total + margin) / 2, 0.0), max((total - margin) / 2, 0.0)
         if self.sport.regulation_periods is None:
             return [eh], [ea]
         sh, sa = self.shares
@@ -813,14 +855,16 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 cut_ts: int, params: SimParams | None = None,
                 shared_league_link: bool | None = None,
                 strict_league_rate: bool = False,
-                pace: bool = False) -> ScoreModel:
+                pace: bool = False, pace_level: bool = False) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
     epoch's rule on the wall clock (epochs.link_shared_league). `pace`
     (epochs.BB_PACE_FROM_UTC, basketball): the centre from pace x efficiency
     where the history carries box scores (attach_box), the spread fitted
-    around that centre."""
+    around that centre. `pace_level` (epochs.BB_PACE_LEVEL_FROM_UTC,
+    basketball): the box-score pace scales the total only, switched on after
+    the spread is fitted - the spread stays the points centre's."""
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     k = sport.regulation_periods or 0
@@ -917,6 +961,9 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 model.params = dataclasses.replace(
                     prm, bb_game_sd=math.sqrt(g2), bb_team_sd=math.sqrt(u2),
                     bb_quarter_sd=math.sqrt(e2))
+    if pace_level and sport.key == "basketball":
+        model.pace_level = True
+        model.box_last = box_last
     return model
 
 

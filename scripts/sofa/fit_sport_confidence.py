@@ -110,6 +110,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     # audit 2026-10-13 B7: basketball's centre from pace x efficiency
     pace = sport == "basketball" and (
         args.bb_pace or epochs.bb_pace(before, first))
+    # audit 2026-10-13 B7b: the box-score pace scales basketball's total only
+    level = sport == "basketball" and (
+        args.bb_pace_level or epochs.bb_pace_level(before, first))
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
@@ -134,25 +137,28 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         # switch set: the settled days follow their own rule)
         box = (load_box_scores(db_path, events)
                if sport == "basketball" and (
-                   args.bb_pace or epochs.BB_PACE_FROM_UTC is not None)
+                   args.bb_pace or epochs.BB_PACE_FROM_UTC is not None
+                   or args.bb_pace_level
+                   or epochs.BB_PACE_LEVEL_FROM_UTC is not None)
                else None)
         history = scf.parse_history(events, shadow_sport, box)
         history = [g for g in history if g.rating.ts < before_ts]
         history_n = len(history)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit", fresh, overtime, strict, pace)
+            "history_fit", fresh, overtime, strict, pace, level)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict,
-            pace)
+            pace, level)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
             runs_dir, shadow_sport, dates, events, history, args.sims, fresh,
             overtime=True if args.bb_overtime else None,
             strict_league_rate=True if args.league_rate_rule else None,
-            pace=True if args.bb_pace else None)
+            pace=True if args.bb_pace else None,
+            pace_level=True if args.bb_pace_level else None)
         only = scf.SETTLED_ONLY_FAMILIES[sport]
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
@@ -192,6 +198,7 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "bb_overtime": overtime,
             "league_rate_rule": strict,
             **({"bb_pace": True} if pace else {}),
+            **({"bb_pace_level": True} if level else {}),
         },
         "curves": curves,
         "curve_source": source,
@@ -287,6 +294,9 @@ def main() -> int:
     ap.add_argument("--bb-pace", action="store_true",
                     help="replay basketball's centre as pace x efficiency from "
                     "the box scores (audit B7; default: the --before day's rule)")
+    ap.add_argument("--bb-pace-level", action="store_true",
+                    help="replay basketball's total scaled by the box-score pace, "
+                    "the margin kept (audit B7b; default: the --before day's rule)")
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")

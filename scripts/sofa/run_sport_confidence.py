@@ -150,7 +150,11 @@ class DbForecaster:
                       and e["startTimestamp"] < cut}
             # audit B7: basketball's centre from pace x efficiency (box scores)
             pace = sport == "basketball" and epochs.bb_pace(self.date, self.at)
-            box = load_box_scores(self.db_path, events) if pace else None
+            # audit B7b: the box-score pace scales the total only
+            level = (sport == "basketball"
+                     and epochs.bb_pace_level(self.date, self.at))
+            box = (load_box_scores(self.db_path, events) if pace or level
+                   else None)
             history = scf.parse_history(events, sp, box)
             model = build_model(
                 [g.rating for g in history], sp, cut,
@@ -158,7 +162,8 @@ class DbForecaster:
                 shared_league_link=epochs.link_shared_league(self.date),
                 strict_league_rate=epochs.league_rate_rule(self.date, self.at),
                 # off: the call as before the switch existed
-                **({"pace": True} if pace else {}))
+                **({"pace": True} if pace else {}),
+                **({"pace_level": True} if level else {}))
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]
 
