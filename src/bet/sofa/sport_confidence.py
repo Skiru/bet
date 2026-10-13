@@ -750,7 +750,8 @@ def day_ts(day: str) -> int:
 def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                         events: Mapping[int, dict[str, Any]],
                         history: Sequence[HistoryGame], n_sims: int,
-                        freshness: bool = False) -> list[Row]:
+                        freshness: bool = False, overtime: bool | None = None,
+                        strict_league_rate: bool | None = None) -> list[Row]:
     """Superbet's settled lines of `dates` (runs/sofa/shadow/<sport>/<d>/
     settled.json), each with the model's probability from a model built
     strictly before the day - measure_score_model.py's reading. Only allowed
@@ -765,10 +766,13 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
         doc = json.loads(path.read_text(encoding="utf-8"))
         # epochs.LEAGUE_RATE_RULE: the day's own rule - a friendly is not
         # priced and a thin competition has no rate (audit 2026-10-13 A2)
-        strict = epochs.league_rate_rule(date)
-        overtime = epochs.bb_overtime(date)
+        # the day's own rules (the line evidence's reading), unless a fit
+        # asks for its estimator on every day (fit_sport_confidence)
+        strict = (epochs.league_rate_rule(date) if strict_league_rate is None
+                  else strict_league_rate)
+        day_overtime = epochs.bb_overtime(date) if overtime is None else overtime
         model = build_model(ratings, sport, day_ts(date),
-                            overtime_params(None, sport.key, overtime),
+                            overtime_params(None, sport.key, day_overtime),
                             strict_league_rate=strict)
         for sb_id, entry in (doc.get("events") or {}).items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):
@@ -792,7 +796,7 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                 noise_mult=(model.noise_mult(
                     int(event["homeTeam"]["id"]), int(event["awayTeam"]["id"]),
                     int(event["startTimestamp"])) if freshness else 1.0),
-                quarter_minutes=overtime_minutes(comp, sport.key, overtime))
+                quarter_minutes=overtime_minutes(comp, sport.key, day_overtime))
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue

@@ -136,8 +136,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict)
-        settled = scf.settled_shadow_rows(runs_dir, shadow_sport, dates, events,
-                                          history, args.sims, fresh)
+        # an explicit flag: the fit's estimator on every settled day too, so the
+        # curve is checked on the p it was fitted for (else the day's rule)
+        settled = scf.settled_shadow_rows(
+            runs_dir, shadow_sport, dates, events, history, args.sims, fresh,
+            overtime=True if args.bb_overtime else None,
+            strict_league_rate=True if args.league_rate_rule else None)
         only = scf.SETTLED_ONLY_FAMILIES[sport]
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
