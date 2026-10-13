@@ -115,6 +115,58 @@
       "evidence": [
         {"source": "docs/sofa/evidence/price_gap_2026-10-12.md", "line": 1, "quote": "piłka 458 nóg / 269 meczów, -6,8 pp [-12,0; -2,1]"}
       ]
+    },
+    {
+      "id": "T-A2-league-rate-refusals",
+      "registered_on": "2026-10-13",
+      "status": "REGISTERED",
+      "hypothesis": "Hockey / basketball / volleyball games the league-rate rule refuses (FRIENDLY_FIXTURE, NO_LEAGUE_RATE; epochs.LEAGUE_RATE_RULE_FROM_UTC) would have realised below their confidence had they been priced the old way (all-league rate).",
+      "rule": "Over Superbet's settled lines (runs/sofa/shadow/<sport>/<d>/settled.json) of the refused games, priced by the score model with the OLD rule (strict_league_rate False) as of the day, read through the installed curve and line evidence; lines with confidence >= 0.70 and confidence x odds >= 0.90. Report realised minus mean confidence and ROI at Superbet's price, per sport and pooled (scripts/sofa/measure_league_rate_rule.py --from <d>).",
+      "population": "Measured-sport games of days from 2026-10-14 that the rule refuses; the kept games of the same days as control.",
+      "data_window": {
+        "from": "2026-10-14",
+        "to": "2027-04-13"
+      },
+      "required_n": {
+        "legs": 150,
+        "matches_min": 60,
+        "basis": "09-29..10-12 held 17 would-print lines in 16 refused games; pre-seasons and new competitions of the winter will add games. 150 lines in 60 games give a 95% half-width of about 10 pp."
+      },
+      "evaluation": "Realised minus confidence with a 95% interval from resampling games.",
+      "stop_criterion": "CONFIRMED (PASSED) when the upper 95% bound is below 0 at the required n; FAILED when the lower bound is above 0 (the refused games would have done at least as well as their confidence - the operator then reconsiders O1's NO_LEAGUE_RATE half; the friendly half stays a correctness rule).",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/league_rate_rule_2026-10-13.md",
+          "line": 1,
+          "quote": "17 nóg w 16 meczach"
+        }
+      ]
+    },
+    {
+      "id": "T-A4-bucket-deff",
+      "registered_on": "2026-10-13",
+      "status": "REGISTERED",
+      "hypothesis": "The legs the bucket design effect adds to the coupon (keys without a curve; epochs.BUCKET_DESIGN_EFFECT_FROM_UTC) realise at or above their confidence, per sport.",
+      "rule": "Printed legs of 11_coupon.json from 2026-10-14 whose confidence came from line evidence of a key without a curve (calibrated_on / source 'sb:'), graded WIN / LOSS; recompute each one's confidence with the sport's design effect (LineEvidence bucket_deff False on the same evidence file) and split into 'added' (would not have printed) and 'kept'. Report realised minus confidence and ROI per sport.",
+      "population": "Official coupon legs from 2026-10-14, a leg removed by a read excluded; each sport apart (tennis watched: the walk-forward showed its added legs at ROI -10.0% [-19.7, -0.8]).",
+      "data_window": {
+        "from": "2026-10-14",
+        "to": "2027-01-13"
+      },
+      "required_n": {
+        "legs": 300,
+        "matches_min": 150,
+        "basis": "walk-forward 10-07..10-12: 477 added legs in 321 games in six days; 300 added legs give a 95% half-width of about 5 pp."
+      },
+      "evaluation": "Realised minus confidence and ROI with 95% intervals from resampling matches (scripts/sofa/measure_bucket_design_effect.py logic on the printed legs).",
+      "stop_criterion": "PASSED when the added legs' lower 95% bound of realised minus confidence is above -2 pp at the required n; FAILED when its upper bound is below 0 (the switch is then set back to None by the operator); per sport, tennis first.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/bucket_design_effect_2026-10-13.md",
+          "line": 24,
+          "quote": "-0.0351 [-0.0409; -0.0292]"
+        }
+      ]
     }
   ]
 }

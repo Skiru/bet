@@ -66,6 +66,7 @@ from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
+from bet.sofa.comparability import is_friendly_event  # noqa: E402
 from bet.sofa.confidence import COUPON_PROFILE, MIN_ODDS_FOR_CEILING  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.line_evidence import (  # noqa: E402
@@ -82,6 +83,22 @@ FLOOR = COUPON_PROFILE.floor  # 0.70
 MIN_ODDS = MIN_ODDS_FOR_CEILING  # 1/0.9202
 
 OK, NOT_CALIBRATED, NOT_IDENTIFIED = "OK", "NOT_CALIBRATED", "NOT_IDENTIFIED"
+FRIENDLY_FIXTURE, NO_LEAGUE_RATE = "FRIENDLY_FIXTURE", "NO_LEAGUE_RATE"
+# The sports priced by bet.sofa.score_model (the league-rate rule's scope).
+SCORE_MODEL_SPORTS = frozenset({"hockey", "basketball", "volleyball"})
+
+
+def is_friendly_fixture_entry(sport: str, fixture: Mapping[str, Any]) -> bool:
+    """comparability.is_friendly_event on a pinned sport_fixtures.json entry:
+    its competition id and Sofascore's tournament name ("NBA Preseason",
+    "Club Friendlies") are the event fields that rule reads."""
+    comp = fixture.get("competition_id")
+    event = {"tournament": {
+        "name": str(fixture.get("sofascore_tournament") or ""),
+        "uniqueTournament": {"id": int(comp) if comp is not None else None,
+                             "name": ""}}}
+    slug = shadow.SPORTS[sport].sofascore_slug  # type: ignore[index]
+    return is_friendly_event(event, slug)
 FIXTURE_NOT_AS_SCHEDULED = "FIXTURE_NOT_AS_SCHEDULED"
 
 
@@ -129,7 +146,8 @@ class DbForecaster:
             history = scf.parse_history(events, sp)
             model = build_model(
                 [g.rating for g in history], sp, cut,
-                shared_league_link=epochs.link_shared_league(self.date))
+                shared_league_link=epochs.link_shared_league(self.date),
+                strict_league_rate=epochs.league_rate_rule(self.date, self.at))
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]
 
@@ -157,6 +175,15 @@ class DbForecaster:
         return self._pregame[(sport, day)].get(
             (str(ev.superbet_event_id), int(line.market_id), str(line.subject),
              line.line, str(line.side)))
+
+    def refusal(self, sport: str, fixture: Mapping[str, Any]) -> str | None:
+        """NO_LEAGUE_RATE: a score-model game whose competition has no rate
+        of its own (epochs.LEAGUE_RATE_RULE_FROM_UTC); else None."""
+        if sport == "cs2" or fixture.get("competition_id") is None:
+            return None
+        model, _ = self._shadow_model(sport)
+        return (NO_LEAGUE_RATE
+                if model.no_league_rate(int(fixture["competition_id"])) else None)
 
     def probability(self, sport: str, fixture: Mapping[str, Any], ev: Any,
                     line: Any) -> float | None:
@@ -300,6 +327,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
     `evidence` (epochs.line_evidence; None = the admission rule as before):
     every fitted key's curve, read through bet.sofa.line_evidence."""
     status = sport_status(sport, fixtures_doc, calibration, evidence)
+    league_rule = epochs.league_rate_rule(date, at)
     fixture_status = fixture_status or {}
     not_scheduled: list[dict[str, Any]] = []
     fixtures = si.fixtures_by_event(fixtures_doc)
@@ -369,6 +397,19 @@ def build_sport(sport: str, date: str, runs_dir: str,
         if status == NOT_CALIBRATED:
             _bump(refused, NOT_CALIBRATED, n_sides)
             continue
+        # epochs.LEAGUE_RATE_RULE (audit 2026-10-13 A2, operator O1): a
+        # friendly / pre-season game is not a fixture to price - football's
+        # FRIENDLY_FIXTURE, by comparability.is_friendly_event - and a game
+        # in a competition with no rate of its own is NO_LEAGUE_RATE.
+        if league_rule and sport in SCORE_MODEL_SPORTS:
+            if is_friendly_fixture_entry(sport, fixture):
+                _bump(refused, FRIENDLY_FIXTURE, n_sides)
+                continue
+            refusal = getattr(forecaster, "refusal", None)
+            why_league = refusal(sport, fixture) if refusal is not None else None
+            if why_league is not None:
+                _bump(refused, why_league, n_sides)
+                continue
         assert calibration is not None
         groups: dict[tuple[Any, ...], dict[str, float]] = defaultdict(dict)
         for key, ln in allowed.items():
@@ -515,7 +556,8 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     calibration = scf.SportCalibration.load(calibration_path)
     v2 = epochs.line_evidence_v2(date, at)
     path = evidence_path if evidence_path is not None else DEFAULT_EVIDENCE
-    evidence = (LineEvidence.load(path, v2=v2)
+    evidence = (LineEvidence.load(path, v2=v2,
+                                  bucket_deff=epochs.bucket_design_effect(date, at))
                 if epochs.line_evidence(date, at) else None)
     fixture_status = fs.load(Path(runs_dir) / date)
     doc: dict[str, Any] = {

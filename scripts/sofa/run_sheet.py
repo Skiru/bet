@@ -65,6 +65,7 @@ from bet.sofa.epochs import (
 from bet.sofa.epochs import stats_only as stats_only_epoch
 from bet.sofa.football_rating import (
     CROSS_LEAGUE_UNLINKED_NOTE,
+    MIN_LEAGUE_MATCHES,
     RATING_UNFITTED,
     UNLINKED,
     W_FOOTBALL_RATING,
@@ -1213,6 +1214,12 @@ def process_fixture(
                     f"({rated[1]}) at W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}, "
                     f"sample centre was {sample_centre:.2f}"
                 )
+            elif (football is not None and not is_player_metric(rung.market)
+                  and football.no_league_rate(rung.market)):
+                extra_notes.append(
+                    f"NO_LEAGUE_RATE: competition {fixture.competition_id} has "
+                    f"fewer than {MIN_LEAGUE_MATCHES} rated matches; centre "
+                    "from the sample alone (epochs.FOOTBALL_LEAGUE_RATE_RULE)")
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
@@ -1793,6 +1800,8 @@ def _main() -> int:
                                   Path(config.db_path).parent / "cache"),
             int(cut.timestamp()),
             shared_league_link=link_shared,
+            # epochs.UNIT_STRENGTH_FROM_PARENT (audit 2026-10-13 A1)
+            unit_strength_from_parent=epochs.unit_strength_from_parent(args.date),
         )
 
     all_rows = []
@@ -1808,6 +1817,10 @@ def _main() -> int:
     count_dispersion_on = stats_only and epochs.count_dispersion_enabled(args.date)
     # epochs.PER_MARKET_K: K_CENTRE.by_market of the engine constants
     per_market_k_on = stats_only and epochs.per_market_k_enabled(args.date)
+    # epochs.FOOTBALL_LEAGUE_RATE_RULE: a competition below MIN_LEAGUE_MATCHES
+    # gives the rating no centre (NO_LEAGUE_RATE) instead of the all-league
+    # mean (measured worse, off - docs/sofa/evidence/league_rate_rule_2026-10-13.md)
+    league_rate_on = stats_only and epochs.football_league_rate_rule(args.date)
     dispersion_table = load_dispersion_table() if count_dispersion_on else None
 
     try:
@@ -1844,6 +1857,7 @@ def _main() -> int:
                         fixture.competition_id,
                         fixture.home_entity_id,
                         fixture.away_entity_id,
+                        strict_league_rate=league_rate_on,
                     )
                     if football_book is not None and fixture.sport == "football"
                     else None
@@ -1918,6 +1932,8 @@ def _main() -> int:
                 epochs.COUNT_DISPERSION if count_dispersion_on else "old"),
             "k_rule": (
                 epochs.PER_MARKET_K if per_market_k_on else "old"),
+            "football_league_rate_rule": (
+                epochs.LEAGUE_RATE_RULE if league_rate_on else "old"),
             "cards_rule": (
                 epochs.CARDS_CORRELATION if cards_correlation_on else "old"),
             "tennis_table_rule": (

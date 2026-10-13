@@ -163,13 +163,32 @@ class Read:
 class LineEvidence:
     doc: dict[str, Any] = field(default_factory=dict)
     v2: bool = False  # epochs.line_evidence_v2: the second rules (module doc)
+    # epochs.BUCKET_DESIGN_EFFECT_FROM_UTC (audit 2026-10-13 A4): a key with
+    # no curve divides its bucket's lines by the BUCKET's own design effect
+    # (fit's `deff`), not the whole sport's - in a bucket where every game
+    # gives one line it is 1. An older file without `deff`: the sport's.
+    bucket_deff: bool = False
 
     @staticmethod
-    def load(path: Path | str = DEFAULT_EVIDENCE, v2: bool = False) -> LineEvidence:
+    def load(path: Path | str = DEFAULT_EVIDENCE, v2: bool = False,
+             bucket_deff: bool = False) -> LineEvidence:
         p = Path(path)
         if not p.exists():
-            return LineEvidence({}, v2)
-        return LineEvidence(json.loads(p.read_text(encoding="utf-8")), v2)
+            return LineEvidence({}, v2, bucket_deff)
+        return LineEvidence(json.loads(p.read_text(encoding="utf-8")), v2,
+                            bucket_deff)
+
+    def deff_for(self, sport: str, key: str, p: float) -> float:
+        """The design effect a no-curve key's bucket is divided by."""
+        sport_deff = max(float((self.doc.get("design_effect") or {}).get(
+            sport) or 1.0), 1.0)
+        if not self.bucket_deff:
+            return sport_deff
+        b = (self._entry(sport, key).get("buckets") or {}).get(
+            bucket_label(bucket_of(p)))
+        if not b or b.get("deff") is None:
+            return sport_deff
+        return max(float(b["deff"]), 1.0)
 
     @property
     def fitted(self) -> bool:
@@ -302,8 +321,7 @@ class LineEvidence:
                 if games is None or games < int(
                         self.doc.get("min_evidence_games", MIN_EVIDENCE_GAMES)):
                     return None
-                deff = max(float((self.doc.get("design_effect") or {}).get(
-                    sport) or 1.0), 1.0)
+                deff = self.deff_for(sport, key, p)
                 value = round(wilson_lo(round(k / deff), round(n / deff)), 4)
             else:
                 value = round(wilson_lo(k, n), 4)
@@ -340,18 +358,19 @@ def _bootstrap_gap(items: Sequence[tuple[str, float]], rng: random.Random
             round(stats[int(0.975 * BOOTSTRAP)], 4)]
 
 
-def _cells(rows: Iterable[Row], games: bool = False) -> dict[str, dict[str, int]]:
-    """p bucket -> {n, k}; `games` adds the distinct games (v2 reads it)."""
-    counts: dict[int, list[int]] = defaultdict(list)
-    seen: dict[int, set[str]] = defaultdict(set)
+def _cells(rows: Iterable[Row], games: bool = False) -> dict[str, dict[str, Any]]:
+    """p bucket -> {n, k}; `games` adds the distinct games (v2 reads it) and
+    the bucket's own design effect `deff` (epochs.BUCKET_DESIGN_EFFECT reads
+    it; audit 2026-10-13 A4)."""
+    items: dict[int, list[tuple[str, int]]] = defaultdict(list)
     for r in rows:
-        counts[bucket_of(float(r["p"]))].append(int(r["y"]))
-        seen[bucket_of(float(r["p"]))].add(str(r["game"]))
-    out: dict[str, dict[str, int]] = {}
-    for b, ys in sorted(counts.items()):
-        out[bucket_label(b)] = {"n": len(ys), "k": sum(ys)}
+        items[bucket_of(float(r["p"]))].append((str(r["game"]), int(r["y"])))
+    out: dict[str, dict[str, Any]] = {}
+    for b, its in sorted(items.items()):
+        out[bucket_label(b)] = {"n": len(its), "k": sum(y for _, y in its)}
         if games:
-            out[bucket_label(b)]["games"] = len(seen[b])
+            out[bucket_label(b)]["games"] = len({g for g, _ in its})
+            out[bucket_label(b)]["deff"] = design_effect(its)
     return out
 
 

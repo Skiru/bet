@@ -38,8 +38,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from bet.sofa import cs2_engine
-from bet.sofa.comparability import MatchKind, competition_id, match_kind
+from bet.sofa import cs2_engine, epochs
+from bet.sofa.comparability import (
+    MatchKind,
+    competition_id,
+    is_friendly_event,
+    match_kind,
+)
 from bet.sofa.cs2 import Cs2Line
 from bet.sofa.football_rating import FootballResult
 from bet.sofa.score_model import (
@@ -750,7 +755,10 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
-        model = build_model(ratings, sport, day_ts(date))
+        # epochs.LEAGUE_RATE_RULE: the day's own rule - a friendly is not
+        # priced and a thin competition has no rate (audit 2026-10-13 A2)
+        strict = epochs.league_rate_rule(date)
+        model = build_model(ratings, sport, day_ts(date), strict_league_rate=strict)
         for sb_id, entry in (doc.get("events") or {}).items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):
                 continue
@@ -758,7 +766,8 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                 event = events.get(int(entry["sofascore_event_id"]))
             except (KeyError, TypeError, ValueError):
                 continue
-            if event is None:
+            if event is None or (
+                    strict and is_friendly_event(event, sport.sofascore_slug)):
                 continue
             comp = competition_id(event) or int(event["tournament"]["id"])
             exp = model.expected(comp, int(event["homeTeam"]["id"]),

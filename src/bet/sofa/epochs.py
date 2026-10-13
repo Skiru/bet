@@ -780,3 +780,110 @@ def require_k_with_dispersion(date: str, at: datetime | None = None) -> None:
             f"{date} but {'PER_MARKET_K' if dispersion else 'COUNT_DISPERSION'} "
             "is not: the two were fitted jointly and go live together "
             "(epochs.COUNT_DISPERSION_FROM_UTC / PER_MARKET_K_FROM_UTC)")
+
+
+# Audit 2026-10-13 A2 (operator O1): a competition with fewer than
+# football_rating.MIN_LEAGUE_MATCHES matches had the mean of EVERY league as
+# its rate - NBA Preseason (a friendly, so out of the history) was priced at
+# 82.8 points a side against NBA's 118 / 112, and the printed 10-10
+# Raptors - Clippers total UNDER 222.5 carried forecast_p 0.9998. From this
+# moment (a forecast only; the rating's own updates are unchanged):
+#   * SPORT_CONFIDENCE refuses a hockey / basketball / volleyball game whose
+#     competition comparability.is_friendly_event calls a friendly or a
+#     pre-season (FRIENDLY_FIXTURE - football's rule, run_confidence);
+#   * a score-model game in a competition below MIN_LEAGUE_MATCHES has no
+#     model p (NO_LEAGUE_RATE), never the all-league mean;
+# No fallback to the teams' home league (operator O1). Changes what prints,
+# so a day >= the moment's date built at or after the moment.
+# Football has its own switch (FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC below).
+# Switched on by the operator's decision O1 (2026-10-13), a correctness fix -
+# NOT by a measured gain: on Superbet's settled lines of 09-29..10-12 the
+# games it refuses held 17 would-print lines in 16 games (hockey 0), too few
+# to tell (basketball -3.1 pp [-38, +23], volleyball +11.3 pp [-13, +24];
+# docs/sofa/evidence/league_rate_rule_2026-10-13.md).
+LEAGUE_RATE_RULE = "league_rate_strict_v1"
+LEAGUE_RATE_RULE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
+
+
+def league_rate_rule(date: str | None = None, build_at: datetime | None = None) -> bool:
+    """Is a thin competition's rate withheld and a friendly sport game refused
+    (LEAGUE_RATE_RULE_FROM_UTC)? `date` None: the wall clock alone (a
+    history replay of the day it is building passes the day)."""
+    if LEAGUE_RATE_RULE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < LEAGUE_RATE_RULE_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= LEAGUE_RATE_RULE_FROM_UTC
+
+
+# Audit 2026-10-13 A4: a key with no curve reads the Wilson bound of its own
+# settled lines divided by a design effect (lines of one game are not
+# independent). Until this switch the divisor is the SPORT's (football 2.437
+# on 10-13) even in buckets where every game gives one line - both_over_corners
+# OVER p 0.75-0.80 realised 66/78 = 0.846 and read 0.6825. From this moment
+# the bucket's own design effect (line_evidence.design_effect on the bucket's
+# lines, written by the fit as `deff`; an older file without it reads the
+# sport's). Raises some confidences, so it changes what prints: a day >= the
+# date built at or after the moment. Switched on under the audit's standing
+# go (O5): walk-forward 10-07..10-12, every sport's no-curve keys, log-loss of
+# the read confidence -0.0351 [-0.0409, -0.0292] (1,898 lines / 682 games;
+# docs/sofa/evidence/bucket_design_effect_2026-10-13.md).
+BUCKET_DESIGN_EFFECT_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
+
+
+def bucket_design_effect(date: str, build_at: datetime | None = None) -> bool:
+    """Does a no-curve key read its bucket's own design effect
+    (BUCKET_DESIGN_EFFECT_FROM_UTC)?"""
+    if BUCKET_DESIGN_EFFECT_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= BUCKET_DESIGN_EFFECT_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= BUCKET_DESIGN_EFFECT_FROM_UTC)
+
+
+# A2's football half: a football row of a competition below
+# MIN_LEAGUE_MATCHES gets no rating centre (note NO_LEAGUE_RATE) and is priced
+# from its sample. MEASURED AND NOT SWITCHED ON (audit implementation
+# 2026-10-13, docs/sofa/evidence/league_rate_rule_2026-10-13.md): one step
+# ahead on the history 2025-08-01..2026-10-12, in thin competitions the old
+# centre (0.5 rating at the all-league rate + 0.5 own last ten) beat the
+# sample alone - squared error per side -0.58 [-0.62, -0.54] in its favour,
+# 65,550 sides, every rated metric the same sign. Stays None.
+FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC: datetime | None = None
+
+
+def football_league_rate_rule(date: str, build_at: datetime | None = None) -> bool:
+    """Does a thin competition's football row lose its rating centre
+    (FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC)?"""
+    if FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC)
+
+
+# Audit 2026-10-13 A1: a competition whose season falls into regional groups
+# (football_rating.assign_league_units) gets new league units, and each unit's
+# league strength started from 0: J1 2026's units read 0.168 / 0.108 against
+# the whole J1's 0.419 (2026-10-13: Cong An 2.10 - Kashima 0.97 goals, 1.63 -
+# 1.24 with J1's strength). From this moment a unit starts from its
+# competition's strength (RatingBook.unit_strength_from_parent). It changes the
+# rating's book and so football centres: a day >= the date, built at or after
+# the moment. MEASURED AND NOT SWITCHED ON (2026-10-13, one step ahead,
+# goals 06-01..10-12, cross-league matches with a regional unit: Poisson
+# log-loss -0.0010 [-0.0029, +0.0008] per match, 7,724 matches;
+# docs/sofa/evidence/unit_strength_2026-10-13.md).
+UNIT_STRENGTH_FROM_PARENT_FROM_UTC: datetime | None = None
+
+
+def unit_strength_from_parent(date: str, build_at: datetime | None = None) -> bool:
+    """Does a regional league unit start from its competition's strength
+    (UNIT_STRENGTH_FROM_PARENT_FROM_UTC)?"""
+    if UNIT_STRENGTH_FROM_PARENT_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= UNIT_STRENGTH_FROM_PARENT_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= UNIT_STRENGTH_FROM_PARENT_FROM_UTC)

@@ -35,7 +35,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from pydantic import RootModel  # noqa: E402
 
-from bet.sofa import curve_status, timeutil  # noqa: E402
+from bet.sofa import curve_status, epochs, timeutil  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -384,7 +384,9 @@ def main() -> int:
     # epochs.LINE_EVIDENCE_FROM_UTC (operator, 2026-10-07): nothing refused by
     # name - every market read through its own settled Superbet lines
     # (bet.sofa.line_evidence). None: the by-name gates as before.
-    evidence = (LineEvidence.load(v2=line_evidence_v2(args.date, now))
+    evidence = (LineEvidence.load(
+        v2=line_evidence_v2(args.date, now),
+        bucket_deff=epochs.bucket_design_effect(args.date, now))
                 if line_evidence(args.date, now) else None)
     if evidence is not None and not evidence.fitted:
         print(

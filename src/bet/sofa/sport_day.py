@@ -287,6 +287,10 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         leg["side"],
         float(leg["odds"]),
     )
+    if shadow.set_not_played(sline, result, spec_sport):
+        # The match ended before this set (a 3-0 has no set 4): a refund, as
+        # Superbet settles it (Regulamin 5.E.1.h-i; audit 2026-10-13 C21).
+        return "VOID"
     actual = shadow.actual_value(sline, result, spec_sport)
     if actual is None:
         return "UNGRADEABLE"

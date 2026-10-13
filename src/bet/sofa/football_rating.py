@@ -679,6 +679,12 @@ class RatingBook:
     unit_comp: dict[int, int] = field(default_factory=dict)
     # link only through a league both domains share (epochs.link_shared_league)
     shared_league_link: bool = field(default_factory=epochs.link_shared_league)
+    # epochs.UNIT_STRENGTH_FROM_PARENT_FROM_UTC (audit 2026-10-13 A1): a
+    # regional unit of a split competition (assign_league_units) starts its
+    # league strength from its competition's, not from 0 - J1 2026's two
+    # units stood at 0.168 / 0.108 against the whole J1's 0.419 after 34 / 35
+    # links (ALPHA_STRENGTH 0.02 leaves half of the start in after 34).
+    unit_strength_from_parent: bool = False
 
     @staticmethod
     def _global_key(metric: str, women: bool) -> str:
@@ -741,6 +747,18 @@ class RatingBook:
             for c, n in ch.items()
         )
 
+    def _strength_entry(self, domain: int, metric: str) -> _Strength:
+        """The domain's strength, created on first use - from its parent
+        competition's sigma when unit_strength_from_parent is on."""
+        key = (domain, metric)
+        if key not in self.strength and self.unit_strength_from_parent:
+            parent = self.unit_comp.get(domain)
+            ps = None if parent in (None, domain) else self.strength.get(
+                (parent, metric))  # type: ignore[arg-type]
+            if ps is not None:
+                self.strength[key] = _Strength(sigma=ps.sigma)
+        return self.strength[key]
+
     def unit_competition(self, unit: int) -> int:
         """The competition a league unit belongs to (itself when unsplit)."""
         return self.unit_comp.get(unit, unit)
@@ -767,11 +785,22 @@ class RatingBook:
             return UNLINKED, 0.0
         return LINKED_BY_STRENGTH, sh.sigma - sa.sigma
 
-    def league_rates(self, competition: int, metric: str) -> tuple[float, float] | None:
-        """(home side's rate, away side's rate) where the match is played."""
+    def league_rates(
+        self, competition: int, metric: str, strict: bool = False,
+    ) -> tuple[float, float] | None:
+        """(home side's rate, away side's rate) where the match is played.
+
+        `strict` (epochs.LEAGUE_RATE_RULE_FROM_UTC for the score model,
+        FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC for football; a forecast only - the
+        replay's own updates never pass it): a competition with fewer than
+        MIN_LEAGUE_MATCHES matches has NO rate rather than the mean of every
+        league (audit 2026-10-13 A2, operator O1: NBA Preseason priced at
+        82.8 points a side, the all-league mean, against NBA's 118 / 112)."""
         league = self.leagues.get((competition, metric))
         if league is not None and league.n >= MIN_LEAGUE_MATCHES:
             return league.home_mean, league.away_mean
+        if strict:
+            return None
         g = self.global_league.get(
             self._global_key(metric, competition in self.women_competitions))
         if g is not None and g.n >= MIN_LEAGUE_MATCHES:
@@ -780,9 +809,9 @@ class RatingBook:
 
     def expected(
         self, competition: int, home: int, away: int, metric: str,
-        log_factor: float = 0.0, cross: bool = False,
+        log_factor: float = 0.0, cross: bool = False, strict: bool = False,
     ) -> tuple[float, float] | None:
-        rates = self.league_rates(competition, metric)
+        rates = self.league_rates(competition, metric, strict)
         if rates is None:
             return None
         th, ta = self.teams[(home, metric)], self.teams[(away, metric)]
@@ -866,8 +895,8 @@ class RatingBook:
                         math.log((vh + 0.5) / (exp[0] + 0.5))
                         - math.log((va + 0.5) / (exp[1] + 0.5))
                     ) / 2
-                    sh = self.strength[(dh, metric)]
-                    sa = self.strength[(da, metric)]
+                    sh = self._strength_entry(dh, metric)
+                    sa = self._strength_entry(da, metric)
                     lo, hi = _STRENGTH_BOUNDS
                     sh.sigma = min(max(sh.sigma + ALPHA_STRENGTH * resid, lo), hi)
                     sa.sigma = min(max(sa.sigma - ALPHA_STRENGTH * resid, lo), hi)
@@ -893,9 +922,11 @@ class RatingBook:
 def replay(
     history: Iterable[FootballResult], cut_ts: int,
     shared_league_link: bool | None = None,
+    unit_strength_from_parent: bool = False,
 ) -> RatingBook:
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
+    book.unit_strength_from_parent = unit_strength_from_parent
     for r in history:
         if r.ts >= cut_ts:
             break
@@ -911,6 +942,19 @@ class FootballForecast:
     competition_id: int
     home_id: int
     away_id: int
+    # epochs.FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC (measured worse, off): a
+    # competition below MIN_LEAGUE_MATCHES gives no centre (NO_LEAGUE_RATE)
+    # and the row is priced from its sample.
+    strict_league_rate: bool = False
+
+    def no_league_rate(self, market: str) -> bool:
+        """Is this market's centre withheld for want of a league rate?"""
+        metric = base_metric(market)
+        if (not self.strict_league_rate or metric is None
+                or market in UNRATED_MARKETS):
+            return False
+        league = self.book.leagues.get((self.competition_id, metric))
+        return league is None or league.n < MIN_LEAGUE_MATCHES
 
     def fixture_link(self) -> str:
         """The fixture's link on goals, the metric every football side has.
@@ -948,7 +992,7 @@ class FootballForecast:
         status, lf = self.book.link(self.home_id, self.away_id, metric)
         exp = self.book.expected(
             self.competition_id, self.home_id, self.away_id, metric, lf,
-            cross=status != LINKED,
+            cross=status != LINKED, strict=self.strict_league_rate,
         )
         if exp is None:
             return None

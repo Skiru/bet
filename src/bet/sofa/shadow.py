@@ -910,6 +910,20 @@ def _pair(
     return None
 
 
+def set_not_played(line: ShadowLine, result: GameResult, sport: ShadowSport) -> bool:
+    """A volleyball set line on a set the match never reached (a 3-0 has no
+    set 4): Superbet voids it - "w Zdarzeniu nie zostaną spełnione warunki" /
+    "nie zostało zakończone oficjalnym wynikiem", Regulamin Zakładów Online
+    5.E.1.h-i, approved 2026-02-10 (read 2026-10-13) - so it is a refund,
+    VOID, never UNGRADEABLE (audit 2026-10-13 C21; CS2's map: cs2.map_not_played).
+    A game published with no sets says nothing (final_only)."""
+    if sport.regulation_periods is not None or result.final_only:
+        return False
+    spec = MARKETS[sport.key].get(line.market_id)
+    return (spec is not None and spec.scope == "period"
+            and bool(result.t1_periods) and line.period > len(result.t1_periods))
+
+
 def actual_value(
     line: ShadowLine, result: GameResult, sport: ShadowSport
 ) -> float | None:
@@ -1145,6 +1159,9 @@ def settle_event(
             assert isinstance(got, float)
             actual = got
         else:
+            if set_not_played(line, result, sport):
+                counts["void"] += 1
+                continue
             actual = actual_value(line, result, sport)
         if actual is None:
             counts["ungradeable"] += 1

@@ -136,15 +136,22 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # PER_MARKET_K / TENNIS_SCOPED_TABLE): days from 10-09 are never summed with
 # earlier ones; and again from 2026-10-12 00:00Z (football player legs print
 # as singles - ONE_SIDED_SINGLES - from starts-only samples and curves,
-# PLAYER_STARTS_ONLY, token name match). One table row per (variant, group),
-# never summed across groups.
-EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12")
+# PLAYER_STARTS_ONLY, token name match); and again from 2026-10-14 00:00Z
+# (audit 2026-10-13: measured-sport friendlies / thin competitions refused -
+# LEAGUE_RATE_RULE - and a no-curve key's bucket design effect -
+# BUCKET_DESIGN_EFFECT). One table row per (variant, group), never summed
+# across groups.
+EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
+                "od 10-14")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
+AUDIT_EPOCH_FROM_DATE = "2026-10-14"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= AUDIT_EPOCH_FROM_DATE:
+            return "od 10-14"
         if str(row.get("date", "")) >= PLAYER_EPOCH_FROM_DATE:
             return "od 10-12"
         if str(row.get("date", "")) >= REFIT_EPOCH_FROM_DATE:

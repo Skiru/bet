@@ -79,7 +79,11 @@ every sport alike, and nothing that could win is cut by name.
 
   A key without a curve reads the Wilson bound of its own lines divided by the
   sport's measured design effect (`design_effect` in the evidence file; lines
-  of one game are not independent), needs `MIN_EVIDENCE_BUCKET` 50 settled
+  of one game are not independent) - from `BUCKET_DESIGN_EFFECT_FROM_UTC`
+  (2026-10-14 00:00Z, audit A4) by its p bucket's own (`deff` the fit writes
+  per bucket; 1 where every game gives one line; an older file reads the
+  sport's; walk-forward log-loss -0.0351 [-0.0409, -0.0292],
+  `docs/sofa/evidence/bucket_design_effect_2026-10-13.md`) - needs `MIN_EVIDENCE_BUCKET` 50 settled
   lines and `MIN_EVIDENCE_GAMES` 15 games in the bucket, else
   `NO_LINE_EVIDENCE`. The sport's pooled offset is measured without a key
   holding more than `CONCENTRATION_MAX` (50%) of its printable lines; this can
@@ -291,6 +295,17 @@ measurement of Superbet's price and feed nothing else.
   moved the model's log-loss by nothing measurable (hockey -0.45e-3
   [-1.86, +0.98], basketball +1.11e-3 [-1.63, +3.83]); its gain is the
   evidence's coverage (volleyball 5,318 -> 8,474 settled lines).
+- **League rate** (`LEAGUE_RATE_RULE_FROM_UTC` 2026-10-14 00:00Z, audit A2,
+  operator O1 - a correctness rule, switched on by that decision; the
+  measurement was too small to tell, 17 would-print lines in 16 games): a
+  hockey / basketball / volleyball game that `comparability.is_friendly_event`
+  calls a friendly / pre-season is `FRIENDLY_FIXTURE` (football's rule), and a
+  game in a competition below `MIN_LEAGUE_MATCHES` (30) has no model p
+  (`NO_LEAGUE_RATE`) - never the all-league mean (NBA Preseason read 82.8
+  points a side). No fallback to the home league. The line-evidence replay
+  (`settled_shadow_rows`) applies the day's rule; the history curves take it
+  with the basketball refit. Football's half
+  (`FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC`) is measured worse and stays `None`.
 - Every fitted key of all four prints on the same rules as football and
   tennis. Volleyball still needs a tournament with a settled event in the
   last 14 days. A sport without a usable calibration is `NOT_CALIBRATED`
@@ -348,7 +363,10 @@ measurement of Superbet's price and feed nothing else.
   (`regrade_settled.py --player-not-started` deleted 5,215 bench rows of
   09-24..10-10 on 2026-10-11, none printed); a printed leg without a sheet row goes to
   `07_settled_printed.json`. Sport legs grade at the printed price against the
-  pinned id (`NOT_GRADED:ID_CHANGED` otherwise), in their own 7c table, never
+  pinned id (`NOT_GRADED:ID_CHANGED` otherwise; a volleyball set line on a
+  set never played - a 3-0 has no set 4 - is VOID, a refund, like a CS2 map
+  never played: Regulamin 5.E.1.h-i, `shadow.set_not_played`, audit C21),
+  in their own 7c table, never
   in `sofa_settled_row` or `fit_confidence`. Statistic gaps close days later:
   `resettle_sweep.py` every morning.
 - **Ledger** (`record_results.py` -> `runs/sofa/ledger/results.jsonl`, read
@@ -357,7 +375,9 @@ measurement of Superbet's price and feed nothing else.
   re-run it after any `regrade_settled.py`. Exit 0 with legs pending, 1 on a
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
 - **Comparability:** the current rules apply from 2026-10-06; a refit install
-  or an epoch switch starts a new epoch (the latest: the player switches of
+  or an epoch switch starts a new epoch (the latest: the audit switches of
+  2026-10-14 00:00Z - LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT - ledger group
+  "od 10-14"; before it the player switches of
   2026-10-12 00:00Z - ONE_SIDED_SINGLES, PLAYER_STARTS_ONLY, PLAYER_NAME_TOKENS
   and the staged player curves - ledger group "od 10-12"; before it the refit installed
   2026-10-08 23:42Z, effective 2026-10-09; days from 10-09 are not summed with
@@ -402,6 +422,14 @@ The shape above stays; it is improved, not rebuilt.
 
 Daily loops spawn each step through `run_pipeline.py` (fresh code per step);
 only the loop's own orchestration is old code until it ends.
+
+**Measured and not switched on** (audit 2026-10-13 implementation, `None`;
+`docs/sofa/history/RAPORT_IMPLEMENTACJI_AUDYTU_2026-10-13.md`):
+`FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC` (A2's football half: the rating at the
+all-league rate beat the sample alone in thin competitions, squared error
+-0.58 [-0.62, -0.54] per side in its favour), `UNIT_STRENGTH_FROM_PARENT_FROM_UTC`
+(A1: a regional unit's strength from its competition's; goals log-loss
+-0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches).
 
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
@@ -613,6 +641,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_model_information.py --ro
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_player_props.py --sport {basketball|hockey} [--date <d>] [--rows-out f]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_devig.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/probe_lineup_availability.py --date <d> [--dry-run] [--summary]   # not yet run
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_league_rate_rule.py [--from <d>] [--to <d>] [--skip-football]   # audit A2 (T-A2-league-rate-refusals)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_bucket_design_effect.py --rows-dir <dir> --days <d>...   # audit A4 walk-forward (T-A4-bucket-deff)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_unit_strength.py [--from <d>] [--to <d>]   # audit A1
 ```
 
 **Gates before a commit**

@@ -38,6 +38,7 @@ from bet.sofa.comparability import is_friendly_event
 from bet.sofa.football_rating import (
     ALPHA_BY_METRIC,
     LINKED,
+    MIN_LEAGUE_MATCHES,
     MIN_TEAM_MATCHES,
     FootballResult,
     RatingBook,
@@ -313,6 +314,17 @@ class ScoreModel:
     # basketball: team -> start timestamps of its games in the last
     # FRESH_WINDOW_S before the cut (SimParams.bb_fresh_mult)
     recent: dict[int, list[int]] | None = None
+    # epochs.LEAGUE_RATE_RULE_FROM_UTC: a competition below
+    # MIN_LEAGUE_MATCHES has no expectation (NO_LEAGUE_RATE), never the
+    # all-league mean (audit 2026-10-13 A2)
+    strict_league_rate: bool = False
+
+    def no_league_rate(self, competition: int) -> bool:
+        """Is this competition's game left unpriced for want of a league rate?"""
+        if not self.strict_league_rate:
+            return False
+        league = self.book.leagues.get((competition, _metrics(self.sport)[0]))
+        return league is None or league.n < MIN_LEAGUE_MATCHES
 
     def noise_mult(self, home: int, away: int, at_ts: int | None) -> float:
         """The noise factor of a game by the games its thinner side played in
@@ -337,7 +349,8 @@ class ScoreModel:
             return None
         status, lf = self.book.link(home, away, metric)
         exp = self.book.expected(
-            competition, home, away, metric, lf, cross=status != LINKED)
+            competition, home, away, metric, lf, cross=status != LINKED,
+            strict=self.strict_league_rate)
         if exp is None:
             return None
         eh, ea = max(exp[0], 0.0), max(exp[1], 0.0)
@@ -569,7 +582,8 @@ def line_probability(
 
 def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 cut_ts: int, params: SimParams | None = None,
-                shared_league_link: bool | None = None) -> ScoreModel:
+                shared_league_link: bool | None = None,
+                strict_league_rate: bool = False) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
@@ -606,7 +620,8 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
             recent.setdefault(r.away_id, []).append(r.ts)
     model = ScoreModel(sport, book, 6.0, shares,
                        params if params is not None else SimParams(), last,
-                       recent=recent or None)
+                       recent=recent or None,
+                       strict_league_rate=strict_league_rate)
     if window:
         regs = [sum(r.values[REG_METRIC[sport.key]]) for r in window
                 if REG_METRIC[sport.key] in r.values]

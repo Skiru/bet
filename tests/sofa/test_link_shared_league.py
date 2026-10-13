@@ -202,7 +202,8 @@ def test_sport_confidence_rates_with_the_rule_of_the_day_it_builds(monkeypatch):
 
     seen: list[Any] = []
 
-    def fake_build_model(history, sport, cut, params=None, shared_league_link=None):
+    def fake_build_model(history, sport, cut, params=None, shared_league_link=None,
+                         strict_league_rate=False):
         seen.append(shared_league_link)
         return SimpleNamespace()
 

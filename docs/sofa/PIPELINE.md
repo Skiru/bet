@@ -590,6 +590,18 @@ z ostatnich N tablic (artefakty RESOLVE), czyli stron, które faktycznie
 wyceniamy. Wznawialny: zdarzenie już w `sofa_event_stats` (także zapytane
 z 404) nie jest pytane ponownie.
 
+**Zmierzone 2026-10-13 (audyt), niewłączone:**
+- `epochs.FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC` (A2, połowa piłkarska): rozgrywki
+  z < 30 meczami bez stawki globalnej (centrum z samej próbki). Na historii
+  2025-08-01..2026-10-12 stara reguła (rating ze średnią wszystkich lig w
+  połowie centrum) jest lepsza: SE na stronę -0,58 [-0,62; -0,54] na jej
+  korzyść, każda metryka tego samego znaku. Zostaje `None`.
+- `epochs.UNIT_STRENGTH_FROM_PARENT_FROM_UTC` (A1): jednostka regionalna
+  (`assign_league_units`) startuje z siłą rozgrywek-rodzica, nie z 0. Gole,
+  one step ahead 06-01..10-12, mecze ponadligowe z jednostką: log-loss
+  -0,0010 [-0,0029; +0,0008] na mecz (7 724 mecze) - kierunek zgodny,
+  przedział obejmuje zero. Zostaje `None`.
+
 ### 7.1b Rating tenisowy (od 2026-10-01)
 
 `config/tennis_rating.json` (`fit_tennis_rating.py --cut <d>`, między dniami):
@@ -995,7 +1007,7 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `NOT_IN_CALIBRATION_FIT` | metryka nie należy do rodziny, na której fitowano krzywą |
 | `CROSS_LEAGUE_UNLINKED` | mecz piłkarski drużyn bez wspólnej ligi i bez zmierzonej siły ich lig (§7.1a) — decyzję oddajemy cenie |
 | `DERIVED_NOT_CALIBRATABLE` | rynek pochodny (`both_over_`, `handicap_`, `most_`) — ma 2–252 rozliczonych wierszy i żadna próbka z artefaktów go nie sprawdzi — **do 2026-10-07**; od `epochs.LINE_EVIDENCE_FROM_UTC` (2026-10-08) rynek pochodny czyta wyłącznie własne rozliczone linie Superbetu (`NO_LINE_EVIDENCE`, dopóki ich nie ma) |
-| `NO_LINE_EVIDENCE` | od 2026-10-07 10:55Z: rynek bez krzywej przy tym `p` i bez >= 50 własnych rozliczonych linii Superbetu w kubełku (`bet.sofa.line_evidence`) — niezmierzony, nie zgadywany. To samo w SPORT_CONFIDENCE |
+| `NO_LINE_EVIDENCE` | od 2026-10-07 10:55Z: rynek bez krzywej przy tym `p` i bez >= 50 własnych rozliczonych linii Superbetu w kubełku (`bet.sofa.line_evidence`) — niezmierzony, nie zgadywany. To samo w SPORT_CONFIDENCE. Klucz bez krzywej czyta dolną granicę Wilsona swoich linii podzielonych przez efekt projektu; od `epochs.BUCKET_DESIGN_EFFECT_FROM_UTC` (2026-10-14 00:00Z, audyt A4) jest to efekt projektu **kubełka** (`deff` zapisywany przez fit dla każdego kubełka; 1, gdy każdy mecz daje jedną linię), nie całego sportu (piłka 2,437). Walk-forward 10-07..10-12: log-loss -0,0351 [-0,0409; -0,0292] (`docs/sofa/evidence/bucket_design_effect_2026-10-13.md`) |
 | `NO_CLASS_CURVE` | noga klasy (`women`, `tennis_women`, `tennis_team_cup`), którą krzywe bez klasy by obsłużyły, ale klasa nie ma własnego kubełka |
 | `NOT_CALIBRATED` | dla tego kubełka **nie ma pomiaru**; własna liczba modelu nie jest jego substytutem. Od 2026-09-30 także noga **klasy**, której nie obsłużyłaby żadna krzywa (inaczej `NO_CLASS_CURVE`): piłka kobiet (`women`, rozpoznawana po „(K)" Superbetu albo nazwie rozgrywek), tenis kobiet (`tennis_women`), Davis Cup / BJK Cup / pokazówki (`tennis_team_cup`). Noga klasy czyta wyłącznie krzywe swojej klasy (`by_class` w `config/sofa_confidence_calibration.json`, `fit_confidence.py --classes-only`) — nigdy puli, od której klasa się różni (piłka kobiet przy p 0,80–0,85: 0,792 wobec 0,806 mężczyzn; rożne przy 0,90: 0,874 wobec 0,903) |
 | `BELOW_CONFIDENCE_FLOOR` | `realised_lo < --floor` |
@@ -1143,7 +1155,15 @@ starsza niż `sport_day.MAX_PRICE_AGE` = 3 h), `MARKET_NOT_ALLOWED` (lista
 `BELOW_FLOOR` (0,70), `BELOW_MIN_X` (x < 0,90), `ODDS_TOO_LOW` (kurs <
 1/0,9202), `MARGIN_TOO_HIGH` (marża grupy > 15%), `INCOMPLETE_GROUP`,
 `NO_MODEL_P`, `TOURNAMENT_NEVER_SETTLED` (siatkówka: turniej bez meczu SETTLED
-w ostatnich 14 dniach), `NO_LINE_EVIDENCE`. Od `epochs.LINE_EVIDENCE_FROM_UTC`
+w ostatnich 14 dniach), `NO_LINE_EVIDENCE`, a od
+`epochs.LEAGUE_RATE_RULE_FROM_UTC` (2026-10-14 00:00Z, audyt A2, decyzja
+operatora O1) w hokeju, koszykówce i siatkówce także `FRIENDLY_FIXTURE`
+(sparing / przedsezon wg `comparability.is_friendly_event` - ta sama reguła co
+w piłce; „NBA Preseason”, „CBA Preseason”, „Club Friendlies”) i
+`NO_LEAGUE_RATE` (rozgrywki z < 30 meczami w historii: brak własnej stawki,
+więc brak p modelu - nigdy średnia wszystkich lig, która przedsezon NBA
+wyceniała na 82,8 pkt na stronę; bez fallbacku do ligi macierzystej). Replay
+line evidence (`settled_shadow_rows`) stosuje regułę swojego dnia. Od `epochs.LINE_EVIDENCE_FROM_UTC`
 (2026-10-08) czytany jest każdy dopasowany klucz, nie tylko `admitted`:
 pewność = krzywa, obniżona o istotne zawyżenie na rozliczonych liniach
 Superbetu klucza i o limit pasma kursu (`bet.sofa.line_evidence`); noga
@@ -1413,6 +1433,12 @@ bo konkuruje z nim o most.
   Wcześniej kod czytał 48 h ze starego regulaminu (2022). Mecz przyspieszony
   o > 48 h - jak dotąd. Mecz przerwany (5.D.5: rynek rozstrzygnięty w chwili
   przerwania zostaje ważny, reszta anulowana) - jeszcze nieoceniany, otwarte.
+- **Set nierozegrany** (od 2026-10-13, audyt C21): linia siatkówki na set,
+  którego mecz nie dotrwał (3:0 nie ma 4. seta), to zwrot (VOID), jak mapa
+  CS2 nierozegrana - Regulamin 5.E.1.h-i („w Zdarzeniu nie zostaną spełnione
+  warunki”, „nie zostało zakończone oficjalnym wynikiem”;
+  `shadow.set_not_played`). Wcześniej `UNGRADEABLE`; żadna drukowana noga
+  tego nie dotyczyła.
 - **Zwroty** (od 2026-10-05; krecz i walkower od 2026-10-07): mecz przesunięty
   poza termin zwrotu (`MOVED_BEYOND_VOID`), przyznany (`AWARDED`), krecz (`RETIRED`,
   status Sofascore „Retired", kod 92), walkower (`WALKOVER`), mecz odwołany

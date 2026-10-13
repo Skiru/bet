@@ -427,7 +427,8 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
     from bet.sofa.line_evidence import LineEvidence
 
     cal = scf.SportCalibration.load(scf.calibration_path_for(date))
-    evidence = (LineEvidence.load(v2=epochs.line_evidence_v2(date, at))
+    evidence = (LineEvidence.load(v2=epochs.line_evidence_v2(date, at),
+                                  bucket_deff=epochs.bucket_design_effect(date, at))
                 if epochs.line_evidence(date, at) else None)
     out: list[str] = []
     events: dict[str, dict[str, Any]] = {}
