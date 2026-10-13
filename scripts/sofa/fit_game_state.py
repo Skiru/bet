@@ -28,7 +28,11 @@ from bet.sofa import football_rating as fr  # noqa: E402
 from bet.sofa import game_state as gs  # noqa: E402
 from bet.sofa.atomic import write_bytes_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
-from scripts.sofa.measure_game_state import collect  # noqa: E402
+from scripts.sofa.measure_game_state import (  # noqa: E402
+    add_rule_args,
+    collect,
+    rules_from_args,
+)
 
 EVIDENCE = "docs/sofa/evidence/game_state_2026-10-13.md"
 
@@ -40,15 +44,17 @@ def main() -> int:
     ap.add_argument("--markets", nargs="+", default=list(gs.GAME_STATE_MARKETS))
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", help="default config/sofa_game_state.json")
+    add_rule_args(ap)
     args = ap.parse_args()
     bad = [m for m in args.markets if m not in gs.GAME_STATE_MARKETS]
     if bad:
         print(f"not game-state markets: {bad}", file=sys.stderr)
         return 2
     last_day = (date.fromisoformat(args.before) - timedelta(days=1)).isoformat()
+    rules = rules_from_args(args, last_day)
     db = SofaConfig.from_env().db_path
     history = fr.load_history(db, Path(db).parent / "cache")
-    rows = collect(history, args.train_from, last_day, tuple(args.markets))
+    rows = collect(history, args.train_from, last_day, tuple(args.markets), rules)
     markets = {}
     for m in args.markets:
         mrows = [(r, c) for r, c in rows if r.market == m]
@@ -66,6 +72,7 @@ def main() -> int:
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "train_from": args.train_from, "before": args.before,
             "method": "Poisson pseudo-likelihood, log link, offset log centre",
+            "centre_rules": rules.describe(),
             "evidence": EVIDENCE,
         },
         "unfitted_constants": list(gs.GAME_STATE_UNFITTED),
