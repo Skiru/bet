@@ -786,10 +786,11 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       max_games: int | None, source: str,
                       freshness: bool = False, overtime: bool = False,
                       strict_league_rate: bool = False,
-                     hk_shots: str | None = None,
-                     hk_empty_net: bool = False,
-                     set_length: bool = False, set_history: bool = False,
-                     market_lines: Mapping[int, MarketLines] | None = None
+                      pace: bool = False, pace_level: bool = False,
+                      hk_shots: str | None = None,
+                      hk_empty_net: bool = False,
+                      set_length: bool = False, set_history: bool = False,
+                      market_lines: Mapping[int, MarketLines] | None = None
                      ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it.
