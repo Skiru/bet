@@ -112,11 +112,12 @@ def _ids(res: FixtureSamples, metric: str, side: str = "side_a") -> set[int]:
 # --- the switches ---------------------------------------------------------------
 
 
-def test_both_switches_are_off_until_the_operator_decides() -> None:
-    assert epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC is None
-    assert epochs.MEN_FRIENDLY_BASELINE_FROM_UTC is None
-    assert not epochs.men_friendly_sample_window("2030-01-01")
-    assert not epochs.men_friendly_baseline("2030-01-01")
+def test_both_switches_are_on_from_10_14_by_the_operator() -> None:
+    on = datetime(2026, 10, 14, 0, 0, tzinfo=UTC)
+    assert epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC == on
+    assert epochs.MEN_FRIENDLY_BASELINE_FROM_UTC == on
+    assert epochs.men_friendly_sample_window("2030-01-01", on)
+    assert not epochs.men_friendly_baseline("2026-10-13", on)
 
 
 def test_a_switch_reads_the_day_and_the_build_clock(

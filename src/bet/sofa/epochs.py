@@ -1494,7 +1494,9 @@ def player_team_from_side(date: str, build_at: datetime | None = None) -> bool:
 # SAMPLES: an 851 fixture's goals_total / goals_for sample is variant C
 # (men_friendly.pick_friendly_window; the pool admits 851 matches for that
 # fixture only). Off: SAMPLES byte-identical. 852 (women) never.
-MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC: datetime | None = None
+# Switched on by the operator 2026-10-13 ("Wszystkie rynki włączone").
+MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
 
 
 def men_friendly_sample_window(date: str, build_at: datetime | None = None) -> bool:
@@ -1512,7 +1514,9 @@ def men_friendly_sample_window(date: str, build_at: datetime | None = None) -> b
 # goals over 2,365 matches on 2026-10-13) instead of the pooled chain, which
 # ends at the global 3.26 (851 has no fitted baseline). Off: SHEET
 # byte-identical. No rule marker: switched on mid-day, SHEET is re-run by hand.
-MEN_FRIENDLY_BASELINE_FROM_UTC: datetime | None = None
+# Switched on by the operator 2026-10-13 ("Wszystkie rynki włączone").
+MEN_FRIENDLY_BASELINE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
 
 
 def men_friendly_baseline(date: str, build_at: datetime | None = None) -> bool:
