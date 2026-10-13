@@ -1296,7 +1296,24 @@ rozszerza się o `sport_confidence.EXTENDED_MARKETS`: koszykówka — kwarty,
 2. połowa, dnb, parzyste/nieparzyste; hokej — dnb tercji. Do tego dochodzą
 linie zawodników hokeja i koszykówki: `p` to przedmeczowa liczba
 `player_model` z `player_model.jsonl` SHADOW, bez krzywej z historii, więc
-czytają tylko własne rozliczone linie. 2. połowa i 4. kwarta koszykówki: dogrywka
+czytają tylko własne rozliczone linie. Skład drużyny w przeszłym meczu
+(próbka zawodnika i pula pozycji): od `epochs.PLAYER_TEAM_FROM_SIDE_FROM_UTC`
+(2026-10-14 00:00Z, dzień meczu - dzień SHADOW, data startu w UTC - i zegar
+liczenia) to strona (home / away), po której drużyna grała w tym meczu
+(`player_model.appearances_from_lineups(..., side)`, `event_side` z
+`sofa_listed_event`; mecz, którego ładunek nie nazywa drużyny po żadnej
+stronie, odpada). Wcześniej skład czytany był z `teamId` wpisu w
+`lineups_json` - a to drużyna zawodnika w chwili pobrania pudełka, nie w tym
+meczu: mecz starej drużyny zawodnika po transferze **przeciw** nowej trafiał
+do próbki nowej (Carlson `model_n` 5 przy 85 występach, McTavish 6 przy 88,
+2026-10-13; `docs/sofa/evidence/sport_player_props_2026-10-13.md`). Błąd
+mapowania, ale zmienia `p` modelu zawodnika, więc za przełącznikiem:
+dotyczy przedmeczowej liczby SHADOW (`player_model.jsonl`), liczby z
+SHADOW_SETTLE (`model_source: settle`) i `measure_player_props.py`; fit
+(`fit_player_model.py`) odtwarza ją z `--player-team-from-side`. Wiersze
+niosą `player_team_rule`; wyłączony = bajt w bajt jak przedtem. Line
+evidence czyta `p` zapisane przed meczem, więc stosuje regułę swojego dnia
+z konstrukcji. 2. połowa i 4. kwarta koszykówki: dogrywka
 się nie liczy (operator, 2026-10-07) - rozliczane są z regulaminowych
 kwart, także w meczu z dogrywką. Krecz (`RETIRED`) to zwrot. Kod 1,
 gdy sport jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` — artefakt i

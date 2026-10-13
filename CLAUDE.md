@@ -379,7 +379,22 @@ measurement of Superbet's price and feed nothing else.
   SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
   names, `teams_source`); no history curve, so `NO_LINE_EVIDENCE` until a
   family's p bucket holds 50 settled pre-game lines; graded from
-  SHADOW_SETTLE's own player row.
+  SHADOW_SETTLE's own player row. A past game's squad (the player's sample
+  and the position pool) is, from `PLAYER_TEAM_FROM_SIDE_FROM_UTC`
+  (2026-10-14 00:00Z; the game's day - SHADOW's day key, the kickoff's UTC
+  date - and the computing clock), the lineup side the team held in that
+  game (`player_model.appearances_from_lineups(..., side)`, `event_side`;
+  a game whose payload names the team on neither side is left out). Before
+  it, each entry's `teamId` - the player's team when the box was
+  downloaded - so a traded player's old-team games against his new team
+  were in the new team's sample (Carlson model_n 5 of 85 appearances,
+  McTavish 6 of 88 on 10-13; `docs/sofa/evidence/sport_player_props_2026-10-13.md`).
+  A mapping fix behind a switch because it moves p: SHADOW's pre-game
+  number, SHADOW_SETTLE's settle-time number and `measure_player_props.py`
+  follow the day's rule; `fit_player_model.py --player-team-from-side`
+  replays it; rows carry `player_team_rule`; off = byte-identical. The line
+  evidence reads the p written before the game, so it follows the day's
+  rule by construction.
 - Basketball second half / Q4 grade on the regulation periods - overtime does
   not count (operator, 2026-10-07); full-game basketball markets include it.
 - A hockey / basketball game Sofascore publishes with no periods (only

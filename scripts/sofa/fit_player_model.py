@@ -68,6 +68,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
         sys.path.insert(0, _path)
 
 import bet.sofa.player_model as pm  # noqa: E402
+from bet.sofa import epochs  # noqa: E402
 from bet.sofa.comparability import is_friendly_event  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.joint import normal_cdf  # noqa: E402
@@ -114,6 +115,9 @@ class History:
     listing: dict[int, tuple[list[int], list[int]]]  # team -> (ts asc, eids)
     lineups: dict[int, str]
     _cache: dict[tuple[int, int], list[pm.Appearance]] = field(default_factory=dict)
+    # epochs.player_team_from_side: a game's squad is the team's lineup side
+    # in it (pm.load_appearances(team_from_side=True)), not the entries' teamId.
+    team_from_side: bool = False
 
     @classmethod
     def build(
@@ -122,6 +126,7 @@ class History:
         events: dict[int, tuple[int, int, int]],
         listing_rows: Iterable[tuple[int, int, int]],
         lineups: dict[int, str],
+        team_from_side: bool = False,
     ) -> History:
         """`listing_rows`: (team, event id, start_ts) of kind 'last'."""
         by_team: dict[int, list[tuple[int, int]]] = defaultdict(list)
@@ -131,10 +136,12 @@ class History:
         for team, rows in by_team.items():
             rows.sort()
             listing[team] = ([ts for ts, _ in rows], [e for _, e in rows])
-        return cls(sport, events, listing, lineups)
+        return cls(sport, events, listing, lineups, team_from_side=team_from_side)
 
     @classmethod
-    def from_db(cls, conn: sqlite3.Connection, sport: SportKey) -> History:
+    def from_db(
+        cls, conn: sqlite3.Connection, sport: SportKey, team_from_side: bool = False
+    ) -> History:
         slug = SPORTS[sport].sofascore_slug
         events: dict[int, tuple[int, int, int]] = {}
         # pm.listed_games drops a friendly / pre-season game; so does the fit.
@@ -180,7 +187,7 @@ class History:
                 )
                 if int(eid) not in friendly
             )
-        return cls.build(sport, events, rows, lineups)
+        return cls.build(sport, events, rows, lineups, team_from_side=team_from_side)
 
     def appearances_in(self, eid: int, team: int) -> list[pm.Appearance]:
         key = (eid, team)
@@ -196,7 +203,14 @@ class History:
                 payload = None
             if isinstance(payload, dict):
                 ts = self._ts(eid, team)
-                out = pm.appearances_from_lineups(self.sport, payload, eid, ts, team)
+                side: str | None = None
+                if self.team_from_side:
+                    _, home, away = self.events[eid]
+                    side = "home" if home == team else "away" if away == team else None
+                if side is not None or not self.team_from_side:
+                    out = pm.appearances_from_lineups(
+                        self.sport, payload, eid, ts, team, side
+                    )
         if len(self._cache) > 300_000:
             self._cache.clear()
         self._cache[key] = out
@@ -791,6 +805,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--procs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     ap.add_argument("--rounds", type=int, default=2)
+    ap.add_argument(
+        "--player-team-from-side",
+        action="store_true",
+        help="a past game's squad from the team's lineup side "
+        "(epochs.PLAYER_TEAM_FROM_SIDE_FROM_UTC), not the entries' teamId",
+    )
     args = ap.parse_args(argv)
     started = time.monotonic()
     cut = int(datetime.fromisoformat(args.cut).replace(tzinfo=UTC).timestamp())
@@ -807,7 +827,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         for sport in sports:
             key: SportKey = sport
             t0 = time.monotonic()
-            history = History.from_db(conn, key)
+            history = History.from_db(
+                conn, key, team_from_side=args.player_team_from_side
+            )
             specs = family_specs(key)
             records = build_records_parallel(history, specs, args.procs)
             printed = printed_lines(args.runs_dir, sport)
@@ -891,6 +913,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             "cut_utc": datetime.fromtimestamp(cut, UTC).isoformat(),
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "splits": provenance,
+            **(
+                {"player_team_rule": epochs.PLAYER_TEAM_RULE}
+                if args.player_team_from_side
+                else {}
+            ),
         },
         "criterion": (
             "train split (kickoff before cut_utc): minimise the mean over "

@@ -55,6 +55,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa import epochs  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.player_model import (  # noqa: E402
     MODEL_NAME,
@@ -191,7 +192,11 @@ def collect(
                         _iso_ts(entry["kickoff_utc"]),
                         int(start) if isinstance(start, int) else None,
                     )
-                    apps = load_appearances(conn, sport, teams, before, eid)  # type: ignore[arg-type]
+                    # The day's squad rule (epochs.player_team_from_side).
+                    apps = load_appearances(
+                        conn, sport, teams, before, eid,  # type: ignore[arg-type]
+                        team_from_side=epochs.player_team_from_side(date),
+                    )
                     scored = score_rows(graded, sport, apps, box_ids)  # type: ignore[arg-type]
                 for g, mp in zip(graded, scored, strict=True):
                     common = {
