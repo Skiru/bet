@@ -45,6 +45,7 @@ from bet.sofa import epochs, sport_day
 from bet.sofa import fixture_status as fs
 from bet.sofa import sport_identity as si
 from bet.sofa.locked_print import starts_after
+from bet.sofa.tennis_winner import MATCH_WON_FOR
 
 # run_offer.py --min-minutes-to-kickoff: a fixture starting sooner is not
 # re-priced (CONFIDENCE refuses it at 15 min anyway).
@@ -108,6 +109,11 @@ class DayState:
     sheet_tennis_table: bool = True
     # every 05_sheet.json row priced under epochs.SAMPLE_OPPONENT_CORRECTION
     sheet_opponent: bool = True
+    # D2 (epochs.TENNIS_MATCH_WINNER): a tennis fixture is priced on
+    # 04_offer.json; the offer / the sheet carry a match_won_for rung / row
+    offer_has_tennis: bool = False
+    offer_has_winner: bool = True
+    sheet_has_winner: bool = True
     offer_fixtures: int = 0  # fixtures on 04_offer.json with a rung
     open_fixtures: int = 0  # ... a refresh would re-price and CONFIDENCE gate
     oldest_open_rung: datetime | None = None
@@ -261,6 +267,7 @@ def observe(runs_dir: str, date: str, now: datetime,
     sheet_k = True
     sheet_tennis_table = True
     sheet_opponent = True
+    sheet_has_winner = True
     if sheet_path.exists():
         sheet = _load_json(sheet_path)
         sheet_ep = epochs.sheet_epoch(sheet) if sheet else epochs.STATS_ONLY
@@ -270,6 +277,16 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_k = epochs.sheet_per_market_k(sheet or [])
         sheet_tennis_table = epochs.sheet_tennis_scoped_table(sheet or [])
         sheet_opponent = epochs.sheet_sample_opponent_correction(sheet or [])
+        sheet_has_winner = any(
+            r.get("market") == MATCH_WON_FOR for r in sheet or [])
+    tennis_ids = {f.get("sofascore_event_id") for f in fixtures
+                  if f.get("sport") == "tennis"}
+    offer_has_tennis = any(
+        o.get("sofascore_event_id") in tennis_ids and o.get("rungs")
+        for o in offers)
+    offer_has_winner = any(
+        r.get("market") == MATCH_WON_FOR
+        for o in offers for r in o.get("rungs") or [])
     priced, open_n, oldest, newest = observe_offer(
         fixtures, offers, fs.load(run), now)
     sports = ({s: observe_sport(runs_dir, s, date, now) for s in SPORTS}
@@ -289,6 +306,9 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_k=sheet_k,
         sheet_tennis_table=sheet_tennis_table,
         sheet_opponent=sheet_opponent,
+        offer_has_tennis=offer_has_tennis,
+        offer_has_winner=offer_has_winner,
+        sheet_has_winner=sheet_has_winner,
         offer_fixtures=priced, open_fixtures=open_n,
         oldest_open_rung=oldest, newest_rung=newest, sports=sports,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
@@ -330,6 +350,9 @@ def build_plan(state: DayState, run_id: str = "rebuild",
 
     # 1a. the football / tennis price
     limit = state.price_max_age
+    # D2: the switch came on after OFFER read the day - re-read it once
+    winner_on = epochs.tennis_match_winner(d, now) and state.offer_has_tennis
+    winner_offer_stale = winner_on and not state.offer_has_winner
     if state.open_fixtures == 0:
         if not state.has_offer:
             plan.refusal = ("04_offer.json missing and no fixture is still open: "
@@ -358,6 +381,13 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                 f"{trigger.total_seconds() / 60:.0f} min (CONFIDENCE STALE_PRICE "
                 f"at {limit.total_seconds() / 60:.0f} min, minus the rebuild's "
                 "margin)"))
+        elif winner_offer_stale:
+            plan.steps.append(Step(
+                "OFFER", (PY, "scripts/sofa/run_offer.py", "--date", d,
+                          "--min-minutes-to-kickoff",
+                          str(OFFER_MIN_MINUTES_TO_KICKOFF)),
+                "04_offer.json carries no tennis winner rung: OFFER reads "
+                "\"Zwycięzca\" (epochs.tennis_match_winner)"))
         else:
             plan.notes.append(
                 "OFFER fresh: oldest open price "
@@ -433,11 +463,15 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     tennis_table_stale = (epochs.tennis_scoped_table_enabled(d, now)
                           and not state.sheet_tennis_table)
     k_stale = (epochs.per_market_k_enabled(d, now) and not state.sheet_k)
+    # a sheet without the row while the offer has (or is about to have) the
+    # rung; a day Superbet posts no winner on does not re-run SHEET forever
+    winner_stale = (winner_on and not state.sheet_has_winner
+                    and (state.offer_has_winner or "OFFER" in plan.names()))
     opponent_stale = (epochs.sample_opponent_correction(d, now)
                       and not state.sheet_opponent)
     sheet_rebuilt = (epoch_stale or link_stale or dispersion_stale or cards_stale
                      or k_stale
-                     or tennis_table_stale or opponent_stale)
+                     or tennis_table_stale or opponent_stale or winner_stale)
     if epoch_stale:
         plan.steps.append(Step(
             "SHEET", _pipeline(d, "SHEET", run_id),
@@ -478,6 +512,11 @@ def build_plan(state: DayState, run_id: str = "rebuild",
             "05_sheet.json priced from the raw sample: football samples are "
             "corrected for their opponents and domain "
             "(epochs.sample_opponent_correction)"))
+    elif winner_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json has no tennis winner row: SHEET prices "
+            "match_won_for from the rating (epochs.tennis_match_winner)"))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
     if not skip_audits and (sheet_rebuilt or state.coupon06_stale):

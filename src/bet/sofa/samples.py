@@ -66,6 +66,7 @@ from bet.sofa.reserve_squads import (
 from bet.sofa.schedule import fixture_schedule
 from bet.sofa.settle import is_completed_event, surfaces_comparable
 from bet.sofa.superbet import SuperbetClient, odds_items
+from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
 # Metrics whose only source is /event/{id}/incidents.
 INCIDENT_METRICS = frozenset({"cards_points_total", "cards_points_for"})
@@ -182,6 +183,10 @@ def metrics_from_offer(offer: FixtureOffer | None) -> set[str]:
         # real gaps under thousands of invented ones.
         # `players_from_offer` collects these instead.
         if is_player_metric(rung.market):
+            continue
+        # D2: the tennis match winner is priced by the rating alone - no
+        # sample is built or read for it (bet.sofa.tennis_winner).
+        if rung.market in RATING_ONLY_MARKETS:
             continue
         # A derived market is named for the question it asks
         # ("handicap_games"), not for the sample it needs

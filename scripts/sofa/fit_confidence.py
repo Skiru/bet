@@ -49,6 +49,7 @@ from bet.sofa.fit_meta import (  # noqa: E402
 from bet.sofa.listing_index import listed_events_by_id  # noqa: E402
 from bet.sofa.market_mapper import is_derived  # noqa: E402
 from bet.sofa.resolve import sofascore_gender  # noqa: E402
+from bet.sofa.tennis_winner import RATING_ONLY_MARKETS  # noqa: E402
 
 # Buckets are narrow at the top because that is where the operator lives and
 # where the model stops being linear. Below 0.60 the confidence view does not
@@ -261,7 +262,11 @@ def main() -> int:
         # (confidence.PLAYER_PROP_MARKETS), so a pool never serves one either.
         # The cache replay adds ~1.2M player rows; they moved the football
         # pool by <=0.01 pp, but a team leg must not read player rows at all.
-        pools_it = not market.startswith("player_")
+        # D2: a rating-only market (the tennis match winner) is a win
+        # probability, not a count - it enters no pool either
+        # (confidence.OWN_CURVE_ONLY never reads one for it).
+        pools_it = (not market.startswith("player_")
+                    and market not in RATING_ONLY_MARKETS)
         klass = classes.get(event_id)
         if klass is not None:
             by_class_market[klass][market][b].append(hit)

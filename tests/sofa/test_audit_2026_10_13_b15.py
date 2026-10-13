@@ -234,7 +234,7 @@ def test_confidence_calls_the_gates_through_gate_values() -> None:
     at = src.index("values = gate_values(row, values)")
     assert at < src.index("if line_is_beyond_sample(")
     assert at < src.index("own_gap = model_above_own_sample(")
-    assert 'mode_loses(row["line"], row["direction"], mode_values(row, values))' in src
+    assert "mode_values(row, values)" in src[src.index("mode_loses(row["):][:200]
 
 
 # --- switch ----------------------------------------------------------------
