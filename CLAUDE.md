@@ -105,15 +105,16 @@ every sport alike, and nothing that could win is cut by name.
   `BB_FRESHNESS_FROM_UTC` (basketball simulation noise x1.085 when the thinner
   side has <= 2 games in 120 days, x1.026 for 3..9 - live forecaster and
   history replay alike). The history replay (`calibrate_from_cache.py`) is
-  **not** the estimator SHEET prices with in two places (audit 2026-10-13, A6,
-  `calibrate_from_cache.py:1064-1072`): football rating (`W_FOOTBALL_RATING`
-  0.5 in the live centre) is replayed in no football centre, and the tennis
-  tier / ladder priors are not replayed; tennis neighbours are
-  `tennis_rating.AsOfRating` (best-of-five skipped). Football goals joints are
-  not replayed and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
-  that way were installed 2026-10-07 17:51Z: a new comparability epoch.
-  Hockey / volleyball curves are the installed file's (the `.next.json` of
-  2026-10-07, promoted 2026-10-13); CS2's from 2026-10-14 the staged one.
+  the estimator SHEET prices with, since the refit of 2026-10-13 (audit A6)
+  including the football rating in the football marginal rows' centres
+  (`--football-rating` with `--rated-scope --venue-prior --game-state
+  --rating-weight --season-phase`) and the tennis set ratings
+  (`--tennis-set-ratings`); still not replayed: the tennis tier / ladder
+  priors, and football joints other than cards (`--derived cards_points`;
+  `DERIVED_CURVES_FROM_UTC` is off). Tennis neighbours are
+  `tennis_rating.AsOfRating` (best-of-five skipped). Hockey / volleyball
+  curves are the installed file's (the `.next.json` of 2026-10-07, promoted
+  2026-10-13); CS2's from 2026-10-13 the staged one.
 - **Installed model packages (refit installed 2026-10-08 23:42Z, commits
   5330f357 / fdbe0aae; switches ON from 2026-10-09 00:00Z, judged on the day
   built AND the build clock - a day < 10-09 is the old estimator and is never
@@ -150,6 +151,43 @@ every sport alike, and nothing that could win is cut by name.
   these is `prepare_refit.py rebuild-cache-rows --confirm --without-db-backup
   --count-dispersion --per-market-k --cards-correlation --tennis-scoped-table`
   on the copy, with `fit_tennis_rating.py --tier-start`.
+- **Refit of 2026-10-13 (football / tennis; installed 18:06Z by
+  `prepare_refit.py install`, backup `config/backup_2026-10-14`; switches ON
+  from 2026-10-13 18:10Z - 10-13 is a mixed day, its earlier prints stay
+  locked):** curves, engine constants, league baselines and reliability fitted
+  on `data/refit_2026-10-13/sofa_replay.db` (104.5M rows, max settled run
+  date 2026-10-12; `K_CENTRE` 10 -> 15, tennis 5 -> 8, football 15). The
+  centre the curves describe is on with them (audit standing go):
+  `GAME_STATE_FROM_UTC` (B1: side centre x exp(beta x expected goal
+  difference), `config/sofa_game_state.json`; one step ahead corners_for
+  -0.0149 [-0.0160, -0.0138], shots_for -0.0150, cards_points_for -0.0043,
+  fouls_for -0.0002 [-0.0004, -0.00003];
+  `docs/sofa/evidence/game_state_2026-10-13.md`),
+  `FOOTBALL_RATED_SCOPE_FROM_UTC` (B2: the rating also on
+  `football_rating.RATED_SCOPE_MARKETS` = cards_points_for, corners_1h/2h_for,
+  offsides_total; corners totals stay unrated, corners_total worse +0.0009
+  [+0.0003, +0.0015]), `FOOTBALL_VENUE_PRIOR_FROM_UTC` (B2: league home / away
+  multiplier on a sample-only corners_1h/2h_for centre;
+  `unrated_markets_2026-10-13.md`), `FOOTBALL_RATING_WEIGHT_FROM_UTC` (B14:
+  the rating's weight per market from `config/sofa_rating_weight.json`, else
+  `W_FOOTBALL_RATING`; `rating_weight_2026-10-13.md`),
+  `SEASON_PHASE_FROM_UTC` (C1: goals centre x exp(c[market][phase]),
+  `config/sofa_season_phase.json`; `season_phase_2026-10-13.md`),
+  `TENNIS_SET_RATING_PRICES_FROM_UTC` (B5: per-set games and sets_total from
+  the rating's neighbours; `tennis_set_markets_2026-10-13.md`). The staged
+  `config/sofa_confidence_calibration.next.json` is this fit plus the
+  2026-10-11 starts-only player curves (only `player_*` keys differ),
+  `effective_from` 2026-10-13T18:10Z (install does not touch a `.next.json`:
+  the old staged file would have hidden the refit from every day >= 10-12);
+  promote it over the installed file later. Dry run on 10-13 (clock at the morning build):
+  printed singles 900 -> 1323 (tennis 193 -> 454, football goals 319 -> 416,
+  corners 163 -> 226), common legs' confidence +0.25 pp.
+  `data/refit_2026-10-13/ft/compare_report.md` ran SHEET with these switches
+  OFF: its coupon-replay section measures the new curves on the old centre.
+  **Known gap:** `rebuild_plan.py` knows neither these six switches nor a
+  constants refit, so a rebuild keeps an old-rule `05_sheet.json`; after a
+  change of them re-run SHEET by hand (`run_pipeline.py --only SHEET`), as was
+  done for 10-13. Report: `docs/sofa/history/RAPORT_REFIT_2026-10-13.md`.
 - **Wait for a measurement, not a name:** a market with no curve and no
   evidence is `NO_LINE_EVIDENCE`. Before `LINE_EVIDENCE_FROM_UTC` (rebuilds of
   older days only) the by-name refusals still apply: `refused_markets`,
@@ -201,10 +239,12 @@ every sport alike, and nothing that could win is cut by name.
   (`appearances: "starts"`, note `PLAYER_STARTS_ONLY`; bucket-calibrated out
   of sample -0.0027 log-loss [-0.0030, -0.0024] against all appearances) and
   the player curves are refitted on starters' outcomes from their starts,
-  staged in `config/sofa_confidence_calibration.next.json` (`effective_from`
-  2026-10-12 00:00Z, `confidence.calibration_path_for`; every non-player
-  curve identical). Promote it over the installed file once no day <= 10-11
-  is rebuilt. Evidence: `docs/sofa/evidence/player_starts_2026-10-11.md`.
+  carried in `config/sofa_confidence_calibration.next.json`
+  (`confidence.calibration_path_for`; since 2026-10-13 18:10Z that file is
+  the 10-13 refit plus these player curves - see "Refit of 2026-10-13"; a
+  day or build clock before it reads the installed file, which is now the
+  10-13 fit without the starts-only player curves).
+  Evidence: `docs/sofa/evidence/player_starts_2026-10-11.md`.
 - **Start clock** = the earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds are
   dropped for every reader) and FIXTURE_CHECK's fresh `/event` start. A
@@ -319,12 +359,13 @@ measurement of Superbet's price and feed nothing else.
   CS2_SETTLE's own row) and the series families (maps_total, maps_handicap,
   team_maps, exact_maps) from a Beta-mixed series distribution
   (`cs2_engine.SERIES_KAPPA`). From `CS2_TEAM_ROUNDS_RACE_FROM_UTC`
-  (2026-10-14 00:00Z, audit B10) a team's rounds on a map come from the round
+  (2026-10-13 18:10Z, audit B10; moved by the operator from 10-14 00:00Z to
+  the refit's rebuild of 10-13) a team's rounds on a map come from the round
   race (`cs2_engine.team_rounds_from_race`, the map's score distribution the
   round handicap uses), live, at CS2_SETTLE and in the replay; walk-forward
   log-loss -0.0213 [-0.0237, -0.0188]; the CS2 curve refitted on it is staged
-  in the `.next.json` from 2026-10-14 (the previous `.next` was promoted over
-  the installed file on 2026-10-13). Still unpriced: CS2 series rounds (rounds_*,
+  in the `.next.json`, `effective_from` 2026-10-13 (the previous `.next` was
+  promoted over the installed file on 2026-10-13). Still unpriced: CS2 series rounds (rounds_*,
   team_rounds) and round parity.
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
@@ -342,7 +383,7 @@ measurement of Superbet's price and feed nothing else.
   (10-22 basketball games a day from 10-07). History readers keep the
   default and never see it.
 
-- **CS2 count exposure** (`CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-14 00:00Z, audit B12, standing go): kills / deaths / assists / team kills are priced from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`; log-loss new - old -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero); headshots measured worse (+0.188) and stay on the sample (outside `EXPOSURE_FAMILIES`). The line evidence of these families was fitted on the old p; no check on Superbet lines of 10-05..10-12 was made. Evidence: `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`.
+- **CS2 count exposure** (`CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-13 18:10Z, audit B12, standing go; moved by the operator from 10-14 00:00Z to the refit's rebuild of 10-13): kills / deaths / assists / team kills are priced from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`; log-loss new - old -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero); headshots measured worse (+0.188) and stay on the sample (outside `EXPOSURE_FAMILIES`). The line evidence of these families was fitted on the old p; no check on Superbet lines of 10-05..10-12 was made. Evidence: `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`.
 
 ## Settlement and the ledger
 
@@ -385,8 +426,11 @@ measurement of Superbet's price and feed nothing else.
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
 - **Comparability:** the current rules apply from 2026-10-06; a refit install
   or an epoch switch starts a new epoch (the latest: the audit switches of
-  2026-10-14 00:00Z - LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
-  CS2_TEAM_ROUNDS_RACE with its CS2 curve - ledger group
+  2026-10-14 00:00Z - LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT - ledger group
+  "od 10-14"; before it the football / tennis refit installed 2026-10-13
+  18:06Z with its switches and the CS2 B10 / B12 switches from 18:10Z, into
+  a built day - 10-13 is mixed, ledger group "10-13 mieszany"
+  (`audit_ledger.EPOCH_GROUPS`), summed with neither "od 10-12" nor
   "od 10-14"; before it the player switches of
   2026-10-12 00:00Z - ONE_SIDED_SINGLES, PLAYER_STARTS_ONLY, PLAYER_NAME_TOKENS
   and the staged player curves - ledger group "od 10-12"; before it the refit installed
@@ -455,21 +499,10 @@ on; `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 `VB_SET_LENGTH_FROM_UTC` and `VB_SET_HISTORY_FROM_UTC` (B9 / C10: volleyball set length table, 5,050 matches walk-forward: points_total +0.0025 [-0.0005, +0.0054], points_handicap -0.0011 [-0.0036, +0.0013], set_extra_points -0.0004 [-0.0014, +0.0007]; threshold not met; C9 not measured, it depends on B9; `volleyball_set_length_2026-10-13.md`, `RAPORT_B9_C10_C9_2026-10-13.md`),
 `MARKET_POSITIONED_LINES_FROM_UTC` (A7: the basketball history curve fitted on lines placed where the Sofascore market stood, p still the score model's; acts only in a fit's history replay, live only with a curve refitted that way; the evidence doc's results section is not yet written - no number reported; `market_positioned_lines_2026-10-13.md`).
 
-**Measured, registered threshold met, `None` until the football refit (stage 4: the curves must be fitted on the same centre)**
-(one step ahead on the history 2025-08-01..2026-10-12, NB log-loss of the
-centre at the count - not Superbet lines, the replay has no rating, A6):
-`GAME_STATE_FROM_UTC` (B1: side centre x exp(beta x expected goal
-difference), betas in `config/sofa_game_state.json`, `fit_game_state.py`;
-corners_for -0.0149 [-0.0160, -0.0138], shots_for -0.0150, cards_points_for
--0.0043, fouls_for -0.0002 [-0.0004, -0.00003] per side, walk-forward betas;
-`docs/sofa/evidence/game_state_2026-10-13.md`),
-`FOOTBALL_RATED_SCOPE_FROM_UTC` (B2: the rating on
-`football_rating.RATED_SCOPE_MARKETS` = cards_points_for, corners_1h/2h_for,
-offsides_total; the corners totals stay unrated, corners_total worse
-+0.0009 [+0.0003, +0.0015]) and `FOOTBALL_VENUE_PRIOR_FROM_UTC` (B2: league
-home / away multiplier on a sample-only corners_1h/2h_for centre;
-`docs/sofa/evidence/unrated_markets_2026-10-13.md`). B1's cards beta was
-fitted on the unrated centre: refit it if both go on.
+B1 / B2 / B14 / C1 / B5 are on since the refit of 2026-10-13 18:10Z
+("Refit of 2026-10-13" under Confidence). B1's cards beta was fitted on the
+unrated centre (`config/sofa_game_state.json` of 2026-10-13 11:39Z, not
+refitted with B2 on): refit it before the next football refit.
 
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
@@ -499,13 +532,13 @@ old-estimator rows, while the new estimator's rows are calibrated there
 the repriced families) once a walk-forward has the days.
 **Before the next refit:** measure the admitted football props separately;
 measure the tennis games population of replay matches without `/statistics`;
-queued: CS2 `map_team_rounds` from the round race, football joints with the
-football rating in their centre.
+queued: football joints other than cards in the replay.
 Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
-`config/backup_2026-10-09`,
-`data/backup_2026-10-05/sofa.db`; `data/refit_2026-10-08/sofa_replay.db` is
-the DB the installed curves were fitted from (`fitted_from.db_path`) - keep it.
+`config/backup_2026-10-09`, `config/backup_2026-10-14` (before the 10-13
+refit), `data/backup_2026-10-05/sofa.db`; `data/refit_2026-10-13/sofa_replay.db`
+is the DB the installed football / tennis curves were fitted from
+(`fitted_from.db_path`) - keep it, and `data/refit_2026-10-08/sofa_replay.db`.
 
 **Measured for the next refit (2026-10-12 night, out of sample on the history,
 `docs/sofa/history/RAPORT_NOC_2026-10-12.md`):** tennis match winner from the

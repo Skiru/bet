@@ -658,9 +658,12 @@ z 404) nie jest pytane ponownie.
   jeszcze wpisane do dokumentu dowodowego
   (`docs/sofa/evidence/market_positioned_lines_2026-10-13.md`).
 
-**Zmierzone 2026-10-13 (audyt B1, B2), próg spełniony, przełącznik `None` do
-decyzji O5** (one step ahead na historii 2025-08-01..2026-10-12, log-loss NB
-centrum przy wyniku; to nie linie Superbetu - replay nie ma ratingu, A6):
+**Włączone od 2026-10-13 18:10Z razem z refitem piłki / tenisa
+(zainstalowanym 18:06Z; krzywe dopasowane na replayu z tymi członami i
+ratingiem piłkarskim w centrum, audyt A6; dzień 10-13 mieszany, raport
+`docs/sofa/history/RAPORT_REFIT_2026-10-13.md`, pliki `CONFIG.md` 7.7)**
+(pomiary B1 / B2: one step ahead na historii 2025-08-01..2026-10-12, log-loss
+NB centrum przy wyniku, nie linie Superbetu):
 - `epochs.GAME_STATE_FROM_UTC` (B1): centrum strony `corners_for`,
   `shots_for`, `cards_points_for`, `fouls_for` x exp(beta x oczekiwana różnica
   goli strony z ratingu goli, `FootballForecast.supremacy`); beta w
@@ -677,8 +680,20 @@ centrum przy wyniku; to nie linie Superbetu - replay nie ma ratingu, A6):
   `corners_1h_for` / `corners_2h_for` x stawka ligi dla dzisiejszego
   gospodarza / średnia stawek miejsc próbki (`FootballForecast.venue_multiplier`;
   próbka nie jest dzielona). `docs/sofa/evidence/unrated_markets_2026-10-13.md`.
-- Przy obu (B1 i B2) włączonych beta kartek trzeba dopasować ponownie (B1
-  dopasowano na centrum bez ratingu).
+- `epochs.FOOTBALL_RATING_WEIGHT_FROM_UTC` (B14): waga ratingu na rynek z
+  `config/sofa_rating_weight.json` (`bet.sofa.rating_weight`; rynek spoza
+  pliku: `W_FOOTBALL_RATING`; `docs/sofa/evidence/rating_weight_2026-10-13.md`).
+- `epochs.SEASON_PHASE_FROM_UTC` (C1): centrum goli x exp(c[rynek][faza])
+  z `config/sofa_season_phase.json`, faza sezonu ligi z historii w chwili
+  meczu (`docs/sofa/evidence/season_phase_2026-10-13.md`).
+- `epochs.TENNIS_SET_RATING_PRICES_FROM_UTC` (B5): gemy setów i `sets_total`
+  tenisa z sąsiadów ratingu (`tennis_rating.SET_RATING_PRICED_MARKETS`;
+  `docs/sofa/evidence/tennis_set_markets_2026-10-13.md`).
+- Beta kartek B1 dopasowano na centrum bez ratingu, a B2 ratinguje
+  `cards_points_for`: do ponownego fitu przed następnym refitem piłki.
+- `K_CENTRE` po reficie: 15 (tenis 8, piłka 15). Luka: `rebuild_plan.py` nie
+  zna tych przełączników ani refitu stałych - po ich zmianie SHEET puszcza się
+  ręcznie (`run_pipeline.py --only SHEET`).
 
 ### 7.1b Rating tenisowy (od 2026-10-01)
 
@@ -878,8 +893,11 @@ nogi `PLAYER_DID_NOT_PLAY` / `PLAYER_NOT_STARTED` są listowane per noga w
 ledgerze zwrot (0 j.). Od 2026-10-12 00:00Z (`PLAYER_STARTS_ONLY_FROM_UTC`)
 próbka to jego starty (`appearances: "starts"`, notka `PLAYER_STARTS_ONLY`),
 a krzywe zawodników z replayu ze startami są w
-`config/sofa_confidence_calibration.next.json` (od tego samego momentu;
-`confidence.calibration_path_for`). Dowody:
+`config/sofa_confidence_calibration.next.json`
+(`confidence.calibration_path_for`); od 2026-10-13 18:10Z ten plik to refit
+z 10-13 plus te krzywe zawodników (`effective_from` 2026-10-13T18:10Z;
+wcześniejszy dzień lub zegar czyta plik główny, czyli fit z 10-13 bez krzywych
+ze startów). Dowody:
 `docs/sofa/evidence/player_starts_2026-10-11.md`.
 
 Wiersz zawodniczy niesie notkę `PLAYER_MINUTES` (mediana minut, ile występów
@@ -1616,6 +1634,7 @@ runs/sofa/shadow/<sport>/<data>/   — sport: hockey | basketball | volleyball
 
 runs/sofa/ledger/results.jsonl            dziennik: jeden wiersz na (dzień, grupę) — official, official:pre_stats_only, removed:reads,
                                           measure:<sport>; record_results.py; czyta audit_ledger.py
+                                          (grupy epok audit_ledger.EPOCH_GROUPS: ... od 10-09 / od 10-12 / 10-13 mieszany / od 10-14 - nigdy sumowane)
                                           (wiersze wariant / multi / sport:<sport> / rule:<sport> to wycofane warianty dni do 2026-10-05: czytane, nigdy łączone)
 ```
 
@@ -1845,11 +1864,12 @@ dwóch zegarów, rozliczana seria wykluczona po id):
   wariancja nie przekracza średniej — normalny z poprawką ciągłości;
 - rundy na mapie — sama częstość bazowa z historii; rundy drużyny na mapie —
   częstość drużyny ściągnięta do częstości bazowej, a od
-  `epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC` (2026-10-14 00:00Z, audyt B10) z
+  `epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC` (2026-10-13 18:10Z, audyt B10;
+  przesunięte przez operatora z 2026-10-14 00:00Z) z
   wyścigu rund (`cs2_engine.team_rounds_from_race`: rozkład wyniku mapy o
   prawdopodobieństwie wygranej z Elo, ten sam co handicap rund) - na żywo, przy
   CS2_SETTLE i w replayu historii; krzywa CS2 dopasowana na tym estymatorze
-  (`.next.json` od 2026-10-14). Walk-forward: log-loss -0,0213 [-0,0237;
+  (`.next.json`, `effective_from` 2026-10-13). Walk-forward: log-loss -0,0213 [-0,0237;
   -0,0188] (`docs/sofa/evidence/cs2_team_rounds_race_2026-10-13.md`).
 
 **Liczba map, handicap map i mapy drużyny nie dostają liczby.** Model ze
@@ -1865,8 +1885,9 @@ przez 12 h (`--force`, żeby nadpisać). Domyślnie `--max-minutes 6`: jedyna
 odmowa w historii przyszła po ~8 min pełnej szerokości; backfill jest
 wznawialny, więc uruchamia się go krótko i wielokrotnie.
 
-**Ekspozycja zliczeń** (`epochs.CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-14
-00:00Z, audyt B12, stała zgoda): zabójstwa, śmierci, asysty zawodnika i
+**Ekspozycja zliczeń** (`epochs.CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-13
+18:10Z, audyt B12, stała zgoda; przesunięte przez operatora z 2026-10-14
+00:00Z): zabójstwa, śmierci, asysty zawodnika i
 zabójstwa drużyny z wyścigu rund (W, L) x stawki na rundę
 (`cs2_engine.ExposureBook`); log-loss nowy - stary -0,0135 / -0,0258 /
 -0,0099 / -0,0380, wszystkie przedziały poniżej zera; headshoty gorsze
