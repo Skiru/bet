@@ -119,6 +119,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
                 else (args.hk_shots or epochs.hk_shots(before, first)))
     hk_en = sport == "hockey" and (
         args.hk_empty_net or epochs.hk_empty_net(before, first))
+    # audit 2026-10-13 B9 / C10: volleyball's set length from the history's
+    # table; C9: the set markets scored on the history too
+    vb_length = sport == "volleyball" and (
+        args.vb_set_length or epochs.vb_set_length(before, first))
+    vb_sets = sport == "volleyball" and (
+        args.vb_set_history or epochs.vb_set_history(before, first))
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
@@ -155,11 +161,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         history_n = len(history)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit", fresh, overtime, strict, pace, level, hk_shots, hk_en)
+            "history_fit", fresh, overtime, strict, pace, level, hk_shots, hk_en,
+            vb_length, vb_sets)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict,
-            pace, level, hk_shots, hk_en)
+            pace, level, hk_shots, hk_en, vb_length, vb_sets)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
@@ -169,8 +176,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             pace=True if args.bb_pace else None,
             pace_level=True if args.bb_pace_level else None,
             hk_shots=args.hk_shots,
-            hk_empty_net=True if args.hk_empty_net else None)
-        only = scf.SETTLED_ONLY_FAMILIES[sport]
+            hk_empty_net=True if args.hk_empty_net else None,
+            set_length=True if args.vb_set_length else None)
+        only = scf.settled_only_families(sport, vb_sets)
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
         rows["settled_fit"] = [r for r in settled
@@ -180,8 +188,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             if r["family"] not in only or r["date"] in oos_dates]
     fit_rows = rows["history_fit"] + rows.get("settled_fit", [])
     curves = scf.fit_curves(fit_rows)
-    source = {key: ("superbet_settled" if key.split("|")[0]
-                    in scf.SETTLED_ONLY_FAMILIES.get(sport, frozenset())
+    only_now = (scf.settled_only_families(sport, vb_sets)
+                if sport in scf.ALLOWED_MARKETS else frozenset())
+    source = {key: ("superbet_settled" if key.split("|")[0] in only_now
                     else "history") for key in curves}
     checks = {
         "history_holdout": scf.evaluate(curves, rows["history_holdout"]),
@@ -212,6 +221,8 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             **({"bb_pace_level": True} if level else {}),
             **({"hk_shots": hk_shots} if hk_shots else {}),
             **({"hk_empty_net": True} if hk_en else {}),
+            **({"vb_set_length": True} if vb_length else {}),
+            **({"vb_set_history": True} if vb_sets else {}),
         },
         "curves": curves,
         "curve_source": source,
@@ -316,6 +327,12 @@ def main() -> int:
     ap.add_argument("--hk-empty-net", action="store_true",
                     help="replay hockey with the fitted empty-net probabilities "
                     "(audit B8; default: the --before day's rule)")
+    ap.add_argument("--vb-set-length", action="store_true",
+                    help="replay volleyball's set length from the history's table "
+                    "(audit B9 / C10; default: the --before day's rule)")
+    ap.add_argument("--vb-set-history", action="store_true",
+                    help="score volleyball's set markets on the history's sets "
+                    "(audit C9; default: the --before day's rule)")
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")

@@ -215,12 +215,33 @@ HISTORY_MARKETS: dict[str, tuple[int, ...]] = {
     "volleyball": (745, 230058, 100082, 230060, 1069, 785, 200896),
 }
 PERIODS: dict[str, tuple[int, ...]] = {"hockey": (1, 2, 3), "basketball": (1, 2, 3, 4)}
+# Audit 2026-10-13 C9 (epochs.VB_SET_HISTORY_FROM_UTC, operator O3): volleyball's
+# set markets - set winner, set points total, set points parity, set on extra
+# points - scored on the history's sets 1-5 too. Before the switch they are
+# read only from settled Superbet lines (plan F4, operator 2026-10-07).
+VB_SET_MARKETS: tuple[int, ...] = (744, 782, 781, 100077)
+VB_SET_PERIODS: tuple[int, ...] = (1, 2, 3, 4, 5)
+
+
+def history_markets(sport: str, set_history: bool = False) -> tuple[int, ...]:
+    """The markets a history game is scored on; `set_history` (C9) adds
+    volleyball's set markets."""
+    base = HISTORY_MARKETS[sport]
+    if set_history and sport == "volleyball":
+        return (*base, *VB_SET_MARKETS)
+    return base
+
+
+def settled_only_families(sport: str, set_history: bool = False) -> frozenset[str]:
+    """The allowed families read only from settled Superbet lines."""
+    return frozenset(
+        fam for mid, fam in allowed_markets(sport, extended=True).items()
+        if mid not in history_markets(sport, set_history))
+
+
 # The rest (volleyball's set markets): only from settled Superbet lines (plan F4).
 SETTLED_ONLY_FAMILIES: dict[str, frozenset[str]] = {
-    sport: frozenset(
-        fam for mid, fam in allowed_markets(sport, extended=True).items()
-        if mid not in HISTORY_MARKETS[sport])
-    for sport in ALLOWED_MARKETS
+    sport: settled_only_families(sport) for sport in ALLOWED_MARKETS
 }
 
 # Where a synthetic line sits: the game's own simulated distribution at these
@@ -596,11 +617,23 @@ def _probe(sport: ShadowSport, market_id: int, subject: str, period: int = 0
     return ShadowLine("", market_id, spec.family, period, subject, 0.0, side, 1.0)
 
 
-def market_periods(sport: ShadowSport, market_id: int) -> tuple[int, ...]:
-    """The periods a market is scored on: (0,) unless it is a period market."""
+def market_periods(sport: ShadowSport, market_id: int, set_history: bool = False
+                   ) -> tuple[int, ...]:
+    """The periods a market is scored on: (0,) unless it is a period market;
+    volleyball's sets only with `set_history` (C9)."""
     if MARKETS[sport.key][market_id].scope != "period":
         return (0,)
+    if set_history and sport.key == "volleyball":
+        return VB_SET_PERIODS
     return PERIODS.get(sport.key, ())
+
+
+def set_scores_of(history: Sequence[HistoryGame]
+                  ) -> dict[int, tuple[Sequence[int], Sequence[int]]]:
+    """event id -> (home's, away's) set points of every graded volleyball
+    game (score_model.build_model's `set_scores`, audit B9)."""
+    return {g.rating.event_id: (g.result.t1_periods, g.result.t2_periods)
+            for g in history if g.result is not None and g.result.t1_periods}
 
 
 def _pair_sets(g: GameResult) -> tuple[int, int] | None:
@@ -657,10 +690,11 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
 
 def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
                n_sims: int, source: str, freshness: bool = False,
-               overtime: bool = False) -> list[Row]:
+               overtime: bool = False, set_history: bool = False) -> list[Row]:
     """The rows of one historical game, from the model as it stands.
     `freshness`: the basketball noise by games played in the last 120 days
-    (epochs.BB_FRESHNESS_FROM_UTC), as the live forecaster simulates."""
+    (epochs.BB_FRESHNESS_FROM_UTC), as the live forecaster simulates.
+    `set_history` (C9): volleyball's set markets on sets 1-5 too."""
     if game.result is None:
         return []
     r = game.rating
@@ -671,11 +705,13 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
         exp[0], exp[1], seed=r.event_id, n=n_sims,
         noise_mult=(model.noise_mult(r.home_id, r.away_id, r.ts)
                     if freshness else 1.0),
-        quarter_minutes=overtime_minutes(r.competition_id, sport.key, overtime))
+        quarter_minutes=overtime_minutes(r.competition_id, sport.key, overtime),
+        **({"women": model.women_of(r.home_id, r.away_id)}
+           if model.set_length is not None else {}))
     rows: list[Row] = []
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
-    lines = [ln for mid in HISTORY_MARKETS[sport.key]
-             for period in market_periods(sport, mid)
+    lines = [ln for mid in history_markets(sport.key, set_history)
+             for period in market_periods(sport, mid, set_history)
              for ln in synthetic_lines(sport, mid, sims, period)]
     for line in lines:
         mid = line.market_id
@@ -705,8 +741,10 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       freshness: bool = False, overtime: bool = False,
                       strict_league_rate: bool = False,
                       pace: bool = False, pace_level: bool = False,
-                      hk_shots: str | None = None,
-                      hk_empty_net: bool = False) -> list[Row]:
+                     hk_shots: str | None = None,
+                     hk_empty_net: bool = False,
+                     set_length: bool = False, set_history: bool = False
+                     ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it.
 
@@ -729,8 +767,14 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     hockey's centre from shots x conversion (box scores as for `pace`);
     `hk_empty_net` (epochs.HK_EMPTY_NET_FROM_UTC): the fitted late-game
     probabilities (score_model.empty_net_params).
+    `set_length` (epochs.VB_SET_LENGTH_FROM_UTC, audit B9): volleyball's set
+    length from the history's table, refitted at every rebuild;
+    `set_history` (epochs.VB_SET_HISTORY_FROM_UTC, C9): the set markets
+    scored too.
     """
     ratings = [g.rating for g in history]
+    vb_len = set_length and sport.key == "volleyball"
+    scores = set_scores_of(history) if vb_len else None
     window = [g for g in history if start_ts <= g.rating.ts < end_ts]
     step = max(1, len(window) // max_games) if max_games else 1
     scored = {id(g) for i, g in enumerate(window) if i % step == 0}
@@ -745,20 +789,23 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
             j += 1
         batch = window[i:j]
         if model is None or ts >= next_rebuild:
+            length_kw: dict[str, Any] = (
+                {"set_length": True, "set_scores": scores} if vb_len else {})
             model = build_model(ratings, sport, ts,
                                 empty_net_params(
                                     overtime_params(None, sport.key, overtime),
                                     sport.key, hk_empty_net),
                                 strict_league_rate=strict_league_rate,
                                 pace=pace, pace_level=pace_level,
-                                shots=hk_shots)
+                               shots=hk_shots,
+                               **length_kw)
             next_rebuild = ts + REBUILD_DAYS * 86400
             if freshness and model.recent is None:
                 model.recent = {}  # build_model leaves an empty book None
         for g in batch:
             if id(g) in scored:
                 rows += score_game(sport, model, g, n_sims, source, freshness,
-                                   overtime)
+                                   overtime, set_history)
         for g in batch:
             model.book.update(_rated_values(g.rating, sport))
             model.note_game(g.rating)
@@ -783,8 +830,9 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                         strict_league_rate: bool | None = None,
                         pace: bool | None = None,
                         pace_level: bool | None = None,
-                        hk_shots: str | None = None,
-                        hk_empty_net: bool | None = None) -> list[Row]:
+                       hk_shots: str | None = None,
+                       hk_empty_net: bool | None = None,
+                       set_length: bool | None = None) -> list[Row]:
     """Superbet's settled lines of `dates` (runs/sofa/shadow/<sport>/<d>/
     settled.json), each with the model's probability from a model built
     strictly before the day - measure_score_model.py's reading. Only allowed
@@ -793,8 +841,10 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
     None: the day's own epochs.bb_pace_level (audit B7b, likewise); `hk_shots`
     None: the day's own epochs.hk_shots, "off" / "replace" / "blend" forced
     (audit B8, the history must carry shots); `hk_empty_net` None: the day's
-    own epochs.hk_empty_net."""
+    own epochs.hk_empty_net; `set_length` None: the day's own
+    epochs.vb_set_length (audit B9)."""
     ratings = [g.rating for g in history]
+    scores: dict[int, tuple[Sequence[int], Sequence[int]]] | None = None
     rows: list[Row] = []
     allowed = allowed_markets(sport.key, extended=True)
     for date in dates:
@@ -816,12 +866,19 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                      else (None if hk_shots == "off" else hk_shots))
         day_en = (epochs.hk_empty_net(date) if hk_empty_net is None
                   else hk_empty_net)
+        day_length = sport.key == "volleyball" and (
+            epochs.vb_set_length(date) if set_length is None else set_length)
+        if day_length and scores is None:
+            scores = set_scores_of(history)
+        length_kw: dict[str, Any] = (
+            {"set_length": True, "set_scores": scores} if day_length else {})
         model = build_model(ratings, sport, day_ts(date),
                             empty_net_params(
                                 overtime_params(None, sport.key, day_overtime),
                                 sport.key, day_en),
                             strict_league_rate=strict, pace=day_pace,
-                            pace_level=day_level, shots=day_shots)
+                            pace_level=day_level, shots=day_shots,
+                            **length_kw)
         for sb_id, entry in (doc.get("events") or {}).items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):
                 continue
@@ -844,7 +901,10 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                 noise_mult=(model.noise_mult(
                     int(event["homeTeam"]["id"]), int(event["awayTeam"]["id"]),
                     int(event["startTimestamp"])) if freshness else 1.0),
-                quarter_minutes=overtime_minutes(comp, sport.key, day_overtime))
+                quarter_minutes=overtime_minutes(comp, sport.key, day_overtime),
+                **({"women": model.women_of(int(event["homeTeam"]["id"]),
+                                            int(event["awayTeam"]["id"]))}
+                   if model.set_length is not None else {}))
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue

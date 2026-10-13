@@ -1126,6 +1126,54 @@ def hk_empty_net(date: str | None = None, build_at: datetime | None = None
     return at >= HK_EMPTY_NET_FROM_UTC
 
 
+# Audit 2026-10-13 B9 / C10: a volleyball set's length - its loser's points -
+# drawn from the history's own distribution (score_model.SetLengthTable:
+# gender x regular / fifth set x did the favourite win it x the rating's share
+# gap, one step ahead over the 365 days before the model's cut) instead of the
+# i.i.d. rally share, which made matches 4-6 points too short and too few sets
+# on extra points. Who wins each set is the rally simulation's, bit for bit.
+# Live (SPORT_CONFIDENCE), in the line-evidence replay and in a fit's history
+# replay (fit_sport_confidence --vb-set-length). Changes volleyball's points
+# and set-points p, so it goes live only with a volleyball curve refitted on
+# it. Evidence: docs/sofa/evidence/volleyball_set_length_2026-10-13.md.
+VB_SET_LENGTH_FROM_UTC: datetime | None = None
+
+
+def vb_set_length(date: str | None = None, build_at: datetime | None = None
+                  ) -> bool:
+    """Is volleyball's set length drawn from the history's table
+    (VB_SET_LENGTH_FROM_UTC)? `date` None: the wall clock alone."""
+    if VB_SET_LENGTH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < VB_SET_LENGTH_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= VB_SET_LENGTH_FROM_UTC
+
+
+# Audit 2026-10-13 C9 (operator O3: set markets come back after B9 and an
+# out-of-sample measurement, through a switch): a volleyball fit for a day at
+# or after this moment scores the set markets - set winner (744), set points
+# total (782), set points parity (781), set on extra points (100077) - on the
+# history's sets 1-5 (sport_confidence.history_markets / market_periods), so
+# they get a history curve like the match markets instead of reading only
+# settled Superbet lines (plan F4, operator 2026-10-07). Live it changes
+# nothing but the curve a fit writes. Evidence: as B9.
+VB_SET_HISTORY_FROM_UTC: datetime | None = None
+
+
+def vb_set_history(date: str | None = None, build_at: datetime | None = None
+                   ) -> bool:
+    """Does a volleyball fit score the set markets on the history
+    (VB_SET_HISTORY_FROM_UTC)? `date` None: the wall clock alone."""
+    if VB_SET_HISTORY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < VB_SET_HISTORY_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= VB_SET_HISTORY_FROM_UTC
+
+
 # Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
 # games_won_set1/2/3_for) and sets_total were priced from the players' own
 # samples shrunk to a global prior, with no opponent. From this moment they are
