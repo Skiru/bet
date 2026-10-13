@@ -47,6 +47,7 @@ from bet.sofa.comparability import (
 )
 from bet.sofa.cs2 import Cs2Line
 from bet.sofa.football_rating import FootballResult
+from bet.sofa.market_lines import MarketLines
 from bet.sofa.score_model import (
     ScoreModel,
     _rated_values,
@@ -688,13 +689,48 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     return out
 
 
+# Audit 2026-10-13 A7 (operator O2): the families whose history lines may be
+# placed where the market stood - a historical game's Sofascore total and
+# spread (bet.sofa.market_lines), the team totals at the split those two
+# imply. Only the POSITION comes from the market; p stays the score model's.
+MARKET_LINE_MARKETS: dict[str, frozenset[int]] = {
+    "basketball": frozenset({753, 768, 758, 776}),
+}
+
+
+def market_position_lines(sport: ShadowSport, market_id: int,
+                          ml: MarketLines) -> list[ShadowLine]:
+    """Both sides of every market-positioned line of one game for one
+    market (MARKET_LINE_MARKETS); [] when the game has none for it."""
+    spec = MARKETS[sport.key][market_id]
+    if spec.kind == "total":
+        return [ShadowLine("", market_id, spec.family, 0, "", c, s, 1.0)
+                for c in ml.totals for s in ("OVER", "UNDER")]
+    if spec.kind == "handicap":
+        return [ShadowLine("", market_id, spec.family, 0, "", h, s, 1.0)
+                for h in ml.home_handicaps for s in ("T1", "T2")]
+    if spec.kind == "team_total" and spec.team is not None:
+        return [ShadowLine("", market_id, spec.family, 0, spec.team, c, s, 1.0)
+                for c in ml.team_totals().get(spec.team, ())
+                for s in ("OVER", "UNDER")]
+    return []
+
+
 def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
                n_sims: int, source: str, freshness: bool = False,
-               overtime: bool = False, set_history: bool = False) -> list[Row]:
+               overtime: bool = False, set_history: bool = False,
+               market_lines_on: bool = False,
+               market: MarketLines | None = None,
+               market_only: bool = False) -> list[Row]:
     """The rows of one historical game, from the model as it stands.
     `freshness`: the basketball noise by games played in the last 120 days
     (epochs.BB_FRESHNESS_FROM_UTC), as the live forecaster simulates.
-    `set_history` (C9): volleyball's set markets on sets 1-5 too."""
+    `set_history` (C9): volleyball's set markets on sets 1-5 too.
+
+    `market_lines_on` (A7): a MARKET_LINE_MARKETS family is scored on the
+    game's market-positioned lines (`market`; None: no row) instead of the
+    synthetic ones; `market_only` scores those families alone (a game outside
+    the thinned sample). Off: the synthetic lines, byte for byte."""
     if game.result is None:
         return []
     r = game.rating
@@ -710,15 +746,24 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
            if model.set_length is not None else {}))
     rows: list[Row] = []
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
+    positioned = (MARKET_LINE_MARKETS.get(sport.key, frozenset())
+                  if market_lines_on else frozenset())
     lines = [ln for mid in history_markets(sport.key, set_history)
+             if mid not in positioned and not market_only
              for period in market_periods(sport, mid, set_history)
              for ln in synthetic_lines(sport, mid, sims, period)]
+    if market is not None:
+        lines += [ln for mid in HISTORY_MARKETS[sport.key] if mid in positioned
+                  for ln in market_position_lines(sport, mid, market)]
     for line in lines:
         mid = line.market_id
         p = line_probability(line, sims, sport)
         if p is None:
             continue
-        if line.line is not None and not DEGENERATE_P <= p <= 1 - DEGENERATE_P:
+        # a posted line is kept wherever the model puts it (as a settled
+        # Superbet line is); the degenerate test is for synthetic lines
+        if (line.line is not None and mid not in positioned
+                and not DEGENERATE_P <= p <= 1 - DEGENERATE_P):
             continue
         actual = actual_value(line, game.result, sport)
         if actual is None:
@@ -731,7 +776,8 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
             "period": line.period, "subject": line.subject, "line": line.line,
             "side": line.side, "key": curve_key(line.family, line.side),
             "p": round(p, 4), "y": 1 if outcome == "WIN" else 0,
-            "game": f"h:{r.event_id}", "ts": r.ts, "source": source})
+            "game": f"h:{r.event_id}", "ts": r.ts, "source": source,
+            **({"line_source": "market"} if mid in positioned else {})})
     return rows
 
 
@@ -740,10 +786,10 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       max_games: int | None, source: str,
                       freshness: bool = False, overtime: bool = False,
                       strict_league_rate: bool = False,
-                      pace: bool = False, pace_level: bool = False,
                      hk_shots: str | None = None,
                      hk_empty_net: bool = False,
-                     set_length: bool = False, set_history: bool = False
+                     set_length: bool = False, set_history: bool = False,
+                     market_lines: Mapping[int, MarketLines] | None = None
                      ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it.
@@ -771,6 +817,10 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     length from the history's table, refitted at every rebuild;
     `set_history` (epochs.VB_SET_HISTORY_FROM_UTC, C9): the set markets
     scored too.
+    `market_lines` (audit A7, epochs.MARKET_POSITIONED_LINES): event id ->
+    the game's market lines. The MARKET_LINE_MARKETS families are then scored
+    only on market-positioned lines, on EVERY game of the window that has
+    them (thinned or not); None: today's synthetic replay.
     """
     ratings = [g.rating for g in history]
     vb_len = set_length and sport.key == "volleyball"
@@ -803,9 +853,17 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
             if freshness and model.recent is None:
                 model.recent = {}  # build_model leaves an empty book None
         for g in batch:
-            if id(g) in scored:
+            if market_lines is None:
+                if id(g) in scored:
+                    rows += score_game(sport, model, g, n_sims, source,
+                                       freshness, overtime, set_history)
+                continue
+            ml = market_lines.get(g.rating.event_id)
+            if id(g) in scored or ml is not None:
                 rows += score_game(sport, model, g, n_sims, source, freshness,
-                                   overtime, set_history)
+                                   overtime, set_history,
+                                   market_lines_on=True, market=ml,
+                                   market_only=id(g) not in scored)
         for g in batch:
             model.book.update(_rated_values(g.rating, sport))
             model.note_game(g.rating)
