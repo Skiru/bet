@@ -72,3 +72,27 @@ Metryka i próg (O5):
 - Rynki serii (`match_winner`, `maps_*`, `team_maps`, `exact_maps`) w tym
   teście zostają na p bez numeru mapy (zmiana łańcucha pick/decider to osobna
   pozycja).
+
+## Wynik (2026-10-13, `measure_cs2_map_identity.py`, baza `data/sofa.db` tylko do odczytu)
+
+Okno 2025-10-13..2026-10-13, 11 217 serii / 24 995 map; okno główne = ostatnie
+40% serii (4 487 serii, 10 053 mapy). Różnica log-loss wariant - baza na mapę,
+95% bootstrap po seriach (2000, ziarno 0); wartość [dolna, górna]:
+
+| porównanie | okno główne | całe okno |
+|---|---|---|
+| H1: A vs baza | +0,00021 [-0,00022, +0,00064] | +0,00021 [-0,00013, +0,00055] |
+| B vs baza | +0,00006 [-0,00062, +0,00071] | -0,00022 [-0,00060, +0,00018] |
+| A+B vs baza | +0,00026 [-0,00054, +0,00104] | -0,00001 [-0,00052, +0,00054] |
+| H2: A+B vs A | +0,00005 [-0,00063, +0,00070] | -0,00022 [-0,00061, +0,00019] |
+
+Strażnik `map_team_rounds` (z wyścigu rund, wariant - baza): okno główne A
+-0,00012 [-0,00053, +0,00029], B +0,00032 [-0,00027, +0,00092], A+B +0,00021
+[-0,00050, +0,00093]; żaden przedział nie jest w całości powyżej zera.
+Kalibracja p >= 0,70 (okno główne): A 687 map, p 0,744 / realizacja 0,758;
+B 834, 0,748 / 0,740; A+B 846, 0,748 / 0,747.
+
+Decyzja: żaden próg nie spełniony (górna granica H1 = +0,00064 > 0; B vs baza
+też > 0). **`CS2_MAP_IDENTITY_FROM_UTC` zostaje `None`.** Kod (człon kolejności
+i puli, `RatingModel.p_map_nr`, `MapPoolBook`) zostaje za przełącznikiem.
+Pominięte: wyrocznia (diagnostyka bez progu), δ_k i c nie wypisane.

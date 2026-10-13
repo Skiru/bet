@@ -431,6 +431,8 @@ The shape above stays; it is improved, not rebuilt.
 Daily loops spawn each step through `run_pipeline.py` (fresh code per step);
 only the loop's own orchestration is old code until it ends.
 
+CS2 count exposure (audit B12, `CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-14 00:00Z): kills / deaths / assists / team kills priced from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`; log-loss -0.0099..-0.0380, intervals below zero; headshots measured worse, stay on the sample); line evidence of these families was fitted on the old p. CS2 map identity (B11, `CS2_MAP_IDENTITY_FROM_UTC` `None`: order / pool terms +0.0002 [-0.0002, +0.0006], not better). Evidence: `docs/sofa/evidence/cs2_{kills_exposure,map_identity}_2026-10-13.md`.
+
 **Measured and not switched on** (audit 2026-10-13 implementation, `None`;
 `docs/sofa/history/RAPORT_IMPLEMENTACJI_AUDYTU_2026-10-13.md`):
 `FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC` (A2's football half: the rating at the

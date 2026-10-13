@@ -63,7 +63,9 @@ from bet.sofa.cs2 import (  # noqa: E402
     write_atomic,
 )
 from bet.sofa.cs2_engine import (  # noqa: E402
+    MAP_TERMS,
     UNFITTED,
+    build_exposure,
     build_ratings,
     load_history,
     model_probability,
@@ -522,7 +524,13 @@ def attach_model(
     before = min(int(kickoff.timestamp()), sofa_start) - 60
     with get_connection(db_path) as conn:
         history = load_history(conn, before, int(event["id"]))
-    ratings = build_ratings(history)
+    day = kickoff.strftime("%Y-%m-%d")
+    # epochs.CS2_MAP_IDENTITY / CS2_COUNT_EXPOSURE: the day the game was offered
+    map_identity = epochs.cs2_map_identity(day, kickoff)
+    ratings = (build_ratings(history, MAP_TERMS) if map_identity
+               else build_ratings(history))
+    exposure = (build_exposure(history)
+                if epochs.cs2_count_exposure(day, kickoff) else None)
     home_id = int((event.get("homeTeam") or {}).get("id") or 0)
     away_id = int((event.get("awayTeam") or {}).get("id") or 0)
     t1_id, t2_id = (home_id, away_id) if home_is_t1 else (away_id, home_id)
@@ -549,6 +557,8 @@ def attach_model(
             ratings,
             home_is_t1,
             team_rounds_race=race,
+            map_identity=map_identity,
+            exposure=exposure,
         )
         row["model_p"] = None if mp is None else round(mp.p, 4)
         row["model_n"] = None if mp is None else mp.n

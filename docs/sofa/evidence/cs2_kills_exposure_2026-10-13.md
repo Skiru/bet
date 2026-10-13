@@ -56,3 +56,33 @@ Metryka i próg (O5):
 - Te rodziny nie mają krzywej z historii (tylko line evidence z rozliczonych
   linii, `settle_cs2.attach_model`), więc refit krzywej nie jest potrzebny;
   line evidence z dni sprzed przełącznika czyta p starego estymatora.
+
+## Wynik (2026-10-13, `measure_cs2_count_exposure.py`, baza `data/sofa.db` tylko do odczytu)
+
+Okno główne: ostatnie 40% serii z 2025-10-13..2026-10-13 (6 014 serii),
+linie syntetyczne wg rejestracji. Log-loss nowy - stary na linię, 95%
+bootstrap po seriach (2000, ziarno 0):
+
+| rodzina | linie | log-loss nowy - stary | strażnik p >= 0,70 (log-loss, linie) |
+|---|---|---|---|
+| player_kills | 702 848 | -0,0135 [-0,0148, -0,0122] | -0,0164 [-0,0181, -0,0148] (154 924) |
+| player_deaths | 702 848 | -0,0258 [-0,0277, -0,0239] | -0,0311 [-0,0335, -0,0289] (167 993) |
+| player_assists | 702 848 | -0,0099 [-0,0107, -0,0090] | -0,0121 [-0,0131, -0,0111] (158 394) |
+| team_kills | 141 224 | -0,0380 [-0,0414, -0,0347] | -0,0547 [-0,0597, -0,0496] (34 154) |
+| player_headshots | 702 826 | **+0,1877** [+0,1834, +0,1918] | +0,2231 (395 563) |
+
+Kalibracja p >= 0,70 (średnie p / realizacja): kills stary 0,738 / 0,734 (n
+124 812), nowy 0,771 / 0,765 (117 366); deaths 0,745 / 0,773 vs 0,779 / 0,814;
+assists 0,763 / 0,753 vs 0,772 / 0,773; team_kills 0,717 / 0,755 vs 0,792 /
+0,796; headshots stary 0,757 / 0,751, nowy 0,774 / **0,535** (n 338 818).
+
+Decyzja: cztery rodziny (kills, deaths, assists, team_kills) mają górną
+granicę < 0 i dolną granicę strażnika < 0 (nie gorsze); headshots gorsze -
+zostają na `count_p` (`EXPOSURE_FAMILIES` bez `player_headshots`; przyczyna
+niezbadana - podejrzenie: sumy zespołowe HS z niepełnych składów). Przełącznik
+`CS2_COUNT_EXPOSURE_FROM_UTC` włączony na 2026-10-14 00:00Z na podstawie
+stałej zgody audytu (CLAUDE.md, Changing the pipeline 4). Uwagi: linie są
+syntetyczne wokół średniej starego modelu (nie linie Superbetu); kontrola na
+rozliczonych liniach Superbetu 10-05..10-12 **nie wykonana**; line evidence
+tych rodzin było fitowane na p starego estymatora i do refitu czyta je przy
+nowym p (konserwatywnie; zob. `refresh_line_evidence.py`).

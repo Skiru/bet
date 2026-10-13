@@ -889,17 +889,23 @@ def load_cs2(db_path: str, before_ts: int
 def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
                           series: Mapping[int, SeriesRow], start_ts: int,
                           end_ts: int, source: str,
-                          team_rounds_race: bool = False) -> list[Row]:
+                          team_rounds_race: bool = False,
+                          map_identity: bool = False) -> list[Row]:
     """CS2 rows for the series in [start_ts, end_ts), each from the engine's
     state at the series' start: the map and player Elo replayed in time
     order (cs2_engine.walk_forward_players), their logistic calibration
     refitted every REFIT_DAYS_CS2 on the predictions made BEFORE the refit,
     the team's last MAX_SAMPLE maps and the base rate of every earlier map
-    for the rounds. Numbers through the engine's own functions."""
+    for rounds. Numbers through the engine's own functions. `map_identity`
+    (epochs.CS2_MAP_IDENTITY, audit B11): the map pool replayed too and the
+    order / pool terms refitted with the calibration, each map's rows from
+    its own map's p."""
     book = cs2_engine.EloBook()
     players = cs2_engine.PlayerEloBook()
     points: list[tuple[float, float]] = []
     ppoints: list[tuple[float, float]] = []
+    pool = cs2_engine.MapPoolBook() if map_identity else None
+    mpoints: list[cs2_engine.MapPoint] = []
     model = cs2_engine.RatingModel(book)
     next_refit = 0
     team_rounds: dict[int, deque[int]] = defaultdict(
@@ -913,12 +919,17 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
         start = smaps[0].start_ts
         if start >= next_refit:
             model = _cs2_refit(book, players, points, ppoints)
+            if pool is not None:
+                cs2_engine.fit_map_terms(model, mpoints, cs2_engine.MAP_TERMS, pool)
             next_refit = start + REFIT_DAYS_CS2 * 86400
         home, away = smaps[0].home_id, smaps[0].away_id
         if start_ts <= start < end_ts:
             rows += _cs2_series_rows(eid, smaps, series.get(eid), model,
                                      team_rounds, all_rounds, source,
-                                     team_rounds_race)
+                                     team_rounds_race, map_identity)
+        if pool is not None:
+            mpoints.extend(cs2_engine.series_map_points(list(smaps), book, players,
+                                                        pool))
         if book.rated(home, away):
             d = cs2_engine.logit_diff(book, home, away)
             points.extend((d, 1.0 if m.home_won else 0.0) for m in smaps)
@@ -926,6 +937,8 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
             if gap is not None:
                 ppoints.extend((gap, 1.0 if m.home_won else 0.0) for m in smaps)
         for m in smaps:
+            if pool is not None:
+                pool.update(m, book)
             winner, loser = (m.home_id, m.away_id) if m.home_won else (m.away_id,
                                                                        m.home_id)
             book.update(winner, loser)
@@ -1015,9 +1028,17 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
                      srow: SeriesRow | None, model: cs2_engine.RatingModel,
                      team_rounds: Mapping[int, deque[int]],
                      all_rounds: Counter[int], source: str,
-                     team_rounds_race: bool = False) -> list[Row]:
+                     team_rounds_race: bool = False,
+                     map_identity: bool = False) -> list[Row]:
     home, away = smaps[0].home_id, smaps[0].away_id
     rows: list[Row] = []
+    best_of = srow.best_of if srow is not None else smaps[0].best_of
+
+    def p_of(m: cs2_engine.MapRow) -> float | None:
+        # epochs.CS2_MAP_IDENTITY: the map's own p, as live
+        if map_identity:
+            return model.p_map_nr(home, away, True, best_of, m.order)
+        return p_map
 
     def add(family: str, map_nr: int, subject: str, line: float | None,
             side: str, p: float, y: bool) -> None:
@@ -1029,10 +1050,12 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
 
     p_map = model.p_map(home, away, True)
     if p_map is not None:
-        p = cs2_engine.clamp(p_map)
         for m in smaps:
-            add("map_winner", m.order, "", None, "T1", p, m.home_won)
-            add("map_winner", m.order, "", None, "T2", cs2_engine.clamp(1 - p_map),
+            pm = p_of(m)
+            assert pm is not None  # rated whenever p_map is
+            add("map_winner", m.order, "", None, "T1", cs2_engine.clamp(pm),
+                m.home_won)
+            add("map_winner", m.order, "", None, "T2", cs2_engine.clamp(1 - pm),
                 not m.home_won)
         if (srow is not None and srow.best_of and srow.home_maps is not None
                 and srow.away_maps is not None and srow.home_maps != srow.away_maps):
@@ -1063,10 +1086,11 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
                 for over in (True, False):
                     # epochs.CS2_TEAM_ROUNDS_RACE: the round race, as live
                     if team_rounds_race:
-                        if p_map is None:
+                        pm = p_of(m)
+                        if pm is None:
                             continue
                         side = cs2_engine.team_rounds_from_race(
-                            p_map, 0 if subject == "T1" else 1, line, over)
+                            pm, 0 if subject == "T1" else 1, line, over)
                         if side is None:
                             continue
                         p_side = cs2_engine.clamp(side)
