@@ -36,7 +36,11 @@ from bet.sofa.confidence import (
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
-from bet.sofa.epochs import ampersand_subjects, mappable_families
+from bet.sofa.epochs import (
+    ampersand_subjects,
+    mappable_families,
+    tennis_match_winner,
+)
 from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
@@ -241,7 +245,8 @@ def main() -> int:
     fetcher = OfferFetcher(SuperbetClient(
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"),
         ampersand_subjects=ampersand_subjects(args.date),
-        mappable_families=mappable_families(args.date))
+        mappable_families=mappable_families(args.date),
+        tennis_winner=tennis_match_winner(args.date))
     try:
         return loop(day_dir, fetcher, repeat=args.loop)
     finally:

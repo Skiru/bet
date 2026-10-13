@@ -40,6 +40,13 @@ from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
 from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N
 from bet.sofa.players import is_player_metric
+from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
+
+# Markets read from their own curve or not at all, like the derived joints:
+# the rating-only markets (bet.sofa.tennis_winner, audit 2026-10-13 D2) are
+# a win probability, and the sport pools are count markets - a hole or the
+# range above the curve is refused, never filled from a pool.
+OWN_CURVE_ONLY = RATING_ONLY_MARKETS
 
 # Resolved against the repo, not the working directory: run from anywhere
 # else a relative path failed (or read another checkout's curves).
@@ -1389,6 +1396,10 @@ class Calibration:
         # all: the pools hold count markets only (fit_confidence keeps derived
         # rows out of them). Review 2026-10-07.
         if is_derived(market):
+            return None
+        # See OWN_CURVE_ONLY: a rating-only market (D2, the tennis match
+        # winner) is no count either - no pool describes it.
+        if market in OWN_CURVE_ONLY:
             return None
         # See AWAITING_OWN_CURVE: no pool may stand in for a market that has
         # no measured curve of its own yet.

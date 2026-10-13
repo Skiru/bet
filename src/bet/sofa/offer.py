@@ -17,6 +17,7 @@ from bet.sofa.superbet import (
     split_match_name,
     superbet_kickoff,
 )
+from bet.sofa.tennis_winner import classify_winner
 from bet.sofa.timeutil import now
 
 
@@ -77,6 +78,7 @@ def classify_odd(
     sides: Sequence[str] = (),
     mappable_families: bool = False,
     listing_names: Sequence[str] = (),
+    tennis_winner: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -98,6 +100,11 @@ def classify_odd(
     market_mapper.classify_mappable_family last, against `listing_names` -
     the listing's own participant names whatever the "&" rule says. Off, the
     default, is the rule before the switch exactly.
+
+    `tennis_winner` (epochs.tennis_match_winner, a tennis fixture only) reads
+    "Zwycięzca" "1" / "2" as match_won_for of the first of `listing_names`
+    (bet.sofa.tennis_winner), tried before the "unmapped" label like the
+    MAPPABLE families. Off, the default, changes nothing.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -146,6 +153,10 @@ def classify_odd(
         )
         if mapped:
             return mapped, None
+    if tennis_winner:
+        winner = classify_winner(market_name, selection_name, listing_names)
+        if winner:
+            return winner, None
     return None, str(market_name)
 
 
@@ -161,8 +172,12 @@ class OfferFetcher:
         client: Any,
         ampersand_subjects: bool = False,
         mappable_families: bool = False,
+        tennis_winner: bool = False,
     ) -> None:
         self.client = client
+        # epochs.tennis_match_winner(date): read the tennis "Zwycięzca" as
+        # match_won_for (bet.sofa.tennis_winner). Off is the old rule.
+        self.tennis_winner = tennis_winner
         # epochs.ampersand_subjects(date): read a club named with "&" as a
         # subject when it is the listing's own side. Off is the old rule.
         self.ampersand_subjects = ampersand_subjects
@@ -234,16 +249,17 @@ class OfferFetcher:
                     seen_kickoff = seen
 
                 fetched_at = now()
+                winner = self.tennis_winner and fixture.sport == "tennis"
                 names = (
                     listing_sides(payload)
-                    if self.ampersand_subjects or self.mappable_families
+                    if self.ampersand_subjects or self.mappable_families or winner
                     else ()
                 )
                 sides = names if self.ampersand_subjects else ()
 
                 for item in items:
                     classified_odd, unmapped_label = classify_odd(
-                        item, sides, self.mappable_families, names
+                        item, sides, self.mappable_families, names, winner
                     )
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)

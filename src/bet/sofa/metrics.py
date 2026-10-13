@@ -500,6 +500,10 @@ TENNIS_METRICS = {
     "games_total": {"sofascore": "gamesWon", "is_total": True},
     "games_won_for": {"sofascore": "gamesWon", "is_total": False},
     "sets_total": {"sofascore": "sets_from_listing", "is_total": True},
+    # D2 (epochs.TENNIS_MATCH_WINNER): 1 when the side won the match, from the
+    # listing's winnerCode. Priced by the rating alone (no sample is built,
+    # bet.sofa.tennis_winner); here so SETTLE grades it like any side metric.
+    "match_won_for": {"sofascore": "winner_from_listing", "is_total": False},
     "aces_total": {"sofascore": "aces", "is_total": True},
     "aces_for": {"sofascore": "aces", "is_total": False},
     "double_faults_total": {"sofascore": "doubleFaults", "is_total": True},
@@ -1199,6 +1203,14 @@ def extract_metric(
         if set_index in match_tiebreak_sets(hs_, as_) or set_games(hs_, as_) is None:
             return GapReason.STAT_KEY_ABSENT
         return float(h + a) if is_total else float(h if is_home else a)
+
+    if sofascore_key == "winner_from_listing":
+        # 1 / 0 from winnerCode; a retirement or a walkover never reaches
+        # here when settling (settle.REFUND_REASONS decide first).
+        code = listing_event.get("winnerCode")
+        if code not in (1, 2):
+            return GapReason.STAT_KEY_ABSENT
+        return 1.0 if (code == 1) == is_home else 0.0
 
     if sofascore_key == "sets_from_listing":
         # Both players contest the same sets, so "sets played" is the count of

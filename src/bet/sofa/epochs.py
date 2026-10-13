@@ -978,3 +978,28 @@ def football_venue_prior(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_VENUE_PRIOR_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_VENUE_PRIOR_FROM_UTC)
+
+
+# Audit 2026-10-13 D2: the tennis match winner ("Zwycięzca", selections "1" /
+# "2") read by OFFER as one two-sided rung (bet.sofa.tennis_winner:
+# match_won_for, subject = the listing's first name, line 0.5, OVER = he
+# wins), priced by SHEET from the as-of rating alone (MatchForecast.
+# p_side_wins, no sample, no price) and read by CONFIDENCE from its own
+# history curve (match_won_for in the calibration, fitted on the replay by
+# scripts/sofa/fit_tennis_winner_curve.py). Adds legs, so changes what prints:
+# a day >= the date built at or after the moment. Off (None): OFFER, SAMPLES,
+# SHEET and CONFIDENCE byte-identical. Needs the curve installed - without it
+# every such leg is NOT_CALIBRATED. Operator's go for the refit: 2026-10-13
+# (O6). Evidence: docs/sofa/evidence/tennis_match_winner_2026-10-13.md.
+TENNIS_MATCH_WINNER = "tennis_match_winner_v1"
+TENNIS_MATCH_WINNER_FROM_UTC: datetime | None = None
+
+
+def tennis_match_winner(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the tennis match winner
+    (TENNIS_MATCH_WINNER_FROM_UTC)?"""
+    if TENNIS_MATCH_WINNER_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= TENNIS_MATCH_WINNER_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= TENNIS_MATCH_WINNER_FROM_UTC)

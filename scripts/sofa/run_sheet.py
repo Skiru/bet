@@ -98,6 +98,12 @@ from bet.sofa.tennis_rating import (
     load_history,
     start_for_rule,
 )
+from bet.sofa.tennis_winner import (
+    MATCH_WON_FOR,
+    RATING_ONLY_MARKETS,
+    winner_note,
+    winner_p,
+)
 from bet.sofa.timeutil import frozen_clock_refusal, now
 
 logger = logging.getLogger(__name__)
@@ -854,6 +860,86 @@ def football_forecast_p(
     return None if outside_model_resolution(p) else p
 
 
+def winner_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    rating: MatchForecast | None,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """D2 (epochs.TENNIS_MATCH_WINNER): the two rows of one tennis winner rung,
+    priced by the as-of rating alone (bet.sofa.tennis_winner).
+
+    p_central is the rating's P(the subject's side wins) - no sample, no
+    price. The row carries no sample (sample_size 0) and p_bar = p_central
+    ("rating_only"): 06_coupon.json's priced selector never calls it VALUE
+    (no ladder check), the confidence comes from the match_won_for curve."""
+    side = determine_side(rung.subject, fixture)
+    if side is None:
+        return [], [(rung, GapReason.NO_MATCHING_EVENT,
+                     f"subject {rung.subject!r} matches neither side")]
+    if rating is None:
+        return [], [(rung, GapReason.NOT_RATED,
+                     "no rating forecast (best of five, or a player under "
+                     "MIN_RATED rated matches)")]
+    p_side = rating.p_side_wins(side)
+    rows: list[SheetRow] = []
+    skipped: list[tuple[Any, GapReason, str]] = []
+    note = winner_note(p_side, side, rating.rated_home, rating.rated_away,
+                       rating.table_scope)
+    for direction in ("OVER", "UNDER"):
+        p = winner_p(p_side, direction)
+        if outside_model_resolution(p):
+            skipped.append((rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                            f"p={p:.4g} for {direction} is outside "
+                            f"[{P_FLOOR}, {P_CEILING}]"))
+            continue
+        offered = rung.over_odds if direction == "OVER" else rung.under_odds
+        m_p = market_ps.get((rung.market, rung.subject, rung.line, direction))
+        p_out = round(p, 4)
+        m_p_out = round(m_p, 4) if m_p is not None else None
+        req = round(get_required_odds(p_out, "LEAN"), 4)
+        surplus = round(offered - req, 4) if offered is not None else None
+        verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"] = (
+            "NO_PRICE" if offered is None
+            else "LEAN" if surplus is not None and surplus > 0 else "BELOW_BAR")
+        notes = [note]
+        if verdict == "LEAN":
+            notes.append("RATING_ONLY: no sample and no ladder check - "
+                         "VALUE withheld (06_coupon.json is not the coupon)")
+        rows.append(SheetRow(
+            sofascore_event_id=fixture.sofascore_event_id,
+            sport=fixture.sport,
+            market=rung.market,
+            subject=rung.subject,
+            line=rung.line,
+            direction=direction,
+            sample_size=0,
+            sample_mean=0.0,
+            sample_sd=0.0,
+            centre=round(p_side, 4),
+            p_central=p_out,
+            market_p=m_p_out,
+            ladder_centre=None,
+            ladder_sigma=None,
+            p_bar=p_out,
+            bar_reason="rating_only",
+            calibration_correction=0.0,
+            sample_newest_days=None,
+            sample_frequency=None,
+            required_odds=req,
+            offered_odds=offered,
+            edge=round(p_out - m_p_out, 4) if m_p_out is not None else None,
+            surplus=surplus,
+            verdict=verdict,
+            notes=notes,
+            epoch=STATS_ONLY if stats_only else None,
+            forecast_p=p_out if stats_only else None,
+            forecast_source="tennis_rating" if stats_only else None,
+        ))
+    return rows, skipped
+
+
 # Fields a stats-only sheet row carries; an old-rule row is written without
 # them, so a sheet built before 2026-10-05 is byte-for-byte what it was.
 STATS_ONLY_ROW_FIELDS = ("epoch", "forecast_p", "forecast_source")
@@ -903,6 +989,7 @@ def process_fixture(
     per_market_k_on: bool = False,
     game_state: GameStateTable | None = None,
     venue_prior_on: bool = False,
+    tennis_winner_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -967,6 +1054,17 @@ def process_fixture(
 
     # Now evaluate each rung and direction
     for rung in offer.rungs:
+        # D2: the tennis match winner, priced by the rating alone (no sample).
+        # OFFER emits it only under epochs.TENNIS_MATCH_WINNER; off, a stray
+        # rung of it is dropped like a market with no sample.
+        if rung.market in RATING_ONLY_MARKETS:
+            if (tennis_winner_on and fixture.sport == "tennis"
+                    and rung.market == MATCH_WON_FOR):
+                w_rows, w_skipped = winner_rows(
+                    fixture, rung, rating, market_ps, stats_only)
+                rows.extend(w_rows)
+                skipped.extend(w_skipped)
+            continue
         # A derived market is about both sides at once and has no marginal
         # sample to be priced against. derived.py handles it below; falling
         # through here would silently drop it as "metric not in samples".
@@ -1866,6 +1964,9 @@ def _main() -> int:
         if stats_only and epochs.game_state_enabled(args.date) else None)
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
+    # Audit 2026-10-13 D2: the tennis match winner from the rating (off: no
+    # such rung reaches SHEET at all - OFFER does not map it).
+    tennis_winner_on = stats_only and epochs.tennis_match_winner(args.date)
 
     try:
         for offer in offers:
@@ -1916,6 +2017,7 @@ def _main() -> int:
                 per_market_k_on=per_market_k_on,
                 game_state=game_state_table,
                 venue_prior_on=venue_prior_on,
+                tennis_winner_on=tennis_winner_on,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

@@ -38,6 +38,9 @@ class GapReason(StrEnum):
     # yellow - read as card points would count the red cards only.
     CARDS_NOT_RECORDED = "CARDS_NOT_RECORDED"
     THIN_SAMPLE = "THIN_SAMPLE"
+    # A rating-only market (D2, the tennis match winner) on a fixture the
+    # rating gives no forecast for (best of five, a player under MIN_RATED).
+    NOT_RATED = "NOT_RATED"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"
     STALE_PRICE = "STALE_PRICE"

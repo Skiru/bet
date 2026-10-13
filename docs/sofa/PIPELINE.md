@@ -323,6 +323,25 @@ golden `tests/sofa/golden/offer_mappable_off.json`). Nowe rynki pochodne nie
 mają krzywej – `NO_LINE_EVIDENCE` do 50 rozliczonych linii; szczeble
 `goals_*_for` 0,5 i `sets_total` czytają istniejące krzywe, więc mogą drukować.
 
+**Zwycięzca meczu w tenisie za przełącznikiem `TENNIS_MATCH_WINNER_FROM_UTC`**
+(`bet.sofa.epochs`, audyt 2026-10-13 D2; **`None` – wyłączony**). Włączony,
+OFFER czyta „Zwycięzca” (wybory „1” / „2”, tylko mecz tenisowy) jako jeden
+dwustronny szczebel `match_won_for`: podmiot = pierwsze nazwisko `matchName`
+Superbetu, linia 0,5, OVER = on wygrywa (kurs „1”), UNDER = wygrywa drugi
+(kurs „2”) – marża drabiny działa jak wszędzie (`bet.sofa.tennis_winner`).
+SAMPLES nie buduje próbki; SHEET liczy p z ratingu as-of
+(`MatchForecast.p_side_wins`, bez ceny; brak prognozy = `NOT_RATED`), wiersz
+ma `sample_size` 0 i `bar_reason` `rating_only`. CONFIDENCE czyta wyłącznie
+krzywą `match_won_for` (kobiety: `by_class.tennis_women`; dziura lub zakres
+ponad krzywą = odmowa, nigdy pula – `confidence.OWN_CURVE_ONLY`), potem line
+evidence jak każdy klucz; bramki próbki (`LINE_BEYOND_SAMPLE`, `MODE_LOSES`,
+rozmiar, wiek) go nie dotyczą, a noga nie wchodzi do builderów. SETTLE:
+`winnerCode` z listingu; krecz / walkower to zwrot (`settle.REFUND_REASONS`).
+Krzywą dopasowuje `scripts/sofa/fit_tennis_winner_curve.py` (replay ratingu,
+plik staged poza `config/`); pomiar i próg:
+`docs/sofa/evidence/tennis_match_winner_2026-10-13.md`. Przy `None` OFFER jest
+bajt w bajt jak przed zmianą (`tests/sofa/test_audit_2026_10_13_d2.py`).
+
 **Sporty mierzone nie mają `unmapped_markets`.** SHADOW i CS2 zapisują w
 `snapshots.jsonl` tylko linie, które czytają. Inwentaryzacja ich nieczytanych
 nazw (`report_market_coverage.py --date <d> --sports-only`, plan nocy

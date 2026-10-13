@@ -122,6 +122,7 @@ from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.schedule import FixtureSchedule  # noqa: E402
 from bet.sofa.settleability import REFUSAL_CODE as NOT_SETTLEABLE  # noqa: E402
 from bet.sofa.settleability import Settleability  # noqa: E402
+from bet.sofa.tennis_winner import RATING_ONLY_MARKETS  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
     load_vetoes,
@@ -788,13 +789,18 @@ def main() -> int:
         # sample can report 20/20 and mean nothing (every observation on the
         # same side of a line it has never approached), and a mean can sit
         # comfortably above a line whose modal outcome loses.
-        if line_is_beyond_sample(row["line"], row["direction"], values):
+        # D2: a rating-only market (the tennis match winner) has no sample;
+        # its curve was fitted on every rated match, under none of the
+        # sample's shape gates (bet.sofa.tennis_winner).
+        rating_only = row["market"] in RATING_ONLY_MARKETS
+        if not rating_only and line_is_beyond_sample(
+                row["line"], row["direction"], values):
             refused["LINE_BEYOND_SAMPLE"] += 1
             continue
-        if mode_loses(row["line"], row["direction"], values):
+        if not rating_only and mode_loses(row["line"], row["direction"], values):
             refused["MODE_LOSES"] += 1
             continue
-        if len(values) < MIN_BUILDER_SAMPLE:
+        if not rating_only and len(values) < MIN_BUILDER_SAMPLE:
             refused["THIN_SAMPLE_FOR_BUILDER"] += 1
             continue
         national_age: list[str] = []
@@ -1076,6 +1082,10 @@ def main() -> int:
     builders: list[dict[str, Any]] = []
     by_fixture: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for leg in legs:
+        # D2: no sample to intersect, and a match winner is no independent
+        # leg beside its own games - a rating-only leg prints as a single.
+        if leg["market"] in RATING_ONLY_MARKETS:
+            continue
         by_fixture[leg["sofascore_event_id"]].append(leg)
     for eid, group in by_fixture.items():
         # One leg per QUANTITY, not per market: a team's goals and the match
