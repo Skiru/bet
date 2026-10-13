@@ -126,8 +126,8 @@ tabeli (kolumna `pending`), nigdy w kodzie wyjścia. To normalny stan D-1:
 nogi sportów mierzonych po 00:00Z (NHL/NBA, nocne CS2) rozliczają się w pliku
 migawek następnego dnia — pętla CS2 o 05:00Z rozlicza D i D-1 i przegląda
 D-7..D-2 (`settle_cs2.py --sweep-from/--sweep-to`), pętla shadow o 05:15Z
-rozlicza D, D-1 i D-2 (D-2: przełożony mecz staje się `VOID` dopiero 48 h po
-starcie); jutrzejsze `--from <D-8>` je domyka. **1** = `MISMATCH` (dwa
+rozlicza D, D-1 i D-2 (D-2: przełożony mecz staje się `VOID` dopiero po 23:59
+następnego dnia czasu lokalnego); jutrzejsze `--from <D-8>` je domyka. **1** = `MISMATCH` (dwa
 oceniające nie zgadzają się co do nogi — defekt, nazwij go), nieczytelny plik
 albo, w `audit_settle_identity.py`, znalezisko tożsamości. **2** = awaria
 albo brak bazy. Zanim SHADOW_SETTLE / CS2_SETTLE zapisze `settled.json`,
@@ -171,9 +171,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <tod
   po przypiętym id; inne id = `NOT_GRADED:ID_CHANGED`) i „Suma kuponu”.
   Sekcje 7 i 7b to materiał wejściowy (legi i kandydaci), **nie zakłady**.
 - **Zwroty liczone osobno** (REFUND, 0 j.): `MOVED_BEYOND_VOID` (mecz
-  przesunięty o > 48 h), `AWARDED` (przyznany), `RETIRED` (krecz),
+  przesunięty poza 23:59 następnego dnia czasu lokalnego; przyspieszony o > 48 h), `AWARDED` (przyznany), `RETIRED` (krecz),
   `WALKOVER` (walkower), `CANCELED` (odwołany) i `POSTPONED_BEYOND_VOID`
-  (przełożony i nierozegrany 48 h od terminu z oferty) — nigdy przegrana, nigdy `sofa_settled_row`
+  (przełożony i nierozegrany do 23:59 następnego dnia czasu lokalnego) — nigdy przegrana, nigdy `sofa_settled_row`
   (`07_settle_skips.json`).
 - **7i „Nogi zdjęte przez odczyt”** — `removed_by_reads` z `11_coupon.json`,
   rozliczone osobno, nigdy w wyniku kuponu (dziennik `removed:reads`).

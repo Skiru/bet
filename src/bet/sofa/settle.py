@@ -11,11 +11,14 @@ cannot measure **ROI**. Do not report the second from the first.
 
 from __future__ import annotations
 
+import json
 import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta, tzinfo
+from functools import lru_cache
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from bet.sofa.contracts import Direction, GapReason
 from bet.sofa.engine import (
@@ -50,13 +53,71 @@ Outcome = Literal["WIN", "LOSS", "PUSH"]
 # quietly become a settled row.
 NORMAL_FINISH_STATUS_CODE = 100
 
-# Superbet voids a bet on a match not played within 48 h of the start it was
-# offered at (Regulamin 5.E.1.a). One constant for every sport: shadow.py and
-# its settle read it from here.
+# Superbet voids a bet on a match not played "do końca następnego dnia":
+# by 23:59 of the day after the start it was offered at, local time at the
+# venue (Regulamin Zakładów Online 5.E.1.a, approved 2026-02-10; verified on
+# support.superbet.pl 2026-10-13). Until 2026-10-13 the code read the 2022
+# rules' 48 h. `void_deadline` is that moment; VOID_AFTER stays only for a
+# match brought FORWARD (the rules say nothing of it; kept as it was).
 VOID_AFTER = timedelta(hours=48)
+COUNTRY_TIMEZONES_FILE = "sofa_country_timezones.json"
+# Team sports whose home side's country is the venue's when Sofascore names
+# no venue and no country of the competition (tennis / CS2: the player's or
+# team's nationality says nothing of where they play).
+_HOME_COUNTRY_SPORTS = frozenset({"football", "basketball", "ice-hockey", "volleyball"})
+
+
+@lru_cache(maxsize=1)
+def _country_zones() -> dict[str, str]:
+    from bet.sofa.config import config_path  # local: settle is imported widely
+
+    try:
+        doc = json.loads(config_path(COUNTRY_TIMEZONES_FILE).read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k).upper(): str(v) for k, v in (doc.get("zones") or {}).items()}
+
+
+def _alpha2(node: object) -> str:
+    if not isinstance(node, Mapping):
+        return ""
+    country = node.get("country")
+    if not isinstance(country, Mapping):
+        return ""
+    return str(country.get("alpha2") or country.get("alpha3") or "").upper()[:2]
+
+
+def venue_timezone(event: Mapping[str, Any] | None) -> tzinfo:
+    """The zone of the match's venue: Sofascore's venue country, else the
+    competition's country, else (team sports) the home side's; UTC when none
+    is known (config/sofa_country_timezones.json; a country with several
+    zones reads its most populous one)."""
+    if not event:
+        return UTC
+    tournament = event.get("tournament") or {}
+    category = tournament.get("category") if isinstance(tournament, Mapping) else None
+    candidates = [_alpha2(event.get("venue"))]
+    if isinstance(category, Mapping):
+        candidates.append(str(category.get("alpha2") or "").upper())
+        sport = str((category.get("sport") or {}).get("slug") or "")
+        if sport in _HOME_COUNTRY_SPORTS:
+            candidates.append(_alpha2(event.get("homeTeam")))
+    zones = _country_zones()
+    for code in candidates:
+        if code and code in zones:
+            return ZoneInfo(zones[code])
+    return UTC
+
+
+def void_deadline(offered: datetime, zone: tzinfo = UTC) -> datetime:
+    """The end of the day after `offered` (23:59 local, Regulamin 5.E.1.a), in
+    UTC: a match not played by then is void at Superbet."""
+    local = offered.astimezone(zone)
+    end = datetime.combine(local.date() + timedelta(days=1), time(23, 59), tzinfo=zone)
+    return end.astimezone(UTC)
 
 # SETTLE skip reasons that are a REFUND of the stake (0 units), never a loss
-# and never "unsettled": the match was moved more than VOID_AFTER from the
+# and never "unsettled": the match was moved past `void_deadline` of the
 # start the leg was printed at (Everton 2026-09-24: event 16997888 moved 66 h,
 # graded LOSS), or Sofascore marks the result awarded (a forfeit, not a
 # played contest).
@@ -75,9 +136,9 @@ WALKOVER = "WALKOVER"
 # football / tennis legs of 10-06..10-10 stayed ungraded for good (Copa
 # Chile Colo-Colo, UTR Belgrade, Samsun, Serie C Pineto).
 CANCELED = "CANCELED"
-# A match still postponed (or delayed) when VOID_AFTER has passed since the
-# start the leg was offered at: not played within 48 h, so void at Superbet.
-# Within the 48 h it stays POSTPONED, pending, and is re-settled.
+# A match still postponed (or delayed) past `void_deadline` of the start the
+# leg was offered at: not played by the end of the next day, so void at
+# Superbet. Before that it stays POSTPONED, pending, and is re-settled.
 POSTPONED_BEYOND_VOID = "POSTPONED_BEYOND_VOID"
 REFUND_REASONS = frozenset(
     {MOVED_BEYOND_VOID, AWARDED, RETIRED, WALKOVER, CANCELED, POSTPONED_BEYOND_VOID})
@@ -121,12 +182,13 @@ PRINTED_SETTLED_FILE = "07_settled_printed.json"
 
 
 def moved_beyond_void(event: Mapping[str, Any], kickoffs: Sequence[datetime]) -> bool:
-    """Did Sofascore's start move more than VOID_AFTER from the earliest
-    clock the pipeline held for the fixture (locked_print.kickoff_clocks:
+    """Did Sofascore's start move past Superbet's void deadline from the
+    earliest clock the pipeline held for the fixture (locked_print.kickoff_clocks:
     02_fixtures kickoff_utc, superbet_kickoff_utc, superbet_kickoff_seen_utc)?
 
-    Either direction: a match brought forward 66 h is as void as one put back
-    66 h. No start or no clock says nothing, so it is never "moved".
+    Put back: started after `void_deadline` (end of the next day, local).
+    Brought forward: more than VOID_AFTER earlier, as before 2026-10-13.
+    No start or no clock says nothing, so it is never "moved".
     """
     start = event.get("startTimestamp")
     if not isinstance(start, (int, float)) or isinstance(start, bool) or start <= 0:
@@ -134,15 +196,18 @@ def moved_beyond_void(event: Mapping[str, Any], kickoffs: Sequence[datetime]) ->
     if not kickoffs:
         return False
     started = datetime.fromtimestamp(start, UTC)
-    return abs(started - min(kickoffs)) > VOID_AFTER
+    offered = min(kickoffs)
+    if started < offered:
+        return offered - started > VOID_AFTER
+    return started > void_deadline(offered, venue_timezone(event))
 
 
 def not_played_beyond_void(
     event: Mapping[str, Any], kickoffs: Sequence[datetime], at: datetime
 ) -> bool:
-    """Is the match still postponed / delayed more than VOID_AFTER after the
-    start it was offered at? Then Superbet has voided it (not played within
-    48 h) and it is POSTPONED_BEYOND_VOID, a refund.
+    """Is the match still postponed / delayed past `void_deadline` of the
+    start it was offered at (end of the next day, local)? Then Superbet has
+    voided it and it is POSTPONED_BEYOND_VOID, a refund.
 
     The start is the earliest clock the pipeline held (kickoff_clocks);
     without one, Sofascore's own startTimestamp. No start says nothing."""
@@ -156,7 +221,7 @@ def not_played_beyond_void(
         if not isinstance(start, (int, float)) or isinstance(start, bool) or start <= 0:
             return False
         offered = datetime.fromtimestamp(start, UTC)
-    return at - offered > VOID_AFTER
+    return at > void_deadline(offered, venue_timezone(event))
 
 
 def settle_completed(event: Mapping[str, Any]) -> bool:

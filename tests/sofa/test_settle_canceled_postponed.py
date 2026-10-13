@@ -62,7 +62,9 @@ def test_unfinished_reason_names_a_cancelled_match_a_refund(kind: str) -> None:
 
 @pytest.mark.parametrize(
     ("kind", "after_h", "void"),
-    [("postponed", 49, True), ("postponed", 47, False), ("delayed", 49, True),
+    # no venue country: the deadline is 2026-10-09 23:59Z, 31 h 59 min after
+    # the 16:00Z start (settle.void_deadline; 48 h until 2026-10-13)
+    [("postponed", 32, True), ("postponed", 31, False), ("delayed", 32, True),
      ("notstarted", 72, False), ("finished", 72, False), ("canceled", 72, False)],
 )
 def test_not_played_beyond_void(kind: str, after_h: float, void: bool) -> None:

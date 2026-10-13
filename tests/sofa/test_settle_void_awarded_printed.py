@@ -57,7 +57,11 @@ def test_void_after_is_one_constant_for_every_sport() -> None:
     assert shadow.VOID_AFTER is settle_mod.VOID_AFTER
 
 
-@pytest.mark.parametrize(("offset", "moved"), [(66, True), (-66, True), (47, False),
+# Put back: void past the end of the next day (no venue country: 23:59Z of
+# 09-25, 29 h 59 min after the 18:00Z start; 48 h until 2026-10-13).
+# Brought forward: 48 h as before.
+@pytest.mark.parametrize(("offset", "moved"), [(66, True), (-66, True), (47, True),
+                                               (31, True), (29, False),
                                                (-47, False), (0, False)])
 def test_moved_beyond_void_either_direction(offset: float, moved: bool) -> None:
     assert moved_beyond_void(_ev(offset), [KICKOFF]) is moved
@@ -199,9 +203,9 @@ def test_a_match_moved_66_h_either_way_writes_no_row(
     sheet = [_row(1), _row(2), _row(3), _row(3, "corners_total")]
     run_dir = _day(tmp_path, monkeypatch, sheet, [1, 2, 3])
     monkeypatch.setattr(run_settle, "_event_payload", _payloads(
-        {1: _event(1, 66), 2: _event(2, -66), 3: _event(3, 47)}))
+        {1: _event(1, 66), 2: _event(2, -66), 3: _event(3, 29)}))
     _run(monkeypatch)
-    assert _db_rows(tmp_path) == [(3, "WIN")], "only the +47 h match is graded"
+    assert _db_rows(tmp_path) == [(3, "WIN")], "only the +29 h match is graded"
     skips = _skips(run_dir)
     assert skips[1] == {"MOVED_BEYOND_VOID": 1}
     assert skips[2] == {"MOVED_BEYOND_VOID": 1}

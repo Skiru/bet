@@ -57,6 +57,7 @@ from bet.sofa.atomic import write_atomic as _write_atomic
 from bet.sofa.engine import devig, devig_many
 from bet.sofa.names import DIACRITICS_FOLD
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD
+from bet.sofa.settle import venue_timezone, void_deadline
 
 SUPERBET_CS2_SPORT_ID = 55
 SOFASCORE_CS_CATEGORY = "Counter Strike"
@@ -66,8 +67,8 @@ SOFASCORE_CS_CATEGORY = "Counter Strike"
 MATCH_WINDOW = timedelta(hours=6)
 REMATCH_NEAR = timedelta(hours=1)
 REMATCH_FAR = timedelta(hours=3)
-# Regulamin 5.E.1.a: not played within 48 h of the original time -> void.
-VOID_AFTER = timedelta(hours=48)
+# Regulamin 5.E.1.a: not played by the end of the next day -> void
+# (bet.sofa.settle.void_deadline; until 2026-10-13 this read 48 h).
 # A best-of-three runs ~2.5 h; settling earlier only finds it unfinished.
 SETTLE_AFTER = timedelta(hours=4)
 # Five a side. A map with fewer rows cannot grade a team's kills.
@@ -809,7 +810,8 @@ def event_state(detail: dict[str, Any], kickoff: datetime, now: datetime) -> Eve
     """Where the series stands, by Superbet's rules.
 
     FINISHED only for a plainly ended series. Cancelled, abandoned, or not
-    started 48 h after the scheduled start is VOID (Regulamin 5.E.1.a). A
+    started by the end of the day after the scheduled start is VOID
+    (Regulamin 5.E.1.a, settle.void_deadline). A
     "finished" whose description is not "Ended" - a walkover, an awarded
     series - is UNUSUAL and never graded: a walkover is not a result (5.D.3.b).
     """
@@ -819,11 +821,13 @@ def event_state(detail: dict[str, Any], kickoff: datetime, now: datetime) -> Eve
         return "FINISHED" if status.get("description") == "Ended" else "UNUSUAL"
     if kind in ("canceled", "cancelled", "abandoned"):
         return "VOID"
-    # Only a series that never started is void at 48 h. One still "inprogress"
+    # Only a series that never started is void past the deadline. One still "inprogress"
     # two days on is a stale status, not an unplayed match - it stays PENDING
     # and CS2_SETTLE gives up on it (GAVE_UP, ours) rather than calling it
     # Superbet's void.
-    if kind in ("notstarted", "postponed", "delayed") and now - kickoff > VOID_AFTER:
+    if kind in ("notstarted", "postponed", "delayed") and now > void_deadline(
+        kickoff, venue_timezone(detail)
+    ):
         return "VOID"
     return "PENDING"
 
