@@ -352,8 +352,10 @@ measurement of Superbet's price and feed nothing else.
   game in a competition below `MIN_LEAGUE_MATCHES` (30) has no model p
   (`NO_LEAGUE_RATE`) - never the all-league mean (NBA Preseason read 82.8
   points a side). No fallback to the home league. The line-evidence replay
-  (`settled_shadow_rows`) applies the day's rule; the history curves take it
-  with the basketball refit. Football's half
+  (`settled_shadow_rows`) applies the day's rule. The basketball curve refitted
+  with it (`--before 2026-10-14`, 2026-10-13) was not installed: on Superbet's
+  lines of 10-05..10-12 confidence log-loss -0.00042 [-0.00145, +0.00063], the
+  printable gap -16 pp unchanged (`docs/sofa/evidence/basketball_refit_2026-10-13.md`). Football's half
   (`FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC`) is measured worse and stays `None`.
 - Every fitted key of all four prints on the same rules as football and
   tennis. Volleyball still needs a tournament with a settled event in the
