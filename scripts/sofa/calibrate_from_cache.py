@@ -472,6 +472,8 @@ def slim_event(event: dict[str, Any]) -> dict[str, Any]:
 def load_cache(
     db_path: Path, dropped_out: set[int] | None = None,
     tennis_sets: bool = False,
+    since_ts: int | None = None,
+    until_ts: int | None = None,
 ) -> list[Played]:
     """Every finished cached match, one listing per match.
 
@@ -484,6 +486,10 @@ def load_cache(
     reads them, so a match without /statistics enters the replay for those
     bases alone (its other bases' histories are untouched: they are keyed by
     base).
+
+    `since_ts` / `until_ts` (a smoke run's --history-from / --to): only the
+    matches kicking off inside them are held - a light replay whose samples
+    are cut at since_ts, never a rebuild.
     """
     conn = sqlite3.connect(str(db_path))
     try:
@@ -500,6 +506,12 @@ def load_cache(
             status = (event.get("status") or {}).get("type")
             if status != "finished" or _event_sport(event) not in REPLAYED_SPORTS:
                 return None
+            if since_ts is not None or until_ts is not None:
+                start = event.get("startTimestamp")
+                if not isinstance(start, int) or (
+                        since_ts is not None and start < since_ts) or (
+                        until_ts is not None and start >= until_ts):
+                    return None
             return slim_event(event)
 
         identity = listed_events_by_id(conn, finished_copy, kinds=None)
@@ -2112,6 +2124,13 @@ def replay_players(
     }
 
 
+def day_ts(day: str | None) -> int | None:
+    """00:00Z of a YYYY-MM-DD day as unix seconds (None stays None)."""
+    if day is None:
+        return None
+    return int(datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db-path", default=None)
@@ -2272,6 +2291,14 @@ def main() -> int:
         help="smoke window: rows only for matches before this UTC day",
     )
     parser.add_argument(
+        "--history-from", default=None, metavar="YYYY-MM-DD",
+        help="smoke only (needs --no-write): hold only the matches from this "
+        "UTC day (to --to), so a smoke does not load the whole history; the "
+        "samples of the window's first weeks are then thinner than a "
+        "rebuild's. The rating books (football, tennis) still read their "
+        "whole history",
+    )
+    parser.add_argument(
         "--no-write", action="store_true",
         help="count and time the rows, write nothing to the DB (a smoke run)",
     )
@@ -2285,6 +2312,9 @@ def main() -> int:
     if args.tennis_set_ratings and args.tennis_rating != "include":
         # rides on the rating prices (epochs.tennis_set_rating_prices)
         parser.error("--tennis-set-ratings needs --tennis-rating include")
+    if args.history_from is not None and not args.no_write:
+        # a cut history is a smoke: its rows would describe thinner samples
+        parser.error("--history-from needs --no-write")
     if (args.count_dispersion is not None) != bool(args.per_market_k):
         # fitted jointly: SHEET refuses one without the other
         # (epochs.require_k_with_dispersion), so the replay must too
@@ -2335,8 +2365,14 @@ def main() -> int:
     baselines = load_baselines()
     t_load = datetime.now(UTC)
     if args.players != "only":
-        played = (load_cache(db_path, dropped, tennis_sets=True)
-                  if TENNIS_SET_RATINGS else load_cache(db_path, dropped))
+        load_kw: dict[str, Any] = {}
+        if TENNIS_SET_RATINGS:
+            load_kw["tennis_sets"] = True
+        if args.history_from is not None:
+            # a light smoke: the held history starts here, nothing after --to
+            load_kw["since_ts"] = day_ts(args.history_from)
+            load_kw["until_ts"] = day_ts(args.emit_to)
+        played = load_cache(db_path, dropped, **load_kw)
         if args.halves == "skip":
             played = without_halves(played)
     load_seconds = round((datetime.now(UTC) - t_load).total_seconds(), 1)
@@ -2360,12 +2396,6 @@ def main() -> int:
         football = FootballRatingReplay.from_db(db_path, CENTRE_RULES)
         football_seconds = round(
             (datetime.now(UTC) - t_hist).total_seconds(), 1)
-
-    def day_ts(day: str | None) -> int | None:
-        if day is None:
-            return None
-        return int(datetime.strptime(day, "%Y-%m-%d").replace(
-            tzinfo=UTC).timestamp())
 
     emit_from, emit_to = day_ts(args.emit_from), day_ts(args.emit_to)
     window = emit_from is not None or emit_to is not None
