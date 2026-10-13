@@ -1,0 +1,103 @@
+{
+  "_doc": "Football rating weight per market (audit 2026-10-13 B14): centre = w x rating + (1 - w) x shrunk sample. INERT while epochs.FOOTBALL_RATING_WEIGHT_FROM_UTC is None; a market absent here keeps W_FOOTBALL_RATING. Written by scripts/sofa/fit_rating_weight.py.",
+  "fitted_from": {
+    "fitted_at_utc": "2026-10-13T12:22:43+00:00",
+    "train_from": "2024-10-01",
+    "before": "2026-10-13",
+    "method": "grid 0..1 step 0.05, lowest mean NB log-loss of the centre",
+    "evidence": "docs/sofa/evidence/rating_weight_2026-10-13.md"
+  },
+  "markets": {
+    "goals_for": {
+      "w": 0.95,
+      "n_rows": 1188310,
+      "n_matches": 594155,
+      "logloss_at_w": 1.6024753979062694,
+      "logloss_at_0.5": 1.6133058399797606
+    },
+    "goals_1h_for": {
+      "w": 0.8,
+      "n_rows": 810498,
+      "n_matches": 405249,
+      "logloss_at_w": 1.085634364103557,
+      "logloss_at_0.5": 1.087498637151855
+    },
+    "goals_1h_total": {
+      "w": 0.3,
+      "n_rows": 405249,
+      "n_matches": 405249,
+      "logloss_at_w": 1.4891777719145758,
+      "logloss_at_0.5": 1.4896292980403438
+    },
+    "goals_2h_for": {
+      "w": 0.8,
+      "n_rows": 807794,
+      "n_matches": 403897,
+      "logloss_at_w": 1.209101801816488,
+      "logloss_at_0.5": 1.2120551017951569
+    },
+    "goals_2h_total": {
+      "w": 0.3,
+      "n_rows": 403897,
+      "n_matches": 403897,
+      "logloss_at_w": 1.6113238776637546,
+      "logloss_at_0.5": 1.6119473219542177
+    },
+    "corners_for": {
+      "w": 0.8,
+      "n_rows": 144780,
+      "n_matches": 72390,
+      "logloss_at_w": 2.3342452966123335,
+      "logloss_at_0.5": 2.3378935919172923
+    },
+    "fouls_for": {
+      "w": 0.65,
+      "n_rows": 124338,
+      "n_matches": 62169,
+      "logloss_at_w": 2.7356541515710777,
+      "logloss_at_0.5": 2.7368830097212498
+    },
+    "fouls_1h_for": {
+      "w": 0.7,
+      "n_rows": 33318,
+      "n_matches": 16659,
+      "logloss_at_w": 2.255867015422827,
+      "logloss_at_0.5": 2.2571122138579125
+    },
+    "offsides_for": {
+      "w": 0.9,
+      "n_rows": 130368,
+      "n_matches": 65184,
+      "logloss_at_w": 1.692934688518037,
+      "logloss_at_0.5": 1.6988700997272432
+    },
+    "shots_for": {
+      "w": 0.85,
+      "n_rows": 108216,
+      "n_matches": 54108,
+      "logloss_at_w": 2.9047649751503846,
+      "logloss_at_0.5": 2.9176135671167853
+    },
+    "shots_1h_for": {
+      "w": 0.9,
+      "n_rows": 51162,
+      "n_matches": 25581,
+      "logloss_at_w": 2.4379819266779355,
+      "logloss_at_0.5": 2.4466327111675477
+    },
+    "shots_on_target_for": {
+      "w": 0.85,
+      "n_rows": 124730,
+      "n_matches": 62365,
+      "logloss_at_w": 2.2113550839517337,
+      "logloss_at_0.5": 2.2176980697315387
+    },
+    "shots_on_target_1h_for": {
+      "w": 0.75,
+      "n_rows": 50356,
+      "n_matches": 25178,
+      "logloss_at_w": 1.7334079331554815,
+      "logloss_at_0.5": 1.735431080148523
+    }
+  }
+}

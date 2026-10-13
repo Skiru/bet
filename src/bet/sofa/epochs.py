@@ -1114,3 +1114,47 @@ def tennis_match_winner(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= TENNIS_MATCH_WINNER_FROM_UTC.strftime("%Y-%m-%d")
             and at >= TENNIS_MATCH_WINNER_FROM_UTC)
+
+
+# Audit 2026-10-13 C1: the season phase of a football league match (early /
+# mid / late / final, as of the kickoff from the history: each side's
+# matches of the competition-season so far against the previous season's
+# length, bet.sofa.season_phase) multiplies the centre of the goals markets of
+# season_phase.SEASON_PHASE_MARKETS by exp(c[market][phase]) from
+# config/sofa_season_phase.json. Changes p, so what prints: a day >= the date
+# built at or after the moment. The curves were fitted without the term: it
+# goes on with the football refit that replays it.
+# Evidence: docs/sofa/evidence/season_phase_2026-10-13.md.
+SEASON_PHASE = "season_phase_v1"
+SEASON_PHASE_FROM_UTC: datetime | None = None
+
+
+def season_phase_enabled(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football goals centre carry the season-phase term
+    (SEASON_PHASE_FROM_UTC)?"""
+    if SEASON_PHASE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= SEASON_PHASE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= SEASON_PHASE_FROM_UTC)
+
+
+# Audit 2026-10-13 B14: the football rating's weight per market. From this
+# moment a rated football centre is W_m x rating + (1 - W_m) x the shrunk
+# sample with W_m from config/sofa_rating_weight.json (bet.sofa.rating_weight;
+# a market absent from the file keeps football_rating.W_FOOTBALL_RATING).
+# Changes p, so what prints: a day >= the date built at or after the moment.
+# The curves describe W = 0.5: it goes on with the football refit.
+# Evidence: docs/sofa/evidence/rating_weight_2026-10-13.md.
+FOOTBALL_RATING_WEIGHT = "rating_weight_v1"
+FOOTBALL_RATING_WEIGHT_FROM_UTC: datetime | None = None
+
+
+def football_rating_weight(date: str, build_at: datetime | None = None) -> bool:
+    """Does a rated football centre read its market's own W
+    (FOOTBALL_RATING_WEIGHT_FROM_UTC)?"""
+    if FOOTBALL_RATING_WEIGHT_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_RATING_WEIGHT_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_RATING_WEIGHT_FROM_UTC)
