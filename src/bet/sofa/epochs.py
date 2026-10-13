@@ -1202,7 +1202,10 @@ def vb_set_history(date: str | None = None, build_at: datetime | None = None
 # with the switch on and no --market-lines reads MARKET_LINES_CACHE) and goes
 # live only with the curve refitted that way (O6). None = synthetic lines.
 # Measured: docs/sofa/evidence/market_positioned_lines_2026-10-13.md.
-MARKET_POSITIONED_LINES_FROM_UTC: datetime | None = None
+# On with the A7 basketball curve staged from 2026-10-14 (audit standing go):
+# log-loss -0.0622 [-0.0702, -0.0546] on Superbet lines 10-05..10-12.
+MARKET_POSITIONED_LINES_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
 MARKET_LINES_CACHE = "data/a7_odds/{sport}.jsonl"
 
 

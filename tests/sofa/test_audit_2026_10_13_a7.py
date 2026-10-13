@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import json
 import random
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from bet.sofa import epochs
 from bet.sofa import sport_confidence as scf
@@ -141,8 +144,15 @@ def _rows(market: dict[int, MarketLines] | None, max_games: int | None = 10
                                  max_games, "t", market_lines=market)
 
 
-def test_switch_off_rows_are_identical() -> None:
-    assert epochs.MARKET_POSITIONED_LINES_FROM_UTC is None
+def test_the_switch_is_on_from_10_14() -> None:
+    # turned on with the A7 basketball curve staged from 2026-10-14 (audit
+    # standing go, docs/sofa/evidence/market_positioned_lines_2026-10-13.md)
+    assert epochs.MARKET_POSITIONED_LINES_FROM_UTC == datetime(2026, 10, 14, tzinfo=UTC)
+    assert not epochs.market_positioned_lines("2026-10-13")
+
+
+def test_switch_off_rows_are_identical(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(epochs, "MARKET_POSITIONED_LINES_FROM_UTC", None)
     assert not epochs.market_positioned_lines("2026-10-14")
     a = scf.walk_forward_rows(_history(), BASKETBALL, 40 * DAY, 60 * DAY, 30,
                               10, "t")
@@ -151,7 +161,9 @@ def test_switch_off_rows_are_identical() -> None:
     assert not any("line_source" in r for r in a)
 
 
-def test_fit_reads_no_cache_while_the_switch_is_off() -> None:
+def test_fit_reads_no_cache_while_the_switch_is_off(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(epochs, "MARKET_POSITIONED_LINES_FROM_UTC", None)
     assert market_lines_for("basketball", "2026-10-14", None) is None
     assert market_lines_for("hockey", "2026-10-14", "/nonexistent") is None
 
