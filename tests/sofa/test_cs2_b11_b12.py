@@ -77,9 +77,11 @@ def test_exposure_covers_the_measured_families_only() -> None:
             "team_kills"} <= eng.EXPOSURE_FAMILIES
 
 
-def test_exposure_switch_from_next_day() -> None:
-    at = datetime(2026, 10, 14, 0, 1, tzinfo=UTC)
+def test_exposure_switch_from_the_refit_rebuild_of_10_13() -> None:
+    # moved by the operator from 2026-10-14 00:00Z to 2026-10-13 18:10Z
+    at = datetime(2026, 10, 13, 18, 10, tzinfo=UTC)
+    assert epochs.cs2_count_exposure("2026-10-13", at)
     assert epochs.cs2_count_exposure("2026-10-14", at)
-    assert not epochs.cs2_count_exposure("2026-10-13", at)
+    assert not epochs.cs2_count_exposure("2026-10-12", at)
     assert not epochs.cs2_count_exposure(
-        "2026-10-14", datetime(2026, 10, 13, 23, 0, tzinfo=UTC))
+        "2026-10-13", datetime(2026, 10, 13, 18, 9, tzinfo=UTC))

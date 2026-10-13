@@ -41,7 +41,8 @@ def test_the_switch_starts_with_the_2026_10_09_epoch() -> None:
 def test_the_shipped_file_keeps_its_old_keys() -> None:
     k = json.loads(CONFIG.read_text())["K_CENTRE"]
     assert k["by_sport"]["football"] == 15.0
-    assert k["value"] == 10.0
+    assert k["value"] == 15.0  # refit 2026-10-13 (10.0 before)
+    assert k["by_sport"]["tennis"] == 8.0  # refit 2026-10-13 (5.0 before)
     assert "curve" in k and k["status"] == "FITTED"
     assert k["by_market"]["football"]["shots_for"] == 8.0  # live from the switch
 

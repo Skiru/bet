@@ -27,12 +27,15 @@ DAY = 86400
     ("SEASON_PHASE_FROM_UTC", epochs.season_phase_enabled),
     ("FOOTBALL_RATING_WEIGHT_FROM_UTC", epochs.football_rating_weight),
 ])
-def test_stage4_switches_are_off_and_read_the_day_and_the_clock(
+def test_stage4_switches_are_on_from_the_refit_and_read_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch, name: str, pred: object) -> None:
-    assert getattr(epochs, name) is None
     check = pred  # type: ignore[assignment]
     late = datetime(2027, 1, 1, tzinfo=UTC)
-    assert not check("2027-01-01", late)  # type: ignore[operator]
+    # switched on with the refit of 2026-10-13 (18:10Z, operator O6); the
+    # rule below is then checked on a moved switch
+    assert getattr(epochs, name) == datetime(2026, 10, 13, 18, 10, tzinfo=UTC)
+    assert not check("2026-10-13", datetime(2026, 10, 13, 18, 9, tzinfo=UTC))  # type: ignore[operator]
+    assert not check("2026-10-12", datetime(2027, 1, 1, tzinfo=UTC))  # type: ignore[operator]
     monkeypatch.setattr(epochs, name, datetime(2026, 10, 14, tzinfo=UTC))
     assert check("2026-10-14", datetime(2026, 10, 14, 1, tzinfo=UTC))  # type: ignore[operator]
     assert not check("2026-10-13", late)  # type: ignore[operator]

@@ -931,8 +931,10 @@ def unit_strength_from_parent(date: str, build_at: datetime | None = None) -> bo
 # (copy of the DB, --before 2026-10-13) is staged in
 # config/sofa_sport_confidence_calibration.next.json from 2026-10-14
 # (docs/sofa/evidence/cs2_team_rounds_race_2026-10-13.md).
+# Moved by the operator (2026-10-13) from 2026-10-14 00:00Z to the refit's
+# rebuild of 10-13, with the staged CS2 curve: a mixed day.
 CS2_TEAM_ROUNDS_RACE_FROM_UTC: datetime | None = datetime(
-    2026, 10, 14, 0, 0, tzinfo=UTC)
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def cs2_team_rounds_race(date: str, build_at: datetime | None = None) -> bool:
@@ -953,7 +955,11 @@ def cs2_team_rounds_race(date: str, build_at: datetime | None = None) -> bool:
 # Changes p, so what prints: a day >= the date built at or after the moment.
 # Evidence: docs/sofa/evidence/game_state_2026-10-13.md.
 GAME_STATE = "game_state_v1"
-GAME_STATE_FROM_UTC: datetime | None = None
+# Switched on 2026-10-13 18:10Z with the football / tennis refit installed at
+# 18:06Z (curves fitted on the replay carrying it; operator O6): 10-13 is a
+# mixed day, its earlier prints stay locked.
+GAME_STATE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def game_state_enabled(date: str, build_at: datetime | None = None) -> bool:
@@ -974,7 +980,11 @@ def game_state_enabled(date: str, build_at: datetime | None = None) -> bool:
 # rated market. A day >= the date built at or after the moment.
 # Evidence: docs/sofa/evidence/unrated_markets_2026-10-13.md.
 FOOTBALL_RATED_SCOPE = "rated_scope_v1"
-FOOTBALL_RATED_SCOPE_FROM_UTC: datetime | None = None
+# Switched on 2026-10-13 18:10Z with the football / tennis refit installed at
+# 18:06Z (curves fitted on the replay carrying it; operator O6): 10-13 is a
+# mixed day, its earlier prints stay locked.
+FOOTBALL_RATED_SCOPE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def football_rated_scope(date: str, build_at: datetime | None = None) -> bool:
@@ -995,7 +1005,11 @@ def football_rated_scope(date: str, build_at: datetime | None = None) -> bool:
 # centre. A day >= the date built at or after the moment.
 # Evidence: docs/sofa/evidence/unrated_markets_2026-10-13.md.
 FOOTBALL_VENUE_PRIOR = "venue_prior_v1"
-FOOTBALL_VENUE_PRIOR_FROM_UTC: datetime | None = None
+# Switched on 2026-10-13 18:10Z with the football / tennis refit installed at
+# 18:06Z (curves fitted on the replay carrying it; operator O6): 10-13 is a
+# mixed day, its earlier prints stay locked.
+FOOTBALL_VENUE_PRIOR_FROM_UTC: datetime | None = datetime(
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def football_venue_prior(date: str, build_at: datetime | None = None) -> bool:
@@ -1214,8 +1228,12 @@ def market_positioned_lines(date: str | None = None,
 # by match): log-loss better in every market and both windows - set totals
 # -0.017..-0.019, a player's set games -0.065..-0.068 (set three -0.088),
 # sets_total -0.022 (docs/sofa/evidence/tennis_set_markets_2026-10-13.md).
-# NOT switched on: it needs the refit above first.
-TENNIS_SET_RATING_PRICES_FROM_UTC: datetime | None = None
+# Switched on with that refit (2026-10-13 18:10Z, below).
+# Switched on 2026-10-13 18:10Z with the football / tennis refit installed at
+# 18:06Z (curves fitted on the replay carrying it; operator O6): 10-13 is a
+# mixed day, its earlier prints stay locked.
+TENNIS_SET_RATING_PRICES_FROM_UTC: datetime | None = datetime(
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def tennis_set_rating_prices(date: str, build_at: datetime | None = None) -> bool:
@@ -1296,7 +1314,11 @@ def tennis_match_winner(date: str, build_at: datetime | None = None) -> bool:
 # goes on with the football refit that replays it.
 # Evidence: docs/sofa/evidence/season_phase_2026-10-13.md.
 SEASON_PHASE = "season_phase_v1"
-SEASON_PHASE_FROM_UTC: datetime | None = None
+# Switched on 2026-10-13 18:10Z with the football / tennis refit installed at
+# 18:06Z (curves fitted on the replay carrying it; operator O6): 10-13 is a
+# mixed day, its earlier prints stay locked.
+SEASON_PHASE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def season_phase_enabled(date: str, build_at: datetime | None = None) -> bool:
@@ -1317,7 +1339,11 @@ def season_phase_enabled(date: str, build_at: datetime | None = None) -> bool:
 # The curves describe W = 0.5: it goes on with the football refit.
 # Evidence: docs/sofa/evidence/rating_weight_2026-10-13.md.
 FOOTBALL_RATING_WEIGHT = "rating_weight_v1"
-FOOTBALL_RATING_WEIGHT_FROM_UTC: datetime | None = None
+# Switched on 2026-10-13 18:10Z with the football / tennis refit installed at
+# 18:06Z (curves fitted on the replay carrying it; operator O6): 10-13 is a
+# mixed day, its earlier prints stay locked.
+FOOTBALL_RATING_WEIGHT_FROM_UTC: datetime | None = datetime(
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def football_rating_weight(date: str, build_at: datetime | None = None) -> bool:
@@ -1367,8 +1393,10 @@ def cs2_map_identity(date: str, build_at: datetime | None = None) -> bool:
 # Evidence: docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md.
 # Switched on by the audit's standing go (CLAUDE.md, Changing the pipeline 4):
 # out-of-sample log-loss better with an interval below zero on four families.
+# Moved by the operator (2026-10-13) from 2026-10-14 00:00Z to the refit's
+# rebuild of 10-13, with the staged CS2 curve: a mixed day.
 CS2_COUNT_EXPOSURE_FROM_UTC: datetime | None = datetime(
-    2026, 10, 14, 0, 0, tzinfo=UTC)
+    2026, 10, 13, 18, 10, tzinfo=UTC)
 
 
 def cs2_count_exposure(date: str, build_at: datetime | None = None) -> bool:

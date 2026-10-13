@@ -139,12 +139,17 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # PLAYER_STARTS_ONLY, token name match); and again from 2026-10-14 00:00Z
 # (audit 2026-10-13: measured-sport friendlies / thin competitions refused -
 # LEAGUE_RATE_RULE - and a no-curve key's bucket design effect -
-# BUCKET_DESIGN_EFFECT). One table row per (variant, group), never summed
-# across groups.
+# BUCKET_DESIGN_EFFECT). 2026-10-13 itself is a mixed day: the football /
+# tennis refit of the audit (curves on the A6 replay with B1 / B2 / B5 / B14 /
+# C1, and the CS2 switches B10 / B12) was installed into it at an exact time,
+# so its legs printed before stay locked under the old curves - its own
+# group, added to neither neighbour. One table row per (variant, group),
+# never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
-                "od 10-14")
+                "10-13 mieszany", "od 10-14")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
+REFIT_1013_MIXED_DATE = "2026-10-13"
 AUDIT_EPOCH_FROM_DATE = "2026-10-14"
 
 
@@ -152,6 +157,8 @@ def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
         if str(row.get("date", "")) >= AUDIT_EPOCH_FROM_DATE:
             return "od 10-14"
+        if str(row.get("date", "")) == REFIT_1013_MIXED_DATE:
+            return "10-13 mieszany"
         if str(row.get("date", "")) >= PLAYER_EPOCH_FROM_DATE:
             return "od 10-12"
         if str(row.get("date", "")) >= REFIT_EPOCH_FROM_DATE:
@@ -192,7 +199,8 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
             f"{interval_text(grouped[v])} |"
         )
     out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
-            "stats_only / od 10-09 / od 10-12): the coupon before and after "
+            "stats_only / od 10-09 / od 10-12 / 10-13 mieszany / od 10-14): the "
+            "coupon before and after "
             "each cutover "
             "is not one experiment, so the groups are never added."]
     out += ["", f"A 3% edge needs ~{BETS_FOR_3PCT} settled positions to show at "

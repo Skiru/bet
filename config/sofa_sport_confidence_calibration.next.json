@@ -11715,7 +11715,7 @@
   "staged": "fit_sport_confidence.py --sport <s> --before 2026-10-07 --dry-run --rows-out (2026-10-07), sections assembled; EXTENDED_MARKETS scored from the history; cs2 and volleyball refitted with CS2_EXTENDED_FAMILIES / volleyball EXTENDED_MARKETS; cs2 refitted ~11:35Z with the series families (cs2_engine.SERIES_KAPPA); rows kept in data/line_evidence/rows_before_2026-10-07",
   "basketball_bb_freshness": "basketball section refitted 2026-10-07 with --bb-freshness on (SimParams.bb_fresh_mult in the replay), --before 2026-10-08; other sports unchanged"
  },
- "effective_from": "2026-10-14",
+ "effective_from": "2026-10-13",
  "staged_change": {
   "sport": "cs2",
   "why": "audit 2026-10-13 B10: map_team_rounds from the round race (epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC); refit on data/refit_2026-10-13/sofa_replay.db, --before 2026-10-13 --cs2-team-rounds-race",

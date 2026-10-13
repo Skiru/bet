@@ -1,28 +1,28 @@
 {
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
-    "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-08/sofa_replay.db",
-    "settled_rows": 58799230,
-    "distinct_competitions": 7255,
-    "fitted_at_utc": "2026-10-08T16:19:17+00:00",
-    "max_settled_run_date": "2026-10-06",
+    "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-13/sofa_replay.db",
+    "settled_rows": 104493327,
+    "distinct_competitions": 11421,
+    "fitted_at_utc": "2026-10-13T16:30:34+00:00",
+    "max_settled_run_date": "2026-10-12",
     "friendly_competitions_excluded": 79
   },
   "K_CENTRE": {
-    "value": 10.0,
+    "value": 15.0,
     "by_sport": {
       "football": 15.0,
-      "tennis": 5.0
+      "tennis": 8.0
     },
     "curve": {
-      "0.0": 0.181851,
-      "2.0": 0.179614,
-      "5.0": 0.178466,
-      "8.0": 0.1783,
-      "10.0": 0.178403,
-      "15.0": 0.178911,
-      "25.0": 0.180029,
-      "1000.0": 0.185484
+      "0.0": 0.182284,
+      "2.0": 0.180295,
+      "5.0": 0.179174,
+      "8.0": 0.178898,
+      "10.0": 0.178905,
+      "15.0": 0.179171,
+      "25.0": 0.179895,
+      "1000.0": 0.183821
     },
     "status": "FITTED",
     "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid",
@@ -39,14 +39,14 @@
   "K_PRICE": {
     "value": null,
     "curve": {
-      "0.0": 0.204533,
-      "2.0": 0.201528,
-      "5.0": 0.199071,
-      "8.0": 0.19772,
-      "10.0": 0.197129,
-      "15.0": 0.196211,
-      "25.0": 0.1954,
-      "1000.0": 0.194717
+      "0.0": 0.20436,
+      "2.0": 0.201493,
+      "5.0": 0.199148,
+      "8.0": 0.197861,
+      "10.0": 0.1973,
+      "15.0": 0.196431,
+      "25.0": 0.195671,
+      "1000.0": 0.195088
     },
     "status": "NOT_FITTED",
     "criterion": "as K_CENTRE (Brier), on rows carrying a devigged market price"
@@ -54,87 +54,87 @@
   "MAX_LADDER_SIGMA": {
     "value": null,
     "status": "NO_DIVERGENCE",
-    "rows_available": 288543,
+    "rows_available": 418856,
     "bands": [
       {
         "lo": 0.0,
-        "hi": 0.0281,
-        "n": 28886,
-        "declared": 0.4995,
-        "realised": 0.499,
-        "gap": 0.0005
+        "hi": 0.0298,
+        "n": 41981,
+        "declared": 0.4993,
+        "realised": 0.4989,
+        "gap": 0.0004
       },
       {
-        "lo": 0.0281,
-        "hi": 0.0565,
-        "n": 28983,
-        "declared": 0.4995,
-        "realised": 0.4995,
-        "gap": -0.0001
+        "lo": 0.0298,
+        "hi": 0.0594,
+        "n": 42121,
+        "declared": 0.4992,
+        "realised": 0.4992,
+        "gap": 0.0
       },
       {
-        "lo": 0.0565,
-        "hi": 0.0858,
-        "n": 28877,
-        "declared": 0.4997,
-        "realised": 0.4995,
+        "lo": 0.0594,
+        "hi": 0.0905,
+        "n": 42019,
+        "declared": 0.4994,
+        "realised": 0.4992,
         "gap": 0.0002
       },
       {
-        "lo": 0.0858,
-        "hi": 0.1171,
-        "n": 28940,
-        "declared": 0.4995,
-        "realised": 0.4996,
+        "lo": 0.0905,
+        "hi": 0.1234,
+        "n": 41944,
+        "declared": 0.4993,
+        "realised": 0.4993,
         "gap": -0.0
       },
       {
-        "lo": 0.1171,
-        "hi": 0.1531,
-        "n": 28872,
-        "declared": 0.4996,
+        "lo": 0.1234,
+        "hi": 0.1624,
+        "n": 42035,
+        "declared": 0.4992,
         "realised": 0.4994,
-        "gap": 0.0002
+        "gap": -0.0002
       },
       {
-        "lo": 0.1531,
-        "hi": 0.1965,
-        "n": 28903,
-        "declared": 0.4997,
-        "realised": 0.499,
+        "lo": 0.1624,
+        "hi": 0.2083,
+        "n": 41937,
+        "declared": 0.4992,
+        "realised": 0.4986,
         "gap": 0.0006
       },
       {
-        "lo": 0.1965,
-        "hi": 0.2583,
-        "n": 28949,
-        "declared": 0.4994,
-        "realised": 0.4994,
-        "gap": -0.0
+        "lo": 0.2083,
+        "hi": 0.2715,
+        "n": 41950,
+        "declared": 0.499,
+        "realised": 0.5,
+        "gap": -0.001
       },
       {
-        "lo": 0.2583,
-        "hi": 0.3527,
-        "n": 28903,
-        "declared": 0.4993,
-        "realised": 0.5002,
-        "gap": -0.0009
+        "lo": 0.2715,
+        "hi": 0.369,
+        "n": 41950,
+        "declared": 0.4989,
+        "realised": 0.5005,
+        "gap": -0.0016
       },
       {
-        "lo": 0.3527,
-        "hi": 0.5412,
-        "n": 28867,
-        "declared": 0.4993,
-        "realised": 0.4999,
-        "gap": -0.0006
+        "lo": 0.369,
+        "hi": 0.5557,
+        "n": 41899,
+        "declared": 0.4991,
+        "realised": 0.5006,
+        "gap": -0.0015
       },
       {
-        "lo": 0.5412,
-        "hi": 4.5339,
-        "n": 28882,
-        "declared": 0.4984,
-        "realised": 0.5007,
-        "gap": -0.0023
+        "lo": 0.5557,
+        "hi": 4.5397,
+        "n": 41891,
+        "declared": 0.4986,
+        "realised": 0.5004,
+        "gap": -0.0018
       }
     ]
   }

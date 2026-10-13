@@ -82,11 +82,14 @@ def test_the_set_markets_are_the_audits_six() -> None:
 # --- B5: the switch ------------------------------------------------------------
 
 
-def test_the_set_rating_switch_is_off_and_reads_the_day_and_the_clock(
+def test_the_set_rating_switch_is_on_from_the_refit_and_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    assert epochs.TENNIS_SET_RATING_PRICES_FROM_UTC is None
-    assert not epochs.tennis_set_rating_prices("2026-12-01", datetime(
-        2026, 12, 1, 12, tzinfo=UTC))
+    # switched on with the refit of 2026-10-13 (18:10Z, operator O6)
+    on = datetime(2026, 10, 13, 18, 10, tzinfo=UTC)
+    assert epochs.TENNIS_SET_RATING_PRICES_FROM_UTC == on
+    assert epochs.tennis_set_rating_prices("2026-10-13", on)
+    assert not epochs.tennis_set_rating_prices("2026-10-13", datetime(
+        2026, 10, 13, 18, 9, tzinfo=UTC))
     at = datetime(2026, 10, 20, 0, 0, tzinfo=UTC)
     monkeypatch.setattr(epochs, "TENNIS_SET_RATING_PRICES_FROM_UTC", at)
     assert epochs.tennis_set_rating_prices("2026-10-20", at)
