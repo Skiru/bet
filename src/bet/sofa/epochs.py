@@ -781,7 +781,11 @@ def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
 # It ADDS rungs, and so rows and possibly legs (the goals_for / sets_total
 # ones read existing curves), so never mid-day; None until the operator sets
 # it. With None OFFER is byte-identical to before (test_mappable_families).
-MAPPABLE_FAMILIES_FROM_UTC: datetime | None = None
+# Switched on by the operator 2026-10-13 ("Wszystkie rynki włączone"); E2E on
+# 10-13's samples clean (docs/sofa/evidence/mappable_e2e_2026-10-14.md; the
+# bridge leg of the E2E was refused by Sofascore - not tested).
+MAPPABLE_FAMILIES_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
 
 
 def mappable_families(date: str, build_at: datetime | None = None) -> bool:

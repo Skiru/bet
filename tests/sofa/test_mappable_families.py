@@ -48,9 +48,10 @@ TENNIS = ("Alexander Zverev", "Alexander Bublik")
 # --- the switch ------------------------------------------------------------
 
 
-def test_the_switch_is_off_until_the_operator_sets_it() -> None:
-    assert epochs.MAPPABLE_FAMILIES_FROM_UTC is None
+def test_the_switch_is_on_from_10_14_by_the_operator() -> None:
+    assert epochs.MAPPABLE_FAMILIES_FROM_UTC == datetime(2026, 10, 14, tzinfo=UTC)
     assert not epochs.mappable_families("2026-10-13", datetime(2026, 10, 13, 12, tzinfo=UTC))
+    assert epochs.mappable_families("2026-10-14", datetime(2026, 10, 14, 1, tzinfo=UTC))
 
 
 def test_the_switch_is_judged_on_the_day_built_and_the_clock(
