@@ -257,7 +257,7 @@ every sport alike, and nothing that could win is cut by name.
   stays (locked); a leg removed before its start stays removed.
   `ladder_form` / `max_positions_per_match` are OFF unless
   `config/sofa_coupon_form.json` sets them (operator's call).
-- **Reads:** analysts read the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"), every printed
+- **Reads:** analysts read the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"; from `READ_BY_VALUE_FROM_UTC` 2026-10-14 00:00Z the 30 matches are those of the best value - the best unlocked leg's confidence x odds, a football / tennis confidence capped at 1/odds + `price_gap.GAP`, `confidence.read_value`, `read_order: "value"`; operator 2026-10-13), every printed
   builder leg and whatever is in `read_requests.json`
   (`confidence.legs_requiring_read`, `READ_REQUIRED_SINGLES`; audit C3 checks
   it; a rebuild moves positions, so re-read until C3 is clean); the rest
@@ -319,12 +319,18 @@ measurement of Superbet's price and feed nothing else.
 
 ## Settlement and the ledger
 
-- **SETTLE:** a refund (0 u.), never a loss, when the match moved > 48 h
-  (`VOID_AFTER`), was awarded, retired (Sofascore code 92, `RETIRED`), a
-  walkover (`WALKOVER`), cancelled (`CANCELED`) or is still postponed /
-  delayed `VOID_AFTER` after the start it was offered at
-  (`POSTPONED_BEYOND_VOID`; inside the 48 h it stays `POSTPONED`, pending) -
-  `settle.REFUND_REASONS` (operator, 2026-10-07: Superbet's rules). A
+- **SETTLE:** a refund (0 u.), never a loss, when the match was put back
+  past Superbet's deadline - **23:59 of the day after the offered start,
+  local time at the venue** (`settle.void_deadline`, zone from the venue /
+  competition / home side's country, `config/sofa_country_timezones.json`,
+  UTC when unknown; Regulamin Zakładów Online 5.E.1.a of 2026-02-10, read
+  2026-10-13; until then 48 h) - or brought forward > 48 h (`VOID_AFTER`),
+  was awarded, retired (Sofascore code 92, `RETIRED`), a walkover
+  (`WALKOVER`), cancelled (`CANCELED`) or is still postponed / delayed past
+  that deadline (`POSTPONED_BEYOND_VOID`; before it `POSTPONED`, pending) -
+  `settle.REFUND_REASONS`; SHADOW_SETTLE / CS2_SETTLE read the same
+  deadline. An abandoned match is not yet graded by 5.D.5 (a market already
+  decided at the interruption stands, the rest is void): open. A
   football match decided on penalties (code 120) with no extra time (no
   `extra1` / `extra2` / `overtime`, current = normaltime + penalties) is
   graded on its whole-match statistics (`metrics.played_extra_time`,

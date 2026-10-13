@@ -77,7 +77,7 @@ for x in legs:
 PY
 ```
 
-That is the set `audit_variants` C3 requires a read on: the first 30 unlocked
+That is the set `audit_variants` C3 requires a read on: the first 30 unlocked (from 2026-10-14 00:00Z: of the 30 best-value matches, `read_order: "value"`)
 positions, every printed builder leg and every `read_requests.json` entry
 (`{"position": n}` or `{"group_key": "sofa:<id>", "market"?, "line"?,
 "direction"?}`; a sport leg answers to its `family` as `market` and its `side`

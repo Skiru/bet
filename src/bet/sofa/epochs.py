@@ -646,6 +646,26 @@ def read_by_event(date: str, build_at: datetime | None = None) -> bool:
     return date >= READ_EVENTS_DATE and at >= READ_EVENTS_FROM_UTC
 
 
+# The analysts' 30 matches are the matches of the best VALUE, not the best
+# confidence (operator, 2026-10-13: "takie które mają i prawdopodobieństwo i
+# cenę najlepszą z danego dnia"): `confidence.legs_requiring_read` ranks the
+# matches by their best unlocked leg's confidence x odds, a football / tennis
+# leg's confidence capped at 1/odds + price_gap.GAP (such legs realised about at
+# their price, bet.sofa.price_gap). Still 30 matches, every unlocked leg of
+# each; every leg still prints. Changes which legs a read may remove, so next
+# day 00:00Z; the build records the rule in the artifact (`read_order`).
+READ_BY_VALUE_DATE = "2026-10-14"
+READ_BY_VALUE_FROM_UTC: datetime | None = datetime(2026, 10, 14, 0, 0, tzinfo=UTC)
+
+
+def read_by_value(date: str, build_at: datetime | None = None) -> bool:
+    """Are the read set's matches ranked by value (READ_BY_VALUE_FROM_UTC)?"""
+    if READ_BY_VALUE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= READ_BY_VALUE_DATE and at >= READ_BY_VALUE_FROM_UTC
+
+
 # A footballer Superbet writes under his full registered name ("Andrade,
 # Matheus Araujo") and Sofascore under the name he plays by ("Matheus
 # Araujo") scored under match_player's 85 and had no sample: 346 of the 680

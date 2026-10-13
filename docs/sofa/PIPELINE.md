@@ -1182,7 +1182,7 @@ niego 08).
   (`analyst` / `verifier` / `auto`). Dla nóg sportów weta i odczyty stosuje tu
   `coupon_sports.apply_reads` (z `period`).
 - Kopia `read_requests` i zbiór do przeczytania
-  (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30 (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `READ_REQUIRED_EVENTS`, `read_unit: "event"` w artefakcie)
+  (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30 (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `READ_REQUIRED_EVENTS`, `read_unit: "event"` w artefakcie; od 2026-10-14 00:00Z, `READ_BY_VALUE_FROM_UTC`, 30 meczów o najwyższej wartości: pewność x kurs najlepszej niezablokowanej nogi meczu, pewność nogi piłkarskiej / tenisowej liczona najwyżej 1/kurs + 0,03, `confidence.read_value`, `read_order: "value"`; operator 2026-10-13)
   pozycji niezablokowanych, każda noga wydrukowanego buildera, prośby z
   `read_requests.json`). Prośba, która nic nie objęła, drukuje
   `UNMATCHED_READ_REQUEST`.
@@ -1405,11 +1405,19 @@ bo konkuruje z nim o most.
   są prawdziwymi prognozami i tylko one mówią, co zrobiła **cała** tablica.
 - SETTLE to **jedyny pisarz, który stawia cenę Superbetu obok wyniku**, więc
   jedyne źródło dla `fit_k_price` i `MAX_LADDER_SIGMA`.
+- **Termin zwrotu** (od 2026-10-13, Regulamin Zakładów Online 5.E.1.a z
+  2026-02-10): mecz nierozegrany **do 23:59 następnego dnia czasu lokalnego
+  miejsca meczu** po terminie z oferty jest anulowany (`settle.void_deadline`;
+  strefa z kraju obiektu, rozgrywek albo - w sportach drużynowych -
+  gospodarza, `config/sofa_country_timezones.json`, UTC gdy nieznany).
+  Wcześniej kod czytał 48 h ze starego regulaminu (2022). Mecz przyspieszony
+  o > 48 h - jak dotąd. Mecz przerwany (5.D.5: rynek rozstrzygnięty w chwili
+  przerwania zostaje ważny, reszta anulowana) - jeszcze nieoceniany, otwarte.
 - **Zwroty** (od 2026-10-05; krecz i walkower od 2026-10-07): mecz przesunięty
-  o > 48 h (`MOVED_BEYOND_VOID`), przyznany (`AWARDED`), krecz (`RETIRED`,
+  poza termin zwrotu (`MOVED_BEYOND_VOID`), przyznany (`AWARDED`), krecz (`RETIRED`,
   status Sofascore „Retired", kod 92), walkower (`WALKOVER`), mecz odwołany
-  (`CANCELED`, od 2026-10-12) albo wciąż przełożony / opóźniony 48 h po
-  terminie z oferty (`POSTPONED_BEYOND_VOID`, od 2026-10-12; w oknie 48 h
+  (`CANCELED`, od 2026-10-12) albo wciąż przełożony / opóźniony po terminie
+  zwrotu (`POSTPONED_BEYOND_VOID`, od 2026-10-12; przed nim
   zostaje `POSTPONED` i czeka na ponowny SETTLE) to zwrot
   (0 j.), nigdy przegrana i nigdy `sofa_settled_row` (trafia do
   `07_settle_skips.json`; `settle.REFUND_REASONS`).
@@ -1571,7 +1579,7 @@ naprawi sam, bo wymaga zamknięcia Chrome. Każda linia logu zaczyna się od
   serię w Sofascore (kategoria „Counter Strike”; drużyna e-sportowa jest osobna
   dla każdej gry), odtwarza mapy po kolei i ocenia linie dopiero wtedy, gdy mapy
   dają dokładnie wynik serii podany przez Sofascore. Seria w toku jest ponawiana;
-  po 48 h od startu to `VOID` — tak jak w Regulaminie Superbeta (5.E.1.a);
+  po terminie zwrotu (koniec następnego dnia; do 2026-10-13: 48 h) to `VOID` — Regulamin Superbeta 5.E.1.a;
   po 7 dniach bez oceny `GAVE_UP` (nasze). Od 2026-10-01 seria bez wierszy
   zawodników nie czeka w całości (`STATS_PENDING`, karencja 72 h): czekają
   tylko linie zawodników i zabójstw drużyny na mapie bez tych wierszy
@@ -1707,7 +1715,7 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   `daily_<d>.pid`. Rano po SHADOW_SETTLE (D, D-1 i D-2 — każdy dzień,
   który ma migawki) pętla zapisuje dziennik (`record_results.py --from
   <najwcześniejszy> --to D`). D-2 doszło 2026-10-01: przełożony mecz staje
-  się `VOID` dopiero 48 h po starcie, a settle D-1 o 05:15Z jest najwyżej
+  się `VOID` dopiero po terminie zwrotu (koniec następnego dnia; do 2026-10-13: 48 h), a settle D-1 o 05:15Z jest najwyżej
   ~35 h po nim — bez D-2 przełożony mecz nigdy nie był `VOID` i kończył jako
   `GAVE_UP`. Settle D-2 wypada 53–77 h po meczu; mecz już rozliczony jest
   zachowywany, pytane są tylko czekające.

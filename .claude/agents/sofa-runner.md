@@ -356,7 +356,7 @@ This 11 is provisional too: it is what the analysts read.
 ## Step 5 — the analysts, on the legs that need a read
 
 `audit_variants` C3 requires an analyst's read on
-`confidence.legs_requiring_read`: the **first 30 unlocked positions** of
+`confidence.legs_requiring_read`: the **first 30 unlocked (from 2026-10-14 00:00Z: of the 30 best-value matches, `read_order: "value"`) positions** of
 `11_coupon.json`, **every printed builder leg**, and every entry of
 `runs/sofa/<date>/read_requests.json` (the operator's "dodatkowo", added by
 `/sofa-analyze`). The rest of the coupon prints unread - the operator's

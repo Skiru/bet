@@ -41,7 +41,7 @@ beside, uncalibrated, and never gates or sorts. `06_coupon.json` - `p_bar`,
 but it is not the coupon and never the confidence; say which is which in
 every summary.
 
-**The read set** is `confidence.legs_requiring_read`: the first 30 unlocked
+**The read set** is `confidence.legs_requiring_read`: the first 30 unlocked (from 2026-10-14 00:00Z: of the 30 best-value matches, `read_order: "value"`)
 positions, every printed builder leg, every `read_requests.json` entry. That
 is what the analysts read, what C3 checks and what you verify by hand. Name
 how many printed positions lay beyond it, unverified.

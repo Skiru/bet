@@ -616,7 +616,7 @@ unmatched read is `UNMATCHED_READ` on stderr (a sport read always is there -
 COUPON_ASSEMBLY applies it). Appended to, never edited: the analysts' reads
 after a provisional build, the verifier's after verification.
 `audit_variants` C1 counts it in freshness, C3 requires an analyst's read on
-every leg of `confidence.legs_requiring_read` (the first 30 unlocked
+every leg of `confidence.legs_requiring_read` (the first 30 unlocked (from 2026-10-14 00:00Z: of the 30 best-value matches, `read_order: "value"`)
 positions, every printed builder leg, `read_requests.json`).
 
 ## The log

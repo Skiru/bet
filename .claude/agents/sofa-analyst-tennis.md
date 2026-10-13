@@ -145,7 +145,7 @@ The coupon is `runs/sofa/<date>/KUPON_<date>.pdf`, rendered from
 Its singles are numbered 1..N in `confidence.coupon_order` (confidence, then
 the earlier start, the legs of one match together); builders are B1... You
 read the tennis legs of the set `audit_variants` C3 requires an analyst read
-on - the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"), every printed builder leg and every
+on - the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"; from 2026-10-14 00:00Z the matches of the best value - best leg confidence x odds, a football / tennis confidence capped at 1/odds + 0.03, `read_order: "value"`), every printed builder leg and every
 entry of `runs/sofa/<date>/read_requests.json` (the operator's
 "dodatkowo: ..." in `/sofa-analyze`):
 

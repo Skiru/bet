@@ -71,6 +71,7 @@ from bet.sofa.epochs import (  # noqa: E402
     peer_choice,
     price_gap_flag,
     read_by_event,
+    read_by_value,
 )
 from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
@@ -107,6 +108,7 @@ def assemble(
     screen_required: bool = False,
     peer_active: bool = False,
     read_events: bool = False,
+    read_value_order: bool = False,
     stakes_by_event: dict[int, list[str]] | None = None,
     price_gap_active: bool = False,
 ) -> dict[str, Any]:
@@ -253,6 +255,8 @@ def assemble(
         **structure,
         # the unit of the analysts' read set (epochs.READ_EVENTS_FROM_UTC)
         "read_unit": "event" if read_events else "position",
+        # the order of the read set's matches (epochs.READ_BY_VALUE_FROM_UTC)
+        "read_order": "value" if read_events and read_value_order else "coupon",
         "peer_choice": {
             "active": peer_active,
             "active_from_utc": "2026-10-08T08:10:00Z",
@@ -484,6 +488,7 @@ def main() -> int:
                    screen_prices=screen,
                    screen_required=builder_screen_price_required(args.date, at),
                    peer_active=peer_on, read_events=read_by_event(args.date, at),
+                   read_value_order=read_by_value(args.date, at),
                    stakes_by_event=stakes_by_event,
                    price_gap_active=price_gap_flag(args.date, at))
     write_atomic(run / COUPON_ARTIFACT,

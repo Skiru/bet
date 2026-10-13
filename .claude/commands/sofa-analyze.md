@@ -97,7 +97,7 @@ print('run_id', ids[-1] if ids else 'NOT FOUND - say so')
 "
 ```
 
-That set is `confidence.legs_requiring_read`: the first 30 unlocked
+That set is `confidence.legs_requiring_read`: the first 30 unlocked (from 2026-10-14 00:00Z: of the 30 best-value matches, `read_order: "value"`)
 positions of `11_coupon.json`, every printed builder leg, and every
 `read_requests.json` entry - exactly what `audit_variants` C3 checks. The
 rest of the coupon prints unread (the operator's order of 2026-10-05). A

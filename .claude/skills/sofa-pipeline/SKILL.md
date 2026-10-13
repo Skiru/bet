@@ -463,7 +463,7 @@ passed every gate and a read removed goes to `removed_by_reads` in
 `11_coupon.json`, graded on its own (`audit_settlement` 7i, ledger
 `removed:reads`), never in the coupon's result. KEEP removes nothing.
 
-Who reads: `confidence.legs_requiring_read` — the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków")
+Who reads: `confidence.legs_requiring_read` — the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"; from 2026-10-14 00:00Z the matches of the best value - best leg confidence x odds, a football / tennis confidence capped at 1/odds + 0.03, `read_order: "value"`)
 of `11_coupon.json` (`READ_REQUIRED_SINGLES`; a rebuild moves positions, so
 re-read until C3 is clean), every printed builder leg, and
 whatever `read_requests.json` asks for (`{"position": n}` or `{"group_key":

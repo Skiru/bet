@@ -798,8 +798,11 @@ def legs_requiring_read(
         fresh = [s for s in singles if not s.get("locked")]
         if artifact.get("read_unit") == "event":
             # the matches in the coupon's own order (a block per match, the
-            # match of the best leg first); all their unlocked legs
+            # match of the best leg first) or, with `read_order` "value", by
+            # their best leg's read_value; all their unlocked legs
             ordered = sorted(fresh, key=lambda s: int(s.get("position") or 0))
+            if artifact.get("read_order") == "value":
+                ordered.sort(key=lambda s: -read_value(s))  # stable: ties by position
             events: list[str] = []
             for s in ordered:
                 g = group_key(s)
@@ -835,6 +838,22 @@ def legs_requiring_read(
             for leg in b.get("legs") or []
         ),
     ]
+
+
+def read_value(leg: Mapping[str, Any]) -> float:
+    """A leg's value for the analysts' read order (epochs.READ_BY_VALUE_FROM_UTC):
+    confidence x odds, a football / tennis leg's confidence capped at
+    1/odds + price_gap.GAP (legs above that realised about at their price;
+    capped, not cut to the price, so the rank does not jump at the flag)."""
+    from bet.sofa import price_gap  # leaf module; local to keep imports light
+
+    conf, odds = leg.get("confidence"), leg.get("offered_odds")
+    if conf is None or not odds or float(odds) <= 1.0:
+        return 0.0
+    p = float(conf)
+    if price_gap.over_price(leg) is not None:
+        p = min(p, 1.0 / float(odds) + price_gap.GAP)
+    return p * float(odds)
 
 
 def request_covers(request: Mapping[str, Any], leg: Mapping[str, Any]) -> bool:
