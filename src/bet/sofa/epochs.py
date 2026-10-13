@@ -1301,3 +1301,54 @@ def football_rating_weight(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_RATING_WEIGHT_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_RATING_WEIGHT_FROM_UTC)
+
+
+# Audit 2026-10-13 B11: every map of a CS2 series had the same p - the map
+# number on the line ("X wygra N. mape") was never read and the history held
+# no map name. Superbet's line knows only the number (the veto is minutes
+# before the start; Sofascore names the map afterwards; the starting side and
+# halves come after the veto), so what is knowable pre-match enters: a term
+# per (format, map number) and the two teams' per-map Elo deviations mixed
+# over their recent map pools (cs2_engine.MapPoolBook, RatingModel.p_map_nr).
+# From this moment the map-level families (map_winner, map_rounds_handicap,
+# the race's map_team_rounds) read the map's own p in SPORT_CONFIDENCE, at
+# CS2_SETTLE and in the history replay of a fit for a day >= it. It changes
+# p, so the CS2 curve must be refitted on the same estimator.
+# Evidence: docs/sofa/evidence/cs2_map_identity_2026-10-13.md.
+CS2_MAP_IDENTITY_FROM_UTC: datetime | None = None
+
+
+def cs2_map_identity(date: str, build_at: datetime | None = None) -> bool:
+    """Does a CS2 map-level line read its own map's p
+    (CS2_MAP_IDENTITY_FROM_UTC)?"""
+    if CS2_MAP_IDENTITY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CS2_MAP_IDENTITY_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CS2_MAP_IDENTITY_FROM_UTC)
+
+
+# Audit 2026-10-13 B12: a CS2 player's kills / deaths / assists / headshots
+# and a team's kills were a negative binomial of the last 20 maps' values -
+# blind to how many rounds the map is expected to last and to who wins them
+# (kills correlate 0.592 with the map's rounds). From this moment the
+# families in cs2_engine.EXPOSURE_FAMILIES are priced from the round race's
+# (W, L) distribution x per-round rates (cs2_engine.ExposureBook) in
+# SPORT_CONFIDENCE and at CS2_SETTLE (model_p, the line evidence's input);
+# player_headshots stays on the sample (measured worse). No history curve
+# reads these families (line evidence only).
+# Evidence: docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md.
+# Switched on by the audit's standing go (CLAUDE.md, Changing the pipeline 4):
+# out-of-sample log-loss better with an interval below zero on four families.
+CS2_COUNT_EXPOSURE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
+
+
+def cs2_count_exposure(date: str, build_at: datetime | None = None) -> bool:
+    """Is a CS2 kills / deaths / assists / headshots line priced from the
+    rounds' exposure (CS2_COUNT_EXPOSURE_FROM_UTC)?"""
+    if CS2_COUNT_EXPOSURE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CS2_COUNT_EXPOSURE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CS2_COUNT_EXPOSURE_FROM_UTC)

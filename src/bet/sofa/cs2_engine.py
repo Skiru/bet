@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from functools import cache, lru_cache
 from typing import Any
@@ -339,17 +339,225 @@ class RatingModel:
     pa: float = 0.0
     pb: float = 1.0
     p_fit: int = 0
+    # audit B11 (epochs.CS2_MAP_IDENTITY): terms on the home logit, fitted
+    # with the base calibration as the offset (fit_map_terms); zero = off
+    order_delta: dict[str, float] = field(default_factory=dict)
+    pool_c: float = 0.0
+    pool: MapPoolBook | None = None
+    map_fit: int = 0
+
+    def base_logit(self, d: float, g: float | None) -> float:
+        """The calibrated home logit from the team gap d and the lineup gap
+        g, as p_map reads them."""
+        if g is not None and self.p_fit >= MIN_FIT:
+            return self.pa + self.pb * g
+        return self.a + self.b * d
+
+    def home_logit(self, home: int, away: int) -> float | None:
+        if not self.book.rated(home, away):
+            return None
+        gap = self.players.gap(home, away) if self.players is not None else None
+        return self.base_logit(logit_diff(self.book, home, away), gap)
 
     def p_map(self, team1: int, team2: int, team1_is_home: bool) -> float | None:
-        if not self.book.rated(team1, team2):
-            return None
         home, away = (team1, team2) if team1_is_home else (team2, team1)
-        gap = self.players.gap(home, away) if self.players is not None else None
-        if gap is not None and self.p_fit >= MIN_FIT:
-            p_home = _sigmoid(self.pa + self.pb * gap)
-        else:
-            p_home = _sigmoid(self.a + self.b * logit_diff(self.book, home, away))
+        z = self.home_logit(home, away)
+        if z is None:
+            return None
+        p_home = _sigmoid(z)
         return p_home if team1_is_home else 1.0 - p_home
+
+    def p_map_nr(self, team1: int, team2: int, team1_is_home: bool,
+                 best_of: int | None, map_nr: int) -> float | None:
+        """p_map for map `map_nr` of the series (audit B11): the base logit
+        plus the (format, map number) term and the pool term. Equal to p_map
+        when the terms were not fitted (build_ratings without map_terms)."""
+        home, away = (team1, team2) if team1_is_home else (team2, team1)
+        z = self.home_logit(home, away)
+        if z is None:
+            return None
+        z += self.order_delta.get(map_order_key(best_of, map_nr), 0.0)
+        if self.pool is not None and self.pool_c:
+            z += self.pool_c * self.pool.delta(home, away)
+        p_home = _sigmoid(z)
+        return p_home if team1_is_home else 1.0 - p_home
+
+
+# --- audit B11: the map's number and the teams' map pools --------------------------
+
+# What is known before a CS2 series: the map's number on the line, the format
+# and the teams' past maps. The map itself is chosen in the veto minutes
+# before the start (Superbet's line names only the number; Sofascore names the
+# map afterwards), the starting side after it - so a per-map rating enters only
+# as a mixture over the two teams' recent map pools.
+K_MAP = 16.0  # Elo points a map result moves a team's deviation on that map
+POOL_MAPS = 30  # a team's recent maps that make up its pool
+POOL_ALPHA = 0.5  # pseudo-count of a pool map the other team has not played
+UNFITTED_MAP = ("K_MAP", "POOL_MAPS", "POOL_ALPHA")
+MAP_ORDER_KEYS = ("bo1", "bo3m1", "bo3m2", "bo3m3", "other")
+MAP_TERMS: tuple[str, ...] = ("order", "pool")  # what the switch fits
+
+
+def map_order_key(best_of: int | None, map_nr: int) -> str:
+    """The (format, map number) cell of the order term."""
+    if best_of == 1:
+        return "bo1"
+    if best_of == 3 and 1 <= map_nr <= 3:
+        return f"bo3m{map_nr}"
+    return "other"
+
+
+@dataclass
+class MapPoolBook:
+    """Each team's Elo deviation per map (from the team's own Elo plus the
+    deviations, moved by K_MAP x the surprise) and its last POOL_MAPS map
+    names."""
+
+    dev: dict[tuple[int, str], float] = field(default_factory=dict)
+    recent: dict[int, deque[str]] = field(default_factory=dict)
+
+    def known(self, home: int, away: int, name: str) -> float:
+        """The deviation gap on map `name`, in logits (diagnostic oracle)."""
+        return ((self.dev.get((home, name), 0.0) - self.dev.get((away, name), 0.0))
+                * math.log(10.0) / 400.0)
+
+    def delta(self, home: int, away: int) -> float:
+        """The deviation gap mixed over the two pools: weight of map M
+        (n_home(M) + POOL_ALPHA) x (n_away(M) + POOL_ALPHA) over every map
+        either team played in its last POOL_MAPS maps."""
+        nh: dict[str, int] = defaultdict(int)
+        na: dict[str, int] = defaultdict(int)
+        for n in self.recent.get(home, ()):
+            nh[n] += 1
+        for n in self.recent.get(away, ()):
+            na[n] += 1
+        names = set(nh) | set(na)
+        if not names:
+            return 0.0
+        tot = acc = 0.0
+        for n in sorted(names):
+            w = (nh[n] + POOL_ALPHA) * (na[n] + POOL_ALPHA)
+            tot += w
+            acc += w * self.known(home, away, n)
+        return acc / tot
+
+    def update(self, m: MapRow, book: EloBook) -> None:
+        """Before book.update for the same map."""
+        if not m.map_name:
+            return
+        name = m.map_name
+        dh = self.dev.get((m.home_id, name), 0.0)
+        da = self.dev.get((m.away_id, name), 0.0)
+        exp = elo_expected(book.rating(m.home_id) + dh, book.rating(m.away_id) + da)
+        s = (1.0 if m.home_won else 0.0) - exp
+        self.dev[(m.home_id, name)] = dh + K_MAP * s
+        self.dev[(m.away_id, name)] = da - K_MAP * s
+        for team in (m.home_id, m.away_id):
+            self.recent.setdefault(team, deque(maxlen=POOL_MAPS)).append(name)
+
+
+@dataclass(frozen=True)
+class MapPoint:
+    """One map predicted at its series' start: team gap d, lineup gap g,
+    order cell, pool term, oracle term (None without a map name), outcome."""
+
+    d: float
+    g: float | None
+    key: str
+    pool: float
+    known: float | None
+    y: float
+
+
+def series_map_points(maps: list[MapRow], book: EloBook, players: PlayerEloBook,
+                      pool: MapPoolBook) -> list[MapPoint]:
+    """The MapPoints of one series from the books at its start (both teams
+    rated), before any of its maps is played into them."""
+    home, away = maps[0].home_id, maps[0].away_id
+    if not book.rated(home, away):
+        return []
+    d = logit_diff(book, home, away)
+    g = players.gap(home, away)
+    dl = pool.delta(home, away)
+    return [MapPoint(d, g, map_order_key(m.best_of, m.order), dl,
+                     pool.known(home, away, m.map_name) if m.map_name else None,
+                     1.0 if m.home_won else 0.0) for m in maps]
+
+
+def _solve(a: list[list[float]], b: list[float]) -> list[float] | None:
+    """Gaussian elimination with partial pivoting; None when singular."""
+    n = len(b)
+    m = [row[:] + [b[i]] for i, row in enumerate(a)]
+    for c in range(n):
+        piv = max(range(c, n), key=lambda r: abs(m[r][c]))
+        if abs(m[piv][c]) < 1e-12:
+            return None
+        m[c], m[piv] = m[piv], m[c]
+        for r in range(c + 1, n):
+            f = m[r][c] / m[c][c]
+            for k in range(c, n + 1):
+                m[r][k] -= f * m[c][k]
+    x = [0.0] * n
+    for r in range(n - 1, -1, -1):
+        x[r] = (m[r][n] - sum(m[r][k] * x[k] for k in range(r + 1, n))) / m[r][r]
+    return x
+
+
+def fit_offsets(rows: list[tuple[float, list[float], float]], k: int,
+                ridge: float = 1.0) -> list[float]:
+    """beta of P(y = 1) = sigmoid(z + beta . x), z a fixed offset, by Newton,
+    ridged toward 0."""
+    beta = [0.0] * k
+    for _ in range(30):
+        grad = [ridge * bj for bj in beta]
+        hess = [[ridge if i == j else 0.0 for j in range(k)] for i in range(k)]
+        for z, x, y in rows:
+            p = _sigmoid(z + sum(bj * xj for bj, xj in zip(beta, x, strict=True)))
+            w = p * (1.0 - p)
+            nz = [i for i in range(k) if x[i] != 0.0]
+            for i in nz:
+                grad[i] += (p - y) * x[i]
+                for j in nz:
+                    hess[i][j] += w * x[i] * x[j]
+        step = _solve(hess, grad)
+        if step is None:
+            break
+        beta = [bj - sj for bj, sj in zip(beta, step, strict=True)]
+        if sum(abs(sj) for sj in step) < 1e-9:
+            break
+    return beta
+
+
+def map_term_features(pt: MapPoint, terms: tuple[str, ...],
+                      known: bool = False) -> list[float]:
+    """The order one-hot and / or the pool term of a point (`known`: the
+    actual map's term instead, the diagnostic oracle)."""
+    x: list[float] = []
+    if "order" in terms:
+        x += [1.0 if pt.key == k else 0.0 for k in MAP_ORDER_KEYS]
+    if "pool" in terms:
+        x.append(pt.known if known and pt.known is not None else pt.pool)
+    return x
+
+
+def fit_map_terms(model: RatingModel, points: list[MapPoint],
+                  terms: tuple[str, ...], pool: MapPoolBook | None) -> None:
+    """Fit the order / pool terms on `points` with the model's base
+    calibration as the offset; under MIN_FIT points they stay zero."""
+    model.pool = pool
+    if not terms or len(points) < MIN_FIT:
+        return
+    rows = [(model.base_logit(pt.d, pt.g), map_term_features(pt, terms), pt.y)
+            for pt in points]
+    beta = fit_offsets(rows, len(rows[0][1]))
+    i = 0
+    if "order" in terms:
+        model.order_delta = dict(zip(MAP_ORDER_KEYS, beta[:len(MAP_ORDER_KEYS)],
+                                     strict=True))
+        i = len(MAP_ORDER_KEYS)
+    if "pool" in terms:
+        model.pool_c = beta[i]
+    model.map_fit = len(points)
 
 
 # --- the history ------------------------------------------------------------------
@@ -370,6 +578,8 @@ class MapRow:
     home_won: bool
     # (team id, player id, folded name, stat -> value)
     players: tuple[tuple[int, int, str, StatRow], ...]
+    map_name: str | None = None  # Sofascore's, after the veto (audit B11)
+    best_of: int | None = None  # the series' format (audit B11)
 
 
 def load_history(
@@ -386,7 +596,7 @@ def load_history(
     rows = conn.execute(
         """SELECT m.game_id, s.sofascore_event_id, s.start_ts, m.map_order,
                   s.home_id, s.away_id, m.home_rounds, m.away_rounds, m.winner_code,
-                  s.tournament
+                  s.tournament, m.map_name, s.best_of
            FROM cs2_map m JOIN cs2_series s USING (sofascore_event_id)
            WHERE s.status_type = 'finished' AND m.status_type = 'finished'
              AND s.start_ts < ? AND s.start_ts >= ?
@@ -398,7 +608,7 @@ def load_history(
     ).fetchall()
     # A show match / exhibition is not a series the ratings may learn from
     # (comparability; none in the store when this was added, 2026-10-04).
-    rows = [r[:9] for r in rows if not is_non_competitive_name(r[9])]
+    rows = [r[:9] + r[10:] for r in rows if not is_non_competitive_name(r[9])]
     players: dict[int, list[tuple[str, int, str, StatRow]]] = defaultdict(list)
     ids = [r[0] for r in rows]
     for i in range(0, len(ids), 500):
@@ -421,7 +631,7 @@ def load_history(
             )
             players[gid].append((str(side), int(pid), esports_name(str(name)), stats))
     out: list[MapRow] = []
-    for gid, eid, ts, order, home_id, away_id, hr, ar, winner in rows:
+    for gid, eid, ts, order, home_id, away_id, hr, ar, winner, name, bo in rows:
         if exclude_event is not None and eid == exclude_event:
             continue
         has_rounds = hr is not None and ar is not None and hr != ar
@@ -441,6 +651,8 @@ def load_history(
                 ar if has_rounds else None,
                 home_won,
                 rows_for_map,
+                str(name) if name else None,
+                int(bo) if bo else None,
             )
         )
     return out
@@ -455,10 +667,14 @@ def walk_forward(history: list[MapRow]) -> tuple[EloBook, list[tuple[float, floa
 
 def walk_forward_players(
     history: list[MapRow],
+    pool: MapPoolBook | None = None,
+    mpoints: list[MapPoint] | None = None,
 ) -> tuple[EloBook, list[tuple[float, float]], PlayerEloBook,
            list[tuple[float, float]]]:
     """walk_forward, plus the player Elo and its (lineup gap, home won)
-    points - each series from the ratings and lineups at its start."""
+    points - each series from the ratings and lineups at its start. With a
+    `pool` (audit B11) its map deviations are replayed too and each rated
+    series' MapPoints appended to `mpoints`."""
     book = EloBook()
     players = PlayerEloBook()
     points: list[tuple[float, float]] = []
@@ -468,6 +684,8 @@ def walk_forward_players(
         by_series.setdefault(m.event_id, []).append(m)
     for maps in by_series.values():  # insertion order is chronological
         home, away = maps[0].home_id, maps[0].away_id
+        if pool is not None and mpoints is not None:
+            mpoints.extend(series_map_points(maps, book, players, pool))
         if book.rated(home, away):
             d = logit_diff(book, home, away)
             points.extend((d, 1.0 if m.home_won else 0.0) for m in maps)
@@ -475,6 +693,8 @@ def walk_forward_players(
             if g is not None:
                 ppoints.extend((g, 1.0 if m.home_won else 0.0) for m in maps)
         for m in maps:
+            if pool is not None:
+                pool.update(m, book)
             winner, loser = (
                 (m.home_id, m.away_id) if m.home_won else (m.away_id, m.home_id)
             )
@@ -483,8 +703,13 @@ def walk_forward_players(
     return book, points, players, ppoints
 
 
-def build_ratings(history: list[MapRow]) -> RatingModel:
-    book, points, players, ppoints = walk_forward_players(history)
+def build_ratings(history: list[MapRow],
+                  map_terms: tuple[str, ...] = ()) -> RatingModel:
+    """The calibrated rating model; `map_terms` (audit B11, MAP_TERMS under
+    epochs.CS2_MAP_IDENTITY) adds the order / pool terms for p_map_nr."""
+    pool = MapPoolBook() if map_terms else None
+    mpoints: list[MapPoint] = []
+    book, points, players, ppoints = walk_forward_players(history, pool, mpoints)
     if len(points) < MIN_FIT:
         return RatingModel(book, n_fit=len(points))
     a, b = fit_logistic([x for x, _ in points], [y for _, y in points])
@@ -492,6 +717,8 @@ def build_ratings(history: list[MapRow]) -> RatingModel:
     if len(ppoints) >= MIN_FIT:
         pa, pb = fit_logistic([x for x, _ in ppoints], [y for _, y in ppoints])
         model.pa, model.pb, model.p_fit = pa, max(0.0, min(2.0, pb)), len(ppoints)
+    if map_terms:
+        fit_map_terms(model, mpoints, map_terms, pool)
     return model
 
 
@@ -724,10 +951,9 @@ def both_sides_rounds(maps: list[MapRow]) -> list[int]:
     return out
 
 
-def player_values(history: list[MapRow], team: int, name: str, stat: str) -> list[int]:
-    """The player's last maps: found by his nickname on this team's recent maps,
-    then followed by his Sofascore player id - across teams, since players
-    move - so the sample is his, not a namesake's."""
+def player_id(history: list[MapRow], team: int, name: str) -> int | None:
+    """The Sofascore id of the one player with this nickname on the team's
+    recent maps, or None (none or a namesake)."""
     folded = esports_name(name)
     ids = {
         pid
@@ -735,9 +961,16 @@ def player_values(history: list[MapRow], team: int, name: str, stat: str) -> lis
         for t, pid, nick, _ in m.players
         if t == team and nick == folded
     }
-    if len(ids) != 1:
+    return next(iter(ids)) if len(ids) == 1 else None
+
+
+def player_values(history: list[MapRow], team: int, name: str, stat: str) -> list[int]:
+    """The player's last maps: found by his nickname on this team's recent maps,
+    then followed by his Sofascore player id - across teams, since players
+    move - so the sample is his, not a namesake's."""
+    pid = player_id(history, team, name)
+    if pid is None:
         return []
-    (pid,) = ids
     values: list[int] = []
     for m in reversed(history):
         for _, p, _, stats in m.players:
@@ -759,6 +992,244 @@ def team_kills(history: list[MapRow], team: int) -> list[int]:
     return out
 
 
+# --- audit B12: counts from the rounds' exposure --------------------------------
+
+# A team's kills on a map are mostly its rounds: c_w per round it wins, c_l
+# per round it loses (kills correlate 0.592 with the map's rounds; 15.94 a
+# player in a won map, 12.71 in a lost one). So a count line is priced from
+# the round race's (W, L) distribution (B10's map_distribution_for, which
+# carries the opponent through p_map) x per-round rates: global c_w / c_l
+# (least squares, no intercept, every earlier map), the team's own multiplier
+# and the opponent's on the stat against it (kills <-> deaths), each shrunk
+# with K_TEAM_RATE maps, and a player's share of his team's stat shrunk to
+# SHARE_PRIOR with K_SHARE maps. Given (W, L) the count is a negative binomial
+# with variance phi x mean (a continuity-corrected normal when phi <= 1),
+# phi the mean of (x - mu)^2 / mu over earlier predictions at the actual
+# (W, L). epochs.CS2_COUNT_EXPOSURE_FROM_UTC.
+EXPOSURE_STATS = ("kills", "deaths", "assists", "headshots")
+AGAINST = {"kills": "deaths", "deaths": "kills"}
+K_TEAM_RATE = 5.0
+K_SHARE = 2.0
+SHARE_PRIOR = 0.2
+RACE_MIN_Q = 1e-4  # (W, L) cells under this mass are left out of the mixture
+UNFITTED_EXPOSURE = ("K_TEAM_RATE", "K_SHARE", "SHARE_PRIOR", "RACE_MIN_Q")
+# The families the switch covers (the pre-registered measurement, B12): headshots
+# were worse than the sample (+0.188 log-loss) and stay on count_p.
+EXPOSURE_FAMILIES: frozenset[str] = frozenset(COUNT_FAMILIES) - {"player_headshots"}
+
+TeamMap = tuple[int, int, int, int, dict[str, int], list[tuple[int, dict[str, int]]]]
+
+
+def map_sides(m: MapRow) -> list[TeamMap]:
+    """(team, opponent, W, L, team totals, [(player, own stats)]) for each side
+    of a map with rounds; a total only for a stat all >= 5 players carry."""
+    if m.home_rounds is None or m.away_rounds is None:
+        return []
+    out: list[TeamMap] = []
+    for team, opp, w, lost in ((m.home_id, m.away_id, m.home_rounds, m.away_rounds),
+                               (m.away_id, m.home_id, m.away_rounds, m.home_rounds)):
+        rows = [(pid, dict(s)) for t, pid, _, s in m.players if t == team]
+        totals: dict[str, int] = {}
+        if len(rows) >= 5:
+            for stat in EXPOSURE_STATS:
+                vals = [r.get(stat) for _, r in rows]
+                if all(isinstance(v, int) for v in vals):
+                    totals[stat] = sum(int(v) for v in vals if v is not None)
+        out.append((team, opp, w, lost, totals, rows))
+    return out
+
+
+@dataclass
+class ExposureBook:
+    """Per-round rates replayed map by map (update), queried before a map."""
+
+    sums: dict[str, list[float]] = field(default_factory=dict)  # WW WL LL WS LS n
+    team_recent: dict[int, deque[tuple[int, int, dict[str, int]]]] = field(
+        default_factory=dict)
+    player_recent: dict[int, deque[tuple[dict[str, int], dict[str, int]]]] = field(
+        default_factory=dict)
+    phi_sums: dict[tuple[str, str], list[float]] = field(default_factory=dict)
+
+    def coef(self, stat: str) -> tuple[float, float] | None:
+        s = self.sums.get(stat)
+        if s is None or s[5] < MIN_FIT:
+            return None
+        sol = _solve([[s[0], s[1]], [s[1], s[2]]], [s[3], s[4]])
+        if sol is None:
+            return None
+        return max(sol[0], 0.0), max(sol[1], 0.0)
+
+    def team_mult(self, team: int, stat: str) -> float:
+        cf = self.coef(stat)
+        recent = [(w, lost, t[stat]) for w, lost, t in self.team_recent.get(team, ())
+                  if stat in t]
+        if cf is None or not recent:
+            return 1.0
+        exp = [cf[0] * w + cf[1] * lost for w, lost, _ in recent]
+        mean_exp = sum(exp) / len(exp)
+        if mean_exp <= 0:
+            return 1.0
+        obs = sum(x for _, _, x in recent)
+        return (obs + K_TEAM_RATE * mean_exp) / (sum(exp) + K_TEAM_RATE * mean_exp)
+
+    def rates(self, team: int, opp: int, stat: str) -> tuple[float, float] | None:
+        """(per won round, per lost round) of the team's stat against `opp`."""
+        cf = self.coef(stat)
+        if cf is None:
+            return None
+        m = self.team_mult(team, stat)
+        if stat in AGAINST:
+            m *= self.team_mult(opp, AGAINST[stat])
+        return cf[0] * m, cf[1] * m
+
+    def share(self, pid: int, stat: str) -> float | None:
+        """The player's share of his team's stat, >= MIN_SAMPLE maps."""
+        recent = [(own[stat], tot[stat]) for own, tot in self.player_recent.get(pid, ())
+                  if stat in own and stat in tot]
+        if len(recent) < MIN_SAMPLE:
+            return None
+        team_sum = sum(t for _, t in recent)
+        mean_t = team_sum / len(recent)
+        return ((sum(o for o, _ in recent) + K_SHARE * SHARE_PRIOR * mean_t)
+                / (team_sum + K_SHARE * mean_t)) if team_sum + mean_t > 0 else None
+
+    def phi(self, level: str, stat: str) -> float | None:
+        s = self.phi_sums.get((level, stat))
+        if s is None or s[1] < MIN_FIT:
+            return None
+        return s[0] / s[1]
+
+    def _phi_add(self, level: str, stat: str, x: int, mu: float) -> None:
+        if mu <= 0:
+            return
+        s = self.phi_sums.setdefault((level, stat), [0.0, 0.0])
+        s[0] += (x - mu) ** 2 / mu
+        s[1] += 1
+
+    def update(self, m: MapRow) -> None:
+        """Score the map's counts at its actual (W, L) from the state before
+        it (phi), then learn from it."""
+        sides = map_sides(m)
+        for team, opp, w, lost, totals, rows in sides:
+            for stat, x in totals.items():
+                r = self.rates(team, opp, stat)
+                if r is None:
+                    continue
+                mu_t = r[0] * w + r[1] * lost
+                self._phi_add("team", stat, x, mu_t)
+                for pid, own in rows:
+                    sh = self.share(pid, stat)
+                    v = own.get(stat)
+                    if sh is not None and isinstance(v, int):
+                        self._phi_add("player", stat, v, sh * mu_t)
+        for team, _, w, lost, totals, rows in sides:
+            for stat, x in totals.items():
+                s = self.sums.setdefault(stat, [0.0] * 6)
+                s[0] += w * w
+                s[1] += w * lost
+                s[2] += lost * lost
+                s[3] += w * x
+                s[4] += lost * x
+                s[5] += 1
+            self.team_recent.setdefault(team, deque(maxlen=MAX_SAMPLE)).append(
+                (w, lost, totals))
+            for pid, own in rows:
+                vals = {k: v for k, v in own.items() if isinstance(v, int)}
+                self.player_recent.setdefault(pid, deque(maxlen=MAX_SAMPLE)).append(
+                    (vals, totals))
+
+
+def build_exposure(history: list[MapRow]) -> ExposureBook:
+    book = ExposureBook()
+    for m in history:
+        book.update(m)
+    return book
+
+
+def race_cells(p_map: float, idx: int) -> list[tuple[float, int, int]]:
+    """(q, W, L) of the round race for team idx (0 = the side p_map is for),
+    cells under RACE_MIN_Q left out."""
+    dist = _race_dist(round(min(max(p_map, 0.05), 0.95), 3))
+    return [(q, sc[idx], sc[1 - idx]) for sc, q in dist if q >= RACE_MIN_Q]
+
+
+def _count_cdf(mu: float, phi: float, kmax: int) -> list[float]:
+    """P(X <= k), k = 0..kmax, NB with variance phi x mu (phi > 1)."""
+    r = mu / (phi - 1.0)
+    q = 1.0 - 1.0 / phi
+    pmf = math.exp(r * math.log(1.0 / phi))
+    acc = pmf
+    out = [acc]
+    for k in range(kmax):
+        pmf *= (k + r) / (k + 1) * q
+        acc += pmf
+        out.append(min(acc, 1.0))
+    return out
+
+
+def exposure_sides(cells: list[tuple[float, float]], phi: float,
+                   lines: list[float]) -> dict[float, tuple[float, float]]:
+    """{line: (P(OVER), P(UNDER))} of the (q, mu) mixture; an integer line's
+    push belongs to neither."""
+    out = {ln: [0.0, 0.0] for ln in lines}
+    kmax = max(math.floor(ln) for ln in lines) if lines else 0
+    for q, mu in cells:
+        if mu <= 0:
+            for ln in lines:
+                out[ln][1] += q
+            continue
+        if phi > 1.0:
+            cdf = _count_cdf(mu, phi, max(kmax, 0))
+            for ln in lines:
+                lo = math.floor(ln)
+                c_lo = cdf[lo] if lo >= 0 else 0.0
+                out[ln][0] += q * (1.0 - c_lo)
+                if lo == ln:
+                    out[ln][1] += q * (cdf[lo - 1] if lo >= 1 else 0.0)
+                else:
+                    out[ln][1] += q * c_lo
+        else:
+            sd = math.sqrt(max(phi, MIN_VAR_RATIO) * mu)
+            for ln in lines:
+                lo = math.floor(ln)
+                p_over = 1.0 - normal_cdf((lo + 0.5 - mu) / sd)
+                out[ln][0] += q * p_over
+                out[ln][1] += q * (normal_cdf((lo - 0.5 - mu) / sd) if lo == ln
+                                   else 1.0 - p_over)
+    return {ln: (v[0], v[1]) for ln, v in out.items()}
+
+
+def exposure_cells(book: ExposureBook, p_team: float, team: int, opp: int,
+                   stat: str, pid: int | None) -> list[tuple[float, float]] | None:
+    """(q, mu) of the team's (pid None) or a player's stat, p_team the team's
+    map-win probability; None without rates or a share."""
+    r = book.rates(team, opp, stat)
+    if r is None:
+        return None
+    share = 1.0
+    if pid is not None:
+        sh = book.share(pid, stat)
+        if sh is None:
+            return None
+        share = sh
+    return [(q, share * (r[0] * w + r[1] * lost))
+            for q, w, lost in race_cells(p_team, 0)]
+
+
+def exposure_p(book: ExposureBook, p_team: float, team: int, opp: int,
+               stat: str, pid: int | None, line: float, over: bool
+               ) -> ModelP | None:
+    """One side of a count line from the rounds' exposure (audit B12)."""
+    cells = exposure_cells(book, p_team, team, opp, stat, pid)
+    phi = book.phi("team" if pid is None else "player", stat)
+    if cells is None or phi is None:
+        return None
+    po, pu = exposure_sides(cells, phi, [line])[line]
+    side = side_given_no_push(po, pu, over)
+    n = len(book.team_recent.get(team, ()))
+    return None if side is None else ModelP(clamp(side), n, "round_exposure")
+
+
 def model_probability(
     line: Cs2Line,
     team1_id: int,
@@ -770,10 +1241,17 @@ def model_probability(
     ratings: RatingModel,
     team1_is_home: bool,
     team_rounds_race: bool = False,
+    map_identity: bool = False,
+    exposure: ExposureBook | None = None,
 ) -> ModelP | None:
     """The model's probability for this side of this line, or None.
     `team_rounds_race` (epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC): a team's
-    rounds on a map from the round race, not its own shrunk frequency."""
+    rounds on a map from the round race, not its own shrunk frequency.
+    `map_identity` (epochs.CS2_MAP_IDENTITY_FROM_UTC): a map-level line reads
+    its own map's p (RatingModel.p_map_nr; ratings built with MAP_TERMS).
+    `exposure` (epochs.CS2_COUNT_EXPOSURE_FROM_UTC, build_exposure of the
+    same history): an EXPOSURE_FAMILIES line from the rounds' exposure, the
+    old sample model where the exposure has no number."""
     fam = line.family
     if fam not in MODELLED:
         return None
@@ -799,6 +1277,12 @@ def model_probability(
             return None
         n = min(ratings.book.played[team1_id], ratings.book.played[team2_id])
         if fam == "map_winner":
+            if map_identity and line.map_nr >= 1:
+                pm = ratings.p_map_nr(team1_id, team2_id, team1_is_home, best_of,
+                                      line.map_nr)
+                if pm is not None:
+                    return ModelP(clamp(pm if line.side == "T1" else 1.0 - pm), n,
+                                  "elo_map")
             return ModelP(clamp(p if line.side == "T1" else 1.0 - p), n, "elo")
         try:
             dist = series_distribution(round(p, 6), best_of)
@@ -826,7 +1310,8 @@ def model_probability(
 
     if fam == "map_rounds_handicap":
         # team1's round handicap on one map, graded on t1 - t2 rounds
-        p = ratings.p_map(team1_id, team2_id, team1_is_home)
+        p = _p_for(ratings, team1_id, team2_id, team1_is_home, best_of,
+                              line.map_nr, map_identity)
         if p is None or line.line is None or line.side not in ("T1", "T2"):
             return None
         dist = map_distribution_for(p)
@@ -856,7 +1341,8 @@ def model_probability(
         if side_team is None:
             return None
         if fam == "map_team_rounds" and team_rounds_race:
-            p = ratings.p_map(team1_id, team2_id, team1_is_home)
+            p = _p_for(ratings, team1_id, team2_id, team1_is_home, best_of,
+                                  line.map_nr, map_identity)
             if p is None:
                 return None
             idx = 0 if side_team == team1_id else 1
@@ -867,13 +1353,52 @@ def model_probability(
             base = base_rate(both_sides_rounds(history), line.line)
             values = own_rounds(_rounds_maps(history, side_team), side_team)
             return shrunk_frequency(values, line.line, over, base)
+        if exposure is not None and fam in EXPOSURE_FAMILIES:
+            opp = team2_id if side_team == team1_id else team1_id
+            mp = _exposure_line(exposure, ratings, team1_id, team2_id,
+                                team1_is_home, best_of, line, map_identity,
+                                side_team, opp, "kills", None, over)
+            if mp is not None:
+                return mp
         return count_p(team_kills(history, side_team), line.line, over)
     stat = fam.removeprefix("player_")
     for team in (team1_id, team2_id):
         values = player_values(history, team, line.subject, stat)
         if values:
+            if exposure is not None and fam in EXPOSURE_FAMILIES:
+                pid = player_id(history, team, line.subject)
+                opp = team2_id if team == team1_id else team1_id
+                mp = _exposure_line(exposure, ratings, team1_id, team2_id,
+                                    team1_is_home, best_of, line, map_identity,
+                                    team, opp, stat, pid, over)
+                if mp is not None:
+                    return mp
             return count_p(values, line.line, over)
     return None
+
+
+def _p_for(ratings: RatingModel, team1: int, team2: int, team1_is_home: bool,
+           best_of: int | None, map_nr: int, map_identity: bool) -> float | None:
+    """p_map_nr under the switch on a numbered map, p_map otherwise."""
+    if map_identity and map_nr >= 1:
+        return ratings.p_map_nr(team1, team2, team1_is_home, best_of, map_nr)
+    return ratings.p_map(team1, team2, team1_is_home)
+
+
+def _exposure_line(book: ExposureBook, ratings: RatingModel, team1_id: int,
+                   team2_id: int, team1_is_home: bool, best_of: int,
+                   line: Cs2Line, map_identity: bool, team: int, opp: int,
+                   stat: str, pid: int | None, over: bool) -> ModelP | None:
+    """exposure_p for the line's team (pid None) or player, with the team's
+    map-win probability from the ratings."""
+    if line.line is None or (pid is None and stat != "kills"):
+        return None
+    p1 = _p_for(ratings, team1_id, team2_id, team1_is_home, best_of,
+                           line.map_nr, map_identity)
+    if p1 is None:
+        return None
+    p_team = p1 if team == team1_id else 1.0 - p1
+    return exposure_p(book, p_team, team, opp, stat, pid, line.line, over)
 
 
 # --- checking the engine against history --------------------------------------------

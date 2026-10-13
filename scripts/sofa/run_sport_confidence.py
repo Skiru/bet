@@ -133,6 +133,7 @@ class DbForecaster:
         default_factory=dict)
     _cs2: tuple[list[cs2_engine.MapRow], dict[int, scf.SeriesRow],
                 cs2_engine.RatingModel] | None = None
+    _cs2_exposure: cs2_engine.ExposureBook | None = None
 
     def _shadow_model(self, sport: str) -> tuple[Any, scf.TeamGames]:
         if sport not in self._shadow:
@@ -186,8 +187,20 @@ class DbForecaster:
                                   cs2_engine.RatingModel]:
         if self._cs2 is None:
             maps, series = scf.load_cs2(self.db_path, int(self.at.timestamp()))
-            self._cs2 = (maps, series, cs2_engine.build_ratings(maps))
+            # epochs.CS2_MAP_IDENTITY: the order / pool terms fitted too
+            terms = (cs2_engine.MAP_TERMS
+                     if epochs.cs2_map_identity(str(self.date), self.at) else ())
+            self._cs2 = (maps, series, cs2_engine.build_ratings(maps, terms))
         return self._cs2
+
+    def _cs2_counts(self, maps: list[cs2_engine.MapRow]
+                    ) -> cs2_engine.ExposureBook | None:
+        """epochs.CS2_COUNT_EXPOSURE: the rounds' exposure book, else None."""
+        if not epochs.cs2_count_exposure(str(self.date), self.at):
+            return None
+        if self._cs2_exposure is None:
+            self._cs2_exposure = cs2_engine.build_exposure(maps)
+        return self._cs2_exposure
 
     @staticmethod
     def _teams(fixture: Mapping[str, Any]) -> tuple[int, int]:
@@ -229,7 +242,9 @@ class DbForecaster:
             mp = cs2_engine.model_probability(
                 line, t1, t2, ev.team1, ev.team2, int(best_of or 3),
                 maps, ratings, bool(fixture["home_is_team1"]),
-                team_rounds_race=epochs.cs2_team_rounds_race(str(self.date), self.at))
+                team_rounds_race=epochs.cs2_team_rounds_race(str(self.date), self.at),
+                map_identity=epochs.cs2_map_identity(str(self.date), self.at),
+                exposure=self._cs2_counts(maps))
             return None if mp is None else mp.p
         from bet.sofa.score_model import line_probability, overtime_minutes
 
