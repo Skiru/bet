@@ -80,6 +80,8 @@ from bet.sofa.game_state import GAME_STATE_UNFITTED, GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
+from bet.sofa.opponent_correction import NOTE as OPPONENT_NOTE
+from bet.sofa.opponent_correction import SampleCorrector, correct_total
 from bet.sofa.per_market_k import k_for_market
 from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.sample_age import stalest_side_newest_days
@@ -880,6 +882,11 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     # and without the cards correlation (epochs.CARDS_CORRELATION)
     if out.get("cards_rule") is None:
         out.pop("cards_rule", None)
+    # and from the raw sample (epochs.SAMPLE_OPPONENT_CORRECTION)
+    if out.get("opponent_rule") is None:
+        out.pop("opponent_rule", None)
+    if out.get("corrected_sample") is None:
+        out.pop("corrected_sample", None)
     return out
 
 
@@ -905,6 +912,7 @@ def process_fixture(
     game_state: GameStateTable | None = None,
     venue_prior_on: bool = False,
     set_rating_prices: bool = False,
+    sample_corrector: SampleCorrector | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -913,7 +921,13 @@ def process_fixture(
     the cache replay the curves were fitted on prices it, and the rating
     (football and tennis) is published beside it as `forecast_p` - shown,
     never calibrated, never a gate. `p_bar` / `required_odds` stay priced:
-    06_coupon.json is not the coupon."""
+    06_coupon.json is not the coupon.
+
+    `sample_corrector` (epochs.SAMPLE_OPPONENT_CORRECTION, audit 2026-10-13
+    B15 / A5): a football sample is rescaled to a neutral opponent and
+    today's domain before its mean, variance and hits
+    (bet.sofa.opponent_correction); the row carries the values it priced
+    from (`corrected_sample`) for CONFIDENCE's gates. None: the raw sample."""
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
 
@@ -989,6 +1003,10 @@ def process_fixture(
         own_sides: list[list[Observation]] = []
         own_teams: list[int] = []
         own_events: set[int] = set()
+        # the raw sample's values when the sample was corrected (B15)
+        raw_values: list[float] | None = None
+        corrector = (sample_corrector if fixture.sport == "football"
+                     else None)
 
         # F54. A player market's subject is a person, and its sample is that
         # person's own appearances — SAMPLES already did the name match
@@ -1075,6 +1093,11 @@ def process_fixture(
                 obs = deduplicate_observations(
                     [metric_sample.side_a, metric_sample.side_b, metric_sample.h2h]
                 )
+                if corrector is not None:
+                    raw_values = [o.value for o in obs]
+                    obs = deduplicate_observations(correct_total(
+                        corrector, samples.metrics, rung.market,
+                        fixture.home_entity_id, fixture.away_entity_id))
                 own_sides = [metric_sample.side_a, metric_sample.side_b]
                 own_teams = [fixture.home_entity_id, fixture.away_entity_id]
             else:
@@ -1098,6 +1121,12 @@ def process_fixture(
                     fixture.home_entity_id if side == "side_a"
                     else fixture.away_entity_id
                 ]
+                if corrector is not None:
+                    raw_values = [o.value for o in obs]
+                    obs = corrector.correct(
+                        obs, rung.market, own_teams[0],
+                        fixture.away_entity_id if side == "side_a"
+                        else fixture.home_entity_id)
 
         n = len(obs)
         if n < config.min_sample:
@@ -1107,6 +1136,19 @@ def process_fixture(
             continue
 
         values = [o.value for o in obs]
+        # what CONFIDENCE's gates read: the corrected values, only where one
+        # moved (else the raw sample it reads anyway)
+        corrected_sample: list[float] | None = None
+        if raw_values is not None:
+            moved = sum(1 for r, v in zip(raw_values, values, strict=True)
+                        if abs(r - v) > 1e-9)
+            if moved:
+                corrected_sample = [round(v, 4) for v in values]
+                extra_notes.append(
+                    f"{OPPONENT_NOTE}: {moved} of {len(values)} observations "
+                    "rescaled to a neutral opponent and today's domain, "
+                    f"sample mean {statistics.mean(raw_values):.2f} -> "
+                    f"{statistics.mean(values):.2f}")
         # L1: a sample that is all zeros is usually a provider gap wearing a
         # value, not a market that never happens. Do not price it.
         if all(v == 0.0 for v in values):
@@ -1696,6 +1738,7 @@ def process_fixture(
                     round(forecast_p, 4) if forecast_p is not None else None
                 ),
                 forecast_source=forecast_source,
+                corrected_sample=corrected_sample,
             )
             rows.append(row)
 
@@ -1880,6 +1923,12 @@ def _main() -> int:
         if stats_only and epochs.game_state_enabled(args.date) else None)
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
+    # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 B15 / A5): the
+    # football sample read through the rating book (None: the raw sample)
+    opponent_on = (stats_only and football_book is not None
+                   and epochs.sample_opponent_correction(args.date))
+    sample_corrector = (SampleCorrector(football_book)
+                        if opponent_on and football_book is not None else None)
 
     try:
         for offer in offers:
@@ -1931,6 +1980,7 @@ def _main() -> int:
                 game_state=game_state_table,
                 venue_prior_on=venue_prior_on,
                 set_rating_prices=set_rating_prices,
+                sample_corrector=sample_corrector,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
@@ -1966,6 +2016,13 @@ def _main() -> int:
                 for r in all_rows
             ]
 
+        if opponent_on:
+            all_rows = [
+                r.model_copy(
+                    update={"opponent_rule": epochs.SAMPLE_OPPONENT_CORRECTION})
+                for r in all_rows
+            ]
+
         write_atomic(
             sheet_path,
             json.dumps(
@@ -1995,6 +2052,8 @@ def _main() -> int:
                 epochs.COUNT_DISPERSION if count_dispersion_on else "old"),
             "k_rule": (
                 epochs.PER_MARKET_K if per_market_k_on else "old"),
+            "opponent_rule": (
+                epochs.SAMPLE_OPPONENT_CORRECTION if opponent_on else "old"),
             "football_league_rate_rule": (
                 epochs.LEAGUE_RATE_RULE if league_rate_on else "old"),
             "cards_rule": (

@@ -601,6 +601,18 @@ z 404) nie jest pytane ponownie.
   one step ahead 06-01..10-12, mecze ponadligowe z jednostką: log-loss
   -0,0010 [-0,0029; +0,0008] na mecz (7 724 mecze) - kierunek zgodny,
   przedział obejmuje zero. Zostaje `None`.
+- `epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC` (B15 z A5,
+  `bet.sofa.opponent_correction`): próbka strony w piłce przeskalowana do
+  neutralnego rywala (`x / def(rywala)`, Maher 1982) i do domeny ligowej
+  dzisiejszego meczu przed środkiem SHEET-a (gole bez korekty); wiersz niesie
+  `corrected_sample` i `opponent_rule`, a bramki kształtu i
+  `MODEL_ABOVE_OWN_SAMPLE` w CONFIDENCE czytają skorygowane wartości (moda na
+  wartościach zaokrąglonych). Historia, cięcie 2026-06-09: log-loss po
+  kalibracji lepszy na 12 z 18 rynków rożnych / strzałów / fauli z
+  przedziałem poniżej zera, żaden gorszy; w parach ponadligowych 3-4 razy
+  więcej. Zostaje `None`: wymaga tej samej korekty w replayu
+  (`calibrate_from_cache.py`) i refitu krzywych
+  (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 
 **Zmierzone 2026-10-13 (audyt B1, B2), próg spełniony, przełącznik `None` do
 decyzji O5** (one step ahead na historii 2025-08-01..2026-10-12, log-loss NB

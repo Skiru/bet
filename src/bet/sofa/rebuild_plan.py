@@ -106,6 +106,8 @@ class DayState:
     sheet_k: bool = True
     # every tennis 05_sheet.json row priced under epochs.TENNIS_SCOPED_TABLE
     sheet_tennis_table: bool = True
+    # every 05_sheet.json row priced under epochs.SAMPLE_OPPONENT_CORRECTION
+    sheet_opponent: bool = True
     offer_fixtures: int = 0  # fixtures on 04_offer.json with a rung
     open_fixtures: int = 0  # ... a refresh would re-price and CONFIDENCE gate
     oldest_open_rung: datetime | None = None
@@ -258,6 +260,7 @@ def observe(runs_dir: str, date: str, now: datetime,
     sheet_cards = True
     sheet_k = True
     sheet_tennis_table = True
+    sheet_opponent = True
     if sheet_path.exists():
         sheet = _load_json(sheet_path)
         sheet_ep = epochs.sheet_epoch(sheet) if sheet else epochs.STATS_ONLY
@@ -266,6 +269,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_cards = epochs.sheet_cards_correlation(sheet or [])
         sheet_k = epochs.sheet_per_market_k(sheet or [])
         sheet_tennis_table = epochs.sheet_tennis_scoped_table(sheet or [])
+        sheet_opponent = epochs.sheet_sample_opponent_correction(sheet or [])
     priced, open_n, oldest, newest = observe_offer(
         fixtures, offers, fs.load(run), now)
     sports = ({s: observe_sport(runs_dir, s, date, now) for s in SPORTS}
@@ -284,6 +288,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_cards=sheet_cards,
         sheet_k=sheet_k,
         sheet_tennis_table=sheet_tennis_table,
+        sheet_opponent=sheet_opponent,
         offer_fixtures=priced, open_fixtures=open_n,
         oldest_open_rung=oldest, newest_rung=newest, sports=sports,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
@@ -428,9 +433,11 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     tennis_table_stale = (epochs.tennis_scoped_table_enabled(d, now)
                           and not state.sheet_tennis_table)
     k_stale = (epochs.per_market_k_enabled(d, now) and not state.sheet_k)
+    opponent_stale = (epochs.sample_opponent_correction(d, now)
+                      and not state.sheet_opponent)
     sheet_rebuilt = (epoch_stale or link_stale or dispersion_stale or cards_stale
                      or k_stale
-                     or tennis_table_stale)
+                     or tennis_table_stale or opponent_stale)
     if epoch_stale:
         plan.steps.append(Step(
             "SHEET", _pipeline(d, "SHEET", run_id),
@@ -465,6 +472,12 @@ def build_plan(state: DayState, run_id: str = "rebuild",
             "05_sheet.json priced from the pooled tennis neighbour table: "
             "tennis reads the table cut by tier x gender "
             "(epochs.tennis_scoped_table_enabled)"))
+    elif opponent_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json priced from the raw sample: football samples are "
+            "corrected for their opponents and domain "
+            "(epochs.sample_opponent_correction)"))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
     if not skip_audits and (sheet_rebuilt or state.coupon06_stale):

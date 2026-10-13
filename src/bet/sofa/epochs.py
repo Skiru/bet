@@ -1029,3 +1029,35 @@ def tennis_set_rating_prices(date: str, build_at: datetime | None = None) -> boo
     at = build_at if build_at is not None else timeutil.now()
     return (date >= TENNIS_SET_RATING_PRICES_FROM_UTC.strftime("%Y-%m-%d")
             and at >= TENNIS_SET_RATING_PRICES_FROM_UTC)
+
+
+# Audit 2026-10-13 B15 with A5 (Part 6 W1, W4, W7): a football side's sample
+# rescaled to a neutral opponent (x / def(opponent), Maher 1982) and to the
+# league domain of today's match (exp of the rating's log strength gap) before
+# SHEET's centre (bet.sofa.opponent_correction), and CONFIDENCE's shape gates
+# and MODEL_ABOVE_OWN_SAMPLE reading the same corrected values (the row's
+# `corrected_sample`) - otherwise any move of p away from the raw sample is
+# removed by the gates. Rows priced this way carry `opponent_rule`
+# (SAMPLE_OPPONENT_CORRECTION), so a rebuild re-runs SHEET on a sheet of the
+# other rule. Changes p_central, so it goes live only with the same
+# correction in the cache replay (calibrate_from_cache) and a refit of the
+# football curves. None: the raw sample, byte for byte.
+# Measured: docs/sofa/evidence/sample_opponent_correction_2026-10-13.md.
+SAMPLE_OPPONENT_CORRECTION = "sample_opponent_v1"
+SAMPLE_OPPONENT_CORRECTION_FROM_UTC: datetime | None = None
+
+
+def sample_opponent_correction(date: str, build_at: datetime | None = None) -> bool:
+    """Is the football sample corrected for its opponents and domain
+    (SAMPLE_OPPONENT_CORRECTION_FROM_UTC)?"""
+    if SAMPLE_OPPONENT_CORRECTION_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= SAMPLE_OPPONENT_CORRECTION_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= SAMPLE_OPPONENT_CORRECTION_FROM_UTC)
+
+
+def sheet_sample_opponent_correction(rows: Sequence[Mapping[str, Any]]) -> bool:
+    """Was every row of a 05_sheet.json priced under SAMPLE_OPPONENT_CORRECTION?
+    An empty sheet has nothing to re-price."""
+    return all(r.get("opponent_rule") == SAMPLE_OPPONENT_CORRECTION for r in rows)

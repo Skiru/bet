@@ -114,6 +114,7 @@ from bet.sofa.locked_print import (  # noqa: E402
     print_history,
     started_by_evidence,
 )
+from bet.sofa.opponent_correction import gate_values, mode_values  # noqa: E402
 from bet.sofa.players import (  # noqa: E402
     is_player_metric,
     player_observations,
@@ -774,6 +775,10 @@ def main() -> int:
 
         observations = side_observations(row)
         values, oldest_days, newest_days = sample_values(observations)
+        # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 A5 / W7): the
+        # gates read the sample SHEET priced from - corrected for opponents
+        # and domain where the row carries it, else the raw values
+        values = gate_values(row, values)
         # SHEET measures freshness per side and keeps the staler one; the pool
         # read here would let a fresh opponent hide a stale side (2026-10-01).
         sheet_newest = row.get("sample_newest_days")
@@ -791,7 +796,7 @@ def main() -> int:
         if line_is_beyond_sample(row["line"], row["direction"], values):
             refused["LINE_BEYOND_SAMPLE"] += 1
             continue
-        if mode_loses(row["line"], row["direction"], values):
+        if mode_loses(row["line"], row["direction"], mode_values(row, values)):
             refused["MODE_LOSES"] += 1
             continue
         if len(values) < MIN_BUILDER_SAMPLE:

@@ -437,7 +437,16 @@ only the loop's own orchestration is old code until it ends.
 all-league rate beat the sample alone in thin competitions, squared error
 -0.58 [-0.62, -0.54] per side in its favour), `UNIT_STRENGTH_FROM_PARENT_FROM_UTC`
 (A1: a regional unit's strength from its competition's; goals log-loss
--0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches).
+-0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches),
+`SAMPLE_OPPONENT_CORRECTION_FROM_UTC` (B15 with A5, `bet.sofa.opponent_correction`:
+a football side's sample rescaled to a neutral opponent, x / def(opponent),
+and to today's league domain before SHEET's centre - goals excluded - and
+CONFIDENCE's shape gates / MODEL_ABOVE_OWN_SAMPLE reading the corrected
+values, `corrected_sample` on the row; calibrated log-loss better on 12 of
+18 corners / shots / fouls markets with the interval below zero, none
+worse, e.g. shots_for -1.96e-3 [-2.38, -1.56], cross-league pairs 3-4x
+that; needs the same correction in the replay and a refit before it can be
+on; `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 **Measured, registered threshold met, `None` until the football refit (stage 4: the curves must be fitted on the same centre)**
 (one step ahead on the history 2025-08-01..2026-10-12, NB log-loss of the
 centre at the count - not Superbet lines, the replay has no rating, A6):
