@@ -491,8 +491,11 @@ CONFIDENCE's shape gates / MODEL_ABOVE_OWN_SAMPLE reading the corrected
 values, `corrected_sample` on the row; calibrated log-loss better on 12 of
 18 corners / shots / fouls markets with the interval below zero, none
 worse, e.g. shots_for -1.96e-3 [-2.38, -1.56], cross-league pairs 3-4x
-that; needs the same correction in the replay and a refit before it can be
-on; `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
+that; the replay applies it with `calibrate_from_cache.py --opponent-correction`
+(needs `--football-rating`; `prepare_refit.py rebuild-cache-rows
+--opponent-correction`, recorded in `replay_rules`), so it waits only for a
+refit carrying that flag; a rebuild re-runs SHEET when a football row lacks
+`opponent_rule`; `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 **Measured and not switched on, measured sports** (audit 2026-10-13, all `None`, code behind the switch):
 `CS2_MAP_IDENTITY_FROM_UTC` (B11: map order / pool terms, walk-forward on 24,995 maps / 11,217 series, A vs base +0.00021 [-0.00022, +0.00064], no effect; `cs2_map_identity_2026-10-13.md`),
 `HK_SHOTS_FROM_UTC` and `HK_EMPTY_NET_FROM_UTC` (B8: hockey shots x save%, centre replaced: total +0.00126 [+0.00010, +0.00241] worse, blend +0.00025 [-0.00033, +0.00084]; fitted empty net: handicap -0.00037 [-0.00074, +0.000006], total +0.00111 worse; shots exist for 6,755 of 29,516 games, none in October 2026; `hockey_goalie_empty_net_2026-10-13.md`, `RAPORT_B8_HOKEJ_2026-10-13.md`),

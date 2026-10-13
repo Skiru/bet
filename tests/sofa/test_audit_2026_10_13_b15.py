@@ -259,9 +259,16 @@ def test_rebuild_reruns_sheet_on_a_raw_sample_sheet_once_on(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     rule = epochs.SAMPLE_OPPONENT_CORRECTION
-    assert epochs.sheet_sample_opponent_correction([{"opponent_rule": rule}])
-    assert not epochs.sheet_sample_opponent_correction([{"opponent_rule": rule}, {}])
+    fb = {"sport": "football"}
+    assert epochs.sheet_sample_opponent_correction([{**fb, "opponent_rule": rule}])
+    assert not epochs.sheet_sample_opponent_correction(
+        [{**fb, "opponent_rule": rule}, fb])
     assert epochs.sheet_sample_opponent_correction([])
+    # a sheet with no football row: SHEET has no book to correct with and
+    # never stamps the rule, so it is not stale (no SHEET on every rebuild)
+    assert epochs.sheet_sample_opponent_correction([{"sport": "tennis"}])
+    assert not epochs.sheet_sample_opponent_correction(
+        [{"sport": "tennis"}, fb])
     at = datetime(2026, 10, 20, 7, tzinfo=UTC)
     limit = timedelta(minutes=45)
     assert "SHEET" not in rp.build_plan(

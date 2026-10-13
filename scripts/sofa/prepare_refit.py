@@ -106,7 +106,8 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "halves", "derived", "tennis_rating", "count_dispersion",
     "cards_correlation", "per_market_k", "tennis_scoped_table",
     "football_rating", "rated_scope", "venue_prior", "game_state",
-    "rating_weight", "season_phase", "tennis_set_ratings",
+    "rating_weight", "season_phase", "opponent_correction",
+    "tennis_set_ratings",
 )
 
 
@@ -563,12 +564,14 @@ def rebuild_cache_rows(
     game_state: bool = False,
     rating_weight: bool = False,
     season_phase: bool = False,
+    opponent_correction: bool = False,
     tennis_set_ratings: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
         ("--game-state", game_state), ("--rating-weight", rating_weight),
-        ("--season-phase", season_phase)) if on]
+        ("--season-phase", season_phase),
+        ("--opponent-correction", opponent_correction)) if on]
     if needs_rating and not football_rating:
         # SHEET applies them only through the football rating's forecast
         raise RefitError(f"{', '.join(needs_rating)} need --football-rating")
@@ -728,7 +731,8 @@ def rebuild_cache_rows(
         # epochs.TENNIS_SCOPED_TABLE: the table cut by tier x gender and the
         # V5 start of the refit's config dir tennis_rating.json
         cmd += ["--tennis-scoped-table"]
-    # Audit 2026-10-13 A6 / B1 / B2 / B5: the live centre terms and the
+    # Audit 2026-10-13 A6 / B1 / B2 / B5 / B14 / C1 / B15: the live centre
+    # terms, the opponent correction of the football samples and the
     # tennis set markets (all off = the replay as before)
     new_flags = {
         "football_rating": football_rating,
@@ -737,6 +741,7 @@ def rebuild_cache_rows(
         "game_state": game_state,
         "rating_weight": rating_weight,
         "season_phase": season_phase,
+        "opponent_correction": opponent_correction,
         "tennis_set_ratings": tennis_set_ratings,
     }
     for name, on in new_flags.items():
@@ -2174,6 +2179,13 @@ def build_parser() -> argparse.ArgumentParser:
         "the refit's config dir)",
     )
     r.add_argument(
+        "--opponent-correction", action="store_true",
+        help="with --football-rating: epochs.SAMPLE_OPPONENT_CORRECTION "
+        "(audit B15 / A5; calibrate_from_cache --opponent-correction): the "
+        "football samples rescaled to a neutral opponent and the match's "
+        "domain through the replayed rating book",
+    )
+    r.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games and "
         "sets_total priced off the rating's neighbours (calibrate_from_cache "
@@ -2298,6 +2310,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     game_state=args.game_state,
                     rating_weight=args.rating_weight,
                     season_phase=args.season_phase,
+                    opponent_correction=args.opponent_correction,
                     tennis_set_ratings=args.tennis_set_ratings,
                 )["exit"]
             )

@@ -58,6 +58,18 @@ CORRECTED_METRICS = frozenset({
 })
 
 
+def corrected_metric(market: str) -> str | None:
+    """The rating metric a `market`'s sample is corrected on, or None when
+    it stays raw (goals, a player market, no rating metric). The one rule
+    SHEET (SampleCorrector.correct) and the cache replay
+    (calibrate_from_cache --opponent-correction) both read."""
+    metric = base_metric(market)
+    if (metric is None or metric not in CORRECTED_METRICS
+            or is_player_metric(market)):
+        return None
+    return metric
+
+
 @dataclass
 class SampleCorrector:
     """The correction of one build, on the rating book SHEET holds."""
@@ -104,9 +116,8 @@ class SampleCorrector:
         """The observations of `team`'s sample for `market`, corrected where
         they can be. `split` (split_index): the ``*_for`` observations by
         (event, opponent), needed for a match total."""
-        metric = base_metric(market)
-        if (metric is None or metric not in CORRECTED_METRICS
-                or is_player_metric(market)):
+        metric = corrected_metric(market)
+        if metric is None:
             return list(observations)
         total = market.endswith("_total")
         out: list[Observation] = []

@@ -129,6 +129,7 @@ from bet.sofa.metrics import (
     stat_is_untracked,
     zero_pair_not_recorded,
 )
+from bet.sofa.opponent_correction import SampleCorrector, corrected_metric
 from bet.sofa.per_market_k import k_for_market
 from bet.sofa.players import (
     PLAYER_METRICS,
@@ -691,6 +692,9 @@ class Past(NamedTuple):
     # "home" / "away": where the side earned it (the venue prior of
     # --venue-prior reads the sample's venues, as SHEET reads Observation.venue)
     venue: str | None = None
+    # the side's opponent in that match (Observation.opponent_id): what
+    # --opponent-correction rescales the observation by
+    opponent: int | None = None
 
 
 def recent_for(
@@ -894,6 +898,10 @@ class CentreRules:
     rating_weights: RatingWeightTable | None = None
     # audit 2026-10-13 C1 (epochs.SEASON_PHASE): the goals centre x the phase
     season_phase: SeasonPhaseTable | None = None
+    # audit 2026-10-13 B15 / A5 (epochs.SAMPLE_OPPONENT_CORRECTION): the
+    # football sample rescaled to a neutral opponent and today's domain
+    # before its centre (ReplayOpponentCorrection)
+    opponent_correction: bool = False
     shared_league_link: bool = True
     unit_strength_from_parent: bool = False
     strict_league_rate: bool = False
@@ -909,6 +917,7 @@ class CentreRules:
                                else self.rating_weights.path or "in-memory"),
             "season_phase": (None if self.season_phase is None
                              else self.season_phase.path or "in-memory"),
+            "opponent_correction": self.opponent_correction,
             "shared_league_link": self.shared_league_link,
             "unit_strength_from_parent": self.unit_strength_from_parent,
             "strict_league_rate": self.strict_league_rate,
@@ -1043,6 +1052,67 @@ def live_centre(
     if rules.season_phase is not None:
         centre, _ = apply_season_phase(centre, market, phase, rules.season_phase)
     return centre
+
+
+class ReplayOpponentCorrection:
+    """SHEET's B15 correction (bet.sofa.opponent_correction, run_sheet.
+    process_fixture under epochs.SAMPLE_OPPONENT_CORRECTION) on the replay's
+    samples, read through the same book SHEET holds - the football rating
+    book as of the match's UTC day start (FootballRatingReplay.book).
+
+    The arithmetic is SampleCorrector.factors, the gate corrected_metric
+    (goals, player markets and markets without a rating metric stay raw).
+    An observation stays raw, as live, when its opponent is unknown or not
+    rated on the metric (< MIN_TEAM_MATCHES). A total's for / against split
+    is the side's own count and the rest of the match total (Past.own,
+    Past.total - Past.own): the replay always holds it, where SHEET reads
+    it from the ``*_for`` sample of the same match (B13) and leaves an
+    observation raw without one.
+
+    One instance per match: the corrector caches the book's link gaps, and
+    the book moves on with the next day."""
+
+    def __init__(self, book: RatingBook) -> None:
+        self.corrector = SampleCorrector(book)
+
+    def side(
+        self, recent: Sequence[Past], market: str, team: int,
+        today_opponent: int | None,
+    ) -> list[float]:
+        """A ``*_for`` sample as SHEET prices it (SampleCorrector.correct):
+        each observation x its opponent's 1/def^c x exp(g)."""
+        metric = corrected_metric(market)
+        if metric is None:
+            return [p.own for p in recent]
+        out: list[float] = []
+        for p in recent:
+            f = (None if p.opponent is None else
+                 self.corrector.factors(team, p.opponent, today_opponent, metric))
+            out.append(p.own if f is None else p.own * f[0])
+        return out
+
+    def total(
+        self, home_recent: Sequence[Past], away_recent: Sequence[Past],
+        market: str, home: int, away: int,
+    ) -> list[float]:
+        """A ``*_total`` sample as SHEET prices it (correct_total, then
+        deduplicate_observations): pooled_total_sample's pool - home side
+        first, one historical match once - with each match read from the
+        side whose list it came from."""
+        metric = corrected_metric(market)
+        seen: set[int] = set()
+        out: list[float] = []
+        for recent, team, other in ((home_recent, home, away),
+                                    (away_recent, away, home)):
+            for p in recent:
+                if p.event_id in seen:
+                    continue
+                seen.add(p.event_id)
+                f = (None if metric is None or p.opponent is None else
+                     self.corrector.factors(team, p.opponent, other, metric))
+                out.append(p.total if f is None
+                           else p.own * f[0] + (p.total - p.own) * f[1])
+        return out
 
 
 # Football joints (both_over_ / most_ / handicap_) of the bases measured out of
@@ -1195,11 +1265,11 @@ def iter_rows(
             total = home_value + away_value
             history[(match.home_id, base)].append(
                 Past(match.timestamp, match.event_id, home_value, total,
-                     match.competition_id, regular, "home")
+                     match.competition_id, regular, "home", match.away_id)
             )
             history[(match.away_id, base)].append(
                 Past(match.timestamp, match.event_id, away_value, total,
-                     match.competition_id, regular, "away")
+                     match.competition_id, regular, "away", match.home_id)
             )
 
 
@@ -1234,6 +1304,14 @@ def _match_rows(
     # --season-phase: the match's phase as of its kickoff
     match_phase = (football.phases.get(match.event_id)
                    if football_fc is not None and football is not None else None)
+    # --opponent-correction (B15): the sample rescaled through the book SHEET
+    # holds for the match's day, before its mean, variance and centre - as
+    # run_sheet does, whether or not the fixture has a forecast
+    opponent: ReplayOpponentCorrection | None = None
+    if (football is not None and football.rules.opponent_correction
+            and match.sport == "football"):
+        football.advance(day_start(match.timestamp))
+        opponent = ReplayOpponentCorrection(football.book)
 
     def settle_rows(
         market: str, subject: str, actual: float, sample: list[float],
@@ -1274,7 +1352,11 @@ def _match_rows(
                 break
             if len(recent) >= MIN_SAMPLE:
                 yield from settle_rows(
-                    for_market, str(team), own, [p.own for p in recent],
+                    for_market, str(team), own,
+                    [p.own for p in recent] if opponent is None
+                    else opponent.side(
+                        recent, for_market, team,
+                        match.away_id if side == "side_a" else match.home_id),
                     rating_reader(forecast, side)
                     if forecast is not None and rated_base else None,
                     side, recent,
@@ -1304,7 +1386,9 @@ def _match_rows(
         if len(home_total) >= MIN_SAMPLE and len(away_total) >= MIN_SAMPLE:
             yield from settle_rows(
                 total_market, "", total,
-                pooled_total_sample(home_total, away_total),
+                pooled_total_sample(home_total, away_total) if opponent is None
+                else opponent.total(home_total, away_total, total_market,
+                                    match.home_id, match.away_id),
                 rating_reader(forecast, "side_a")
                 if forecast is not None and rated_base else None,
                 None, (),
@@ -1331,15 +1415,22 @@ def _match_rows(
             # centre: the joint then reads both raw samples, as in SHEET.
             # A side's centre is its marginal row's (derived.
             # price_derived_rungs reads SHEET's marginal centres): with
-            # --football-rating the live one (live_centre).
+            # --football-rating the live one (live_centre); with
+            # --opponent-correction the marginal row's corrected sample's,
+            # while the joint itself reads the raw samples, as
+            # derived.price_derived_rungs reads 03_samples.json.
             joint_centres: list[float | None] = [
                 None if not any(p.own for p in rec) else live_centre(
                     match, for_market, side,
-                    shrunk_centre(match, for_market, [p.own for p in rec],
-                                  baselines, engine_constants),
+                    shrunk_centre(
+                        match, for_market,
+                        [p.own for p in rec] if opponent is None
+                        else opponent.side(rec, for_market, team, other),
+                        baselines, engine_constants),
                     football_fc, tuple(p.venue for p in rec), phase=match_phase)
-                for rec, side in ((home_recent, "side_a"),
-                                  (away_recent, "side_b"))]
+                for rec, side, team, other in (
+                    (home_recent, "side_a", match.home_id, match.away_id),
+                    (away_recent, "side_b", match.away_id, match.home_id))]
             yield from football_joint_rows(
                 match, base, [p.own for p in home_recent],
                 [p.own for p in away_recent],
@@ -2320,6 +2411,15 @@ def main() -> int:
         "same history: in-sample for it",
     )
     parser.add_argument(
+        "--opponent-correction", action="store_true",
+        help="with --football-rating: the football side / total samples "
+        "rescaled to a neutral opponent (x / def(opponent)^c) and to the "
+        "match's league domain through the rating book as of the match's day, "
+        "before their mean, variance and centre (epochs.SAMPLE_OPPONENT_"
+        "CORRECTION_FROM_UTC, audit B15 / A5; bet.sofa.opponent_correction). "
+        "Goals and player markets stay raw. Default off: the raw sample",
+    )
+    parser.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games "
         "(games_set1/2_total, games_won_set1/2/3_for) and sets_total from "
@@ -2354,7 +2454,8 @@ def main() -> int:
         ("--rated-scope", args.rated_scope), ("--venue-prior", args.venue_prior),
         ("--game-state", args.game_state is not None),
         ("--rating-weight", args.rating_weight is not None),
-        ("--season-phase", args.season_phase is not None)) if on]
+        ("--season-phase", args.season_phase is not None),
+        ("--opponent-correction", args.opponent_correction)) if on]
     if needs_rating and not args.football_rating:
         # SHEET applies them only through its FootballForecast
         parser.error(f"{', '.join(needs_rating)} need --football-rating")
@@ -2393,6 +2494,7 @@ def main() -> int:
                 load_season_phase_table(
                     Path(args.season_phase) if args.season_phase else None)
                 if args.season_phase is not None else None),
+            opponent_correction=bool(args.opponent_correction),
             # the book's rules SHEET would use for a day built now
             shared_league_link=epochs.link_shared_league(today),
             unit_strength_from_parent=epochs.unit_strength_from_parent(today),

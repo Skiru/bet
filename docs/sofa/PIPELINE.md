@@ -629,8 +629,17 @@ z 404) nie jest pytane ponownie.
   wartościach zaokrąglonych). Historia, cięcie 2026-06-09: log-loss po
   kalibracji lepszy na 12 z 18 rynków rożnych / strzałów / fauli z
   przedziałem poniżej zera, żaden gorszy; w parach ponadligowych 3-4 razy
-  więcej. Zostaje `None`: wymaga tej samej korekty w replayu
-  (`calibrate_from_cache.py`) i refitu krzywych
+  więcej. Zostaje `None`: wymaga refitu krzywych na replayu z tą samą
+  korektą - replay ją ma: `calibrate_from_cache.py --opponent-correction`
+  (tylko z `--football-rating`; księga ratingu as-of dnia meczu, te same
+  `SampleCorrector.factors` i `corrected_metric`, gole i zawodnicy bez
+  korekty, suma z rozbiciem własne / rywala, spotkanie obu stron czytane z
+  listy gospodarza jak w `deduplicate_observations`; środki łączników z
+  `--derived` ze skorygowanej próbki, sam łącznik na surowej), przez
+  `prepare_refit.py rebuild-cache-rows --opponent-correction`, zapis w
+  `replay_rules`. Rebuild (`rebuild_plan`) uruchamia SHEET ponownie, gdy
+  któryś wiersz piłki nie ma `opponent_rule` (arkusz bez piłki nie jest
+  przestarzały - SHEET bez księgi piłki nie stempluje reguły)
   (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 
 **Zmierzone 2026-10-13 (audyt B8, B9, B11, A7), sporty mierzone, przełączniki
