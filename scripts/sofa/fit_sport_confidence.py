@@ -53,8 +53,9 @@ from bet.sofa import epochs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
+from bet.sofa.market_lines import MarketLines, load_market_lines  # noqa: E402
 from bet.sofa.score_model import N_SIMS, load_events  # noqa: E402
-from bet.sofa.shadow import SPORTS  # noqa: E402
+from bet.sofa.shadow import MARKETS, SPORTS  # noqa: E402
 
 DOC = (
     "Statistics-only confidence of the hockey / basketball / volleyball / CS2 "
@@ -97,6 +98,24 @@ def bb_freshness_on(before: str, mode: str) -> bool:
         before, datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC))
 
 
+def market_lines_for(sport: str, before: str, path: str | None
+                     ) -> dict[int, MarketLines] | None:
+    """The market-positioned lines of the history replay (audit A7): the
+    --market-lines cache, or the default cache when the --before day's rule
+    (epochs.MARKET_POSITIONED_LINES) is on; None = synthetic lines. A sport
+    without MARKET_LINE_MARKETS never reads one."""
+    if sport not in scf.MARKET_LINE_MARKETS:
+        return None
+    first = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC)
+    if path is None and not epochs.market_positioned_lines(before, first):
+        return None
+    cache = Path(path or epochs.MARKET_LINES_CACHE.format(sport=sport))
+    if not cache.exists():
+        raise SystemExit(f"market lines cache {cache} not found "
+                         "(scripts/sofa/backfill_event_odds.py)")
+    return load_market_lines(cache)
+
+
 def fit_sport(sport: str, before: str, args: argparse.Namespace,
               db_path: str, runs_dir: str) -> tuple[dict[str, Any],
                                                      dict[str, list[scf.Row]]]:
@@ -111,6 +130,7 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
     rows: dict[str, list[scf.Row]] = {}
+    market: dict[int, MarketLines] | None = None
     if sport == "cs2":
         maps, series = scf.load_cs2(db_path, before_ts)
         # epochs.CS2_TEAM_ROUNDS_RACE: the estimator of the day the fit is for
@@ -130,12 +150,14 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         history = scf.parse_history(events, shadow_sport)
         history = [g for g in history if g.rating.ts < before_ts]
         history_n = len(history)
+        market = market_lines_for(sport, before, args.market_lines)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit", fresh, overtime, strict)
+            "history_fit", fresh, overtime, strict, market)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
-            args.max_holdout_games, "history_holdout", fresh, overtime, strict)
+            args.max_holdout_games, "history_holdout", fresh, overtime, strict,
+            market)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
@@ -180,6 +202,16 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "bb_freshness": fresh,
             "bb_overtime": overtime,
             "league_rate_rule": strict,
+            **({"market_positioned_lines": {
+                "cache": args.market_lines or epochs.MARKET_LINES_CACHE.format(
+                    sport=sport),
+                "families": sorted({MARKETS[sport][m].family  # type: ignore[index]
+                                    for m in scf.MARKET_LINE_MARKETS[sport]}),
+                "games_with_lines": len(market),
+                "rows": {k: sum(1 for r in v
+                                if r.get("line_source") == "market")
+                         for k, v in rows.items()},
+            }} if market is not None else {}),
         },
         "curves": curves,
         "curve_source": source,
@@ -275,6 +307,11 @@ def main() -> int:
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")
+    ap.add_argument("--market-lines", default=None, metavar="CACHE",
+                    help="basketball: fit the total / handicap / team total "
+                    "history on lines placed where the market stood (audit "
+                    "A7; backfill_event_odds.py cache); default: the "
+                    "--before day's rule (epochs.MARKET_POSITIONED_LINES)")
     ap.add_argument("--fit-days", type=int, default=365)
     ap.add_argument("--sims", type=int, default=1000,
                     help=f"simulated games per forecast (pipeline: {N_SIMS})")

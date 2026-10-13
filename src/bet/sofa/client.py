@@ -400,6 +400,12 @@ class SofascoreClient:
         url = f"https://api.sofascore.com/api/v1/event/{id}/incidents"
         return self._execute(url)
 
+    def event_odds(self, id: int) -> Any | None:
+        """A game's odds markets (provider 1, all markets). Read by the A7
+        backfill for the position of the historical lines only."""
+        url = f"https://api.sofascore.com/api/v1/event/{id}/odds/1/all"
+        return self._execute(url)
+
     def event_lineups(self, id: int) -> Any | None:
         """Both squads with their per-player statistics (F54).
 

@@ -1031,6 +1031,33 @@ def bb_overtime(date: str | None = None, build_at: datetime | None = None) -> bo
     return at >= BB_OVERTIME_FROM_UTC
 
 
+# Audit 2026-10-13 A7 (operator O2): the basketball history curve is fitted
+# on lines placed where the market stood - each historical game's Sofascore
+# total and spread (scripts/sofa/backfill_event_odds.py, cached without a
+# price; bet.sofa.market_lines), the team totals at the split they imply -
+# instead of quantiles of the model's own simulation, for those families
+# (sport_confidence.MARKET_LINE_MARKETS); p stays the score model's. It acts
+# in the history replay of a fit for a day >= it (fit_sport_confidence; a fit
+# with the switch on and no --market-lines reads MARKET_LINES_CACHE) and goes
+# live only with the curve refitted that way (O6). None = synthetic lines.
+# Measured: docs/sofa/evidence/market_positioned_lines_2026-10-13.md.
+MARKET_POSITIONED_LINES_FROM_UTC: datetime | None = None
+MARKET_LINES_CACHE = "data/a7_odds/{sport}.jsonl"
+
+
+def market_positioned_lines(date: str | None = None,
+                            build_at: datetime | None = None) -> bool:
+    """Is the history curve fitted on market-positioned lines
+    (MARKET_POSITIONED_LINES_FROM_UTC)? `date` None: the wall clock alone."""
+    if MARKET_POSITIONED_LINES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if (date is not None
+            and date < MARKET_POSITIONED_LINES_FROM_UTC.strftime("%Y-%m-%d")):
+        return False
+    return at >= MARKET_POSITIONED_LINES_FROM_UTC
+
+
 # Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
 # games_won_set1/2/3_for) and sets_total were priced from the players' own
 # samples shrunk to a global prior, with no opponent. From this moment they are
