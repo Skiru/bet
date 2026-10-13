@@ -2,7 +2,9 @@
 """Basketball pace x efficiency (audit 2026-10-13 B7) against today's points
 rating. Read-only evidence, never a gate.
 
-Pre-registered in docs/sofa/evidence/basketball_pace_2026-10-13.md.
+Pre-registered in docs/sofa/evidence/basketball_pace_2026-10-13.md;
+`--variant level` (B7b: the box-score pace scales the total only, the margin
+kept) in docs/sofa/evidence/basketball_pace_level_2026-10-13.md.
 
     --mode tune      alpha grid of the pace metrics on the tune window:
                      one-step squared error of the regulation total
@@ -200,8 +202,18 @@ def _family_outcomes(g: GameResult, lines: dict[str, list[float]]
     }
 
 
+def _on_path(model: ScoreModel, variant: str, r: FootballResult) -> bool:
+    """Does the new estimator read the box score for this game?"""
+    if variant == "level":
+        return model.level_factor(r.competition_id, r.home_id, r.away_id,
+                                  r.ts) is not None
+    return model.pace_expected(r.competition_id, r.home_id, r.away_id,
+                               r.ts) is not None
+
+
 def history_test(data: Data, lines_start: int, start: int, end: int,
-                 max_games: int, sims: int) -> dict[str, Any]:
+                 max_games: int, sims: int, variant: str = "pace"
+                 ) -> dict[str, Any]:
     ratings = [r for r, _ in data]
     ref = [g for r, g in data if lines_start <= r.ts < start
            and g is not None and len(g.t1_periods) == 4]
@@ -219,6 +231,9 @@ def history_test(data: Data, lines_start: int, start: int, end: int,
         m: defaultdict(list) for m in ("brier", "logloss")}
     absolute: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     calib: dict[str, list[tuple[float, int]]] = {"old": [], "new": []}
+    # the construction check of B7b: how far winner / handicap p moved
+    max_dp: dict[str, float] = defaultdict(float)
+    factors: list[float] = []
     n_games = n_pace = 0
     old: ScoreModel | None = None
     new: ScoreModel | None = None
@@ -233,7 +248,8 @@ def history_test(data: Data, lines_start: int, start: int, end: int,
         batch = window[i:j]
         if old is None or new is None or ts >= next_rebuild:
             old = build_model(ratings, BB, ts)
-            new = build_model(ratings, BB, ts, pace=True)
+            new = build_model(ratings, BB, ts, pace=variant == "pace",
+                              pace_level=variant == "level")
             for m in (old, new):
                 if m.recent is None:
                     m.recent = {}
@@ -248,8 +264,11 @@ def history_test(data: Data, lines_start: int, start: int, end: int,
             en = new.expected(r.competition_id, r.home_id, r.away_id, r.ts)
             if eo is None or en is None:
                 continue
-            paced = new.pace_expected(r.competition_id, r.home_id, r.away_id,
-                                      r.ts) is not None
+            paced = _on_path(new, variant, r)
+            if paced and variant == "level":
+                f = new.level_factor(r.competition_id, r.home_id, r.away_id, r.ts)
+                if f is not None:
+                    factors.append(f)
             so = old.simulate(eo[0], eo[1], seed=r.event_id, n=sims,
                               noise_mult=old.noise_mult(r.home_id, r.away_id, r.ts))
             sn = new.simulate(en[0], en[1], seed=r.event_id, n=sims,
@@ -259,6 +278,8 @@ def history_test(data: Data, lines_start: int, start: int, end: int,
             n_games += 1
             n_pace += paced
             for fam in FAMILIES:
+                max_dp[fam] = max(max_dp[fam], max(
+                    abs(a - b) for a, b in zip(po[fam], pn[fam], strict=True)))
                 bo = sum((p - y) ** 2 for p, y in zip(po[fam], ys[fam], strict=True))
                 bn = sum((p - y) ** 2 for p, y in zip(pn[fam], ys[fam], strict=True))
                 lo = sum(_ll(p, y) for p, y in zip(po[fam], ys[fam], strict=True))
@@ -286,8 +307,14 @@ def history_test(data: Data, lines_start: int, start: int, end: int,
                     m.recent.setdefault(r.home_id, []).append(r.ts)
                     m.recent.setdefault(r.away_id, []).append(r.ts)
         i = j
+    factors.sort()
     return {
+        "variant": variant,
         "lines": lines, "games": n_games, "games_pace_path": n_pace,
+        "max_abs_dp": dict(max_dp),
+        "level_factor_quantiles": (
+            {q: factors[min(int(q * len(factors)), len(factors) - 1)]
+             for q in (0.05, 0.25, 0.5, 0.75, 0.95)} if factors else {}),
         "new_minus_old": {m: {f: boot(v[f]) for f in FAMILIES}
                           for m, v in diffs.items()},
         "new_minus_old_pace_path_only": {m: {f: boot(v[f]) for f in FAMILIES}
@@ -329,7 +356,8 @@ def _row_key(r: dict[str, Any]) -> tuple[Any, ...]:
 
 def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
                   date_from: str, date_to: str, sims: int,
-                  events_cache: str | None) -> dict[str, Any]:
+                  events_cache: str | None, variant: str = "pace"
+                  ) -> dict[str, Any]:
     if events_cache and Path(events_cache).exists():
         events: dict[int, Any] = pickle.loads(Path(events_cache).read_bytes())
     else:
@@ -345,8 +373,10 @@ def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
                               "strict_league_rate": False}
     old = scf.settled_shadow_rows(runs_dir, BB, dates, events, history, sims,
                                   pace=False, **common)
+    new_kw: dict[str, bool] = ({"pace": False, "pace_level": True}
+                               if variant == "level" else {"pace": True})
     new = scf.settled_shadow_rows(runs_dir, BB, dates, events, history, sims,
-                                  pace=True, **common)
+                                  **new_kw, **common)
     fair = _fair(runs_dir, dates)
     nmap = {_row_key(r): r for r in new}
     per_game: dict[str, dict[str, dict[str, list[float]]]] = {
@@ -355,6 +385,7 @@ def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
     main: dict[str, list[tuple[float, float, int, str]]] = defaultdict(list)
     absolute: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0, 0.0])
     changed = 0
+    max_dp: dict[str, float] = defaultdict(float)
     games: dict[str, set[str]] = defaultdict(set)
     for r in old:
         fam = r["family"]
@@ -367,6 +398,7 @@ def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
         po = min(max(float(r["p"]), 1e-4), 1 - 1e-4)
         pn = min(max(float(rn["p"]), 1e-4), 1 - 1e-4)
         changed += po != pn
+        max_dp[fam] = max(max_dp[fam], abs(pn - po))
         games[fam].add(r["game"])
         for m, d in (("brier", (pn - y) ** 2 - (po - y) ** 2),
                      ("logloss", _ll(pn, y) - _ll(po, y))):
@@ -392,8 +424,9 @@ def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
             "diff": boot([(a, int(b)) for a, b in g.values()]),
         }
     return {
+        "variant": variant,
         "dates": [date_from, date_to], "rows_old": len(old), "rows_new": len(new),
-        "rows_with_changed_p": changed,
+        "rows_with_changed_p": changed, "max_abs_dp": dict(max_dp),
         "games": {f: len(v) for f, v in games.items()},
         "new_minus_old": {m: {f: boot([(a, int(b)) for a, b in v[f].values()])
                               for f in FAMILIES if f in v}
@@ -407,6 +440,9 @@ def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--mode", choices=("tune", "history", "superbet"), required=True)
+    ap.add_argument("--variant", choices=("pace", "level"), default="pace",
+                    help="pace: B7's centre; level: B7b's total scaled by the "
+                    "pace, the margin kept")
     ap.add_argument("--cache", default=None, help="measure_score_history pickle")
     ap.add_argument("--box-cache", default=None)
     ap.add_argument("--events-cache", default=None)
@@ -441,11 +477,12 @@ def main() -> int:
     elif args.mode == "history":
         out["window"] = [args.start, args.end]
         out["history"] = history_test(data, _ts(args.lines_start), _ts(args.start),
-                                      _ts(args.end), args.max_games, args.sims)
+                                      _ts(args.end), args.max_games, args.sims,
+                                      args.variant)
     else:
         out["superbet"] = superbet_test(config.db_path, config.runs_dir, data, box,
                                         args.date_from, args.date_to, args.sims,
-                                        args.events_cache)
+                                        args.events_cache, args.variant)
     text = json.dumps(out, indent=1)
     print(text)
     if args.json_out:
