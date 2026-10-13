@@ -1,0 +1,1504 @@
+{
+ "from": "2026-09-29",
+ "to": "2026-10-12",
+ "boot": 2000,
+ "seed": 0,
+ "q1": {
+  "hockey": {
+   "lines": 1185,
+   "games": 68,
+   "K1_thin_vs_rest": {
+    "a_lines": 105,
+    "a_games": 32,
+    "b_lines": 1080,
+    "b_games": 68,
+    "a": -0.1469,
+    "a_ci": [
+     -0.2709,
+     -0.0379
+    ],
+    "b": -0.0369,
+    "b_ci": [
+     -0.0709,
+     -0.0006
+    ],
+    "diff": -0.1099,
+    "diff_ci": [
+     -0.2356,
+     -0.0017
+    ]
+   },
+   "n_all_known": 1185,
+   "K2_moved_vs_rest": {
+    "a_lines": 97,
+    "a_games": 31,
+    "b_lines": 1088,
+    "b_games": 68,
+    "a": -0.1716,
+    "a_ci": [
+     -0.2935,
+     -0.0603
+    ],
+    "b": -0.0355,
+    "b_ci": [
+     -0.0699,
+     -0.0004
+    ],
+    "diff": -0.1361,
+    "diff_ci": [
+     -0.2661,
+     -0.0251
+    ]
+   },
+   "moved_and_thin": {
+    "lines": 86,
+    "games": 26,
+    "mean": -0.1702,
+    "ci": [
+     -0.3111,
+     -0.0503
+    ]
+   },
+   "thin_not_moved": {
+    "lines": 19,
+    "games": 11,
+    "mean": -0.0412,
+    "ci": [
+     -0.3178,
+     0.1505
+    ]
+   },
+   "exploratory_mislabelled_vs_rest": {
+    "a_lines": 174,
+    "a_games": 51,
+    "b_lines": 1011,
+    "b_games": 68,
+    "a": -0.1225,
+    "a_ci": [
+     -0.1983,
+     -0.0489
+    ],
+    "b": -0.0336,
+    "b_ci": [
+     -0.0698,
+     0.0025
+    ],
+    "diff": -0.0888,
+    "diff_ci": [
+     -0.1684,
+     -0.0148
+    ]
+   },
+   "thin_composition": {
+    "lines": 105,
+    "moved": 86,
+    "mislabelled": 88,
+    "n_all_lt_20": 17,
+    "players": 26,
+    "players_mislabelled": 21
+   },
+   "lines_mislabelled": 174,
+   "by_n_team": {
+    "5-9": {
+     "lines": 105,
+     "games": 32,
+     "mean": -0.1469,
+     "ci": [
+      -0.2744,
+      -0.0428
+     ]
+    },
+    "10-19": {
+     "lines": 31,
+     "games": 21,
+     "mean": -0.0545,
+     "ci": [
+      -0.1468,
+      0.0482
+     ]
+    },
+    "20-39": {
+     "lines": 159,
+     "games": 55,
+     "mean": 0.0165,
+     "ci": [
+      -0.0475,
+      0.0726
+     ]
+    },
+    "40-60": {
+     "lines": 890,
+     "games": 68,
+     "mean": -0.0459,
+     "ci": [
+      -0.0819,
+      -0.0079
+     ]
+    }
+   },
+   "by_family_thin": {
+    "player_assists|UNDER": {
+     "lines": 32,
+     "games": 25,
+     "mean": -0.103,
+     "ci": [
+      -0.2628,
+      0.0414
+     ]
+    },
+    "player_blocked_shots|UNDER": {
+     "lines": 3,
+     "games": 3,
+     "mean": -0.4629,
+     "ci": [
+      -0.8178,
+      0.2444
+     ]
+    },
+    "player_goalie_saves|UNDER": {
+     "lines": 1,
+     "games": 1,
+     "mean": -0.7512,
+     "ci": [
+      -0.7512,
+      -0.7512
+     ]
+    },
+    "player_hits|UNDER": {
+     "lines": 1,
+     "games": 1,
+     "mean": -0.7153,
+     "ci": [
+      -0.7153,
+      -0.7153
+     ]
+    },
+    "player_plus_minus|UNDER": {
+     "lines": 8,
+     "games": 5,
+     "mean": -0.0927,
+     "ci": [
+      -0.468,
+      0.2962
+     ]
+    },
+    "player_points|UNDER": {
+     "lines": 17,
+     "games": 17,
+     "mean": -0.1571,
+     "ci": [
+      -0.3889,
+      0.0528
+     ]
+    },
+    "player_pp_points|UNDER": {
+     "lines": 36,
+     "games": 26,
+     "mean": -0.0786,
+     "ci": [
+      -0.2112,
+      0.0377
+     ]
+    },
+    "player_shots_on_goal|UNDER": {
+     "lines": 7,
+     "games": 7,
+     "mean": -0.4321,
+     "ci": [
+      -0.7225,
+      -0.1396
+     ]
+    }
+   }
+  },
+  "basketball": {
+   "lines": 180,
+   "games": 42,
+   "K1_thin_vs_rest": {
+    "a_lines": 56,
+    "a_games": 27,
+    "b_lines": 124,
+    "b_games": 35,
+    "a": -0.1652,
+    "a_ci": [
+     -0.2873,
+     -0.0343
+    ],
+    "b": -0.1349,
+    "b_ci": [
+     -0.2606,
+     -0.0172
+    ],
+    "diff": -0.0303,
+    "diff_ci": [
+     -0.2052,
+     0.1554
+    ]
+   },
+   "n_all_known": 180,
+   "K2_moved_vs_rest": {
+    "a_lines": 71,
+    "a_games": 28,
+    "b_lines": 109,
+    "b_games": 33,
+    "a": -0.1244,
+    "a_ci": [
+     -0.2393,
+     -0.0288
+    ],
+    "b": -0.1573,
+    "b_ci": [
+     -0.2901,
+     -0.0312
+    ],
+    "diff": 0.033,
+    "diff_ci": [
+     -0.1438,
+     0.2044
+    ]
+   },
+   "moved_and_thin": {
+    "lines": 53,
+    "games": 26,
+    "mean": -0.1688,
+    "ci": [
+     -0.2895,
+     -0.0447
+    ]
+   },
+   "thin_not_moved": {
+    "lines": 3,
+    "games": 3,
+    "mean": -0.103,
+    "ci": [
+     -0.7246,
+     0.2642
+    ]
+   },
+   "exploratory_mislabelled_vs_rest": {
+    "a_lines": 92,
+    "a_games": 35,
+    "b_lines": 88,
+    "b_games": 31,
+    "a": -0.1618,
+    "a_ci": [
+     -0.3001,
+     -0.0426
+    ],
+    "b": -0.1261,
+    "b_ci": [
+     -0.2369,
+     -0.0195
+    ],
+    "diff": -0.0357,
+    "diff_ci": [
+     -0.2,
+     0.1214
+    ]
+   },
+   "thin_composition": {
+    "lines": 56,
+    "moved": 53,
+    "mislabelled": 53,
+    "n_all_lt_20": 4,
+    "players": 39,
+    "players_mislabelled": 36
+   },
+   "lines_mislabelled": 92,
+   "by_n_team": {
+    "5-9": {
+     "lines": 56,
+     "games": 27,
+     "mean": -0.1652,
+     "ci": [
+      -0.2876,
+      -0.0341
+     ]
+    },
+    "10-19": {
+     "lines": 19,
+     "games": 5,
+     "mean": 0.021,
+     "ci": [
+      -0.1367,
+      0.1997
+     ]
+    },
+    "20-39": {
+     "lines": 18,
+     "games": 9,
+     "mean": -0.1588,
+     "ci": [
+      -0.4156,
+      0.0274
+     ]
+    },
+    "40-60": {
+     "lines": 87,
+     "games": 30,
+     "mean": -0.164,
+     "ci": [
+      -0.3221,
+      -0.0046
+     ]
+    }
+   },
+   "by_family_thin": {
+    "player_assists|OVER": {
+     "lines": 2,
+     "games": 2,
+     "mean": -0.248,
+     "ci": [
+      -0.7394,
+      0.2433
+     ]
+    },
+    "player_assists|UNDER": {
+     "lines": 8,
+     "games": 6,
+     "mean": 0.1241,
+     "ci": [
+      -0.0717,
+      0.2673
+     ]
+    },
+    "player_blocks|UNDER": {
+     "lines": 9,
+     "games": 6,
+     "mean": -0.054,
+     "ci": [
+      -0.1811,
+      0.1769
+     ]
+    },
+    "player_points|OVER": {
+     "lines": 1,
+     "games": 1,
+     "mean": 0.2663,
+     "ci": [
+      0.2663,
+      0.2663
+     ]
+    },
+    "player_points|UNDER": {
+     "lines": 7,
+     "games": 7,
+     "mean": -0.4252,
+     "ci": [
+      -0.7098,
+      -0.1399
+     ]
+    },
+    "player_pts_ast|UNDER": {
+     "lines": 5,
+     "games": 5,
+     "mean": -0.3159,
+     "ci": [
+      -0.7208,
+      0.089
+     ]
+    },
+    "player_pts_reb|UNDER": {
+     "lines": 4,
+     "games": 4,
+     "mean": -0.2123,
+     "ci": [
+      -0.7074,
+      0.2829
+     ]
+    },
+    "player_rebounds|OVER": {
+     "lines": 1,
+     "games": 1,
+     "mean": 0.1974,
+     "ci": [
+      0.1974,
+      0.1974
+     ]
+    },
+    "player_rebounds|UNDER": {
+     "lines": 6,
+     "games": 5,
+     "mean": -0.0752,
+     "ci": [
+      -0.3981,
+      0.2594
+     ]
+    },
+    "player_steals|UNDER": {
+     "lines": 3,
+     "games": 3,
+     "mean": -0.1037,
+     "ci": [
+      -0.8003,
+      0.2763
+     ]
+    },
+    "player_threes|UNDER": {
+     "lines": 10,
+     "games": 8,
+     "mean": -0.356,
+     "ci": [
+      -0.6666,
+      -0.055
+     ]
+    }
+   }
+  }
+ },
+ "q1_verdict": {
+  "hockey": "CONFIRMED",
+  "basketball": "N_TOO_SMALL"
+ },
+ "q2": {
+  "hockey:player": {
+   "M2": {
+    "diff": -0.1376,
+    "diff_ci": [
+     -0.2028,
+     -0.0614
+    ],
+    "strata": 19,
+    "lo_lines": 634,
+    "hi_lines": 428,
+    "games": 68,
+    "hi_games": 67
+   },
+   "bands": {
+    "1.00-1.30": {
+     "lines": 640,
+     "games": 68,
+     "mean": 0.006,
+     "ci": [
+      -0.028,
+      0.0391
+     ],
+     "mean_p": 0.8503,
+     "realised": 0.8562
+    },
+    "1.30-1.60": {
+     "lines": 428,
+     "games": 67,
+     "mean": -0.1052,
+     "ci": [
+      -0.1543,
+      -0.0509
+     ],
+     "mean_p": 0.757,
+     "realised": 0.6519
+    },
+    "1.60-2.20": {
+     "lines": 113,
+     "games": 50,
+     "mean": -0.1164,
+     "ci": [
+      -0.2018,
+      -0.033
+     ],
+     "mean_p": 0.7447,
+     "realised": 0.6283
+    },
+    "2.20-1000.00": {
+     "lines": 4,
+     "games": 4,
+     "mean": -0.2417,
+     "ci": [
+      -0.7602,
+      0.2768
+     ],
+     "mean_p": 0.7417,
+     "realised": 0.5
+    }
+   }
+  },
+  "basketball:player": {
+   "M2": {
+    "diff": 0.0412,
+    "diff_ci": [
+     -0.3125,
+     0.4717
+    ],
+    "strata": 4,
+    "lo_lines": 10,
+    "hi_lines": 13,
+    "games": 42,
+    "hi_games": 41
+   },
+   "bands": {
+    "1.00-1.30": {
+     "lines": 19,
+     "games": 9,
+     "mean": -0.0944,
+     "ci": [
+      -0.3044,
+      0.101
+     ],
+     "mean_p": 0.8312,
+     "realised": 0.7368
+    },
+    "1.30-1.60": {
+     "lines": 56,
+     "games": 29,
+     "mean": -0.1433,
+     "ci": [
+      -0.2834,
+      -0.0025
+     ],
+     "mean_p": 0.7505,
+     "realised": 0.6071
+    },
+    "1.60-2.20": {
+     "lines": 104,
+     "games": 30,
+     "mean": -0.1572,
+     "ci": [
+      -0.2781,
+      -0.0403
+     ],
+     "mean_p": 0.7533,
+     "realised": 0.5962
+    },
+    "2.20-1000.00": {
+     "lines": 1,
+     "games": 1,
+     "mean": 0.187,
+     "ci": [
+      0.187,
+      0.187
+     ],
+     "mean_p": 0.813,
+     "realised": 1.0
+    }
+   }
+  },
+  "hockey:other_no_curve": {
+   "M2": {
+    "diff": -0.12,
+    "diff_ci": [
+     -0.3496,
+     0.0845
+    ],
+    "strata": 6,
+    "lo_lines": 37,
+    "hi_lines": 36,
+    "games": 100,
+    "hi_games": 32
+   },
+   "bands": {
+    "1.00-1.30": {
+     "lines": 124,
+     "games": 89,
+     "mean": 0.0132,
+     "ci": [
+      -0.0618,
+      0.0754
+     ],
+     "mean_p": 0.8739,
+     "realised": 0.8871
+    },
+    "1.30-1.60": {
+     "lines": 27,
+     "games": 26,
+     "mean": -0.0228,
+     "ci": [
+      -0.1872,
+      0.1293
+     ],
+     "mean_p": 0.7635,
+     "realised": 0.7407
+    },
+    "1.60-2.20": {
+     "lines": 8,
+     "games": 7,
+     "mean": 0.0094,
+     "ci": [
+      -0.3174,
+      0.261
+     ],
+     "mean_p": 0.7406,
+     "realised": 0.75
+    },
+    "2.20-1000.00": {
+     "lines": 2,
+     "games": 2,
+     "mean": -0.2325,
+     "ci": [
+      -0.721,
+      0.256
+     ],
+     "mean_p": 0.7325,
+     "realised": 0.5
+    }
+   }
+  },
+  "basketball:other_no_curve": {
+   "M2": {
+    "diff": -0.1762,
+    "diff_ci": [
+     -0.3567,
+     -0.0112
+    ],
+    "strata": 10,
+    "lo_lines": 96,
+    "hi_lines": 423,
+    "games": 290,
+    "hi_games": 197
+   },
+   "bands": {
+    "1.00-1.30": {
+     "lines": 194,
+     "games": 115,
+     "mean": 0.0236,
+     "ci": [
+      -0.0348,
+      0.0787
+     ],
+     "mean_p": 0.8526,
+     "realised": 0.8763
+    },
+    "1.30-1.60": {
+     "lines": 353,
+     "games": 151,
+     "mean": -0.0788,
+     "ci": [
+      -0.1489,
+      -0.0086
+     ],
+     "mean_p": 0.7389,
+     "realised": 0.6601
+    },
+    "1.60-2.20": {
+     "lines": 221,
+     "games": 93,
+     "mean": -0.2141,
+     "ci": [
+      -0.311,
+      -0.1156
+     ],
+     "mean_p": 0.7254,
+     "realised": 0.5113
+    },
+    "2.20-1000.00": {
+     "lines": 12,
+     "games": 11,
+     "mean": -0.1568,
+     "ci": [
+      -0.4722,
+      0.1085
+     ],
+     "mean_p": 0.7402,
+     "realised": 0.5833
+    }
+   }
+  },
+  "volleyball:other_no_curve": {
+   "M2": {
+    "diff": -0.1591,
+    "diff_ci": [
+     -0.2851,
+     -0.0405
+    ],
+    "strata": 11,
+    "lo_lines": 120,
+    "hi_lines": 123,
+    "games": 149,
+    "hi_games": 77
+   },
+   "bands": {
+    "1.00-1.30": {
+     "lines": 175,
+     "games": 108,
+     "mean": 0.0255,
+     "ci": [
+      -0.0257,
+      0.0717
+     ],
+     "mean_p": 0.8545,
+     "realised": 0.88
+    },
+    "1.30-1.60": {
+     "lines": 116,
+     "games": 60,
+     "mean": -0.1361,
+     "ci": [
+      -0.2349,
+      -0.0313
+     ],
+     "mean_p": 0.7826,
+     "realised": 0.6466
+    },
+    "1.60-2.20": {
+     "lines": 46,
+     "games": 26,
+     "mean": -0.1996,
+     "ci": [
+      -0.3645,
+      -0.0453
+     ],
+     "mean_p": 0.7431,
+     "realised": 0.5435
+    },
+    "2.20-1000.00": {
+     "lines": 4,
+     "games": 3,
+     "mean": -0.0285,
+     "ci": [
+      -0.715,
+      0.2285
+     ],
+     "mean_p": 0.7785,
+     "realised": 0.75
+    }
+   }
+  },
+  "cs2:other_no_curve": {
+   "M2": {
+    "diff": -0.1837,
+    "diff_ci": [
+     -0.2932,
+     -0.0703
+    ],
+    "strata": 12,
+    "lo_lines": 844,
+    "hi_lines": 169,
+    "games": 69,
+    "hi_games": 61
+   },
+   "bands": {
+    "1.00-1.30": {
+     "lines": 1117,
+     "games": 57,
+     "mean": -0.0032,
+     "ci": [
+      -0.0374,
+      0.0298
+     ],
+     "mean_p": 0.8206,
+     "realised": 0.8174
+    },
+    "1.30-1.60": {
+     "lines": 177,
+     "games": 58,
+     "mean": -0.1418,
+     "ci": [
+      -0.2358,
+      -0.0542
+     ],
+     "mean_p": 0.7633,
+     "realised": 0.6215
+    },
+    "1.60-2.20": {
+     "lines": 286,
+     "games": 47,
+     "mean": -0.1997,
+     "ci": [
+      -0.2673,
+      -0.1308
+     ],
+     "mean_p": 0.7521,
+     "realised": 0.5524
+    },
+    "2.20-1000.00": {
+     "lines": 3,
+     "games": 1,
+     "mean": -0.3803,
+     "ci": [
+      -0.3803,
+      -0.3803
+     ],
+     "mean_p": 0.7136,
+     "realised": 0.3333
+    }
+   }
+  }
+ },
+ "q2_verdict": {
+  "hockey:player": "CONFIRMED",
+  "basketball:player": "NOT_CONFIRMED",
+  "hockey:other_no_curve": "NOT_CONFIRMED",
+  "basketball:other_no_curve": "CONFIRMED",
+  "volleyball:other_no_curve": "CONFIRMED",
+  "cs2:other_no_curve": "CONFIRMED"
+ },
+ "walk": {
+  "basketball:curve:R1": {
+   "legs": 409,
+   "games": 169,
+   "confidence": 0.7484,
+   "realised": 0.6479,
+   "gap": -0.1005,
+   "gap_ci": [
+    -0.1823,
+    -0.0239
+   ],
+   "roi": -0.0005,
+   "roi_ci": [
+    -0.1318,
+    0.1245
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 409,
+    "b_games": 169
+   }
+  },
+  "basketball:curve:R2": {
+   "legs": 343,
+   "games": 144,
+   "confidence": 0.746,
+   "realised": 0.6472,
+   "gap": -0.0988,
+   "gap_ci": [
+    -0.1801,
+    -0.0201
+   ],
+   "roi": -0.0098,
+   "roi_ci": [
+    -0.1475,
+    0.1205
+   ],
+   "removed_vs_current": {
+    "legs": 66,
+    "games": 50,
+    "confidence": 0.7616,
+    "realised": 0.6515,
+    "gap": -0.1101,
+    "gap_ci": [
+     -0.267,
+     0.0156
+    ],
+    "roi": 0.0474,
+    "roi_ci": [
+     -0.2225,
+     0.2723
+    ]
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 66,
+    "a_games": 50,
+    "b_lines": 343,
+    "b_games": 144,
+    "a": 0.0474,
+    "a_ci": [
+     -0.2091,
+     0.2661
+    ],
+    "b": -0.0098,
+    "b_ci": [
+     -0.1413,
+     0.1284
+    ],
+    "diff": 0.0572,
+    "diff_ci": [
+     -0.2037,
+     0.2824
+    ]
+   }
+  },
+  "basketball:curve:current": {
+   "legs": 409,
+   "games": 169,
+   "confidence": 0.7484,
+   "realised": 0.6479,
+   "gap": -0.1005,
+   "gap_ci": [
+    -0.1823,
+    -0.0239
+   ],
+   "roi": -0.0005,
+   "roi_ci": [
+    -0.1318,
+    0.1245
+   ]
+  },
+  "cs2:curve:R1": {
+   "legs": 56,
+   "games": 22,
+   "confidence": 0.7573,
+   "realised": 0.6607,
+   "gap": -0.0966,
+   "gap_ci": [
+    -0.268,
+    0.0536
+   ],
+   "roi": -0.0804,
+   "roi_ci": [
+    -0.3104,
+    0.1127
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 56,
+    "b_games": 22
+   }
+  },
+  "cs2:curve:R2": {
+   "legs": 56,
+   "games": 22,
+   "confidence": 0.7573,
+   "realised": 0.6607,
+   "gap": -0.0966,
+   "gap_ci": [
+    -0.268,
+    0.0536
+   ],
+   "roi": -0.0804,
+   "roi_ci": [
+    -0.3104,
+    0.1127
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 56,
+    "b_games": 22
+   }
+  },
+  "cs2:curve:current": {
+   "legs": 56,
+   "games": 22,
+   "confidence": 0.7573,
+   "realised": 0.6607,
+   "gap": -0.0966,
+   "gap_ci": [
+    -0.268,
+    0.0536
+   ],
+   "roi": -0.0804,
+   "roi_ci": [
+    -0.3104,
+    0.1127
+   ]
+  },
+  "cs2:other:R1": {
+   "legs": 54,
+   "games": 23,
+   "confidence": 0.7932,
+   "realised": 0.9074,
+   "gap": 0.1142,
+   "gap_ci": [
+    0.0053,
+    0.2019
+   ],
+   "roi": 0.0619,
+   "roi_ci": [
+    -0.0668,
+    0.1629
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 54,
+    "b_games": 23
+   }
+  },
+  "cs2:other:R2": {
+   "legs": 54,
+   "games": 23,
+   "confidence": 0.7932,
+   "realised": 0.9074,
+   "gap": 0.1142,
+   "gap_ci": [
+    0.0053,
+    0.2019
+   ],
+   "roi": 0.0619,
+   "roi_ci": [
+    -0.0668,
+    0.1629
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 54,
+    "b_games": 23
+   }
+  },
+  "cs2:other:current": {
+   "legs": 54,
+   "games": 23,
+   "confidence": 0.7932,
+   "realised": 0.9074,
+   "gap": 0.1142,
+   "gap_ci": [
+    0.0053,
+    0.2019
+   ],
+   "roi": 0.0619,
+   "roi_ci": [
+    -0.0668,
+    0.1629
+   ]
+  },
+  "hockey:curve:R1": {
+   "legs": 2553,
+   "games": 618,
+   "confidence": 0.7917,
+   "realised": 0.7783,
+   "gap": -0.0134,
+   "gap_ci": [
+    -0.0345,
+    0.0053
+   ],
+   "roi": -0.0633,
+   "roi_ci": [
+    -0.0884,
+    -0.0402
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 2553,
+    "b_games": 618
+   }
+  },
+  "hockey:curve:R2": {
+   "legs": 2515,
+   "games": 616,
+   "confidence": 0.7924,
+   "realised": 0.7801,
+   "gap": -0.0122,
+   "gap_ci": [
+    -0.0336,
+    0.0066
+   ],
+   "roi": -0.0634,
+   "roi_ci": [
+    -0.0899,
+    -0.04
+   ],
+   "removed_vs_current": {
+    "legs": 38,
+    "games": 36,
+    "confidence": 0.7501,
+    "realised": 0.6579,
+    "gap": -0.0922,
+    "gap_ci": [
+     -0.2452,
+     0.0443
+    ],
+    "roi": -0.0616,
+    "roi_ci": [
+     -0.2856,
+     0.1475
+    ]
+   },
+   "lowered_kept": {
+    "legs": 2,
+    "games": 2,
+    "confidence": 0.8498,
+    "realised": 0.5,
+    "gap": -0.3498,
+    "gap_ci": [
+     -0.8429,
+     0.1433
+    ],
+    "roi": -0.265,
+    "roi_ci": [
+     -1.0,
+     0.47
+    ]
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 38,
+    "a_games": 36,
+    "b_lines": 2515,
+    "b_games": 616,
+    "a": -0.0616,
+    "a_ci": [
+     -0.3012,
+     0.1513
+    ],
+    "b": -0.0634,
+    "b_ci": [
+     -0.0883,
+     -0.0407
+    ],
+    "diff": 0.0018,
+    "diff_ci": [
+     -0.2339,
+     0.2098
+    ]
+   }
+  },
+  "hockey:curve:current": {
+   "legs": 2553,
+   "games": 618,
+   "confidence": 0.7917,
+   "realised": 0.7783,
+   "gap": -0.0134,
+   "gap_ci": [
+    -0.0345,
+    0.0053
+   ],
+   "roi": -0.0633,
+   "roi_ci": [
+    -0.0884,
+    -0.0402
+   ]
+  },
+  "hockey:other:R1": {
+   "legs": 1,
+   "games": 1,
+   "confidence": 0.8654,
+   "realised": 0.0,
+   "gap": -0.8654,
+   "gap_ci": [
+    -0.8654,
+    -0.8654
+   ],
+   "roi": -1.0,
+   "roi_ci": [
+    -1.0,
+    -1.0
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 1,
+    "b_games": 1
+   }
+  },
+  "hockey:other:R2": {
+   "legs": 1,
+   "games": 1,
+   "confidence": 0.8654,
+   "realised": 0.0,
+   "gap": -0.8654,
+   "gap_ci": [
+    -0.8654,
+    -0.8654
+   ],
+   "roi": -1.0,
+   "roi_ci": [
+    -1.0,
+    -1.0
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 1,
+    "b_games": 1
+   }
+  },
+  "hockey:other:current": {
+   "legs": 1,
+   "games": 1,
+   "confidence": 0.8654,
+   "realised": 0.0,
+   "gap": -0.8654,
+   "gap_ci": [
+    -0.8654,
+    -0.8654
+   ],
+   "roi": -1.0,
+   "roi_ci": [
+    -1.0,
+    -1.0
+   ]
+  },
+  "hockey:player:R1": {
+   "legs": 21,
+   "games": 13,
+   "confidence": 0.7694,
+   "realised": 0.8095,
+   "gap": 0.0401,
+   "gap_ci": [
+    -0.1251,
+    0.2283
+   ],
+   "roi": -0.0171,
+   "roi_ci": [
+    -0.2252,
+    0.2139
+   ],
+   "removed_vs_current": {
+    "legs": 5,
+    "games": 5,
+    "confidence": 0.7494,
+    "realised": 0.6,
+    "gap": -0.1494,
+    "gap_ci": [
+     -0.5724,
+     0.273
+    ],
+    "roi": -0.192,
+    "roi_ci": [
+     -0.748,
+     0.364
+    ]
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 5,
+    "a_games": 5,
+    "b_lines": 21,
+    "b_games": 13,
+    "a": -0.192,
+    "a_ci": [
+     -1.0,
+     0.385
+    ],
+    "b": -0.0171,
+    "b_ci": [
+     -0.2209,
+     0.2105
+    ],
+    "diff": -0.1749,
+    "diff_ci": [
+     -0.9213,
+     0.2724
+    ]
+   }
+  },
+  "hockey:player:R2": {
+   "legs": 22,
+   "games": 12,
+   "confidence": 0.7706,
+   "realised": 0.8182,
+   "gap": 0.0476,
+   "gap_ci": [
+    -0.1489,
+    0.2406
+   ],
+   "roi": -0.0045,
+   "roi_ci": [
+    -0.2481,
+    0.2374
+   ],
+   "removed_vs_current": {
+    "legs": 4,
+    "games": 4,
+    "confidence": 0.7379,
+    "realised": 0.5,
+    "gap": -0.2379,
+    "gap_ci": [
+     -0.7378,
+     0.2621
+    ],
+    "roi": -0.305,
+    "roi_ci": [
+     -1.0,
+     0.39
+    ]
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 4,
+    "a_games": 4,
+    "b_lines": 22,
+    "b_games": 12,
+    "a": -0.305,
+    "a_ci": [
+     -1.0,
+     0.4
+    ],
+    "b": -0.0045,
+    "b_ci": [
+     -0.2419,
+     0.2381
+    ],
+    "diff": -0.3005,
+    "diff_ci": [
+     -1.0943,
+     0.3886
+    ]
+   }
+  },
+  "hockey:player:current": {
+   "legs": 26,
+   "games": 15,
+   "confidence": 0.7655,
+   "realised": 0.7692,
+   "gap": 0.0037,
+   "gap_ci": [
+    -0.172,
+    0.233
+   ],
+   "roi": -0.0508,
+   "roi_ci": [
+    -0.2771,
+    0.2317
+   ]
+  },
+  "volleyball:curve:R1": {
+   "legs": 119,
+   "games": 91,
+   "confidence": 0.783,
+   "realised": 0.6975,
+   "gap": -0.0855,
+   "gap_ci": [
+    -0.1806,
+    0.0135
+   ],
+   "roi": -0.0872,
+   "roi_ci": [
+    -0.2316,
+    0.0696
+   ],
+   "removed_vs_current": {
+    "legs": 0,
+    "games": 0
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 0,
+    "a_games": 0,
+    "b_lines": 119,
+    "b_games": 91
+   }
+  },
+  "volleyball:curve:R2": {
+   "legs": 114,
+   "games": 90,
+   "confidence": 0.783,
+   "realised": 0.7018,
+   "gap": -0.0812,
+   "gap_ci": [
+    -0.1688,
+    0.0031
+   ],
+   "roi": -0.0911,
+   "roi_ci": [
+    -0.2205,
+    0.0353
+   ],
+   "removed_vs_current": {
+    "legs": 5,
+    "games": 3,
+    "confidence": 0.7839,
+    "realised": 0.6,
+    "gap": -0.1839,
+    "gap_ci": [
+     -0.7976,
+     0.2713
+    ],
+    "roi": 0.002,
+    "roi_ci": [
+     -1.0,
+     0.74
+    ]
+   },
+   "lowered_kept": {
+    "legs": 0,
+    "games": 0
+   },
+   "roi_removed_minus_kept": {
+    "a_lines": 5,
+    "a_games": 3,
+    "b_lines": 114,
+    "b_games": 90,
+    "a": 0.002,
+    "a_ci": [
+     -1.0,
+     0.74
+    ],
+    "b": -0.0911,
+    "b_ci": [
+     -0.2131,
+     0.0438
+    ],
+    "diff": 0.0931,
+    "diff_ci": [
+     -0.8999,
+     0.8279
+    ]
+   }
+  },
+  "volleyball:curve:current": {
+   "legs": 119,
+   "games": 91,
+   "confidence": 0.783,
+   "realised": 0.6975,
+   "gap": -0.0855,
+   "gap_ci": [
+    -0.1806,
+    0.0135
+   ],
+   "roi": -0.0872,
+   "roi_ci": [
+    -0.2316,
+    0.0696
+   ]
+  }
+ }
+}
