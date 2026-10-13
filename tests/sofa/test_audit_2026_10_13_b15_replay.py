@@ -294,3 +294,28 @@ def test_prepare_refit_passes_and_records_the_flag(tmp_path: Path) -> None:
     args = pr.build_parser().parse_args(
         ["rebuild-cache-rows", "--football-rating", "--opponent-correction"])
     assert args.opponent_correction is True
+
+
+def test_prepare_refit_passes_player_starts_only(tmp_path: Path) -> None:
+    """The night refit of 2026-10-13 fits the player curves on starts (the
+    staged starts-only curves of 2026-10-11 are promoted by it): the flag
+    must reach calibrate_from_cache."""
+    paths = _paths(tmp_path)
+    _db(paths.db_path)
+    seen: list[list[str]] = []
+    inner = _fake_calibrate(paths.db_path)
+
+    def runner(cmd: Sequence[str], env: dict[str, str], log: Path | None
+               ) -> tuple[int, list[str]]:
+        seen.append(list(cmd))
+        return inner(cmd, env, log)
+
+    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
+                          require_db_backup=False)
+    assert "--player-starts-only" not in seen[-1]
+    pr.rebuild_cache_rows(paths, dry_run=False, confirm=True, runner=runner,
+                          require_db_backup=False, player_starts_only=True)
+    assert "--player-starts-only" in seen[-1]
+    args = pr.build_parser().parse_args(
+        ["rebuild-cache-rows", "--player-starts-only"])
+    assert args.player_starts_only is True

@@ -566,6 +566,7 @@ def rebuild_cache_rows(
     season_phase: bool = False,
     opponent_correction: bool = False,
     tennis_set_ratings: bool = False,
+    player_starts_only: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -708,6 +709,12 @@ def rebuild_cache_rows(
         # opt-in, see its help for what they change at the fit.
         cmd += ["--halves", "include"]
     report["halves"] = halves
+    if player_starts_only:
+        # epochs.PLAYER_STARTS_ONLY: a footballer's sample is his starts and
+        # only starters' outcomes are rows (Superbet voids a non-starter;
+        # calibrate_from_cache --player-starts-only)
+        cmd += ["--player-starts-only"]
+    report["player_starts_only"] = player_starts_only
     if derived:
         # Football joints (calibrate_from_cache --derived goals,corners,...):
         # opt-in, ~120 rows a match and base.
@@ -2105,6 +2112,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--halves include; an operator decision - see its help)",
     )
     r.add_argument(
+        "--player-starts-only", action="store_true",
+        help="replay the football player markets on starts only "
+        "(calibrate_from_cache --player-starts-only; "
+        "epochs.PLAYER_STARTS_ONLY_FROM_UTC)",
+    )
+    r.add_argument(
         "--derived", default="",
         help="football bases whose both_over_ / most_ / handicap_ joints are "
         "replayed (calibrate_from_cache --derived, e.g. goals,corners)",
@@ -2312,6 +2325,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     season_phase=args.season_phase,
                     opponent_correction=args.opponent_correction,
                     tennis_set_ratings=args.tennis_set_ratings,
+                    player_starts_only=args.player_starts_only,
                 )["exit"]
             )
         if args.command == "fit":
