@@ -89,6 +89,81 @@ całości powyżej zera. Spełnione oba -> refit krzywej koszykówki na kopii
 log-loss pewności i luka linii >= 0,70). **Bez instalacji i bez
 włączania przełącznika.**
 
-## Wynik
+## Wynik (2026-10-13, `data/refit_2026-10-13/b7/{tune,history,superbet}.json`)
 
-(uzupełnione po pomiarze)
+Historia z `data/audit_2026-10-13/bb_history.pkl` (51 168 meczów, ta sama co
+A3 / C8 / A8), box score z kopii bazy: 29 480 meczów z posiadaniami w zakresie.
+
+**Strojenie α** (2025-01-01..2025-06-01, 6 079 meczów ze ścieżką tempa,
+MSE sumy regulaminu; punkty na tych samych meczach 269,12):
+
+| α poss \ α ppp | 0,03 | 0,06 | 0,10 |
+|---|---|---|---|
+| 0,03 | 275,20 | 277,37 | 285,62 |
+| 0,06 | 269,54 | 271,53 | 279,53 |
+| 0,10 | **267,74** | 269,36 | 276,75 |
+| 0,15 | 268,95 | 270,12 | 276,73 |
+
+Wybrane `bb_poss` 0,10, `bb_ppp` 0,03 (`score_model.PACE_ALPHA`); zysk na
+strojeniu 0,5% MSE. `bb_ppp` 0,03 leży na brzegu siatki - siatka była
+zarejestrowana, nie rozszerzałem jej.
+
+**Test A - historia 2025-10-01..2026-06-01**, 6 319 meczów (ścieżka tempa w
+4 259), linie: suma 148,5 / 161,5 / 174,5, strona 72,5 / 80,5 / 89,5,
+margines -6,5 / 4,5 / 14,5. Nowa - stara, 95% bootstrap po meczach:
+
+| rodzina | Brier | log-loss | Brier stara / nowa |
+|---|---|---|---|
+| total | +0,00042 [-0,00043; +0,00129] | +0,00143 [-0,00097; +0,00380] | 0,1686 / 0,1690 |
+| team_total | +0,00214 [+0,00142; +0,00282] | +0,00599 [+0,00413; +0,00785] | 0,1699 / 0,1720 |
+| handicap | +0,00404 [+0,00309; +0,00498] | +0,01091 [+0,00846; +0,01332] | 0,1731 / 0,1772 |
+| zwycięzca | +0,00584 [+0,00449; +0,00716] | +0,01486 [+0,01156; +0,01803] | 0,1979 / 0,2037 |
+
+Tylko mecze ze ścieżką tempa (4 259): total Brier +0,00076 [-0,00048;
++0,00198], zwycięzca +0,00863 [+0,00668; +0,01044]. Kalibracja totalu
+p >= 0,70: stara 0,850 / realizacja 0,843 (n 11 630), nowa 0,852 / 0,841
+(n 11 767).
+
+**Test B - linie Superbetu 2026-09-29..2026-10-12** (81 011 linii; p zmienione
+na 36 896; mecze: total 1 245, handicap 1 239, team_total 572, zwycięzca
+1 189). Nowa - stara:
+
+| rodzina | Brier | log-loss | Brier stara / nowa |
+|---|---|---|---|
+| total | **-0,00417 [-0,00794; -0,00063]** | -0,00949 [-0,01774; -0,00163] | 0,2451 / 0,2410 |
+| team_total | -0,00013 [-0,00332; +0,00306] | -0,00090 [-0,00751; +0,00590] | 0,2548 / 0,2547 |
+| handicap | +0,00180 [-0,00164; +0,00501] | +0,00460 [-0,00315; +0,01189] | 0,2501 / 0,2519 |
+| zwycięzca | +0,00346 [+0,00105; +0,00586] | +0,00801 [+0,00254; +0,01346] | 0,2100 / 0,2134 |
+
+Linie główne (fair 0,45-0,55; cena tylko wybiera podzbiór): total 5 798 linii
+/ 1 244 mecze **0,2593 -> 0,2562**, -0,00312 [-0,00675; +0,00032] (stara
+liczba audytu 0,2593 odtworzona); handicap 0,2636 -> 0,2661; team_total
+0,2588 -> 0,2601; zwycięzca (288) 0,2468 -> 0,2475. Wszystkie nadal > 0,25.
+
+## Werdykt: **próg NIESPEŁNIONY**
+
+- Test A: `total` - przedział Briera i log-loss obejmuje zero (brak
+  poprawy); zwycięzca **gorszy** (dolna granica +0,00449 > 0). Handicap i
+  team total też gorsze.
+- Test B: `total` lepszy (przedział poniżej zera), ale zwycięzca gorszy
+  (przedział w całości powyżej zera).
+
+Refitu krzywej (`data/refit_2026-10-13/b7/`) i compare z `bb_base` **nie
+wykonano** - zgodnie z rejestracją warunkiem był spełniony próg. Przełącznik
+`BB_PACE_FROM_UTC` zostaje `None`; kod zostaje jako wyłączona opcja
+(bajt w bajt identyczny model, test `test_off_is_byte_identical_...`).
+
+Odczyt (podejrzenie, niezmierzone): wolna α efektywności (0,03 wobec 0,06
+punktów) spłaszcza różnice sił drużyn - stąd gorszy zwycięzca i handicap -
+a tempo poprawia tylko poziom sumy, i to na październikowych liniach rynku,
+nie na historii. Kolejny test (nowa rejestracja, nowe dane): tempo z
+box score tylko jako mnożnik sumy (centrum różnicy z ratingu punktów).
+
+Zastrzeżenia:
+- Box score koszykówki nie jest pobierany na bieżąco (2026-10: 4 z 1 334
+  meczów); na liniach 09-29..10-12 ratingi tempa są z września lub starsze
+  (reguła 60 dni). Włączenie na żywo wymagałoby codziennego
+  `backfill_event_stats.py --sport basketball`.
+- Posiadania Olivera w wersji prostej (bez udziału zbiórek rywala); jedna
+  dogrywka zakładana przy skalowaniu.
+- 1 000 symulacji na mecz i model, to samo ziarno w parze.

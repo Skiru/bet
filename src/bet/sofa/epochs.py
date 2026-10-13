@@ -1031,6 +1031,28 @@ def bb_overtime(date: str | None = None, build_at: datetime | None = None) -> bo
     return at >= BB_OVERTIME_FROM_UTC
 
 
+# Audit 2026-10-13 B7: basketball's regulation points as pace x efficiency
+# (score_model.PACE_METRICS: Oliver possessions and points per possession from
+# the box score in sofa_event_stats, rated as-of like the points), where both
+# sides have a fresh box-score rating; the points rating otherwise. Live
+# (SPORT_CONFIDENCE), in the line-evidence replay and in the history replay of
+# a fit for a day >= it (fit_sport_confidence --bb-pace). Changes basketball
+# p, so it goes live only with a basketball curve refitted on it.
+# Evidence: docs/sofa/evidence/basketball_pace_2026-10-13.md.
+BB_PACE_FROM_UTC: datetime | None = None
+
+
+def bb_pace(date: str | None = None, build_at: datetime | None = None) -> bool:
+    """Is basketball's centre pace x efficiency (BB_PACE_FROM_UTC)? `date`
+    None: the wall clock alone."""
+    if BB_PACE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < BB_PACE_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= BB_PACE_FROM_UTC
+
+
 # Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
 # games_won_set1/2/3_for) and sets_total were priced from the players' own
 # samples shrunk to a global prior, with no opponent. From this moment they are

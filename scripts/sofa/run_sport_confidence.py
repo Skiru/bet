@@ -136,19 +136,29 @@ class DbForecaster:
 
     def _shadow_model(self, sport: str) -> tuple[Any, scf.TeamGames]:
         if sport not in self._shadow:
-            from bet.sofa.score_model import build_model, load_events, overtime_params
+            from bet.sofa.score_model import (
+                build_model,
+                load_box_scores,
+                load_events,
+                overtime_params,
+            )
 
             sp = shadow.SPORTS[sport]  # type: ignore[index]
             cut = int(self.at.timestamp())
             events = {k: e for k, e in load_events(self.db_path, sp).items()
                       if isinstance(e.get("startTimestamp"), int)
                       and e["startTimestamp"] < cut}
-            history = scf.parse_history(events, sp)
+            # audit B7: basketball's centre from pace x efficiency (box scores)
+            pace = sport == "basketball" and epochs.bb_pace(self.date, self.at)
+            box = load_box_scores(self.db_path, events) if pace else None
+            history = scf.parse_history(events, sp, box)
             model = build_model(
                 [g.rating for g in history], sp, cut,
                 overtime_params(None, sport, epochs.bb_overtime(self.date, self.at)),
                 shared_league_link=epochs.link_shared_league(self.date),
-                strict_league_rate=epochs.league_rate_rule(self.date, self.at))
+                strict_league_rate=epochs.league_rate_rule(self.date, self.at),
+                # off: the call as before the switch existed
+                **({"pace": True} if pace else {}))
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]
 
