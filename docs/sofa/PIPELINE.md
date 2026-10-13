@@ -700,9 +700,24 @@ NB centrum przy wyniku, nie linie Superbetu):
   `docs/sofa/evidence/tennis_set_markets_2026-10-13.md`).
 - Beta kartek B1 dopasowano na centrum bez ratingu, a B2 ratinguje
   `cards_points_for`: do ponownego fitu przed następnym refitem piłki.
-- `K_CENTRE` po reficie: 15 (tenis 8, piłka 15). Luka: `rebuild_plan.py` nie
-  zna tych przełączników ani refitu stałych - po ich zmianie SHEET puszcza się
-  ręcznie (`run_pipeline.py --only SHEET`).
+- `K_CENTRE` po reficie: 15 (tenis 8, piłka 15).
+- Znaczniki wiersza (od 2026-10-14, poprawka): SHEET stempluje każdy z tych
+  sześciu przełączników na wierszach, których dotyczy, gdy jest włączony
+  (`epochs.*_MARKER`): piłka - `game_state_rule`, `rated_scope_rule`,
+  `venue_prior_rule`, `season_phase_rule`, `rating_weight_rule`; tenis -
+  `tennis_set_rule` (tylko na `TENNIS_RATING_PRICES`, jak w SHEET). Wyłączony
+  przełącznik: pola nie ma. Przebudowa (`rebuild_plan.audit_sheet_stale`) sama
+  puszcza SHEET, gdy przełącznik jest włączony dla dnia i zegara, a wiersz
+  piłki (tenisa) nie ma znacznika; arkusz bez piłki (tenisa) nie puszcza SHEET
+  w kółko. Dzień < 10-13 i 10-13 przed 18:10Z zostają przy swoim arkuszu.
+- Odcisk configu (`config_sha`, `bet.sofa.sheet_config.fingerprint`): skrót
+  plików dopasowanych, które czyta SHEET (stałe, bazy lig, reliability, rating
+  tenisa, dyspersja, korelacje stron, tabele game state / fazy sezonu / wagi
+  ratingu) na każdym wierszu. Inny niż pliki teraz: przebudowa pisze notkę
+  `CONFIG_CHANGED`, ale SHEET **nie** puszcza (instalacja nie ma daty, a nigdy
+  nie wchodzi w zbudowany dzień bez zgody operatora - wtedy
+  `run_pipeline.py --only SHEET` ręcznie). Krzywe historii czyta CONFIDENCE
+  przy każdej przebudowie, więc ich refit nie potrzebuje znacznika.
 
 ### 7.1b Rating tenisowy (od 2026-10-01)
 
@@ -713,7 +728,11 @@ wszystkich poziomów przeszacowywała zawodnika z niższego poziomu o 3–24 pp.
 Refit 2026-09-30 po backfillu (cut 2026-10-01, 239 315 meczów): poza próbą
 09-17..30 Brier 0,1948 → 0,1884, TOUR 0,2055 → 0,1855. Rynki `games_total`,
 `games_won_for`, `sets_total`, `handicap_games`:
-`p_central = 0,25·rating + 0,75·market_p` (notka `TENNIS_RATING`). Dla TOUR i
+`p_central = 0,25·rating + 0,75·market_p` (notka `TENNIS_RATING`: "blended
+0.25 with market_p"; w epoce stats-only cena nie wchodzi, a wiersze wyceniane
+samym ratingiem - `games_won_for`, `handicap_games`, `most_games` pod
+`TENNIS_RATING_PRICES`, rynki setów pod `TENNIS_SET_RATING_PRICES` - mają w
+notce "p_central is the rating alone, no price (<przełącznik>)"). Dla TOUR i
 CH tabela podobnych meczów pomija mecze rozstrzygnięte super-tie-breakiem
 (liczonym jako 1 gem trzeciego seta; 5,1% meczów, prawie wyłącznie ITF).
 

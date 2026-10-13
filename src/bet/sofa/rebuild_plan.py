@@ -41,7 +41,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from bet.sofa import epochs, sport_day
+from bet.sofa import epochs, sheet_config, sport_day
 from bet.sofa import fixture_status as fs
 from bet.sofa import sport_identity as si
 from bet.sofa.locked_print import starts_after
@@ -109,6 +109,19 @@ class DayState:
     sheet_tennis_table: bool = True
     # every 05_sheet.json row priced under epochs.SAMPLE_OPPONENT_CORRECTION
     sheet_opponent: bool = True
+    # the audit 2026-10-13 switches' markers: every row the rule applies to
+    # (football / tennis, epochs.sheet_has_marker) carries it
+    sheet_game_state: bool = True
+    sheet_rated_scope: bool = True
+    sheet_venue_prior: bool = True
+    sheet_season_phase: bool = True
+    sheet_rating_weight: bool = True
+    sheet_tennis_set: bool = True
+    # bet.sofa.sheet_config: the fingerprint the sheet's rows carry (None: a
+    # sheet written before the stamp; "mixed": rows disagree) and the files'
+    # as they stand
+    sheet_config_sha: str | None = None
+    config_sha: str | None = None
     # D2 (epochs.TENNIS_MATCH_WINNER): a tennis fixture is priced on
     # 04_offer.json; the offer / the sheet carry a match_won_for rung / row
     offer_has_tennis: bool = False
@@ -252,6 +265,45 @@ def observe_sport(runs_dir: str, sport: str, date: str, now: datetime) -> SportS
     return SportState(sport, n, open_n, oldest, farthest, lagging, newest_any)
 
 
+AUDIT_MARKERS: tuple[tuple[str, str, str], ...] = (
+    epochs.GAME_STATE_MARKER, epochs.FOOTBALL_RATED_SCOPE_MARKER,
+    epochs.FOOTBALL_VENUE_PRIOR_MARKER, epochs.SEASON_PHASE_MARKER,
+    epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
+)
+
+
+def audit_sheet_stale(state: DayState) -> list[str]:
+    """The audit 2026-10-13 switches on for the day and the clock whose
+    marker the sheet's football / tennis rows lack - each a reason to re-run
+    SHEET (the switch condition SHEET itself reads, stats-only included)."""
+    d, now = state.date, state.now
+    if not epochs.stats_only(d, now):
+        return []
+    checks = (
+        (epochs.game_state_enabled(d, now), state.sheet_game_state,
+         "football side centres carry the game-state term "
+         "(epochs.game_state_enabled)"),
+        (epochs.football_rated_scope(d, now), state.sheet_rated_scope,
+         "the rating also prices RATED_SCOPE_MARKETS "
+         "(epochs.football_rated_scope)"),
+        (epochs.football_venue_prior(d, now), state.sheet_venue_prior,
+         "sample-only football centres read the league venue multiplier "
+         "(epochs.football_venue_prior)"),
+        (epochs.season_phase_enabled(d, now), state.sheet_season_phase,
+         "football goals centres carry the season-phase term "
+         "(epochs.season_phase_enabled)"),
+        (epochs.football_rating_weight(d, now), state.sheet_rating_weight,
+         "rated football centres read their market's own rating weight "
+         "(epochs.football_rating_weight)"),
+        # SHEET reads it only on top of the rating prices
+        (epochs.tennis_rating_prices(d, now)
+         and epochs.tennis_set_rating_prices(d, now), state.sheet_tennis_set,
+         "tennis per-set games and sets_total read off the rating's "
+         "neighbours (epochs.tennis_set_rating_prices)"),
+    )
+    return [why for on, has, why in checks if on and not has]
+
+
 def observe(runs_dir: str, date: str, now: datetime,
             price_max_age: timedelta) -> DayState:
     """Read the day's artifacts into a DayState (no network, read-only)."""
@@ -268,6 +320,8 @@ def observe(runs_dir: str, date: str, now: datetime,
     sheet_tennis_table = True
     sheet_opponent = True
     sheet_has_winner = True
+    markers = {m: True for m in AUDIT_MARKERS}
+    sheet_config_sha: str | None = None
     if sheet_path.exists():
         sheet = _load_json(sheet_path)
         sheet_ep = epochs.sheet_epoch(sheet) if sheet else epochs.STATS_ONLY
@@ -279,6 +333,13 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_opponent = epochs.sheet_sample_opponent_correction(sheet or [])
         sheet_has_winner = any(
             r.get("market") == MATCH_WON_FOR for r in sheet or [])
+        markers = {m: epochs.sheet_has_marker(sheet or [], m)
+                   for m in AUDIT_MARKERS}
+        shas = {r.get("config_sha") for r in sheet or []}
+        if len(shas) > 1:
+            sheet_config_sha = "mixed"
+        elif shas and None not in shas:
+            sheet_config_sha = str(next(iter(shas)))
     tennis_ids = {f.get("sofascore_event_id") for f in fixtures
                   if f.get("sport") == "tennis"}
     offer_has_tennis = any(
@@ -306,6 +367,14 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_k=sheet_k,
         sheet_tennis_table=sheet_tennis_table,
         sheet_opponent=sheet_opponent,
+        sheet_game_state=markers[epochs.GAME_STATE_MARKER],
+        sheet_rated_scope=markers[epochs.FOOTBALL_RATED_SCOPE_MARKER],
+        sheet_venue_prior=markers[epochs.FOOTBALL_VENUE_PRIOR_MARKER],
+        sheet_season_phase=markers[epochs.SEASON_PHASE_MARKER],
+        sheet_rating_weight=markers[epochs.FOOTBALL_RATING_WEIGHT_MARKER],
+        sheet_tennis_set=markers[epochs.TENNIS_SET_RATING_PRICES_MARKER],
+        sheet_config_sha=sheet_config_sha,
+        config_sha=sheet_config.fingerprint(),
         offer_has_tennis=offer_has_tennis,
         offer_has_winner=offer_has_winner,
         sheet_has_winner=sheet_has_winner,
@@ -469,9 +538,11 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                     and (state.offer_has_winner or "OFFER" in plan.names()))
     opponent_stale = (epochs.sample_opponent_correction(d, now)
                       and not state.sheet_opponent)
+    audit_stale = audit_sheet_stale(state)
     sheet_rebuilt = (epoch_stale or link_stale or dispersion_stale or cards_stale
                      or k_stale
-                     or tennis_table_stale or opponent_stale or winner_stale)
+                     or tennis_table_stale or opponent_stale or winner_stale
+                     or bool(audit_stale))
     if epoch_stale:
         plan.steps.append(Step(
             "SHEET", _pipeline(d, "SHEET", run_id),
@@ -517,8 +588,24 @@ def build_plan(state: DayState, run_id: str = "rebuild",
             "SHEET", _pipeline(d, "SHEET", run_id),
             "05_sheet.json has no tennis winner row: SHEET prices "
             "match_won_for from the rating (epochs.tennis_match_winner)"))
+    elif audit_stale:
+        plan.steps.append(Step(
+            "SHEET", _pipeline(d, "SHEET", run_id),
+            "05_sheet.json priced before a switch now on: "
+            + "; ".join(audit_stale)))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
+    if (state.sheet_config_sha is not None and state.config_sha is not None
+            and state.sheet_config_sha != state.config_sha):
+        plan.notes.append(
+            f"CONFIG_CHANGED: 05_sheet.json priced on fitted config "
+            f"{state.sheet_config_sha}, the files are now {state.config_sha} "
+            "(a refit install or a table fit, bet.sofa.sheet_config) - "
+            + ("SHEET re-runs on them for another reason above"
+               if sheet_rebuilt else
+               "SHEET kept: an install never goes into a built day unless "
+               "the operator says so; then run_pipeline.py --only SHEET by "
+               "hand before the rebuild"))
     if not skip_audits and (sheet_rebuilt or state.coupon06_stale):
         plan.steps.append(Step(
             "COUPON", _pipeline(d, "COUPON", run_id),
@@ -575,6 +662,8 @@ def state_summary(state: DayState) -> dict[str, Any]:
         "oldest_open_rung": _z(state.oldest_open_rung),
         "newest_rung": _z(state.newest_rung),
         "sheet_epoch": state.sheet_epoch,
+        "sheet_config_sha": state.sheet_config_sha,
+        "config_sha": state.config_sha,
         "sports": {
             k: {"events": s.events, "open": s.open_events,
                 "oldest_open_price": _z(s.oldest_open_price),

@@ -340,6 +340,22 @@ class SheetRow(BaseModel):
     # when the rules differ.
     opponent_rule: str | None = None
     corrected_sample: list[float] | None = None
+    # The audit 2026-10-13 switches (bet.sofa.epochs *_MARKER): the rule's
+    # name on a football (tennis) row priced with GAME_STATE /
+    # FOOTBALL_RATED_SCOPE / FOOTBALL_VENUE_PRIOR / SEASON_PHASE /
+    # FOOTBALL_RATING_WEIGHT (TENNIS_SET_RATING_PRICES) on; absent when off.
+    # rebuild_plan re-runs SHEET when the rules differ.
+    game_state_rule: str | None = None
+    rated_scope_rule: str | None = None
+    venue_prior_rule: str | None = None
+    season_phase_rule: str | None = None
+    rating_weight_rule: str | None = None
+    tennis_set_rule: str | None = None
+    # bet.sofa.sheet_config.fingerprint(): the SHEET-read config files
+    # (constants, baselines, reliability, rating, dispersion, ...) the row was
+    # priced on. rebuild_plan names a sheet built on other constants (a refit
+    # install); absent on a sheet written before 2026-10-14.
+    config_sha: str | None = None
 
 
 ContextSignal = Literal[
