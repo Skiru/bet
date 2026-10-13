@@ -170,7 +170,7 @@ def test_a_pinned_game_is_priced_without_resolving_names() -> None:
 
     calls: list[Any] = []
     orig = pm.load_appearances
-    pm.load_appearances = lambda conn, sport, teams, before, ex: (  # type: ignore[assignment]
+    pm.load_appearances = lambda conn, sport, teams, before, ex, **kw: (  # type: ignore[assignment]
         calls.append(teams) or [])
     try:
         rec = {"superbet_event_id": "7", "kickoff_utc": "2026-10-08T18:00:00Z",

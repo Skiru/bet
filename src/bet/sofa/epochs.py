@@ -1442,3 +1442,34 @@ def cs2_count_exposure(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= CS2_COUNT_EXPOSURE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= CS2_COUNT_EXPOSURE_FROM_UTC)
+
+
+# The hockey / basketball player model (bet.sofa.player_model) read a past
+# game's squad from each lineup entry's `teamId` - the player's team when the
+# box was downloaded, not his team in that game. A traded player's games for
+# his old team AGAINST his new one landed in the new team's sample (and his
+# other old-team games nowhere): Carlson model_n 5 of 85 appearances,
+# McTavish 6 of 88 on 2026-10-13 (docs/sofa/evidence/
+# sport_player_props_2026-10-13.md, "Odstępstwa"). From this moment a game's
+# squad is the lineup SIDE (home / away) the team held in that event
+# (player_model.appearances_from_lineups with `side`), in SHADOW's pre-game
+# forecast (player_model.jsonl), in SHADOW_SETTLE's settle-time number and in
+# measure_player_props; fit_player_model replays it with
+# --player-team-from-side. A correctness fix of a wrong mapping, but it moves
+# the player model's p, so it changes what prints: a day >= the date (the
+# game's kickoff day, UTC - SHADOW's day key) computed at or after the moment.
+# Rows carry `player_team_rule`. The line evidence reads the p SHADOW wrote
+# before the game, so its replay follows the day's rule by construction.
+PLAYER_TEAM_RULE = "player_team_from_side_v1"
+PLAYER_TEAM_FROM_SIDE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
+
+
+def player_team_from_side(date: str, build_at: datetime | None = None) -> bool:
+    """Is a past game's squad read from the team's lineup side rather than
+    the entries' `teamId` (PLAYER_TEAM_FROM_SIDE_FROM_UTC)?"""
+    if PLAYER_TEAM_FROM_SIDE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= PLAYER_TEAM_FROM_SIDE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= PLAYER_TEAM_FROM_SIDE_FROM_UTC)

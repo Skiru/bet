@@ -85,10 +85,11 @@ import sqlite3
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa import epochs
 from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import config_path
 from bet.sofa.joint import normal_cdf
@@ -140,6 +141,7 @@ MODEL_KEYS = (
     "model_cut_utc",
     "model_teams_resolved",
     "model_pregame_rejected",
+    "player_team_rule",
     "unfitted_constants",
 )
 
@@ -281,18 +283,30 @@ def position_group(sport: SportKey, raw: object) -> str:
 
 
 def appearances_from_lineups(
-    sport: SportKey, lineups: dict[str, Any], event_id: int, ts: int, team_id: int
+    sport: SportKey,
+    lineups: dict[str, Any],
+    event_id: int,
+    ts: int,
+    team_id: int,
+    side: str | None = None,
 ) -> list[Appearance]:
     """Team `team_id`'s appearances in one stored /lineups payload.
 
-    The squad is read by the entry's `teamId` (present on every entry of the
-    400 newest boxes of each sport, 2026-10-02); an entry without one is not
-    attributed to anybody.
+    With `side` ("home" / "away": the side `team_id` held in that event,
+    event_side; epochs.player_team_from_side) the squad is that side's
+    entries. Without it - the rule before the switch - the squad is read by
+    the entry's `teamId` (present on every entry of the 400 newest boxes of
+    each sport, 2026-10-02; an entry without one is not attributed to
+    anybody). `teamId` is the player's team when the box was downloaded, not
+    in that game: a traded player's old-team games against his new team
+    landed in the new team's sample (2026-10-13).
     """
     out: list[Appearance] = []
-    for side in ("home", "away"):
-        for entry in (lineups.get(side) or {}).get("players") or []:
-            if not isinstance(entry, dict) or entry.get("teamId") != team_id:
+    for lineup_side in ("home", "away") if side is None else (side,):
+        for entry in (lineups.get(lineup_side) or {}).get("players") or []:
+            if not isinstance(entry, dict):
+                continue
+            if side is None and entry.get("teamId") != team_id:
                 continue
             player = entry.get("player")
             stats = entry.get("statistics")
@@ -356,6 +370,23 @@ def listed_games(
     return out[:history_games]
 
 
+def event_side(event: object, team_id: int) -> str | None:
+    """"home" / "away": the side `team_id` held in a listed event's payload
+    (dict or its JSON text); None when the payload names neither side as it."""
+    if isinstance(event, str):
+        try:
+            event = json.loads(event)
+        except ValueError:
+            return None
+    if not isinstance(event, dict):
+        return None
+    for side, key in (("home", "homeTeam"), ("away", "awayTeam")):
+        team = event.get(key)
+        if isinstance(team, dict) and team.get("id") == team_id:
+            return side
+    return None
+
+
 def load_appearances(
     conn: sqlite3.Connection,
     sport: SportKey,
@@ -363,15 +394,30 @@ def load_appearances(
     before_ts: int,
     exclude_event_id: int | None,
     history_games: int = HISTORY_GAMES,
+    team_from_side: bool = False,
 ) -> list[Appearance]:
     """Every appearance for these teams in their own listed games before
     `before_ts` (sofa_listing_event, the index every `last` page feeds), from
-    the stored lineups. Read-only."""
+    the stored lineups. Read-only.
+
+    `team_from_side` (epochs.player_team_from_side): a game's squad is the
+    lineup side the team held in it (sofa_listed_event's payload, event_side);
+    a game whose payload does not name the team on a side is left out. Off:
+    the entries' `teamId` (the rule before the switch)."""
     out: list[Appearance] = []
     for team_id in team_ids:
         for eid, ts in listed_games(
             conn, team_id, before_ts, exclude_event_id, history_games
         ):
+            side: str | None = None
+            if team_from_side:
+                ev = conn.execute(
+                    "SELECT event_json FROM sofa_listed_event WHERE event_id = ?",
+                    (eid,),
+                ).fetchone()
+                side = event_side(ev[0] if ev else None, int(team_id))
+                if side is None:
+                    continue
             row = conn.execute(
                 "SELECT lineups_json FROM sofa_event_stats "
                 "WHERE sofascore_event_id = ?",
@@ -385,7 +431,9 @@ def load_appearances(
                 continue
             if isinstance(lineups, dict):
                 out.extend(
-                    appearances_from_lineups(sport, lineups, eid, ts, int(team_id))
+                    appearances_from_lineups(
+                        sport, lineups, eid, ts, int(team_id), side
+                    )
                 )
     return out
 
@@ -1045,7 +1093,7 @@ def forecast_records(
     from bet.sofa.shadow import group_shape
 
     index: dict[str, set[int]] | None = None
-    cache: dict[tuple[tuple[int, ...], int], list[Appearance]] = {}
+    cache: dict[tuple[tuple[int, ...], int, bool], list[Appearance]] = {}
     out: list[dict[str, Any]] = []
     for rec in records:
         raw_lines = [
@@ -1057,6 +1105,11 @@ def forecast_records(
             continue
         kickoff = datetime.fromisoformat(str(rec["kickoff_utc"]).replace("Z", "+00:00"))
         before = history_cutoff(int(kickoff.timestamp()), None)
+        # The game's day (SHADOW's day key) and this snapshot's clock.
+        from_side = epochs.player_team_from_side(
+            kickoff.astimezone(UTC).strftime("%Y-%m-%d"),
+            datetime.fromtimestamp(now_ts, UTC),
+        )
         teams: list[int] = []
         pin = (pinned or {}).get(str(rec["superbet_event_id"]))
         teams_source = "pinned" if pin is not None else "name"
@@ -1072,9 +1125,11 @@ def forecast_records(
                 tid = resolve_team(conn, slug, name, index)
             if tid is not None:
                 teams.append(tid)
-        ckey = (tuple(sorted(teams)), before)
+        ckey = (tuple(sorted(teams)), before, from_side)
         if len(teams) == 2 and ckey not in cache:
-            cache[ckey] = load_appearances(conn, sport, teams, before, None)
+            cache[ckey] = load_appearances(
+                conn, sport, teams, before, None, team_from_side=from_side
+            )
         apps = cache.get(ckey, [])
         groups: dict[tuple[Any, ...], dict[str, float]] = {}
         for ln in raw_lines:
@@ -1122,6 +1177,8 @@ def forecast_records(
                 "unfitted_constants": list(UNFITTED) + list(UNFITTED_PREGAME),
                 "computed_at_utc": computed_at,
             }
+            if from_side:
+                row["player_team_rule"] = epochs.PLAYER_TEAM_RULE
             ident, sig = forecast_line(row), forecast_signature(row)
             if last.get(ident) == sig:
                 continue

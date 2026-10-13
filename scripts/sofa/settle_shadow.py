@@ -43,7 +43,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 
 from rapidfuzz import fuzz  # noqa: E402
 
-from bet.sofa import coupon_sports, settle_identity  # noqa: E402
+from bet.sofa import coupon_sports, epochs, settle_identity  # noqa: E402
 from bet.sofa import shadow as _shadow  # noqa: E402
 from bet.sofa.cache import SofaCache  # noqa: E402
 from bet.sofa.client import SofascoreClient  # noqa: E402
@@ -848,6 +848,11 @@ def _settle_time_model(
         for side in ("homeTeam", "awayTeam")
         if isinstance(tid := (event.get(side) or {}).get("id"), int)
     ]
+    # The game's day (SHADOW's day key: the kickoff's UTC date) and the clock
+    # now: the squad rule of epochs.player_team_from_side.
+    from_side = epochs.player_team_from_side(
+        kickoff.astimezone(UTC).strftime("%Y-%m-%d")
+    )
     if box_ids is None:
         scored = [
             PlayerProbability(None, 0, reason="NO_BOX", match="box") for _ in rows
@@ -855,10 +860,18 @@ def _settle_time_model(
     else:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
         try:
-            apps = load_appearances(conn, sport.key, teams, before, int(event["id"]))
+            apps = load_appearances(
+                conn,
+                sport.key,
+                teams,
+                before,
+                int(event["id"]),
+                team_from_side=from_side,
+            )
         finally:
             conn.close()
         scored = score_rows(rows, sport.key, apps, box_ids=box_ids)
+    rule = {"player_team_rule": epochs.PLAYER_TEAM_RULE} if from_side else {}
     return [
         (
             row,
@@ -866,6 +879,7 @@ def _settle_time_model(
                 "model_source": "settle",
                 **model_fields(mp),
                 "model_teams_resolved": len(teams),
+                **rule,
             },
         )
         for row, mp in zip(rows, scored, strict=True)
