@@ -102,6 +102,11 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
                                                      dict[str, list[scf.Row]]]:
     before_ts = scf.day_ts(before)
     fresh = sport == "basketball" and bb_freshness_on(before, args.bb_freshness)
+    # the rules of the day the fit is for (its first build, 00:00Z): audit
+    # 2026-10-13 A2 (league rate) and A3 + C8 (basketball overtime)
+    first = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC)
+    overtime = args.bb_overtime or epochs.bb_overtime(before, first)
+    strict = args.league_rate_rule or epochs.league_rate_rule(before, first)
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
@@ -127,10 +132,10 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         history_n = len(history)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit", fresh)
+            "history_fit", fresh, overtime, strict)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
-            args.max_holdout_games, "history_holdout", fresh)
+            args.max_holdout_games, "history_holdout", fresh, overtime, strict)
         settled = scf.settled_shadow_rows(runs_dir, shadow_sport, dates, events,
                                           history, args.sims, fresh)
         only = scf.SETTLED_ONLY_FAMILIES[sport]
@@ -169,6 +174,8 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "max_games": None if sport == "cs2" else args.max_games,
             "forecast_source": "cs2_engine" if sport == "cs2" else "score_model",
             "bb_freshness": fresh,
+            "bb_overtime": overtime,
+            "league_rate_rule": strict,
         },
         "curves": curves,
         "curve_source": source,
@@ -255,6 +262,12 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="print the summary, write no config")
     ap.add_argument("--holdout-days", type=int, default=30)
+    ap.add_argument("--bb-overtime", action="store_true",
+                    help="replay basketball overtime by the league's quarter and "
+                    "the tie pull (audit A3 + C8; default: the --before day's rule)")
+    ap.add_argument("--league-rate-rule", action="store_true",
+                    help="replay with no all-league rate for a thin competition "
+                    "(audit A2; default: the --before day's rule)")
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")

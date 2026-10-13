@@ -66,9 +66,11 @@ def _mults(freshness: bool, monkeypatch: pytest.MonkeyPatch
     real = sm.ScoreModel.simulate
 
     def spy(self: sm.ScoreModel, mu1: Any, mu2: Any, seed: int = 0,
-            n: int = 0, noise_mult: float = 1.0) -> Any:
+            n: int = 0, noise_mult: float = 1.0,
+            quarter_minutes: float | None = None) -> Any:
         seen[seed] = noise_mult
-        return real(self, mu1, mu2, seed=seed, n=min(n, 20), noise_mult=noise_mult)
+        return real(self, mu1, mu2, seed=seed, n=min(n, 20), noise_mult=noise_mult,
+                    quarter_minutes=quarter_minutes)
 
     monkeypatch.setattr(sm.ScoreModel, "simulate", spy)
     history = scf.parse_history(_events(), BASKETBALL)

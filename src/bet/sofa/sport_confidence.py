@@ -52,6 +52,8 @@ from bet.sofa.score_model import (
     _rated_values,
     build_model,
     line_probability,
+    overtime_minutes,
+    overtime_params,
     parse_event,
 )
 from bet.sofa.shadow import (
@@ -642,7 +644,8 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
 
 
 def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
-               n_sims: int, source: str, freshness: bool = False) -> list[Row]:
+               n_sims: int, source: str, freshness: bool = False,
+               overtime: bool = False) -> list[Row]:
     """The rows of one historical game, from the model as it stands.
     `freshness`: the basketball noise by games played in the last 120 days
     (epochs.BB_FRESHNESS_FROM_UTC), as the live forecaster simulates."""
@@ -655,7 +658,8 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
     sims = model.simulate(
         exp[0], exp[1], seed=r.event_id, n=n_sims,
         noise_mult=(model.noise_mult(r.home_id, r.away_id, r.ts)
-                    if freshness else 1.0))
+                    if freshness else 1.0),
+        quarter_minutes=overtime_minutes(r.competition_id, sport.key, overtime))
     rows: list[Row] = []
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
     lines = [ln for mid in HISTORY_MARKETS[sport.key]
@@ -686,7 +690,8 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
 def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       start_ts: int, end_ts: int, n_sims: int,
                       max_games: int | None, source: str,
-                      freshness: bool = False) -> list[Row]:
+                      freshness: bool = False, overtime: bool = False,
+                      strict_league_rate: bool = False) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it.
 
@@ -716,13 +721,16 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
             j += 1
         batch = window[i:j]
         if model is None or ts >= next_rebuild:
-            model = build_model(ratings, sport, ts)
+            model = build_model(ratings, sport, ts,
+                                overtime_params(None, sport.key, overtime),
+                                strict_league_rate=strict_league_rate)
             next_rebuild = ts + REBUILD_DAYS * 86400
             if freshness and model.recent is None:
                 model.recent = {}  # build_model leaves an empty book None
         for g in batch:
             if id(g) in scored:
-                rows += score_game(sport, model, g, n_sims, source, freshness)
+                rows += score_game(sport, model, g, n_sims, source, freshness,
+                                   overtime)
         for g in batch:
             model.book.update(_rated_values(g.rating, sport))
             if model.last_played is not None:
@@ -758,7 +766,10 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
         # epochs.LEAGUE_RATE_RULE: the day's own rule - a friendly is not
         # priced and a thin competition has no rate (audit 2026-10-13 A2)
         strict = epochs.league_rate_rule(date)
-        model = build_model(ratings, sport, day_ts(date), strict_league_rate=strict)
+        overtime = epochs.bb_overtime(date)
+        model = build_model(ratings, sport, day_ts(date),
+                            overtime_params(None, sport.key, overtime),
+                            strict_league_rate=strict)
         for sb_id, entry in (doc.get("events") or {}).items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):
                 continue
@@ -780,7 +791,8 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                 mu1, mu2, seed=int(entry["sofascore_event_id"]), n=n_sims,
                 noise_mult=(model.noise_mult(
                     int(event["homeTeam"]["id"]), int(event["awayTeam"]["id"]),
-                    int(event["startTimestamp"])) if freshness else 1.0))
+                    int(event["startTimestamp"])) if freshness else 1.0),
+                quarter_minutes=overtime_minutes(comp, sport.key, overtime))
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue

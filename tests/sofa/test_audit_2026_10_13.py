@@ -309,3 +309,74 @@ def test_an_observation_carries_its_opponent_and_old_samples_still_parse() -> No
     assert _against("goals_for", "football", {}, None, event, True) == 1.0
     assert _against("goals_for", "football", {}, None, event, False) == 3.0
     assert _against("goals_total", "football", {}, None, event, True) is None
+
+
+# --- A3 + C8 + A8: basketball overtime and noise --------------------------------
+
+
+def test_off_the_basketball_simulation_draws_exactly_as_before() -> None:
+    import random as rnd
+
+    from bet.sofa import score_model as sm
+
+    mu1, mu2 = [20.0] * 4, [20.0] * 4
+    a = [sm._basketball(rnd.Random(3), mu1, mu2, 6.0) for _ in range(200)]
+    b = [sm._basketball(rnd.Random(3), mu1, mu2, 6.0, sm.SimParams(), None)
+         for _ in range(200)]
+    assert a == b
+
+
+def test_twelve_minute_quarters_and_the_tie_pull() -> None:
+    import random as rnd
+
+    from bet.sofa import score_model as sm
+
+    assert sm.quarter_minutes_for(132) == 12.0 and sm.quarter_minutes_for(9) == 10.0
+    mu1, mu2 = [25.0] * 4, [25.0] * 4
+    games = 4000
+
+    def ot_points(qm: float | None) -> float:
+        rng = rnd.Random(1)
+        tot = n = 0
+        for _ in range(games):
+            g = sm._basketball(rng, mu1, mu2, 6.0, sm.SimParams(), qm)
+            if g.overtime:
+                tot += g.t1_full + g.t2_full - sum(g.t1_periods) - sum(g.t2_periods)
+                n += 1
+        return tot / n
+    # an NBA overtime is 5/12 of a quarter, not 5/10
+    assert ot_points(12.0) < ot_points(None)
+
+    def draws(pull: float) -> float:
+        rng = rnd.Random(2)
+        prm = sm.SimParams(bb_tie_pull=pull)
+        sims = [sm._basketball(rng, mu1, mu2, 6.0, prm) for _ in range(games)]
+        return sum(1 for g in sims if sum(g.t1_periods) == sum(g.t2_periods)) / games
+    assert draws(0.5) > draws(0.0) + 0.02
+    assert sm.overtime_params(None, "basketball", True) == sm.SimParams(
+        bb_tie_pull=sm.BB_TIE_PULL)
+    assert sm.overtime_params(None, "hockey", True) is None
+    assert sm.overtime_minutes(132, "basketball", False) is None
+
+
+def test_the_one_step_residuals_change_only_the_noise_fit() -> None:
+    import random as rnd
+
+    from bet.sofa import score_model as sm
+
+    rng = rnd.Random(5)
+    history = []
+    for i in range(400):
+        hq = [20 + rng.gauss(0, 4.0) for _ in range(4)]
+        aq = [19 + rng.gauss(0, 4.0) for _ in range(4)]
+        vals = {f"p{k + 1}_for": (hq[k], aq[k]) for k in range(4)}
+        vals[sm.REG_METRIC["basketball"]] = (sum(hq), sum(aq))
+        history.append(sm.FootballResult(i, i * 3600, 5, 100 + i % 6, 200 + i % 6,
+                                         vals))
+    bb = shadow.SPORTS["basketball"]
+    old = sm.build_model(history, bb, cut_ts=10**9)
+    new = sm.build_model(history, bb, cut_ts=10**9,
+                         params=sm.SimParams(bb_resid_one_step=True))
+    assert old.shares == new.shares
+    assert old.expected(5, 100, 200) == new.expected(5, 100, 200)
+    assert old.params.bb_quarter_sd != new.params.bb_quarter_sd

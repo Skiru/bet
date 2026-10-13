@@ -136,7 +136,7 @@ class DbForecaster:
 
     def _shadow_model(self, sport: str) -> tuple[Any, scf.TeamGames]:
         if sport not in self._shadow:
-            from bet.sofa.score_model import build_model, load_events
+            from bet.sofa.score_model import build_model, load_events, overtime_params
 
             sp = shadow.SPORTS[sport]  # type: ignore[index]
             cut = int(self.at.timestamp())
@@ -146,6 +146,7 @@ class DbForecaster:
             history = scf.parse_history(events, sp)
             model = build_model(
                 [g.rating for g in history], sp, cut,
+                overtime_params(None, sport, epochs.bb_overtime(self.date, self.at)),
                 shared_league_link=epochs.link_shared_league(self.date),
                 strict_league_rate=epochs.league_rate_rule(self.date, self.at))
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
@@ -200,7 +201,7 @@ class DbForecaster:
                 maps, ratings, bool(fixture["home_is_team1"]),
                 team_rounds_race=epochs.cs2_team_rounds_race(str(self.date), self.at))
             return None if mp is None else mp.p
-        from bet.sofa.score_model import line_probability
+        from bet.sofa.score_model import line_probability, overtime_minutes
 
         sp = shadow.SPORTS[sport]  # type: ignore[index]
         key = (sport, str(fixture["superbet_event_id"]))
@@ -225,7 +226,10 @@ class DbForecaster:
                     mu1, mu2, seed=int(fixture["sofascore_event_id"]),
                     noise_mult=model.noise_mult(
                         int(fixture["home_id"]), int(fixture["away_id"]), kick_ts)
-                    if fresh else 1.0)
+                    if fresh else 1.0,
+                    quarter_minutes=overtime_minutes(
+                        None if comp is None else int(comp), sport,
+                        epochs.bb_overtime(str(self.date), self.at)))
         games = self._sims[key]
         return None if games is None else line_probability(line, games, sp)
 

@@ -978,3 +978,26 @@ def football_venue_prior(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_VENUE_PRIOR_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_VENUE_PRIOR_FROM_UTC)
+
+
+# Audit 2026-10-13 A3 + C8 (basketball overtime; one path, score_model
+# _basketball): a five-minute overtime is 5/12 of a quarter where quarters are
+# 12 minutes (score_model.TWELVE_MINUTE_QUARTERS; it was 5/10 everywhere), and
+# a regulation result within 3 points becomes a tie with probability
+# score_model.BB_TIE_PULL (the "overtime spike"; the regulation draw was
+# under-forecast ~0.024 against ~0.042). Live (SPORT_CONFIDENCE), in the
+# line-evidence replay and in the history replay of a fit for a day >= it.
+# Changes basketball p, so it goes live with the basketball curve refitted on
+# it (audit stage 5).
+BB_OVERTIME_FROM_UTC: datetime | None = None
+
+
+def bb_overtime(date: str | None = None, build_at: datetime | None = None) -> bool:
+    """Is basketball overtime simulated by the league's quarter and the tie
+    pull (BB_OVERTIME_FROM_UTC)? `date` None: the wall clock alone."""
+    if BB_OVERTIME_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < BB_OVERTIME_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= BB_OVERTIME_FROM_UTC

@@ -268,6 +268,17 @@ class SimParams:
     # Hockey has no such gradient (-0.032 / -0.033 / -0.030). Applied only from
     # epochs.BB_FRESHNESS_FROM_UTC.
     bb_fresh_mult: tuple[float, float] = (1.085, 1.026)
+    # basketball (audit 2026-10-13 C8, epochs.BB_OVERTIME_FROM_UTC): a
+    # regulation result within 1..bb_tie_window points becomes a tie with
+    # probability bb_tie_pull - the trailing side's late fouling and threes
+    # (the "overtime spike", Ely, Cheap Talk 2009). 0 = off, no draw taken.
+    bb_tie_pull: float = 0.0
+    bb_tie_window: int = 3
+    # basketball (audit 2026-10-13 A8, a candidate): the quarter residuals the
+    # noise is fitted on taken one step ahead - each game against the book as
+    # it stood before it - instead of against the book after the whole window
+    # (what the code did, though its docstring said "one step ahead").
+    bb_resid_one_step: bool = False
     # volleyball: the rating's point share moved away from 0.5 by this factor
     # before a set is played (1 = the share as rated). Points per set mixes
     # won and lost sets, so the share it gives is not the rally share.
@@ -376,6 +387,7 @@ class ScoreModel:
     def simulate(
         self, mu1: Sequence[float], mu2: Sequence[float], seed: int = 0,
         n: int = N_SIMS, noise_mult: float = 1.0,
+        quarter_minutes: float | None = None,
     ) -> list[GameResult]:
         """Games in team1 / team2 orientation (mu1 is team1's)."""
         rng = random.Random(seed)
@@ -398,7 +410,8 @@ class ScoreModel:
                         prm, bb_game_sd=prm.bb_game_sd * f,
                         bb_team_sd=prm.bb_team_sd * f,
                         bb_quarter_sd=prm.bb_quarter_sd * f)
-            return [_basketball(rng, mu1, mu2, sd, prm) for _ in range(n)]
+            return [_basketball(rng, mu1, mu2, sd, prm, quarter_minutes)
+                    for _ in range(n)]
         p1, p2 = mu1[0], mu2[0]
         if prm.vb_share_k != 1.0 and p1 + p2 > 0:
             share = 0.5 + prm.vb_share_k * (p1 / (p1 + p2) - 0.5)
@@ -460,10 +473,52 @@ def _hockey(
                       "T1" if t1_wins else "T2", True)
 
 
+# Audit 2026-10-13 A3: competitions played in 12-minute quarters, whose
+# five-minute overtime is 5/12 of a quarter (Sofascore's defaultPeriodLength
+# is 12 for NBA Preseason and the PBA cups in the cache; NBA by its rules).
+# Every other competition plays 10-minute quarters (FIBA).
+TWELVE_MINUTE_QUARTERS: frozenset[int] = frozenset({132, 2329, 1656, 1712, 1956})
+
+
+def quarter_minutes_for(competition_id: int | None) -> float:
+    """The competition's quarter length in minutes (A3)."""
+    return 12.0 if competition_id in TWELVE_MINUTE_QUARTERS else 10.0
+
+
+# Audit 2026-10-13 C8: SimParams.bb_tie_pull under epochs.BB_OVERTIME_FROM_UTC,
+# fitted by moments on the walk-forward 2025-10-01..2026-02-01 (1,951 games:
+# history's regulation draw share 0.0267 against the simulation's 0.0226,
+# over the simulation's mass within 3 points 0.135). Measured with A3 on
+# 2026-02-01..06-01 (3,081 games): regulation 1X2 log-loss -0.0035
+# [-0.0072, -0.0001], total incl. overtime Brier unchanged
+# (docs/sofa/evidence/basketball_overtime_2026-10-13.md).
+BB_TIE_PULL = 0.0299
+
+
+def overtime_params(params: SimParams | None, sport_key: str, on: bool
+                    ) -> SimParams | None:
+    """The basketball params under epochs.BB_OVERTIME (the tie pull); `params`
+    unchanged elsewhere or when off."""
+    if not on or sport_key != "basketball":
+        return params
+    return dataclasses.replace(params or SimParams(), bb_tie_pull=BB_TIE_PULL)
+
+
+def overtime_minutes(competition_id: int | None, sport_key: str, on: bool
+                     ) -> float | None:
+    """quarter_minutes for ScoreModel.simulate: the competition's quarter
+    under epochs.BB_OVERTIME, None (the rule before A3) otherwise."""
+    if not on or sport_key != "basketball":
+        return None
+    return quarter_minutes_for(competition_id)
+
+
 def _basketball(
     rng: random.Random, mu1: Sequence[float], mu2: Sequence[float], sd: float,
-    prm: SimParams = SimParams(),
+    prm: SimParams = SimParams(), quarter_minutes: float | None = None,
 ) -> GameResult:
+    """`quarter_minutes` None: the rule before audit A3 (every overtime 5/10
+    of a quarter - `mu1` always has four quarters)."""
     if prm.bb_game_sd is None:
         p1 = tuple(max(0, round(rng.gauss(m, sd))) for m in mu1)
         p2 = tuple(max(0, round(rng.gauss(m, sd))) for m in mu2)
@@ -475,10 +530,18 @@ def _basketball(
         q_sd = prm.bb_quarter_sd
         p1 = tuple(max(0, round(m + g + u1 + rng.gauss(0.0, q_sd))) for m in mu1)
         p2 = tuple(max(0, round(m + g + u2 + rng.gauss(0.0, q_sd))) for m in mu2)
+    if prm.bb_tie_pull > 0 and 1 <= abs(sum(p1) - sum(p2)) <= prm.bb_tie_window \
+            and rng.random() < prm.bb_tie_pull:
+        gap = abs(sum(p1) - sum(p2))
+        if sum(p1) < sum(p2):
+            p1 = (*p1[:-1], p1[-1] + gap)
+        else:
+            p2 = (*p2[:-1], p2[-1] + gap)
     f1, f2 = sum(p1), sum(p2)
     overtime = False
     # A five-minute overtime is 5/40 or 5/48 of a game: scale one quarter.
-    q_len = 10.0 if len(mu1) == 4 else 12.0
+    q_len = (10.0 if len(mu1) == 4 else 12.0) if quarter_minutes is None \
+        else quarter_minutes
     ot_sd = max(q_sd, 1.0) * 0.6
     while f1 == f2:
         overtime = True
@@ -597,19 +660,32 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     window: list[FootballResult] = []
     before = [r for r in history if r.ts < cut_ts]
     last_ts = before[-1].ts if before else cut_ts
+    prm0 = params if params is not None else SimParams()
+    one_step = sport.key == "basketball" and prm0.bb_resid_one_step
     for r in before:
         if k and r.ts >= last_ts - 365 * 86400:
             for i in range(k):
                 vh, va = r.values.get(period_metric(i + 1), (0.0, 0.0))
                 tot_h[i] += vh
                 tot_a[i] += va
-        if sport.key == "basketball" and r.ts >= last_ts - SPREAD_WINDOW_S:
-            window.append(r)
-        book.update(_rated_values(r, sport))
     shares: tuple[tuple[float, ...], tuple[float, ...]] = ((), ())
     if k:
         th, ta = sum(tot_h) or 1.0, sum(tot_a) or 1.0
         shares = (tuple(x / th for x in tot_h), tuple(x / ta for x in tot_a))
+    # A8 candidate: each window game's residuals against the book before it
+    early: list[tuple[list[float], list[float]]] = []
+    probe = ScoreModel(sport, book, 6.0, shares, prm0) if one_step else None
+    for r in before:
+        if sport.key == "basketball" and r.ts >= last_ts - SPREAD_WINDOW_S:
+            window.append(r)
+            if probe is not None:
+                exp0 = probe.expected(r.competition_id, r.home_id, r.away_id)
+                pairs0 = [r.values.get(period_metric(i + 1)) for i in range(k)]
+                if exp0 is not None and all(pp is not None for pp in pairs0):
+                    early.append(
+                        ([pp[0] - exp0[0][i] for i, pp in enumerate(pairs0) if pp],
+                         [pp[1] - exp0[1][i] for i, pp in enumerate(pairs0) if pp]))
+        book.update(_rated_values(r, sport))
     last: dict[int, int] = {}
     recent: dict[int, list[int]] = {}
     for r in before:
@@ -630,15 +706,19 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
         # approximation (the book has moved on since), measured not assumed
         within = cross = 0.0
         n_within = n_cross = 0
-        for r in window:
-            exp = model.expected(r.competition_id, r.home_id, r.away_id)
-            if exp is None:
-                continue
-            pairs = [r.values.get(period_metric(i + 1)) for i in range(k)]
-            if any(pp is None for pp in pairs):
-                continue
-            res1 = [pp[0] - exp[0][i] for i, pp in enumerate(pairs) if pp]
-            res2 = [pp[1] - exp[1][i] for i, pp in enumerate(pairs) if pp]
+        residuals: list[tuple[list[float], list[float]]] = early if one_step else []
+        if not one_step:
+            for r in window:
+                exp = model.expected(r.competition_id, r.home_id, r.away_id)
+                if exp is None:
+                    continue
+                pairs = [r.values.get(period_metric(i + 1)) for i in range(k)]
+                if any(pp is None for pp in pairs):
+                    continue
+                residuals.append(
+                    ([pp[0] - exp[0][i] for i, pp in enumerate(pairs) if pp],
+                     [pp[1] - exp[1][i] for i, pp in enumerate(pairs) if pp]))
+        for res1, res2 in residuals:
             for res in (res1, res2):
                 sq += sum(x * x for x in res)
                 n += len(res)
