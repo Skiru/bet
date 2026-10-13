@@ -82,8 +82,20 @@ from bet.sofa.market_mapper import fold, is_derived
 from bet.sofa.names import normalize_name
 from bet.sofa.per_market_k import k_for_market
 from bet.sofa.players import is_player_metric, player_sample_key
+from bet.sofa.rating_weight import RatingWeightTable
+from bet.sofa.rating_weight import blend as rating_blend
+from bet.sofa.rating_weight import load_table as load_rating_weight_table
+from bet.sofa.rating_weight import weight_for as rating_weight_for
 from bet.sofa.sample_age import stalest_side_newest_days
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
+from bet.sofa.season_phase import (
+    SEASON_PHASE_UNFITTED,
+    SeasonPhaseIndex,
+    SeasonPhaseTable,
+    index_from_history,
+)
+from bet.sofa.season_phase import apply as apply_season_phase
+from bet.sofa.season_phase import load_table as load_season_phase_table
 from bet.sofa.stage import set_stage
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
@@ -903,6 +915,9 @@ def process_fixture(
     per_market_k_on: bool = False,
     game_state: GameStateTable | None = None,
     venue_prior_on: bool = False,
+    season_phase: SeasonPhaseTable | None = None,
+    season_phase_label: str | None = None,
+    rating_weights: RatingWeightTable | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1211,13 +1226,24 @@ def process_fixture(
             )
             if rated is not None:
                 sample_centre = centre
-                centre = W_FOOTBALL_RATING * rated[0] + (
-                    1 - W_FOOTBALL_RATING) * sample_centre
+                if rating_weights is None:
+                    centre = W_FOOTBALL_RATING * rated[0] + (
+                        1 - W_FOOTBALL_RATING) * sample_centre
+                    w_note = f"W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}"
+                else:
+                    # epochs.FOOTBALL_RATING_WEIGHT (audit 2026-10-13 B14)
+                    centre = rating_blend(
+                        rated[0], sample_centre, rung.market, rating_weights)
+                    w_m = rating_weight_for(rung.market, rating_weights)
+                    w_note = (f"W={w_m:g} "
+                              + ("(market's own, epochs.FOOTBALL_RATING_WEIGHT)"
+                                 if rating_weights.weight(rung.market) is not None
+                                 else "(W_FOOTBALL_RATING)"))
                 row_unfitted.append("W_FOOTBALL_RATING")
                 row_unfitted.extend(RATING_UNFITTED)
                 extra_notes.append(
                     f"FOOTBALL_RATING: centre {centre:.2f} from the rating "
-                    f"({rated[1]}) at W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}, "
+                    f"({rated[1]}) at {w_note}, "
                     f"sample centre was {sample_centre:.2f}"
                 )
             elif (football is not None and not is_player_metric(rung.market)
@@ -1256,6 +1282,18 @@ def process_fixture(
                         f"{g_mult:.3f} (expected goal difference {g_sup:+.2f}, "
                         f"beta {game_state.betas[rung.market]:+.4f}; "
                         "epochs.GAME_STATE)")
+            # epochs.SEASON_PHASE (audit 2026-10-13 C1): the goals centre x
+            # exp(c[market][phase]), the phase as of the day's cut.
+            if season_phase is not None and football is not None:
+                p_before = centre
+                centre, p_mult = apply_season_phase(
+                    centre, rung.market, season_phase_label, season_phase)
+                if p_mult is not None:
+                    row_unfitted.extend(SEASON_PHASE_UNFITTED)
+                    extra_notes.append(
+                        f"SEASON_PHASE: centre {centre:.2f} = {p_before:.2f} x "
+                        f"{p_mult:.3f} (phase {season_phase_label}; "
+                        "epochs.SEASON_PHASE)")
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
@@ -1827,13 +1865,21 @@ def _main() -> int:
     # the link rule of the day being built (epochs.link_shared_league)
     link_shared = epochs.link_shared_league(args.date)
     football_book: RatingBook | None = None
+    # epochs.SEASON_PHASE (audit 2026-10-13 C1): read only while on
+    season_phase_on = (stats_only_epoch(args.date)
+                       and epochs.season_phase_enabled(args.date))
+    season_index: SeasonPhaseIndex | None = None
     if os.environ.get("SOFA_FOOTBALL_RATING", "1") != "0" and any(
         f.sport == "football" for f in fixtures
     ):
         cut = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
+        football_history = load_football_history(
+            config.db_path, Path(config.db_path).parent / "cache")
+        if season_phase_on:
+            season_index = index_from_history(
+                football_history, int(cut.timestamp()))
         football_book = replay_football(
-            load_football_history(config.db_path,
-                                  Path(config.db_path).parent / "cache"),
+            football_history,
             int(cut.timestamp()),
             shared_league_link=link_shared,
             # epochs.UNIT_STRENGTH_FROM_PARENT (audit 2026-10-13 A1)
@@ -1866,6 +1912,13 @@ def _main() -> int:
         if stats_only and epochs.game_state_enabled(args.date) else None)
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
+    # Audit 2026-10-13 C1 / B14 (None = byte for byte; a missing / malformed
+    # config raises, rc 2): the season-phase term of the goals centre, the
+    # rating's weight per market.
+    season_phase_table = load_season_phase_table() if season_phase_on else None
+    rating_weight_table = (
+        load_rating_weight_table()
+        if stats_only and epochs.football_rating_weight(args.date) else None)
 
     try:
         for offer in offers:
@@ -1916,6 +1969,16 @@ def _main() -> int:
                 per_market_k_on=per_market_k_on,
                 game_state=game_state_table,
                 venue_prior_on=venue_prior_on,
+                season_phase=(season_phase_table if season_index is not None
+                              else None),
+                season_phase_label=(
+                    season_index.phase(
+                        fixture.competition_id, fixture.season_id,
+                        int(fixture.kickoff_utc.timestamp()),
+                        fixture.home_entity_id, fixture.away_entity_id)
+                    if season_index is not None and fixture.sport == "football"
+                    else None),
+                rating_weights=rating_weight_table,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

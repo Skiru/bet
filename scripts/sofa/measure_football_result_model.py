@@ -271,6 +271,7 @@ ROW_KEYS = (
     "sa1",
     "b_btts",
     "b_odd",
+    "eid",
 )
 
 
@@ -399,6 +400,7 @@ def _price_row(
     row.update(
         {
             "ts": float(r.ts),
+            "eid": float(r.event_id),
             "comp": float(r.competition_id),
             "women": float(r.women),
             "link": float(LINKS.index(link)),
