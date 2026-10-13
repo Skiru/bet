@@ -438,7 +438,7 @@ all-league rate beat the sample alone in thin competitions, squared error
 -0.58 [-0.62, -0.54] per side in its favour), `UNIT_STRENGTH_FROM_PARENT_FROM_UTC`
 (A1: a regional unit's strength from its competition's; goals log-loss
 -0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches).
-**Measured, registered threshold met, left `None` for the O5 decision**
+**Measured, registered threshold met, `None` until the football refit (stage 4: the curves must be fitted on the same centre)**
 (one step ahead on the history 2025-08-01..2026-10-12, NB log-loss of the
 centre at the count - not Superbet lines, the replay has no rating, A6):
 `GAME_STATE_FROM_UTC` (B1: side centre x exp(beta x expected goal
