@@ -100,10 +100,13 @@ every sport alike, and nothing that could win is cut by name.
   shots-on-target / cards joints built from the marginal rows' centres);
   `BB_FRESHNESS_FROM_UTC` (basketball simulation noise x1.085 when the thinner
   side has <= 2 games in 120 days, x1.026 for 3..9 - live forecaster and
-  history replay alike). The history replay (`calibrate_from_cache.py`) prices
-  the same estimator as SHEET (`tennis_rating.AsOfRating`; best-of-five
-  skipped); football goals joints are **not** replayed (no football rating in
-  the replayed centre) and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
+  history replay alike). The history replay (`calibrate_from_cache.py`) is
+  **not** the estimator SHEET prices with in two places (audit 2026-10-13, A6,
+  `calibrate_from_cache.py:1064-1072`): football rating (`W_FOOTBALL_RATING`
+  0.5 in the live centre) is replayed in no football centre, and the tennis
+  tier / ladder priors are not replayed; tennis neighbours are
+  `tennis_rating.AsOfRating` (best-of-five skipped). Football goals joints are
+  not replayed and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
   that way were installed 2026-10-07 17:51Z: a new comparability epoch.
   Hockey / volleyball / CS2 curves are the staged `.next.json`'s.
 - **Installed model packages (refit installed 2026-10-08 23:42Z, commits
@@ -384,6 +387,15 @@ The shape above stays; it is improved, not rebuilt.
    against live rows, so the daily loops stay up. `install` runs
    `tests/sofa` and restores on failure. Installing changes what prints, so
    it needs the operator's go - and no refit without it, mid-day included.
+   **Standing go for the 2026-10-13 audit** (operator, 2026-10-13;
+   `docs/sofa/history/AUDYT_RYNKOW_KONTEKST_2026-10-13.md`, "Decyzje
+   operatora"): while implementing that audit a switch may be turned on by
+   the implementing session when the out-of-sample measurement is better with
+   an interval excluding zero, `tests/sofa` pass and a report is written; a
+   refit carrying the audit's fixes may be installed without a further go,
+   also into a day already built - then at an exact UTC time, the day is
+   mixed and says so, printed legs stay locked, and the ledger opens a new
+   epoch. Nothing else is covered by this go.
 5. **Every fix ships a test** in `tests/sofa/` (offline, fast); run the gates.
 6. **Update this file's section** and the Polish doc in `docs/sofa/`; a run or
    a night gets a report in `docs/sofa/history/`.
@@ -643,7 +655,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
   bands) is a guard that only lowers, and any number it holds is reported as
   measured on N days.
 - **Never re-fit or install constants or calibrations without the operator's
-  go**, and never into a day already built: a refit runs on a copy of the DB,
+  go**, and never into a day already built (except the 2026-10-13 audit's
+  standing go, "Changing the pipeline" 4): a refit runs on a copy of the DB,
   installs only after `tests/sofa` pass.
 - **A pooled number must say what it pooled across.** Friendlies are out of
   samples and ratings (`bet.sofa.comparability` is the one "does this past
