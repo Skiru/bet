@@ -373,7 +373,7 @@ def superbet_test(db_path: str, runs_dir: str, data: Data, box: dict[int, str],
                               "strict_league_rate": False}
     old = scf.settled_shadow_rows(runs_dir, BB, dates, events, history, sims,
                                   pace=False, **common)
-    new_kw: dict[str, bool] = ({"pace": False, "pace_level": True}
+    new_kw: dict[str, Any] = ({"pace": False, "pace_level": True}
                                if variant == "level" else {"pace": True})
     new = scf.settled_shadow_rows(runs_dir, BB, dates, events, history, sims,
                                   **new_kw, **common)

@@ -51,7 +51,9 @@ from bet.sofa.score_model import (
     ScoreModel,
     _rated_values,
     attach_box,
+    attach_hockey_shots,
     build_model,
+    empty_net_params,
     line_probability,
     overtime_minutes,
     overtime_params,
@@ -569,7 +571,8 @@ def parse_history(events: Mapping[int, dict[str, Any]], sport: ShadowSport,
     """Every rated finished game, oldest first (friendlies out, by
     score_model.parse_event -> comparability). `box` (basketball, audit B7:
     event id -> statistics_json, score_model.load_box_scores): each graded
-    game carries its pace metrics (score_model.attach_box)."""
+    game carries its pace metrics (score_model.attach_box); hockey (audit B8,
+    the same mapping): its shot metrics (score_model.attach_hockey_shots)."""
     out: list[HistoryGame] = []
     for e in events.values():
         r = parse_event(e, sport)
@@ -579,6 +582,8 @@ def parse_history(events: Mapping[int, dict[str, Any]], sport: ShadowSport,
         if box and sport.key == "basketball" and result is not None:
             r = attach_box(r, box.get(r.event_id), float(result.t1_full),
                            float(result.t2_full), result.overtime)
+        elif box and sport.key == "hockey" and result is not None:
+            r = attach_hockey_shots(r, box.get(r.event_id), result.overtime)
         out.append(HistoryGame(r, result, e))
     out.sort(key=lambda g: (g.rating.ts, g.rating.event_id))
     return out
@@ -699,7 +704,9 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       max_games: int | None, source: str,
                       freshness: bool = False, overtime: bool = False,
                       strict_league_rate: bool = False,
-                      pace: bool = False, pace_level: bool = False) -> list[Row]:
+                      pace: bool = False, pace_level: bool = False,
+                      hk_shots: str | None = None,
+                      hk_empty_net: bool = False) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it.
 
@@ -718,6 +725,10 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     x efficiency; the history must carry box scores (parse_history's `box`).
     `pace_level` (epochs.BB_PACE_LEVEL_FROM_UTC, audit B7b): the box-score
     pace scales basketball's total only (box scores as for `pace`).
+    `hk_shots` (epochs.HK_SHOTS_FROM_UTC, audit B8): "replace" / "blend" -
+    hockey's centre from shots x conversion (box scores as for `pace`);
+    `hk_empty_net` (epochs.HK_EMPTY_NET_FROM_UTC): the fitted late-game
+    probabilities (score_model.empty_net_params).
     """
     ratings = [g.rating for g in history]
     window = [g for g in history if start_ts <= g.rating.ts < end_ts]
@@ -735,9 +746,12 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
         batch = window[i:j]
         if model is None or ts >= next_rebuild:
             model = build_model(ratings, sport, ts,
-                                overtime_params(None, sport.key, overtime),
+                                empty_net_params(
+                                    overtime_params(None, sport.key, overtime),
+                                    sport.key, hk_empty_net),
                                 strict_league_rate=strict_league_rate,
-                                pace=pace, pace_level=pace_level)
+                                pace=pace, pace_level=pace_level,
+                                shots=hk_shots)
             next_rebuild = ts + REBUILD_DAYS * 86400
             if freshness and model.recent is None:
                 model.recent = {}  # build_model leaves an empty book None
@@ -768,13 +782,18 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                         freshness: bool = False, overtime: bool | None = None,
                         strict_league_rate: bool | None = None,
                         pace: bool | None = None,
-                        pace_level: bool | None = None) -> list[Row]:
+                        pace_level: bool | None = None,
+                        hk_shots: str | None = None,
+                        hk_empty_net: bool | None = None) -> list[Row]:
     """Superbet's settled lines of `dates` (runs/sofa/shadow/<sport>/<d>/
     settled.json), each with the model's probability from a model built
     strictly before the day - measure_score_model.py's reading. Only allowed
     markets; the price on the row is never read. `pace` None: the day's own
     epochs.bb_pace (audit B7; the history must carry box scores); `pace_level`
-    None: the day's own epochs.bb_pace_level (audit B7b, likewise)."""
+    None: the day's own epochs.bb_pace_level (audit B7b, likewise); `hk_shots`
+    None: the day's own epochs.hk_shots, "off" / "replace" / "blend" forced
+    (audit B8, the history must carry shots); `hk_empty_net` None: the day's
+    own epochs.hk_empty_net."""
     ratings = [g.rating for g in history]
     rows: list[Row] = []
     allowed = allowed_markets(sport.key, extended=True)
@@ -793,10 +812,16 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
         day_pace = epochs.bb_pace(date) if pace is None else pace
         day_level = (epochs.bb_pace_level(date) if pace_level is None
                      else pace_level)
+        day_shots = (epochs.hk_shots(date) if hk_shots is None
+                     else (None if hk_shots == "off" else hk_shots))
+        day_en = (epochs.hk_empty_net(date) if hk_empty_net is None
+                  else hk_empty_net)
         model = build_model(ratings, sport, day_ts(date),
-                            overtime_params(None, sport.key, day_overtime),
+                            empty_net_params(
+                                overtime_params(None, sport.key, day_overtime),
+                                sport.key, day_en),
                             strict_league_rate=strict, pace=day_pace,
-                            pace_level=day_level)
+                            pace_level=day_level, shots=day_shots)
         for sb_id, entry in (doc.get("events") or {}).items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):
                 continue

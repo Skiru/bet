@@ -113,6 +113,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     # audit 2026-10-13 B7b: the box-score pace scales basketball's total only
     level = sport == "basketball" and (
         args.bb_pace_level or epochs.bb_pace_level(before, first))
+    # audit 2026-10-13 B8: hockey's centre from shots x conversion, and the
+    # fitted empty-net probabilities
+    hk_shots = (None if sport != "hockey"
+                else (args.hk_shots or epochs.hk_shots(before, first)))
+    hk_en = sport == "hockey" and (
+        args.hk_empty_net or epochs.hk_empty_net(before, first))
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
@@ -140,17 +146,20 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
                    args.bb_pace or epochs.BB_PACE_FROM_UTC is not None
                    or args.bb_pace_level
                    or epochs.BB_PACE_LEVEL_FROM_UTC is not None)
+               or sport == "hockey" and (
+                   args.hk_shots is not None
+                   or epochs.HK_SHOTS_FROM_UTC is not None)
                else None)
         history = scf.parse_history(events, shadow_sport, box)
         history = [g for g in history if g.rating.ts < before_ts]
         history_n = len(history)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit", fresh, overtime, strict, pace, level)
+            "history_fit", fresh, overtime, strict, pace, level, hk_shots, hk_en)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict,
-            pace, level)
+            pace, level, hk_shots, hk_en)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
@@ -158,7 +167,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             overtime=True if args.bb_overtime else None,
             strict_league_rate=True if args.league_rate_rule else None,
             pace=True if args.bb_pace else None,
-            pace_level=True if args.bb_pace_level else None)
+            pace_level=True if args.bb_pace_level else None,
+            hk_shots=args.hk_shots,
+            hk_empty_net=True if args.hk_empty_net else None)
         only = scf.SETTLED_ONLY_FAMILIES[sport]
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
@@ -199,6 +210,8 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "league_rate_rule": strict,
             **({"bb_pace": True} if pace else {}),
             **({"bb_pace_level": True} if level else {}),
+            **({"hk_shots": hk_shots} if hk_shots else {}),
+            **({"hk_empty_net": True} if hk_en else {}),
         },
         "curves": curves,
         "curve_source": source,
@@ -297,6 +310,12 @@ def main() -> int:
     ap.add_argument("--bb-pace-level", action="store_true",
                     help="replay basketball's total scaled by the box-score pace, "
                     "the margin kept (audit B7b; default: the --before day's rule)")
+    ap.add_argument("--hk-shots", choices=("replace", "blend"), default=None,
+                    help="replay hockey's centre from shots x conversion "
+                    "(audit B8; default: the --before day's rule)")
+    ap.add_argument("--hk-empty-net", action="store_true",
+                    help="replay hockey with the fitted empty-net probabilities "
+                    "(audit B8; default: the --before day's rule)")
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")
