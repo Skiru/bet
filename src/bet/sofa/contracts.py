@@ -329,6 +329,14 @@ class SheetRow(BaseModel):
     # their own market (bet.sofa.per_market_k); absent on a sheet built with
     # the sport's K. rebuild_plan re-runs SHEET when the rules differ.
     k_rule: str | None = None
+    # bet.sofa.epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 B15 / A5):
+    # the football sample rescaled to a neutral opponent and to today's
+    # league domain (bet.sofa.opponent_correction) before the centre, and the
+    # values the shape gates and MODEL_ABOVE_OWN_SAMPLE read in CONFIDENCE.
+    # Absent on a sheet built from the raw sample; rebuild_plan re-runs SHEET
+    # when the rules differ.
+    opponent_rule: str | None = None
+    corrected_sample: list[float] | None = None
 
 
 ContextSignal = Literal[

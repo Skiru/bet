@@ -19,7 +19,9 @@ CORRELATIONS_INPUT = GOLDEN_DIR / "side_correlations_input.json"
 
 # row fields the change set ADDED (None = priced under the old rule): absent
 # from the commit it started from, so they are dropped while None
-_NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule")
+# (and later, audit 2026-10-13 B15: opponent_rule, corrected_sample)
+_NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
+                "opponent_rule", "corrected_sample")
 
 
 def _row(r: Any) -> dict[str, Any]:
