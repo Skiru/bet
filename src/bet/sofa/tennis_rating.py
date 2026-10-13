@@ -133,18 +133,29 @@ _READABLE_MARKETS = RATED_MARKETS | {
     "games_set2_total",
     "games_won_set1_for",
     "games_won_set2_for",
+    "games_won_set3_for",
     "most_games",
 }
 # Priced by the neighbours alone (no price) once epochs.tennis_rating_prices;
 # draw of most_games was not measured and stays on the sample.
 RATING_PRICED_MARKETS = frozenset({"games_won_for", "handicap_games", "most_games"})
+# Audit 2026-10-13 B5 (epochs.TENNIS_SET_RATING_PRICES_FROM_UTC, off): the
+# per-set games and the number of sets read off the same neighbours instead of
+# the players' own samples shrunk to a global prior, with no opponent
+# (docs/sofa/evidence/tennis_set_markets_2026-10-13.md). Set three is read
+# from the neighbours that played a full third set: Superbet voids the market
+# when the set is not played, so its probability is conditional on it.
+SET_RATING_PRICED_MARKETS = frozenset(
+    {"games_set1_total", "games_set2_total", "games_won_set1_for",
+     "games_won_set2_for", "games_won_set3_for", "sets_total"}
+)
 # games_total: the rating alone ties the NB (dLL -0.0002 [-0.0019, +0.0017]),
 # the 50/50 mix beats it (-0.0087 [-0.0099, -0.0075], both windows).
 W_GAMES_TOTAL_RATING = 0.5
 # A per-subject market: the probability is read from the subject's side.
 _SUBJECT_MARKETS = frozenset(
     {"games_won_for", "games_won_set1_for", "games_won_set2_for",
-     "handicap_games", "most_games"}
+     "games_won_set3_for", "handicap_games", "most_games"}
 )
 
 
@@ -494,6 +505,10 @@ class Outcome:
     # scoped neighbour table (not read when the table is pooled).
     tier: str = ""
     female: bool = False
+    # The third set's games from this player's side when a full third set
+    # was played; None for a straight-sets match and for a match tiebreak
+    # (which extract_metric reads as no set-three observation either).
+    set3: tuple[int, int] | None = None
 
 
 def _outcomes(r: TennisResult, p_home: float) -> list[Outcome]:
@@ -506,10 +521,13 @@ def _outcomes(r: TennisResult, p_home: float) -> list[Outcome]:
     tb = sum(1 for a, b in r.sets if (a, b) in ((7, 6), (6, 7)))
     s1, s2 = r.sets[0], r.sets[1]
     mtb = len(r.sets) == 3 and sorted(r.sets[2]) == [0, 1]
+    s3 = r.sets[2] if len(r.sets) == 3 and not mtb else None
     return [
-        Outcome(p_home, gh, ga, len(r.sets), tb, s1, s2, mtb, r.tier, r.female),
+        Outcome(p_home, gh, ga, len(r.sets), tb, s1, s2, mtb, r.tier, r.female,
+                s3),
         Outcome(1.0 - p_home, ga, gh, len(r.sets), tb, (s1[1], s1[0]),
-                (s2[1], s2[0]), mtb, r.tier, r.female),
+                (s2[1], s2[0]), mtb, r.tier, r.female,
+                (s3[1], s3[0]) if s3 is not None else None),
     ]
 
 
@@ -558,6 +576,9 @@ class MatchForecast:
             pool = self.neighbours_home if side == "side_a" else self.neighbours_away
         else:
             pool = self.neighbours_home
+        if market == "games_won_set3_for":
+            # conditional on a full third set: unplayed, the bet is void
+            pool = tuple(o for o in pool if o.set3 is not None)
         if not pool:
             return None
 
@@ -578,6 +599,8 @@ class MatchForecast:
                 return o.set1[0]
             if market == "games_won_set2_for":
                 return o.set2[0]
+            if market == "games_won_set3_for":
+                return o.set3[0] if o.set3 is not None else 0
             # handicap_games and most_games: the subject's margin.
             return o.games_for - o.games_against
 

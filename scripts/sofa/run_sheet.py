@@ -84,6 +84,7 @@ from bet.sofa.stage import set_stage
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
+    SET_RATING_PRICED_MARKETS,
     W_GAMES_TOTAL_RATING,
     W_TENNIS_RATING,
     MatchForecast,
@@ -897,6 +898,7 @@ def process_fixture(
     marginal_centres_on: bool = False,
     dispersion_table: DispersionTable | None = None,
     per_market_k_on: bool = False,
+    set_rating_prices: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1267,6 +1269,15 @@ def process_fixture(
                 if rating is not None
                 else None
             )
+            # epochs.TENNIS_SET_RATING_PRICES (audit 2026-10-13 B5): the
+            # per-set games and sets_total read off the neighbours too.
+            set_rated = (
+                set_rating_prices and rating is not None
+                and rung.market in SET_RATING_PRICED_MARKETS
+            )
+            if set_rated and rating is not None:
+                p_rating = rating.read(
+                    rung.market, rating_side, rung.line, direction)
             # The second number (K11): the rating's own forecast, never
             # blended with the price. Written only in the stats-only epoch.
             forecast_p: float | None = None
@@ -1292,7 +1303,7 @@ def process_fixture(
                     elif not (
                         rung.market in RATING_PRICED_MARKETS
                         and rating_side in ("side_a", "side_b")
-                    ):
+                    ) and not set_rated:
                         p_rating = None
                 else:
                     p_rating = None
@@ -1810,6 +1821,9 @@ def _main() -> int:
     # no longer enters p_central.
     stats_only = stats_only_epoch(args.date)
     rating_prices = stats_only and tennis_rating_prices(args.date)
+    # epochs.TENNIS_SET_RATING_PRICES (audit 2026-10-13 B5, off): rides on
+    # the rating prices
+    set_rating_prices = rating_prices and epochs.tennis_set_rating_prices(args.date)
     marginal_centres_on = stats_only and derived_marginal_centres_enabled(args.date)
     # epochs.COUNT_DISPERSION: a missing / malformed config raises here (rc 2),
     # never a sheet that claims a rule it did not use
@@ -1868,6 +1882,7 @@ def _main() -> int:
                 marginal_centres_on=marginal_centres_on,
                 dispersion_table=dispersion_table,
                 per_market_k_on=per_market_k_on,
+                set_rating_prices=set_rating_prices,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
@@ -1938,6 +1953,8 @@ def _main() -> int:
                 epochs.CARDS_CORRELATION if cards_correlation_on else "old"),
             "tennis_table_rule": (
                 epochs.TENNIS_SCOPED_TABLE if tennis_scoped else "old"),
+            "tennis_set_rule": (
+                "set_rating_prices" if set_rating_prices else "old"),
             "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).

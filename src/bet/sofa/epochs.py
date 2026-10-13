@@ -887,3 +887,31 @@ def unit_strength_from_parent(date: str, build_at: datetime | None = None) -> bo
     at = build_at if build_at is not None else timeutil.now()
     return (date >= UNIT_STRENGTH_FROM_PARENT_FROM_UTC.strftime("%Y-%m-%d")
             and at >= UNIT_STRENGTH_FROM_PARENT_FROM_UTC)
+
+
+# Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
+# games_won_set1/2/3_for) and sets_total were priced from the players' own
+# samples shrunk to a global prior, with no opponent. From this moment they are
+# read off the rating's neighbours (tennis_rating.SET_RATING_PRICED_MARKETS),
+# as games_won_for has been since TENNIS_RATING_PRICES (it rides on that
+# switch: off there, off here). It moves p_central, and the curves of these
+# markets were fitted on the sample's p (calibrate_from_cache replays none of
+# them), so it goes live only together with a refit replaying them - a new
+# comparability epoch, never mid-day. None = the sample's estimator, byte for
+# byte. Measured 2026-10-13 (walk-forward 03-01..10-12, ~54k matches, bootstrap
+# by match): log-loss better in every market and both windows - set totals
+# -0.017..-0.019, a player's set games -0.065..-0.068 (set three -0.088),
+# sets_total -0.022 (docs/sofa/evidence/tennis_set_markets_2026-10-13.md).
+# NOT switched on: it needs the refit above first.
+TENNIS_SET_RATING_PRICES_FROM_UTC: datetime | None = None
+
+
+def tennis_set_rating_prices(date: str, build_at: datetime | None = None) -> bool:
+    """Are the per-set games and sets_total read off the rating's neighbours
+    (TENNIS_SET_RATING_PRICES_FROM_UTC)? The day being built and the build
+    clock, like every other switch."""
+    if TENNIS_SET_RATING_PRICES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= TENNIS_SET_RATING_PRICES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= TENNIS_SET_RATING_PRICES_FROM_UTC)
