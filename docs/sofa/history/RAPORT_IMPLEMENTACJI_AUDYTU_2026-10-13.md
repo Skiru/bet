@@ -195,6 +195,59 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
 - Wpływ na druk: brak (nikt jeszcze nie czyta pól).
 - Test: `test_an_observation_carries_its_opponent_and_old_samples_still_parse`.
 
+### B5 - tenis: gemy w setach i `sets_total` z sąsiadów ratingu (agent, scalone)
+
+- Diagnoza: potwierdzona (`engine.py:42` częstość własna skurczona do priora
+  globalnego; `tennis_rating.RATING_PRICED_MARKETS` bez tych rynków).
+- Zrobione: `tennis_rating.SET_RATING_PRICED_MARKETS`, `Outcome.set3`,
+  `read` dla `games_won_set3_for`; SHEET za `TENNIS_SET_RATING_PRICES_FROM_UTC`.
+- Pomiar (`docs/sofa/evidence/tennis_set_markets_2026-10-13.md`), walk-forward
+  w dwóch oknach, log-loss na liniach Superbetu z arkuszy 10-09..10-12
+  (x1e-4): `games_set1_total` -186,5 [-198,3; -174,1] (53 850 meczów),
+  `games_set2_total` -171,9, `games_won_set1_for` -651,7 [-670,0; -632,7],
+  `games_won_set2_for` -679,8, `games_won_set3_for` -875,3 (3 678),
+  `sets_total` -216,4. Próg spełniony na wszystkich sześciu (też w każdym
+  oknie osobno).
+- Bramki kształtu (A5): pod nowym p `LINE_BEYOND_SAMPLE` + `MODE_LOSES`
+  zdjęłyby 15-28% wierszy >= 0,70 rynków gemów w secie, które realizowały na
+  poziomie swojego p - na historii bramki wyrzucają tu dobre wiersze;
+  `sets_total` 2,9% (-4,7 pp). Decyzja o bramkach - z refitem.
+- Przełącznik: **None** do refitu tenisa (etap 4): replay
+  (`calibrate_from_cache`) nie generuje dziś wierszy tych rynków.
+
+### B6 - tenis: siła serwisu jako druga oś sąsiadów (zarejestrowany test)
+
+- Nowe względem odrzuconego 10-08: rozkład zostaje empiryczny z sąsiadów,
+  zmienia się tylko wybór sąsiadów (p/σ, D/σ), nie model zastępczy.
+- Wynik: `games_won_for` gorzej +8,1e-4 [+1,5; +14,3], `handicap_games`
+  gorzej +17,7e-4; lepsze tylko `tiebreaks_total` -32,6e-4 i
+  `games_set2_total` -10,8e-4 - **próg niespełniony na rynkach docelowych**,
+  bez przełącznika (`docs/sofa/evidence/tennis_serve_neighbours_2026-10-13.md`).
+  `tiebreaks_total` - kandydat na nowy test na nowych danych.
+
+## Etap 5 - koszykówka
+
+### A3 + C8 - dogrywka (długość z ligi, „overtime spike”)
+
+- Diagnoza: potwierdzona (`score_model._basketball`: `q_len = 10.0 if
+  len(mu1) == 4`, koszykówka ma zawsze 4 kwarty).
+- Zrobione: `TWELVE_MINUTE_QUARTERS` (NBA 132, NBA Preseason 2329, PBA 1656 /
+  1712 / 1956; `defaultPeriodLength` w bazie tylko dla NBA Preseason i PBA),
+  `SimParams.bb_tie_pull` / `bb_tie_window` (3, wybrane), `BB_TIE_PULL`
+  0,0299 dopasowane momentem 2025-10-01..2026-02-01; przełącznik
+  `BB_OVERTIME_FROM_UTC` na żywo, w replayu line evidence i w
+  `fit_sport_confidence` (`--bb-overtime`, `--league-rate-rule`).
+- Pomiar (`docs/sofa/evidence/basketball_overtime_2026-10-13.md`), 3 081
+  meczów 2026-02..05: log-loss 1X2 po regulaminie **-0,0035 [-0,0072;
+  -0,0001]**, Brier sumy z dogrywką +0,00001 [-0,0007; +0,0007]. Próg spełniony.
+
+### A8 - szum symulacji (trzy kandydaty)
+
+- `a8_one_step` / `a8_no_fresh` / `a8_level_power`: Brier zwycięzcy i sumy -
+  każdy przedział obejmuje zero (`docs/sofa/evidence/basketball_noise_2026-10-13.md`).
+  **Zmierzone, nie wdrożone**; `SimParams.bb_resid_one_step` zostaje jako
+  wyłączona opcja.
+
 ### Ledger
 
 Nowa grupa epoki „od 10-14” w `audit_ledger.EPOCH_GROUPS` (A2 + A4 zmieniają

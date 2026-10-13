@@ -27,6 +27,19 @@ jak na żywo):
   lepsze z górną granicą < 0; wdrażany wyłącznie zwycięski (jeden), za
   przełącznikiem razem z refitem koszykówki.
 
-## Wynik
+## Wynik (2026-10-13, `data/audit_2026-10-13/a8_*.json`)
 
-(niżej, po uruchomieniu)
+Okno 2026-02-01..2026-06-01, 3 081 meczów, dziś (z mnożnikiem świeżości):
+kalibracja zwycięzcy p >= 0,70 0.807 / 0.813 (n 1208).
+
+| wariant | mecze | Brier zwycięzcy, wariant - dziś [95%] | Brier sumy z dogrywką | log-loss 1X2 po regulaminie | kalibracja p >= 0,70 |
+|---|---|---|---|---|---|
+| `a8_one_step` | 3081 | -0.00036 [-0.00116; +0.00049] | -0.00031 [-0.00095; +0.00029] | -0.00026 [-0.00360; +0.00313] | 0.805 / 0.813 (n 1172) |
+| `a8_no_fresh` | 3081 | +0.00000 [-0.00037; +0.00035] | +0.00014 [-0.00013; +0.00040] | -0.00088 [-0.00220; +0.00044] | 0.808 / 0.814 (n 1218) |
+| `a8_level_power` | 3081 | +0.00022 [-0.00052; +0.00100] | +0.00019 [-0.00035; +0.00073] | -0.00017 [-0.00357; +0.00305] | 0.805 / 0.813 (n 1198) |
+
+**Żaden wariant nie spełnia progu** (każdy przedział obejmuje zero) -
+**zmierzone, nie wdrożone**. `SimParams.bb_resid_one_step` zostaje w kodzie
+jako wyłączona opcja pomiarowa. Diagnoza z audytu („symulacja na historii za
+szeroka”) nie potwierdza się w tym oknie: kalibracja zwycięzcy >= 0,70 jest
+tu w porządku dla wszystkich wariantów.
