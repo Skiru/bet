@@ -342,6 +342,8 @@ measurement of Superbet's price and feed nothing else.
   (10-22 basketball games a day from 10-07). History readers keep the
   default and never see it.
 
+- **CS2 count exposure** (`CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-14 00:00Z, audit B12, standing go): kills / deaths / assists / team kills are priced from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`; log-loss new - old -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero); headshots measured worse (+0.188) and stay on the sample (outside `EXPOSURE_FAMILIES`). The line evidence of these families was fitted on the old p; no check on Superbet lines of 10-05..10-12 was made. Evidence: `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`.
+
 ## Settlement and the ledger
 
 - **SETTLE:** a refund (0 u.), never a loss, when the match was put back
@@ -431,8 +433,6 @@ The shape above stays; it is improved, not rebuilt.
 Daily loops spawn each step through `run_pipeline.py` (fresh code per step);
 only the loop's own orchestration is old code until it ends.
 
-CS2 count exposure (audit B12, `CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-14 00:00Z): kills / deaths / assists / team kills priced from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`; log-loss -0.0099..-0.0380, intervals below zero; headshots measured worse, stay on the sample); line evidence of these families was fitted on the old p. CS2 map identity (B11, `CS2_MAP_IDENTITY_FROM_UTC` `None`: order / pool terms +0.0002 [-0.0002, +0.0006], not better). Evidence: `docs/sofa/evidence/cs2_{kills_exposure,map_identity}_2026-10-13.md`.
-
 **Measured and not switched on** (audit 2026-10-13 implementation, `None`;
 `docs/sofa/history/RAPORT_IMPLEMENTACJI_AUDYTU_2026-10-13.md`):
 `FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC` (A2's football half: the rating at the
@@ -449,6 +449,12 @@ values, `corrected_sample` on the row; calibrated log-loss better on 12 of
 worse, e.g. shots_for -1.96e-3 [-2.38, -1.56], cross-league pairs 3-4x
 that; needs the same correction in the replay and a refit before it can be
 on; `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
+**Measured and not switched on, measured sports** (audit 2026-10-13, all `None`, code behind the switch):
+`CS2_MAP_IDENTITY_FROM_UTC` (B11: map order / pool terms, walk-forward on 24,995 maps / 11,217 series, A vs base +0.00021 [-0.00022, +0.00064], no effect; `cs2_map_identity_2026-10-13.md`),
+`HK_SHOTS_FROM_UTC` and `HK_EMPTY_NET_FROM_UTC` (B8: hockey shots x save%, centre replaced: total +0.00126 [+0.00010, +0.00241] worse, blend +0.00025 [-0.00033, +0.00084]; fitted empty net: handicap -0.00037 [-0.00074, +0.000006], total +0.00111 worse; shots exist for 6,755 of 29,516 games, none in October 2026; `hockey_goalie_empty_net_2026-10-13.md`, `RAPORT_B8_HOKEJ_2026-10-13.md`),
+`VB_SET_LENGTH_FROM_UTC` and `VB_SET_HISTORY_FROM_UTC` (B9 / C10: volleyball set length table, 5,050 matches walk-forward: points_total +0.0025 [-0.0005, +0.0054], points_handicap -0.0011 [-0.0036, +0.0013], set_extra_points -0.0004 [-0.0014, +0.0007]; threshold not met; C9 not measured, it depends on B9; `volleyball_set_length_2026-10-13.md`, `RAPORT_B9_C10_C9_2026-10-13.md`),
+`MARKET_POSITIONED_LINES_FROM_UTC` (A7: the basketball history curve fitted on lines placed where the Sofascore market stood, p still the score model's; acts only in a fit's history replay, live only with a curve refitted that way; the evidence doc's results section is not yet written - no number reported; `market_positioned_lines_2026-10-13.md`).
+
 **Measured, registered threshold met, `None` until the football refit (stage 4: the curves must be fitted on the same centre)**
 (one step ahead on the history 2025-08-01..2026-10-12, NB log-loss of the
 centre at the count - not Superbet lines, the replay has no rating, A6):

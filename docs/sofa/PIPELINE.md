@@ -633,6 +633,31 @@ z 404) nie jest pytane ponownie.
   (`calibrate_from_cache.py`) i refitu krzywych
   (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 
+**Zmierzone 2026-10-13 (audyt B8, B9, B11, A7), sporty mierzone, przełączniki
+`None`** (kod za przełącznikiem, bez refitu, nic nie wchodzi do druku):
+- `epochs.HK_SHOTS_FROM_UTC`, `epochs.HK_EMPTY_NET_FROM_UTC` (B8, hokej:
+  strzały x save% i dopasowana pusta bramka): zamiana centrum na strzały
+  `total` +0,00126 [+0,00010; +0,00241] gorzej, mieszanka +0,00025
+  [-0,00033; +0,00084]; pusta bramka `handicap` -0,00037 [-0,00074; +0,000006],
+  `total` +0,00111 gorzej; strzały są w 6 755 z 29 516 meczów, w październiku
+  2026 brak (`docs/sofa/evidence/hockey_goalie_empty_net_2026-10-13.md`,
+  `docs/sofa/history/RAPORT_B8_HOKEJ_2026-10-13.md`).
+- `epochs.VB_SET_LENGTH_FROM_UTC`, `epochs.VB_SET_HISTORY_FROM_UTC` (B9 / C10,
+  siatkówka: tabela długości seta, `score_model.SetLengthTable`): 5 050 meczów
+  walk-forward, `points_total` +0,0025 [-0,0005; +0,0054], `points_handicap`
+  -0,0011 [-0,0036; +0,0013], `set_extra_points` -0,0004 [-0,0014; +0,0007];
+  próg niespełniony; C9 niemierzone (zależy od B9)
+  (`docs/sofa/evidence/volleyball_set_length_2026-10-13.md`,
+  `docs/sofa/history/RAPORT_B9_C10_C9_2026-10-13.md`).
+- `epochs.CS2_MAP_IDENTITY_FROM_UTC` (B11, CS2: kolejność i pula map): 24 995
+  map / 11 217 serii, A vs baza +0,00021 [-0,00022; +0,00064] - bez efektu
+  (`docs/sofa/evidence/cs2_map_identity_2026-10-13.md`).
+- `epochs.MARKET_POSITIONED_LINES_FROM_UTC` (A7, koszykówka: linie historii
+  tam, gdzie stał rynek Sofascore, p nadal z modelu wyników; działa tylko w
+  replayu fitu, na żywo dopiero z krzywą dopasowaną tak): wyniki pomiaru nie są
+  jeszcze wpisane do dokumentu dowodowego
+  (`docs/sofa/evidence/market_positioned_lines_2026-10-13.md`).
+
 **Zmierzone 2026-10-13 (audyt B1, B2), próg spełniony, przełącznik `None` do
 decyzji O5** (one step ahead na historii 2025-08-01..2026-10-12, log-loss NB
 centrum przy wyniku; to nie linie Superbetu - replay nie ma ratingu, A6):
@@ -1839,6 +1864,16 @@ Backfill po odmowie Sofascore (403/429) zatrzymuje się od razu i zapisuje
 przez 12 h (`--force`, żeby nadpisać). Domyślnie `--max-minutes 6`: jedyna
 odmowa w historii przyszła po ~8 min pełnej szerokości; backfill jest
 wznawialny, więc uruchamia się go krótko i wielokrotnie.
+
+**Ekspozycja zliczeń** (`epochs.CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-14
+00:00Z, audyt B12, stała zgoda): zabójstwa, śmierci, asysty zawodnika i
+zabójstwa drużyny z wyścigu rund (W, L) x stawki na rundę
+(`cs2_engine.ExposureBook`); log-loss nowy - stary -0,0135 / -0,0258 /
+-0,0099 / -0,0380, wszystkie przedziały poniżej zera; headshoty gorsze
+(+0,188), zostają przy próbce. Linie evidence tych rodzin dopasowano na
+starym p; kontroli na liniach Superbetu 10-05..10-12 nie wykonano
+(`docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`,
+`docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`).
 
 Pozostałe rodziny nie dostają liczby (nigdy zgadywanej). Stałe silnika są
 `UNFITTED` i tak raportowane. `audit_cs2.py` sekcja 3b porównuje Brier kursu,
