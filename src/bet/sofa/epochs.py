@@ -915,3 +915,66 @@ def cs2_team_rounds_race(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= CS2_TEAM_ROUNDS_RACE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= CS2_TEAM_ROUNDS_RACE_FROM_UTC)
+
+
+# Audit 2026-10-13 B1: the favourite / outsider (game-state) term of a
+# football side's centre. From this moment the centre of a market of
+# game_state.GAME_STATE_MARKETS with a beta in config/sofa_game_state.json is
+# multiplied by exp(beta x s), s the side's expected goal difference from the
+# rating's goals book (FootballForecast.supremacy; the opponent reads -s).
+# Changes p, so what prints: a day >= the date built at or after the moment.
+# Evidence: docs/sofa/evidence/game_state_2026-10-13.md.
+GAME_STATE = "game_state_v1"
+GAME_STATE_FROM_UTC: datetime | None = None
+
+
+def game_state_enabled(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football side's centre carry the game-state term
+    (GAME_STATE_FROM_UTC)?"""
+    if GAME_STATE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= GAME_STATE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= GAME_STATE_FROM_UTC)
+
+
+# Audit 2026-10-13 B2 (1): the markets football_rating.UNRATED_MARKETS kept
+# out of the rating (chosen on five days in sample, 2026-09-18..22) and
+# measured again on the full history: from this moment the rating (attack x
+# defence x league strength) enters the centre of those of them listed in
+# football_rating.RATED_SCOPE_MARKETS at W_FOOTBALL_RATING, like every other
+# rated market. A day >= the date built at or after the moment.
+# Evidence: docs/sofa/evidence/unrated_markets_2026-10-13.md.
+FOOTBALL_RATED_SCOPE = "rated_scope_v1"
+FOOTBALL_RATED_SCOPE_FROM_UTC: datetime | None = None
+
+
+def football_rated_scope(date: str, build_at: datetime | None = None) -> bool:
+    """Does the rating price football_rating.RATED_SCOPE_MARKETS
+    (FOOTBALL_RATED_SCOPE_FROM_UTC)?"""
+    if FOOTBALL_RATED_SCOPE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_RATED_SCOPE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_RATED_SCOPE_FROM_UTC)
+
+
+# Audit 2026-10-13 B2 (2): home / away as a league multiplier on a sample-only
+# football centre (never a split of the sample - "venue is a prior"): the
+# match competition's per-side rate at today's venue over the mean rate at the
+# venues the sample was earned at (FootballForecast.venue_multiplier), for the
+# markets of football_rating.VENUE_PRIOR_MARKETS whose row has no rating
+# centre. A day >= the date built at or after the moment.
+# Evidence: docs/sofa/evidence/unrated_markets_2026-10-13.md.
+FOOTBALL_VENUE_PRIOR = "venue_prior_v1"
+FOOTBALL_VENUE_PRIOR_FROM_UTC: datetime | None = None
+
+
+def football_venue_prior(date: str, build_at: datetime | None = None) -> bool:
+    """Does a sample-only football side centre read the league's venue
+    multiplier (FOOTBALL_VENUE_PRIOR_FROM_UTC)?"""
+    if FOOTBALL_VENUE_PRIOR_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_VENUE_PRIOR_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_VENUE_PRIOR_FROM_UTC)

@@ -438,6 +438,21 @@ all-league rate beat the sample alone in thin competitions, squared error
 -0.58 [-0.62, -0.54] per side in its favour), `UNIT_STRENGTH_FROM_PARENT_FROM_UTC`
 (A1: a regional unit's strength from its competition's; goals log-loss
 -0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches).
+**Measured, registered threshold met, left `None` for the O5 decision**
+(one step ahead on the history 2025-08-01..2026-10-12, NB log-loss of the
+centre at the count - not Superbet lines, the replay has no rating, A6):
+`GAME_STATE_FROM_UTC` (B1: side centre x exp(beta x expected goal
+difference), betas in `config/sofa_game_state.json`, `fit_game_state.py`;
+corners_for -0.0149 [-0.0160, -0.0138], shots_for -0.0150, cards_points_for
+-0.0043, fouls_for -0.0002 [-0.0004, -0.00003] per side, walk-forward betas;
+`docs/sofa/evidence/game_state_2026-10-13.md`),
+`FOOTBALL_RATED_SCOPE_FROM_UTC` (B2: the rating on
+`football_rating.RATED_SCOPE_MARKETS` = cards_points_for, corners_1h/2h_for,
+offsides_total; the corners totals stay unrated, corners_total worse
++0.0009 [+0.0003, +0.0015]) and `FOOTBALL_VENUE_PRIOR_FROM_UTC` (B2: league
+home / away multiplier on a sample-only corners_1h/2h_for centre;
+`docs/sofa/evidence/unrated_markets_2026-10-13.md`). B1's cards beta was
+fitted on the unrated centre: refit it if both go on.
 
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
