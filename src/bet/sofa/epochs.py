@@ -228,6 +228,34 @@ def derived_marginal_centres_enabled(
             and at >= DERIVED_MARGINAL_CENTRES_FROM_UTC)
 
 
+# Audit 2026-10-13 B3: a football joint (both_over_* / most_* / handicap_* of
+# DERIVED_MARGINAL_CENTRES_METRICS) read its two margins from the marginal
+# rows only when Superbet quoted BOTH sides' ladders; with one ladder missing
+# both sides fell back to the raw sample - no prior, no rating, no opponent
+# (Kyoto - Ratchaburi 2026-10-13: handicap_corners Kyoto -2.5 p 0.060,
+# most_corners p 0.141). From this switch a side without a quoted ladder gets
+# its centre from the same SHEET formula (run_sheet.sample_centre: prior,
+# K_CENTRE shrink, W_FOOTBALL_RATING x rating), and a fixture whose metric is
+# CROSS_LEAGUE_UNLINKED carries that note on its derived rows, so CONFIDENCE
+# refuses them as it refuses the marginal rows. Needs
+# DERIVED_MARGINAL_CENTRES on. Measured and pre-registered in
+# docs/sofa/evidence/derived_margins_2026-10-13.md. None = off: SHEET
+# byte-identical.
+DERIVED_SHEET_MARGINS_RULE = "derived_sheet_margins_v1"
+DERIVED_SHEET_MARGINS_FROM_UTC: datetime | None = None
+
+
+def derived_sheet_margins(date: str, build_at: datetime | None = None) -> bool:
+    """Is a derived football joint's missing side priced by the SHEET formula
+    (DERIVED_SHEET_MARGINS_FROM_UTC)? The day being built and the build's
+    clock, as every other switch."""
+    if DERIVED_SHEET_MARGINS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= DERIVED_SHEET_MARGINS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= DERIVED_SHEET_MARGINS_FROM_UTC)
+
+
 # The dispersion of football counts fitted on the history instead of the
 # sample variance of 8-10 matches (bet.sofa.count_dispersion; track A2,
 # docs/sofa/evidence/count_families_2026-10-08.md): variance = mu + alpha mu^2,
