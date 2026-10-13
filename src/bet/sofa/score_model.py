@@ -40,6 +40,7 @@ from bet.sofa.football_rating import (
     LINKED,
     MIN_LEAGUE_MATCHES,
     MIN_TEAM_MATCHES,
+    UNLINKED,
     FootballResult,
     RatingBook,
 )
@@ -92,6 +93,120 @@ REG_METRIC = {"hockey": "hk_reg_for", "basketball": "bb_reg_for"}
 # (0.04-0.09) moved in opposite directions across windows and stay.
 SCORE_ALPHA = {"hk_reg_for": 0.02, "bb_reg_for": 0.06, VOLLEYBALL_METRIC: 0.14}
 ALPHA_BY_METRIC.update(SCORE_ALPHA)
+
+
+# Audit 2026-10-13 B7 (epochs.BB_PACE_FROM_UTC): basketball's regulation
+# points as pace x efficiency, read off the box score (sofa_event_stats.
+# statistics_json) - possessions per game (Oliver: FGA - ORB + TOV + 0.44 FTA,
+# the two sides' estimates averaged, scaled to regulation) and points per
+# possession, each rated in the same RatingBook as the points (league rate x
+# attack x defence). A game with no box score updates only the points rating.
+# Evidence: docs/sofa/evidence/basketball_pace_2026-10-13.md.
+PACE_POSS = "bb_poss"
+PACE_PPP = "bb_ppp"
+PACE_METRICS = (PACE_POSS, PACE_PPP)
+# a side's pace / efficiency rating is read only when it played a game with a
+# box score in this window before the forecast (chosen, not fitted: the box
+# score is backfilled by hand, so a rating can go stale while the points
+# rating moves on)
+PACE_FRESH_S = 60 * 86400
+# possessions of a game outside this range: a box score that does not add up
+PACE_POSS_RANGE = (40.0, 140.0)
+# smoothing of the pace metrics, chosen on one-step squared error of the
+# regulation total on the tune window 2025-01-01..2025-06-01 (grid poss
+# 0.03 / 0.06 / 0.10 / 0.15 x ppp 0.03 / 0.06 / 0.10; evidence doc)
+PACE_ALPHA = {PACE_POSS: 0.10, PACE_PPP: 0.03}
+ALPHA_BY_METRIC.update(PACE_ALPHA)
+
+
+def _box_items(statistics: Any) -> dict[str, dict[str, Any]]:
+    """The whole-game ("ALL") statistics items of a Sofascore box score by key."""
+    if isinstance(statistics, str):
+        try:
+            statistics = json.loads(statistics)
+        except ValueError:
+            return {}
+    if not isinstance(statistics, dict):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for block in statistics.get("statistics") or []:
+        if not isinstance(block, dict) or block.get("period") != "ALL":
+            continue
+        for group in block.get("groups") or []:
+            for item in (group or {}).get("statisticsItems") or []:
+                if isinstance(item, dict) and isinstance(item.get("key"), str):
+                    out[item["key"]] = item
+    return out
+
+
+def box_values(statistics: Any, home_full: float, away_full: float,
+               overtime: bool, quarter_minutes: float = 10.0,
+               ) -> dict[str, tuple[float, float]] | None:
+    """(PACE_POSS, PACE_PPP) of one basketball game, or None.
+
+    Possessions of a side = FGA - ORB + TOV + 0.44 FTA (Oliver 2004); the
+    game's possessions are the mean of the two, scaled to regulation by
+    4Q / (4Q + 5) after an overtime (one overtime assumed). Points per
+    possession = the full-game points over the full-game possessions."""
+    items = _box_items(statistics)
+
+    def num(key: str, field: str) -> tuple[float, float] | None:
+        it = items.get(key)
+        if it is None:
+            return None
+        h, a = it.get(f"home{field}"), it.get(f"away{field}")
+        if (not isinstance(h, (int, float)) or not isinstance(a, (int, float))
+                or isinstance(h, bool) or isinstance(a, bool)):
+            return None
+        return float(h), float(a)
+
+    fga, fta = num("fieldGoalsScored", "Total"), num("freeThrowsScored", "Total")
+    orb, tov = num("offensiveRebounds", "Value"), num("turnovers", "Value")
+    if fga is None or fta is None or orb is None or tov is None:
+        return None
+    sides = [fga[i] - orb[i] + tov[i] + 0.44 * fta[i] for i in (0, 1)]
+    poss = (sides[0] + sides[1]) / 2
+    lo, hi = PACE_POSS_RANGE
+    if not lo <= poss <= hi:
+        return None
+    reg = poss * (4 * quarter_minutes / (4 * quarter_minutes + 5)) if overtime else poss
+    return {PACE_POSS: (reg, reg),
+            PACE_PPP: (home_full / poss, away_full / poss)}
+
+
+def load_box_scores(db_path: str | Path, event_ids: Iterable[int]
+                    ) -> dict[int, str]:
+    """event id -> its cached statistics_json (raw text), for the ids that
+    have one. Read-only."""
+    ids = sorted(set(event_ids))
+    out: dict[int, str] = {}
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con.execute("PRAGMA busy_timeout = 60000")
+    try:
+        for i in range(0, len(ids), 900):
+            chunk = ids[i:i + 900]
+            marks = ",".join("?" * len(chunk))
+            for eid, raw in con.execute(
+                    "SELECT sofascore_event_id, statistics_json FROM "
+                    f"sofa_event_stats WHERE sofascore_event_id IN ({marks})",
+                    chunk):
+                if raw:
+                    out[int(eid)] = str(raw)
+    finally:
+        con.close()
+    return out
+
+
+def attach_box(r: FootballResult, statistics: Any, home_full: float,
+               away_full: float, overtime: bool) -> FootballResult:
+    """`r` with the pace metrics of its box score (unchanged without one)."""
+    if statistics is None:
+        return r
+    vals = box_values(statistics, home_full, away_full, overtime,
+                      quarter_minutes_for(r.competition_id))
+    if vals is None:
+        return r
+    return dataclasses.replace(r, values={**r.values, **vals})
 
 
 def _is_friendly(event: dict[str, Any]) -> bool:
@@ -196,7 +311,11 @@ def _metrics(sport: ShadowSport) -> tuple[str, ...]:
 
 
 def _rated_values(r: FootballResult, sport: ShadowSport) -> FootballResult:
+    """The values the book learns from: the sport's metrics, and basketball's
+    pace metrics when the game carries a box score (attach_box)."""
     keep = set(_metrics(sport))
+    if sport.key == "basketball":
+        keep.update(PACE_METRICS)
     return FootballResult(r.event_id, r.ts, r.competition_id, r.home_id, r.away_id,
                           {m: v for m, v in r.values.items() if m in keep}, r.women)
 
@@ -329,6 +448,50 @@ class ScoreModel:
     # MIN_LEAGUE_MATCHES has no expectation (NO_LEAGUE_RATE), never the
     # all-league mean (audit 2026-10-13 A2)
     strict_league_rate: bool = False
+    # epochs.BB_PACE_FROM_UTC (audit 2026-10-13 B7): basketball's centre as
+    # pace x efficiency where both sides' box-score ratings are read
+    pace: bool = False
+    # team -> start timestamp of its latest game with a box score
+    box_last: dict[int, int] | None = None
+
+    def note_game(self, r: FootballResult) -> None:
+        """Record a learnt game's box score for the pace freshness rule."""
+        if self.box_last is not None and PACE_POSS in r.values:
+            self.box_last[r.home_id] = r.ts
+            self.box_last[r.away_id] = r.ts
+
+    def pace_expected(
+        self, competition: int, home: int, away: int, at_ts: int | None = None,
+    ) -> tuple[float, float] | None:
+        """(home, away) regulation points from pace x efficiency, or None
+        when the model falls back to the points rating: off, not basketball,
+        a side with < MIN_TEAM_MATCHES box-score games or none in the last
+        PACE_FRESH_S, an UNLINKED pair, or a competition with no box-score
+        league rate (never the all-league mean)."""
+        if not self.pace or self.sport.key != "basketball":
+            return None
+        ref = at_ts if at_ts is not None else self.book.last_ts
+        last = self.box_last or {}
+        for team in (home, away):
+            if any(self.book.team_matches(team, m) < MIN_TEAM_MATCHES
+                   for m in PACE_METRICS):
+                return None
+            t = last.get(team)
+            if t is None or ref - t > PACE_FRESH_S:
+                return None
+        exps: list[tuple[float, float]] = []
+        for metric in PACE_METRICS:
+            status, lf = self.book.link(home, away, metric)
+            if status == UNLINKED:
+                return None
+            exp = self.book.expected(competition, home, away, metric, lf,
+                                     cross=status != LINKED, strict=True)
+            if exp is None:
+                return None
+            exps.append(exp)
+        (ph, pa), (eh, ea) = exps
+        poss = (ph + pa) / 2
+        return max(poss * eh, 0.0), max(poss * ea, 0.0)
 
     def no_league_rate(self, competition: int) -> bool:
         """Is this competition's game left unpriced for want of a league rate?"""
@@ -365,8 +528,11 @@ class ScoreModel:
         if exp is None:
             return None
         eh, ea = max(exp[0], 0.0), max(exp[1], 0.0)
+        paced = self.pace_expected(competition, home, away, at_ts)
+        if paced is not None:
+            eh, ea = paced
         k = self.params.sep_power
-        if k != 1.0 and status == LINKED:
+        if k != 1.0 and status == LINKED and paced is None:
             rates = self.book.league_rates(competition, metric)
             if rates is not None and rates[0] > 0 and rates[1] > 0:
                 eh = rates[0] * (eh / rates[0]) ** k
@@ -646,11 +812,15 @@ def line_probability(
 def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 cut_ts: int, params: SimParams | None = None,
                 shared_league_link: bool | None = None,
-                strict_league_rate: bool = False) -> ScoreModel:
+                strict_league_rate: bool = False,
+                pace: bool = False) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
-    epoch's rule on the wall clock (epochs.link_shared_league)."""
+    epoch's rule on the wall clock (epochs.link_shared_league). `pace`
+    (epochs.BB_PACE_FROM_UTC, basketball): the centre from pace x efficiency
+    where the history carries box scores (attach_box), the spread fitted
+    around that centre."""
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     k = sport.regulation_periods or 0
@@ -688,9 +858,13 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
         book.update(_rated_values(r, sport))
     last: dict[int, int] = {}
     recent: dict[int, list[int]] = {}
+    box_last: dict[int, int] = {}
     for r in before:
         last[r.home_id] = r.ts
         last[r.away_id] = r.ts
+        if PACE_POSS in r.values:
+            box_last[r.home_id] = r.ts
+            box_last[r.away_id] = r.ts
         if sport.key == "basketball" and r.ts >= cut_ts - FRESH_WINDOW_S:
             recent.setdefault(r.home_id, []).append(r.ts)
             recent.setdefault(r.away_id, []).append(r.ts)
@@ -698,6 +872,9 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                        params if params is not None else SimParams(), last,
                        recent=recent or None,
                        strict_league_rate=strict_league_rate)
+    if pace and sport.key == "basketball":
+        model.pace = True
+        model.box_last = box_last
     if window:
         regs = [sum(r.values[REG_METRIC[sport.key]]) for r in window
                 if REG_METRIC[sport.key] in r.values]

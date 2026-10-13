@@ -53,7 +53,7 @@ from bet.sofa import epochs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
-from bet.sofa.score_model import N_SIMS, load_events  # noqa: E402
+from bet.sofa.score_model import N_SIMS, load_box_scores, load_events  # noqa: E402
 from bet.sofa.shadow import SPORTS  # noqa: E402
 
 DOC = (
@@ -107,6 +107,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     first = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC)
     overtime = args.bb_overtime or epochs.bb_overtime(before, first)
     strict = args.league_rate_rule or epochs.league_rate_rule(before, first)
+    # audit 2026-10-13 B7: basketball's centre from pace x efficiency
+    pace = sport == "basketball" and (
+        args.bb_pace or epochs.bb_pace(before, first))
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
     dates = settled_dates(runs_dir, sport, before)
@@ -127,21 +130,29 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     else:
         shadow_sport = SPORTS[sport]  # type: ignore[index]
         events = _events(db_path, sport, args.events_cache)
-        history = scf.parse_history(events, shadow_sport)
+        # box scores whenever a replayed day may read them (the flag, or the
+        # switch set: the settled days follow their own rule)
+        box = (load_box_scores(db_path, events)
+               if sport == "basketball" and (
+                   args.bb_pace or epochs.BB_PACE_FROM_UTC is not None)
+               else None)
+        history = scf.parse_history(events, shadow_sport, box)
         history = [g for g in history if g.rating.ts < before_ts]
         history_n = len(history)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
-            "history_fit", fresh, overtime, strict)
+            "history_fit", fresh, overtime, strict, pace)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
-            args.max_holdout_games, "history_holdout", fresh, overtime, strict)
+            args.max_holdout_games, "history_holdout", fresh, overtime, strict,
+            pace)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
             runs_dir, shadow_sport, dates, events, history, args.sims, fresh,
             overtime=True if args.bb_overtime else None,
-            strict_league_rate=True if args.league_rate_rule else None)
+            strict_league_rate=True if args.league_rate_rule else None,
+            pace=True if args.bb_pace else None)
         only = scf.SETTLED_ONLY_FAMILIES[sport]
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
@@ -180,6 +191,7 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "bb_freshness": fresh,
             "bb_overtime": overtime,
             "league_rate_rule": strict,
+            **({"bb_pace": True} if pace else {}),
         },
         "curves": curves,
         "curve_source": source,
@@ -272,6 +284,9 @@ def main() -> int:
     ap.add_argument("--league-rate-rule", action="store_true",
                     help="replay with no all-league rate for a thin competition "
                     "(audit A2; default: the --before day's rule)")
+    ap.add_argument("--bb-pace", action="store_true",
+                    help="replay basketball's centre as pace x efficiency from "
+                    "the box scores (audit B7; default: the --before day's rule)")
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")
