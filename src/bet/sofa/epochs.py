@@ -1296,7 +1296,10 @@ def sheet_sample_opponent_correction(rows: Sequence[Mapping[str, Any]]) -> bool:
 # every such leg is NOT_CALIBRATED. Operator's go for the refit: 2026-10-13
 # (O6). Evidence: docs/sofa/evidence/tennis_match_winner_2026-10-13.md.
 TENNIS_MATCH_WINNER = "tennis_match_winner_v1"
-TENNIS_MATCH_WINNER_FROM_UTC: datetime | None = None
+# Switched on by the operator 2026-10-13 ("Włączamy!"), curve merged from
+# data/refit_2026-10-13/d2 (calibration conservative: printed below realised).
+TENNIS_MATCH_WINNER_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
 
 
 def tennis_match_winner(date: str, build_at: datetime | None = None) -> bool:

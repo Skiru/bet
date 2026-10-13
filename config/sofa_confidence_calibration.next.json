@@ -4159,6 +4159,63 @@
     "realised": 0.9647,
     "realised_lo95": 0.9426
    }
+  },
+  "match_won_for": {
+   "0.000-0.600": {
+    "n": 63610,
+    "realised": 0.3527,
+    "realised_lo95": 0.349
+   },
+   "0.600-0.700": {
+    "n": 12898,
+    "realised": 0.6541,
+    "realised_lo95": 0.6459
+   },
+   "0.700-0.750": {
+    "n": 5925,
+    "realised": 0.732,
+    "realised_lo95": 0.7206
+   },
+   "0.750-0.800": {
+    "n": 5192,
+    "realised": 0.7775,
+    "realised_lo95": 0.766
+   },
+   "0.800-0.825": {
+    "n": 2353,
+    "realised": 0.813,
+    "realised_lo95": 0.7967
+   },
+   "0.825-0.850": {
+    "n": 2157,
+    "realised": 0.8526,
+    "realised_lo95": 0.837
+   },
+   "0.850-0.875": {
+    "n": 1924,
+    "realised": 0.8612,
+    "realised_lo95": 0.8451
+   },
+   "0.875-0.900": {
+    "n": 1785,
+    "realised": 0.8975,
+    "realised_lo95": 0.8825
+   },
+   "0.900-0.925": {
+    "n": 1485,
+    "realised": 0.9239,
+    "realised_lo95": 0.9093
+   },
+   "0.925-0.950": {
+    "n": 1164,
+    "realised": 0.9519,
+    "realised_lo95": 0.938
+   },
+   "0.950-1.010": {
+    "n": 1089,
+    "realised": 0.9679,
+    "realised_lo95": 0.9556
+   }
   }
  },
  "by_market_direction": {
@@ -13756,6 +13813,63 @@
       "realised": 0.9255,
       "realised_lo95": 0.9207
      }
+    },
+    "match_won_for": {
+     "0.000-0.600": {
+      "n": 27305,
+      "realised": 0.3467,
+      "realised_lo95": 0.3411
+     },
+     "0.600-0.700": {
+      "n": 5522,
+      "realised": 0.6595,
+      "realised_lo95": 0.6469
+     },
+     "0.700-0.750": {
+      "n": 2546,
+      "realised": 0.7467,
+      "realised_lo95": 0.7294
+     },
+     "0.750-0.800": {
+      "n": 2272,
+      "realised": 0.7764,
+      "realised_lo95": 0.7588
+     },
+     "0.800-0.825": {
+      "n": 998,
+      "realised": 0.8277,
+      "realised_lo95": 0.803
+     },
+     "0.825-0.850": {
+      "n": 910,
+      "realised": 0.8538,
+      "realised_lo95": 0.8294
+     },
+     "0.850-0.875": {
+      "n": 845,
+      "realised": 0.8864,
+      "realised_lo95": 0.8632
+     },
+     "0.875-0.900": {
+      "n": 777,
+      "realised": 0.9176,
+      "realised_lo95": 0.8962
+     },
+     "0.900-0.925": {
+      "n": 621,
+      "realised": 0.9404,
+      "realised_lo95": 0.919
+     },
+     "0.925-0.950": {
+      "n": 506,
+      "realised": 0.9664,
+      "realised_lo95": 0.9469
+     },
+     "0.950-1.010": {
+      "n": 500,
+      "realised": 0.98,
+      "realised_lo95": 0.9636
+     }
     }
    },
    "by_market_direction": {
@@ -22846,5 +22960,31 @@
   "evidence": "docs/sofa/evidence/player_starts_2026-10-11.md",
   "team_curves": "unchanged from the installed file (player rows enter no pool)"
  },
- "effective_from": "2026-10-13T18:10:00Z"
+ "effective_from": "2026-10-13T18:10:00Z",
+ "match_won_for_fitted_from": {
+  "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-13/sofa_replay.db",
+  "window": [
+   "2026-04-01",
+   "2026-10-13"
+  ],
+  "rows": 49791,
+  "fitted_at_utc": "2026-10-13T12:14:33+00:00",
+  "variant": "live (config/tennis_rating.json)",
+  "skips": {
+   "unrated": 14596,
+   "not_completed": 2410,
+   "best_of_five": 404,
+   "team_cup": 266
+  },
+  "features": [
+   "lp_t",
+   "lps",
+   "dmin78",
+   "drest",
+   "dn7",
+   "dform",
+   "dhigh",
+   "dtour"
+  ]
+ }
 }

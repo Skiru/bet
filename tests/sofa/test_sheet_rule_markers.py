@@ -34,6 +34,13 @@ FOOTBALL = (
 ALL = (*FOOTBALL, ("sheet_tennis_set", epochs.TENNIS_SET_RATING_PRICES_MARKER))
 
 
+@pytest.fixture(autouse=True)
+def _no_tennis_winner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests are about the rule markers; the tennis winner switch (on
+    from 2026-10-14) has its own re-run reason and tests (test_audit_2026_10_13_d2)."""
+    monkeypatch.setattr(epochs, "TENNIS_MATCH_WINNER_FROM_UTC", None)
+
+
 # --- epochs: which rows a marker is read on ------------------------------------
 
 

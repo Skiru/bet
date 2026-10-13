@@ -72,11 +72,12 @@ def _winner_item(selection: str, price: float) -> dict[str, Any]:
 # --- the switch ---------------------------------------------------------------
 
 
-def test_switch_is_off_and_reads_the_day_and_the_clock(
+def test_switch_is_on_from_10_14_and_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    assert epochs.TENNIS_MATCH_WINNER_FROM_UTC is None
+    # switched on by the operator on 2026-10-13, from the next 00:00Z
+    assert epochs.TENNIS_MATCH_WINNER_FROM_UTC == datetime(2026, 10, 14, tzinfo=UTC)
     late = datetime(2027, 1, 1, tzinfo=UTC)
-    assert not epochs.tennis_match_winner("2027-01-01", late)
+    assert epochs.tennis_match_winner("2027-01-01", late)
     monkeypatch.setattr(epochs, "TENNIS_MATCH_WINNER_FROM_UTC",
                         datetime(2026, 10, 14, tzinfo=UTC))
     assert epochs.tennis_match_winner(
@@ -383,6 +384,7 @@ def test_rebuild_rereads_offer_and_sheet_once_the_switch_is_on(
         open_fixtures=1, oldest_open_rung=now - timedelta(minutes=5),
         newest_rung=now - timedelta(minutes=5), offer_has_tennis=True,
         offer_has_winner=False, sheet_has_winner=False)
+    monkeypatch.setattr(epochs, "TENNIS_MATCH_WINNER_FROM_UTC", None)
     off = rp.build_plan(state)
     assert "OFFER" not in off.names() and "SHEET" not in off.names()
     monkeypatch.setattr(epochs, "TENNIS_MATCH_WINNER_FROM_UTC",
