@@ -1274,9 +1274,14 @@ def sample_opponent_correction(date: str, build_at: datetime | None = None) -> b
 
 
 def sheet_sample_opponent_correction(rows: Sequence[Mapping[str, Any]]) -> bool:
-    """Was every row of a 05_sheet.json priced under SAMPLE_OPPONENT_CORRECTION?
-    An empty sheet has nothing to re-price."""
-    return all(r.get("opponent_rule") == SAMPLE_OPPONENT_CORRECTION for r in rows)
+    """Was every football row of a 05_sheet.json priced under
+    SAMPLE_OPPONENT_CORRECTION? A sheet without football has nothing to
+    re-price: SHEET switches the correction on only with a football rating
+    book, which it builds only for a day with a football fixture, so a
+    football-less sheet never carries the marker and would re-run SHEET on
+    every rebuild."""
+    return all(r.get("opponent_rule") == SAMPLE_OPPONENT_CORRECTION
+               for r in rows if r.get("sport") == "football")
 
 
 # Audit 2026-10-13 D2: the tennis match winner ("Zwycięzca", selections "1" /
