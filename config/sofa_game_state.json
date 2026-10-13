@@ -1,35 +1,45 @@
 {
-  "_doc": "Game-state betas (audit 2026-10-13 B1): a football side's centre x exp(beta x its expected goal difference). INERT while epochs.GAME_STATE_FROM_UTC is None. Written by scripts/sofa/fit_game_state.py.",
-  "fitted_from": {
-    "fitted_at_utc": "2026-10-13T11:39:32+00:00",
-    "train_from": "2024-10-01",
-    "before": "2026-10-13",
-    "method": "Poisson pseudo-likelihood, log link, offset log centre",
-    "evidence": "docs/sofa/evidence/game_state_2026-10-13.md"
+ "_doc": "Game-state betas (audit 2026-10-13 B1): a football side's centre x exp(beta x its expected goal difference). INERT while epochs.GAME_STATE_FROM_UTC is None. Written by scripts/sofa/fit_game_state.py.",
+ "fitted_from": {
+  "fitted_at_utc": "2026-10-13T20:25:41+00:00",
+  "train_from": "2024-10-01",
+  "before": "2026-10-14",
+  "method": "Poisson pseudo-likelihood, log link, offset log centre",
+  "centre_rules": {
+   "rated_scope": [
+    "cards_points_for",
+    "corners_1h_for",
+    "corners_2h_for",
+    "offsides_total"
+   ],
+   "rating_weight": "config/sofa_rating_weight.json"
   },
-  "unfitted_constants": [
-    "MAX_SUPREMACY"
-  ],
-  "markets": {
-    "corners_for": {
-      "beta": 0.12897,
-      "n_sides": 144894,
-      "n_matches": 72447
-    },
-    "shots_for": {
-      "beta": 0.09738,
-      "n_sides": 108302,
-      "n_matches": 54151
-    },
-    "cards_points_for": {
-      "beta": -0.084481,
-      "n_sides": 119552,
-      "n_matches": 59776
-    },
-    "fouls_for": {
-      "beta": -0.010133,
-      "n_sides": 124448,
-      "n_matches": 62224
-    }
+  "evidence": "docs/sofa/evidence/game_state_2026-10-13.md",
+  "fouls_for_kept": "fouls_for beta kept from the 2026-10-13 11:39Z fit: the refit was +0.000031 [+0.000002, +0.000060] worse out of sample (docs/sofa/evidence/game_state_2026-10-13.md)"
+ },
+ "unfitted_constants": [
+  "MAX_SUPREMACY"
+ ],
+ "markets": {
+  "corners_for": {
+   "beta": 0.098622,
+   "n_sides": 144894,
+   "n_matches": 72447
+  },
+  "shots_for": {
+   "beta": 0.050643,
+   "n_sides": 108302,
+   "n_matches": 54151
+  },
+  "cards_points_for": {
+   "beta": -0.066437,
+   "n_sides": 119552,
+   "n_matches": 59776
+  },
+  "fouls_for": {
+   "beta": -0.010133,
+   "n_sides": 124448,
+   "n_matches": 62224
   }
+ }
 }
