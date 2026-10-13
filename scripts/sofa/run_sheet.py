@@ -84,6 +84,11 @@ from bet.sofa.market_mapper import (
     fold,
     is_derived,
 )
+from bet.sofa.men_friendly import (
+    FriendlyBaseline,
+    is_men_friendly_fixture,
+    load_men_friendly_baseline,
+)
 from bet.sofa.names import normalize_name
 from bet.sofa.opponent_correction import NOTE as OPPONENT_NOTE
 from bet.sofa.opponent_correction import SampleCorrector, correct_total
@@ -850,6 +855,7 @@ def sample_centre(
     per_market_k_on: bool,
     side: str | None = None,
     rating_weights: RatingWeightTable | None = None,
+    men_friendly_baseline: FriendlyBaseline | None = None,
 ) -> tuple[float, list[str], list[str], tuple[float, str] | None]:
     """SHEET's centre of one marginal row (6.2), outside the tennis ladder
     path: the prior (tennis tier, the day's league / teams' leagues, women's
@@ -861,7 +867,11 @@ def sample_centre(
 
     One formula for the marginal row and, from epochs.DERIVED_SHEET_MARGINS,
     for a derived joint's side whose own ladder Superbet does not quote
-    (audit 2026-10-13 B3) - so the two can never drift apart."""
+    (audit 2026-10-13 B3) - so the two can never drift apart.
+
+    `men_friendly_baseline` (epochs.MEN_FRIENDLY_BASELINE, bet.sofa.
+    men_friendly): an 851 fixture's goals_total / goals_for prior is the
+    as-of men's friendly mean instead of the chain below. None: as before."""
     notes: list[str] = []
     unfitted_add: list[str] = []
     rated: tuple[float, str] | None = None
@@ -878,10 +888,19 @@ def sample_centre(
         and fixture.default_period_count in (None, 3)
         else None
     )
+    friendly = (
+        men_friendly_baseline.prior(market)
+        if men_friendly_baseline is not None
+        and is_men_friendly_fixture(fixture.sport, fixture.competition_id)
+        else None
+    )
     prior: float | None
     prior_note: str | None
     if tier is not None:
         prior, prior_note = tier
+        notes.append(prior_note)
+    elif friendly is not None:
+        prior, prior_note = friendly
         notes.append(prior_note)
     elif day_obs is not None and own_sides:
         prior, prior_note = resolve_prior(
@@ -970,6 +989,7 @@ def sheet_derived_margins(
     per_market_k_on: bool,
     min_sample: int,
     rating_weights: RatingWeightTable | None = None,
+    men_friendly_baseline: FriendlyBaseline | None = None,
 ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     """epochs.DERIVED_SHEET_MARGINS (audit 2026-10-13 B3). Fills, IN PLACE,
     `marginal_centres` for every side of a football joint's metric
@@ -1037,6 +1057,7 @@ def sheet_derived_margins(
                 per_market_k_on=per_market_k_on,
                 side=side,
                 rating_weights=rating_weights,
+                men_friendly_baseline=men_friendly_baseline,
             )
             marginal_centres[(side_metric, side)] = centre
             source = "rating at W_FOOTBALL_RATING" if rated is not None else "no rating"
@@ -1272,6 +1293,7 @@ def process_fixture(
     season_phase: SeasonPhaseTable | None = None,
     season_phase_label: str | None = None,
     rating_weights: RatingWeightTable | None = None,
+    men_friendly_baseline: FriendlyBaseline | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1580,6 +1602,7 @@ def process_fixture(
                 k_centre=k_centre,
                 per_market_k_on=per_market_k_on,
                 rating_weights=rating_weights,
+                men_friendly_baseline=men_friendly_baseline,
             )
             extra_notes.extend(centre_notes)
             row_unfitted.extend(centre_unfitted)
@@ -2093,6 +2116,7 @@ def process_fixture(
             engine_constants=engine_constants, k_centre=k_centre,
             per_market_k_on=per_market_k_on, min_sample=config.min_sample,
             rating_weights=rating_weights,
+            men_friendly_baseline=men_friendly_baseline,
         )
     derived_rows, derived_skipped = price_derived_rungs(
         fixture=fixture,
@@ -2295,6 +2319,16 @@ def _main() -> int:
     rating_weight_table = (
         load_rating_weight_table()
         if stats_only and epochs.football_rating_weight(args.date) else None)
+    # epochs.MEN_FRIENDLY_BASELINE (off: None, byte for byte): the as-of
+    # men's friendly goals mean, read from the listing index only on a day
+    # with an 851 fixture (bet.sofa.men_friendly)
+    men_friendly_prior: FriendlyBaseline | None = None
+    if (stats_only and epochs.men_friendly_baseline(args.date)
+            and any(is_men_friendly_fixture(f.sport, f.competition_id)
+                    for f in fixtures)):
+        day_start = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
+        men_friendly_prior = load_men_friendly_baseline(
+            config.db_path, int(day_start.timestamp()))
 
     try:
         for offer in offers:
@@ -2359,6 +2393,7 @@ def _main() -> int:
                     if season_index is not None and fixture.sport == "football"
                     else None),
                 rating_weights=rating_weight_table,
+                men_friendly_baseline=men_friendly_prior,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

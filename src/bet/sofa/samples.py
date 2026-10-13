@@ -39,6 +39,12 @@ from bet.sofa.market_mapper import (
     derived_base,
     derived_side_metric,
 )
+from bet.sofa.men_friendly import (
+    MEN_FRIENDLY_COMPETITION_ID,
+    MEN_FRIENDLY_GOAL_METRICS,
+    is_men_friendly_fixture,
+    pick_friendly_window,
+)
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
     check_halves_identity,
@@ -291,6 +297,7 @@ def get_historical_events(
     config: SofaConfig,
     gaps: list[GapEntry] | None = None,
     pool_out: list[dict[str, Any]] | None = None,
+    pool_friendly_competition: int | None = None,
 ) -> list[dict[str, Any]]:
     """The last ``sample_n`` finished events for ``entity_id`` before kickoff.
 
@@ -302,8 +309,16 @@ def get_historical_events(
     same finish_history - the pool a goal sample is picked from
     (comparability.SAME_COMPETITION_METRICS). It costs no request: the pages
     are the ones this walk read and the index is local.
+
+    ``pool_friendly_competition`` (epochs.MEN_FRIENDLY_SAMPLE_WINDOW, an 851
+    fixture only): the pool - never the sample proper - also admits that
+    friendly competition's matches (bet.sofa.men_friendly). None: the pool
+    is what it always was.
     """
     events: list[dict[str, Any]] = []
+    # The pool's friendly matches (pool_friendly_competition), kept apart from
+    # the sample proper.
+    pool_friendlies: list[dict[str, Any]] = []
     page = 0
     # Reported once per entity, not once per rejected event.
     surface_unknown_reported = False
@@ -312,9 +327,12 @@ def get_historical_events(
     page_ids: set[int] = set()
     spans: list[tuple[int, int]] = []
 
-    def admit(event: dict[str, Any], report: bool = True) -> bool:
+    def admit(event: dict[str, Any], report: bool = True,
+              friendly_ok: bool = False) -> bool:
         """Whether one listed event may enter the sample (gaps say why not,
-        unless ``report`` is False - the pool's second look at an event)."""
+        unless ``report`` is False - the pool's second look at an event).
+        ``friendly_ok``: a match of pool_friendly_competition passes the
+        friendly exclusion (the pool's look only)."""
         nonlocal surface_unknown_reported
         # A walkover or retirement is `finished` but did not produce a
         # comparable result; it must not enter a sample (L31).
@@ -356,7 +374,10 @@ def get_historical_events(
         # A friendly, a pre-season tournament or an exhibition describes a
         # different game in every sport (comparability, 2026-10-04: the
         # Torneio de Verao entered Chaves' sample as a league match).
-        if is_friendly_event(event, sport):
+        if is_friendly_event(event, sport) and not (
+            friendly_ok and pool_friendly_competition is not None
+            and _competition_id(event) == pool_friendly_competition
+        ):
             return False
 
         if sport == "tennis":
@@ -415,6 +436,14 @@ def get_historical_events(
 
     fixture_competition: int | None = getattr(fixture, "competition_id", None)
 
+    def pool_friendly(event: dict[str, Any]) -> None:
+        """An event the sample refused: into the pool when it is a match of
+        pool_friendly_competition the pool admits."""
+        if (pool_friendly_competition is not None
+                and _competition_id(event) == pool_friendly_competition
+                and admit(event, report=False, friendly_ok=True)):
+            pool_friendlies.append(event)
+
     def usable(candidates: list[dict[str, Any]]) -> int:
         """Candidates that can enter the sample: one listing per match, and
         in football none a second squad played (reserve_squads)."""
@@ -454,6 +483,8 @@ def get_historical_events(
                 page_ids.add(event["id"])
             if admit(event):
                 events.append(event)
+            else:
+                pool_friendly(event)
         starts = [e["startTimestamp"] for e in page_events
                   if isinstance(e, dict) and isinstance(e.get("startTimestamp"), int)]
         if starts:
@@ -517,12 +548,14 @@ def get_historical_events(
             page_ids.add(event["id"])
             if admit(event):
                 events.append(event)
+            else:
+                pool_friendly(event)
 
     if pool_out is not None and sport == "football" and spans:
         # Every admissible match the read pages and the index hold, under the
         # index rule above (an indexed event inside a read page's span is one
         # Sofascore no longer lists there), without the "short" condition.
-        pool = list(events)
+        pool = list(events) + pool_friendlies
         pooled = {e.get("id") for e in pool}
         deepest_oldest = spans[-1][1]
         windows = [(older[0], newer[1])
@@ -538,7 +571,8 @@ def get_historical_events(
             in_gap = any(lo < start < hi for lo, hi in windows)
             if listed_here or not (in_gap or start < deepest_oldest):
                 continue
-            if admit(event, report=False):
+            if admit(event, report=False,
+                     friendly_ok=pool_friendly_competition is not None):
                 pool.append(event)
                 pooled.add(event.get("id"))
         # cut_at_conflict: the pool reaches years back (five pages and the
@@ -1302,6 +1336,7 @@ def process_fixture_samples(
     *,
     token_fallback: bool = False,
     starts_only: bool = False,
+    men_friendly_window: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1314,6 +1349,7 @@ def process_fixture_samples(
         return _process_fixture_samples(
             fixture, client, cache, superbet_client, config, offer,
             token_fallback=token_fallback, starts_only=starts_only,
+            men_friendly_window=men_friendly_window,
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1340,6 +1376,7 @@ def _process_fixture_samples(
     *,
     token_fallback: bool = False,
     starts_only: bool = False,
+    men_friendly_window: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1385,6 +1422,12 @@ def _process_fixture_samples(
     sample_gaps: list[GapEntry] = []
     pool_a: list[dict[str, Any]] = []
     pool_b: list[dict[str, Any]] = []
+    # epochs.MEN_FRIENDLY_SAMPLE_WINDOW (bet.sofa.men_friendly): an 851
+    # fixture's goal pool also holds the sides' 851 matches. Off, or any other
+    # fixture (852 included): None, the pool as it always was.
+    men_friendly = men_friendly_window and is_men_friendly_fixture(
+        fixture.sport, fixture.competition_id)
+    friendly_pool = MEN_FRIENDLY_COMPETITION_ID if men_friendly else None
     side_a_events = get_historical_events(
         client,
         cache,
@@ -1394,6 +1437,7 @@ def _process_fixture_samples(
         config,
         sample_gaps,
         pool_a,
+        friendly_pool,
     )
     side_b_events = get_historical_events(
         client,
@@ -1404,6 +1448,7 @@ def _process_fixture_samples(
         config,
         sample_gaps,
         pool_b,
+        friendly_pool,
     )
 
     side_a_results = [
@@ -1447,7 +1492,33 @@ def _process_fixture_samples(
     # composition_knockout.md), reaching back to a tournament's group stage
     # years ago (China U23, Asian Games 2014). A knockout fixture keeps the
     # usual newest-ten sample.
-    if (
+    if men_friendly:
+        # epochs.MEN_FRIENDLY_SAMPLE_WINDOW: the measured markets only
+        # (goals_total / goals_for); the half-match goals keep the usual
+        # sample. Variant C of docs/sofa/evidence/
+        # national_friendly_samples_2026-10-13.md: every pool match inside the
+        # window of the newest ten 851 matches, else the pool's newest ten.
+        goal_metrics = goal_metrics & MEN_FRIENDLY_GOAL_METRICS
+        knockout = is_knockout(fixture_round_event(fixture))
+        for label, pool, entity in (
+            ("Side A", pool_a, fixture.home_entity_id),
+            ("Side B", pool_b, fixture.away_entity_id),
+        ):
+            if not goal_metrics:
+                break
+            window = pick_friendly_window(
+                pool, MEN_FRIENDLY_COMPETITION_ID, config.sample_n,
+                _competition_id, lambda e: not is_knockout(e),
+                lambda e: int(e.get("startTimestamp") or 0),
+                knockout=knockout,
+            )
+            if not window:
+                continue
+            goal_results[label] = [
+                goal_observations(client, cache, e, entity, goal_metrics, fixture)
+                for e in window
+            ]
+    elif (
         fixture.sport == "football"
         and goal_metrics
         and not is_knockout(fixture_round_event(fixture))

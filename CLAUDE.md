@@ -504,6 +504,30 @@ that; the replay applies it with `calibrate_from_cache.py --opponent-correction`
 --opponent-correction`, recorded in `replay_rules`), so it waits only for a
 refit carrying that flag; a rebuild re-runs SHEET when a football row lacks
 `opponent_rule`; `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
+**Measured and not switched on, men's national friendlies** (2026-10-13, not
+an audit item, no standing go covers it - the operator decides; both `None`,
+`bet.sofa.men_friendly`; `docs/sofa/evidence/national_friendly_samples_2026-10-13.md`,
+2,209 men's friendlies 2015..2026-10-12, NB log-loss of the shrunk centre at
+the goal count, match bootstrap, no rating in the centre):
+`MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC` (SAMPLES: 851 is excluded from every
+pool since 2026-10-04, so a men's friendly's goal sample is the newest ten
+competitive matches, D; on, an 851 fixture's pool also admits the sides' 851
+matches and goals_total / goals_for read variant C - every pool match since
+the oldest of the newest ten 851 matches, `pick_friendly_window`; C - D with
+an as-of prior goals_total -0.0071 [-0.0127, -0.0015], goals_for -0.0140
+[-0.0196, -0.0086], with the global prior -0.0211 / -0.0252; halves, other
+markets, ratings and other fixtures untouched; women's 852 unchanged - its
+same-competition sample measured best), `MEN_FRIENDLY_BASELINE_FROM_UTC`
+(SHEET: 851 has no league baseline, so its goals centre shrank toward the
+chain's end, the global 3.26, while men's friendlies average 2.54 over 2,365
+matches; on, an 851 fixture's goals_total prior is the as-of mean of 851
+matches since 2015 before the day from `sofa_listed_event`, goals_for half
+of it, >= 30 matches, note `PRIOR_MEN_FRIENDLY`; no sheet rule marker - on
+mid-day, re-run SHEET by hand). The curves were fitted without either: the
+replay never puts an 851 match in a side's history and the fit drops its rows
+(`fit_meta.friendly_exclusion_sql`); a refit carrying them would keep 851
+rows in the goals fit, build their goal sample by variant C and shrink
+toward the as-of 851 prior.
 **Measured and not switched on, measured sports** (audit 2026-10-13, all `None`, code behind the switch):
 `CS2_MAP_IDENTITY_FROM_UTC` (B11: map order / pool terms, walk-forward on 24,995 maps / 11,217 series, A vs base +0.00021 [-0.00022, +0.00064], no effect; `cs2_map_identity_2026-10-13.md`),
 `HK_SHOTS_FROM_UTC` and `HK_EMPTY_NET_FROM_UTC` (B8: hockey shots x save%, centre replaced: total +0.00126 [+0.00010, +0.00241] worse, blend +0.00025 [-0.00033, +0.00084]; fitted empty net: handicap -0.00037 [-0.00074, +0.000006], total +0.00111 worse; shots exist for 6,755 of 29,516 games, none in October 2026; `hockey_goalie_empty_net_2026-10-13.md`, `RAPORT_B8_HOKEJ_2026-10-13.md`),

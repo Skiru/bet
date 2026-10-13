@@ -186,3 +186,14 @@ meczem (min. 30 meczów). Przewaga C nad A u mężczyzn **znika** przy priorze a
   ROI. (5) Brak bazowej ligi dla 851 (prior 3.26 przy realnych 2.54) to osobna
   wada środka meczu towarzyskiego mężczyzn - widoczna tu jako efekt prioru, nie
   zmierzona na krzywej.
+
+## 9. Kod za przełącznikami (2026-10-13, oba `None`)
+
+Wariant C dla meczu 851 (`epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC`,
+`men_friendly.pick_friendly_window`, tylko `goals_total` / `goals_for`) i prior
+as-of z meczów 851 (`epochs.MEN_FRIENDLY_BASELINE_FROM_UTC`,
+`men_friendly.FriendlyBaseline`, notka `PRIOR_MEN_FRIENDLY`; na bazie z
+2026-10-13: 2,538 gola z 2 365 meczów - zgodnie z sekcją 7.3). Wyłączone:
+SAMPLES i SHEET bajt w bajt jak dotąd (`tests/sofa/test_men_friendly.py`).
+Włączenie - decyzja operatora; krzywe dopasowano bez tych reguł (PIPELINE.md,
+sekcja 7).

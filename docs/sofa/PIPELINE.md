@@ -369,7 +369,7 @@ Dla każdej strony meczu i każdej metryki, którą ktoś wycenia, pobiera
 (`process_historical_event`, `src/bet/sofa/metrics.py`).
 
 Zakresy (scoping), zanim mecz historyczny wejdzie do próbki:
-- **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`: 853, 1794 i od 30.09 28008 — towarzyskie klubowe kobiet); działa tylko w SAMPLES, więc próbka pobrana przed dodaniem id nadal je zawiera;
+- **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`: 853, 1794 i od 30.09 28008 — towarzyskie klubowe kobiet); działa tylko w SAMPLES, więc próbka pobrana przed dodaniem id nadal je zawiera. Od 2026-10-04 wypada też 851 (towarzyskie reprezentacji mężczyzn), więc mecz towarzyski mężczyzn czyta gole z 10 najnowszych meczów o stawkę; `epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC` (dziś `None`, decyzja operatora) zmienia to tylko dla meczu dnia w 851 i tylko dla `goals_total` / `goals_for` - patrz sekcja 7, „Zmierzone 2026-10-13 (reprezentacje, poza audytem)”. 852 (kobiety) bez zmian;
 - **piłka, druga drużyna pod id pierwszej** (od 2026-10-02, `src/bet/sofa/reserve_squads.py`): mecze, które klub zagrał rezerwami / U23 w rozgrywkach bez osobnego bytu „B” (Londrina — Copa Paraná), wypadają z próbki drużyny. Rozstrzyga kolizja terminów: dwa mecze drużyny w rozgrywkach X w odstępie 6–44 h od meczu jej głównej ligi czynią całą parę (drużyna, X) drugim składem (krajowe i kontynentalne puchary: 0 kolizji na ~7 800 meczów), a w rozgrywkach z listy `config/sofa_reserve_competitions.json` — główna liga drużyny z `reserve_when_main_in` (stanowe puchary Brazylii dla Série A/B, Copa Santa Fe dla Liga Profesional). Gdy mecz dnia sam jest meczem drugiego składu, strona zostaje pusta. Luka `RESERVE_SQUAD` mówi, co wypadło;
 - **tenis:** mecz historyczny liczy się tylko, gdy
   `surfaces_comparable(event.groundType, fixture.ground_type)` **i**
@@ -473,6 +473,9 @@ prior   = w tej kolejności (piłka):
           4. mecz kobiet: pula lig kobiecych (config/sofa_women_competitions.json,
              ≥300 meczów)                          notka PRIOR_GLOBAL_WOMEN
           5. globalna
+          (przed 2-5, tylko od epochs.MEN_FRIENDLY_BASELINE_FROM_UTC - dziś None:
+           mecz 851, goals_total / goals_for: średnia goli meczów 851 sprzed
+           dnia, ≥30 meczów, goals_for = połowa    notka PRIOR_MEN_FRIENDLY)
 w_c     = n / (n + K_CENTRE)                           (piłka 15, tenis 5; osobne K na rynek: `PER_MARKET_K`, od 2026-10-09)
 centre  = w_c·sample_mean + (1 − w_c)·prior            (albo sample_mean, gdy brak bazy)
 
@@ -641,6 +644,40 @@ z 404) nie jest pytane ponownie.
   któryś wiersz piłki nie ma `opponent_rule` (arkusz bez piłki nie jest
   przestarzały - SHEET bez księgi piłki nie stempluje reguły)
   (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
+
+**Zmierzone 2026-10-13 (reprezentacje, poza audytem), niewłączone - decyzja
+operatora (żadna stała zgoda tego nie obejmuje)**
+(`docs/sofa/evidence/national_friendly_samples_2026-10-13.md`,
+`scripts/sofa/measure_national_friendly_samples.py`; 2 209 meczów
+towarzyskich mężczyzn 2015-01-01..2026-10-12, log-loss NB środka przy liczbie
+goli, bootstrap po meczach, bez ratingu w środku; kod: `bet.sofa.men_friendly`):
+- `epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC` (SAMPLES): mecz dnia w 851 -
+  pula próbki goli przyjmuje też mecze 851 stron, a `goals_total` /
+  `goals_for` czytają wariant C: wszystkie mecze puli (towarzyskie i o
+  stawkę) od najstarszego z 10 najnowszych meczów 851 (minimum 5; mniej albo
+  mecz pucharowy - 10 najnowszych z puli) - `men_friendly.pick_friendly_window`.
+  Dziś (D, same mecze o stawkę) jest najgorszy: C - D przy priorze as-of
+  `goals_total` -0,0071 [-0,0127; -0,0015], `goals_for` -0,0140 [-0,0196;
+  -0,0086]; przy priorze globalnym -0,0211 / -0,0252. Połówki goli, inne
+  rynki, rating i próbki innych meczów bez zmian; 852 (kobiety: wariant A
+  najlepszy) bez zmian.
+- `epochs.MEN_FRIENDLY_BASELINE_FROM_UTC` (SHEET): 851 nie ma bazy ligowej
+  (wykluczony z każdego fitu), więc środek był ściągany łańcuchem priorów -
+  w końcu do globalnej 3,26 gola - a mecze 851 dają średnio 2,54 (2 365 meczów
+  do 2026-10-12). Prior `goals_total` meczu 851 to średnia goli (wynik
+  regulaminowy) meczów 851 dwóch reprezentacji od 2015-01-01 ściśle przed
+  dniem, z indeksu listingów (`sofa_listed_event`, tylko do odczytu, ~20 s,
+  tylko w dzień z meczem 851), `goals_for` - połowa; poniżej 30 meczów zwykły
+  łańcuch. Notka `PRIOR_MEN_FRIENDLY`. Bez znacznika reguły na wierszu:
+  włączony w trakcie dnia - SHEET uruchamia się ręcznie.
+- Krzywe historii dopasowano bez tego: w `calibrate_from_cache.py` mecz 851
+  nigdy nie wchodzi do historii strony, a jego własne wiersze fit wycina
+  (`fit_meta.friendly_exclusion_sql`). Refit niosący te reguły musiałby
+  zostawić wiersze 851 w fitcie `goals_total` / `goals_for`, budować ich
+  próbkę goli wariantem C (historia stron z meczami 851 - tylko dla celu
+  851) i ściągać środek do priora as-of 851 (`men_friendly.baseline_from_events`
+  na meczach ściśle wcześniejszych); bez tego krzywe tych rynków opisują mecze
+  o stawkę, a mecz 851 czyta je jako przybliżenie.
 
 **Zmierzone 2026-10-13 (audyt B8, B9, B11, A7), sporty mierzone, przełączniki
 `None`** (kod za przełącznikiem, bez refitu, nic nie wchodzi do druku):

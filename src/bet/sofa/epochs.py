@@ -1442,3 +1442,50 @@ def cs2_count_exposure(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= CS2_COUNT_EXPOSURE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= CS2_COUNT_EXPOSURE_FROM_UTC)
+
+
+# Men's national-team friendlies (uniqueTournament 851, on the friendly
+# exclusion list since 2026-10-04; bet.sofa.men_friendly). Measured
+# 2026-10-13 (docs/sofa/evidence/national_friendly_samples_2026-10-13.md,
+# 2,209 men's friendlies 2015..2026-10-12, NB log-loss, match bootstrap, as-of
+# prior): the goal sample of an 851 fixture is today the newest ten
+# competitive matches (D); every pool match - friendlies included - inside the
+# window of the newest ten 851 matches (C) is better on goals_total -0.0071
+# [-0.0127, -0.0015] and goals_for -0.0140 [-0.0196, -0.0086]. Not covered by
+# any standing go: the operator decides. Both change what prints: a day >= the
+# date built at or after the moment. The history curves were fitted without
+# either (851 is out of the replay); a refit that carries them must replay
+# the 851 targets with this sample and prior.
+#
+# SAMPLES: an 851 fixture's goals_total / goals_for sample is variant C
+# (men_friendly.pick_friendly_window; the pool admits 851 matches for that
+# fixture only). Off: SAMPLES byte-identical. 852 (women) never.
+MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC: datetime | None = None
+
+
+def men_friendly_sample_window(date: str, build_at: datetime | None = None) -> bool:
+    """Does an 851 fixture's goal sample read the friendly window
+    (MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC)?"""
+    if MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC)
+
+
+# SHEET: the goals_total / goals_for prior of an 851 fixture is the as-of mean
+# of 851's own matches before the day (men_friendly.FriendlyBaseline, 2.54
+# goals over 2,365 matches on 2026-10-13) instead of the pooled chain, which
+# ends at the global 3.26 (851 has no fitted baseline). Off: SHEET
+# byte-identical. No rule marker: switched on mid-day, SHEET is re-run by hand.
+MEN_FRIENDLY_BASELINE_FROM_UTC: datetime | None = None
+
+
+def men_friendly_baseline(date: str, build_at: datetime | None = None) -> bool:
+    """Does an 851 fixture's goals centre shrink toward the men's friendly
+    baseline (MEN_FRIENDLY_BASELINE_FROM_UTC)?"""
+    if MEN_FRIENDLY_BASELINE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= MEN_FRIENDLY_BASELINE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= MEN_FRIENDLY_BASELINE_FROM_UTC)

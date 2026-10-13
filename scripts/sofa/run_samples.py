@@ -28,7 +28,11 @@ from bet.sofa.contracts import (
     GapReason,
 )
 from bet.sofa.coverage import check_coverage_floor
-from bet.sofa.epochs import player_name_tokens, player_starts_only
+from bet.sofa.epochs import (
+    men_friendly_sample_window,
+    player_name_tokens,
+    player_starts_only,
+)
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
     compute_readiness,
@@ -146,6 +150,7 @@ def sample_fixtures_concurrently(
     *,
     token_fallback: bool = False,
     starts_only: bool = False,
+    men_friendly_window: bool = False,
 ) -> list[FixtureSamples]:
     """One FixtureSamples per fixture, in the input's order.
 
@@ -179,6 +184,7 @@ def sample_fixtures_concurrently(
                 offer=offers_by_id.get(fixture.sofascore_event_id),
                 token_fallback=token_fallback,
                 starts_only=starts_only,
+                men_friendly_window=men_friendly_window,
             )
             for fixture in fixtures
         ]
@@ -200,6 +206,7 @@ def sample_fixtures_concurrently(
             offer=offers_by_id.get(fixture.sofascore_event_id),
             token_fallback=token_fallback,
             starts_only=starts_only,
+            men_friendly_window=men_friendly_window,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -303,6 +310,8 @@ def main() -> int:
         fixtures, client, cache, config, offers_by_id,
         token_fallback=player_name_tokens(args.date),
         starts_only=player_starts_only(args.date),
+        # epochs.MEN_FRIENDLY_SAMPLE_WINDOW (off: byte-identical)
+        men_friendly_window=men_friendly_sample_window(args.date),
     )
 
     for fixture, samples in zip(fixtures, sampled, strict=True):
