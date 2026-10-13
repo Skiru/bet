@@ -10,7 +10,12 @@ leg's confidence is read through (bet.sofa.line_evidence). Three steps:
    indexed, so the score model the rows are priced with knows D-1's results
    (2026-10-12: the history had stopped on 10-04 - bet.sofa.sport_history).
    No bridge or a refusal: the fits run on what is cached, exit 1.
-   --dry-run skips it (no bridge, no database write).
+   Then (2026-10-13) backfill_event_stats.py --sport <s> --with-lineups for
+   the last STATS_DAYS days of hockey, basketball and volleyball: their
+   /statistics and /lineups were fetched only by one-off backfills, so
+   October 2026 had none (basketball 4 of 1,519 games) - the box score the
+   pace / goalie / player models read. A failure is named and exits 1.
+   --dry-run skips both (no bridge, no database write).
 1. fit_sport_confidence.py --sport <s> --before <d> --dry-run --rows-out <dir>
    for hockey, basketball, volleyball and CS2, in parallel (~15 min a sport):
    only for its `<sport>_superbet_settled.jsonl` rows (the model's p on every
@@ -85,6 +90,18 @@ def history_command() -> list[str]:
             "--max-minutes", "12"]
 
 
+STATS_SPORTS = ("hockey", "basketball", "volleyball")
+STATS_DAYS = 7
+
+
+def stats_commands() -> list[list[str]]:
+    """The measured sports' /statistics + /lineups of the last STATS_DAYS
+    days (resumable: a game already asked is never asked again)."""
+    return [[sys.executable, "scripts/sofa/backfill_event_stats.py", "--sport", s,
+             "--days", str(STATS_DAYS), "--with-lineups", "--max-minutes", "6"]
+            for s in STATS_SPORTS]
+
+
 def fit_commands(before: str, out: Path) -> list[list[str]]:
     return [[sys.executable, "scripts/sofa/fit_sport_confidence.py", "--sport", s,
              "--before", before, "--dry-run", "--rows-out", str(out),
@@ -110,6 +127,11 @@ def main() -> int:
         print(f"sport history: exit {hist.returncode}", flush=True)
         if hist.returncode != 0:
             failed.append("history")
+        for cmd in stats_commands():
+            done_stats = subprocess.run(cmd, cwd=_REPO)
+            print(f"{cmd[3]} statistics: exit {done_stats.returncode}", flush=True)
+            if done_stats.returncode != 0:
+                failed.append(f"statistics:{cmd[3]}")
     if not args.skip_sport_rows:
         kept = stash_rows(out)  # a file of an earlier run today is not this run's
         logs = {s: (out / f"log_{s}.txt").open("w") for s in SPORTS}

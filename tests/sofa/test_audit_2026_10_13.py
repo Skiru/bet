@@ -380,3 +380,19 @@ def test_the_one_step_residuals_change_only_the_noise_fit() -> None:
     assert old.shares == new.shares
     assert old.expected(5, 100, 200) == new.expected(5, 100, 200)
     assert old.params.bb_quarter_sd != new.params.bb_quarter_sd
+
+
+def test_the_morning_refresh_also_fetches_the_measured_sports_statistics() -> None:
+    import importlib.util
+    import sys as _sys
+
+    path = Path(__file__).resolve().parents[2] / "scripts/sofa/refresh_line_evidence.py"
+    spec = importlib.util.spec_from_file_location("rle_stats", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    _sys.modules["rle_stats"] = mod
+    spec.loader.exec_module(mod)
+    cmds = mod.stats_commands()
+    assert [c[3] for c in cmds] == ["hockey", "basketball", "volleyball"]
+    assert all("--with-lineups" in c and "backfill_event_stats.py" in c[1]
+               for c in cmds)
