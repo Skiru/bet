@@ -475,7 +475,13 @@ strzeli gola" and halves as goals_*_for 0.5, "Zostanie rozegrany N. set" as
 sets_total N-0.5, half BTTS, both-over saves, half corner / set games
 handicaps - `market_mapper.classify_mappable_family`; a yes/no answer never
 adds a second rung where the ladder quotes one; off = OFFER byte-identical,
-`docs/sofa/PIPELINE.md` section 5), the coupon form dials. Open
+`docs/sofa/PIPELINE.md` section 5), `DERIVED_SHEET_MARGINS_FROM_UTC`
+(audit B3: a football joint's side with no quoted ladder priced by SHEET's
+formula, `run_sheet.sample_centre`, and an UNLINKED fixture's joints refused;
+history one step ahead log-loss -0.0254 [-0.0264, -0.0245] on 60,000
+matches, `docs/sofa/evidence/derived_margins_2026-10-13.md`; no derived
+football row prints either way while `THIN_SAMPLE_FOR_BUILDER` reads the
+derived row's own market as its sample), the coupon form dials. Open
 questions: Superbet's game count of a tennis match tiebreak. Measured
 2026-10-12 night: the line-evidence offsets of the repriced families moved
 <= 1.3 pp a day over 10-09..10-12 (stable, reproduced from the legs); the

@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import math
 import statistics
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -458,6 +458,8 @@ def price_derived_rungs(
     stats_only: bool = False,
     marginal_centres: Mapping[tuple[str, str], float] | None = None,
     dispersion_table: DispersionTable | None = None,
+    side_metric_notes: Mapping[str, Sequence[str]] | None = None,
+    side_metric_unfitted: Mapping[str, Sequence[str]] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs): the handicap centre is not pulled onto
     the ladder (K_DERIVED_CENTRE), so p_central does not read the price.
@@ -468,7 +470,15 @@ def price_derived_rungs(
     centres (marginal_centred_stats), else from the raw sample as before.
     `dispersion_table` (epochs.COUNT_DISPERSION) gives those marginal spreads
     the fitted alpha, as the marginal rows carry it; the JOINT built from them
-    was not measured under it (A2 measured marginals only)."""
+    was not measured under it (A2 measured marginals only).
+
+    `side_metric_notes` (side metric -> notes) are appended to every row of a
+    joint built on that metric: SHEET's account of a side centre it computed
+    without a quoted ladder (epochs.DERIVED_SHEET_MARGINS, audit 2026-10-13
+    B3) and the CROSS_LEAGUE_UNLINKED note CONFIDENCE refuses on, as on the
+    marginal rows. `side_metric_unfitted` likewise adds the constants nobody
+    fitted that such a centre went through (W_FOOTBALL_RATING, ...) to the
+    rows' UNFITTED_CONSTANTS. None = nothing appended (the rows as before)."""
     rows: list[SheetRow] = []
     skipped: list[tuple[PricedRung, GapReason, str]] = []
 
@@ -774,6 +784,7 @@ def price_derived_rungs(
                         "ONE_SIDED_LADDER: centre read off quoted side only, "
                         "margin not removed"
                     )
+                notes.extend((side_metric_notes or {}).get(side_metric, ()))
 
                 # What the same bet is worth if the market's own marginals
                 # are taken at face value and only the measured dependence is
@@ -852,6 +863,13 @@ def price_derived_rungs(
                 row_unfitted = (
                     [*unfitted, "W_TENNIS_RATING"] if p_rated is not None else unfitted
                 )
+                extra_unfitted = (side_metric_unfitted or {}).get(side_metric, ())
+                if extra_unfitted:
+                    row_unfitted = [
+                        *row_unfitted,
+                        *(c for c in dict.fromkeys(extra_unfitted)
+                          if c not in row_unfitted),
+                    ]
                 if row_unfitted:
                     notes.append(f"UNFITTED_CONSTANTS: {', '.join(row_unfitted)}")
                 if edge is not None and abs(edge) >= 0.15:

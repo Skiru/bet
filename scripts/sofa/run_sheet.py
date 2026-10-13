@@ -78,7 +78,12 @@ from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.football_rating import replay as replay_football
 from bet.sofa.game_state import GAME_STATE_UNFITTED, GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
-from bet.sofa.market_mapper import fold, is_derived
+from bet.sofa.market_mapper import (
+    derived_base,
+    derived_side_metric,
+    fold,
+    is_derived,
+)
 from bet.sofa.names import normalize_name
 from bet.sofa.opponent_correction import NOTE as OPPONENT_NOTE
 from bet.sofa.opponent_correction import SampleCorrector, correct_total
@@ -805,6 +810,211 @@ def load_tennis_rating(
     )
 
 
+def sample_centre(
+    *,
+    fixture: Fixture,
+    market: str,
+    subject: str,
+    n: int,
+    mean: float,
+    own_sides: list[list[Observation]],
+    own_events: set[int],
+    own_teams: list[int],
+    baselines: dict[str, Any],
+    day_obs: DayLeagueObservations | None,
+    football: FootballForecast | None,
+    tennis_tiers: dict[str, Any] | None,
+    engine_constants: dict[str, Any],
+    k_centre: float,
+    per_market_k_on: bool,
+    side: str | None = None,
+) -> tuple[float, list[str], list[str], tuple[float, str] | None]:
+    """SHEET's centre of one marginal row (6.2), outside the tennis ladder
+    path: the prior (tennis tier, the day's league / teams' leagues, women's
+    pool, the global baseline), the K_CENTRE shrink toward it, then the
+    football rating at W_FOOTBALL_RATING. Returns (centre, notes, unfitted
+    constants added, the rating's (centre, note) or None). `side` names the
+    rating's side directly ("side_a" / "side_b"); None reads it off `subject`
+    as the marginal row does.
+
+    One formula for the marginal row and, from epochs.DERIVED_SHEET_MARGINS,
+    for a derived joint's side whose own ladder Superbet does not quote
+    (audit 2026-10-13 B3) - so the two can never drift apart."""
+    notes: list[str] = []
+    unfitted_add: list[str] = []
+    rated: tuple[float, str] | None = None
+    # A tennis rung with no ladder - most of them - used to fall into
+    # the football lookup below, keyed on a competition id that is one
+    # week of one tournament, so it always reached the global pool or
+    # nothing. See bet.sofa.tennis_prior (measured metrics only).
+    tier = (
+        tier_prior(tennis_tiers, market, fixture.category_name,
+                   fixture.ground_type)
+        # Fitted on best-of-three only, like the rating; a best-of-
+        # five pulled toward it would lose ~15 games of centre.
+        if fixture.sport == "tennis" and tennis_tiers
+        and fixture.default_period_count in (None, 3)
+        else None
+    )
+    prior: float | None
+    prior_note: str | None
+    if tier is not None:
+        prior, prior_note = tier
+        notes.append(prior_note)
+    elif day_obs is not None and own_sides:
+        prior, prior_note = resolve_prior(
+            baselines, day_obs, market, fixture, own_sides, own_events,
+            rated_leagues(football, own_teams)
+            if len(own_teams) == len(own_sides) else None)
+        if prior_note:
+            notes.append(prior_note)
+    elif (women := women_global_prior(
+            baselines, market, fixture)) is not None:
+        prior, prior_note = women
+        notes.append(prior_note)
+    else:
+        prior = get_prior(baselines, market, fixture.competition_id)
+        prior_note = global_prior_note(
+            baselines, market, fixture.competition_id, prior)
+        if prior_note:
+            notes.append(prior_note)
+    if prior_note and prior_note.startswith("PRIOR_GLOBAL_WOMEN"):
+        unfitted_add.append("MIN_WOMEN_POOL_N")
+    if prior is not None:
+        # epochs.PER_MARKET_K: the football market's own K, else the
+        # sport's (off: k_centre, byte for byte)
+        k_row = (
+            k_for_market(
+                engine_constants, fixture.sport, market, k_centre)
+            if per_market_k_on else k_centre
+        )
+        w_c = n / (n + k_row)  # K_CENTRE
+        centre = w_c * mean + (1 - w_c) * prior
+    else:
+        centre = mean
+    # The opponent-adjusted rating replaces the sample's centre where
+    # it has one (bet.sofa.football_rating). The spread stays the
+    # sample's.
+    rated = (
+        football.centre(
+            market,
+            side if side is not None
+            else determine_side(subject, fixture) if subject else None,
+        )
+        if football is not None and not is_player_metric(market)
+        else None
+    )
+    if rated is not None:
+        own_centre = centre
+        centre = W_FOOTBALL_RATING * rated[0] + (
+            1 - W_FOOTBALL_RATING) * own_centre
+        unfitted_add.append("W_FOOTBALL_RATING")
+        unfitted_add.extend(RATING_UNFITTED)
+        notes.append(
+            f"FOOTBALL_RATING: centre {centre:.2f} from the rating "
+            f"({rated[1]}) at W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}, "
+            f"sample centre was {own_centre:.2f}"
+        )
+    elif (football is not None and not is_player_metric(market)
+          and football.no_league_rate(market)):
+        notes.append(
+            f"NO_LEAGUE_RATE: competition {fixture.competition_id} has "
+            f"fewer than {MIN_LEAGUE_MATCHES} rated matches; centre "
+            "from the sample alone (epochs.FOOTBALL_LEAGUE_RATE_RULE)")
+    return centre, notes, unfitted_add, rated
+
+
+def sheet_derived_margins(
+    fixture: Fixture,
+    samples: FixtureSamples,
+    offer: FixtureOffer,
+    marginal_centres: dict[tuple[str, str], float],
+    *,
+    baselines: dict[str, Any],
+    day_obs: DayLeagueObservations | None,
+    football: FootballForecast | None,
+    engine_constants: dict[str, Any],
+    k_centre: float,
+    per_market_k_on: bool,
+    min_sample: int,
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """epochs.DERIVED_SHEET_MARGINS (audit 2026-10-13 B3). Fills, IN PLACE,
+    `marginal_centres` for every side of a football joint's metric
+    (DERIVED_MARGINAL_CENTRES_METRICS) that has no marginal row - Superbet
+    quoted no ladder for that side - with the centre the marginal row would
+    have had (sample_centre: prior, K_CENTRE shrink, W_FOOTBALL_RATING x the
+    rating), instead of letting the joint fall back to both raw samples. A
+    side SHEET would not price (thin, all zero) stays without one, as before.
+
+    Returns (side metric -> notes, side metric -> unfitted constants) for the
+    derived rows: the filled sides, and CROSS_LEAGUE_UNLINKED for every
+    football joint whose metric the rating cannot link - CONFIDENCE refuses
+    those rows as it refuses the marginal rows of that fixture."""
+    notes: dict[str, list[str]] = {}
+    unfitted: dict[str, list[str]] = {}
+    side_metrics = sorted({
+        derived_side_metric(base)
+        for rung in offer.rungs
+        if is_derived(rung.market)
+        and (base := derived_base(rung.market)) is not None
+    })
+    for side_metric in side_metrics:
+        if football is not None and (
+            football.link_status(side_metric) or football.fixture_link()
+        ) == UNLINKED:
+            notes.setdefault(side_metric, []).append(
+                f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+                "and their leagues' strengths are unmeasured - the joint's "
+                "margins describe other leagues (epochs.DERIVED_SHEET_MARGINS)"
+            )
+        if side_metric not in DERIVED_MARGINAL_CENTRES_METRICS:
+            continue
+        sample = samples.metrics.get(side_metric)
+        if sample is None:
+            continue
+        own_events = {
+            o.sofascore_event_id
+            for lst in (sample.side_a, sample.side_b, sample.h2h)
+            for o in lst
+        }
+        for side, obs, team in (
+            ("side_a", sample.side_a, fixture.home_entity_id),
+            ("side_b", sample.side_b, fixture.away_entity_id),
+        ):
+            if (side_metric, side) in marginal_centres:
+                continue
+            values = [o.value for o in obs]
+            if len(values) < min_sample or all(v == 0.0 for v in values):
+                continue
+            centre, _centre_notes, centre_unfitted, rated = sample_centre(
+                fixture=fixture,
+                market=side_metric,
+                subject="",
+                n=len(values),
+                mean=statistics.mean(values),
+                own_sides=[obs],
+                own_events=own_events,
+                own_teams=[team],
+                baselines=baselines,
+                day_obs=day_obs,
+                football=football,
+                tennis_tiers=None,
+                engine_constants=engine_constants,
+                k_centre=k_centre,
+                per_market_k_on=per_market_k_on,
+                side=side,
+            )
+            marginal_centres[(side_metric, side)] = centre
+            source = "rating at W_FOOTBALL_RATING" if rated is not None else "no rating"
+            notes.setdefault(side_metric, []).append(
+                f"SHEET_MARGIN: {side} {side_metric} centre {centre:.2f} from "
+                f"the SHEET formula, no ladder quoted ({source}; "
+                "epochs.DERIVED_SHEET_MARGINS)"
+            )
+            unfitted.setdefault(side_metric, []).extend(centre_unfitted)
+    return notes, unfitted
+
+
 def _stats_only_rating_p(
     rating: MatchForecast,
 ) -> Callable[[str, str | None, float, str], float | None]:
@@ -1000,6 +1210,7 @@ def process_fixture(
     set_rating_prices: bool = False,
     sample_corrector: SampleCorrector | None = None,
     tennis_winner_on: bool = False,
+    sheet_margins_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1291,83 +1502,25 @@ def process_fixture(
             w_c = n / (n + K_TENNIS_LADDER_CENTRE)
             centre = w_c * mean + (1 - w_c) * ladder_target
         else:
-            # A tennis rung with no ladder - most of them - used to fall into
-            # the football lookup below, keyed on a competition id that is one
-            # week of one tournament, so it always reached the global pool or
-            # nothing. See bet.sofa.tennis_prior (measured metrics only).
-            tier = (
-                tier_prior(tennis_tiers, rung.market, fixture.category_name,
-                           fixture.ground_type)
-                # Fitted on best-of-three only, like the rating; a best-of-
-                # five pulled toward it would lose ~15 games of centre.
-                if fixture.sport == "tennis" and tennis_tiers
-                and fixture.default_period_count in (None, 3)
-                else None
+            centre, centre_notes, centre_unfitted, rated = sample_centre(
+                fixture=fixture,
+                market=rung.market,
+                subject=rung.subject,
+                n=n,
+                mean=mean,
+                own_sides=own_sides,
+                own_events=own_events,
+                own_teams=own_teams,
+                baselines=baselines,
+                day_obs=day_obs,
+                football=football,
+                tennis_tiers=tennis_tiers,
+                engine_constants=engine_constants,
+                k_centre=k_centre,
+                per_market_k_on=per_market_k_on,
             )
-            prior: float | None
-            prior_note: str | None
-            if tier is not None:
-                prior, prior_note = tier
-                extra_notes.append(prior_note)
-            elif day_obs is not None and own_sides:
-                prior, prior_note = resolve_prior(
-                    baselines, day_obs, rung.market, fixture, own_sides, own_events,
-                    rated_leagues(football, own_teams)
-                    if len(own_teams) == len(own_sides) else None)
-                if prior_note:
-                    extra_notes.append(prior_note)
-            elif (women := women_global_prior(
-                    baselines, rung.market, fixture)) is not None:
-                prior, prior_note = women
-                extra_notes.append(prior_note)
-            else:
-                prior = get_prior(baselines, rung.market, fixture.competition_id)
-                prior_note = global_prior_note(
-                    baselines, rung.market, fixture.competition_id, prior)
-                if prior_note:
-                    extra_notes.append(prior_note)
-            if prior_note and prior_note.startswith("PRIOR_GLOBAL_WOMEN"):
-                row_unfitted.append("MIN_WOMEN_POOL_N")
-            if prior is not None:
-                # epochs.PER_MARKET_K: the football market's own K, else the
-                # sport's (off: k_centre, byte for byte)
-                k_row = (
-                    k_for_market(
-                        engine_constants, fixture.sport, rung.market, k_centre)
-                    if per_market_k_on else k_centre
-                )
-                w_c = n / (n + k_row)  # K_CENTRE
-                centre = w_c * mean + (1 - w_c) * prior
-            else:
-                centre = mean
-            # The opponent-adjusted rating replaces the sample's centre where
-            # it has one (bet.sofa.football_rating). The spread stays the
-            # sample's.
-            rated = (
-                football.centre(
-                    rung.market,
-                    determine_side(rung.subject, fixture) if rung.subject else None,
-                )
-                if football is not None and not is_player_metric(rung.market)
-                else None
-            )
-            if rated is not None:
-                sample_centre = centre
-                centre = W_FOOTBALL_RATING * rated[0] + (
-                    1 - W_FOOTBALL_RATING) * sample_centre
-                row_unfitted.append("W_FOOTBALL_RATING")
-                row_unfitted.extend(RATING_UNFITTED)
-                extra_notes.append(
-                    f"FOOTBALL_RATING: centre {centre:.2f} from the rating "
-                    f"({rated[1]}) at W_FOOTBALL_RATING={W_FOOTBALL_RATING:g}, "
-                    f"sample centre was {sample_centre:.2f}"
-                )
-            elif (football is not None and not is_player_metric(rung.market)
-                  and football.no_league_rate(rung.market)):
-                extra_notes.append(
-                    f"NO_LEAGUE_RATE: competition {fixture.competition_id} has "
-                    f"fewer than {MIN_LEAGUE_MATCHES} rated matches; centre "
-                    "from the sample alone (epochs.FOOTBALL_LEAGUE_RATE_RULE)")
+            extra_notes.extend(centre_notes)
+            row_unfitted.extend(centre_unfitted)
             side_key = determine_side(rung.subject, fixture) if rung.subject else None
             # epochs.FOOTBALL_VENUE_PRIOR (audit 2026-10-13 B2): a sample-only
             # side centre reads the league's home / away rate as a multiplier
@@ -1849,6 +2002,16 @@ def process_fixture(
                 msd = determine_side(marginal.subject, fixture)
                 if msd in ("side_a", "side_b"):
                     marginal_centres.setdefault((marginal.market, msd), marginal.centre)
+    side_metric_notes: dict[str, list[str]] | None = None
+    side_metric_unfitted: dict[str, list[str]] | None = None
+    if (fixture.sport == "football" and sheet_margins_on
+            and marginal_centres is not None):
+        side_metric_notes, side_metric_unfitted = sheet_derived_margins(
+            fixture, samples, offer, marginal_centres,
+            baselines=baselines, day_obs=day_obs, football=football,
+            engine_constants=engine_constants, k_centre=k_centre,
+            per_market_k_on=per_market_k_on, min_sample=config.min_sample,
+        )
     derived_rows, derived_skipped = price_derived_rungs(
         fixture=fixture,
         samples=samples,
@@ -1877,6 +2040,8 @@ def process_fixture(
         stats_only=stats_only,
         marginal_centres=marginal_centres,
         dispersion_table=dispersion_table,
+        side_metric_notes=side_metric_notes,
+        side_metric_unfitted=side_metric_unfitted,
     )
     if stats_only:
         derived_rows = [
@@ -2002,6 +2167,9 @@ def _main() -> int:
     # the rating prices
     set_rating_prices = rating_prices and epochs.tennis_set_rating_prices(args.date)
     marginal_centres_on = stats_only and derived_marginal_centres_enabled(args.date)
+    # epochs.DERIVED_SHEET_MARGINS (audit 2026-10-13 B3): a joint's side with
+    # no quoted ladder priced by the SHEET formula (off: byte-identical)
+    sheet_margins_on = marginal_centres_on and epochs.derived_sheet_margins(args.date)
     # epochs.COUNT_DISPERSION: a missing / malformed config raises here (rc 2),
     # never a sheet that claims a rule it did not use
     epochs.require_k_with_dispersion(args.date)
@@ -2076,6 +2244,7 @@ def _main() -> int:
                 stats_only=stats_only,
                 rating_prices=rating_prices,
                 marginal_centres_on=marginal_centres_on,
+                sheet_margins_on=sheet_margins_on,
                 dispersion_table=dispersion_table,
                 per_market_k_on=per_market_k_on,
                 game_state=game_state_table,
@@ -2164,6 +2333,8 @@ def _main() -> int:
                 epochs.TENNIS_SCOPED_TABLE if tennis_scoped else "old"),
             "tennis_set_rule": (
                 "set_rating_prices" if set_rating_prices else "old"),
+            **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
+               if sheet_margins_on else {}),
             "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).
