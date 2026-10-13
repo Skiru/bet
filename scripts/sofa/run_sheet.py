@@ -16,7 +16,7 @@ from typing import Any, Literal, cast
 from pydantic import RootModel
 from rapidfuzz import fuzz
 
-from bet.sofa import epochs
+from bet.sofa import epochs, sheet_config
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
@@ -776,18 +776,27 @@ def strip_in_play_prices(
 
 
 def rating_note(
-    rating: MatchForecast, side: str | None, p_rating: float, market_p: float | None
+    rating: MatchForecast, side: str | None, p_rating: float,
+    market_p: float | None, *, rule: str | None = None,
 ) -> str:
+    """The TENNIS_RATING note. `market_p` is the price the rating was
+    actually blended with (tennis_rating.blend_with_price), None when
+    p_central is the rating alone; `rule` names the stats-only switch under
+    which the rating alone prices the row (the price never enters there)."""
     who = "home" if side in (None, "side_a") else "away"
     p = rating.p_side_wins(side or "side_a")
-    blend = (
-        f"blended {W_TENNIS_RATING:g} with market_p {market_p:.4f}"
-        if market_p is not None
-        else "no price on this rung, rating alone"
-    )
+    # the old-rule wording (a blended row, an unpriced rung) stays byte for
+    # byte: the old-epoch sheets carry it
+    if market_p is not None:
+        blend = (f"blended {W_TENNIS_RATING:g} with market_p {market_p:.4f} "
+                 "(W_TENNIS_RATING)")
+    elif rule is not None:
+        blend = f"p_central is the rating alone, no price ({rule})"
+    else:
+        blend = "no price on this rung, rating alone (W_TENNIS_RATING)"
     return (
-        f"TENNIS_RATING: rating p {p_rating:.4f}, {blend} "
-        f"(W_TENNIS_RATING); {who} wins the match {p:.3f}, "
+        f"TENNIS_RATING: rating p {p_rating:.4f}, {blend}; "
+        f"{who} wins the match {p:.3f}, "
         f"{len(rating.neighbours_home)} nearest historical matches, "
         f"rated matches {rating.rated_home}/{rating.rated_away}"
     )
@@ -1183,6 +1192,25 @@ def winner_rows(
 STATS_ONLY_ROW_FIELDS = ("epoch", "forecast_p", "forecast_source")
 
 
+# The row fields of epochs' audit 2026-10-13 markers (absent while off).
+AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
+    epochs.GAME_STATE_MARKER, epochs.FOOTBALL_RATED_SCOPE_MARKER,
+    epochs.FOOTBALL_VENUE_PRIOR_MARKER, epochs.SEASON_PHASE_MARKER,
+    epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
+))
+
+
+def stamp_marker(rows: list[SheetRow], marker: tuple[str, str, str],
+                 on: bool) -> list[SheetRow]:
+    """The marker's rule name on every row of its sport while `on`
+    (epochs.sheet_has_marker reads the same rows); rows unchanged when off."""
+    if not on:
+        return rows
+    field_name, rule, sport = marker
+    return [r.model_copy(update={field_name: rule}) if r.sport == sport else r
+            for r in rows]
+
+
 def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     out = row.model_dump(mode="json")
     if out.get("epoch") is None:
@@ -1208,6 +1236,11 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
         out.pop("opponent_rule", None)
     if out.get("corrected_sample") is None:
         out.pop("corrected_sample", None)
+    # and the audit 2026-10-13 switches' markers while off, and the config
+    # fingerprint of a row priced outside main (tests, replays)
+    for key in AUDIT_MARKER_FIELDS + ("config_sha",):
+        if out.get(key) is None:
+            out.pop(key, None)
     return out
 
 
@@ -1682,6 +1715,7 @@ def process_fixture(
             # the estimator the reliability curve was fitted on. See
             # price_anchored below.
             price_anchored = False
+            anchor_price: float | None = None
             if p_rating is not None:
                 anchor_price = (
                     None if stats_only else market_ps.get(
@@ -1863,7 +1897,13 @@ def process_fixture(
                     "kickoff; its odds are not a pre-match price"
                 )
             if p_rating is not None and rating is not None:
-                notes.append(rating_note(rating, rating_side, p_rating, m_p))
+                # the price the rating was blended with (none in the
+                # stats-only epoch: there p_central is the rating alone)
+                notes.append(rating_note(
+                    rating, rating_side, p_rating, anchor_price,
+                    rule=(None if not stats_only
+                          else "epochs.TENNIS_SET_RATING_PRICES" if set_rated
+                          else "epochs.TENNIS_RATING_PRICES")))
                 if "W_TENNIS_RATING" not in row_unfitted:
                     row_unfitted = [*row_unfitted, "W_TENNIS_RATING"]
             tennis_price_shrink = (
@@ -2361,6 +2401,24 @@ def _main() -> int:
                 for r in all_rows
             ]
 
+        # Audit 2026-10-13 switches: the rule on the rows it applies to, so a
+        # rebuild re-runs SHEET on a sheet built before the switch
+        # (rebuild_plan); the same flags that reached process_fixture.
+        for marker, on in (
+            (epochs.GAME_STATE_MARKER, game_state_table is not None),
+            (epochs.FOOTBALL_RATED_SCOPE_MARKER, rated_scope_on),
+            (epochs.FOOTBALL_VENUE_PRIOR_MARKER, venue_prior_on),
+            (epochs.SEASON_PHASE_MARKER, season_phase_table is not None),
+            (epochs.FOOTBALL_RATING_WEIGHT_MARKER,
+             rating_weight_table is not None),
+            (epochs.TENNIS_SET_RATING_PRICES_MARKER, set_rating_prices),
+        ):
+            all_rows = stamp_marker(all_rows, marker, on)
+        # the fitted config the rows were priced on (bet.sofa.sheet_config)
+        config_sha = sheet_config.fingerprint()
+        all_rows = [r.model_copy(update={"config_sha": config_sha})
+                    for r in all_rows]
+
         write_atomic(
             sheet_path,
             json.dumps(
@@ -2399,7 +2457,19 @@ def _main() -> int:
             "tennis_table_rule": (
                 epochs.TENNIS_SCOPED_TABLE if tennis_scoped else "old"),
             "tennis_set_rule": (
-                "set_rating_prices" if set_rating_prices else "old"),
+                epochs.TENNIS_SET_RATING_PRICES if set_rating_prices else "old"),
+            "game_state_rule": (
+                epochs.GAME_STATE if game_state_table is not None else "old"),
+            "rated_scope_rule": (
+                epochs.FOOTBALL_RATED_SCOPE if rated_scope_on else "old"),
+            "venue_prior_rule": (
+                epochs.FOOTBALL_VENUE_PRIOR if venue_prior_on else "old"),
+            "season_phase_rule": (
+                epochs.SEASON_PHASE if season_phase_table is not None else "old"),
+            "rating_weight_rule": (
+                epochs.FOOTBALL_RATING_WEIGHT if rating_weight_table is not None
+                else "old"),
+            "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),
             "tennis_rated_fixtures": rated_fixtures,

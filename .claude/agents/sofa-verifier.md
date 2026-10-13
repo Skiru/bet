@@ -144,9 +144,10 @@ estimator - a note, not a defect):
   (not its draw) are priced by the rating's neighbours alone
   (`MatchForecast.read`, no price), so `p_central` equals `forecast_p`
   (`forecast_source: tennis_rating`; rounding aside) on those rows and they
-  carry a `TENNIS_RATING` note - which is correct there. (The note's text still
-  says "blended ... with market_p" when the rung has a price: the number
-  is not blended; check `p_central` against `forecast_p`, not the prose.)
+  carry a `TENNIS_RATING` note saying "p_central is the rating alone, no
+  price" (a sheet built before 2026-10-14 still says "blended ... with
+  market_p" there: the number is not blended; check `p_central` against
+  `forecast_p`, not the prose).
   `games_total` is `0.5 x rating + 0.5 x NB`, no note; every other tennis
   market stays on the sample. Tour / Challenger legs must not count a
   match-tiebreak decider among their neighbours

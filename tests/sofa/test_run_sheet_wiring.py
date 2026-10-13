@@ -36,7 +36,7 @@ class Harness:
 def _run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, on: set[str],
     stats_only: bool = True, table: Any = "TABLE", guard: Exception | None = None,
-    rating_error: Exception | None = None,
+    rating_error: Exception | None = None, rating_prices: bool = False,
 ) -> tuple[int, Harness, list[dict[str, Any]]]:
     h = Harness()
     runs = tmp_path / "runs"
@@ -61,7 +61,8 @@ def _run(
     monkeypatch.delenv("SOFA_NOW", raising=False)
     monkeypatch.setattr(run_sheet.sys, "argv", ["run_sheet", "--date", DAY])
     monkeypatch.setattr(run_sheet, "stats_only_epoch", lambda d: stats_only)
-    monkeypatch.setattr(run_sheet, "tennis_rating_prices", lambda d: False)
+    monkeypatch.setattr(run_sheet, "tennis_rating_prices",
+                        lambda d: rating_prices)
     monkeypatch.setattr(run_sheet, "derived_marginal_centres_enabled", lambda d: False)
     for name, flag in (
         ("cards_correlation_enabled", "cards"),

@@ -1361,6 +1361,36 @@ def football_rating_weight(date: str, build_at: datetime | None = None) -> bool:
             and at >= FOOTBALL_RATING_WEIGHT_FROM_UTC)
 
 
+# The rule markers of the audit 2026-10-13 SHEET switches (GAME_STATE,
+# FOOTBALL_RATED_SCOPE, FOOTBALL_VENUE_PRIOR, SEASON_PHASE,
+# FOOTBALL_RATING_WEIGHT on football rows; TENNIS_SET_RATING_PRICES on tennis
+# rows): SHEET stamps the row field with the rule's name when the switch is on
+# for the day built and the build clock, and leaves the field out when off, so
+# rebuild_plan re-runs SHEET on a sheet built before the switch (on 2026-10-13
+# the sheet of the morning had to be re-run by hand after 18:10Z). Only the
+# rows the rule can apply to are read: a sheet without football (tennis) has
+# nothing to re-price and would otherwise re-run SHEET on every rebuild.
+TENNIS_SET_RATING_PRICES = "tennis_set_rating_v1"
+# (row field, rule name, sport of the rows it applies to)
+GAME_STATE_MARKER = ("game_state_rule", GAME_STATE, "football")
+FOOTBALL_RATED_SCOPE_MARKER = ("rated_scope_rule", FOOTBALL_RATED_SCOPE, "football")
+FOOTBALL_VENUE_PRIOR_MARKER = ("venue_prior_rule", FOOTBALL_VENUE_PRIOR, "football")
+SEASON_PHASE_MARKER = ("season_phase_rule", SEASON_PHASE, "football")
+FOOTBALL_RATING_WEIGHT_MARKER = (
+    "rating_weight_rule", FOOTBALL_RATING_WEIGHT, "football")
+TENNIS_SET_RATING_PRICES_MARKER = (
+    "tennis_set_rule", TENNIS_SET_RATING_PRICES, "tennis")
+
+
+def sheet_has_marker(rows: Sequence[Mapping[str, Any]],
+                     marker: tuple[str, str, str]) -> bool:
+    """Was every row of a 05_sheet.json the marker's rule applies to (its
+    sport) priced under it? A sheet without such a row has nothing to
+    re-price."""
+    field_name, rule, sport = marker
+    return all(r.get(field_name) == rule for r in rows if r.get("sport") == sport)
+
+
 # Audit 2026-10-13 B11: every map of a CS2 series had the same p - the map
 # number on the line ("X wygra N. mape") was never read and the history held
 # no map name. Superbet's line knows only the number (the veto is minutes

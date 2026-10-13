@@ -21,7 +21,11 @@ CORRELATIONS_INPUT = GOLDEN_DIR / "side_correlations_input.json"
 # from the commit it started from, so they are dropped while None
 # (and later, audit 2026-10-13 B15: opponent_rule, corrected_sample)
 _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
-                "opponent_rule", "corrected_sample")
+                "opponent_rule", "corrected_sample",
+                # 2026-10-14: the audit switches' markers, the config fingerprint
+                "game_state_rule", "rated_scope_rule", "venue_prior_rule",
+                "season_phase_rule", "rating_weight_rule", "tennis_set_rule",
+                "config_sha")
 
 
 def _row(r: Any) -> dict[str, Any]:

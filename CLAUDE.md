@@ -184,10 +184,18 @@ every sport alike, and nothing that could win is cut by name.
   corners 163 -> 226), common legs' confidence +0.25 pp.
   `data/refit_2026-10-13/ft/compare_report.md` ran SHEET with these switches
   OFF: its coupon-replay section measures the new curves on the old centre.
-  **Known gap:** `rebuild_plan.py` knows neither these six switches nor a
-  constants refit, so a rebuild keeps an old-rule `05_sheet.json`; after a
-  change of them re-run SHEET by hand (`run_pipeline.py --only SHEET`), as was
-  done for 10-13. Report: `docs/sofa/history/RAPORT_REFIT_2026-10-13.md`.
+  SHEET stamps each of the six on the rows it applies to while it is on
+  (`epochs.*_MARKER`: `game_state_rule`, `rated_scope_rule`,
+  `venue_prior_rule`, `season_phase_rule`, `rating_weight_rule` on football
+  rows, `tennis_set_rule` on tennis rows; absent when off), and
+  `rebuild_plan.py` re-runs SHEET when one is on for the day and clock and a
+  row of its sport lacks it (a sheet without that sport never re-runs; on
+  10-13 this was still done by hand). Every row also carries `config_sha`
+  (`bet.sofa.sheet_config`: the fitted files SHEET reads); a sheet priced on
+  other constants gets a `CONFIG_CHANGED` note but is **not** re-run (an
+  install is undated and never goes into a built day without a go - then
+  `run_pipeline.py --only SHEET` by hand); curves need nothing, CONFIDENCE
+  reads them on every rebuild. Report: `docs/sofa/history/RAPORT_REFIT_2026-10-13.md`.
 - **Wait for a measurement, not a name:** a market with no curve and no
   evidence is `NO_LINE_EVIDENCE`. Before `LINE_EVIDENCE_FROM_UTC` (rebuilds of
   older days only) the by-name refusals still apply: `refused_markets`,
