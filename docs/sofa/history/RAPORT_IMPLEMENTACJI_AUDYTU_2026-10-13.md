@@ -340,6 +340,23 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
   zaniża). **Zmierzone, nie włączone.** Następny krok: nowy zarejestrowany
   test (krzywa punktowa zamiast dolnej granicy Wilsona albo świeższe okno).
 
+### Refit koszykówki (O6) - compare bez poprawy, NIE zainstalowany
+
+- Kopia bazy `data/refit_2026-10-13/sofa_replay.db`, `fit_sport_confidence
+  --sport basketball --before 2026-10-13`: bazowy (obecny estymator,
+  `bb_base/`) i nowy z A2 + A3/C8 (`--league-rate-rule --bb-overtime`,
+  `bb_new/`; kontrola Superbetu liczona tym samym estymatorem - poprawka
+  42c65615). A8 nie wchodzi (żaden wariant nie przeszedł).
+- Compare w parach na wspólnych liniach, log-loss pewności nowa - bazowa:
+  holdout historii (926 740 linii / 1 976 meczów) -0,00009 [-0,00024;
+  +0,00005]; linie Superbetu 09-29..10-12 (79 339 / 1 214) +0,00108 [-0,0007;
+  +0,0030] (przedziały przybliżone, 300 losowań). Nogi >= 0,70 na liniach
+  Superbetu: bazowa 0,762 / realizacja 0,630, nowa 0,767 / 0,632.
+- **Decyzja (O6): brak poprawy - nie instaluję.** `BB_OVERTIME_FROM_UTC`
+  zostaje None, krzywa koszykówki bez zmian. Luka ~-12 pp na liniach
+  Superbetu zostaje - zgodnie z audytem (pkt 5 „Kolejności”): bez A7 / B7
+  refit tą metodą jej nie zamyka.
+
 ### Ledger
 
 Nowa grupa epoki „od 10-14” w `audit_ledger.EPOCH_GROUPS` (A2 + A4 zmieniają
