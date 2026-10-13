@@ -49,6 +49,14 @@ the NB for games_total (`--tennis-rating`). The football joints (both_over_ /
 most_ / handicap_) of the bases in epochs.DERIVED_MARGINAL_CENTRES_METRICS are
 replayed from the marginal rows' centres on request (`--derived`).
 
+Audit 2026-10-13 A6 / B1 / B2 / B5, all opt-in (off = the rows as before,
+byte for byte): `--football-rating` prices every football marginal row with
+SHEET's live centre - the rating book replayed to each match's UTC day start,
+blended at W_FOOTBALL_RATING - through one hook, `live_centre`, which also
+applies `--rated-scope`, `--venue-prior` and `--game-state` as SHEET does;
+`--tennis-set-ratings` adds the per-set games and sets_total rows, priced
+off the tennis rating's neighbours (tennis_rating.SET_RATING_PRICED_MARKETS).
+
 Football player markets (F54, since 2026-10-03) are replayed beside the team
 markets, from the cached `/lineups` - see `build_player_rows`. Their rows
 carry the same marking (run_date 'cache-calibration', p_bar = p_central,
@@ -64,12 +72,13 @@ import json
 import math
 import sqlite3
 import statistics
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from bet.sofa import epochs
 from bet.sofa.atomic import write_atomic
 from bet.sofa.comparability import (
     SAME_COMPETITION_METRICS,
@@ -96,6 +105,17 @@ from bet.sofa.engine import (
     winning_boundary,
 )
 from bet.sofa.epochs import DERIVED_MARGINAL_CENTRES_METRICS
+from bet.sofa.football_rating import (
+    RATED_SCOPE_MARKETS,
+    VENUE_PRIOR_MARKETS,
+    W_FOOTBALL_RATING,
+    FootballForecast,
+    FootballResult,
+    RatingBook,
+)
+from bet.sofa.football_rating import load_history as load_football_history
+from bet.sofa.game_state import GameStateTable
+from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.joint import build_joint
 from bet.sofa.listing_index import entity_indexed_events, listed_events_by_id
 from bet.sofa.metrics import (
@@ -129,6 +149,7 @@ from bet.sofa.samples import (
 from bet.sofa.settle import is_completed_event, settle
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
+    SET_RATING_PRICED_MARKETS,
     W_GAMES_TOTAL_RATING,
     AsOfRating,
     MatchForecast,
@@ -202,11 +223,57 @@ HALF_BASES: tuple[str, ...] = tuple(
 # `games_for`. A curve keyed on a name the engine never looks up is a
 # correction that silently does nothing, which is worse than no curve at all
 # because the artifact then claims to be calibrated.
-MARKET_NAME_OVERRIDES = {("games", "for"): "games_won_for"}
+MARKET_NAME_OVERRIDES = {
+    ("games", "for"): "games_won_for",
+    ("games_set1", "for"): "games_won_set1_for",
+    ("games_set2", "for"): "games_won_set2_for",
+    ("games_set3", "for"): "games_won_set3_for",
+}
 
 
 def market_name(base: str, suffix: str) -> str:
     return MARKET_NAME_OVERRIDES.get((base, suffix), f"{base}_{suffix}")
+
+
+# Audit 2026-10-13 B5 (--tennis-set-ratings, epochs.TENNIS_SET_RATING_PRICES):
+# the tennis per-set games and the number of sets, read off the set score of
+# the listing (metrics.extract_metric, as SAMPLES and SETTLE read them), and
+# which of a base's two markets SHEET prices: games_setN_total and
+# games_won_setN_for (set three: the player's games only - Superbet quotes no
+# set-three total), sets_total (no per-side market). Absent unless the flag is
+# given, so the default replay is byte for byte the one before it.
+SET_BASE_MARKETS: dict[str, tuple[str, ...]] = {
+    "games_set1": ("for", "total"),
+    "games_set2": ("for", "total"),
+    "games_set3": ("for",),
+    "sets": ("total",),
+}
+
+
+def set_values(event: dict[str, Any]) -> dict[str, tuple[float, float]]:
+    """(home, away) per SET_BASE_MARKETS base of one finished tennis match. A
+    set that was not played, a match tiebreak and a score that is no set score
+    give no value (extract_metric's refusals), never zero. ``sets`` is the
+    sets each side won (``current``), kept only when they add up to the sets
+    the listing shows - its total is what sets_total settles on."""
+    out: dict[str, tuple[float, float]] = {}
+    for index in (1, 2, 3):
+        metric = f"games_won_set{index}_for"
+        home = extract_metric(metric, "tennis", {}, None, event, True)
+        away = extract_metric(metric, "tennis", {}, None, event, False)
+        if isinstance(home, float) and isinstance(away, float):
+            out[f"games_set{index}"] = (home, away)
+    played = extract_metric("sets_total", "tennis", {}, None, event, True)
+    won_home = (event.get("homeScore") or {}).get("current")
+    won_away = (event.get("awayScore") or {}).get("current")
+    if (
+        isinstance(played, float)
+        and isinstance(won_home, int | float) and not isinstance(won_home, bool)
+        and isinstance(won_away, int | float) and not isinstance(won_away, bool)
+        and float(won_home) + float(won_away) == played
+    ):
+        out["sets"] = (float(won_home), float(won_away))
+    return out
 
 
 # The fallback, used only when nothing has been fitted yet. The shipped value
@@ -403,13 +470,20 @@ def slim_event(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_cache(
-    db_path: Path, dropped_out: set[int] | None = None
+    db_path: Path, dropped_out: set[int] | None = None,
+    tennis_sets: bool = False,
 ) -> list[Played]:
     """Every finished cached match, one listing per match.
 
     `dropped_out`, when given, receives the event ids the duplicate-listing
     collapse removed, so write_settled can delete the replay rows an earlier
     run stored under them.
+
+    `tennis_sets` (--tennis-set-ratings): every completed tennis match also
+    carries its set bases (set_values) - read off the listing, as SAMPLES
+    reads them, so a match without /statistics enters the replay for those
+    bases alone (its other bases' histories are untouched: they are keyed by
+    base).
     """
     conn = sqlite3.connect(str(db_path))
     try:
@@ -484,6 +558,8 @@ def load_cache(
 
         statistics_json, incidents_json = stats_by_event.get(event_id, (None, None))
         values = match_values(event, sport, statistics_json, incidents_json)
+        if tennis_sets and sport == "tennis":
+            values = {**values, **set_values(event)}
 
         if values:
             played.append(
@@ -594,6 +670,9 @@ class Past(NamedTuple):
     total: float
     competition_id: int | None = None
     regular: bool = True
+    # "home" / "away": where the side earned it (the venue prior of
+    # --venue-prior reads the sample's venues, as SHEET reads Observation.venue)
+    venue: str | None = None
 
 
 def recent_for(
@@ -706,13 +785,21 @@ class RatingReplay:
 
 def rating_reader(forecast: MatchForecast, side: str) -> RatingP:
     """run_sheet's p_rating for one side's games_won_for row and, with side
-    None, the match's games_total row; nothing for any other market."""
+    None, the match's games_total row; and, under --tennis-set-ratings
+    (TENNIS_SET_RATINGS), the per-set games and sets_total of
+    SET_RATING_PRICED_MARKETS (a player's set games from his side, a total
+    from the home pool, as MatchForecast.read reads it); nothing for any
+    other market."""
 
     def read(market: str, line: float, direction: str) -> float | None:
         if market == "games_won_for":
             return forecast.read(market, side, line, direction)
         if market == "games_total":
             return forecast.read(market, None, line, direction)
+        if TENNIS_SET_RATINGS and market in SET_RATING_PRICED_MARKETS:
+            return forecast.read(
+                market, side if market.endswith("_for") else None, line,
+                direction)
         return None
 
     return read
@@ -758,6 +845,163 @@ def rating_derived_rows(
                     actual=margin,
                     outcome="WIN" if won else "LOSS",
                 )
+
+
+# ---------------------------------------------------------------------------
+# The football centre as SHEET builds it live (audit 2026-10-13 A6)
+# ---------------------------------------------------------------------------
+#
+# Until --football-rating the replay's football centre was the K_CENTRE
+# shrink of the sample alone, while SHEET blends the opponent-adjusted rating
+# into it at W_FOOTBALL_RATING (run_sheet.process_fixture): the curves were
+# fitted on another centre than the one that prints. With the flag the
+# rating book is replayed in time order and read as SHEET reads it.
+
+
+@dataclass(frozen=True)
+class CentreRules:
+    """Which live centre terms the replay applies (all off = the replay as
+    it was, byte for byte). ``rated_scope``, ``game_state`` and
+    ``venue_prior`` are the audit 2026-10-13 B1 / B2 switches
+    (epochs.FOOTBALL_RATED_SCOPE / GAME_STATE / FOOTBALL_VENUE_PRIOR); they
+    need the rating, as in SHEET. The book's own rules (link, regional unit
+    strength, strict league rate) are read from epochs at the replay's start,
+    as SHEET would read them for a day built now."""
+
+    football_rating: bool = False
+    rated_scope: bool = False
+    venue_prior: bool = False
+    game_state: GameStateTable | None = None
+    shared_league_link: bool = True
+    unit_strength_from_parent: bool = False
+    strict_league_rate: bool = False
+
+    def describe(self) -> dict[str, Any]:
+        return {
+            "football_rating": self.football_rating,
+            "rated_scope": self.rated_scope,
+            "venue_prior": self.venue_prior,
+            "game_state": (None if self.game_state is None
+                           else self.game_state.path or "in-memory"),
+            "shared_league_link": self.shared_league_link,
+            "unit_strength_from_parent": self.unit_strength_from_parent,
+            "strict_league_rate": self.strict_league_rate,
+        }
+
+
+# Set by main() from the flags; the replay as it was by default.
+CENTRE_RULES = CentreRules()
+
+# --tennis-set-ratings (audit 2026-10-13 B5): the set bases are loaded
+# (load_cache tennis_sets) and their markets read off the rating's neighbours.
+TENNIS_SET_RATINGS = False
+
+
+def day_start(ts: int) -> int:
+    """00:00Z of the match's UTC day - the cut SHEET replays the football book
+    to (run_sheet: football_rating.replay(history, the day))."""
+    return ts - ts % 86400
+
+
+class FootballRatingReplay:
+    """The football rating book SHEET prices with, as of each replayed match.
+
+    SHEET replays football_rating.load_history up to the day being built
+    (``cut`` = that day's 00:00Z) and reads every fixture of the day from that
+    one book. Here the book is advanced lazily, in time order, to the UTC day
+    start of the match being priced: it holds only matches that kicked off
+    strictly before that day - never the match itself, nor a later one - and
+    it never moves backwards (the replay is chronological; a request for an
+    earlier day raises)."""
+
+    def __init__(
+        self, history: Iterable[FootballResult], rules: CentreRules,
+    ) -> None:
+        self._history = sorted(history, key=lambda r: r.ts)
+        self._next = 0
+        self.cut = -(2**62)
+        self.rules = rules
+        self.book = RatingBook(shared_league_link=rules.shared_league_link)
+        self.book.unit_strength_from_parent = rules.unit_strength_from_parent
+        self.forecasts = 0
+
+    @classmethod
+    def from_db(cls, db_path: Path, rules: CentreRules) -> FootballRatingReplay:
+        # the history SHEET reads, through the same pickle cache next to the DB
+        return cls(load_football_history(db_path, db_path.parent / "cache"), rules)
+
+    def advance(self, cut_ts: int) -> None:
+        """Update the book with every result that kicked off before cut_ts."""
+        if cut_ts < self.cut:
+            raise ValueError(f"football book asked back from {self.cut} to {cut_ts}")
+        self.cut = cut_ts
+        history = self._history
+        while self._next < len(history) and history[self._next].ts < cut_ts:
+            self.book.update(history[self._next])
+            self._next += 1
+
+    @property
+    def seen(self) -> int:
+        """How many history results the book holds."""
+        return self._next
+
+    def forecast(self, match: Played) -> FootballForecast | None:
+        """SHEET's FootballForecast for a football match; None for another
+        sport or a match with no competition. Valid until the next call for a
+        later day (the book is shared and moves on)."""
+        if match.sport != "football" or match.competition_id is None:
+            return None
+        self.advance(day_start(match.timestamp))
+        self.forecasts += 1
+        return FootballForecast(
+            self.book, match.competition_id, match.home_id, match.away_id,
+            strict_league_rate=self.rules.strict_league_rate,
+            rated_scope=(RATED_SCOPE_MARKETS if self.rules.rated_scope
+                         else frozenset()),
+        )
+
+
+def live_centre(
+    match: Played,
+    market: str,
+    side: str | None,
+    sample_centre: float,
+    forecast: FootballForecast | None,
+    venues: Sequence[str | None] = (),
+    rules: CentreRules | None = None,
+) -> float:
+    """THE hook: the centre SHEET prices a football marginal row with, from
+    the replay's shrunk sample centre - every live centre term is applied
+    here and nowhere else (run_sheet.process_fixture, the order kept):
+
+      1. the rating (FootballForecast.centre; the rated scope lives in the
+         forecast) blended at W_FOOTBALL_RATING;
+      2. --venue-prior: a sample-only side centre of VENUE_PRIOR_MARKETS x
+         the league venue multiplier over ``venues`` (the sample's);
+      3. --game-state: x exp(beta x the side's expected goal difference).
+
+    ``side`` is "side_a" (home) / "side_b" (away) / None for a total. No
+    forecast (rating off, another sport, no competition) or a player market:
+    the sample centre unchanged. A later centre term goes here, behind its
+    own CentreRules field."""
+    rules = rules if rules is not None else CENTRE_RULES
+    if forecast is None or is_player_metric(market):
+        return sample_centre
+    centre = sample_centre
+    rated = forecast.centre(market, side)
+    if rated is not None:
+        centre = W_FOOTBALL_RATING * rated[0] + (1 - W_FOOTBALL_RATING) * centre
+    if (rules.venue_prior and rated is None and side is not None
+            and market in VENUE_PRIOR_MARKETS):
+        v_mult = forecast.venue_multiplier(market, side, venues)
+        if v_mult is not None:
+            centre *= v_mult
+    if rules.game_state is not None and side:
+        sup = forecast.supremacy(side)
+        g_mult = rules.game_state.multiplier(market, sup)
+        if g_mult is not None and sup is not None:
+            centre *= g_mult
+    return centre
 
 
 # Football joints (both_over_ / most_ / handicap_) of the bases measured out of
@@ -869,9 +1113,18 @@ def iter_rows(
     baselines: dict[str, Any],
     rating: RatingReplay | None = None,
     joint_bases: frozenset[str] = frozenset(),
+    football: FootballRatingReplay | None = None,
+    emit_from: int | None = None,
+    emit_to: int | None = None,
 ) -> Iterator[SettledRow]:
     """build() one row at a time, for a measurement that aggregates the
-    replay without holding tens of millions of rows."""
+    replay without holding tens of millions of rows.
+
+    ``football`` (--football-rating): the rating book SHEET prices football
+    with, read through live_centre for every football marginal row and joint
+    centre. ``emit_from`` / ``emit_to`` (unix seconds, a smoke window): rows
+    only for matches kicking off inside [emit_from, emit_to); every earlier
+    match still enters the histories, nothing after emit_to is read."""
     # Read once: the constant is per sport and must be the one that ships.
     engine_constants = _load_engine_constants()
     correlations = load_side_correlations(cards_correlation=CARDS_CORRELATION)
@@ -879,115 +1132,17 @@ def iter_rows(
     history: dict[tuple[int, str], list[Past]] = collections.defaultdict(list)
 
     for match in played:
+        if emit_to is not None and match.timestamp >= emit_to:
+            break
         if match.kind == MatchKind.FRIENDLY and match.sport != "football":
             # fit_meta.friendly_exclusion_sql drops football friendlies by
             # competition id only; a tennis exhibition's rows would enter
             # every fit (review round 3). Never settled, never in a history.
             continue
-        # The goal samples' same-competition rule applies to league fixtures
-        # only (SAMPLES, review 2026-10-04: worse on KNOCKOUT targets).
-        sample_competition = (
-            match.competition_id if match.kind == MatchKind.REGULAR else None
-        )
-        forecast = (
-            rating.forecast(match)
-            if rating is not None and match.sport == "tennis"
-            and "games" in match.values else None
-        )
-        for base, (home_value, away_value) in match.values.items():
-            total = home_value + away_value
-            for_market = market_name(base, "for")
-            home_recent = recent_for(
-                history[(match.home_id, base)], for_market, sample_competition
-            )
-            away_recent = recent_for(
-                history[(match.away_id, base)], for_market, sample_competition
-            )
-
-            # `*_for`: each side from its own history only, as SHEET does
-            # (determine_side; h2h never reaches a per-side market).
-            for team, own, recent, side in (
-                (match.home_id, home_value, home_recent, "side_a"),
-                (match.away_id, away_value, away_recent, "side_b"),
-            ):
-                if len(recent) >= MIN_SAMPLE:
-                    yield from (
-                        _settle_sample(
-                            match,
-                            market_name(base, "for"),
-                            str(team),
-                            own,
-                            [p.own for p in recent],
-                            baselines,
-                            engine_constants,
-                            rating_reader(forecast, side)
-                            if forecast is not None and base == "games" else None,
-                        )
-                    )
-
-            # `*_total`: ONE row set per match, from the pooled sample, and
-            # only when BOTH sides have a sample - SHEET refuses a total with
-            # either side thin (THIN_SAMPLE, "total pools both sides").
-            # Residual difference from the sheet, not removable here: the
-            # per-side threshold is this replay's MIN_SAMPLE (8), not the
-            # sheet's config.min_sample (5); the per-side sample is the last
-            # SAMPLE_N matches that HAVE this statistic, where SAMPLES takes
-            # the last sample_n events and loses the gaps; and SAMPLES'
-            # scoping of tennis (surface / best-of) is not replayed - the same
-            # differences every `*_for` row already has. Friendlies are out of
-            # the history since 2026-10-04 (Played.kind), and a goal total
-            # picks its sides the way SAMPLES does (recent_for).
-            total_market = market_name(base, "total")
-            home_total = recent_for(
-                history[(match.home_id, base)], total_market, sample_competition
-            )
-            away_total = recent_for(
-                history[(match.away_id, base)], total_market, sample_competition
-            )
-            if len(home_total) >= MIN_SAMPLE and len(away_total) >= MIN_SAMPLE:
-                yield from (
-                    _settle_sample(
-                        match,
-                        total_market,
-                        "",
-                        total,
-                        pooled_total_sample(home_total, away_total),
-                        baselines,
-                        engine_constants,
-                        rating_reader(forecast, "side_a")
-                        if forecast is not None and base == "games" else None,
-                    )
-                )
-                # SHEET prices a derived row of a fixture whose two sides both
-                # have a sample (derived.price_derived_rungs: n >= min_sample).
-                if forecast is not None and base == "games":
-                    yield from rating_derived_rows(
-                        match, forecast,
-                        [p.own for p in home_recent],
-                        [p.own for p in away_recent],
-                    )
-            # SHEET prices a joint of a fixture whose two sides both have a
-            # sample (derived.price_derived_rungs: n >= min_sample), neither
-            # all zero together.
-            if (
-                base in joint_bases
-                and match.sport == "football"
-                and len(home_recent) >= MIN_SAMPLE
-                and len(away_recent) >= MIN_SAMPLE
-                and any(p.own for p in (*home_recent, *away_recent))
-            ):
-                # a side whose own marginal row is refused (all zero) has no
-                # centre: the joint then reads both raw samples, as in SHEET
-                joint_centres: list[float | None] = [
-                    None if not any(p.own for p in rec) else shrunk_centre(
-                        match, for_market, [p.own for p in rec], baselines,
-                        engine_constants)
-                    for rec in (home_recent, away_recent)]
-                yield from football_joint_rows(
-                    match, base, [p.own for p in home_recent],
-                    [p.own for p in away_recent],
-                    (joint_centres[0], joint_centres[1]),
-                    correlations.get(base) or 0.0)
+        if emit_from is None or match.timestamp >= emit_from:
+            yield from _match_rows(
+                match, history, baselines, engine_constants, correlations,
+                rating, joint_bases, football)
 
         # Only after settling: a match may never contribute to its own sample.
         # A friendly is settled like any match (the fit drops friendly rows,
@@ -999,12 +1154,152 @@ def iter_rows(
             total = home_value + away_value
             history[(match.home_id, base)].append(
                 Past(match.timestamp, match.event_id, home_value, total,
-                     match.competition_id, regular)
+                     match.competition_id, regular, "home")
             )
             history[(match.away_id, base)].append(
                 Past(match.timestamp, match.event_id, away_value, total,
-                     match.competition_id, regular)
+                     match.competition_id, regular, "away")
             )
+
+
+def _match_rows(
+    match: Played,
+    history: dict[tuple[int, str], list[Past]],
+    baselines: dict[str, Any],
+    engine_constants: dict[str, Any],
+    correlations: Mapping[str, float | None],
+    rating: RatingReplay | None,
+    joint_bases: frozenset[str],
+    football: FootballRatingReplay | None,
+) -> Iterator[SettledRow]:
+    """Every settled row of one match, from the histories before it."""
+    # The goal samples' same-competition rule applies to league fixtures
+    # only (SAMPLES, review 2026-10-04: worse on KNOCKOUT targets).
+    sample_competition = (
+        match.competition_id if match.kind == MatchKind.REGULAR else None
+    )
+    forecast = (
+        rating.forecast(match)
+        if rating is not None and match.sport == "tennis"
+        and ("games" in match.values or (
+            TENNIS_SET_RATINGS
+            and any(b in match.values for b in SET_BASE_MARKETS)))
+        else None
+    )
+    football_fc = (
+        football.forecast(match)
+        if football is not None and match.sport == "football" else None
+    )
+
+    def settle_rows(
+        market: str, subject: str, actual: float, sample: list[float],
+        rating_p: RatingP | None, side: str | None, recent: Sequence[Past],
+    ) -> list[SettledRow]:
+        # Without a football forecast: _settle_sample, the call before A6
+        # argument for argument (a measurement swaps a collector in for it).
+        if football_fc is None:
+            return _settle_sample(match, market, subject, actual, sample,
+                                  baselines, engine_constants, rating_p)
+        venues = tuple(p.venue for p in recent)
+        return _settle_centred(
+            match, market, subject, actual, sample, baselines,
+            engine_constants, rating_p,
+            lambda c: live_centre(match, market, side, c, football_fc, venues))
+
+    for base, (home_value, away_value) in match.values.items():
+        total = home_value + away_value
+        for_market = market_name(base, "for")
+        set_markets = SET_BASE_MARKETS.get(base)
+        rated_base = base == "games" or (
+            set_markets is not None and TENNIS_SET_RATINGS)
+        home_recent = recent_for(
+            history[(match.home_id, base)], for_market, sample_competition
+        )
+        away_recent = recent_for(
+            history[(match.away_id, base)], for_market, sample_competition
+        )
+
+        # `*_for`: each side from its own history only, as SHEET does
+        # (determine_side; h2h never reaches a per-side market).
+        for team, own, recent, side in (
+            (match.home_id, home_value, home_recent, "side_a"),
+            (match.away_id, away_value, away_recent, "side_b"),
+        ):
+            if set_markets is not None and "for" not in set_markets:
+                break
+            if len(recent) >= MIN_SAMPLE:
+                yield from settle_rows(
+                    for_market, str(team), own, [p.own for p in recent],
+                    rating_reader(forecast, side)
+                    if forecast is not None and rated_base else None,
+                    side, recent,
+                )
+
+        if set_markets is not None and "total" not in set_markets:
+            continue
+        # `*_total`: ONE row set per match, from the pooled sample, and
+        # only when BOTH sides have a sample - SHEET refuses a total with
+        # either side thin (THIN_SAMPLE, "total pools both sides").
+        # Residual difference from the sheet, not removable here: the
+        # per-side threshold is this replay's MIN_SAMPLE (8), not the
+        # sheet's config.min_sample (5); the per-side sample is the last
+        # SAMPLE_N matches that HAVE this statistic, where SAMPLES takes
+        # the last sample_n events and loses the gaps; and SAMPLES'
+        # scoping of tennis (surface / best-of) is not replayed - the same
+        # differences every `*_for` row already has. Friendlies are out of
+        # the history since 2026-10-04 (Played.kind), and a goal total
+        # picks its sides the way SAMPLES does (recent_for).
+        total_market = market_name(base, "total")
+        home_total = recent_for(
+            history[(match.home_id, base)], total_market, sample_competition
+        )
+        away_total = recent_for(
+            history[(match.away_id, base)], total_market, sample_competition
+        )
+        if len(home_total) >= MIN_SAMPLE and len(away_total) >= MIN_SAMPLE:
+            yield from settle_rows(
+                total_market, "", total,
+                pooled_total_sample(home_total, away_total),
+                rating_reader(forecast, "side_a")
+                if forecast is not None and rated_base else None,
+                None, (),
+            )
+            # SHEET prices a derived row of a fixture whose two sides both
+            # have a sample (derived.price_derived_rungs: n >= min_sample).
+            if forecast is not None and base == "games":
+                yield from rating_derived_rows(
+                    match, forecast,
+                    [p.own for p in home_recent],
+                    [p.own for p in away_recent],
+                )
+        # SHEET prices a joint of a fixture whose two sides both have a
+        # sample (derived.price_derived_rungs: n >= min_sample), neither
+        # all zero together.
+        if (
+            base in joint_bases
+            and match.sport == "football"
+            and len(home_recent) >= MIN_SAMPLE
+            and len(away_recent) >= MIN_SAMPLE
+            and any(p.own for p in (*home_recent, *away_recent))
+        ):
+            # a side whose own marginal row is refused (all zero) has no
+            # centre: the joint then reads both raw samples, as in SHEET.
+            # A side's centre is its marginal row's (derived.
+            # price_derived_rungs reads SHEET's marginal centres): with
+            # --football-rating the live one (live_centre).
+            joint_centres: list[float | None] = [
+                None if not any(p.own for p in rec) else live_centre(
+                    match, for_market, side,
+                    shrunk_centre(match, for_market, [p.own for p in rec],
+                                  baselines, engine_constants),
+                    football_fc, tuple(p.venue for p in rec))
+                for rec, side in ((home_recent, "side_a"),
+                                  (away_recent, "side_b"))]
+            yield from football_joint_rows(
+                match, base, [p.own for p in home_recent],
+                [p.own for p in away_recent],
+                (joint_centres[0], joint_centres[1]),
+                correlations.get(base) or 0.0)
 
 
 def shrunk_centre(
@@ -1052,6 +1347,25 @@ def _settle_sample(
     engine_constants: dict[str, Any],
     rating_p: RatingP | None = None,
 ) -> list[SettledRow]:
+    """The rows of one sample at the replay's sample centre. Its signature
+    is the one measurements swap a collector in for (measure_count_families,
+    fit_count_dispersion); a live football centre goes through
+    _settle_centred."""
+    return _settle_centred(match, market, subject, actual, sample, baselines,
+                           engine_constants, rating_p)
+
+
+def _settle_centred(
+    match: Played,
+    market: str,
+    subject: str,
+    actual: float,
+    sample: list[float],
+    baselines: dict[str, Any],
+    engine_constants: dict[str, Any],
+    rating_p: RatingP | None = None,
+    centre_hook: Callable[[float], float] | None = None,
+) -> list[SettledRow]:
     out: list[SettledRow] = []
     n = len(sample)
     if n < MIN_SAMPLE or all(v == 0.0 for v in sample):
@@ -1060,12 +1374,16 @@ def _settle_sample(
     variance = statistics.variance(sample) if n > 1 else 0.0
     sample_sd = statistics.stdev(sample) if n > 1 else 0.0
     centre = shrunk_centre(match, market, sample, baselines, engine_constants)
+    if centre_hook is not None:
+        # --football-rating: SHEET's live centre (live_centre, audit A6)
+        centre = centre_hook(centre)
 
     # SHEET's spread and SHEET's estimator, from the functions SHEET calls
     # (see the module docstring). What is NOT replayed, and so still differs
-    # from a live row: the football rating's centre (W_FOOTBALL_RATING) and
-    # the tennis tier / ladder priors - the replay's centre is the
-    # league-baseline shrink alone. The tennis rating IS replayed since the
+    # from a live row: the tennis tier / ladder priors, and - unless
+    # --football-rating gives a centre_hook (live_centre) - the football
+    # rating's centre (W_FOOTBALL_RATING): without it the replay's centre is
+    # the league-baseline shrink alone. The tennis rating IS replayed since the
     # stats-only rating prices (epochs.TENNIS_RATING_PRICES_FROM_UTC): a
     # rating_p callable, given by iter_rows, replaces p for games_won_for and
     # mixes into games_total exactly as run_sheet does.
@@ -1108,8 +1426,11 @@ def _settle_sample(
                 # run_sheet: the neighbours alone for the RATING_PRICED
                 # families, a W_GAMES_TOTAL_RATING mix with the NB for
                 # games_total.
+                # --tennis-set-ratings: SET_RATING_PRICED_MARKETS alone too
+                # (run_sheet's set_rated rows keep p_rating).
                 p_raw = (
                     p_rating if market in RATING_PRICED_MARKETS
+                    or market in SET_RATING_PRICED_MARKETS
                     else W_GAMES_TOTAL_RATING * p_rating
                     + (1.0 - W_GAMES_TOTAL_RATING) * p_raw
                 )
@@ -1904,7 +2225,66 @@ def main() -> int:
         "on the same history (docs/sofa/evidence/k_under_dispersion_"
         "2026-10-08.md), so the replay is in-sample for them",
     )
+    parser.add_argument(
+        "--football-rating", action="store_true",
+        help="audit 2026-10-13 A6: price the football marginal rows (and the "
+        "--derived joints' centres) with SHEET's live centre - the football "
+        "rating book replayed in time order to each match's UTC day start "
+        "(football_rating.load_history, the pickle next to the DB; ~10 min "
+        "the first time) and blended with the shrunk sample centre at "
+        "W_FOOTBALL_RATING (live_centre). Default off: the sample centre "
+        "alone, byte for byte as before",
+    )
+    parser.add_argument(
+        "--rated-scope", action="store_true",
+        help="with --football-rating: the rating also prices RATED_SCOPE_"
+        "MARKETS (epochs.FOOTBALL_RATED_SCOPE_FROM_UTC, audit B2)",
+    )
+    parser.add_argument(
+        "--venue-prior", action="store_true",
+        help="with --football-rating: a sample-only side centre of VENUE_"
+        "PRIOR_MARKETS x the league venue multiplier (epochs.FOOTBALL_VENUE_"
+        "PRIOR_FROM_UTC, audit B2)",
+    )
+    parser.add_argument(
+        "--game-state", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: the game-state term exp(beta x expected "
+        "goal difference) (epochs.GAME_STATE_FROM_UTC, audit B1; CONFIG "
+        "defaults to config/sofa_game_state.json, SOFA_CONFIG_DIR). The betas "
+        "were fitted on the same history: in-sample for them",
+    )
+    parser.add_argument(
+        "--tennis-set-ratings", action="store_true",
+        help="audit 2026-10-13 B5: replay the tennis per-set games "
+        "(games_set1/2_total, games_won_set1/2/3_for) and sets_total from "
+        "the listing's set score, priced off the rating's neighbours as of "
+        "the match's day as SHEET prices them under epochs.TENNIS_SET_RATING_"
+        "PRICES_FROM_UTC. Needs --tennis-rating include. Default off: no "
+        "such rows",
+    )
+    parser.add_argument(
+        "--from", dest="emit_from", default=None, metavar="YYYY-MM-DD",
+        help="smoke window: rows only for matches from this UTC day (earlier "
+        "ones still build the histories and the books)",
+    )
+    parser.add_argument(
+        "--to", dest="emit_to", default=None, metavar="YYYY-MM-DD",
+        help="smoke window: rows only for matches before this UTC day",
+    )
+    parser.add_argument(
+        "--no-write", action="store_true",
+        help="count and time the rows, write nothing to the DB (a smoke run)",
+    )
     args = parser.parse_args()
+    needs_rating = [name for name, on in (
+        ("--rated-scope", args.rated_scope), ("--venue-prior", args.venue_prior),
+        ("--game-state", args.game_state is not None)) if on]
+    if needs_rating and not args.football_rating:
+        # SHEET applies them only through its FootballForecast
+        parser.error(f"{', '.join(needs_rating)} need --football-rating")
+    if args.tennis_set_ratings and args.tennis_rating != "include":
+        # rides on the rating prices (epochs.tennis_set_rating_prices)
+        parser.error("--tennis-set-ratings needs --tennis-rating include")
     if (args.count_dispersion is not None) != bool(args.per_market_k):
         # fitted jointly: SHEET refuses one without the other
         # (epochs.require_k_with_dispersion), so the replay must too
@@ -1912,8 +2292,25 @@ def main() -> int:
                      "(they were fitted jointly); give both or neither")
 
     global COUNT_DISPERSION, CARDS_CORRELATION, PER_MARKET_K
+    global CENTRE_RULES, TENNIS_SET_RATINGS
     CARDS_CORRELATION = bool(args.cards_correlation)
     PER_MARKET_K = bool(args.per_market_k)
+    TENNIS_SET_RATINGS = bool(args.tennis_set_ratings)
+    if args.football_rating:
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        CENTRE_RULES = CentreRules(
+            football_rating=True,
+            rated_scope=bool(args.rated_scope),
+            venue_prior=bool(args.venue_prior),
+            game_state=(
+                load_game_state_table(
+                    Path(args.game_state) if args.game_state else None)
+                if args.game_state is not None else None),
+            # the book's rules SHEET would use for a day built now
+            shared_league_link=epochs.link_shared_league(today),
+            unit_strength_from_parent=epochs.unit_strength_from_parent(today),
+            strict_league_rate=epochs.football_league_rate_rule(today),
+        )
     if args.count_dispersion is not None:
         COUNT_DISPERSION = load_dispersion_table(
             Path(args.count_dispersion) if args.count_dispersion else None)
@@ -1936,10 +2333,13 @@ def main() -> int:
     dropped: set[int] = set()
     played: list[Played] = []
     baselines = load_baselines()
+    t_load = datetime.now(UTC)
     if args.players != "only":
-        played = load_cache(db_path, dropped)
+        played = (load_cache(db_path, dropped, tennis_sets=True)
+                  if TENNIS_SET_RATINGS else load_cache(db_path, dropped))
         if args.halves == "skip":
             played = without_halves(played)
+    load_seconds = round((datetime.now(UTC) - t_load).total_seconds(), 1)
 
     player_rows: list[SettledRow] = []
     player_metrics: dict[str, Any] = {"player_replay": "SKIPPED"}
@@ -1953,23 +2353,61 @@ def main() -> int:
             starts_only=args.player_starts_only,
         )
 
+    football: FootballRatingReplay | None = None
+    football_seconds: float | None = None
+    if CENTRE_RULES.football_rating and played:
+        t_hist = datetime.now(UTC)
+        football = FootballRatingReplay.from_db(db_path, CENTRE_RULES)
+        football_seconds = round(
+            (datetime.now(UTC) - t_hist).total_seconds(), 1)
+
+    def day_ts(day: str | None) -> int | None:
+        if day is None:
+            return None
+        return int(datetime.strptime(day, "%Y-%m-%d").replace(
+            tzinfo=UTC).timestamp())
+
+    emit_from, emit_to = day_ts(args.emit_from), day_ts(args.emit_to)
+    window = emit_from is not None or emit_to is not None
+
     # The team rows are streamed into the DB, never held: 56M rows on the
     # 2026-10-03 refit, ~31M more since the per-half markets (2026-10-04).
     acc = ReliabilityAccumulator()
     team_count = [0]
+    team_events: set[int] = set()
+    by_market: collections.Counter[str] = collections.Counter()
+    t_rows = datetime.now(UTC)
 
     def measured() -> Iterator[SettledRow]:
-        team = iter_rows(played, baselines, rating, joint_bases) if played else iter(())
+        team = iter_rows(played, baselines, rating, joint_bases, football,
+                         emit_from, emit_to) if played else iter(())
         for row in team:
             team_count[0] += 1
+            if window or args.no_write:
+                team_events.add(row.event_id)
+                by_market[row.market] += 1
             acc.add(row)
             yield row
         for row in player_rows:
             acc.add(row)
             yield row
 
-    written = write_settled(measured(), db_path, dropped)
+    if args.no_write:
+        written = 0
+        for _ in measured():
+            pass
+    else:
+        # a window's rows are a smoke, not a rebuild: the collapsed copies'
+        # rows are deleted only by a whole replay
+        written = write_settled(measured(), db_path,
+                                set() if window else dropped)
+    rows_seconds = round((datetime.now(UTC) - t_rows).total_seconds(), 1)
     team_rows = team_count[0]
+    window_played = [
+        m for m in played
+        if (emit_from is None or m.timestamp >= emit_from)
+        and (emit_to is None or m.timestamp < emit_to)
+    ]
     curve = acc.curve()
     if args.out:
         # Off by default. `fit_constants.py` owns
@@ -2023,6 +2461,32 @@ def main() -> int:
             "tennis_scoped_table": args.tennis_scoped_table,
             "tennis_rating_forecasts": rating.forecasts if rating else None,
             "tennis_rating_unrated": rating.unrated if rating else None,
+            # the replay's rules, for fitted_from (prepare_refit records them)
+            "replay_rules": {
+                **CENTRE_RULES.describe(),
+                "tennis_set_ratings": TENNIS_SET_RATINGS,
+                "tennis_rating": args.tennis_rating,
+                "tennis_scoped_table": args.tennis_scoped_table,
+                "count_dispersion": args.count_dispersion is not None,
+                "per_market_k": bool(args.per_market_k),
+                "cards_correlation": bool(args.cards_correlation),
+                "halves": args.halves,
+                "derived": sorted(joint_bases),
+                "player_starts_only": bool(args.player_starts_only),
+            },
+            "football_rating_forecasts": football.forecasts if football else None,
+            "football_history_results": football.seen if football else None,
+            "football_history_seconds": football_seconds,
+            "load_seconds": load_seconds,
+            "rows_seconds": rows_seconds,
+            "window": [args.emit_from, args.emit_to] if window else None,
+            "window_matches": len(window_played) if window else None,
+            "window_matches_by_sport": dict(collections.Counter(
+                m.sport for m in window_played)) if window else None,
+            "matches_with_rows": len(team_events) if team_events else None,
+            "team_rows_by_market": (dict(sorted(by_market.items()))
+                                    if by_market else None),
+            "no_write": bool(args.no_write),
             "next_step": "python -m scripts.sofa.fit_constants",
         },
         "output_path": args.out,

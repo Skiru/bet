@@ -46,7 +46,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -99,6 +99,15 @@ VOLATILE_NAMES = frozenset({"closing.jsonl"})
 
 MANIFEST = "backup_manifest.json"
 FIT_MANIFEST = "fit_manifest.json"
+# Written by rebuild-cache-rows into the scratch dir, read by `fit` into the
+# confidence curves' fitted_from.replay_rules (audit 2026-10-13 A6 / B5).
+REPLAY_RULES = "replay_rules.json"
+REPLAY_FLAG_KEYS: tuple[str, ...] = (
+    "halves", "derived", "tennis_rating", "count_dispersion",
+    "cards_correlation", "per_market_k", "tennis_scoped_table",
+    "football_rating", "rated_scope", "venue_prior", "game_state",
+    "tennis_set_ratings",
+)
 
 
 class RefitError(RuntimeError):
@@ -548,7 +557,25 @@ def rebuild_cache_rows(
     cards_correlation: bool = False,
     per_market_k: bool = False,
     tennis_scoped_table: bool = False,
+    football_rating: bool = False,
+    rated_scope: bool = False,
+    venue_prior: bool = False,
+    game_state: bool = False,
+    tennis_set_ratings: bool = False,
 ) -> dict[str, Any]:
+    needs_rating = [name for name, on in (
+        ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
+        ("--game-state", game_state)) if on]
+    if needs_rating and not football_rating:
+        # SHEET applies them only through the football rating's forecast
+        raise RefitError(f"{', '.join(needs_rating)} need --football-rating")
+    if tennis_set_ratings and not tennis_rating:
+        raise RefitError("--tennis-set-ratings rides on the tennis rating "
+                         "(drop --no-tennis-rating)")
+    if game_state and not (paths.config_dir / "sofa_game_state.json").exists():
+        raise RefitError(
+            f"{paths.config_dir / 'sofa_game_state.json'} is absent: "
+            "--game-state cannot be replayed (fit_game_state.py first)")
     if count_dispersion != per_market_k:
         # fitted jointly (epochs.require_k_with_dispersion): one without the
         # other would replay a model nobody measured
@@ -690,6 +717,19 @@ def rebuild_cache_rows(
         # epochs.TENNIS_SCOPED_TABLE: the table cut by tier x gender and the
         # V5 start of the refit's config dir tennis_rating.json
         cmd += ["--tennis-scoped-table"]
+    # Audit 2026-10-13 A6 / B1 / B2 / B5: the live centre terms and the
+    # tennis set markets (all off = the replay as before)
+    new_flags = {
+        "football_rating": football_rating,
+        "rated_scope": rated_scope,
+        "venue_prior": venue_prior,
+        "game_state": game_state,
+        "tennis_set_ratings": tennis_set_ratings,
+    }
+    for name, on in new_flags.items():
+        if on:
+            cmd += ["--" + name.replace("_", "-")]
+    report.update(new_flags)
     report["tennis_scoped_table"] = tennis_scoped_table
     report["derived"] = derived
     report["tennis_rating"] = tennis_rating
@@ -737,8 +777,59 @@ def rebuild_cache_rows(
     checkpoint_result = checkpoint(paths.db_path)
     report["checkpoint_after"] = checkpoint_result
     say(f"live rows unchanged; checkpoint after: {checkpoint_result}")
+    # What the rows were replayed under, for `fit` to stamp into fitted_from:
+    # a curve fitted on these rows describes these rules and no other.
+    rules = write_replay_rules(paths, report)
+    say(f"replay rules: {paths.scratch / REPLAY_RULES} {json.dumps(rules)}")
     report["exit"] = 0
     return report
+
+
+def write_replay_rules(paths: Paths, report: Mapping[str, Any]) -> dict[str, Any]:
+    """REPLAY_RULES in the scratch dir: the flags the cache rows of
+    ``paths.db_path`` were replayed with (and the replay's own account of
+    them, its summary's ``replay_rules``)."""
+    replayed = [
+        (s.get("metrics") or {}).get("replay_rules")
+        for s in report.get("calibrate_summary") or []
+        if s.get("stage") == "CALIBRATE_FROM_CACHE"
+    ]
+    rules = {
+        "written_at_utc": utc_stamp(),
+        "db_path": str(paths.db_path),
+        "flags": {k: report.get(k) for k in REPLAY_FLAG_KEYS},
+        "calibrate_from_cache": replayed[-1] if replayed else None,
+    }
+    paths.scratch.mkdir(parents=True, exist_ok=True)
+    write_atomic(paths.scratch / REPLAY_RULES, json.dumps(rules, indent=1) + "\n")
+    return rules
+
+
+def stamp_replay_rules(path: Path, rules: Mapping[str, Any]) -> None:
+    """Record the replay rules in a fitted curve file's fitted_from (the
+    rows it was fitted on describe them and no other estimator)."""
+    if not path.exists():
+        return
+    doc = json.loads(path.read_text())
+    if not isinstance(doc, dict):
+        return
+    fitted = doc.get("fitted_from")
+    fitted = dict(fitted) if isinstance(fitted, dict) else {}
+    fitted["replay_rules"] = {"flags": rules.get("flags"),
+                              "written_at_utc": rules.get("written_at_utc")}
+    doc["fitted_from"] = fitted
+    write_atomic(path, json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+
+
+def read_replay_rules(paths: Paths) -> dict[str, Any] | None:
+    """REPLAY_RULES of the scratch dir when it describes this DB's rows."""
+    try:
+        rules = json.loads((paths.scratch / REPLAY_RULES).read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(rules, dict) or rules.get("db_path") != str(paths.db_path):
+        return None
+    return rules
 
 
 # --------------------------------------------------------------------------
@@ -805,6 +896,10 @@ def fit(paths: Paths, *, force: bool, runner: Runner = run_logged) -> dict[str, 
         if rc not in ok:
             failed = name
             break
+    replay_rules = read_replay_rules(paths)
+    if failed is None and replay_rules is not None:
+        stamp_replay_rules(target / CONFIDENCE_FILE, replay_rules)
+        say(f"fitted_from.replay_rules stamped from {paths.scratch / REPLAY_RULES}")
     live_after = hashes(config_files(paths.config_dir))
     if live_after != live_before:
         moved = sorted(
@@ -825,6 +920,7 @@ def fit(paths: Paths, *, force: bool, runner: Runner = run_logged) -> dict[str, 
         },
         "steps": steps,
         "complete": failed is None,
+        "replay_rules": replay_rules,
     }
     write_atomic(paths.scratch / FIT_MANIFEST, json.dumps(manifest, indent=1) + "\n")
     if failed:
@@ -2030,6 +2126,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="replay the tennis games rows with the sample estimator, as "
         "before 2026-10-07 (calibrate_from_cache --tennis-rating skip)",
     )
+    r.add_argument(
+        "--football-rating", action="store_true",
+        help="audit 2026-10-13 A6: replay the football centres with the "
+        "rating as of each match blended at W_FOOTBALL_RATING, as SHEET "
+        "prices them (calibrate_from_cache --football-rating)",
+    )
+    r.add_argument(
+        "--rated-scope", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_RATED_SCOPE (audit B2; "
+        "calibrate_from_cache --rated-scope)",
+    )
+    r.add_argument(
+        "--venue-prior", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_VENUE_PRIOR (audit B2; "
+        "calibrate_from_cache --venue-prior)",
+    )
+    r.add_argument(
+        "--game-state", action="store_true",
+        help="with --football-rating: epochs.GAME_STATE (audit B1; "
+        "calibrate_from_cache --game-state; needs sofa_game_state.json in the "
+        "refit's config dir)",
+    )
+    r.add_argument(
+        "--tennis-set-ratings", action="store_true",
+        help="audit 2026-10-13 B5: replay the tennis per-set games and "
+        "sets_total priced off the rating's neighbours (calibrate_from_cache "
+        "--tennis-set-ratings; epochs.TENNIS_SET_RATING_PRICES_FROM_UTC)",
+    )
 
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
@@ -2143,6 +2267,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     cards_correlation=args.cards_correlation,
                     per_market_k=args.per_market_k,
                     tennis_scoped_table=args.tennis_scoped_table,
+                    football_rating=args.football_rating,
+                    rated_scope=args.rated_scope,
+                    venue_prior=args.venue_prior,
+                    game_state=args.game_state,
+                    tennis_set_ratings=args.tennis_set_ratings,
                 )["exit"]
             )
         if args.command == "fit":
