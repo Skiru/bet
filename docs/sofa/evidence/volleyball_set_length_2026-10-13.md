@@ -143,4 +143,41 @@ siatkówki). Niespełnione -> `None`.
 
 ## Wynik
 
-(uzupełniane po pomiarze)
+Pomiar wykonany `measure_volleyball_set_length.py` (historia z
+`data/audit_2026-10-13/volleyball_events.pkl`; test A: 5 050 meczów, 2 000
+symulacji, 2025-10-01..2026-10-13; test B: 449 meczów Superbetu 09-29..10-12).
+Różnice nowa - stara, log-loss na mecz, 95% bootstrap po meczach.
+
+**Test A (historia, walk-forward):**
+
+| rodzina | log-loss nowa - stara |
+|---|---|
+| `points_total` | +0,00248 [-0,00045, +0,00538] |
+| `points_handicap` | -0,00110 [-0,00358, +0,00132] |
+| `set_extra_points` (C10) | -0,00039 [-0,00141, +0,00069] |
+| `set_points_total` (raport.) | -0,00699 [-0,00876, -0,00521] |
+
+Średnia suma punktów meczu (symulacja stara / nowa / realna): M 165,2 / 171,4 /
+166,3; K 160,9 / 163,6 / 161,1. Sety na przewagi M 10,1% / 13,1% / 13,2%,
+K 9,4% / 10,3% / 10,4%. Maks. |Δp| rynków wyniku (zwycięzca, sety, handicap
+setowy, dokładny wynik, zwycięzca seta) = 0 w obu testach (strażnik
+konstrukcji spełniony).
+
+**Test B (449 meczów Superbetu):** `points_total` +0,00304 [-0,01087,
++0,01644]; `points_handicap` +0,01477 [-0,00170, +0,03258]; `set_extra_points`
+(30 linii / 15 meczów) +0,01119 [-0,0205, +0,0332]; `set_points_total`
+-0,00122 [-0,01644, +0,01462]. Strażnik 2 (przedział nie w całości > 0)
+spełniony.
+
+**Werdykt wg progu:** warunek 1 (górna granica < 0 dla `points_total` ORAZ
+`points_handicap`) **niespełniony** - `points_total` jest nominalnie gorszy,
+`points_handicap` przedział obejmuje zero; warunek 4 (C10) niespełniony.
+Mechanizm poprawia poziom (średnie i częstość przewag zgodne z realem), ale
+nie rozdzielczość linii: w historii dawniej stara symulacja nie miała
+błędu poziomu 4-6 pkt (165,2 wobec 166,3), co audyt w próbie pokazał inaczej.
+**Przełączniki `VB_SET_LENGTH_FROM_UTC` i `VB_SET_HISTORY_FROM_UTC` zostają
+`None`; refitu nie robiono; C9 nie mierzone** (zależy od spełnionego B9;
+kod C9 jest wyłączoną opcją `--vb-set-history`). Do rozważenia przy
+nowych danych: tabela po lidze (C19) albo tylko dla `set_points_total`
+(-0,0070 [-0,0088, -0,0052] - ale to rodzina rozliczana tylko z linii
+Superbetu, bez własnej rejestracji; nie zmieniam progu po fakcie).

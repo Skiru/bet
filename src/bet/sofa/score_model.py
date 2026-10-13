@@ -24,12 +24,13 @@ through a calibration fitted without prices (fit_sport_confidence.py).
 
 from __future__ import annotations
 
+import bisect
 import dataclasses
 import json
 import math
 import random
 import sqlite3
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -117,6 +118,115 @@ PACE_POSS_RANGE = (40.0, 140.0)
 # 0.03 / 0.06 / 0.10 / 0.15 x ppp 0.03 / 0.06 / 0.10; evidence doc)
 PACE_ALPHA = {PACE_POSS: 0.10, PACE_PPP: 0.03}
 ALPHA_BY_METRIC.update(PACE_ALPHA)
+
+
+# Audit 2026-10-13 B9 / C10 (epochs.VB_SET_LENGTH_FROM_UTC): the rally
+# simulation decides who wins a volleyball set, but its length came out of the
+# same i.i.d. rally share - matches 4-6 points too short and too few sets on
+# extra points even with the realised share (audit, in sample). From the switch
+# the set's loser points are drawn from the history's own distribution
+# (SetLengthTable): gender x regular / deciding set x did the favourite win
+# the set x the rating's point-share gap, fitted one step ahead on the
+# SET_LENGTH_WINDOW_S before the model's cut. Who wins each set - the match
+# winner, the sets, the exact score - stays the rally simulation's, bit for
+# bit (the draws come from their own generator).
+# Evidence: docs/sofa/evidence/volleyball_set_length_2026-10-13.md.
+SET_LENGTH_WINDOW_S = 365 * 86400
+# quantile bins of the share gap |s - 0.5| in the window (edges from the
+# predictor alone, never the outcome)
+SET_LENGTH_BINS = 5
+# a cell with fewer sets falls back: without the gap bin, then gender x kind
+SET_LENGTH_MIN_SETS = 200
+SET_LENGTH_UNFITTED = ("SET_LENGTH_WINDOW_S", "SET_LENGTH_BINS",
+                       "SET_LENGTH_MIN_SETS")
+# (women, deciding set, favourite won the set or None = pooled, gap bin or -1)
+SetCell = tuple[bool, bool, bool | None, int]
+
+
+@dataclass(frozen=True)
+class SetLengthTable:
+    """The loser's points of a volleyball set by cell (audit B9)."""
+
+    edges: tuple[float, ...]
+    # cell -> (loser points, cumulative probability)
+    cells: dict[SetCell, tuple[tuple[int, ...], tuple[float, ...]]]
+
+    def gap_bin(self, gap: float) -> int:
+        return bisect.bisect_right(self.edges, gap)
+
+    def cell(self, women: bool, decider: bool, fav_won: bool, gap: float
+             ) -> tuple[tuple[int, ...], tuple[float, ...]] | None:
+        keys: tuple[SetCell, ...] = (
+            (women, decider, fav_won, self.gap_bin(gap)),
+            (women, decider, fav_won, -1), (women, decider, None, -1))
+        for key in keys:
+            if key in self.cells:
+                return self.cells[key]
+        return None
+
+    def draw(self, rng: random.Random, women: bool, decider: bool,
+             fav_won: bool, gap: float) -> int | None:
+        """A loser's points, or None when no cell holds enough sets."""
+        found = self.cell(women, decider, fav_won, gap)
+        if found is None:
+            return None
+        values, cum = found
+        i = bisect.bisect_right(cum, rng.random())
+        return values[min(i, len(values) - 1)]
+
+
+def set_format_ok(home: Sequence[int], away: Sequence[int]) -> bool:
+    """A best-of-five played to 25 (the fifth set to 15), every set closed
+    at the target or by two points past it."""
+    if not 3 <= len(home) == len(away) <= 5:
+        return False
+    won = [0, 0]
+    for i, (a, b) in enumerate(zip(home, away, strict=True)):
+        target = DECIDER_TARGET if i == 4 else SET_TARGET
+        w, lo = max(a, b), min(a, b)
+        if not ((w == target and lo <= target - 2) or (w > target and w - lo == 2)):
+            return False
+        won[0 if a > b else 1] += 1
+    return max(won) == 3
+
+
+def fit_set_length(
+    samples: Iterable[tuple[bool, float, Sequence[int], Sequence[int]]],
+    bins: int = SET_LENGTH_BINS, min_sets: int = SET_LENGTH_MIN_SETS,
+) -> SetLengthTable | None:
+    """The table from (women, home's expected point share, home's set points,
+    away's set points) per game; games of another format are left out."""
+    games = [(w, s, h, a) for w, s, h, a in samples if set_format_ok(h, a)]
+    if not games:
+        return None
+    gaps = sorted(abs(s - 0.5) for _, s, _, _ in games)
+    edges = tuple(gaps[int(len(gaps) * k / bins)] for k in range(1, bins))
+    counts: dict[SetCell, dict[int, int]] = {}
+    for women, share, home, away in games:
+        gap = abs(share - 0.5)
+        fav_home = share >= 0.5
+        b = bisect.bisect_right(edges, gap)
+        for i, (x, y) in enumerate(zip(home, away, strict=True)):
+            fav_won = (x > y) == fav_home
+            loser = min(x, y)
+            keys: tuple[SetCell, ...] = (
+                (women, i == 4, fav_won, b), (women, i == 4, fav_won, -1),
+                (women, i == 4, None, -1))
+            for key in keys:
+                cell = counts.setdefault(key, {})
+                cell[loser] = cell.get(loser, 0) + 1
+    cells: dict[SetCell, tuple[tuple[int, ...], tuple[float, ...]]] = {}
+    for key, cell in counts.items():
+        n = sum(cell.values())
+        if n < min_sets:
+            continue
+        values = tuple(sorted(cell))
+        run, cum = 0, []
+        for v in values:
+            run += cell[v]
+            cum.append(run / n)
+        cells[key] = (values, tuple(cum))
+    return SetLengthTable(edges, cells) if cells else None
 
 
 def _box_items(statistics: Any) -> dict[str, dict[str, Any]]:
@@ -456,12 +566,28 @@ class ScoreModel:
     # epochs.BB_PACE_LEVEL_FROM_UTC (audit 2026-10-13 B7b): the box-score pace
     # scales the total only (level_factor), the margin kept
     pace_level: bool = False
+    # epochs.VB_SET_LENGTH_FROM_UTC (audit 2026-10-13 B9 / C10): volleyball's
+    # set length from the history's table; None = the rally simulation's
+    set_length: SetLengthTable | None = None
+    # team -> a women's side (volleyball's set-length cell); from the history
+    team_women: dict[int, bool] | None = None
 
     def note_game(self, r: FootballResult) -> None:
-        """Record a learnt game's box score for the pace freshness rule."""
+        """Record a learnt game's box score for the pace freshness rule and
+        its sides' gender for the set-length table."""
         if self.box_last is not None and PACE_POSS in r.values:
             self.box_last[r.home_id] = r.ts
             self.box_last[r.away_id] = r.ts
+        if self.team_women is not None:
+            self.team_women[r.home_id] = r.women
+            self.team_women[r.away_id] = r.women
+
+    def women_of(self, home: int, away: int) -> bool:
+        """Is this a women's game, by its sides' history (False unknown)?"""
+        if not self.team_women:
+            return False
+        got = self.team_women.get(home)
+        return bool(self.team_women.get(away, False) if got is None else got)
 
     def pace_expected(
         self, competition: int, home: int, away: int, at_ts: int | None = None,
@@ -595,9 +721,10 @@ class ScoreModel:
     def simulate(
         self, mu1: Sequence[float], mu2: Sequence[float], seed: int = 0,
         n: int = N_SIMS, noise_mult: float = 1.0,
-        quarter_minutes: float | None = None,
+        quarter_minutes: float | None = None, women: bool = False,
     ) -> list[GameResult]:
-        """Games in team1 / team2 orientation (mu1 is team1's)."""
+        """Games in team1 / team2 orientation (mu1 is team1's). `women`:
+        volleyball's set-length cell (read only with `set_length`)."""
         rng = random.Random(seed)
         prm = self.params
         if self.sport.key == "hockey":
@@ -625,8 +752,15 @@ class ScoreModel:
             share = 0.5 + prm.vb_share_k * (p1 / (p1 + p2) - 0.5)
             share = min(max(share, 0.05), 0.95)
             p1, p2 = share, 1.0 - share
+        if self.set_length is None:
+            return [_volleyball(rng, p1, p2, prm.vb_set_sd, prm.vb_sideout,
+                                prm.vb_match_sd)
+                    for _ in range(n)]
+        # B9: the loser's points from their own generator - the rally stream,
+        # and so every set's winner, stays the one above
+        len_rng = random.Random(f"{seed}/set_length")
         return [_volleyball(rng, p1, p2, prm.vb_set_sd, prm.vb_sideout,
-                            prm.vb_match_sd)
+                            prm.vb_match_sd, self.set_length, women, len_rng)
                 for _ in range(n)]
 
 
@@ -788,12 +922,17 @@ def serve_probabilities(share: float, sideout: float) -> tuple[float, float]:
 def _volleyball(
     rng: random.Random, pts1: float, pts2: float, set_sd: float = 0.0,
     sideout: float = 0.0, match_sd: float = 0.0,
+    length: SetLengthTable | None = None, women: bool = False,
+    len_rng: random.Random | None = None,
 ) -> GameResult:
     """Best of five. A set goes to team1 with the share of the two sides'
     points-per-set expectations, sharpened by the set's length (a points
     share of 0.52 over ~45 points is a set won ~60% of the time); set_sd
-    adds a per-set shock to the share, match_sd one shock for the match."""
+    adds a per-set shock to the share, match_sd one shock for the match.
+    `length` (audit B9): the set's winner as above, its loser's points drawn
+    from the table with `len_rng` (the rally stream untouched)."""
     base = pts1 / (pts1 + pts2) if pts1 + pts2 > 0 else 0.5
+    fav1, gap = base >= 0.5, abs(base - 0.5)
     if match_sd > 0:
         base += rng.gauss(0.0, match_sd)
     s1: list[int] = []
@@ -815,6 +954,12 @@ def _volleyball(
                 serving1 = False
             if (a >= target or b >= target) and abs(a - b) >= 2:
                 break
+        if length is not None and len_rng is not None:
+            loser = length.draw(len_rng, women, target == DECIDER_TARGET,
+                                (a > b) == fav1, gap)
+            if loser is not None:
+                won = target if loser <= target - 2 else loser + 2
+                a, b = (won, loser) if a > b else (loser, won)
         s1.append(a)
         s2.append(b)
         if a > b:
@@ -855,7 +1000,10 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 cut_ts: int, params: SimParams | None = None,
                 shared_league_link: bool | None = None,
                 strict_league_rate: bool = False,
-                pace: bool = False, pace_level: bool = False) -> ScoreModel:
+                pace: bool = False, pace_level: bool = False,
+                set_length: bool = False,
+                set_scores: Mapping[int, tuple[Sequence[int], Sequence[int]]]
+                | None = None) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
@@ -864,7 +1012,11 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     where the history carries box scores (attach_box), the spread fitted
     around that centre. `pace_level` (epochs.BB_PACE_LEVEL_FROM_UTC,
     basketball): the box-score pace scales the total only, switched on after
-    the spread is fitted - the spread stays the points centre's."""
+    the spread is fitted - the spread stays the points centre's.
+    `set_length` (epochs.VB_SET_LENGTH_FROM_UTC, volleyball, audit B9): the
+    set-length table from `set_scores` (event id -> home's and away's set
+    points) of the SET_LENGTH_WINDOW_S before the cut, each game against the
+    book as it stood before it."""
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     k = sport.regulation_periods or 0
@@ -889,7 +1041,21 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     # A8 candidate: each window game's residuals against the book before it
     early: list[tuple[list[float], list[float]]] = []
     probe = ScoreModel(sport, book, 6.0, shares, prm0) if one_step else None
+    # B9: (women, home's expected share, set points) one step ahead
+    vb_len = set_length and sport.key == "volleyball" and set_scores is not None
+    length_probe = (ScoreModel(sport, book, 6.0, shares, prm0,
+                               strict_league_rate=strict_league_rate)
+                    if vb_len else None)
+    length_rows: list[tuple[bool, float, Sequence[int], Sequence[int]]] = []
     for r in before:
+        if (length_probe is not None and set_scores is not None
+                and r.ts >= cut_ts - SET_LENGTH_WINDOW_S
+                and r.event_id in set_scores):
+            exp_v = length_probe.expected(r.competition_id, r.home_id, r.away_id)
+            if exp_v is not None and exp_v[0][0] + exp_v[1][0] > 0:
+                sh, sa = set_scores[r.event_id]
+                length_rows.append(
+                    (r.women, exp_v[0][0] / (exp_v[0][0] + exp_v[1][0]), sh, sa))
         if sport.key == "basketball" and r.ts >= last_ts - SPREAD_WINDOW_S:
             window.append(r)
             if probe is not None:
@@ -964,6 +1130,12 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     if pace_level and sport.key == "basketball":
         model.pace_level = True
         model.box_last = box_last
+    if vb_len:
+        model.set_length = fit_set_length(length_rows)
+        model.team_women = {}
+        for r in before:
+            model.team_women[r.home_id] = r.women
+            model.team_women[r.away_id] = r.women
     return model
 
 

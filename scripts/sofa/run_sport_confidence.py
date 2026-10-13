@@ -156,14 +156,24 @@ class DbForecaster:
             box = (load_box_scores(self.db_path, events) if pace or level
                    else None)
             history = scf.parse_history(events, sp, box)
+            # audit B9 / C10: volleyball's set length from the history's table
+            vb_length = (sport == "volleyball"
+                         and epochs.vb_set_length(self.date, self.at))
+            vb_extra: dict[str, Any] = {}
+            if pace:
+                vb_extra["pace"] = True
+            if level:
+                vb_extra["pace_level"] = True
+            if vb_length:
+                vb_extra.update(set_length=True,
+                                set_scores=scf.set_scores_of(history))
             model = build_model(
                 [g.rating for g in history], sp, cut,
                 overtime_params(None, sport, epochs.bb_overtime(self.date, self.at)),
                 shared_league_link=epochs.link_shared_league(self.date),
                 strict_league_rate=epochs.league_rate_rule(self.date, self.at),
                 # off: the call as before the switch existed
-                **({"pace": True} if pace else {}),
-                **({"pace_level": True} if level else {}))
+                **vb_extra)
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]
 
@@ -244,7 +254,10 @@ class DbForecaster:
                     if fresh else 1.0,
                     quarter_minutes=overtime_minutes(
                         None if comp is None else int(comp), sport,
-                        epochs.bb_overtime(str(self.date), self.at)))
+                        epochs.bb_overtime(str(self.date), self.at)),
+                    **({"women": model.women_of(int(fixture["home_id"]),
+                                                int(fixture["away_id"]))}
+                       if model.set_length is not None else {}))
         games = self._sims[key]
         return None if games is None else line_probability(line, games, sp)
 
@@ -473,7 +486,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
             # (CS2), and on the line evidence's (verifier, 2026-10-07: all 221
             # sport legs carried an empty list).
             legs[-1]["unfitted_constants"] = sport_unfitted(
-                sport, evidence is not None)
+                sport, evidence is not None,
+                sport == "volleyball" and epochs.vb_set_length(date, at))
     entry_out: dict[str, Any] = {"status": status,
                                  "refused": dict(sorted(refused.items())),
                                  "legs": len(legs)}
@@ -502,13 +516,18 @@ def read_confidence(calibration: scf.SportCalibration,
             read.band_cap, None)
 
 
-def sport_unfitted(sport: str, with_evidence: bool) -> list[str]:
-    """The chosen-not-fitted constants a sport leg's number stands on."""
+def sport_unfitted(sport: str, with_evidence: bool,
+                   set_length: bool = False) -> list[str]:
+    """The chosen-not-fitted constants a sport leg's number stands on;
+    `set_length`: volleyball's set-length table's (audit B9)."""
     from bet.sofa import line_evidence
     from bet.sofa.football_rating import RATING_UNFITTED
+    from bet.sofa.score_model import SET_LENGTH_UNFITTED
 
     out = set(scf.UNFITTED_CONSTANTS)
     out |= set(cs2_engine.UNFITTED) if sport == "cs2" else set(RATING_UNFITTED)
+    if set_length:
+        out |= set(SET_LENGTH_UNFITTED)
     if with_evidence:
         out |= set(line_evidence.UNFITTED_CONSTANTS)
     return sorted(out)
