@@ -1766,7 +1766,13 @@ dwóch zegarów, rozliczana seria wykluczona po id):
   rozkład ujemny dwumianowy z `engine.nb_survival` (ostatnie ≤20 map), a gdy
   wariancja nie przekracza średniej — normalny z poprawką ciągłości;
 - rundy na mapie — sama częstość bazowa z historii; rundy drużyny na mapie —
-  częstość drużyny ściągnięta do częstości bazowej.
+  częstość drużyny ściągnięta do częstości bazowej, a od
+  `epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC` (2026-10-14 00:00Z, audyt B10) z
+  wyścigu rund (`cs2_engine.team_rounds_from_race`: rozkład wyniku mapy o
+  prawdopodobieństwie wygranej z Elo, ten sam co handicap rund) - na żywo, przy
+  CS2_SETTLE i w replayu historii; krzywa CS2 dopasowana na tym estymatorze
+  (`.next.json` od 2026-10-14). Walk-forward: log-loss -0,0213 [-0,0237;
+  -0,0188] (`docs/sofa/evidence/cs2_team_rounds_race_2026-10-13.md`).
 
 **Liczba map, handicap map i mapy drużyny nie dostają liczby.** Model ze
 stałym p na mapę zawyżał serie trzymapowe (0,482 wobec 0,424 na 876 Bo3) —

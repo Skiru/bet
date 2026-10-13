@@ -112,7 +112,8 @@ every sport alike, and nothing that could win is cut by name.
   `tennis_rating.AsOfRating` (best-of-five skipped). Football goals joints are
   not replayed and `DERIVED_CURVES_FROM_UTC` is off. Curves refitted
   that way were installed 2026-10-07 17:51Z: a new comparability epoch.
-  Hockey / volleyball / CS2 curves are the staged `.next.json`'s.
+  Hockey / volleyball curves are the installed file's (the `.next.json` of
+  2026-10-07, promoted 2026-10-13); CS2's from 2026-10-14 the staged one.
 - **Installed model packages (refit installed 2026-10-08 23:42Z, commits
   5330f357 / fdbe0aae; switches ON from 2026-10-09 00:00Z, judged on the day
   built AND the build clock - a day < 10-09 is the old estimator and is never
@@ -317,7 +318,13 @@ measurement of Superbet's price and feed nothing else.
   kills / deaths / assists / headshots; box-score families graded from
   CS2_SETTLE's own row) and the series families (maps_total, maps_handicap,
   team_maps, exact_maps) from a Beta-mixed series distribution
-  (`cs2_engine.SERIES_KAPPA`). Still unpriced: CS2 series rounds (rounds_*,
+  (`cs2_engine.SERIES_KAPPA`). From `CS2_TEAM_ROUNDS_RACE_FROM_UTC`
+  (2026-10-14 00:00Z, audit B10) a team's rounds on a map come from the round
+  race (`cs2_engine.team_rounds_from_race`, the map's score distribution the
+  round handicap uses), live, at CS2_SETTLE and in the replay; walk-forward
+  log-loss -0.0213 [-0.0237, -0.0188]; the CS2 curve refitted on it is staged
+  in the `.next.json` from 2026-10-14 (the previous `.next` was promoted over
+  the installed file on 2026-10-13). Still unpriced: CS2 series rounds (rounds_*,
   team_rounds) and round parity.
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
@@ -376,7 +383,8 @@ measurement of Superbet's price and feed nothing else.
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
 - **Comparability:** the current rules apply from 2026-10-06; a refit install
   or an epoch switch starts a new epoch (the latest: the audit switches of
-  2026-10-14 00:00Z - LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT - ledger group
+  2026-10-14 00:00Z - LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
+  CS2_TEAM_ROUNDS_RACE with its CS2 curve - ledger group
   "od 10-14"; before it the player switches of
   2026-10-12 00:00Z - ONE_SIDED_SINGLES, PLAYER_STARTS_ONLY, PLAYER_NAME_TOKENS
   and the staged player curves - ledger group "od 10-12"; before it the refit installed

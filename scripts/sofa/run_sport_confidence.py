@@ -197,7 +197,8 @@ class DbForecaster:
                 return None  # v2: a format nobody told us is not guessed as bo3
             mp = cs2_engine.model_probability(
                 line, t1, t2, ev.team1, ev.team2, int(best_of or 3),
-                maps, ratings, bool(fixture["home_is_team1"]))
+                maps, ratings, bool(fixture["home_is_team1"]),
+                team_rounds_race=epochs.cs2_team_rounds_race(str(self.date), self.at))
             return None if mp is None else mp.p
         from bet.sofa.score_model import line_probability
 

@@ -849,7 +849,8 @@ def load_cs2(db_path: str, before_ts: int
 
 def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
                           series: Mapping[int, SeriesRow], start_ts: int,
-                          end_ts: int, source: str) -> list[Row]:
+                          end_ts: int, source: str,
+                          team_rounds_race: bool = False) -> list[Row]:
     """CS2 rows for the series in [start_ts, end_ts), each from the engine's
     state at the series' start: the map and player Elo replayed in time
     order (cs2_engine.walk_forward_players), their logistic calibration
@@ -877,7 +878,8 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
         home, away = smaps[0].home_id, smaps[0].away_id
         if start_ts <= start < end_ts:
             rows += _cs2_series_rows(eid, smaps, series.get(eid), model,
-                                     team_rounds, all_rounds, source)
+                                     team_rounds, all_rounds, source,
+                                     team_rounds_race)
         if book.rated(home, away):
             d = cs2_engine.logit_diff(book, home, away)
             points.extend((d, 1.0 if m.home_won else 0.0) for m in smaps)
@@ -973,7 +975,8 @@ def _cs2_refit(book: cs2_engine.EloBook, players: cs2_engine.PlayerEloBook,
 def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
                      srow: SeriesRow | None, model: cs2_engine.RatingModel,
                      team_rounds: Mapping[int, deque[int]],
-                     all_rounds: Counter[int], source: str) -> list[Row]:
+                     all_rounds: Counter[int], source: str,
+                     team_rounds_race: bool = False) -> list[Row]:
     home, away = smaps[0].home_id, smaps[0].away_id
     rows: list[Row] = []
 
@@ -1019,11 +1022,22 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
             for line in CS2_TEAM_ROUND_LINES:
                 base = counted_base_rate(all_rounds, line)
                 for over in (True, False):
-                    mp = cs2_engine.shrunk_frequency(values, line, over, base)
-                    if mp is None:
-                        continue
+                    # epochs.CS2_TEAM_ROUNDS_RACE: the round race, as live
+                    if team_rounds_race:
+                        if p_map is None:
+                            continue
+                        side = cs2_engine.team_rounds_from_race(
+                            p_map, 0 if subject == "T1" else 1, line, over)
+                        if side is None:
+                            continue
+                        p_side = cs2_engine.clamp(side)
+                    else:
+                        mp = cs2_engine.shrunk_frequency(values, line, over, base)
+                        if mp is None:
+                            continue
+                        p_side = mp.p
                     add("map_team_rounds", m.order, subject, line,
-                        "OVER" if over else "UNDER", mp.p,
+                        "OVER" if over else "UNDER", p_side,
                         (own > line) == over)
     return rows
 

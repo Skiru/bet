@@ -48,7 +48,7 @@ import math
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import cache
+from functools import cache, lru_cache
 from typing import Any
 
 from bet.sofa.comparability import is_non_competitive_name
@@ -576,6 +576,23 @@ def map_distribution_for(p_map: float, sd: float = ROUND_SHOCK_SD
     return mixed_score_distribution((lo + hi) / 2, sd)
 
 
+@lru_cache(maxsize=4096)
+def _race_dist(p_key: float) -> tuple[tuple[tuple[int, int], float], ...]:
+    return tuple(sorted(map_distribution_for(p_key).items()))
+
+
+def team_rounds_from_race(p_map: float, idx: int, line: float, over: bool
+                          ) -> float | None:
+    """P(team idx's rounds on one map OVER / UNDER `line` | no push), from the
+    map's score distribution whose map-win probability (team 0's) is p_map -
+    the round race map_rounds_handicap prices with (audit 2026-10-13 B10,
+    epochs.CS2_TEAM_ROUNDS_RACE). p_map is rounded to 3 decimals (cache)."""
+    dist = _race_dist(round(min(max(p_map, 0.05), 0.95), 3))
+    p_over = sum(q for score, q in dist if score[idx] > line)
+    p_under = sum(q for score, q in dist if score[idx] < line)
+    return side_given_no_push(p_over, p_under, over)
+
+
 def round_probability(p_map: float) -> float:
     """The single-round probability whose map-win probability is p_map."""
     lo, hi = 0.02, 0.98
@@ -752,8 +769,11 @@ def model_probability(
     history: list[MapRow],
     ratings: RatingModel,
     team1_is_home: bool,
+    team_rounds_race: bool = False,
 ) -> ModelP | None:
-    """The model's probability for this side of this line, or None."""
+    """The model's probability for this side of this line, or None.
+    `team_rounds_race` (epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC): a team's
+    rounds on a map from the round race, not its own shrunk frequency."""
     fam = line.family
     if fam not in MODELLED:
         return None
@@ -835,6 +855,14 @@ def model_probability(
         # for every player line (found live on GamerLegion - magic).
         if side_team is None:
             return None
+        if fam == "map_team_rounds" and team_rounds_race:
+            p = ratings.p_map(team1_id, team2_id, team1_is_home)
+            if p is None:
+                return None
+            idx = 0 if side_team == team1_id else 1
+            side = team_rounds_from_race(p, idx, line.line, over)
+            n = min(ratings.book.played[team1_id], ratings.book.played[team2_id])
+            return None if side is None else ModelP(clamp(side), n, "round_race")
         if fam == "map_team_rounds":
             base = base_rate(both_sides_rounds(history), line.line)
             values = own_rounds(_rounds_maps(history, side_team), side_team)

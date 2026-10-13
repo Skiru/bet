@@ -12,8 +12,8 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
 | etap | pozycje | stan |
 |---|---|---|
 | 1 | A2, C21 | zrobione (ten raport) |
-| 2 | A1, A4, B1, B2, B3, B5, B10; B6 jako zarejestrowany test | A1, A4 zrobione; reszta - niżej „otwarte” |
-| 3 | B13, potem B15 (z A5) | otwarte |
+| 2 | A1, A4, B1, B2, B3, B5, B10; B6 jako zarejestrowany test | A1, A4, B10 zrobione; B1, B2, B3, B5, B6 - agenci |
+| 3 | B13, potem B15 (z A5) | B13 zrobione; B15 - agent |
 | 4 | refit piłki i tenisa: A6 + B14 + C1 (+ wyniki 2-3), potem D1; D2 osobno | otwarte |
 | 5 | koszykówka: A3 + C8, pomiar A8, jeden refit | otwarte |
 | 6 | B7, A7, B9, C9/C10, B11-B12, B8, B4 | otwarte |
@@ -116,6 +116,46 @@ decyzja według O5 (albo decyzji operatora, gdy ją wydał).
   Poissona -0,0010 [-0,0029; +0,0008] na mecz (7 724 mecze); wszystkie mecze
   ponadligowe -0,0003 [-0,0008; +0,0003]; wszystkie -0,00006 [-0,0002; +0,0001].
 - Przełącznik: `UNIT_STRENGTH_FROM_PARENT_FROM_UTC` = **None** (zmierzone, nie włączone).
+
+### B10 - CS2 `map_team_rounds` z wyścigu rund
+
+- Diagnoza: potwierdzona (`cs2_engine.model_probability`: `shrunk_frequency`
+  własnych rund drużyny, bez rywala).
+- Zrobione: `cs2_engine.team_rounds_from_race` (rozkład wyniku mapy
+  `map_distribution_for(p_map)`), `model_probability(team_rounds_race)`;
+  przełącznik działa w SPORT_CONFIDENCE, w `settle_cs2` (p przy rozliczeniu ->
+  line evidence) i w replayu historii (`cs2_walk_forward_rows`,
+  `fit_sport_confidence --cs2-team-rounds-race`). `LINE_OUTSIDE_FIT` bez zmian.
+- Pomiar (`docs/sofa/evidence/cs2_team_rounds_race_2026-10-13.md`): historia
+  2025-10-13..2026-10-13, 316 024 linii / 8 738 serii, log-loss wyścig -
+  częstość **-0,0213 [-0,0237; -0,0188]**, każda linia i strona < 0;
+  kalibracja p >= 0,70: wyścig 0,756 / 0,758, stary 0,734 / 0,698.
+- Refit (O6) na kopii bazy `data/refit_2026-10-13/sofa_replay.db`: compare na
+  holdoucie - log-loss pewności OVER 0,6479 vs 0,6622, UNDER 0,6644 vs 0,6658;
+  linie Superbetu 10-05..10-12 (kontrola): -0,029 [-0,060; +0,005].
+  Backup `config/backup_2026-10-13_audit/` (lokalny, poza gitem), `.next`
+  przeniesiony na plik zainstalowany, nowy `.next` z sekcją CS2,
+  `effective_from` 2026-10-14.
+- Przełącznik: `CS2_TEAM_ROUNDS_RACE_FROM_UTC` = **2026-10-14 00:00Z** (O5/O6).
+- Testy: `test_team_rounds_from_the_race_follow_the_map_winner`,
+  `test_model_probability_reads_the_race_only_under_the_switch`,
+  `test_the_cs2_race_switch_reads_day_and_clock`.
+
+### B1, B2 - piłka: rola faworyta, rynki bez ratingu (agent, gałąź scalona)
+
+Wyniki i decyzja - w sekcji etapu 2 po scaleniu gałęzi.
+
+## Etap 3 (część)
+
+### B13 - rywal w `Observation`
+
+- Zrobione: `Observation.opponent_id`, `Observation.against` (wartość rywala
+  tej samej metryki „_for” w tym samym meczu), domyślnie None - stare
+  `03_samples.json` się parsują. Wypełniane w `samples.process_historical_event`
+  i w ścieżce listingowej goli. Siła rywala as-of nie jest zapisywana w
+  próbce: liczy ją SHEET z `RatingBook` (B15) po `opponent_id` i dacie.
+- Wpływ na druk: brak (nikt jeszcze nie czyta pól).
+- Test: `test_an_observation_carries_its_opponent_and_old_samples_still_parse`.
 
 ### Ledger
 

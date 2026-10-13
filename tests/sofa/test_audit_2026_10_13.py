@@ -243,3 +243,69 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
     assert audit_ledger.epoch_group(
         {"date": "2026-10-14", "epoch": "stats_only"}) == "od 10-14"
     assert audit_ledger.EPOCH_GROUPS[-1] == "od 10-14"
+
+
+# --- B10: a CS2 team's rounds on a map from the round race --------------------
+
+
+def test_team_rounds_from_the_race_follow_the_map_winner() -> None:
+    from bet.sofa import cs2_engine as ce
+
+    strong = ce.team_rounds_from_race(0.8, 0, 12.5, True)
+    weak = ce.team_rounds_from_race(0.8, 1, 12.5, True)
+    assert strong is not None and weak is not None
+    # >= 13 rounds is the map won (or overtime): the favourite's OVER is likely
+    assert strong > 0.75 > 0.3 > weak
+    # the two sides of one line add up (no push on a .5 line)
+    under = ce.team_rounds_from_race(0.8, 0, 12.5, False)
+    assert under is not None and abs(strong + under - 1.0) < 1e-9
+    # a lower line is easier to clear
+    low = ce.team_rounds_from_race(0.8, 1, 6.5, True)
+    assert low is not None and low > weak
+
+
+def test_model_probability_reads_the_race_only_under_the_switch() -> None:
+    from bet.sofa import cs2_engine as ce
+    from bet.sofa.cs2 import Cs2Line
+
+    book = ce.EloBook()
+    for _ in range(30):
+        book.update(1, 2)  # team 1 keeps beating team 2
+    ratings = ce.RatingModel(book)
+    line = Cs2Line("1", "map_team_rounds", 1, "A", 12.5, "OVER", 1.9)
+    old = ce.model_probability(line, 1, 2, "A", "B", 3, [], ratings, True)
+    new = ce.model_probability(line, 1, 2, "A", "B", 3, [], ratings, True,
+                               team_rounds_race=True)
+    assert old is None  # no own maps in the history: the old estimator has nothing
+    assert new is not None and new.model == "round_race" and new.p > 0.6
+
+
+def test_the_cs2_race_switch_reads_day_and_clock(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(epochs, "CS2_TEAM_ROUNDS_RACE_FROM_UTC",
+                        datetime(2026, 10, 15, tzinfo=UTC))
+    late = datetime(2026, 10, 15, 1, tzinfo=UTC)
+    assert epochs.cs2_team_rounds_race("2026-10-15", late)
+    assert not epochs.cs2_team_rounds_race("2026-10-14", late)
+
+
+# --- B13: who a sample value was earned against --------------------------------
+
+
+def test_an_observation_carries_its_opponent_and_old_samples_still_parse() -> None:
+    from bet.sofa.contracts import Observation
+    from bet.sofa.samples import _against, _team_id
+
+    old = {"sofascore_event_id": 1, "match_date_utc": "2026-10-01T18:00:00Z",
+           "opponent": "B", "value": 2.0, "competition_id": 5, "season_id": 9,
+           "venue": "home"}
+    obs = Observation.model_validate_json(__import__("json").dumps(old))
+    assert obs.opponent_id is None and obs.against is None
+    event = {"homeTeam": {"id": 10}, "awayTeam": {"id": 20},
+             "homeScore": {"normaltime": 3, "current": 3},
+             "awayScore": {"normaltime": 1, "current": 1}}
+    assert _team_id(event["awayTeam"]) == 20 and _team_id({}) is None
+    # the opponent's goals in the same match; a total has no "against"
+    assert _against("goals_for", "football", {}, None, event, True) == 1.0
+    assert _against("goals_for", "football", {}, None, event, False) == 3.0
+    assert _against("goals_total", "football", {}, None, event, True) is None

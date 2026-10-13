@@ -530,6 +530,8 @@ def attach_model(
     unknown_format = not best_of_raw and epochs.line_evidence_v2(
         kickoff.strftime("%Y-%m-%d"))  # v2: no best-of-3 guess
     best_of = int(best_of_raw or 3)
+    # epochs.CS2_TEAM_ROUNDS_RACE: the estimator of the day the game was offered
+    race = epochs.cs2_team_rounds_race(kickoff.strftime("%Y-%m-%d"), kickoff)
     for row in graded:
         if unknown_format:
             row["model_p"] = row["model_n"] = row["model"] = None
@@ -546,6 +548,7 @@ def attach_model(
             history,
             ratings,
             home_is_t1,
+            team_rounds_race=race,
         )
         row["model_p"] = None if mp is None else round(mp.p, 4)
         row["model_n"] = None if mp is None else mp.n

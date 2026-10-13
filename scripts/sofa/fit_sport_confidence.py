@@ -108,10 +108,13 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     rows: dict[str, list[scf.Row]] = {}
     if sport == "cs2":
         maps, series = scf.load_cs2(db_path, before_ts)
+        # epochs.CS2_TEAM_ROUNDS_RACE: the estimator of the day the fit is for
+        race = args.cs2_team_rounds_race or epochs.cs2_team_rounds_race(
+            before, datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC))
         rows["history_fit"] = scf.cs2_walk_forward_rows(
-            maps, series, fit_start, hold_ts, "history_fit")
+            maps, series, fit_start, hold_ts, "history_fit", race)
         rows["history_holdout"] = scf.cs2_walk_forward_rows(
-            maps, series, hold_ts, before_ts, "history_holdout")
+            maps, series, hold_ts, before_ts, "history_holdout", race)
         rows["superbet_settled"] = scf.cs2_settled_rows(runs_dir, dates)
         fit_dates: list[str] = []
         oos_dates = dates
@@ -252,6 +255,9 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="print the summary, write no config")
     ap.add_argument("--holdout-days", type=int, default=30)
+    ap.add_argument("--cs2-team-rounds-race", action="store_true",
+                    help="replay CS2 team rounds from the round race (audit B10; "
+                    "default: the rule of the --before day)")
     ap.add_argument("--fit-days", type=int, default=365)
     ap.add_argument("--sims", type=int, default=1000,
                     help=f"simulated games per forecast (pipeline: {N_SIMS})")

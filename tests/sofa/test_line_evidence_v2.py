@@ -121,7 +121,8 @@ def test_cs2_format_is_not_guessed_from_v2(monkeypatch) -> None:  # type: ignore
 
     seen: list[int] = []
 
-    def fake(line, t1, t2, n1, n2, best_of, maps, ratings, home):  # type: ignore[no-untyped-def]
+    def fake(line, t1, t2, n1, n2, best_of, maps, ratings, home,  # type: ignore[no-untyped-def]
+             team_rounds_race=False):
         seen.append(best_of)
         return SimpleNamespace(p=0.6)
 

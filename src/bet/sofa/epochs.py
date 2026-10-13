@@ -887,3 +887,31 @@ def unit_strength_from_parent(date: str, build_at: datetime | None = None) -> bo
     at = build_at if build_at is not None else timeutil.now()
     return (date >= UNIT_STRENGTH_FROM_PARENT_FROM_UTC.strftime("%Y-%m-%d")
             and at >= UNIT_STRENGTH_FROM_PARENT_FROM_UTC)
+
+
+# Audit 2026-10-13 B10: a CS2 team's rounds on a map ("X - liczba rund na N.
+# mapie") were its own last maps' frequency shrunk to the base rate - no
+# opponent, though a team reaches 13 rounds only by winning the map or in
+# overtime. From this moment the line is priced from the map's score
+# distribution (cs2_engine.team_rounds_from_race, the round race the round
+# handicap already uses) in SPORT_CONFIDENCE, at CS2_SETTLE (model_p, the line
+# evidence's input) and in the history replay of a fit for a day >= it. It
+# changes p, so it needs the CS2 curve refitted on the same estimator.
+# Switched on under the audit's standing go (O5 / O6): walk-forward on the
+# history 2025-10-13..2026-10-13, 316,024 lines / 8,738 series, log-loss
+# -0.0213 [-0.0237, -0.0188]; the CS2 curve refitted on the same estimator
+# (copy of the DB, --before 2026-10-13) is staged in
+# config/sofa_sport_confidence_calibration.next.json from 2026-10-14
+# (docs/sofa/evidence/cs2_team_rounds_race_2026-10-13.md).
+CS2_TEAM_ROUNDS_RACE_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 0, 0, tzinfo=UTC)
+
+
+def cs2_team_rounds_race(date: str, build_at: datetime | None = None) -> bool:
+    """Is a CS2 team-rounds line priced from the round race
+    (CS2_TEAM_ROUNDS_RACE_FROM_UTC)?"""
+    if CS2_TEAM_ROUNDS_RACE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CS2_TEAM_ROUNDS_RACE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CS2_TEAM_ROUNDS_RACE_FROM_UTC)
