@@ -77,6 +77,22 @@ FRIENDLY_COMPETITION_IDS: frozenset[int] = _FRIENDLY_IDS
 _FRIENDLIES_PATH = FRIENDLIES_PATH
 
 
+def _team_id(team: Mapping[str, Any]) -> int | None:
+    value = team.get("id")
+    return value if isinstance(value, int) else None
+
+
+def _against(metric: str, sport: str, flat_stats: Any, incidents_json: Any,
+             event: dict[str, Any], is_home: bool) -> float | None:
+    """The opponent's value of a side metric ("_for") in the same match - the
+    observation's "against" (audit 2026-10-13 B13); None for a total, a gap or
+    a player metric."""
+    if not metric.endswith("_for"):
+        return None
+    val = extract_metric(metric, sport, flat_stats, incidents_json, event, not is_home)
+    return None if isinstance(val, GapReason) else float(val)
+
+
 def is_friendly_fixture(sport: str, competition_id: int | None) -> bool:
     """A football fixture played in an excluded competition (2026-10-01).
 
@@ -918,6 +934,7 @@ def process_historical_event(
     away_team = event.get("awayTeam", {})
     is_home = home_team.get("id") == entity_id
     opponent_name = (away_team if is_home else home_team).get("name") or "Unknown"
+    opponent_id = _team_id(away_team if is_home else home_team)
 
     match_dt = datetime.fromtimestamp(event["startTimestamp"], UTC)
     comp_id = _competition_id(event)
@@ -963,6 +980,9 @@ def process_historical_event(
                 competition_id=comp_id,
                 season_id=season_id,
                 venue=venue,  # type: ignore[arg-type]
+                opponent_id=opponent_id,
+                against=_against(metric, sport, flat_stats, incidents_json, event,
+                                 is_home),
             )
 
     home_id = home_team.get("id")
@@ -1057,6 +1077,8 @@ def goal_observations(
                 competition_id=_competition_id(event),
                 season_id=event.get("season", {}).get("id"),
                 venue="home" if is_home else "away",
+                opponent_id=_team_id(away_team if is_home else home_team),
+                against=_against(metric, "football", {}, None, event, is_home),
             )
     return {
         "event_id": event["id"],

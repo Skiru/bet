@@ -144,6 +144,13 @@ class Observation(BaseModel):
     competition_id: int | None
     season_id: int | None
     venue: Literal["home", "away"] | None
+    # Audit 2026-10-13 B13: who the value was earned against and what that
+    # opponent did of the same quantity in the same match (a side metric
+    # "_for" only). A structure for the opponent / league-strength correction
+    # of a sample (B15) and for gates on a corrected sample (A5); nothing
+    # reads them to price yet. None in samples written before 2026-10-13.
+    opponent_id: int | None = None
+    against: float | None = None
 
 
 class MetricSample(BaseModel):
