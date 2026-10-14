@@ -1,0 +1,74 @@
+# Plan na noc 2026-10-14/15: krzywe z historii dla nowych rynków
+
+Zgoda operatora (2026-10-14 ~14:45Z): „zbudować krzywe dla tych wszystkich
+rynków, zaktualizować model i przeliczyć ... na jutro będzie gotowe ... w nowej
+sesji”. To zgoda na dopasowanie i instalację krzywych nowych rynków **przed
+budową 2026-10-15** (dzień 10-15 czysty, nie mieszany), pod warunkiem bramek
+niżej - rynek, który ich nie przejdzie, zostaje bez krzywej (tryb zbierania
+linii). Nie obejmuje refitu istniejących krzywych piłki / tenisa / sportów.
+
+## Rynki (wszystkie włączone 10-14, bez krzywej)
+
+| grupa | klucze | przełącznik | estymator (SHEET / SPORT_CONFIDENCE) |
+|---|---|---|---|
+| strzały zawodnika | `player_{shots_outside_box,headed_shots,left_foot_shots,right_foot_shots}_for`, `player_sot_*` | `SHOT_DETAIL_MARKETS` 14:20Z | `bet.sofa.shot_detail.forecast` + `config/sofa_shot_detail.json` |
+| podwójna szansa piłka | `double_chance` (1X/X2/12, OVER) | `FOOTBALL_RESULT_MARKETS` 14:20Z | `bet.sofa.football_result` (NB, czysty rating, r 7,586) |
+| piłka z incydentów | `first_goal`, `red_cards_total`, `penalties_total` | `FOOTBALL_INCIDENT_MARKETS` 14:50Z | `bet.sofa.football_incidents` |
+| tenis sety | `set1_won_for`, `set2_won_for`, `set_score` | `TENNIS_SET_MARKETS` 14:50Z | `bet.sofa.tennis_sets` (rating) |
+| sporty mierzone | hokej / koszykówka `double_chance`, `period_double_chance`, h1/h2/quarter; siatkówka `team_wins_set`, `team_sets_exact`, `sets_count` | `SPORT_DERIVED_MARKETS` 14:50Z | score model (`shadow.DERIVED_MARKETS`) |
+
+## Kroki
+
+1. **Kopia danych** (CLAUDE.md „Changing the pipeline” 4): `VACUUM INTO` nie
+   jest potrzebny dla strzałów (gotowa kopia tabel
+   `data/refit_shot_detail_2026-10-14/shot_detail.db`); dla reszty kopia
+   tylko tabel, które czyta pomiar (wzór `fit_shot_detail.make_copy`) do
+   `data/refit_new_markets_2026-10-15/`. Nigdy fit na żywej bazie.
+2. **Replay historii tym samym estymatorem**, walk-forward (tylko dane sprzed
+   meczu) - skrypty pomiarowe już to robią:
+   - strzały: `fit_shot_detail.py --before 2026-10-15` (krzywa w `curves.json`);
+   - DC: `measure_football_result_phase.py` / `measure_football_result_model.py`
+     (wariant czystego ratingu, r jak w configu);
+   - incydenty: `measure_football_incidents.py`;
+   - tenis sety: `measure_tennis_outcome_model.py` (wariant `live`);
+   - sporty: `measure_sport_derived.py`.
+   Każdy musi zapisać wiersze (p, y, mecz, data) - dopisać `--rows-out`, jeśli
+   go nie ma.
+3. **Krzywa**: kubełki `fit_confidence.EDGES`, `MIN_MARKET_BUCKET` 400,
+   `realised_lo95` = Wilson (jak `fit_confidence.curve`), per
+   `"<market>|<direction>"` (sporty: format pliku
+   `config/sofa_sport_confidence_calibration.json`).
+4. **Bramka na kluczu (przed instalacją)**: krzywa dopasowana na oknie do
+   2026-08-31, sprawdzona na 2026-09-01..10-13 (poza próbą): w kubełkach
+   >= 0,70 |zrealizowane - realised_lo95 krzywej| w granicach, a łącznie dla
+   druku (p krzywej >= 0,70) luka <= 2 pp przy n >= 300 (reguła PASS
+   `measure_calibration.py`). Nie przechodzi -> bez krzywej. Zapisać wynik
+   każdego klucza w raporcie.
+5. **Instalacja** (tylko przechodzące klucze): scalić wpisy do
+   `config/sofa_confidence_calibration.json` (`by_market_direction`) i
+   `config/sofa_sport_confidence_calibration.json`, z `fitted_from` dla
+   każdego; kopia zapasowa `config/backup_2026-10-15_new_markets/` przed
+   zmianą; `tests/sofa` musi przejść, inaczej przywrócić. **Przed** budową
+   10-15 (pętla poranna). Po instalacji: `line_evidence` nadal może tylko
+   obniżyć (offset puli sportu, cap pasma ceny).
+6. **Weryfikacja**: E2E na kopii 10-14 (CONFIDENCE z nowymi krzywymi na
+   zamrożonym zegarze, `SOFA_NOW` tylko w skrypcie scratch) - ile nóg nowych
+   rynków by się wydrukowało, przy jakim kursie, ile z pewnością poniżej
+   1/kurs (te dostają `price_gap` tylko w piłce/tenisie); md5 prawdziwych
+   plików przed i po.
+7. **Raport** `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md` i
+   wpis w CLAUDE.md (Confidence: nowe krzywe, epoka ledgera „od 10-15”).
+
+## Ograniczenia znane dziś
+
+- Jednostronne (`first_goal`, `set_score`, strzały zawodnika): drukują się jako
+  single tylko przez `confidence.one_sided_single` (krzywa własnego rynku
+  n >= 300) - dziś ta reguła jest dla rekwizytów zawodników piłki; czy
+  rozszerzyć ją na `first_goal` / `set_score` - decyzja operatora (marża
+  Superbetu: „1. gol” 7-13%, dokładny wynik w setach ~17% > 15%).
+- Brak historii cen tych rynków: krzywa mówi, jak często wchodzi, nie czy
+  bije kurs. Kursy zapisywane od 10-14 (`unmapped_prices/`, a dla czytanych
+  rynków `04_offer.json` / SHADOW).
+- Koszykówka / siatkówka: nazwy rynków niesprawdzone na surowym payloadzie -
+  pierwsze migawki 10-14 po 14:50Z obejrzeć (`runs/sofa/shadow/...`).
+- Strzały zawodnika „zwykłe” były po cenie -14,3% (10-09..10-13).
