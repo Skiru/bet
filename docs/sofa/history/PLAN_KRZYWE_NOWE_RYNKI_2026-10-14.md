@@ -126,3 +126,12 @@ Decyzje operatora (AskUserQuestion, 15:45Z) - **instalować tak, jak instalator 
 `PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_new_market_curves.py --dir data/refit_new_markets_2026-10-15 --confirm`,
 potem E2E (krok 6: ile nóg nowych rynków się drukuje, ile z pewnością poniżej 1/kurs,
 czy `first_goal` przechodzi jako singiel), raport i CLAUDE.md (krok 7; epoka ledgera „od 10-15”).
+
+**17:40Z - strzały zawodnika na podwojonych danych** (11 376 meczów ze shotmapą,
+249 506 występów z podstawy; `fit_shot_detail.py --holdout-from 2026-09-01
+--estimator config/sofa_shot_detail.json`): prawa noga PASS, n 2 076, luka +1,0 pp
+[-0,7; +2,8]; lewa noga FAIL - krzywa ostrożna o 5,0 pp [+2,1; +7,6] (n 818);
+spoza pola FAIL n 156; głową i „celne” nadal bez prognoz >= 0,70. Grupa
+`shot_detail/` w katalogu instalacji to teraz ta wersja (8 kubełków prawej nogi);
+pierwsza w `data/refit_new_markets_2026-10-15_superseded/shot_detail_v1/`.
+Instalator na sucho: nadal 11 kluczy.
