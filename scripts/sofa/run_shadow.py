@@ -43,6 +43,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa import epochs  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
@@ -69,6 +70,10 @@ DEFAULT_HORIZON_H = 3.0
 
 def _iso(at: datetime) -> str:
     return at.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _utc_of(raw: str) -> datetime:
+    return datetime.fromisoformat(raw.replace("Z", "+00:00"))
 
 
 def recorded_events(path: Path) -> set[str]:
@@ -180,7 +185,11 @@ def snapshot(
             continue
         fetched_ok += 1
         fetched_at = stamp()
-        lines = parse_event(odds_items(payload), sport.key, event_id, team1, team2)
+        # epochs.SPORT_DERIVED_MARKETS: the derived markets on the record's
+        # own day and clock; off, the record is byte for byte what it was
+        derived = epochs.sport_derived_markets(day, _utc_of(fetched_at))
+        lines = parse_event(odds_items(payload), sport.key, event_id, team1, team2,
+                            derived)
         if not lines and event_id not in seen[(sport.key, day)]:
             continue
         # An event already on file that now quotes nothing gets an empty
@@ -206,6 +215,7 @@ def snapshot(
                 "tournament_id": r.get("tournamentId"),
                 "tournament": names.get(str(r.get("tournamentId"))) or None,
                 "lines": [ln.as_dict() for ln in lines],
+                **({"derived_rule": epochs.SPORT_DERIVED_MARKETS} if derived else {}),
             }
         )
     for key, recs in records.items():

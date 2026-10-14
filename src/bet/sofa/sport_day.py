@@ -257,7 +257,7 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         # the game's own lineups); the leg takes that outcome, at its own
         # printed price. A side SHADOW_SETTLE did not grade is UNGRADEABLE.
         return _graded_side(leg, ev, "period")
-    spec = shadow.MARKETS[sport].get(int(leg.get("market_id") or 0))
+    spec = shadow.spec_of(sport, int(leg.get("market_id") or 0))
     if spec is None:
         return "UNGRADEABLE"
     if ev.get("orientation_unclear") and (

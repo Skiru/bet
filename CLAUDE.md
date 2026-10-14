@@ -721,7 +721,13 @@ lines settle. Every OFFER also records the unread markets' prices
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 `BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), the coupon form
+builders), `SPORT_DERIVED_MARKETS_FROM_UTC` (SHADOW reads, SHADOW_SETTLE
+grades and SPORT_CONFIDENCE prices from the score model the hockey /
+basketball double chance - regulation, as the 1X2 - and volleyball's team
+sets and sets count, `shadow.DERIVED_MARKETS`; no curve, so
+NO_LINE_EVIDENCE until their own lines settle; history log-loss vs base
+better on every 1X / X2 and volleyball key, none on "12";
+`docs/sofa/evidence/sport_derived_2026-10-14.md`), the coupon form
 dials, and the derived football joints -
 `DERIVED_CURVES_FROM_UTC` (joints read a history curve),
 `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126;
@@ -949,6 +955,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/probe_lineup_availability.py --da
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_league_rate_rule.py [--from <d>] [--to <d>] [--skip-football]   # audit A2 (T-A2-league-rate-refusals)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_bucket_design_effect.py --rows-dir <dir> --days <d>...   # audit A4 walk-forward (T-A4-bucket-deff)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_unit_strength.py [--from <d>] [--to <d>]   # audit A1
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_derived.py --sport all --start <d> --end <d> [--max-games 4000] [--json-out f] [--md-out f]   # SPORT_DERIVED_MARKETS: double chance / volleyball sets keys on the history walk-forward, log-loss vs base, calibration, share >= 0.70
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settled_by_market.py --from <d> --to <d> [--p-min 0.70] [--min-n 20] [--md-out f] [--json-out f]   # every sport, every market x direction: n, hit, raw model p, 1/odds, ROI + game bootstrap; sports never pooled
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_team_identity.py [--from <d>] [--to <d>] [--sport all|football|...] [--md-out f] [--json-out f]   # identity plan K0: UNEXPLAINED events / players per kickoff day, sport and entity (IDENTIFIED / EXCLUDED / EXPLAINED / UNEXPLAINED); names judged on today's DB; T-IDENTITY-unexplained
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_day_anchor.py [--from <d>] [--to <d>] [--md-out f] [--json-out f]   # identity plan K2: DAY_ANCHOR precision with the opponent hidden, picks on NOT_IDENTIFIED vs the settle, start gaps

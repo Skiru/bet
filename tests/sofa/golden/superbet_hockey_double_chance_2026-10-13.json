@@ -1,0 +1,491 @@
+{
+ "source": "Superbet /events/{id}, fetched 2026-10-13 ~21:15Z (pre-match); trimmed to markets 606 616 623 630 640 660",
+ "events": [
+  {
+   "eventId": 15196264,
+   "matchName": "Kitchener Rangers·London Knights",
+   "sportId": 3,
+   "utcDate": "2026-10-13T23:00:00Z",
+   "odds": [
+    {
+     "marketId": 640,
+     "outcomeId": 1814,
+     "price": 2.6,
+     "status": "active",
+     "tags": "Pre-selected market,pm_boostable_market,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "Mecz",
+     "info": "Kitchener Rangers wygra mecz"
+    },
+    {
+     "marketId": 640,
+     "outcomeId": 1815,
+     "price": 4,
+     "status": "active",
+     "tags": "Pre-selected market,pm_boostable_market,v2",
+     "code": "0",
+     "name": "X",
+     "marketName": "Mecz",
+     "info": "Remis w meczu"
+    },
+    {
+     "marketId": 640,
+     "outcomeId": 1816,
+     "price": 2.1,
+     "status": "active",
+     "tags": "Pre-selected market,pm_boostable_market,v2",
+     "code": "2",
+     "name": "2",
+     "marketName": "Mecz",
+     "info": "London Knights wygra mecz"
+    },
+    {
+     "marketId": 630,
+     "outcomeId": 1782,
+     "price": 2.02,
+     "status": "active",
+     "tags": "void_service,pm_boostable_market,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "Zwycięzca (z dogrywką i rzutami karnymi)",
+     "info": "Kitchener Rangers wygra mecz (włącznie z dogrywką i rzutami karnymi)"
+    },
+    {
+     "marketId": 630,
+     "outcomeId": 1783,
+     "price": 1.68,
+     "status": "active",
+     "tags": "pm_boostable_market,v2,void_service",
+     "code": "2",
+     "name": "2",
+     "marketName": "Zwycięzca (z dogrywką i rzutami karnymi)",
+     "info": "London Knights wygra mecz (włącznie z dogrywką i rzutami karnymi)"
+    },
+    {
+     "marketId": 623,
+     "outcomeId": 1765,
+     "price": 3.2,
+     "status": "active",
+     "specifiers": {
+      "total": "4.5"
+     },
+     "tags": "pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 4.5",
+     "marketName": "Liczba goli",
+     "info": "Poniżej 4.5 goli w meczu"
+    },
+    {
+     "marketId": 623,
+     "outcomeId": 1766,
+     "price": 1.29,
+     "status": "active",
+     "specifiers": {
+      "total": "4.5"
+     },
+     "tags": "pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 4.5",
+     "marketName": "Liczba goli",
+     "info": "Powyżej 4.5 goli  w meczu"
+    },
+    {
+     "marketId": 623,
+     "outcomeId": 1765,
+     "price": 2.15,
+     "status": "active",
+     "specifiers": {
+      "total": "5.5"
+     },
+     "tags": "pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 5.5",
+     "marketName": "Liczba goli",
+     "info": "Poniżej 5.5 goli w meczu"
+    },
+    {
+     "marketId": 623,
+     "outcomeId": 1766,
+     "price": 1.61,
+     "status": "active",
+     "specifiers": {
+      "total": "5.5"
+     },
+     "tags": "pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 5.5",
+     "marketName": "Liczba goli",
+     "info": "Powyżej 5.5 goli  w meczu"
+    },
+    {
+     "marketId": 623,
+     "outcomeId": 1765,
+     "price": 1.56,
+     "status": "active",
+     "specifiers": {
+      "total": "6.5"
+     },
+     "tags": "pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 6.5",
+     "marketName": "Liczba goli",
+     "info": "Poniżej 6.5 goli w meczu"
+    },
+    {
+     "marketId": 623,
+     "outcomeId": 1766,
+     "price": 2.25,
+     "status": "active",
+     "specifiers": {
+      "total": "6.5"
+     },
+     "tags": "pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 6.5",
+     "marketName": "Liczba goli",
+     "info": "Powyżej 6.5 goli  w meczu"
+    },
+    {
+     "marketId": 606,
+     "outcomeId": 1661,
+     "price": 1.6,
+     "status": "active",
+     "tags": "v2",
+     "code": "10",
+     "name": "1X",
+     "marketName": "Podwójna szansa",
+     "info": "Kitchener Rangers wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 606,
+     "outcomeId": 1663,
+     "price": 1.39,
+     "status": "active",
+     "tags": "v2",
+     "code": "02",
+     "name": "X2",
+     "marketName": "Podwójna szansa",
+     "info": "London Knights wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 606,
+     "outcomeId": 1662,
+     "price": 1.17,
+     "status": "active",
+     "tags": "v2",
+     "code": "12",
+     "name": "12",
+     "marketName": "Podwójna szansa",
+     "info": "Kitchener Rangers lub London Knights wygra mecz"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1906,
+     "price": 2.85,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "1",
+     "name": "1.tercja - 1",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 1.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1907,
+     "price": 2.75,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "0",
+     "name": "1.tercja - X",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Remis w 1.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1908,
+     "price": 2.52,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "2",
+     "name": "1.tercja - 2",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 1.tercji"
+    },
+    {
+     "marketId": 616,
+     "outcomeId": 1737,
+     "price": 1.42,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "10",
+     "name": "1X",
+     "marketName": "1. tercja - podwójna szansa",
+     "info": "1. tercja - Kitchener Rangers wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 616,
+     "outcomeId": 1738,
+     "price": 1.35,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "12",
+     "name": "12",
+     "marketName": "1. tercja - podwójna szansa",
+     "info": "1. tercja - Kitchener Rangers lub London Knights wygra mecz"
+    },
+    {
+     "marketId": 616,
+     "outcomeId": 1739,
+     "price": 1.33,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "02",
+     "name": "X2",
+     "marketName": "1. tercja - podwójna szansa",
+     "info": "1. tercja - London Knights wygra lub zremisuje mecz"
+    }
+   ]
+  },
+  {
+   "eventId": 15098508,
+   "matchName": "Montreal Canadiens·Buffalo Sabres",
+   "sportId": 3,
+   "utcDate": "2026-10-13T22:30:00Z",
+   "odds": [
+    {
+     "marketId": 640,
+     "outcomeId": 1814,
+     "price": 2.02,
+     "status": "active",
+     "tags": "Pre-selected market,pm_boostable_market,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "Mecz",
+     "info": "Montreal Canadiens wygra mecz"
+    },
+    {
+     "marketId": 640,
+     "outcomeId": 1815,
+     "price": 4,
+     "status": "active",
+     "tags": "Pre-selected market,pm_boostable_market,v2",
+     "code": "0",
+     "name": "X",
+     "marketName": "Mecz",
+     "info": "Remis w meczu"
+    },
+    {
+     "marketId": 640,
+     "outcomeId": 1816,
+     "price": 2.95,
+     "status": "active",
+     "tags": "Pre-selected market,pm_boostable_market,v2",
+     "code": "2",
+     "name": "2",
+     "marketName": "Mecz",
+     "info": "Buffalo Sabres wygra mecz"
+    },
+    {
+     "marketId": 630,
+     "outcomeId": 1782,
+     "price": 1.62,
+     "status": "active",
+     "tags": "void_service,pm_boostable_market,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "Zwycięzca (z dogrywką i rzutami karnymi)",
+     "info": "Montreal Canadiens wygra mecz (włącznie z dogrywką i rzutami karnymi)"
+    },
+    {
+     "marketId": 630,
+     "outcomeId": 1783,
+     "price": 2.27,
+     "status": "active",
+     "tags": "pm_boostable_market,v2,void_service",
+     "code": "2",
+     "name": "2",
+     "marketName": "Zwycięzca (z dogrywką i rzutami karnymi)",
+     "info": "Buffalo Sabres wygra mecz (włącznie z dogrywką i rzutami karnymi)"
+    },
+    {
+     "marketId": 606,
+     "outcomeId": 1661,
+     "price": 1.32,
+     "status": "active",
+     "tags": "v2",
+     "code": "10",
+     "name": "1X",
+     "marketName": "Podwójna szansa",
+     "info": "Montreal Canadiens wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 606,
+     "outcomeId": 1663,
+     "price": 1.66,
+     "status": "active",
+     "tags": "v2",
+     "code": "02",
+     "name": "X2",
+     "marketName": "Podwójna szansa",
+     "info": "Buffalo Sabres wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 606,
+     "outcomeId": 1662,
+     "price": 1.19,
+     "status": "active",
+     "tags": "v2",
+     "code": "12",
+     "name": "12",
+     "marketName": "Podwójna szansa",
+     "info": "Montreal Canadiens lub Buffalo Sabres wygra mecz"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1906,
+     "price": 2.42,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "1",
+     "name": "1.tercja - 1",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 1.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1907,
+     "price": 2.77,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "0",
+     "name": "1.tercja - X",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Remis w 1.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1908,
+     "price": 3.05,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "1"
+     },
+     "tags": "v2",
+     "code": "2",
+     "name": "1.tercja - 2",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 1.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1906,
+     "price": 2.32,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "2"
+     },
+     "tags": "v2",
+     "code": "1",
+     "name": "2.tercja - 1",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 2.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1907,
+     "price": 3.05,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "2"
+     },
+     "tags": "v2",
+     "code": "0",
+     "name": "2.tercja - X",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Remis w 2.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1908,
+     "price": 2.92,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "2"
+     },
+     "tags": "v2",
+     "code": "2",
+     "name": "2.tercja - 2",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 2.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1906,
+     "price": 2.25,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "3"
+     },
+     "tags": "v2",
+     "code": "1",
+     "name": "3.tercja - 1",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 3.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1907,
+     "price": 3.25,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "3"
+     },
+     "tags": "v2",
+     "code": "0",
+     "name": "3.tercja - X",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Remis w 3.tercji"
+    },
+    {
+     "marketId": 660,
+     "outcomeId": 1908,
+     "price": 2.87,
+     "status": "active",
+     "specifiers": {
+      "periodnr": "3"
+     },
+     "tags": "v2",
+     "code": "2",
+     "name": "3.tercja - 2",
+     "marketName": "X.tercja - zwycięzca",
+     "info": "Wygra 3.tercji"
+    }
+   ]
+  }
+ ]
+}

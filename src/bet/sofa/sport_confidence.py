@@ -61,6 +61,7 @@ from bet.sofa.score_model import (
     parse_event,
 )
 from bet.sofa.shadow import (
+    DERIVED_MARKETS,
     MARKETS,
     ORIENTATION_FREE,
     PLAYER_MARKETS,
@@ -70,6 +71,7 @@ from bet.sofa.shadow import (
     actual_value,
     build_result,
     grade,
+    spec_of,
 )
 
 SportKey = Literal["hockey", "basketball", "volleyball", "cs2"]
@@ -165,11 +167,26 @@ EXTENDED_MARKETS: dict[str, dict[int, str]] = {
 # (bet.sofa.line_evidence) or is NO_LINE_EVIDENCE.
 
 
-def allowed_markets(sport: str, extended: bool = False) -> dict[int, str]:
-    """The allow-list; `extended` (epochs.line_evidence) adds EXTENDED_MARKETS."""
+# epochs.SPORT_DERIVED_MARKETS_FROM_UTC: the markets shadow.DERIVED_MARKETS
+# reads (hockey / basketball double chance, volleyball's team sets and sets
+# count; basketball's and volleyball's under shadow's synthetic ids < 0),
+# priced from the score model's simulation. No history curve: a key reads its
+# own settled Superbet lines (bet.sofa.line_evidence) or is NO_LINE_EVIDENCE.
+DERIVED_ALLOWED: dict[str, dict[int, str]] = {
+    sport: {mid: spec.family for mid, spec in specs.items()}
+    for sport, specs in DERIVED_MARKETS.items()
+}
+
+
+def allowed_markets(sport: str, extended: bool = False,
+                    derived: bool = False) -> dict[int, str]:
+    """The allow-list; `extended` (epochs.line_evidence) adds EXTENDED_MARKETS,
+    `derived` (epochs.sport_derived_markets) DERIVED_ALLOWED."""
     out = dict(ALLOWED_MARKETS.get(sport, {}))
     if extended:
         out.update(EXTENDED_MARKETS.get(sport, {}))
+    if derived:
+        out.update(DERIVED_ALLOWED.get(sport, {}))
     return out
 
 
@@ -320,8 +337,12 @@ def wilson_lo(k: int, n: int, z: float = 1.959964) -> float:
 
 def side_class(side: str) -> str:
     """OVER / UNDER / DRAW / ODD / EVEN / YES / NO and an exact score ("3:1")
-    keep their own curve; a team side is TEAM."""
+    keep their own curve; a team side is TEAM. A double chance's "12" (no
+    draw) and a sets count's "SETS=N" keep theirs too; its 1X / X2 (a team or
+    the draw) are TEAM (epochs.SPORT_DERIVED_MARKETS_FROM_UTC)."""
     if side in ("OVER", "UNDER", "DRAW", "ODD", "EVEN", "YES", "NO") or ":" in side:
+        return side
+    if side == "12" or "=" in side:
         return side
     return "TEAM"
 
@@ -331,8 +352,9 @@ def curve_key(family: str, side: str) -> str:
 
 
 def family_of(sport: str, market_id: int | None, family: str,
-              extended: bool = False) -> str | None:
-    """The allowed family of a line, or None when it may not be a leg."""
+              extended: bool = False, derived: bool = False) -> str | None:
+    """The allowed family of a line, or None when it may not be a leg.
+    `derived` (epochs.sport_derived_markets): DERIVED_ALLOWED too."""
     if sport == "cs2":
         allowed = CS2_FAMILIES | (CS2_EXTENDED_FAMILIES if extended else frozenset())
         return family if family in allowed else None
@@ -340,7 +362,7 @@ def family_of(sport: str, market_id: int | None, family: str,
         return None
     if extended and int(market_id) in PLAYER_MARKETS.get(sport, {}):  # type: ignore[call-overload]
         return str(PLAYER_MARKETS[sport][int(market_id)].family)  # type: ignore[index]
-    return allowed_markets(sport, extended).get(int(market_id))
+    return allowed_markets(sport, extended, derived).get(int(market_id))
 
 
 Row = dict[str, Any]
@@ -611,9 +633,29 @@ def parse_history(events: Mapping[int, dict[str, Any]], sport: ShadowSport,
     return out
 
 
+def _spec(sport: ShadowSport, market_id: int) -> Any:
+    """shadow's spec of a market the replay scores (its own or a derived
+    one); a market with neither is a caller's error."""
+    spec = spec_of(sport.key, market_id)
+    if spec is None:
+        raise KeyError(market_id)
+    return spec
+
+
+# epochs.SPORT_DERIVED_MARKETS_FROM_UTC: the derived markets a history game
+# can be scored on (scripts/sofa/measure_sport_derived.py; no curve is fitted
+# from them - a key reads its settled Superbet lines). A team's "exactly N
+# sets" is scored at N = 1 and 2 (the lines Superbet posted on 2026-10-14).
+DERIVED_HISTORY_MARKETS: dict[str, tuple[int, ...]] = {
+    sport: tuple(specs) for sport, specs in DERIVED_MARKETS.items()
+}
+DERIVED_EXACT_SET_LINES = (1.0, 2.0)
+DERIVED_SETS_COUNTS = (3, 4, 5)
+
+
 def _probe(sport: ShadowSport, market_id: int, subject: str, period: int = 0
            ) -> ShadowLine:
-    spec = MARKETS[sport.key][market_id]
+    spec = _spec(sport, market_id)
     side = "OVER" if spec.kind in ("total", "team_total") else "T1"
     return ShadowLine("", market_id, spec.family, period, subject, 0.0, side, 1.0)
 
@@ -622,7 +664,7 @@ def market_periods(sport: ShadowSport, market_id: int, set_history: bool = False
                    ) -> tuple[int, ...]:
     """The periods a market is scored on: (0,) unless it is a period market;
     volleyball's sets only with `set_history` (C9)."""
-    if MARKETS[sport.key][market_id].scope != "period":
+    if _spec(sport, market_id).scope != "period":
         return (0,)
     if set_history and sport.key == "volleyball":
         return VB_SET_PERIODS
@@ -652,7 +694,7 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     simulated quantity, half a point off an integer (no push). A winner or a
     1X2 has no line.
     """
-    spec = MARKETS[sport.key][market_id]
+    spec = _spec(sport, market_id)
     subject = spec.team or ""
     if spec.kind in ("winner", "dnb"):
         return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
@@ -671,6 +713,17 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
     if spec.kind == "three_way":
         return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
                 for s in ("T1", "DRAW", "T2")]
+    if spec.kind == "double_chance":
+        return [ShadowLine("", market_id, spec.family, period, "", None, s, 1.0)
+                for s in ("1X", "X2", "12")]
+    if spec.kind == "set_yes_no":
+        set_lines: tuple[float | None, ...] = (
+            (None,) if spec.family == "team_wins_set" else DERIVED_EXACT_SET_LINES)
+        return [ShadowLine("", market_id, spec.family, period, subject, v, s, 1.0)
+                for v in set_lines for s in ("YES", "NO")]
+    if spec.kind == "sets_count":
+        return [ShadowLine("", market_id, spec.family, period, "", None,
+                           f"SETS={n}", 1.0) for n in DERIVED_SETS_COUNTS]
     probe = _probe(sport, market_id, subject, period)
     values = sorted(v for g in sims if (v := actual_value(probe, g, sport)) is not None)
     if not values:
@@ -702,7 +755,7 @@ def market_position_lines(sport: ShadowSport, market_id: int,
                           ml: MarketLines) -> list[ShadowLine]:
     """Both sides of every market-positioned line of one game for one
     market (MARKET_LINE_MARKETS); [] when the game has none for it."""
-    spec = MARKETS[sport.key][market_id]
+    spec = _spec(sport, market_id)
     if spec.kind == "total":
         return [ShadowLine("", market_id, spec.family, 0, "", c, s, 1.0)
                 for c in ml.totals for s in ("OVER", "UNDER")]
@@ -721,8 +774,11 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
                overtime: bool = False, set_history: bool = False,
                market_lines_on: bool = False,
                market: MarketLines | None = None,
-               market_only: bool = False) -> list[Row]:
+               market_only: bool = False,
+               markets: Sequence[int] | None = None) -> list[Row]:
     """The rows of one historical game, from the model as it stands.
+    `markets`: score these market ids instead of history_markets (the
+    derived markets' measurement, DERIVED_HISTORY_MARKETS); None: as before.
     `freshness`: the basketball noise by games played in the last 120 days
     (epochs.BB_FRESHNESS_FROM_UTC), as the live forecaster simulates.
     `set_history` (C9): volleyball's set markets on sets 1-5 too.
@@ -748,7 +804,10 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
     positioned = (MARKET_LINE_MARKETS.get(sport.key, frozenset())
                   if market_lines_on else frozenset())
-    lines = [ln for mid in history_markets(sport.key, set_history)
+    scored = (history_markets(sport.key, set_history) if markets is None
+              else tuple(markets))
+    derived = set(DERIVED_HISTORY_MARKETS.get(sport.key, ()))
+    lines = [ln for mid in scored
              if mid not in positioned and not market_only
              for period in market_periods(sport, mid, set_history)
              for ln in synthetic_lines(sport, mid, sims, period)]
@@ -763,6 +822,7 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
         # a posted line is kept wherever the model puts it (as a settled
         # Superbet line is); the degenerate test is for synthetic lines
         if (line.line is not None and mid not in positioned
+                and mid not in derived
                 and not DEGENERATE_P <= p <= 1 - DEGENERATE_P):
             continue
         actual = actual_value(line, game.result, sport)
@@ -790,10 +850,12 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       hk_shots: str | None = None,
                       hk_empty_net: bool = False,
                       set_length: bool = False, set_history: bool = False,
-                      market_lines: Mapping[int, MarketLines] | None = None
+                      market_lines: Mapping[int, MarketLines] | None = None,
+                      markets: Sequence[int] | None = None,
                      ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
-    built only from games that started strictly before it.
+    built only from games that started strictly before it. `markets`: the
+    market ids scored (score_game's; None: history_markets).
 
     The model is rebuilt (score_model.build_model, cut at the game's start)
     every REBUILD_DAYS; in between the rating book is updated game by game,
@@ -857,14 +919,16 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
             if market_lines is None:
                 if id(g) in scored:
                     rows += score_game(sport, model, g, n_sims, source,
-                                       freshness, overtime, set_history)
+                                       freshness, overtime, set_history,
+                                       markets=markets)
                 continue
             ml = market_lines.get(g.rating.event_id)
             if id(g) in scored or ml is not None:
                 rows += score_game(sport, model, g, n_sims, source, freshness,
                                    overtime, set_history,
                                    market_lines_on=True, market=ml,
-                                   market_only=id(g) not in scored)
+                                   market_only=id(g) not in scored,
+                                   markets=markets)
         for g in batch:
             model.book.update(_rated_values(g.rating, sport))
             model.note_game(g.rating)
@@ -905,12 +969,15 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
     ratings = [g.rating for g in history]
     scores: dict[int, tuple[Sequence[int], Sequence[int]]] | None = None
     rows: list[Row] = []
-    allowed = allowed_markets(sport.key, extended=True)
     for date in dates:
         path = Path(runs_dir) / "shadow" / sport.key / date / "settled.json"
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
+        # epochs.SPORT_DERIVED_MARKETS: a day's derived lines are its own
+        # evidence from the day the switch is on (the line evidence's input)
+        allowed = allowed_markets(sport.key, extended=True,
+                                  derived=epochs.sport_derived_markets(date))
         # epochs.LEAGUE_RATE_RULE: the day's own rule - a friendly is not
         # priced and a thin competition has no rate (audit 2026-10-13 A2)
         # the day's own rules (the line evidence's reading), unless a fit
@@ -1318,9 +1385,11 @@ def sample_hit_rate(line: ShadowLine, sport: ShadowSport, team1_id: int,
     team's; a winner / handicap / 1X2 each team's games with the team on its
     own side of the line (team1's games as team1, team2's as team2). A game
     whose score does not grade is left out. Shown, never a gate."""
-    spec = MARKETS[sport.key][line.market_id]
+    spec = spec_of(sport.key, line.market_id)
+    if spec is None:
+        return 0, 0
     free = spec.kind in ORIENTATION_FREE and spec.team is None
-    if spec.kind == "team_total":
+    if spec.kind in ("team_total", "set_yes_no"):
         teams = [(team1_id, "T1")] if line.subject == "T1" else [(team2_id, "T2")]
     else:
         teams = [(team1_id, "T1"), (team2_id, "T2")]

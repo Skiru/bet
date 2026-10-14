@@ -48,7 +48,6 @@ from bet.sofa.football_rating import (
 from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.resolve import sofascore_gender
 from bet.sofa.shadow import (
-    MARKETS,
     SPORTS,
     GameResult,
     ShadowLine,
@@ -56,6 +55,7 @@ from bet.sofa.shadow import (
     actual_value,
     grade,
     is_player_line,
+    spec_of,
 )
 
 # Simulated games per forecast. The Monte Carlo error of a probability is at
@@ -1116,7 +1116,7 @@ def line_probability(
     """
     if is_player_line(sport.key, line.market_id):
         return None
-    spec = MARKETS[sport.key].get(line.market_id)
+    spec = spec_of(sport.key, line.market_id)
     if spec is None:
         return None
     three_way = spec.kind == "three_way"

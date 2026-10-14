@@ -421,14 +421,15 @@ def _shadow_period(sport: str, scope: str, period: int) -> frozenset[str]:
 
 
 def _shadow_spec(sport: str, family: str) -> tuple[str, str] | None:
-    from bet.sofa.shadow import MARKETS
+    from bet.sofa.shadow import DERIVED_MARKETS, MARKETS
 
-    for key, specs in MARKETS.items():
-        if key != sport:
-            continue
-        for spec in specs.values():
-            if spec.family == family:
-                return str(spec.kind), str(spec.scope)
+    for table in (MARKETS, DERIVED_MARKETS):
+        for key, specs in table.items():
+            if key != sport:
+                continue
+            for spec in specs.values():
+                if spec.family == family:
+                    return str(spec.kind), str(spec.scope)
     return None
 
 
@@ -479,7 +480,13 @@ def _shadow_proposition(leg: Mapping[str, Any]) -> Proposition | None:
     if kind == "exact":
         q = Quantity(sport, stat, period, "exact", "")
         return Proposition(q, values=frozenset({side}))
+    if kind in ("set_yes_no", "sets_count"):
+        return None  # epochs.SPORT_DERIVED_MARKETS: not in the map
     q = Quantity(sport, stat, period, "diff", "")
+    if kind == "double_chance":
+        # 1X: team1 - team2 >= 0; X2: <= 0; 12 (not level) is no interval
+        dc = {"1X": (0.0, None), "X2": (None, 0.0)}.get(side)
+        return None if dc is None else Proposition(q, *dc, orient="t1")
     # The line is team1's handicap: T1 wins when team1 - team2 > -line.
     threshold = -float(line) if (kind == "handicap" and line is not None) else 0.0
     bounds = _diff_side(side, threshold)

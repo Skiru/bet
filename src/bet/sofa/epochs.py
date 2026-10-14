@@ -1770,3 +1770,32 @@ def shot_detail_markets(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= SHOT_DETAIL_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= SHOT_DETAIL_MARKETS_FROM_UTC)
+
+
+# The measured sports' markets derived from the score model they already have
+# (bet.sofa.shadow DERIVED_MARKETS; no new data source): hockey's double
+# chance for the game and a period ("Podwójna szansa" 606, "N. tercja -
+# podwójna szansa" 616 - regulation, as the 1X2 640 / 660), basketball's
+# double chance for the game, a half and a quarter (regulation, as 777 / 763
+# / 233400 / 779; read by name), volleyball's "<team> wygra seta", "<team>
+# wygra dokładnie N set(y)" and "Dokładna liczba setów" (from the simulated
+# set score, as exact_sets 785; read by name). SHADOW reads them into the
+# snapshots (records marked `derived_rule`), SHADOW_SETTLE grades them,
+# SPORT_CONFIDENCE prices them from the score model's simulation and reads
+# the keys' own settled Superbet lines - no curve, so NO_LINE_EVIDENCE until
+# a p bucket holds enough lines; nothing prints at first. Adds legs, so a day
+# >= the date built at or after the moment. Off (None, until the operator
+# sets it): SHADOW snapshots, SHADOW_SETTLE and SPORT_CONFIDENCE
+# byte-identical. Evidence: docs/sofa/evidence/sport_derived_2026-10-14.md.
+SPORT_DERIVED_MARKETS = "sport_derived_v1"
+SPORT_DERIVED_MARKETS_FROM_UTC: datetime | None = None
+
+
+def sport_derived_markets(date: str, build_at: datetime | None = None) -> bool:
+    """Do SHADOW read and SPORT_CONFIDENCE price the measured sports' derived
+    markets (SPORT_DERIVED_MARKETS_FROM_UTC)?"""
+    if SPORT_DERIVED_MARKETS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= SPORT_DERIVED_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= SPORT_DERIVED_MARKETS_FROM_UTC)

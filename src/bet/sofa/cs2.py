@@ -405,6 +405,25 @@ TWO_WAY_SETS = (
 )
 THREE_WAY_SET = frozenset({"T1", "DRAW", "T2"})
 _EXACT = re.compile(r"^(\d+):(\d+)$")
+# A double chance (hockey / basketball, epochs.SPORT_DERIVED_MARKETS_FROM_UTC):
+# three OVERLAPPING outcomes of the 1X2 - each regulation result is in two of
+# them, so their fair probabilities sum to 2, never 1.
+DOUBLE_CHANCE_SET = frozenset({"1X", "X2", "12"})
+# Volleyball's "Dokładna liczba setów" (same switch): the number of sets
+# played, one side per count - a partition of a best-of-5 (or best-of-3).
+SETS_COUNT_PREFIX = "SETS="
+SETS_COUNT_SETS = (
+    frozenset({"SETS=3", "SETS=4", "SETS=5"}),
+    frozenset({"SETS=2", "SETS=3"}),
+)
+
+
+def sets_count_of(side: str) -> int | None:
+    """N of a "SETS=N" side, else None."""
+    if not side.startswith(SETS_COUNT_PREFIX):
+        return None
+    tail = side[len(SETS_COUNT_PREFIX):]
+    return int(tail) if tail.isdigit() else None
 
 
 def exact_score(side: str) -> tuple[int, int] | None:
@@ -424,7 +443,7 @@ def exact_score_sets() -> list[frozenset[str]]:
 EXACT_SETS = exact_score_sets()
 
 
-Shape = Literal["two", "three", "exact"]
+Shape = Literal["two", "three", "exact", "double", "count"]
 
 
 def complete_group(sides: set[str] | frozenset[str], shape: Shape) -> bool:
@@ -440,6 +459,10 @@ def complete_group(sides: set[str] | frozenset[str], shape: Shape) -> bool:
         return group in TWO_WAY_SETS
     if shape == "three":
         return group == THREE_WAY_SET
+    if shape == "double":
+        return group == DOUBLE_CHANCE_SET
+    if shape == "count":
+        return group in SETS_COUNT_SETS
     return group in EXACT_SETS
 
 
@@ -466,12 +489,23 @@ def group_fair(odds_by_side: dict[str, float], shape: Shape) -> dict[str, float]
         return {a: pa, b: pb}
     if any(o <= 1.0 for o in odds_by_side.values()):
         return None
+    if shape == "double":
+        # Overlapping outcomes: the margin taken out proportionally, to a
+        # total of 2 (each regulation result is in two selections).
+        total = sum(1.0 / odds_by_side[s] for s in sides)
+        return {s: 2.0 * (1.0 / odds_by_side[s]) / total for s in sides}
     fair = devig_many([1.0 / odds_by_side[s] for s in sides])
     return None if fair is None else dict(zip(sides, fair, strict=True))
 
 
 def group_overround(odds_by_side: dict[str, float]) -> float:
-    return sum(1.0 / o for o in odds_by_side.values()) - 1.0
+    """The group's margin. A double chance's selections are fair at a total
+    of 2, so its margin is half its excess: 1X 1.35 / X2 1.66 / 12 1.26 is
+    0.068, what its 1X-against-2 rung would show."""
+    total = sum(1.0 / o for o in odds_by_side.values())
+    if frozenset(odds_by_side) == DOUBLE_CHANCE_SET:
+        return total / 2.0 - 1.0
+    return total - 1.0
 
 
 def grade_side(side: str, actual: float, value: float | None, three_way: bool) -> str:
@@ -492,6 +526,13 @@ def grade_side(side: str, actual: float, value: float | None, three_way: bool) -
         return "WIN" if (actual == 1.0) == (side == "YES") else "LOSS"
     if exact_score(side) is not None:
         return "WIN" if actual == 1.0 else "LOSS"
+    if side in DOUBLE_CHANCE_SET:
+        # `actual` is team1 minus team2; a level score is the draw.
+        result = "1" if actual > 0 else "2" if actual < 0 else "X"
+        return "WIN" if result in side else "LOSS"
+    count = sets_count_of(side)
+    if count is not None:
+        return "WIN" if actual == float(count) else "LOSS"
     if three_way:
         result = "T1" if actual > 0 else "T2" if actual < 0 else "DRAW"
         return "WIN" if side == result else "LOSS"

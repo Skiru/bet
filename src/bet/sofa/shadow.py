@@ -50,6 +50,9 @@ never a two-way one. Player lines are read from the box score.
 Not read, each for a reason (measured on the live board 2026-09-30):
 - double chance (hockey 606/616, basketball 201797/230595): overlapping
   outcomes, not a partition - it is the 1X2 re-sold, and the 1X2 is read;
+  from epochs.SPORT_DERIVED_MARKETS_FROM_UTC (DERIVED_MARKETS) it is read,
+  devigged to a total of 2 (cs2.group_fair "double"), with volleyball's
+  team-sets and sets-count markets;
 - first goal (666, 643) and race to N points (750): need the order of
   scoring, which the stored score does not have;
 - basketball milestone props ("Punkty zawodnika" 5+, 235311-235315,
@@ -138,6 +141,10 @@ Kind = Literal[
     "odd_even",  # ODD / EVEN of a total, or of a team's own (team set)
     "yes_no",  # YES / NO: volleyball "set decided on extra points"
     "exact",  # exact score in sets, "3:1" = team1 first; the whole score set
+    # epochs.SPORT_DERIVED_MARKETS_FROM_UTC (DERIVED_MARKETS below):
+    "double_chance",  # 1X / X2 / 12 of a 1X2, overlapping (cs2.DOUBLE_CHANCE_SET)
+    "set_yes_no",  # volleyball YES / NO on a team's sets won (family says which)
+    "sets_count",  # volleyball sets played, "SETS=N" sides, a partition
 ]
 # Kinds whose quantity does not depend on which side is team1, so a game whose
 # orientation cannot be told still grades them (with no team of their own).
@@ -232,6 +239,170 @@ MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
     },
 }
 PARTNER = {"OVER": "UNDER", "UNDER": "OVER", "T1": "T2", "T2": "T1"}
+
+# --- derived markets (epochs.SPORT_DERIVED_MARKETS_FROM_UTC) -------------------
+#
+# Markets the score model already answers - a function of the regulation /
+# period score or of the set score it simulates - read by SHADOW only when
+# the switch is on (parse_event's `derived`); off, nothing below is reached
+# and a snapshot is byte for byte what it was.
+#
+# Hockey, checked on Superbet payloads of 2026-10-13 (Kitchener - London,
+# Montreal - Buffalo): "Podwójna szansa" 606 (1X / X2 / 12, codes 10 / 02 /
+# 12; info "wygra lub zremisuje mecz") is priced beside "Mecz" 640, which
+# prices a draw - so regulation time, graded exactly as result_1x2 (scope
+# "reg"); "1. tercja - podwójna szansa" 616 carries `periodnr` like the
+# period 1X2 660 (scope "period"). Both are read by their ids.
+#
+# Basketball and volleyball: no payload of these markets was at hand, so they
+# are read by NAME (the market-coverage probe of 2026-10-14) under a
+# synthetic id below zero (no Superbet id is negative), and a name or an
+# outcome that does not fit is dropped - never guessed. Basketball's "Podwójna
+# szansa" / "N. połowa - podwójna szansa" / "N. kwarta - podwójna szansa"
+# carry no "(z dogrywką)" and a draw: regulation, graded as 777 / 763 /
+# 233400 / 779 (a name with "dogryw" is refused - no draw exists there).
+# Volleyball's "<team> wygra seta" / "<team> wygra dokładnie N set(y)" (Tak /
+# Nie) and "Dokładna liczba setów" (N per outcome) are functions of the sets
+# won, as exact_sets 785.
+DERIVED_MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
+    "hockey": {
+        606: _m("double_chance", "double_chance", "reg"),
+        616: _m("period_double_chance", "double_chance", "period", "periodnr"),
+    },
+    "basketball": {
+        -1: _m("double_chance", "double_chance", "reg"),
+        -2: _m("h1_double_chance", "double_chance", "h1"),
+        -3: _m("h2_double_chance", "double_chance", "h2"),
+        -4: _m("quarter_double_chance", "double_chance", "period", "name"),
+    },
+    "volleyball": {
+        -11: _m("team_wins_set", "set_yes_no", "sets", team="T1"),
+        -12: _m("team_wins_set", "set_yes_no", "sets", team="T2"),
+        -13: _m("team_sets_exact", "set_yes_no", "sets", team="T1"),
+        -14: _m("team_sets_exact", "set_yes_no", "sets", team="T2"),
+        -15: _m("sets_count", "sets_count", "sets"),
+    },
+}
+
+
+def spec_of(sport: str, market_id: int) -> MarketSpec | None:
+    """A market's spec - shadow's own or a derived one (a derived line exists
+    only where the switch let SHADOW read it)."""
+    for table in (MARKETS, DERIVED_MARKETS):
+        for key, specs in table.items():
+            if key == sport and market_id in specs:
+                return specs[market_id]
+    return None
+
+
+def _fold(text: str) -> str:
+    """Lowercase, Polish letters folded, spaces squeezed."""
+    import unicodedata
+
+    text = text.lower().replace("ł", "l")
+    text = "".join(c for c in unicodedata.normalize("NFKD", text)
+                   if not unicodedata.combining(c))
+    return " ".join(text.split())
+
+
+_DC_NAME = re.compile(r"^(?:([12])\. polowa - |([1-4])\. kwarta - )?podwojna szansa$")
+_DC_CODE = {"10": "1X", "02": "X2", "12": "12"}
+_VB_EXACT_SETS = re.compile(r"^ wygra dokladnie ([0-3]) set(?:y|ow)?$")
+_VB_SETS_COUNT = re.compile(r"^([2-5])(?: set(?:y|ow)?)?$")
+
+
+def _derived_market(
+    item: dict[str, Any], sport: SportKey, team1: str, team2: str
+) -> tuple[int, int, float | None] | None:
+    """(spec id, period, line) of a derived market read by name (basketball,
+    volleyball), or None. Hockey's are read by their ids (parse_line)."""
+    market = str(item.get("marketName") or "")
+    folded = _fold(market)
+    if sport == "basketball":
+        m = _DC_NAME.match(folded)
+        if m is None:
+            return None
+        if m.group(1):
+            return (-2 if m.group(1) == "1" else -3), 0, None
+        if m.group(2):
+            return -4, int(m.group(2)), None
+        return -1, 0, None
+    if sport != "volleyball":
+        return None
+    if folded == "dokladna liczba setow":
+        return -15, 0, None
+    side = _team_side(market, team1, team2)
+    if side is None:
+        return None
+    rest = _fold(market.replace(team1 if side == "T1" else team2, "", 1))
+    rest = " " + rest
+    if rest == " wygra seta":
+        return (-11 if side == "T1" else -12), 0, None
+    m = _VB_EXACT_SETS.match(rest)
+    if m is not None:
+        return (-13 if side == "T1" else -14), 0, float(m.group(1))
+    return None
+
+
+def _parse_derived(
+    item: dict[str, Any], sport: SportKey, event_id: str, team1: str, team2: str
+) -> ShadowLine | None:
+    """One side of a derived market (DERIVED_MARKETS), or None. The side is
+    read from the outcome's name and, where Superbet's `code` is known (a
+    double chance: 10 / 02 / 12), from it too; a disagreement drops it."""
+    market = str(item.get("marketName") or "")
+    if ";" in market or "dogryw" in _fold(market):
+        return None
+    if "price_boost" in str(item.get("tags") or ""):
+        return None
+    if item.get("status") not in (None, "active"):
+        return None
+    odds = _num(item.get("price"))
+    if odds is None or odds <= 1.0:
+        return None
+    try:
+        market_id = int(item.get("marketId") or 0)
+    except (TypeError, ValueError):
+        return None
+    period = 0
+    value: float | None = None
+    if sport == "hockey":
+        spec = DERIVED_MARKETS["hockey"].get(market_id)
+        if spec is None:
+            return None
+        if spec.period_key:
+            raw_period = _num((item.get("specifiers") or {}).get(spec.period_key))
+            if raw_period is None or raw_period < 1:
+                return None
+            period = int(raw_period)
+            if not _fold(market).startswith(f"{period}. tercja - podwojna szansa"):
+                return None
+        elif _fold(market) != "podwojna szansa":
+            return None
+        spec_id = market_id
+    else:
+        found = _derived_market(item, sport, team1, team2)
+        if found is None:
+            return None
+        spec_id, period, value = found
+        spec = DERIVED_MARKETS[sport][spec_id]
+    name = str(item.get("name") or "").strip()
+    code = str(item.get("code") or "")
+    side: str | None
+    if spec.kind == "double_chance":
+        side = name if name in ("1X", "X2", "12") else None
+        from_code = _DC_CODE.get(code)
+        if side is None or (code and from_code is not None and from_code != side):
+            return None
+    elif spec.kind == "set_yes_no":
+        side = {"tak": "YES", "nie": "NO"}.get(_fold(name))
+    else:  # sets_count
+        m = _VB_SETS_COUNT.match(_fold(name))
+        side = None if m is None else f"SETS={m.group(1)}"
+    if side is None:
+        return None
+    return ShadowLine(event_id, spec_id, spec.family, period, spec.team or "",
+                      value, side, odds)
 
 
 @dataclass(frozen=True)
@@ -344,11 +515,15 @@ def is_player_line(sport: SportKey, market_id: int) -> bool:
 
 def group_shape(sport: SportKey, market_id: int) -> Shape:
     """The outcome shape a market's sides must make up (player lines: two)."""
-    spec = MARKETS[sport].get(market_id)
+    spec = spec_of(sport, market_id)
     if spec is not None and spec.kind == "three_way":
         return "three"
     if spec is not None and spec.kind == "exact":
         return "exact"
+    if spec is not None and spec.kind == "double_chance":
+        return "double"
+    if spec is not None and spec.kind == "sets_count":
+        return "count"
     return "two"
 
 
@@ -406,13 +581,15 @@ _CODE_SIDE = {"+": "OVER", "-": "UNDER", "1": "T1", "2": "T2"}
 
 
 def parse_line(
-    item: dict[str, Any], sport: SportKey, event_id: str, team1: str, team2: str
+    item: dict[str, Any], sport: SportKey, event_id: str, team1: str, team2: str,
+    derived: bool = False,
 ) -> ShadowLine | None:
     """One Superbet odds item as a gradeable line, or None if it is not one.
 
     The side is read twice - from Superbet's outcome `code` and from the
     outcome's text - and the line is dropped when the two disagree, or when
-    the only reading is the one that could be wrong.
+    the only reading is the one that could be wrong. `derived`
+    (epochs.sport_derived_markets): DERIVED_MARKETS are read too.
     """
     try:
         market_id = int(item.get("marketId") or 0)
@@ -422,6 +599,8 @@ def parse_line(
     if spec is None:
         player_spec = PLAYER_MARKETS[sport].get(market_id)
         if player_spec is None:
+            if derived:
+                return _parse_derived(item, sport, event_id, team1, team2)
             return None
         return _parse_player_line(item, player_spec, event_id, market_id)
     market = str(item.get("marketName") or "")
@@ -568,11 +747,13 @@ def parse_event(
     event_id: str,
     team1: str,
     team2: str,
+    derived: bool = False,
 ) -> list[ShadowLine]:
-    """Every gradeable line whose two sides are both quoted exactly once."""
+    """Every gradeable line whose two sides are both quoted exactly once.
+    `derived` (epochs.sport_derived_markets): DERIVED_MARKETS too."""
     by_key: dict[tuple[int, int, str, float | None], dict[str, list[ShadowLine]]] = {}
     for item in items:
-        parsed = parse_line(item, sport, event_id, team1, team2)
+        parsed = parse_line(item, sport, event_id, team1, team2, derived)
         if parsed is not None:
             by_key.setdefault(parsed.key(), {}).setdefault(parsed.side, []).append(
                 parsed
@@ -919,7 +1100,7 @@ def set_not_played(line: ShadowLine, result: GameResult, sport: ShadowSport) -> 
     A game published with no sets says nothing (final_only)."""
     if sport.regulation_periods is not None or result.final_only:
         return False
-    spec = MARKETS[sport.key].get(line.market_id)
+    spec = spec_of(sport.key, line.market_id)
     return (spec is not None and spec.scope == "period"
             and bool(result.t1_periods) and line.period > len(result.t1_periods))
 
@@ -933,7 +1114,9 @@ def actual_value(
     minus team2 - except a winner, which is Sofascore's winner (a hockey
     shootout is decided outside the score).
     """
-    spec = MARKETS[sport.key][line.market_id]
+    spec = spec_of(sport.key, line.market_id)
+    if spec is None:
+        return None
     if spec.kind == "winner" and spec.scope == "full":
         if result.winner is None:
             return None
@@ -942,6 +1125,16 @@ def actual_value(
     if pair is None:
         return None
     a, b = pair
+    if spec.kind == "set_yes_no":
+        # a team's sets won (`sets` scope): at least one, or exactly N
+        own = a if spec.team == "T1" else b
+        if spec.family == "team_wins_set":
+            return 1.0 if own >= 1 else 0.0
+        if line.line is None:
+            return None
+        return 1.0 if own == int(line.line) else 0.0
+    if spec.kind == "sets_count":
+        return float(a + b)
     if spec.kind == "exact":
         score = exact_score(line.side)
         return None if score is None else (1.0 if score == (a, b) else 0.0)
@@ -1127,7 +1320,7 @@ def settle_event(
         is_player = is_player_line(sport.key, line.market_id)
         # A player line is about a named person, not a side: orientation
         # does not touch it.
-        spec = None if is_player else MARKETS[sport.key][line.market_id]
+        spec = None if is_player else spec_of(sport.key, line.market_id)
         if (
             totals_only
             and spec is not None

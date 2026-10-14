@@ -448,7 +448,10 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             and str(ln.subject or "") == str(leg.get("subject") or "")
             and int(ln.map_nr if sport == "cs2" else ln.period) == int(
                 leg.get("period") or 0)
-            and rsc._allowed(sport, ln, evidence is not None) == leg["family"]
+            and rsc._allowed(sport, ln, evidence is not None,
+                             evidence is not None
+                             and epochs.sport_derived_markets(date, at)
+                             ) == leg["family"]
         ]
         if not match:
             out.append(f"U3 {label}: the line is not in the snapshot")

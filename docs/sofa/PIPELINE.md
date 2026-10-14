@@ -1514,6 +1514,33 @@ kwart, także w meczu z dogrywką. Krecz (`RETIRED`) to zwrot. Kod 1,
 gdy sport jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` — artefakt i
 tak powstaje, kupon piłki i tenisa buduje się dalej.
 
+**Rynki pochodne sportów mierzonych za przełącznikiem
+`epochs.SPORT_DERIVED_MARKETS_FROM_UTC`** (`None` - czeka na operatora;
+znacznik `sport_derived_v1`). Rynki, na które model wyniku już odpowiada, bez
+nowego źródła danych (`shadow.DERIVED_MARKETS`): hokej - „Podwójna szansa”
+606 i „N. tercja - podwójna szansa” 616 (czytane po id, sprawdzone na
+ładunkach Superbetu z 2026-10-13: 1X / X2 / 12, kody 10 / 02 / 12, obok „Mecz”
+640 z remisem - więc czas regulaminowy, rozliczane dokładnie jak
+`result_1x2` / `period_1x2`); koszykówka - „Podwójna szansa”, „N. połowa -
+podwójna szansa”, „N. kwarta - podwójna szansa” (regulaminowo, jak 777 / 763
+/ 233400 / 779; nazwa z „dogrywką” odrzucona - tam nie ma remisu); siatkówka -
+„<drużyna> wygra seta”, „<drużyna> wygra dokładnie N set(y)” (Tak / Nie) i
+„Dokładna liczba setów” (3 / 4 / 5) z symulowanego wyniku w setach, jak
+`exact_sets` 785. Koszykówka i siatkówka czytane **po nazwie** pod
+syntetycznym id < 0 (ładunku tych rynków nie było pod ręką): nazwa albo
+wynik, który nie pasuje, odpada - nic nie jest zgadywane. Podwójna szansa ma
+nakładające się wyniki: devig proporcjonalnie do sumy 2
+(`cs2.group_fair` „double”), marża grupy = połowa nadwyżki
+(`cs2.group_overround`), czyli tyle, ile pokazałby szczebel 1X przeciw 2.
+SHADOW zapisuje je w migawce (rekord z `derived_rule`), SHADOW_SETTLE
+rozlicza, SPORT_CONFIDENCE wycenia z symulacji modelu wyniku i - bez krzywej
+z historii - czyta tylko własne rozliczone linie Superbetu klucza: do czasu
+>= 50 linii w kubełku `NO_LINE_EVIDENCE`, więc na starcie nic się nie
+drukuje (test na zainstalowanych plikach). Wyłączony: migawki, SHADOW_SETTLE
+i SPORT_CONFIDENCE bajt w bajt jak przedtem. Pomiar poza próbą na historii
+(`scripts/sofa/measure_sport_derived.py`):
+`docs/sofa/evidence/sport_derived_2026-10-14.md`.
+
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 
 `scripts/sofa/build_coupon.py --date <d>` (albo `run_pipeline.py --only
