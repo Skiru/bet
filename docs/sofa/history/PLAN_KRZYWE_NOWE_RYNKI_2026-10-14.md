@@ -85,3 +85,22 @@ linii). Nie obejmuje refitu istniejących krzywych piłki / tenisa / sportów.
 | tenis „po N gemach / punktach” | `/point-by-point` 60 dni (19 624 meczów) | pomiar: nie drukuje; reszta roku na końcu kolejki (niski priorytet) |
 
 Log kolejki: `runs/sofa/backfill/history_for_curves_2026-10-14.log`.
+
+## Postęp (2026-10-14 15:25Z)
+
+Kroki 1-4 (dopasowanie + bramka na odłożonym oknie 09-01..10-13) robione już
+dziś po południu, równolegle, do `data/refit_new_markets_2026-10-15/<grupa>/`
+(`shot_detail`, `double_chance`, `football_incidents`, `tennis_sets`,
+`sport_derived`; każda z `curves.json` i `gate_report.md`), zbiorczo w
+`docs/sofa/evidence/new_market_curves_2026-10-15.md`. Instalacja: skrypt
+`scripts/sofa/install_new_market_curves.py --dir data/refit_new_markets_2026-10-15
+--confirm` (kopia `config/backup_2026-10-15_new_markets/`, testy, przywrócenie
+przy błędzie) - **uruchomić po 00:00Z 10-15, przed budową dnia**; dziś nie, bo
+CONFIDENCE czyta krzywe przy każdej przebudowie i zmieniłby dzisiejszy kupon.
+Nowa sesja: sprawdzić raporty bramek, uruchomić instalator, zrobić krok 6 (E2E)
+i 7 (raport, CLAUDE.md).
+
+Nazwy rynków koszykówki / siatkówki sprawdzone 15:20Z na surowych ofertach
+Superbetu (6+6 meczów): czytane podwójna szansa (mecz, 2. połowa), „wygra
+seta”, „wygra dokładnie N set(y)”, „dokładna liczba setów”; migawki SHADOW
+mają już `derived_rule`.
