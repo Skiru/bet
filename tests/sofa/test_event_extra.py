@@ -117,3 +117,38 @@ def test_fallback_never_admits_an_event_indexed_under_another_sport(
     conn.commit()
     conn.close()
     assert bx.candidate_events(db, {7}, 100, 200, "football", True) == []
+
+
+def test_incidents_of_the_measured_sports_target_finished_index_games(
+    tmp_path: Path,
+) -> None:
+    """Incidents (2026-10-14): a measured sport's games the index holds as
+    finished, by the index's slug; football never (its incidents are in
+    sofa_event_stats already); an unfinished index copy is not a target."""
+    import json
+    import sqlite3
+
+    db = str(tmp_path / "sofa.db")
+    migrate(db)
+    conn = sqlite3.connect(db)
+    fin = json.dumps({"status": {"type": "finished"}})
+    pre = json.dumps({"status": {"type": "notstarted"}})
+    conn.executemany("INSERT INTO sofa_listed_event VALUES (?, ?, 150, 'x', ?)", [
+        (1, "ice-hockey", fin), (2, "ice-hockey", pre), (3, "basketball", fin),
+        (4, "volleyball", fin), (5, "football", fin)])
+    conn.commit()
+    conn.close()
+    assert bx.index_slug("hockey") == "ice-hockey"
+    assert bx.index_slug("football") == "football"
+    assert bx.eligible(db, "incidents", "ice-hockey") == {1}
+    assert bx.eligible(db, "incidents", "basketball") == {3}
+    assert bx.eligible(db, "incidents", "football") == set()
+    assert bx.eligible(db, "incidents", None) == set()
+    for sport in ("hockey", "basketball", "volleyball"):
+        assert bx.SUPPORTED[("incidents", sport)] == "event_incidents"
+    assert ("incidents", "football") not in bx.SUPPORTED
+    got = bx.candidate_events(db, bx.eligible(db, "incidents", "ice-hockey"),
+                              100, 200, "ice-hockey", False)
+    assert [e["id"] for e in got] == [1]
+    assert bx.has_content("incidents", {"incidents": [{"incidentType": "goal"}]})
+    assert not bx.has_content("incidents", {"incidents": []})

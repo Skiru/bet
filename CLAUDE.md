@@ -943,6 +943,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_listings.py --sport {foo
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --sport {football|tennis} --days 365 [--board-days 7] --max-minutes 7
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_football_lineups.py --days 365 --max-minutes 7
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_extra.py --kind {shotmap|point_by_point|incidents} --sport {football|tennis|hockey|basketball|volleyball} --days 120 --max-minutes 7   # sofa_event_extra; incidents: the measured sports' finished games (football's are in sofa_event_stats)
 ```
 
 **Measurement** (read-only evidence for a decision, never a gate)
@@ -975,6 +976,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settled_by_market.py --fr
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_team_identity.py [--from <d>] [--to <d>] [--sport all|football|...] [--md-out f] [--json-out f]   # identity plan K0: UNEXPLAINED events / players per kickoff day, sport and entity (IDENTIFIED / EXCLUDED / EXPLAINED / UNEXPLAINED); names judged on today's DB; T-IDENTITY-unexplained
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_day_anchor.py [--from <d>] [--to <d>] [--md-out f] [--json-out f]   # identity plan K2: DAY_ANCHOR precision with the opponent hidden, picks on NOT_IDENTIFIED vs the settle, start gaps
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tournament_day.py --from <d> --to <d> [--precision-days 60] [--offline]   # identity plan K3: ASKS THE BRIDGE once per (tournament, day) not cached; tournament-day match precision with ids hidden and recovery; stops at a refusal
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_incidents.py --sport {hockey|basketball} [--json-out f] [--md-out f]   # "1. gol" / race to X from the score model, walk-forward on cached incidents
 ```
 
 **Gates before a commit**

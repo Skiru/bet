@@ -9,6 +9,12 @@ sofa_event_extra (bet.sofa.cache.EXTRA_KINDS).
     --kind point_by_point --sport tennis   every point of every game: the
         "after N games" / "after N points" markets. Targets: tennis events
         with a cached /statistics row - the events the tennis model reads.
+    --kind incidents --sport hockey|basketball|volleyball   every goal /
+        scoring play / point with the running score: the order markets
+        ("1. gol", "Wyścig do X punktów"). Targets: the sport's games the
+        listed-event index holds as finished - the score model's history
+        (bet.sofa.sport_history keeps it current). Football is never asked
+        here: its incidents are in sofa_event_stats.incidents_json already.
 
 Measured before writing (2026-10-14, docs/sofa/history/RAPORT_LUKI_RYNKOW_
 2026-10-14.md): 352 football shotmaps of 10-14's player samples, team
@@ -47,6 +53,7 @@ from bet.sofa.client import SofascoreClient, breaker_tripped
 from bet.sofa.config import SofaConfig
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
+from bet.sofa.sport_history import SLUGS as SPORT_SLUGS
 from scripts.sofa.backfill_event_stats import MAX_BARREN_MISSES
 from scripts.sofa.backfill_listings import read_only_connection
 
@@ -56,7 +63,15 @@ LINEUP_STATS_LIKE = '%"statistics": {"%'
 SUPPORTED: dict[tuple[str, str], str] = {
     ("shotmap", "football"): "event_shotmap",
     ("point_by_point", "tennis"): "event_point_by_point",
+    ("incidents", "hockey"): "event_incidents",
+    ("incidents", "basketball"): "event_incidents",
+    ("incidents", "volleyball"): "event_incidents",
 }
+
+
+def index_slug(sport: str) -> str:
+    """The listed-event index's sport slug of a --sport name."""
+    return SPORT_SLUGS.get(sport, sport)
 
 
 def asked(db_path: str, kind: str) -> set[int]:
@@ -69,11 +84,20 @@ def asked(db_path: str, kind: str) -> set[int]:
         conn.close()
 
 
-def eligible(db_path: str, kind: str) -> set[int]:
+def eligible(db_path: str, kind: str, slug: str | None = None) -> set[int]:
     """The events worth asking: football with per-player lineups for a
-    shotmap, tennis with a /statistics row for point-by-point."""
+    shotmap, tennis with a /statistics row for point-by-point, a measured
+    sport's games the index holds as finished for incidents (`slug` the
+    index's sport slug)."""
     conn = read_only_connection(db_path)
     try:
+        if kind == "incidents":
+            if slug is None or slug == "football":
+                return set()
+            return {int(r[0]) for r in conn.execute(
+                "SELECT event_id FROM sofa_listed_event WHERE sport = ? "
+                "AND json_extract(event_json, '$.status.type') = 'finished'",
+                (slug,))}
         if kind == "shotmap":
             # A non-empty per-player statistics dict, as cache.save_event_lineups
             # writes it (json.dumps): the SQL form of has_player_statistics,
@@ -231,10 +255,11 @@ def main() -> int:
     # The listing index's sport slug; only a shotmap's wanted set (football
     # lineups) is one sport already, so only it may fall back to the
     # sport-less start index.
+    slug = index_slug(args.sport)
     events = candidate_events(
-        config.db_path, eligible(config.db_path, args.kind),
+        config.db_path, eligible(config.db_path, args.kind, slug),
         now - args.days * 86400, now - int(PROVISIONAL_FETCH_HOURS * 3600),
-        args.sport, index_fallback=args.kind == "shotmap")
+        slug, index_fallback=args.kind == "shotmap")
     targets = select_targets(events, asked(config.db_path, args.kind))
     if args.limit is not None:
         targets = targets[: args.limit]
