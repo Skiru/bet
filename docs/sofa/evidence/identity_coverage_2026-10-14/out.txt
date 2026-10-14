@@ -1,0 +1,101 @@
+files 11 2026-10-05 .. 2026-10-15 | missing days: []
+
+===== hockey: kickoff days 2026-10-05..2026-10-14 (10), events 676, excluded(dup/1x1) 0 Counter()
+ main events 676 {'NOT_IDENTIFIED': 63, 'IDENTIFIED': 613}
+ not-identified reasons {'NO_GAME_WITHIN_1H': 31, 'BRIDGE_ABORTED': 25, 'TEAM_UNRESOLVED': 5, 'NO_MATCH_IN_LISTING': 2}
+ distinct names exact 614, normalised 614; unresolved now: exact 107, keys 107
+ learnable: keys 81, exact names 81; conflicts (key->2+ ids) 0
+ resolver id != identified side id: 0 sides (0 names)
+ unresolved names present in >=1 NOT_IDENTIFIED event: 32 (learnable among them 6)
+ (a) events by reason {'NO_GAME_WITHIN_1H': 3, 'BRIDGE_ABORTED': 3}; causal (learned on an earlier kickoff day) 4, last7 4
+ never-identified: exact 26, keys 26; acronym-like 0; acronym hypothesis confirmed (hit, no miss) 0
+ impact over NOT_IDENTIFIED 63 {'both_resolve_now_already': 36, 'has_unresolved_unlearnable_side_only': 21, 'a_learnable_side': 6, 'b_learn_or_acronym_side': 6, 'bridge_aborted': 25}
+  per day (all 10 kickoff days): notid 6.3, (a) 0.6, (b) 0.6
+  last 7 days 2026-10-08..2026-10-14: notid 6.7, (a) 0.9, (b) 0.9
+  by day notid/(a)/(b): {'2026-10-05': (5, 0, 0), '2026-10-06': (9, 0, 0), '2026-10-07': (2, 0, 0), '2026-10-08': (4, 1, 1), '2026-10-09': (24, 3, 3), '2026-10-10': (11, 1, 1), '2026-10-11': (5, 0, 0), '2026-10-12': (1, 1, 1), '2026-10-13': (2, 0, 0), '2026-10-14': (0, 0, 0)}
+
+===== basketball: kickoff days 2026-10-05..2026-10-14 (10), events 1029, excluded(dup/1x1) 8 Counter({'DUPLICATE_SUPERBET_TEAM': 8})
+ main events 1021 {'NOT_IDENTIFIED': 156, 'IDENTIFIED': 865}
+ not-identified reasons {'NO_GAME_WITHIN_1H': 89, 'BRIDGE_ABORTED': 36, 'TEAM_UNRESOLVED': 20, 'NO_MATCH_IN_LISTING': 11}
+ distinct names exact 1255, normalised 1255; unresolved now: exact 410, keys 410
+ learnable: keys 326, exact names 326; conflicts (key->2+ ids) 0
+ resolver id != identified side id: 0 sides (0 names)
+ unresolved names present in >=1 NOT_IDENTIFIED event: 136 (learnable among them 52)
+ (a) events by reason {'NO_GAME_WITHIN_1H': 31, 'NO_MATCH_IN_LISTING': 5, 'TEAM_UNRESOLVED': 7, 'BRIDGE_ABORTED': 8}; causal (learned on an earlier kickoff day) 17, last7 17
+ never-identified: exact 84, keys 84; acronym-like 2; acronym hypothesis confirmed (hit, no miss) 1
+   ACR ASA {'acr': 'ASA', 'hits': 1, 'misses': 0, 'nocand': 0, 'other_unresolved': 0, 'ex': [('Alliance Sport Alsace', 393004)]}
+   ACR VSA {'acr': 'VSA', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+ impact over NOT_IDENTIFIED 156 {'a_learnable_side': 51, 'b_learn_or_acronym_side': 52, 'both_resolve_now_already': 42, 'has_unresolved_unlearnable_side_only': 63, 'a_learnable_side_and_TEAM_UNRESOLVED': 7, 'bridge_aborted': 36}
+  per day (all 10 kickoff days): notid 15.6, (a) 5.1, (b) 5.2
+  last 7 days 2026-10-08..2026-10-14: notid 16.4, (a) 4.3, (b) 4.4
+  by day notid/(a)/(b): {'2026-10-05': (10, 6, 6), '2026-10-06': (16, 6, 6), '2026-10-07': (15, 9, 9), '2026-10-08': (3, 2, 2), '2026-10-09': (35, 8, 8), '2026-10-10': (40, 9, 10), '2026-10-11': (20, 8, 8), '2026-10-12': (6, 1, 1), '2026-10-13': (3, 0, 0), '2026-10-14': (8, 2, 2)}
+
+===== volleyball: kickoff days 2026-10-05..2026-10-14 (10), events 555, excluded(dup/1x1) 10 Counter({'DUPLICATE_SUPERBET_TEAM': 10})
+ main events 545 {'NOT_IDENTIFIED': 326, 'IDENTIFIED': 219}
+ not-identified reasons {'TEAM_UNRESOLVED': 127, 'NO_GAME_WITHIN_1H': 121, 'BRIDGE_ABORTED': 74, 'NO_MATCH_IN_LISTING': 4}
+ distinct names exact 839, normalised 838; unresolved now: exact 483, keys 482
+ learnable: keys 115, exact names 116; conflicts (key->2+ ids) 0
+ resolver id != identified side id: 0 sides (0 names)
+ unresolved names present in >=1 NOT_IDENTIFIED event: 391 (learnable among them 24)
+ (a) events by reason {'TEAM_UNRESOLVED': 9, 'NO_GAME_WITHIN_1H': 12, 'BRIDGE_ABORTED': 8}; causal (learned on an earlier kickoff day) 16, last7 16
+ never-identified: exact 367, keys 367; acronym-like 10; acronym hypothesis confirmed (hit, no miss) 1
+   ACR THY (K) {'acr': 'THY', 'hits': 1, 'misses': 0, 'nocand': 1, 'other_unresolved': 0, 'ex': [('Türk Hava Yolları', 243989)]}
+   ACR GEBA {'acr': 'GEBA', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR UNLAM (K) {'acr': 'UNLAM', 'hits': 0, 'misses': 0, 'nocand': 1, 'other_unresolved': 0, 'ex': []}
+   ACR GEVP {'acr': 'GEVP', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR RTU {'acr': 'RTU', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR CBR (K) {'acr': 'CBR', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR APAIB {'acr': 'APAIB', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR GEBA (K) {'acr': 'GEBA', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR GEVP (K) {'acr': 'GEVP', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+   ACR UNLAM {'acr': 'UNLAM', 'hits': 0, 'misses': 0, 'nocand': 0, 'other_unresolved': 1, 'ex': []}
+ impact over NOT_IDENTIFIED 326 {'both_resolve_now_already': 49, 'has_unresolved_unlearnable_side_only': 248, 'a_learnable_side': 29, 'a_learnable_side_and_TEAM_UNRESOLVED': 9, 'b_learn_or_acronym_side': 30, 'bridge_aborted': 74}
+  per day (all 10 kickoff days): notid 32.6, (a) 2.9, (b) 3.0
+  last 7 days 2026-10-08..2026-10-14: notid 37.4, (a) 3.6, (b) 3.7
+  by day notid/(a)/(b): {'2026-10-05': (5, 0, 0), '2026-10-06': (31, 2, 2), '2026-10-07': (28, 2, 2), '2026-10-08': (40, 2, 2), '2026-10-09': (70, 7, 7), '2026-10-10': (53, 5, 5), '2026-10-11': (49, 5, 5), '2026-10-12': (6, 2, 2), '2026-10-13': (20, 4, 4), '2026-10-14': (24, 0, 1)}
+
+===== cs2: kickoff days 2026-10-05..2026-10-15 (11), events 498, excluded(dup/1x1) 162 Counter({'DUPLICATE_SUPERBET_TEAM': 143, 'NOT_IDENTIFIED': 19})
+ main events 336 {'NOT_IDENTIFIED': 80, 'IDENTIFIED': 256}
+ not-identified reasons {'NO_MATCH_IN_LISTING': 40, 'BRIDGE_ABORTED': 32, 'TEAM_UNRESOLVED': 7, 'START_GAP_OVER_1H': 1}
+ distinct names exact 241, normalised 241; unresolved now: exact 26, keys 26
+ learnable: keys 13, exact names 13; conflicts (key->2+ ids) 0
+ resolver id != identified side id: 0 sides (0 names)
+ unresolved names present in >=1 NOT_IDENTIFIED event: 17 (learnable among them 4)
+ (a) events by reason {'NO_MATCH_IN_LISTING': 3, 'TEAM_UNRESOLVED': 3, 'BRIDGE_ABORTED': 3}; causal (learned on an earlier kickoff day) 0, last7 0
+ never-identified: exact 13, keys 13; acronym-like 0; acronym hypothesis confirmed (hit, no miss) 0
+ impact over NOT_IDENTIFIED 80 {'both_resolve_now_already': 46, 'bridge_aborted': 32, 'has_unresolved_unlearnable_side_only': 25, 'a_learnable_side': 9, 'b_learn_or_acronym_side': 9, 'a_learnable_side_and_TEAM_UNRESOLVED': 3}
+  per day (all 11 kickoff days): notid 7.3, (a) 0.8, (b) 0.8
+  last 7 days 2026-10-09..2026-10-15: notid 7.1, (a) 0.9, (b) 0.9
+  by day notid/(a)/(b): {'2026-10-05': (4, 0, 0), '2026-10-06': (14, 0, 0), '2026-10-07': (5, 1, 1), '2026-10-08': (7, 2, 2), '2026-10-09': (7, 2, 2), '2026-10-10': (10, 1, 1), '2026-10-11': (8, 1, 1), '2026-10-12': (11, 2, 2), '2026-10-13': (7, 0, 0), '2026-10-14': (7, 0, 0), '2026-10-15': (0, 0, 0)}
+
+===== TOP 30 never-identified names (all sports, by event count)
+   (5, 'volleyball', 'Jordania', 'Arab Championship', None)
+   (5, 'cs2', 'LP team', 'ESL Challenger League - SA', None)
+   (4, 'volleyball', 'Azul Mania EC RR (K)', 'Brazylia - Superliga C (K)', None)
+   (4, 'volleyball', 'Kuwejt', 'Arab Championship', None)
+   (3, 'hockey', 'Ritten', 'Liga Alpejska', None)
+   (3, 'hockey', 'MAC Budapeszt', 'Erste Liga', None)
+   (3, 'hockey', 'Skelleftea AIK (K)', 'Szwecja - SDHL (K)', None)
+   (3, 'basketball', 'Chalchuapa United', 'Salwador - LMB Clausura', None)
+   (3, 'basketball', 'Liepajas Lauvas', 'Liga Estonia - Łotwa', None)
+   (3, 'basketball', 'Spartak Subotica', 'Liga Mistrzów - gr.F', None)
+   (3, 'volleyball', 'UE Warriors (K)', 'Filipiny - Shakeys Super League (K)', None)
+   (3, 'volleyball', 'Sodertelge', 'Szwecja - Puchar Ligi', None)
+   (3, 'volleyball', 'CBPS Azul', 'Urugwaj - Primera', None)
+   (3, 'volleyball', 'Enfoque (K)', 'Urugwaj - Divisional A (K)', None)
+   (3, 'volleyball', 'Halmstad (K)', 'Szwecja - Puchar Ligi (K)', None)
+   (3, 'cs2', 'Team VladRagovsky', 'BB Streamers Battle', None)
+   (3, 'cs2', 'Ct0m Team', 'BB Streamers Battle', None)
+   (3, 'cs2', 'Apogee', 'Stake Pulse Beat', None)
+   (3, 'cs2', 'Serega Pirat', 'BB Streamers Battle', None)
+   (3, 'cs2', 'TheONE 1337', 'MESA Pro Series', None)
+   (3, 'cs2', 'Team SCADE', 'BB Streamers Battle', None)
+   (2, 'hockey', 'Djurgardens (K)', 'Szwecja - SDHL (K)', None)
+   (2, 'hockey', 'MHC Sunqar U20', 'Kazachstan - Jastar Ligasy', None)
+   (2, 'hockey', 'HC Torpedo U20', 'Kazachstan - Jastar Ligasy', None)
+   (2, 'hockey', 'Klagenfurt II', 'Liga Alpejska', None)
+   (2, 'basketball', 'Taurages Krepsinio', 'Litwa - King Mindaugas Cup', None)
+   (2, 'basketball', 'Ltc S Giorgio Su Legnano', 'Włochy - Serie B - gr.A', None)
+   (2, 'basketball', 'Avenir Chartres (K)', 'Francja - LFB (K)', None)
+   (2, 'basketball', 'Absheron BC', 'Europe Cup - gr.G', None)
+   (2, 'basketball', 'Bnei Herzelia', 'Liga Mistrzów - gr.H', None)
